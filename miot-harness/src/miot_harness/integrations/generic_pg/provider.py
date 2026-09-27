@@ -54,7 +54,6 @@ _GENERIC_DEFAULT_PROFILE = DataSourceProfile(
     source_label="generic (pg)",
     tool_prefix="generic_",
     primer="",
-    router_keywords=frozenset(),
     tenant_lock=None,
     tenant_refusal_template=(
         "{display_name} is {lock}-only. I can't answer for other tenants."
@@ -62,9 +61,6 @@ _GENERIC_DEFAULT_PROFILE = DataSourceProfile(
     freshness_warn_minutes=0,
     freshness_refuse_minutes=0,
     has_freshness_model=False,
-    # generic_pg only ever exposes composable SQL primitives — no curated
-    # catalog — so its data questions are always agentic, never canned.
-    has_curated_catalog=False,
 )
 
 
@@ -174,17 +170,13 @@ class GenericPgProvider(DataSourceProvider):
             source_label=source_label,
             tool_prefix=tool_prefix,
             primer=connection.primer,
-            router_keywords=frozenset(),
-            tenant_lock=tenant_lock,
+                    tenant_lock=tenant_lock,
             tenant_refusal_template=(
                 "{display_name} is {lock}-only. I can't answer for other tenants."
             ),
             freshness_warn_minutes=0,
             freshness_refuse_minutes=0,
             has_freshness_model=False,
-            # Primitives-only connection: no curated catalog, so its data
-            # questions route agentic (never to the canned filter_expert seat).
-            has_curated_catalog=False,
         )
 
         application_name = (

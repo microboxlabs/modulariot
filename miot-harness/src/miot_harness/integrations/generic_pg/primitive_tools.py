@@ -3,8 +3,8 @@
 Mirrors `integrations/nexo/primitive_tools.py` but backend-agnostic: the tools
 are named by the connection's prefix (e.g. ``acs_select``) and run through the
 shared `datasource/safe_query.py` primitives with a `TableAccessPolicy` and the
-read-only execution envelope. Registered with ``kind="primitive"`` so the canned
-filter_expert never surfaces them — they are the agentic executor surface.
+read-only execution envelope. Registered with ``kind="primitive"``, so the
+model is given them.
 """
 
 from __future__ import annotations

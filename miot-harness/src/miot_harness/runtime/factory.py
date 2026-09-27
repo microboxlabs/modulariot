@@ -5,47 +5,30 @@ from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.conversation import InMemoryConversationStore
 from miot_harness.runtime.conversation_policy import InMemoryConversationPolicyStore
 from miot_harness.runtime.event_bus import RunEventBus
-from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
-from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import build_default_registry
 
 
 def build_harness(workspace_dir: Path) -> HarnessSupervisor:
-    """Build the base supervisor with the always-on dependencies.
+    """The supervisor with its always-on parts.
 
-    Phase-E modules that require a LIVE datasource boot — `LLMIntentRouter`,
-    `agentic_graph`, `meta_model`, `meta_catalog`, and `tenant_lock` —
-    are wired by the FastAPI lifespan (`api/server.py`) once the datasource
-    integration is up; they remain `None` here so unit tests and
-    datasource-disabled deploys keep working.
-
-    `conversation_store` is always-on because it's pure memory.
-    `conversation_token_budget` reads from settings so operators can tune
-    multi-turn memory depth via `MIOT_HARNESS_CONVERSATION_TOKEN_BUDGET`.
+    The agent loop, profile and tenant lock need the datasource and model
+    boot, so the FastAPI lifespan (`api/server.py`) sets them.
     """
 
     settings = get_settings()
     return HarnessSupervisor(
-        router=IntentRouter(),
         tools=build_default_registry(),
-        stories=StorytellingModule(),
         run_store=JsonRunStore(workspace_dir),
         conversation_store=InMemoryConversationStore(
             summarize_at_turns=settings.conversation_summarize_at_turns,
-            keep_recent_turns=settings.intent_router_context_turns,
+            keep_recent_turns=settings.conversation_keep_recent_turns,
         ),
-        conversation_token_budget=settings.conversation_token_budget,
         conversation_tool_token_budget=settings.conversation_tool_token_budget,
-        router_context_turns=settings.intent_router_context_turns,
-        # Always-on event bus: zero cost when no subscribers (publish
-        # iterates an empty list). The SSE endpoint reads this bus to
-        # stream live events while a run is in-flight.
+        # Costs nothing without subscribers; the SSE endpoint reads it.
         event_bus=RunEventBus(),
-        # Always-on approval registry: process-local map of pending
-        # human-in-the-loop approvals. The /runs/{id}/approvals/{aid}
-        # endpoint resolves entries here to unblock awaiting tools.
+        # Pending approvals, resolved by /runs/{id}/approvals/{aid}.
         approval_registry=ApprovalRegistry(),
         conversation_policy_store=InMemoryConversationPolicyStore(),
     )

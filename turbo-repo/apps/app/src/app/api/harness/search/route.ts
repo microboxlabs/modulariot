@@ -9,10 +9,8 @@ import { logger } from "@/lib/logger";
 import { toSearchResult } from "./search-blocks";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
 
-/** ms before we abort a run that hasn't completed — entity lookups on the
- * agentic path (planner → datasource tools → verify gate) need headroom.
- * Multi-turn agentic runs (planner + ~5 primitive calls + verify + synth)
- * measure ~35-45s against the acs connection, so 30s aborted real answers. */
+/** ms before we abort a run that hasn't completed. A run that makes several
+ * datasource calls can take 30-45s, so 30s aborted real answers. */
 const HARNESS_SEARCH_TIMEOUT_MS = 90_000;
 
 export async function POST(request: Request) {
@@ -61,7 +59,6 @@ export async function POST(request: Request) {
         message: query,
         skill_id: "miot-search",
         answer_format: "json",
-        mode: "auto",
         // tenant_id is ignored by the proxy — it injects X-Miot-Tenant-Client-Id from org membership
         ...(authResult.session.user?.email && { user_id: authResult.session.user.email }),
       },

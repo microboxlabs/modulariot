@@ -40,13 +40,11 @@ from langchain_core.messages import (
 )
 
 from miot_harness.agents.chat_models import response_text
-from miot_harness.agents.data_fetcher import invoke_step
-from miot_harness.agents.freshness_judge import freshness_judge_node
 from miot_harness.agents.native_tools import build_native_tools
 from miot_harness.config import HarnessSettings
 from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.datasource.provider import DataSourceProfile
-from miot_harness.observability.provenance import ProvenanceLog
+from miot_harness.observability.provenance import ProvenanceEntry, ProvenanceLog
 from miot_harness.runtime.agent_prompt import (
     build_agent_system_prompt,
     cached_system_message,
@@ -59,14 +57,13 @@ from miot_harness.runtime.agent_seats import (
     seat_tool_schemas,
     seats_prompt_block,
 )
-from miot_harness.runtime.agentic_graph import _provenance_entry
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.data_graph import instrument_model
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import DataEvidence, DataStep
-from miot_harness.runtime.router import HarnessRoute
-from miot_harness.runtime.tenancy import tenancy_gate_decision
+from miot_harness.runtime.evidence import DataEvidence, DataStep
+from miot_harness.runtime.freshness import judge_freshness
+from miot_harness.runtime.instrumentation import instrument_model
 from miot_harness.runtime.tool import Progress
+from miot_harness.runtime.tool_step import invoke_step
 from miot_harness.tools.registry import ToolRegistry
 from miot_harness.utils.truncation import excerpt_for_prompt
 
@@ -358,8 +355,37 @@ def _chunk_deltas(chunk: Any) -> list[tuple[str, str]]:
     return out
 
 
+def _provenance_entry(
+    *,
+    ctx: HarnessContext,
+    user_message: str,
+    step: DataStep,
+    evidence: DataEvidence,
+) -> ProvenanceEntry:
+    """One (question, sql) row for the provenance log.
+
+    Safe-query tools report the SQL they ran; curated tools do not, so the
+    `tool(args)` call stands in for it.
+    """
+    sql = (
+        evidence.executed_sql
+        or evidence.output.get("sql")
+        or f"{step.tool}({json.dumps(step.args, default=str)})"
+    )
+    plan_cost = evidence.output.get("total_cost")
+    return ProvenanceEntry(
+        question=user_message,
+        sql=str(sql),
+        plan_cost=float(plan_cost) if isinstance(plan_cost, (int, float)) else 0.0,
+        rows_returned=evidence.sample_size,
+        refreshed_at=evidence.refreshed_at,
+        run_id=ctx.run_id,
+        tenant_id=ctx.tenant_id,
+    )
+
+
 class AgentLoopRunner:
-    """One cached tool-calling agent for the DATA_AGENTIC route.
+    """One cached tool-calling agent: the model a run talks to.
 
     Prefix (system prompt + native tool list) is built ONCE here and never
     varies per request — that is the prompt-cache contract. Per-request
@@ -416,19 +442,6 @@ class AgentLoopRunner:
         prior_messages: list[BaseMessage],
         progress: Progress,
     ) -> dict[str, Any]:
-        decision = tenancy_gate_decision(
-            ctx=ctx,
-            route=HarnessRoute.DATA_AGENTIC,
-            settings=self.settings,
-            profile=self.profile,
-        )
-        if not decision.allowed:
-            return {
-                "answer": decision.refusal_message,
-                "evidence": [],
-                "usage_log": [],
-            }
-
         model = instrument_model(
             self.bound_model,  # type: ignore[arg-type]  # RunnableBinding also has .with_config
             "agent_loop",
@@ -437,6 +450,11 @@ class AgentLoopRunner:
             span_prefix=self.profile.name,
         )
         history, reminders = _split_prior(prior_messages)
+        if ctx.data_refusal:
+            reminders.append(
+                "The datasource tools are not available to this organization and "
+                f"will refuse: {ctx.data_refusal} Answer without them."
+            )
         messages: list[BaseMessage] = [
             self.system_message,
             *history,
@@ -447,7 +465,7 @@ class AgentLoopRunner:
         loaded_skills: set[str] = set()
         consults = 0
         answer: str | None = None
-        max_turns = self.settings.agents_agentic_max_turns
+        max_turns = self.settings.agents_agent_loop_max_turns
 
         for turn in range(max_turns + 1):
             capped = turn >= max_turns
@@ -560,6 +578,25 @@ class AgentLoopRunner:
             rationale="agent_loop",
         )
         call_id = str(call.get("id", ""))
+        if ctx.data_refusal and self._is_data_tool(step.tool):
+            progress(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="tool.failed",
+                    message=f"Tool {step.tool} failed",
+                    data={
+                        "tool": step.tool,
+                        "error": ctx.data_refusal,
+                        "error_type": "TenantRefused",
+                        "reason": ctx.data_refusal,
+                    },
+                )
+            )
+            return ToolMessage(
+                content=json.dumps({"error": ctx.data_refusal}),
+                tool_call_id=call_id,
+                status="error",
+            )
         delta = await invoke_step(
             step,
             ctx=ctx,
@@ -578,12 +615,12 @@ class AgentLoopRunner:
             )
         ev: DataEvidence = delta["evidence"][0]
         evidence.append(ev)
-        # Deterministic freshness classification (emits freshness.warning).
-        # REFUSE-zone `failure` is intentionally dropped — agentic parity:
-        # the evidence is already stamped stale and the system prompt makes
-        # the answer caveat it (see runtime/agentic_graph.freshness_judge).
-        freshness_judge_node(
-            {"ctx": ctx, "evidence": evidence},
+        # Emits freshness.warning. The refuse verdict does not stop the run:
+        # the evidence is already marked stale and the prompt has the model
+        # caveat it.
+        judge_freshness(
+            evidence,
+            ctx=ctx,
             settings=self.settings,
             progress=progress,
             profile=self.profile,
@@ -597,6 +634,13 @@ class AgentLoopRunner:
         return ToolMessage(
             content=self._render_tool_result(ev), tool_call_id=call_id
         )
+
+    def _is_data_tool(self, name: str) -> bool:
+        """A tool that reads the datasource: the profile's prefix, or a primitive."""
+        prefix = self.profile.tool_prefix
+        if prefix and name.startswith(prefix):
+            return True
+        return name in self.registry.names() and self.registry.get(name).kind == "primitive"
 
     async def _load_skill(
         self,

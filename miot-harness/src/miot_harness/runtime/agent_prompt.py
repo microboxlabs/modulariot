@@ -5,9 +5,6 @@ must be a pure function of the datasource profile: no clock, no per-request
 tenant, no uuids, no counters. Dynamic per-run context never goes here —
 it rides in the user turn (see agent_loop._compose_human).
 
-The rules merge the two seats the loop replaces: the agentic planner's
-investigation-rigor rules and the synthesizer's answer rules.
-
 Skills are progressive disclosure over the same prefix contract: only the
 one-line index (trigger text) lives here; full playbook bodies arrive
 mid-transcript as `load_skill` tool results, so pulling one never touches
@@ -100,7 +97,7 @@ def render_skills_index(
 
     Resolved against `profile.tenant_lock` (an open profile sees only
     global skills) and filtered to this profile's connection — the same
-    scoping as the legacy planner catalog, and the same the loop re-applies
+    scoping the loop re-applies
     when a `load_skill` call arrives — so the text is a pure function of
     (profile, bundle) and the cache prefix stays byte-stable. Returns ""
     when nothing is eligible; the skills block is omitted entirely then.

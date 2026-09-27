@@ -99,7 +99,6 @@ const client = createMiotHarnessClient({
 //    proxy header — pass anything in dev, ignore in prod.
 const { run_id } = await client.runs.create({
   message: "what's in stock?",
-  mode: "agentic",
   conversation_id: crypto.randomUUID(),
 });
 

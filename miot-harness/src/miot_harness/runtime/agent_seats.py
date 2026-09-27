@@ -32,9 +32,9 @@ from langchain_core.messages import (
 
 from miot_harness.agents.chat_models import response_text
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.data_graph import instrument_model
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.plan import DataEvidence
+from miot_harness.runtime.evidence import DataEvidence
+from miot_harness.runtime.instrumentation import instrument_model
 from miot_harness.runtime.tool import Progress
 
 logger = logging.getLogger(__name__)

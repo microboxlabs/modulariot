@@ -10,7 +10,7 @@ from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.context_skills.skill_models import LoadedSkill, PlaybookSkill
 from miot_harness.runtime.agent_loop import AgentLoopRunner
 from miot_harness.runtime.context import UserRequest
-from miot_harness.runtime.plan import DataEvidence
+from miot_harness.runtime.evidence import DataEvidence
 from tests.fixtures.fake_provider import FAKE_PROFILE
 from tests.test_native_tools import _registry
 
@@ -66,11 +66,11 @@ def _evidence(tool: str = "fake_kpi_summary") -> DataEvidence:
 
 
 def _ctx():
-    return UserRequest(message="q", tenant_id="acme", mode="agentic").to_context()
+    return UserRequest(message="q", tenant_id="acme").to_context()
 
 
 def _settings() -> HarnessSettings:
-    return HarnessSettings(agents_agentic_max_turns=3)
+    return HarnessSettings(agents_agent_loop_max_turns=3)
 
 
 def _runner(model: ScriptedModel) -> AgentLoopRunner:
@@ -258,14 +258,26 @@ async def test_turn_cap_forces_final_answer(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_tenancy_refusal_short_circuits():
-    ctx = UserRequest(message="q", tenant_id="intruder", mode="agentic").to_context()
-    model = ScriptedModel([])  # must never be called
+async def test_a_tenant_without_data_access_gets_answers_but_no_data(monkeypatch):
+    async def fake_invoke_step(step, **kwargs):
+        raise AssertionError("the datasource tool must not run")
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    ctx = _ctx().model_copy(update={"data_refusal": "This datasource is acme-only."})
+    model = ScriptedModel([_tool_call_msg(), AIMessage(content="I can't read that data.")])
+
     delta = await _runner(model).run(
         user_message="q", ctx=ctx, prior_messages=[], progress=lambda e: None
     )
-    assert "acme" in delta["answer"].lower() or "only" in delta["answer"].lower()
-    assert model.calls == []
+
+    assert delta["answer"] == "I can't read that data."
+    assert delta["evidence"] == []
+    first_human = model.calls[0][-1]
+    assert "acme-only" in str(first_human.content), "the model is told up front"
+    refused = model.calls[1][-1]
+    assert isinstance(refused, ToolMessage)
+    assert refused.status == "error"
+    assert "acme-only" in str(refused.content)
 
 
 @pytest.mark.asyncio
@@ -492,7 +504,7 @@ async def test_tool_result_never_exceeds_the_cap_and_stays_json(monkeypatch):
             model=model,
             registry=_registry(),
             settings=HarnessSettings(
-                agents_agentic_max_turns=3, agents_agent_loop_tool_result_max_chars=cap
+                agents_agent_loop_max_turns=3, agents_agent_loop_tool_result_max_chars=cap
             ),
             profile=FAKE_PROFILE,
             provenance_log=None,

@@ -1,0 +1,30 @@
+# Models
+
+Each run is answered by one model. The user picks it in the ASK MIOT chat, or an API caller names it in the request.
+
+## Listing the models
+
+`GET /api/v1/orgs/{org}/harness/models` returns the default model and the models a run may use:
+
+```json
+{ "default": "claude-sonnet-4-6", "models": ["claude-sonnet-4-6", "claude-opus-4-8"] }
+```
+
+## Choosing one for a run
+
+Send `model` with the run. Leave it out to use the default.
+
+```json
+{ "message": "how many services are critical today?", "model": "claude-opus-4-8" }
+```
+
+A model outside the list is refused with a 400.
+
+## Configuration
+
+| Variable | Purpose |
+|---|---|
+| `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL` | Default model. |
+| `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODELS` | Other models a run may use, as a JSON list. |
+| `MIOT_HARNESS_AGENTS_AGENT_LOOP_EFFORT` | Reasoning effort on models that support it. |
+| `MIOT_HARNESS_AGENTS_AGENT_LOOP_THINKING_BUDGET` | Thinking budget on the other models; `0` turns it off. |

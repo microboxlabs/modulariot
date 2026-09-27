@@ -24,11 +24,9 @@ from datetime import UTC, datetime
 
 import asyncpg
 
-from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.datasource.provider import FreshnessProbe
 from miot_harness.integrations.nexo.freshness import survey_freshness
 from miot_harness.integrations.nexo.introspect import (
-    FunctionDescriptor,
     introspect_nexo_functions,
 )
 from miot_harness.integrations.nexo.tool_factory import build_nexo_tool, freshest_refreshed_at
@@ -45,43 +43,9 @@ class NexoBootResult:
     registered: list[str]
     reason: str | None = None
     snapshot_age_minutes: float | None = None
-    # Per-function freshness survey + descriptor-derived meta catalog
-    # (Gap 2). Empty when the survey is disabled or boot fails early.
+    # Per-function freshness survey. Empty when the survey is disabled or
+    # boot fails early.
     freshness: dict[str, FreshnessProbe] = field(default_factory=dict)
-    catalog_entries: list[MetaAgentCatalogEntry] = field(default_factory=list)
-
-
-def _freshness_suffix(probe: FreshnessProbe | None) -> str:
-    if probe is None or probe.status == "skipped":
-        return ""
-    if probe.status in ("fresh", "stale"):
-        refreshed = probe.refreshed_at.strftime("%H:%M UTC") if probe.refreshed_at else "?"
-        age = f"hace {probe.age_minutes:.0f} min" if probe.age_minutes is not None else "?"
-        return f"Último refresh: {refreshed} ({age})."
-    if probe.status == "empty":
-        return "Snapshot vigente sin filas para los filtros por defecto."
-    if probe.status == "no_timestamp":
-        return "Snapshot con datos pero sin marca de tiempo de actualización."
-    if probe.status == "empty_no_timestamp":
-        return "Snapshot sin datos ni marca de tiempo — posiblemente sin refrescar."
-    return "No fue posible sondear el estado del snapshot."
-
-
-def _catalog_entry(
-    descriptor: FunctionDescriptor,
-    tool_name: str,
-    probe: FreshnessProbe | None,
-) -> MetaAgentCatalogEntry:
-    parsed = descriptor.description
-    layer = parsed.layer if parsed.layer in {"L1", "L2", "L3", "VT"} else ""
-    if not layer:
-        layer = parsed.meta.get("layer", "").strip() or "L*"
-    body = parsed.body.strip() or f"Curated function `{descriptor.name}`."
-    title = parsed.title.strip() or body.splitlines()[0][:80]
-    suffix = _freshness_suffix(probe)
-    if suffix:
-        body = f"{body}\n  {suffix}"
-    return MetaAgentCatalogEntry(name=tool_name, layer=layer, title=title, body=body)
 
 
 _ACL_CHECK_SQL = """
@@ -251,9 +215,8 @@ async def load_nexo_tools(
         except Exception as exc:  # noqa: BLE001
             logger.warning("Nexo: freshness survey raised %s; continuing without it", exc)
 
-    # 4. Build + register tools (+ descriptor-derived meta catalog).
+    # 4. Build + register tools.
     registered: list[str] = []
-    catalog_entries: list[MetaAgentCatalogEntry] = []
     for descriptor in descriptors:
         try:
             tool = build_nexo_tool(
@@ -264,9 +227,6 @@ async def load_nexo_tools(
             )
             registry.register(tool)
             registered.append(tool.name)
-            catalog_entries.append(
-                _catalog_entry(descriptor, tool.name, freshness.get(descriptor.name))
-            )
         except Exception as exc:  # noqa: BLE001
             logger.error(
                 "Nexo: failed to register tool for %s: %s; skipping",
@@ -280,5 +240,4 @@ async def load_nexo_tools(
         registered=registered,
         snapshot_age_minutes=age_minutes,
         freshness=freshness,
-        catalog_entries=catalog_entries,
     )

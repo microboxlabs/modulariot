@@ -36,7 +36,6 @@ function mkSession(): { ctx: ReducerContext; state: SessionState } {
     {
       tenantId: "demo-tenant",
       userId: "demo-user",
-      mode: "auto",
       baseUrl: "http://localhost:8000",
       profileName: null,
     },
@@ -71,21 +70,22 @@ describe("session reducer — initialSession", () => {
     expect(state.transcript).toEqual([]);
     expect(state.pendingApprovals).toEqual([]);
     expect(state.currentRunId).toBeNull();
-    expect(state.warnAgenticTenantMismatch).toBe(false);
+    expect(state.meta.model).toBeNull();
   });
 
-  it("flags warnAgenticTenantMismatch when starting in agentic on non-mintral", () => {
+  it("carries the initial model into meta", () => {
     const ctx = mkCtx();
     const state = initialSession(
       {
         tenantId: "other",
         userId: "u",
-        mode: "agentic",
+        model: "model-a",
         baseUrl: "http://x",
       },
       ctx,
     );
-    expect(state.warnAgenticTenantMismatch).toBe(true);
+    expect(state.meta.model).toBe("model-a");
+    expect(state).not.toHaveProperty("warnAgenticTenantMismatch");
   });
 });
 
@@ -100,8 +100,8 @@ describe("session reducer — BEGIN_TURN", () => {
   });
 });
 
-describe("session reducer — STREAM_EVENT routing/agent/plan/freshness/artifact", () => {
-  it("appends a route item when data.route is set", () => {
+describe("session reducer — STREAM_EVENT agent/plan/freshness/artifact", () => {
+  it("adds no row for the legacy route.selected event", () => {
     const { ctx, state } = mkSession();
     const next = reduce(
       state,
@@ -110,37 +110,6 @@ describe("session reducer — STREAM_EVENT routing/agent/plan/freshness/artifact
         event: evt("route.selected", { data: { route: "NEXO_QUERY" } }),
         runId: "r1",
       },
-      ctx,
-    );
-    expect(next.transcript).toHaveLength(1);
-    expect(next.transcript[0]).toMatchObject({
-      kind: "route",
-      route: "NEXO_QUERY",
-    });
-  });
-
-  it("falls back to event.message for route when data is empty", () => {
-    const { ctx, state } = mkSession();
-    const next = reduce(
-      state,
-      {
-        kind: "STREAM_EVENT",
-        event: evt("route.selected", { message: "FALLBACK_ROUTE" }),
-        runId: "r1",
-      },
-      ctx,
-    );
-    expect(next.transcript[0]).toMatchObject({
-      kind: "route",
-      route: "FALLBACK_ROUTE",
-    });
-  });
-
-  it("emits nothing when route.selected has neither data.route nor message", () => {
-    const { ctx, state } = mkSession();
-    const next = reduce(
-      state,
-      { kind: "STREAM_EVENT", event: evt("route.selected"), runId: "r1" },
       ctx,
     );
     expect(next.transcript).toEqual([]);
@@ -524,7 +493,7 @@ describe("session reducer — END_TURN", () => {
     );
     const b = reduce(
       a,
-      { kind: "END_TURN", failureMessage: "denied: mode access" },
+      { kind: "END_TURN", failureMessage: "denied: access" },
       ctx,
     );
     expect(b.transcript[0]).toMatchObject({
@@ -533,7 +502,7 @@ describe("session reducer — END_TURN", () => {
     });
     expect(b.transcript[1]).toMatchObject({
       kind: "system",
-      text: "error: denied: mode access",
+      text: "error: denied: access",
     });
   });
 
@@ -547,21 +516,20 @@ describe("session reducer — END_TURN", () => {
   });
 });
 
-describe("session reducer — SET_MODE / SET_TENANT / SET_USER", () => {
-  it("SET_MODE to agentic on a non-mintral tenant raises the warning flag", () => {
+describe("session reducer — SET_MODEL / SET_TENANT / SET_USER", () => {
+  it("SET_MODEL sets and clears the session model", () => {
     const { ctx, state } = mkSession();
-    const next = reduce(state, { kind: "SET_MODE", mode: "agentic" }, ctx);
-    expect(next.meta.mode).toBe("agentic");
-    expect(next.warnAgenticTenantMismatch).toBe(true);
+    const set = reduce(state, { kind: "SET_MODEL", model: "model-a" }, ctx);
+    expect(set.meta.model).toBe("model-a");
+    const cleared = reduce(set, { kind: "SET_MODEL", model: null }, ctx);
+    expect(cleared.meta.model).toBeNull();
   });
 
-  it("SET_TENANT to mintral clears the warning when mode is agentic", () => {
+  it("SET_TENANT updates only tenantId", () => {
     const { ctx, state } = mkSession();
-    const a = reduce(state, { kind: "SET_MODE", mode: "agentic" }, ctx);
-    expect(a.warnAgenticTenantMismatch).toBe(true);
-    const b = reduce(a, { kind: "SET_TENANT", tenant: "mintral" }, ctx);
-    expect(b.warnAgenticTenantMismatch).toBe(false);
-    expect(b.meta.tenantId).toBe("mintral");
+    const next = reduce(state, { kind: "SET_TENANT", tenant: "acme" }, ctx);
+    expect(next.meta.tenantId).toBe("acme");
+    expect(next.meta.userId).toBe(state.meta.userId);
   });
 
   it("SET_USER updates only userId", () => {

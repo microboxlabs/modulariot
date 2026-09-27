@@ -31,9 +31,8 @@ from langchain_core.messages import (
 from langchain_core.messages.utils import count_tokens_approximately
 
 _DEFAULT_SUMMARIZE_AT_TURNS = 10
-# Turns left verbatim after a compaction. The intent router reads the
-# last turns to place a follow-up; a fully cleared history would leave
-# the request right after a compaction with nothing to read.
+# Turns left verbatim after a compaction, so the turn right after one
+# still sees the latest exchanges word for word.
 _DEFAULT_KEEP_RECENT_TURNS = 2
 # Conversations held at once, least-recently-used evicted first. Matches the
 # advisor transcript cap in `agent_seats`.
@@ -240,8 +239,8 @@ def to_messages(
     silently dropped — appropriate for chat memory, since recent context
     dominates relevance.
 
-    Why token budget instead of last-N turns: our `synthesizer` produces
-    Markdown answers in the 3–5K-token range. A uniform last-N cap can mean
+    Why token budget instead of last-N turns: answers run to 3–5K tokens
+    of Markdown. A uniform last-N cap can mean
     "200 tokens" or "50K tokens" for the same N. The budget is the actual
     constraint (context-window cost), so we trim against it directly.
 

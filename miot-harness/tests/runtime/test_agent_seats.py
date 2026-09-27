@@ -29,12 +29,12 @@ from tests.test_native_tools import _registry
 
 def _ctx(conversation_id: str = "conv-1"):
     return UserRequest(
-        message="q", tenant_id="acme", mode="agentic", conversation_id=conversation_id
+        message="q", tenant_id="acme", conversation_id=conversation_id
     ).to_context()
 
 
 def _settings(max_turns: int = 3) -> HarnessSettings:
-    return HarnessSettings(agents_agentic_max_turns=max_turns)
+    return HarnessSettings(agents_agent_loop_max_turns=max_turns)
 
 
 def _runner(model: ScriptedModel, seats: LoopSeats | None) -> AgentLoopRunner:
@@ -181,9 +181,9 @@ def test_signal_is_read_from_the_start_of_the_reply_only() -> None:
 
 
 def test_advisor_transcripts_are_scoped_by_tenant_user_and_conversation() -> None:
-    a = UserRequest(message="q", tenant_id="acme", mode="agentic", conversation_id="c1")
-    b = UserRequest(message="q", tenant_id="other", mode="agentic", conversation_id="c1")
-    one_shot = UserRequest(message="q", tenant_id="acme", mode="agentic")
+    a = UserRequest(message="q", tenant_id="acme", conversation_id="c1")
+    b = UserRequest(message="q", tenant_id="other", conversation_id="c1")
+    one_shot = UserRequest(message="q", tenant_id="acme")
     keys = {AdvisorTranscripts.key_for(r.to_context()) for r in (a, b, one_shot)}
     assert len(keys) == 3
     assert AdvisorTranscripts.key_for(a.to_context()).endswith("/conv/c1")

@@ -52,33 +52,41 @@ class HarnessSettings(BaseSettings):
     datasource_freshness_refuse_minutes: int | None = Field(default=None, ge=0)
     # Boot-time per-function freshness survey (Gap 2): probes every
     # zero-required-arg datasource function once and exposes the result
-    # in /health and the meta-agent catalog. Kill switch if boot latency
+    # in /health. Kill switch if boot latency
     # against the real DB becomes a problem.
     datasource_freshness_survey_enabled: bool = True
-    agents_max_turns: int = 8
-    # Agentic-mode turn cap. Looser than the canned cap (8) because
-    # exploration is the whole point of the agentic loop; each turn is
-    # one planner LLM call + at most one tool invocation.
-    agents_agentic_max_turns: int = Field(default=12, gt=0)
-    agents_critic_enabled: bool = False
-
-    # Phase 3 verify gate. When enabled, the agentic planner's decision to
-    # finish is intercepted by a verifier node (rule-based + a small LLM judge)
-    # that asks "do the EXECUTED results fulfil the request?"; on a gap it
-    # routes back to the planner to re-plan (bounded by max_replans). This makes
-    # completion structural — the planner can no longer satisfice (answer from a
-    # grep sample, or stop before running the join it already identified). When
-    # `agents_verifier_model` is unset, the gate degrades to rule-based checks
-    # only (no extra LLM call). Tests build the graph without a verifier model,
-    # so they exercise the rules-only path.
-    agents_agentic_verify_enabled: bool = True
-    agents_agentic_max_replans: int = Field(default=2, ge=0)
-    # Single-agent tool-calling loop. The DATA_AGENTIC route runs one cached
-    # native tool-use loop instead of the planner/verifier/synthesizer/critic
-    # panel. False switches that panel back on.
-    agents_agent_loop_enabled: bool = True
-    # The conversation model of the loop: the seat that talks to the user
-    # and calls tools. The advisor seat runs a stronger model.
+    # Model calls the loop may make in one run before it must answer.
+    agents_agent_loop_max_turns: int = Field(
+        default=12,
+        gt=0,
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_AGENTS_AGENT_LOOP_MAX_TURNS",
+            "MIOT_HARNESS_AGENTS_AGENTIC_MAX_TURNS",
+            "agents_agent_loop_max_turns",
+        ),
+    )
+    # Reasoning for the conversation model: `effort` on the adaptive-thinking
+    # models (Opus 4.7+, Sonnet 4.6+), a thinking budget on the others.
+    # None turns effort off; a budget of 0 turns thinking off.
+    agents_agent_loop_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = Field(
+        default="high",
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_AGENTS_AGENT_LOOP_EFFORT",
+            "MIOT_HARNESS_AGENTS_PLANNER_EFFORT",
+            "agents_agent_loop_effort",
+        ),
+    )
+    agents_agent_loop_thinking_budget: int = Field(
+        default=4096,
+        ge=0,
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_AGENTS_AGENT_LOOP_THINKING_BUDGET",
+            "MIOT_HARNESS_AGENTS_SYNTHESIZER_THINKING_BUDGET",
+            "agents_agent_loop_thinking_budget",
+        ),
+    )
+    # The default conversation model: the one that talks to the user and
+    # calls tools when a run names none.
     agents_agent_loop_model: str = "claude-sonnet-4-6"
     # Per-tool-result cap on the JSON fed back to the model. Bounds context
     # growth (and cache-write size) when a tool returns a large row set.
@@ -101,44 +109,13 @@ class HarnessSettings(BaseSettings):
     agents_workhorse_model: str = "claude-sonnet-4-6"
     agents_workhorse_max_turns: int = Field(default=6, ge=1)
     agents_workhorse_max_parallel: int = Field(default=3, ge=1)
-    # Small "did we answer it?" judge. Held separate from the synthesizer so it
-    # can stay cheap. Empty string disables the LLM judge (rules-only verify).
-    agents_verifier_model: str = "claude-haiku-4-5"
-
-    # Provenance log for agentic tool invocations (plan 13, E4). One JSONL
-    # line per executed step under `<dir>/YYYY-MM-DD.jsonl`; the weekly
-    # curation pass mines these for curated-function candidates.
+    # Provenance log for tool calls: one JSONL line per call under
+    # `<dir>/YYYY-MM-DD.jsonl`, mined for curated-function candidates.
     provenance_log_dir: Path = Path("evals/provenance")
     provenance_log_enabled: bool = True
 
-    # Phase E (plan 13): LLM intent router. Default model is Haiku tier
-    # for cost — the router is invoked on every "auto" request. Below
-    # the confidence threshold we fall back to the keyword router so
-    # we never silently misroute when the LLM is uncertain.
-    intent_router_model: str = "claude-haiku-4-5"
-    # Bounded to [0.0, 1.0]: the LLM router emits a probability in that
-    # range, so any threshold outside it either disables the LLM router
-    # entirely (>1) or disables the keyword fallback (<0). Either way
-    # produces silent misrouting, so reject at startup.
-    intent_router_confidence_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
-
-    # Phase E5 hydration cap. When a `/runs` request carries
-    # `conversation_id`, the supervisor reads prior turns from
-    # `ConversationStore` and trims them via `trim_messages(...,
-    # token_counter="approximate", strategy="last")` to fit this token
-    # budget. Sized against Haiku-4-5's 200K window (the smallest model
-    # we configure): 24K leaves 88% of the window for system prompt +
-    # evidence + tools + current question + response. Fits ~5–7 long
-    # Markdown synthesizer answers or ~30+ short turns. Turn-based
-    # capping was rejected because our synthesizer's long Markdown
-    # outputs (3–5K tokens each) blow a uniform turn count. Must be
-    # strictly positive; 0 or negative is meaningless as a budget.
-    conversation_token_budget: int = Field(default=24_000, gt=0)
-
-    # Budget for the same history when the agent loop replays it with the
-    # tool calls and tool results of each turn. Larger because a turn then
-    # costs what its tool envelopes cost, and because dropping them is what
-    # made a later turn deny work an earlier one had done.
+    # Token budget for the conversation history replayed to the model, tool
+    # calls and results included. Older turns are trimmed first.
     conversation_tool_token_budget: int = Field(default=48_000, gt=0)
 
     # Turns a conversation may hold before its older part is folded into a
@@ -146,11 +123,16 @@ class HarnessSettings(BaseSettings):
     # above bounds what reaches the model; this bounds what accumulates.
     conversation_summarize_at_turns: int = Field(default=10, gt=0)
 
-    # Prior turns shown to the intent router alongside the message it
-    # classifies. A follow-up like "and last week?" or "y bueno" has no
-    # route of its own; the turn before it does. 0 restores bare routing.
-    # Compaction keeps this many turns verbatim so they are there to read.
-    intent_router_context_turns: int = Field(default=2, ge=0)
+    # Turns compaction keeps verbatim when it folds the rest into a summary.
+    conversation_keep_recent_turns: int = Field(
+        default=2,
+        ge=0,
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_CONVERSATION_KEEP_RECENT_TURNS",
+            "MIOT_HARNESS_INTENT_ROUTER_CONTEXT_TURNS",
+            "conversation_keep_recent_turns",
+        ),
+    )
 
     # Context & Skills subsystem (Phase 1: file-backed). Default dirs are
     # packaged in the image so it boots with zero mounted config; a K8s
@@ -257,40 +239,8 @@ class HarnessSettings(BaseSettings):
     # prod this becomes the deployed Langfuse URL.
     langfuse_host: str = "http://localhost:3000"
 
-    # Multi-agent model assignment (per plan 12 §"Cost-control rules")
-    agents_supervisor_mode: Literal["rule", "llm"] = "rule"
-    agents_filter_expert_model: str = "claude-haiku-4-5"
-    agents_analyst_model: str = "claude-sonnet-4-6"
-    agents_synthesizer_model: str = "claude-sonnet-4-6"
-    agents_critic_model: str = "claude-sonnet-4-6"
+    # Folds long conversations into a summary (compaction).
     agents_summarizer_model: str = "claude-haiku-4-5"
-
-    # Agentic plan-mode planner seat (Phase 3). Held separate from the canned
-    # analyst so the cheap canned path can stay on Sonnet while the agentic
-    # planner runs on a stronger tier. Opus 4.8 removed the Sonnet-4.6
-    # hallucination we saw side-by-side with Claude Code ("53 servicios" from a
-    # fuzzy grep, never running the real query). `effort` is the Opus 4.7+
-    # `output_config.effort` knob ("high" == the model's default/no-op;
-    # "xhigh"/"max" deepen reasoning at a latency+cost premium). None disables
-    # the effort/adaptive-thinking path entirely (plain Opus call).
-    agents_planner_model: str = "claude-opus-4-8"
-    agents_planner_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = "high"
-
-    # Synthesizer streaming (plan: SSE rich events). When enabled, the
-    # synthesizer's LLM call runs as a streaming `astream_events` loop
-    # and emits `thinking.delta` / `thinking.completed` SSE events so
-    # CLI clients see Claude's reasoning unfold in real time. Set to
-    # False (or `MIOT_HARNESS_AGENTS_SYNTHESIZER_STREAM=0` at runtime)
-    # to fall back to the legacy `.ainvoke()` path with no thinking
-    # visibility — the production kill switch.
-    agents_synthesizer_stream: bool = True
-    # Extended-thinking budget for the synthesizer. 0 disables thinking
-    # (the model still streams text). 4096 is a moderate default;
-    # increase up to ~16K for harder reasoning, but note the latency
-    # cost (8–15s extra at Sonnet 4.6 typical speed). Anthropic
-    # constraint: max_tokens must exceed budget_tokens — the chat-model
-    # factory bumps max_tokens automatically.
-    agents_synthesizer_thinking_budget: int = Field(default=4096, ge=0)
 
     # Tenants permitted to request `debug=true` runs. Debug runs surface
     # full tool inputs and truncated tool outputs over SSE, which on a

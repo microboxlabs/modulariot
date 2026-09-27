@@ -18,7 +18,6 @@ export type {
   HarnessEventType,
   HarnessRunRecord,
   ModelsInfo,
-  RunMode,
   SkillSummary,
   UserRequest,
 } from "./types.js";

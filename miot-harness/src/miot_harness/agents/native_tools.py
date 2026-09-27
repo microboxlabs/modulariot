@@ -1,10 +1,10 @@
 """Anthropic-format tool definitions for the single-agent loop.
 
 The tool list is part of the prompt-cache prefix (tools render before
-system), so it must be byte-stable across requests: same scope rules as
-the legacy planner catalog (curated `tool_prefix` functions + exploration
-primitives) plus `mcp_call` when a skill names an MCP server, sorted
-by name, schemas derived deterministically from the pydantic input models.
+system), so it must be byte-stable across requests: the datasource's
+`tool_prefix` functions, the exploration primitives, and `mcp_call` when a
+skill names an MCP server, sorted by name, schemas derived from the
+pydantic input models.
 """
 
 from __future__ import annotations

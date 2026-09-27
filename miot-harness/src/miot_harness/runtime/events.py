@@ -6,38 +6,34 @@ from pydantic import BaseModel, Field
 
 HarnessEventType = Literal[
     "run.started",
-    "route.selected",
     "tool.started",
     "tool.completed",
     "tool.failed",
     "approval.requested",
     "approval.auto",
     "steering.mode_denied",
-    "artifact.created",
-    "plan.created",
-    # Deprecated: superseded by agent.started / agent.completed. Kept in
-    # the union for back-compat with persisted run records and older
-    # SSE consumers; no new code emits this.
-    "agent.turn",
     "agent.started",
     "agent.completed",
     "thinking.delta",
     "thinking.completed",
     "usage.recorded",
     "freshness.warning",
-    "verification.completed",
-    # Ground-or-flag: the synthesizer answered using a business term with no
-    # authoritative definition (knowledge card) and is declaring its assumption.
-    # Carries the assumption record in `data`. See the semantic-layer design.
+    # The answer used a business term with no knowledge card; `data` carries
+    # the assumption the model declared.
     "grounding.gap",
-    # Agent loop seats: the advisor answered a consult; a workhorse finished
-    # a delegated brief.
+    # The advisor answered a consult; a workhorse finished a delegated brief.
     "advisor.consulted",
     "delegate.completed",
     "answer.delta",
     "answer.completed",
     "run.completed",
     "run.failed",
+    # No longer emitted. Kept so run records saved by older versions load.
+    "route.selected",
+    "artifact.created",
+    "plan.created",
+    "agent.turn",
+    "verification.completed",
 ]
 
 

@@ -188,13 +188,6 @@ function statusFor(event: HarnessEvent): string | null {
   switch (event.type) {
     case "run.started":
       return "starting…";
-    case "route.selected": {
-      const route =
-        typeof event.data.route === "string"
-          ? event.data.route
-          : event.message;
-      return route ? `route: ${route}` : null;
-    }
     case "agent.turn": {
       const agent =
         typeof event.data.agent === "string"

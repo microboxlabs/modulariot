@@ -10,18 +10,14 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.context_skills.skill_models import LoadedSkill, PlaybookSkill
 from miot_harness.runtime.context import UserRequest
-from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
-from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
 
 
 def _supervisor(tmp_path: Any, bundle: ContextSkillsBundle | None) -> HarnessSupervisor:
     sup = HarnessSupervisor(
-        router=IntentRouter(),
         tools=ToolRegistry(),
-        stories=StorytellingModule(),
         run_store=JsonRunStore(tmp_path),
         tenant_lock="orion",
     )

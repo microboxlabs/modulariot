@@ -38,8 +38,10 @@ from langchain_core.messages import (
     ToolMessage,
     message_chunk_to_message,
 )
+from langchain_core.messages.utils import count_tokens_approximately
 
 from miot_harness.agents.chat_models import response_text
+from miot_harness.agents.context_windows import context_window
 from miot_harness.agents.model_providers import Provider, ProviderRegistry, is_anthropic
 from miot_harness.agents.native_tools import build_native_tools
 from miot_harness.config import HarnessSettings
@@ -103,6 +105,8 @@ _NARRATION_HOLD_CHARS = 400
 # Room for the `excerpt` note and the JSON envelope around the output.
 _EXCERPT_ENVELOPE_CHARS = 120
 _MIN_EXCERPT_CHARS = 40
+# Same ratio `count_tokens_approximately` uses.
+_CHARS_PER_TOKEN = 4
 
 _TURN_CAP_NUDGE = (
     "Turn cap reached. Answer now from the evidence you already collected; "
@@ -425,8 +429,15 @@ class AgentLoopRunner:
         context_skills: ContextSkillsBundle | None = None,
         seats: LoopSeats | None = None,
         anthropic_format: bool = True,
+        model_name: str = "",
     ) -> None:
         self.registry = registry
+        self.model_name = model_name
+        self.context_window = context_window(
+            model_name,
+            overrides=settings.agents_context_windows,
+            default=settings.agents_context_window_default,
+        )
         # Anthropic takes content blocks with cache markers; the other
         # providers take plain text.
         self.anthropic_format = anthropic_format
@@ -458,6 +469,10 @@ class AgentLoopRunner:
         # Bind once — adding/removing/reordering tools mid-conversation
         # invalidates the whole cache (tools render at position 0).
         self.bound_model = model.bind_tools(self.native_tools)
+        self._prefix_tokens = {
+            "system": count_tokens_approximately([self.system_message]),
+            "tools": len(json.dumps(self.native_tools)) // _CHARS_PER_TOKEN,
+        }
 
     async def run(
         self,
@@ -485,6 +500,12 @@ class AgentLoopRunner:
             *history,
             _compose_human(user_message, reminders),
         ]
+        start_tokens = {
+            **self._prefix_tokens,
+            "history": count_tokens_approximately(history) if history else 0,
+            "message": count_tokens_approximately(messages[-1:]),
+        }
+        context: dict[str, Any] = {}
         evidence: list[DataEvidence] = []
         usage_log: list[dict[str, Any]] = []
         loaded_skills: set[str] = set()
@@ -510,6 +531,15 @@ class AgentLoopRunner:
             )
             usage_log.append(dict(getattr(response, "usage_metadata", None) or {}))
             messages.append(response)
+            context = self._context_usage(start_tokens, usage_log[-1], messages)
+            progress(
+                HarnessEvent(
+                    run_id=ctx.run_id,
+                    type="context.usage",
+                    message="",
+                    data={"agent": "agent_loop", "turn": turn, **context},
+                )
+            )
             tool_calls = list(getattr(response, "tool_calls", None) or [])
             progress(
                 HarnessEvent(
@@ -585,6 +615,7 @@ class AgentLoopRunner:
             "answer": answer,
             "evidence": evidence,
             "usage_log": usage_log,
+            "context": context,
             "messages": _turn_transcript(
                 messages, user_message=user_message, history_len=len(history)
             ),
@@ -662,6 +693,39 @@ class AgentLoopRunner:
         return ToolMessage(
             content=self._render_tool_result(ev), tool_call_id=call_id
         )
+
+    def _context_usage(
+        self,
+        start: dict[str, int],
+        usage: dict[str, Any],
+        messages: list[BaseMessage],
+    ) -> dict[str, Any]:
+        """How full the context window is after a model turn.
+
+        `used` is the provider's count for the last request plus the reply,
+        which is where the next request starts; approximate when the provider
+        reports none. The breakdown is approximate and always adds up to
+        `used`: `run` is what this run added (tool calls, tool results,
+        replies) on top of the rest.
+        """
+        reported = int(usage.get("input_tokens") or 0) + int(usage.get("output_tokens") or 0)
+        used = reported or count_tokens_approximately(messages) + self._prefix_tokens["tools"]
+        estimated = sum(start.values())
+        if estimated > used:
+            # The estimates overshoot the provider's count; scale them down so
+            # the parts still add up to `used`.
+            parts = {k: v * used // estimated for k, v in start.items()}
+            parts["message"] += used - sum(parts.values())
+            breakdown = {**parts, "run": 0}
+        else:
+            breakdown = {**start, "run": used - estimated}
+        return {
+            "model": self.model_name,
+            "window": self.context_window,
+            "used": used,
+            "ratio": round(used / self.context_window, 4),
+            "breakdown": breakdown,
+        }
 
     def _prepare(self, messages: list[BaseMessage]) -> list[BaseMessage]:
         """The transcript as this runner's provider takes it."""
@@ -954,6 +1018,7 @@ class AgentLoopRunners:
             runner = AgentLoopRunner(
                 model=self._build_model(name),
                 anthropic_format=is_anthropic(name),
+                model_name=name,
                 **self._kwargs,
             )
             self._runners[name] = runner

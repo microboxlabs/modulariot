@@ -57,6 +57,7 @@ export const HARNESS_EVENT_TYPES = [
   "thinking.delta",
   "thinking.completed",
   "usage.recorded",
+  "context.usage",
   "freshness.warning",
   "grounding.gap",
   "answer.delta",
@@ -184,6 +185,22 @@ export interface HarnessAssumption {
   connection?: string;
 }
 
+/** Tokens in the model's context window. `used` is the provider's count
+ * when it reports one; the breakdown is approximate. */
+export interface HarnessContextUsage {
+  model: string;
+  window: number;
+  used: number;
+  ratio: number;
+  breakdown: {
+    system: number;
+    tools: number;
+    history: number;
+    message: number;
+    run: number;
+  };
+}
+
 export interface HarnessRunRecord {
   run_id: string;
   status: string;
@@ -194,6 +211,9 @@ export interface HarnessRunRecord {
   /** The conversation's compacted summary as of the end of this run. Optional
    * for harness versions predating compaction. */
   conversation_summary?: string | null;
+  /** How full the conversation model's context window was after the run's
+   * last model turn. Optional for harness versions predating it. */
+  context?: HarnessContextUsage | null;
   /**
    * Ground-or-flag assumptions the model declared. Optional for
    * back-compat with harness versions / persisted records predating the field.

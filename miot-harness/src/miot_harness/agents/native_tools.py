@@ -29,6 +29,8 @@ def build_native_tools(
         )
         if not in_scope:
             continue
+        if tool.available is not None and not tool.available():
+            continue
         tools.append(
             {
                 "name": name,

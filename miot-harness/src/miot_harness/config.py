@@ -238,6 +238,19 @@ class HarnessSettings(BaseSettings):
     # fetched page can carry instructions that try to send tenant data out
     # in a URL, so turn it on per deployment.
     web_fetch_enabled: bool = False
+    # `web_search`: the conversation model's query goes to a model whose
+    # provider searches the web. `web_search_model` names that model
+    # (`llmgateway:qwen3.8-flash`, `claude-haiku-4-5`, `openai:gpt-5-mini`);
+    # empty picks the first configured of LLM Gateway, Anthropic and OpenAI
+    # with the per-provider default below. With none configured the tool is
+    # not offered.
+    web_search_enabled: bool = True
+    web_search_model: str = ""
+    web_search_llmgateway_model: str = "qwen3.8-flash"
+    web_search_anthropic_model: str = "claude-haiku-4-5"
+    web_search_openai_model: str = "gpt-5-mini"
+    web_search_max_per_run: int = Field(default=5, ge=1)
+    web_search_timeout_seconds: float = Field(default=30.0, gt=0)
 
     # Operations / observability
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"

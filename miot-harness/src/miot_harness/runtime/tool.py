@@ -46,6 +46,9 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
     source: str = ""
     check_permission: Callable[[HarnessContext, InputT], Awaitable[PermissionResult]]
     call: Callable[[HarnessContext, InputT, Progress], Awaitable[OutputT]]
+    # Whether the tool can run with the current configuration. A tool that
+    # returns False is not offered to the model.
+    available: Callable[[], bool] | None = None
 
     async def invoke(
         self,

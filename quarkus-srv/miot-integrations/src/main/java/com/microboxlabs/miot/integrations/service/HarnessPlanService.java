@@ -102,7 +102,7 @@ public class HarnessPlanService {
         Subscription subscription = repository.subscription(organization);
         OffsetDateTime start = periodStart();
         OffsetDateTime end = start.plusMonths(1);
-        long included = subscription == null ? 0 : (long) subscription.seats() * plan.tokensPerSeat();
+        long included = subscription == null ? 0 : subscription.seats() * plan.tokensPerSeat();
         Pool pool = new Pool(start, end, included,
                 repository.poolUsed(organization, start, end),
                 repository.useByMember(organization, start, end),
@@ -163,7 +163,7 @@ public class HarnessPlanService {
             return new Refusal(403, NO_SEAT, userEmail + " has no harness seat");
         }
         OffsetDateTime start = periodStart();
-        long included = (long) subscription.seats() * repository.plan().tokensPerSeat();
+        long included = subscription.seats() * repository.plan().tokensPerSeat();
         if (repository.poolUsed(organization, start, start.plusMonths(1)) >= included) {
             return new Refusal(402, POOL_EXHAUSTED, "the organization used its tokens for this month");
         }

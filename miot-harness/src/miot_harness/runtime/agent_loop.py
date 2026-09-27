@@ -696,7 +696,8 @@ class AgentLoopRunner:
         text = json.dumps(dump, default=str, ensure_ascii=False)
         cap = self.settings.agents_agent_loop_tool_result_max_chars
         if len(text) > cap:
-            text = f"{text[:cap]} …[cut: {len(text) - cap} more characters]"
+            note = f" …[cut: {len(text)} characters in all]"
+            text = text[: max(0, cap - len(note))] + note
         return ToolMessage(content=text, tool_call_id=call_id)
 
     def _is_data_tool(self, name: str) -> bool:

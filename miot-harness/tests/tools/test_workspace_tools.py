@@ -52,12 +52,28 @@ async def test_write_todos_keeps_the_latest_list_and_counts_it() -> None:
         lambda _e: None,
     )
     assert (out.pending, out.in_progress, out.completed) == (1, 1, 1)
-    assert [t.content for t in store.get("acme/u1/same-id")] == [
+    assert [t.content for t in store.get(_ctx("acme").scope_key())] == [
         "count trips",
         "compare to last week",
         "chart it",
     ]
-    assert store.get("globex/u1/same-id") == []
+    assert store.get(_ctx("globex").scope_key()) == []
+
+
+def test_identity_values_with_a_slash_do_not_share_a_key() -> None:
+    a = HarnessContext(thread_id="t", tenant_id="a/b", user_id="c", conversation_id="d")
+    b = HarnessContext(thread_id="t", tenant_id="a", user_id="b/c", conversation_id="d")
+    assert a.scope_key() != b.scope_key()
+
+
+def test_reading_a_task_list_counts_as_use() -> None:
+    store = TodoStore(max_conversations=2)
+    store.set("old", [])
+    store.set("new", [])
+    store.get("old")
+    store.set("third", [])
+    assert store.get("new") == []
+    assert "old" in store._lists and "new" not in store._lists
 
 
 def test_the_loop_is_offered_the_utility_tools() -> None:
@@ -102,3 +118,36 @@ async def test_a_utility_result_goes_back_to_the_model_without_evidence() -> Non
     if not payload:
         payload = tool_result.content[0]["text"]  # type: ignore[index]
     assert json.loads(payload)["in_progress"] == 1
+
+
+@pytest.mark.asyncio
+async def test_a_cut_utility_result_stays_within_the_cap() -> None:
+    todos = [{"content": "x" * 300, "status": "pending"} for _ in range(5)]
+    model = ScriptedModel(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{"name": "write_todos", "args": {"todos": todos}, "id": "w1"}],
+            ),
+            AIMessage(content="done"),
+        ]
+    )
+    runner = AgentLoopRunner(
+        model=model,
+        registry=build_default_registry(),
+        settings=HarnessSettings(
+            agents_agent_loop_max_turns=3, agents_agent_loop_tool_result_max_chars=200
+        ),
+        profile=FAKE_PROFILE,
+        provenance_log=None,
+    )
+    await runner.run(
+        user_message="plan it",
+        ctx=UserRequest(message="plan it", tenant_id="acme").to_context(),
+        prior_messages=[],
+        progress=lambda _e: None,
+    )
+    result = next(m for m in model.calls[-1] if isinstance(m, ToolMessage))
+    text = result.content if isinstance(result.content, str) else result.content[0]["text"]  # type: ignore[index]
+    assert len(text) <= 200
+    assert "characters in all]" in text

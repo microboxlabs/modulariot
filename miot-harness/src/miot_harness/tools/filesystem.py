@@ -249,15 +249,14 @@ class VirtualFileStore:
 
 def _conv_key(ctx: HarnessContext) -> str:
     """Scratchpad partition key: the conversation if set, else the thread,
-    under the tenant and user.
+    under the tenant and user (`HarnessContext.scope_key`).
 
     `thread_id` is always populated, so one-shot runs still get an isolated
     partition; multi-turn conversations share one so a later turn can read
     an earlier turn's note. The conversation id comes from the request body,
-    so it is namespaced like the history store's key: another tenant naming
-    the same id gets its own partition.
+    so another tenant naming the same id gets its own partition.
     """
-    return f"{ctx.tenant_id}/{ctx.user_id}/{ctx.conversation_id or ctx.thread_id}"
+    return ctx.scope_key()
 
 
 # --- Pydantic I/O models -------------------------------------------------

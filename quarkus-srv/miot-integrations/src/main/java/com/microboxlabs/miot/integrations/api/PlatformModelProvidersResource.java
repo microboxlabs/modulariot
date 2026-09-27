@@ -55,7 +55,7 @@ public class PlatformModelProvidersResource {
     @PUT
     @Path("/{provider}")
     @Operation(summary = "Create or replace a model provider",
-            description = "Known providers: anthropic, openai, openrouter, deepseek, qwen, kimi, glm."
+            description = "Known providers: anthropic, openai, openrouter, llmgateway, deepseek, qwen, kimi, glm."
                     + " Leave apiKey blank to keep the stored key.")
     public Uni<Response> put(@PathParam("provider") String provider, SetModelProviderRequest body) {
         return authorizer.requirePlatformOwner().flatMap(actor -> onWorker(() -> {

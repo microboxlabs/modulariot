@@ -1,7 +1,7 @@
 """Which provider serves a model, and with what key and endpoint.
 
 A model is named `provider:model` (`deepseek:deepseek-chat`,
-`openrouter:anthropic/claude-sonnet-4`). A bare `claude-*` name is an
+`openrouter:anthropic/claude-sonnet-4`, `llmgateway:qwen3.8-flash`). A bare `claude-*` name is an
 Anthropic model and a bare `gpt-*` / `o1-*` / `o3-*` name an OpenAI one.
 
 Anthropic models use the Anthropic client. Every other provider speaks the
@@ -28,6 +28,7 @@ KNOWN_PROVIDERS: dict[str, tuple[ProviderKind, str | None]] = {
     "anthropic": ("anthropic", None),
     "openai": ("openai_compatible", "https://api.openai.com/v1"),
     "openrouter": ("openai_compatible", "https://openrouter.ai/api/v1"),
+    "llmgateway": ("openai_compatible", "https://api.llmgateway.io/v1"),
     "deepseek": ("openai_compatible", "https://api.deepseek.com/v1"),
     "qwen": ("openai_compatible", "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"),
     "kimi": ("openai_compatible", "https://api.moonshot.ai/v1"),

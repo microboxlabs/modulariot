@@ -35,8 +35,9 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
     read_only: bool = True
     destructive: bool = False
     # Tool family. The model is given the datasource's prefixed tools,
-    # "primitive" exploration tools and "mcp" (`mcp_call`); "general"
-    # (default) tools stay in the registry but are not offered.
+    # "primitive" exploration tools, "mcp" (`mcp_call`) and "utility" tools
+    # (scratchpad files, task list), whose results are not data evidence;
+    # "general" (default) tools stay in the registry but are not offered.
     kind: str = "general"
     # Trace badge — propagated into tool.started.data.source so the frontend
     # can render the datasource provenance label (e.g. "ModularIoT AMS")

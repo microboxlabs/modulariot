@@ -22,7 +22,11 @@ def build_native_tools(
     for name in registry.names():  # .names() is already sorted
         tool = registry.get(name)
         # `mcp` is the one tool MCP-backed skills are called through.
-        in_scope = name.startswith(profile.tool_prefix) or tool.kind in ("primitive", "mcp")
+        in_scope = name.startswith(profile.tool_prefix) or tool.kind in (
+            "primitive",
+            "mcp",
+            "utility",
+        )
         if not in_scope:
             continue
         tools.append(

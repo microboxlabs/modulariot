@@ -552,6 +552,9 @@ class AgentLoopRunner:
                 if name == DELEGATE_TOOL and workhorse is not None:
                     delegations.append(call)
                     continue
+                if self._is_utility_tool(str(name)):
+                    messages.append(await self._run_utility(call, ctx=ctx, progress=progress))
+                    continue
                 messages.append(
                     await self._execute_tool_call(
                         call, ctx=ctx, user_message=user_message,
@@ -665,6 +668,36 @@ class AgentLoopRunner:
         if self.anthropic_format:
             return _with_tail_marker(messages)
         return _plain_messages(messages)
+
+    def _is_utility_tool(self, name: str) -> bool:
+        return name in self.registry.names() and self.registry.get(name).kind == "utility"
+
+    async def _run_utility(
+        self, call: dict[str, Any], *, ctx: HarnessContext, progress: Progress
+    ) -> ToolMessage:
+        """Run a utility tool and return its output as the tool result.
+
+        Its output is a working aid (a file, the task list), not data, so it
+        does not become evidence, is not freshness-judged and is not logged as
+        provenance. It is cut to `agents_agent_loop_tool_result_max_chars`.
+        """
+        name = str(call.get("name", ""))
+        call_id = str(call.get("id", ""))
+        try:
+            output = await self.registry.invoke(name, ctx, dict(call.get("args") or {}), progress)
+        except Exception as exc:  # noqa: BLE001 — the model sees the error and adapts
+            # HarnessTool.invoke already emitted tool.failed.
+            return ToolMessage(
+                content=json.dumps({"error": f"{name} failed: {exc}"}, default=str),
+                tool_call_id=call_id,
+                status="error",
+            )
+        dump = output.model_dump() if hasattr(output, "model_dump") else output
+        text = json.dumps(dump, default=str, ensure_ascii=False)
+        cap = self.settings.agents_agent_loop_tool_result_max_chars
+        if len(text) > cap:
+            text = f"{text[:cap]} …[cut: {len(text) - cap} more characters]"
+        return ToolMessage(content=text, tool_call_id=call_id)
 
     def _is_data_tool(self, name: str) -> bool:
         """A tool that reads the datasource: the profile's prefix, or a primitive."""

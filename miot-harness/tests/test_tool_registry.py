@@ -17,6 +17,7 @@ def test_default_registry_contains_first_slice_tools() -> None:
         "get_dashboard_context",
         "get_delivery_compliance_metrics",
         "get_workflow_bottlenecks",
+        "write_todos",
     ]
 
 
@@ -30,4 +31,5 @@ def test_default_registry_omits_fs_tools_when_disabled() -> None:
         "get_dashboard_context",
         "get_delivery_compliance_metrics",
         "get_workflow_bottlenecks",
+        "write_todos",
     ]

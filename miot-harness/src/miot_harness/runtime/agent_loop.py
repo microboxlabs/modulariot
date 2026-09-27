@@ -706,12 +706,21 @@ class AgentLoopRunner:
 
         `used` is the provider's count for the last request plus the reply,
         which is where the next request starts; approximate when the provider
-        reports none. The breakdown is approximate: `run` is what this run
-        added (tool calls, tool results, replies) on top of the rest.
+        reports none. The breakdown is approximate and always adds up to
+        `used`: `run` is what this run added (tool calls, tool results,
+        replies) on top of the rest.
         """
         reported = int(usage.get("input_tokens") or 0) + int(usage.get("output_tokens") or 0)
         used = reported or count_tokens_approximately(messages) + self._prefix_tokens["tools"]
-        breakdown = {**start, "run": max(0, used - sum(start.values()))}
+        estimated = sum(start.values())
+        if estimated > used:
+            # The estimates overshoot the provider's count; scale them down so
+            # the parts still add up to `used`.
+            parts = {k: v * used // estimated for k, v in start.items()}
+            parts["message"] += used - sum(parts.values())
+            breakdown = {**parts, "run": 0}
+        else:
+            breakdown = {**start, "run": used - estimated}
         return {
             "model": self.model_name,
             "window": self.context_window,

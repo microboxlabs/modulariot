@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -68,6 +69,16 @@ class HarnessContext(BaseModel):
     # Why this tenant may not read the datasource, or None when it may. The
     # model still answers; the datasource tools return this instead.
     data_refusal: str | None = Field(default=None, exclude=True)
+
+    def scope_key(self) -> str:
+        """Key for state kept per conversation (scratchpad, task list).
+
+        The tenant, the user and the conversation (the thread when there is
+        none), JSON-encoded so no value can shift into its neighbor: joined
+        with "/", tenant "a/b" and user "c" would share a key with tenant "a"
+        and user "b/c".
+        """
+        return json.dumps([self.tenant_id, self.user_id, self.conversation_id or self.thread_id])
 
 
 # Bounds on a replayed transcript, enforced where the body is parsed rather

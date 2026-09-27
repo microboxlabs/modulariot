@@ -11,6 +11,7 @@ from miot_harness.tools.dashboard import (
 from miot_harness.tools.delivery_metrics import get_delivery_compliance_metrics_tool
 from miot_harness.tools.filesystem import VirtualFileStore, build_filesystem_tools
 from miot_harness.tools.storytelling import create_story_draft_tool
+from miot_harness.tools.todos import TodoStore, write_todos_tool
 from miot_harness.tools.workflow_events import get_workflow_bottlenecks_tool
 
 
@@ -59,4 +60,5 @@ def build_default_registry(settings: HarnessSettings | None = None) -> ToolRegis
         )
         for tool in build_filesystem_tools(store):
             registry.register(tool)
+    registry.register(write_todos_tool(TodoStore()))
     return registry

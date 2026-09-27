@@ -48,4 +48,59 @@ export const PLATFORM_OWNER_ROLE = "PLATFORM_OWNER";
 export type LogoVariant = "light" | "dark";
 
 /** The panels Settings > Platform offers in its left-hand menu. */
-export type PlatformSection = "branding" | "superusers";
+export type PlatformSection = "branding" | "superusers" | "models" | "usage";
+
+/** The providers the harness can call. Mirrors `ModelProviderService.KNOWN`. */
+export const MODEL_PROVIDERS = [
+  "anthropic",
+  "openai",
+  "openrouter",
+  "deepseek",
+  "qwen",
+  "kimi",
+  "glm",
+] as const;
+
+export type ModelProviderName = (typeof MODEL_PROVIDERS)[number];
+
+/** Mirrors `ModelEntry`: prices are USD per million tokens. */
+export interface ModelEntry {
+  id: string;
+  inputPerMtok: number | null;
+  outputPerMtok: number | null;
+  default: boolean;
+}
+
+/** Mirrors `ModelProviderResponse`. The key itself is never returned. */
+export interface ModelProviderAdmin {
+  provider: string;
+  baseUrl: string | null;
+  keyPreview: string;
+  models: ModelEntry[];
+  enabled: boolean;
+  updatedBy: string | null;
+  updatedAt: string | null;
+}
+
+/** Mirrors `SetModelProviderRequest`. A blank `apiKey` keeps the stored one. */
+export interface SetModelProvider {
+  apiKey: string;
+  baseUrl: string | null;
+  models: ModelEntry[];
+  enabled: boolean;
+}
+
+/** Mirrors `UsageTotal`: one organization and model over the period asked for. */
+export interface ModelUsageTotal {
+  organization: string | null;
+  provider: string;
+  model: string;
+  runs: number;
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  costUsd: number | null;
+  unpricedRuns: number;
+}

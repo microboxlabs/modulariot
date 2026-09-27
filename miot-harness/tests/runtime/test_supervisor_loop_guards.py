@@ -101,3 +101,35 @@ async def test_the_stored_turn_ends_in_the_answer_the_user_saw(tmp_path) -> None
     assert history is not None
     stored = history.turns[-1]
     assert stored.messages[-1].content == stored.assistant_answer
+
+
+class _FailingLoop:
+    async def run(self, *, user_message, ctx, prior_messages, progress):
+        raise RuntimeError("provider down")
+
+
+@pytest.mark.asyncio
+async def test_every_finished_run_is_reported_for_charging(tmp_path) -> None:
+    reported: list[tuple[str, str | None]] = []
+
+    for loop in (_Loop(), _FailingLoop()):
+        sup = _supervisor(tmp_path, loop)
+        sup.usage_reporter = lambda record, ctx: reported.append(
+            (record.status, ctx.organization)
+        )
+        await sup.run(UserRequest(message="hi", tenant_id="acme"), organization="acme-org")
+
+    assert reported == [("completed", "acme-org"), ("failed", "acme-org")]
+
+
+@pytest.mark.asyncio
+async def test_a_broken_reporter_does_not_fail_the_run(tmp_path) -> None:
+    sup = _supervisor(tmp_path, _Loop())
+
+    def broken(record, ctx):
+        raise RuntimeError("no event loop")
+
+    sup.usage_reporter = broken
+    record = await sup.run(UserRequest(message="hi", tenant_id="acme"))
+
+    assert record.status == "completed"

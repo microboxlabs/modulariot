@@ -155,6 +155,9 @@ class HarnessSupervisor:
         # The primary connection's name (e.g. "acs"), stamped onto assumptions
         # so the review surface stages a candidate against the right connection.
         self.primary_connection_name: str | None = None
+        # Called with each finished run to charge its tokens; set by the
+        # lifespan when the modulith is configured.
+        self.usage_reporter: Callable[[HarnessRunRecord, HarnessContext], None] | None = None
 
     def _stamp_connection(
         self, assumptions: list[dict[str, Any]]
@@ -266,6 +269,7 @@ class HarnessSupervisor:
             )
             self._finalize_answer(record, ctx)
             self.run_store.save(record)
+            self._report_usage(record, ctx)
             self._close_bus(ctx.run_id)
             raise
         except Exception as exc:  # noqa: BLE001 — supervisor must not propagate
@@ -288,6 +292,7 @@ class HarnessSupervisor:
             )
             self._finalize_answer(record, ctx)
             self.run_store.save(record)
+            self._report_usage(record, ctx)
             self._close_bus(ctx.run_id)
             return record
 
@@ -311,8 +316,17 @@ class HarnessSupervisor:
         progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
         self._finalize_answer(record, ctx)
         self.run_store.save(record)
+        self._report_usage(record, ctx)
         self._close_bus(ctx.run_id)
         return record
+
+    def _report_usage(self, record: HarnessRunRecord, ctx: HarnessContext) -> None:
+        if self.usage_reporter is None:
+            return
+        try:
+            self.usage_reporter(record, ctx)
+        except Exception:  # noqa: BLE001 — charging must not fail the run
+            logger.exception("usage report for run %s could not be queued", record.run_id)
 
     def _finalize_answer(self, record: HarnessRunRecord, ctx: HarnessContext) -> None:
         """Render `record.answer` into the caller-requested format in place.

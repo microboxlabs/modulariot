@@ -40,6 +40,7 @@ from langchain_core.messages import (
 )
 
 from miot_harness.agents.chat_models import response_text
+from miot_harness.agents.model_providers import Provider, ProviderRegistry, is_anthropic
 from miot_harness.agents.native_tools import build_native_tools
 from miot_harness.config import HarnessSettings
 from miot_harness.context_skills.registry import ContextSkillsBundle
@@ -221,6 +222,23 @@ def _with_tail_marker(messages: list[BaseMessage]) -> list[BaseMessage]:
     if marked is None:
         return list(messages)
     return [*messages[:-1], marked]
+
+
+def _plain_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """`messages` with list content flattened to its text, for providers that
+    only take text content. Tool calls stay on the message; thinking blocks
+    and cache markers, which only Anthropic accepts, are dropped."""
+    out: list[BaseMessage] = []
+    for msg in messages:
+        if isinstance(msg.content, list):
+            text = "".join(
+                str(b.get("text", ""))
+                for b in msg.content
+                if isinstance(b, dict) and b.get("type") == "text"
+            )
+            msg = msg.model_copy(update={"content": text})
+        out.append(msg)
+    return out
 
 
 def _mark_message(msg: BaseMessage) -> BaseMessage | None:
@@ -406,8 +424,12 @@ class AgentLoopRunner:
         provenance_log: ProvenanceLog | None = None,
         context_skills: ContextSkillsBundle | None = None,
         seats: LoopSeats | None = None,
+        anthropic_format: bool = True,
     ) -> None:
         self.registry = registry
+        # Anthropic takes content blocks with cache markers; the other
+        # providers take plain text.
+        self.anthropic_format = anthropic_format
         self.settings = settings
         self.profile = profile
         self.provenance_log = provenance_log
@@ -425,10 +447,13 @@ class AgentLoopRunner:
                 [*self.native_tools, *extras],
                 key=lambda t: t["name"],
             )
-        self.system_message = cached_system_message(
-            build_agent_system_prompt(
-                profile, skills_index=skills_index, seats_block=seats_prompt_block(seats)
-            )
+        system_text = build_agent_system_prompt(
+            profile, skills_index=skills_index, seats_block=seats_prompt_block(seats)
+        )
+        self.system_message: SystemMessage = (
+            cached_system_message(system_text)
+            if anthropic_format
+            else SystemMessage(content=system_text)
         )
         # Bind once — adding/removing/reordering tools mid-conversation
         # invalidates the whole cache (tools render at position 0).
@@ -481,7 +506,7 @@ class AgentLoopRunner:
             )
             start = monotonic()
             response = await _stream_turn(
-                model, _with_tail_marker(messages), progress=progress, run_id=ctx.run_id
+                model, self._prepare(messages), progress=progress, run_id=ctx.run_id
             )
             usage_log.append(dict(getattr(response, "usage_metadata", None) or {}))
             messages.append(response)
@@ -634,6 +659,12 @@ class AgentLoopRunner:
         return ToolMessage(
             content=self._render_tool_result(ev), tool_call_id=call_id
         )
+
+    def _prepare(self, messages: list[BaseMessage]) -> list[BaseMessage]:
+        """The transcript as this runner's provider takes it."""
+        if self.anthropic_format:
+            return _with_tail_marker(messages)
+        return _plain_messages(messages)
 
     def _is_data_tool(self, name: str) -> bool:
         """A tool that reads the datasource: the profile's prefix, or a primitive."""
@@ -826,6 +857,10 @@ class AgentLoopRunners:
     Each runner binds its own model and freezes its own prompt-cache prefix.
     `run` dispatches on `ctx.model`; an unknown model is refused here as well
     as at the API, so a direct caller cannot bypass the allowlist.
+
+    With `providers`, the offered models and the default follow the provider
+    registry as it changes, and runners are rebuilt when it does (a rotated
+    key, a new base URL).
     """
 
     def __init__(
@@ -840,9 +875,12 @@ class AgentLoopRunners:
         provenance_log: ProvenanceLog | None = None,
         context_skills: ContextSkillsBundle | None = None,
         seats: LoopSeats | None = None,
+        providers: Callable[[], ProviderRegistry] | None = None,
     ) -> None:
-        self.default_model = default_model
-        self.models = tuple(dict.fromkeys([default_model, *models]))
+        self._configured_default = default_model
+        self._configured = tuple(models)
+        self._providers = providers
+        self._providers_version: tuple[Provider, ...] | None = None
         self._build_model = build_model
         self._kwargs: dict[str, Any] = {
             "registry": registry,
@@ -854,6 +892,17 @@ class AgentLoopRunners:
         }
         self._runners: dict[str, AgentLoopRunner] = {}
 
+    @property
+    def default_model(self) -> str:
+        """The platform owner's default model when set, else the configured one."""
+        chosen = self._providers().default_model() if self._providers else None
+        return chosen or self._configured_default
+
+    @property
+    def models(self) -> tuple[str, ...]:
+        offered = self._providers().offered() if self._providers else []
+        return tuple(dict.fromkeys([self.default_model, *self._configured, *offered]))
+
     def allowed(self, model: str | None) -> bool:
         return model is None or model in self.models
 
@@ -861,9 +910,18 @@ class AgentLoopRunners:
         name = self.default_model if model is None else model
         if name not in self.models:
             raise ValueError(f"model {name!r} is not in the agent loop allowlist")
+        if self._providers is not None:
+            version = self._providers().version
+            if version != self._providers_version:
+                self._runners.clear()
+                self._providers_version = version
         runner = self._runners.get(name)
         if runner is None:
-            runner = AgentLoopRunner(model=self._build_model(name), **self._kwargs)
+            runner = AgentLoopRunner(
+                model=self._build_model(name),
+                anthropic_format=is_anthropic(name),
+                **self._kwargs,
+            )
             self._runners[name] = runner
         return runner
 

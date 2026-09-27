@@ -17,8 +17,18 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from pydantic import BaseModel, Field
 from traceloop.sdk import Traceloop
 
-from miot_harness.agents.chat_models import get_chat_model, supports_effort
+from miot_harness.agents.chat_models import (
+    get_chat_model,
+    provider_registry,
+    set_provider_registry,
+    supports_effort,
+)
 from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
+from miot_harness.agents.model_providers import (
+    fetch_modulith_registry,
+    is_anthropic,
+    registry_from_settings,
+)
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
 from miot_harness.api.identity import (
     IdentityVerificationError,
@@ -53,6 +63,7 @@ from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
 from miot_harness.runtime.run_store import HarnessRunRecord
 from miot_harness.runtime.supervisor import HarnessSupervisor
+from miot_harness.runtime.usage_report import UsageReporter
 
 logger = logging.getLogger(__name__)
 
@@ -475,6 +486,17 @@ def _make_lifespan(
                 len(result.registered),
             )
 
+        # The platform owner's model providers, before the loop is built so
+        # its default model is theirs from the first run. The tokens each run
+        # used go back to the modulith to be charged.
+        refresh_task: asyncio.Task[None] | None = None
+        usage_reporter: UsageReporter | None = None
+        if settings.modulith_url and settings.provider_key:
+            await _load_model_providers(settings)
+            refresh_task = asyncio.create_task(_refresh_model_providers(settings))
+            usage_reporter = UsageReporter(settings.modulith_url, settings.provider_key)
+            harness.usage_reporter = usage_reporter.report
+
         # The agent loop answers every turn, with or without a datasource.
         try:
             harness.agent_loop = _build_agent_loop(settings, harness, effective_profile)
@@ -507,6 +529,10 @@ def _make_lifespan(
         try:
             yield
         finally:
+            if refresh_task is not None:
+                refresh_task.cancel()
+            if usage_reporter is not None:
+                await usage_reporter.drain()
             # Close every provider we booted (primary + each non-primary
             # connection), reverse order. close() is idempotent, so the primary's
             # earlier disabled-path close is a harmless no-op here.
@@ -521,6 +547,31 @@ def _make_lifespan(
                 logger.warning("OTel: shutdown_tracing raised %s", exc)
 
     return lifespan
+
+
+async def _load_model_providers(settings: HarnessSettings) -> bool:
+    """Set the providers to the environment's plus the modulith's. On failure
+    the providers in use stay as they were. Returns whether it loaded."""
+    assert settings.modulith_url and settings.provider_key
+    try:
+        from_modulith = await fetch_modulith_registry(settings.modulith_url, settings.provider_key)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Model providers: could not read them from the modulith (%s)", exc)
+        return False
+    from_env = registry_from_settings(
+        anthropic_api_key=settings.anthropic_api_key,
+        openai_api_key=settings.openai_api_key,
+        providers_json=settings.model_providers,
+    )
+    set_provider_registry(from_env.merged(from_modulith))
+    logger.info("Model providers: %d models offered", len(provider_registry().offered()))
+    return True
+
+
+async def _refresh_model_providers(settings: HarnessSettings) -> None:
+    while True:
+        await asyncio.sleep(settings.model_providers_refresh_seconds)
+        await _load_model_providers(settings)
 
 
 def _build_agent_loop(
@@ -557,6 +608,7 @@ def _build_agent_loop(
                     profile=profile,
                     provenance_log=provenance,
                     context_skills=harness.context_skills,
+                    anthropic_format=is_anthropic(settings.agents_workhorse_model),
                 ),
                 max_parallel=settings.agents_workhorse_max_parallel,
             )
@@ -567,6 +619,8 @@ def _build_agent_loop(
     return AgentLoopRunners(
         default_model=settings.agents_agent_loop_model,
         models=settings.agents_agent_loop_models,
+        # Models the configured providers offer, and the owner's default.
+        providers=provider_registry,
         # `effort` on the adaptive-thinking models, a thinking budget on the rest.
         build_model=lambda name: get_chat_model(
             name,

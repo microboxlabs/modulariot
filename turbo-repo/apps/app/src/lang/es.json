@@ -1439,7 +1439,7 @@
         "description": "Ajustes que no pertenecen a ninguna organización: valen para todos los dominios y cuentas.",
         "listTitle": "Ajustes de plataforma",
         "notOwnerTitle": "No tienes acceso a esta sección",
-        "notOwnerBody": "Solo quienes administran la plataforma pueden configurar la marca por dominio.",
+        "notOwnerBody": "Solo quienes administran la plataforma pueden ver y cambiar estos ajustes.",
         "branding": {
           "title": "Marca",
           "menuHint": "Un logo por dominio",
@@ -1528,6 +1528,83 @@
             "lastOwnerHelp": "No se puede quitar al último administrador: nadie podría volver a entrar.",
             "bootstrapBadge": "Desde la configuración",
             "bootstrapHelp": "Los administradores marcados vienen de la configuración del despliegue y solo se cambian ahí. Existen para poder recuperar el acceso si la lista queda vacía."
+          }
+        },
+        "models": {
+          "title": "Modelos de IA",
+          "menuHint": "Proveedores, claves y precios",
+          "description": "Los proveedores que usa el asistente. Todas las organizaciones pueden usar los modelos activos y se les cobra por token a estos precios.",
+          "add": "Agregar proveedor",
+          "empty": "Todavía no hay proveedores configurados. El asistente usa los que define la instalación.",
+          "loadError": "No se pudieron cargar los proveedores.",
+          "saveError": "No se pudo guardar el cambio.",
+          "statusEnabled": "Activo",
+          "statusDisabled": "Inactivo",
+          "keyPreview": "Clave {preview}",
+          "noModels": "Sin modelos. Agrega al menos uno para que se pueda usar.",
+          "defaultBadge": "Predeterminado",
+          "edit": "Editar",
+          "remove": "Eliminar",
+          "removeConfirm": "Confirmar",
+          "columns": {
+            "model": "Modelo",
+            "input": "Entrada (USD / 1M tokens)",
+            "output": "Salida (USD / 1M tokens)"
+          },
+          "toast": {
+            "saved": "Se guardó {provider}.",
+            "removed": "Se eliminó {provider} y su clave."
+          },
+          "editor": {
+            "addTitle": "Agregar proveedor",
+            "editTitle": "Editar {provider}",
+            "provider": "Proveedor",
+            "providerPlaceholder": "Elige un proveedor",
+            "apiKey": "Clave de API",
+            "apiKeyKeep": "Déjala vacía para mantener {preview}",
+            "baseUrl": "URL base (opcional)",
+            "baseUrlPlaceholder": "https://… (vacío usa la del proveedor)",
+            "enabled": "Activo",
+            "models": "Modelos",
+            "modelsHelp": "El identificador que usa el proveedor y su precio por millón de tokens. El predeterminado es el que usa el asistente si nadie elige otro.",
+            "modelId": "Identificador del modelo",
+            "inputPrice": "Entrada",
+            "outputPrice": "Salida",
+            "default": "Predeterminado",
+            "removeModel": "Quitar modelo",
+            "addModel": "Agregar modelo",
+            "save": "Guardar",
+            "saving": "Guardando…",
+            "cancel": "Cancelar"
+          },
+          "errors": {
+            "provider": "Elige un proveedor.",
+            "apiKey": "Escribe la clave de API.",
+            "baseUrl": "La URL base debe empezar con https://.",
+            "modelId": "Cada modelo necesita un identificador.",
+            "duplicateModel": "Hay un modelo repetido.",
+            "price": "Los precios deben ser números mayores o iguales a cero."
+          }
+        },
+        "usage": {
+          "title": "Consumo",
+          "menuHint": "Tokens y costo por organización",
+          "description": "Tokens que usó el asistente por organización y modelo, con su costo a los precios vigentes en cada uso.",
+          "period": "Periodo",
+          "thisMonth": "Este mes",
+          "lastMonth": "Mes anterior",
+          "empty": "No hay consumo en este periodo.",
+          "loadError": "No se pudo cargar el consumo.",
+          "noOrganization": "Sin organización",
+          "total": "Total",
+          "unpriced": "{count} ejecuciones usaron modelos sin precio y no suman costo.",
+          "columns": {
+            "organization": "Organización",
+            "model": "Modelo",
+            "runs": "Ejecuciones",
+            "input": "Tokens de entrada",
+            "output": "Tokens de salida",
+            "cost": "Costo (USD)"
           }
         }
       },

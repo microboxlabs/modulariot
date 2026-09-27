@@ -1439,7 +1439,7 @@
         "description": "Settings that belong to no organization: they apply across every domain and account.",
         "listTitle": "Platform settings",
         "notOwnerTitle": "You don't have access to this section",
-        "notOwnerBody": "Only platform administrators can configure branding by domain.",
+        "notOwnerBody": "Only platform administrators can see and change these settings.",
         "branding": {
           "title": "Branding",
           "menuHint": "One logo per domain",
@@ -1528,6 +1528,83 @@
             "lastOwnerHelp": "The last administrator can't be removed: nobody would be able to get back in.",
             "bootstrapBadge": "From configuration",
             "bootstrapHelp": "The marked administrators come from the deployment's configuration and can only be changed there. They exist so access can be recovered if the list is ever emptied."
+          }
+        },
+        "models": {
+          "title": "AI models",
+          "menuHint": "Providers, keys and prices",
+          "description": "The providers the assistant uses. Every organization can use the enabled models and is charged per token at these prices.",
+          "add": "Add provider",
+          "empty": "No providers configured yet. The assistant uses the ones set by the deployment.",
+          "loadError": "Could not load the providers.",
+          "saveError": "Could not save the change.",
+          "statusEnabled": "Enabled",
+          "statusDisabled": "Disabled",
+          "keyPreview": "Key {preview}",
+          "noModels": "No models. Add at least one so it can be used.",
+          "defaultBadge": "Default",
+          "edit": "Edit",
+          "remove": "Remove",
+          "removeConfirm": "Confirm",
+          "columns": {
+            "model": "Model",
+            "input": "Input (USD / 1M tokens)",
+            "output": "Output (USD / 1M tokens)"
+          },
+          "toast": {
+            "saved": "{provider} saved.",
+            "removed": "{provider} and its key removed."
+          },
+          "editor": {
+            "addTitle": "Add provider",
+            "editTitle": "Edit {provider}",
+            "provider": "Provider",
+            "providerPlaceholder": "Choose a provider",
+            "apiKey": "API key",
+            "apiKeyKeep": "Leave blank to keep {preview}",
+            "baseUrl": "Base URL (optional)",
+            "baseUrlPlaceholder": "https://… (blank uses the provider's)",
+            "enabled": "Enabled",
+            "models": "Models",
+            "modelsHelp": "The provider's model id and its price per million tokens. The default is what the assistant uses when nobody picks another.",
+            "modelId": "Model id",
+            "inputPrice": "Input",
+            "outputPrice": "Output",
+            "default": "Default",
+            "removeModel": "Remove model",
+            "addModel": "Add model",
+            "save": "Save",
+            "saving": "Saving…",
+            "cancel": "Cancel"
+          },
+          "errors": {
+            "provider": "Choose a provider.",
+            "apiKey": "Enter the API key.",
+            "baseUrl": "The base URL must start with https://.",
+            "modelId": "Every model needs an id.",
+            "duplicateModel": "A model is listed twice.",
+            "price": "Prices must be numbers of zero or more."
+          }
+        },
+        "usage": {
+          "title": "Usage",
+          "menuHint": "Tokens and cost per organization",
+          "description": "Tokens the assistant used per organization and model, with their cost at the prices in force when used.",
+          "period": "Period",
+          "thisMonth": "This month",
+          "lastMonth": "Last month",
+          "empty": "No usage in this period.",
+          "loadError": "Could not load the usage.",
+          "noOrganization": "No organization",
+          "total": "Total",
+          "unpriced": "{count} runs used models with no price and add no cost.",
+          "columns": {
+            "organization": "Organization",
+            "model": "Model",
+            "runs": "Runs",
+            "input": "Input tokens",
+            "output": "Output tokens",
+            "cost": "Cost (USD)"
           }
         }
       },

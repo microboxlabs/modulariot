@@ -27,7 +27,7 @@ public class ModelProviderService {
 
     /** The providers the harness knows how to call; keep in step with its model_providers.py. */
     public static final Set<String> KNOWN = Set.of(
-            "anthropic", "openai", "openrouter", "deepseek", "qwen", "kimi", "glm");
+            "anthropic", "openai", "openrouter", "llmgateway", "deepseek", "qwen", "kimi", "glm");
 
     private static final String KEY_FIELD = "apiKey";
 

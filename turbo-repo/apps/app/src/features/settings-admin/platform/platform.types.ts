@@ -60,6 +60,7 @@ export const MODEL_PROVIDERS = [
   "anthropic",
   "openai",
   "openrouter",
+  "llmgateway",
   "deepseek",
   "qwen",
   "kimi",

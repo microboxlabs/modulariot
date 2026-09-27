@@ -51,6 +51,27 @@ def test_the_modulith_answer_becomes_providers_with_prices_and_a_default() -> No
     assert registry.get("acme-ai") is None, "providers the harness cannot call are skipped"
 
 
+def test_llm_gateway_models_go_to_its_openai_compatible_endpoint() -> None:
+    registry = registry_from_modulith(
+        {
+            "providers": [
+                {
+                    "provider": "llmgateway",
+                    "apiKey": "sk-gw",
+                    "models": [{"id": "deepseek-v4-flash", "default": True}],
+                }
+            ]
+        }
+    )
+    assert registry.offered() == ["llmgateway:deepseek-v4-flash"]
+    provider, model = registry.resolve("llmgateway:deepseek-v4-flash")
+    assert (provider.kind, provider.base_url, model) == (
+        "openai_compatible",
+        "https://api.llmgateway.io/v1",
+        "deepseek-v4-flash",
+    )
+
+
 def test_the_modulith_wins_over_the_environment_and_a_new_key_changes_the_version() -> None:
     env = ProviderRegistry([Provider("anthropic", "anthropic", "sk-env")])
     merged = env.merged(registry_from_modulith(PAYLOAD))

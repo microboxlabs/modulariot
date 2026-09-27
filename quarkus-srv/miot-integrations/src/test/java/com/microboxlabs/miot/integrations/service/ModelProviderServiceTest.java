@@ -146,6 +146,14 @@ class ModelProviderServiceTest {
     }
 
     @Test
+    void llmGatewayIsAKnownProvider() {
+        put("llmgateway", "sk-gw-4444", model("deepseek-v4-flash", true));
+
+        assertTrue(repository.rows.containsKey("llmgateway"));
+        assertTrue(repository.rows.get("llmgateway").models().get(0).isDefault());
+    }
+
+    @Test
     void deletingRemovesTheProviderAndItsKey() {
         put("glm", "sk-glm-3333");
 

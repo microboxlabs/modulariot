@@ -17,6 +17,8 @@ HarnessEventType = Literal[
     "thinking.delta",
     "thinking.completed",
     "usage.recorded",
+    # How full the conversation model's context window is after a turn.
+    "context.usage",
     "freshness.warning",
     # The answer used a business term with no knowledge card; `data` carries
     # the assumption the model declared.

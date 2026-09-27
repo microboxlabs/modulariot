@@ -50,6 +50,7 @@ def test_event_type_full_set_is_pinned():
         "thinking.delta",
         "thinking.completed",
         "usage.recorded",
+        "context.usage",
         "freshness.warning",
         "verification.completed",
         "grounding.gap",

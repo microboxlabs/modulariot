@@ -17,6 +17,7 @@
     "thinking.delta",
     "thinking.completed",
     "usage.recorded",
+    "context.usage",
     "freshness.warning",
     "verification.completed",
     "grounding.gap",

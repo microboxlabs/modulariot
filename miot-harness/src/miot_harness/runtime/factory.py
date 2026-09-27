@@ -24,6 +24,10 @@ def build_harness(workspace_dir: Path) -> HarnessSupervisor:
         conversation_store=InMemoryConversationStore(
             summarize_at_turns=settings.conversation_summarize_at_turns,
             keep_recent_turns=settings.conversation_keep_recent_turns,
+            compact_at_tokens=int(
+                settings.conversation_tool_token_budget
+                * settings.conversation_compact_at_ratio
+            ),
         ),
         conversation_tool_token_budget=settings.conversation_tool_token_budget,
         # Costs nothing without subscribers; the SSE endpoint reads it.

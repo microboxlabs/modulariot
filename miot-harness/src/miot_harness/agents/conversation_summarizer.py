@@ -12,35 +12,45 @@ bounds a conversation.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Awaitable, Callable
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
 
 from miot_harness.runtime.context import MAX_CONVERSATION_SUMMARY_CHARS
 from miot_harness.runtime.conversation import ConversationHistory
 
 ConversationSummarizer = Callable[[ConversationHistory], Awaitable[str]]
 
-# Roughly 200 words: enough to carry entities, figures and open threads,
-# small enough that it costs nothing against the hydration budget.
-_MAX_SUMMARY_WORDS = 200
+# Enough to carry entities, figures, the queries behind them and open
+# threads, small enough that it costs little against the hydration budget.
+_MAX_SUMMARY_WORDS = 300
 
 # Keeps one runaway answer from crowding the rest of the history out of the
 # summarizer's own prompt.
 _MAX_TURN_CHARS = 4_000
+# Long enough for the WHERE clause of any query the loop writes.
+_MAX_TOOL_ARGS_CHARS = 2_000
+_MAX_TOOL_RESULT_CHARS = 300
 
 _SYSTEM_PROMPT = f"""\
 You compress the earlier part of a chat between a user and an operational \
 data assistant, so the assistant keeps its memory after the transcript is \
 trimmed.
 
-Write ONE paragraph of at most {_MAX_SUMMARY_WORDS} words, in the language \
-the user wrote in. Keep: what the user is trying to do, the entities and \
-figures already established (ids, names, dates, counts), decisions taken, \
-and questions still open. Drop greetings, pleasantries and restatements. \
-If an earlier summary is given, fold it in rather than repeating it. \
-Output the paragraph only.
+Write at most {_MAX_SUMMARY_WORDS} words, in the language the user wrote \
+in. Keep: what the user is trying to do, the entities and figures already \
+established (ids, names, dates, counts), which tools and tables produced \
+them and with which filters, decisions taken, and questions still open. \
+Drop greetings, pleasantries and restatements. If an earlier summary is \
+given, fold it in rather than repeating it. Output the summary only.
 """
 
 
@@ -70,11 +80,38 @@ def render_history(history: ConversationHistory) -> str:
     if history.summary:
         parts.append(f"Earlier summary:\n{history.summary}")
     for turn in history.turns:
-        parts.append(f"User: {_clip(turn.user_message)}\nAssistant: {_clip(turn.assistant_answer)}")
+        lines = [f"User: {_clip(turn.user_message)}"]
+        lines.extend(_tool_lines(turn.messages))
+        lines.append(f"Assistant: {_clip(turn.assistant_answer)}")
+        parts.append("\n".join(lines))
     return "\n\n".join(parts)
 
 
-def _clip(text: str) -> str:
-    if len(text) <= _MAX_TURN_CHARS:
+def _tool_lines(messages: tuple[BaseMessage, ...]) -> list[str]:
+    """Each tool call a turn made, with its arguments, followed by the head of
+    its own result. Results are matched by call id: a reply can ask for
+    several tools, and their results need not come back in call order."""
+    results: dict[str, str] = {}
+    for msg in messages:
+        if isinstance(msg, ToolMessage):
+            content = msg.content
+            if not isinstance(content, str):
+                content = json.dumps(content, default=str)
+            results[msg.tool_call_id] = content
+    lines: list[str] = []
+    for msg in messages:
+        if not isinstance(msg, AIMessage):
+            continue
+        for call in msg.tool_calls:
+            args = json.dumps(call.get("args") or {}, ensure_ascii=False, default=str)
+            lines.append(f"Tool call: {call.get('name')}({_clip(args, _MAX_TOOL_ARGS_CHARS)})")
+            result = results.get(str(call.get("id")))
+            if result is not None:
+                lines.append(f"Tool result: {_clip(result, _MAX_TOOL_RESULT_CHARS)}")
+    return lines
+
+
+def _clip(text: str, limit: int = _MAX_TURN_CHARS) -> str:
+    if len(text) <= limit:
         return text
-    return text[:_MAX_TURN_CHARS] + " […]"
+    return text[:limit] + " […]"

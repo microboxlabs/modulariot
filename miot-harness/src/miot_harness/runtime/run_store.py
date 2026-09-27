@@ -34,6 +34,11 @@ class HarnessRunRecord(BaseModel):
     # the store holds one. Callers persist it with their transcript and
     # replay it (`UserRequest.conversation_summary`) after a restart.
     conversation_summary: str | None = None
+    # How full the conversation model's context window was after the run's
+    # last model turn: `model`, `window`, `used`, `ratio` and an approximate
+    # `breakdown` (system, tools, history, message, run). None when no agent
+    # loop ran.
+    context: dict[str, Any] | None = None
     # Issue #522 R2 + Plan 07 gap 8: the identity this run executed
     # under. `tenant_id` is recorded so the SSE replay endpoint can
     # refuse a cross-tenant subscriber even for terminal runs that have

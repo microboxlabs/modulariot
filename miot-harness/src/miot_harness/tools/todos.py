@@ -52,11 +52,10 @@ class TodoStore:
             self._lists.popitem(last=False)
 
     def get(self, key: str) -> list[Todo]:
-        return list(self._lists.get(key, []))
-
-
-def _key(ctx: HarnessContext) -> str:
-    return f"{ctx.tenant_id}/{ctx.user_id}/{ctx.conversation_id or ctx.thread_id}"
+        if key not in self._lists:
+            return []
+        self._lists.move_to_end(key)
+        return list(self._lists[key])
 
 
 async def _allow(_: HarnessContext, __: BaseModel) -> PermissionResult:
@@ -65,7 +64,7 @@ async def _allow(_: HarnessContext, __: BaseModel) -> PermissionResult:
 
 def write_todos_tool(store: TodoStore) -> HarnessTool[WriteTodosInput, WriteTodosOutput]:
     async def call(ctx: HarnessContext, value: WriteTodosInput, _: Progress) -> WriteTodosOutput:
-        store.set(_key(ctx), value.todos)
+        store.set(ctx.scope_key(), value.todos)
         return WriteTodosOutput(
             todos=value.todos,
             pending=sum(t.status == "pending" for t in value.todos),

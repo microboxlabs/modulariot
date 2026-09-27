@@ -108,6 +108,14 @@ _MIN_EXCERPT_CHARS = 40
 # Same ratio `count_tokens_approximately` uses.
 _CHARS_PER_TOKEN = 4
 
+_CLEARED_NOTE = (
+    "Result removed to free context. Call the tool again if you need the rows."
+)
+
+# Never cleared: a skill is loaded once per conversation and cannot be
+# loaded again, and advice and delegated findings are short.
+_KEPT_TOOLS = frozenset({_LOAD_SKILL_TOOL, ADVISOR_TOOL, DELEGATE_TOOL})
+
 _TURN_CAP_NUDGE = (
     "Turn cap reached. Answer now from the evidence you already collected; "
     "do not call more tools. If the evidence is insufficient, say what is "
@@ -211,6 +219,57 @@ def _is_dropped_block(block: Any, answered: set[str]) -> bool:
     if kind in ("thinking", "redacted_thinking"):
         return True
     return kind == "tool_use" and block.get("id") not in answered
+
+
+def clear_old_tool_results(
+    messages: list[BaseMessage], *, keep: int
+) -> tuple[list[BaseMessage], int]:
+    """`messages` with every tool result but the newest `keep` cut to a stub.
+
+    A data result keeps its header (tool, row counts, the SQL it ran) and
+    loses its rows, so the model still knows what it ran and can run it
+    again. Any other result becomes a one-line note. Results already cut,
+    errors, and the results of `_KEPT_TOOLS` are left as they are and do not
+    count toward `keep`. Returns a new list and how many results were cut;
+    the messages in the input list are not modified.
+    """
+    names = {
+        call.get("id"): call.get("name")
+        for msg in messages
+        if isinstance(msg, AIMessage)
+        for call in msg.tool_calls
+    }
+    stubs: list[tuple[int, str]] = []
+    for i, msg in enumerate(messages):
+        if not isinstance(msg, ToolMessage) or msg.status == "error":
+            continue
+        if names.get(msg.tool_call_id) in _KEPT_TOOLS:
+            continue
+        stub = _cleared_result(msg.content)
+        if stub is not None:
+            stubs.append((i, stub))
+    out = list(messages)
+    old = stubs[: max(0, len(stubs) - keep)]
+    for i, stub in old:
+        out[i] = out[i].model_copy(update={"content": stub})
+    return out, len(old)
+
+
+def _cleared_result(content: Any) -> str | None:
+    """The stub for one tool result, or None when it is already one."""
+    text = content if isinstance(content, str) else json.dumps(content, default=str)
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        payload = None
+    if isinstance(payload, dict):
+        if payload.get("cleared"):
+            return None
+        if "error" in payload:
+            return None
+        header = {k: v for k, v in payload.items() if k not in ("output", "excerpt")}
+        return json.dumps({**header, "cleared": _CLEARED_NOTE}, default=str)
+    return json.dumps({"cleared": _CLEARED_NOTE, "length": len(text)})
 
 
 def _with_tail_marker(messages: list[BaseMessage]) -> list[BaseMessage]:
@@ -525,6 +584,12 @@ class AgentLoopRunner:
                     data={"agent": "agent_loop", "graph": "agent_loop", "turn": turn},
                 )
             )
+            cleared = 0
+            clear_at = self.settings.agents_agent_loop_clear_at_ratio
+            if self._projected_ratio(context, messages) > clear_at:
+                messages, cleared = clear_old_tool_results(
+                    messages, keep=self.settings.agents_agent_loop_clear_keep_results
+                )
             start = monotonic()
             response = await _stream_turn(
                 model, self._prepare(messages), progress=progress, run_id=ctx.run_id
@@ -537,7 +602,12 @@ class AgentLoopRunner:
                     run_id=ctx.run_id,
                     type="context.usage",
                     message="",
-                    data={"agent": "agent_loop", "turn": turn, **context},
+                    data={
+                        "agent": "agent_loop",
+                        "turn": turn,
+                        "cleared_tool_results": cleared,
+                        **context,
+                    },
                 )
             )
             tool_calls = list(getattr(response, "tool_calls", None) or [])
@@ -693,6 +763,23 @@ class AgentLoopRunner:
         return ToolMessage(
             content=self._render_tool_result(ev), tool_call_id=call_id
         )
+
+    @property
+    def prefix_tokens(self) -> dict[str, int]:
+        """Approximate tokens of the system prompt and of the tool list."""
+        return dict(self._prefix_tokens)
+
+    def _projected_ratio(self, context: dict[str, Any], messages: list[BaseMessage]) -> float:
+        """Share of the window the next request will use: the last turn's
+        count plus the tool results added after that turn's reply."""
+        if not context:
+            return 0.0
+        tail = 0
+        for msg in reversed(messages):
+            if isinstance(msg, AIMessage):
+                break
+            tail += count_tokens_approximately([msg])
+        return (int(context.get("used", 0)) + tail) / self.context_window
 
     def _context_usage(
         self,

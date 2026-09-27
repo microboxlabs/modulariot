@@ -13,6 +13,7 @@ import {
   type UIEvent,
 } from "react";
 import { twMerge } from "tailwind-merge";
+import { withBuiltinCommands } from "../builtin-commands";
 import type { HarnessSkill } from "../harness-chat-types";
 import { useRunCancel } from "../context/run-cancel-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
@@ -147,7 +148,8 @@ function useSlashCommand(
 export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
   const tr = useHarnessChatTr();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const slash = useSlashCommand(textareaRef, skills);
+  const commands = useMemo(() => withBuiltinCommands(skills, tr), [skills, tr]);
+  const slash = useSlashCommand(textareaRef, commands);
   const backdropRef = useRef<HTMLDivElement>(null);
   const { markCanceled } = useRunCancel();
   const text = useAuiState((s) => s.composer.text);

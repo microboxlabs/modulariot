@@ -46,14 +46,6 @@ public class WriteAuthorizer {
     }
 
     /**
-     * Require that the caller has a manager-level role on the parent
-     * of {@code target}. For a parent-level target the role is checked
-     * against the target itself.
-     *
-     * @return a {@link Uni} that completes with {@code null} on success
-     *         and fails with {@link ForbiddenException} otherwise
-     */
-    /**
      * {@link #requireParentSiteManager(Organization)} for an org named by slug,
      * for callers outside a Hibernate Reactive session.
      */
@@ -62,6 +54,14 @@ public class WriteAuthorizer {
                 .flatMap(this::requireParentSiteManager));
     }
 
+    /**
+     * Require that the caller has a manager-level role on the parent
+     * of {@code target}. For a parent-level target the role is checked
+     * against the target itself.
+     *
+     * @return a {@link Uni} that completes with {@code null} on success
+     *         and fails with {@link ForbiddenException} otherwise
+     */
     public Uni<Void> requireParentSiteManager(Organization target) {
         if (target == null) {
             return Uni.createFrom().failure(new ForbiddenException("Organization not found"));

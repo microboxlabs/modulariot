@@ -1,6 +1,17 @@
 import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 import { MarkdownContent } from "./markdown-components";
+
+// next/link adds the app's basePath at runtime; the marker shows a link went
+// through it rather than through a plain <a>.
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
+    <a data-next-link="" href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}));
 
 describe("MarkdownContent — document variant", () => {
   it("syntax-highlights a fenced code block with a language", () => {
@@ -137,5 +148,33 @@ describe("MarkdownContent — document variant tables (opted out of prose, same 
     const { container } = render(<MarkdownContent variant="document">{table}</MarkdownContent>);
     const wrapper = container.querySelector("table")?.parentElement;
     expect(wrapper?.className).toContain("overscroll-x-none");
+  });
+});
+
+describe("MarkdownContent — links", () => {
+  it("keeps an app path in the tab, through next/link", () => {
+    const { container } = render(
+      <MarkdownContent>{"[Despacho — servicio 1695541](/shipping?service=1695541)"}</MarkdownContent>
+    );
+    const link = container.querySelector("a");
+    expect(link?.hasAttribute("data-next-link")).toBe(true);
+    expect(link?.getAttribute("href")).toBe("/shipping?service=1695541");
+    expect(link?.getAttribute("target")).toBeNull();
+  });
+
+  it("opens an external link in a new tab", () => {
+    const { container } = render(
+      <MarkdownContent>{"[INE](https://www.ine.gob.cl/ipc)"}</MarkdownContent>
+    );
+    const link = container.querySelector("a");
+    expect(link?.hasAttribute("data-next-link")).toBe(false);
+    expect(link?.getAttribute("href")).toBe("https://www.ine.gob.cl/ipc");
+    expect(link?.getAttribute("target")).toBe("_blank");
+    expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("treats a protocol-relative link as external", () => {
+    const { container } = render(<MarkdownContent>{"[x](//evil.example/a)"}</MarkdownContent>);
+    expect(container.querySelector("a")?.getAttribute("target")).toBe("_blank");
   });
 });

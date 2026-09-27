@@ -229,9 +229,9 @@ def clear_old_tool_results(
     A data result keeps its header (tool, row counts, the SQL it ran) and
     loses its rows, so the model still knows what it ran and can run it
     again. Any other result becomes a one-line note. Results already cut,
-    errors, and the results of `_KEPT_TOOLS` are left as they are. Returns a
-    new list and how many results were cut; the messages in the input list
-    are not modified.
+    errors, and the results of `_KEPT_TOOLS` are left as they are and do not
+    count toward `keep`. Returns a new list and how many results were cut;
+    the messages in the input list are not modified.
     """
     names = {
         call.get("id"): call.get("name")
@@ -239,23 +239,20 @@ def clear_old_tool_results(
         if isinstance(msg, AIMessage)
         for call in msg.tool_calls
     }
-    positions = [
-        i
-        for i, msg in enumerate(messages)
-        if isinstance(msg, ToolMessage) and names.get(msg.tool_call_id) not in _KEPT_TOOLS
-    ]
-    old = positions[: max(0, len(positions) - keep)]
-    out = list(messages)
-    cleared = 0
-    for i in old:
-        msg = out[i]
-        assert isinstance(msg, ToolMessage)
-        stub = _cleared_result(msg.content)
-        if stub is None:
+    stubs: list[tuple[int, str]] = []
+    for i, msg in enumerate(messages):
+        if not isinstance(msg, ToolMessage) or msg.status == "error":
             continue
-        out[i] = msg.model_copy(update={"content": stub})
-        cleared += 1
-    return out, cleared
+        if names.get(msg.tool_call_id) in _KEPT_TOOLS:
+            continue
+        stub = _cleared_result(msg.content)
+        if stub is not None:
+            stubs.append((i, stub))
+    out = list(messages)
+    old = stubs[: max(0, len(stubs) - keep)]
+    for i, stub in old:
+        out[i] = out[i].model_copy(update={"content": stub})
+    return out, len(old)
 
 
 def _cleared_result(content: Any) -> str | None:
@@ -588,7 +585,8 @@ class AgentLoopRunner:
                 )
             )
             cleared = 0
-            if context.get("ratio", 0) > self.settings.agents_agent_loop_clear_at_ratio:
+            clear_at = self.settings.agents_agent_loop_clear_at_ratio
+            if self._projected_ratio(context, messages) > clear_at:
                 messages, cleared = clear_old_tool_results(
                     messages, keep=self.settings.agents_agent_loop_clear_keep_results
                 )
@@ -762,6 +760,18 @@ class AgentLoopRunner:
         return ToolMessage(
             content=self._render_tool_result(ev), tool_call_id=call_id
         )
+
+    def _projected_ratio(self, context: dict[str, Any], messages: list[BaseMessage]) -> float:
+        """Share of the window the next request will use: the last turn's
+        count plus the tool results added after that turn's reply."""
+        if not context:
+            return 0.0
+        tail = 0
+        for msg in reversed(messages):
+            if isinstance(msg, AIMessage):
+                break
+            tail += count_tokens_approximately([msg])
+        return (int(context.get("used", 0)) + tail) / self.context_window
 
     def _context_usage(
         self,

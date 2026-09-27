@@ -76,6 +76,23 @@ def test_skill_bodies_errors_and_stubs_are_left_alone() -> None:
     assert [m.content for m in again] == [m.content for m in out]
 
 
+def test_errors_do_not_take_a_kept_slot_and_plain_text_errors_stay() -> None:
+    messages = [
+        _call("a"),
+        _data_result("a"),
+        _call("b"),
+        _data_result("b"),
+        _call("e"),
+        ToolMessage(content="connection reset", tool_call_id="e", status="error"),
+    ]
+    out, cleared = clear_old_tool_results(messages, keep=1)
+    assert cleared == 1
+    assert "cleared" in out[1].content
+    # The newest data result is kept even though an error came after it.
+    assert out[3] is messages[3]
+    assert out[5].content == "connection reset"
+
+
 def _runner(model: Any) -> AgentLoopRunner:
     return AgentLoopRunner(
         model=model,

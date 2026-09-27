@@ -51,7 +51,7 @@ def test_the_first_configured_provider_that_searches_is_used() -> None:
         "anthropic:claude-haiku-4-5"
     )
     assert pick_route(_registry("openai", "anthropic", "llmgateway"), settings).name == (
-        "llmgateway:qwen3.8-flash"
+        "llmgateway:gpt-5.6-luna"
     )
     chosen = HarnessSettings(web_search_model="openai:gpt-5-nano")
     assert pick_route(_registry("llmgateway", "openai"), chosen).name == "openai:gpt-5-nano"
@@ -96,16 +96,16 @@ async def test_llm_gateway_search_returns_the_summary_sources_and_usage() -> Non
 
     assert sent[0]["url"] == "https://api.llmgateway.io/v1/chat/completions"
     assert sent[0]["body"]["web_search"] is True
-    assert sent[0]["body"]["model"] == "qwen3.8-flash"
+    assert sent[0]["body"]["model"] == "gpt-5.6-luna"
     assert out.answer == "Chile's CPI rose 0.3% in August."
     assert [(s.url, s.title) for s in out.sources] == [("https://ine.gob.cl/ipc", "INE")]
-    assert out.searched_with == "llmgateway:qwen3.8-flash"
+    assert out.searched_with == "llmgateway:gpt-5.6-luna"
     usage = [e.data for e in events if e.type == "usage.recorded"]
     assert usage == [
         {
             "agent": "web_search",
             "provider": "llmgateway",
-            "model": "qwen3.8-flash",
+            "model": "gpt-5.6-luna",
             "input_tokens": 120,
             "output_tokens": 40,
             "cache_read_input_tokens": 0,
@@ -207,7 +207,8 @@ async def test_a_provider_error_and_the_run_limit_are_errors() -> None:
         await _searcher(("llmgateway",), refuse).search(_ctx(), "q", lambda _e: None)
 
     def ok(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"choices": [{"message": {"content": "x"}}], "usage": {}})
+        message = {"content": "x", "annotations": [{"url": "https://a.example"}]}
+        return httpx.Response(200, json={"choices": [{"message": message}], "usage": {}})
 
     searcher = _searcher(("llmgateway",), ok, web_search_max_per_run=2)
     await searcher.search(_ctx("run_a"), "q", lambda _e: None)
@@ -237,7 +238,9 @@ async def test_every_search_an_anthropic_call_runs_counts_toward_the_limit() -> 
         return httpx.Response(
             200,
             json={
-                "content": [{"type": "text", "text": "x"}],
+                "content": [
+                    {"type": "text", "text": "x", "citations": [{"url": "https://a.example"}]}
+                ],
                 "usage": {"server_tool_use": {"web_search_requests": 3}},
             },
         )
@@ -258,3 +261,55 @@ def test_the_description_mentions_web_fetch_only_when_it_is_offered() -> None:
     searcher = _searcher(("anthropic",), never)
     assert "web_fetch" not in web_search_tool(searcher).description
     assert "web_fetch" in web_search_tool(searcher, with_fetch=True).description
+
+
+@pytest.mark.asyncio
+async def test_an_answer_without_sources_is_an_error_and_still_billed() -> None:
+    def memory_only(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [{"message": {"content": "August 2026 has not happened yet."}}],
+                "usage": {"prompt_tokens": 74, "completion_tokens": 900},
+            },
+        )
+
+    events: list[HarnessEvent] = []
+    with pytest.raises(WebSearchError, match="no web sources"):
+        await _searcher(("llmgateway",), memory_only).search(_ctx(), "q", events.append)
+    usage = next(e.data for e in events if e.type == "usage.recorded")
+    assert (usage["output_tokens"], usage["web_search_requests"]) == (900, 0)
+
+
+@pytest.mark.asyncio
+async def test_a_search_that_found_nothing_says_so_without_blaming_the_model() -> None:
+    def empty(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "content": [{"type": "text", "text": "Nothing found."}],
+                "usage": {"server_tool_use": {"web_search_requests": 1}},
+            },
+        )
+
+    with pytest.raises(WebSearchError) as raised:
+        await _searcher(("anthropic",), empty).search(_ctx(), "q", lambda _e: None)
+    assert "no usable web sources" in str(raised.value)
+    assert "administrator" not in str(raised.value)
+
+
+@pytest.mark.asyncio
+async def test_llm_gateway_search_cost_is_read_from_cost_details() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        message = {"content": "x", "annotations": [{"url": "https://a.example"}]}
+        usage = {
+            "prompt_tokens": 10,
+            "completion_tokens": 5,
+            "cost_details": {"web_search_cost": 0.01},
+        }
+        return httpx.Response(200, json={"choices": [{"message": message}], "usage": usage})
+
+    events: list[HarnessEvent] = []
+    await _searcher(("llmgateway",), handler).search(_ctx(), "q", events.append)
+    usage = next(e.data for e in events if e.type == "usage.recorded")
+    assert usage["web_search_cost"] == 0.01

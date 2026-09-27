@@ -11,6 +11,11 @@ import java.util.Map;
 public class AllowAllHarnessPlanGate implements HarnessPlanGate {
 
     @Override
+    public Uni<String> defaultModel(String organization) {
+        return Uni.createFrom().nullItem();
+    }
+
+    @Override
     public Uni<Refusal> checkRun(String organization, String userEmail, String model) {
         return Uni.createFrom().nullItem();
     }

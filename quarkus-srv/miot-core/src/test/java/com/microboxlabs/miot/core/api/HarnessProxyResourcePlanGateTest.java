@@ -90,7 +90,7 @@ class HarnessProxyResourcePlanGateTest {
     }
 
     @Test
-    void anAllowedRunIsForwarded() {
+    void aRunNamingNoModelGetsTheGatesDefault() {
         int status = given()
                 .header("Authorization", "Bearer " + memberToken())
                 .contentType(ContentType.JSON)
@@ -99,7 +99,9 @@ class HarnessProxyResourcePlanGateTest {
                 .post(RUNS_PATH)
                 .statusCode();
         assertThat(status, is(200));
-        WireMockLifecycle.server().verify(1, WireMock.postRequestedFor(WireMock.urlEqualTo("/runs")));
+        WireMockLifecycle.server().verify(1, WireMock.postRequestedFor(WireMock.urlEqualTo("/runs"))
+                .withRequestBody(WireMock.matchingJsonPath("$.model",
+                        WireMock.equalTo(RefusingHarnessPlanGate.KEPT))));
     }
 
     @Test

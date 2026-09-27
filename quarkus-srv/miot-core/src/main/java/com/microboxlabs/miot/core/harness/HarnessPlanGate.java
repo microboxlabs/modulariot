@@ -11,9 +11,16 @@ import java.util.Map;
 public interface HarnessPlanGate {
 
     /**
+     * The model to run when the request names none, or null to let the harness
+     * pick its own default.
+     */
+    Uni<String> defaultModel(String organization);
+
+    /**
      * @param organization the org slug
      * @param userEmail    the caller, or null for a machine token
-     * @param model        the model the run names, or null for the default
+     * @param model        the model the run names, or the one {@link #defaultModel}
+     *                     resolved; null when neither gave one
      * @return null when the run may start, else why not
      */
     Uni<Refusal> checkRun(String organization, String userEmail, String model);

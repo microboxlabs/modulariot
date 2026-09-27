@@ -37,10 +37,9 @@ CREATE TABLE miot_integrations.harness_seat_members (
 );
 
 -- Tokens a usage row takes from the pool, fixed when the row is written so a
--- later multiplier change does not alter past months.
-ALTER TABLE miot_integrations.model_usage ADD COLUMN pool_tokens BIGINT;
+-- later multiplier change does not alter past months. The default keeps inserts
+-- from an older modulith working.
+ALTER TABLE miot_integrations.model_usage ADD COLUMN pool_tokens BIGINT NOT NULL DEFAULT 0;
 
 UPDATE miot_integrations.model_usage
    SET pool_tokens = input_tokens + output_tokens + cache_read_tokens + cache_write_tokens;
-
-ALTER TABLE miot_integrations.model_usage ALTER COLUMN pool_tokens SET NOT NULL;

@@ -44,6 +44,10 @@ public class HarnessPlanService {
     public static final String POOL_EXHAUSTED = "plan_pool_exhausted";
     public static final String MODEL_NOT_OFFERED = "plan_model_not_offered";
 
+    /** Bounds that keep seats times tokens per seat well inside a long. */
+    static final int MAX_SEATS = 100_000;
+    static final long MAX_TOKENS_PER_SEAT = 1_000_000_000_000L;
+
     private static final Set<String> CYCLES = Set.of("monthly", "yearly");
     private static final Set<String> MODES = Set.of("all", "some", "none");
 
@@ -83,6 +87,9 @@ public class HarnessPlanService {
         if (req.seatPriceUsd().signum() < 0 || req.tokensPerSeat() < 0) {
             throw new IllegalArgumentException("seatPriceUsd and tokensPerSeat cannot be negative");
         }
+        if (req.tokensPerSeat() > MAX_TOKENS_PER_SEAT) {
+            throw new IllegalArgumentException("tokensPerSeat cannot exceed " + MAX_TOKENS_PER_SEAT);
+        }
         BigDecimal discount = req.yearlyDiscountPct() == null ? BigDecimal.ZERO : req.yearlyDiscountPct();
         if (discount.signum() < 0 || discount.compareTo(BigDecimal.valueOf(100)) >= 0) {
             throw new IllegalArgumentException("yearlyDiscountPct must be from 0 up to, not including, 100");
@@ -95,7 +102,7 @@ public class HarnessPlanService {
         Subscription subscription = repository.subscription(organization);
         OffsetDateTime start = periodStart();
         OffsetDateTime end = start.plusMonths(1);
-        long included = subscription == null ? 0 : subscription.seats() * plan.tokensPerSeat();
+        long included = subscription == null ? 0 : (long) subscription.seats() * plan.tokensPerSeat();
         Pool pool = new Pool(start, end, included,
                 repository.poolUsed(organization, start, end),
                 repository.useByMember(organization, start, end),
@@ -107,8 +114,8 @@ public class HarnessPlanService {
         if (req == null || req.seats() == null || req.billingCycle() == null || req.accessMode() == null) {
             throw new IllegalArgumentException("seats, billingCycle and accessMode are required");
         }
-        if (req.seats() < 0) {
-            throw new IllegalArgumentException("seats cannot be negative");
+        if (req.seats() < 0 || req.seats() > MAX_SEATS) {
+            throw new IllegalArgumentException("seats must be from 0 to " + MAX_SEATS);
         }
         if (!CYCLES.contains(req.billingCycle())) {
             throw new IllegalArgumentException("billingCycle must be monthly or yearly");
@@ -126,25 +133,37 @@ public class HarnessPlanService {
     }
 
     /**
-     * Null when the run may start. A machine token (no email) skips the seat
-     * check but not the pool.
+     * The model a run that names none should use: the platform owner's default,
+     * else the first offered model. Null when not enforced, so the harness picks.
+     */
+    public String defaultModel() {
+        if (!enforced) {
+            return null;
+        }
+        return effectiveDefault(offered());
+    }
+
+    /**
+     * Null when the run may start. The proxy resolves a missing model with
+     * {@link #defaultModel()} first, so a null model here means none is offered.
+     * A machine token (no email) skips the seat check but not the pool.
      */
     public Refusal checkRun(String organization, String userEmail, String model) {
         if (!enforced) {
             return null;
         }
-        if (model != null && !offeredModels().containsKey(model)) {
+        if (model == null || !offeredModels().containsKey(model)) {
             return new Refusal(400, MODEL_NOT_OFFERED, "model " + model + " is not offered");
         }
         Subscription subscription = repository.subscription(organization);
-        if (subscription == null) {
+        if (subscription == null || subscription.seats() == 0) {
             return new Refusal(402, NO_SUBSCRIPTION, "the organization has no harness seats");
         }
         if (userEmail != null && !hasSeat(organization, subscription, userEmail)) {
             return new Refusal(403, NO_SEAT, userEmail + " has no harness seat");
         }
         OffsetDateTime start = periodStart();
-        long included = subscription.seats() * repository.plan().tokensPerSeat();
+        long included = (long) subscription.seats() * repository.plan().tokensPerSeat();
         if (repository.poolUsed(organization, start, start.plusMonths(1)) >= included) {
             return new Refusal(402, POOL_EXHAUSTED, "the organization used its tokens for this month");
         }
@@ -156,7 +175,8 @@ public class HarnessPlanService {
      * the models set in the platform's providers remain.
      */
     public Map<String, Object> models(Map<String, Object> harnessModels) {
-        Map<String, BigDecimal> offered = offeredModels();
+        List<Offered> all = offered();
+        Map<String, BigDecimal> offered = multipliers(all);
         List<String> names = new ArrayList<>();
         Object listed = harnessModels.get("models");
         if (listed instanceof List<?> list) {
@@ -173,6 +193,9 @@ public class HarnessPlanService {
         Map<String, Object> out = new LinkedHashMap<>(harnessModels);
         out.put("models", names);
         out.put("multipliers", multipliers);
+        if (enforced) {
+            out.put("default", effectiveDefault(all));
+        }
         return out;
     }
 
@@ -184,18 +207,41 @@ public class HarnessPlanService {
         };
     }
 
-    /** Every model the platform's enabled providers list, named as runs name them. */
-    private Map<String, BigDecimal> offeredModels() {
-        Map<String, BigDecimal> out = new LinkedHashMap<>();
+    /** A model an enabled provider lists, named as runs name it. */
+    private record Offered(String name, BigDecimal multiplier, boolean isDefault) {
+    }
+
+    private List<Offered> offered() {
+        List<Offered> out = new ArrayList<>();
         for (ModelProvider p : providers.list()) {
             if (!p.enabled()) {
                 continue;
             }
             for (ModelProvider.Model m : p.models()) {
-                out.put(ModelProviderService.qualified(p.provider(), m.id()), m.poolMultiplier());
+                out.add(new Offered(ModelProviderService.qualified(p.provider(), m.id()),
+                        m.poolMultiplier(), m.isDefault()));
             }
         }
         return out;
+    }
+
+    private Map<String, BigDecimal> offeredModels() {
+        return multipliers(offered());
+    }
+
+    private static Map<String, BigDecimal> multipliers(List<Offered> offered) {
+        Map<String, BigDecimal> out = new LinkedHashMap<>();
+        for (Offered o : offered) {
+            out.put(o.name(), o.multiplier());
+        }
+        return out;
+    }
+
+    private static String effectiveDefault(List<Offered> offered) {
+        return offered.stream().filter(Offered::isDefault).findFirst()
+                .or(() -> offered.stream().findFirst())
+                .map(Offered::name)
+                .orElse(null);
     }
 
     private OffsetDateTime periodStart() {

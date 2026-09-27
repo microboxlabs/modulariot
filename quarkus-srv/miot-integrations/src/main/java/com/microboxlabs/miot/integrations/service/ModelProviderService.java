@@ -31,6 +31,10 @@ public class ModelProviderService {
 
     private static final String KEY_FIELD = "apiKey";
 
+    /** The pool multipliers a model may have. */
+    private static final List<BigDecimal> MULTIPLIERS =
+            List.of(BigDecimal.ONE, BigDecimal.valueOf(2), BigDecimal.valueOf(3));
+
     private final ModelProviderRepository repository;
     private final IntegrationSecretCipher cipher;
 
@@ -138,8 +142,8 @@ public class ModelProviderService {
     }
 
     private static void multiplier(BigDecimal value, String model) {
-        if (value != null && value.compareTo(BigDecimal.ONE) < 0) {
-            throw new IllegalArgumentException("multiplier of " + model + " must be at least 1");
+        if (value != null && MULTIPLIERS.stream().noneMatch(m -> m.compareTo(value) == 0)) {
+            throw new IllegalArgumentException("multiplier of " + model + " must be 1, 2 or 3");
         }
     }
 

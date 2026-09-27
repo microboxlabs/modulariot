@@ -22,6 +22,11 @@ public class SeatPlanHarnessGate implements HarnessPlanGate {
     }
 
     @Override
+    public Uni<String> defaultModel(String organization) {
+        return onWorker(service::defaultModel);
+    }
+
+    @Override
     public Uni<Refusal> checkRun(String organization, String userEmail, String model) {
         return onWorker(() -> service.checkRun(organization, userEmail, model));
     }

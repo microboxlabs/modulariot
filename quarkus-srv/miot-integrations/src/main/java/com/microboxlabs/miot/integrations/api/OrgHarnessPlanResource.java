@@ -27,8 +27,9 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
  * An organization's harness seats, who may use the harness, and this month's
- * token pool. Reading and changing both need SITE_MANAGER on the parent org, as
- * other organization settings do, or the platform owner role.
+ * token pool. The caller must be a member of the org, as for every
+ * {@code /api/v1/orgs/**} route, and hold SITE_MANAGER on its parent, as other
+ * organization settings require, or the platform owner role.
  *
  * <p>Not under {@code /harness}: that prefix is the run proxy in miot-core.
  */

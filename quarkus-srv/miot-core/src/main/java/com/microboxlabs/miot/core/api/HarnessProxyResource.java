@@ -22,6 +22,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.HashMap;
 import java.util.Map;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
@@ -262,12 +263,25 @@ public class HarnessProxyResource {
         // the mode explicitly spares the harness from re-deriving it.
         String authMode = userEmail != null ? "web" : "m2m";
         String organization = organizationContext.getOrganizationId();
-        Object model = body == null ? null : body.get("model");
-        return planGate.checkRun(organization, userEmail, model instanceof String name ? name : null)
+        Object named = body == null ? null : body.get("model");
+        Uni<String> model = named instanceof String name
+                ? Uni.createFrom().item(name)
+                : planGate.defaultModel(organization);
+        return model.flatMap(resolved -> planGate.checkRun(organization, userEmail, resolved)
                 .flatMap(refusal -> refusal != null
                         ? Uni.createFrom().item(refused(refusal))
                         : passThrough(call.apply(authorization, tenantClientId, userEmail, authMode,
-                                organization, body)));
+                                organization, withModel(body, named, resolved)))));
+    }
+
+    /** The body with the gate's default model filled in when the request named none. */
+    private static Map<String, Object> withModel(Map<String, Object> body, Object named, String resolved) {
+        if (named != null || resolved == null) {
+            return body;
+        }
+        Map<String, Object> out = body == null ? new HashMap<>() : new HashMap<>(body);
+        out.put("model", resolved);
+        return out;
     }
 
     private static Response refused(HarnessPlanGate.Refusal refusal) {

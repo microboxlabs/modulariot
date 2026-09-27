@@ -80,7 +80,9 @@ export default function HarnessPageContent({
   const data = planState.data;
   const subscription = data?.subscription ?? null;
 
-  const [accessMode, setAccessMode] = useState<AccessMode>("all");
+  // A new subscription starts with nobody enabled: the admin grants access
+  // after buying seats, so the first purchase never enables the whole roster.
+  const [accessMode, setAccessMode] = useState<AccessMode>("none");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [showSeatsModal, setShowSeatsModal] = useState(false);
@@ -88,7 +90,7 @@ export default function HarnessPageContent({
 
   // The saved access is the starting point; edits stay local until saved.
   useEffect(() => {
-    setAccessMode(subscription?.accessMode ?? "all");
+    setAccessMode(subscription?.accessMode ?? "none");
     setSelected(new Set(subscription?.members ?? []));
   }, [subscription]);
 
@@ -169,15 +171,23 @@ export default function HarnessPageContent({
       members: accessMode === "some" ? selectedMembers : [],
     });
 
+  // Changing seats keeps the saved access, not unsaved edits in the list.
   const saveSeats = async (nextSeats: number, cycle: BillingCycle) => {
     const ok = await save({
       seats: nextSeats,
       billingCycle: cycle,
-      accessMode,
-      members: accessMode === "some" ? selectedMembers : [],
+      accessMode: subscription?.accessMode ?? "none",
+      members: subscription?.members ?? [],
     });
     if (ok) setShowSeatsModal(false);
   };
+  const savedActive = subscription
+    ? activeCount(
+        subscription.accessMode,
+        members.length,
+        subscription.members.length
+      )
+    : 0;
 
   const cycle = subscription?.billingCycle ?? "monthly";
   const recurringUnitKey = cycle === "yearly" ? "yearlyUnit" : "monthlyUnit";
@@ -465,7 +475,13 @@ export default function HarnessPageContent({
               <Button
                 size="xs"
                 color="blue"
-                disabled={!accessDirty || tooFewSeats || isSaving}
+                disabled={
+                  !accessDirty ||
+                  tooFewSeats ||
+                  isSaving ||
+                  isLoading ||
+                  error !== null
+                }
                 onClick={saveAccess}
               >
                 {tr("save", accessDict)}
@@ -584,7 +600,7 @@ export default function HarnessPageContent({
           show={showSeatsModal}
           currentSeats={seats}
           currentBillingCycle={cycle}
-          minSeats={Math.max(1, active)}
+          minSeats={Math.max(1, savedActive)}
           plan={data.plan}
           isSaving={isSaving}
           onClose={() => setShowSeatsModal(false)}

@@ -9,7 +9,8 @@ import java.util.Map;
 
 /**
  * Test gate, enabled only by {@link HarnessPlanGateTestProfile}: refuses runs
- * that name {@link #BLOCKED}, and keeps only {@link #KEPT} in the model list.
+ * that name {@link #BLOCKED}, runs {@link #KEPT} when none is named, and keeps
+ * only {@link #KEPT} in the model list.
  */
 @Alternative
 @ApplicationScoped
@@ -17,6 +18,11 @@ public class RefusingHarnessPlanGate implements HarnessPlanGate {
 
     public static final String BLOCKED = "blocked-model";
     public static final String KEPT = "claude-opus-4-8";
+
+    @Override
+    public Uni<String> defaultModel(String organization) {
+        return Uni.createFrom().item(KEPT);
+    }
 
     @Override
     public Uni<Refusal> checkRun(String organization, String userEmail, String model) {

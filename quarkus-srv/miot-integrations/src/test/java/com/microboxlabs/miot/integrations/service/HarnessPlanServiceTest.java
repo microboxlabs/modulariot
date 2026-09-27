@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 class HarnessPlanServiceTest {
 
     private static final String ORG = "acme";
+    private static final String MODEL = "openrouter:deepseek/deepseek-v4-flash";
 
     /** In-memory storage; pool usage is set per test. */
     static final class Plans extends HarnessPlanRepository {
@@ -105,12 +106,19 @@ class HarnessPlanServiceTest {
     private final Clock clock = Clock.fixed(Instant.parse("2026-09-27T13:00:00Z"), ZoneOffset.UTC);
 
     private HarnessPlanService service(boolean enforced) {
+        if (providers.rows.isEmpty()) {
+            offer("openrouter", "deepseek/deepseek-v4-flash", null);
+        }
         return new HarnessPlanService(plans, providers, enforced, clock);
     }
 
     private void offer(String provider, String model, String multiplier) {
+        offer(provider, model, multiplier, false);
+    }
+
+    private void offer(String provider, String model, String multiplier, boolean isDefault) {
         providers.rows.add(new ModelProvider(provider, null, "enc", "…1234",
-                List.of(new ModelProvider.Model(model, null, null, false,
+                List.of(new ModelProvider.Model(model, null, null, isDefault,
                         multiplier == null ? null : new BigDecimal(multiplier))),
                 true, "owner", null));
     }
@@ -130,7 +138,7 @@ class HarnessPlanServiceTest {
 
     @Test
     void anOrgWithoutSeatsIsRefused() {
-        assertEquals(HarnessPlanService.NO_SUBSCRIPTION, code(service(true).checkRun(ORG, "alice@acme.test", null)));
+        assertEquals(HarnessPlanService.NO_SUBSCRIPTION, code(service(true).checkRun(ORG, "alice@acme.test", MODEL)));
     }
 
     @Test
@@ -138,15 +146,41 @@ class HarnessPlanServiceTest {
         HarnessPlanService service = service(true);
 
         subscribe(2, "some", "alice@acme.test");
-        assertNull(service.checkRun(ORG, "Alice@Acme.test", null), "emails compare without case");
-        assertEquals(HarnessPlanService.NO_SEAT, code(service.checkRun(ORG, "bob@acme.test", null)));
+        assertNull(service.checkRun(ORG, "Alice@Acme.test", MODEL), "emails compare without case");
+        assertEquals(HarnessPlanService.NO_SEAT, code(service.checkRun(ORG, "bob@acme.test", MODEL)));
 
         subscribe(2, "none");
-        assertEquals(HarnessPlanService.NO_SEAT, code(service.checkRun(ORG, "alice@acme.test", null)));
+        assertEquals(HarnessPlanService.NO_SEAT, code(service.checkRun(ORG, "alice@acme.test", MODEL)));
 
         subscribe(2, "all");
-        assertNull(service.checkRun(ORG, "bob@acme.test", null));
-        assertNull(service.checkRun(ORG, null, null), "a machine token needs no seat");
+        assertNull(service.checkRun(ORG, "bob@acme.test", MODEL));
+        assertNull(service.checkRun(ORG, null, MODEL), "a machine token needs no seat");
+    }
+
+    @Test
+    void zeroSeatsIsNoSubscription() {
+        subscribe(0, "all");
+        assertEquals(HarnessPlanService.NO_SUBSCRIPTION, code(service(true).checkRun(ORG, "alice@acme.test", MODEL)));
+    }
+
+    @Test
+    void aRunWithoutAModelGetsThePlatformDefaultElseTheFirstOffered() {
+        offer("openrouter", "deepseek/deepseek-v4-flash", null);
+        offer("anthropic", "claude-opus-5-5", "3");
+        assertEquals(MODEL, service(true).defaultModel(), "no default set: the first offered");
+
+        providers.rows.clear();
+        offer("openrouter", "deepseek/deepseek-v4-flash", null);
+        offer("anthropic", "claude-opus-5-5", "3", true);
+        assertEquals("claude-opus-5-5", service(true).defaultModel());
+
+        assertNull(service(false).defaultModel(), "not enforced: the harness picks");
+    }
+
+    @Test
+    void aRunWithNoOfferedModelIsRefused() {
+        subscribe(1, "all");
+        assertEquals(HarnessPlanService.MODEL_NOT_OFFERED, code(service(true).checkRun(ORG, "alice@acme.test", null)));
     }
 
     @Test
@@ -155,11 +189,11 @@ class HarnessPlanServiceTest {
         subscribe(2, "all");
 
         plans.used = 19_999_999;
-        assertNull(service.checkRun(ORG, "alice@acme.test", null));
+        assertNull(service.checkRun(ORG, "alice@acme.test", MODEL));
         assertEquals(OffsetDateTime.parse("2026-09-01T00:00:00Z"), plans.usedFrom, "counted from the 1st, UTC");
 
         plans.used = 20_000_000;
-        assertEquals(HarnessPlanService.POOL_EXHAUSTED, code(service.checkRun(ORG, "alice@acme.test", null)));
+        assertEquals(HarnessPlanService.POOL_EXHAUSTED, code(service.checkRun(ORG, "alice@acme.test", MODEL)));
     }
 
     @Test
@@ -186,6 +220,10 @@ class HarnessPlanServiceTest {
         assertEquals(Map.of("openrouter:deepseek/deepseek-v4-flash", BigDecimal.ONE,
                 "claude-opus-5-5", new BigDecimal("3")), enforced.get("multipliers"));
         assertEquals("openrouter:deepseek/deepseek-v4-flash", enforced.get("default"));
+
+        harness.put("default", "claude-sonnet-4-6");
+        assertEquals("openrouter:deepseek/deepseek-v4-flash", service(true).models(harness).get("default"),
+                "an unoffered harness default is replaced");
 
         Map<String, Object> open = service(false).models(harness);
         assertEquals(3, ((List<?>) open.get("models")).size(), "not enforced keeps every model");
@@ -219,12 +257,15 @@ class HarnessPlanServiceTest {
         SetSubscriptionRequest badMode = new SetSubscriptionRequest(1, "monthly", "most", null);
         SetSubscriptionRequest badEmail = new SetSubscriptionRequest(1, "monthly", "some", List.of("alice"));
         SetSubscriptionRequest negative = new SetSubscriptionRequest(-1, "monthly", "all", null);
+        SetSubscriptionRequest tooManySeats = new SetSubscriptionRequest(
+                HarnessPlanService.MAX_SEATS + 1, "monthly", "all", null);
 
         assertThrows(IllegalArgumentException.class, () -> service.setSubscription(ORG, tooMany, "admin"));
         assertThrows(IllegalArgumentException.class, () -> service.setSubscription(ORG, badCycle, "admin"));
         assertThrows(IllegalArgumentException.class, () -> service.setSubscription(ORG, badMode, "admin"));
         assertThrows(IllegalArgumentException.class, () -> service.setSubscription(ORG, badEmail, "admin"));
         assertThrows(IllegalArgumentException.class, () -> service.setSubscription(ORG, negative, "admin"));
+        assertThrows(IllegalArgumentException.class, () -> service.setSubscription(ORG, tooManySeats, "admin"));
         assertEquals(0, plans.subscriptions.size());
     }
 
@@ -246,9 +287,12 @@ class HarnessPlanServiceTest {
         HarnessPlanService service = service(true);
         SetPlanRequest negative = new SetPlanRequest(new BigDecimal("-1"), 1L, null);
         SetPlanRequest fullDiscount = new SetPlanRequest(BigDecimal.ONE, 1L, new BigDecimal("100"));
+        SetPlanRequest tooManyTokens = new SetPlanRequest(BigDecimal.ONE,
+                HarnessPlanService.MAX_TOKENS_PER_SEAT + 1, null);
 
         assertThrows(IllegalArgumentException.class, () -> service.setPlan(negative, "owner"));
         assertThrows(IllegalArgumentException.class, () -> service.setPlan(fullDiscount, "owner"));
+        assertThrows(IllegalArgumentException.class, () -> service.setPlan(tooManyTokens, "owner"));
 
         Plan saved = service.setPlan(new SetPlanRequest(new BigDecimal("30"), 12_000_000L, null), "owner");
         assertEquals(BigDecimal.ZERO, saved.yearlyDiscountPct());

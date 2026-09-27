@@ -5,6 +5,7 @@ import { Spinner } from "flowbite-react";
 import {
   HiOutlineChartBar,
   HiOutlineChip,
+  HiOutlineCreditCard,
   HiOutlineKey,
   HiOutlinePhotograph,
   HiServer,
@@ -13,6 +14,7 @@ import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import BrandingSection from "./branding-section";
+import HarnessPlanSection from "./harness-plan-section";
 import ModelProvidersSection from "./model-providers-section";
 import ModelUsageCard from "./model-usage-card";
 import PlatformOwnersCard from "./platform-owners-card";
@@ -52,6 +54,7 @@ export default function PlatformPageContent({
   const brandingDict = (platformDict?.branding as I18nRecord) ?? {};
   const superusersDict = (platformDict?.superusers as I18nRecord) ?? {};
   const modelsDict = (platformDict?.models as I18nRecord) ?? {};
+  const planDict = (platformDict?.plan as I18nRecord) ?? {};
   const usageDict = (platformDict?.usage as I18nRecord) ?? {};
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
 
@@ -78,6 +81,12 @@ export default function PlatformPageContent({
       icon: HiOutlineChip,
     },
     {
+      id: "plan",
+      label: tr("title", planDict),
+      description: tr("menuHint", planDict),
+      icon: HiOutlineCreditCard,
+    },
+    {
       id: "usage",
       label: tr("title", usageDict),
       description: tr("menuHint", usageDict),
@@ -89,6 +98,7 @@ export default function PlatformPageContent({
     branding: <BrandingSection dict={brandingDict} lang={lang} />,
     superusers: <PlatformOwnersCard dict={superusersDict} />,
     models: <ModelProvidersSection dict={modelsDict} />,
+    plan: <HarnessPlanSection dict={planDict} />,
     usage: <ModelUsageCard dict={usageDict} lang={lang} />,
   };
 

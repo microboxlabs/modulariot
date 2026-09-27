@@ -3,14 +3,18 @@
 import useSWR from "swr";
 import {
   deleteModelProvider,
+  fetchHarnessPlan,
   fetchModelProviders,
   fetchModelUsage,
+  saveHarnessPlan,
   saveModelProvider,
 } from "./platform-data-service";
 import { ApiError } from "../data/json-client";
 import type {
+  HarnessPlan,
   ModelProviderAdmin,
   ModelUsageTotal,
+  SetHarnessPlan,
   SetModelProvider,
 } from "./platform.types";
 
@@ -54,4 +58,21 @@ export function useModelUsage(from: string, to: string) {
     { revalidateOnFocus: false }
   );
   return { totals: data ?? [], isLoading, error: error ?? null };
+}
+
+/** The seat plan every organization buys on, and the write that changes it. */
+export function useHarnessPlan() {
+  const { data, error, isLoading, mutate } = useSWR<HarnessPlan, ApiError>(
+    "platform-harness-plan",
+    fetchHarnessPlan,
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
+  );
+
+  const save = async (value: SetHarnessPlan) => {
+    const saved = await saveHarnessPlan(value);
+    await mutate(saved, { revalidate: false });
+    return saved;
+  };
+
+  return { plan: data ?? null, isLoading, error: error ?? null, save };
 }

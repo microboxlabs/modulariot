@@ -5,12 +5,14 @@ import { readLogoDataUrl } from "./domain-branding-form";
 import {
   PLATFORM_OWNER_ROLE,
   type DomainBrandingAdmin,
+  type HarnessPlan,
   type ModelProviderAdmin,
   type ModelUsageTotal,
   type PlatformRole,
   type LogoVariant,
   type PlatformRoleMembership,
   type SetDomainBranding,
+  type SetHarnessPlan,
   type SetModelProvider,
 } from "./platform.types";
 
@@ -132,4 +134,12 @@ export async function fetchModelUsage(
     `${PLATFORM_BASE}/model-usage?${query.toString()}`
   );
   return body.totals;
+}
+
+export function fetchHarnessPlan(): Promise<HarnessPlan> {
+  return getJson<HarnessPlan>(`${PLATFORM_BASE}/harness-plan`);
+}
+
+export function saveHarnessPlan(value: SetHarnessPlan): Promise<HarnessPlan> {
+  return sendJson<HarnessPlan>("PUT", `${PLATFORM_BASE}/harness-plan`, value);
 }

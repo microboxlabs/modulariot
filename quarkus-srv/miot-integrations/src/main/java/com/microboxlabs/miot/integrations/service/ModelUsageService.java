@@ -22,7 +22,9 @@ import java.util.Map;
  *
  * <p>All input tokens, cached or not, are charged at the model's input price.
  * Output tokens are charged at its output price. A model without both prices is
- * recorded with no cost.
+ * recorded with no cost. Each line also records the tokens it takes from the
+ * organization's seat-plan pool: all its tokens times the model's multiplier,
+ * or times 1 for a model no provider lists.
  *
  * <p>Validation throws {@link IllegalArgumentException}, which the resources map to 400.
  */
@@ -57,7 +59,8 @@ public class ModelUsageService {
                     line.provider(), line.model(), line.calls(),
                     line.inputTokens(), line.outputTokens(),
                     line.cacheReadTokens(), line.cacheWriteTokens(),
-                    in, out, cost(line, in, out)))) {
+                    in, out, cost(line, in, out),
+                    poolTokens(line, price == null ? BigDecimal.ONE : price.poolMultiplier())))) {
                 stored++;
             }
         }
@@ -89,6 +92,15 @@ public class ModelUsageService {
         return BigDecimal.valueOf(input).multiply(inputPerMtok)
                 .add(BigDecimal.valueOf(line.outputTokens()).multiply(outputPerMtok))
                 .divide(MILLION, 8, RoundingMode.HALF_UP);
+    }
+
+    /**
+     * Tokens the line takes from the organization's pool: every token, cached or
+     * not, times the model's multiplier, rounded up.
+     */
+    static long poolTokens(UsageLine line, BigDecimal multiplier) {
+        long tokens = line.inputTokens() + line.cacheReadTokens() + line.cacheWriteTokens() + line.outputTokens();
+        return BigDecimal.valueOf(tokens).multiply(multiplier).setScale(0, RoundingMode.CEILING).longValueExact();
     }
 
     private Map<String, ModelProvider.Model> prices() {

@@ -56,10 +56,15 @@ class ModelUsageServiceTest {
     private final ModelUsageService service = new ModelUsageService(usage, providers);
 
     private void price(String provider, String model, String in, String out) {
+        price(provider, model, in, out, null);
+    }
+
+    private void price(String provider, String model, String in, String out, String multiplier) {
         providers.rows.add(new ModelProvider(provider, null, "enc", "…1234",
                 List.of(new ModelProvider.Model(model,
                         in == null ? null : new BigDecimal(in),
-                        out == null ? null : new BigDecimal(out), false)),
+                        out == null ? null : new BigDecimal(out), false,
+                        multiplier == null ? null : new BigDecimal(multiplier))),
                 true, "owner", null));
     }
 
@@ -78,6 +83,24 @@ class ModelUsageServiceTest {
         assertEquals(new BigDecimal("0.38000000"), row.costUsd());
         assertEquals(new BigDecimal("0.27"), row.inputPerMtok());
         assertEquals("acme", row.organization());
+    }
+
+    @Test
+    void poolTokensAreEveryTokenTimesTheMultiplier() {
+        price("openrouter", "anthropic/claude-opus-5.5", "4", "20", "3");
+
+        service.recordUsage(run("r1",
+                new UsageLine("openrouter", "anthropic/claude-opus-5.5", 1, 1_000, 200, 300, 0),
+                new UsageLine("anthropic", "claude-sonnet-4-6", 1, 10, 10, 0, 0)));
+
+        assertEquals(4_500, usage.rows.get(0).poolTokens(), "(1000 + 200 + 300) x 3");
+        assertEquals(20, usage.rows.get(1).poolTokens(), "an unlisted model counts once");
+    }
+
+    @Test
+    void fractionalPoolTokensRoundUp() {
+        assertEquals(4, ModelUsageService.poolTokens(
+                new UsageLine("p", "m", 1, 3, 0, 0, 0), new BigDecimal("1.1")));
     }
 
     @Test

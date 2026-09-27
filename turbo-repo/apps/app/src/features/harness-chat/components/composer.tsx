@@ -17,7 +17,7 @@ import type { HarnessSkill } from "../harness-chat-types";
 import { useRunCancel } from "../context/run-cancel-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 import { useHarnessModel } from "../context/harness-model-context";
-import { useHarnessModels } from "../hooks/use-harness-models";
+import { modelLabel, useHarnessModels } from "../hooks/use-harness-models";
 import { ComposerAttachmentPreview } from "./attachments";
 
 const WHITESPACE_CHARS = new Set([" ", "\t", "\n", "\r", "\f", "\v"]);
@@ -236,7 +236,7 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
           >
             {models.models.map((name) => (
               <option key={name} value={name}>
-                {name}
+                {modelLabel(models, name)}
               </option>
             ))}
           </select>

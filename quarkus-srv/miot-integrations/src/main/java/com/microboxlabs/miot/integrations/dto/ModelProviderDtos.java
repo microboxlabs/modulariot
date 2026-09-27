@@ -11,12 +11,16 @@ public final class ModelProviderDtos {
     private ModelProviderDtos() {
     }
 
-    /** A model a provider offers, with its price per million tokens. */
+    /**
+     * A model a provider offers, with its price per million tokens and how many
+     * pool tokens each of its tokens uses (null means 1).
+     */
     public record ModelEntry(
             String id,
             BigDecimal inputPerMtok,
             BigDecimal outputPerMtok,
-            @JsonProperty("default") Boolean isDefault) {
+            @JsonProperty("default") Boolean isDefault,
+            BigDecimal multiplier) {
     }
 
     /** Create or replace a provider. A blank {@code apiKey} keeps the stored one. */

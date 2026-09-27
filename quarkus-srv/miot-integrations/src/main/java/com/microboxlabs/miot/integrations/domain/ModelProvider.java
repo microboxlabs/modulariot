@@ -18,8 +18,24 @@ public record ModelProvider(
         String updatedBy,
         OffsetDateTime updatedAt) {
 
-    /** One model and its price per million tokens; prices may be unset. */
-    public record Model(String id, BigDecimal inputPerMtok, BigDecimal outputPerMtok, boolean isDefault) {
+    /**
+     * One model and its price per million tokens; prices may be unset.
+     * {@code multiplier} is how many pool tokens each of its tokens uses; null means 1.
+     */
+    public record Model(
+            String id,
+            BigDecimal inputPerMtok,
+            BigDecimal outputPerMtok,
+            boolean isDefault,
+            BigDecimal multiplier) {
+
+        public BigDecimal poolMultiplier() {
+            return multiplier == null ? BigDecimal.ONE : multiplier;
+        }
+
+        public Model withDefault(boolean value) {
+            return new Model(id, inputPerMtok, outputPerMtok, value, multiplier);
+        }
     }
 
     public ModelProvider withModels(List<Model> next) {

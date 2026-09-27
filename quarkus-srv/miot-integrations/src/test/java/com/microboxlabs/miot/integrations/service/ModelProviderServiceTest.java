@@ -60,7 +60,7 @@ class ModelProviderServiceTest {
     private final ModelProviderService service = new ModelProviderService(repository, cipher);
 
     private static ModelEntry model(String id, boolean isDefault) {
-        return new ModelEntry(id, new BigDecimal("0.27"), new BigDecimal("1.10"), isDefault);
+        return new ModelEntry(id, new BigDecimal("0.27"), new BigDecimal("1.10"), isDefault, null);
     }
 
     private ModelProviderResponse put(String provider, String key, ModelEntry... models) {
@@ -131,12 +131,16 @@ class ModelProviderServiceTest {
         ModelEntry maxModel = model("qwen-max", false);
         ModelEntry defaultA = model("a", true);
         ModelEntry defaultB = model("b", true);
-        ModelEntry negative = new ModelEntry("a", new BigDecimal("-1"), null, false);
+        ModelEntry negative = new ModelEntry("a", new BigDecimal("-1"), null, false, null);
+        ModelEntry belowOne = new ModelEntry("a", null, null, false, new BigDecimal("0.5"));
+        ModelEntry between = new ModelEntry("a", null, null, false, new BigDecimal("1.5"));
         SetModelProviderRequest plainHttp = new SetModelProviderRequest("k", "http://x.test", List.of(), true);
 
         assertThrows(IllegalArgumentException.class, () -> put("qwen", "k", maxModel, maxModel), "duplicate model");
         assertThrows(IllegalArgumentException.class, () -> put("qwen", "k", defaultA, defaultB), "two defaults");
         assertThrows(IllegalArgumentException.class, () -> put("qwen", "k", negative), "negative price");
+        assertThrows(IllegalArgumentException.class, () -> put("qwen", "k", belowOne), "multiplier below 1");
+        assertThrows(IllegalArgumentException.class, () -> put("qwen", "k", between), "multiplier not 1, 2 or 3");
         assertThrows(IllegalArgumentException.class, () -> service.put("qwen", plainHttp, OWNER), "plain http");
         assertTrue(repository.rows.isEmpty());
     }

@@ -5635,7 +5635,9 @@
         "placeholder": "Ask the harness…",
         "cancelRun": "Cancel",
         "model": "Model",
-        "pdfTooLarge": "PDF is too large ({size} MB) — the limit is {limit} MB.",
+        "attachmentTooLarge": "{name} is too large ({size} MB). The limit is {limit} MB per file.",
+        "tooManyAttachments": "You can attach up to {limit} files per message.",
+        "attachmentNotAccepted": "That file type is not supported. Attach PNG, JPEG, WebP or GIF images, PDFs or text files.",
         "commands": {
           "compact": {
             "description": "Summarizes the conversation to free context. Add what to keep, for example: /compact keep the figures."

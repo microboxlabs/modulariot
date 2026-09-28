@@ -9,8 +9,20 @@ export interface ConversationTurn {
   assistant_answer: string;
 }
 
+/**
+ * A file attached to the message. The harness accepts up to 5, each at most
+ * 5 MB: PNG, JPEG, WebP or GIF images, PDFs, and `text/*` files.
+ */
+export interface Attachment {
+  mime: string;
+  name?: string;
+  /** The file's bytes, base64-encoded, without a `data:` prefix. */
+  data: string;
+}
+
 export interface UserRequest {
   message: string;
+  attachments?: Attachment[];
   thread_id?: string;
   tenant_id?: string;
   user_id?: string;

@@ -27,8 +27,10 @@ import {
 } from "@/features/i18n/i18n.service";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
+import type { Attachment } from "@microboxlabs/miot-harness-client";
 import {
   conversationOf,
+  lastUserAttachments,
   modelOf,
   type AgUiMessage,
   type RunAgentInputBody,
@@ -395,7 +397,7 @@ function demoCreateStory(send: Sender, text: string): boolean {
 
 export type HarnessPathDecision =
   | { handled: true }
-  | { handled: false; message: string };
+  | { handled: false; message: string; attachments?: Attachment[] };
 
 /** A tool result while the harness is configured: the user's pick on an
  * ask_user_question card is their next turn; a widget's automatic
@@ -438,7 +440,8 @@ export function decideHarnessPath(
   }
 
   const message = lastUserText(messages);
-  if (!message) {
+  const attachments = lastUserAttachments(messages);
+  if (!message && attachments.length === 0) {
     send({ type: "RUN_FINISHED", runId, threadId });
     return { handled: true };
   }
@@ -480,7 +483,7 @@ export function decideHarnessPath(
     return { handled: true };
   }
 
-  return { handled: false, message };
+  return { handled: false, message, attachments };
 }
 
 type HarnessConnection =
@@ -716,7 +719,7 @@ async function run(
 
   const decision = decideHarnessPath(send, messages, runId, threadId, tr);
   if (decision.handled) return;
-  const { message } = decision;
+  const { message, attachments } = decision;
 
   const connection = await connectToHarness(authResult.session);
   if (!connection.ok) {
@@ -764,6 +767,7 @@ async function run(
     const { run_id } = await client.runs.create(
       {
         message,
+        ...(attachments && attachments.length > 0 && { attachments }),
         skill_id: "miot-analyst",
         answer_format: "json",
         ...(model && { model }),

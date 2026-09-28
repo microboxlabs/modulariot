@@ -71,12 +71,47 @@ describe("decideHarnessPath", () => {
     expect(decision).toEqual({
       handled: false,
       message: "Can you tell me the story behind this alert?",
+      attachments: [],
     });
     // Nothing should have been synthesized locally — this turn goes to the
     // real harness, driven by the caller once decideHarnessPath returns.
     expect(send).not.toHaveBeenCalledWith(
       expect.objectContaining({ toolCallName: "create_story" }),
     );
+  });
+
+  it("sends a message that is only a file to the harness, with the file", async () => {
+    isModulithConfiguredMock.mockReturnValue(true);
+    const { decideHarnessPath } = await import("./route");
+
+    const send = vi.fn();
+    const decision = decideHarnessPath(
+      send,
+      [
+        {
+          id: "m1",
+          role: "user" as const,
+          content: [
+            { type: "text", text: "" },
+            {
+              type: "image",
+              source: { type: "data", value: "iVBO", mimeType: "image/png" },
+              metadata: { filename: "chart.png" },
+            },
+          ],
+        },
+      ],
+      "run-1",
+      "thread-1",
+      tr,
+    );
+
+    expect(decision).toEqual({
+      handled: false,
+      message: "",
+      attachments: [{ mime: "image/png", name: "chart.png", data: "iVBO" }],
+    });
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("still serves the demo create_story trigger when the harness is unconfigured", async () => {

@@ -26,6 +26,7 @@ from miot_harness.runtime.answer_contract import (
 )
 from miot_harness.runtime.answer_render import render_answer_with_format
 from miot_harness.runtime.approvals import ApprovalRegistry
+from miot_harness.runtime.attachments import with_markers
 from miot_harness.runtime.commands import Command, parse_command, render_context
 from miot_harness.runtime.context import (
     MAX_CONVERSATION_HISTORY_TURNS,
@@ -334,7 +335,7 @@ class HarnessSupervisor:
             self.conversation_store.append(
                 conversation_key,
                 ConversationTurn(
-                    user_message=request.message,
+                    user_message=with_markers(request.message, request.attachments),
                     assistant_answer=record.answer,
                     messages=tuple(turn_messages or ()),
                 ),

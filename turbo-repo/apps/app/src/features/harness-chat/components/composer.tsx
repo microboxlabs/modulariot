@@ -1,6 +1,6 @@
 "use client";
 
-import { AuiIf, ComposerPrimitive, useAui, useAuiState } from "@assistant-ui/react";
+import { AuiIf, ComposerPrimitive, useAui, useAuiEvent, useAuiState } from "@assistant-ui/react";
 import { LuPaperclip, LuSendHorizontal, LuSquare } from "react-icons/lu";
 import {
   useEffect,
@@ -145,6 +145,21 @@ function useSlashCommand(
   };
 }
 
+/** Why the last file could not be attached, until the next one is or the
+ * message is sent. */
+function useAttachmentError(): string | null {
+  const tr = useHarnessChatTr();
+  const [error, setError] = useState<string | null>(null);
+  useAuiEvent("composer.attachmentAddError", ({ reason, message }) =>
+    setError(
+      reason === "not-accepted" ? tr("harnessChat.ui.composer.attachmentNotAccepted") : message,
+    ),
+  );
+  useAuiEvent("composer.attachmentAdd", () => setError(null));
+  useAuiEvent("composer.send", () => setError(null));
+  return error;
+}
+
 export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
   const tr = useHarnessChatTr();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -155,6 +170,7 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
   const text = useAuiState((s) => s.composer.text);
   const models = useHarnessModels();
   const picked = useHarnessModel();
+  const attachmentError = useAttachmentError();
 
   const syncBackdropScroll = (e: UIEvent<HTMLTextAreaElement>) => {
     if (backdropRef.current) backdropRef.current.scrollTop = e.currentTarget.scrollTop;
@@ -178,6 +194,11 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
           )}
         </ComposerPrimitive.Attachments>
       </div>
+      {attachmentError && (
+        <p role="alert" className="px-1 text-xs text-red-600 dark:text-red-400">
+          {attachmentError}
+        </p>
+      )}
 
       <div className="flex items-center gap-1">
         <ComposerPrimitive.AddAttachment className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100">

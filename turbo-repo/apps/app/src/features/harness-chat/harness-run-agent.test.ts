@@ -29,7 +29,8 @@ describe("trimRunInput", () => {
     expect(trimmed.messages.map((m) => m.id)).toEqual(["u1", "a1", "u2"]);
   });
 
-  it("sends only the text of a message that carried an attachment", () => {
+  it("marks the files of an earlier message and keeps the ones being sent", () => {
+    const pdf = "A".repeat(50_000);
     const trimmed = trimRunInput(
       input([
         {
@@ -40,14 +41,45 @@ describe("trimRunInput", () => {
             {
               type: "binary",
               mimeType: "application/pdf",
-              data: `data:application/pdf;base64,${"A".repeat(50_000)}`,
+              data: `data:application/pdf;base64,${pdf}`,
+              filename: "report.pdf",
+            },
+          ],
+        },
+        { id: "a1", role: "assistant", content: "a report" },
+        {
+          id: "u2",
+          role: "user",
+          content: [
+            { type: "text", text: "and this?" },
+            { type: "text", text: "<attachment name=notes.txt>\nhi\n</attachment>" },
+            {
+              type: "image",
+              source: { type: "data", value: "iVBO", mimeType: "image/png" },
+              metadata: { filename: "chart.png" },
             },
           ],
         },
       ])
     );
 
-    expect(trimmed.messages[0].content).toBe("look at this");
+    expect(trimmed.messages[0].content).toBe("[pdf: report.pdf]\nlook at this");
+    expect(trimmed.messages[2].content).toEqual([
+      { type: "text", text: "and this?\n<attachment name=notes.txt>\nhi\n</attachment>" },
+      {
+        type: "image",
+        source: { type: "data", value: "iVBO", mimeType: "image/png" },
+        metadata: { filename: "chart.png" },
+      },
+    ]);
+  });
+
+  it("sends a last message with no files as its text", () => {
+    const trimmed = trimRunInput(
+      input([{ id: "u1", role: "user", content: [{ type: "text", text: "hola" }] }])
+    );
+
+    expect(trimmed.messages[0].content).toBe("hola");
   });
 
   it("keeps the tool exchange that steers a run", () => {

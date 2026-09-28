@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { conversationOf, NO_ANSWER, priorTurns, type AgUiMessage } from "./conversation";
+import {
+  conversationOf,
+  lastUserAttachments,
+  NO_ANSWER,
+  priorTurns,
+  type AgUiMessage,
+} from "./conversation";
 
 const user = (id: string, content: unknown): AgUiMessage => ({
   id,
@@ -162,5 +168,71 @@ describe("conversationOf", () => {
       replayTurns: [],
       summary: null,
     });
+  });
+});
+
+describe("lastUserAttachments", () => {
+  const image = {
+    type: "image",
+    source: { type: "data", value: "iVBO", mimeType: "image/png" },
+    metadata: { filename: "chart.png" },
+  };
+  const pdf = {
+    type: "document",
+    source: { type: "data", value: "JVBE", mimeType: "application/pdf" },
+  };
+
+  it("collects the files of the message being sent, and only those", () => {
+    const attachments = lastUserAttachments([
+      user("u1", [{ type: "text", text: "old" }, image]),
+      assistant("a1", "ok"),
+      user("u2", [{ type: "text", text: "what now?" }, image, pdf]),
+    ]);
+
+    expect(attachments).toEqual([
+      { mime: "image/png", name: "chart.png", data: "iVBO" },
+      { mime: "application/pdf", name: "document.pdf", data: "JVBE" },
+    ]);
+  });
+
+  it("strips a data URL down to its base64 body", () => {
+    const attachments = lastUserAttachments([
+      user("u1", [
+        {
+          type: "binary",
+          mimeType: "image/jpeg",
+          data: "data:image/jpeg;base64,/9j/",
+          filename: "a.jpg",
+        },
+      ]),
+    ]);
+
+    expect(attachments).toEqual([{ mime: "image/jpeg", name: "a.jpg", data: "/9j/" }]);
+  });
+
+  it("ignores URL sources, malformed parts and text-only messages", () => {
+    expect(
+      lastUserAttachments([
+        user("u1", [
+          { type: "image", source: { type: "url", value: "https://example.com/a.png" } },
+          { type: "document", source: { type: "data", value: 1, mimeType: "application/pdf" } },
+          { type: "binary", mimeType: "image/png" },
+          null,
+        ]),
+      ])
+    ).toEqual([]);
+    expect(lastUserAttachments([user("u1", "hola")])).toEqual([]);
+  });
+
+  it("leaves a marker for a file in a replayed turn", () => {
+    const turns = priorTurns([
+      user("u1", [{ type: "text", text: "what is this?" }, image]),
+      assistant("a1", "a chart"),
+      user("u2", "thanks"),
+    ]);
+
+    expect(turns).toEqual([
+      { user_message: "[image: chart.png]\nwhat is this?", assistant_answer: "a chart" },
+    ]);
   });
 });

@@ -1,4 +1,5 @@
-import type { ConversationTurn } from "@microboxlabs/miot-harness-client";
+import type { Attachment, ConversationTurn } from "@microboxlabs/miot-harness-client";
+import { attachmentMarker, attachmentOfPart } from "@/features/harness-chat/attachment-parts";
 
 export type AgUiMessage = {
   id: string;
@@ -105,7 +106,11 @@ export function priorTurns(messages: AgUiMessage[]): ConversationTurn[] {
 function messageText(message: AgUiMessage): string {
   if (typeof message.content === "string") return message.content.trim();
   if (!Array.isArray(message.content)) return "";
-  return message.content
+  const markers = message.content.flatMap((part) => {
+    const file = attachmentOfPart(part);
+    return file ? [attachmentMarker(file)] : [];
+  });
+  const body = message.content
     .filter(
       (part): part is { type: "text"; text: string } =>
         typeof part === "object" &&
@@ -113,9 +118,19 @@ function messageText(message: AgUiMessage): string {
         (part as { type?: unknown }).type === "text" &&
         typeof (part as { text?: unknown }).text === "string"
     )
-    .map((part) => part.text)
-    .join("\n")
-    .trim();
+    .map((part) => part.text);
+  return [...markers, ...body].join("\n").trim();
+}
+
+/** The files on the message this run is for, to hand to the harness. The
+ * harness validates their type, size and number. */
+export function lastUserAttachments(messages: AgUiMessage[]): Attachment[] {
+  const last = messages.findLast((m) => m.role === "user");
+  if (!last || !Array.isArray(last.content)) return [];
+  return last.content.flatMap((part) => {
+    const file = attachmentOfPart(part);
+    return file ? [file] : [];
+  });
 }
 
 function text(value: unknown): string | null {

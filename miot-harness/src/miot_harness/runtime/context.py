@@ -7,6 +7,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from miot_harness.runtime.approvals import ApprovalRegistry
+from miot_harness.runtime.attachments import MAX_ATTACHMENTS, Attachment
 from miot_harness.runtime.commands import COMMANDS
 from miot_harness.runtime.permissions import (
     PermissionMode,
@@ -66,6 +67,9 @@ class HarnessContext(BaseModel):
     # excluded from dumps and repr so the token never lands in a record or log.
     caller_token: str | None = Field(default=None, exclude=True, repr=False)
     organization: str | None = Field(default=None, exclude=True)
+    # Files attached to this run's message. Excluded from dumps and repr so
+    # the bytes never land in a record or log.
+    attachments: list[Attachment] = Field(default_factory=list, exclude=True, repr=False)
     # Why this tenant may not read the datasource, or None when it may. The
     # model still answers; the datasource tools return this instead.
     data_refusal: str | None = Field(default=None, exclude=True)
@@ -100,6 +104,9 @@ class ConversationTurnInput(BaseModel):
 
 class UserRequest(BaseModel):
     message: str
+    attachments: list[Attachment] = Field(
+        default_factory=list, max_length=MAX_ATTACHMENTS, repr=False
+    )
     thread_id: str = "demo-thread"
     # Issue #522 R6: `tenant_id` and `user_id` are deprecated body
     # fields. In production the tenant is set in `api.server` from the
@@ -218,4 +225,5 @@ class UserRequest(BaseModel):
             debug=self.debug,
             answer_format=self.answer_format,
             permission_policy=policy,
+            attachments=self.attachments,
         )

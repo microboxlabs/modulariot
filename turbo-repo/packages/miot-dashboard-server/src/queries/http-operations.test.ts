@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { createServer } from "node:http";
+import { once } from "node:events";
 import { NO_CAPABILITIES } from "../seams/identity";
 import type { DashboardOperationRequest } from "../seams/operations";
 import { createHttpDashboardOperationExecutor } from "./http-operations";
@@ -147,6 +149,34 @@ describe("host HTTP operation executor", () => {
       executor.execute({ ...request(), signal: controller.signal }),
     ).rejects.toMatchObject({ status: 502 });
     expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it("aborts a real host response stalled after headers at its deadline", async () => {
+    const host = createServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.write('{"rows":[');
+    });
+    host.listen(0, "127.0.0.1");
+    await once(host, "listening");
+    const address = host.address();
+    if (address === null || typeof address === "string")
+      throw new Error("Expected a TCP address");
+    const executor = createHttpDashboardOperationExecutor({
+      url: `http://127.0.0.1:${address.port}/operations`,
+      proxyKey,
+      requestTimeoutMs: 100,
+    });
+    try {
+      await expect(executor.execute(request())).rejects.toMatchObject({
+        status: 502,
+        message: "Dashboard query could not be completed",
+      });
+    } finally {
+      host.closeAllConnections();
+      await new Promise<void>((resolve, reject) =>
+        host.close((error) => error ? reject(error) : resolve()),
+      );
+    }
   });
 
   it.each([

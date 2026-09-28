@@ -45,6 +45,7 @@ from miot_harness.context_skills.loader import (
     ActiveConnections,
     boot_context_skills,
 )
+from miot_harness.context_skills.seed import PACKAGED_DEFAULTS, refresh_defaults
 from miot_harness.context_skills.skill_models import SkillSummary
 from miot_harness.datasource.knowledge.distiller import distill_episodes
 from miot_harness.datasource.knowledge.loader import load_connection_cards
@@ -444,6 +445,11 @@ def _make_lifespan(
             ),
             known=frozenset(conn.name for conn in conn_result.connections),
         )
+        if settings.refresh_packaged_defaults:
+            if settings.context_source_kind == "file":
+                refresh_defaults(PACKAGED_DEFAULTS / "context", settings.context_dir)
+            if settings.skills_source_kind == "file":
+                refresh_defaults(PACKAGED_DEFAULTS / "skills", settings.skills_dir)
         try:
             cs = boot_context_skills(
                 harness.tools, settings, active_connections=active_connections

@@ -50,6 +50,7 @@ _SPARSE = (
     "!*.dylib",
 )
 _MAX_GREP_OUTPUT = 2_000_000
+_MAX_FILE_BYTES = 5_000_000
 _MAX_LINE_CHARS = 300
 _LIST_LIMIT = 300
 _GITHUB = re.compile(r"^https://github\.com/([\w.-]+)/([\w.-]+?)(?:\.git)?/?$")
@@ -179,9 +180,10 @@ class SourceRepos:
 
 def _relative(path: str) -> str:
     """A clean relative path, or a SourceError."""
-    cleaned = path.strip().strip("/") or "."
+    cleaned = path.strip()
     parts = [p for p in cleaned.split("/") if p not in ("", ".")]
-    if cleaned.startswith(("~", ":")) or ".." in parts or (parts and parts[0] == ".git"):
+    absolute = cleaned.startswith("/") and bool(parts)
+    if absolute or cleaned.startswith(("~", ":")) or ".." in parts or parts[:1] == [".git"]:
         raise SourceError(
             f"path {path!r} is not allowed: use a path relative to the repository root"
         )
@@ -196,6 +198,13 @@ def _inside(root: Path, relative: str) -> Path:
     if real_root / ".git" in (target, *target.parents):
         raise SourceError(f"path {relative!r} is not allowed")
     return target
+
+
+def _readable(root: Path, relative: str) -> bool:
+    try:
+        return _inside(root, relative).is_file()
+    except SourceError:
+        return False
 
 
 def _pathspec(path: str, glob: str | None) -> str:
@@ -288,7 +297,7 @@ async def list_source(repos: SourceRepos, value: SourceListInput) -> SourceListO
     root = await repos.checkout(repo)
     if value.glob:
         out = await repos.git(root, "ls-files", "-z", "--", pathspec)
-        entries = sorted(f for f in out.split("\0") if f and (root / f).is_file())
+        entries = sorted(f for f in out.split("\0") if f and _readable(root, f))
     else:
         directory = _inside(root, relative)
         if not directory.is_dir():
@@ -329,7 +338,7 @@ async def search_source(repos: SourceRepos, value: SourceSearchInput) -> SourceS
         repo=repo.name,
         commit=await repos.commit(root),
         matches=matches,
-        truncated=len(lines) > value.max_results,
+        truncated=len(lines) > value.max_results or len(out.encode()) >= _MAX_GREP_OUTPUT,
     )
 
 
@@ -360,6 +369,8 @@ async def read_source(repos: SourceRepos, value: SourceReadInput) -> SourceReadO
     target = _inside(root, relative)
     if not target.is_file():
         raise SourceError(f"{relative} is not a file in {repo.name}")
+    if target.stat().st_size > _MAX_FILE_BYTES:
+        raise SourceError(f"{relative} is too large to read; use source_search on it")
     raw = target.read_bytes()
     if b"\0" in raw[:8_192]:
         raise SourceError(f"{relative} is a binary file")

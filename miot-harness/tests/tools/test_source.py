@@ -153,6 +153,20 @@ async def test_a_symlink_out_of_the_repository_is_refused(origin: Path, tmp_path
     parent = SourceListInput(path="docs", glob="../*")
     with pytest.raises(SourceError, match="not allowed"):
         await list_source(repos, parent)
+    listed = await list_source(repos, SourceListInput(glob="*"))
+    assert "leak" not in listed.entries
+    assert "README.md" in listed.entries
+
+
+@pytest.mark.asyncio
+async def test_a_file_past_the_size_cap_is_not_read(
+    origin: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("miot_harness.tools.source._MAX_FILE_BYTES", 10)
+    repos = _repos(origin, tmp_path / "ws")
+    value = SourceReadInput(path="src/eta.py")
+    with pytest.raises(SourceError, match="too large"):
+        await read_source(repos, value)
 
 
 @pytest.mark.asyncio

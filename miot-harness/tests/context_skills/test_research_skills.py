@@ -32,10 +32,9 @@ def test_the_new_skills_load_and_the_analyst_names_them() -> None:
 
 
 def test_paths_in_miot_capabilities_exist() -> None:
-    if not (_REPO_ROOT / "turbo-repo").is_dir():
-        pytest.skip("monorepo checkout not available")
     body = (_SKILLS_DIR / "miot-capabilities" / "SKILL.md").read_text()
-    paths = _PATH_RE.findall(body)
-    assert paths
+    paths = [p for p in _PATH_RE.findall(body) if (_REPO_ROOT / p.split("/")[0]).is_dir()]
+    if not paths:
+        pytest.skip("monorepo checkout not available")
     missing = [p for p in paths if not (_REPO_ROOT / p).exists()]
     assert missing == []

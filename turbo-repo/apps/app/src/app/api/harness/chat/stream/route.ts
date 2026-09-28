@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Attachment, RunEffort } from "@microboxlabs/miot-harness-client";
 import { requireAuth } from "../../../utils/alfresco-crud-client";
 import { recordEpisode } from "../../../interactions/episodes/record-episode";
 import type { AskUserQuestionArgs } from "@/features/harness-chat/extensions/ask-user-question";
@@ -16,6 +17,7 @@ import { isModulithConfigured } from "@/lib/modulith-host";
 import {
   conversationOf,
   effortOf,
+  lastUserAttachments,
   modelOf,
   type AgUiMessage,
   type RunAgentInputBody,
@@ -249,7 +251,17 @@ function demoShowDashlet(send: Sender, text: string, tr: TrFn): boolean {
 
 export type HarnessPathDecision =
   | { handled: true }
-  | { handled: false; message: string };
+  | { handled: false; message: string; attachments?: Attachment[] };
+
+function toHarness(message: string, attachments: Attachment[]): HarnessPathDecision {
+  return attachments.length > 0
+    ? { handled: false, message, attachments }
+    : { handled: false, message };
+}
+
+function isEmptyTurn(message: string, attachments: Attachment[]): boolean {
+  return !message && attachments.length === 0;
+}
 
 /** A tool result while the harness is configured: the user's pick on an
  * ask_user_question card is their next turn; a widget's automatic
@@ -292,7 +304,8 @@ export function decideHarnessPath(
   }
 
   const message = lastUserText(messages);
-  if (!message) {
+  const attachments = lastUserAttachments(messages);
+  if (isEmptyTurn(message, attachments)) {
     send({ type: "RUN_FINISHED", runId, threadId });
     return { handled: true };
   }
@@ -325,7 +338,7 @@ export function decideHarnessPath(
     return { handled: true };
   }
 
-  return { handled: false, message };
+  return toHarness(message, attachments);
 }
 
 export async function POST(request: Request) {
@@ -351,6 +364,17 @@ export async function POST(request: Request) {
   );
 }
 
+/** The per-turn fields of a run request, left out when unset. */
+function turnOptions(
+  attachments: Attachment[] | undefined,
+  effort: RunEffort | null
+): { attachments?: Attachment[]; effort?: RunEffort } {
+  return {
+    ...(attachments && { attachments }),
+    ...(effort && { effort }),
+  };
+}
+
 async function run(
   send: Sender,
   body: RunAgentInputBody,
@@ -374,7 +398,7 @@ async function run(
 
   const decision = decideHarnessPath(send, messages, runId, threadId, tr);
   if (decision.handled) return;
-  const { message } = decision;
+  const { message, attachments } = decision;
 
   const connection = await connectToHarness(authResult.session);
   if (!connection.ok) {
@@ -405,10 +429,10 @@ async function run(
     const { run_id } = await client.runs.create(
       {
         message,
+        ...turnOptions(attachments, effort),
         skill_id: "miot-analyst",
         answer_format: "json",
         ...(model && { model }),
-        ...(effort && { effort }),
         ...(userEmail && { user_id: userEmail }),
         ...(conversationId && { conversation_id: conversationId }),
         ...(replayTurns.length > 0 && { conversation_history: replayTurns }),

@@ -5572,7 +5572,12 @@
         "write_todos": "Planificando los pasos",
         "delegate": "Delegando una tarea a un subagente",
         "ask_advisor": "Consultando al asesor",
-        "fs_write": "Guardando un borrador"
+        "fs_write": "Guardando un borrador",
+        "artifact": "Preparando un documento",
+        "workflow": "Revisando el proceso de negocio",
+        "source_search": "Buscando en el código y la documentación del producto",
+        "source_read": "Leyendo el código y la documentación del producto",
+        "source_list": "Recorriendo el código y la documentación del producto"
       },
       "noAnswer": "El harness no devolvió una respuesta.",
       "unconfigured": "El harness no está configurado en este entorno — esta es una respuesta de marcador de posición.",
@@ -5621,6 +5626,8 @@
         "shareSubmit": "Compartir",
         "sharedWithYou": "Compartido contigo",
         "revokeShare": "Quitar acceso",
+        "rename": "Renombrar chat",
+        "fork": "Bifurcar chat",
         "shareLink": "Compartir enlace",
         "shareWithPerson": "O dale acceso a una persona:",
         "linkCopied": "Enlace copiado. Cualquier persona de tu organización puede abrirlo.",
@@ -5636,6 +5643,8 @@
         "runFailed": "No se pudo obtener una respuesta.",
         "retry": "Reintentar",
         "readOnly": "Este chat es de solo lectura: lo compartió otra persona.",
+        "forkFromHere": "Bifurcar desde aquí",
+        "forkToContinue": "Bifúrcalo para continuarlo como tuyo",
         "working": "Trabajando…",
         "elapsed": "Tiempo transcurrido"
       },
@@ -5646,7 +5655,9 @@
         "placeholder": "Pregúntale al harness…",
         "cancelRun": "Cancelar",
         "model": "Modelo",
-        "pdfTooLarge": "El PDF es demasiado grande ({size} MB) — el límite es {limit} MB.",
+        "attachmentTooLarge": "{name} es demasiado grande ({size} MB). El límite es {limit} MB por archivo.",
+        "tooManyAttachments": "Puedes adjuntar hasta {limit} archivos por mensaje.",
+        "attachmentNotAccepted": "Ese tipo de archivo no es compatible. Adjunta imágenes PNG, JPEG, WebP o GIF, PDF o archivos de texto.",
         "commands": {
           "compact": {
             "description": "Resume la conversación para liberar contexto. Agrega qué conservar, por ejemplo: /compact conserva las cifras."
@@ -5666,6 +5677,14 @@
         "defaultModel": "Modelo por defecto",
         "modelsUnavailable": "No se pudieron cargar los modelos. Reintentar"
       },
+      "showArtifact": {
+        "expand": "Ampliar",
+        "copy": "Copiar contenido",
+        "copied": "Copiado",
+        "download": "Descargar",
+        "saveAsStory": "Guardar como historia",
+        "omitted": "Este resultado era demasiado grande para guardarlo en el historial de la conversación."
+      },
       "showDashlet": {
         "unknown": "Dashlet desconocido: {id}",
         "unsupported": "{name} no se puede mostrar en el chat."
@@ -5676,6 +5695,23 @@
         "otherPlaceholder": "Otro…",
         "otherAriaLabel": "Otro",
         "submit": "Enviar"
+      },
+      "activity": {
+        "label": "Actividad",
+        "summary": "{count} pasos · {duration}",
+        "summaryOne": "1 paso · {duration}",
+        "loading": "Cargando la actividad…",
+        "failed": "No se pudo cargar la actividad.",
+        "empty": "No hay pasos registrados.",
+        "arguments": "Argumentos",
+        "result": "Resultado",
+        "error": "Error",
+        "truncated": "recortado",
+        "copy": "Copiar",
+        "copied": "Copiado",
+        "unfinished": "Sin terminar",
+        "noArguments": "Esta ejecución no guardó los argumentos.",
+        "tokens": "{input} tokens de entrada · {output} de salida"
       }
     },
     "plan": {

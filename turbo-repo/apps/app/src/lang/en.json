@@ -5572,7 +5572,12 @@
         "write_todos": "Planning the steps",
         "delegate": "Handing a task to a sub-agent",
         "ask_advisor": "Asking the advisor",
-        "fs_write": "Saving a draft"
+        "fs_write": "Saving a draft",
+        "artifact": "Preparing a document",
+        "workflow": "Reading the business process",
+        "source_search": "Searching the product's code and docs",
+        "source_read": "Reading the product's code and docs",
+        "source_list": "Browsing the product's code and docs"
       },
       "noAnswer": "The harness didn't return an answer.",
       "unconfigured": "The harness isn't configured in this environment — this is a placeholder response.",
@@ -5621,6 +5626,8 @@
         "shareSubmit": "Share",
         "sharedWithYou": "Shared with you",
         "revokeShare": "Remove access",
+        "rename": "Rename chat",
+        "fork": "Fork chat",
         "shareLink": "Share link",
         "shareWithPerson": "Or give one person access:",
         "linkCopied": "Link copied. Anyone in your organization can open it.",
@@ -5636,6 +5643,8 @@
         "runFailed": "Could not get an answer.",
         "retry": "Try again",
         "readOnly": "This chat is read-only — someone else shared it with you.",
+        "forkFromHere": "Fork from here",
+        "forkToContinue": "Fork it to continue as your own",
         "working": "Working…",
         "elapsed": "Elapsed time"
       },
@@ -5646,7 +5655,9 @@
         "placeholder": "Ask the harness…",
         "cancelRun": "Cancel",
         "model": "Model",
-        "pdfTooLarge": "PDF is too large ({size} MB) — the limit is {limit} MB.",
+        "attachmentTooLarge": "{name} is too large ({size} MB). The limit is {limit} MB per file.",
+        "tooManyAttachments": "You can attach up to {limit} files per message.",
+        "attachmentNotAccepted": "That file type is not supported. Attach PNG, JPEG, WebP or GIF images, PDFs or text files.",
         "commands": {
           "compact": {
             "description": "Summarizes the conversation to free context. Add what to keep, for example: /compact keep the figures."
@@ -5666,6 +5677,14 @@
         "defaultModel": "Default model",
         "modelsUnavailable": "Could not load the models. Retry"
       },
+      "showArtifact": {
+        "expand": "Expand",
+        "copy": "Copy content",
+        "copied": "Copied",
+        "download": "Download",
+        "saveAsStory": "Save as story",
+        "omitted": "This result was too large to keep in the conversation history."
+      },
       "showDashlet": {
         "unknown": "Unknown dashlet: {id}",
         "unsupported": "{name} can't be shown in chat."
@@ -5676,6 +5695,23 @@
         "otherPlaceholder": "Other…",
         "otherAriaLabel": "Other",
         "submit": "Submit"
+      },
+      "activity": {
+        "label": "Activity",
+        "summary": "{count} steps · {duration}",
+        "summaryOne": "1 step · {duration}",
+        "loading": "Loading activity…",
+        "failed": "Could not load the activity.",
+        "empty": "No steps recorded.",
+        "arguments": "Arguments",
+        "result": "Result",
+        "error": "Error",
+        "truncated": "truncated",
+        "copy": "Copy",
+        "copied": "Copied",
+        "unfinished": "Did not finish",
+        "noArguments": "This run did not record its arguments.",
+        "tokens": "{input} input tokens · {output} output"
       }
     },
     "plan": {

@@ -14,6 +14,7 @@ import {
   type StoredMessage,
 } from "./harness-thread-store";
 import { SHOW_ARTIFACT_TOOL } from "./extensions/show-artifact-args";
+import { clearActiveRun, readActiveRun } from "./harness-active-run";
 
 /**
  * Anything longer is assumed to be inline content rather than a reference and
@@ -27,6 +28,14 @@ const MAX_INLINE_LENGTH = 2048;
  * headroom below the upstream 256 KB row cap. */
 const MAX_STORED_MESSAGE_BYTES = 200_000;
 
+export type HarnessHistoryAdapter = ThreadHistoryAdapter & {
+  /** The harness run `load()` found still going, for the caller to re-attach
+   * to once the transcript is in; null when there is none or it was taken. */
+  takePendingResume(): string | null;
+};
+
+type HistoryItem = { parentId: string | null; message: ThreadMessage };
+
 /**
  * Persists one thread's messages and hands them back on reload.
  *
@@ -34,11 +43,71 @@ const MAX_STORED_MESSAGE_BYTES = 200_000;
  * mounts and its result seeds both the transcript and the AG-UI state, and
  * `append()` runs for every message that reaches a persistable status.
  *
+ * Each assistant message is stored with the harness run that produced it
+ * (`metadata.custom.harnessRunId`). A reload in the middle of a run finds
+ * that run in `harness-active-run`; the answer it left half-written, if one
+ * was stored, is dropped from the transcript, and the re-attached run's
+ * answer is stored over it.
+ *
  * Storage failures are swallowed. Losing a message from the transcript is
  * worse handled by breaking the chat than by forgetting it, and forgetting is
  * exactly what the panel did before it had any storage at all.
  */
-export function createHarnessHistoryAdapter(threadId: string): ThreadHistoryAdapter {
+export function createHarnessHistoryAdapter(
+  threadId: string,
+  runs?: { readonly harnessRunId: string | null },
+): HarnessHistoryAdapter {
+  let pendingResume: string | null = null;
+  // Fixed the first time a message is stored, so a later rewrite of it does
+  // not pick up whatever run is current by then.
+  const runOfMessage = new Map<string, string | null>();
+  // The stored id of the half-written answer a re-attached run replaces.
+  const replacedByRun = new Map<string, string>();
+  const storedIds = new Map<string, string>();
+
+  const toStoredMessage = (item: ExportedMessageRepositoryItem): StoredMessage => {
+    const { message } = item;
+    let runId: string | null = null;
+    if (message.role === "assistant") {
+      if (!runOfMessage.has(message.id)) runOfMessage.set(message.id, runs?.harnessRunId ?? null);
+      runId = runOfMessage.get(message.id) ?? null;
+      const replaced = runId ? replacedByRun.get(runId) : undefined;
+      if (replaced) storedIds.set(message.id, replaced);
+    }
+    const id = storedIds.get(message.id) ?? message.id;
+    const parentId = item.parentId && (storedIds.get(item.parentId) ?? item.parentId);
+    const payload = boundArtifacts(
+      stripInlineContent({
+        ...message,
+        id,
+        ...(runId && {
+          metadata: {
+            ...message.metadata,
+            custom: { ...message.metadata?.custom, harnessRunId: runId },
+          },
+        }),
+      }),
+    ) as unknown as Record<string, unknown>;
+    return { id, parentId, format: AUI_MESSAGE_FORMAT, payload };
+  };
+
+  const planResume = (items: HistoryItem[]): HistoryItem[] => {
+    const activeRunId = readActiveRun(threadId);
+    if (!activeRunId || items.length === 0) return items;
+    const head = items.at(-1)?.message;
+    if (head?.role === "assistant" && harnessRunIdOf(head) === activeRunId) {
+      if (head.status?.type === "complete") {
+        clearActiveRun(threadId, activeRunId);
+        return items;
+      }
+      replacedByRun.set(activeRunId, head.id);
+      pendingResume = activeRunId;
+      return items.slice(0, -1);
+    }
+    pendingResume = activeRunId;
+    return items;
+  };
+
   return {
     async load() {
       const [thread, stored] = await Promise.all([getThread(threadId), listMessages(threadId)]);
@@ -56,15 +125,15 @@ export function createHarnessHistoryAdapter(threadId: string): ThreadHistoryAdap
       const empty = { messages: [], state };
       if (!stored?.length) return empty;
 
-      const items = stored
-        .filter((row) => row.format === AUI_MESSAGE_FORMAT)
-        .map((row) => ({
-          parentId: row.parentId,
-          message: reviveMessage(row.payload),
-        }))
-        .filter((item): item is { parentId: string | null; message: ThreadMessage } =>
-          item.message !== null,
-        );
+      const items = planResume(
+        stored
+          .filter((row) => row.format === AUI_MESSAGE_FORMAT)
+          .map((row) => ({
+            parentId: row.parentId,
+            message: reviveMessage(row.payload),
+          }))
+          .filter((item): item is HistoryItem => item.message !== null),
+      );
       if (items.length === 0) return empty;
 
       const headId = items.at(-1)?.message.id ?? null;
@@ -79,16 +148,18 @@ export function createHarnessHistoryAdapter(threadId: string): ThreadHistoryAdap
       // Upserts on the message id upstream, so the same call covers both.
       await appendMessage(threadId, toStoredMessage(item));
     },
+
+    takePendingResume() {
+      const runId = pendingResume;
+      pendingResume = null;
+      return runId;
+    },
   };
 }
 
-function toStoredMessage(item: ExportedMessageRepositoryItem): StoredMessage {
-  return {
-    id: item.message.id,
-    parentId: item.parentId,
-    format: AUI_MESSAGE_FORMAT,
-    payload: boundArtifacts(stripInlineContent(item.message)) as unknown as Record<string, unknown>,
-  };
+function harnessRunIdOf(message: ThreadMessage): string | null {
+  const runId = message.metadata?.custom?.harnessRunId;
+  return typeof runId === "string" ? runId : null;
 }
 
 /**

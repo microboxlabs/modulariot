@@ -118,7 +118,20 @@ function readSeed(seed: string | undefined): SeedFile {
       `MIOT_DASHBOARD_SEED at "${path}": "dashboards" must be an array`,
     );
   }
-  for (const [index, entry] of (dashboards ?? []).entries()) {
+  validateSeedReferences(dashboards ?? [], path);
+
+  return {
+    ...(memberships === undefined
+      ? {}
+      : { memberships: memberships as Memberships }),
+    ...(dashboards === undefined
+      ? {}
+      : { dashboards: dashboards as SeedDashboard[] }),
+  };
+}
+
+function validateSeedReferences(dashboards: unknown[], path: string): void {
+  for (const [index, entry] of dashboards.entries()) {
     if (!isRecord(entry) || !isRecord(entry.ref)) {
       throw new ConfigError(
         `MIOT_DASHBOARD_SEED at "${path}": "dashboards[${index}]" must be an object with a "ref"`,
@@ -135,15 +148,6 @@ function readSeed(seed: string | undefined): SeedFile {
       );
     }
   }
-
-  return {
-    ...(memberships === undefined
-      ? {}
-      : { memberships: memberships as Memberships }),
-    ...(dashboards === undefined
-      ? {}
-      : { dashboards: dashboards as SeedDashboard[] }),
-  };
 }
 
 interface AssembledStore {
@@ -338,7 +342,9 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error) {
   if (error instanceof ConfigError) {
     process.stderr.write(`Configuration error: ${error.message}\n`);
     process.exit(2);
@@ -347,4 +353,4 @@ main().catch((error: unknown) => {
     `Failed to start: ${error instanceof Error ? error.stack : String(error)}\n`,
   );
   process.exit(1);
-});
+}

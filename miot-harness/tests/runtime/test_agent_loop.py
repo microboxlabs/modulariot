@@ -634,3 +634,34 @@ async def test_text_sharing_a_frame_with_a_tool_call_chunk_still_streams(monkeyp
     answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
     assert answer_deltas == [*long_text, "tail.", "done"]
     assert [e for e in events if e.type == "thinking.delta"] == []
+
+
+@pytest.mark.asyncio
+async def test_turn_records_time_to_first_chunk(monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr(agent_loop_mod, "monotonic", lambda: now[0])
+
+    class SlowModel(ChunkedModel):
+        async def astream(self, messages: Any, **kwargs: Any) -> Any:
+            now[0] += 0.25
+            yield AIMessageChunk(content=[{"type": "thinking", "thinking": "hm", "index": 0}])
+            now[0] += 1.0
+            yield AIMessageChunk(content="the answer")
+
+    events: list[Any] = []
+    await _runner(SlowModel([])).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    completed = next(e for e in events if e.type == "agent.completed")
+    assert completed.data["first_token_ms"] == 250
+    assert completed.data["duration_ms"] == 1250
+
+
+@pytest.mark.asyncio
+async def test_turn_without_chunks_has_no_first_token_time():
+    events: list[Any] = []
+    await _runner(ChunkedModel([[]])).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    completed = next(e for e in events if e.type == "agent.completed")
+    assert completed.data["first_token_ms"] is None

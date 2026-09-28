@@ -160,6 +160,8 @@ class AgentTelemetryCallback(BaseCallbackHandler):
         model = _model_from_serialized(serialized)
         billed = metadata or {}
         span.set_attribute("gen_ai.operation.name", f"{self._span_prefix}.{self._agent_name}")
+        if provider == "unknown":
+            provider = str(billed.get("miot_provider") or provider)
         span.set_attribute("gen_ai.system", provider)
         if model:
             span.set_attribute("gen_ai.request.model", model)

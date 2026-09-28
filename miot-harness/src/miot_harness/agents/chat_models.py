@@ -2,8 +2,10 @@
 
 A model name resolves to a provider (see `model_providers`):
   - Anthropic models → langchain_anthropic.ChatAnthropic
-  - every other provider → langchain_openai.ChatOpenAI on the provider's
-    base URL (OpenAI, OpenRouter, DeepSeek, Qwen, Kimi, GLM)
+  - OpenAI → langchain_openai.ChatOpenAI
+  - every other provider → langchain_deepseek.ChatDeepSeek on the provider's
+    base URL (OpenRouter, gateways, DeepSeek, Qwen, Kimi, GLM), which keeps the
+    streamed `reasoning_content` that ChatOpenAI drops
 """
 
 from __future__ import annotations
@@ -119,7 +121,8 @@ def get_chat_model(
             "metadata": _billing_metadata(provider.name, model_id),
         }
         if effort is not None:
-            kwargs["thinking"] = {"type": "adaptive"}
+            # Opus 4.7+ omits thinking text unless asked for a summary.
+            kwargs["thinking"] = {"type": "adaptive", "display": "summarized"}
             kwargs["effort"] = effort
         elif thinking_budget_tokens is not None and thinking_budget_tokens > 0:
             kwargs["thinking"] = {
@@ -132,19 +135,26 @@ def get_chat_model(
             kwargs["max_tokens"] = thinking_budget_tokens + 4096
         return ChatAnthropic(**kwargs)  # type: ignore[arg-type]
 
-    from langchain_openai import ChatOpenAI
-
     # Thinking and effort are Anthropic controls; the others ignore them.
-    return ChatOpenAI(
-        model=model_id,
-        reasoning_effort=reasoning_effort,
-        api_key=SecretStr(provider.api_key),
-        base_url=provider.base_url,
-        timeout=timeout if timeout is not None else 60,
+    common: dict[str, Any] = {
+        "model": model_id,
+        "reasoning_effort": reasoning_effort,
+        "api_key": SecretStr(provider.api_key),
+        "timeout": timeout if timeout is not None else 60,
         # Token counts on streamed turns, for usage and billing.
-        stream_usage=True,
-        metadata=_billing_metadata(provider.name, model_id),
-    )
+        "stream_usage": True,
+        "metadata": _billing_metadata(provider.name, model_id),
+    }
+    if provider.name == "openai":
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(base_url=provider.base_url, **common)
+
+    from langchain_deepseek import ChatDeepSeek
+
+    if provider.base_url:
+        common["api_base"] = provider.base_url
+    return ChatDeepSeek(**common)
 
 
 def _billing_metadata(provider: str, model_id: str) -> dict[str, Any]:

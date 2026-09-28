@@ -352,7 +352,7 @@ def _mark_message(msg: BaseMessage) -> BaseMessage | None:
 
 async def _stream_turn(
     model: Any, messages: list[BaseMessage], *, progress: Progress, run_id: str
-) -> AIMessage:
+) -> tuple[AIMessage, float | None]:
     """One model turn, streamed.
 
     Thinking blocks stream as `thinking.delta`. Text is held up to
@@ -361,7 +361,8 @@ async def _stream_turn(
     answer and replays as `answer.delta`. Text past the hold streams as
     `answer.delta` as it arrives and is never re-emitted, even when a tool
     call follows. A turn that emitted any thinking or narration closes with
-    `thinking.completed`. Returns the aggregated message, tool calls included.
+    `thinking.completed`. Returns the aggregated message, tool calls included,
+    and the `monotonic()` time the first chunk arrived (None if none did).
     """
     agg: AIMessageChunk | None = None
     held: list[str] = []
@@ -371,6 +372,7 @@ async def _stream_turn(
     tool_call_seen = False
     thinking_chars = 0
     thinking_index = 0
+    first_chunk_at: float | None = None
 
     def emit_answer(delta: str) -> None:
         nonlocal answer_index
@@ -385,6 +387,8 @@ async def _stream_turn(
         answer_index += 1
 
     async for chunk in model.astream(messages):
+        if first_chunk_at is None:
+            first_chunk_at = monotonic()
         agg = chunk if agg is None else agg + chunk
         if getattr(chunk, "tool_call_chunks", None):
             tool_call_seen = True
@@ -407,10 +411,10 @@ async def _stream_turn(
             streaming = True
             emit_answer(delta)
     if agg is None:
-        return AIMessage(content="")
+        return AIMessage(content=""), first_chunk_at
     message = message_chunk_to_message(agg)
     if not isinstance(message, AIMessage):
-        return AIMessage(content=response_text(message))
+        return AIMessage(content=response_text(message)), first_chunk_at
     if message.tool_calls:
         narration = "".join(held).strip()
         if narration:
@@ -432,7 +436,7 @@ async def _stream_turn(
                 },
             )
         )
-    return message
+    return message, first_chunk_at
 
 
 def _thinking_delta(run_id: str, delta: str, index: int) -> HarnessEvent:
@@ -445,12 +449,20 @@ def _thinking_delta(run_id: str, delta: str, index: int) -> HarnessEvent:
 
 
 def _chunk_deltas(chunk: Any) -> list[tuple[str, str]]:
-    """(kind, text) pairs in a streamed chunk; kind is `text` or `thinking`."""
+    """(kind, text) pairs in a streamed chunk; kind is `text` or `thinking`.
+
+    OpenAI-compatible providers stream reasoning as `reasoning_content`, which
+    ChatDeepSeek keeps in `additional_kwargs`.
+    """
+    out: list[tuple[str, str]] = []
+    reasoning = (getattr(chunk, "additional_kwargs", None) or {}).get("reasoning_content")
+    if isinstance(reasoning, str) and reasoning:
+        out.append(("thinking", reasoning))
     content = getattr(chunk, "content", None)
     if isinstance(content, str):
-        return [("text", content)] if content else []
-    out: list[tuple[str, str]] = []
-    if isinstance(content, list):
+        if content:
+            out.append(("text", content))
+    elif isinstance(content, list):
         for block in content:
             if not isinstance(block, dict):
                 continue
@@ -616,7 +628,7 @@ class AgentLoopRunner:
                     messages, keep=self.settings.agents_agent_loop_clear_keep_results
                 )
             start = monotonic()
-            response = await _stream_turn(
+            response, first_chunk_at = await _stream_turn(
                 model, self._prepare(messages), progress=progress, run_id=ctx.run_id
             )
             usage_log.append(dict(getattr(response, "usage_metadata", None) or {}))
@@ -646,6 +658,11 @@ class AgentLoopRunner:
                         "graph": "agent_loop",
                         "turn": turn,
                         "duration_ms": int((monotonic() - start) * 1000),
+                        "first_token_ms": (
+                            int((first_chunk_at - start) * 1000)
+                            if first_chunk_at is not None
+                            else None
+                        ),
                         "exit_reason": "tool_calls" if tool_calls else "answer",
                     },
                 )

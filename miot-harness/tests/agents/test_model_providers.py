@@ -92,7 +92,7 @@ def test_a_provider_without_its_key_or_unknown_is_refused() -> None:
 
 
 def test_an_openai_compatible_model_uses_the_openai_client_on_its_base_url() -> None:
-    from langchain_openai import ChatOpenAI
+    from langchain_deepseek import ChatDeepSeek
 
     set_provider_registry(
         ProviderRegistry(
@@ -102,9 +102,11 @@ def test_an_openai_compatible_model_uses_the_openai_client_on_its_base_url() -> 
 
     model = get_chat_model("deepseek:deepseek-chat", thinking_budget_tokens=4096)
 
-    assert isinstance(model, ChatOpenAI)
+    # ChatDeepSeek is ChatOpenAI plus the streamed `reasoning_content`.
+    assert isinstance(model, ChatDeepSeek)
     assert model.model_name == "deepseek-chat"
-    assert model.openai_api_base == "https://api.deepseek.com/v1"
+    assert model.api_base == "https://api.deepseek.com/v1"
+    assert str(model.async_client._client.base_url) == "https://api.deepseek.com/v1/"
     # The loop's tool schemas (Anthropic format) bind to the OpenAI client.
     model.bind_tools(
         [{"name": "acs_select", "description": "rows", "input_schema": {"type": "object"}}]

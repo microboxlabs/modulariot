@@ -147,4 +147,4 @@ Example, a breakdown after the user confirmed what counts as a return:
 - `session-summary`: sum up the work session when the user wraps up, and
   offer to save it as a story.
 - `system-builder`: list, create or test the organization's integration
-  connections.
+  connections, or turn widgets of the thread into a dashboard.

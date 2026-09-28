@@ -32,6 +32,9 @@ HarnessEventType = Literal[
     # A tool made a document for the user (a process diagram); `data` holds
     # {id, kind: svg|mermaid, title, content}.
     "artifact.created",
+    # A dashboard the user can create from widgets of the thread; `data` holds
+    # {id, title, description, widgets: [widget ids]}. The app saves it.
+    "dashboard.draft",
     "answer.delta",
     "answer.completed",
     "run.completed",

@@ -15,7 +15,7 @@ import {
 } from "@/features/layout/components/secured-navbar/spotlight-search/harness-stream";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost } from "@/lib/modulith-host";
-import { chatAnswerEvents } from "./chat-answer";
+import { chatAnswerEvents, type DraftDashlet } from "./chat-answer";
 import { stepLabel } from "./step-labels";
 import { planRefusalMessage } from "./plan-refusal";
 import {
@@ -331,6 +331,8 @@ export async function relayRun(args: {
   signal: AbortSignal;
   send: Sender;
   tr: TrFn;
+  /** Dashlets earlier turns showed, for a dashboard draft to reuse. */
+  priorDashlets?: Map<string, DraftDashlet>;
 }): Promise<RelayedRun> {
   const { client, harnessRunId, runId, threadId, signal, send, tr } = args;
   sendRunMarker(send, { runId: harnessRunId, status: "running" });
@@ -370,6 +372,7 @@ export async function relayRun(args: {
   for (const event of chatAnswerEvents(record.answer, record.events, {
     noAnswer: tr("harnessChat.stream.noAnswer"),
     assumptionLabel: tr("harnessChat.stream.assumption"),
+    priorDashlets: args.priorDashlets,
   })) {
     send(event);
   }

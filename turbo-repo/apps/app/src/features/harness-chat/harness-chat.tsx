@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FC } from "reac
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { twMerge } from "tailwind-merge";
-import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
+import { LuArrowLeft, LuHistory, LuLink, LuPlus, LuSparkles, LuX } from "react-icons/lu";
+import { toast } from "sonner";
+import { copyShareLink } from "@/features/share-links/share-links-api";
 import { createHarnessAttachmentAdapter } from "./harness-chat-attachments";
 import {
   useHarnessChatContext,
@@ -307,8 +309,22 @@ const HarnessChatPanel: FC<{
     [sessions, activeId, mount],
   );
 
-  const activeTitle =
-    sessions.find((s) => s.id === activeId)?.title ?? tr("harnessChat.ui.emptyChatTitle");
+  // Like Claude Code's or Codex's share links: one link any member of the
+  // organization can open, copied straight to the clipboard.
+  const copyThreadLink = useCallback(
+    (id: string) => {
+      copyShareLink("thread", id, locale).then(
+        () => toast.success(tr("harnessChat.ui.history.linkCopied")),
+        () => toast.error(tr("harnessChat.ui.history.linkFailed")),
+      );
+    },
+    [locale, tr],
+  );
+
+  const activeSession = sessions.find((s) => s.id === activeId);
+  const activeTitle = activeSession?.title ?? tr("harnessChat.ui.emptyChatTitle");
+  // A thread is stored once it has a title, so only then is there anything to link to.
+  const canLinkActive = Boolean(activeSession?.owned && activeSession.title);
 
   return (
     <div
@@ -381,6 +397,17 @@ const HarnessChatPanel: FC<{
               <span className="flex-1 truncate" title={activeTitle}>
                 {activeTitle}
               </span>
+              {canLinkActive && (
+                <button
+                  type="button"
+                  onClick={() => copyThreadLink(activeId)}
+                  aria-label={tr("harnessChat.ui.history.shareLink")}
+                  title={tr("harnessChat.ui.history.shareLink")}
+                  className={headerButtonClass}
+                >
+                  <LuLink className="h-3.5 w-3.5" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setView("history")}
@@ -420,6 +447,7 @@ const HarnessChatPanel: FC<{
             onDelete={(ids) => deleteSessions(ids)}
             onShare={shareSession}
             onUnshare={unshareSession}
+            onCopyLink={copyThreadLink}
             locale={locale}
           />
         )}

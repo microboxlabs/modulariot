@@ -2,7 +2,7 @@
 
 import { Checkbox } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
-import { LuTrash2, LuUsers, LuX } from "react-icons/lu";
+import { LuLink, LuTrash2, LuUsers, LuX } from "react-icons/lu";
 import { useState, type FC } from "react";
 import type { Session } from "../harness-chat-types";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
@@ -17,6 +17,7 @@ export const HistoryList: FC<{
   onDelete: (ids: string[]) => void;
   onShare: (id: string, principal: string) => void;
   onUnshare: (id: string, principal: string) => void;
+  onCopyLink: (id: string) => void;
   locale: string;
 }> = ({
   sessions,
@@ -28,6 +29,7 @@ export const HistoryList: FC<{
   onDelete,
   onShare,
   onUnshare,
+  onCopyLink,
   locale,
 }) => {
   const tr = useHarnessChatTr();
@@ -197,6 +199,7 @@ export const HistoryList: FC<{
                 session={session}
                 onShare={onShare}
                 onUnshare={onUnshare}
+                onCopyLink={onCopyLink}
                 onClose={() => setShareOpenId(null)}
               />
             )}
@@ -207,14 +210,16 @@ export const HistoryList: FC<{
   );
 };
 
-/** Read access for one thread: who has it, and a field to give it to one more
- * person. Chats are private until their owner does this. */
+/** Sharing for one thread: a link any member of the organization can open,
+ * or read access for one named person. Chats are private until their owner
+ * does either. */
 const SharePanel: FC<{
   session: Session;
   onShare: (id: string, principal: string) => void;
   onUnshare: (id: string, principal: string) => void;
+  onCopyLink: (id: string) => void;
   onClose: () => void;
-}> = ({ session, onShare, onUnshare, onClose }) => {
+}> = ({ session, onShare, onUnshare, onCopyLink, onClose }) => {
   const tr = useHarnessChatTr();
   const [principal, setPrincipal] = useState("");
 
@@ -227,6 +232,15 @@ const SharePanel: FC<{
 
   return (
     <div className="mx-2 mb-1 rounded-md border border-gray-100 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800">
+      <button
+        type="button"
+        onClick={() => onCopyLink(session.id)}
+        className="mb-1.5 flex w-full items-center gap-1.5 rounded-md bg-white px-2 py-1 text-[11px] font-medium text-blue-600 hover:bg-blue-50 dark:bg-gray-900 dark:text-blue-400 dark:hover:bg-blue-900/20"
+      >
+        <LuLink className="h-3 w-3" />
+        {tr("harnessChat.ui.history.shareLink")}
+      </button>
+      <p className="mb-1 text-[10px] text-gray-400">{tr("harnessChat.ui.history.shareWithPerson")}</p>
       <div className="flex items-center gap-1">
         <input
           type="email"

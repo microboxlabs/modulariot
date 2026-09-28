@@ -18,6 +18,7 @@ import {
 } from "react-icons/hi2";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
+import { CopyLinkButton } from "@/features/share-links/components/copy-link-button";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -360,7 +361,21 @@ export default function StoryDetailPage({
                       story: { ...story, sharedWith },
                     })
                   }
-                />
+                >
+                  <div className="mb-4 border-b border-gray-100 pb-4 dark:border-gray-800">
+                    <CopyLinkButton
+                      targetType="story"
+                      targetId={story.id}
+                      lang={lang}
+                      label={tr("share.copyLink", dict)}
+                      copiedMessage={tr("share.copied", dict)}
+                      failedMessage={tr("share.copyFailed", dict)}
+                    />
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      {tr("share.linkHint", dict)}
+                    </p>
+                  </div>
+                </StorySharePanel>
               )}
               {canEdit && (
                 <button

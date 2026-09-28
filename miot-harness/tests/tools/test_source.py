@@ -108,7 +108,8 @@ async def test_search_returns_paths_and_line_numbers(origin: Path, tmp_path: Pat
     assert none.matches == []
 
     capped = await search_source(repos, SourceSearchInput(pattern="^line", max_results=3))
-    assert len(capped.matches) == 3 and capped.truncated
+    assert len(capped.matches) == 3
+    assert capped.truncated
 
 
 @pytest.mark.asyncio
@@ -121,7 +122,8 @@ async def test_read_returns_a_line_range(origin: Path, tmp_path: Path) -> None:
     assert out.url is None
 
     head = await read_source(repos, SourceReadInput(path="src/eta.py", line_count=3))
-    assert head.text == "line 1\nline 2\nline 3" and head.truncated
+    assert head.text == "line 1\nline 2\nline 3"
+    assert head.truncated
 
 
 @pytest.mark.parametrize(
@@ -132,8 +134,9 @@ async def test_paths_outside_the_repository_are_refused(
     origin: Path, tmp_path: Path, path: str
 ) -> None:
     repos = _repos(origin, tmp_path / "ws")
+    value = SourceReadInput(path=path)
     with pytest.raises(SourceError):
-        await read_source(repos, SourceReadInput(path=path))
+        await read_source(repos, value)
 
 
 @pytest.mark.asyncio
@@ -144,17 +147,20 @@ async def test_a_symlink_out_of_the_repository_is_refused(origin: Path, tmp_path
     _git(origin, "add", "leak")
     _git(origin, "commit", "-q", "-m", "link")
     repos = _repos(origin, tmp_path / "ws")
+    leak = SourceReadInput(path="leak")
     with pytest.raises(SourceError, match="leaves the repository"):
-        await read_source(repos, SourceReadInput(path="leak"))
+        await read_source(repos, leak)
+    parent = SourceListInput(path="docs", glob="../*")
     with pytest.raises(SourceError, match="not allowed"):
-        await list_source(repos, SourceListInput(path="docs", glob="../*"))
+        await list_source(repos, parent)
 
 
 @pytest.mark.asyncio
 async def test_a_failed_clone_says_so_and_leaves_nothing(tmp_path: Path) -> None:
     repos = _repos(tmp_path / "missing", tmp_path / "ws")
+    value = SourceSearchInput(pattern="x")
     with pytest.raises(SourceError, match="could not get repository 'product'"):
-        await search_source(repos, SourceSearchInput(pattern="x"))
+        await search_source(repos, value)
     assert not (tmp_path / "ws/sources/product").exists()
 
 

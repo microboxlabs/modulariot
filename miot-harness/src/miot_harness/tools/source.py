@@ -214,8 +214,11 @@ def _web_url(repo: SourceRepo, path: str, lines: tuple[int, int] | None = None) 
     return f"https://github.com/{match[1]}/{match[2]}/blob/{repo.ref}/{path}{anchor}"
 
 
+_REPO_HELP = "Repository name; empty for the first one."
+
+
 class SourceListInput(BaseModel):
-    repo: str | None = Field(default=None, description="Repository name; empty for the first one.")
+    repo: str | None = Field(default=None, description=_REPO_HELP)
     path: str = Field(default="", description="Directory relative to the repository root.")
     glob: str | None = Field(
         default=None,
@@ -235,7 +238,7 @@ class SourceListOutput(BaseModel):
 
 
 class SourceSearchInput(BaseModel):
-    repo: str | None = Field(default=None, description="Repository name; empty for the first one.")
+    repo: str | None = Field(default=None, description=_REPO_HELP)
     pattern: str = Field(min_length=1, max_length=300, description="Perl-style regular expression.")
     path: str = Field(default="", description="Directory to search, relative to the root.")
     glob: str | None = Field(
@@ -259,7 +262,7 @@ class SourceSearchOutput(BaseModel):
 
 
 class SourceReadInput(BaseModel):
-    repo: str | None = Field(default=None, description="Repository name; empty for the first one.")
+    repo: str | None = Field(default=None, description=_REPO_HELP)
     path: str = Field(min_length=1, description="File path relative to the repository root.")
     start_line: int = Field(default=1, ge=1)
     line_count: int = Field(default=200, ge=1, le=1_000)
@@ -383,7 +386,8 @@ async def read_source(repos: SourceRepos, value: SourceReadInput) -> SourceReadO
     )
 
 
-async def _allow(_: HarnessContext, __: BaseModel) -> PermissionResult:
+# HarnessTool.check_permission must return an awaitable.
+async def _allow(_: HarnessContext, __: BaseModel) -> PermissionResult:  # NOSONAR
     return PermissionResult.allow("Reads configured source repositories.")
 
 

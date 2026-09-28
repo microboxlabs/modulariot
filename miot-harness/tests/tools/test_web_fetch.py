@@ -160,8 +160,9 @@ async def test_ipv6_forms_of_internal_ipv4_addresses_are_refused(address: str) -
     def handler(request: httpx.Request) -> httpx.Response:
         raise AssertionError("must not connect")
 
+    fetcher = _fetcher(handler, {"six.example": [address]})
     with pytest.raises(WebFetchError, match="non-public"):
-        await _fetcher(handler, {"six.example": [address]}).fetch("http://six.example/")
+        await fetcher.fetch("http://six.example/")
 
 
 @pytest.mark.asyncio
@@ -172,7 +173,8 @@ async def test_a_body_past_the_byte_cap_is_cut() -> None:
     out = await _fetcher(handler, {"a.example": ["93.184.216.34"]}).fetch(
         "https://a.example/huge", max_chars=50_000
     )
-    assert out.truncated and len(out.text) == 50_000
+    assert out.truncated
+    assert len(out.text) == 50_000
 
 
 @pytest.mark.asyncio

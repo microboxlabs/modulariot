@@ -86,8 +86,10 @@ def resolve_cases(
     cases = list(value.cases or [])
     for case_id in value.case_ids or []:
         cases.append(_case_of(store.read("eval", case_id)))
+    if len(cases) > MAX_CASES:
+        raise ValueError(f"at most {MAX_CASES} cases per evaluation, got {len(cases)}")
     if cases:
-        return cases[:MAX_CASES]
+        return cases
     saved = [c for c in store.eval_cases() if c.get("title")]
     mine = [c for c in saved if _from_conversation(c, ctx)]
     return [_case_of(c) for c in (mine or saved)[:cap]]

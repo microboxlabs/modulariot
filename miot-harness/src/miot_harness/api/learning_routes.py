@@ -36,7 +36,10 @@ def install_learning_routes(
     @app.post(
         "/learning/evaluations",
         status_code=202,
-        responses={400: {"description": "No tenant, or a model that is not offered"}},
+        responses={
+            400: {"description": "No tenant, or a model that is not offered"},
+            503: {"description": "The results cannot be saved"},
+        },
     )
     async def start_evaluation(
         body: EvaluationRequest,
@@ -46,15 +49,18 @@ def install_learning_routes(
         tenant = _tenant(auth, body.tenant_id)
         check_model(body.model)
         claims = auth.get("claims") or {}
-        evaluation_id = engine().start(
-            tenant,
-            body,
-            started_by=str(auth.get("user_id") or claims.get("sub") or ""),
-            **caller(http_request),
-        )
+        try:
+            evaluation_id = engine().start(
+                tenant,
+                body,
+                started_by=str(auth.get("user_id") or claims.get("sub") or ""),
+                **caller(http_request),
+            )
+        except OSError as exc:
+            raise HTTPException(status_code=503, detail="results cannot be saved") from exc
         return {"evaluation_id": evaluation_id}
 
-    @app.get("/learning/evaluations")
+    @app.get("/learning/evaluations", responses={400: {"description": "No tenant"}})
     async def list_evaluations(
         tenant_id: str | None = Query(None),
         limit: int = Query(50, ge=1, le=200),
@@ -65,7 +71,10 @@ def install_learning_routes(
 
     @app.get(
         "/learning/evaluations/{evaluation_id}",
-        responses={404: {"description": "No such evaluation for this tenant"}},
+        responses={
+            400: {"description": "No tenant"},
+            404: {"description": "No such evaluation for this tenant"},
+        },
     )
     async def get_evaluation(
         evaluation_id: str,

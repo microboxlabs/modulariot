@@ -115,7 +115,7 @@ def _cases(n: int, **extra: Any) -> list[EvalCaseInput]:
 
 
 async def _finish(engine: EvaluationEngine, tenant: str, evaluation_id: str) -> dict[str, Any]:
-    return await engine.wait(tenant, evaluation_id, timeout=10)
+    return await engine.wait(tenant, evaluation_id, max_seconds=10)
 
 
 @pytest.mark.asyncio
@@ -232,7 +232,10 @@ async def test_a_timed_out_run_fails_its_case_only(tmp_path: Path) -> None:
     seen: list[int] = []
     evaluation_id = engine.start("t1", EvaluationRequest(cases=_cases(3), changes=[_RULE]))
     doc = await engine.wait(
-        "t1", evaluation_id, timeout=10, on_progress=lambda d: seen.append(d["progress"]["done"])
+        "t1",
+        evaluation_id,
+        max_seconds=10,
+        on_progress=lambda d: seen.append(d["progress"]["done"]),
     )
 
     assert doc["status"] == "done"
@@ -244,14 +247,15 @@ async def test_a_timed_out_run_fails_its_case_only(tmp_path: Path) -> None:
     assert failed["candidate"]["reason"] == "timed out after 0.05 s"
     assert doc["summary"]["failed"] == 1
     assert doc["summary"]["candidate_avg"] == 5.0
-    assert seen and seen[-1] == 6
+    assert seen
+    assert seen[-1] == 6
 
 
 @pytest.mark.asyncio
 async def test_wait_returns_a_running_evaluation_after_its_timeout(tmp_path: Path) -> None:
     engine = _engine(tmp_path, FakeRunner(delay=0.5))
     evaluation_id = engine.start("t1", EvaluationRequest(cases=_cases(1)))
-    doc = await engine.wait("t1", evaluation_id, timeout=0.01)
+    doc = await engine.wait("t1", evaluation_id, max_seconds=0.01)
     assert doc["status"] == "running"
     assert (await _finish(engine, "t1", evaluation_id))["status"] == "done"
 
@@ -313,3 +317,57 @@ def test_answer_text_reads_blocks_and_plain_text() -> None:
     assert answer_text(json.dumps(blocks)) == "Hello\n\n[doc](https://example.com)"
     assert answer_text("plain") == "plain"
     assert answer_text(None) == ""
+
+
+@pytest.mark.asyncio
+async def test_a_saved_running_evaluation_reads_as_interrupted(tmp_path: Path) -> None:
+    engine = _engine(tmp_path, FakeRunner(delay=5))
+    evaluation_id = engine.start("t1", EvaluationRequest(cases=_cases(1)))
+    assert engine.get("t1", evaluation_id)["status"] == "running"
+
+    after_restart = _engine(tmp_path, FakeRunner())
+    doc = after_restart.get("t1", evaluation_id)
+    assert (doc["status"], doc["error"]) == ("failed", "interrupted by a restart")
+    assert after_restart.recent("t1")[0]["status"] == "failed"
+    engine._tasks[("t1", evaluation_id)].cancel()
+
+
+@pytest.mark.asyncio
+async def test_recent_reads_only_the_newest_files(tmp_path: Path) -> None:
+    engine = _engine(tmp_path, FakeRunner())
+    ids = []
+    for _ in range(3):
+        ids.append(engine.start("t1", EvaluationRequest(cases=_cases(1))))
+        await _finish(engine, "t1", ids[-1])
+        await asyncio.sleep(0.01)
+    assert [e["id"] for e in engine.recent("t1", limit=2)] == [ids[2], ids[1]]
+    (tmp_path / "t1" / "results" / f"{ids[2]}.json").write_text("{broken", encoding="utf-8")
+    assert [e["id"] for e in engine.recent("t1")] == [ids[1], ids[0]]
+
+
+def test_start_fails_when_results_cannot_be_saved(tmp_path: Path) -> None:
+    (tmp_path / "t1").write_text("a file where the folder should be", encoding="utf-8")
+    engine = _engine(tmp_path, FakeRunner())
+    with pytest.raises(OSError):
+        engine.start("t1", EvaluationRequest(cases=_cases(1)))
+
+
+@pytest.mark.asyncio
+async def test_repeats_show_a_scored_attempt_and_average_the_scores(tmp_path: Path) -> None:
+    calls = {"n": 0}
+
+    async def flaky(request: UserRequest, **kw: Any) -> HarnessRunRecord:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("provider error")
+        return _record(request, kw.get("run_id_override") or "r", "12 in live_trip")
+
+    engine = _engine(tmp_path, flaky)
+    request = EvaluationRequest(cases=_cases(1), repeat=3)
+    doc = await _finish(engine, "t1", engine.start("t1", request))
+    run = doc["results"][0]["candidate"]
+    assert run["answer"] == "12 in live_trip"
+    assert (run["score"], run["reason"]) == (5.0, "mentions live_trip")
+    assert "error" not in run
+    assert [a.get("error") for a in run["attempts"]] == ["provider error", None, None]
+    assert doc["results"][0]["status"] == "done"

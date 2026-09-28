@@ -312,21 +312,26 @@ class EvaluationEngine:
             )
         except (FileNotFoundError, ValueError) as exc:
             raise EvaluationNotFound(evaluation_id) from exc
-        return doc
+        return _settled(doc)
 
     def recent(self, tenant: str, limit: int = _LIST_LIMIT) -> list[dict[str, Any]]:
+        """The newest evaluations, by file time; only `limit` files are read."""
         folder = self._results_dir(tenant)
-        docs: list[dict[str, Any]] = []
-        for path in folder.glob("ev-*.json") if folder.is_dir() else ():
-            try:
-                docs.append(json.loads(path.read_text(encoding="utf-8")))
-            except ValueError:
-                continue
-        docs.sort(key=lambda d: str(d.get("created_at") or ""), reverse=True)
+        paths = sorted(
+            folder.glob("ev-*.json") if folder.is_dir() else (),
+            key=_mtime,
+            reverse=True,
+        )
         keys = ("id", "status", "model", "created_at", "finished_at", "progress", "summary")
-        return [{k: d.get(k) for k in keys} | {"cases": len(d.get("results") or [])} for d in docs][
-            :limit
-        ]
+        listed: list[dict[str, Any]] = []
+        for path in paths[:limit]:
+            live = self._live.get((tenant, path.stem))
+            try:
+                doc = live or _settled(json.loads(path.read_text(encoding="utf-8")))
+            except (OSError, ValueError):
+                continue
+            listed.append({k: doc.get(k) for k in keys} | {"cases": len(doc.get("results") or [])})
+        return listed
 
     # ---- running -----------------------------------------------------------
 
@@ -360,8 +365,8 @@ class EvaluationEngine:
             "error": None,
         }
         job = _Job(tenant, doc, request, caller_token, organization)
+        self._write(tenant, doc)
         self._live[job.key] = doc
-        self._save(tenant, doc)
         self._tasks[job.key] = asyncio.create_task(self._run(job, sides))
         return evaluation_id
 
@@ -369,17 +374,17 @@ class EvaluationEngine:
         self,
         tenant: str,
         evaluation_id: str,
-        timeout: float,
+        max_seconds: float,
         on_progress: ProgressFn | None = None,
     ) -> dict[str, Any]:
-        """The evaluation once it ends, or as it stands after `timeout`."""
+        """The evaluation once it ends, or as it stands after `max_seconds`."""
         key = (tenant, evaluation_id)
         task = self._tasks.get(key)
         if task is not None and on_progress is not None:
             self._listeners.setdefault(key, []).append(on_progress)
         try:
             if task is not None:
-                await asyncio.wait({task}, timeout=timeout)
+                await asyncio.wait({task}, timeout=max_seconds)
         finally:
             if on_progress is not None and on_progress in self._listeners.get(key, []):
                 self._listeners[key].remove(on_progress)
@@ -402,9 +407,10 @@ class EvaluationEngine:
         finally:
             doc["summary"] = summarize(doc["results"])
             doc["finished_at"] = _now()
-            self._save(job.tenant, doc)
+            saved = self._save(job.tenant, doc)
             self._notify(job.key, doc)
-            self._live.pop(job.key, None)
+            if saved:
+                self._live.pop(job.key, None)
             self._tasks.pop(job.key, None)
             self._listeners.pop(job.key, None)
 
@@ -507,32 +513,55 @@ class EvaluationEngine:
             run["reason"] = "judge failed: " + _one_line(str(exc) or type(exc).__name__)
 
     def _notify(self, key: tuple[str, str], doc: dict[str, Any]) -> None:
-        for listener in list(self._listeners.get(key, ())):
+        for listener in self._listeners.get(key, ()):
             try:
                 listener(doc)
             except Exception:  # noqa: BLE001 — a listener must not stop the evaluation
                 logger.warning("Evaluation progress listener failed", exc_info=True)
 
-    def _save(self, tenant: str, doc: dict[str, Any]) -> None:
+    def _write(self, tenant: str, doc: dict[str, Any]) -> None:
+        _write_atomic(
+            self._path(tenant, doc["id"]),
+            json.dumps(doc, ensure_ascii=False, indent=2, default=str),
+        )
+
+    def _save(self, tenant: str, doc: dict[str, Any]) -> bool:
+        """Whether `doc` was saved. A failed save is recorded on it, and the
+        engine keeps it in memory so it can still be read."""
         try:
-            _write_atomic(
-                self._path(tenant, doc["id"]),
-                json.dumps(doc, ensure_ascii=False, indent=2, default=str),
-            )
+            self._write(tenant, doc)
         except OSError:
             logger.warning("Could not save evaluation %s", doc["id"], exc_info=True)
+            doc["error"] = "the results could not be saved"
+            return False
+        return True
+
+
+def _mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def _settled(doc: dict[str, Any]) -> dict[str, Any]:
+    """A saved evaluation no process is running any more (the harness
+    restarted mid-way) reads as failed, not running forever."""
+    if doc.get("status") == "running":
+        doc["status"] = "failed"
+        doc["error"] = doc.get("error") or "interrupted by a restart"
+    return doc
 
 
 def _merge(attempts: Sequence[dict[str, Any]]) -> dict[str, Any]:
-    """One run's view of repeated attempts: the first answer, the mean score."""
-    first = dict(attempts[0])
+    """One run's view of repeated attempts: the first scored attempt's answer
+    and reason, the mean score of the scored ones. Failed only when all are."""
     if len(attempts) == 1:
-        return first
-    scores = [a["score"] for a in attempts if isinstance(a.get("score"), (int, float))]
-    first["score"] = _mean(scores)
-    first["attempts"] = list(attempts)
-    first.pop("error", None)
-    errors = [a["error"] for a in attempts if a.get("error")]
-    if len(errors) == len(attempts):
-        first["error"] = errors[0]
-    return first
+        return dict(attempts[0])
+    scored = [a for a in attempts if isinstance(a.get("score"), (int, float))]
+    shown = dict(scored[0] if scored else attempts[0])
+    shown["score"] = _mean([a["score"] for a in scored])
+    shown["attempts"] = list(attempts)
+    if scored:
+        shown.pop("error", None)
+    return shown

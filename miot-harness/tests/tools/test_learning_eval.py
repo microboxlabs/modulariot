@@ -134,9 +134,20 @@ async def test_falls_back_to_all_saved_cases_then_takes_ids_and_inline(tmp_path:
 
 @pytest.mark.asyncio
 async def test_no_cases_is_an_error_the_model_can_read(tmp_path: Path) -> None:
+    tool, ctx = _tool(tmp_path, []), _ctx()
+    empty, missing = RunLearningEvalInput(), RunLearningEvalInput(case_ids=["missing"])
     with pytest.raises(ValueError, match="no eval cases"):
-        await _tool(tmp_path, []).call(_ctx(), RunLearningEvalInput(), lambda e: None)
-    with pytest.raises(ValueError, match="no eval"):
-        await _tool(tmp_path, []).call(
-            _ctx(), RunLearningEvalInput(case_ids=["missing"]), lambda e: None
-        )
+        await tool.call(ctx, empty, lambda e: None)
+    with pytest.raises(ValueError, match="no eval 'missing'"):
+        await tool.call(ctx, missing, lambda e: None)
+
+
+@pytest.mark.asyncio
+async def test_too_many_cases_are_refused_not_dropped(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    _save_case(store, "a", "Question A", "conv-0")
+    inline = [{"question": f"q{i}", "expectation": "x"} for i in range(50)]
+    value = RunLearningEvalInput(cases=inline, case_ids=["a"])  # type: ignore[arg-type]
+    tool, ctx = _tool(tmp_path, []), _ctx()
+    with pytest.raises(ValueError, match="at most 50 cases"):
+        await tool.call(ctx, value, lambda e: None)

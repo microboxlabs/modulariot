@@ -231,7 +231,7 @@ class HarnessSettings(BaseSettings):
     learning_eval_run_timeout_seconds: float = Field(default=300.0, gt=0)
     learning_eval_judge_model: str | None = None
     learning_eval_skill_id: str | None = "miot-analyst"
-    learning_eval_max_cases: int = Field(default=20, ge=1, le=100)
+    learning_eval_max_cases: int = Field(default=20, ge=1, le=50)
     # How long `run_learning_eval` waits before returning a running evaluation.
     learning_eval_tool_wait_seconds: float = Field(default=600.0, gt=0)
     # Background knowledge distiller (semantic-layer continual learning, R3): a

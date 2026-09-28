@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { HiLink } from "react-icons/hi2";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
+import { StandaloneDictionaryProvider } from "@/features/dashboard/context/standalone-dictionary-context";
 import { HarnessChatI18nProvider } from "@/features/harness-chat/context/harness-chat-i18n-context";
 import { HarnessReadOnlyProvider } from "@/features/harness-chat/context/harness-read-only-context";
 import type {
@@ -279,9 +280,11 @@ export default function ShareSnapshotPage({
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-5 py-6">
           <HarnessChatI18nProvider dict={chatDict}>
-            <HarnessReadOnlyProvider readOnly>
-              <Transcript entries={entries} dict={dict} />
-            </HarnessReadOnlyProvider>
+            <StandaloneDictionaryProvider dictionary={chatDict as I18nRecord}>
+              <HarnessReadOnlyProvider readOnly>
+                <Transcript entries={entries} dict={dict} />
+              </HarnessReadOnlyProvider>
+            </StandaloneDictionaryProvider>
           </HarnessChatI18nProvider>
           {hasMore && (
             <div className="mt-6 flex justify-center">

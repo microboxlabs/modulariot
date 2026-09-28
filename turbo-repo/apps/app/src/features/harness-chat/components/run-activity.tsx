@@ -131,14 +131,7 @@ const StepList: FC<{ steps: RunActivityStep[]; nested?: boolean }> = ({
 );
 
 const StepRow: FC<{ step: RunActivityStep }> = ({ step }) => {
-  const tr = useHarnessChatTr();
   const [open, setOpen] = useState(false);
-  const status =
-    step.ok === true
-      ? tr("harnessChat.ui.activity.result")
-      : step.ok === false
-        ? tr("harnessChat.ui.activity.error")
-        : tr("harnessChat.ui.activity.unfinished");
   return (
     <li className="flex flex-col">
       <button
@@ -153,7 +146,7 @@ const StepRow: FC<{ step: RunActivityStep }> = ({ step }) => {
             open && "rotate-90"
           )}
         />
-        <StatusIcon ok={step.ok} label={status} />
+        <StatusIcon ok={step.ok} />
         <span className="min-w-0 truncate">{step.label}</span>
         {step.label !== step.tool && (
           <span className="min-w-0 truncate font-mono text-[10px] text-gray-400 dark:text-gray-500">
@@ -172,24 +165,27 @@ const StepRow: FC<{ step: RunActivityStep }> = ({ step }) => {
   );
 };
 
-const StatusIcon: FC<{ ok: boolean | null; label: string }> = ({
-  ok,
-  label,
-}) => {
+const StatusIcon: FC<{ ok: boolean | null }> = ({ ok }) => {
+  const tr = useHarnessChatTr();
   if (ok === true) {
     return (
       <LuCheck
-        aria-label={label}
+        aria-label={tr("harnessChat.ui.activity.result")}
         className="h-3 w-3 shrink-0 text-emerald-500"
       />
     );
   }
   if (ok === false) {
-    return <LuX aria-label={label} className="h-3 w-3 shrink-0 text-red-500" />;
+    return (
+      <LuX
+        aria-label={tr("harnessChat.ui.activity.error")}
+        className="h-3 w-3 shrink-0 text-red-500"
+      />
+    );
   }
   return (
     <span
-      aria-label={label}
+      aria-label={tr("harnessChat.ui.activity.unfinished")}
       className="h-2 w-2 shrink-0 rounded-full border border-gray-400 dark:border-gray-500"
     />
   );

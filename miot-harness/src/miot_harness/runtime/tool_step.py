@@ -41,7 +41,6 @@ def _emit_failed(
                 "error": error,
                 "error_type": error_type,
                 "reason": error,
-                "ok": False,
             },
         )
     )

@@ -126,7 +126,6 @@ async def test_an_unregistered_tool_fails_with_the_canonical_event() -> None:
         "error": "tool 'not_a_real_tool' is not registered",
         "error_type": "KeyError",
         "reason": "tool 'not_a_real_tool' is not registered",
-        "ok": False,
     }
 
 

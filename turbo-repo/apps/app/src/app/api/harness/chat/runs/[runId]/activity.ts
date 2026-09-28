@@ -20,155 +20,173 @@ const elapsed = (from: string, to: string): number | null => {
   return Number.isFinite(ms) && ms >= 0 ? ms : null;
 };
 
-/**
- * The run's tool calls, consults and delegations in the order they started.
- * Events are paired on `call_id`; records written before the harness kept it
- * are paired with the oldest open call of the same tool.
- */
-export function mapRunActivity(
-  record: HarnessRunRecord,
-  tr: TrFn
-): RunActivity {
-  const top: RunActivityStep[] = [];
-  const delegates = new Map<string, RunActivityStep>();
-  const byCallId = new Map<string, RunActivityStep>();
-  const open: { step: RunActivityStep; delegateId: string | null }[] = [];
-  let advisor: RunActivityStep | null = null;
-  let stepCount = 0;
-  let inputTokens = 0;
-  let outputTokens = 0;
-  const models = new Set<string>();
+const durationOf = (step: RunActivityStep, event: HarnessEvent) =>
+  num(event.data.duration_ms) ?? elapsed(step.startedAt, event.created_at);
 
-  const newStep = (tool: string, event: HarnessEvent): RunActivityStep => ({
-    id: str(event.data.call_id) ?? event.id,
-    tool,
-    label: stepLabel(tool, tr),
-    args: event.data.args ?? null,
-    argsTruncated: event.data.args_truncated === true,
-    preview: null,
-    previewTruncated: false,
-    ms: null,
-    ok: null,
-    error: null,
-    startedAt: event.created_at,
-  });
+class ActivityBuilder {
+  readonly steps: RunActivityStep[] = [];
+  stepCount = 0;
+  inputTokens = 0;
+  outputTokens = 0;
+  readonly models = new Set<string>();
+  private readonly delegates = new Map<string, RunActivityStep>();
+  private readonly byCallId = new Map<string, RunActivityStep>();
+  private readonly open: {
+    step: RunActivityStep;
+    delegateId: string | null;
+  }[] = [];
+  private advisor: RunActivityStep | null = null;
 
-  const delegateFor = (event: HarnessEvent): RunActivityStep | null => {
+  constructor(private readonly tr: TrFn) {}
+
+  apply(event: HarnessEvent): void {
+    switch (event.type) {
+      case "tool.started":
+        return this.toolStarted(event);
+      case "tool.completed":
+      case "tool.failed":
+        return this.toolEnded(event);
+      case "agent.started":
+        return this.agentStarted(event);
+      case "advisor.consulted":
+        return this.advisorConsulted(event);
+      case "delegate.completed":
+        return this.delegateCompleted(event);
+      case "usage.recorded":
+        return this.usageRecorded(event);
+      default:
+        return;
+    }
+  }
+
+  private newStep(tool: string, event: HarnessEvent): RunActivityStep {
+    return {
+      id: str(event.data.call_id) ?? event.id,
+      tool,
+      label: stepLabel(tool, this.tr),
+      args: event.data.args ?? null,
+      argsTruncated: event.data.args_truncated === true,
+      preview: null,
+      previewTruncated: false,
+      ms: null,
+      ok: null,
+      error: null,
+      startedAt: event.created_at,
+    };
+  }
+
+  private delegateFor(event: HarnessEvent): RunActivityStep | null {
     const id = str(event.data.delegate_id);
     if (!id) return null;
-    let step = delegates.get(id);
+    let step = this.delegates.get(id);
     if (!step) {
-      step = { ...newStep("delegate", event), id, args: null, steps: [] };
-      delegates.set(id, step);
-      top.push(step);
-      stepCount += 1;
+      step = { ...this.newStep("delegate", event), id, args: null, steps: [] };
+      this.delegates.set(id, step);
+      this.steps.push(step);
+      this.stepCount += 1;
     }
     if (step.args === null && str(event.data.brief)) {
       step.args = { brief: event.data.brief };
     }
     return step;
-  };
+  }
 
-  const place = (step: RunActivityStep, event: HarnessEvent) => {
-    const parent = delegateFor(event);
-    (parent?.steps ?? top).push(step);
-    stepCount += 1;
-  };
+  private place(step: RunActivityStep, event: HarnessEvent): void {
+    const parent = this.delegateFor(event);
+    (parent?.steps ?? this.steps).push(step);
+    this.stepCount += 1;
+  }
 
-  const settle = (step: RunActivityStep, event: HarnessEvent, ok: boolean) => {
-    step.ok = ok;
-    step.ms =
-      num(event.data.duration_ms) ?? elapsed(step.startedAt, event.created_at);
-    if (ok) {
-      step.preview = event.data.preview ?? null;
-      step.previewTruncated = event.data.preview_truncated === true;
-    } else {
-      step.error = str(event.data.error) ?? str(event.data.reason) ?? "";
-    }
-  };
-
-  const findOpen = (
-    event: HarnessEvent,
-    tool: string
-  ): RunActivityStep | null => {
+  /** The open call an end event belongs to: by `call_id`, else the oldest
+   * open call of the same tool (records from before the harness kept ids). */
+  private takeOpen(event: HarnessEvent, tool: string): RunActivityStep | null {
     const callId = str(event.data.call_id);
     const delegateId = str(event.data.delegate_id);
     const index = callId
-      ? open.findIndex((entry) => entry.step === byCallId.get(callId))
-      : open.findIndex(
+      ? this.open.findIndex((entry) => entry.step === this.byCallId.get(callId))
+      : this.open.findIndex(
           (entry) => entry.step.tool === tool && entry.delegateId === delegateId
         );
     if (index < 0) return null;
-    return open.splice(index, 1)[0].step;
-  };
+    return this.open.splice(index, 1)[0].step;
+  }
 
-  for (const event of record.events) {
+  private toolStarted(event: HarnessEvent): void {
     const tool = str(event.data.tool);
-    switch (event.type) {
-      case "tool.started": {
-        if (!tool) break;
-        const step = newStep(tool, event);
-        place(step, event);
-        open.push({ step, delegateId: str(event.data.delegate_id) });
-        const callId = str(event.data.call_id);
-        if (callId) byCallId.set(callId, step);
-        break;
-      }
-      case "tool.completed":
-      case "tool.failed": {
-        if (!tool) break;
-        const ok = event.type === "tool.completed";
-        let step = findOpen(event, tool);
-        if (!step) {
-          // Refused before it started (permissions, bad arguments).
-          step = newStep(tool, event);
-          place(step, event);
-        }
-        settle(step, event, ok);
-        break;
-      }
-      case "agent.started": {
-        if (event.data.agent === "advisor") {
-          advisor = newStep("ask_advisor", event);
-          place(advisor, event);
-        } else {
-          delegateFor(event);
-        }
-        break;
-      }
-      case "advisor.consulted": {
-        if (!advisor) break;
-        advisor.ok = true;
-        advisor.ms = elapsed(advisor.startedAt, event.created_at);
-        advisor.preview = { signal: event.data.signal, note: event.data.note };
-        advisor = null;
-        break;
-      }
-      case "delegate.completed": {
-        const step = delegateFor(event);
-        if (!step) break;
-        step.ok = true;
-        step.ms =
-          num(event.data.duration_ms) ??
-          elapsed(step.startedAt, event.created_at);
-        step.preview = {
-          tools_run: event.data.tools_run,
-          rows_returned: event.data.rows_returned,
-          turns: event.data.turns,
-        };
-        break;
-      }
-      case "usage.recorded": {
-        inputTokens += num(event.data.input_tokens) ?? 0;
-        outputTokens += num(event.data.output_tokens) ?? 0;
-        const model = str(event.data.model);
-        if (model) models.add(model);
-        break;
-      }
-      default:
-        break;
+    if (!tool) return;
+    const step = this.newStep(tool, event);
+    this.place(step, event);
+    this.open.push({ step, delegateId: str(event.data.delegate_id) });
+    const callId = str(event.data.call_id);
+    if (callId) this.byCallId.set(callId, step);
+  }
+
+  private toolEnded(event: HarnessEvent): void {
+    const tool = str(event.data.tool);
+    if (!tool) return;
+    let step = this.takeOpen(event, tool);
+    if (!step) {
+      // Refused before it started (permissions, bad arguments).
+      step = this.newStep(tool, event);
+      this.place(step, event);
+    }
+    step.ms = durationOf(step, event);
+    if (event.type === "tool.completed") {
+      step.ok = true;
+      step.preview = event.data.preview ?? null;
+      step.previewTruncated = event.data.preview_truncated === true;
+    } else {
+      step.ok = false;
+      step.error = str(event.data.error) ?? str(event.data.reason) ?? "";
     }
   }
+
+  private agentStarted(event: HarnessEvent): void {
+    if (event.data.agent !== "advisor") {
+      this.delegateFor(event);
+      return;
+    }
+    this.advisor = this.newStep("ask_advisor", event);
+    this.place(this.advisor, event);
+  }
+
+  private advisorConsulted(event: HarnessEvent): void {
+    const step = this.advisor;
+    if (!step) return;
+    step.ok = true;
+    step.ms = elapsed(step.startedAt, event.created_at);
+    step.preview = { signal: event.data.signal, note: event.data.note };
+    this.advisor = null;
+  }
+
+  private delegateCompleted(event: HarnessEvent): void {
+    const step = this.delegateFor(event);
+    if (!step) return;
+    step.ok = true;
+    step.ms = durationOf(step, event);
+    step.preview = {
+      tools_run: event.data.tools_run,
+      rows_returned: event.data.rows_returned,
+      turns: event.data.turns,
+    };
+  }
+
+  private usageRecorded(event: HarnessEvent): void {
+    this.inputTokens += num(event.data.input_tokens) ?? 0;
+    this.outputTokens += num(event.data.output_tokens) ?? 0;
+    const model = str(event.data.model);
+    if (model) this.models.add(model);
+  }
+}
+
+/** The run's tool calls, consults and delegations in the order they started,
+ * with its total duration and token usage. */
+export function mapRunActivity(
+  record: HarnessRunRecord,
+  tr: TrFn
+): RunActivity {
+  const builder = new ActivityBuilder(tr);
+  for (const event of record.events) builder.apply(event);
 
   const events = record.events;
   const first = events.find((e) => e.type === "run.started") ?? events[0];
@@ -180,10 +198,14 @@ export function mapRunActivity(
   return {
     runId: record.run_id,
     status: record.status,
-    steps: top,
-    stepCount,
+    steps: builder.steps,
+    stepCount: builder.stepCount,
     durationMs:
       first && last ? elapsed(first.created_at, last.created_at) : null,
-    usage: { inputTokens, outputTokens, models: [...models] },
+    usage: {
+      inputTokens: builder.inputTokens,
+      outputTokens: builder.outputTokens,
+      models: [...builder.models],
+    },
   };
 }

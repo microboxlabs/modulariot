@@ -136,7 +136,8 @@ export function base64ToBytes(value: string): Uint8Array | null {
   try {
     const binary = atob(body);
     const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    for (let i = 0; i < binary.length; i++)
+      bytes[i] = binary.codePointAt(i) ?? 0;
     return bytes;
   } catch {
     return null;

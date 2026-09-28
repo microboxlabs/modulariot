@@ -9,8 +9,9 @@ export function orgPath(
   query?: URLSearchParams
 ): string {
   const path = [slug, ...segments].map(encodeURIComponent).join("/");
+  const base = `/api/v1/orgs/${path}`;
   const search = query?.toString();
-  return `/api/v1/orgs/${path}${search ? `?${search}` : ""}`;
+  return search ? `${base}?${search}` : base;
 }
 
 /**

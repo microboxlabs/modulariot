@@ -32,6 +32,11 @@ function Heading({
   return <h4 className={className}>{text}</h4>;
 }
 
+/** A story's blocks never reorder, so their position is a stable key. */
+function positioned<T>(items: readonly T[]): { key: string; item: T }[] {
+  return items.map((item, position) => ({ key: `p${position}`, item }));
+}
+
 function Table({
   title,
   headers,
@@ -51,21 +56,21 @@ function Table({
       <table className="w-full text-left text-sm text-gray-700 dark:text-gray-300">
         <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
           <tr>
-            {headers.map((header, i) => (
-              <th key={`${header}-${i}`} className="px-3 py-2">
+            {positioned(headers).map(({ key, item: header }) => (
+              <th key={key} className="px-3 py-2">
                 {header}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, r) => (
+          {positioned(rows).map(({ key, item: row }) => (
             <tr
-              key={r}
+              key={key}
               className="border-b border-gray-100 dark:border-gray-700"
             >
-              {row.map((cell, c) => (
-                <td key={c} className="px-3 py-2">
+              {positioned(row).map(({ key: cellKey, item: cell }) => (
+                <td key={cellKey} className="px-3 py-2">
                   {String(cell)}
                 </td>
               ))}
@@ -191,8 +196,8 @@ export const SectionsPreviewer = forwardRef<
       className="min-h-0 flex-1 overflow-y-auto bg-white dark:bg-gray-900"
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-10">
-        {sections.map((section, i) => (
-          <Section key={i} section={section} />
+        {positioned(sections).map(({ key, item: section }) => (
+          <Section key={key} section={section} />
         ))}
       </div>
     </div>

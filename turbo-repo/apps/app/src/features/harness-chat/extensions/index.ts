@@ -12,11 +12,6 @@ export const DEFAULT_HARNESS_EXTENSIONS: HarnessExtension[] = [
   showDashletExtension,
 ];
 
-/** Extension tools that only make sense while storytelling is enabled, so
- * they are neither registered nor advertised to the harness when it is off.
- * None today: the harness saves stories through its own story tools. */
-const STORYTELLING_EXTENSION_TOOLS: ReadonlySet<string> = new Set<string>();
-
 /**
  * The default extension list for a live `HarnessChat`, minus any card whose
  * runtime flag isn't set. Keeps the toolkit — and therefore what's offered
@@ -26,7 +21,6 @@ export function resolveDefaultHarnessExtensions(opts: {
   storytellingEnabled: boolean;
 }): HarnessExtension[] {
   return DEFAULT_HARNESS_EXTENSIONS.filter(
-    (extension) =>
-      opts.storytellingEnabled || !STORYTELLING_EXTENSION_TOOLS.has(extension.toolName),
+    (extension) => opts.storytellingEnabled || !extension.requiresStorytelling,
   );
 }

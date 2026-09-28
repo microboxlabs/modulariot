@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage
 
 from miot_harness.agents.chat_models import get_chat_model, set_provider_registry
 from miot_harness.agents.model_providers import Provider, ProviderRegistry
-from miot_harness.runtime.agent_loop import _plain_messages, _stream_turn
+from miot_harness.runtime.agent_loop import _plain_messages, _storable, _stream_turn
 
 
 @pytest.fixture(autouse=True)
@@ -180,6 +180,8 @@ async def test_reasoning_content_streams_as_thinking_and_is_never_sent_back():
     assert _deltas(events, "answer.delta") == ["Hello."]
     assert message.content == "Hello."
     assert message.additional_kwargs["reasoning_content"] == "Plan the reply."
+    stored = _storable(message, set())
+    assert stored is not None and "reasoning_content" not in stored.additional_kwargs
 
     history = _plain_messages([HumanMessage(content="hi"), message, HumanMessage(content="more")])
     assert "reasoning_content" not in json.dumps(model._get_request_payload(history))

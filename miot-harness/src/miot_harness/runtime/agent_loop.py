@@ -206,7 +206,8 @@ def _storable(msg: AIMessage, answered: set[str]) -> AIMessage | None:
     blocks, and replaying one the API finds no `tool_result` for is rejected.
     And every thinking block: they are signed by the model that produced them,
     while the conversation model is chosen per run, so a later turn on another
-    model would replay a signature that is not its own.
+    model would replay a signature that is not its own. The streamed
+    `reasoning_content` of OpenAI-compatible providers goes for the same reason.
 
     None when only thinking blocks remain, or nothing does. An assistant
     message with no text and no call is an empty turn, also rejected.
@@ -218,9 +219,13 @@ def _storable(msg: AIMessage, answered: set[str]) -> AIMessage | None:
     if not calls and not content:
         return None
     dropped = isinstance(msg.content, list) and len(content) != len(msg.content)
-    if len(calls) == len(msg.tool_calls) and not dropped:
+    reasoned = "reasoning_content" in msg.additional_kwargs
+    if len(calls) == len(msg.tool_calls) and not dropped and not reasoned:
         return msg
-    return msg.model_copy(update={"tool_calls": calls, "content": content})
+    kwargs = {k: v for k, v in msg.additional_kwargs.items() if k != "reasoning_content"}
+    return msg.model_copy(
+        update={"tool_calls": calls, "content": content, "additional_kwargs": kwargs}
+    )
 
 
 def _is_dropped_block(block: Any, answered: set[str]) -> bool:

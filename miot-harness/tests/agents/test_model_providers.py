@@ -91,7 +91,7 @@ def test_a_provider_without_its_key_or_unknown_is_refused() -> None:
         ProviderRegistry().resolve("glm:glm-4.6")
 
 
-def test_an_openai_compatible_model_uses_the_openai_client_on_its_base_url() -> None:
+def test_an_openai_compatible_model_uses_chat_deepseek_on_its_base_url() -> None:
     from langchain_deepseek import ChatDeepSeek
 
     set_provider_registry(

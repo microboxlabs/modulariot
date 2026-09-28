@@ -9,7 +9,12 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import ValidationError
 
-from miot_harness.runtime.agent_loop import _compose_human, _plain_messages, _with_tail_marker
+from miot_harness.runtime.agent_loop import (
+    _compose_human,
+    _lead_with_reminders,
+    _plain_messages,
+    _with_tail_marker,
+)
 from miot_harness.runtime.attachments import MAX_ATTACHMENT_BYTES, Attachment, content_block
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.conversation import InMemoryConversationStore
@@ -91,21 +96,22 @@ def test_attachment_bytes_stay_out_of_repr_and_dumps() -> None:
 
 
 def test_compose_without_attachments_stays_a_string() -> None:
-    assert _compose_human("q", []).content == "q"
+    assert _compose_human("q").content == "q"
 
 
 def test_compose_puts_files_first_and_the_text_last() -> None:
-    msg = _compose_human("what is this?", ["be brief"], [_image(), _pdf(), _text()])
+    composed = _compose_human("what is this?", [_image(), _pdf(), _text()])
+    [msg] = _lead_with_reminders([composed], ["be brief"], cache=False)
     kinds = [b["type"] for b in msg.content]
-    assert kinds == ["image", "file", "text", "text"]
-    assert "plate,km" in msg.content[2]["text"]
-    assert 'name="trips.csv"' in msg.content[2]["text"]
-    assert msg.content[-1]["text"].endswith("what is this?")
-    assert "<system-reminder>" in msg.content[-1]["text"]
+    assert kinds == ["text", "image", "file", "text", "text"]
+    assert "<system-reminder>" in msg.content[0]["text"]
+    assert "plate,km" in msg.content[3]["text"]
+    assert 'name="trips.csv"' in msg.content[3]["text"]
+    assert msg.content[-1]["text"] == "what is this?"
 
 
 def test_anthropic_gets_image_and_document_blocks_with_the_cache_marker_on_text() -> None:
-    msg = _compose_human("q", [], [_image(), _pdf()])
+    msg = _compose_human("q", [_image(), _pdf()])
     [user] = _anthropic_payload(_with_tail_marker([msg]))
     image, document, text = user["content"]
     assert image["type"] == "image"
@@ -117,7 +123,7 @@ def test_anthropic_gets_image_and_document_blocks_with_the_cache_marker_on_text(
 
 
 def test_openai_gets_image_url_and_file_parts() -> None:
-    msg = _compose_human("q", [], [_image(), _pdf()])
+    msg = _compose_human("q", [_image(), _pdf()])
     [user] = _openai_payload(_plain_messages([msg]))
     image, file, text = user["content"]
     assert image == {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{PNG}"}}
@@ -128,7 +134,7 @@ def test_openai_gets_image_url_and_file_parts() -> None:
 
 
 def test_plain_messages_keep_media_but_still_flatten_text_only_lists() -> None:
-    media = _with_tail_marker([_compose_human("q", [], [_image()])])[0]
+    media = _with_tail_marker([_compose_human("q", [_image()])])[0]
     text_only = AIMessage(content=[{"type": "text", "text": "a"}, {"type": "thinking"}])
     plain_media, plain_text = _plain_messages([media, text_only])
     assert [b["type"] for b in plain_media.content] == ["image", "text"]
@@ -185,7 +191,7 @@ async def test_conversation_memory_keeps_a_marker_not_the_bytes(tmp_path: Any) -
 
 
 def test_a_message_that_is_only_files_has_no_empty_text_block() -> None:
-    msg = _compose_human("", [], [_image()])
+    msg = _compose_human("", [_image()])
     assert [b["type"] for b in msg.content] == ["image"]
     [user] = _anthropic_payload(_with_tail_marker([msg]))
     assert [b["type"] for b in user["content"]] == ["image"]

@@ -12,6 +12,14 @@ registry); dynamic content (skill bodies, JSON-block contracts) rides in
 the user turn as <system-reminder> blocks; markers are applied on a COPY at
 request time so history never accumulates breakpoints.
 
+The reminders open the conversation's first user message, not the latest
+one. The history replays each user message as the user wrote it, so
+reminders on the latest message would make the previous run's request
+differ from this one at that message, and the cached history would be lost
+on every run. At the front they read the same on every run, and a third
+breakpoint after them lets a new conversation of the same tenant and skill
+reuse them.
+
 Known limit (spec §component 5): the API's cache lookback is 20 content
 blocks — a single turn with >8 parallel tool calls could out-run it and
 silently miss the tail cache for that request (prefix cache unaffected).
@@ -149,22 +157,46 @@ def _split_prior(
 
 def _compose_human(
     user_message: str,
-    reminders: list[str],
     attachments: Sequence[Attachment] = (),
 ) -> HumanMessage:
-    text = user_message
-    if reminders:
-        wrapped = "\n\n".join(f"<system-reminder>\n{r}\n</system-reminder>" for r in reminders)
-        text = f"{wrapped}\n\n{user_message}"
     if not attachments:
-        return HumanMessage(content=text)
+        return HumanMessage(content=user_message)
     # Files first and the text last, so the tail cache marker lands on text.
     # A message that is only files has no text block: the API rejects an
     # empty one.
     content: list[str | dict[str, Any]] = [content_block(a) for a in attachments]
-    if text:
-        content.append({"type": "text", "text": text})
+    if user_message:
+        content.append({"type": "text", "text": user_message})
     return HumanMessage(content=content)
+
+
+def _reminder_block(reminders: list[str], *, cache: bool) -> dict[str, Any]:
+    wrapped = "\n\n".join(f"<system-reminder>\n{r}\n</system-reminder>" for r in reminders)
+    block: dict[str, Any] = {"type": "text", "text": f"{wrapped}\n\n"}
+    if cache:
+        block["cache_control"] = _EPHEMERAL_CACHE
+    return block
+
+
+def _lead_with_reminders(
+    messages: list[BaseMessage], reminders: list[str], *, cache: bool
+) -> list[BaseMessage]:
+    """`messages` with the reminders in front of the first user message.
+
+    `messages` is the history plus this turn's user message, so there is
+    always one. The message is copied; the history's own stays as stored.
+    """
+    if not reminders:
+        return list(messages)
+    first = next(i for i, msg in enumerate(messages) if isinstance(msg, HumanMessage))
+    msg = messages[first]
+    content = msg.content
+    if isinstance(content, str):
+        blocks: list[Any] = [{"type": "text", "text": content}] if content else []
+    else:
+        blocks = list(content)
+    lead = msg.model_copy(update={"content": [_reminder_block(reminders, cache=cache), *blocks]})
+    return [*messages[:first], lead, *messages[first + 1 :]]
 
 
 def _turn_transcript(
@@ -174,9 +206,9 @@ def _turn_transcript(
 
     `messages` is [system, *history, composed_human, ...turn]. The system
     message and the prior history are already held elsewhere, and the
-    composed human carries per-request <system-reminder> blocks (a skill
-    body) that must not be replayed, so it is swapped for the plain user
-    message. The turn-cap nudge is dropped for the same reason.
+    composed human may carry the <system-reminder> blocks, which the next
+    run adds again, so it is swapped for the plain user message. The
+    turn-cap nudge is dropped for the same reason.
 
     A tool call left unanswered goes with them. The turn cap breaks the loop
     on the model's reply whether or not that reply asked for more tools, so
@@ -283,6 +315,22 @@ def _cleared_result(content: Any) -> str | None:
         header = {k: v for k, v in payload.items() if k not in ("output", "excerpt")}
         return json.dumps({**header, "cleared": _CLEARED_NOTE}, default=str)
     return json.dumps({"cleared": _CLEARED_NOTE, "length": len(text)})
+
+
+def _calibrated(start: dict[str, int], usage: dict[str, Any]) -> dict[str, int]:
+    """`start` scaled to the provider's count for the first request.
+
+    The estimates run at four characters a token, which undercounts JSON
+    schemas and non-English text by a third or more. Left as they are, the
+    shortfall shows up as `run` on a turn that has added nothing yet.
+    """
+    reported = int(usage.get("input_tokens") or 0)
+    estimated = sum(start.values())
+    if not reported or not estimated:
+        return start
+    parts = {k: v * reported // estimated for k, v in start.items()}
+    parts["message"] += reported - sum(parts.values())
+    return parts
 
 
 def _with_tail_marker(messages: list[BaseMessage]) -> list[BaseMessage]:
@@ -590,15 +638,17 @@ class AgentLoopRunner:
                 "The datasource tools are not available to this organization and "
                 f"will refuse: {ctx.data_refusal} Answer without them."
             )
-        messages: list[BaseMessage] = [
-            self.system_message,
-            *history,
-            _compose_human(user_message, reminders, ctx.attachments),
-        ]
+        conversation = _lead_with_reminders(
+            [*history, _compose_human(user_message, ctx.attachments)],
+            reminders,
+            cache=self.anthropic_format,
+        )
+        messages: list[BaseMessage] = [self.system_message, *conversation]
+        history_tokens = count_tokens_approximately(history) if history else 0
         start_tokens = {
             **self._prefix_tokens,
-            "history": count_tokens_approximately(history) if history else 0,
-            "message": count_tokens_approximately(messages[-1:]),
+            "history": history_tokens,
+            "message": count_tokens_approximately(conversation) - history_tokens,
         }
         context: dict[str, Any] = {}
         evidence: list[DataEvidence] = []
@@ -632,6 +682,8 @@ class AgentLoopRunner:
             )
             usage_log.append(dict(getattr(response, "usage_metadata", None) or {}))
             messages.append(response)
+            if turn == 0:
+                start_tokens = _calibrated(start_tokens, usage_log[0])
             context = self._context_usage(start_tokens, usage_log[-1], messages)
             progress(
                 HarnessEvent(
@@ -934,7 +986,8 @@ class AgentLoopRunner:
         which is where the next request starts; approximate when the provider
         reports none. The breakdown is approximate and always adds up to
         `used`: `run` is what this run added (tool calls, tool results,
-        replies) on top of the rest.
+        replies) on top of the rest, which `_calibrated` fits to the first
+        request's count.
         """
         reported = int(usage.get("input_tokens") or 0) + int(usage.get("output_tokens") or 0)
         used = reported or count_tokens_approximately(messages) + self._prefix_tokens["tools"]

@@ -3,7 +3,7 @@
 This text is the prompt-cache prefix (together with the tool list), so it
 must be a pure function of the datasource profile: no clock, no per-request
 tenant, no uuids, no counters. Dynamic per-run context never goes here —
-it rides in the user turn (see agent_loop._compose_human).
+it rides in the user turn (see agent_loop._lead_with_reminders).
 
 Skills are progressive disclosure over the same prefix contract: only the
 one-line index (trigger text) lives here; full playbook bodies arrive

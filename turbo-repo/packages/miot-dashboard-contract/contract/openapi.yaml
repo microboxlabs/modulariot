@@ -131,7 +131,9 @@ paths:
         Send `If-Match` with the revision you loaded. A write whose expected
         revision is stale is refused with `409`, which is what stops two
         editors — or an editor and the AI generation skill — from silently
-        overwriting one another. Omit the header only for a first write.
+        overwriting one another. For a first write, load the absent address and
+        send its `ETag` (`"0"`). Omitting the header is the unconditional
+        compatibility path and does not protect against concurrent creation.
 
 
         Creating a dashboard that does not exist yet is decided by scope
@@ -723,8 +725,10 @@ components:
       schema: { type: string }
       description: >
         The revision the caller believes it is replacing, as an integer. A
-        weak-validator prefix and surrounding quotes are tolerated. Omit only
-        for a first write; a mismatch is a 409, never a merge.
+        weak-validator prefix and surrounding quotes are tolerated. Load first
+        and send the returned ETag, including `"0"` for an absent dashboard.
+        Omission is unconditional for compatibility; a mismatch is a 409,
+        never a merge.
       example: "3"
 
   responses:

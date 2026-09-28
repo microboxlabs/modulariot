@@ -135,10 +135,11 @@ Kanban params (for `/planning`, `/shipping`, `/delivery`, `/finished`,
 
 ## 4. Entity lookups (datasource connections)
 
-When the query names an identifier or an entity — a license plate, driver
-name/RUT, expedition code, service id, a count or status question — use the
-datasource connection tools available in this run to ground the answer before
-linking. Tools are named `<connection>_<primitive>` after whichever
+When the query names one of the organization's identifiers or entities — a
+license plate, driver name/RUT, expedition code, service id, or a count or
+status question about them — use the datasource connection tools available in
+this run to ground the answer before linking. A question about something
+outside the organization is section 5, even when it asks for a count. Tools are named `<connection>_<primitive>` after whichever
 connections booted (for example `coordinador_select` or `nexo_grep`); do not
 assume any specific connection exists.
 
@@ -171,6 +172,12 @@ answer from what it returns: intent `ask`, the facts in the markdown block,
 and one `url` block per source you used (at most 3). Never put the user's or
 the organization's data in a search query. Without `web_search`, say that you
 can only answer about the organization's data and the web is not available.
+
+This section wins over section 4 whenever the subject is outside the
+organization, including counts ("how many open-source harnesses are
+there?"). When you cannot tell whether a term is the organization's own (a
+fleet code, a service type), check `<connection>_knowledge` first, then the
+web.
 
 Ask for clarification only when the question is ambiguous in a way a search
 cannot settle.

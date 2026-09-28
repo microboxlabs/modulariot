@@ -31,7 +31,12 @@ import { useHarnessFork } from "../context/harness-fork-context";
 import { useHarnessReadOnly } from "../context/harness-read-only-context";
 import { useMessageRunId } from "../context/harness-run-lookup-context";
 import { useRunStartedAt } from "../context/harness-session-context";
-import { formatElapsed, runElapsedSince, splitNarration } from "../run-progress";
+import {
+  formatElapsed,
+  runElapsedSince,
+  splitNarration,
+  withoutStatusLines,
+} from "../run-progress";
 import { REQUEST_APPROVAL_TOOL } from "../extensions/request-approval-args";
 import { SentAttachment } from "./attachments";
 import { RunActivityRow } from "./run-activity";
@@ -138,11 +143,17 @@ const AssistantReasoning: FC<ReasoningMessagePartProps> = ({ text, status }) => 
   const isLast = useAuiState((s) => s.message.isLast);
   const live = useLiveRun();
   const runId = useMessageRunId();
+  const statusLines = [
+    tr("harnessChat.stream.progress.connecting"),
+    tr("harnessChat.stream.progress.thinking"),
+  ];
   if (!text.trim()) return null;
 
   if (isLast && status?.type !== "complete") {
     // While RunStatus shows the step in progress, only the finished ones stay here.
-    const shown = live ? splitNarration(text).earlier : text;
+    const shown = live
+      ? splitNarration(text, statusLines).earlier
+      : withoutStatusLines(text, statusLines);
     if (!shown) return null;
     return (
       <div className="mb-1 max-w-[90%] whitespace-pre-wrap text-[10px] leading-snug text-gray-400 dark:text-gray-500">
@@ -166,7 +177,7 @@ const AssistantReasoning: FC<ReasoningMessagePartProps> = ({ text, status }) => 
       </button>
       {expanded && (
         <div className="max-h-48 overflow-y-auto overscroll-contain whitespace-pre-wrap rounded-md border border-gray-200 bg-white px-2 py-1.5 text-[10px] leading-snug text-gray-400 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-500">
-          {text}
+          {withoutStatusLines(text, statusLines)}
         </div>
       )}
       {runId && <RunActivityRow runId={runId} />}

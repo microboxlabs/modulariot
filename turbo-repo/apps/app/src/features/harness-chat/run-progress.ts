@@ -1,8 +1,27 @@
+/** The narration without its status lines ("Connecting…", "Thinking…"):
+ * they say what is happening now, and are not steps. */
+export function withoutStatusLines(
+  text: string,
+  statusLines: readonly string[]
+): string {
+  if (statusLines.length === 0) return text;
+  return text
+    .split("\n")
+    .filter((line) => !statusLines.includes(line.trim()))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /**
  * Splits the run narration into the steps already done and the one in
- * progress, which is its last non-empty line.
+ * progress, which is its last non-empty line. Status lines are left out of
+ * the steps done.
  */
-export function splitNarration(text: string): {
+export function splitNarration(
+  text: string,
+  statusLines: readonly string[] = []
+): {
   earlier: string;
   current: string | null;
 } {
@@ -10,7 +29,10 @@ export function splitNarration(text: string): {
   const cut = trimmed.lastIndexOf("\n");
   const current = trimmed.slice(cut + 1).trim();
   return {
-    earlier: cut < 0 ? "" : trimmed.slice(0, cut).trimEnd(),
+    earlier:
+      cut < 0
+        ? ""
+        : withoutStatusLines(trimmed.slice(0, cut), statusLines).trimEnd(),
     current: current || null,
   };
 }

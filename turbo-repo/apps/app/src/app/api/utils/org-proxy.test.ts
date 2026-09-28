@@ -14,6 +14,8 @@ vi.mock("@/app/api/utils/quarkus-proxy", () => ({
 import { forwardToOrg, orgPath, pickQuery } from "./org-proxy";
 import { GET as listStoriesRoute } from "../stories/route";
 import { DELETE as revokeShareRoute } from "../stories/[storyId]/shares/[principal]/route";
+import { GET as listLinksRoute } from "../links/route";
+import { GET as resolveLinkRoute } from "../links/[token]/route";
 
 beforeEach(() => {
   resolveTenantScopeMock.mockReset();
@@ -105,6 +107,31 @@ describe("story routes", () => {
     expect(forwardToQuarkusMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme%20org/stories/s1/shares/ana%40example.com",
       { method: "DELETE" }
+    );
+  });
+});
+
+describe("link routes", () => {
+  it("lists a target's links with only the target filters", async () => {
+    await listLinksRoute(
+      new Request(
+        "http://localhost/api/links?targetType=thread&targetId=t-1&x=1"
+      )
+    );
+    expect(forwardToQuarkusMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/links?targetType=thread&targetId=t-1",
+      {}
+    );
+  });
+
+  it("pages a thread snapshot with numeric cursors only", async () => {
+    await resolveLinkRoute(
+      new Request("http://localhost/api/links/tok?after=40&limit=x"),
+      { params: Promise.resolve({ token: "tok" }) }
+    );
+    expect(forwardToQuarkusMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/links/tok?after=40",
+      {}
     );
   });
 });

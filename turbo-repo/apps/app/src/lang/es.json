@@ -5382,7 +5382,8 @@
       "peopleWithAccess": "Personas con acceso",
       "failed": "No se pudo cambiar el acceso.",
       "permissionLabel": "Nivel de acceso",
-      "onlyYou": "Solo tú tienes acceso."
+      "onlyYou": "Solo tú tienes acceso.",
+      "linkHint": "Cualquier persona de tu organización con el enlace puede ver la versión actual."
     },
     "toast": {
       "deleted": "Se eliminó {name}",
@@ -5626,7 +5627,11 @@
         "sharedWithYou": "Compartido contigo",
         "revokeShare": "Quitar acceso",
         "rename": "Renombrar chat",
-        "fork": "Bifurcar chat"
+        "fork": "Bifurcar chat",
+        "shareLink": "Compartir enlace",
+        "shareWithPerson": "O dale acceso a una persona:",
+        "linkCopied": "Enlace copiado. Cualquier persona de tu organización puede abrirlo.",
+        "linkFailed": "No se pudo crear el enlace."
       },
       "thread": {
         "dropToAttach": "Suelta para adjuntar",
@@ -5714,6 +5719,21 @@
       "plan_no_seat": "No tienes un asiento de Harness. Pide a un administrador de tu organización que te dé acceso.",
       "plan_pool_exhausted": "Tu organización usó todos los tokens de este mes. Vuelve a estar disponible el día 1, o antes si un administrador agrega asientos.",
       "plan_model_not_offered": "Ese modelo ya no está disponible. Elige otro en el selector."
+    }
+  },
+  "shareLink": {
+    "readOnly": "Solo lectura",
+    "loadFailed": "No se pudo abrir el enlace.",
+    "notFound": {
+      "title": "Enlace no disponible",
+      "description": "El enlace fue revocado, o lo que compartía ya no existe."
+    },
+    "thread": {
+      "untitled": "Conversación",
+      "user": "Usuario",
+      "assistant": "Asistente",
+      "empty": "Esta conversación no tiene mensajes.",
+      "loadMore": "Cargar más mensajes"
     }
   }
 }

@@ -5382,7 +5382,8 @@
       "peopleWithAccess": "People with access",
       "failed": "Could not change access.",
       "permissionLabel": "Access level",
-      "onlyYou": "Only you have access."
+      "onlyYou": "Only you have access.",
+      "linkHint": "Anyone in your organization with the link can view the current version."
     },
     "toast": {
       "deleted": "Deleted {name}",
@@ -5626,7 +5627,11 @@
         "sharedWithYou": "Shared with you",
         "revokeShare": "Remove access",
         "rename": "Rename chat",
-        "fork": "Fork chat"
+        "fork": "Fork chat",
+        "shareLink": "Share link",
+        "shareWithPerson": "Or give one person access:",
+        "linkCopied": "Link copied. Anyone in your organization can open it.",
+        "linkFailed": "Could not create the link."
       },
       "thread": {
         "dropToAttach": "Drop to attach",
@@ -5714,6 +5719,21 @@
       "plan_no_seat": "You don't have a Harness seat. Ask an admin of your organization for access.",
       "plan_pool_exhausted": "Your organization used all of this month's tokens. It's available again on the 1st, or sooner if an admin adds seats.",
       "plan_model_not_offered": "That model is no longer available. Pick another one in the selector."
+    }
+  },
+  "shareLink": {
+    "readOnly": "Read only",
+    "loadFailed": "Could not open the link.",
+    "notFound": {
+      "title": "Link not available",
+      "description": "The link was revoked, or what it shared no longer exists."
+    },
+    "thread": {
+      "untitled": "Conversation",
+      "user": "User",
+      "assistant": "Assistant",
+      "empty": "This conversation has no messages.",
+      "loadMore": "Load more messages"
     }
   }
 }

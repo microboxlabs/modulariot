@@ -128,6 +128,16 @@ public class IntegrationOperationInvoker {
         return execute(connection, operation, body, queryParameters, maxResponseBytes);
     }
 
+    /** Executes the same immutable operation snapshot the dashboard policy checked. */
+    OperationInvocationResult executeBounded(
+            ResolvedConnection connection, IntegrationOperation operation,
+            Map<String, String> queryParameters, int maxResponseBytes) {
+        if (maxResponseBytes < 1 || !connection.connectionId().equals(operation.connectionId())) {
+            throw new OperationInvocationException("Invalid bounded operation");
+        }
+        return execute(connection, operation, null, queryParameters, maxResponseBytes);
+    }
+
     /** As {@link #invoke}, addressing the operation by its (case-insensitive) name. */
     public OperationInvocationResult invokeByName(
             String tenantCode, String connectionId, String operationName, Map<String, Object> body) {

@@ -28,6 +28,11 @@ export const STEP_KEYS = [
   "delegate",
   "ask_advisor",
   "fs_write",
+  "artifact",
+  "workflow",
+  "source_search",
+  "source_read",
+  "source_list",
 ] as const;
 
 export type StepKey = (typeof STEP_KEYS)[number];

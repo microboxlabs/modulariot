@@ -14,6 +14,7 @@ import {
   type StoredMessage,
 } from "./harness-thread-store";
 import { attachmentMarker } from "./attachment-parts";
+import { SHOW_ARTIFACT_TOOL } from "./extensions/show-artifact-args";
 import { clearActiveRun, readActiveRun } from "./harness-active-run";
 
 /**
@@ -23,6 +24,10 @@ import { clearActiveRun, readActiveRun } from "./harness-active-run";
  * 256 KB for the whole message.
  */
 const MAX_INLINE_LENGTH = 2048;
+
+/** Serialized size a stored message with artifacts is kept under, with
+ * headroom below the upstream 256 KB row cap. */
+const MAX_STORED_MESSAGE_BYTES = 200_000;
 
 export type HarnessHistoryAdapter = ThreadHistoryAdapter & {
   /** The harness run `load()` found still going, for the caller to re-attach
@@ -74,16 +79,18 @@ export function createHarnessHistoryAdapter(
     }
     const id = storedIds.get(message.id) ?? message.id;
     const parentId = item.parentId && (storedIds.get(item.parentId) ?? item.parentId);
-    const payload = stripInlineContent({
-      ...message,
-      id,
-      ...(runId && {
-        metadata: {
-          ...message.metadata,
-          custom: { ...message.metadata?.custom, harnessRunId: runId },
-        },
+    const payload = boundArtifacts(
+      stripInlineContent({
+        ...message,
+        id,
+        ...(runId && {
+          metadata: {
+            ...message.metadata,
+            custom: { ...message.metadata?.custom, harnessRunId: runId },
+          },
+        }),
       }),
-    }) as unknown as Record<string, unknown>;
+    ) as unknown as Record<string, unknown>;
     return { id, parentId, format: AUI_MESSAGE_FORMAT, payload };
   };
 
@@ -211,6 +218,50 @@ function markerOf(part: Record<string, unknown>, attachment: Record<string, unkn
 
 function str(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+/**
+ * Keeps artifacts in a stored message, in order, while the message stays
+ * under MAX_STORED_MESSAGE_BYTES; the rest are stored without content and
+ * marked `omitted`, so a reload shows their title and says why.
+ */
+export function boundArtifacts<T>(message: T): T {
+  if (!isRecord(message) || !Array.isArray(message.content)) return message;
+  const parts: unknown[] = message.content;
+  if (!parts.some(isArtifactCall)) return message;
+  const rest = parts.filter((part) => !isArtifactCall(part));
+  let budget = MAX_STORED_MESSAGE_BYTES - jsonBytes({ ...message, content: rest });
+  const content = parts.map((part) => {
+    if (!isArtifactCall(part)) return part;
+    const size = jsonBytes(part);
+    if (size <= budget) {
+      budget -= size;
+      return part;
+    }
+    const args = { ...part.args, content: "", omitted: true };
+    const omitted = { ...part, args, argsText: JSON.stringify(args) };
+    budget -= jsonBytes(omitted);
+    return omitted;
+  });
+  return { ...message, content };
+}
+
+function jsonBytes(value: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(value)).length;
+}
+
+type ArtifactCallPart = Record<string, unknown> & {
+  args: Record<string, unknown> & { content: string };
+};
+
+function isArtifactCall(part: unknown): part is ArtifactCallPart {
+  return (
+    isRecord(part) &&
+    part.type === "tool-call" &&
+    part.toolName === SHOW_ARTIFACT_TOOL &&
+    isRecord(part.args) &&
+    typeof part.args.content === "string"
+  );
 }
 
 /** The inlined body of an image or file part, if that is what this is. */

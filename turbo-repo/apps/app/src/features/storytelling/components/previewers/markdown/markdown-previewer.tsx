@@ -41,7 +41,7 @@ function fencedCode(children: ReactNode): { lang: string; source: string } | nul
 
 /** `pre` override for MarkdownContent: a ```mermaid fence becomes a rendered
  * diagram; every other fence keeps the default code-block chrome. */
-const MERMAID_COMPONENTS: Components = {
+export const MERMAID_COMPONENTS: Components = {
   pre({ children }) {
     const fence = fencedCode(children);
     if (fence?.lang === "mermaid") return <MermaidDiagram code={fence.source} />;

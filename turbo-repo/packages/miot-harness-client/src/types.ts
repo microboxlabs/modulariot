@@ -109,9 +109,10 @@ export type HarnessEventType = (typeof HARNESS_EVENT_TYPES)[number];
 /** `artifact.created`: a document a tool made for the user, e.g. a process diagram. */
 export interface ArtifactCreatedData {
   id: string;
-  kind: "svg" | "mermaid";
+  kind: "svg" | "mermaid" | "markdown" | "html";
   title: string;
-  /** SVG markup (plain shapes and text, no scripts or links) or Mermaid source. */
+  /** SVG markup (plain shapes and text, no scripts or links), Mermaid or
+   * Markdown source, or an HTML page to show in a sandboxed frame. */
   content: string;
   source?: string;
 }

@@ -28,9 +28,9 @@ import java.util.regex.Pattern;
  * tool arguments and results cut short, and the oldest turns left out once
  * the whole passes {@link #MAX_CHARS}.
  *
- * <p>The thread is named by its id or by a share-link token. Either way it must
- * belong to the caller's tenant; unlike the thread endpoints, it need not be
- * the caller's own, since the caller has already been checked as a trainer.
+ * <p>The thread is named by its id or by a share-link token, and must belong to
+ * the caller's tenant. By id it must also be the caller's own or shared with
+ * them; an active link already shares its thread with the whole organization.
  */
 @ApplicationScoped
 public class HarnessTranscriptService {
@@ -54,9 +54,9 @@ public class HarnessTranscriptService {
         this.links = links;
     }
 
-    /** Null when {@code ref} names no live thread of the tenant. */
-    public Transcript transcript(String tenantCode, String ref) {
-        HarnessThread thread = resolve(tenantCode, ref);
+    /** Null when {@code ref} names no live thread of the tenant that {@code userId} may read. */
+    public Transcript transcript(String tenantCode, String userId, String ref) {
+        HarnessThread thread = resolve(tenantCode, userId, ref);
         if (thread == null) {
             return null;
         }
@@ -70,12 +70,13 @@ public class HarnessTranscriptService {
         return capped(thread, all);
     }
 
-    private HarnessThread resolve(String tenantCode, String ref) {
+    private HarnessThread resolve(String tenantCode, String userId, String ref) {
         if (ref == null || ref.isBlank()) {
             return null;
         }
         if (UUID_SHAPE.matcher(ref).matches()) {
-            return threads.find(ref, tenantCode);
+            HarnessThread thread = threads.find(ref, tenantCode);
+            return thread != null && readable(thread, userId) ? thread : null;
         }
         if (!TOKEN_SHAPE.matcher(ref).matches()) {
             return null;
@@ -85,6 +86,13 @@ public class HarnessTranscriptService {
             return null;
         }
         return threads.find(link.targetId(), tenantCode);
+    }
+
+    /** By id, the same rule as reading a thread: the caller owns it or it is shared with them. */
+    private boolean readable(HarnessThread thread, String userId) {
+        return Objects.equals(thread.ownerId(), userId)
+                || threads.listShares(thread.id()).stream()
+                        .anyMatch(share -> Objects.equals(share.principal(), userId));
     }
 
     private List<HarnessThreadMessage> allMessages(String threadId) {

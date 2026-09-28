@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.integrations.domain.HarnessThreadMessage;
+import com.microboxlabs.miot.integrations.domain.HarnessThreadShare;
 import com.microboxlabs.miot.integrations.domain.ShareLink;
 import com.microboxlabs.miot.integrations.dto.TranscriptDtos.ToolSummary;
 import com.microboxlabs.miot.integrations.dto.TranscriptDtos.Transcript;
@@ -20,13 +21,15 @@ class HarnessTranscriptServiceTest {
 
     private static final String TENANT = "tenant-1";
     private static final String TOKEN = "AbCdEfGhIjKlMnOpQrStUvWxYz012345";
+    private static final String CALLER = "trainer@example.test";
+    private static final String OTHER = "someone@example.test";
 
     private final InMemoryStories store = new InMemoryStories();
     private final HarnessTranscriptService service = new HarnessTranscriptService(store.threads, store.links);
 
     @Test
     void aThreadBecomesTextAndToolCallsWithoutReasoning() {
-        String id = thread("someone@example.test");
+        String id = thread(CALLER);
         message(id, "m1", null, Map.of("role", "user",
                 "content", List.of(Map.of("type", "text", "text", "how many trips today?"))));
         message(id, "m2", "m1", Map.of("role", "assistant", "content", List.of(
@@ -35,7 +38,7 @@ class HarnessTranscriptServiceTest {
                         "result", "x".repeat(900)),
                 Map.of("type", "text", "text", "41 trips"))));
 
-        Transcript transcript = service.transcript(TENANT, id);
+        Transcript transcript = service.transcript(TENANT, CALLER, id);
 
         assertEquals(id, transcript.threadId());
         assertEquals("Trips", transcript.title());
@@ -55,36 +58,47 @@ class HarnessTranscriptServiceTest {
 
     @Test
     void aShareLinkOpensTheThreadItPointsTo() {
-        String id = thread("someone@example.test");
+        String id = thread(OTHER);
         message(id, "m1", null, Map.of("role", "user", "content", "plain text"));
         store.links.rows.put(TOKEN, new ShareLink(
                 TOKEN, TENANT, ShareLink.THREAD, id, "org", "someone@example.test", OffsetDateTime.now()));
 
-        assertEquals("plain text", service.transcript(TENANT, TOKEN).messages().get(0).text());
+        assertEquals("plain text", service.transcript(TENANT, CALLER, TOKEN).messages().get(0).text());
 
         store.links.revoked.add(TOKEN);
-        assertNull(service.transcript(TENANT, TOKEN), "a revoked link opens nothing");
+        assertNull(service.transcript(TENANT, CALLER, TOKEN), "a revoked link opens nothing");
+    }
+
+    @Test
+    void byIdAnotherMembersPrivateThreadIsNotFoundUntilSharedWithTheCaller() {
+        String id = thread(OTHER);
+        message(id, "m1", null, text("user", "private question"));
+
+        assertNull(service.transcript(TENANT, CALLER, id), "a trainer does not read others' private chats");
+
+        store.threads.shares.put(id, List.of(new HarnessThreadShare(id, CALLER, "read", OTHER, null)));
+        assertEquals("private question", service.transcript(TENANT, CALLER, id).messages().get(0).text());
     }
 
     @Test
     void anotherTenantsThreadOrLinkIsNotFound() {
-        String id = thread("someone@example.test");
+        String id = thread(CALLER);
         store.links.rows.put(TOKEN, new ShareLink(
                 TOKEN, "tenant-2", ShareLink.THREAD, id, "org", "someone@example.test", OffsetDateTime.now()));
 
-        assertNull(service.transcript("tenant-2", id));
-        assertNull(service.transcript(TENANT, TOKEN));
-        assertNull(service.transcript(TENANT, "not a ref!"));
+        assertNull(service.transcript("tenant-2", CALLER, id));
+        assertNull(service.transcript(TENANT, CALLER, TOKEN));
+        assertNull(service.transcript(TENANT, CALLER, "not a ref!"));
     }
 
     @Test
     void onlyTheBranchTheThreadEndsOnIsRead() {
-        String id = thread("someone@example.test");
+        String id = thread(CALLER);
         message(id, "m1", null, text("user", "question"));
         message(id, "m2", "m1", text("assistant", "first answer"));
         message(id, "m3", "m1", text("assistant", "regenerated answer"));
 
-        List<String> texts = service.transcript(TENANT, id).messages().stream()
+        List<String> texts = service.transcript(TENANT, CALLER, id).messages().stream()
                 .map(TranscriptMessage::text).toList();
 
         assertEquals(List.of("question", "regenerated answer"), texts);
@@ -92,7 +106,7 @@ class HarnessTranscriptServiceTest {
 
     @Test
     void theOldestTurnsGoFirstWhenTheTranscriptIsTooLong() {
-        String id = thread("someone@example.test");
+        String id = thread(CALLER);
         String parent = null;
         for (int i = 0; i < 10; i++) {
             String messageId = "m" + i;
@@ -100,7 +114,7 @@ class HarnessTranscriptServiceTest {
             parent = messageId;
         }
 
-        Transcript transcript = service.transcript(TENANT, id);
+        Transcript transcript = service.transcript(TENANT, CALLER, id);
 
         assertEquals(6, transcript.messages().size());
         assertEquals(4, transcript.omittedMessages());
@@ -110,10 +124,10 @@ class HarnessTranscriptServiceTest {
 
     @Test
     void aSingleOversizedMessageIsCutRatherThanDropped() {
-        String id = thread("someone@example.test");
+        String id = thread(CALLER);
         message(id, "m1", null, text("assistant", "z".repeat(HarnessTranscriptService.MAX_CHARS * 2)));
 
-        Transcript transcript = service.transcript(TENANT, id);
+        Transcript transcript = service.transcript(TENANT, CALLER, id);
 
         assertEquals(1, transcript.messages().size());
         assertEquals(HarnessTranscriptService.MAX_CHARS, transcript.messages().get(0).text().length());

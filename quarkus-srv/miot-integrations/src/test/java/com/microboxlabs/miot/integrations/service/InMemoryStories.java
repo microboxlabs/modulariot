@@ -2,6 +2,7 @@ package com.microboxlabs.miot.integrations.service;
 
 import com.microboxlabs.miot.integrations.domain.HarnessThread;
 import com.microboxlabs.miot.integrations.domain.HarnessThreadMessage;
+import com.microboxlabs.miot.integrations.domain.HarnessThreadShare;
 import com.microboxlabs.miot.integrations.domain.ShareLink;
 import com.microboxlabs.miot.integrations.domain.Story;
 import com.microboxlabs.miot.integrations.domain.StoryShare;
@@ -246,6 +247,7 @@ public final class InMemoryStories {
     public static final class Threads extends HarnessThreadRepository {
         public final Map<String, HarnessThread> rows = new LinkedHashMap<>();
         public final Map<String, List<HarnessThreadMessage>> messages = new LinkedHashMap<>();
+        public final Map<String, List<HarnessThreadShare>> shares = new LinkedHashMap<>();
 
         Threads() {
             super(null);
@@ -274,6 +276,11 @@ public final class InMemoryStories {
         public List<HarnessThreadMessage> listMessages(String threadId, long afterSeq, int limit) {
             return messages.getOrDefault(threadId, List.of()).stream()
                     .filter(m -> m.seq() > afterSeq).limit(limit).toList();
+        }
+
+        @Override
+        public List<HarnessThreadShare> listShares(String threadId) {
+            return shares.getOrDefault(threadId, List.of());
         }
     }
 }

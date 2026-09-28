@@ -60,9 +60,15 @@ class OrgHarnessLearningGateTest {
     void onlyTrainersReadTranscripts() {
         var store = new InMemoryStories();
         String id = UUID.randomUUID().toString();
-        store.threads.add(id, TENANT, "someone@example.test", "Trips");
+        store.threads.add(id, TENANT, EMAIL, "Trips");
         store.threads.addMessage(id, "m1");
+        String foreign = UUID.randomUUID().toString();
+        store.threads.add(foreign, TENANT, "someone@example.test", "Private");
+        store.threads.addMessage(foreign, "m1");
         var service = new HarnessTranscriptService(store.threads, store.links);
+
+        assertEquals(404, transcripts(service, true).transcript(ORG, foreign).await().indefinitely().getStatus(),
+                "another member's private thread is not found, even for a trainer");
 
         Uni<Response> refused = transcripts(service, false).transcript(ORG, id);
         assertThrows(ForbiddenException.class, refused.await()::indefinitely);

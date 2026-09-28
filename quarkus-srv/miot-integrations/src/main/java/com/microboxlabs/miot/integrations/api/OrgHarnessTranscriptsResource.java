@@ -52,12 +52,12 @@ public class OrgHarnessTranscriptsResource {
 
     @GET
     @Path("/{ref}")
-    @Operation(summary = "A thread of the organization, by id or share-link token, as a compact transcript")
+    @Operation(summary = "A thread the caller can read, by id or share-link token, as a compact transcript")
     public Uni<Response> transcript(
             @PathParam("organizationId") String organizationId,
             @PathParam("ref") String ref) {
         return permissions.requirePermission(organizationId, OrganizationPermissionDefinition.HARNESS_TRAINER)
                 .flatMap(allowed -> requests.run(organizationId, (tenant, userId) ->
-                        found(service.transcript(tenant, ref), Response.Status.OK, "thread not found")));
+                        found(service.transcript(tenant, userId, ref), Response.Status.OK, "thread not found")));
     }
 }

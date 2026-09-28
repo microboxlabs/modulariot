@@ -93,6 +93,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
+      - name: Dashboard coverage
+        if: steps.sonar-auth.outputs.scan-enabled == 'true'
+        working-directory: turbo-repo
+        run: |
+          npm run build --workspace @microboxlabs/miot-dashboard-contract
+          npm run test:coverage --workspace @microboxlabs/miot-dashboard-contract --workspace @microboxlabs/miot-dashboard-server
+
       - name: SonarCloud Dashboard Server Scan
         if: steps.sonar-auth.outputs.scan-enabled == 'true'
         uses: SonarSource/sonarqube-scan-action@v7.0.0

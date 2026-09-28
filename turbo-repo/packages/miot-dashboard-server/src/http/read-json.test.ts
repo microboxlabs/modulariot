@@ -54,6 +54,19 @@ describe("bounded JSON body decoding", () => {
     expect(cancel).toHaveBeenCalledTimes(1);
   });
 
+  it("reports a locked embedded request body as a redacted client error", async () => {
+    const input = request("{}");
+    const reader = input.body!.getReader();
+    try {
+      await expect(readJsonBody(input, 100)).rejects.toMatchObject({
+        status: 400,
+        message: "Request body must be valid JSON",
+      });
+    } finally {
+      reader.releaseLock();
+    }
+  });
+
   it("redacts malformed JSON, UTF-8 and stream errors", async () => {
     const broken = new ReadableStream({
       start(controller) {

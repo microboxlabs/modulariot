@@ -9,10 +9,12 @@ export async function readJsonBody(
 ): Promise<unknown> {
   if (request.body === null)
     throw DashboardServerError.badRequest("Request body must be valid JSON");
-  const reader = request.body.getReader();
+  let release: (() => void) | undefined;
   const chunks: Uint8Array[] = [];
   let size = 0;
   try {
+    const reader = request.body.getReader();
+    release = () => reader.releaseLock();
     for (;;) {
       const { value, done } = await reader.read();
       if (done) break;
@@ -39,6 +41,6 @@ export async function readJsonBody(
     if (isDashboardServerError(error)) throw error;
     throw DashboardServerError.badRequest("Request body must be valid JSON");
   } finally {
-    reader.releaseLock();
+    release?.();
   }
 }

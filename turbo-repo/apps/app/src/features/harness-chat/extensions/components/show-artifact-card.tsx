@@ -24,8 +24,8 @@ const KIND_LABELS: Record<ShowArtifactArgs["kind"], string> = {
   html: "HTML",
 };
 
-/** Keeps a model-written page off the network: it can run its own scripts
- * and styles and show inline images, nothing else. */
+/** Keeps a model-written page from loading anything: it can run its own
+ * scripts and styles and show inline images. */
 const HTML_CSP =
   '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; ' +
   "script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:\">";
@@ -43,18 +43,17 @@ export function sanitizeSvg(svg: string): string {
   return root ? new XMLSerializer().serializeToString(root) : "";
 }
 
+/** The policy goes first: a leading <meta> always lands in the parsed head,
+ * whatever the page contains. The page's own doctype, if any, is ignored. */
 export function sandboxedHtml(html: string): string {
-  const head = /<head[^>]*>/i.exec(html);
-  if (!head) return HTML_CSP + html;
-  const at = head.index + head[0].length;
-  return html.slice(0, at) + HTML_CSP + html.slice(at);
+  return `<!doctype html>${HTML_CSP}${html}`;
 }
 
 function fileName(artifact: ShowArtifactArgs): string {
   const base =
     artifact.title
       .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
+      .replace(/\p{Diacritic}/gu, "")
       .replace(/[^a-zA-Z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "")
       .toLowerCase() || "artifact";

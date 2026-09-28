@@ -23,12 +23,9 @@ import { SHOW_ARTIFACT_TOOL } from "./extensions/show-artifact-args";
  */
 const MAX_INLINE_LENGTH = 2048;
 
-/**
- * Artifact content kept per stored message, in characters. A tool call's
- * arguments are stored twice (`args` and `argsText`), so this leaves room
- * under the row cap for the rest of the message.
- */
-const MAX_STORED_ARTIFACT_CHARS = 100_000;
+/** Serialized size a stored message with artifacts is kept under, with
+ * headroom below the upstream 256 KB row cap. */
+const MAX_STORED_MESSAGE_BYTES = 200_000;
 
 /**
  * Persists one thread's messages and hands them back on reload.
@@ -115,24 +112,33 @@ export function stripInlineContent<T>(message: T): T {
 }
 
 /**
- * Keeps artifacts in a stored message while their content fits in
- * MAX_STORED_ARTIFACT_CHARS, in order; the rest are stored without content
- * and marked `omitted`, so a reload shows their title and says why.
+ * Keeps artifacts in a stored message, in order, while the message stays
+ * under MAX_STORED_MESSAGE_BYTES; the rest are stored without content and
+ * marked `omitted`, so a reload shows their title and says why.
  */
 export function boundArtifacts<T>(message: T): T {
   if (!isRecord(message) || !Array.isArray(message.content)) return message;
-  let budget = MAX_STORED_ARTIFACT_CHARS;
-  const content = message.content.map((part: unknown) => {
+  const parts: unknown[] = message.content;
+  if (!parts.some(isArtifactCall)) return message;
+  const rest = parts.filter((part) => !isArtifactCall(part));
+  let budget = MAX_STORED_MESSAGE_BYTES - jsonBytes({ ...message, content: rest });
+  const content = parts.map((part) => {
     if (!isArtifactCall(part)) return part;
-    const size = part.args.content.length;
+    const size = jsonBytes(part);
     if (size <= budget) {
       budget -= size;
       return part;
     }
     const args = { ...part.args, content: "", omitted: true };
-    return { ...part, args, argsText: JSON.stringify(args) };
+    const omitted = { ...part, args, argsText: JSON.stringify(args) };
+    budget -= jsonBytes(omitted);
+    return omitted;
   });
   return { ...message, content };
+}
+
+function jsonBytes(value: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(value)).length;
 }
 
 type ArtifactCallPart = Record<string, unknown> & {

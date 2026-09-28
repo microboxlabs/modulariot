@@ -89,10 +89,14 @@ describe("ArtifactCard", () => {
 });
 
 describe("sandboxedHtml", () => {
-  it("puts the policy first in the head, or first when there is no head", () => {
-    expect(sandboxedHtml("<head><title>t</title></head>")).toMatch(
-      /^<head><meta http-equiv="Content-Security-Policy"[^>]*><title>/
+  it("puts the policy before anything the page contains", () => {
+    const doc = sandboxedHtml("<!-- <head> --><p>x</p>");
+    expect(doc).toMatch(
+      /^<!doctype html><meta http-equiv="Content-Security-Policy"[^>]*><!-- <head> --><p>x<\/p>$/
     );
-    expect(sandboxedHtml("<p>x</p>")).toMatch(/^<meta [^>]*><p>x<\/p>$/);
+    const parsed = new DOMParser().parseFromString(doc, "text/html");
+    expect(
+      parsed.head.querySelector('meta[http-equiv="Content-Security-Policy"]')
+    ).not.toBeNull();
   });
 });

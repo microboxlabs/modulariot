@@ -6,7 +6,7 @@ import re
 
 import defusedxml.ElementTree as SafeET
 
-_LOCAL_REF = re.compile(r"url\(\s*#[\w.:-]+\s*\)")
+_LOCAL_REF = re.compile(r"url\(\s*#[\w.:-]+\s*\)", re.IGNORECASE)
 
 
 class SvgError(ValueError):
@@ -33,5 +33,8 @@ def check_svg(svg: str, *, tags: frozenset[str]) -> None:
             name = _local(key).lower()
             if name.startswith("on") or "href" in name:
                 raise SvgError(f"unexpected SVG attribute {name!r}")
-            if "url(" in _LOCAL_REF.sub("", value):
+            # CSS escapes could spell url( in a way the check below misses.
+            if "\\" in value:
+                raise SvgError(f"unexpected escape in SVG attribute {name!r}")
+            if "url(" in _LOCAL_REF.sub("", value).lower():
                 raise SvgError("SVG references outside the document")

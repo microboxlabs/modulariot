@@ -58,6 +58,8 @@ async def test_text_kinds_are_shown_as_written(kind: str) -> None:
         '<svg xmlns="http://www.w3.org/2000/svg"><rect onload="x"/></svg>',
         '<svg xmlns="http://www.w3.org/2000/svg"><image href="http://x/a.png"/></svg>',
         '<svg xmlns="http://www.w3.org/2000/svg"><rect style="fill:url(http://x/p)"/></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg"><rect style="fill:URL(http://x/p)"/></svg>',
+        '<svg xmlns="http://www.w3.org/2000/svg"><rect style="fill:\\75rl(http://x/p)"/></svg>',
         '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject/></svg>',
         "<html><body/></html>",
         "not xml",

@@ -82,6 +82,16 @@ def _resolve_tenant_lock(opts: dict[str, object]) -> str | None:
     return lock or None
 
 
+def workflow_schema(summary: SchemaSummary | None) -> str | None:
+    """The schema holding the BPMN engine's process definitions, if visible."""
+    if summary is None or "act_re_procdef" not in summary.all_table_names:
+        return None
+    for table in summary.tables:
+        if table.name == "act_re_procdef":
+            return table.schema
+    return summary.schemas[0] if len(summary.schemas) == 1 else None
+
+
 def _workspace_dir(connection: Connection) -> Path | None:
     """Where the agent keeps notes and saved analyses: next to the connection file.
 
@@ -273,6 +283,7 @@ class GenericPgProvider(DataSourceProvider):
                 knowledge_cards=knowledge_cards,
                 call_security_definer=call_security_definer,
                 workspace_dir=_workspace_dir(connection),
+                workflow_schema=workflow_schema(schema_summary),
             )
             registered: list[str] = []
             for tool in tools:

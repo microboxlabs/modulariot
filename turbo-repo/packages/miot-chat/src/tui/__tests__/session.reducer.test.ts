@@ -4,10 +4,7 @@ import type {
   HarnessEventType,
   HarnessRunRecord,
 } from "@microboxlabs/miot-harness-client";
-import {
-  initialSession,
-  reduce,
-} from "../session/reducer.js";
+import { initialSession, reduce } from "../session/reducer.js";
 import {
   isStreaming,
   latestAssistantText,
@@ -185,13 +182,15 @@ describe("session reducer — STREAM_EVENT agent/plan/freshness/artifact", () =>
     });
   });
 
-  it("artifact.created uses data.kind and falls back to 'artifact'", () => {
+  it("artifact.created notes the title and kind, falling back to 'artifact'", () => {
     const { ctx, state } = mkSession();
     const a = reduce(
       state,
       {
         kind: "STREAM_EVENT",
-        event: evt("artifact.created", { data: { kind: "report" } }),
+        event: evt("artifact.created", {
+          data: { kind: "svg", title: "Request review" },
+        }),
         runId: "r1",
       },
       ctx,
@@ -202,12 +201,12 @@ describe("session reducer — STREAM_EVENT agent/plan/freshness/artifact", () =>
       ctx,
     );
     expect(b.transcript[0]).toMatchObject({
-      kind: "artifact",
-      artifactKind: "report",
+      kind: "system",
+      text: "artifact: Request review (svg)",
     });
     expect(b.transcript[1]).toMatchObject({
-      kind: "artifact",
-      artifactKind: "artifact",
+      kind: "system",
+      text: "artifact: artifact (artifact)",
     });
   });
 });
@@ -543,11 +542,7 @@ describe("session reducer — SET_MODEL / SET_TENANT / SET_USER", () => {
 describe("session reducer — RESET_CONVERSATION / CLEAR / LOAD_SESSION", () => {
   it("RESET_CONVERSATION mints a new conv id and clears transcript", () => {
     const { ctx, state } = mkSession();
-    const seeded = reduce(
-      state,
-      { kind: "BEGIN_TURN", prompt: "hi" },
-      ctx,
-    );
+    const seeded = reduce(state, { kind: "BEGIN_TURN", prompt: "hi" }, ctx);
     expect(seeded.transcript).toHaveLength(1);
     const reset = reduce(seeded, { kind: "RESET_CONVERSATION" }, ctx);
     expect(reset.meta.conversationId).not.toBe(state.meta.conversationId);
@@ -618,12 +613,11 @@ describe("session reducer — approvals", () => {
       message: "hi",
       data: {},
     };
-    const next = reduce(
-      state,
-      { kind: "RECORD_APPROVAL", approval },
-      ctx,
-    );
-    expect(next.pendingApprovals[0]).toMatchObject({ id: "a-1", message: "hi" });
+    const next = reduce(state, { kind: "RECORD_APPROVAL", approval }, ctx);
+    expect(next.pendingApprovals[0]).toMatchObject({
+      id: "a-1",
+      message: "hi",
+    });
   });
 
   it("RESOLVE_APPROVAL moves an entry from pending to resolved", () => {

@@ -1,0 +1,87 @@
+# Chat conversations run against a live harness by `miot-harness-chat-evals`.
+# Each case is one conversation; its turns share a conversation_id.
+#
+# expect keys (all optional):
+#   tools         tools that must run in this turn
+#   no_tools      tools that must not run
+#   any_tool      at least one tool must run
+#   links         the answer must cite at least one http(s) link
+#   contains_any  the answer must mention one of these (case-insensitive)
+#   not_contains  the answer must not say any of these
+#   intent        the value of the answer's intent block
+#
+# Every turn is also checked for: run completed, answer is a JSON block
+# array, no raw block JSON inside a markdown block, and (unless
+# --no-source-check) every cited link resolves.
+cases:
+  - id: web-count-question
+    turns:
+      - message: how many harness oss are out there?
+        expect:
+          tools: [web_search]
+          links: true
+
+  - id: web-retry-after-refusal
+    turns:
+      - message: how many open source agent harnesses exist?
+        expect:
+          tools: [web_search]
+      # Repeating a searched answer is fine; refusing is not.
+      - message: try again
+        expect:
+          not_contains: [no entendí, no encuentro, "don't recognize", gibberish]
+
+  - id: web-current-event-es
+    turns:
+      - message: ¿Cuál es la última versión estable de Python?
+        expect:
+          tools: [web_search]
+          links: true
+          contains_any: ["3.1"]
+
+  - id: web-company-fact
+    turns:
+      - message: Who is the CEO of Anthropic?
+        expect:
+          tools: [web_search]
+          contains_any: [Amodei]
+
+  - id: web-weather
+    turns:
+      - message: ¿Qué tiempo hace hoy en Santiago de Chile?
+        expect:
+          tools: [web_search]
+
+  - id: web-follow-up-uses-context
+    turns:
+      - message: What is LangGraph?
+        expect:
+          tools: [web_search]
+      - message: and who maintains it?
+        expect:
+          tools: [web_search]
+          contains_any: [LangChain]
+
+  - id: fleet-count
+    turns:
+      - message: ¿cuántos viajes hay en curso?
+        expect:
+          any_tool: true
+          no_tools: [web_search]
+
+  - id: fleet-then-web
+    turns:
+      - message: ¿cuántos conductores hay registrados?
+        expect:
+          any_tool: true
+          no_tools: [web_search]
+      - message: and what is the average number of truck drivers per company in Chile, according to public sources?
+        expect:
+          tools: [web_search]
+
+  - id: navigation
+    turns:
+      - message: abre la configuración de conexiones
+        expect:
+          no_tools: [web_search]
+          contains_any: [/connections, conexiones]

@@ -49,6 +49,7 @@ dependencies = [
 
 [project.scripts]
 miot-harness-evals = "miot_harness.evals.run_golden:main"
+miot-harness-chat-evals = "miot_harness.evals.conversations:main"
 
 [dependency-groups]
 dev = [

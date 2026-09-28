@@ -159,6 +159,9 @@ const HarnessChatPanel: FC<{
   const titledIds = useRef(new Set<string>());
   // Sessions a generated title was already asked for, so it is asked once.
   const autoTitled = useRef(new Set<string>());
+  // The placeholder title's write, which a generated title must land after or
+  // the late upsert would put the placeholder back.
+  const placeholderWrites = useRef(new Map<string, Promise<unknown>>());
   const [renamingHeader, setRenamingHeader] = useState(false);
   const sessionsRef = useRef(sessions);
   useEffect(() => {
@@ -254,9 +257,10 @@ const HarnessChatPanel: FC<{
       // dropped again if the write failed — otherwise one lost request leaves
       // the thread permanently untitled while its messages save fine.
       persistedTitles.current.set(id, title);
-      void createThread({ id, title }).then((saved) => {
+      const write = createThread({ id, title }).then((saved) => {
         if (!saved) persistedTitles.current.delete(id);
       });
+      placeholderWrites.current.set(id, write);
     }
   }, []);
 
@@ -268,9 +272,16 @@ const HarnessChatPanel: FC<{
       const session = sessionsRef.current.find((s) => s.id === id);
       if (!session?.owned || session.titleEdited || autoTitled.current.has(id)) return;
       autoTitled.current.add(id);
-      void autoTitleThread(id, exchange).then((saved) => {
-        if (saved?.title) setSessionTitle(id, saved.title, saved.titleEdited ?? false);
-      });
+      const placeholder = placeholderWrites.current.get(id) ?? Promise.resolve();
+      void placeholder
+        .then(() => autoTitleThread(id, exchange))
+        .then((saved) => {
+          if (!saved?.title) return;
+          // A rename made while this was in flight wins; the store kept it too.
+          const current = sessionsRef.current.find((s) => s.id === id);
+          if (current?.titleEdited && !saved.titleEdited) return;
+          setSessionTitle(id, saved.title, saved.titleEdited ?? false);
+        });
     },
     [setSessionTitle],
   );
@@ -281,6 +292,14 @@ const HarnessChatPanel: FC<{
       setSessionTitle(id, title, true);
       void renameThread(id, title).then((ok) => {
         if (ok || !previous) return;
+        // Undone in full: left behind, these would stop the first message
+        // from titling a thread that was never stored.
+        if (previous.title === null) {
+          titledIds.current.delete(id);
+          persistedTitles.current.delete(id);
+        } else {
+          persistedTitles.current.set(id, previous.title);
+        }
         setSessions((prev) =>
           prev.map((s) =>
             s.id === id ? { ...s, title: previous.title, titleEdited: previous.titleEdited } : s,

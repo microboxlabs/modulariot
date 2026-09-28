@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FC } from "react";
+import { useEffect, useRef, useState, type FC } from "react";
 import { twMerge } from "tailwind-merge";
 
 /** An inline field for renaming a thread. Enter or leaving the field saves,
@@ -14,6 +14,13 @@ export const TitleInput: FC<{
 }> = ({ initial, label, onSubmit, onDone, className }) => {
   const [value, setValue] = useState(initial);
   const [finished, setFinished] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Opened by an explicit rename click, so focus follows it.
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
 
   const finish = (save: boolean) => {
     if (finished) return;
@@ -25,12 +32,11 @@ export const TitleInput: FC<{
 
   return (
     <input
-      autoFocus
+      ref={inputRef}
       value={value}
       maxLength={280}
       aria-label={label}
       onChange={(e) => setValue(e.target.value)}
-      onFocus={(e) => e.currentTarget.select()}
       onBlur={() => finish(true)}
       onKeyDown={(e) => {
         if (e.key === "Enter") finish(true);

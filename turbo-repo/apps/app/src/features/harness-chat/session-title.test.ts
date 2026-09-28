@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  exchangeToTitle,
   firstExchange,
   firstMessageTitle,
   type TitleSourceMessage,
@@ -57,24 +56,5 @@ describe("firstExchange", () => {
     expect(
       firstExchange([user("a"), assistant("b"), user("c"), assistant("d")])
     ).toBeNull();
-  });
-});
-
-describe("exchangeToTitle", () => {
-  const done = [user("trips?"), assistant("12 trips")];
-
-  it("titles once a run this panel saw has finished", () => {
-    expect(exchangeToTitle(true, false, done)).toEqual({
-      message: "trips?",
-      answer: "12 trips",
-    });
-  });
-
-  it("does not title a thread loaded from history", () => {
-    expect(exchangeToTitle(false, false, done)).toBeNull();
-  });
-
-  it("does not title while the run is still going", () => {
-    expect(exchangeToTitle(true, true, done)).toBeNull();
   });
 });

@@ -323,6 +323,8 @@ class HarnessThreadServiceTest {
 
         assertEquals("My trips", service.patch(TENANT, OWNER, id, autoTitle("Something else")).title(),
                 "once named, generated titles are dropped");
+        assertEquals("My trips", service.create(TENANT, OWNER, new ThreadUpsertRequest(id, "first message", null))
+                .title(), "and so is a late first-message placeholder");
     }
 
     @Test
@@ -448,7 +450,7 @@ class HarnessThreadServiceTest {
                 }
                 HarnessThread renamed = new HarnessThread(
                         existing.id(), existing.tenantCode(), existing.ownerId(),
-                        thread.title() == null ? existing.title() : thread.title(),
+                        thread.title() == null || existing.titleEdited() ? existing.title() : thread.title(),
                         existing.summary(), existing.model(), existing.expiresAt(), existing.lastMessageAt(),
                         existing.createdAt(), OffsetDateTime.now(), existing.titleEdited());
                 threads.put(renamed.id(), renamed);

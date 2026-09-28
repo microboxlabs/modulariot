@@ -29,6 +29,6 @@ def test_titler_rejects_an_empty_answer() -> None:
         async def ainvoke(self, messages: Any) -> AIMessage:
             return AIMessage(content="  ")
 
-    titler = build_thread_titler(Empty())  # type: ignore[arg-type]
+    call = build_thread_titler(Empty())("hi", "hello")  # type: ignore[arg-type]
     with pytest.raises(ValueError):
-        asyncio.run(titler("hi", "hello"))
+        asyncio.run(call)

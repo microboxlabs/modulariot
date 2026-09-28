@@ -37,14 +37,3 @@ export function firstExchange(
   const answer = textOf(assistants[0]);
   return message && answer ? { message, answer } : null;
 }
-
-/** The exchange to title a thread from, once a run has finished its first
- * answer. Only a run this panel saw start counts: a thread opened from history
- * already holds its first exchange and must not be retitled on load. */
-export function exchangeToTitle(
-  sawRun: boolean,
-  isRunning: boolean,
-  messages: readonly TitleSourceMessage[]
-): FirstExchange | null {
-  return sawRun && !isRunning ? firstExchange(messages) : null;
-}

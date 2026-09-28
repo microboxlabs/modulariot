@@ -55,7 +55,9 @@ public class HarnessThreadRepository {
                 id, tenant_code, owner_id, title, expires_at, last_message_at
             ) VALUES ($1, $2, $3, $4, $5, now())
             ON CONFLICT (id) DO UPDATE
-                SET title = COALESCE(EXCLUDED.title, miot_integrations.harness_thread.title),
+                SET title = CASE WHEN miot_integrations.harness_thread.title_edited
+                                 THEN miot_integrations.harness_thread.title
+                                 ELSE COALESCE(EXCLUDED.title, miot_integrations.harness_thread.title) END,
                     expires_at = COALESCE(EXCLUDED.expires_at, miot_integrations.harness_thread.expires_at),
                     updated_at = now()
                 WHERE miot_integrations.harness_thread.tenant_code = EXCLUDED.tenant_code
@@ -99,6 +101,7 @@ public class HarnessThreadRepository {
             RETURNING %s""".formatted(THREAD_COLUMNS);
 
     // One statement, so a fork never exists without its messages. The copy
+    // reads the new id from `created`, so it runs after the parent row; it
     // keeps the source's append order, which is what the new thread replays.
     private static final String FORK_THREAD = """
             WITH created AS (
@@ -110,8 +113,9 @@ public class HarnessThreadRepository {
                 INSERT INTO miot_integrations.harness_thread_message (
                     thread_id, id, parent_id, format, payload
                 )
-                SELECT $1, m.id, m.parent_id, m.format, m.payload
-                FROM miot_integrations.harness_thread_message m
+                SELECT c.id, m.id, m.parent_id, m.format, m.payload
+                FROM created c
+                CROSS JOIN miot_integrations.harness_thread_message m
                 WHERE m.thread_id = $7 AND m.id = ANY($8)
                 ORDER BY m.seq
             )

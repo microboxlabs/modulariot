@@ -912,7 +912,7 @@ def create_app() -> FastAPI:
             return {"default": None, "models": []}
         return {"default": loop.default_model, "models": list(loop.models)}
 
-    @app.post("/titles")
+    @app.post("/titles", responses={503: {"description": "No title could be generated"}})
     async def create_title(
         body: TitleRequest,
         auth: Mapping[str, Any] = Depends(require_auth),

@@ -135,12 +135,9 @@ def get_chat_model(
     from langchain_openai import ChatOpenAI
 
     # Thinking and effort are Anthropic controls; the others ignore them.
-    extra: dict[str, Any] = {}
-    if reasoning_effort is not None:
-        extra["reasoning_effort"] = reasoning_effort
     return ChatOpenAI(
-        **extra,
         model=model_id,
+        reasoning_effort=reasoning_effort,
         api_key=SecretStr(provider.api_key),
         base_url=provider.base_url,
         timeout=timeout if timeout is not None else 60,

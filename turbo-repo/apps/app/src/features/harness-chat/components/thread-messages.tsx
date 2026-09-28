@@ -210,9 +210,7 @@ const RunStatus: FC = () => {
         aria-hidden
         className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 motion-safe:animate-pulse dark:bg-amber-400"
       />
-      <span role="status" className="min-w-0 truncate animate-harness-shimmer">
-        {step}
-      </span>
+      <output className="min-w-0 truncate animate-harness-shimmer">{step}</output>
       <time
         title={tr("harnessChat.ui.thread.elapsed")}
         className="shrink-0 text-[10px] tabular-nums text-gray-400 dark:text-gray-500"

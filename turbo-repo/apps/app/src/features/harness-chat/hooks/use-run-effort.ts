@@ -29,14 +29,14 @@ export function useRunEffort(): [
   RunEffort | null,
   (effort: RunEffort | null) => void,
 ] {
-  const [effort, setEffortState] = useState<RunEffort | null>(null);
+  const [effort, setEffort] = useState<RunEffort | null>(null);
 
   useEffect(() => {
-    setEffortState(readStored());
+    setEffort(readStored());
   }, []);
 
-  const setEffort = useCallback((next: RunEffort | null) => {
-    setEffortState(next);
+  const choose = useCallback((next: RunEffort | null) => {
+    setEffort(next);
     try {
       if (next) globalThis.localStorage?.setItem(STORAGE_KEY, next);
       else globalThis.localStorage?.removeItem(STORAGE_KEY);
@@ -45,5 +45,5 @@ export function useRunEffort(): [
     }
   }, []);
 
-  return [effort, setEffort];
+  return [effort, choose];
 }

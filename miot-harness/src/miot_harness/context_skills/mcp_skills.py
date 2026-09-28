@@ -357,9 +357,15 @@ def _fall_back_to_text(session: Any) -> None:
             await strict(name, result)
         except RuntimeError as exc:
             fallback = _json_object(_text_of(result))
-            if fallback is None:
+            if fallback is None or result.structured_content not in (None, fallback):
                 raise
-            logger.warning("MCP tool %s: %s; using its text content", name, exc)
+            # The path only: the error message carries the result's values.
+            logger.warning(
+                "MCP tool %s: structured content does not match its output schema at %s;"
+                " using its text content",
+                name,
+                getattr(exc.__cause__, "json_path", "?"),
+            )
             result.structured_content = fallback
 
     session.validate_tool_result = lenient

@@ -294,7 +294,7 @@ async def test_the_model_gets_a_share_link_as_the_app_url(
 
 
 def _schema_server(structured: dict[str, Any], text: str) -> Server[Any]:
-    """A server whose one tool answers with a null its output schema does not allow."""
+    """A server whose one tool answers with a null that its output schema does not allow."""
     tool = types.Tool(
         name="stories_create",
         input_schema={"type": "object"},
@@ -322,12 +322,15 @@ async def test_a_result_that_fails_its_output_schema_falls_back_to_its_text(
 
     assert result.structured == story
     assert "stories_create" in caplog.text
+    assert "$.sourceMessageId" in caplog.text
+    assert "None" not in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_without_json_text_a_result_that_fails_its_output_schema_is_an_error() -> None:
+@pytest.mark.parametrize("text", ["created", '{"id": "s2", "sourceMessageId": null}'])
+async def test_without_the_same_result_as_text_a_schema_mismatch_is_an_error(text: str) -> None:
     story = {"id": "s1", "sourceMessageId": None}
-    async with Client(_schema_server(story, "created")) as client:
+    async with Client(_schema_server(story, text)) as client:
         session = _StreamableSession(client)
         with pytest.raises(RuntimeError, match="Invalid structured content"):
             await session.call_tool("stories_create", {})

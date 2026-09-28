@@ -93,3 +93,30 @@ def test_turns_share_one_conversation_and_mirror_the_chat_request() -> None:
     assert sent[0]["conversation_id"] == sent[1]["conversation_id"]
     assert [b["message"] for b in sent] == ["one", "two"]
     assert all(b["skill_id"] == "miot-search" and b["answer_format"] == "json" for b in sent)
+
+
+def test_numbers_are_read_in_spanish_and_english_formats() -> None:
+    from miot_harness.evals.conversations import numbers
+
+    found = numbers("Total: 38.325,9 h; en inglés 38,325.9; sin miles 38325.9; 57,9 %")
+    assert {38325.9, 57.9} <= found
+
+
+def test_a_number_outside_tolerance_fails() -> None:
+    record = _record([{"type": "markdown", "value": "Fueron 36.000 horas"}])
+    failures = check_turn(record, {"numbers": [{"value": 38325.9, "tolerance_pct": 2}]})
+    assert failures == ["no number near 38325.9 (±2%)"]
+
+
+def test_tool_budget_and_block_types_are_checked() -> None:
+    record = _record([{"type": "markdown", "value": "ok"}], ("a", "b", "c"))
+    assert check_turn(record, {"max_tools": 2, "blocks": ["chart"]}) == [
+        "3 tool calls, budget 2",
+        "no chart block",
+    ]
+
+
+def test_the_analytics_suite_loads() -> None:
+    from miot_harness.evals.conversations import SUITES
+
+    assert load_cases(SUITES["analytics"])

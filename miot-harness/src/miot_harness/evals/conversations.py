@@ -31,6 +31,11 @@ import yaml
 
 # Shipped inside the package so an installed entry point finds it.
 DEFAULT_CASES = Path(__file__).with_name("chat_cases.yaml")
+SUITES = {
+    "chat": DEFAULT_CASES,
+    "analytics": Path(__file__).with_name("analytics_cases.yaml"),
+}
+_NUMBER_RE = re.compile(r"\d[\d.,\u00a0 ]*\d|\d")
 
 _LINK_RE = re.compile(r"https?://[^\s)\]>\"'`]+")
 # A block array written inside a markdown value: the model narrated and the
@@ -50,6 +55,7 @@ class TurnResult:
     seconds: float = 0.0
     answer: str = ""
     sources: dict[str, int | str] = field(default_factory=dict)
+    tokens: int = 0
 
 
 def load_cases(path: Path) -> list[dict[str, Any]]:
@@ -69,6 +75,15 @@ def tools_called(record: dict[str, Any]) -> list[str]:
         for e in record.get("events", [])
         if e.get("type") == "tool.started" and isinstance(e.get("data", {}).get("tool"), str)
     ]
+
+
+def tokens_used(record: dict[str, Any]) -> int:
+    return sum(
+        int(e.get("data", {}).get("input_tokens") or 0)
+        + int(e.get("data", {}).get("output_tokens") or 0)
+        for e in record.get("events", [])
+        if e.get("type") == "usage.recorded"
+    )
 
 
 def parse_blocks(answer: str | None) -> list[dict[str, Any]] | None:
@@ -96,6 +111,51 @@ def links(blocks: list[dict[str, Any]]) -> list[str]:
     return sorted(set(_LINK_RE.findall(answer_text(blocks))))
 
 
+def _number_readings(token: str) -> set[float]:
+    """Every value a formatted number can mean: 38.325,9 / 38,325.9 / 38.325 (es or en)."""
+    token = token.replace("\u00a0", "").replace(" ", "")
+    readings: set[float] = set()
+    if "." in token and "," in token:
+        decimal = "." if token.rfind(".") > token.rfind(",") else ","
+        thousands = "," if decimal == "." else "."
+        candidates = [token.replace(thousands, "").replace(decimal, ".")]
+    elif "," in token or "." in token:
+        sep = "," if "," in token else "."
+        candidates = [
+            token.replace(sep, ""),
+            token.replace(sep, ".", 1) if token.count(sep) == 1 else "",
+        ]
+    else:
+        candidates = [token]
+    for candidate in candidates:
+        try:
+            readings.add(float(candidate))
+        except ValueError:
+            continue
+    return readings
+
+
+def numbers(text: str) -> set[float]:
+    found: set[float] = set()
+    for token in _NUMBER_RE.findall(text):
+        found |= _number_readings(token.strip(" .,"))
+    return found
+
+
+def _number_failures(text: str, expect: dict[str, Any]) -> list[str]:
+    wanted = expect.get("numbers", [])
+    if not wanted:
+        return []
+    found = numbers(text)
+    failures = []
+    for item in wanted:
+        value = float(item["value"])
+        tolerance = abs(value) * float(item.get("tolerance_pct", 1)) / 100
+        if not any(abs(n - value) <= tolerance for n in found):
+            failures.append(f"no number near {value:g} (±{item.get('tolerance_pct', 1)}%)")
+    return failures
+
+
 def _leaks_block_json(blocks: list[dict[str, Any]]) -> bool:
     return any(
         b.get("type") == "markdown"
@@ -109,6 +169,9 @@ def _tool_failures(tools: list[str], expect: dict[str, Any]) -> list[str]:
     failures += [f"called {n}" for n in expect.get("no_tools", []) if n in tools]
     if expect.get("any_tool") and not tools:
         failures.append("called no tool")
+    budget = expect.get("max_tools")
+    if budget is not None and len(tools) > budget:
+        failures.append(f"{len(tools)} tool calls, budget {budget}")
     return failures
 
 
@@ -127,7 +190,9 @@ def _content_failures(blocks: list[dict[str, Any]], expect: dict[str, Any]) -> l
     got = next((b.get("value") for b in blocks if b.get("type") == "intent"), None)
     if intent and got != intent:
         failures.append(f"intent {got!r}, expected {intent!r}")
-    return failures
+    types = {b.get("type") for b in blocks}
+    failures += [f"no {t} block" for t in expect.get("blocks", []) if t not in types]
+    return failures + _number_failures(answer_text(blocks), expect)
 
 
 def check_turn(record: dict[str, Any], expect: dict[str, Any]) -> list[str]:
@@ -184,6 +249,8 @@ def run_case(
         seconds = time.monotonic() - started
         expect = turn.get("expect", {})
         failures = check_turn(record, expect)
+        if expect.get("max_seconds") and seconds > float(expect["max_seconds"]):
+            failures.append(f"took {seconds:.0f}s, budget {expect['max_seconds']}s")
         blocks = parse_blocks(record.get("answer")) or []
         sources: dict[str, int | str] = {}
         if verify_sources and blocks and links(blocks):
@@ -200,6 +267,7 @@ def run_case(
             seconds=round(seconds, 1),
             answer=answer_text(blocks) if blocks else str(record.get("answer") or ""),
             sources=sources,
+            tokens=tokens_used(record),
         )
         results.append(result)
         if on_turn:
@@ -214,7 +282,8 @@ def _print(result: TurnResult) -> None:
     mark = "PASS" if result.passed else "FAIL"
     tools = ",".join(result.tools) or "-"
     lines = [
-        f"{mark} {result.case}#{result.turn} [{result.seconds}s {result.model}] tools={tools}",
+        f"{mark} {result.case}#{result.turn} [{result.seconds}s {result.tokens} tok"
+        f" {result.model}] tools={tools}",
         f"     > {result.message}",
         f"     < {result.answer[:240].replace(chr(10), ' ')}",
         *(f"     ! {failure}" for failure in result.failures),
@@ -236,6 +305,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--model", action="append", help="repeat to compare models; default: the harness default"
     )
+    parser.add_argument("--suite", choices=sorted(SUITES), default="chat")
     parser.add_argument("--only", action="append", help="case id to run; repeatable")
     parser.add_argument("--repeat", type=int, default=1, help="run each case N times")
     parser.add_argument("--no-source-check", action="store_true", help="skip fetching cited URLs")
@@ -243,7 +313,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="print every turn result as JSON")
     args = parser.parse_args(argv)
 
-    cases = [c for c in load_cases(DEFAULT_CASES) if not args.only or c["id"] in args.only]
+    cases = [c for c in load_cases(SUITES[args.suite]) if not args.only or c["id"] in args.only]
     if not cases:
         parser.error("no case matches --only")
     all_results: list[dict[str, Any]] = []
@@ -285,7 +355,14 @@ def main(argv: list[str] | None = None) -> int:
                 ]
     failed = sum(not r["passed"] for r in all_results)
     total = len(all_results)
-    print(f"\n{total - failed}/{total} turns passed", file=sys.stderr)
+    tokens = sum(r["tokens"] for r in all_results)
+    seconds = sum(r["seconds"] for r in all_results)
+    calls = sum(len(r["tools"]) for r in all_results)
+    print(
+        f"\n{total - failed}/{total} turns passed · {calls} tool calls · {tokens} tokens"
+        f" · {seconds:.0f}s model time",
+        file=sys.stderr,
+    )
     if args.json:
         print(json.dumps(all_results, indent=2, ensure_ascii=False))
     return 1 if failed else 0

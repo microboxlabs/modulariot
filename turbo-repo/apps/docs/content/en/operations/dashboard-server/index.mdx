@@ -36,3 +36,7 @@ This section covers standalone mode: the server runs in your infrastructure, wit
 | [Users and permissions](/en/operations/dashboard-server/identity) | Identity, organizations, scopes and roles |
 | [Datasources and credentials](/en/operations/dashboard-server/datasources) | Connecting a dashboard to its data without exposing secrets |
 | [API](/en/operations/dashboard-server/api) | Routes, the OpenAPI contract and errors |
+
+## Revision history
+
+Migration 5 preserves a revision counter after dashboard deletion. Reusing a slug gets a higher revision, preventing an old editor from overwriting its replacement. Keep the `dashboard_revisions` table when removing documents. Back up the database and stop writers for this upgrade; do not mix old and new server versions on the same database. Rollback requires the matching backup.

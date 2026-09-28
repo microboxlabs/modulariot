@@ -250,35 +250,35 @@ class HarnessSupervisor:
                 )
             )
 
-        # Seed a replayed transcript here and only here: a second call could
-        # reset a history a concurrent run has appended to meanwhile. Hold a
-        # snapshot, so a run in the same conversation finishing while this one
-        # awaits cannot slip its turn into this request's prior context.
-        await self._load_saved(request, ctx)
-        history = _snapshot(self._seeded_history(request, ctx))
-
-        # `/compact` and `/context` are answered here, without the agent
-        # loop, and their turns are not stored.
-        command = parse_command(request.message)
-        prior_messages: list[BaseMessage] = []
-        if command is None:
-            ctx = ctx.model_copy(
-                update={
-                    "data_refusal": data_refusal(
-                        ctx.tenant_id,
-                        settings=settings,
-                        profile=self.profile,
-                        connection_lock=self.tenant_lock or None,
-                    )
-                }
-            )
-            prior_messages = self._project_history(history)
-            prior_messages = self._inject_tenant_context(ctx, prior_messages)
-            prior_messages = await self._inject_skill(request, ctx, prior_messages)
-            prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
-
         turn_messages: list[BaseMessage] | None = None
         try:
+            # Seed a replayed transcript here and only here: a second call could
+            # reset a history a concurrent run has appended to meanwhile. Hold a
+            # snapshot, so a run in the same conversation finishing while this one
+            # awaits cannot slip its turn into this request's prior context.
+            await self._load_saved(request, ctx)
+            history = _snapshot(self._seeded_history(request, ctx))
+
+            # `/compact` and `/context` are answered here, without the agent
+            # loop, and their turns are not stored.
+            command = parse_command(request.message)
+            prior_messages: list[BaseMessage] = []
+            if command is None:
+                ctx = ctx.model_copy(
+                    update={
+                        "data_refusal": data_refusal(
+                            ctx.tenant_id,
+                            settings=settings,
+                            profile=self.profile,
+                            connection_lock=self.tenant_lock or None,
+                        )
+                    }
+                )
+                prior_messages = self._project_history(history)
+                prior_messages = self._inject_tenant_context(ctx, prior_messages)
+                prior_messages = await self._inject_skill(request, ctx, prior_messages)
+                prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
+
             if command is not None:
                 await self._run_command(command, request, ctx, record, progress, history)
             else:

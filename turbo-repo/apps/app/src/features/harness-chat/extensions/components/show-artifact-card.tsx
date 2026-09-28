@@ -91,7 +91,7 @@ const EXPANDED_MODAL_THEME = {
   root: { sizes: { "7xl": "max-w-none" } },
   content: {
     base: "relative h-[90dvh] w-[95vw] p-0 md:h-[90dvh]",
-    inner: "h-full max-h-none",
+    inner: "flex h-full max-h-none flex-col",
   },
   body: { base: "flex min-h-0 flex-1 flex-col overflow-hidden p-3" },
 };

@@ -908,6 +908,24 @@ def create_app() -> FastAPI:
             "connections": conns,
         }
 
+    def _track_in_flight(
+        run_id: str, tenant_id: str | None, task: asyncio.Task[HarnessRunRecord]
+    ) -> None:
+        app.state.in_flight[run_id] = task
+        # Track the tenant for in-flight runs so /stream can reject
+        # cross-tenant subscribers even before the record lands on
+        # disk. Cleared in the done-callback alongside in_flight.
+        app.state.in_flight_tenants[run_id] = tenant_id
+
+        def _cleanup(_task: asyncio.Task[HarnessRunRecord]) -> None:
+            app.state.in_flight.pop(run_id, None)
+            app.state.in_flight_tenants.pop(run_id, None)
+            # A run that raised before reaching a terminal point never
+            # released its live record.
+            app.state.harness.forget_live(run_id)
+
+        task.add_done_callback(_cleanup)
+
     def _draining() -> bool:
         drain: RunDrain | None = getattr(app.state, "drain", None)
         return drain is not None and drain.draining
@@ -976,7 +994,12 @@ def create_app() -> FastAPI:
         request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
         _enforce_model_allowlist(request)
-        return await harness.run(request, **_caller(http_request))
+        run_id = f"run_{uuid4().hex}"
+        task = asyncio.create_task(
+            harness.run(request, run_id_override=run_id, **_caller(http_request))
+        )
+        _track_in_flight(run_id, request.tenant_id, task)
+        return await task
 
     @app.get("/runs")
     async def list_runs(
@@ -1062,20 +1085,7 @@ def create_app() -> FastAPI:
         task = asyncio.create_task(
             app.state.harness.run(request, run_id_override=run_id, **_caller(http_request))
         )
-        app.state.in_flight[run_id] = task
-        # Track the tenant for in-flight runs so /stream can reject
-        # cross-tenant subscribers even before the record lands on
-        # disk. Cleared in the done-callback alongside in_flight.
-        app.state.in_flight_tenants[run_id] = request.tenant_id
-
-        def _cleanup(_task: asyncio.Task[HarnessRunRecord]) -> None:
-            app.state.in_flight.pop(run_id, None)
-            app.state.in_flight_tenants.pop(run_id, None)
-            # A run that raised before reaching a terminal point never
-            # released its live record.
-            app.state.harness.forget_live(run_id)
-
-        task.add_done_callback(_cleanup)
+        _track_in_flight(run_id, request.tenant_id, task)
         return {"run_id": run_id}
 
     @app.post("/runs/{run_id}/approvals/{approval_id}", status_code=204)

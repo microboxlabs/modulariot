@@ -50,9 +50,16 @@ from miot_harness.context_skills.loader import (
 from miot_harness.context_skills.seed import PACKAGED_DEFAULTS, refresh_defaults
 from miot_harness.context_skills.skill_models import SkillSummary
 from miot_harness.datasource.knowledge.distiller import distill_episodes
-from miot_harness.datasource.knowledge.loader import load_connection_cards
+from miot_harness.datasource.knowledge.learned import LearnedFacts, LearnedFactsSource
+from miot_harness.datasource.knowledge.loader import (
+    connection_cards_dir,
+    load_connection_cards_cached,
+)
 from miot_harness.datasource.knowledge.writer import (
     ConnectionCardWrite,
+    delete_connection_card,
+    revert_connection_card,
+    slug_card_id,
     write_connection_card,
 )
 from miot_harness.datasource.provider import BootResult, DataSourceProfile, DataSourceProvider
@@ -73,6 +80,12 @@ logger = logging.getLogger(__name__)
 
 
 _DRAIN_RETRY_AFTER_SECONDS = 10
+
+_CARDS_RESPONSES: dict[int | str, dict[str, Any]] = {
+    403: {"description": "The connection is locked to another tenant"},
+    404: {"description": "Unknown connection or card"},
+}
+
 _DRAINING_RESPONSE: dict[int | str, dict[str, Any]] = {
     503: {"description": "Shutting down; retry after Retry-After seconds"}
 }
@@ -314,6 +327,7 @@ def _make_lifespan(
         # Connection Knowledge Base (Phase 2): per-connection grounding blocks
         # (secondary primers + schema indexes), folded into the agent primer below.
         ckb_blocks: list[str] = []
+        learned_sources: list[LearnedFactsSource] = []
         for conn in conn_result.connections:
             is_primary = primary is not None and conn.name == primary.name
             # Resolve + boot inside the guard: an unknown/typo'd backend
@@ -388,6 +402,18 @@ def _make_lifespan(
                     ckb_blocks.append(f"## {conn.name}\n" + "\n\n".join(parts))
             if is_primary:
                 primary_result = boot_res
+            cards_dir = connection_cards_dir(conn)
+            if (
+                settings.generic_connection_cards_enabled
+                and cards_dir is not None
+                and f"{conn.name}_knowledge" in boot_res.registered
+            ):
+                learned_sources.append(
+                    LearnedFactsSource(conn.name, cards_dir, _connection_tenant_lock(conn))
+                )
+        harness.learned_facts = LearnedFacts(
+            learned_sources, char_budget=settings.learned_facts_char_budget
+        )
 
         # Back-compat single-valued datasource_* state, sourced from the primary
         # connection (or a disabled placeholder when there is no connection).
@@ -1150,11 +1176,10 @@ def create_app() -> FastAPI:
     ) -> dict[str, str]:
         """Persist a human-approved business fact as a connection-scoped
         authored card on the harness PVC — the APPLY seam of the
-        continual-learning loop. R0's knowledge loader picks up
-        `<conn>/knowledge/*.md` on the next run, so grounding improves without a
-        redeploy. Promotion is human-gated upstream (the app's review UI); this
-        endpoint only writes what an authenticated, tenant-authorized caller
-        approved.
+        continual-learning loop. Cards are read from disk per run and per tool
+        call, so the next run uses it without a restart. Promotion is
+        human-gated upstream (the app's review UI); this endpoint only writes
+        what an authenticated, tenant-authorized caller approved.
         """
         conn: Connection | None = getattr(app.state, "connection_objects", {}).get(connection)
         if conn is None:
@@ -1171,16 +1196,13 @@ def create_app() -> FastAPI:
                 "(expected 'tenant' or 'group[:<id>]')",
             )
 
-        # Synthesized / legacy-env connections have no authored file on disk,
-        # hence no sibling knowledge dir to attach a card to.
-        source_path = conn.source_path
-        if not source_path or source_path.startswith("<"):
+        cards_dir = connection_cards_dir(conn)
+        if cards_dir is None:
             raise HTTPException(
                 status_code=409,
                 detail=f"connection {connection!r} has no authored file on disk; "
                 "cannot attach knowledge",
             )
-        cards_dir = Path(source_path).parent / "knowledge"
         card = ConnectionCardWrite(
             term=body.term,
             body=body.body,
@@ -1204,6 +1226,79 @@ def create_app() -> FastAPI:
             "scope": scope,
             "status": "approved",
         }
+
+    def _authorized_cards_dir(
+        connection: str, auth: Mapping[str, Any]
+    ) -> Path | None:
+        conn: Connection | None = getattr(app.state, "connection_objects", {}).get(connection)
+        if conn is None:
+            raise HTTPException(status_code=404, detail=f"unknown connection {connection!r}")
+        _enforce_tenant_may_write_connection(conn, auth, connection)
+        return connection_cards_dir(conn)
+
+    @app.get("/connections/{connection}/knowledge", responses=_CARDS_RESPONSES)
+    async def list_connection_knowledge(
+        connection: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, list[dict[str, Any]]]:
+        """The connection's authored cards (pack cards are not listed)."""
+        cards_dir = _authorized_cards_dir(connection, auth)
+        cards = load_connection_cards_cached(cards_dir).cards if cards_dir else ()
+        return {
+            "cards": [
+                {
+                    "id": c.id,
+                    "title": c.title,
+                    "term": c.term,
+                    "kind": c.kind,
+                    "scope": c.scope,
+                    "body": c.body,
+                    "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+                }
+                for c in cards
+            ]
+        }
+
+    @app.delete(
+        "/connections/{connection}/knowledge/{card_id}",
+        status_code=204,
+        responses=_CARDS_RESPONSES,
+    )
+    async def delete_connection_knowledge(
+        connection: str,
+        card_id: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
+        """Remove an authored card. Its current version stays in the card's
+        history, so `POST .../revert` restores it."""
+        cards_dir = _authorized_cards_dir(connection, auth)
+        if cards_dir is None or not delete_connection_card(
+            cards_dir, _card_file_stem(cards_dir, card_id)
+        ):
+            raise HTTPException(status_code=404, detail=f"unknown card {card_id!r}")
+        return Response(status_code=204)
+
+    @app.post(
+        "/connections/{connection}/knowledge/{card_id}/revert",
+        responses=_CARDS_RESPONSES,
+    )
+    async def revert_connection_knowledge(
+        connection: str,
+        card_id: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, str]:
+        """Restore the card's previous version (or a deleted card)."""
+        cards_dir = _authorized_cards_dir(connection, auth)
+        path = None
+        if cards_dir is not None:
+            stem = _card_file_stem(cards_dir, card_id)
+            if slug_card_id(stem):
+                path = revert_connection_card(cards_dir, stem)
+        if path is None:
+            raise HTTPException(
+                status_code=404, detail=f"no previous version of card {card_id!r}"
+            )
+        return {"connection": connection, "card_id": path.stem}
 
     @app.post("/connections/{connection}/distill")
     async def distill_connection(
@@ -1232,10 +1327,11 @@ def create_app() -> FastAPI:
         # what is still ungrounded. The authoritative cards are the harness's own,
         # on the PVC beside the connection file.
         existing_terms: list[str] = []
-        source_path = conn.source_path
-        if source_path and not source_path.startswith("<"):
-            cards_dir = Path(source_path).parent / "knowledge"
-            existing_terms = [c.term or c.id for c in load_connection_cards(cards_dir).cards]
+        cards_dir = connection_cards_dir(conn)
+        if cards_dir is not None:
+            existing_terms = [
+                c.term or c.id for c in load_connection_cards_cached(cards_dir).cards
+            ]
 
         # Tests inject a stub via app.state.distiller_model; prod builds the seat
         # on demand (a background batch call, not the hot path).
@@ -1351,6 +1447,27 @@ def _enforce_tenant_owns_run(
         )
 
 
+def _connection_tenant_lock(conn: Connection) -> str | None:
+    """The one tenant a connection serves, or None when it is shared. Same
+    order as the generic provider: `options.tenant_lock`, then the tenant of a
+    tenant-scoped connection."""
+    raw_lock = str(conn.options.get("tenant_lock") or "").strip()
+    if raw_lock:
+        return raw_lock
+    if conn.scope == "tenant" and conn.tenant_id:
+        return str(conn.tenant_id)
+    return None
+
+
+def _card_file_stem(cards_dir: Path, card_id: str) -> str:
+    """The file holding the live card `card_id`. A hand-written card's id can
+    differ from its file name; otherwise the id is the file name."""
+    for card in load_connection_cards_cached(cards_dir).cards:
+        if card.id == card_id and card.file_stem:
+            return card.file_stem
+    return card_id
+
+
 def _enforce_tenant_may_write_connection(
     conn: Connection, auth: Mapping[str, Any], name: str
 ) -> None:
@@ -1367,11 +1484,7 @@ def _enforce_tenant_may_write_connection(
     caller = auth.get("tenant_id")
     if not caller:
         return
-    if conn.scope == "tenant" and conn.tenant_id:
-        lock: str | None = str(conn.tenant_id)
-    else:
-        raw_lock = conn.options.get("tenant_lock")
-        lock = str(raw_lock) if raw_lock else None
+    lock = _connection_tenant_lock(conn)
     if lock is not None and caller != lock:
         raise HTTPException(
             status_code=403,

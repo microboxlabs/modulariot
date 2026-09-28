@@ -165,3 +165,107 @@ def test_enforce_write_lock() -> None:
     )
     with pytest.raises(HTTPException):
         _enforce_tenant_may_write_connection(scoped, {"tenant_id": "T2"}, "x")
+
+
+def _write_card(client: TestClient, term: str, body: str) -> None:
+    resp = client.post("/connections/acs/knowledge", json={"term": term, "body": body})
+    assert resp.status_code == 201
+
+
+def test_list_returns_authored_cards(tmp_path: Path) -> None:
+    conn, _ = _on_disk_connection(tmp_path)
+    app = create_app()
+    with TestClient(app) as client:
+        client.app.state.connection_objects[conn.name] = conn
+        assert client.get("/connections/acs/knowledge").json() == {"cards": []}
+        _write_card(client, "current process", "Only version v2 is current.")
+        cards = client.get("/connections/acs/knowledge").json()["cards"]
+    assert len(cards) == 1
+    card = cards[0]
+    assert card["id"] == "current-process"
+    assert card["term"] == "current process"
+    assert card["body"] == "Only version v2 is current."
+    assert card["scope"] == "tenant"
+    assert card["updated_at"]
+
+
+def test_delete_removes_card_and_revert_restores_it(tmp_path: Path) -> None:
+    conn, knowledge_dir = _on_disk_connection(tmp_path)
+    app = create_app()
+    with TestClient(app) as client:
+        client.app.state.connection_objects[conn.name] = conn
+        _write_card(client, "current process", "Only version v2 is current.")
+
+        assert client.delete("/connections/acs/knowledge/current-process").status_code == 204
+        assert client.get("/connections/acs/knowledge").json() == {"cards": []}
+        assert client.delete("/connections/acs/knowledge/current-process").status_code == 404
+
+        resp = client.post("/connections/acs/knowledge/current-process/revert")
+        assert resp.status_code == 200
+        assert resp.json()["card_id"] == "current-process"
+        ids = [c["id"] for c in client.get("/connections/acs/knowledge").json()["cards"]]
+        assert ids == ["current-process"]
+        # Nothing older left to restore.
+        assert client.post("/connections/acs/knowledge/current-process/revert").status_code == 404
+    assert (knowledge_dir / "current-process.md").exists()
+
+
+def test_delete_finds_a_card_whose_id_differs_from_its_file_name(tmp_path: Path) -> None:
+    conn, knowledge_dir = _on_disk_connection(tmp_path)
+    knowledge_dir.mkdir()
+    (knowledge_dir / "stage-shipments.md").write_text(
+        "---\nid: shipments\nterm: shipments\n---\n\nOnly confirmed rows count.\n",
+        encoding="utf-8",
+    )
+    app = create_app()
+    with TestClient(app) as client:
+        client.app.state.connection_objects[conn.name] = conn
+        ids = [c["id"] for c in client.get("/connections/acs/knowledge").json()["cards"]]
+        assert ids == ["shipments"]
+        assert client.delete("/connections/acs/knowledge/shipments").status_code == 204
+    assert not (knowledge_dir / "stage-shipments.md").exists()
+
+
+def test_options_lock_wins_over_tenant_scope() -> None:
+    both = Connection(
+        name="x",
+        backend="postgres",
+        dsn=None,
+        scope="tenant",
+        tenant_id="T9",
+        options={"tenant_lock": "T1"},
+    )
+    _enforce_tenant_may_write_connection(both, {"tenant_id": "T1"}, "x")
+    with pytest.raises(HTTPException):
+        _enforce_tenant_may_write_connection(both, {"tenant_id": "T9"}, "x")
+
+
+def test_delete_unknown_card_is_404(tmp_path: Path) -> None:
+    conn, _ = _on_disk_connection(tmp_path)
+    app = create_app()
+    with TestClient(app) as client:
+        client.app.state.connection_objects[conn.name] = conn
+        assert client.delete("/connections/acs/knowledge/nope").status_code == 404
+        assert client.delete("/connections/nope/knowledge/x").status_code == 404
+
+
+def test_list_and_delete_respect_tenant_lock(tmp_path: Path) -> None:
+    conn, knowledge_dir = _on_disk_connection(tmp_path)
+    locked = Connection(
+        name="acs",
+        backend="postgres",
+        dsn=None,
+        source_path=conn.source_path,
+        options={"tenant_lock": "T1"},
+    )
+    app = create_app()
+    with TestClient(app) as client:
+        client.app.state.connection_objects["acs"] = locked
+        _write_card(client, "current process", "Only version v2 is current.")
+        other = {"X-Miot-Tenant-Client-Id": "T2"}
+        assert client.get("/connections/acs/knowledge", headers=other).status_code == 403
+        resp = client.delete("/connections/acs/knowledge/current-process", headers=other)
+        assert resp.status_code == 403
+        owner = {"X-Miot-Tenant-Client-Id": "T1"}
+        assert len(client.get("/connections/acs/knowledge", headers=owner).json()["cards"]) == 1
+    assert (knowledge_dir / "current-process.md").exists()

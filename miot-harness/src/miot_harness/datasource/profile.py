@@ -25,7 +25,12 @@ TOP_VALUES = 5
 JSON_KEYS = 15
 EXAMPLE_CHARS = 240
 
-_RANGE_TYPES = ("int", "numeric", "double", "real", "date", "time")
+TOP_MAX_DISTINCT = 50
+# Same pages in every query of a profile, so counts and percentages agree.
+SAMPLE_SEED = 7
+
+# Prefixes of format_type() names. Arrays ("integer[]") are excluded separately.
+_RANGE_TYPES = ("smallint", "integer", "bigint", "numeric", "double", "real", "date", "time")
 _TEXT_TYPES = ("char", "text", "bool", "uuid")
 
 
@@ -73,7 +78,7 @@ async def safe_profile(
         "table": f"{schema}.{name}",
         "est_rows": est_rows,
         "sampled_rows": sampled,
-        "sample": _sample_kind(source, est_rows, sample),
+        "sample": _sample_kind(source, sampled, sample),
         "columns": profiled,
     }
 
@@ -86,19 +91,21 @@ def _quotable(name: str) -> bool:
     return True
 
 
-def _sample_kind(source: str, est_rows: int | None, sample: int) -> str:
+def _sample_kind(source: str, sampled: int, sample: int) -> str:
     if "TABLESAMPLE" in source:
         return "random pages"
-    if est_rows is not None and est_rows <= sample * 10:
-        return "all rows"
-    return "first rows"
+    # Hitting the guard limit means the estimate was stale and rows were cut off.
+    return "first rows" if sampled >= sample * 10 else "all rows"
 
 
 def _sample_source(schema: str, name: str, est_rows: int | None, sample: int) -> str:
     qualified = f"{quote_ident(schema)}.{quote_ident(name)}"
     if est_rows and est_rows > sample * 10:
         percent = max(0.01, min(100.0, 100.0 * sample * 2 / est_rows))
-        return f"(SELECT * FROM {qualified} TABLESAMPLE SYSTEM ({percent:.4f}) LIMIT {sample}) s"
+        return (
+            f"(SELECT * FROM {qualified} TABLESAMPLE SYSTEM ({percent:.4f}) "
+            f"REPEATABLE ({SAMPLE_SEED}) LIMIT {sample}) s"
+        )
     # Small enough to read whole; the limit only guards a stale estimate.
     return f"(SELECT * FROM {qualified} LIMIT {sample * 10}) s"
 
@@ -112,8 +119,12 @@ async def _profile_column(
     if col.get("comment"):
         out["comment"] = col["comment"]
     if kind.startswith("json"):
-        stats = await fetch(f"SELECT count({ident}) AS non_null FROM {source}")
+        stats = await fetch(
+            f"SELECT count({ident}) AS non_null, count(DISTINCT {ident}::text) AS distinct_n "
+            f"FROM {source}"
+        )
         out["null_pct"] = _null_pct(stats[0]["non_null"], sampled)
+        out["distinct"] = stats[0]["distinct_n"]
         keys = await fetch(
             f"SELECT k AS key, count(*) AS n FROM {source}, "
             f"jsonb_object_keys(CASE WHEN jsonb_typeof({ident}::jsonb) = 'object' "
@@ -126,7 +137,8 @@ async def _profile_column(
         if example:
             out["example"] = _clip(example[0]["v"])
         return out
-    ranged = any(t in kind for t in _RANGE_TYPES)
+    array = kind.endswith("]")
+    ranged = not array and kind.startswith(_RANGE_TYPES)
     extra = f", min({ident})::text AS min, max({ident})::text AS max" if ranged else ""
     stats = await fetch(
         f"SELECT count({ident}) AS non_null, count(DISTINCT {ident}) AS distinct_n{extra} "
@@ -137,7 +149,9 @@ async def _profile_column(
     out["distinct"] = row["distinct_n"]
     if ranged:
         out["min"], out["max"] = row.get("min"), row.get("max")
-    if any(t in kind for t in _TEXT_TYPES) and row["distinct_n"]:
+    distinct = row["distinct_n"] or 0
+    text = any(t in kind for t in _TEXT_TYPES)
+    if not array and distinct and (text or distinct <= TOP_MAX_DISTINCT):
         top = await fetch(
             f"SELECT {ident}::text AS v, count(*) AS n FROM {source} WHERE {ident} IS NOT NULL "
             f"GROUP BY 1 ORDER BY 2 DESC LIMIT {TOP_VALUES}"

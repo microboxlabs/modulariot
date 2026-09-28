@@ -30,7 +30,7 @@ def _responder(est_rows: int) -> Any:
         if "jsonb_object_keys" in sql:
             return [{"key": "speeding", "n": 40}]
         if 'count("detail") AS non_null' in sql:
-            return [{"non_null": 80}]
+            return [{"non_null": 80, "distinct_n": 30}]
         if "::text AS v FROM" in sql and "GROUP BY" not in sql:
             return [{"v": '{"speeding": {"t": 1}}'}]
         if 'count(DISTINCT "code")' in sql:
@@ -62,6 +62,8 @@ async def test_profile_reports_what_each_column_holds() -> None:
     assert by_name["minutes"]["null_pct"] == 5.0
     assert by_name["detail"]["json_keys"] == [["speeding", 40]]
     assert by_name["detail"]["null_pct"] == 20.0
+    assert by_name["detail"]["distinct"] == 30
+    assert by_name["minutes"]["top"] == [["SV1", 2]]
     assert pool.conn.txn_readonly is True
 
 
@@ -71,13 +73,46 @@ async def test_a_large_table_is_sampled_by_pages() -> None:
     profile = await safe_profile(pool=pool, policy=OPS, table="ops.trips", columns=["code"])
     assert profile["sample"] == "random pages"
     assert [c["name"] for c in profile["columns"]] == ["code"]
-    assert any("TABLESAMPLE SYSTEM" in sql for sql, _ in pool.conn.fetched)
+    sampled = [sql for sql, _ in pool.conn.fetched if "FROM pg_attribute" not in sql]
+    assert sampled
+    assert all("TABLESAMPLE SYSTEM (0.1000) REPEATABLE (7)" in sql for sql in sampled)
+
+
+@pytest.mark.asyncio
+async def test_a_stale_estimate_that_hits_the_limit_reports_first_rows() -> None:
+    def respond(sql: str) -> list[dict[str, Any]]:
+        if "FROM pg_attribute" in sql:
+            return [{"name": "code", "type": "text", "comment": None, "est_rows": 10}]
+        if sql.startswith("SELECT count(*) AS n"):
+            return [{"n": 50_000}]
+        return [{"non_null": 50_000, "distinct_n": 0}]
+
+    profile = await safe_profile(pool=RecordingPool(responder=respond), policy=OPS, table="ops.t")
+    assert profile["sample"] == "first rows"
+
+
+@pytest.mark.asyncio
+async def test_array_columns_get_no_min_max_or_top() -> None:
+    def respond(sql: str) -> list[dict[str, Any]]:
+        if "FROM pg_attribute" in sql:
+            return [{"name": "ids", "type": "integer[]", "comment": None, "est_rows": 10}]
+        if sql.startswith("SELECT count(*) AS n"):
+            return [{"n": 10}]
+        return [{"non_null": 10, "distinct_n": 4}]
+
+    pool = RecordingPool(responder=respond)
+    profile = await safe_profile(pool=pool, policy=OPS, table="ops.t")
+    assert profile["columns"] == [
+        {"name": "ids", "type": "integer[]", "null_pct": 0.0, "distinct": 4}
+    ]
+    assert not any("min(" in sql or "GROUP BY" in sql for sql, _ in pool.conn.fetched)
 
 
 @pytest.mark.asyncio
 async def test_profile_refuses_tables_outside_the_allowlist() -> None:
+    pool = RecordingPool()
     with pytest.raises(AllowlistViolation):
-        await safe_profile(pool=RecordingPool(), policy=OPS, table="public.users")
+        await safe_profile(pool=pool, policy=OPS, table="public.users")
 
 
 @pytest.mark.asyncio

@@ -430,6 +430,7 @@ async function run(
   const relay = relaySignal(requestSignal);
   let harnessRunId: string | null = null;
   try {
+    if (relay.signal.aborted) return;
     const { run_id } = await client.runs.create(
       {
         message,
@@ -441,9 +442,19 @@ async function run(
         ...(replayTurns.length > 0 && { conversation_history: replayTurns }),
         ...(summary && { conversation_summary: summary }),
       },
-      { signal: relay.signal }
+      // Not the relay signal: a start aborted mid-flight could still create
+      // a run whose id nobody ever learns.
+      { signal: AbortSignal.timeout(30_000) }
     );
     harnessRunId = run_id;
+    if (relay.signal.aborted) {
+      // Gone (Stop or reload) before the browser was told the run id: it can
+      // neither re-attach nor stop it later.
+      client.runs
+        .cancel(run_id, { signal: AbortSignal.timeout(5_000) })
+        .catch(() => {});
+      return;
+    }
 
     const relayed = await relayRun({
       client,

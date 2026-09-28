@@ -209,6 +209,20 @@ describe("POST /api/harness/chat/stream", () => {
     expect(runsGetMock).not.toHaveBeenCalled();
   });
 
+  it("cancels a run the caller left before learning its id", async () => {
+    const caller = new AbortController();
+    runsCreateMock.mockImplementation(async () => {
+      caller.abort();
+      return { run_id: "run_1" };
+    });
+
+    const { events } = await readEvents(await POST(chatRequest(caller.signal)));
+
+    expect(runsCancelMock).toHaveBeenCalledWith("run_1", expect.anything());
+    expect(runsStreamMock).not.toHaveBeenCalled();
+    expect(events.some((e) => e.type === "CUSTOM")).toBe(false);
+  });
+
   it("keeps the run as the thread's active run when the harness stream drops", async () => {
     runsStreamMock.mockImplementation(async function* () {
       yield harnessEvent("agent.started", 1);

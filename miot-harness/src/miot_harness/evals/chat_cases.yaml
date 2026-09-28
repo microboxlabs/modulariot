@@ -85,3 +85,23 @@ cases:
         expect:
           no_tools: [web_search]
           contains_any: [/connections, conexiones]
+
+  - id: product-source-where-computed
+    turns:
+      - message: ¿Dónde se calcula el ETA en el código de ModularIoT?
+        expect:
+          tools: [source_search]
+          not_contains: [no tengo acceso, "don't have access"]
+
+  - id: product-capabilities-from-docs
+    turns:
+      - message: ¿Qué puede hacer ModularIoT con los síntomas? Cita la documentación.
+        expect:
+          tools: [source_read]
+
+  - id: web-read-full-source
+    turns:
+      - message: Investiga qué es el Model Context Protocol (MCP) y resume su especificación con fuentes.
+        expect:
+          tools: [web_search, web_fetch]
+          links: true

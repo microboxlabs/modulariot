@@ -6,8 +6,9 @@ import httpx
 import pytest
 
 from miot_harness.config import HarnessSettings
+from miot_harness.runtime.context import HarnessContext
 from miot_harness.tools.registry import build_default_registry
-from miot_harness.tools.web_fetch import WebFetcher, WebFetchError, html_to_text
+from miot_harness.tools.web_fetch import WebFetcher, WebFetchError, html_to_text, web_fetch_tool
 
 _PAGE = """<html><head><title>Fleet  news</title><style>p{color:red}</style>
 <script>steal()</script></head><body><h1>Trips up</h1><p>Trips rose
@@ -146,6 +147,45 @@ def test_html_to_text_drops_scripts_and_styles() -> None:
     assert title == "Fleet news"
 
 
-def test_web_fetch_is_registered_only_when_enabled() -> None:
-    assert "web_fetch" not in build_default_registry().names()
-    assert "web_fetch" in build_default_registry(HarnessSettings(web_fetch_enabled=True)).names()
+def test_web_fetch_is_registered_by_default_and_can_be_turned_off() -> None:
+    assert "web_fetch" in build_default_registry().names()
+    assert (
+        "web_fetch" not in build_default_registry(HarnessSettings(web_fetch_enabled=False)).names()
+    )
+
+
+@pytest.mark.parametrize("address", ["64:ff9b::7f00:1", "64:ff9b::a9fe:a9fe", "::ffff:10.0.0.1"])
+@pytest.mark.asyncio
+async def test_ipv6_forms_of_internal_ipv4_addresses_are_refused(address: str) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("must not connect")
+
+    with pytest.raises(WebFetchError, match="non-public"):
+        await _fetcher(handler, {"six.example": [address]}).fetch("http://six.example/")
+
+
+@pytest.mark.asyncio
+async def test_a_body_past_the_byte_cap_is_cut() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="y" * 3_000_000, headers={"content-type": "text/plain"})
+
+    out = await _fetcher(handler, {"a.example": ["93.184.216.34"]}).fetch(
+        "https://a.example/huge", max_chars=50_000
+    )
+    assert out.truncated and len(out.text) == 50_000
+
+
+@pytest.mark.asyncio
+async def test_a_run_may_fetch_only_so_many_pages() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text="ok", headers={"content-type": "text/plain"})
+
+    tool = web_fetch_tool(_fetcher(handler, {"a.example": ["93.184.216.34"]}), max_per_run=2)
+    ctx = HarnessContext(thread_id="t", tenant_id="acme", user_id="u1", run_id="r1")
+    for _ in range(2):
+        await tool.invoke(ctx, {"url": "https://a.example/"}, lambda _: None)
+    with pytest.raises(WebFetchError, match="fetch limit"):
+        await tool.invoke(ctx, {"url": "https://a.example/"}, lambda _: None)
+    other = HarnessContext(thread_id="t", tenant_id="acme", user_id="u1", run_id="r2")
+    out = await tool.invoke(other, {"url": "https://a.example/"}, lambda _: None)
+    assert out.text == "ok"

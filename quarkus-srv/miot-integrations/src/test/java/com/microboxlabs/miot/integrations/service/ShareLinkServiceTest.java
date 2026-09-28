@@ -59,6 +59,17 @@ class ShareLinkServiceTest {
     }
 
     @Test
+    void aRequestThatLosesTheRaceGetsTheLinkTheOtherOneMade() {
+        String id = newStory(OWNER);
+        String first = links.create(ORG, TENANT, OWNER, new CreateLinkRequest("story", id)).token();
+
+        store.links.missNextListing = true;
+
+        assertEquals(first, links.create(ORG, TENANT, OWNER, new CreateLinkRequest("story", id)).token());
+        assertEquals(1, store.links.rows.size());
+    }
+
+    @Test
     void onlyTheOwnerMakesListsOrRevokesLinks() {
         String id = newStory(OWNER);
         store.storyService.share(TENANT, OWNER, id,

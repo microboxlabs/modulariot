@@ -76,6 +76,6 @@ CREATE TABLE miot_integrations.share_link (
     CONSTRAINT chk_share_link_access CHECK (access IN ('org'))
 );
 
-CREATE INDEX idx_share_link_target
+CREATE UNIQUE INDEX idx_share_link_target
     ON miot_integrations.share_link(tenant_code, target_type, target_id)
     WHERE revoked_at IS NULL;

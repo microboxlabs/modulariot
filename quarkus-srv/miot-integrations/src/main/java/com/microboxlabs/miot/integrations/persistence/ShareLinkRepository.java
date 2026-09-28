@@ -22,6 +22,7 @@ public class ShareLinkRepository extends BoundedPgRepository {
     private static final String INSERT = """
             INSERT INTO miot_integrations.share_link (token, tenant_code, target_type, target_id, access, created_by)
             VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (tenant_code, target_type, target_id) WHERE revoked_at IS NULL DO NOTHING
             RETURNING %s""".formatted(COLUMNS);
 
     private static final String FIND_ACTIVE = """
@@ -52,6 +53,7 @@ public class ShareLinkRepository extends BoundedPgRepository {
         super(null, DEFAULT_QUERY_TIMEOUT);
     }
 
+    /** Null when the target already has an active link, e.g. one a concurrent request just made. */
     public ShareLink insert(ShareLink link) {
         Tuple params = Tuple.tuple()
                 .addString(link.token())

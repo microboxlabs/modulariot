@@ -205,9 +205,14 @@ public final class InMemoryStories {
     public static final class Links extends ShareLinkRepository {
         public final Map<String, ShareLink> rows = new LinkedHashMap<>();
         public final Set<String> revoked = new HashSet<>();
+        /** Makes the next listing miss the active link, as a request racing another one would. */
+        public boolean missNextListing;
 
         @Override
         public ShareLink insert(ShareLink link) {
+            if (!listActive(link.tenantCode(), link.targetType(), link.targetId()).isEmpty()) {
+                return null;
+            }
             ShareLink saved = new ShareLink(link.token(), link.tenantCode(), link.targetType(), link.targetId(),
                     link.access(), link.createdBy(), OffsetDateTime.now());
             rows.put(saved.token(), saved);
@@ -222,6 +227,10 @@ public final class InMemoryStories {
 
         @Override
         public List<ShareLink> listActive(String tenantCode, String targetType, String targetId) {
+            if (missNextListing) {
+                missNextListing = false;
+                return List.of();
+            }
             return rows.values().stream()
                     .filter(l -> l.tenantCode().equals(tenantCode) && l.targetType().equals(targetType)
                             && l.targetId().equals(targetId) && !revoked.contains(l.token()))

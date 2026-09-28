@@ -63,10 +63,13 @@ public class ShareLinkService {
             return null;
         }
         List<ShareLink> active = links.listActive(tenantCode, type, targetId);
-        ShareLink link = active.isEmpty()
-                ? links.insert(new ShareLink(newToken(), tenantCode, type, targetId, ORG_ACCESS, userId, null))
-                : active.get(0);
-        return toResponse(organization, link);
+        if (!active.isEmpty()) {
+            return toResponse(organization, active.get(0));
+        }
+        ShareLink link = links.insert(new ShareLink(newToken(), tenantCode, type, targetId, ORG_ACCESS, userId,
+                null));
+        // A concurrent request created it first; the unique index kept one.
+        return toResponse(organization, link != null ? link : links.listActive(tenantCode, type, targetId).get(0));
     }
 
     /** The target's active links, or empty when the caller does not own it. */

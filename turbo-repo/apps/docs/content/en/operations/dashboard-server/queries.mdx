@@ -72,3 +72,27 @@ Schemas must describe a closed object (`additionalProperties: false`). Draft
 size, depth and node count are bounded; compiled validators use a bounded cache.
 Parameters allow JSON scalars and flat scalar arrays, with the same value limits
 as the dashboard contract and a 256 KiB host parameter envelope.
+
+## Host execution over HTTP
+
+A standalone pod can reuse the host's connection catalog with
+`createHttpDashboardOperationExecutor({ url, proxyKey })`. Supply the executor
+as `operations` when constructing the query service. The URL is a fixed,
+operator-configured endpoint; dashboard values cannot change its destination.
+HTTPS is required except for loopback development. Set `allowHttp: true` only
+for an explicitly trusted private-network deployment.
+
+The adapter sends a JSON `POST` authenticated by `x-miot-proxy-key` (at least
+32 characters). The body contains `tenantId`, `scopeId`, `dashboardSlug`,
+`userId`, `connectionId`, `operationId`, `parameters`, and
+`limits: { maxRows, maxBytes }`. No user token or credential material is sent.
+The host must authenticate the service key, resolve the connection within that
+tenant, enforce the saved operation's read-only and parameter policies, and
+answer `{ "rows": [...] }`. It must not expose this as a public unauthenticated
+execution endpoint. A host may impose stricter limits than those requested.
+
+Redirects are refused. The default HTTP deadline is 20 seconds; configure
+`requestTimeoutMs` to shorten it. Caller cancellation propagates to the HTTP
+request. The adapter bounds received bytes before parsing, validates row
+values, discards extra response metadata, and returns a generic error on any
+host failure. The host still owns upstream cancellation and cost controls.

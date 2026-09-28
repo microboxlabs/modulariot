@@ -71,3 +71,28 @@ Se admite Draft 2020-12 sin referencias locales/remotas ni reglas regex. Se
 limitan tamaño, profundidad y cantidad de nodos; los validadores compilados usan
 una caché acotada. Los parámetros admiten escalares JSON y arreglos planos con
 los mismos límites de valores del contrato y un máximo de 256 KiB en el host.
+
+## Ejecución HTTP en el host
+
+Un pod independiente puede reutilizar el catálogo de conexiones del host con
+`createHttpDashboardOperationExecutor({ url, proxyKey })`. Entrega ese ejecutor
+como `operations` al crear el servicio de consultas. La URL es un endpoint fijo
+configurado por el operador; los valores del dashboard no pueden cambiar el
+destino. Se exige HTTPS salvo para desarrollo en loopback. Usa `allowHttp: true`
+solo en un despliegue explícitamente confiable dentro de una red privada.
+
+El adaptador envía un `POST` JSON autenticado mediante `x-miot-proxy-key` (al
+menos 32 caracteres). El cuerpo contiene `tenantId`, `scopeId`, `dashboardSlug`,
+`userId`, `connectionId`, `operationId`, `parameters` y
+`limits: { maxRows, maxBytes }`. No envía tokens de usuario ni credenciales del
+origen. El host debe autenticar la clave de servicio, resolver la conexión dentro
+del tenant, aplicar las políticas de solo lectura y parámetros de la operación
+guardada, y responder `{ "rows": [...] }`. No debe publicar este endpoint sin
+autenticación. Puede aplicar límites más estrictos que los solicitados.
+
+Se rechazan las redirecciones. El plazo HTTP predeterminado es de 20 segundos;
+usa `requestTimeoutMs` para reducirlo. La cancelación del cliente se propaga a
+la solicitud HTTP. El adaptador limita los bytes recibidos antes de parsearlos,
+valida los valores de las filas, descarta metadatos adicionales y devuelve un
+error genérico ante fallos del host. El host sigue siendo responsable de la
+cancelación y del control de costos del origen.

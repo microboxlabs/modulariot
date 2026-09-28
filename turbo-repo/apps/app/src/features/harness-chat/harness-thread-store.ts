@@ -32,6 +32,8 @@ export type StoredThread = {
   createdAt: string;
   updatedAt: string;
   sharedWith: string[];
+  /** True once a person named the thread; generated titles stop replacing it. */
+  titleEdited?: boolean;
 };
 
 export type StoredMessage = {
@@ -66,8 +68,27 @@ export async function getThread(id: string, signal?: AbortSignal): Promise<Store
   return (await res.json().catch(() => null)) as StoredThread | null;
 }
 
-export async function renameThread(id: string, title: string): Promise<void> {
-  await sendJson(`${BASE}/${encodeURIComponent(id)}`, "PATCH", { title });
+/** A rename by the person, which generated titles never replace. */
+export async function renameThread(id: string, title: string): Promise<boolean> {
+  return sendJson(`${BASE}/${encodeURIComponent(id)}`, "PATCH", { title });
+}
+
+/** Asks for a generated title from the first exchange. The thread comes back
+ * with its title unchanged when the person already named it. */
+export async function autoTitleThread(
+  id: string,
+  exchange: { message: string; answer: string },
+): Promise<StoredThread | null> {
+  return postJson<StoredThread>(`${BASE}/${encodeURIComponent(id)}/title`, exchange);
+}
+
+/** A copy of the thread owned by the caller: every message, or only
+ * `atMessageId` and the messages above it. */
+export async function forkThread(id: string, atMessageId?: string): Promise<StoredThread | null> {
+  return postJson<StoredThread>(
+    `${BASE}/${encodeURIComponent(id)}/fork`,
+    atMessageId ? { atMessageId } : {},
+  );
 }
 
 /** `null` expiry means "never" and has to say so explicitly — a missing field

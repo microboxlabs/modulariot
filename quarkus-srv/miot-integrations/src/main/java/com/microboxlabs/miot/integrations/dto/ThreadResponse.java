@@ -21,5 +21,7 @@ public record ThreadResponse(
         OffsetDateTime lastMessageAt,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
-        List<String> sharedWith) {
+        List<String> sharedWith,
+        /** True once a person named the thread; the panel stops generating titles for it. */
+        boolean titleEdited) {
 }

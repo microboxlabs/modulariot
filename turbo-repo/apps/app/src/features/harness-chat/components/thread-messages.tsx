@@ -14,6 +14,7 @@ import {
   LuChevronDown,
   LuCopy,
   LuFileDown,
+  LuGitBranch,
   LuPencil,
   LuRotateCcw,
   LuSparkles,
@@ -25,6 +26,7 @@ import { twMerge } from "tailwind-merge";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import { useRunCancel } from "../context/run-cancel-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
+import { useHarnessFork } from "../context/harness-fork-context";
 import { useHarnessReadOnly } from "../context/harness-read-only-context";
 import { formatElapsed, splitNarration } from "../run-progress";
 import { SentAttachment } from "./attachments";
@@ -303,6 +305,32 @@ const AssistantActionBar: FC = () => {
     <ActionBarPrimitive.ExportMarkdown className={actionButtonClass}>
       <LuFileDown className="h-3 w-3" />
     </ActionBarPrimitive.ExportMarkdown>
+    <ForkFromHere />
   </ActionBarPrimitive.Root>
+  );
+};
+
+/** Starts a new thread holding this answer and everything above it. Offered on
+ * shared threads too: forking is how a reader continues someone else's chat. */
+const ForkFromHere: FC = () => {
+  const tr = useHarnessChatTr();
+  const fork = useHarnessFork();
+  const messageId = useAuiState((s) => s.message.id);
+  const settled = useAuiState(
+    (s) => s.message.status?.type === "complete" && !s.thread.isRunning,
+  );
+  if (!fork) return null;
+  const label = tr("harnessChat.ui.thread.forkFromHere");
+  return (
+    <button
+      type="button"
+      onClick={() => fork(messageId)}
+      disabled={!settled}
+      aria-label={label}
+      title={label}
+      className={actionButtonClass}
+    >
+      <LuGitBranch className="h-3 w-3" />
+    </button>
   );
 };

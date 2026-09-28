@@ -79,6 +79,40 @@ describe("decideHarnessPath", () => {
     );
   });
 
+  it("sends a message that is only a file to the harness, with the file", async () => {
+    isModulithConfiguredMock.mockReturnValue(true);
+    const { decideHarnessPath } = await import("./route");
+
+    const send = vi.fn();
+    const decision = decideHarnessPath(
+      send,
+      [
+        {
+          id: "m1",
+          role: "user" as const,
+          content: [
+            { type: "text", text: "" },
+            {
+              type: "image",
+              source: { type: "data", value: "iVBO", mimeType: "image/png" },
+              metadata: { filename: "chart.png" },
+            },
+          ],
+        },
+      ],
+      "run-1",
+      "thread-1",
+      tr,
+    );
+
+    expect(decision).toEqual({
+      handled: false,
+      message: "",
+      attachments: [{ mime: "image/png", name: "chart.png", data: "iVBO" }],
+    });
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it("still serves the demo create_story trigger when the harness is unconfigured", async () => {
     process.env.ENABLE_STORYTELLING = "true";
     isModulithConfiguredMock.mockReturnValue(false);

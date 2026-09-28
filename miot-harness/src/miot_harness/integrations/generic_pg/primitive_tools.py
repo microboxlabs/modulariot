@@ -203,7 +203,7 @@ def build_generic_tools(
     cards_by_id = {c.id: c for c in (knowledge_cards or [])}
 
     # HarnessTool.check_permission must return an awaitable.
-    async def check_permission(  # NOSONAR(python:S7503)
+    async def check_permission(  # NOSONAR
         ctx: HarnessContext, _input: BaseModel
     ) -> PermissionResult:
         if tenant_lock is not None and ctx.tenant_id != tenant_lock:

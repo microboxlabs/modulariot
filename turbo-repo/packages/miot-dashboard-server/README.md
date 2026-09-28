@@ -725,3 +725,19 @@ finds it — and the conversion should be written against that example.
 Run `npm run test:coverage` in this package to generate `coverage/lcov.info`
 and a coverage summary. The SonarCloud workflow runs both dashboard packages
 and imports these reports; LCOV paths are relative to the `turbo-repo` root.
+
+## Saved connection queries
+
+`createDashboardQueryService({ identity, tenants, scopes, store, operations })`
+authorizes a dashboard read before resolving a saved query and binding its named
+filters. Call `execute(request, ref, queryId, filters, signal)`; the host-owned
+`DashboardOperationExecutor` receives the authorized identity and stored operation.
+The service has no framework or Alfresco dependency and registers no HTTP route.
+
+The host must enforce active/read-only operations, tenant predicates, parameter
+schemas, server-side credentials, bounded upstream reads and datasource cost limits.
+Editors' literal bindings are not trusted tenant predicates. Defaults: 8 concurrent
+operations, 20 seconds, 5,000 rows and 2 MiB JSON. Cancellation-ignoring adapters
+retain their slot until they settle. See the
+[query integration guide](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/apps/docs/content/en/operations/dashboard-server/queries.mdx)
+for the contract and configurable limits.

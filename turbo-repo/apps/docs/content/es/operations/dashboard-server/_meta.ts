@@ -4,5 +4,6 @@ export default {
   configuracion: 'Configuración',
   identidad: 'Usuarios y Permisos',
   'fuentes-de-datos': 'Fuentes de Datos y Credenciales',
+  queries: 'Consultas con conexiones',
   api: 'API'
 }

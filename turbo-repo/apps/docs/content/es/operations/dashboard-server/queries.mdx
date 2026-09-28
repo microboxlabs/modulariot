@@ -1,0 +1,34 @@
+# Consultas basadas en conexiones
+
+Una consulta guardada identifica una conexión y operación del host mediante `connectionId` y `operationId`. Los lectores seleccionan la consulta por ID y envían valores de filtros. No pueden enviar una URL, SQL, credenciales ni otra operación. El mismo servidor puede integrarse con distintos frameworks y herramientas de administración.
+
+```json
+{
+  "id": "costs",
+  "variableName": "costs",
+  "connectionId": "billing",
+  "operationId": "cost-summary",
+  "parameters": {
+    "days": { "kind": "literal", "value": 30 },
+    "service": { "kind": "filter", "key": "service", "defaultValue": null }
+  }
+}
+```
+
+## Integración de la biblioteca
+
+`createDashboardQueryService` recibe los adaptadores de identidad, tenant, ámbito, almacenamiento y políticas del control de acceso, además de un `DashboardOperationExecutor`. El host llama a `service.execute(request, ref, queryId, filters, signal)`. Este servicio programático no registra una ruta HTTP automáticamente.
+
+La autorización ocurre antes de cargar o ejecutar una consulta. Un Consumer puede consultar un dashboard al que tiene acceso; las identidades embed siguen limitadas a su dashboard exacto. Se rechazan IDs desconocidos, definiciones ambiguas, valores inválidos y filtros no declarados. Las decisiones de acceso usan el evento `dashboard.query`, sin incluir valores de filtros ni filas.
+
+## Responsabilidades del host
+
+El adaptador debe resolver una **operación activa y de solo lectura dentro del tenant autorizado**, validar sus parámetros, aplicar las restricciones del tenant y resolver las credenciales en el servidor. Las definiciones son editables: un parámetro literal no acredita autoridad sobre un tenant. Mantén las restricciones de seguridad fuera de los parámetros editables.
+
+Limita las lecturas de respuestas antes de cargarlas en memoria. Respeta la señal de cancelación y aplica límites propios del origen, incluidos los costos de BigQuery. Devuelve `{ rows: [...] }` con valores escalares JSON o arreglos planos de escalares. No incluyas credenciales ni errores internos en los resultados.
+
+## Límites de ejecución
+
+Por defecto: 8 operaciones simultáneas por instancia, 20 segundos, 5.000 filas y 2 MiB de JSON UTF-8. Cada fila admite hasta 100 campos. Los valores siguen los límites del contrato; se admiten hasta 32 filtros y 100 parámetros por definición. Configura `maxConcurrent`, `timeoutMs`, `maxRows` y `maxBytes` al crear el servicio.
+
+Un timeout cancela la señal del adaptador. Si el adaptador ignora la cancelación, mantiene su cupo hasta terminar, evitando trabajo ilimitado en segundo plano. Los fallos y resultados inválidos se convierten en `UPSTREAM_ERROR`. Estos límites complementan la autenticación, el tamaño máximo del cuerpo HTTP y los límites de solicitudes del despliegue.

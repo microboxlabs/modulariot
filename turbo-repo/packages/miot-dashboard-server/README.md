@@ -278,6 +278,11 @@ empties it between tests — and install `pg`. The PostgreSQL-specific tests
 also exercise concurrent startup and recovery after an idle connection is
 terminated, using temporary schemas in that database.
 
+The `Dashboard Server Tests` CI job runs the full package suite on Node.js 24,
+including HTTP listener tests, SQLite storage, and a disposable PostgreSQL 17
+service. It installs the optional PostgreSQL driver outside the workspace so
+testing that backend does not add a runtime dependency for other deployments.
+
 Config bytes are stored separately from metadata (rows and permissions):
 
 | Where              | Config bytes live                                               |

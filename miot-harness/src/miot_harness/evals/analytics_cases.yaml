@@ -17,9 +17,9 @@ cases:
     turns:
       - message: ¿Cuál es el tiempo de conducción total en 2026?
         expect:
-          any_tool: true
           one_of:
-            - numbers: [{value: 42351.5, tolerance_pct: 2}]
+            - any_tool: true
+              numbers: [{value: 42351.5, tolerance_pct: 2}]
             - blocks: [choices]
 
   - id: kpi-services-then-breakdown
@@ -30,10 +30,10 @@ cases:
           numbers: [{value: 10853, tolerance_pct: 0.5}]
       - message: ¿Y las horas de conducción por transportista?
         expect:
-          any_tool: true
           one_of:
             - blocks: [choices]
-            - contains_any: [Cordillera Cargo]
+            - any_tool: true
+              contains_any: [Cordillera Cargo]
               numbers:
               - {value: 5633.4, tolerance_pct: 1}
               - {value: 5512.3, tolerance_pct: 1}

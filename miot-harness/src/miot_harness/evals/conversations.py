@@ -204,9 +204,22 @@ def _content_failures(blocks: list[dict[str, Any]], expect: dict[str, Any]) -> l
     got = next((b.get("value") for b in blocks if b.get("type") == "intent"), None)
     if intent and got != intent:
         failures.append(f"intent {got!r}, expected {intent!r}")
-    types = {b.get("type") for b in blocks}
+    types = {b.get("type") for b in blocks if b.get("type") != "choices" or _is_question(b)}
     failures += [f"no {t} block" for t in expect.get("blocks", []) if t not in types]
     return failures + _number_failures("\n".join(_leaf_text(blocks)), expect)
+
+
+def _is_question(block: dict[str, Any]) -> bool:
+    """A choices block the user can answer: a question and at least two options."""
+    value = block.get("value")
+    if not isinstance(value, dict) or not str(value.get("question") or "").strip():
+        return False
+    options = value.get("options")
+    return (
+        isinstance(options, list)
+        and sum(1 for o in options if isinstance(o, dict) and str(o.get("label") or "").strip())
+        >= 2
+    )
 
 
 def check_turn(record: dict[str, Any], expect: dict[str, Any]) -> list[str]:
@@ -219,8 +232,9 @@ def check_turn(record: dict[str, Any], expect: dict[str, Any]) -> list[str]:
         return [*failures, "answer is not a JSON block array"]
     if _leaks_block_json(blocks):
         failures.append("raw block JSON shown to the user")
-    failures += _tool_failures(tools_called(record), expect)
-    return failures + _alternative_failures([*blocks, *shown_widgets(record)], expect)
+    return failures + _alternative_failures(
+        [*blocks, *shown_widgets(record)], tools_called(record), expect
+    )
 
 
 def shown_widgets(record: dict[str, Any]) -> list[dict[str, Any]]:
@@ -232,13 +246,19 @@ def shown_widgets(record: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _alternative_failures(blocks: list[dict[str, Any]], expect: dict[str, Any]) -> list[str]:
-    """`one_of`: the turn passes when the content checks of any alternative pass."""
+def _alternative_failures(
+    blocks: list[dict[str, Any]], tools: list[str], expect: dict[str, Any]
+) -> list[str]:
+    """`one_of`: the turn passes when the tool and content checks of any alternative pass."""
+
+    def check(e: dict[str, Any]) -> list[str]:
+        return _tool_failures(tools, e) + _content_failures(blocks, e)
+
     alternatives = expect.get("one_of")
     if not alternatives:
-        return _content_failures(blocks, expect)
+        return check(expect)
     base = {k: v for k, v in expect.items() if k != "one_of"}
-    tried = [_content_failures(blocks, {**base, **alt}) for alt in alternatives]
+    tried = [check({**base, **alt}) for alt in alternatives]
     if any(not failures for failures in tried):
         return []
     return ["no alternative passed: " + " | ".join("; ".join(f) for f in tried)]

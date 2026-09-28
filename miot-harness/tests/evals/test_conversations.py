@@ -140,11 +140,17 @@ def test_the_analytics_suite_loads() -> None:
 
 
 def test_one_of_passes_when_any_alternative_passes() -> None:
-    record = _record([{"type": "choices", "value": {"question": "?", "options": [{"label": "a"}]}}])
-    expect = {"one_of": [{"numbers": [{"value": 10}]}, {"blocks": ["choices"]}]}
+    question = {"question": "¿Cuál?", "options": [{"label": "a"}, {"label": "b"}]}
+    record = _record([{"type": "choices", "value": question}])
+    expect = {"one_of": [{"any_tool": True, "numbers": [{"value": 10}]}, {"blocks": ["choices"]}]}
     assert check_turn(record, expect) == []
     only_numbers = {"one_of": [{"numbers": [{"value": 10}]}]}
     assert check_turn(record, only_numbers) == ["no alternative passed: no number near 10 (±1%)"]
+
+
+def test_a_choices_block_without_a_real_question_does_not_count() -> None:
+    empty = _record([{"type": "choices", "value": {"question": "", "options": []}}])
+    assert check_turn(empty, {"blocks": ["choices"]}) == ["no choices block"]
 
 
 def test_numbers_and_names_in_a_shown_widget_count_as_answered() -> None:

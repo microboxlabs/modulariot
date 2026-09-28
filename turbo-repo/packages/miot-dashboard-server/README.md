@@ -744,7 +744,11 @@ and imports these reports; LCOV paths are relative to the `turbo-repo` root.
 authorizes a dashboard read before resolving a saved query and binding its named
 filters. Call `execute(request, ref, queryId, filters, signal)`; the host-owned
 `DashboardOperationExecutor` receives the authorized identity and stored operation.
-The service has no framework or Alfresco dependency and registers no HTTP route.
+The service has no framework or Alfresco dependency. Configure
+`queries: { operations: executor }` on `createDashboardHandler` or `serve` to
+enable `POST /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/queries/{queryId}`.
+Send `{ "filters": {} }`; the response is `{ "data": { "rows": [] } }`.
+The route is disabled (404) unless an executor is configured.
 
 The host must enforce active/read-only operations, tenant predicates, parameter
 schemas, server-side credentials, bounded upstream reads and datasource cost limits.

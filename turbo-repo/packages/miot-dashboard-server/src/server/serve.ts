@@ -8,7 +8,11 @@
  */
 
 import { createServer, type Server } from "node:http";
-import { createDashboardHandler, pathnameOf } from "../http/handler";
+import {
+  createDashboardHandler,
+  pathnameOf,
+  type DashboardHandlerOptions,
+} from "../http/handler";
 import type { AuditSink } from "../seams/audit";
 import type { CredentialsVault } from "../seams/credentials";
 import type { DataSourceStore } from "../seams/datasources";
@@ -32,6 +36,8 @@ export interface ServeOptions {
   /** Omit, or pass a read-only vault, and the credential routes answer 404. */
   credentials?: CredentialsVault;
   audit?: AuditSink;
+  queries?: DashboardHandlerOptions["queries"];
+  policy?: DashboardHandlerOptions["policy"];
   basePath?: string;
   cors?: CorsOptions;
   port: number;
@@ -106,6 +112,8 @@ export function createRequestHandler(options: ServeOptions) {
     tenants: options.tenants,
     scopes: options.scopes,
     store: options.store,
+    ...(options.queries ? { queries: options.queries } : {}),
+    ...(options.policy ? { policy: options.policy } : {}),
     ...(options.maxBodyBytes === undefined
       ? {}
       : { maxBodyBytes: options.maxBodyBytes }),

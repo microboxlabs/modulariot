@@ -19,6 +19,10 @@
  * it returns, which already carries the loaded record.
  */
 
+import {
+  createDashboardQueryService,
+  type DashboardQueryOptions,
+} from "../queries/service";
 import { DEFAULT_MAX_BODY_BYTES, readJsonBody } from "./read-json";
 import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
 import {
@@ -64,6 +68,11 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
   cors?: CorsOptions;
   /** Maximum JSON body bytes in embedded and standalone handlers; default 1 MiB. */
   maxBodyBytes?: number;
+  /** Omit to disable saved-query execution (404). */
+  queries?: Pick<
+    DashboardQueryOptions<Request>,
+    "operations" | "timeoutMs" | "maxConcurrent" | "maxRows" | "maxBytes"
+  >;
   /** Omit it and the datasource routes answer 404. */
   dataSources?: DataSourceStore;
   /**
@@ -109,6 +118,10 @@ export function createDashboardHandler(
   }
   const readBody = (request: Request) => readJsonBody(request, maxBodyBytes);
   const access = createAccessControl<Request>(options);
+  const queries =
+    options.queries === undefined
+      ? null
+      : createDashboardQueryService({ ...options, ...options.queries });
 
   /**
    * The hook belongs to the host, so it is not trusted to return. A logger
@@ -235,6 +248,22 @@ export function createDashboardHandler(
         return noContentResponse();
       }
       return methodNotAllowed();
+    },
+
+    async query(request, match) {
+      if (request.method !== "POST") return methodNotAllowed();
+      if (queries === null)
+        throw DashboardServerError.notFound(
+          "Query execution is not configured",
+        );
+      const data = await queries.execute(
+        request,
+        refOf(match.tenantId, match.scopeId, requireSlug(match)),
+        requireId(match),
+        async () => queryFilters(await readBody(request)),
+        request.signal,
+      );
+      return jsonResponse({ data });
     },
 
     async capabilities(request, match) {
@@ -648,4 +677,20 @@ function parseAssignments(body: unknown): PermissionAssignment[] {
     }
     return { authorityId, role };
   });
+}
+
+function queryFilters(body: unknown): unknown {
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    Array.isArray(body) ||
+    Object.keys(body).some((key) => key !== "filters")
+  ) {
+    throw DashboardServerError.badRequest(
+      "Body must contain only dashboard filters",
+    );
+  }
+  return Object.hasOwn(body, "filters")
+    ? (body as { filters: unknown }).filters
+    : {};
 }

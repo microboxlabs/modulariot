@@ -9,6 +9,7 @@
 export type RouteName =
   | "dashboards"
   | "dashboard"
+  | "query"
   | "capabilities"
   | "permissions"
   | "datasources"
@@ -34,7 +35,7 @@ export interface RouteMatch {
   scopeId: string;
   /** Absent only for the collection route. */
   slug?: string;
-  /** Datasource id or credential ref, on the routes that address one. */
+  /** Query id, datasource id or credential ref, on the routes that address one. */
   id?: string;
 }
 
@@ -73,6 +74,11 @@ export function matchRoute(pathname: string): RouteMatch | null {
 
   if (segments.length === 6) {
     return { route: "dashboard", tenantId, scopeId, slug };
+  }
+
+  if (segments.length === 8 && segments[6] === "queries") {
+    const id = decodeSegment(segments[7]);
+    return id === null ? null : { route: "query", tenantId, scopeId, slug, id };
   }
 
   if (segments.length === 7) {

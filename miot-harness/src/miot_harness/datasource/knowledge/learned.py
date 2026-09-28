@@ -7,12 +7,13 @@ mid-session applies on the next run without a restart.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from miot_harness.datasource.knowledge.loader import load_connection_cards_cached
 from miot_harness.datasource.knowledge.models import KnowledgeCard
+from miot_harness.knowledge.changes import KnowledgeChange, changes_for
 
 _TITLE_CHARS = 120
 
@@ -55,6 +56,29 @@ def approved_cards(cards_dir: Path) -> tuple[KnowledgeCard, ...]:
     )
 
 
+def with_overlay(
+    cards: Iterable[KnowledgeCard], connection: str, overlay: Iterable[KnowledgeChange]
+) -> tuple[KnowledgeCard, ...]:
+    """`cards` with a run's fact changes for `connection` applied, keyed by the
+    card's file name (the id the knowledge store uses)."""
+    changes = changes_for(overlay, "fact", connection)
+    if not changes:
+        return tuple(cards)
+    by_stem = {c.file_stem or c.id: c for c in cards}
+    for change in changes:
+        if change.op == "delete":
+            by_stem.pop(change.id, None)
+        else:
+            by_stem[change.id] = KnowledgeCard(
+                id=change.id,
+                title=change.title.strip() or change.id,
+                body=change.content.strip(),
+                source="connection",
+                file_stem=change.id,
+            )
+    return tuple(sorted(by_stem.values(), key=lambda c: c.file_stem or c.id))
+
+
 class LearnedFacts:
     def __init__(self, sources: Sequence[LearnedFactsSource], *, char_budget: int) -> None:
         self.sources = tuple(sorted(sources, key=lambda s: s.connection))
@@ -71,14 +95,16 @@ class LearnedFacts:
             return None
         return _TRAINER_GUIDANCE.format(connections=", ".join(f"`{n}`" for n in names))
 
-    def render(self, tenant_id: str | None) -> str | None:
+    def render(
+        self, tenant_id: str | None, overlay: Iterable[KnowledgeChange] = ()
+    ) -> str | None:
         """The block for `tenant_id`, or None when no card applies. Full bodies
         until the character budget is spent, then titles only. Deterministic for
         unchanged cards, so the cached prompt prefix survives across turns."""
         remaining = self.char_budget
         sections: list[str] = []
         for source in self.usable(tenant_id):
-            cards = approved_cards(source.cards_dir)
+            cards = with_overlay(approved_cards(source.cards_dir), source.connection, overlay)
             if cards:
                 section, remaining = _render_section(source.connection, cards, remaining)
                 sections.append(section)

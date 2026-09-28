@@ -106,7 +106,7 @@ def render_skills_index(
         return ""
     lines: list[str] = []
     for loaded in bundle.playbooks_for(
-        profile.tenant_lock or "", connection=profile.name
+        profile.tenant_lock or "", connection=profile.name, learned=False
     ):
         skill = loaded.skill
         assert isinstance(skill, PlaybookSkill)  # playbooks_for guarantees

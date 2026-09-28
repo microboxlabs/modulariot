@@ -21,6 +21,7 @@ from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.context_skills.skill_models import PlaybookSkill
 from miot_harness.datasource.knowledge.learned import LearnedFacts
 from miot_harness.datasource.provider import DataSourceProfile
+from miot_harness.knowledge.primer import PrimerUpdates
 from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.answer_contract import (
     emit_grounding_gap,
@@ -174,6 +175,8 @@ class HarnessSupervisor:
         # Approved authored knowledge cards, rendered per run; set by the
         # lifespan when a connection has an authored-cards dir.
         self.learned_facts: LearnedFacts | None = None
+        # Edited descriptions of tenant-locked connections; set by the lifespan.
+        self.primer_updates: PrimerUpdates | None = None
         # The primary connection's name (e.g. "acs"), stamped onto assumptions
         # so the review surface stages a candidate against the right connection.
         self.primary_connection_name: str | None = None
@@ -632,27 +635,36 @@ class HarnessSupervisor:
     def _inject_tenant_context(
         self, ctx: HarnessContext, prior_messages: list[BaseMessage]
     ) -> list[BaseMessage]:
-        """Prepend this tenant's context overlay and system facts.
+        """Prepend this tenant's context overlay, system facts, the rules and
+        procedures its trainers wrote, and its edited data source descriptions.
 
         The loop's system prompt is the prompt-cache prefix, shared by every
         tenant, so per-tenant context rides in the user turn instead, like
-        an invoked skill.
+        an invoked skill. Each part changes only when its files do (or the
+        run carries a knowledge overlay).
         """
 
-        if self.context_skills is None:
-            return prior_messages
         blocks: list[str] = []
-        tenant_block = self.context_skills.primer_for(ctx.tenant_id).tenant_block
-        if tenant_block:
-            blocks.append(f"# System context (tenant)\n{tenant_block}")
-        indexed = self._indexed_skills()
-        facts = [
-            f"- {entry.title}\n  {entry.body}"
-            for entry in self.context_skills.facts_for(ctx.tenant_id)
-            if (entry.name, entry.body) not in indexed
-        ]
-        if facts:
-            blocks.append("# System facts (tenant)\n" + "\n".join(facts))
+        overlay = ctx.knowledge_overlay
+        bundle = self.context_skills
+        if bundle is not None:
+            tenant_block = bundle.primer_for(ctx.tenant_id).tenant_block
+            if tenant_block:
+                blocks.append(f"# System context (tenant)\n{tenant_block}")
+            indexed = self._indexed_skills()
+            facts = [
+                f"- {entry.title}\n  {entry.body}"
+                for entry in bundle.facts_for(ctx.tenant_id)
+                if (entry.name, entry.body) not in indexed
+            ]
+            if facts:
+                blocks.append("# System facts (tenant)\n" + "\n".join(facts))
+            if bundle.overlays is not None:
+                blocks.append(bundle.overlays.rules_block(ctx.tenant_id, overlay))
+                blocks.append(bundle.overlays.skills_block(ctx.tenant_id, overlay))
+        if self.primer_updates is not None:
+            blocks.append(self.primer_updates.block(ctx.tenant_id, overlay))
+        blocks = [b for b in blocks if b]
         if not blocks:
             return prior_messages
         return [SystemMessage(content="\n\n".join(blocks)), *prior_messages]
@@ -666,7 +678,7 @@ class HarnessSupervisor:
 
         if self.learned_facts is None:
             return prior_messages
-        blocks = [self.learned_facts.render(ctx.tenant_id)]
+        blocks = [self.learned_facts.render(ctx.tenant_id, ctx.knowledge_overlay)]
         if ctx.trainer:
             blocks.append(self.learned_facts.trainer_guidance(ctx.tenant_id))
         text = "\n\n".join(b for b in blocks if b)
@@ -684,7 +696,7 @@ class HarnessSupervisor:
         return {
             (f"skill:{skill.id}", skill.when_to_use or skill.description or skill.name)
             for loaded in self.context_skills.playbooks_for(
-                self.profile.tenant_lock or "", connection=self.profile.name
+                self.profile.tenant_lock or "", connection=self.profile.name, learned=False
             )
             if isinstance(skill := loaded.skill, PlaybookSkill)
         }

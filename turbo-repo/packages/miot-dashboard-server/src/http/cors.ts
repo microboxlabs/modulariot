@@ -87,16 +87,19 @@ export function withCors(
       (!allowed ||
         !METHODS.includes(requestedMethod) ||
         requestedHeaders.some((h) => !headers.has(h)));
-    const response = denied
-      ? errorResponse(
-          new DashboardServerError(
-            "FORBIDDEN",
-            "Origin or preflight is not allowed",
-          ),
-        )
-      : preflight && allowed
-        ? new Response(null, { status: 204 })
-        : await handler(request);
+    let response: Response;
+    if (denied) {
+      response = errorResponse(
+        new DashboardServerError(
+          "FORBIDDEN",
+          "Origin or preflight is not allowed",
+        ),
+      );
+    } else if (preflight && allowed) {
+      response = new Response(null, { status: 204 });
+    } else {
+      response = await handler(request);
+    }
     // Clone headers: a mounted handler may return an immutable fetch response.
     const result = new Response(response.body, response);
     result.headers.append("Vary", "Origin");

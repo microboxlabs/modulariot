@@ -110,7 +110,9 @@ def test_the_loop_is_handed_the_tenant_context_the_meta_seat_had(
         def facts_for(self, tenant_id: str):
             return []
 
-        def playbooks_for(self, tenant_id: str, *, connection: str | None = None):
+        overlays = None
+
+        def playbooks_for(self, tenant_id: str, *, connection: str | None = None, learned=True):
             return []
 
     sup = _supervisor(tmp_path, InMemoryConversationStore())
@@ -149,7 +151,9 @@ def test_the_tenant_facts_leave_out_skills_the_loop_prompt_already_lists(tmp_pat
                 CatalogEntry(name="skill:listed", layer="skill", title="Override", body="z"),
             ]
 
-        def playbooks_for(self, tenant_id: str, *, connection: str | None = None):
+        overlays = None
+
+        def playbooks_for(self, tenant_id: str, *, connection: str | None = None, learned=True):
             return [listed]
 
     sup = _supervisor(tmp_path, InMemoryConversationStore())

@@ -101,7 +101,10 @@ function cacheKey(question: Membership): string {
     question.tenantId,
     question.userId,
     question.scopeId,
-    [...question.groups].sort(),
+    [...question.groups].sort((left, right) => {
+      if (left === right) return 0;
+      return left < right ? -1 : 1;
+    }),
   ]);
 }
 
@@ -138,7 +141,7 @@ export function createHttpScopeAuthority(
   const rolePath = options.rolePath ?? DEFAULT_ROLE_PATH;
   const absentStatuses = options.absentStatuses ?? DEFAULT_ABSENT;
   const timeoutMs = options.requestTimeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const headers = { ...(options.headers ?? {}) };
+  const headers = { ...options.headers };
 
   function roleFrom(body: unknown): DashboardRole | null {
     const raw = readPath(body, rolePath);
@@ -152,7 +155,7 @@ export function createHttpScopeAuthority(
       return null;
     }
     if (options.roleMap !== undefined) {
-      const mapped = Object.prototype.hasOwnProperty.call(options.roleMap, raw)
+      const mapped = Object.hasOwn(options.roleMap, raw)
         ? options.roleMap[raw]
         : undefined;
       if (mapped === undefined) {

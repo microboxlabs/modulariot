@@ -219,6 +219,10 @@ class HarnessSettings(BaseSettings):
     # Characters of full card bodies in the "Learned facts" block; cards past
     # the budget are listed by title only.
     learned_facts_char_budget: int = Field(default=6000, ge=0)
+    # Where the knowledge store keeps version history (`.history/`) and eval
+    # cases (`evals/`). None → the parent of `context_dir` (the directory
+    # holding context/, skills/ and connections/ on the harness volume).
+    knowledge_root: Path | None = None
     # Background knowledge distiller (semantic-layer continual learning, R3): a
     # reflector that reads interaction episodes OFF the request hot path and
     # distills recurring ungrounded business terms into human-gated candidate

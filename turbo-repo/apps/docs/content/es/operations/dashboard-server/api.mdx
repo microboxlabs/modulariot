@@ -56,3 +56,20 @@ Los mensajes de las excepciones internas nunca llegan al cliente.
 ## Renderizar los tableros
 
 Cualquier interfaz puede consumir la API del servidor. La interfaz dibuja y edita el tablero; el servidor guarda el documento y controla el acceso. Se prevé publicar el paquete de interfaz por separado.
+
+## API de ModularIoT
+
+La aplicación expone `/api/dashboards` mediante su sesión del lado del servidor y el proxy de ModularIoT. La organización activa se obtiene de las membresías autenticadas. Los identificadores de tenant y encabezados de autorización enviados por el navegador no permiten seleccionar otra organización o identidad. El servidor de dashboards puede ejecutarse en su propio pod y no depende de Alfresco en tiempo de ejecución.
+
+| Método | Ruta de la aplicación | Operación |
+| --- | --- | --- |
+| GET | `/api/dashboards` | Listar dashboards |
+| GET, PUT, DELETE | `/api/dashboards/{dashboard}` | Cargar, guardar, eliminar |
+| GET | `/api/dashboards/{dashboard}/capabilities` | Consultar acciones permitidas |
+| GET, PUT | `/api/dashboards/{dashboard}/permissions` | Consultar o reemplazar asignaciones de roles |
+
+Conserva el `ETag` recibido al cargar y envíalo como `If-Match` al guardar. Un `409` conserva la versión más reciente del servidor; mantén los cambios del usuario y resuelve el conflicto antes de reintentar. El navegador no necesita el JWT de la sesión.
+
+Estas rutas permiten una migración en paralelo. Las páginas anteriores siguen disponibles hasta validar sus reemplazos. Esta API por sí sola no migra documentos ni cambia la interfaz.
+
+Envía `?org={activeOrgSlug}` e incluye la organización en las claves de caché del cliente. Si la organización activa cambió en otra pestaña, la API responde `409` antes de leer o guardar un dashboard. Este parámetro confirma la organización seleccionada; no permite elegir otra.

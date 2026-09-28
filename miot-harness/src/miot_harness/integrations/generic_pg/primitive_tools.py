@@ -215,7 +215,7 @@ def build_generic_tools(
     explain_cost_threshold: float,
     statement_timeout_ms: int,
     knowledge_cards: list[KnowledgeCard] | None = None,
-    authored_cards: Callable[[], Sequence[KnowledgeCard]] | None = None,
+    authored_cards: Callable[[HarnessContext], Sequence[KnowledgeCard]] | None = None,
     call_security_definer: bool = False,
     workspace_dir: Path | None = None,
     workflow_schema: str | None = None,
@@ -436,7 +436,7 @@ def build_generic_tools(
     ) -> _KnowledgeOutput:
         cards = dict(cards_by_id)
         if authored_cards is not None:
-            cards.update((c.id, c) for c in authored_cards())
+            cards.update((c.id, c) for c in authored_cards(ctx))
         available = [{"card": c.id, "title": c.title} for c in cards.values()]
         card = cards.get(parsed.card)
         if card is None:

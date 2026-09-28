@@ -38,6 +38,7 @@ from miot_harness.context_skills.source import (
     LoadDiagnostic,
     SkillSource,
 )
+from miot_harness.knowledge.tenant_overlays import TenantOverlays
 from miot_harness.tools.registry import ToolRegistry
 
 # Reserved tool-name prefix for connector skills. Datasource providers
@@ -156,10 +157,16 @@ def boot_context_skills(
         isinstance(p.skill, PlaybookSkill) and p.skill.mcp is not None for p in playbooks
     )
     mcp = McpSkills() if has_mcp else None
+    overlays = (
+        TenantOverlays(settings.context_dir, settings.skills_dir)
+        if settings.context_source_kind == "file" and settings.skills_source_kind == "file"
+        else None
+    )
     bundle = ContextSkillsBundle(
         contexts=context_result.contexts,
         playbook_skills=tuple(playbooks),
         mcp=mcp,
+        overlays=overlays,
     )
     if mcp is not None:
         try:

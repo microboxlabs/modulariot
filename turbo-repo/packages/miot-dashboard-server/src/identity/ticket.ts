@@ -246,7 +246,7 @@ export function createTicketIdentityResolver(
         url,
         method,
         headers: {
-          ...(options.headers ?? {}),
+          ...options.headers,
           ...(options.present.kind === "header"
             ? {
                 [options.present.name]: fillHeaderTemplate(

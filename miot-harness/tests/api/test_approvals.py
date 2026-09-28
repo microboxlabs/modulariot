@@ -30,9 +30,7 @@ from miot_harness.runtime.tool import HarnessTool
 
 
 @pytest.fixture(autouse=True)
-def _clean_settings_and_workspace(
-    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
-) -> Iterator[None]:
+def _clean_settings_and_workspace(tmp_path: Any, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     monkeypatch.delenv("MIOT_HARNESS_DATASOURCE_DSN", raising=False)
     monkeypatch.delenv("MIOT_HARNESS_IDENTITY_SIGNING_KEY", raising=False)
     monkeypatch.setenv("MIOT_HARNESS_WORKSPACE_DIR", str(tmp_path))
@@ -226,7 +224,15 @@ async def test_ask_with_approve_decision_proceeds_to_completion() -> None:
     assert output.ok is True
 
     types = [e.type for e in events]
-    assert types == ["approval.requested", "tool.started", "tool.completed"]
+    assert types == [
+        "approval.requested",
+        "approval.resolved",
+        "tool.started",
+        "tool.completed",
+    ]
+    resolved = events[1].data
+    assert resolved["approval_id"] == approval_id
+    assert resolved["decision"] == "approve"
 
 
 @pytest.mark.asyncio
@@ -289,3 +295,79 @@ async def test_ask_with_deny_decision_emits_failed_and_raises() -> None:
     types = [e.type for e in events]
     assert "tool.failed" in types
     assert "tool.started" not in types
+
+
+@pytest.mark.asyncio
+async def test_deny_with_comment_reaches_event_and_reason() -> None:
+    registry = ApprovalRegistry()
+    tool = _make_ask_tool()
+    ctx = _make_ctx(registry=registry)
+    events: list[HarnessEvent] = []
+
+    invoke_task = asyncio.create_task(tool.invoke(ctx, {}, events.append))
+    for _ in range(50):
+        await asyncio.sleep(0)
+        if any(e.type == "approval.requested" for e in events):
+            break
+    approval_id = events[0].data["approval_id"]
+
+    registry.resolve(
+        approval_id, "deny", ctx.run_id, comment="wrong title", resolved_by="ana@example.com"
+    )
+    with pytest.raises(PermissionError, match="wrong title"):
+        await asyncio.wait_for(invoke_task, timeout=1.0)
+
+    resolved = next(e for e in events if e.type == "approval.resolved")
+    assert resolved.data == {
+        "tool": "ask_tool",
+        "approval_id": approval_id,
+        "decision": "deny",
+        "comment": "wrong title",
+        "resolved_by": "ana@example.com",
+    }
+
+
+class _SecretInp(BaseModel):
+    name: str = "crm"
+    api_key: str = "sk-live-123"
+
+
+def test_approval_input_redacts_secrets() -> None:
+    async def _ask(_ctx: HarnessContext, _i: _SecretInp) -> PermissionResult:
+        return PermissionResult(decision="ask", reason="needs approval")
+
+    async def _call(_ctx, _i, _p):
+        return _Out()
+
+    tool = HarnessTool(
+        name="secret_tool",
+        description="d",
+        input_model=_SecretInp,
+        output_model=_Out,
+        check_permission=_ask,
+        call=_call,
+    )
+    events: list[HarnessEvent] = []
+    with pytest.raises(PermissionError):
+        asyncio.run(tool.invoke(_make_ctx(registry=None), {}, events.append))
+
+    requested = next(e for e in events if e.type == "approval.requested")
+    assert requested.data["input"] == {"name": "crm", "api_key": "[redacted]"}
+
+
+def test_resolve_endpoint_records_comment_and_caller() -> None:
+    app = create_app()
+    with TestClient(app) as client:
+        registry = app.state.harness.approval_registry
+        registry.register("aid_c", "run_c")
+        resp = client.post(
+            "/runs/run_c/approvals/aid_c",
+            json={"decision": "deny", "comment": "  not now "},
+            headers={"X-Miot-User-Email": "ana@example.com"},
+        )
+        assert resp.status_code == 204
+        resolution = registry.resolution("aid_c")
+    assert resolution is not None
+    assert resolution.decision == "deny"
+    assert resolution.comment == "not now"
+    assert resolution.resolved_by == "ana@example.com"

@@ -31,11 +31,12 @@ export function applyHarnessEvent(
       return { ...slice, currentRunId: runId };
 
     case "approval.auto":
+    case "approval.resolved":
     case "steering.mode_denied":
     case "grounding.gap":
     case "context.usage":
     case "dashboard.draft":
-      // Status-only markers (an approval auto-resolved; a steering mode was
+      // Status-only markers (an approval auto-resolved or decided; a steering mode was
       // denied; a ground-or-flag assumption was declared — it also rides the
       // final answer, so nothing to render mid-stream; a context window
       // report, which rides the run record too; a dashboard draft, which only

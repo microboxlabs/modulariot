@@ -2,6 +2,7 @@ import type { ClientContext } from "../client.js";
 import { MiotHarnessApiError } from "../errors.js";
 import { parseSSE } from "../sse.js";
 import type {
+  ApprovalDecision,
   ErrorResponse,
   HarnessEvent,
   HarnessRunRecord,
@@ -59,6 +60,21 @@ export function createRunsApi(ctx: ClientContext) {
       return ctx.fetcher("POST", `${BASE}/${encodeURIComponent(id)}/cancel`, {
         signal: opts?.signal,
       });
+    },
+
+    /** Approves or rejects a call the run is waiting on (204). A 404 means
+     * the approval is no longer pending. */
+    resolveApproval(
+      id: string,
+      approvalId: string,
+      body: ApprovalDecision,
+      opts?: { signal?: AbortSignal },
+    ): Promise<void> {
+      return ctx.fetcher(
+        "POST",
+        `${BASE}/${encodeURIComponent(id)}/approvals/${encodeURIComponent(approvalId)}`,
+        { body, signal: opts?.signal },
+      );
     },
 
     async *stream(

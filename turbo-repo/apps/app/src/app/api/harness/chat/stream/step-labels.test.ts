@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { stepKeyOf, stepLabel } from "./step-labels";
+import { mcpStepKeyOf, stepKeyOf, stepLabel } from "./step-labels";
 
 describe("step labels", () => {
   it("matches connection tools on their primitive suffix", () => {
@@ -24,6 +24,32 @@ describe("step labels", () => {
 
   it("keeps the raw name for a tool it does not know", () => {
     expect(stepLabel("fs_read", ((k: string) => k) as never)).toBe("fs_read");
+  });
+
+  it("labels an mcp_call by the MCP tool it calls", () => {
+    const tr = ((k: string, p?: Record<string, string>) =>
+      p ? `[${k}:${p.tool}]` : `[${k}]`) as never;
+    const call = (tool: string) =>
+      stepLabel("mcp_call", tr, { skill_id: "storyteller", tool });
+    expect(call("stories_create")).toBe(
+      "[harnessChat.stream.mcpSteps.stories_create]"
+    );
+    expect(call("selectables_options")).toBe(
+      "[harnessChat.stream.mcpSteps.selectables]"
+    );
+    expect(call("connections_templates")).toBe(
+      "[harnessChat.stream.mcpSteps.connections]"
+    );
+    expect(call("tickets_open")).toBe(
+      "[harnessChat.stream.mcpSteps.other:tickets_open]"
+    );
+    expect(stepLabel("mcp_call", tr)).toBe("[harnessChat.stream.steps.call]");
+  });
+
+  it("prefers an MCP tool's own label over its family", () => {
+    expect(mcpStepKeyOf("connections_test")).toBe("connections_test");
+    expect(mcpStepKeyOf("connections_get")).toBe("connections");
+    expect(mcpStepKeyOf("stories_set_current")).toBeNull();
   });
 
   it("reads the label from the dictionary", () => {

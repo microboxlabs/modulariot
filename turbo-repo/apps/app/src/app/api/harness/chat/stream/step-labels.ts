@@ -44,7 +44,43 @@ export function stepKeyOf(tool: string): StepKey | null {
   return STEP_KEYS.find((key) => tool.endsWith(`_${key}`)) ?? null;
 }
 
-export function stepLabel(tool: string, tr: TrFn): string {
+export const MCP_STEP_KEYS = [
+  "stories_list",
+  "stories_get",
+  "stories_create",
+  "stories_add_version",
+  "stories_link",
+  "connections_create",
+  "connections_test",
+  "connections",
+  "selectables",
+] as const;
+
+export type McpStepKey = (typeof MCP_STEP_KEYS)[number];
+
+/** The step an MCP tool stands for: its own name, else its family prefix. */
+export function mcpStepKeyOf(tool: string): McpStepKey | null {
+  const exact = MCP_STEP_KEYS.find((key) => key === tool);
+  if (exact) return exact;
+  return MCP_STEP_KEYS.find((key) => tool.startsWith(`${key}_`)) ?? null;
+}
+
+function mcpToolOf(args: unknown): string | null {
+  if (typeof args !== "object" || args === null) return null;
+  const tool = (args as Record<string, unknown>).tool;
+  return typeof tool === "string" && tool ? tool : null;
+}
+
+/** `args` is the tool's arguments as its `tool.started` event carries them:
+ * an `mcp_call` is labelled by the MCP tool it calls. */
+export function stepLabel(tool: string, tr: TrFn, args?: unknown): string {
+  const inner = tool === "mcp_call" ? mcpToolOf(args) : null;
+  if (inner) {
+    const key = mcpStepKeyOf(inner);
+    return key
+      ? tr(`harnessChat.stream.mcpSteps.${key}`)
+      : tr("harnessChat.stream.mcpSteps.other", { tool: inner });
+  }
   const key = stepKeyOf(tool);
   return key ? tr(`harnessChat.stream.steps.${key}`) : tool;
 }

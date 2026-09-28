@@ -1,4 +1,5 @@
 import { askUserQuestionExtension } from "./ask-user-question";
+import { requestApprovalExtension } from "./request-approval";
 import { showArtifactExtension } from "./show-artifact";
 import { showDashboardDraftExtension } from "./show-dashboard-draft";
 import { showDashletExtension } from "./show-dashlet";
@@ -14,6 +15,7 @@ export const DEFAULT_HARNESS_EXTENSIONS: HarnessExtension[] = [
   showDashletExtension,
   showArtifactExtension,
   showDashboardDraftExtension,
+  requestApprovalExtension,
 ];
 
 /**

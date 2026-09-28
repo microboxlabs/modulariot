@@ -19,11 +19,17 @@ import {
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost } from "@/lib/modulith-host";
 import {
+  approvalCallEvents,
+  approvalResultEvent,
   artifactCallEvents,
   chatAnswerEvents,
   toArtifactSpec,
   type DraftDashlet,
 } from "./chat-answer";
+import {
+  approvalArgsOf,
+  approvalResultOf,
+} from "@/features/harness-chat/extensions/request-approval-args";
 import { stepLabel } from "./step-labels";
 import { planRefusalMessage } from "./plan-refusal";
 import {
@@ -267,6 +273,8 @@ type RelayState = {
   tools: string[];
   /** Artifacts already sent as cards while the run was going. */
   shownArtifacts: Set<string>;
+  /** Approval cards still open, by approval id: their tool call ids. */
+  approvals: Map<string, string>;
   startedAt: string | null;
 };
 
@@ -282,7 +290,7 @@ function narrateForwardedEvent(
 ): void {
   appendNarrationDiff(send, narrator, progress, tr);
   if (event.type === "tool.started" && typeof event.data.tool === "string") {
-    const label = stepLabel(event.data.tool, tr);
+    const label = stepLabel(event.data.tool, tr, event.data.args);
     appendNarration(send, narrator, stepStartLine(narrator.stepStarts, label));
   }
   const line = seatNarration(event);
@@ -373,6 +381,46 @@ async function* withIdleChecks<T>(
   }
 }
 
+/** A call waiting for the user opens an approval card at once; the decision
+ * closes it. */
+export function trackApproval(
+  event: HarnessEvent,
+  runId: string,
+  send: Sender,
+  state: Pick<RelayState, "approvals">
+): void {
+  if (event.type === "approval.requested") {
+    const args = approvalArgsOf(runId, event.data);
+    if (!args || state.approvals.has(args.approvalId)) return;
+    const toolCallId = crypto.randomUUID();
+    state.approvals.set(args.approvalId, toolCallId);
+    for (const call of approvalCallEvents(args, toolCallId)) send(call);
+  } else if (event.type === "approval.resolved") {
+    const approvalId = event.data.approval_id;
+    const toolCallId =
+      typeof approvalId === "string" ? state.approvals.get(approvalId) : null;
+    if (!toolCallId) return;
+    state.approvals.delete(approvalId as string);
+    send(
+      approvalResultEvent(
+        toolCallId,
+        approvalResultOf(event.data, event.created_at)
+      )
+    );
+  }
+}
+
+/** Closes the approval cards a finished run left open. */
+export function expireApprovals(
+  send: Sender,
+  state: Pick<RelayState, "approvals">
+): void {
+  for (const toolCallId of state.approvals.values()) {
+    send(approvalResultEvent(toolCallId, { status: "expired" }));
+  }
+  state.approvals.clear();
+}
+
 /** What one event adds to the relay's view of the run: its start time, the
  * tools used, and any artifact, sent as a card at once. */
 function trackEvent(
@@ -395,6 +443,7 @@ function trackEvent(
   if (event.type === "tool.started" && typeof event.data.tool === "string") {
     state.tools.push(event.data.tool);
   }
+  trackApproval(event, runId, send, state);
   if (event.type !== "artifact.created") return;
   const spec = toArtifactSpec(event.data);
   if (spec && !state.shownArtifacts.has(spec.id)) {
@@ -525,6 +574,7 @@ export async function relayRun(args: {
   const state: RelayState = {
     tools: [],
     shownArtifacts: new Set(),
+    approvals: new Map(),
     startedAt: null,
   };
   const outcome = await followRun(
@@ -537,6 +587,8 @@ export async function relayRun(args: {
     tr
   );
   closeNarration(send, narrator);
+  // A truncated stream may still have its run waiting; a reload re-attaches.
+  if (outcome !== "truncated") expireApprovals(send, state);
 
   // A run that failed or was lost, and a stream that died mid-flight, all
   // arrive here with no answer to present. RUN_ERROR is terminal on its own,

@@ -75,6 +75,7 @@ export const HARNESS_EVENT_TYPES = [
   "tool.completed",
   "tool.failed",
   "approval.requested",
+  "approval.resolved",
   "approval.auto",
   "steering.mode_denied",
   "agent.started",
@@ -301,6 +302,16 @@ export interface RunSummary {
   };
   /** Briefs handed to a workhorse by `delegate`, in order. */
   delegates: Array<{ brief: string; status: string }>;
+  /** A call the running run waits for the user to approve. Absent from
+   * harness versions that predate it. */
+  pending_approval?: { approval_id: string; tool: string | null } | null;
+}
+
+/** Body of `POST /runs/{id}/approvals/{approval_id}`. */
+export interface ApprovalDecision {
+  decision: "approve" | "deny";
+  /** Why the call was rejected; the model reads it. */
+  comment?: string;
 }
 
 export interface ListRunsQuery {

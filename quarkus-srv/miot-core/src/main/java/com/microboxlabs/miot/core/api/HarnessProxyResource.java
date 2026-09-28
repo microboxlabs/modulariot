@@ -150,6 +150,25 @@ public class HarnessProxyResource {
     }
 
     /**
+     * Approves or rejects a call a run is waiting on — the chat's approval
+     * card. The harness answers 204, or 404 when the approval is no longer
+     * pending or belongs to another tenant's run.
+     */
+    @POST
+    @Path("/runs/{runId}/approvals/{approvalId}")
+    public Uni<Response> resolveApproval(@PathParam("slug") String slug,
+                                         @PathParam("runId") String runId,
+                                         @PathParam("approvalId") String approvalId,
+                                         @HeaderParam("Authorization") String authorization,
+                                         Map<String, Object> body) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return passThrough(harness.resolveApproval(
+                runId, approvalId, authorization, tenantClientId, userEmail, authMode, body));
+    }
+
+    /**
      * Lists the skills the harness can run — the data behind the chat
      * {@code /skills} picker and {@code miot harness skills}. Sits behind
      * the same auth + org-membership chain as the run routes, and forwards

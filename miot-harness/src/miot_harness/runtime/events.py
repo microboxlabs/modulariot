@@ -10,6 +10,9 @@ HarnessEventType = Literal[
     "tool.completed",
     "tool.failed",
     "approval.requested",
+    # The user approved or rejected a requested call; `data` holds
+    # {approval_id, tool, decision, comment?, resolved_by?}.
+    "approval.resolved",
     "approval.auto",
     "steering.mode_denied",
     "agent.started",

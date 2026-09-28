@@ -418,6 +418,89 @@ describe("POST /api/harness/chat/stream", () => {
     expect(cardAt).toBeLessThan(answerAt);
   });
 
+  it("opens an approval card at once and closes it with the decision", async () => {
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("approval.requested", 1, {
+        approval_id: "aid_1",
+        tool: "mcp_call",
+        input: {
+          skill_id: "storyteller",
+          tool: "stories_create",
+          arguments: { title: "Informe", kind: "markdown" },
+        },
+      });
+      yield harnessEvent("approval.resolved", 2, {
+        approval_id: "aid_1",
+        tool: "mcp_call",
+        decision: "approve",
+        resolved_by: "ana@example.com",
+      });
+      yield harnessEvent("tool.started", 3, {
+        tool: "mcp_call",
+        args: { skill_id: "storyteller", tool: "stories_create" },
+      });
+      yield harnessEvent("run.completed", 4);
+    });
+    runsGetMock.mockResolvedValue(completedRecord);
+
+    const { events } = await readEvents(await POST(chatRequest()));
+
+    const start = events.find(
+      (e) =>
+        e.type === "TOOL_CALL_START" && e.toolCallName === "request_approval"
+    );
+    expect(start).toBeDefined();
+    const args = events.find(
+      (e) => e.type === "TOOL_CALL_ARGS" && e.toolCallId === start!.toolCallId
+    );
+    expect(JSON.parse(args!.delta as string)).toEqual({
+      runId: "run_1",
+      approvalId: "aid_1",
+      tool: "stories_create",
+      input: { title: "Informe", kind: "markdown" },
+    });
+    const result = events.find(
+      (e) => e.type === "TOOL_CALL_RESULT" && e.toolCallId === start!.toolCallId
+    );
+    expect(JSON.parse(result!.content as string)).toEqual({
+      status: "approved",
+      by: "ana@example.com",
+      at: "2026-09-28T00:00:00Z",
+    });
+    expect(events.indexOf(result!)).toBeLessThan(
+      events.findIndex((e) => e.type === "TEXT_MESSAGE_START")
+    );
+    const narration = events
+      .filter((e) => e.type === "REASONING_MESSAGE_CONTENT")
+      .map((e) => e.delta)
+      .join("");
+    expect(narration).toContain("harnessChat.stream.mcpSteps.stories_create");
+  });
+
+  it("closes an approval card the run ended without", async () => {
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("approval.requested", 1, {
+        approval_id: "aid_1",
+        tool: "dashboard_apply",
+        input: { patch: "x" },
+      });
+      yield harnessEvent("run.failed", 2, { reason: "cancelled" });
+    });
+
+    const { events } = await readEvents(await POST(chatRequest()));
+
+    const start = events.find(
+      (e) =>
+        e.type === "TOOL_CALL_START" && e.toolCallName === "request_approval"
+    );
+    const result = events.find(
+      (e) => e.type === "TOOL_CALL_RESULT" && e.toolCallId === start!.toolCallId
+    );
+    expect(JSON.parse(result!.content as string)).toEqual({
+      status: "expired",
+    });
+  });
+
   it("logs how long each step before the harness run took", async () => {
     runsStreamMock.mockImplementation(async function* () {
       yield harnessEvent("run.completed", 1);
@@ -500,6 +583,46 @@ describe("GET /api/harness/chat/runs/[runId]/stream", () => {
       runId: "agui-2",
       threadId: "thread-1",
     });
+  });
+
+  it("shows an approval still pending when it re-attaches", async () => {
+    blockingRun();
+    const inner = runsStreamMock.getMockImplementation()!;
+    runsStreamMock.mockImplementation(async function* (
+      id: string,
+      opts: { signal: AbortSignal }
+    ) {
+      yield harnessEvent("approval.requested", 1, {
+        approval_id: "aid_1",
+        tool: "mcp_call",
+        input: { tool: "connections_create", arguments: { name: "crm" } },
+      });
+      yield* inner(id, opts);
+    });
+    const caller = new AbortController();
+
+    const res = await RESUME(
+      withSignal(
+        new Request(
+          "http://test/api/harness/chat/runs/run_1/stream?threadId=thread-1&runId=agui-2"
+        ),
+        caller.signal
+      ),
+      { params: Promise.resolve({ runId: "run_1" }) }
+    );
+    const { events, reader } = await readEvents(
+      res,
+      (e) => e.type === "TOOL_CALL_END"
+    );
+    caller.abort();
+    await reader.cancel();
+
+    const start = events.find(
+      (e) =>
+        e.type === "TOOL_CALL_START" && e.toolCallName === "request_approval"
+    );
+    expect(start).toBeDefined();
+    expect(events.some((e) => e.type === "TOOL_CALL_RESULT")).toBe(false);
   });
 
   it("marks a run the harness no longer knows as finished and interrupted", async () => {

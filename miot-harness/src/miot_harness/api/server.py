@@ -105,6 +105,8 @@ class ApprovalDecision(BaseModel):
     """
 
     decision: Literal["approve", "deny"]
+    # Why the user rejected the call; the model reads it with the denial.
+    comment: str | None = Field(default=None, max_length=2000)
 
 
 class KnowledgeCardWrite(BaseModel):
@@ -1092,6 +1094,7 @@ def create_app() -> FastAPI:
 
     @app.post("/runs/{run_id}/approvals/{approval_id}", status_code=204)
     async def resolve_approval(
+        http_request: Request,
         run_id: str,
         approval_id: str,
         body: ApprovalDecision,
@@ -1110,7 +1113,14 @@ def create_app() -> FastAPI:
         # collapsed into the same response so leaked approval_ids don't
         # leak ownership through differential 403/404 responses.
         registry = app.state.harness.approval_registry
-        if registry is None or not registry.resolve(approval_id, body.decision, run_id):
+        identity = getattr(http_request.state, "identity", None)
+        resolved_by = (identity.user_id if identity is not None else None) or (
+            http_request.headers.get("X-Miot-User-Email") or ""
+        ).strip()
+        comment = (body.comment or "").strip() or None
+        if registry is None or not registry.resolve(
+            approval_id, body.decision, run_id, comment=comment, resolved_by=resolved_by or None
+        ):
             raise HTTPException(status_code=404, detail="Approval not pending")
         return Response(status_code=204)
 

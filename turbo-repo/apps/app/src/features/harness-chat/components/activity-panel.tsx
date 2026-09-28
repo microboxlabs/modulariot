@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FC, type ReactNode } from "react";
-import { LuActivity } from "react-icons/lu";
+import { LuActivity, LuPause } from "react-icons/lu";
 import { twMerge } from "tailwind-merge";
 import type { RunSummary } from "@microboxlabs/miot-harness-client";
 import { stepKeyOf } from "@/app/api/harness/chat/stream/step-labels";
@@ -101,7 +101,17 @@ export const ActivityList: FC<{
               {formatElapsed(elapsed)}
             </time>
           </span>
-          {live ? (
+          {live && run.pending_approval ? (
+            <span className="flex items-center gap-2 text-[11px]">
+              <LuPause
+                aria-hidden
+                className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-400"
+              />
+              <output className="min-w-0 truncate font-medium text-amber-600 dark:text-amber-400">
+                {tr("harnessChat.ui.jobs.awaitingApproval")}
+              </output>
+            </span>
+          ) : live ? (
             <span className="flex items-center gap-2 text-[11px]">
               <span
                 aria-hidden

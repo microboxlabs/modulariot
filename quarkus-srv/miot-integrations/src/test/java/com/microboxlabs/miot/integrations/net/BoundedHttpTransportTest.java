@@ -91,10 +91,12 @@ class BoundedHttpTransportTest {
     void invalidLimitsFailBeforeSending() throws Exception {
         HttpServer server = server();
         try (HttpClient client = HttpClient.newHttpClient()) {
+            HttpRequest request = request(server);
+            Duration timeout = Duration.ofSeconds(1);
             assertThrows(IllegalArgumentException.class,
-                    () -> BoundedHttpTransport.send(client, request(server), 0, Duration.ofSeconds(1)));
+                    () -> BoundedHttpTransport.send(client, request, 0, timeout));
             assertThrows(IllegalArgumentException.class,
-                    () -> BoundedHttpTransport.send(client, request(server), 1, Duration.ZERO));
+                    () -> BoundedHttpTransport.send(client, request, 1, Duration.ZERO));
         } finally {
             server.stop(0);
         }

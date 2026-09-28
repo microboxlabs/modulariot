@@ -37,20 +37,24 @@ class IntegrationOperationInvokerTest {
     void runtimeQueryParametersCannotReplaceCredentialParameters() {
         assertEquals(Map.of("days", "30", "key", "secret"),
                 IntegrationOperationInvoker.combineQueryParameters(Map.of("days", "30"), Map.of("key", "secret")));
+        var supplied = Map.of("key", "override");
+        var credentials = Map.of("key", "secret");
         assertThrows(OperationInvocationException.class,
-                () -> IntegrationOperationInvoker.combineQueryParameters(Map.of("key", "override"), Map.of("key", "secret")));
+                () -> IntegrationOperationInvoker.combineQueryParameters(supplied, credentials));
     }
 
     @Test
     void boundedAddressesCannotHideDuplicateParametersOrFragments() {
         IntegrationOperationInvoker.requireParameterFreeAddress(URI.create("https://api.example.com"), "/summary");
+        URI publicBase = URI.create("https://api.example.com");
         for (String path : List.of("/summary?tenant=other", "/summary#fragment")) {
             assertThrows(OperationInvocationException.class,
-                    () -> IntegrationOperationInvoker.requireParameterFreeAddress(URI.create("https://api.example.com"), path));
+                    () -> IntegrationOperationInvoker.requireParameterFreeAddress(publicBase, path));
         }
         for (String base : List.of("https://api.example.com?tenant=other", "https://api.example.com#fragment")) {
+            URI uri = URI.create(base);
             assertThrows(OperationInvocationException.class,
-                    () -> IntegrationOperationInvoker.requireParameterFreeAddress(URI.create(base), "/summary"));
+                    () -> IntegrationOperationInvoker.requireParameterFreeAddress(uri, "/summary"));
         }
     }
 

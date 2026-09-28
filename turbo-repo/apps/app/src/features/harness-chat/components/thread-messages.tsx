@@ -28,8 +28,10 @@ import { useRunCancel } from "../context/run-cancel-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 import { useHarnessFork } from "../context/harness-fork-context";
 import { useHarnessReadOnly } from "../context/harness-read-only-context";
+import { useMessageRunId } from "../context/harness-run-lookup-context";
 import { formatElapsed, splitNarration } from "../run-progress";
 import { SentAttachment } from "./attachments";
+import { RunActivityRow } from "./run-activity";
 
 const actionButtonClass =
   "flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-40 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-200";
@@ -124,22 +126,18 @@ const AssistantText: FC<TextMessagePartProps> = ({ text }) => (
 // cursor — small and gray so it reads as distinct from the reply, and with
 // no height cap of its own so it just grows with the thread's own scroll
 // (ThreadPrimitive.Viewport) rather than clipping into its own scrollbox.
-// Only once the message settles does it collapse into a "Thought process"
-// toggle, peeking the same text back open in a small scrollable panel.
-//
-// Only the *last* message renders it — reasoning is per-message content in
-// assistant-ui's model, so every past reply still carries its own reasoning
-// part; without this gate every one of them would show its own text/toggle
-// as the conversation grows. Gating on `isLast` keeps exactly one, and it
-// naturally moves with whichever message is newest.
+// Once the message settles it collapses into a "Thought process" toggle,
+// peeking the same text back open in a small scrollable panel, with the run's
+// activity row under it. Every past reply keeps its own collapsed toggle.
 const AssistantReasoning: FC<ReasoningMessagePartProps> = ({ text, status }) => {
   const tr = useHarnessChatTr();
   const [expanded, setExpanded] = useState(false);
   const isLast = useAuiState((s) => s.message.isLast);
   const live = useLiveRun();
-  if (!isLast || !text.trim()) return null;
+  const runId = useMessageRunId();
+  if (!text.trim()) return null;
 
-  if (status?.type !== "complete") {
+  if (isLast && status?.type !== "complete") {
     // While RunStatus shows the step in progress, only the finished ones stay here.
     const shown = live ? splitNarration(text).earlier : text;
     if (!shown) return null;
@@ -168,8 +166,21 @@ const AssistantReasoning: FC<ReasoningMessagePartProps> = ({ text, status }) => 
           {text}
         </div>
       )}
+      {runId && <RunActivityRow runId={runId} />}
     </div>
   );
+};
+
+// A reply with no narration still gets its activity row, once it settled.
+const ActivityWithoutReasoning: FC = () => {
+  const runId = useMessageRunId();
+  const settled = useAuiState(
+    (s) =>
+      s.message.status?.type !== "running" &&
+      !s.message.parts.some((part) => part.type === "reasoning" && part.text.trim() !== "")
+  );
+  if (!runId || !settled) return null;
+  return <RunActivityRow runId={runId} />;
 };
 
 /** True while this is the newest message, its run is going and no answer
@@ -271,6 +282,7 @@ export const AssistantMessage: FC = () => (
         <BsStars className="h-3 w-3 text-white" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <ActivityWithoutReasoning />
         <MessagePrimitive.Parts
           components={{ Text: AssistantText, Reasoning: AssistantReasoning }}
         />

@@ -27,6 +27,10 @@ import { TitleInput } from "./components/title-input";
 import { HarnessForkProvider } from "./context/harness-fork-context";
 import { HarnessModelProvider } from "./context/harness-model-context";
 import { HarnessReadOnlyProvider } from "./context/harness-read-only-context";
+import {
+  HarnessRunLookupProvider,
+  type HarnessRunLookup,
+} from "./context/harness-run-lookup-context";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
 import { readActiveRun } from "./harness-active-run";
 import { createHarnessHistoryAdapter } from "./harness-history-adapter";
@@ -621,6 +625,10 @@ const SessionHost: FC<{
     [onFork, sessionId],
   );
   const stopRun = useCallback(() => agent.cancelHarnessRun(), [agent]);
+  const runLookup = useCallback<HarnessRunLookup>(
+    (messageId, isLast) => history.runIdOf(messageId) ?? (isLast ? agent.harnessRunId : null),
+    [history, agent],
+  );
 
   // Panel just opened (button or ⌘/Ctrl+C) while this is the active session —
   // send focus straight to the composer input. When it closes (or this stops
@@ -668,7 +676,9 @@ const SessionHost: FC<{
               />
             </>
           )}
-          <Thread skills={skills} onStop={stopRun} />
+          <HarnessRunLookupProvider lookup={runLookup}>
+            <Thread skills={skills} onStop={stopRun} />
+          </HarnessRunLookupProvider>
           </HarnessModelProvider>
           </HarnessForkProvider>
         </HarnessReadOnlyProvider>

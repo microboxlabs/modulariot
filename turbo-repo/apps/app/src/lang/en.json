@@ -5676,6 +5676,23 @@
         "otherPlaceholder": "Other…",
         "otherAriaLabel": "Other",
         "submit": "Submit"
+      },
+      "activity": {
+        "label": "Activity",
+        "summary": "{count} steps · {duration}",
+        "summaryOne": "1 step · {duration}",
+        "loading": "Loading activity…",
+        "failed": "Could not load the activity.",
+        "empty": "No steps recorded.",
+        "arguments": "Arguments",
+        "result": "Result",
+        "error": "Error",
+        "truncated": "truncated",
+        "copy": "Copy",
+        "copied": "Copied",
+        "unfinished": "Did not finish",
+        "noArguments": "This run did not record its arguments.",
+        "tokens": "{input} input tokens · {output} output"
       }
     },
     "plan": {

@@ -101,6 +101,12 @@ paths:
       responses:
         "200":
           description: The stored configuration, or null when nothing is stored.
+          headers:
+            ETag:
+              description: Quoted revision for the next If-Match; "0" when no dashboard is stored.
+              schema:
+                type: string
+                example: '"3"'
           content:
             application/json:
               schema:
@@ -147,6 +153,12 @@ paths:
       responses:
         "200":
           description: Saved. The new revision is what the next If-Match must carry.
+          headers:
+            ETag:
+              description: Quoted revision of the saved dashboard, for the next If-Match.
+              schema:
+                type: string
+                example: '"4"'
           content:
             application/json:
               schema:

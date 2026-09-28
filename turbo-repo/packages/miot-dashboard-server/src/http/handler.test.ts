@@ -397,6 +397,41 @@ describe.each([
     await expect(stale.json()).resolves.toMatchObject({ code: "CONFLICT" });
   });
 
+  it("round-trips the loaded ETag and refuses a concurrent overwrite", async () => {
+    const path = "/tenants/acme/scopes/ops/dashboards/revision-roundtrip";
+    const empty = await mode().fetch(path, asUser("alice"));
+    expect(empty.headers.get("etag")).toBe('"0"');
+    await expect(empty.json()).resolves.toEqual({ data: null });
+
+    const save = (etag: string, name: string) =>
+      mode().fetch(path, {
+        ...withBody(asUser("alice"), "PUT", sampleConfig({ name })),
+        headers: {
+          "x-dev-user": "alice",
+          "content-type": "application/json",
+          "if-match": etag,
+        },
+      });
+    const created = await save(empty.headers.get("etag")!, "First");
+    expect(created.status).toBe(200);
+    expect(created.headers.get("etag")).toBe('"1"');
+
+    const loaded = await mode().fetch(path, asUser("alice"));
+    expect(loaded.headers.get("etag")).toBe(created.headers.get("etag"));
+    const updated = await save(loaded.headers.get("etag")!, "Second");
+    expect(updated.status).toBe(200);
+    expect(updated.headers.get("etag")).toBe('"2"');
+    expect((await save(loaded.headers.get("etag")!, "Stale")).status).toBe(409);
+
+    const retained = await mode().fetch(path, asUser("alice"));
+    await expect(retained.json()).resolves.toMatchObject({
+      data: { name: "Second" },
+    });
+    const foreign = await mode().fetch(path, asUser("bob"));
+    expect(foreign.status).toBe(403);
+    expect(foreign.headers.get("etag")).toBeNull();
+  });
+
   it("rejects a malformed body and a malformed If-Match as 400", async () => {
     const badJson = await mode().fetch(
       "/tenants/acme/scopes/ops/dashboards/fleet",

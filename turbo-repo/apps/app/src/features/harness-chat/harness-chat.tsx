@@ -26,6 +26,7 @@ import { SessionTitleWatcher } from "./components/session-title-watcher";
 import { HarnessModelProvider } from "./context/harness-model-context";
 import { HarnessReadOnlyProvider } from "./context/harness-read-only-context";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
+import { readActiveRun } from "./harness-active-run";
 import { createHarnessHistoryAdapter } from "./harness-history-adapter";
 import { HarnessRunAgent } from "./harness-run-agent";
 import {
@@ -147,6 +148,7 @@ const HarnessChatPanel: FC<{
   // Titles already written upstream. The watcher fires on every message
   // change; without this every one of them would be a PATCH.
   const persistedTitles = useRef(new Map<string, string>());
+  const openingSessionId = useRef(activeId);
 
   const mount = useCallback((id: string) => {
     setMountedIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
@@ -169,11 +171,17 @@ const HarnessChatPanel: FC<{
           return;
         }
         if (threads.length > 0) setSessions((prev) => mergeStoredThreads(prev, threads));
+        // A reload in the middle of a run reopens that chat, which then
+        // re-attaches to the run.
+        const running = threads.find((thread) => thread.owned && readActiveRun(thread.id));
+        if (!running) return;
+        mount(running.id);
+        setActiveId((current) => (current === openingSessionId.current ? running.id : current));
       })
       .finally(() => {
         if (!signal?.aborted) setIsLoadingHistory(false);
       });
-  }, []);
+  }, [mount]);
 
   useEffect(() => {
     const controller = new AbortController();

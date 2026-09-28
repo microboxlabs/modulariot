@@ -71,9 +71,14 @@ class RunDelegate(BaseModel):
 
 
 class RunUsage(BaseModel):
+    """`input_tokens` excludes the prompt read from or written to the cache,
+    which the cache fields count."""
+
     calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    cache_read_input_tokens: int = 0
+    cache_creation_input_tokens: int = 0
 
 
 class RunSummary(BaseModel):
@@ -109,6 +114,8 @@ def _usage(events: list[HarnessEvent]) -> RunUsage:
         usage.calls += 1
         usage.input_tokens += int(event.data.get("input_tokens") or 0)
         usage.output_tokens += int(event.data.get("output_tokens") or 0)
+        usage.cache_read_input_tokens += int(event.data.get("cache_read_input_tokens") or 0)
+        usage.cache_creation_input_tokens += int(event.data.get("cache_creation_input_tokens") or 0)
     return usage
 
 

@@ -5683,6 +5683,12 @@
         "copied": "Copiado",
         "download": "Descargar",
         "saveAsStory": "Guardar como historia",
+        "actualSizeInline": "Ver a tamaño real",
+        "zoomArea": "Diagrama: rueda o pellizco para acercar, arrastrar para mover, + - y 0 para ajustar",
+        "zoomIn": "Acercar",
+        "zoomOut": "Alejar",
+        "fit": "Ajustar a la ventana",
+        "actualSize": "Tamaño real (100 %)",
         "omitted": "Este resultado era demasiado grande para guardarlo en el historial de la conversación."
       },
       "showDashlet": {
@@ -5711,7 +5717,8 @@
         "copied": "Copiado",
         "unfinished": "Sin terminar",
         "noArguments": "Esta ejecución no guardó los argumentos.",
-        "tokens": "{input} tokens de entrada · {output} de salida"
+        "tokens": "{input} tokens de entrada · {output} de salida",
+        "tokensCached": "{input} tokens de entrada ({cached} en caché) · {output} de salida"
       },
       "jobs": {
         "open": "Actividad",

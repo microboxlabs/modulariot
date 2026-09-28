@@ -114,6 +114,9 @@ class HarnessSettings(BaseSettings):
     # the full user-facing answer and adaptive-thinking turns can exceed the
     # current hard 60s default. 300s (5 minutes) suits multi-step planning.
     agents_agent_loop_llm_timeout_seconds: int = Field(default=300, gt=0)
+    # On SIGTERM, how long in-flight runs get to finish before they are
+    # interrupted. The pod's terminationGracePeriodSeconds must exceed it.
+    shutdown_drain_seconds: float = Field(default=300, ge=0)
     # Conversation models a caller may pick for the agent loop
     # (`UserRequest.model`), as a JSON list in the env. The loop model is
     # always allowed and is the default. One runner, with its own prompt-cache

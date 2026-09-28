@@ -31,6 +31,7 @@ from miot_harness.agents.model_providers import (
 )
 from miot_harness.agents.thread_titler import build_thread_titler
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
+from miot_harness.api.drain import RunDrain, install_sigterm_drain
 from miot_harness.api.identity import (
     IdentityVerificationError,
     verify_signed_identity,
@@ -69,6 +70,9 @@ from miot_harness.runtime.supervisor import HarnessSupervisor
 from miot_harness.runtime.usage_report import UsageReporter
 
 logger = logging.getLogger(__name__)
+
+
+_DRAIN_RETRY_AFTER_SECONDS = 10
 
 
 def _configure_logging(settings: HarnessSettings) -> None:
@@ -175,6 +179,8 @@ def _make_lifespan(
         # /stream refuse a cross-tenant subscriber before the record
         # ever lands on disk.
         app.state.in_flight_tenants = {}
+        app.state.drain = RunDrain(app.state.in_flight, settings.shutdown_drain_seconds)
+        restore_sigterm = install_sigterm_drain(app.state.drain, asyncio.get_running_loop())
 
         # Auth (defense-in-depth behind the Quarkus proxy): instantiate
         # a JwksCache when enabled; require_auth reads it from
@@ -523,6 +529,11 @@ def _make_lifespan(
         try:
             yield
         finally:
+            # Runs still here were not drained (a signal other than SIGTERM):
+            # save them as interrupted rather than lose them.
+            await app.state.drain.interrupt_all()
+            if restore_sigterm is not None:
+                restore_sigterm()
             if refresh_task is not None:
                 refresh_task.cancel()
             if usage_reporter is not None:
@@ -871,12 +882,15 @@ def create_app() -> FastAPI:
         ]
         if settings.context_skills_strict and cs_errors:
             ready = False
-        if not ready:
+        status = "ready" if ready else "not_ready"
+        if _draining():
+            status = "draining"
+        if status != "ready":
             response.status_code = 503
         provider = getattr(app.state, "datasource_provider", None)
         ds_name = provider.profile.name if provider is not None else settings.datasource_kind
         return {
-            "status": "ready" if ready else "not_ready",
+            "status": status,
             "env": settings.env,
             "datasource": {
                 "name": ds_name,
@@ -890,6 +904,18 @@ def create_app() -> FastAPI:
             # `datasource` block above stays the single-connection contract.
             "connections": conns,
         }
+
+    def _draining() -> bool:
+        drain: RunDrain | None = getattr(app.state, "drain", None)
+        return drain is not None and drain.draining
+
+    def _refuse_while_draining() -> None:
+        if _draining():
+            raise HTTPException(
+                status_code=503,
+                detail="Harness is shutting down",
+                headers={"Retry-After": str(_DRAIN_RETRY_AFTER_SECONDS)},
+            )
 
     def _enforce_model_allowlist(request: UserRequest) -> None:
         if request.model is None:
@@ -940,6 +966,7 @@ def create_app() -> FastAPI:
         # Read harness from app.state so tests that patch it see their patch.
         # Explicit annotation narrows `app.state` (Any) for mypy.
         harness: HarnessSupervisor = app.state.harness
+        _refuse_while_draining()
         request = _resolve_request_identity(http_request, request)
         if debug:
             request = request.model_copy(update={"debug": True})
@@ -1021,6 +1048,7 @@ def create_app() -> FastAPI:
         debug: bool = Query(False),
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> dict[str, str]:
+        _refuse_while_draining()
         request = _resolve_request_identity(http_request, request)
         if debug:
             request = request.model_copy(update={"debug": True})

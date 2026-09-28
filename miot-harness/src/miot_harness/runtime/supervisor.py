@@ -285,19 +285,21 @@ class HarnessSupervisor:
                 turn_messages = await self._run_loop(
                     request, ctx, record, progress, prior_messages
                 )
-        except asyncio.CancelledError:
-            # POST /runs/{id}/cancel cancelled this task. Surface a
-            # terminal `run.failed` with `reason=cancelled` so SSE
-            # subscribers get an explicit terminator (not a silent close),
-            # persist the partial record, then re-raise so the asyncio
-            # task transitions to CANCELLED.
+        except asyncio.CancelledError as cancel:
+            # POST /runs/{id}/cancel cancelled this task, or shutdown
+            # interrupted it (`task.cancel("interrupted")`). Surface a
+            # terminal `run.failed` with the reason so SSE subscribers get
+            # an explicit terminator (not a silent close), persist the
+            # partial record, then re-raise so the asyncio task transitions
+            # to CANCELLED.
+            reason = "interrupted" if cancel.args == ("interrupted",) else "cancelled"
             record.status = "failed"
             progress(
                 HarnessEvent(
                     run_id=ctx.run_id,
                     type="run.failed",
-                    message="Run cancelled",
-                    data={"error": "cancelled", "reason": "cancelled"},
+                    message=f"Run {reason}",
+                    data={"error": reason, "reason": reason},
                 )
             )
             self._finalize_answer(record, ctx)

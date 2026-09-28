@@ -76,6 +76,8 @@ describe("mapRunActivity", () => {
           model: "m-large",
           input_tokens: 50,
           output_tokens: 5,
+          cache_read_input_tokens: 9_000,
+          cache_creation_input_tokens: 700,
         }),
         ev("run.completed", 42),
       ]),
@@ -85,7 +87,8 @@ describe("mapRunActivity", () => {
     expect(activity.stepCount).toBe(2);
     expect(activity.durationMs).toBe(42_000);
     expect(activity.usage).toEqual({
-      inputTokens: 150,
+      inputTokens: 9_850,
+      cachedInputTokens: 9_000,
       outputTokens: 25,
       models: ["m-large"],
     });

@@ -5683,6 +5683,12 @@
         "copied": "Copied",
         "download": "Download",
         "saveAsStory": "Save as story",
+        "actualSizeInline": "View at actual size",
+        "zoomArea": "Diagram: wheel or pinch to zoom, drag to pan, + - and 0 to fit",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "fit": "Fit to window",
+        "actualSize": "Actual size (100%)",
         "omitted": "This result was too large to keep in the conversation history."
       },
       "showDashlet": {
@@ -5711,7 +5717,8 @@
         "copied": "Copied",
         "unfinished": "Did not finish",
         "noArguments": "This run did not record its arguments.",
-        "tokens": "{input} input tokens · {output} output"
+        "tokens": "{input} input tokens · {output} output",
+        "tokensCached": "{input} input tokens ({cached} cached) · {output} output"
       },
       "jobs": {
         "open": "Activity",

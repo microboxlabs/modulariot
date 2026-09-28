@@ -714,3 +714,9 @@ finds it — and the conversion should be written against that example.
   and emits `from "sqlite"`, which fails to resolve. The guard rejects the
   static form because the tests import the TypeScript source and do not detect
   it.
+
+## Test coverage
+
+Run `npm run test:coverage` in this package to generate `coverage/lcov.info`
+and a coverage summary. The SonarCloud workflow runs both dashboard packages
+and imports these reports; LCOV paths are relative to the `turbo-repo` root.

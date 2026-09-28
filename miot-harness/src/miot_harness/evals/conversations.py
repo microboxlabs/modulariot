@@ -7,7 +7,7 @@ valid block array, and whether the sources it cites exist.
 
     uv run miot-harness-chat-evals --port 8010 --tenant-id "$TENANT"
 
-Cases live in `evals/conversations/cases.yaml`. Exit code 1 when any turn fails.
+Cases live in `chat_cases.yaml` next to this module. Exit code 1 when any turn fails.
 """
 
 from __future__ import annotations
@@ -29,7 +29,8 @@ from typing import Any
 import httpx
 import yaml
 
-DEFAULT_CASES = Path(__file__).resolve().parents[3] / "evals" / "conversations" / "cases.yaml"
+# Shipped inside the package so an installed entry point finds it.
+DEFAULT_CASES = Path(__file__).with_name("chat_cases.yaml")
 
 _LINK_RE = re.compile(r"https?://[^\s)\]>\"'`]+")
 # A block array written inside a markdown value: the model narrated and the

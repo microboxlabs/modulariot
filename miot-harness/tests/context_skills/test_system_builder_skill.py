@@ -25,6 +25,7 @@ from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.context_skills.skill_models import LoadedSkill, PlaybookSkill
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionDecision
+from miot_harness.tools.registry import build_default_registry
 
 _SKILLS_DIR = Path(context_skills_pkg.__file__).parent / "defaults" / "skills"
 URL = "https://api.example/api/v1/mcp"
@@ -155,3 +156,9 @@ async def test_reads_run_straight_away_and_writes_ask_first() -> None:
         skill, _ctx(), "connections_create", {"name": "Orders", "organization": "other"}
     )
     assert server.calls == [("connections_create", {"name": "Orders", "organization": "acme"})]
+
+
+def test_the_dashboard_guidance_names_the_tool_the_harness_offers() -> None:
+    body = (_SKILLS_DIR / "system-builder" / "SKILL.md").read_text()
+    assert "`dashboard_draft`" in body
+    assert "dashboard_draft" in build_default_registry().names()

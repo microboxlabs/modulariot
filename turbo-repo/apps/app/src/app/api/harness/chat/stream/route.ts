@@ -22,7 +22,7 @@ import {
   type AgUiMessage,
   type RunAgentInputBody,
 } from "./conversation";
-import { answerFromToolResult } from "./chat-answer";
+import { answerFromToolResult, dashletsInThread } from "./chat-answer";
 import { fetchThread, storedThreadModel } from "./thread-model";
 import {
   connectToHarness,
@@ -253,7 +253,10 @@ export type HarnessPathDecision =
   | { handled: true }
   | { handled: false; message: string; attachments?: Attachment[] };
 
-function toHarness(message: string, attachments: Attachment[]): HarnessPathDecision {
+function toHarness(
+  message: string,
+  attachments: Attachment[]
+): HarnessPathDecision {
   return attachments.length > 0
     ? { handled: false, message, attachments }
     : { handled: false, message };
@@ -460,6 +463,7 @@ async function run(
       signal: relay.signal,
       send,
       tr,
+      priorDashlets: dashletsInThread(messages),
     });
     if (!relayed.completed) return;
 

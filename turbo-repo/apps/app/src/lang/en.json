@@ -5689,6 +5689,20 @@
         "unknown": "Unknown dashlet: {id}",
         "unsupported": "{name} can't be shown in chat."
       },
+      "dashboardDraft": {
+        "title": "Dashboard draft",
+        "widgets": "{count} widgets",
+        "missing": "{count} widgets from earlier in this conversation are no longer available and were left out.",
+        "nameLabel": "Name",
+        "site": "Site: {site}",
+        "noSite": "Your user has no site, so the dashboard cannot be saved.",
+        "snapshot": "The dashboard keeps the data as shown here; it does not refresh.",
+        "create": "Create dashboard",
+        "creating": "Creating...",
+        "created": "Dashboard created",
+        "open": "Open dashboard",
+        "error": "The dashboard could not be created."
+      },
       "askUserQuestion": {
         "skipped": "Skipped — superseded by a later message.",
         "noAnswer": "(no answer)",

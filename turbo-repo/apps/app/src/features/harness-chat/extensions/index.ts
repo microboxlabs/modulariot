@@ -1,5 +1,6 @@
 import { askUserQuestionExtension } from "./ask-user-question";
 import { showArtifactExtension } from "./show-artifact";
+import { showDashboardDraftExtension } from "./show-dashboard-draft";
 import { showDashletExtension } from "./show-dashlet";
 import type { HarnessExtension } from "../harness-extension";
 
@@ -12,6 +13,7 @@ export const DEFAULT_HARNESS_EXTENSIONS: HarnessExtension[] = [
   askUserQuestionExtension,
   showDashletExtension,
   showArtifactExtension,
+  showDashboardDraftExtension,
 ];
 
 /**
@@ -23,6 +25,6 @@ export function resolveDefaultHarnessExtensions(opts: {
   storytellingEnabled: boolean;
 }): HarnessExtension[] {
   return DEFAULT_HARNESS_EXTENSIONS.filter(
-    (extension) => opts.storytellingEnabled || !extension.requiresStorytelling,
+    (extension) => opts.storytellingEnabled || !extension.requiresStorytelling
   );
 }

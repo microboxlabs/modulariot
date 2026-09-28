@@ -6,7 +6,10 @@ import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { twMerge } from "tailwind-merge";
 import { LuArrowLeft, LuHistory, LuPencil, LuPlus, LuSparkles, LuX } from "react-icons/lu";
 import { createHarnessAttachmentAdapter } from "./harness-chat-attachments";
-import { useHarnessChatContext } from "./context/harness-chat-context";
+import {
+  useHarnessChatContext,
+  type PendingAttachment,
+} from "./context/harness-chat-context";
 import {
   HarnessChatI18nProvider,
   useHarnessChatTr,
@@ -40,6 +43,7 @@ import {
   autoTitleThread,
   createThread,
   deleteThread,
+  getThread,
   forkThread,
   listThreads,
   renameThread,
@@ -126,7 +130,7 @@ const HarnessChatPanel: FC<{
   const tr = useHarnessChatTr();
   const runtimeConfig = useRuntimeConfig();
   // An explicit `extensions` prop wins; otherwise resolve the default set
-  // against runtime config so `create_story` isn't registered (and offered
+  // against runtime config so storytelling-only cards aren't registered (and offered
   // to the harness) while ENABLE_STORYTELLING is off. `null` config (still
   // loading) is treated as off, same as use-visible-pages.
   const resolvedExtensions = useMemo(
@@ -144,6 +148,8 @@ const HarnessChatPanel: FC<{
     clearPendingMessage,
     pendingAttachment,
     clearPendingAttachment,
+    pendingThreadId,
+    clearPendingThreadId,
   } = useHarnessChatContext();
   const { width, isDragging, startDrag, toggleMinMax, onHandleKeyDown, bounds } =
     useResizablePanelWidth();
@@ -244,6 +250,22 @@ const HarnessChatPanel: FC<{
     },
     [mount],
   );
+
+  // "Open conversation" from elsewhere in the app (a story's source thread).
+  // A thread the panel has not listed yet is read on its own and added.
+  useEffect(() => {
+    if (!pendingThreadId) return;
+    clearPendingThreadId();
+    if (sessions.some((s) => s.id === pendingThreadId)) {
+      selectSession(pendingThreadId);
+      return;
+    }
+    void getThread(pendingThreadId).then((thread) => {
+      if (!thread) return;
+      setSessions((prev) => (prev.some((s) => s.id === thread.id) ? prev : [toSession(thread), ...prev]));
+      selectSession(thread.id);
+    });
+  }, [pendingThreadId, clearPendingThreadId, sessions, selectSession]);
 
   const setSessionTitle = useCallback((id: string, title: string, titleEdited: boolean) => {
     titledIds.current.add(id);
@@ -535,7 +557,7 @@ const HarnessChatPanel: FC<{
               // Only the active session should receive it — every session's
               // SessionHost stays mounted (just hidden), so a session-agnostic
               // prop would add the same attachment to all of them at once.
-              pendingAttachmentLabel={session.id === activeId ? pendingAttachment : null}
+              pendingAttachment={session.id === activeId ? pendingAttachment : null}
               onAttachmentConsumed={clearPendingAttachment}
               onTitleChange={updateSessionTitle}
               onFirstExchange={autoTitleSession}
@@ -556,7 +578,7 @@ const SessionHost: FC<{
   active: boolean;
   shouldFocus: boolean;
   initialMessage: string | null;
-  pendingAttachmentLabel: string | null;
+  pendingAttachment: PendingAttachment | null;
   onAttachmentConsumed: () => void;
   onTitleChange: (id: string, title: string | null) => void;
   onFirstExchange: (id: string, exchange: FirstExchange) => void;
@@ -569,7 +591,7 @@ const SessionHost: FC<{
   active,
   shouldFocus,
   initialMessage,
-  pendingAttachmentLabel,
+  pendingAttachment,
   onAttachmentConsumed,
   onTitleChange,
   onFirstExchange,
@@ -671,7 +693,7 @@ const SessionHost: FC<{
               <ActiveRunResumer runtime={runtime} history={history} agent={agent} />
               <InitialMessageSender initialMessage={initialMessage} />
               <PendingAttachmentReceiver
-                label={pendingAttachmentLabel}
+                attachment={pendingAttachment}
                 onConsumed={onAttachmentConsumed}
               />
             </>

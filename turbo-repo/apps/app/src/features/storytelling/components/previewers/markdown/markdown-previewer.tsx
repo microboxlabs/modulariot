@@ -53,11 +53,8 @@ export const MERMAID_COMPONENTS: Components = {
   },
 };
 
-const base_path = process.env.NEXT_PUBLIC_BASE_PATH;
-export const MARKDOWN_PREVIEW_URL = `${base_path ?? ""}/api/storytelling/markdown-preview`;
-export const MARKDOWN_DOWNLOAD_FILENAME = "story.md";
-
 interface MarkdownPreviewerProps {
+  readonly content: string;
   readonly dict: I18nRecord;
   /** Lets the header know when the search box can accept input. */
   readonly onReadyChange?: (ready: boolean) => void;
@@ -68,7 +65,7 @@ interface TocEntry {
   readonly text: string;
 }
 
-/** Fetches the artifact's raw Markdown and renders it with the same
+/** Renders the story's Markdown with the same
  * MarkdownContent component the rest of the app already uses (dashboard
  * dashlets, settings fields) — not a separate renderer for this one case.
  * A side rail lists the document's headings (styled like the PDF
@@ -80,9 +77,7 @@ interface TocEntry {
  * so find-in-page just scopes dom-search.ts to this component's own
  * container instead of a foreign document. */
 export const MarkdownPreviewer = forwardRef<SearchableHandle, MarkdownPreviewerProps>(
-  function MarkdownPreviewer({ dict, onReadyChange }, ref) {
-    const [content, setContent] = useState<string | null>(null);
-    const [failed, setFailed] = useState(false);
+  function MarkdownPreviewer({ content, dict, onReadyChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const matchStateRef = useRef({ count: 0, current: -1 });
 
@@ -91,28 +86,8 @@ export const MarkdownPreviewer = forwardRef<SearchableHandle, MarkdownPreviewerP
     const [activeHeading, setActiveHeading] = useState(0);
 
     useEffect(() => {
-      let cancelled = false;
-      fetch(MARKDOWN_PREVIEW_URL)
-        .then((res) => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.text();
-        })
-        .then((text) => {
-          if (!cancelled) setContent(text);
-        })
-        .catch(() => {
-          if (!cancelled) setFailed(true);
-        });
-      return () => {
-        cancelled = true;
-      };
-    }, []);
-
-    useEffect(() => {
-      // Ready as soon as loading settles either way — a failed load still
-      // means there's nothing left to wait on.
-      if (content !== null || failed) onReadyChange?.(true);
-    }, [content, failed, onReadyChange]);
+      onReadyChange?.(true);
+    }, [onReadyChange]);
 
     // Build the outline from the headings MarkdownContent actually rendered
     // (once, right after they land in the DOM), then track which one the
@@ -121,7 +96,7 @@ export const MarkdownPreviewer = forwardRef<SearchableHandle, MarkdownPreviewerP
     // cover the most pixels.
     useEffect(() => {
       const container = containerRef.current;
-      if (content === null || !container) return;
+      if (!container) return;
 
       const headings = Array.from(
         container.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")
@@ -177,23 +152,6 @@ export const MarkdownPreviewer = forwardRef<SearchableHandle, MarkdownPreviewerP
       }),
       []
     );
-
-    if (failed) {
-      return (
-        <div className="flex h-full w-full items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-          {tr("detail.markdown.error", dict)}
-        </div>
-      );
-    }
-
-    if (content === null) {
-      return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-white dark:bg-gray-900">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500 dark:border-gray-700 dark:border-t-gray-400" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">{tr("detail.loading", dict)}</p>
-        </div>
-      );
-    }
 
     return (
       <div className="flex h-full w-full min-h-0 flex-1">

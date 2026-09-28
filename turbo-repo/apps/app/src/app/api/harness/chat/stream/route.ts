@@ -3,7 +3,6 @@ import type { Attachment, RunEffort } from "@microboxlabs/miot-harness-client";
 import { requireAuth } from "../../../utils/alfresco-crud-client";
 import { recordEpisode } from "../../../interactions/episodes/record-episode";
 import type { AskUserQuestionArgs } from "@/features/harness-chat/extensions/ask-user-question";
-import type { CreateStoryArgs } from "@/features/harness-chat/extensions/create-story";
 import type { ShowDashletArgs } from "@/features/harness-chat/extensions/show-dashlet";
 import {
   getAllDashlets,
@@ -60,13 +59,6 @@ function askUserQuestionToolCall(
 function showDashletToolCall(send: Sender, args: ShowDashletArgs): void {
   const toolCallId = crypto.randomUUID();
   send({ type: "TOOL_CALL_START", toolCallId, toolCallName: "show_dashlet" });
-  send({ type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) });
-  send({ type: "TOOL_CALL_END", toolCallId });
-}
-
-function createStoryToolCall(send: Sender, args: CreateStoryArgs): void {
-  const toolCallId = crypto.randomUUID();
-  send({ type: "TOOL_CALL_START", toolCallId, toolCallName: "create_story" });
   send({ type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) });
   send({ type: "TOOL_CALL_END", toolCallId });
 }
@@ -257,21 +249,6 @@ function demoShowDashlet(send: Sender, text: string, tr: TrFn): boolean {
   return true;
 }
 
-/** Demo trigger for the create_story human tool — makes a new /storytelling/{id}
- * entry "AI generated", entirely client-side (see create-story-card.tsx):
- * this route can't touch the browser's localStorage itself, so it only hands
- * the tool call a fresh id and lets the card do the actual creation. Nothing
- * renders in the chat for this one — that's the point (see CreateStoryCard). */
-function demoCreateStory(send: Sender, text: string): boolean {
-  // Needs an explicit creation verb before "story"/"stories" — "create a
-  // story", "make me a new story", etc. — so unrelated prompts that merely
-  // mention a story ("summarize user story 123") still reach the harness.
-  if (!/\b(?:create|make|generate|new|build)\b.*\bstor(?:y|ies)\b/i.test(text))
-    return false;
-  createStoryToolCall(send, { id: crypto.randomUUID().slice(0, 8) });
-  return true;
-}
-
 export type HarnessPathDecision =
   | { handled: true }
   | { handled: false; message: string; attachments?: Attachment[] };
@@ -333,23 +310,14 @@ export function decideHarnessPath(
     return { handled: true };
   }
 
-  // Both storytelling-related trigger words — "create a story" and "show
-  // all dashlets" — are testing scaffolding, gated the same as the
+  // The "show all dashlets" trigger word is testing scaffolding, gated the same as the
   // storytelling pages themselves (see ENABLE_STORYTELLING in
   // runtime-config.types.ts).
   const storytellingTestingEnabled = process.env.ENABLE_STORYTELLING === "true";
 
   if (!isModulithConfigured()) {
     // Demo triggers only ever run as a stand-in for the real harness — they
-    // must stay inside this branch. `demoCreateStory` used to run ahead of
-    // this check, so with the flag on, any real (configured-harness) turn
-    // that merely mentioned "story"/"stories" got hijacked into a fake
-    // create_story card instead of reaching the actual harness.
-    if (storytellingTestingEnabled && demoCreateStory(send, message)) {
-      send({ type: "RUN_FINISHED", runId, threadId });
-      return { handled: true };
-    }
-
+    // must stay inside this branch.
     if (demoAskUserQuestion(send, message, tr)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };

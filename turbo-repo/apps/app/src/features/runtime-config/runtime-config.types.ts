@@ -28,9 +28,8 @@ export interface RuntimeConfig {
   TASK_DRIVEN_ORIGINS: string;
   /**
    * If "true", the storytelling section (nav entry + /storytelling routes)
-   * is reachable and the chat's storytelling demo trigger words
-   * (create_story, "show all dashlets") fire. Anything else, including
-   * empty, keeps the whole thing off — testing-only until it's real.
+   * is reachable and the chat's "show all dashlets" demo trigger fires.
+   * Anything else, including empty, keeps it off.
    */
   ENABLE_STORYTELLING: string;
 }

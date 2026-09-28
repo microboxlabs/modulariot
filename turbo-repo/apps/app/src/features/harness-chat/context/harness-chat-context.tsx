@@ -23,11 +23,24 @@ interface HarnessChatContextProps {
    * Opens the panel and adds `label` as an attachment chip on the CURRENT
    * chat's composer — like attaching a file, not sending a message. The
    * user is left to write their own message around it (or remove it).
+   * `text` is what the attachment tells the assistant; it defaults to a
+   * reference to the component by its label.
    */
-  attachReference(label: string): void;
+  attachReference(label: string, text?: string): void;
   /** Set once by `attachReference`; consumed (and cleared) by HarnessChat. */
-  pendingAttachment: string | null;
+  pendingAttachment: PendingAttachment | null;
   clearPendingAttachment(): void;
+  /** Opens the panel on a stored thread, loading it if the panel does not
+   * have it yet. */
+  openThread(threadId: string): void;
+  /** Set once by `openThread`; consumed (and cleared) by HarnessChat. */
+  pendingThreadId: string | null;
+  clearPendingThreadId(): void;
+}
+
+export interface PendingAttachment {
+  readonly label: string;
+  readonly text?: string;
 }
 
 const HarnessChatContext = createContext<HarnessChatContextProps | null>(
@@ -37,7 +50,8 @@ const HarnessChatContext = createContext<HarnessChatContextProps | null>(
 export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
   const [isOpen, setIsOpen] = useState(true);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
-  const [pendingAttachment, setPendingAttachment] = useState<string | null>(null);
+  const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
+  const [pendingThreadId, setPendingThreadId] = useState<string | null>(null);
 
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);
@@ -47,11 +61,16 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
     setPendingMessage(text);
   }, []);
   const clearPendingMessage = useCallback(() => setPendingMessage(null), []);
-  const attachReference = useCallback((label: string) => {
+  const attachReference = useCallback((label: string, text?: string) => {
     setIsOpen(true);
-    setPendingAttachment(label);
+    setPendingAttachment({ label, text });
   }, []);
   const clearPendingAttachment = useCallback(() => setPendingAttachment(null), []);
+  const openThread = useCallback((threadId: string) => {
+    setIsOpen(true);
+    setPendingThreadId(threadId);
+  }, []);
+  const clearPendingThreadId = useCallback(() => setPendingThreadId(null), []);
 
   const value = useMemo<HarnessChatContextProps>(
     () => ({
@@ -65,6 +84,9 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
       attachReference,
       pendingAttachment,
       clearPendingAttachment,
+      openThread,
+      pendingThreadId,
+      clearPendingThreadId,
     }),
     [
       isOpen,
@@ -77,6 +99,9 @@ export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
       attachReference,
       pendingAttachment,
       clearPendingAttachment,
+      openThread,
+      pendingThreadId,
+      clearPendingThreadId,
     ]
   );
 

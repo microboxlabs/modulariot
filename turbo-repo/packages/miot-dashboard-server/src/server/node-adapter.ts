@@ -7,6 +7,7 @@
  * without either knowing about the other.
  */
 
+import { DEFAULT_MAX_BODY_BYTES } from "../http/read-json";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { DashboardServerError, toErrorEnvelope } from "../access/errors";
 import type { DashboardHandler } from "../http/handler";
@@ -20,7 +21,7 @@ import type { DashboardHandler } from "../http/handler";
  * body grows the chunk array until the process dies, and every other tenant
  * goes down with it. 1 MiB is far above any real dashboard document.
  */
-export const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
+export { DEFAULT_MAX_BODY_BYTES } from "../http/read-json";
 
 /**
  * Read the whole body, refusing one that is too large.

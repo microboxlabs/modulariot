@@ -19,6 +19,7 @@
  * it returns, which already carries the loaded record.
  */
 
+import { DEFAULT_MAX_BODY_BYTES, readJsonBody } from "./read-json";
 import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
 import {
   createAccessControl,
@@ -61,6 +62,8 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    */
   basePath?: string;
   cors?: CorsOptions;
+  /** Maximum JSON body bytes in embedded and standalone handlers; default 1 MiB. */
+  maxBodyBytes?: number;
   /** Omit it and the datasource routes answer 404. */
   dataSources?: DataSourceStore;
   /**
@@ -100,6 +103,11 @@ export type DashboardHandler = (request: Request) => Promise<Response>;
 export function createDashboardHandler(
   options: DashboardHandlerOptions,
 ): DashboardHandler {
+  const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+  if (!Number.isSafeInteger(maxBodyBytes) || maxBodyBytes < 1) {
+    throw new TypeError("maxBodyBytes must be a positive safe integer");
+  }
+  const readBody = (request: Request) => readJsonBody(request, maxBodyBytes);
   const access = createAccessControl<Request>(options);
 
   /**
@@ -195,7 +203,7 @@ export function createDashboardHandler(
           slug,
           action: "dashboard.save",
         });
-        const config = await readJsonBody(request);
+        const config = await readBody(request);
         requireValidConfig(config);
         const expectedRevision = readExpectedRevision(request);
         const saved = await options.store.save(
@@ -265,7 +273,7 @@ export function createDashboardHandler(
           slug,
           action: "dashboard.permissions.write",
         });
-        const assignments = parseAssignments(await readJsonBody(request));
+        const assignments = parseAssignments(await readBody(request));
         await options.store.setPermissions(
           refOf(decision.identity.tenantId, match.scopeId, slug),
           assignments,
@@ -293,7 +301,7 @@ export function createDashboardHandler(
           scopeId: match.scopeId,
           action: "datasource.write",
         });
-        const input = parseDataSourceInput(await readJsonBody(request));
+        const input = parseDataSourceInput(await readBody(request));
         const id = crypto.randomUUID();
         const data = await store.put(decision.identity.tenantId, id, input);
         return jsonResponse({ data }, 201);
@@ -310,7 +318,7 @@ export function createDashboardHandler(
         scopeId: match.scopeId,
         action: "datasource.write",
       });
-      const input = parseDataSourceTestInput(await readJsonBody(request));
+      const input = parseDataSourceTestInput(await readBody(request));
       if (
         input.credential !== undefined &&
         input.datasource.credentialRef !== undefined
@@ -371,7 +379,7 @@ export function createDashboardHandler(
           scopeId: match.scopeId,
           action: "datasource.write",
         });
-        const input = parseDataSourceInput(await readJsonBody(request));
+        const input = parseDataSourceInput(await readBody(request));
         const data = await store.put(decision.identity.tenantId, id, input);
         return jsonResponse({ data });
       }
@@ -425,7 +433,7 @@ export function createDashboardHandler(
           scopeId: match.scopeId,
           action: "datasource.write",
         });
-        const input = parseCredentialInput(await readJsonBody(request));
+        const input = parseCredentialInput(await readBody(request));
         // The response is the summary. Echoing the input back would put
         // the secret in a response body.
         const data = await vault.putCredential(
@@ -569,14 +577,6 @@ function stripBasePath(pathname: string, basePath: string): string | null {
     return pathname.slice(basePath.length);
   }
   return null;
-}
-
-async function readJsonBody(request: Request): Promise<unknown> {
-  try {
-    return (await request.json()) as unknown;
-  } catch {
-    throw DashboardServerError.badRequest("Request body must be valid JSON");
-  }
 }
 
 /** How many faults a refusal names before it just counts the rest. */

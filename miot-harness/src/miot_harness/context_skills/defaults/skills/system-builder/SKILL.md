@@ -39,8 +39,10 @@ refuses, say so and stop.
 3. `connections_create` with `templateId`, `name`, `baseUrl` and
    `credentialProfileId`. `metadata` takes only non-secret settings the
    template needs.
-4. `connections_test` right after. Report the result in one line; on a
-   failure, give the message and what to check (URL, credential, network).
+4. `connections_test` right after. Report the result and its message in
+   one line: some providers are only checked for valid settings, not
+   called, and the message says so. On a failure, say what to check (URL,
+   credential, network).
 
 Do not create a second connection for the same system to work around a
 failed test; fix the first one or ask the user.

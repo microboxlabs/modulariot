@@ -11,6 +11,7 @@ import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestResponse;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
+import com.microboxlabs.miot.integrations.net.OutboundUrlGuard;
 import com.microboxlabs.miot.integrations.service.CredentialProfileService;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
 import com.microboxlabs.miot.integrations.service.IntegrationTemplateService;
@@ -65,7 +66,7 @@ public class ConnectionTools {
     }
 
     public record CredentialRef(String id, String displayName, CredentialType credentialType,
-            String environment, String summary) {
+            String environment) {
     }
 
     public record Templates(List<IntegrationTemplate> templates, List<CredentialRef> credentials) {
@@ -162,8 +163,10 @@ public class ConnectionTools {
     }
 
     @Tool(name = "connections_test", structuredContent = true,
-            description = "Checks that a connection reaches its system with its credential, and records the"
-                    + " result as the connection's status. Needs an organization owner.",
+            description = "Checks a connection and records the result as its status. Providers with a live"
+                    + " probe call the system with the connection's credential; the others only check the"
+                    + " connection's settings, without calling it. The base URL must resolve to a public"
+                    + " address. Needs an organization owner.",
             annotations = @Tool.Annotations(title = "Test a connection", readOnlyHint = false,
                     destructiveHint = false, idempotentHint = true, openWorldHint = true))
     public Uni<ConnectionTestResponse> test(
@@ -174,7 +177,7 @@ public class ConnectionTools {
             @ToolArg(description = "Path of the probe, relative to the base URL; the provider's default when"
                     + " not given.", required = false) String path) {
         return caller.owner(organization).flatMap(in -> work(() -> {
-            existing(in.tenantCode(), connectionId);
+            OutboundUrlGuard.requirePublicHttpUrl(existing(in.tenantCode(), connectionId).baseUrl(), "baseUrl");
             return connections.testConnection(in.tenantCode(), connectionId,
                     new ConnectionTestRequest(method, path));
         }));
@@ -201,7 +204,7 @@ public class ConnectionTools {
     }
 
     private static CredentialRef ref(CredentialProfileResponse c) {
-        return new CredentialRef(c.id(), c.displayName(), c.credentialType(), c.environment(), c.summary());
+        return new CredentialRef(c.id(), c.displayName(), c.credentialType(), c.environment());
     }
 
     /** A copy with the values of secret-looking keys replaced, at any depth. */
@@ -252,6 +255,9 @@ public class ConnectionTools {
             URI uri = new URI(value.trim());
             if (uri.getHost() == null || !("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))) {
                 throw new IllegalArgumentException("baseUrl must be an absolute http(s) URL");
+            }
+            if (uri.getUserInfo() != null) {
+                throw new IllegalArgumentException("baseUrl must not carry a user or password; use a credential");
             }
             return uri;
         } catch (URISyntaxException e) {

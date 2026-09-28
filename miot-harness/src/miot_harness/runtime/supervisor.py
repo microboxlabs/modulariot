@@ -39,6 +39,11 @@ from miot_harness.runtime.conversation import (
     history_tokens,
     to_messages,
 )
+from miot_harness.runtime.conversation_backend import (
+    ConversationBackend,
+    doc_to_history,
+    history_to_doc,
+)
 from miot_harness.runtime.conversation_policy import ConversationPolicyStore
 from miot_harness.runtime.event_bus import RunEventBus
 from miot_harness.runtime.events import HarnessEvent
@@ -147,6 +152,11 @@ class HarnessSupervisor:
         self.conversation_store = conversation_store
         self.conversation_tool_token_budget = conversation_tool_token_budget
         self.conversation_summarizer = conversation_summarizer
+        # Saves each conversation after a run and loads one this process does
+        # not hold; set by the lifespan when the modulith is configured.
+        self.conversation_backend: ConversationBackend | None = None
+        # The save in flight per conversation, so saves land in order.
+        self._saves: dict[str, asyncio.Task[None]] = {}
         self.tenant_lock = tenant_lock
         self.event_bus = event_bus
         self.checkpoint_every_n_events = checkpoint_every_n_events
@@ -237,6 +247,7 @@ class HarnessSupervisor:
         # reset a history a concurrent run has appended to meanwhile. Hold a
         # snapshot, so a run in the same conversation finishing while this one
         # awaits cannot slip its turn into this request's prior context.
+        await self._load_saved(request, ctx)
         history = _snapshot(self._seeded_history(request, ctx))
 
         # `/compact` and `/context` are answered here, without the agent
@@ -332,6 +343,7 @@ class HarnessSupervisor:
             history = self.conversation_store.get(conversation_key)
             record.conversation_summary = history.summary if history else None
 
+        self._save_later(request, ctx)
         record.status = "completed"
         progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
         self._finalize_answer(record, ctx)
@@ -449,6 +461,66 @@ class HarnessSupervisor:
             ),
             **parts,
         }
+
+    async def _load_saved(self, request: UserRequest, ctx: HarnessContext) -> None:
+        """Load a conversation this process does not hold from the backend.
+
+        A restart or deploy empties the in-memory store; the saved copy has
+        every turn with its tool calls and results, which the caller's text
+        replay does not. A failed load leaves the replay to seed as before.
+        """
+        key = self._conversation_key(request, ctx)
+        store, backend = self.conversation_store, self.conversation_backend
+        if key is None or store is None or backend is None or store.get(key) is not None:
+            return
+        try:
+            doc = await backend.load(key)
+        except Exception:  # noqa: BLE001 — memory upkeep must not fail the run
+            logger.warning("Could not load the saved conversation; using the replay", exc_info=True)
+            return
+        if doc is not None and store.get(key) is None:
+            store.seed(doc_to_history(key, doc))
+
+    def _save_later(self, request: UserRequest, ctx: HarnessContext) -> None:
+        """Save the conversation in the background, after any save still in
+        flight for it, so the answer is not held up and saves land in order."""
+        key = self._conversation_key(request, ctx)
+        store, backend = self.conversation_store, self.conversation_backend
+        if key is None or store is None or backend is None:
+            return
+        history = store.get(key)
+        if history is None:
+            return
+        doc = history_to_doc(history)
+        default_model = getattr(self.agent_loop, "default_model", None)
+        meta = {
+            "tenantId": ctx.tenant_id,
+            "userId": ctx.user_id,
+            "conversationId": request.conversation_id,
+            "model": ctx.model or default_model,
+        }
+        previous = self._saves.get(key)
+
+        async def save() -> None:
+            if previous is not None:
+                await asyncio.gather(previous, return_exceptions=True)
+            try:
+                await backend.save(key, doc, meta=meta)
+            except Exception:  # noqa: BLE001 — memory upkeep must not fail the run
+                logger.warning("Could not save the conversation", exc_info=True)
+
+        task = asyncio.get_running_loop().create_task(save())
+        self._saves[key] = task
+
+        def forget(done: asyncio.Task[None]) -> None:
+            if self._saves.get(key) is done:
+                del self._saves[key]
+
+        task.add_done_callback(forget)
+
+    async def drain_saves(self) -> None:
+        """Wait for saves still in flight, for shutdown."""
+        await asyncio.gather(*self._saves.values(), return_exceptions=True)
 
     def _report_usage(self, record: HarnessRunRecord, ctx: HarnessContext) -> None:
         if self.usage_reporter is None:

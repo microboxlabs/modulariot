@@ -2,10 +2,11 @@
 
 When a human approves a learned business fact, the harness persists it as a
 connection-scoped authored card in `<connection dir>/knowledge/<id>.md` — the
-same directory + frontmatter format that `load_connection_cards` reads back, so
-the very NEXT run grounds on it. This module is the inverse of
-`_parse_connection_card` and the ONLY place that renders that file, so the two
-stay in lock-step (a round-trip test pins them together).
+same directory + frontmatter format that `load_connection_cards` reads back.
+Cards are read per run and per tool call, so the next run grounds on it. This
+module is the inverse of `_parse_connection_card` and the ONLY place that
+renders that file, so the two stay in lock-step (a round-trip test pins them
+together).
 
 Secret-safe by construction: a card records the MEANING of a business term
 (e.g. which `task_def_key`s count as "entregas"), never row-level secret
@@ -13,7 +14,8 @@ values — the invariant the human gate enforces upstream.
 
 Versioned for rollback: overwriting a card first snapshots the prior version
 into a sibling `.history/<id>/NNNN.md` stack, so a bad promotion is reverted in
-one step (`revert_connection_card`). History lives under a dot-dir, so the
+one step (`revert_connection_card`). Deleting a card snapshots it the same way,
+so a delete is revertible too. History lives under a dot-dir, so the
 loader's `*.md` glob never serves a superseded version as knowledge.
 """
 
@@ -189,3 +191,17 @@ def revert_connection_card(cards_dir: Path, card_id: str) -> Path | None:
     path.write_text(latest.read_text(encoding="utf-8"), encoding="utf-8")
     latest.unlink()
     return path
+
+
+def delete_connection_card(cards_dir: Path, card_id: str) -> bool:
+    """Remove a live card, keeping its current version on the history stack so
+    `revert_connection_card` can restore it. False when there is no such card."""
+    stem = slug_card_id(card_id)
+    if not stem:
+        return False
+    path = cards_dir / f"{stem}.md"
+    if not path.is_file():
+        return False
+    _snapshot(_history_dir(cards_dir, stem), path.read_text(encoding="utf-8"))
+    path.unlink()
+    return True

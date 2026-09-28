@@ -19,6 +19,7 @@ from langchain_core.messages.utils import count_tokens_approximately
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.context_skills.skill_models import PlaybookSkill
+from miot_harness.datasource.knowledge.learned import LearnedFacts
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.answer_contract import (
@@ -170,6 +171,9 @@ class HarnessSupervisor:
         # Set by the lifespan after the context/skills boot; None when the
         # subsystem is disabled or failed to load.
         self.context_skills: ContextSkillsBundle | None = None
+        # Approved authored knowledge cards, rendered per run; set by the
+        # lifespan when a connection has an authored-cards dir.
+        self.learned_facts: LearnedFacts | None = None
         # The primary connection's name (e.g. "acs"), stamped onto assumptions
         # so the review surface stages a candidate against the right connection.
         self.primary_connection_name: str | None = None
@@ -284,6 +288,7 @@ class HarnessSupervisor:
                 )
                 prior_messages = self._project_history(history)
                 prior_messages = self._inject_tenant_context(ctx, prior_messages)
+                prior_messages = self._inject_learned_facts(ctx, prior_messages)
                 prior_messages = await self._inject_skill(request, ctx, prior_messages)
                 prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
             logger.info(
@@ -651,6 +656,17 @@ class HarnessSupervisor:
         if not blocks:
             return prior_messages
         return [SystemMessage(content="\n\n".join(blocks)), *prior_messages]
+
+    def _inject_learned_facts(
+        self, ctx: HarnessContext, prior_messages: list[BaseMessage]
+    ) -> list[BaseMessage]:
+        """Prepend the approved authored cards this tenant may use. Like the
+        tenant context, it rides in the user turn, not the cached system prompt."""
+
+        block = self.learned_facts.render(ctx.tenant_id) if self.learned_facts else None
+        if not block:
+            return prior_messages
+        return [SystemMessage(content=block), *prior_messages]
 
     def _indexed_skills(self) -> set[tuple[str, str]]:
         """(fact name, body) of the skills the loop's system prompt already

@@ -9,6 +9,7 @@ model is given them.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -200,14 +201,18 @@ def build_generic_tools(
     explain_cost_threshold: float,
     statement_timeout_ms: int,
     knowledge_cards: list[KnowledgeCard] | None = None,
+    authored_cards: Callable[[], Sequence[KnowledgeCard]] | None = None,
     call_security_definer: bool = False,
     workspace_dir: Path | None = None,
     workflow_schema: str | None = None,
 ) -> list[HarnessTool[Any, Any]]:
     """Build the generic safe-query primitives as registrable HarnessTools.
 
-    When `knowledge_cards` is non-empty (a knowledge pack matched the schema), a
-    `<prefix>knowledge` tool is added so the agent can open card bodies on demand.
+    When `knowledge_cards` is non-empty (a knowledge pack matched the schema) or
+    `authored_cards` is given, a `<prefix>knowledge` tool is added so the agent
+    can open card bodies on demand. `authored_cards` is called on every tool
+    call, so a card written after boot is served without a restart; an authored
+    card overrides a pack card of the same id.
     `workflow_schema` names the schema holding BPMN engine tables; when set, a
     `<prefix>workflow` tool is added.
     """
@@ -415,8 +420,11 @@ def build_generic_tools(
     async def call_knowledge(
         ctx: HarnessContext, parsed: _KnowledgeInput, progress: Progress
     ) -> _KnowledgeOutput:
-        available = [{"card": c.id, "title": c.title} for c in cards_by_id.values()]
-        card = cards_by_id.get(parsed.card)
+        cards = dict(cards_by_id)
+        if authored_cards is not None:
+            cards.update((c.id, c) for c in authored_cards())
+        available = [{"card": c.id, "title": c.title} for c in cards.values()]
+        card = cards.get(parsed.card)
         if card is None:
             return _KnowledgeOutput(available=available, source=source_label)
         return _KnowledgeOutput(
@@ -588,15 +596,23 @@ def build_generic_tools(
     tools.extend(build_workspace_tools(env))
     if workflow_schema is not None:
         tools.append(build_workflow_tool(env, workflow_schema))
-    if cards_by_id:
+    if cards_by_id or authored_cards is not None:
+        # Static on purpose: tool descriptions are part of the cached prompt
+        # prefix, so authored card titles are listed by the call, not here.
         titles = "; ".join(f"{c.id}: {c.title}" for c in cards_by_id.values())
+        description = (
+            "Open a knowledge card for this connection (call with a card id; "
+            "empty lists them). "
+        )
+        if titles:
+            description += f"Product cards: {titles}. "
+        if authored_cards is not None:
+            description += "Also holds facts taught by this organization's trainers. "
         tools.append(
             HarnessTool(
                 name=f"{tool_prefix}knowledge",
                 description=(
-                    "Open a curated knowledge card for this connection's product "
-                    f"(call with a card id; empty lists them). Cards: {titles}. "
-                    "Read the relevant card before writing non-obvious queries."
+                    description + "Read the relevant card before writing non-obvious queries."
                 ),
                 input_model=_KnowledgeInput,
                 output_model=_KnowledgeOutput,

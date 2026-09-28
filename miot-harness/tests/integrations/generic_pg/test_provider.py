@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from miot_harness.config import HarnessSettings
 from miot_harness.connections.models import Connection
+from miot_harness.datasource.knowledge.writer import (
+    ConnectionCardWrite,
+    delete_connection_card,
+    write_connection_card,
+)
 from miot_harness.integrations.generic_pg.provider import GenericPgProvider
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.tools.registry import ToolRegistry
@@ -387,3 +393,35 @@ async def test_describe_filters_fk_references_outside_allowlist(
     )
     refs = [fk["references"] for fk in out.foreign_keys]
     assert refs == ["acs.act_ru_execution.id_"]  # public.users.id filtered out
+
+
+@pytest.mark.asyncio
+async def test_authored_cards_are_read_per_call_without_restart(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    pool = RecordingPool(responder=_responder)
+    monkeypatch.setattr(
+        "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+        AsyncMock(return_value=pool),
+    )
+    conn_md = tmp_path / "connection.md"
+    conn_md.write_text("---\nname: acs\n---\n", encoding="utf-8")
+    registry = ToolRegistry()
+    await GenericPgProvider().boot(registry, _enabled(), _conn(source_path=str(conn_md)))
+    # No pack and no card at boot: the tool is still there for the first card.
+    assert "acs_knowledge" in registry.names()
+    tool = registry.get("acs_knowledge")
+    ctx = HarnessContext(thread_id="t", tenant_id="demo", user_id="u")
+    assert (await tool.invoke(ctx, {"card": ""}, lambda _e: None)).available == []
+
+    cards_dir = tmp_path / "knowledge"
+    write_connection_card(
+        cards_dir, ConnectionCardWrite(term="current process", body="Only v2 is current.")
+    )
+    out = await tool.invoke(ctx, {"card": "current-process"}, lambda _e: None)
+    assert out.body == "Only v2 is current."
+
+    assert delete_connection_card(cards_dir, "current-process")
+    out = await tool.invoke(ctx, {"card": "current-process"}, lambda _e: None)
+    assert out.body == ""
+    assert out.available == []

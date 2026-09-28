@@ -21,6 +21,7 @@ connection-scoped, in a later phase).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,7 @@ class KnowledgeCard:
     status: str = "approved"  # staged | approved
     confidence: float | None = None
     source: str = "pack"      # pack | connection (which tier authored it)
+    updated_at: datetime | None = None  # authored cards: the file's mtime
 
 
 @dataclass(frozen=True)

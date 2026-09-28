@@ -211,10 +211,14 @@ class HarnessSettings(BaseSettings):
     # Connection-scoped AUTHORED cards (semantic-layer continual learning): per
     # `pg` connection, markdown cards (one fact per file) under
     # `<connection dir>/knowledge/*.md` are merged into that connection's
-    # `<prefix>knowledge` tool, overriding a pack card of the same id. Loaded
-    # independently of pack fingerprinting (a learned business definition is not
-    # a product-schema fact); kill switch mirrors the packs flag.
+    # `<prefix>knowledge` tool, overriding a pack card of the same id, and
+    # rendered into each run's "Learned facts" block. Read from disk per run and
+    # per tool call, so a new card needs no restart. Loaded independently of
+    # pack fingerprinting; kill switch mirrors the packs flag.
     generic_connection_cards_enabled: bool = True
+    # Characters of full card bodies in the "Learned facts" block; cards past
+    # the budget are listed by title only.
+    learned_facts_char_budget: int = Field(default=6000, ge=0)
     # Background knowledge distiller (semantic-layer continual learning, R3): a
     # reflector that reads interaction episodes OFF the request hot path and
     # distills recurring ungrounded business terms into human-gated candidate

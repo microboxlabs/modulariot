@@ -53,7 +53,8 @@ async def _call(tool: Any, ctx: HarnessContext, **args: Any) -> Any:
 
 def test_no_workspace_means_no_memory_or_analysis_tools() -> None:
     names = set(_tools(_pool(), None))
-    assert "fleet_memory" not in names and "fleet_analysis" not in names
+    assert "fleet_memory" not in names
+    assert "fleet_analysis" not in names
 
 
 @pytest.mark.asyncio
@@ -110,13 +111,8 @@ async def test_save_tests_the_query_then_run_and_show_reuse_it(tmp_path: Path) -
 @pytest.mark.asyncio
 async def test_a_query_that_fails_is_not_saved(tmp_path: Path) -> None:
     tools = _tools(_pool(), tmp_path)
+    analysis, ctx = tools["fleet_analysis"], _ctx()
+    params = analysis.input_model(action="save", name="bad", sql="DELETE FROM ops.trips")
     with pytest.raises(MutationRejected):
-        await _call(
-            tools["fleet_analysis"],
-            _ctx(),
-            action="save",
-            name="bad",
-            sql="DELETE FROM ops.trips",
-            params=[],
-        )
+        await analysis.call(ctx, params, lambda e: None)
     assert (await _call(tools["fleet_analysis"], _ctx(), action="list")).analyses == []

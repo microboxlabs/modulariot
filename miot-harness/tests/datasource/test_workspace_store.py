@@ -123,4 +123,6 @@ def test_colons_in_strings_comments_and_dollar_quotes_are_not_parameters() -> No
     bound = ws.bind(sql, [{"name": "year", "type": "int"}], {"year": 2026})
     assert bound.startswith("SELECT ':year' AS label")
     assert bound.endswith("WHERE y = 2026")
-    assert "-- :note" in bound and "/* :old */" in bound and "$$ :x $$" in bound
+    assert "-- :note" in bound
+    assert "/* :old */" in bound
+    assert "$$ :x $$" in bound

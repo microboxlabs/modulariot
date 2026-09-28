@@ -4,6 +4,8 @@
  * is matched on its primitive suffix; anything unknown keeps its raw name.
  */
 
+import type { TrFn } from "@/features/i18n/i18n.service.types";
+
 export const STEP_KEYS = [
   "list_tables",
   "describe",
@@ -37,7 +39,7 @@ export function stepKeyOf(tool: string): StepKey | null {
   return STEP_KEYS.find((key) => tool.endsWith(`_${key}`)) ?? null;
 }
 
-export function stepLabel(tool: string, tr: (key: string) => string): string {
+export function stepLabel(tool: string, tr: TrFn): string {
   const key = stepKeyOf(tool);
   return key ? tr(`harnessChat.stream.steps.${key}`) : tool;
 }

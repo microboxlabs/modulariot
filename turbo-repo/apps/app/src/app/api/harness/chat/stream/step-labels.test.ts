@@ -10,11 +10,11 @@ describe("step labels", () => {
   });
 
   it("keeps the raw name for a tool it does not know", () => {
-    expect(stepLabel("fs_read", (k) => k)).toBe("fs_read");
+    expect(stepLabel("fs_read", ((k: string) => k) as never)).toBe("fs_read");
   });
 
   it("reads the label from the dictionary", () => {
-    expect(stepLabel("acs_show", (k) => `[${k}]`)).toBe(
+    expect(stepLabel("acs_show", ((k: string) => `[${k}]`) as never)).toBe(
       "[harnessChat.stream.steps.show]"
     );
   });

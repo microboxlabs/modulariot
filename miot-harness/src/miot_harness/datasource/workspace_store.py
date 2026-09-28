@@ -235,35 +235,42 @@ def validate_params(params: list[dict[str, Any]], sql: str) -> list[dict[str, An
     return clean
 
 
+def _is_date(text: str) -> bool:
+    try:
+        date.fromisoformat(text)
+    except ValueError:
+        return False
+    return True
+
+
+def _is_timestamp(text: str) -> bool:
+    try:
+        datetime.fromisoformat(text)
+    except ValueError:
+        return False
+    return True
+
+
+# type -> (accepts the text, renders it as SQL, what the error calls it)
+_LITERALS: dict[str, tuple[Any, Any, str]] = {
+    "int": (lambda t: bool(_INT_RE.match(t)), lambda t: t, "an integer"),
+    "numeric": (lambda t: bool(_NUMERIC_RE.match(t)), lambda t: t, "a number"),
+    "bool": (lambda t: t.lower() in ("true", "false"), lambda t: t.upper(), "true or false"),
+    "date": (_is_date, lambda t: f"DATE '{t}'", "a date (YYYY-MM-DD)"),
+    "timestamptz": (_is_timestamp, lambda t: f"TIMESTAMPTZ '{t}'", "an ISO timestamp"),
+    "text": (lambda t: True, lambda t: "'" + t.replace("'", "''") + "'", "text"),
+}
+
+
 def _literal(kind: str, value: Any, name: str) -> str:
     if value is None:
         return "NULL"
     text = str(value).strip()
-    if kind == "int":
-        if not _INT_RE.match(text):
-            raise ValueError(f"parameter {name}: {value!r} is not an integer")
-        return text
-    if kind == "numeric":
-        if not _NUMERIC_RE.match(text):
-            raise ValueError(f"parameter {name}: {value!r} is not a number")
-        return text
-    if kind == "bool":
-        if text.lower() not in ("true", "false"):
-            raise ValueError(f"parameter {name}: {value!r} is not true or false")
-        return text.upper()
-    if kind == "date":
-        try:
-            date.fromisoformat(text)
-        except ValueError as exc:
-            raise ValueError(f"parameter {name}: {value!r} is not a date (YYYY-MM-DD)") from exc
-        return f"DATE '{text}'"
-    if kind == "timestamptz":
-        try:
-            datetime.fromisoformat(text)
-        except ValueError as exc:
-            raise ValueError(f"parameter {name}: {value!r} is not an ISO timestamp") from exc
-        return f"TIMESTAMPTZ '{text}'"
-    return "'" + text.replace("'", "''") + "'"
+    accepts, render, expected = _LITERALS.get(kind, _LITERALS["text"])
+    if not accepts(text):
+        raise ValueError(f"parameter {name}: {value!r} is not {expected}")
+    rendered: str = render(text)
+    return rendered
 
 
 def bind(sql: str, params: list[dict[str, Any]], args: dict[str, Any]) -> str:

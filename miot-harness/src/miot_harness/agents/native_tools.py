@@ -41,31 +41,49 @@ def build_native_tools(
     return tools
 
 
-_NAME_MAPS = ("properties", "$defs", "definitions")
+_NAME_MAPS = ("$defs", "definitions")
+_DATA_KEYWORDS = ("default", "examples", "const", "enum")
 _NULL = {"type": "null"}
 
 
 def compact_schema(node: Any) -> Any:
     """`node` without `title` keywords, `default: null`, or the null branch of
-    a two-way `anyOf`: pydantic output the model does not need, about a sixth
-    of the tool tokens. The pydantic input model still validates, and still
-    accepts an explicit null."""
+    an optional property's two-way `anyOf`: pydantic output the model does not
+    need, about a sixth of the tool tokens. The pydantic input model still
+    validates, and still accepts an explicit null. A required property keeps
+    its null branch, and defaults and examples are data, left as they are."""
     if isinstance(node, list):
         return [compact_schema(item) for item in node]
     if not isinstance(node, dict):
         return node
+    required = set(node.get("required") or ())
     out: dict[str, Any] = {}
     for key, value in node.items():
-        if key in _NAME_MAPS and isinstance(value, dict):
+        if key == "properties" and isinstance(value, dict):
+            props = {name: compact_schema(sub) for name, sub in value.items()}
+            out[key] = {
+                name: sub if name in required else _optional(sub) for name, sub in props.items()
+            }
+        elif key in _NAME_MAPS and isinstance(value, dict):
             out[key] = {name: compact_schema(sub) for name, sub in value.items()}
         elif (key == "title" and isinstance(value, str)) or (key == "default" and value is None):
             continue
+        elif key in _DATA_KEYWORDS:
+            out[key] = value
         else:
             out[key] = compact_schema(value)
-    branches = out.get("anyOf")
-    if isinstance(branches, list) and len(branches) == 2 and _NULL in branches:
-        other = next(b for b in branches if b != _NULL)
-        if isinstance(other, dict):
-            del out["anyOf"]
-            out = {**other, **out}
     return out
+
+
+def _optional(schema: Any) -> Any:
+    """An omittable property's schema without its null branch."""
+    if not isinstance(schema, dict):
+        return schema
+    branches = schema.get("anyOf")
+    if not (isinstance(branches, list) and len(branches) == 2 and _NULL in branches):
+        return schema
+    other = next(b for b in branches if b != _NULL)
+    if not isinstance(other, dict):
+        return schema
+    rest = {k: v for k, v in schema.items() if k != "anyOf"}
+    return {**other, **rest}

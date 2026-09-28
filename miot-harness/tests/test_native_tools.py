@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -85,6 +86,18 @@ def test_compact_schema_drops_titles_and_null_branches_but_keeps_fields():
     }
     # The input model still validates, explicit null included.
     assert _Optional.model_validate({"when": None}).when is None
+
+
+class _Kept(BaseModel):
+    value: str | None
+    options: dict[str, Any] = Field(default={"title": "report", "default": None})
+
+
+def test_compact_schema_keeps_required_nulls_and_default_values():
+    schema = compact_schema(_Kept.model_json_schema())
+    assert schema["required"] == ["value"]
+    assert schema["properties"]["value"] == {"anyOf": [{"type": "string"}, {"type": "null"}]}
+    assert schema["properties"]["options"]["default"] == {"title": "report", "default": None}
 
 
 def test_generic_tool_schemas_shrink_by_a_sixth(tmp_path):

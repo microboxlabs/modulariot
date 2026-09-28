@@ -18,6 +18,7 @@ from langchain_core.messages.utils import count_tokens_approximately
 
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.registry import ContextSkillsBundle
+from miot_harness.context_skills.skill_models import PlaybookSkill
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.answer_contract import (
@@ -643,7 +644,7 @@ class HarnessSupervisor:
         facts = [
             f"- {entry.title}\n  {entry.body}"
             for entry in self.context_skills.facts_for(ctx.tenant_id)
-            if entry.name not in indexed
+            if (entry.name, entry.body) not in indexed
         ]
         if facts:
             blocks.append("# System facts (tenant)\n" + "\n".join(facts))
@@ -651,17 +652,19 @@ class HarnessSupervisor:
             return prior_messages
         return [SystemMessage(content="\n\n".join(blocks)), *prior_messages]
 
-    def _indexed_skills(self) -> set[str]:
-        """Fact names of the skills the loop's system prompt already lists
-        (see `render_skills_index`), so the facts do not repeat them."""
+    def _indexed_skills(self) -> set[tuple[str, str]]:
+        """(fact name, body) of the skills the loop's system prompt already
+        lists (see `render_skills_index`), so the facts do not repeat them. A
+        tenant's own version of a skill has another body and stays."""
 
         if self.context_skills is None or self.profile is None:
             return set()
         return {
-            f"skill:{loaded.skill.id}"
+            (f"skill:{skill.id}", skill.when_to_use or skill.description or skill.name)
             for loaded in self.context_skills.playbooks_for(
                 self.profile.tenant_lock or "", connection=self.profile.name
             )
+            if isinstance(skill := loaded.skill, PlaybookSkill)
         }
 
     async def _inject_skill(

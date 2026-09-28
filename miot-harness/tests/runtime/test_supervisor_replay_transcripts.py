@@ -146,6 +146,7 @@ def test_the_tenant_facts_leave_out_skills_the_loop_prompt_already_lists(tmp_pat
                 CatalogEntry(name="depots", layer="system", title="Depots", body="Two."),
                 CatalogEntry(name="skill:listed", layer="skill", title="Listed", body="x"),
                 CatalogEntry(name="skill:tenant-only", layer="skill", title="Mine", body="y"),
+                CatalogEntry(name="skill:listed", layer="skill", title="Override", body="z"),
             ]
 
         def playbooks_for(self, tenant_id: str, *, connection: str | None = None):
@@ -158,4 +159,5 @@ def test_the_tenant_facts_leave_out_skills_the_loop_prompt_already_lists(tmp_pat
     text = str(injected.content)
     assert "Depots" in text
     assert "Mine" in text
+    assert "Override" in text
     assert "Listed" not in text

@@ -2,12 +2,22 @@
 
 import {
   HttpAgent,
+  runHttpRequest,
+  transformHttpEventStream,
   type HttpAgentConfig,
   type Message,
   type RunAgentInput,
 } from "@ag-ui/client";
 import type { RunEffort } from "@microboxlabs/miot-harness-client";
 import { readRunEffort } from "./hooks/use-run-effort";
+import {
+  HARNESS_RUN_EVENT,
+  cancelRun,
+  clearActiveRun,
+  isHarnessRunMarker,
+  resumeRunUrl,
+  writeActiveRun,
+} from "./harness-active-run";
 
 /**
  * Messages kept in a run request, counted from the end. The relay reads the
@@ -26,14 +36,60 @@ export class HarnessRunAgent extends HttpAgent {
   /** The conversation model the user picked; null asks for the default.
    * Sent with every run in state, next to the conversation id. */
   model: string | null = null;
+
+  /** The harness run behind this thread's current or last run. */
+  harnessRunId: string | null = null;
+
+  /** When set, the next run re-attaches to this harness run instead of
+   * starting a new one. */
+  resumeRunId: string | null = null;
+
   constructor(config: HttpAgentConfig) {
     super(config);
+    this.subscribe({
+      onCustomEvent: ({ event }) => this.onRunMarker(event.name, event.value),
+    });
   }
 
   override run(input: RunAgentInput): ReturnType<HttpAgent["run"]> {
-    return super.run(
-      withEffort(withModel(trimRunInput(input), this.model), readRunEffort())
+    const resumeRunId = this.resumeRunId;
+    this.resumeRunId = null;
+    this.harnessRunId = resumeRunId;
+    if (!resumeRunId) {
+      return super.run(
+        withEffort(withModel(trimRunInput(input), this.model), readRunEffort())
+      );
+    }
+    const url = resumeRunUrl(resumeRunId, this.threadId, input.runId);
+    return transformHttpEventStream(
+      runHttpRequest(() =>
+        this.fetch(url, {
+          method: "GET",
+          headers: { ...this.headers, Accept: "text/event-stream" },
+          signal: this.abortController.signal,
+        })
+      ),
+      this.debugLogger
     );
+  }
+
+  /** Stop. Aborting the request only stops the relay; this cancels the
+   * harness run itself. */
+  cancelHarnessRun(): void {
+    const runId = this.harnessRunId;
+    if (!runId) return;
+    clearActiveRun(this.threadId, runId);
+    void cancelRun(runId);
+  }
+
+  private onRunMarker(name: string, value: unknown): void {
+    if (name !== HARNESS_RUN_EVENT || !isHarnessRunMarker(value)) return;
+    if (value.status === "running") {
+      this.harnessRunId = value.runId;
+      writeActiveRun(this.threadId, value.runId);
+    } else {
+      clearActiveRun(this.threadId, value.runId);
+    }
   }
 }
 

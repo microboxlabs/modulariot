@@ -558,7 +558,7 @@ export function normalizeBasePath(basePath: string | undefined): string {
   while (end > 0 && basePath[end - 1] === SLASH) end--;
   const trimmed = basePath.slice(0, end);
   if (trimmed.length === 0) return "";
-  return trimmed[0] === SLASH ? trimmed : `/${trimmed}`;
+  return trimmed.startsWith(SLASH) ? trimmed : `/${trimmed}`;
 }
 
 /** Returns the remaining path, or null when the prefix does not match. */
@@ -602,7 +602,7 @@ function requireValidConfig(config: unknown): void {
 function readExpectedRevision(request: Request): number | undefined {
   const header = request.headers.get("if-match");
   if (header === null) return undefined;
-  const token = header.replace(/^(?:W\/)|"/g, "").trim();
+  const token = header.replace(/^W\//, "").replaceAll('"', "").trim();
   // `Number("")` is 0, so an empty or quote-only If-Match used to arrive as
   // "expect revision 0" — which the store reads as "expect this dashboard not
   // to exist" and answers 409 for a perfectly good save. An absent precondition

@@ -5733,6 +5733,15 @@
         "otherAriaLabel": "Other",
         "submit": "Submit"
       },
+      "shareLink": {
+        "story": "Story link",
+        "thread": "Chat link",
+        "access": "Anyone signed in to this organization can open it.",
+        "copy": "Copy link",
+        "copied": "Link copied",
+        "copyFailed": "Could not copy the link",
+        "open": "Open"
+      },
       "approval": {
         "heading": "Needs your approval",
         "actions": {

@@ -23,6 +23,7 @@ import {
   approvalResultEvent,
   artifactCallEvents,
   chatAnswerEvents,
+  shareLinkCallEvents,
   toArtifactSpec,
   type DraftDashlet,
 } from "./chat-answer";
@@ -30,6 +31,10 @@ import {
   approvalArgsOf,
   approvalResultOf,
 } from "@/features/harness-chat/extensions/request-approval-args";
+import {
+  shareLinkOf,
+  storyTitlesOf,
+} from "@/features/harness-chat/extensions/show-share-link-args";
 import { stepLabel } from "./step-labels";
 import { planRefusalMessage } from "./plan-refusal";
 import {
@@ -275,6 +280,10 @@ type RelayState = {
   shownArtifacts: Set<string>;
   /** Approval cards still open, by approval id: their tool call ids. */
   approvals: Map<string, string>;
+  /** Share link URLs already sent as cards. */
+  shownLinks: Set<string>;
+  /** Story titles the run's tool results named, by story id. */
+  storyTitles: Map<string, string>;
   startedAt: string | null;
 };
 
@@ -421,8 +430,25 @@ export function expireApprovals(
   state.approvals.clear();
 }
 
+/** A share link the agent created is sent as a card at once, so the user
+ * gets it even when the answer text leaves it out. */
+export function trackShareLink(
+  event: HarnessEvent,
+  send: Sender,
+  state: Pick<RelayState, "shownLinks" | "storyTitles">
+): void {
+  if (event.type !== "tool.completed") return;
+  for (const [id, title] of storyTitlesOf(event.data)) {
+    state.storyTitles.set(id, title);
+  }
+  const link = shareLinkOf(event.data, state.storyTitles);
+  if (!link || state.shownLinks.has(link.url)) return;
+  state.shownLinks.add(link.url);
+  for (const call of shareLinkCallEvents(link)) send(call);
+}
+
 /** What one event adds to the relay's view of the run: its start time, the
- * tools used, and any artifact, sent as a card at once. */
+ * tools used, and any artifact or share link, sent as a card at once. */
 function trackEvent(
   event: HarnessEvent,
   r: { runId: string; opened: number; send: Sender; state: RelayState }
@@ -444,6 +470,7 @@ function trackEvent(
     state.tools.push(event.data.tool);
   }
   trackApproval(event, runId, send, state);
+  trackShareLink(event, send, state);
   if (event.type !== "artifact.created") return;
   const spec = toArtifactSpec(event.data);
   if (spec && !state.shownArtifacts.has(spec.id)) {
@@ -575,6 +602,8 @@ export async function relayRun(args: {
     tools: [],
     shownArtifacts: new Set(),
     approvals: new Map(),
+    shownLinks: new Set(),
+    storyTitles: new Map(),
     startedAt: null,
   };
   const outcome = await followRun(

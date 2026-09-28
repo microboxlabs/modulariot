@@ -18,6 +18,10 @@ import {
   type RequestApprovalArgs,
   type RequestApprovalResult,
 } from "@/features/harness-chat/extensions/request-approval-args";
+import {
+  SHOW_SHARE_LINK_TOOL,
+  type ShowShareLinkArgs,
+} from "@/features/harness-chat/extensions/show-share-link-args";
 
 export type { DraftDashlet };
 
@@ -556,6 +560,14 @@ export function artifactCallEvents(
   newId: () => string = () => crypto.randomUUID()
 ): ChatEvent[] {
   return resolvedCall("show_artifact", spec, newId);
+}
+
+/** A `show_share_link` card for a link the agent created. */
+export function shareLinkCallEvents(
+  args: ShowShareLinkArgs,
+  newId: () => string = () => crypto.randomUUID()
+): ChatEvent[] {
+  return resolvedCall(SHOW_SHARE_LINK_TOOL, args, newId);
 }
 
 /** Collects the answer's parts in order while blocks are read. */

@@ -3,6 +3,7 @@ import { requestApprovalExtension } from "./request-approval";
 import { showArtifactExtension } from "./show-artifact";
 import { showDashboardDraftExtension } from "./show-dashboard-draft";
 import { showDashletExtension } from "./show-dashlet";
+import { showShareLinkExtension } from "./show-share-link";
 import type { HarnessExtension } from "../harness-extension";
 
 /**
@@ -16,6 +17,7 @@ export const DEFAULT_HARNESS_EXTENSIONS: HarnessExtension[] = [
   showArtifactExtension,
   showDashboardDraftExtension,
   requestApprovalExtension,
+  showShareLinkExtension,
 ];
 
 /**

@@ -120,6 +120,19 @@ describe("dashboard server browser client", () => {
     expect(fetcher.mock.calls[3]?.[1]?.method).toBe("DELETE");
   });
 
+  it("normalizes transport failures but preserves caller cancellation", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockRejectedValue(new TypeError("network details"));
+    const client = createDashboardServerClient("org", fetcher);
+    await expect(client.list()).rejects.toMatchObject({ status: 502 });
+    const controller = new AbortController();
+    controller.abort();
+    const aborted = new DOMException("Cancelled", "AbortError");
+    fetcher.mockRejectedValueOnce(aborted);
+    await expect(client.list(controller.signal)).rejects.toBe(aborted);
+  });
+
   it("rejects dot path segments and forwards cancellation", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response([]));
     const client = createDashboardServerClient("org", fetcher);

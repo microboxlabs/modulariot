@@ -61,6 +61,9 @@ export function createDashboardServerClient(
       credentials: "same-origin",
       cache: "no-store",
       redirect: "error",
+    }).catch((error: Error) => {
+      if (init?.signal?.aborted) throw error;
+      throw new DashboardApiError(502);
     });
     if (!response.ok) throw new DashboardApiError(response.status);
     return response;

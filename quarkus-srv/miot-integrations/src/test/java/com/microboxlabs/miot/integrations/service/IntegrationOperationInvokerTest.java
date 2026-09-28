@@ -34,6 +34,27 @@ class IntegrationOperationInvokerTest {
     }
 
     @Test
+    void runtimeQueryParametersCannotReplaceCredentialParameters() {
+        assertEquals(Map.of("days", "30", "key", "secret"),
+                IntegrationOperationInvoker.combineQueryParameters(Map.of("days", "30"), Map.of("key", "secret")));
+        assertThrows(OperationInvocationException.class,
+                () -> IntegrationOperationInvoker.combineQueryParameters(Map.of("key", "override"), Map.of("key", "secret")));
+    }
+
+    @Test
+    void boundedAddressesCannotHideDuplicateParametersOrFragments() {
+        IntegrationOperationInvoker.requireParameterFreeAddress(URI.create("https://api.example.com"), "/summary");
+        for (String path : List.of("/summary?tenant=other", "/summary#fragment")) {
+            assertThrows(OperationInvocationException.class,
+                    () -> IntegrationOperationInvoker.requireParameterFreeAddress(URI.create("https://api.example.com"), path));
+        }
+        for (String base : List.of("https://api.example.com?tenant=other", "https://api.example.com#fragment")) {
+            assertThrows(OperationInvocationException.class,
+                    () -> IntegrationOperationInvoker.requireParameterFreeAddress(URI.create(base), "/summary"));
+        }
+    }
+
+    @Test
     void joinsBaseUrlAndPathWithExactlyOneSlash() {
         assertEquals(URI.create("https://api.example.com/v1/photos"),
                 IntegrationOperationInvoker.buildUrl(

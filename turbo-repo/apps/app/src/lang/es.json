@@ -5954,7 +5954,9 @@
         "onlyImproved": "Mejoraron",
         "onlyRegressed": "Empeoraron",
         "case": "Caso {n}",
-        "noAnswer": "Sin respuesta"
+        "noAnswer": "Sin respuesta",
+        "triggerOk": "Usó los procedimientos esperados",
+        "triggerMiss": "Procedimientos: faltó {missing}; sobró {unexpected}"
       },
       "work": {
         "title": "Área de trabajo",

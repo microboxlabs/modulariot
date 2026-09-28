@@ -54,6 +54,14 @@ function previewOf(value: unknown): Record<string, unknown> | null {
   }
 }
 
+/** An evaluation result with many cases outgrows the preview and arrives
+ * as cut JSON; its id comes first, and the card reads the rest itself. */
+function evaluationIdIn(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== "string") return null;
+  const match = /"evaluation_id"\s*:\s*"([^"]+)"/.exec(value);
+  return match ? { evaluation_id: match[1] } : null;
+}
+
 /** The card for a trainer tool's result, if it has one to show. */
 function cardOf(
   tool: string,
@@ -62,7 +70,7 @@ function cardOf(
 ): { name: string; args: unknown } | null {
   const preview = previewOf(data.preview);
   if (tool === RUN_LEARNING_EVAL_TOOL) {
-    const card = learningEvalArgsOf(preview);
+    const card = learningEvalArgsOf(preview ?? evaluationIdIn(data.preview));
     return card ? { name: SHOW_LEARNING_EVAL_TOOL, args: card } : null;
   }
   const changes = knowledgeChangesOf(tool, { ...args, ...preview });

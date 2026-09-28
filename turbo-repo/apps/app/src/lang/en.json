@@ -5954,7 +5954,9 @@
         "onlyImproved": "Improved",
         "onlyRegressed": "Regressed",
         "case": "Case {n}",
-        "noAnswer": "No answer"
+        "noAnswer": "No answer",
+        "triggerOk": "Used the expected procedures",
+        "triggerMiss": "Procedures: missing {missing}; unexpected {unexpected}"
       },
       "work": {
         "title": "Working area",

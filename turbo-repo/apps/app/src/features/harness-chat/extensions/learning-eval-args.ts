@@ -23,6 +23,10 @@ export type EvalRun = {
   tokens?: number | null;
   skills_used?: string[];
   model?: string | null;
+  /** Why the run gave no answer. */
+  error?: string | null;
+  /** Whether the expected skills, and no unexpected ones, were used. */
+  trigger?: { ok: boolean; missing: string[]; unexpected: string[] } | null;
 };
 
 export type EvalCase = {

@@ -129,6 +129,17 @@ describe("DiffView", () => {
     expect(screen.getByText("No se pudo mostrar el diff.")).toBeTruthy();
   });
 
+  it("reads the harness's diff for a new file, which starts from /dev/null", () => {
+    wrap(
+      <DiffView
+        diff={"--- /dev/null\n+++ b/rules/y.md\n@@ -0,0 +1 @@\n+n\n"}
+        path="rules/y.md"
+      />
+    );
+    expect(screen.getByText("+1")).toBeTruthy();
+    expect(document.querySelector(".diff-code-insert")).toBeTruthy();
+  });
+
   it("shows a whole new file as added lines", () => {
     wrap(<DiffView oldText="" newText={"uno\ndos\n"} path="rules/nuevo.md" />);
     expect(screen.getByText("+2")).toBeTruthy();

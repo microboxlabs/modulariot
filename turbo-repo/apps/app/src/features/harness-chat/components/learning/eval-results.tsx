@@ -121,6 +121,28 @@ const RunCell: FC<{ run: EvalRun | null; tone: string }> = ({ run, tone }) => {
       {run.reason && (
         <p className="italic text-gray-500 dark:text-gray-400">{run.reason}</p>
       )}
+      {run.error && (
+        <p role="alert" className="text-red-600 dark:text-red-400">
+          {run.error}
+        </p>
+      )}
+      {run.trigger && (
+        <p
+          className={twMerge(
+            "text-[10px]",
+            run.trigger.ok
+              ? "text-green-700 dark:text-green-400"
+              : "text-amber-600 dark:text-amber-400"
+          )}
+        >
+          {run.trigger.ok
+            ? tr("harnessChat.learning.eval.triggerOk")
+            : tr("harnessChat.learning.eval.triggerMiss", {
+                missing: run.trigger.missing.join(", ") || "–",
+                unexpected: run.trigger.unexpected.join(", ") || "–",
+              })}
+        </p>
+      )}
       <MarkdownContent className="max-h-60 overflow-auto rounded bg-gray-50 p-1.5 text-[11px] text-gray-700 dark:bg-gray-900 dark:text-gray-300">
         {run.answer || tr("harnessChat.learning.eval.noAnswer")}
       </MarkdownContent>

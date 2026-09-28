@@ -297,4 +297,77 @@ describe("trainer tool results", () => {
       status: "done",
     });
   });
+
+  it("reads a propose_knowledge_change result as the harness writes it", async () => {
+    const diff =
+      "--- a/facts/trips/states.md\n+++ b/facts/trips/states.md\n@@ -1 +1 @@\n-a\n+b\n";
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("tool.completed", 1, {
+        tool: "propose_knowledge_change",
+        call_id: "c1",
+        ok: true,
+        preview: {
+          summary: "Trip states",
+          changes: [
+            {
+              layer: "fact",
+              id: "states",
+              target: "trips",
+              path: "facts/trips/states.md",
+              op: "upsert",
+              title: "States",
+              reason: "glossary",
+              version: 4,
+              diff,
+              old_lines: 1,
+              new_lines: 1,
+            },
+          ],
+          message: "The trainer approved the changes.",
+        },
+      });
+      yield harnessEvent("run.completed", 2);
+    });
+
+    const events = await readEvents(await POST(chatRequest("/fact states")));
+    const change = cards(events).find(
+      (c) => c.name === "show_knowledge_change"
+    );
+    expect(change?.args).toMatchObject({
+      tool: "propose_knowledge_change",
+      summary: "Trip states",
+      changes: [
+        {
+          path: "facts/trips/states.md",
+          layer: "fact",
+          id: "states",
+          target: "trips",
+          op: "upsert",
+          diff,
+          version: 4,
+          reason: "glossary",
+        },
+      ],
+    });
+  });
+
+  it("still shows an evaluation whose result was cut to fit the event", async () => {
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("tool.completed", 1, {
+        tool: "run_learning_eval",
+        call_id: "c1",
+        ok: true,
+        preview:
+          '{"evaluation_id": "ev9", "status": "done", "cases": [{"question": "q',
+        preview_truncated: true,
+      });
+      yield harnessEvent("run.completed", 2);
+    });
+
+    const events = await readEvents(await POST(chatRequest("/test")));
+    const evaluation = cards(events).find(
+      (c) => c.name === "show_learning_eval"
+    );
+    expect(evaluation?.args).toMatchObject({ evaluationId: "ev9" });
+  });
 });

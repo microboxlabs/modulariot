@@ -160,6 +160,7 @@ const evaluation: Evaluation = {
         reason: "matches",
         skills_used: ["trips"],
         model: "model-a",
+        trigger: { ok: true, missing: [], unexpected: [] },
       },
     },
     {
@@ -168,7 +169,13 @@ const evaluation: Evaluation = {
         expectation: "Cuenta los históricos",
       },
       baseline: { answer: "3", score: 2, reason: "partial" },
-      candidate: { answer: "2", score: 1, reason: "wrong" },
+      candidate: {
+        answer: "",
+        score: 0,
+        reason: "wrong",
+        error: "timed out after 120 s",
+        trigger: { ok: false, missing: ["trips"], unexpected: [] },
+      },
     },
   ],
 };
@@ -219,6 +226,11 @@ describe("ShowLearningEvalCard", () => {
     expect(screen.getByText("Hoy se cargaron 12")).toBeTruthy();
     expect(screen.getByText("matches")).toBeTruthy();
     expect(screen.getByText(/Procedimientos usados: trips/)).toBeTruthy();
+    expect(screen.getByText("Usó los procedimientos esperados")).toBeTruthy();
+    expect(screen.getByText("timed out after 120 s")).toBeTruthy();
+    expect(
+      screen.getByText("Procedimientos: faltó trips; sobró –")
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Empeoraron" }));
     expect(screen.queryByText("¿Cuántos viajes se cargaron hoy?")).toBeNull();

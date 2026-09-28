@@ -115,7 +115,12 @@ describe("migrations", () => {
   it("creates the directory rather than failing on a missing one", async () => {
     const path = join(temporaryDirectory(), "nested", "deeper", "dash.db");
     const opened = await openSqliteStore({ path });
-    await opened.close();
+    try {
+      expect(existsSync(path)).toBe(true);
+      expect(await opened.store.list("acme", "ops")).toEqual([]);
+    } finally {
+      await opened.close();
+    }
   });
 });
 

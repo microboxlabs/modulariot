@@ -111,7 +111,7 @@ describe("saved query HTTP route", () => {
     expect(
       (
         await handler(
-          request("{}", "viewer", path.replace("by-service", "unknown")),
+          request("{}", "viewer", path.replaceAll("by-service", "unknown")),
         )
       ).status,
     ).toBe(404);
@@ -130,11 +130,11 @@ describe("saved query HTTP route", () => {
   });
 
   it("decodes query identifiers without accepting traversal", () => {
-    expect(matchRoute(path.replace("by-service", "by%2Fservice"))?.id).toBe(
+    expect(matchRoute(path.replaceAll("by-service", "by%2Fservice"))?.id).toBe(
       "by/service",
     );
-    expect(matchRoute(path.replace("by-service", "%2E%2E"))).toBeNull();
-    expect(matchRoute(path.replace("by-service", "%ZZ"))).toBeNull();
+    expect(matchRoute(path.replaceAll("by-service", "%2E%2E"))).toBeNull();
+    expect(matchRoute(path.replaceAll("by-service", "%ZZ"))).toBeNull();
     expect(matchRoute(`${path}/extra`)).toBeNull();
   });
 

@@ -200,17 +200,15 @@ def loop_model_kwargs(
     thinking budget on older Claude models, `reasoning_effort` on OpenAI
     reasoning models, and nothing where the model has no such control.
     """
+    try:
+        _, model_id = split_model(name)
+    except ValueError:
+        model_id = name
     if not is_anthropic(name):
-        if run_effort is None:
-            return {}
-        try:
-            _, model_id = split_model(name)
-        except ValueError:
-            return {}
-        if not _OPENAI_REASONING_RE.match(model_id.rsplit("/", 1)[-1]):
+        if run_effort is None or not _OPENAI_REASONING_RE.match(model_id.rsplit("/", 1)[-1]):
             return {}
         return {"reasoning_effort": _OPENAI_REASONING_EFFORT[run_effort]}
-    if supports_effort(name):
+    if supports_effort(model_id):
         return {"effort": run_effort or default_effort}
     if run_effort is None:
         return {"thinking_budget_tokens": default_thinking_budget}

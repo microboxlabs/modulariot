@@ -7,6 +7,7 @@ import {
   type RunAgentInput,
 } from "@ag-ui/client";
 import type { RunEffort } from "@microboxlabs/miot-harness-client";
+import { readRunEffort } from "./hooks/use-run-effort";
 
 /**
  * Messages kept in a run request, counted from the end. The relay reads the
@@ -25,16 +26,13 @@ export class HarnessRunAgent extends HttpAgent {
   /** The conversation model the user picked; null asks for the default.
    * Sent with every run in state, next to the conversation id. */
   model: string | null = null;
-  /** The reasoning effort the user picked; null asks for the default. */
-  effort: RunEffort | null = null;
-
   constructor(config: HttpAgentConfig) {
     super(config);
   }
 
   override run(input: RunAgentInput): ReturnType<HttpAgent["run"]> {
     return super.run(
-      withEffort(withModel(trimRunInput(input), this.model), this.effort)
+      withEffort(withModel(trimRunInput(input), this.model), readRunEffort())
     );
   }
 }

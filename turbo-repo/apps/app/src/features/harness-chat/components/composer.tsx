@@ -19,7 +19,7 @@ import { useRunCancel } from "../context/run-cancel-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 import { useHarnessModel } from "../context/harness-model-context";
 import { modelLabel, useHarnessModels } from "../hooks/use-harness-models";
-import { RUN_EFFORTS } from "../hooks/use-run-effort";
+import { RUN_EFFORTS, useRunEffort } from "../hooks/use-run-effort";
 import { ComposerAttachmentPreview } from "./attachments";
 
 const WHITESPACE_CHARS = new Set([" ", "\t", "\n", "\r", "\f", "\v"]);
@@ -253,15 +253,13 @@ const pickerClass =
 
 const EffortPicker: FC = () => {
   const tr = useHarnessChatTr();
-  const picked = useHarnessModel();
+  const [effort, setEffort] = useRunEffort();
   return (
     <select
       aria-label={tr("harnessChat.ui.composer.effort")}
       title={tr("harnessChat.ui.composer.effort")}
-      value={picked.effort ?? ""}
-      onChange={(e) =>
-        picked.onEffortChange(RUN_EFFORTS.find((level) => level === e.target.value) ?? null)
-      }
+      value={effort ?? ""}
+      onChange={(e) => setEffort(RUN_EFFORTS.find((level) => level === e.target.value) ?? null)}
       className={twMerge(pickerClass, "max-w-20")}
     >
       <option value="">{tr("harnessChat.ui.composer.effortLevels.default")}</option>

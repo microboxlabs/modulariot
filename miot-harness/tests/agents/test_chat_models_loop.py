@@ -41,6 +41,7 @@ def test_loop_kwargs_default_to_deployment_settings():
 
 def test_run_effort_maps_to_each_provider_knob():
     assert _loop_kwargs("claude-opus-4-8", "max") == {"effort": "max"}
+    assert _loop_kwargs("anthropic:claude-opus-4-8", "low") == {"effort": "low"}
     assert _loop_kwargs("claude-sonnet-4-6", "low") == {"thinking_budget_tokens": 1024}
     assert _loop_kwargs("claude-sonnet-4-6", "max") == {"thinking_budget_tokens": 16384}
     assert _loop_kwargs("gpt-5", "max") == {"reasoning_effort": "high"}

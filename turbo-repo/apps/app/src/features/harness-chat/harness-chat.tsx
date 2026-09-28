@@ -23,7 +23,6 @@ import { SessionModelWatcher } from "./components/session-model-watcher";
 import { SessionSummaryWatcher } from "./components/session-summary-watcher";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
 import { HarnessModelProvider } from "./context/harness-model-context";
-import { useRunEffort } from "./hooks/use-run-effort";
 import { HarnessReadOnlyProvider } from "./context/harness-read-only-context";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
 import { createHarnessHistoryAdapter } from "./harness-history-adapter";
@@ -470,10 +469,6 @@ const SessionHost: FC<{
   useEffect(() => {
     agent.model = model;
   }, [agent, model]);
-  const [effort, setEffort] = useRunEffort();
-  useEffect(() => {
-    agent.effort = effort;
-  }, [agent, effort]);
   useThreadModel(sessionId, setModel);
 
   // Panel just opened (button or ⌘/Ctrl+C) while this is the active session —
@@ -501,12 +496,7 @@ const SessionHost: FC<{
         config={AuiConfig({ tools: Tools({ toolkit }) })}
       >
         <HarnessReadOnlyProvider readOnly={readOnly}>
-          <HarnessModelProvider
-            model={model}
-            onChange={setModel}
-            effort={effort}
-            onEffortChange={setEffort}
-          >
+          <HarnessModelProvider model={model} onChange={setModel}>
           {/* A shared thread is somebody else's conversation: it has a title
               already, takes no pending message, and offers nothing that runs. */}
           {!readOnly && (

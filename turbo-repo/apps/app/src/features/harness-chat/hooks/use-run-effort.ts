@@ -1,7 +1,7 @@
 "use client";
 
 import type { RunEffort } from "@microboxlabs/miot-harness-client";
-import { useCallback, useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 export const RUN_EFFORTS: readonly RunEffort[] = [
   "low",
@@ -12,38 +12,45 @@ export const RUN_EFFORTS: readonly RunEffort[] = [
 
 const STORAGE_KEY = "miot.harnessChat.effort";
 
-function readStored(): RunEffort | null {
+const listeners = new Set<() => void>();
+// Used when localStorage is unavailable, so the choice lasts for the page.
+let inMemory: RunEffort | null = null;
+
+/**
+ * The reasoning effort the user picked, or null for the harness default. Read
+ * when a run starts, so every open session sends the current choice.
+ */
+export function readRunEffort(): RunEffort | null {
   try {
-    const value = globalThis.localStorage?.getItem(STORAGE_KEY);
+    const storage = globalThis.localStorage;
+    if (!storage) return inMemory;
+    const value = storage.getItem(STORAGE_KEY);
     return RUN_EFFORTS.find((level) => level === value) ?? null;
   } catch {
-    return null;
+    return inMemory;
   }
 }
 
-/**
- * The reasoning effort the user picked, kept across sessions in
- * localStorage. Null is the harness default.
- */
+export function setRunEffort(effort: RunEffort | null): void {
+  inMemory = effort;
+  try {
+    if (effort) globalThis.localStorage?.setItem(STORAGE_KEY, effort);
+    else globalThis.localStorage?.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage unavailable: `inMemory` holds the choice.
+  }
+  listeners.forEach((listener) => listener());
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
 export function useRunEffort(): [
   RunEffort | null,
   (effort: RunEffort | null) => void,
 ] {
-  const [effort, setEffort] = useState<RunEffort | null>(null);
-
-  useEffect(() => {
-    setEffort(readStored());
-  }, []);
-
-  const choose = useCallback((next: RunEffort | null) => {
-    setEffort(next);
-    try {
-      if (next) globalThis.localStorage?.setItem(STORAGE_KEY, next);
-      else globalThis.localStorage?.removeItem(STORAGE_KEY);
-    } catch {
-      // Storage unavailable: the choice lasts for this page only.
-    }
-  }, []);
-
-  return [effort, choose];
+  const effort = useSyncExternalStore(subscribe, readRunEffort, () => null);
+  return [effort, setRunEffort];
 }

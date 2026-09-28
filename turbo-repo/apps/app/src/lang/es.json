@@ -5626,7 +5626,9 @@
         "executionCanceled": "La ejecución fue cancelada.",
         "runFailed": "No se pudo obtener una respuesta.",
         "retry": "Reintentar",
-        "readOnly": "Este chat es de solo lectura: lo compartió otra persona."
+        "readOnly": "Este chat es de solo lectura: lo compartió otra persona.",
+        "working": "Trabajando…",
+        "elapsed": "Tiempo transcurrido"
       },
       "attachments": {
         "removeImage": "Quitar imagen"
@@ -5645,7 +5647,17 @@
           "context": {
             "description": "Muestra cuánto del contexto del modelo usa esta conversación."
           }
-        }
+        },
+        "effort": "Esfuerzo de razonamiento",
+        "effortLevels": {
+          "default": "Auto",
+          "low": "Bajo",
+          "medium": "Medio",
+          "high": "Alto",
+          "max": "Máximo"
+        },
+        "defaultModel": "Modelo por defecto",
+        "modelsUnavailable": "No se pudieron cargar los modelos. Reintentar"
       },
       "showDashlet": {
         "unknown": "Dashlet desconocido: {id}",

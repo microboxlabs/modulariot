@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   conversationOf,
+  effortOf,
   lastUserAttachments,
   NO_ANSWER,
   priorTurns,
@@ -234,5 +235,16 @@ describe("lastUserAttachments", () => {
     expect(turns).toEqual([
       { user_message: "[image: chart.png]\nwhat is this?", assistant_answer: "a chart" },
     ]);
+  });
+});
+
+describe("effortOf", () => {
+  it("passes a known effort and drops anything else", () => {
+    expect(effortOf({ state: { harnessEffort: "max" } })).toBe("max");
+    expect(effortOf({ state: { harnessEffort: "low" } })).toBe("low");
+    expect(effortOf({ state: { harnessEffort: "extreme" } })).toBeNull();
+    expect(effortOf({ state: { harnessEffort: 3 } })).toBeNull();
+    expect(effortOf({ state: null })).toBeNull();
+    expect(effortOf({})).toBeNull();
   });
 });

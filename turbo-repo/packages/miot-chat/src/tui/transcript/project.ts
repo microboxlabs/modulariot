@@ -246,14 +246,19 @@ export function applyHarnessEvent(
       });
 
     case "artifact.created": {
-      const artifactKind =
+      // The web chat draws the diagram; the terminal notes that one exists.
+      const kind =
         typeof event.data.kind === "string" && event.data.kind.length > 0
           ? event.data.kind
           : "artifact";
+      const title =
+        typeof event.data.title === "string" && event.data.title.length > 0
+          ? event.data.title
+          : kind;
       return appendItem(slice, {
-        kind: "artifact",
+        kind: "system",
         id: ctx.uuid(),
-        artifactKind,
+        text: `artifact: ${title} (${kind})`,
         ts: ctx.now(),
       });
     }

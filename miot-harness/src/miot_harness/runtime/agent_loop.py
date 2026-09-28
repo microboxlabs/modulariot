@@ -61,7 +61,7 @@ from miot_harness.runtime.agent_seats import (
     seats_prompt_block,
 )
 from miot_harness.runtime.attachments import Attachment, content_block, with_markers
-from miot_harness.runtime.context import HarnessContext
+from miot_harness.runtime.context import HarnessContext, RunEffort
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.evidence import DataEvidence, DataStep
 from miot_harness.runtime.freshness import judge_freshness
@@ -109,9 +109,7 @@ _MIN_EXCERPT_CHARS = 40
 # Same ratio `count_tokens_approximately` uses.
 _CHARS_PER_TOKEN = 4
 
-_CLEARED_NOTE = (
-    "Result removed to free context. Call the tool again if you need the rows."
-)
+_CLEARED_NOTE = "Result removed to free context. Call the tool again if you need the rows."
 
 # Never cleared: a skill is loaded once per conversation and cannot be
 # loaded again, and advice and delegated findings are short.
@@ -335,9 +333,7 @@ def _has_media(content: Any) -> bool:
 def _mark_message(msg: BaseMessage) -> BaseMessage | None:
     content = msg.content
     if isinstance(content, str):
-        blocks: list[Any] = [
-            {"type": "text", "text": content, "cache_control": _EPHEMERAL_CACHE}
-        ]
+        blocks: list[Any] = [{"type": "text", "text": content, "cache_control": _EPHEMERAL_CACHE}]
     elif isinstance(content, list) and content:
         blocks = copy.deepcopy(content)
         tail = blocks[-1]
@@ -662,7 +658,9 @@ class AgentLoopRunner:
                 if name == _LOAD_SKILL_TOOL:
                     messages.append(
                         await self._load_skill(
-                            call, ctx=ctx, loaded_skills=loaded_skills,
+                            call,
+                            ctx=ctx,
+                            loaded_skills=loaded_skills,
                             progress=progress,
                         )
                     )
@@ -671,9 +669,7 @@ class AgentLoopRunner:
                 if name == ADVISOR_TOOL and advisor is not None:
                     consults += 1
                     messages.append(
-                        await advisor.consult(
-                            call, ctx=ctx, consult=consults, progress=progress
-                        )
+                        await advisor.consult(call, ctx=ctx, consult=consults, progress=progress)
                     )
                     continue
                 workhorse = self.seats.workhorse if self.seats is not None else None
@@ -685,8 +681,11 @@ class AgentLoopRunner:
                     continue
                 messages.append(
                     await self._execute_tool_call(
-                        call, ctx=ctx, user_message=user_message,
-                        evidence=evidence, progress=progress,
+                        call,
+                        ctx=ctx,
+                        user_message=user_message,
+                        evidence=evidence,
+                        progress=progress,
                     )
                 )
             if delegations and self.seats is not None and self.seats.workhorse is not None:
@@ -697,10 +696,7 @@ class AgentLoopRunner:
                     evidence.extend(found)
 
         if not answer:
-            answer = (
-                "The investigation could not produce an answer within the "
-                "turn limit."
-            )
+            answer = "The investigation could not produce an answer within the turn limit."
         progress(
             HarnessEvent(
                 run_id=ctx.run_id,
@@ -786,13 +782,9 @@ class AgentLoopRunner:
         )
         if self.provenance_log is not None:
             self.provenance_log.append(
-                _provenance_entry(
-                    ctx=ctx, user_message=user_message, step=step, evidence=ev
-                )
+                _provenance_entry(ctx=ctx, user_message=user_message, step=step, evidence=ev)
             )
-        return ToolMessage(
-            content=self._render_tool_result(ev), tool_call_id=call_id
-        )
+        return ToolMessage(content=self._render_tool_result(ev), tool_call_id=call_id)
 
     @property
     def prefix_tokens(self) -> dict[str, int]:
@@ -925,10 +917,13 @@ class AgentLoopRunner:
             # Token guard: the body is already in the transcript; a short
             # pointer beats re-sending it.
             return self._skill_result(
-                ctx, call_id, skill_id,
+                ctx,
+                call_id,
+                skill_id,
                 f"Skill '{skill_id}' is already loaded in this conversation; "
                 "follow the instructions you already received.",
-                progress=progress, loaded=False,
+                progress=progress,
+                loaded=False,
             )
         activated = (
             await self.context_skills.activate_skill_for_run(
@@ -966,8 +961,12 @@ class AgentLoopRunner:
         loaded_skills.add(skill_id)
         name, body = activated
         return self._skill_result(
-            ctx, call_id, skill_id, f"# Skill: {name}\n\n{body}",
-            progress=progress, loaded=True,
+            ctx,
+            call_id,
+            skill_id,
+            f"# Skill: {name}\n\n{body}",
+            progress=progress,
+            loaded=True,
         )
 
     def _skill_result(
@@ -1083,7 +1082,7 @@ class AgentLoopRunners:
         *,
         default_model: str,
         models: tuple[str, ...] | list[str],
-        build_model: Callable[[str], BaseChatModel],
+        build_model: Callable[..., BaseChatModel],
         registry: ToolRegistry,
         settings: HarnessSettings,
         profile: DataSourceProfile,
@@ -1105,6 +1104,7 @@ class AgentLoopRunners:
             "context_skills": context_skills,
             "seats": seats,
         }
+        # Keyed by model name, plus the run effort when one was chosen.
         self._runners: dict[str, AgentLoopRunner] = {}
 
     @property
@@ -1121,7 +1121,7 @@ class AgentLoopRunners:
     def allowed(self, model: str | None) -> bool:
         return model is None or model in self.models
 
-    def runner_for(self, model: str | None) -> AgentLoopRunner:
+    def runner_for(self, model: str | None, effort: RunEffort | None = None) -> AgentLoopRunner:
         name = self.default_model if model is None else model
         if name not in self.models:
             raise ValueError(f"model {name!r} is not in the agent loop allowlist")
@@ -1130,15 +1130,17 @@ class AgentLoopRunners:
             if version != self._providers_version:
                 self._runners.clear()
                 self._providers_version = version
-        runner = self._runners.get(name)
+        key = name if effort is None else f"{name}#{effort}"
+        runner = self._runners.get(key)
         if runner is None:
+            built = self._build_model(name) if effort is None else self._build_model(name, effort)
             runner = AgentLoopRunner(
-                model=self._build_model(name),
+                model=built,
                 anthropic_format=is_anthropic(name),
                 model_name=name,
                 **self._kwargs,
             )
-            self._runners[name] = runner
+            self._runners[key] = runner
         return runner
 
     async def run(
@@ -1149,7 +1151,7 @@ class AgentLoopRunners:
         prior_messages: list[BaseMessage],
         progress: Progress,
     ) -> dict[str, Any]:
-        runner = self.runner_for(ctx.model)
+        runner = self.runner_for(ctx.model, ctx.effort)
         return await runner.run(
             user_message=user_message,
             ctx=ctx,

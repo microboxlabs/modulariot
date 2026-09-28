@@ -7,10 +7,18 @@ from pathlib import Path
 from typing import Literal
 
 from dotenv import dotenv_values
-from pydantic import AliasChoices, Field, PositiveInt
+from pydantic import AliasChoices, BaseModel, Field, PositiveInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
+
+
+class SourceRepo(BaseModel):
+    """A git repository the source tools can read."""
+
+    name: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$")
+    url: str = Field(min_length=1)
+    ref: str = Field(default="trunk", pattern=r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$")
 
 
 class HarnessSettings(BaseSettings):
@@ -237,10 +245,26 @@ class HarnessSettings(BaseSettings):
     fs_max_total_bytes: int = Field(default=1_048_576, gt=0)
     fs_max_files: int = Field(default=64, gt=0)
     fs_max_conversations: int = Field(default=512, gt=0)
-    # `web_fetch`: lets the model read public web pages. Off by default: a
-    # fetched page can carry instructions that try to send tenant data out
-    # in a URL, so turn it on per deployment.
-    web_fetch_enabled: bool = False
+    # `web_fetch`: lets the model read public web pages. A fetched page can
+    # carry instructions that try to send tenant data out in a URL; the tool
+    # tells the model to treat pages as data and caps fetches per run.
+    web_fetch_enabled: bool = True
+    web_fetch_max_per_run: int = Field(default=20, ge=1)
+    # `source_list` / `source_search` / `source_read`: read-only access to
+    # git repositories, cloned shallow under `<workspace_dir>/sources/<name>`
+    # on first use and fetched again when older than `source_refresh_hours`.
+    source_enabled: bool = True
+    source_repos: list[SourceRepo] = Field(
+        default_factory=lambda: [
+            SourceRepo(
+                name="modulariot",
+                url="https://github.com/microboxlabs/modulariot.git",
+                ref="trunk",
+            )
+        ]
+    )
+    source_refresh_hours: float = Field(default=6.0, gt=0)
+    source_git_timeout_seconds: float = Field(default=180.0, gt=0)
     # `web_search`: the conversation model's query goes to a model whose
     # provider searches the web. `web_search_model` names that model
     # (`llmgateway:gpt-5.6-luna`, `claude-haiku-4-5`, `openai:gpt-5-mini`);

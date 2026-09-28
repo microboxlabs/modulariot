@@ -29,13 +29,15 @@ HarnessEventType = Literal[
     # A tool produced a chart, table or KPI for the user; `data.widget` holds
     # the spec and the rows, which the model never sees in full.
     "widget.created",
+    # A tool made a document for the user (a process diagram); `data` holds
+    # {id, kind: svg|mermaid, title, content}.
+    "artifact.created",
     "answer.delta",
     "answer.completed",
     "run.completed",
     "run.failed",
     # No longer emitted. Kept so run records saved by older versions load.
     "route.selected",
-    "artifact.created",
     "plan.created",
     "agent.turn",
     "verification.completed",

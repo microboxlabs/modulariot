@@ -14,8 +14,14 @@ from typing import Any, Literal
 from langchain_core.language_models import BaseChatModel
 from pydantic import SecretStr
 
-from miot_harness.agents.model_providers import ProviderRegistry, registry_from_settings
+from miot_harness.agents.model_providers import (
+    ProviderRegistry,
+    is_anthropic,
+    registry_from_settings,
+    split_model,
+)
 from miot_harness.config import get_settings
+from miot_harness.runtime.context import RunEffort
 
 
 def response_text(response: Any) -> str:
@@ -43,6 +49,7 @@ def response_text(response: Any) -> str:
         return "".join(parts)
     return str(content)
 
+
 # Anthropic `output_config.effort` levels (Opus 4.7+). "high" is the model's
 # natural default (a no-op); "xhigh"/"max" actually deepen reasoning at a
 # latency/cost premium. See ChatAnthropic.effort.
@@ -63,6 +70,7 @@ def get_chat_model(
     *,
     thinking_budget_tokens: int | None = None,
     effort: Effort | None = None,
+    reasoning_effort: str | None = None,
     timeout: int | None = None,
 ) -> BaseChatModel:
     """Multi-provider chat-model factory.
@@ -81,7 +89,7 @@ def get_chat_model(
       against it, so we leave it at the model's full output budget.
 
     Passing both raises (they target different model generations). Non-Claude
-    providers ignore both params.
+    providers ignore both params; `reasoning_effort` is their knob instead.
     """
 
     provider, model_id = provider_registry().resolve(name)
@@ -129,6 +137,7 @@ def get_chat_model(
     # Thinking and effort are Anthropic controls; the others ignore them.
     return ChatOpenAI(
         model=model_id,
+        reasoning_effort=reasoning_effort,
         api_key=SecretStr(provider.api_key),
         base_url=provider.base_url,
         timeout=timeout if timeout is not None else 60,
@@ -163,3 +172,44 @@ def set_provider_registry(registry: ProviderRegistry | None) -> None:
     """Replace the providers models resolve against; None returns to the env."""
     global _registry
     _registry = registry
+
+
+# Thinking budget per run effort on the pre-4.7 `claude-*` models.
+_RUN_EFFORT_BUDGETS: dict[str, int] = {"low": 1024, "medium": 2048, "high": 4096, "max": 16384}
+# OpenAI reasoning models take low/medium/high; `max` maps to the top.
+_OPENAI_REASONING_RE = re.compile(r"^(o\d|gpt-5)")
+_OPENAI_REASONING_EFFORT: dict[str, str] = {
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "max": "high",
+}
+
+
+def loop_model_kwargs(
+    name: str,
+    *,
+    default_effort: Effort | None,
+    default_thinking_budget: int,
+    run_effort: RunEffort | None = None,
+) -> dict[str, Any]:
+    """Reasoning kwargs for `get_chat_model` on the agent loop.
+
+    Without a run effort this is the deployment default. With one, it maps
+    to the provider's knob: `effort` on the adaptive-thinking Claude models, a
+    thinking budget on older Claude models, `reasoning_effort` on OpenAI
+    reasoning models, and nothing where the model has no such control.
+    """
+    try:
+        _, model_id = split_model(name)
+    except ValueError:
+        model_id = name
+    if not is_anthropic(name):
+        if run_effort is None or not _OPENAI_REASONING_RE.match(model_id.rsplit("/", 1)[-1]):
+            return {}
+        return {"reasoning_effort": _OPENAI_REASONING_EFFORT[run_effort]}
+    if supports_effort(model_id):
+        return {"effort": run_effort or default_effort}
+    if run_effort is None:
+        return {"thinking_budget_tokens": default_thinking_budget}
+    return {"thinking_budget_tokens": _RUN_EFFORT_BUDGETS[run_effort]}

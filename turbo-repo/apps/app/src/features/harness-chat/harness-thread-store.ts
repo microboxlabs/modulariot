@@ -23,6 +23,8 @@ export type StoredThread = {
   title: string | null;
   /** The harness's compacted memory of the conversation; null until it compacts. */
   summary: string | null;
+  /** The conversation model the thread last ran on; null until its first run. */
+  model: string | null;
   ownerId: string;
   owned: boolean;
   expiresAt: string | null;
@@ -79,6 +81,10 @@ export async function setThreadExpiry(id: string, expiresAt: string | null): Pro
 
 export async function setThreadSummary(id: string, summary: string): Promise<boolean> {
   return sendJson(`${BASE}/${encodeURIComponent(id)}`, "PATCH", { summary });
+}
+
+export async function setThreadModel(id: string, model: string): Promise<boolean> {
+  return sendJson(`${BASE}/${encodeURIComponent(id)}`, "PATCH", { model });
 }
 
 export async function deleteThread(id: string): Promise<void> {

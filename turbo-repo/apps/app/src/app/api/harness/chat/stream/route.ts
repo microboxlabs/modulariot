@@ -735,6 +735,9 @@ async function run(
         // What the harness holds now, compacted or seeded; the panel stores
         // it with the thread so the next process can be handed it back.
         harnessConversationSummary: record.conversation_summary ?? null,
+        // The model the run actually used, stored with the thread so reopening
+        // it starts on the same one.
+        harnessModelUsed: record.context?.model ?? null,
       },
     });
     send({ type: "RUN_FINISHED", runId, threadId });

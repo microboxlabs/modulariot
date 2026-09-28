@@ -19,6 +19,7 @@ function storedThread(summary: string | null): StoredThread {
     id: "thread-1",
     title: "chat",
     summary,
+    model: null,
     ownerId: "me",
     owned: true,
     expiresAt: null,

@@ -5712,6 +5712,28 @@
         "unfinished": "Did not finish",
         "noArguments": "This run did not record its arguments.",
         "tokens": "{input} input tokens · {output} output"
+      },
+      "jobs": {
+        "open": "Activity",
+        "title": "Activity",
+        "running": "Running",
+        "recent": "Recent",
+        "empty": "No recent runs.",
+        "loadFailed": "Could not load activity.",
+        "untitled": "Untitled chat",
+        "working": "Working…",
+        "statusCompleted": "Done",
+        "statusFailed": "Failed",
+        "statusInterrupted": "Interrupted",
+        "delegates": "Subtasks",
+        "toastDone": "Done: {title}",
+        "toastFailed": "Failed: {title}",
+        "toastOpen": "Open"
+      },
+      "menu": {
+        "open": "More options",
+        "sessionSummary": "Session summary",
+        "sessionSummaryPrompt": "Wrap up this work session: summarize what we did, with the questions, the answers and their numbers, what was saved and what is still open."
       }
     },
     "plan": {

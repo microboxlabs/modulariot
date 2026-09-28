@@ -13,6 +13,7 @@ import { readRunEffort } from "./hooks/use-run-effort";
 import { attachmentMarker, attachmentOfPart } from "./attachment-parts";
 import {
   HARNESS_RUN_EVENT,
+  announceRunMarker,
   cancelRun,
   clearActiveRun,
   isHarnessRunMarker,
@@ -92,6 +93,7 @@ export class HarnessRunAgent extends HttpAgent {
     } else {
       clearActiveRun(this.threadId, value.runId);
     }
+    announceRunMarker(this.threadId, value);
   }
 }
 

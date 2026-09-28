@@ -109,8 +109,39 @@ async def test_a_low_provider_count_scales_the_estimates_down() -> None:
     )
     context = result["context"]
     assert context["used"] == 100
-    assert context["breakdown"]["run"] == 0
+    assert context["breakdown"]["run"] == 10
     assert sum(context["breakdown"].values()) == 100
+
+
+@pytest.mark.asyncio
+async def test_run_is_only_what_the_run_added_when_the_estimates_fall_short() -> None:
+    """The first request's count fixes the size of what was there before the
+    run; the four-characters-a-token estimates are only split by it."""
+
+    model = MeteredModel(
+        [
+            AIMessage(
+                content="",
+                tool_calls=[{"name": "fake_kpi_summary", "args": {}, "id": "t1"}],
+            ),
+            AIMessage(content="41 trips"),
+        ],
+        usage=[{"input": 50_000, "output": 200}, {"input": 51_000, "output": 300}],
+    )
+    events: list[HarnessEvent] = []
+    await _runner(model).run(
+        user_message="trips today?",
+        ctx=_ctx(),
+        prior_messages=[HumanMessage(content="earlier"), AIMessage(content="ok")],
+        progress=events.append,
+    )
+    first, second = [e.data["breakdown"] for e in events if e.type == "context.usage"]
+    assert first["run"] == 200
+    assert sum(first.values()) - first["run"] == 50_000
+    assert second["run"] == 51_300 - 50_000
+    assert {k: v for k, v in first.items() if k != "run"} == {
+        k: v for k, v in second.items() if k != "run"
+    }
 
 
 def test_a_non_positive_context_window_is_refused() -> None:

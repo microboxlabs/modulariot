@@ -639,15 +639,30 @@ class HarnessSupervisor:
         tenant_block = self.context_skills.primer_for(ctx.tenant_id).tenant_block
         if tenant_block:
             blocks.append(f"# System context (tenant)\n{tenant_block}")
+        indexed = self._indexed_skills()
         facts = [
             f"- {entry.title}\n  {entry.body}"
             for entry in self.context_skills.facts_for(ctx.tenant_id)
+            if entry.name not in indexed
         ]
         if facts:
             blocks.append("# System facts (tenant)\n" + "\n".join(facts))
         if not blocks:
             return prior_messages
         return [SystemMessage(content="\n\n".join(blocks)), *prior_messages]
+
+    def _indexed_skills(self) -> set[str]:
+        """Fact names of the skills the loop's system prompt already lists
+        (see `render_skills_index`), so the facts do not repeat them."""
+
+        if self.context_skills is None or self.profile is None:
+            return set()
+        return {
+            f"skill:{loaded.skill.id}"
+            for loaded in self.context_skills.playbooks_for(
+                self.profile.tenant_lock or "", connection=self.profile.name
+            )
+        }
 
     async def _inject_skill(
         self,

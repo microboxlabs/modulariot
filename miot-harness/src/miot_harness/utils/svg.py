@@ -30,11 +30,14 @@ def check_svg(svg: str, *, tags: frozenset[str]) -> None:
         if _local(el.tag) not in tags:
             raise SvgError(f"unexpected SVG element {_local(el.tag)!r}")
         for key, value in el.attrib.items():
-            name = _local(key).lower()
-            if name.startswith("on") or "href" in name:
-                raise SvgError(f"unexpected SVG attribute {name!r}")
-            # CSS escapes could spell url( in a way the check below misses.
-            if "\\" in value:
-                raise SvgError(f"unexpected escape in SVG attribute {name!r}")
-            if "url(" in _LOCAL_REF.sub("", value).lower():
-                raise SvgError("SVG references outside the document")
+            _check_attribute(_local(key).lower(), value)
+
+
+def _check_attribute(name: str, value: str) -> None:
+    if name.startswith("on") or "href" in name:
+        raise SvgError(f"unexpected SVG attribute {name!r}")
+    # CSS escapes could spell url( in a way the check below misses.
+    if "\\" in value:
+        raise SvgError(f"unexpected escape in SVG attribute {name!r}")
+    if "url(" in _LOCAL_REF.sub("", value).lower():
+        raise SvgError("SVG references outside the document")

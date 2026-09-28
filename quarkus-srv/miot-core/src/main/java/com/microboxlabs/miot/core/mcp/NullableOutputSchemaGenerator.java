@@ -9,7 +9,7 @@ import com.github.victools.jsonschema.generator.SchemaVersion;
 import io.quarkiverse.mcp.server.GlobalOutputSchemaGenerator;
 import io.quarkiverse.mcp.server.runtime.SchemaGeneratorConfigCustomizer;
 import io.quarkus.arc.All;
-import jakarta.inject.Singleton;
+import jakarta.enterprise.context.ApplicationScoped;
 import java.lang.reflect.Type;
 import java.util.List;
 
@@ -20,7 +20,7 @@ import java.util.List;
  * validate structured content reject a null against a plain
  * {@code "type": "string"}. Input schemas keep the default generator.
  */
-@Singleton
+@ApplicationScoped
 public class NullableOutputSchemaGenerator implements GlobalOutputSchemaGenerator {
 
     private final SchemaGenerator generator;

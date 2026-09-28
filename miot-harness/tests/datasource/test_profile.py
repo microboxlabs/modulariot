@@ -110,8 +110,9 @@ async def test_array_columns_get_no_min_max_or_top() -> None:
 
 @pytest.mark.asyncio
 async def test_profile_refuses_tables_outside_the_allowlist() -> None:
+    pool = RecordingPool()
     with pytest.raises(AllowlistViolation):
-        await safe_profile(pool=RecordingPool(), policy=OPS, table="public.users")
+        await safe_profile(pool=pool, policy=OPS, table="public.users")
 
 
 @pytest.mark.asyncio

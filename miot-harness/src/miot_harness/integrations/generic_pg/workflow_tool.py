@@ -120,7 +120,7 @@ class _Workflow:
                 f"FROM {self.s}.act_hi_procinst GROUP BY proc_def_id_ LIMIT 5000",
                 5000,
             )
-        except Exception as exc:  # noqa: BLE001 — history may be off, missing or too costly
+        except Exception as exc:  # noqa: BLE001 — process history may be unavailable
             counts, note = [], f"Instance counts skipped: {exc}."
         by_def = {r["proc_def_id_"]: r for r in counts}
         out: dict[str, dict[str, Any]] = {}

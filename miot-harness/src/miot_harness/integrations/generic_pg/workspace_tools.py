@@ -281,99 +281,130 @@ def build_show_tool(env: ToolEnv) -> HarnessTool[Any, Any]:
     )
 
 
+def _saved_sql(env: ToolEnv, ctx: HarnessContext, name: str, args: dict[str, Any]) -> str:
+    root = _require(env.workspace_dir, env.source_label)
+    analysis = ws.read_analysis(root, ctx.tenant_id, name)
+    if analysis is None:
+        raise ValueError(f"no saved analysis named {name!r}")
+    return ws.bind(analysis.sql, analysis.params, args)
+
+
+async def _select(env: ToolEnv, sql: str, max_rows: int) -> Any:
+    return await safe_run_select(
+        pool=env.pool,
+        policy=env.policy,
+        sql=sql,
+        max_rows=max_rows,
+        cost_threshold=env.explain_cost_threshold,
+        statement_timeout_ms=env.statement_timeout_ms,
+    )
+
+
+def _memory_list(env: ToolEnv, ctx: HarnessContext, parsed: _MemoryInput) -> _MemoryOutput:
+    notes = ws.list_notes(_require(env.workspace_dir, env.source_label), ctx.tenant_id)
+    return _MemoryOutput(
+        notes=[{"id": n.id, "title": n.title, "kind": n.kind} for n in notes],
+        source=env.source_label,
+    )
+
+
+def _memory_read(env: ToolEnv, ctx: HarnessContext, parsed: _MemoryInput) -> _MemoryOutput:
+    root = _require(env.workspace_dir, env.source_label)
+    note = ws.read_note(root, ctx.tenant_id, parsed.id or parsed.title or "")
+    if note is None:
+        raise ValueError(f"no note {parsed.id!r}; list them first")
+    return _MemoryOutput(note=_note_dict(note), source=env.source_label)
+
+
+def _memory_write(env: ToolEnv, ctx: HarnessContext, parsed: _MemoryInput) -> _MemoryOutput:
+    note = ws.write_note(
+        _require(env.workspace_dir, env.source_label),
+        ctx.tenant_id,
+        title=parsed.title or "",
+        body=parsed.body or "",
+        kind=parsed.kind,
+        author=ctx.user_id,
+        conversation_id=ctx.conversation_id,
+    )
+    return _MemoryOutput(note=_note_dict(note), source=env.source_label)
+
+
+_MEMORY_ACTIONS = {"list": _memory_list, "read": _memory_read, "write": _memory_write}
+
+
+async def _analysis_list(
+    env: ToolEnv, ctx: HarnessContext, parsed: _AnalysisInput
+) -> _AnalysisOutput:
+    root = _require(env.workspace_dir, env.source_label)
+    return _AnalysisOutput(
+        analyses=[
+            {"name": a.name, "description": a.description, "params": a.params}
+            for a in ws.list_analyses(root, ctx.tenant_id)
+        ],
+        source=env.source_label,
+    )
+
+
+async def _analysis_read(
+    env: ToolEnv, ctx: HarnessContext, parsed: _AnalysisInput
+) -> _AnalysisOutput:
+    root = _require(env.workspace_dir, env.source_label)
+    analysis = ws.read_analysis(root, ctx.tenant_id, parsed.name or "")
+    if analysis is None:
+        raise ValueError(f"no saved analysis named {parsed.name!r}")
+    return _AnalysisOutput(analysis=_analysis_dict(analysis), source=env.source_label)
+
+
+async def _analysis_run(
+    env: ToolEnv, ctx: HarnessContext, parsed: _AnalysisInput
+) -> _AnalysisOutput:
+    run = await _select(env, _saved_sql(env, ctx, parsed.name or "", parsed.args), env.max_rows)
+    return _AnalysisOutput(rows=run.rows, source=env.source_label, executed_sql=run.sql)
+
+
+async def _analysis_save(
+    env: ToolEnv, ctx: HarnessContext, parsed: _AnalysisInput
+) -> _AnalysisOutput:
+    # test-run with the defaults first, so only a working query is kept
+    params = ws.validate_params(parsed.params, parsed.sql or "")
+    run = await _select(env, ws.bind(parsed.sql or "", params, {}), 5)
+    saved = ws.save_analysis(
+        _require(env.workspace_dir, env.source_label),
+        ctx.tenant_id,
+        name=parsed.name or "",
+        description=parsed.description or "",
+        sql=parsed.sql or "",
+        params=params,
+        author=ctx.user_id,
+        conversation_id=ctx.conversation_id,
+        columns=list(run.rows[0].keys()) if run.rows else [],
+    )
+    return _AnalysisOutput(analysis=_analysis_dict(saved), rows=run.rows, source=env.source_label)
+
+
+_ANALYSIS_ACTIONS = {
+    "list": _analysis_list,
+    "read": _analysis_read,
+    "run": _analysis_run,
+    "save": _analysis_save,
+}
+
+
 def build_workspace_tools(env: ToolEnv) -> list[HarnessTool[Any, Any]]:
     if env.workspace_dir is None:
         return []
-    pool, policy, source_label = env.pool, env.policy, env.source_label
-    tool_prefix, common = env.tool_prefix, env.common
-    max_rows, explain_cost_threshold = env.max_rows, env.explain_cost_threshold
-    statement_timeout_ms, workspace_dir = env.statement_timeout_ms, env.workspace_dir
+    source_label, tool_prefix, common = env.source_label, env.tool_prefix, env.common
     tools: list[HarnessTool[Any, Any]] = []
-
-    def saved_sql(ctx: HarnessContext, name: str, args: dict[str, Any]) -> str:
-        if workspace_dir is None:
-            raise ValueError(f"{source_label} has no workspace for saved analyses")
-        analysis = ws.read_analysis(workspace_dir, ctx.tenant_id, name)
-        if analysis is None:
-            raise ValueError(f"no saved analysis named {name!r}")
-        return ws.bind(analysis.sql, analysis.params, args)
 
     async def call_memory(  # NOSONAR
         ctx: HarnessContext, parsed: _MemoryInput, progress: Progress
     ) -> _MemoryOutput:
-        root = _require(workspace_dir, source_label)
-        if parsed.action == "list":
-            notes = ws.list_notes(root, ctx.tenant_id)
-            return _MemoryOutput(
-                notes=[{"id": n.id, "title": n.title, "kind": n.kind} for n in notes],
-                source=source_label,
-            )
-        if parsed.action == "read":
-            note = ws.read_note(root, ctx.tenant_id, parsed.id or parsed.title or "")
-            if note is None:
-                raise ValueError(f"no note {parsed.id!r}; list them first")
-            return _MemoryOutput(note=_note_dict(note), source=source_label)
-        note = ws.write_note(
-            root,
-            ctx.tenant_id,
-            title=parsed.title or "",
-            body=parsed.body or "",
-            kind=parsed.kind,
-            author=ctx.user_id,
-            conversation_id=ctx.conversation_id,
-        )
-        return _MemoryOutput(note=_note_dict(note), source=source_label)
+        return _MEMORY_ACTIONS[parsed.action](env, ctx, parsed)
 
     async def call_analysis(
         ctx: HarnessContext, parsed: _AnalysisInput, progress: Progress
     ) -> _AnalysisOutput:
-        root = _require(workspace_dir, source_label)
-        if parsed.action == "list":
-            return _AnalysisOutput(
-                analyses=[
-                    {"name": a.name, "description": a.description, "params": a.params}
-                    for a in ws.list_analyses(root, ctx.tenant_id)
-                ],
-                source=source_label,
-            )
-        if parsed.action == "read":
-            analysis = ws.read_analysis(root, ctx.tenant_id, parsed.name or "")
-            if analysis is None:
-                raise ValueError(f"no saved analysis named {parsed.name!r}")
-            return _AnalysisOutput(analysis=_analysis_dict(analysis), source=source_label)
-        if parsed.action == "run":
-            sql = saved_sql(ctx, parsed.name or "", parsed.args)
-            run = await safe_run_select(
-                pool=pool,
-                policy=policy,
-                sql=sql,
-                max_rows=max_rows,
-                cost_threshold=explain_cost_threshold,
-                statement_timeout_ms=statement_timeout_ms,
-            )
-            return _AnalysisOutput(rows=run.rows, source=source_label, executed_sql=run.sql)
-        # save: test-run with the defaults first, so only a working query is kept
-        params = ws.validate_params(parsed.params, parsed.sql or "")
-        run = await safe_run_select(
-            pool=pool,
-            policy=policy,
-            sql=ws.bind(parsed.sql or "", params, {}),
-            max_rows=5,
-            cost_threshold=explain_cost_threshold,
-            statement_timeout_ms=statement_timeout_ms,
-        )
-        saved = ws.save_analysis(
-            root,
-            ctx.tenant_id,
-            name=parsed.name or "",
-            description=parsed.description or "",
-            sql=parsed.sql or "",
-            params=params,
-            author=ctx.user_id,
-            conversation_id=ctx.conversation_id,
-            columns=list(run.rows[0].keys()) if run.rows else [],
-        )
-        return _AnalysisOutput(analysis=_analysis_dict(saved), rows=run.rows, source=source_label)
+        return await _ANALYSIS_ACTIONS[parsed.action](env, ctx, parsed)
 
     writable = {**common, "read_only": False}
     tools.append(

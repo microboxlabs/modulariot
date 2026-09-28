@@ -49,7 +49,8 @@ public class ConnectionTools {
     static final String MASK = "***";
 
     private static final Pattern SECRET_KEY =
-            Pattern.compile("(?i)(secret|passw|api[_-]?key|authorization|private[_-]?key|cookie|token$)");
+            Pattern.compile("(?i)(secret|passw|api[_-]?key|authorization|private[_-]?key|cookie|token)");
+    private static final Pattern NOT_SECRET_KEY = Pattern.compile("(?i)token[_-]?(url|uri|endpoint|type)");
 
     public record ConnectionView(String id, String name, ProviderType providerType, URI baseUrl,
             String credentialProfileId, ConnectionStatus status, OffsetDateTime lastTestedAt,
@@ -244,7 +245,7 @@ public class ConnectionTools {
     }
 
     private static boolean isSecret(String key) {
-        return key != null && SECRET_KEY.matcher(key).find();
+        return key != null && SECRET_KEY.matcher(key).find() && !NOT_SECRET_KEY.matcher(key).matches();
     }
 
     private static URI httpUrl(String value) {
@@ -258,6 +259,9 @@ public class ConnectionTools {
             }
             if (uri.getUserInfo() != null) {
                 throw new IllegalArgumentException("baseUrl must not carry a user or password; use a credential");
+            }
+            if (uri.getRawQuery() != null || uri.getRawFragment() != null) {
+                throw new IllegalArgumentException("baseUrl must not have a query or fragment");
             }
             return uri;
         } catch (URISyntaxException e) {

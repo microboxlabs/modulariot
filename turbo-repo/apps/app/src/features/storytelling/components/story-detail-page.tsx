@@ -176,7 +176,15 @@ export default function StoryDetailPage({
       setRenaming(false);
       try {
         const saved = await updateStory(story.id, { title });
-        setState({ status: "ready", story: { ...story, title: saved.title } });
+        setState({
+          status: "ready",
+          story: {
+            ...story,
+            title: saved.title,
+            updatedAt: saved.updatedAt,
+            updatedBy: saved.updatedBy,
+          },
+        });
       } catch {
         toast.error(tr("toast.failed", dict));
       }

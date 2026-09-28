@@ -105,25 +105,76 @@ export function deckFrom(version: StoryVersion): DeckContent | null {
   return slides.length > 0 ? { slides } : null;
 }
 
-const SECTION_TYPES = new Set([
-  "heading",
-  "text",
-  "metric",
-  "quote",
-  "chart",
-  "table",
-]);
+function text(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function optionalText(value: unknown): { value?: string } {
+  return typeof value === "string" && value ? { value } : {};
+}
+
+/** One block, rebuilt from what the metadata holds; null when a field the
+ * renderer needs is missing or of the wrong type. */
+function toSection(raw: unknown): StorySection | null {
+  if (!isRecord(raw)) return null;
+  switch (raw.type) {
+    case "heading": {
+      const body = text(raw.text);
+      if (!body) return null;
+      const level = typeof raw.level === "number" ? raw.level : undefined;
+      return { type: "heading", text: body, ...(level ? { level } : {}) };
+    }
+    case "text": {
+      const body = text(raw.text);
+      return body ? { type: "text", text: body } : null;
+    }
+    case "quote": {
+      const body = text(raw.text);
+      if (!body) return null;
+      const author = optionalText(raw.author).value;
+      return { type: "quote", text: body, ...(author ? { author } : {}) };
+    }
+    case "metric": {
+      const label = text(raw.label);
+      const value = raw.value;
+      if (!label || (typeof value !== "string" && typeof value !== "number"))
+        return null;
+      const unit = optionalText(raw.unit).value;
+      const delta = optionalText(raw.delta).value;
+      return {
+        type: "metric",
+        label,
+        value,
+        ...(unit ? { unit } : {}),
+        ...(delta ? { delta } : {}),
+      };
+    }
+    case "chart": {
+      if (!isRecord(raw.option)) return null;
+      const title = optionalText(raw.title).value;
+      return { type: "chart", option: raw.option, ...(title ? { title } : {}) };
+    }
+    case "table": {
+      if (!Array.isArray(raw.headers) || !Array.isArray(raw.rows)) return null;
+      const title = optionalText(raw.title).value;
+      return {
+        type: "table",
+        headers: strings(raw.headers),
+        rows: raw.rows.filter(Array.isArray).map(strings),
+        ...(title ? { title } : {}),
+      };
+    }
+    default:
+      return null;
+  }
+}
 
 export function sectionsFrom(version: StoryVersion): StorySection[] {
-  const structure = structureOf(version);
-  const raw = structure?.sections;
+  const raw = structureOf(version)?.sections;
   if (!Array.isArray(raw)) return [];
-  return raw.filter(
-    (section): section is StorySection =>
-      isRecord(section) &&
-      typeof section.type === "string" &&
-      SECTION_TYPES.has(section.type)
-  );
+  return raw
+    .map(toSection)
+    .filter((section): section is StorySection => section !== null);
 }
 
 /** Decodes base64 (tolerating a `data:` prefix); null when it is not base64. */

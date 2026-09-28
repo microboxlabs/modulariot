@@ -61,6 +61,8 @@ function busClass(index: number, count: number): string {
 
 interface NodeActions {
   readonly onOpen: (version: StoryVersion) => void;
+  /** False for a reader: the story shows its current version only. */
+  readonly canSwitch: boolean;
   /** Null for a reader, who cannot add versions. */
   readonly onIterate: ((version: StoryVersion) => void) | null;
 }
@@ -78,6 +80,7 @@ function VersionCard({
   readonly dict: I18nRecord;
   readonly actions: NodeActions;
 }) {
+  const openable = isCurrent || actions.canSwitch;
   return (
     <div
       data-version-node
@@ -98,10 +101,11 @@ function VersionCard({
       <button
         type="button"
         onClick={() => actions.onOpen(version)}
+        disabled={!openable}
         aria-label={`${tr("version.menu.open", dict)} ${tr("version.badgeLabel", dict, {
           label: version.label,
         })}`}
-        className="absolute inset-0 z-0 cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="absolute inset-0 z-0 cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-default"
       />
 
       {/* Title row — same treatment as the stories' section header. */}
@@ -120,6 +124,7 @@ function VersionCard({
           </span>
         )}
 
+        {(openable || actions.onIterate) && (
         <div className="relative z-10 ml-auto">
           <Dropdown
             inline
@@ -141,12 +146,14 @@ function VersionCard({
               </button>
             )}
           >
-            <DropdownItem
-              icon={HiArrowTopRightOnSquare}
-              onClick={() => actions.onOpen(version)}
-            >
-              {tr("version.menu.open", dict)}
-            </DropdownItem>
+            {openable && (
+              <DropdownItem
+                icon={HiArrowTopRightOnSquare}
+                onClick={() => actions.onOpen(version)}
+              >
+                {tr("version.menu.open", dict)}
+              </DropdownItem>
+            )}
             {actions.onIterate && (
               <DropdownItem icon={HiArrowPath} onClick={() => actions.onIterate?.(version)}>
                 {tr("version.menu.iterate", dict)}
@@ -154,6 +161,7 @@ function VersionCard({
             )}
           </Dropdown>
         </div>
+        )}
       </div>
 
       <div className="px-3 py-2.5">
@@ -379,6 +387,7 @@ export default function StoryVersionsPage({ dict, id, rootDict }: StoryVersionsP
 
   const canWrite = story !== null && story.permission !== "read";
   const actions: NodeActions = {
+    canSwitch: canWrite,
     onOpen: (version) => {
       if (!story || busy) return;
       const open = () => router.push(`/${lang}/storytelling/${encodeURIComponent(story.id)}`);

@@ -119,13 +119,16 @@ const collaborators_management_params: ParamType[] = [
   setParam("rut", "text"),
 ];
 
-function storytelling_params(): ParamType[] {
+function storytelling_params(storyDict: I18nRecord): ParamType[] {
   return [
     setParam("name", "text"),
     setParam(
       "artifactType",
       "selector",
-      STORY_KINDS.map((kind) => ({ value: kind, label: kind }))
+      STORY_KINDS.map((kind) => ({
+        value: kind,
+        label: trDynamic(`kind.${kind}`, storyDict),
+      }))
     ),
     setParam("createdAt", "date_range"),
   ];
@@ -158,7 +161,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
   const kanban = kanban_params(searchbarDict);
   const fleet = fleet_params(searchbarDict);
   const calendar = calendar_params(searchbarDict);
-  const storytelling = storytelling_params();
+  const storytelling = storytelling_params(dict.storytelling as I18nRecord);
 
   return {
     finished: getParamsFixed(kanban, dict),

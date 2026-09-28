@@ -1,0 +1,52 @@
+# Analytics work sessions against the synthetic fleet_ops dataset
+# (evals/datasets/fleet_ops). Expected numbers come from truth.sql; regenerate
+# both together. Run with a harness whose only connection is that dataset:
+#
+#   uv run miot-harness-chat-evals --suite analytics --port 8011
+#
+# Extra expect keys used here:
+#   numbers      [{value, tolerance_pct}] the answer must contain each value
+#   blocks       block types the answer must contain (table, chart, kpi, ...)
+#   max_tools    upper bound on tool calls in the turn
+#   max_seconds  upper bound on the turn's wall time
+cases:
+  - id: kpi-driving-time
+    turns:
+      - message: ¿Cuál es el tiempo de conducción total en 2026?
+        expect:
+          any_tool: true
+          numbers: [{value: 42351.5, tolerance_pct: 2}]
+
+  - id: kpi-services-then-breakdown
+    turns:
+      - message: ¿Cuántos servicios hubo en 2026?
+        expect:
+          any_tool: true
+          numbers: [{value: 10853, tolerance_pct: 0.5}]
+      - message: ¿Y las horas de conducción por transportista?
+        expect:
+          any_tool: true
+          contains_any: [Cordillera Cargo]
+          numbers:
+            - {value: 5633.4, tolerance_pct: 1}
+            - {value: 5512.3, tolerance_pct: 1}
+            - {value: 5321.9, tolerance_pct: 1}
+            - {value: 5294.8, tolerance_pct: 1}
+            - {value: 5286.9, tolerance_pct: 1}
+            - {value: 5227.8, tolerance_pct: 1}
+            - {value: 5072.6, tolerance_pct: 1}
+            - {value: 5001.8, tolerance_pct: 1}
+
+  - id: kpi-gps-coverage
+    turns:
+      - message: ¿Qué porcentaje de los servicios de 2026 tiene datos GPS?
+        expect:
+          any_tool: true
+          numbers: [{value: 69.4, tolerance_pct: 2}]
+
+  - id: kpi-black-codes-attended
+    turns:
+      - message: ¿Qué porcentaje de los códigos negros de 2026 fue atendido?
+        expect:
+          any_tool: true
+          numbers: [{value: 58.0, tolerance_pct: 3}]

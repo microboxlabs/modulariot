@@ -65,7 +65,7 @@ class _ProfileOutput(BaseModel):
     source: str = ""
 
 
-WidgetKind = Literal["kpi", "table", "bar", "line", "area", "pie"]
+WidgetKind = Literal["kpi", "table", "bar", "line", "pie"]
 WIDGET_MAX_ROWS = 500
 WIDGET_PREVIEW_ROWS = 5
 
@@ -88,7 +88,7 @@ class _ShowInput(BaseModel):
     widget: WidgetKind = Field(
         description=(
             "kpi: one headline number (first row, first y column); table: a "
-            "list to scan; bar: compare categories; line/area: a trend over "
+            "list to scan; bar: compare categories; line: a trend over "
             "time; pie: shares of a whole (few categories)"
         )
     )
@@ -178,14 +178,28 @@ def _jsonable_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return converted
 
 
+def _show_note(widget_id: str, truncated: bool, row_count: int) -> str:
+    placement = (
+        f'Place it in your answer with {{"type": "widget", "value": {{"id": "{widget_id}"}}}} '
+        "and write what it shows; do not repeat the rows."
+    )
+    if truncated:
+        return (
+            f"The result was cut at {row_count} rows; the widget shows only those. "
+            "Say so, or aggregate or filter the query and show it again. " + placement
+        )
+    return "The user sees every row in the widget. " + placement
+
+
 def _widget_problems(parsed: _ShowInput, columns: list[str], row_count: int) -> list[str]:
+    if parsed.widget in ("bar", "line", "pie") and not (parsed.x and parsed.y):
+        return [f"a {parsed.widget} chart needs x and at least one y column"]
+    if row_count == 0:
+        if parsed.widget == "table":
+            return []
+        return ["the query returned no rows; say there is no data instead of showing a widget"]
     missing = [c for c in [parsed.x, *parsed.y] if c and c not in columns]
-    problems = [f"column {c!r} is not in the result ({', '.join(columns)})" for c in missing]
-    if parsed.widget in ("bar", "line", "area", "pie") and not (parsed.x and parsed.y):
-        problems.append(f"a {parsed.widget} chart needs x and at least one y column")
-    if parsed.widget == "kpi" and row_count == 0:
-        problems.append("a kpi needs one row; the query returned none")
-    return problems
+    return [f"column {c!r} is not in the result ({', '.join(columns)})" for c in missing]
 
 
 class _SelectInput(BaseModel):
@@ -351,7 +365,10 @@ def build_generic_tools(
     """
     cards_by_id = {c.id: c for c in (knowledge_cards or [])}
 
-    async def check_permission(ctx: HarnessContext, _input: BaseModel) -> PermissionResult:
+    # HarnessTool.check_permission must return an awaitable.
+    async def check_permission(  # NOSONAR
+        ctx: HarnessContext, _input: BaseModel
+    ) -> PermissionResult:
         if tenant_lock is not None and ctx.tenant_id != tenant_lock:
             return PermissionResult.deny(
                 f"{source_label} is locked to tenant '{tenant_lock}'; "
@@ -445,10 +462,11 @@ def build_generic_tools(
         )
         rows = _jsonable_rows(run.rows)
         columns = list(rows[0].keys()) if rows else []
-        problems = _widget_problems(parsed, columns, len(rows)) if rows else []
+        problems = _widget_problems(parsed, columns, len(rows))
         if problems:
             raise ValueError("; ".join(problems))
         widget_id = f"w{uuid4().hex[:10]}"
+        truncated = len(rows) >= min(max_rows, WIDGET_MAX_ROWS)
         progress(
             HarnessEvent(
                 run_id=ctx.run_id,
@@ -465,7 +483,7 @@ def build_generic_tools(
                         "unit": parsed.unit,
                         "columns": columns,
                         "rows": rows,
-                        "truncated": len(rows) >= min(max_rows, WIDGET_MAX_ROWS),
+                        "truncated": truncated,
                         "source": source_label,
                         "sql": run.sql,
                     }
@@ -477,11 +495,7 @@ def build_generic_tools(
             row_count=len(rows),
             columns=columns,
             preview=rows[:WIDGET_PREVIEW_ROWS],
-            note=(
-                "The user sees every row in the widget. Place it in your answer "
-                f'with {{"type": "widget", "value": {{"id": "{widget_id}"}}}} and '
-                "write what it shows; do not repeat the rows."
-            ),
+            note=_show_note(widget_id, truncated, len(rows)),
             source=source_label,
             executed_sql=run.sql,
         )
@@ -741,8 +755,10 @@ def build_generic_tools(
             name=f"{tool_prefix}profile",
             description=(
                 f"Profile a schema-qualified table {scope} on a bounded sample: per "
-                "column the comment, null %, distinct count, min/max, most common "
-                "values, and for JSON columns the keys it carries with an example. "
+                "column the comment, null %, distinct count, min/max for numbers and "
+                "dates, the most common values (text columns, and any column with "
+                "few distinct values), and for JSON columns the keys it carries "
+                "with an example. "
                 "Use it on the tables a question needs before writing the query: "
                 "it shows what values mean and which rows repeat."
             ),
@@ -755,7 +771,7 @@ def build_generic_tools(
             name=f"{tool_prefix}show",
             description=(
                 f"Show a query result {scope} to the user as a widget: a kpi card, "
-                "a table, or a bar/line/area/pie chart. Runs the SELECT under the "
+                "a table, or a bar/line/pie chart. Runs the SELECT under the "
                 "same rules as query and sends every row to the user's screen; "
                 "you get back only a preview. Use it whenever the answer is more "
                 "than one or two numbers: a breakdown, a ranking, a trend."
@@ -824,8 +840,9 @@ def build_generic_tools(
                 "Optional ILIKE pattern on name or description. `total` is the "
                 "match count; rows carry a one-line summary (definition has the "
                 "full text). Read these before writing a query someone may "
-                "already have written. total=0 means the connection has none; "
-                "do not retry with other patterns."
+                "already have written. With no pattern, total=0 means the "
+                "connection has none, so do not retry with patterns; with a "
+                "pattern it only means nothing matched."
             ),
             input_model=_FunctionsInput,
             output_model=_FunctionsOutput,

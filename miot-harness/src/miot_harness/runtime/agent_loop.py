@@ -24,7 +24,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from time import monotonic
 from typing import Any
 
@@ -60,7 +60,9 @@ from miot_harness.runtime.agent_seats import (
     seat_tool_schemas,
     seats_prompt_block,
 )
+from miot_harness.runtime.attachments import Attachment, content_block, with_markers
 from miot_harness.runtime.context import HarnessContext, RunEffort
+from miot_harness.runtime.event_payload import args_payload, preview_payload
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.evidence import DataEvidence, DataStep
 from miot_harness.runtime.freshness import judge_freshness
@@ -143,11 +145,24 @@ def _split_prior(
     return history, reminders
 
 
-def _compose_human(user_message: str, reminders: list[str]) -> HumanMessage:
-    if not reminders:
-        return HumanMessage(content=user_message)
-    blocks = "\n\n".join(f"<system-reminder>\n{text}\n</system-reminder>" for text in reminders)
-    return HumanMessage(content=f"{blocks}\n\n{user_message}")
+def _compose_human(
+    user_message: str,
+    reminders: list[str],
+    attachments: Sequence[Attachment] = (),
+) -> HumanMessage:
+    text = user_message
+    if reminders:
+        wrapped = "\n\n".join(f"<system-reminder>\n{r}\n</system-reminder>" for r in reminders)
+        text = f"{wrapped}\n\n{user_message}"
+    if not attachments:
+        return HumanMessage(content=text)
+    # Files first and the text last, so the tail cache marker lands on text.
+    # A message that is only files has no text block: the API rejects an
+    # empty one.
+    content: list[str | dict[str, Any]] = [content_block(a) for a in attachments]
+    if text:
+        content.append({"type": "text", "text": text})
+    return HumanMessage(content=content)
 
 
 def _turn_transcript(
@@ -289,7 +304,14 @@ def _plain_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
     and cache markers, which only Anthropic accepts, are dropped."""
     out: list[BaseMessage] = []
     for msg in messages:
-        if isinstance(msg.content, list):
+        if isinstance(msg, HumanMessage) and _has_media(msg.content):
+            blocks = [
+                {k: v for k, v in b.items() if k != "cache_control"}
+                for b in msg.content
+                if isinstance(b, dict) and b.get("type") in _PLAIN_KEPT_BLOCKS
+            ]
+            msg = msg.model_copy(update={"content": blocks})
+        elif isinstance(msg.content, list):
             text = "".join(
                 str(b.get("text", ""))
                 for b in msg.content
@@ -298,6 +320,15 @@ def _plain_messages(messages: list[BaseMessage]) -> list[BaseMessage]:
             msg = msg.model_copy(update={"content": text})
         out.append(msg)
     return out
+
+
+_PLAIN_KEPT_BLOCKS = frozenset({"text", "image", "file"})
+
+
+def _has_media(content: Any) -> bool:
+    return isinstance(content, list) and any(
+        isinstance(b, dict) and b.get("type") in ("image", "file") for b in content
+    )
 
 
 def _mark_message(msg: BaseMessage) -> BaseMessage | None:
@@ -551,7 +582,7 @@ class AgentLoopRunner:
         messages: list[BaseMessage] = [
             self.system_message,
             *history,
-            _compose_human(user_message, reminders),
+            _compose_human(user_message, reminders, ctx.attachments),
         ]
         start_tokens = {
             **self._prefix_tokens,
@@ -681,7 +712,9 @@ class AgentLoopRunner:
             "usage_log": usage_log,
             "context": context,
             "messages": _turn_transcript(
-                messages, user_message=user_message, history_len=len(history)
+                messages,
+                user_message=with_markers(user_message, ctx.attachments),
+                history_len=len(history),
             ),
         }
 
@@ -712,6 +745,9 @@ class AgentLoopRunner:
                         "error": ctx.data_refusal,
                         "error_type": "TenantRefused",
                         "reason": ctx.data_refusal,
+                        "ok": False,
+                        "duration_ms": 0,
+                        **args_payload(step.args),
                     },
                 )
             )
@@ -878,6 +914,8 @@ class AgentLoopRunner:
                     "source": "skills",
                     "input_keys": ["skill_id"],
                     "skill_id": skill_id,
+                    "call_id": call_id,
+                    **args_payload({"skill_id": skill_id}),
                 },
             )
         )
@@ -911,6 +949,9 @@ class AgentLoopRunner:
                         "error": f"unknown skill: {skill_id}",
                         "error_type": "SkillNotFound",
                         "reason": f"unknown skill: {skill_id}",
+                        "call_id": call_id,
+                        "ok": False,
+                        "duration_ms": 0,
                     },
                 )
             )
@@ -957,6 +998,9 @@ class AgentLoopRunner:
                     "skill_id": skill_id,
                     "loaded": loaded,
                     "result_shape": {"type": "str", "length": len(content)},
+                    "call_id": call_id,
+                    "ok": True,
+                    **preview_payload(content),
                 },
             )
         )

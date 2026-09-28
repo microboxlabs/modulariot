@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   answerFromToolResult,
+  artifactsOf,
   chatAnswerEvents,
   dateFormatOf,
   humanize,
@@ -294,5 +295,45 @@ describe("column names the model chose", () => {
       { key: "{{row.c2}}", label: "% atendido", type: "highlight" },
     ]);
     expect(config.rows).toEqual([{ c0: "LWZS50", c1: "41", c2: "0.0" }]);
+  });
+});
+
+describe("artifacts", () => {
+  const diagram = {
+    id: "a1",
+    kind: "svg",
+    title: "Proceso",
+    content: "<svg></svg>",
+    source: "Fleet",
+  };
+  const note = { id: "a2", kind: "markdown", title: "Nota", content: "# Hi" };
+  const events = [
+    { type: "artifact.created", data: diagram },
+    { type: "artifact.created", data: { id: "a3", kind: "pdf", content: "" } },
+    { type: "artifact.created", data: note },
+  ];
+
+  it("reads the artifacts a run produced and drops unknown kinds", () => {
+    expect(artifactsOf(events).map((a) => a.id)).toEqual(["a1", "a2"]);
+  });
+
+  it("places an artifact where its block sits and the rest after the text", () => {
+    const answer = JSON.stringify([
+      { type: "markdown", value: "Antes" },
+      { type: "artifact", value: { id: "a2" } },
+      { type: "markdown", value: "Después" },
+    ]);
+    const out = chatAnswerEvents(answer, events, { ...opts, newId: counter() });
+    expect(
+      out.filter((e) => e.type === "TOOL_CALL_START").map((e) => e.toolCallName)
+    ).toEqual(["show_artifact", "show_artifact"]);
+    const args = out
+      .filter((e) => e.type === "TOOL_CALL_ARGS")
+      .map((e) => JSON.parse(String(e.delta)));
+    expect(args).toEqual([note, diagram]);
+    expect(out.filter((e) => e.type === "TOOL_CALL_RESULT")).toHaveLength(2);
+    expect(
+      out.filter((e) => e.type === "TEXT_MESSAGE_CONTENT").map((e) => e.delta)
+    ).toEqual(["Antes", "Después"]);
   });
 });

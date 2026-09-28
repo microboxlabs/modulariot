@@ -1,4 +1,5 @@
 import { askUserQuestionExtension } from "./ask-user-question";
+import { showArtifactExtension } from "./show-artifact";
 import { showDashletExtension } from "./show-dashlet";
 import type { HarnessExtension } from "../harness-extension";
 
@@ -10,6 +11,7 @@ import type { HarnessExtension } from "../harness-extension";
 export const DEFAULT_HARNESS_EXTENSIONS: HarnessExtension[] = [
   askUserQuestionExtension,
   showDashletExtension,
+  showArtifactExtension,
 ];
 
 /**

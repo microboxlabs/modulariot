@@ -24,5 +24,21 @@ public record HarnessThread(
         OffsetDateTime expiresAt,
         OffsetDateTime lastMessageAt,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt) {
+        OffsetDateTime updatedAt,
+        /** True once a person named the thread; a generated title never replaces theirs. */
+        boolean titleEdited) {
+
+    public HarnessThread(
+            String id,
+            String tenantCode,
+            String ownerId,
+            String title,
+            String summary,
+            String model,
+            OffsetDateTime expiresAt,
+            OffsetDateTime lastMessageAt,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt) {
+        this(id, tenantCode, ownerId, title, summary, model, expiresAt, lastMessageAt, createdAt, updatedAt, false);
+    }
 }

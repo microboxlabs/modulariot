@@ -1,10 +1,11 @@
 /**
  * The chat's answer contract: the miot-analyst skill answers with a JSON
- * array of blocks (markdown, url, widget, choices, assumption), and the
- * harness reports each widget's data in a `widget.created` event. This module
- * turns both into the AG-UI events the chat panel renders: text messages,
- * `show_dashlet` tool calls (real dashboard widgets) and `ask_user_question`
- * tool calls. Pure, so the whole mapping is unit-tested.
+ * array of blocks (markdown, url, widget, artifact, choices, assumption), and
+ * the harness reports each widget's data in a `widget.created` event and each
+ * artifact in an `artifact.created` event. This module turns them into the
+ * AG-UI events the chat panel renders: text messages, `show_dashlet` tool
+ * calls (real dashboard widgets), `show_artifact` tool calls and
+ * `ask_user_question` tool calls. Pure, so the whole mapping is unit-tested.
  */
 
 export type WidgetKind = "kpi" | "table" | "bar" | "line" | "pie";
@@ -24,6 +25,16 @@ export type WidgetSpec = {
   labels?: Record<string, string>;
 };
 
+export type ArtifactKind = "svg" | "mermaid" | "markdown" | "html";
+
+export type ArtifactSpec = {
+  id: string;
+  kind: ArtifactKind;
+  title: string;
+  content: string;
+  source?: string;
+};
+
 export type ChoicesValue = {
   question: string;
   description?: string;
@@ -36,10 +47,18 @@ export type ChatBlock =
   | { type: "markdown"; value: string }
   | { type: "url"; value: { url: string; name: string } }
   | { type: "widget"; value: { id: string } }
+  | { type: "artifact"; value: { id: string } }
   | { type: "choices"; value: ChoicesValue }
   | { type: "assumption"; value: { term: string; interpretation: string } };
 
 export type ChatEvent = Record<string, unknown>;
+
+const ARTIFACT_KINDS: ReadonlySet<string> = new Set([
+  "svg",
+  "mermaid",
+  "markdown",
+  "html",
+]);
 
 const WIDGET_KINDS: ReadonlySet<string> = new Set([
   "kpi",
@@ -84,7 +103,11 @@ function toChatBlock(item: unknown): ChatBlock | null {
       ? { type, value: { url: value.url, name: value.name } }
       : null;
   }
-  if (type === "widget" && isRecord(value) && typeof value.id === "string")
+  if (
+    (type === "widget" || type === "artifact") &&
+    isRecord(value) &&
+    typeof value.id === "string"
+  )
     return { type, value: { id: value.id } };
   if (type === "choices" && isChoices(value)) return { type, value };
   if (
@@ -159,6 +182,35 @@ export function widgetsOf(events: unknown): WidgetSpec[] {
       toWidgetSpec((e as { data: Record<string, unknown> }).data.widget)
     )
     .filter((w): w is WidgetSpec => w !== null);
+}
+
+function toArtifactSpec(value: unknown): ArtifactSpec | null {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.content !== "string" ||
+    !ARTIFACT_KINDS.has(String(value.kind))
+  ) {
+    return null;
+  }
+  return {
+    id: value.id,
+    kind: value.kind as ArtifactKind,
+    title: typeof value.title === "string" ? value.title : "",
+    content: value.content,
+    ...(typeof value.source === "string" ? { source: value.source } : {}),
+  };
+}
+
+/** The artifacts a run produced, from its `artifact.created` events, in order. */
+export function artifactsOf(events: unknown): ArtifactSpec[] {
+  if (!Array.isArray(events)) return [];
+  return events
+    .filter(
+      (e) => isRecord(e) && e.type === "artifact.created" && isRecord(e.data)
+    )
+    .map((e) => toArtifactSpec((e as { data: unknown }).data))
+    .filter((a): a is ArtifactSpec => a !== null);
 }
 
 /** `driving_hours` → `Driving hours`: column names read as labels. */
@@ -324,10 +376,15 @@ function toolCall(
   ];
 }
 
-/** A widget needs no reply from the user: its result is sent with it, so the
- * card never acknowledges it and the runtime starts no empty follow-up run. */
-function widgetCall(spec: WidgetSpec, newId: () => string): ChatEvent[] {
-  const events = toolCall("show_dashlet", widgetToDashlet(spec), newId);
+/** A widget or artifact needs no reply from the user: its result is sent
+ * with it, so the card never acknowledges it and the runtime starts no empty
+ * follow-up run. */
+function resolvedCall(
+  name: string,
+  args: unknown,
+  newId: () => string
+): ChatEvent[] {
+  const events = toolCall(name, args, newId);
   const toolCallId = events[0]?.toolCallId;
   return [
     ...events,
@@ -355,11 +412,13 @@ class AnswerBuilder {
   readonly out: ChatEvent[] = [];
   private text: string[] = [];
   private readonly placed = new Set<string>();
+  private readonly placedArtifacts = new Set<string>();
   readonly assumptions: string[] = [];
   choices: ChoicesValue | null = null;
 
   constructor(
     private readonly widgets: Map<string, WidgetSpec>,
+    private readonly artifacts: Map<string, ArtifactSpec>,
     private readonly newId: () => string
   ) {}
 
@@ -381,6 +440,9 @@ class AnswerBuilder {
         return;
       case "widget":
         this.placeWidget(block.value.id);
+        return;
+      case "artifact":
+        this.placeArtifact(block.value.id);
     }
   }
 
@@ -398,18 +460,30 @@ class AnswerBuilder {
     const spec = this.widgets.get(id);
     if (!spec || this.placed.has(id)) return;
     this.flush();
-    this.out.push(...widgetCall(spec, this.newId));
+    this.out.push(
+      ...resolvedCall("show_dashlet", widgetToDashlet(spec), this.newId)
+    );
     this.placed.add(id);
   }
 
-  placeRemainingWidgets(): void {
+  placeArtifact(id: string): void {
+    const spec = this.artifacts.get(id);
+    if (!spec || this.placedArtifacts.has(id)) return;
+    this.flush();
+    this.out.push(...resolvedCall("show_artifact", spec, this.newId));
+    this.placedArtifacts.add(id);
+  }
+
+  placeRemaining(): void {
     for (const id of this.widgets.keys()) this.placeWidget(id);
+    for (const id of this.artifacts.keys()) this.placeArtifact(id);
   }
 }
 
 /**
  * The AG-UI events that present one run's answer: text in order, each widget
- * where its block sits (widgets the answer never placed come after the text),
+ * and artifact where its block sits (those the answer never placed come after
+ * the text, widgets first),
  * and a choices block as an `ask_user_question` card at the end.
  */
 export function chatAnswerEvents(
@@ -420,6 +494,7 @@ export function chatAnswerEvents(
   const newId = opts.newId ?? (() => crypto.randomUUID());
   const builder = new AnswerBuilder(
     new Map(widgetsOf(events).map((w) => [w.id, w])),
+    new Map(artifactsOf(events).map((a) => [a.id, a])),
     newId
   );
   for (const block of parseChatBlocks(answer)) builder.add(block);
@@ -429,7 +504,7 @@ export function chatAnswerEvents(
     );
   }
   builder.flush();
-  builder.placeRemainingWidgets();
+  builder.placeRemaining();
   if (builder.choices)
     builder.out.push(...toolCall("ask_user_question", builder.choices, newId));
   if (builder.out.length === 0)
@@ -474,7 +549,7 @@ function pickedOf(content: unknown): string[] {
 /**
  * When the user answered an `ask_user_question` card, the message the harness
  * should receive: the question and the chosen options, in plain words. Null
- * for any other tool result (a widget's automatic acknowledgement).
+ * for any other tool result (a widget's or artifact's acknowledgement).
  */
 export function answerFromToolResult(
   messages: {

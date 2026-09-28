@@ -2,10 +2,14 @@
 
 import { Checkbox } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
-import { LuTrash2, LuUsers, LuX } from "react-icons/lu";
+import { LuGitBranch, LuPencil, LuTrash2, LuUsers, LuX } from "react-icons/lu";
 import { useState, type FC } from "react";
 import type { Session } from "../harness-chat-types";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
+import { TitleInput } from "./title-input";
+
+const rowActionClass =
+  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-400 opacity-0 transition-opacity hover:bg-gray-200 hover:text-gray-700 focus-visible:opacity-100 group-hover:opacity-100 dark:hover:bg-gray-600 dark:hover:text-gray-100";
 
 export const HistoryList: FC<{
   sessions: Session[];
@@ -17,6 +21,8 @@ export const HistoryList: FC<{
   onDelete: (ids: string[]) => void;
   onShare: (id: string, principal: string) => void;
   onUnshare: (id: string, principal: string) => void;
+  onRename: (id: string, title: string) => void;
+  onFork: (id: string) => void;
   locale: string;
 }> = ({
   sessions,
@@ -28,11 +34,14 @@ export const HistoryList: FC<{
   onDelete,
   onShare,
   onUnshare,
+  onRename,
+  onFork,
   locale,
 }) => {
   const tr = useHarnessChatTr();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [shareOpenId, setShareOpenId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
 
   const toggleOne = (id: string) => {
     setSelectedIds((prev) => {
@@ -128,6 +137,15 @@ export const HistoryList: FC<{
                 disabled={!session.owned}
                 className="shrink-0"
               />
+              {renamingId === session.id ? (
+                <TitleInput
+                  initial={session.title ?? ""}
+                  label={tr("harnessChat.ui.history.rename")}
+                  onSubmit={(title) => onRename(session.id, title)}
+                  onDone={() => setRenamingId(null)}
+                  className="my-1"
+                />
+              ) : (
               <button
                 type="button"
                 onClick={() => onSelect(session.id)}
@@ -153,6 +171,36 @@ export const HistoryList: FC<{
                   })}
                 </span>
               </button>
+              )}
+              {session.owned && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRenamingId(session.id);
+                  }}
+                  aria-label={tr("harnessChat.ui.history.rename")}
+                  title={tr("harnessChat.ui.history.rename")}
+                  className={rowActionClass}
+                >
+                  <LuPencil className="h-3 w-3" />
+                </button>
+              )}
+              {/* An untitled session has nothing stored yet to copy. */}
+              {session.title !== null && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFork(session.id);
+                  }}
+                  aria-label={tr("harnessChat.ui.history.fork")}
+                  title={tr("harnessChat.ui.history.fork")}
+                  className={rowActionClass}
+                >
+                  <LuGitBranch className="h-3 w-3" />
+                </button>
+              )}
               {session.owned && (
                 <button
                   type="button"

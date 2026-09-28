@@ -78,11 +78,14 @@ saved analysis, pass its name and arguments to `<connection>_show`.
 | a trend over time | `line` widget |
 | shares of a whole, few categories | `pie` widget |
 | a list to scan or export | `table` widget |
+| a diagram, flow or structure | `artifact` with kind `svg` or `mermaid` |
+| a long written deliverable (report, note, plan) | `artifact` with kind `markdown` |
 
 Make a widget with `<connection>_show`: pass the SELECT, the widget kind,
 a title, the x column and the y columns. The rows go to the user's screen;
 you get a preview. Place the widget in your answer with a widget block and
 write what it shows (the highest, the lowest, the change), not the rows.
+Place an `artifact` with an artifact block and sum it up in a line or two.
 
 ## 5. Output contract
 
@@ -96,6 +99,9 @@ blocks, nothing before or after it. Inside strings avoid unescaped `"`
   needs; short paragraphs and lists are fine. Lead with the answer.
 - `{"type": "widget", "value": {"id": "<widget_id from show>"}}`: where a
   widget appears. Only ids that `<connection>_show` returned in this run.
+- `{"type": "artifact", "value": {"id": "<id from artifact>"}}`: where an
+  artifact appears. Only ids that `artifact` or `<connection>_workflow`
+  returned in this run.
 - `{"type": "choices", "value": {"question": "...", "options": [{"label": "...", "description": "..."}], "allowMultiple": false, "allowOther": true}}`:
   a question for the user with 2 to 5 options. When you use it, it is the
   last block and the answer does not compute anything that depends on it.

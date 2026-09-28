@@ -193,4 +193,31 @@ describe("createHarnessHistoryAdapter", () => {
     };
     expect(stored.content).toEqual([]);
   });
+
+  it("keeps artifacts that fit and stores the rest without content", async () => {
+    appendMessageMock.mockResolvedValue(true);
+    const call = (id: string, size: number) => {
+      const args = { id, kind: "svg", title: id, content: "x".repeat(size) };
+      return { type: "tool-call", toolCallId: id, toolName: "show_artifact", args, argsText: JSON.stringify(args) };
+    };
+    const adapter = createHarnessHistoryAdapter("thread-1");
+
+    await adapter.append({
+      parentId: null,
+      message: {
+        id: "m3",
+        role: "assistant",
+        content: [{ type: "text", text: "hi" }, call("a1", 60_000), call("a2", 60_000), call("a3", 30_000)],
+      } as unknown as ThreadMessage,
+    });
+
+    const stored = appendMessageMock.mock.calls[0][1].payload as {
+      content: { args?: { content: string; omitted?: boolean }; argsText?: string }[];
+    };
+    const [, a1, a2, a3] = stored.content;
+    expect(a1?.args?.content).toHaveLength(60_000);
+    expect(a2?.args).toMatchObject({ content: "", omitted: true });
+    expect(JSON.parse(a2!.argsText!)).toMatchObject({ omitted: true });
+    expect(a3?.args?.content).toHaveLength(30_000);
+  });
 });

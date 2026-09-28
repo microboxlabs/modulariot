@@ -5567,7 +5567,12 @@
         "write_todos": "Planificando los pasos",
         "delegate": "Delegando una tarea a un subagente",
         "ask_advisor": "Consultando al asesor",
-        "fs_write": "Guardando un borrador"
+        "fs_write": "Guardando un borrador",
+        "artifact": "Preparando un documento",
+        "workflow": "Revisando el proceso de negocio",
+        "source_search": "Buscando en el código y la documentación del producto",
+        "source_read": "Leyendo el código y la documentación del producto",
+        "source_list": "Recorriendo el código y la documentación del producto"
       },
       "noAnswer": "El harness no devolvió una respuesta.",
       "unconfigured": "El harness no está configurado en este entorno — esta es una respuesta de marcador de posición.",
@@ -5656,6 +5661,14 @@
         },
         "defaultModel": "Modelo por defecto",
         "modelsUnavailable": "No se pudieron cargar los modelos. Reintentar"
+      },
+      "showArtifact": {
+        "expand": "Ampliar",
+        "copy": "Copiar contenido",
+        "copied": "Copiado",
+        "download": "Descargar",
+        "saveAsStory": "Guardar como historia",
+        "omitted": "Este resultado era demasiado grande para guardarlo en el historial de la conversación."
       },
       "showDashlet": {
         "unknown": "Dashlet desconocido: {id}",

@@ -5567,7 +5567,12 @@
         "write_todos": "Planning the steps",
         "delegate": "Handing a task to a sub-agent",
         "ask_advisor": "Asking the advisor",
-        "fs_write": "Saving a draft"
+        "fs_write": "Saving a draft",
+        "artifact": "Preparing a document",
+        "workflow": "Reading the business process",
+        "source_search": "Searching the product's code and docs",
+        "source_read": "Reading the product's code and docs",
+        "source_list": "Browsing the product's code and docs"
       },
       "noAnswer": "The harness didn't return an answer.",
       "unconfigured": "The harness isn't configured in this environment — this is a placeholder response.",
@@ -5656,6 +5661,14 @@
         },
         "defaultModel": "Default model",
         "modelsUnavailable": "Could not load the models. Retry"
+      },
+      "showArtifact": {
+        "expand": "Expand",
+        "copy": "Copy content",
+        "copied": "Copied",
+        "download": "Download",
+        "saveAsStory": "Save as story",
+        "omitted": "This result was too large to keep in the conversation history."
       },
       "showDashlet": {
         "unknown": "Unknown dashlet: {id}",

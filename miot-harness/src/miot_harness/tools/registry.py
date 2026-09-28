@@ -4,6 +4,7 @@ from miot_harness.agents.chat_models import provider_registry
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.tool import HarnessTool, Progress
+from miot_harness.tools.artifact import artifact_tool
 from miot_harness.tools.dashboard import (
     apply_dashboard_patch_tool,
     create_dashboard_widget_draft_tool,
@@ -65,6 +66,7 @@ def build_default_registry(settings: HarnessSettings | None = None) -> ToolRegis
         for tool in build_filesystem_tools(store):
             registry.register(tool)
     registry.register(write_todos_tool(TodoStore()))
+    registry.register(artifact_tool())
     if settings.web_fetch_enabled:
         registry.register(web_fetch_tool(max_per_run=settings.web_fetch_max_per_run))
     if settings.source_enabled and settings.source_repos:

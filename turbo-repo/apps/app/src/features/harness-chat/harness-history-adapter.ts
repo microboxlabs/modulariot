@@ -13,6 +13,7 @@ import {
   listMessages,
   type StoredMessage,
 } from "./harness-thread-store";
+import { SHOW_ARTIFACT_TOOL } from "./extensions/show-artifact-args";
 
 /**
  * Anything longer is assumed to be inline content rather than a reference and
@@ -21,6 +22,13 @@ import {
  * 256 KB for the whole message.
  */
 const MAX_INLINE_LENGTH = 2048;
+
+/**
+ * Artifact content kept per stored message, in characters. A tool call's
+ * arguments are stored twice (`args` and `argsText`), so this leaves room
+ * under the row cap for the rest of the message.
+ */
+const MAX_STORED_ARTIFACT_CHARS = 100_000;
 
 /**
  * Persists one thread's messages and hands them back on reload.
@@ -82,7 +90,7 @@ function toStoredMessage(item: ExportedMessageRepositoryItem): StoredMessage {
     id: item.message.id,
     parentId: item.parentId,
     format: AUI_MESSAGE_FORMAT,
-    payload: stripInlineContent(item.message) as unknown as Record<string, unknown>,
+    payload: boundArtifacts(stripInlineContent(item.message)) as unknown as Record<string, unknown>,
   };
 }
 
@@ -104,6 +112,41 @@ export function stripInlineContent<T>(message: T): T {
     if (body === null) return false;
     return body.startsWith("data:") || body.length > MAX_INLINE_LENGTH;
   });
+}
+
+/**
+ * Keeps artifacts in a stored message while their content fits in
+ * MAX_STORED_ARTIFACT_CHARS, in order; the rest are stored without content
+ * and marked `omitted`, so a reload shows their title and says why.
+ */
+export function boundArtifacts<T>(message: T): T {
+  if (!isRecord(message) || !Array.isArray(message.content)) return message;
+  let budget = MAX_STORED_ARTIFACT_CHARS;
+  const content = message.content.map((part: unknown) => {
+    if (!isArtifactCall(part)) return part;
+    const size = part.args.content.length;
+    if (size <= budget) {
+      budget -= size;
+      return part;
+    }
+    const args = { ...part.args, content: "", omitted: true };
+    return { ...part, args, argsText: JSON.stringify(args) };
+  });
+  return { ...message, content };
+}
+
+type ArtifactCallPart = Record<string, unknown> & {
+  args: Record<string, unknown> & { content: string };
+};
+
+function isArtifactCall(part: unknown): part is ArtifactCallPart {
+  return (
+    isRecord(part) &&
+    part.type === "tool-call" &&
+    part.toolName === SHOW_ARTIFACT_TOOL &&
+    isRecord(part.args) &&
+    typeof part.args.content === "string"
+  );
 }
 
 /** The inlined body of an image or file part, if that is what this is. */

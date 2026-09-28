@@ -36,6 +36,11 @@ import {
   storyTitlesOf,
 } from "@/features/harness-chat/extensions/show-share-link-args";
 import { LiveAnswer } from "./live-answer";
+import {
+  newLearningCardState,
+  trackLearningCards,
+  type LearningCardState,
+} from "./learning-cards";
 import { stepLabel } from "./step-labels";
 import { planRefusalMessage } from "./plan-refusal";
 import {
@@ -317,6 +322,8 @@ type RelayState = {
   startedAt: string | null;
   /** The answer's text, streamed as the harness writes it. */
   live: LiveAnswer;
+  /** Trainer tool results already sent as cards. */
+  learning: LearningCardState;
 };
 
 /** Narrates one forwarded event: always the phase-diff headline, plus the
@@ -519,6 +526,7 @@ function trackEvent(
   trackAnswer(event, state.live);
   trackApproval(event, runId, send, state);
   trackShareLink(event, send, state);
+  trackLearningCards(event, send, state.learning);
   if (event.type !== "artifact.created") return;
   const spec = toArtifactSpec(event.data);
   if (spec && !state.shownArtifacts.has(spec.id)) {
@@ -654,6 +662,7 @@ export async function relayRun(args: {
     storyTitles: new Map(),
     startedAt: null,
     live: new LiveAnswer(send),
+    learning: newLearningCardState(),
   };
   const outcome = await followRun(
     client,

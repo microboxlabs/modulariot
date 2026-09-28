@@ -20,6 +20,11 @@ import {
   type RequestApprovalArgs,
   type RequestApprovalResult,
 } from "../request-approval-args";
+import {
+  knowledgeChangesOf,
+  type KnowledgeChange,
+} from "../knowledge-change-args";
+import { KnowledgeChangeList } from "../../components/learning/knowledge-change-list";
 
 const PREVIEW_LINES = 20;
 
@@ -105,6 +110,18 @@ const FactPreview: FC<{ fact: LearnedFactInput }> = ({ fact }) => {
   );
 };
 
+const ChangesPreview: FC<{
+  input: Record<string, unknown>;
+  changes: KnowledgeChange[];
+}> = ({ input, changes }) => (
+  <div className="flex flex-col gap-2">
+    {typeof input.summary === "string" && input.summary && (
+      <p className="text-gray-600 dark:text-gray-300">{input.summary}</p>
+    )}
+    <KnowledgeChangeList changes={changes} proposed />
+  </div>
+);
+
 const InputList: FC<{ input: Record<string, unknown> }> = ({ input }) => {
   const entries = visibleEntries(input);
   if (entries.length === 0) return null;
@@ -172,6 +189,21 @@ const Outcome: FC<{ result: RequestApprovalResult; fact: boolean }> = ({
   );
 };
 
+/** What the call would do: a fact, a story's text, knowledge diffs, or its
+ * arguments as they are. */
+const ApprovalPreview: FC<{
+  input: Record<string, unknown>;
+  fact: LearnedFactInput | null;
+  content: string | null;
+  changes: KnowledgeChange[];
+}> = ({ input, fact, content, changes }) => {
+  if (fact) return <FactPreview fact={fact} />;
+  if (changes.length > 0)
+    return <ChangesPreview input={input} changes={changes} />;
+  if (content !== null) return <StoryPreview input={input} content={content} />;
+  return <InputList input={input} />;
+};
+
 const buttonClass =
   "rounded-md px-2.5 py-1 text-xs font-medium disabled:pointer-events-none disabled:opacity-40";
 
@@ -194,6 +226,7 @@ export const RequestApprovalCard: FC<
     ? storyContentOf(args.input)
     : null;
   const fact = learnedFactOf(args.tool, args.input);
+  const changes = knowledgeChangesOf(args.tool, args.input);
 
   const decide = async (decision: "approve" | "deny") => {
     setPhase({ state: "sending" });
@@ -250,11 +283,12 @@ export const RequestApprovalCard: FC<
         </div>
       </div>
 
-      {fact && <FactPreview fact={fact} />}
-      {!fact && content !== null && (
-        <StoryPreview input={args.input} content={content} />
-      )}
-      {!fact && content === null && <InputList input={args.input} />}
+      <ApprovalPreview
+        input={args.input}
+        fact={fact}
+        content={content}
+        changes={changes}
+      />
       {args.inputTruncated && (
         <p className="text-[10px] text-gray-400 dark:text-gray-500">
           {tr("harnessChat.ui.approval.truncated")}

@@ -18,6 +18,9 @@ const BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/threads`;
  * cannot decode. */
 export const AUI_MESSAGE_FORMAT = "aui-v1";
 
+/** A chat, or a trainer's learning session; fixed when the thread is created. */
+export type ThreadKind = "chat" | "learning";
+
 export type StoredThread = {
   id: string;
   title: string | null;
@@ -34,6 +37,7 @@ export type StoredThread = {
   sharedWith: string[];
   /** True once a person named the thread; generated titles stop replacing it. */
   titleEdited?: boolean;
+  kind?: ThreadKind;
 };
 
 export type StoredMessage = {
@@ -50,15 +54,23 @@ export type StoredMessage = {
  * page is the last one. Matches the store's own default. */
 const MESSAGE_PAGE = 500;
 
-export async function listThreads(signal?: AbortSignal): Promise<StoredThread[] | null> {
-  const res = await fetch(BASE, { signal }).catch(() => null);
+export async function listThreads(
+  signal?: AbortSignal,
+  kind?: ThreadKind,
+): Promise<StoredThread[] | null> {
+  const url = kind ? `${BASE}?kind=${kind}` : BASE;
+  const res = await fetch(url, { signal }).catch(() => null);
   if (!res?.ok) return null;
   return (await res.json().catch(() => null)) as StoredThread[] | null;
 }
 
-export async function createThread(
-  thread: { id: string; title?: string | null; expiresAt?: string | null },
-): Promise<StoredThread | null> {
+/** `kind` only counts when the call creates the thread. */
+export async function createThread(thread: {
+  id: string;
+  title?: string | null;
+  expiresAt?: string | null;
+  kind?: ThreadKind;
+}): Promise<StoredThread | null> {
   return postJson<StoredThread>(BASE, thread);
 }
 

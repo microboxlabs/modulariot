@@ -51,6 +51,8 @@ public class HarnessThreadService {
     /** Matches what the harness accepts back; its own summaries are a few
      * hundred words, so anything near this is not one of them. */
     private static final int MAX_SUMMARY_LENGTH = 8_000;
+    /** Model names look like `llmgateway:deepseek-v4-flash`. */
+    private static final int MAX_MODEL_LENGTH = 200;
 
     private static final int DEFAULT_MESSAGE_PAGE = 500;
 
@@ -112,6 +114,7 @@ public class HarnessThreadService {
                 userId,
                 truncateTitle(request.title()),
                 null,
+                null,
                 request.expiresAt(),
                 null,
                 null,
@@ -144,7 +147,8 @@ public class HarnessThreadService {
                 truncateTitle(request.title()),
                 request.expiresAt(),
                 Boolean.TRUE.equals(request.clearExpiry()),
-                optionalText(request.summary(), "summary", MAX_SUMMARY_LENGTH));
+                optionalText(request.summary(), "summary", MAX_SUMMARY_LENGTH),
+                optionalText(request.model(), "model", MAX_MODEL_LENGTH));
         return saved == null ? null : toResponse(saved, userId, repository.listShares(saved.id()));
     }
 
@@ -169,7 +173,7 @@ public class HarnessThreadService {
         HarnessThread existing = repository.find(id, tenantCode);
         if (existing == null) {
             HarnessThread created = repository.upsert(new HarnessThread(
-                    id, tenantCode, userId, null, null, null, null, null, null));
+                    id, tenantCode, userId, null, null, null, null, null, null, null));
             if (created == null) {
                 return null;
             }
@@ -264,6 +268,7 @@ public class HarnessThreadService {
                 thread.id(),
                 thread.title(),
                 thread.summary(),
+                thread.model(),
                 thread.ownerId(),
                 owned,
                 thread.expiresAt(),

@@ -13,6 +13,8 @@ public record ThreadResponse(
         String id,
         String title,
         String summary,
+        /** The conversation model the thread last ran on; null for the default. */
+        String model,
         String ownerId,
         boolean owned,
         OffsetDateTime expiresAt,

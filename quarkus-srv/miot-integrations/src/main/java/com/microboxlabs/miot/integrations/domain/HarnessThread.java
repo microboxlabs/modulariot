@@ -19,6 +19,8 @@ public record HarnessThread(
         String title,
         /** Compacted context the harness produced for this conversation; null until it compacts. */
         String summary,
+        /** The conversation model the thread last ran on; null for the harness default. */
+        String model,
         OffsetDateTime expiresAt,
         OffsetDateTime lastMessageAt,
         OffsetDateTime createdAt,

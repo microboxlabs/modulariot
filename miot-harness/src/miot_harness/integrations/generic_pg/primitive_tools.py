@@ -449,8 +449,10 @@ def build_generic_tools(
             name=f"{tool_prefix}profile",
             description=(
                 f"Profile a schema-qualified table {scope} on a bounded sample: per "
-                "column the comment, null %, distinct count, min/max, most common "
-                "values, and for JSON columns the keys it carries with an example. "
+                "column the comment, null %, distinct count, min/max for numbers and "
+                "dates, the most common values (text columns, and any column with "
+                "few distinct values), and for JSON columns the keys it carries "
+                "with an example. "
                 "Use it on the tables a question needs before writing the query: "
                 "it shows what values mean and which rows repeat."
             ),
@@ -518,8 +520,9 @@ def build_generic_tools(
                 "Optional ILIKE pattern on name or description. `total` is the "
                 "match count; rows carry a one-line summary (definition has the "
                 "full text). Read these before writing a query someone may "
-                "already have written. total=0 means the connection has none; "
-                "do not retry with other patterns."
+                "already have written. With no pattern, total=0 means the "
+                "connection has none, so do not retry with patterns; with a "
+                "pattern it only means nothing matched."
             ),
             input_model=_FunctionsInput,
             output_model=_FunctionsOutput,

@@ -37,6 +37,7 @@ from miot_harness.api.identity import (
     verify_signed_identity,
 )
 from miot_harness.api.knowledge_routes import install_knowledge_routes
+from miot_harness.api.learning_routes import install_learning_routes
 from miot_harness.config import (
     HarnessSettings,
     get_settings,
@@ -65,6 +66,7 @@ from miot_harness.datasource.knowledge.writer import (
 )
 from miot_harness.datasource.provider import BootResult, DataSourceProfile, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
+from miot_harness.knowledge.evaluation import EvaluationEngine, build_judge
 from miot_harness.knowledge.primer import PrimerSource, PrimerUpdates
 from miot_harness.knowledge.store import ConnectionTarget, KnowledgeStore
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
@@ -78,9 +80,20 @@ from miot_harness.runtime.factory import build_harness
 from miot_harness.runtime.run_store import HarnessRunRecord, RunSummary, summarize
 from miot_harness.runtime.supervisor import HarnessSupervisor
 from miot_harness.runtime.usage_report import UsageReporter
-from miot_harness.tools.learned_fact import (
-    PROPOSE_LEARNED_FACT_TOOL,
-    propose_learned_fact_tool,
+from miot_harness.tools.knowledge_tools import (
+    PROPOSE_KNOWLEDGE_CHANGE_TOOL,
+    knowledge_list_tool,
+    knowledge_read_tool,
+    propose_knowledge_change_tool,
+)
+from miot_harness.tools.learning_eval import RUN_LEARNING_EVAL_TOOL, run_learning_eval_tool
+from miot_harness.tools.workspace_files import (
+    ws_delete_tool,
+    ws_edit_tool,
+    ws_grep_tool,
+    ws_ls_tool,
+    ws_read_tool,
+    ws_write_tool,
 )
 
 logger = logging.getLogger(__name__)
@@ -422,10 +435,21 @@ def _make_lifespan(
             learned_sources, char_budget=settings.learned_facts_char_budget
         )
         harness.primer_updates = PrimerUpdates(_primer_sources(conn_result.connections))
-        if PROPOSE_LEARNED_FACT_TOOL not in harness.tools.names():
-            harness.tools.register(
-                propose_learned_fact_tool(lambda: harness.learned_facts)
-            )
+        store_for = knowledge_store_factory(app, settings)
+        harness.knowledge_store_for = store_for
+        if PROPOSE_KNOWLEDGE_CHANGE_TOOL not in harness.tools.names():
+            for factory in (
+                knowledge_list_tool,
+                knowledge_read_tool,
+                propose_knowledge_change_tool,
+                ws_ls_tool,
+                ws_read_tool,
+                ws_grep_tool,
+                ws_write_tool,
+                ws_edit_tool,
+                ws_delete_tool,
+            ):
+                harness.tools.register(factory(store_for))
 
         # Back-compat single-valued datasource_* state, sourced from the primary
         # connection (or a disabled placeholder when there is no connection).
@@ -1248,19 +1272,49 @@ def create_app() -> FastAPI:
         _enforce_tenant_may_write_connection(conn, auth, connection)
         return connection_cards_dir(conn)
 
-    def _knowledge_store(tenant_id: str) -> KnowledgeStore:
-        return KnowledgeStore(
-            tenant_id=tenant_id,
-            root=settings.knowledge_root or settings.context_dir.parent,
-            context_dir=settings.context_dir,
-            skills_dir=settings.skills_dir,
-            connections=_knowledge_targets(
-                getattr(app.state, "connection_objects", {}).values(),
-                app.state.harness.learned_facts,
-            ),
-        )
-
+    _knowledge_store = knowledge_store_factory(app, settings)
     install_knowledge_routes(app, require_auth=require_auth, store_for=_knowledge_store)
+
+    judge_models: dict[str, Any] = {}
+
+    def _judge_model() -> Any:
+        # Tests inject a stub via app.state.judge_model.
+        model = getattr(app.state, "judge_model", None)
+        if model is None:
+            name = settings.learning_eval_judge_model or settings.agents_summarizer_model
+            model = judge_models.get(name) or judge_models.setdefault(name, get_chat_model(name))
+        return model
+
+    app.state.learning_evals = EvaluationEngine(
+        runner=lambda request, **kw: app.state.harness.run(request, **kw),
+        judge=build_judge(_judge_model),
+        results_dir=lambda tenant: _knowledge_store(tenant).eval_results_dir(),
+        default_model=lambda: _default_model(app.state.harness),
+        concurrency=settings.learning_eval_concurrency,
+        run_timeout=settings.learning_eval_run_timeout_seconds,
+        skill_id=settings.learning_eval_skill_id,
+        judge_model=settings.learning_eval_judge_model or settings.agents_summarizer_model,
+    )
+
+    def _check_model(model: str | None) -> None:
+        _enforce_model_allowlist(UserRequest(message="", model=model))
+
+    install_learning_routes(
+        app,
+        require_auth=require_auth,
+        engine=lambda: app.state.learning_evals,
+        caller=_caller,
+        check_model=_check_model,
+    )
+    if RUN_LEARNING_EVAL_TOOL not in harness.tools.names():
+        harness.tools.register(
+            run_learning_eval_tool(
+                lambda: app.state.learning_evals,
+                _knowledge_store,
+                max_cases=settings.learning_eval_max_cases,
+                wait_seconds=settings.learning_eval_tool_wait_seconds,
+            )
+        )
 
     @app.get("/knowledge/connections")
     async def list_knowledge_connections(
@@ -1510,6 +1564,30 @@ def _primer_sources(connections: Iterable[Connection]) -> list[PrimerSource]:
         if lock is not None and folder is not None:
             sources.append(PrimerSource(conn.name, folder / "connection.md", lock, conn.primer))
     return sources
+
+
+def knowledge_store_factory(
+    app: FastAPI, settings: HarnessSettings
+) -> Callable[[str], KnowledgeStore]:
+    """A tenant's knowledge store over the connections booted on `app`."""
+
+    def store_for(tenant_id: str) -> KnowledgeStore:
+        return KnowledgeStore(
+            tenant_id=tenant_id,
+            root=settings.knowledge_root or settings.context_dir.parent,
+            context_dir=settings.context_dir,
+            skills_dir=settings.skills_dir,
+            connections=_knowledge_targets(
+                getattr(app.state, "connection_objects", {}).values(),
+                app.state.harness.learned_facts,
+            ),
+        )
+
+    return store_for
+
+def _default_model(harness: HarnessSupervisor) -> str | None:
+    model = getattr(getattr(harness, "agent_loop", None), "default_model", None)
+    return model if isinstance(model, str) else None
 
 
 def _knowledge_targets(

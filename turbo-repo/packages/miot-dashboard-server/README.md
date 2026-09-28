@@ -278,6 +278,11 @@ empties it between tests — and install `pg`. The PostgreSQL-specific tests
 also exercise concurrent startup and recovery after an idle connection is
 terminated, using temporary schemas in that database.
 
+The `Dashboard Server Tests` CI job runs the full package suite on Node.js 24,
+including HTTP listener tests, SQLite storage, and a disposable PostgreSQL 17
+service. It installs the optional PostgreSQL driver outside the workspace so
+testing that backend does not add a runtime dependency for other deployments.
+
 Config bytes are stored separately from metadata (rows and permissions):
 
 | Where              | Config bytes live                                               |
@@ -714,3 +719,21 @@ finds it — and the conversion should be written against that example.
   and emits `from "sqlite"`, which fails to resolve. The guard rejects the
   static form because the tests import the TypeScript source and do not detect
   it.
+
+### Revision history across deletion
+
+Schema migration 5 backfills persistent revision counters. Deleting a dashboard
+removes its document and permissions but retains its tenant/scope/slug counter.
+Recreating that address gets a higher revision, so an old editor cannot overwrite
+the replacement. Keep `dashboard_revisions` when cleaning deleted documents.
+Custom store adapters must also never reuse successful revisions.
+
+Back up the database and stop writers while upgrading from a version before this
+migration. Do not run old and new server versions against the same database: old
+versions do not maintain these counters. For rollback, restore the matching backup.
+
+## Test coverage
+
+Run `npm run test:coverage` in this package to generate `coverage/lcov.info`
+and a coverage summary. The SonarCloud workflow runs both dashboard packages
+and imports these reports; LCOV paths are relative to the `turbo-repo` root.

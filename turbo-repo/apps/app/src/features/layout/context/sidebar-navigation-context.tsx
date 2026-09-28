@@ -10,6 +10,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useVisiblePages } from "../hooks/use-visible-pages";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
+import { useKnowledgeTrainer } from "@/features/knowledge/hooks/use-knowledge-trainer";
 import { filterSettings } from "../models/pages";
 import { SidebarItem } from "../types/common.types";
 import {
@@ -167,6 +168,7 @@ export function SidebarNavigationProvider({
   const dashboardDynamicItems = useDashboardDynamicItems();
   const pages = useVisiblePages();
   const { isPlatformOwner } = useIsPlatformOwner();
+  const { isTrainer } = useKnowledgeTrainer();
 
   useEffect(() => {
     if (error && (error.status === 401 || error.status === 403)) {
@@ -233,6 +235,7 @@ export function SidebarNavigationProvider({
     const resolvedItems = filterSettings(pages, {
       harness: isHarnessSettingsEnabled,
       platformOwner: isPlatformOwner,
+      trainer: isTrainer,
     }).map((page) => {
       const dynamic = page.dynamicItemsSource
         ? (dynamicMap[page.dynamicItemsSource] ?? [])
@@ -254,6 +257,7 @@ export function SidebarNavigationProvider({
     error,
     isHarnessSettingsEnabled,
     isPlatformOwner,
+    isTrainer,
   ]);
 
   return (

@@ -14,12 +14,14 @@ on:
   push:
     paths:
       - 'turbo-repo/**'
+      - '.github/workflows/ci.yaml'
     branches:
       - trunk
       - main
   pull_request:
     paths:
       - 'turbo-repo/**'
+      - '.github/workflows/ci.yaml'
     branches:
       - trunk
       - main
@@ -154,6 +156,53 @@ jobs:
         run: npx vitest run
         working-directory: turbo-repo/packages/miot-dashboard-contract
 
+  dashboard-server-test:
+    name: Dashboard Server Tests
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dashboard_test
+          POSTGRES_PASSWORD: dashboard_test
+          POSTGRES_DB: dashboard_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dashboard_test -d dashboard_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            turbo-repo/node_modules
+            turbo-repo/packages/*/node_modules
+            turbo-repo/apps/*/node_modules
+          key: node-modules-${{ hashFiles('turbo-repo/package-lock.json') }}
+          fail-on-cache-miss: true
+      - name: Install the optional PostgreSQL test driver
+        run: npm install --prefix "$RUNNER_TEMP/dashboard-test-peers" --no-audit --no-fund pg@8.23.0
+      - name: Build the dashboard contract
+        run: npm run build --workspace=@microboxlabs/miot-dashboard-contract
+        working-directory: turbo-repo
+      - name: Test the server with SQLite and PostgreSQL
+        run: npm test
+        working-directory: turbo-repo/packages/miot-dashboard-server
+        env:
+          NODE_PATH: ${{ runner.temp }}/dashboard-test-peers/node_modules
+          MIOT_DASHBOARD_TEST_POSTGRES_URL: postgresql://dashboard_test:dashboard_test@localhost:5432/dashboard_test
+
   # ===========================================================================
   # Build - Validate the Next.js apps that participate in release/deploy flows
   # ===========================================================================
@@ -193,7 +242,7 @@ jobs:
   summary:
     name: CI Summary
     runs-on: ubuntu-latest
-    needs: [install, lint, build, changes]
+    needs: [install, lint, build, changes, dashboard-server-test]
     if: always()
     permissions: {}
     steps:
@@ -206,6 +255,7 @@ jobs:
           echo "| Install | ${{ needs.install.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Lint & Types | ${{ needs.lint.result == 'success' && 'Passed' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Build Apps | ${{ needs.build.result == 'success' && 'Built' || needs.build.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dashboard Server Tests | ${{ needs.dashboard-server-test.result == 'success' && 'Passed' || needs.dashboard-server-test.result == 'skipped' && 'Skipped' || 'Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- Commit: \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
           echo "- Release publishing: handled by \`app-release-train.yml\`" >> $GITHUB_STEP_SUMMARY

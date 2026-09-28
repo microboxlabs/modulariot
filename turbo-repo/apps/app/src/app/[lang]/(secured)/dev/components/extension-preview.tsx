@@ -52,6 +52,50 @@ const EXTENSION_PREVIEW_VARIANTS: Record<string, ExtensionVariant[]> = {
       },
     },
   ],
+  show_knowledge_change: [
+    {
+      id: "show_knowledge_change-edit",
+      label: "show_knowledge_change (ws_edit)",
+      args: {
+        tool: "ws_edit",
+        changes: [
+          {
+            path: "rules/loaded-trips.md",
+            layer: "rule",
+            id: "loaded-trips",
+            target: null,
+            op: "edit",
+            version: 2,
+            title: null,
+            content: null,
+            reason: "Define what a loaded trip is",
+            diff: [
+              "--- a/rules/loaded-trips.md",
+              "+++ b/rules/loaded-trips.md",
+              "@@ -1,3 +1,4 @@",
+              " # Loaded trips",
+              "-A loaded trip is a planned trip.",
+              "+A loaded trip is one sent to the tracking database.",
+              "+Status ADDED means it was added to the plan.",
+              " ",
+            ].join("\n"),
+          },
+        ],
+      },
+    },
+  ],
+  show_learning_eval: [
+    {
+      id: "show_learning_eval-done",
+      label: "show_learning_eval (summary)",
+      args: {
+        evaluationId: null,
+        status: "done",
+        model: "default",
+        summary: { baseline_avg: 2.3, candidate_avg: 4.1, improved: 3, regressed: 0, unchanged: 1 },
+      },
+    },
+  ],
 };
 
 export function getExtensionVariants(extension: HarnessExtension): ExtensionVariant[] {

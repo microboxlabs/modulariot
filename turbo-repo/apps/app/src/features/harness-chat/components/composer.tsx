@@ -361,12 +361,21 @@ const SlashMenu: FC<{
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => onSelect(skill)}
         onMouseEnter={() => onHover(i)}
+        // Arrow keys move past the menu's visible height.
+        ref={i === highlighted ? (el) => el?.scrollIntoView?.({ block: "nearest" }) : undefined}
         className={twMerge(
           "flex w-full flex-col gap-0.5 px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-200",
           i === highlighted && "bg-gray-100 dark:bg-gray-700"
         )}
       >
-        <span className="font-medium">/{skill.label}</span>
+        <span className="font-medium">
+          /{skill.label}
+          {skill.usage && (
+            <span className="ml-1 font-mono font-normal text-gray-400 dark:text-gray-500">
+              {skill.usage}
+            </span>
+          )}
+        </span>
         <span className="truncate text-gray-400 dark:text-gray-500">{skill.description}</span>
       </button>
     ))}

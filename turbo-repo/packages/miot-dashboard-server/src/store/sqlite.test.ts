@@ -59,6 +59,52 @@ async function assemble(): Promise<{
   return { driver, store };
 }
 
+it("backfills existing revisions and preserves counters across restart", async () => {
+  const path = join(temporaryDirectory(), "upgrade.sqlite");
+  const driver = createSqliteDriver({ path });
+  await runMigrations(driver, {
+    migrations: MIGRATIONS.filter((migration) => migration.version < 5),
+  });
+  await driver.all(
+    `INSERT INTO dashboards (tenant_id, scope_id, slug, name, revision, document_key, updated_at, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      ref.tenantId,
+      ref.scopeId,
+      ref.slug,
+      "Fleet",
+      17,
+      "old-doc",
+      "2026-09-28",
+      "first",
+    ],
+  );
+  await runMigrations(driver);
+  await createSqlMetadataStore(driver).remove(ref);
+  await driver.close();
+  const opened = await openSqliteStore({ path });
+  try {
+    const created = await opened.store.save(ref, config, {
+      updatedBy: "new",
+      expectedRevision: 0,
+    });
+    expect(created.revision).toBe(18);
+    await expect(
+      opened.store.save(ref, config, {
+        updatedBy: "first",
+        expectedRevision: 17,
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    const next = await opened.store.save(ref, config, {
+      updatedBy: "new",
+      expectedRevision: 18,
+    });
+    expect(next.revision).toBe(19);
+  } finally {
+    await opened.close();
+  }
+});
+
 const documentCount = async (driver: SqlDriver): Promise<number> => {
   const rows = await driver.all<{ n: number }>(
     "SELECT COUNT(*) AS n FROM dashboard_documents",

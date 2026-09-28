@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { readJsonBody } from "./read-json";
 
-const request = (body?: BodyInit, headers?: HeadersInit) =>
+const request = (body?: RequestInit["body"], headers?: RequestInit["headers"]) =>
   new Request("https://dashboard.test", {
     method: "POST",
     body,

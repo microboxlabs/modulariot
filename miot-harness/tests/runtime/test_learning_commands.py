@@ -38,13 +38,16 @@ def test_learning_commands_are_only_parsed_for_trainers() -> None:
     for name in LEARNING_COMMANDS:
         assert parse_command(f"/{name} x") is None
         parsed = parse_command(f"/{name} x", trainer=True)
-        assert parsed is not None and parsed.name == name
+        assert parsed is not None
+        assert parsed.name == name
     assert parse_command("/context", trainer=True) is not None
     assert parse_command("/facts x", trainer=True) is None
     layers = parse_command("/layers", trainer=True)
-    assert layers is not None and layers.answered_here
+    assert layers is not None
+    assert layers.answered_here
     fact = parse_command("/fact x", trainer=True)
-    assert fact is not None and not fact.answered_here
+    assert fact is not None
+    assert not fact.answered_here
 
 
 def test_a_non_trainer_slash_word_still_selects_a_skill() -> None:
@@ -107,7 +110,8 @@ def test_playbooks_ship_but_are_never_listed() -> None:
     assert not ids & {"skill-creator", "skill-doctor"}
     for name in ("skill-creator", "skill-doctor"):
         body = trainer_playbook(Path("/nonexistent"), name)
-        assert body is not None and not body.startswith("---")
+        assert body is not None
+        assert not body.startswith("---")
     assert "expect_no_skill" in (trainer_playbook(Path("/nonexistent"), "skill-creator") or "")
 
 

@@ -19,6 +19,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from miot_harness.knowledge.shown import ShownFiles
 from miot_harness.knowledge.store import KnowledgeError, KnowledgeStore, VirtualRef
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionResult
@@ -195,9 +196,36 @@ def _details(plan: _Plan, op: Op) -> dict[str, Any]:
     }
 
 
+def _read_check(ctx: HarnessContext) -> PermissionResult:
+    return trainer_only(ctx) or PermissionResult.allow("read only")
+
+
+def _file_matches(store: KnowledgeStore, path: str, regex: re.Pattern[str]) -> list[WsMatch]:
+    try:
+        text = store.read_path(path)
+    except KnowledgeError:
+        return []
+    return [
+        WsMatch(path=path, line=number, text=line[:_GREP_LINE_CHARS])
+        for number, line in enumerate(text.splitlines(), start=1)
+        if regex.search(line)
+    ]
+
+
+def _search(store: KnowledgeStore, value: WsGrepInput) -> WsGrepOutput:
+    regex = re.compile(value.pattern, re.IGNORECASE if value.ignore_case else 0)
+    matches: list[WsMatch] = []
+    for entry in store.tree():
+        if _under(entry["path"], value.path):
+            matches.extend(_file_matches(store, entry["path"], regex))
+        if len(matches) > _GREP_CAP:
+            return WsGrepOutput(matches=matches[:_GREP_CAP], truncated=True)
+    return WsGrepOutput(matches=matches)
+
+
 def ws_ls_tool(store_for: StoreFor) -> HarnessTool[WsLsInput, WsLsOutput]:
     async def check(ctx: HarnessContext, _: WsLsInput) -> PermissionResult:  # NOSONAR
-        return trainer_only(ctx) or PermissionResult.allow("read only")
+        return _read_check(ctx)
 
     async def call(ctx: HarnessContext, value: WsLsInput, _: Progress) -> WsLsOutput:
         tree = await asyncio.to_thread(store_for(ctx.tenant_id).tree)
@@ -225,7 +253,7 @@ def ws_ls_tool(store_for: StoreFor) -> HarnessTool[WsLsInput, WsLsOutput]:
 
 def ws_read_tool(store_for: StoreFor) -> HarnessTool[WsReadInput, WsReadOutput]:
     async def check(ctx: HarnessContext, _: WsReadInput) -> PermissionResult:  # NOSONAR
-        return trainer_only(ctx) or PermissionResult.allow("read only")
+        return _read_check(ctx)
 
     async def call(ctx: HarnessContext, value: WsReadInput, _: Progress) -> WsReadOutput:
         store = store_for(ctx.tenant_id)
@@ -259,36 +287,14 @@ def ws_read_tool(store_for: StoreFor) -> HarnessTool[WsReadInput, WsReadOutput]:
 
 def ws_grep_tool(store_for: StoreFor) -> HarnessTool[WsGrepInput, WsGrepOutput]:
     async def check(ctx: HarnessContext, value: WsGrepInput) -> PermissionResult:  # NOSONAR
-        refused = trainer_only(ctx)
-        if refused is not None:
-            return refused
         try:
             re.compile(value.pattern)
         except re.error as exc:
             return PermissionResult.deny(f"invalid pattern: {exc}")
-        return PermissionResult.allow("read only")
-
-    def search(store: KnowledgeStore, value: WsGrepInput) -> WsGrepOutput:
-        regex = re.compile(value.pattern, re.IGNORECASE if value.ignore_case else 0)
-        matches: list[WsMatch] = []
-        for entry in store.tree():
-            if not _under(entry["path"], value.path):
-                continue
-            try:
-                text = store.read_path(entry["path"])
-            except KnowledgeError:
-                continue
-            for number, line in enumerate(text.splitlines(), start=1):
-                if regex.search(line):
-                    matches.append(
-                        WsMatch(path=entry["path"], line=number, text=line[:_GREP_LINE_CHARS])
-                    )
-                    if len(matches) > _GREP_CAP:
-                        return WsGrepOutput(matches=matches[:_GREP_CAP], truncated=True)
-        return WsGrepOutput(matches=matches)
+        return _read_check(ctx)
 
     async def call(ctx: HarnessContext, value: WsGrepInput, _: Progress) -> WsGrepOutput:
-        return await asyncio.to_thread(search, store_for(ctx.tenant_id), value)
+        return await asyncio.to_thread(_search, store_for(ctx.tenant_id), value)
 
     return HarnessTool(
         name="ws_grep",
@@ -322,17 +328,21 @@ def _write_tool(
             return PermissionResult.deny(exc.detail)
         return PermissionResult.ask(f"{_VERBS[op]} {plan.ref.path}")
 
+    shown = ShownFiles()
+
     async def details(ctx: HarnessContext, value: Any) -> dict[str, Any]:
         try:
             plan = await asyncio.to_thread(_plan, store_for(ctx.tenant_id), op, value)
         except KnowledgeError:
             return {}
+        shown.remember(ctx.run_id, plan.ref.path, plan.before)
         return _details(plan, op)
 
     def apply(ctx: HarnessContext, value: Any) -> WsChangeOutput:
         store = store_for(ctx.tenant_id)
         plan = _plan(store, op, value)
         ref = plan.ref
+        shown.check(ctx.run_id, ref.path, plan.before)
         layer, item_id = str(ref.layer), str(ref.id)
         version: int | None = None
         if plan.after is None:

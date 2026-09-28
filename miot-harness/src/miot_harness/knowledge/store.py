@@ -738,31 +738,26 @@ class KnowledgeStore:
             yield self._locate("primer", conn.name, None)
 
     def conversation_changes(self, conversation_id: str) -> list[dict[str, Any]]:
-        """What the trainer tools changed in one conversation, per item: the
-        file before its first change there and after its last (None when it
-        did not exist), oldest first. Read from each version's provenance."""
+        """What the trainer tools changed in one conversation, oldest first: per
+        run of consecutive versions of an item written there, the file before
+        and after it (None when it did not exist). Read from each version's
+        provenance, so another conversation's versions in between are left out."""
         out: list[dict[str, Any]] = []
         for loc in self._history_items():
-            ours = [
-                e
-                for e in self._versions(loc)
-                if (e.get("provenance") or {}).get("conversation_id") == conversation_id
-            ]
-            if not ours:
-                continue
-            first, last = int(ours[0]["version"]), int(ours[-1]["version"])
-            out.append(
-                {
-                    "layer": loc.layer,
-                    "id": loc.id,
-                    "target": loc.target,
-                    "path": virtual_path(loc.layer, loc.id, loc.target),
-                    "version": last,
-                    "updated_at": ours[-1].get("updated_at"),
-                    "before": self._version_text(loc, first - 1) if first > 1 else None,
-                    "after": self._version_text(loc, last),
-                }
-            )
+            for span in _spans(self._versions(loc), conversation_id):
+                first, last = int(span[0]["version"]), int(span[-1]["version"])
+                out.append(
+                    {
+                        "layer": loc.layer,
+                        "id": loc.id,
+                        "target": loc.target,
+                        "path": virtual_path(loc.layer, loc.id, loc.target),
+                        "version": last,
+                        "updated_at": span[-1].get("updated_at"),
+                        "before": self._version_text(loc, first - 1) if first > 1 else None,
+                        "after": self._version_text(loc, last),
+                    }
+                )
         return sorted(out, key=lambda c: str(c["updated_at"] or ""))
 
     # ---- virtual tree (the file tools' view) ------------------------------
@@ -845,6 +840,21 @@ class VirtualRef:
     @property
     def writable(self) -> bool:
         return self.layer in EDITABLE
+
+
+def _spans(entries: list[dict[str, Any]], conversation_id: str) -> list[list[dict[str, Any]]]:
+    """Runs of consecutive versions whose provenance names the conversation."""
+    spans: list[list[dict[str, Any]]] = []
+    current: list[dict[str, Any]] = []
+    for entry in entries:
+        if (entry.get("provenance") or {}).get("conversation_id") == conversation_id:
+            current.append(entry)
+        elif current:
+            spans.append(current)
+            current = []
+    if current:
+        spans.append(current)
+    return spans
 
 
 def _virtual_parts(path: str) -> list[str]:

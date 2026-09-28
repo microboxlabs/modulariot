@@ -8,11 +8,12 @@ from typing import Any
 
 import pytest
 from langchain_core.messages import AIMessage
+from pydantic import ValidationError
 
 from miot_harness.agents.native_tools import build_native_tools
 from miot_harness.config import HarnessSettings
 from miot_harness.datasource.knowledge.learned import LearnedFacts, LearnedFactsSource
-from miot_harness.knowledge.store import ConnectionTarget, KnowledgeStore
+from miot_harness.knowledge.store import ConnectionTarget, KnowledgeError, KnowledgeStore
 from miot_harness.runtime.agent_loop import AgentLoopRunners
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.context import HarnessContext, UserRequest
@@ -149,6 +150,10 @@ async def _invoke(
     return out, events
 
 
+def _ignore(_: HarnessEvent) -> None:
+    return None
+
+
 def _event(events: list[HarnessEvent], kind: str) -> dict[str, Any]:
     return next(e.data for e in events if e.type == kind)
 
@@ -226,8 +231,9 @@ async def test_edit_failures_are_refused_before_asking(tmp_path: Path) -> None:
     ]
     for args, reason in cases:
         events: list[HarnessEvent] = []
+        ctx = _ctx()
         with pytest.raises(PermissionError) as err:
-            await registry.invoke("ws_edit", _ctx(), args, events.append)
+            await registry.invoke("ws_edit", ctx, args, events.append)
         assert reason in str(err.value)
         assert "approval.requested" not in [e.type for e in events]
 
@@ -351,8 +357,9 @@ async def test_non_trainers_get_no_tools_and_cannot_call_them(tmp_path: Path) ->
 
     assert offered(trainer=True) >= set(TRAINER_TOOLS)
     assert not offered(trainer=False) & set(TRAINER_TOOLS)
+    plain = _ctx(trainer=False)
     with pytest.raises(PermissionError, match="only a trainer"):
-        await _invoke(registry, "ws_read", {"path": "facts/db/trip-status.md"}, _ctx(trainer=False))
+        await registry.invoke("ws_read", plain, {"path": "facts/db/trip-status.md"}, _ignore)
 
 
 @pytest.mark.asyncio
@@ -366,7 +373,8 @@ async def test_scratchpad_writes_return_a_diff() -> None:
         ctx, {"path": "plan.md", "old_string": "two", "new_string": "three"}, lambda _: None
     )
 
-    assert "+one" in (created.diff or "") and "--- /dev/null" in (created.diff or "")
+    assert "+one" in (created.diff or "")
+    assert "--- /dev/null" in (created.diff or "")
     assert "-two\n+three\n" in (changed.diff or "")
 
 
@@ -441,3 +449,65 @@ async def test_an_approved_edit_is_seen_by_the_next_run_and_by_diff(tmp_path: Pa
         UserRequest(message="/diff", tenant_id="acme", conversation_id="conv-2", trainer=True)
     )
     assert other.answer == "No knowledge was changed in this conversation yet."
+
+
+class _EditWhileAsking(_Approver):
+    """Changes the file on disk while the approval card is open, then approves."""
+
+    def __init__(self, path: Path) -> None:
+        super().__init__()
+        self._path = path
+
+    def register(self, approval_id: str, run_id: str) -> asyncio.Event:
+        self._path.write_text(self._path.read_text().replace("plan.", "plan!"))
+        return super().register(approval_id, run_id)
+
+
+@pytest.mark.asyncio
+async def test_a_file_changed_during_approval_is_not_overwritten(tmp_path: Path) -> None:
+    conn = _workspace(tmp_path)
+    card = conn / "knowledge" / "trip-status.md"
+    registry = _registry(tmp_path)
+    ctx = _ctx(approval_registry=_EditWhileAsking(card))
+    args = {"path": "facts/db/trip-status.md", "content": _FACT.replace("ADDED", "NEW")}
+
+    with pytest.raises(KnowledgeError, match="changed after it was shown"):
+        await registry.invoke("ws_write", ctx, args, _ignore)
+
+    assert "the plan!" in card.read_text()
+
+
+@pytest.mark.asyncio
+async def test_a_batch_names_each_item_once(tmp_path: Path) -> None:
+    _workspace(tmp_path)
+    registry = _registry(tmp_path)
+    change = {"layer": "fact", "id": "trip-status", "target": "db", "op": "delete"}
+    args = {"summary": "twice", "changes": [change, change]}
+    ctx = _ctx()
+
+    with pytest.raises(ValidationError, match="once in a batch"):
+        await registry.invoke("propose_knowledge_change", ctx, args, _ignore)
+
+
+def test_diff_leaves_out_other_conversations_versions(tmp_path: Path) -> None:
+    _workspace(tmp_path)
+    store = _store_for(tmp_path)("acme")
+
+    def put(text: str, conversation: str) -> None:
+        store.put(
+            "rule",
+            "glossary",
+            title="Glossary",
+            content=text,
+            provenance={"conversation_id": conversation},
+        )
+
+    put("one", "mine")
+    put("two", "other")
+    put("three", "mine")
+
+    changes = store.conversation_changes("mine")
+
+    assert [(c["before"] is None, c["version"]) for c in changes] == [(True, 1), (False, 3)]
+    assert "two" in (changes[1]["before"] or "")
+    assert "three" in (changes[1]["after"] or "")

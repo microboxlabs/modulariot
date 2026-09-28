@@ -12,9 +12,10 @@ import asyncio
 from collections.abc import Callable
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from miot_harness.knowledge.changes import MAX_OVERLAY_CHANGES, KnowledgeChange, Layer
+from miot_harness.knowledge.shown import ShownFiles
 from miot_harness.knowledge.store import KnowledgeError, KnowledgeStore, virtual_path
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionResult
@@ -68,6 +69,13 @@ class ProposeKnowledgeChangeInput(BaseModel):
         min_length=1, max_length=500, description="One line: what the batch teaches and why."
     )
 
+    @model_validator(mode="after")
+    def _one_change_per_item(self) -> ProposeKnowledgeChangeInput:
+        items = [(c.layer, c.id, c.target) for c in self.changes]
+        if len(set(items)) != len(items):
+            raise ValueError("each item may appear once in a batch")
+        return self
+
 
 class AppliedChange(BaseModel):
     layer: str
@@ -87,6 +95,15 @@ class ProposeKnowledgeChangeOutput(BaseModel):
     summary: str
     changes: list[AppliedChange]
     message: str
+
+
+def _current(store: KnowledgeStore, change: KnowledgeChange) -> str | None:
+    try:
+        return store.read_file(change.layer, change.id, change.target)
+    except KnowledgeError as exc:
+        if exc.status == 404:
+            return None
+        raise
 
 
 def _planned(store: KnowledgeStore, change: KnowledgeChange, ctx: HarnessContext) -> dict[str, Any]:
@@ -188,22 +205,27 @@ def propose_knowledge_change_tool(
         noun = "change" if count == 1 else "changes"
         return PermissionResult.ask(f"Apply {count} knowledge {noun}: {value.summary}")
 
+    shown = ShownFiles()
+
+    def plan(ctx: HarnessContext, value: ProposeKnowledgeChangeInput) -> list[dict[str, Any]]:
+        store = store_for(ctx.tenant_id)
+        planned = []
+        for change in value.changes:
+            planned.append(_planned(store, change, ctx))
+            shown.remember(ctx.run_id, planned[-1]["path"], _current(store, change))
+        return planned
+
     async def details(ctx: HarnessContext, value: ProposeKnowledgeChangeInput) -> dict[str, Any]:
         try:
-            store = store_for(ctx.tenant_id)
-            planned = [await asyncio.to_thread(_planned, store, c, ctx) for c in value.changes]
+            return {"changes": await asyncio.to_thread(plan, ctx, value)}
         except KnowledgeError:
             return {}
-        return {"changes": planned}
 
     def apply(ctx: HarnessContext, change: KnowledgeChange) -> AppliedChange:
         store = store_for(ctx.tenant_id)
         path = virtual_path(change.layer, change.id, change.target)
-        before: str | None
-        try:
-            before = store.read_file(change.layer, change.id, change.target)
-        except KnowledgeError:
-            before = None
+        before = _current(store, change)
+        shown.check(ctx.run_id, path, before)
         version: int | None = None
         after: str | None = None
         if change.op == "delete":
@@ -240,10 +262,21 @@ def propose_knowledge_change_tool(
             **diff_fields(before, after, path),
         )
 
+    def apply_all(ctx: HarnessContext, value: ProposeKnowledgeChangeInput) -> list[AppliedChange]:
+        """In order. A failure stops the batch and names what was already applied."""
+        applied: list[AppliedChange] = []
+        for change in value.changes:
+            try:
+                applied.append(apply(ctx, change))
+            except KnowledgeError as exc:
+                done = ", ".join(a.path for a in applied) or "none"
+                raise KnowledgeError(exc.status, f"{exc.detail} (already applied: {done})") from exc
+        return applied
+
     async def call(
         ctx: HarnessContext, value: ProposeKnowledgeChangeInput, _: Progress
     ) -> ProposeKnowledgeChangeOutput:
-        applied = [await asyncio.to_thread(apply, ctx, c) for c in value.changes]
+        applied = await asyncio.to_thread(apply_all, ctx, value)
         return ProposeKnowledgeChangeOutput(
             summary=value.summary,
             changes=applied,
@@ -253,8 +286,9 @@ def propose_knowledge_change_tool(
     return HarnessTool(
         name=PROPOSE_KNOWLEDGE_CHANGE_TOOL,
         description=(
-            "Propose changes to the organization's knowledge, applied together once the "
-            "trainer approves them. Each change: layer (fact, rule, skill, primer, eval; "
+            "Propose changes to the organization's knowledge, applied in order once the "
+            "trainer approves them; each item at most once per batch. Each change: "
+            "layer (fact, rule, skill, primer, eval; "
             "note for deletes only), id (a slug), target (the connection, for facts), op "
             "(upsert or delete), title, content (the item's text, without frontmatter) "
             "and reason. For a skill the title is its trigger description; for an eval "

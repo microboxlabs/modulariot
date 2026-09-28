@@ -69,10 +69,23 @@ jobs:
           mkdir -p "$context"
           cp -r "$PACKAGE_DIR/dist" "$context/dist"
           cp -r "$PACKAGE_DIR/examples" "$context/examples"
+          # The server imports the contract built from this commit. Installing
+          # its registry range can silently substitute an older public release.
+          npm --prefix turbo-repo pack --workspace @microboxlabs/miot-dashboard-contract \
+            --pack-destination "$context" --json > "$context/contract-pack.json"
           node -e '
             const [manifest, out, extras] = process.argv.slice(1);
             const pkg = require(manifest);
             const dependencies = { ...(pkg.dependencies ?? {}) };
+            const fs = require("fs");
+            const path = require("path");
+            const context = path.dirname(out);
+            const [packed] = JSON.parse(fs.readFileSync(path.join(context, "contract-pack.json"), "utf8"));
+            if (packed?.name !== "@microboxlabs/miot-dashboard-contract") {
+              throw new Error("Expected the dashboard contract workspace archive");
+            }
+            fs.renameSync(path.join(context, packed.filename), path.join(context, "dashboard-contract.tgz"));
+            dependencies[packed.name] = "file:./dashboard-contract.tgz";
             for (const name of extras.split(/\s+/).filter(Boolean)) {
               const range = pkg.peerDependencies?.[name];
               if (range === undefined) {

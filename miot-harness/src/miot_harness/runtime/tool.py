@@ -135,6 +135,10 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                 # The user decides from this input, and it is stored with the
                 # run: secrets are redacted and big values shortened.
                 shown_input, input_truncated = bounded(input_dump, APPROVAL_INPUT_BYTES_CAP)
+                registry = ctx.approval_registry
+                # Registered before the event goes out, so a decision posted
+                # as soon as the event arrives finds it.
+                event = registry.register(approval_id, ctx.run_id) if registry is not None else None
                 progress(
                     HarnessEvent(
                         run_id=ctx.run_id,
@@ -148,8 +152,7 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                         },
                     )
                 )
-                registry = ctx.approval_registry
-                if registry is None:
+                if registry is None or event is None:
                     # No human-in-the-loop wired (CLI / eval path). Refusing
                     # is safer than silently proceeding — the caller has no
                     # way to approve.
@@ -158,7 +161,6 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                         progress, ctx, self.name, reason, "PermissionError", call_id=call_id
                     )
                     raise PermissionError(reason)
-                event = registry.register(approval_id, ctx.run_id)
                 try:
                     await event.wait()
                     resolution = registry.resolution(approval_id)

@@ -348,8 +348,9 @@ def test_approval_input_redacts_secrets() -> None:
         call=_call,
     )
     events: list[HarnessEvent] = []
+    invocation = tool.invoke(_make_ctx(registry=None), {}, events.append)
     with pytest.raises(PermissionError):
-        asyncio.run(tool.invoke(_make_ctx(registry=None), {}, events.append))
+        asyncio.run(invocation)
 
     requested = next(e for e in events if e.type == "approval.requested")
     assert requested.data["input"] == {"name": "crm", "api_key": "[redacted]"}

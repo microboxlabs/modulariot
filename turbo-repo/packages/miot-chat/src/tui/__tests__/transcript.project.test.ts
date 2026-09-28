@@ -431,6 +431,29 @@ describe("transcript projector — approvals", () => {
       message: "writes db",
     });
   });
+
+  it("approval.resolved drops the matching pending approval", () => {
+    const ctx = mkCtx();
+    const requested = applyHarnessEvent(
+      emptySlice(),
+      evt("approval.requested", {
+        id: "appr-1",
+        data: { approval_id: "aid_1" },
+      }),
+      "r1",
+      ctx,
+    );
+    const next = applyHarnessEvent(
+      requested,
+      evt("approval.resolved", {
+        id: "appr-2",
+        data: { approval_id: "aid_1", decision: "approve" },
+      }),
+      "r1",
+      ctx,
+    );
+    expect(next.pendingApprovals).toHaveLength(0);
+  });
 });
 
 describe("transcript projector — thinking + usage (plan: SSE rich events)", () => {

@@ -20,7 +20,7 @@ APPROVAL_INPUT_BYTES_CAP = 16384
 REDACTED = "[redacted]"
 
 _SECRET_KEY = re.compile(
-    r"password|passwd|token(?!s)|secret|dsn|authorization|api[_-]?key|credential",
+    r"password|passwd|token(?!s)|secret|dsn|authorization|api[_-]?key|private[_-]?key|credential",
     re.IGNORECASE,
 )
 _DATA_URI = re.compile(r"^data:[\w.+-]+/[\w.+-]+;base64,", re.IGNORECASE)

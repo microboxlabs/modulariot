@@ -65,11 +65,12 @@ export function approvalArgsOf(
   if (!approvalId || !tool) return null;
   const input = isRecord(data.input) ? data.input : {};
   const inner = tool === MCP_CALL_TOOL ? str(input.tool) : null;
+  const innerInput = isRecord(input.arguments) ? input.arguments : {};
   return {
     runId,
     approvalId,
     tool: inner ?? tool,
-    input: inner ? (isRecord(input.arguments) ? input.arguments : {}) : input,
+    input: inner ? innerInput : input,
     ...(data.input_truncated === true ? { inputTruncated: true } : {}),
   };
 }
@@ -103,7 +104,7 @@ export function approvalSubject(input: Record<string, unknown>): string | null {
 }
 
 const SECRET_KEY =
-  /password|passwd|token(?!s)|secret|dsn|authorization|api[_-]?key|credential/i;
+  /password|passwd|token(?!s)|secret|dsn|authorization|api[_-]?key|private[_-]?key|credential/i;
 
 const REDACTED = "[redacted]";
 

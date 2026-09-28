@@ -52,6 +52,34 @@ function msBetween(from: string | null, to: string | number | null): number {
   return end - Date.parse(from);
 }
 
+const LiveStep: FC<{ run: RunSummary }> = ({ run }) => {
+  const tr = useHarnessChatTr();
+  if (run.pending_approval) {
+    return (
+      <span className="flex items-center gap-2 text-[11px]">
+        <LuPause
+          aria-hidden
+          className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-400"
+        />
+        <output className="min-w-0 truncate font-medium text-amber-600 dark:text-amber-400">
+          {tr("harnessChat.ui.jobs.awaitingApproval")}
+        </output>
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-2 text-[11px]">
+      <span
+        aria-hidden
+        className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 motion-safe:animate-pulse dark:bg-amber-400"
+      />
+      <output className="min-w-0 truncate animate-harness-shimmer">
+        {stepOf(run, tr)}
+      </output>
+    </span>
+  );
+};
+
 export const ActivityList: FC<{
   runs: RunSummary[];
   failed: boolean;
@@ -101,26 +129,8 @@ export const ActivityList: FC<{
               {formatElapsed(elapsed)}
             </time>
           </span>
-          {live && run.pending_approval ? (
-            <span className="flex items-center gap-2 text-[11px]">
-              <LuPause
-                aria-hidden
-                className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-400"
-              />
-              <output className="min-w-0 truncate font-medium text-amber-600 dark:text-amber-400">
-                {tr("harnessChat.ui.jobs.awaitingApproval")}
-              </output>
-            </span>
-          ) : live ? (
-            <span className="flex items-center gap-2 text-[11px]">
-              <span
-                aria-hidden
-                className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 motion-safe:animate-pulse dark:bg-amber-400"
-              />
-              <output className="min-w-0 truncate animate-harness-shimmer">
-                {stepOf(run, tr)}
-              </output>
-            </span>
+          {live ? (
+            <LiveStep run={run} />
           ) : (
             <span
               className={twMerge(

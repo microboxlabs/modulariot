@@ -129,10 +129,7 @@ const Outcome: FC<{ result: RequestApprovalResult }> = ({ result }) => {
   ];
   return (
     <div className="flex flex-col gap-0.5">
-      <p
-        role="status"
-        className={twMerge("flex items-center gap-1 font-medium", tone)}
-      >
+      <output className={twMerge("flex items-center gap-1 font-medium", tone)}>
         <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
         <span>{tr(`harnessChat.ui.approval.${result.status}`)}</span>
         {details.length > 0 && (
@@ -140,7 +137,7 @@ const Outcome: FC<{ result: RequestApprovalResult }> = ({ result }) => {
             · {details.join(" · ")}
           </span>
         )}
-      </p>
+      </output>
       {result.comment && (
         <p className="italic text-gray-500 dark:text-gray-400">
           “{result.comment}”
@@ -164,11 +161,9 @@ export const RequestApprovalCard: FC<
   const [comment, setComment] = useState("");
 
   if (!args?.approvalId) return null;
-  const outcome: RequestApprovalResult | null = result?.status
-    ? result
-    : isError
-      ? { status: "expired" }
-      : null;
+  let outcome: RequestApprovalResult | null = null;
+  if (result?.status) outcome = result;
+  else if (isError) outcome = { status: "expired" };
   const pending = outcome === null;
   const content = args.tool.startsWith("stories_")
     ? storyContentOf(args.input)

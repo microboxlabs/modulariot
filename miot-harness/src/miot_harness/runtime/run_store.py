@@ -158,10 +158,13 @@ def _pending_approval(events: list[HarnessEvent]) -> RunPendingApproval | None:
     resolved = {e.data.get("approval_id") for e in events if e.type == "approval.resolved"}
     for event in reversed(events):
         approval_id = event.data.get("approval_id")
-        if event.type != "approval.requested" or not isinstance(approval_id, str):
+        # Concurrent delegates can resolve a later approval before an earlier one.
+        if (
+            event.type != "approval.requested"
+            or not isinstance(approval_id, str)
+            or approval_id in resolved
+        ):
             continue
-        if approval_id in resolved:
-            return None
         tool = event.data.get("tool")
         return RunPendingApproval(
             approval_id=approval_id, tool=tool if isinstance(tool, str) else None

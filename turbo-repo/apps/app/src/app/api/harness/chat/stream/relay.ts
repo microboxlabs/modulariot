@@ -6,7 +6,10 @@ import {
   type HarnessEvent,
   type HarnessRunRecord,
 } from "@microboxlabs/miot-harness-client";
-import { resolveTenantScope } from "../../../utils/tenant-scope";
+import {
+  resolveTenantScope,
+  type TenantScopeResult,
+} from "../../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
 import {
   INITIAL_PROGRESS,
@@ -15,7 +18,12 @@ import {
 } from "@/features/layout/components/secured-navbar/spotlight-search/harness-stream";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost } from "@/lib/modulith-host";
-import { chatAnswerEvents, type DraftDashlet } from "./chat-answer";
+import {
+  artifactCallEvents,
+  chatAnswerEvents,
+  toArtifactSpec,
+  type DraftDashlet,
+} from "./chat-answer";
 import { stepLabel } from "./step-labels";
 import { planRefusalMessage } from "./plan-refusal";
 import {
@@ -142,14 +150,15 @@ function phaseLabel(progress: HarnessStreamProgress, tr: TrFn): string {
 type Narrator = {
   messageId: string;
   lastPhase: HarnessStreamProgress["phase"] | null;
-  reportedSteps: Set<string>;
+  /** How many times each step label has started in this run. */
+  stepStarts: Map<string, number>;
 };
 
 function openNarration(send: Sender): Narrator {
   const messageId = crypto.randomUUID();
   send({ type: "REASONING_START", messageId });
   send({ type: "REASONING_MESSAGE_START", messageId, role: "reasoning" });
-  return { messageId, lastPhase: null, reportedSteps: new Set() };
+  return { messageId, lastPhase: null, stepStarts: new Map() };
 }
 
 function appendNarration(
@@ -170,9 +179,8 @@ function closeNarration(send: Sender, narrator: Narrator): void {
   send({ type: "REASONING_END", messageId: narrator.messageId });
 }
 
-/** Appends only what's new since the last call: a phase-change headline
- * and/or newly-completed tool-step lines. `progress.thinking` itself isn't
- * read here — the caller forwards each `thinking.delta`'s own raw chunk
+/** Appends a headline when the phase changed. `progress.thinking` itself
+ * isn't read here — the caller forwards each `thinking.delta`'s own raw chunk
  * directly, since that already arrives incrementally from the harness. */
 function appendNarrationDiff(
   send: Sender,
@@ -180,18 +188,21 @@ function appendNarrationDiff(
   progress: HarnessStreamProgress,
   tr: TrFn
 ): void {
-  if (progress.phase !== narrator.lastPhase) {
-    const prefix = narrator.lastPhase === null ? "" : "\n\n";
-    appendNarration(send, narrator, `${prefix}${phaseLabel(progress, tr)}`);
-    narrator.lastPhase = progress.phase;
-  }
-  for (const step of progress.steps) {
-    // One line per kind of step: five queries read as one "querying" line.
-    const label = stepLabel(step.tool, tr);
-    if (step.status !== "done" || narrator.reportedSteps.has(label)) continue;
-    narrator.reportedSteps.add(label);
-    appendNarration(send, narrator, `\n${label}`);
-  }
+  if (progress.phase === narrator.lastPhase) return;
+  const prefix = narrator.lastPhase === null ? "" : "\n\n";
+  appendNarration(send, narrator, `${prefix}${phaseLabel(progress, tr)}`);
+  narrator.lastPhase = progress.phase;
+}
+
+/** One line per tool the moment it starts, so the last line is always the
+ * step in progress. A label seen before gets its count: "Querying ×3". */
+export function stepStartLine(
+  stepStarts: Map<string, number>,
+  label: string
+): string {
+  const count = (stepStarts.get(label) ?? 0) + 1;
+  stepStarts.set(label, count);
+  return count > 1 ? `\n${label} ×${count}` : `\n${label}`;
 }
 
 export function sendText(send: Sender, text: string): void {
@@ -215,11 +226,12 @@ export type HarnessConnection =
 
 /** Resolves tenant scope and builds the harness client — the same chain the
  * search relay uses. Takes the already-authenticated session so callers
- * authenticate once, up front. */
+ * authenticate once, up front, and a scope lookup already started, if any. */
 export async function connectToHarness(
-  session: Session
+  session: Session,
+  scope: Promise<TenantScopeResult> = resolveTenantScope()
 ): Promise<HarnessConnection> {
-  const scopeResult = await resolveTenantScope();
+  const scopeResult = await scope;
   if (!scopeResult.resolved)
     return { ok: false, errorMessage: "tenant_unresolved" };
 
@@ -237,9 +249,26 @@ export async function connectToHarness(
 }
 
 /** How the harness event stream ended. `completed` and `failed` mirror the
- * two terminal events; `truncated` is the stream running dry without either
- * one — an upstream disconnect, not a finished run. */
-type RunOutcome = "completed" | "failed" | "truncated";
+ * two terminal events, `interrupted` is a run the harness lost (it restarted
+ * mid-run, or no longer knows the run); `truncated` is the stream running dry
+ * while the run may still be going. */
+type RunOutcome = "completed" | "failed" | "interrupted" | "truncated";
+
+/** A harness stream that sends nothing for this long gets its run's status
+ * checked: a harness that restarted can leave the stream open with nothing
+ * behind it. */
+export const RELAY_IDLE_CHECK_MS = 60_000;
+
+const STATUS_CHECK_TIMEOUT_MS = 10_000;
+
+/** What one relay saw of the run, kept by the caller so it survives a stream
+ * that throws. */
+type RelayState = {
+  tools: string[];
+  /** Artifacts already sent as cards while the run was going. */
+  shownArtifacts: Set<string>;
+  startedAt: string | null;
+};
 
 /** Narrates one forwarded event: always the phase-diff headline, plus the
  * raw `thinking.delta` chunk when that's what this event is (already
@@ -252,6 +281,10 @@ function narrateForwardedEvent(
   tr: TrFn
 ): void {
   appendNarrationDiff(send, narrator, progress, tr);
+  if (event.type === "tool.started" && typeof event.data.tool === "string") {
+    const label = stepLabel(event.data.tool, tr);
+    appendNarration(send, narrator, stepStartLine(narrator.stepStarts, label));
+  }
   const line = seatNarration(event);
   if (line) appendNarration(send, narrator, line);
   if (event.type !== "thinking.delta") return;
@@ -281,22 +314,127 @@ export function seatNarration(event: {
   return null;
 }
 
+function isInterruption(data: Record<string, unknown>): boolean {
+  return data.reason === "interrupted";
+}
+
+/** The run's state as the harness reports it now; null while it is running
+ * or cannot be asked. */
+async function settledOutcome(
+  client: HarnessClient,
+  runId: string
+): Promise<Exclude<RunOutcome, "truncated"> | null> {
+  try {
+    const record = await client.runs.get(runId, {
+      signal: AbortSignal.timeout(STATUS_CHECK_TIMEOUT_MS),
+    });
+    if (record.status === "completed") return "completed";
+    if (record.status !== "failed") return null;
+    const failure = record.events.findLast((e) => e.type === "run.failed");
+    return failure && isInterruption(failure.data) ? "interrupted" : "failed";
+  } catch (err: unknown) {
+    return isUnknownRun(err) ? "interrupted" : null;
+  }
+}
+
+/**
+ * `source`'s items, with `onIdle` asked what to do each time `idleMs` goes by
+ * without one: true ends the iteration. The pending read is kept across
+ * checks, and `stop` is called on the way out so an abandoned read ends.
+ */
+async function* withIdleChecks<T>(
+  source: AsyncIterable<T>,
+  idleMs: number,
+  onIdle: () => Promise<boolean>,
+  stop: () => void
+): AsyncGenerator<T> {
+  const iterator = source[Symbol.asyncIterator]();
+  let pending = iterator.next();
+  try {
+    for (;;) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const idle = new Promise<"idle">((resolve) => {
+        timer = setTimeout(() => resolve("idle"), idleMs);
+      });
+      const next = await Promise.race([pending, idle]).finally(() =>
+        clearTimeout(timer)
+      );
+      if (next === "idle") {
+        if (await onIdle()) return;
+        continue;
+      }
+      if (next.done) return;
+      pending = iterator.next();
+      yield next.value;
+    }
+  } finally {
+    pending.catch(() => {});
+    stop();
+  }
+}
+
+/** What one event adds to the relay's view of the run: its start time, the
+ * tools used, and any artifact, sent as a card at once. */
+function trackEvent(
+  event: HarnessEvent,
+  r: { runId: string; opened: number; send: Sender; state: RelayState }
+): void {
+  const { runId, send, state } = r;
+  if (state.startedAt === null && event.created_at) {
+    state.startedAt = event.created_at;
+    logger.info(
+      { runId, firstEventMs: Math.round(performance.now() - r.opened) },
+      "[harness/chat/stream] first harness event"
+    );
+    sendRunMarker(send, {
+      runId,
+      status: "running",
+      startedAt: event.created_at,
+    });
+  }
+  if (event.type === "tool.started" && typeof event.data.tool === "string") {
+    state.tools.push(event.data.tool);
+  }
+  if (event.type !== "artifact.created") return;
+  const spec = toArtifactSpec(event.data);
+  if (spec && !state.shownArtifacts.has(spec.id)) {
+    state.shownArtifacts.add(spec.id);
+    for (const call of artifactCallEvents(spec)) send(call);
+  }
+}
+
 async function relayHarnessEvents(
   client: HarnessClient,
   runId: string,
   signal: AbortSignal,
   send: Sender,
   narrator: Narrator,
+  state: RelayState,
   tr: TrFn
-): Promise<{ tools: string[]; outcome: RunOutcome }> {
+): Promise<RunOutcome> {
   let progress: HarnessStreamProgress = INITIAL_PROGRESS;
-  const tools: string[] = [];
   let outcome: RunOutcome = "truncated";
-
-  for await (const event of client.runs.stream(runId, { signal })) {
-    if (event.type === "tool.started" && typeof event.data.tool === "string") {
-      tools.push(event.data.tool);
+  const opened = performance.now();
+  const stream = new AbortController();
+  const stopStream = () => stream.abort();
+  signal.addEventListener("abort", stopStream);
+  if (signal.aborted) stream.abort();
+  const events = withIdleChecks(
+    client.runs.stream(runId, { signal: stream.signal }),
+    RELAY_IDLE_CHECK_MS,
+    async () => {
+      const settled = await settledOutcome(client, runId);
+      if (settled) outcome = settled;
+      return settled !== null;
+    },
+    () => {
+      signal.removeEventListener("abort", stopStream);
+      stream.abort();
     }
+  );
+
+  for await (const event of events) {
+    trackEvent(event, { runId, opened, send, state });
     if (FORWARDED_EVENTS.has(event.type)) {
       progress = reduceHarnessStreamEvent(progress, {
         event: event.type,
@@ -305,13 +443,58 @@ async function relayHarnessEvents(
       narrateForwardedEvent(send, narrator, progress, event, tr);
     }
     if (TERMINAL_EVENT_TYPES.has(event.type)) {
-      outcome = event.type === "run.failed" ? "failed" : "completed";
+      if (event.type === "run.completed") outcome = "completed";
+      else outcome = isInterruption(event.data) ? "interrupted" : "failed";
       break;
     }
   }
 
-  return { tools, outcome };
+  return outcome;
 }
+
+/** Relays the stream and settles how the run ended. A stream that breaks or
+ * runs dry is checked against the run's status: the run may have finished,
+ * or the harness may have lost it. */
+async function followRun(
+  client: HarnessClient,
+  harnessRunId: string,
+  signal: AbortSignal,
+  send: Sender,
+  narrator: Narrator,
+  state: RelayState,
+  tr: TrFn
+): Promise<RunOutcome> {
+  let outcome: RunOutcome;
+  try {
+    outcome = await relayHarnessEvents(
+      client,
+      harnessRunId,
+      signal,
+      send,
+      narrator,
+      state,
+      tr
+    );
+  } catch (err: unknown) {
+    if (signal.aborted || (err as { name?: string }).name === "AbortError") {
+      throw err;
+    }
+    if (isUnknownRun(err)) return "interrupted";
+    logger.warn(
+      { err, runId: harnessRunId },
+      "[harness/chat/stream] harness stream failed"
+    );
+    outcome = "truncated";
+  }
+  if (outcome !== "truncated") return outcome;
+  return (await settledOutcome(client, harnessRunId)) ?? "truncated";
+}
+
+const RUN_ERROR_MESSAGES: Record<Exclude<RunOutcome, "completed">, string> = {
+  failed: "run_failed",
+  interrupted: "interrupted",
+  truncated: "stream_truncated",
+};
 
 export type RelayedRun =
   | { completed: true; tools: string[]; record: HarnessRunRecord }
@@ -339,32 +522,36 @@ export async function relayRun(args: {
 
   const narrator = openNarration(send);
   appendNarrationDiff(send, narrator, INITIAL_PROGRESS, tr);
-  const { tools, outcome } = await relayHarnessEvents(
+  const state: RelayState = {
+    tools: [],
+    shownArtifacts: new Set(),
+    startedAt: null,
+  };
+  const outcome = await followRun(
     client,
     harnessRunId,
     signal,
     send,
     narrator,
+    state,
     tr
   );
   closeNarration(send, narrator);
 
-  // A failed run and a stream that died mid-flight both arrive here with no
-  // answer to present. RUN_ERROR is terminal on its own, so no RUN_FINISHED
-  // follows it. A truncated stream may have left the run alive, so the
-  // browser keeps it as the thread's active run and re-attaches on reload.
+  // A run that failed or was lost, and a stream that died mid-flight, all
+  // arrive here with no answer to present. RUN_ERROR is terminal on its own,
+  // so no RUN_FINISHED follows it. A truncated stream may have left the run
+  // alive, so the browser keeps it as the thread's active run and re-attaches
+  // on reload; the others are over.
   if (outcome !== "completed") {
     logger.error(
       { runId: harnessRunId, outcome },
       "[harness/chat/stream] run did not complete"
     );
-    if (outcome === "failed") {
+    if (outcome !== "truncated") {
       sendRunMarker(send, { runId: harnessRunId, status: "finished" });
     }
-    send({
-      type: "RUN_ERROR",
-      message: outcome === "failed" ? "run_failed" : "stream_truncated",
-    });
+    send({ type: "RUN_ERROR", message: RUN_ERROR_MESSAGES[outcome] });
     return { completed: false };
   }
 
@@ -372,6 +559,7 @@ export async function relayRun(args: {
   for (const event of chatAnswerEvents(record.answer, record.events, {
     noAnswer: tr("harnessChat.stream.noAnswer"),
     assumptionLabel: tr("harnessChat.stream.assumption"),
+    shownArtifacts: state.shownArtifacts,
     priorDashlets: args.priorDashlets,
   })) {
     send(event);
@@ -390,7 +578,7 @@ export async function relayRun(args: {
   });
   sendRunMarker(send, { runId: harnessRunId, status: "finished" });
   send({ type: "RUN_FINISHED", runId, threadId });
-  return { completed: true, tools, record };
+  return { completed: true, tools: state.tools, record };
 }
 
 /** Aborts when the caller disconnects or the relay has run for

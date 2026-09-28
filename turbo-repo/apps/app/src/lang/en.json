@@ -5641,6 +5641,7 @@
         "thoughtProcess": "Thought process",
         "executionCanceled": "Execution was canceled.",
         "runFailed": "Could not get an answer.",
+        "runInterrupted": "The run was interrupted.",
         "retry": "Try again",
         "readOnly": "This chat is read-only — someone else shared it with you.",
         "forkFromHere": "Fork from here",
@@ -5683,6 +5684,9 @@
         "copied": "Copied",
         "download": "Download",
         "saveAsStory": "Save as story",
+        "savedAsStory": "Saved as a story",
+        "openStory": "Open story",
+        "saveAsStoryFailed": "Could not save the story",
         "omitted": "This result was too large to keep in the conversation history."
       },
       "showDashlet": {

@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from miot_harness.config import HarnessSettings
+from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.file_source import FileSkillSource
 from miot_harness.context_skills.loader import boot_context_skills
 from miot_harness.context_skills.mcp_skills import (
@@ -19,6 +19,7 @@ from miot_harness.context_skills.mcp_skills import (
     build_mcp_call_tool,
     offers,
     resolve_url,
+    with_share_url,
 )
 from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.context_skills.skill_models import LoadedSkill, McpServer, PlaybookSkill
@@ -52,6 +53,7 @@ class FakeServer:
         self.opened: list[tuple[str, str]] = []
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self.failure: str | None = None
+        self.result: dict[str, Any] | None = None
 
     def open(self, url: str, token: str) -> Any:
         server = self
@@ -68,6 +70,8 @@ class FakeServer:
                     server.calls.append((name, arguments))
                     if server.failure:
                         return McpToolResult(is_error=True, text=server.failure)
+                    if server.result is not None:
+                        return McpToolResult(structured=server.result)
                     return McpToolResult(structured={"key": arguments.get("key")})
 
             yield _Session()
@@ -248,3 +252,39 @@ def test_boot_drops_the_skill_while_its_server_is_not_configured(
     assert MCP_CALL_TOOL not in registry.names()
     assert result.bundle.list_skills("tenant-a") == []
     assert any("MIOT_TEST_MODULITH" in d.message for d in result.diagnostics)
+
+
+def test_a_share_link_result_gets_the_app_page_url() -> None:
+    link = {"token": "tok_1", "path": "/api/v1/orgs/acme/links/tok_1"}
+
+    assert with_share_url(link, "https://app.example/app/") == {
+        **link,
+        "url": "https://app.example/app/share/tok_1",
+    }
+    assert with_share_url(link, "")["url"] == "/app/share/tok_1"
+    story = {"path": "/api/v1/orgs/acme/stories/s1"}
+    assert with_share_url(story, "") == story
+    assert with_share_url("text", "") == "text"
+
+
+@pytest.mark.asyncio
+async def test_the_model_gets_a_share_link_as_the_app_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MIOT_HARNESS_APP_PUBLIC_URL", "https://app.example/app")
+    get_settings.cache_clear()
+    server = FakeServer()
+    server.result = {"token": "tok_9", "path": "/api/v1/orgs/acme/links/tok_9"}
+    bundle = _bundle(server)
+    tool = build_mcp_call_tool(lambda t, s: bundle.find_mcp_skill(t, s), bundle.mcp)  # type: ignore[arg-type]
+
+    try:
+        out = await tool.invoke(
+            _ctx(),
+            {"skill_id": "selectables", "tool": "selectables_get", "arguments": {"key": "x"}},
+            lambda _e: None,
+        )
+    finally:
+        get_settings.cache_clear()
+
+    assert out.result["url"] == "https://app.example/app/share/tok_9"

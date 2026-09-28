@@ -192,7 +192,7 @@ export function widgetsOf(events: unknown): WidgetSpec[] {
     .filter((w): w is WidgetSpec => w !== null);
 }
 
-function toArtifactSpec(value: unknown): ArtifactSpec | null {
+export function toArtifactSpec(value: unknown): ArtifactSpec | null {
   if (
     !isRecord(value) ||
     typeof value.id !== "string" ||
@@ -515,20 +515,31 @@ function textMessage(text: string, newId: () => string): ChatEvent[] {
   ];
 }
 
+/** A `show_artifact` card for one artifact, as its own resolved tool call. */
+export function artifactCallEvents(
+  spec: ArtifactSpec,
+  newId: () => string = () => crypto.randomUUID()
+): ChatEvent[] {
+  return resolvedCall("show_artifact", spec, newId);
+}
+
 /** Collects the answer's parts in order while blocks are read. */
 class AnswerBuilder {
   readonly out: ChatEvent[] = [];
   private text: string[] = [];
   private readonly placed = new Set<string>();
-  private readonly placedArtifacts = new Set<string>();
+  private readonly placedArtifacts: Set<string>;
   readonly assumptions: string[] = [];
   choices: ChoicesValue | null = null;
 
   constructor(
     private readonly widgets: Map<string, WidgetSpec>,
     private readonly artifacts: Map<string, ArtifactSpec>,
-    private readonly newId: () => string
-  ) {}
+    private readonly newId: () => string,
+    shownArtifacts: Iterable<string> = []
+  ) {
+    this.placedArtifacts = new Set(shownArtifacts);
+  }
 
   add(block: ChatBlock): void {
     switch (block.type) {
@@ -612,7 +623,8 @@ class AnswerBuilder {
  * and artifact where its block sits (those the answer never placed come after
  * the text, widgets first), then each dashboard draft, resolved against this
  * run's widgets and `priorDashlets`, and a choices block as an
- * `ask_user_question` card at the end.
+ * `ask_user_question` card at the end. Artifacts in `shownArtifacts` were
+ * sent while the run was going and are left out.
  */
 export function chatAnswerEvents(
   answer: string | null | undefined,
@@ -621,6 +633,7 @@ export function chatAnswerEvents(
     noAnswer: string;
     assumptionLabel: string;
     newId?: () => string;
+    shownArtifacts?: Iterable<string>;
     priorDashlets?: Map<string, DraftDashlet>;
   }
 ): ChatEvent[] {
@@ -628,7 +641,8 @@ export function chatAnswerEvents(
   const builder = new AnswerBuilder(
     new Map(widgetsOf(events).map((w) => [w.id, w])),
     new Map(artifactsOf(events).map((a) => [a.id, a])),
-    newId
+    newId,
+    opts.shownArtifacts
   );
   for (const block of parseChatBlocks(answer)) builder.add(block);
   if (builder.assumptions.length) {

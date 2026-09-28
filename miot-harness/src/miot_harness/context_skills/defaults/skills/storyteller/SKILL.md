@@ -62,7 +62,8 @@ No other slide types or fields.
 
 1. `stories_create` with a short `title`, the `kind`, a one-sentence
    `description` and the `version`. Leave `sourceMessageId` out.
-2. `stories_link` with the new story's id. The result's `path` is the link.
+2. `stories_link` with the new story's id. The result's `url` is the link
+   to give the user; never give its `path`, which is an API address.
 3. Tell the user in two or three lines: the title, the kind, what it
    contains, and the link as a url block.
 

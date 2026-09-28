@@ -775,32 +775,34 @@ class KnowledgeStore:
             if change["layer"] in RUN_LAYERS:
                 key = (change["layer"], change["target"], change["id"])
                 before.setdefault(key, change["before"])
-        undo: list[KnowledgeChange] = []
-        for (layer, target, item_id), text in before.items():
-            loc = self._locate(layer, item_id, target)
-            # Runs skip an unreadable file, so it counts as absent.
+        undo = (self._restore(*key, text) for key, text in before.items())
+        return [change for change in undo if change is not None]
+
+    def _restore(
+        self, layer: Layer, target: str | None, item_id: str, text: str | None
+    ) -> KnowledgeChange | None:
+        """The overlay change that brings an item back to `text` (None: absent)
+        as runs read it; None for a primer, which is never absent."""
+        parsed: tuple[str, str, dict[str, Any]] | None = None
+        if text is not None:
             try:
-                title, content, meta = self._parse(loc, text) if text is not None else ("", "", {})
+                parsed = self._parse(self._locate(layer, item_id, target), text)
             except (ValueError, yaml.YAMLError):
-                text = None
-            if text is None:
-                if layer != "primer":
-                    undo.append(
-                        KnowledgeChange(layer=layer, id=item_id, target=target, op="delete")
-                    )
-                continue
-            unused = layer == "fact" and (meta["status"], meta["scope"]) != ("approved", "tenant")
-            undo.append(
-                KnowledgeChange(
-                    layer=layer,
-                    id=item_id,
-                    target=target,
-                    op="delete" if unused else "upsert",
-                    title=title,
-                    content=content,
-                )
-            )
-        return undo
+                parsed = None  # runs skip an unreadable file
+        if parsed is None:
+            if layer == "primer":
+                return None
+            return KnowledgeChange(layer=layer, id=item_id, target=target, op="delete")
+        title, content, meta = parsed
+        unused = layer == "fact" and (meta["status"], meta["scope"]) != ("approved", "tenant")
+        return KnowledgeChange(
+            layer=layer,
+            id=item_id,
+            target=target,
+            op="delete" if unused else "upsert",
+            title=title,
+            content=content,
+        )
 
     def eval_cases(self) -> list[dict[str, Any]]:
         """The tenant's eval cases, read in full (meta included), by id."""

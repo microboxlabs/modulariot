@@ -714,6 +714,7 @@ class AgentLoopRunner:
                         "error_type": "TenantRefused",
                         "reason": ctx.data_refusal,
                         "ok": False,
+                        "duration_ms": 0,
                         **args_payload(step.args),
                     },
                 )
@@ -882,7 +883,7 @@ class AgentLoopRunner:
                     "input_keys": ["skill_id"],
                     "skill_id": skill_id,
                     "call_id": call_id,
-                    "args": {"skill_id": skill_id},
+                    **args_payload({"skill_id": skill_id}),
                 },
             )
         )
@@ -918,6 +919,7 @@ class AgentLoopRunner:
                         "reason": f"unknown skill: {skill_id}",
                         "call_id": call_id,
                         "ok": False,
+                        "duration_ms": 0,
                     },
                 )
             )

@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import es from "@/lang/es.json";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { HarnessChatI18nProvider } from "../context/harness-chat-i18n-context";
+import { formatDuration } from "../run-activity";
 import type { RunActivity } from "../run-activity-types";
 import { RunActivityRow } from "./run-activity";
 
@@ -114,5 +115,14 @@ describe("RunActivityRow", () => {
     expect(
       await screen.findByText("No se pudo cargar la actividad.")
     ).toBeTruthy();
+  });
+});
+
+describe("formatDuration", () => {
+  it("never shows 60 seconds in the minute form", () => {
+    expect(formatDuration(850)).toBe("850 ms");
+    expect(formatDuration(4_240)).toBe("4.2 s");
+    expect(formatDuration(119_600)).toBe("2 min 0 s");
+    expect(formatDuration(125_000)).toBe("2 min 5 s");
   });
 });

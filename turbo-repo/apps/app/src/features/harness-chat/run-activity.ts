@@ -25,8 +25,8 @@ export function formatDuration(ms: number): string {
   const seconds = ms / 1000;
   if (seconds < 60)
     return `${seconds < 10 ? seconds.toFixed(1) : Math.round(seconds)} s`;
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes} min ${Math.round(seconds % 60)} s`;
+  const total = Math.round(seconds);
+  return `${Math.floor(total / 60)} min ${total % 60} s`;
 }
 
 /** The SQL a step ran, when its arguments carry one. */

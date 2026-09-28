@@ -91,6 +91,7 @@ def test_redact_replaces_base64_blobs() -> None:
 def test_scrub_text_removes_url_credentials() -> None:
     text = "could not connect to postgresql://svc:hunter2@db.internal:5432/app"
     assert scrub_text(text) == "could not connect to postgresql://***@db.internal:5432/app"
+    assert scrub_text("postgresql://svc:p@ss@db/app") == "postgresql://***@db/app"
 
 
 def test_bounded_keeps_small_values_whole() -> None:

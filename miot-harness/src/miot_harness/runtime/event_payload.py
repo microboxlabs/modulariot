@@ -24,7 +24,7 @@ _SECRET_KEY = re.compile(
 _DATA_URI = re.compile(r"^data:[\w.+-]+/[\w.+-]+;base64,", re.IGNORECASE)
 _BASE64 = re.compile(r"^[A-Za-z0-9+/_-]+={0,2}$")
 _BASE64_MIN_CHARS = 256
-_URL_CREDENTIALS = re.compile(r"(\b[a-z][a-z0-9+.-]*://)[^\s/@:]+:[^\s/@]+@", re.IGNORECASE)
+_URL_CREDENTIALS = re.compile(r"(\b[a-z][a-z0-9+.-]*://)[^\s/@:]+:[^\s/]*@", re.IGNORECASE)
 # When a value is too big, strings and lists are shortened to these sizes
 # before the last-resort byte cut.
 _STRING_CHARS_CAP = 1000

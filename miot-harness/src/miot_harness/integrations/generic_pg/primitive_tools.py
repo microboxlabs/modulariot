@@ -10,11 +10,13 @@ model is given them.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
+from miot_harness.datasource import workspace_store as ws
 from miot_harness.datasource.knowledge.models import KnowledgeCard
 from miot_harness.datasource.profile import safe_profile
 from miot_harness.datasource.routine_call import safe_call_routine
@@ -69,11 +71,19 @@ WIDGET_PREVIEW_ROWS = 5
 
 
 class _ShowInput(BaseModel):
-    sql: str = Field(
+    sql: str | None = Field(
+        default=None,
         description=(
             "Read-only SELECT whose result is the data to show, same rules as "
-            "query. Name the columns the way the user should read them."
-        )
+            "query. Name the columns the way the user should read them. Omit "
+            "when showing a saved analysis."
+        ),
+    )
+    analysis: str | None = Field(
+        default=None, description="Name of a saved analysis to show instead of sql"
+    )
+    args: dict[str, Any] = Field(
+        default_factory=dict, description="Arguments for the saved analysis"
     )
     widget: WidgetKind = Field(
         description=(
@@ -100,6 +110,64 @@ class _ShowOutput(BaseModel):
     columns: list[str] = Field(default_factory=list)
     preview: list[dict[str, Any]] = Field(default_factory=list)
     note: str = ""
+    source: str = ""
+    executed_sql: str | None = None
+
+
+class _MemoryInput(BaseModel):
+    action: Literal["list", "read", "write"] = Field(
+        description="list: every note's title; read: one note; write: create or replace one"
+    )
+    id: str | None = Field(default=None, description="Note id to read (from list)")
+    title: str | None = Field(default=None, description="write: the note title; it names the note")
+    kind: Literal["definition", "fact", "preference"] = Field(
+        default="fact",
+        description=(
+            "definition: what a business term means in this data, confirmed by "
+            "the user; fact: something true about the data (a trap, a gap, a "
+            "join); preference: how this organization wants answers"
+        ),
+    )
+    body: str | None = Field(
+        default=None,
+        description="write: the note, in plain words plus the SQL predicate or columns it maps to",
+    )
+
+
+class _MemoryOutput(BaseModel):
+    notes: list[dict[str, Any]] = Field(default_factory=list)
+    note: dict[str, Any] | None = None
+    source: str = ""
+
+
+class _AnalysisInput(BaseModel):
+    action: Literal["list", "read", "save", "run"] = Field(
+        description=(
+            "list: saved analyses; read: one with its SQL; save: store a tested "
+            "query under a name; run: execute a saved one with arguments"
+        )
+    )
+    name: str | None = Field(default=None, description="Analysis name, e.g. driving_hours_by_month")
+    description: str | None = Field(
+        default=None, description="save: the question it answers and the definitions it uses"
+    )
+    sql: str | None = Field(
+        default=None,
+        description="save: the SELECT, with :param placeholders for the parameters",
+    )
+    params: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description=(
+            "save: [{name, type (text|int|numeric|date|timestamptz|bool), default, description}]"
+        ),
+    )
+    args: dict[str, Any] = Field(default_factory=dict, description="run: {param: value}")
+
+
+class _AnalysisOutput(BaseModel):
+    analyses: list[dict[str, Any]] = Field(default_factory=list)
+    analysis: dict[str, Any] | None = None
+    rows: list[dict[str, Any]] = Field(default_factory=list)
     source: str = ""
     executed_sql: str | None = None
 
@@ -242,6 +310,26 @@ def _first_line(text: str, limit: int = 160) -> str:
     return line if len(line) <= limit else line[: limit - 1] + "…"
 
 
+def _require(workspace_dir: Path | None, source_label: str) -> Path:
+    if workspace_dir is None:
+        raise ValueError(f"{source_label} has no workspace directory")
+    return workspace_dir
+
+
+def _note_dict(note: ws.Note) -> dict[str, Any]:
+    return {"id": note.id, "title": note.title, "kind": note.kind, "body": note.body, **note.meta}
+
+
+def _analysis_dict(analysis: ws.Analysis) -> dict[str, Any]:
+    return {
+        "name": analysis.name,
+        "description": analysis.description,
+        "params": analysis.params,
+        "sql": analysis.sql,
+        **analysis.meta,
+    }
+
+
 def build_generic_tools(
     *,
     pool: Any,
@@ -254,6 +342,7 @@ def build_generic_tools(
     statement_timeout_ms: int,
     knowledge_cards: list[KnowledgeCard] | None = None,
     call_security_definer: bool = False,
+    workspace_dir: Path | None = None,
 ) -> list[HarnessTool[Any, Any]]:
     """Build the generic safe-query primitives as registrable HarnessTools.
 
@@ -331,11 +420,25 @@ def build_generic_tools(
         )
         return _ProfileOutput(**result, source=source_label)
 
+    def saved_sql(ctx: HarnessContext, name: str, args: dict[str, Any]) -> str:
+        if workspace_dir is None:
+            raise ValueError(f"{source_label} has no workspace for saved analyses")
+        analysis = ws.read_analysis(workspace_dir, ctx.tenant_id, name)
+        if analysis is None:
+            raise ValueError(f"no saved analysis named {name!r}")
+        return ws.bind(analysis.sql, analysis.params, args)
+
     async def call_show(ctx: HarnessContext, parsed: _ShowInput, progress: Progress) -> _ShowOutput:
+        if parsed.analysis:
+            sql = saved_sql(ctx, parsed.analysis, parsed.args)
+        elif parsed.sql:
+            sql = parsed.sql
+        else:
+            raise ValueError("pass sql or the name of a saved analysis")
         run = await safe_run_select(
             pool=pool,
             policy=policy,
-            sql=parsed.sql,
+            sql=sql,
             max_rows=min(max_rows, WIDGET_MAX_ROWS),
             cost_threshold=explain_cost_threshold,
             statement_timeout_ms=statement_timeout_ms,
@@ -382,6 +485,83 @@ def build_generic_tools(
             source=source_label,
             executed_sql=run.sql,
         )
+
+    async def call_memory(
+        ctx: HarnessContext, parsed: _MemoryInput, progress: Progress
+    ) -> _MemoryOutput:
+        root = _require(workspace_dir, source_label)
+        if parsed.action == "list":
+            notes = ws.list_notes(root, ctx.tenant_id)
+            return _MemoryOutput(
+                notes=[{"id": n.id, "title": n.title, "kind": n.kind} for n in notes],
+                source=source_label,
+            )
+        if parsed.action == "read":
+            note = ws.read_note(root, ctx.tenant_id, parsed.id or parsed.title or "")
+            if note is None:
+                raise ValueError(f"no note {parsed.id!r}; list them first")
+            return _MemoryOutput(note=_note_dict(note), source=source_label)
+        note = ws.write_note(
+            root,
+            ctx.tenant_id,
+            title=parsed.title or "",
+            body=parsed.body or "",
+            kind=parsed.kind,
+            author=ctx.user_id,
+            conversation_id=ctx.conversation_id,
+        )
+        return _MemoryOutput(note=_note_dict(note), source=source_label)
+
+    async def call_analysis(
+        ctx: HarnessContext, parsed: _AnalysisInput, progress: Progress
+    ) -> _AnalysisOutput:
+        root = _require(workspace_dir, source_label)
+        if parsed.action == "list":
+            return _AnalysisOutput(
+                analyses=[
+                    {"name": a.name, "description": a.description, "params": a.params}
+                    for a in ws.list_analyses(root, ctx.tenant_id)
+                ],
+                source=source_label,
+            )
+        if parsed.action == "read":
+            analysis = ws.read_analysis(root, ctx.tenant_id, parsed.name or "")
+            if analysis is None:
+                raise ValueError(f"no saved analysis named {parsed.name!r}")
+            return _AnalysisOutput(analysis=_analysis_dict(analysis), source=source_label)
+        if parsed.action == "run":
+            sql = saved_sql(ctx, parsed.name or "", parsed.args)
+            run = await safe_run_select(
+                pool=pool,
+                policy=policy,
+                sql=sql,
+                max_rows=max_rows,
+                cost_threshold=explain_cost_threshold,
+                statement_timeout_ms=statement_timeout_ms,
+            )
+            return _AnalysisOutput(rows=run.rows, source=source_label, executed_sql=run.sql)
+        # save: test-run with the defaults first, so only a working query is kept
+        params = ws.validate_params(parsed.params, parsed.sql or "")
+        run = await safe_run_select(
+            pool=pool,
+            policy=policy,
+            sql=ws.bind(parsed.sql or "", params, {}),
+            max_rows=5,
+            cost_threshold=explain_cost_threshold,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        saved = ws.save_analysis(
+            root,
+            ctx.tenant_id,
+            name=parsed.name or "",
+            description=parsed.description or "",
+            sql=parsed.sql or "",
+            params=params,
+            author=ctx.user_id,
+            conversation_id=ctx.conversation_id,
+            columns=list(run.rows[0].keys()) if run.rows else [],
+        )
+        return _AnalysisOutput(analysis=_analysis_dict(saved), rows=run.rows, source=source_label)
 
     async def call_select(
         ctx: HarnessContext, parsed: _SelectInput, progress: Progress
@@ -681,6 +861,42 @@ def build_generic_tools(
             **common,
         ),
     ]
+    if workspace_dir is not None:
+        writable = {**common, "read_only": False}
+        tools.append(
+            HarnessTool(
+                name=f"{tool_prefix}memory",
+                description=(
+                    f"Notes this organization's analysts and you keep about {source_label}: "
+                    "confirmed definitions of business terms, facts about the data "
+                    "(duplicates, gaps, joins), and how they want answers. `list` at "
+                    "the start of a data question and `read` what applies. `write` a "
+                    "definition once the user confirms it, and a fact once a query "
+                    "proved it. Never store row values or personal data."
+                ),
+                input_model=_MemoryInput,
+                output_model=_MemoryOutput,
+                call=call_memory,
+                **writable,
+            )
+        )
+        tools.append(
+            HarnessTool(
+                name=f"{tool_prefix}analysis",
+                description=(
+                    f"Saved analyses for {source_label}: named, parameterized SELECTs that "
+                    "answer a recurring question. `list` before writing a query that may "
+                    "already exist; `run` one with arguments; `save` a query you tested "
+                    "(with :param placeholders) when the user will ask it again or asks "
+                    "you to keep it. `save` runs it once with the defaults and refuses "
+                    "a query that fails. show accepts an analysis name in place of sql."
+                ),
+                input_model=_AnalysisInput,
+                output_model=_AnalysisOutput,
+                call=call_analysis,
+                **writable,
+            )
+        )
     if cards_by_id:
         titles = "; ".join(f"{c.id}: {c.title}" for c in cards_by_id.values())
         tools.append(

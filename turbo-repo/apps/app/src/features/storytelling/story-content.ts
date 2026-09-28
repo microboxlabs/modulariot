@@ -109,64 +109,78 @@ function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-function optionalText(value: unknown): { value?: string } {
-  return typeof value === "string" && value ? { value } : {};
+/** The named string fields of `raw` that are set, to spread into a block. */
+function optionalStrings<K extends string>(
+  raw: Record<string, unknown>,
+  keys: readonly K[]
+): Partial<Record<K, string>> {
+  const out: Partial<Record<K, string>> = {};
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === "string" && value) out[key] = value;
+  }
+  return out;
 }
 
-/** One block, rebuilt from what the metadata holds; null when a field the
- * renderer needs is missing or of the wrong type. */
-function toSection(raw: unknown): StorySection | null {
-  if (!isRecord(raw)) return null;
-  switch (raw.type) {
-    case "heading": {
-      const body = text(raw.text);
-      if (!body) return null;
-      const level = typeof raw.level === "number" ? raw.level : undefined;
-      return { type: "heading", text: body, ...(level ? { level } : {}) };
-    }
-    case "text": {
-      const body = text(raw.text);
-      return body ? { type: "text", text: body } : null;
-    }
-    case "quote": {
-      const body = text(raw.text);
-      if (!body) return null;
-      const author = optionalText(raw.author).value;
-      return { type: "quote", text: body, ...(author ? { author } : {}) };
-    }
-    case "metric": {
-      const label = text(raw.label);
-      const value = raw.value;
-      if (!label || (typeof value !== "string" && typeof value !== "number"))
-        return null;
-      const unit = optionalText(raw.unit).value;
-      const delta = optionalText(raw.delta).value;
-      return {
-        type: "metric",
-        label,
-        value,
-        ...(unit ? { unit } : {}),
-        ...(delta ? { delta } : {}),
-      };
-    }
-    case "chart": {
-      if (!isRecord(raw.option)) return null;
-      const title = optionalText(raw.title).value;
-      return { type: "chart", option: raw.option, ...(title ? { title } : {}) };
-    }
-    case "table": {
-      if (!Array.isArray(raw.headers) || !Array.isArray(raw.rows)) return null;
-      const title = optionalText(raw.title).value;
-      return {
-        type: "table",
-        headers: strings(raw.headers),
-        rows: raw.rows.filter(Array.isArray).map(strings),
-        ...(title ? { title } : {}),
-      };
-    }
-    default:
+type SectionBuilder = (raw: Record<string, unknown>) => StorySection | null;
+
+/** One builder per block type. Each rebuilds the block from the metadata and
+ * returns null when a field its renderer needs is missing or mistyped. */
+const SECTION_BUILDERS: Record<string, SectionBuilder> = {
+  heading: (raw) => {
+    const body = text(raw.text);
+    if (!body) return null;
+    return typeof raw.level === "number"
+      ? { type: "heading", text: body, level: raw.level }
+      : { type: "heading", text: body };
+  },
+  text: (raw) => {
+    const body = text(raw.text);
+    return body ? { type: "text", text: body } : null;
+  },
+  quote: (raw) => {
+    const body = text(raw.text);
+    return body
+      ? { type: "quote", text: body, ...optionalStrings(raw, ["author"]) }
+      : null;
+  },
+  metric: (raw) => {
+    const label = text(raw.label);
+    const value = raw.value;
+    if (!label || (typeof value !== "string" && typeof value !== "number"))
       return null;
-  }
+    return {
+      type: "metric",
+      label,
+      value,
+      ...optionalStrings(raw, ["unit", "delta"]),
+    };
+  },
+  chart: (raw) =>
+    isRecord(raw.option)
+      ? {
+          type: "chart",
+          option: raw.option,
+          ...optionalStrings(raw, ["title"]),
+        }
+      : null,
+  table: (raw) =>
+    Array.isArray(raw.headers) && Array.isArray(raw.rows)
+      ? {
+          type: "table",
+          headers: strings(raw.headers),
+          rows: raw.rows.filter(Array.isArray).map(strings),
+          ...optionalStrings(raw, ["title"]),
+        }
+      : null,
+};
+
+function toSection(raw: unknown): StorySection | null {
+  if (!isRecord(raw) || typeof raw.type !== "string") return null;
+  const build = Object.hasOwn(SECTION_BUILDERS, raw.type)
+    ? SECTION_BUILDERS[raw.type]
+    : undefined;
+  return build ? build(raw) : null;
 }
 
 export function sectionsFrom(version: StoryVersion): StorySection[] {

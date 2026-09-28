@@ -146,21 +146,32 @@ public class ConnectionTools {
             if (blank(name)) {
                 throw new IllegalArgumentException("name is required");
             }
-            if (blank(templateId)) {
-                throw new IllegalArgumentException("templateId is required");
-            }
-            if (templates.getTemplate(tenant, templateId) == null) {
-                throw new NoSuchElementException("template not found: " + templateId);
-            }
-            String credential = blank(credentialProfileId) ? null : credentialProfileId;
-            if (credential != null && credentials.get(tenant, credential) == null) {
-                throw new NoSuchElementException("credential not found: " + credential);
-            }
+            requireTemplate(tenant, templateId);
+            String credential = credentialOrNull(tenant, credentialProfileId);
             refuseSecrets(metadata, "metadata");
             IntegrationConnection created = connections.createConnection(tenant, new CreateIntegrationConnectionRequest(
                     name.trim(), null, httpUrl(baseUrl), credential, metadata, templateId));
             return view(created);
         }));
+    }
+
+    private void requireTemplate(String tenant, String templateId) {
+        if (blank(templateId)) {
+            throw new IllegalArgumentException("templateId is required");
+        }
+        if (templates.getTemplate(tenant, templateId) == null) {
+            throw new NoSuchElementException("template not found: " + templateId);
+        }
+    }
+
+    private String credentialOrNull(String tenant, String credentialProfileId) {
+        if (blank(credentialProfileId)) {
+            return null;
+        }
+        if (credentials.get(tenant, credentialProfileId) == null) {
+            throw new NoSuchElementException("credential not found: " + credentialProfileId);
+        }
+        return credentialProfileId;
     }
 
     @Tool(name = "connections_test", structuredContent = true,

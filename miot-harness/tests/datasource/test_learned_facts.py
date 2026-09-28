@@ -57,7 +57,8 @@ def test_tenant_lock_hides_other_tenants_cards(tmp_path: Path) -> None:
         char_budget=6000,
     )
     own = facts.render("t1") or ""
-    assert "Locked definition." in own and "Shared definition." in own
+    assert "Locked definition." in own
+    assert "Shared definition." in own
     other = facts.render("t2") or ""
     assert "Locked definition." not in other
     assert "Shared definition." in other
@@ -70,9 +71,11 @@ def test_budget_falls_back_to_titles_with_tool_pointer(tmp_path: Path) -> None:
     block = LearnedFacts([LearnedFactsSource("db", tmp_path)], char_budget=70).render("t1")
     assert block is not None
     assert "A" * 50 in block
-    assert "B" * 50 not in block and "C" * 50 not in block
+    assert "B" * 50 not in block
+    assert "C" * 50 not in block
     assert "open with `db_knowledge`" in block
-    assert "- beta: beta" in block and "- gamma: gamma" in block
+    assert "- beta: beta" in block
+    assert "- gamma: gamma" in block
 
 
 def test_new_and_deleted_cards_show_on_next_render(tmp_path: Path) -> None:

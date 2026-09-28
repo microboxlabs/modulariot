@@ -178,7 +178,7 @@ def load_connection_cards(cards_dir: Path) -> ConnectionCardsResult:
         except (ValueError, OSError, yaml.YAMLError) as exc:
             diagnostics.append(f"{path}: {exc}")
             continue
-        cards.append(replace(card, updated_at=mtime))
+        cards.append(replace(card, updated_at=mtime, file_stem=path.stem))
     return ConnectionCardsResult(tuple(cards), tuple(diagnostics))
 
 

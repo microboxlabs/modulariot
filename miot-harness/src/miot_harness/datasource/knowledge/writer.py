@@ -21,6 +21,7 @@ loader's `*.md` glob never serves a superseded version as knowledge.
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -133,8 +134,22 @@ def render_connection_card(card: ConnectionCardWrite) -> str:
     return f"---\n{fm}---\n\n{body}\n"
 
 
+def _inside(cards_dir: Path, *parts: str) -> Path:
+    """`cards_dir/<parts>`, refused if it resolves outside `cards_dir`. Stems
+    are already slugged; this keeps the containment check next to the I/O."""
+    root = os.path.normpath(cards_dir)
+    path = os.path.normpath(os.path.join(root, *parts))
+    if not path.startswith(root + os.sep):
+        raise ValueError(f"card path escapes {cards_dir}")
+    return Path(path)
+
+
+def _card_path(cards_dir: Path, stem: str) -> Path:
+    return _inside(cards_dir, f"{stem}.md")
+
+
 def _history_dir(cards_dir: Path, stem: str) -> Path:
-    return cards_dir / _HISTORY_DIR / stem
+    return _inside(cards_dir, _HISTORY_DIR, stem)
 
 
 def _history_versions(history_dir: Path) -> list[Path]:
@@ -166,7 +181,7 @@ def write_connection_card(cards_dir: Path, card: ConnectionCardWrite) -> Path:
         raise ValueError(f"cannot derive a card filename from term {card.term!r}")
     content = render_connection_card(card)  # validates term/body before any I/O
     cards_dir.mkdir(parents=True, exist_ok=True)
-    path = cards_dir / f"{stem}.md"
+    path = _card_path(cards_dir, stem)
     if path.exists():
         prior = path.read_text(encoding="utf-8")
         if prior != content:
@@ -187,7 +202,7 @@ def revert_connection_card(cards_dir: Path, card_id: str) -> Path | None:
     if not versions:
         return None
     latest = versions[-1]
-    path = cards_dir / f"{stem}.md"
+    path = _card_path(cards_dir, stem)
     path.write_text(latest.read_text(encoding="utf-8"), encoding="utf-8")
     latest.unlink()
     return path
@@ -199,7 +214,7 @@ def delete_connection_card(cards_dir: Path, card_id: str) -> bool:
     stem = slug_card_id(card_id)
     if not stem:
         return False
-    path = cards_dir / f"{stem}.md"
+    path = _card_path(cards_dir, stem)
     if not path.is_file():
         return False
     _snapshot(_history_dir(cards_dir, stem), path.read_text(encoding="utf-8"))

@@ -185,6 +185,20 @@ class _KnowledgeOutput(BaseModel):
     source: str = ""
 
 
+def _knowledge_description(pack_cards: list[KnowledgeCard], *, authored: bool) -> str:
+    # Static on purpose: tool descriptions are part of the cached prompt
+    # prefix, so authored card titles are listed by the call, not here.
+    description = (
+        "Open a knowledge card for this connection (call with a card id; empty lists them). "
+    )
+    if pack_cards:
+        titles = "; ".join(f"{c.id}: {c.title}" for c in pack_cards)
+        description += f"Product cards: {titles}. "
+    if authored:
+        description += "Also holds facts taught by this organization's trainers. "
+    return description + "Read the relevant card before writing non-obvious queries."
+
+
 def _first_line(text: str, limit: int = 160) -> str:
     line = text.strip().splitlines()[0].strip() if text.strip() else ""
     return line if len(line) <= limit else line[: limit - 1] + "…"
@@ -597,22 +611,11 @@ def build_generic_tools(
     if workflow_schema is not None:
         tools.append(build_workflow_tool(env, workflow_schema))
     if cards_by_id or authored_cards is not None:
-        # Static on purpose: tool descriptions are part of the cached prompt
-        # prefix, so authored card titles are listed by the call, not here.
-        titles = "; ".join(f"{c.id}: {c.title}" for c in cards_by_id.values())
-        description = (
-            "Open a knowledge card for this connection (call with a card id; "
-            "empty lists them). "
-        )
-        if titles:
-            description += f"Product cards: {titles}. "
-        if authored_cards is not None:
-            description += "Also holds facts taught by this organization's trainers. "
         tools.append(
             HarnessTool(
                 name=f"{tool_prefix}knowledge",
-                description=(
-                    description + "Read the relevant card before writing non-obvious queries."
+                description=_knowledge_description(
+                    list(cards_by_id.values()), authored=authored_cards is not None
                 ),
                 input_model=_KnowledgeInput,
                 output_model=_KnowledgeOutput,

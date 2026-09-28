@@ -210,6 +210,36 @@ def test_delete_removes_card_and_revert_restores_it(tmp_path: Path) -> None:
     assert (knowledge_dir / "current-process.md").exists()
 
 
+def test_delete_finds_a_card_whose_id_differs_from_its_file_name(tmp_path: Path) -> None:
+    conn, knowledge_dir = _on_disk_connection(tmp_path)
+    knowledge_dir.mkdir()
+    (knowledge_dir / "stage-shipments.md").write_text(
+        "---\nid: shipments\nterm: shipments\n---\n\nOnly confirmed rows count.\n",
+        encoding="utf-8",
+    )
+    app = create_app()
+    with TestClient(app) as client:
+        client.app.state.connection_objects[conn.name] = conn
+        ids = [c["id"] for c in client.get("/connections/acs/knowledge").json()["cards"]]
+        assert ids == ["shipments"]
+        assert client.delete("/connections/acs/knowledge/shipments").status_code == 204
+    assert not (knowledge_dir / "stage-shipments.md").exists()
+
+
+def test_options_lock_wins_over_tenant_scope() -> None:
+    both = Connection(
+        name="x",
+        backend="postgres",
+        dsn=None,
+        scope="tenant",
+        tenant_id="T9",
+        options={"tenant_lock": "T1"},
+    )
+    _enforce_tenant_may_write_connection(both, {"tenant_id": "T1"}, "x")
+    with pytest.raises(HTTPException):
+        _enforce_tenant_may_write_connection(both, {"tenant_id": "T9"}, "x")
+
+
 def test_delete_unknown_card_is_404(tmp_path: Path) -> None:
     conn, _ = _on_disk_connection(tmp_path)
     app = create_app()

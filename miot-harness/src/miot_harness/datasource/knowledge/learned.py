@@ -51,24 +51,31 @@ class LearnedFacts:
             if source.tenant_lock is not None and tenant_id != source.tenant_lock:
                 continue
             cards = approved_cards(source.cards_dir)
-            if not cards:
-                continue
-            full: list[str] = []
-            titles: list[str] = []
-            for card in cards:
-                entry = f"### {card.title}\n{card.body}"
-                if not titles and len(entry) <= remaining:
-                    full.append(entry)
-                    remaining -= len(entry)
-                else:
-                    titles.append(f"- {card.id}: {card.title}")
-            parts = [f"## {source.connection}", *full]
-            if titles:
-                parts.append(
-                    f"More learned facts, titles only (open with "
-                    f"`{source.connection}_knowledge`):\n" + "\n".join(titles)
-                )
-            sections.append("\n\n".join(parts))
+            if cards:
+                section, remaining = _render_section(source.connection, cards, remaining)
+                sections.append(section)
         if not sections:
             return None
         return "\n\n".join([_HEADER, *sections])
+
+
+def _render_section(
+    connection: str, cards: Sequence[KnowledgeCard], remaining: int
+) -> tuple[str, int]:
+    """One connection's cards, and the budget left after them."""
+    full: list[str] = []
+    titles: list[str] = []
+    for card in cards:
+        entry = f"### {card.title}\n{card.body}"
+        if not titles and len(entry) <= remaining:
+            full.append(entry)
+            remaining -= len(entry)
+        else:
+            titles.append(f"- {card.id}: {card.title}")
+    parts = [f"## {connection}", *full]
+    if titles:
+        parts.append(
+            f"More learned facts, titles only (open with `{connection}_knowledge`):\n"
+            + "\n".join(titles)
+        )
+    return "\n\n".join(parts), remaining

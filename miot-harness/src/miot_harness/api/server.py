@@ -80,6 +80,12 @@ logger = logging.getLogger(__name__)
 
 
 _DRAIN_RETRY_AFTER_SECONDS = 10
+
+_CARDS_RESPONSES: dict[int | str, dict[str, Any]] = {
+    403: {"description": "The connection is locked to another tenant"},
+    404: {"description": "Unknown connection or card"},
+}
+
 _DRAINING_RESPONSE: dict[int | str, dict[str, Any]] = {
     503: {"description": "Shutting down; retry after Retry-After seconds"}
 }
@@ -1230,7 +1236,7 @@ def create_app() -> FastAPI:
         _enforce_tenant_may_write_connection(conn, auth, connection)
         return connection_cards_dir(conn)
 
-    @app.get("/connections/{connection}/knowledge")
+    @app.get("/connections/{connection}/knowledge", responses=_CARDS_RESPONSES)
     async def list_connection_knowledge(
         connection: str,
         auth: Mapping[str, Any] = Depends(require_auth),
@@ -1253,7 +1259,11 @@ def create_app() -> FastAPI:
             ]
         }
 
-    @app.delete("/connections/{connection}/knowledge/{card_id}", status_code=204)
+    @app.delete(
+        "/connections/{connection}/knowledge/{card_id}",
+        status_code=204,
+        responses=_CARDS_RESPONSES,
+    )
     async def delete_connection_knowledge(
         connection: str,
         card_id: str,
@@ -1262,11 +1272,16 @@ def create_app() -> FastAPI:
         """Remove an authored card. Its current version stays in the card's
         history, so `POST .../revert` restores it."""
         cards_dir = _authorized_cards_dir(connection, auth)
-        if cards_dir is None or not delete_connection_card(cards_dir, card_id):
+        if cards_dir is None or not delete_connection_card(
+            cards_dir, _card_file_stem(cards_dir, card_id)
+        ):
             raise HTTPException(status_code=404, detail=f"unknown card {card_id!r}")
         return Response(status_code=204)
 
-    @app.post("/connections/{connection}/knowledge/{card_id}/revert")
+    @app.post(
+        "/connections/{connection}/knowledge/{card_id}/revert",
+        responses=_CARDS_RESPONSES,
+    )
     async def revert_connection_knowledge(
         connection: str,
         card_id: str,
@@ -1275,8 +1290,10 @@ def create_app() -> FastAPI:
         """Restore the card's previous version (or a deleted card)."""
         cards_dir = _authorized_cards_dir(connection, auth)
         path = None
-        if cards_dir is not None and slug_card_id(card_id):
-            path = revert_connection_card(cards_dir, card_id)
+        if cards_dir is not None:
+            stem = _card_file_stem(cards_dir, card_id)
+            if slug_card_id(stem):
+                path = revert_connection_card(cards_dir, stem)
         if path is None:
             raise HTTPException(
                 status_code=404, detail=f"no previous version of card {card_id!r}"
@@ -1431,11 +1448,24 @@ def _enforce_tenant_owns_run(
 
 
 def _connection_tenant_lock(conn: Connection) -> str | None:
-    """The one tenant a connection serves, or None when it is shared."""
+    """The one tenant a connection serves, or None when it is shared. Same
+    order as the generic provider: `options.tenant_lock`, then the tenant of a
+    tenant-scoped connection."""
+    raw_lock = str(conn.options.get("tenant_lock") or "").strip()
+    if raw_lock:
+        return raw_lock
     if conn.scope == "tenant" and conn.tenant_id:
         return str(conn.tenant_id)
-    raw_lock = conn.options.get("tenant_lock")
-    return str(raw_lock) if raw_lock else None
+    return None
+
+
+def _card_file_stem(cards_dir: Path, card_id: str) -> str:
+    """The file holding the live card `card_id`. A hand-written card's id can
+    differ from its file name; otherwise the id is the file name."""
+    for card in load_connection_cards_cached(cards_dir).cards:
+        if card.id == card_id and card.file_stem:
+            return card.file_stem
+    return card_id
 
 
 def _enforce_tenant_may_write_connection(

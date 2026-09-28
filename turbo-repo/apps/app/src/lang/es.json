@@ -1673,6 +1673,27 @@
           "save": "Guardar permiso",
           "saving": "Guardando…"
         },
+        "harnessTrainerPermission": {
+          "title": "Entrenadores del asistente",
+          "description": "Los entrenadores enseñan al asistente: editan su conocimiento y ejecutan evaluaciones.",
+          "ownersNote": "Los propietarios de la organización siempre son entrenadores.",
+          "enabledLabel": "Habilitar entrenadores",
+          "enabledHelp": "Los miembros asignados pueden entrenar al asistente mientras esta opción esté habilitada.",
+          "assignedCount": "{count} entrenadores asignados",
+          "searchLabel": "Buscar miembros",
+          "searchPlaceholder": "Buscar por nombre o correo…",
+          "memberColumn": "Miembro",
+          "permissionColumn": "Entrenador",
+          "ownerBadge": "Propietario",
+          "memberPermissionLabel": "Permiso de entrenador para {member}",
+          "noSearchResults": "No hay miembros que coincidan con la búsqueda.",
+          "noMembers": "Agrega miembros a la organización antes de asignar entrenadores.",
+          "unavailableMember": "Ya no pertenece a la organización; desmarca para eliminar",
+          "loadError": "No se pudieron cargar los entrenadores del asistente.",
+          "saveError": "No se pudieron guardar los entrenadores.",
+          "save": "Guardar entrenadores",
+          "saving": "Guardando…"
+        },
         "whatsappChannel": {
           "title": "Canal WhatsApp",
           "description": "Configura y prueba la conexión de WhatsApp para contactar a los conductores.",
@@ -1894,6 +1915,10 @@
         }
       },
       "dataSources": {
+        "learningWorkspace": {
+          "text": "El conocimiento del asistente ahora se administra en el espacio de aprendizaje.",
+          "link": "Abrir espacio de aprendizaje"
+        },
         "learnedKnowledge": {
           "title": "Conocimiento aprendido",
           "description": "Definiciones de negocio que el asistente aprendió de tus consultas. Apruébalas para que las use en respuestas futuras.",

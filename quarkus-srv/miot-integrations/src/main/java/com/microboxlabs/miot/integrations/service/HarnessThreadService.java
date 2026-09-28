@@ -146,15 +146,13 @@ public class HarnessThreadService {
         if (ownedThread(tenantCode, userId, id) == null) {
             return null;
         }
-        HarnessThread saved = repository.update(
-                id,
-                userId,
+        HarnessThread saved = repository.update(id, userId, new HarnessThreadRepository.Changes(
                 truncateTitle(request.title()),
                 request.expiresAt(),
                 Boolean.TRUE.equals(request.clearExpiry()),
                 optionalText(request.summary(), "summary", MAX_SUMMARY_LENGTH),
                 optionalText(request.model(), "model", MAX_MODEL_LENGTH),
-                Boolean.TRUE.equals(request.autoTitle()));
+                Boolean.TRUE.equals(request.autoTitle())));
         return saved == null ? null : toResponse(saved, userId, repository.listShares(saved.id()));
     }
 

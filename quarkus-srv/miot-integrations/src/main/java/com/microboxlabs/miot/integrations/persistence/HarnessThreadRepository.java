@@ -242,26 +242,29 @@ public class HarnessThreadRepository {
         return firstThread(execute(FIND_THREAD, Tuple.of(UUID.fromString(threadId), tenantCode)));
     }
 
-    /** Applies a partial update. Returns null when the caller does not own the
-     * thread, since the owner guard lives in the WHERE clause. */
-    public HarnessThread update(
-            String threadId,
-            String ownerId,
+    /** A partial update: null fields are left alone. {@code autoTitle} marks a
+     * generated title, which never replaces one the person chose. */
+    public record Changes(
             String title,
             OffsetDateTime expiresAt,
             boolean clearExpiry,
             String summary,
             String model,
             boolean autoTitle) {
+    }
+
+    /** Applies a partial update. Returns null when the caller does not own the
+     * thread, since the owner guard lives in the WHERE clause. */
+    public HarnessThread update(String threadId, String ownerId, Changes changes) {
         Tuple params = Tuple.tuple()
                 .addUUID(UUID.fromString(threadId))
                 .addString(ownerId)
-                .addString(title)
-                .addValue(expiresAt)
-                .addBoolean(clearExpiry)
-                .addString(summary)
-                .addString(model)
-                .addBoolean(autoTitle);
+                .addString(changes.title())
+                .addValue(changes.expiresAt())
+                .addBoolean(changes.clearExpiry())
+                .addString(changes.summary())
+                .addString(changes.model())
+                .addBoolean(changes.autoTitle());
         return firstThread(execute(UPDATE_THREAD, params));
     }
 

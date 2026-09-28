@@ -490,10 +490,13 @@ class HarnessThreadServiceTest {
         }
 
         @Override
-        public HarnessThread update(
-                String threadId, String ownerId, String title,
-                OffsetDateTime expiresAt, boolean clearExpiry, String summary, String model,
-                boolean autoTitle) {
+        public HarnessThread update(String threadId, String ownerId, Changes changes) {
+            String title = changes.title();
+            String summary = changes.summary();
+            String model = changes.model();
+            OffsetDateTime expiresAt = changes.expiresAt();
+            boolean clearExpiry = changes.clearExpiry();
+            boolean autoTitle = changes.autoTitle();
             HarnessThread thread = threads.get(threadId);
             if (thread == null || !Objects.equals(thread.ownerId(), ownerId)) {
                 return null;

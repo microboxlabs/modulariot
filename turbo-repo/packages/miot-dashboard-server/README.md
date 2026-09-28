@@ -734,6 +734,18 @@ finds it — and the conversion should be written against that example.
   static form because the tests import the TypeScript source and do not detect
   it.
 
+### Revision history across deletion
+
+Schema migration 5 backfills persistent revision counters. Deleting a dashboard
+removes its document and permissions but retains its tenant/scope/slug counter.
+Recreating that address gets a higher revision, so an old editor cannot overwrite
+the replacement. Keep `dashboard_revisions` when cleaning deleted documents.
+Custom store adapters must also never reuse successful revisions.
+
+Back up the database and stop writers while upgrading from a version before this
+migration. Do not run old and new server versions against the same database: old
+versions do not maintain these counters. For rollback, restore the matching backup.
+
 ## Test coverage
 
 Run `npm run test:coverage` in this package to generate `coverage/lcov.info`

@@ -121,6 +121,7 @@ value you have confirmed; never emit a literal placeholder.
 | `/integrations/jobs` | integration jobs, trabajos de integración, job console, consola de trabajos | Asynchronous integration job activity and status | — |
 | `/users/settings` | settings, configuración, ajustes | User settings; organizations at `/users/settings/organizations`, data sources at `/users/settings/data-sources` | — |
 | `/users/settings/harness` | Harness settings, configuración de Harness, Harness seats, asientos de Harness, Harness usage, uso de Harness | Harness pricing, seat and token usage, and user access | — |
+| `/harness/learning` | learning workspace, espacio de aprendizaje, train the assistant, entrenar al asistente | Assistant trainers only: teach the assistant facts, rules and procedures, and test them with evaluations | — |
 | `/users/settings/credentials` | credentials, credenciales, API credentials, credenciales API | Reusable organization credentials for data sources, integrations, and jobs | — |
 | `/users/settings/connections` | integration connections, conexiones de integración, integration templates, plantillas de integración, integration types | Integration templates (types) and the connections created from them | — |
 | `/users/settings/selectables` | selectables, seleccionables, option lists, listas de opciones, dropdown options, opciones de selección | Organization option lists that form fields offer: values, labels per language, groups, and system or connection sources | — |

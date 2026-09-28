@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from miot_harness.knowledge.changes import MAX_OVERLAY_CHANGES, RUN_LAYERS, KnowledgeChange
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.attachments import MAX_ATTACHMENTS, Attachment
-from miot_harness.runtime.commands import COMMANDS
+from miot_harness.runtime.commands import command_names
 from miot_harness.runtime.permissions import (
     PermissionMode,
     PermissionPolicy,
@@ -216,7 +216,8 @@ class UserRequest(BaseModel):
         """
         if not self.skill_id:
             match = _SKILL_SLUG_RE.match(self.message)
-            if match is not None and match.group("slug") not in COMMANDS:
+            commands = command_names(trainer=self.trainer)
+            if match is not None and match.group("slug") not in commands:
                 self.skill_id = match.group("slug")
                 self.message = match.group("rest") or ""
         return self

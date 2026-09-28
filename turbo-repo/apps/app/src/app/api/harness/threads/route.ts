@@ -11,10 +11,15 @@ export async function GET(request: Request) {
   const result = await resolveTenantScope();
   if (!result.resolved) return result.response;
 
-  const limit = new URL(request.url).searchParams.get("limit");
+  const params = new URL(request.url).searchParams;
+  const query = new URLSearchParams();
+  for (const name of ["limit", "kind"]) {
+    const value = params.get(name);
+    if (value) query.set(name, value);
+  }
   const org = encodeURIComponent(result.scope.activeOrg.slug);
-  const query = limit ? `?limit=${encodeURIComponent(limit)}` : "";
-  return forwardToQuarkus(`/api/v1/orgs/${org}/chat/threads${query}`);
+  const search = query.size > 0 ? `?${query}` : "";
+  return forwardToQuarkus(`/api/v1/orgs/${org}/chat/threads${search}`);
 }
 
 export async function POST(request: Request) {

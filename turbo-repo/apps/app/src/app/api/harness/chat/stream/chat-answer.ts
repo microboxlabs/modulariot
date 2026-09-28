@@ -250,12 +250,18 @@ function tableConfig(spec: WidgetSpec): Record<string, unknown> {
   };
 }
 
+/** The chart's category axis: the declared x, else the first column. */
+function xColumnOf(spec: WidgetSpec): string {
+  return spec.x ?? spec.columns[0] ?? "";
+}
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
 
 /** "day" or "month" when every x value is an ISO date (first-of-month means
  * months), so the chart formats and thins the axis labels; "none" otherwise. */
 export function dateFormatOf(spec: WidgetSpec): "none" | "day" | "month" {
-  const values = spec.rows.map((row) => row[spec.x ?? ""]);
+  const x = xColumnOf(spec);
+  const values = spec.rows.map((row) => row[x]);
   if (
     values.length === 0 ||
     !values.every((v) => typeof v === "string" && ISO_DATE.test(v))
@@ -271,7 +277,7 @@ function chartConfig(spec: WidgetSpec): Record<string, unknown> {
     ...STATIC_DATA,
     title: spec.title,
     chartFamily: pie ? "pie" : "cartesian",
-    xAxisColumn: spec.x ?? spec.columns[0] ?? "",
+    xAxisColumn: xColumnOf(spec),
     ...(pie ? {} : { xAxisDateFormat: dateFormatOf(spec) }),
     representations: spec.y.map((c) => ({
       columnKey: c,

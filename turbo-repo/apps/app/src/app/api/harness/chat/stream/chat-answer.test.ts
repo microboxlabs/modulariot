@@ -255,6 +255,9 @@ describe("widget polish", () => {
     expect(dateFormatOf(dated(["2026-09-01", "2026-09-02"]))).toBe("day");
     expect(dateFormatOf(dated(["2026-08-01", "2026-09-01"]))).toBe("month");
     expect(dateFormatOf(dated(["Cordillera", "Altiplano"]))).toBe("none");
+    expect(
+      dateFormatOf({ ...dated(["2026-09-01", "2026-09-02"]), x: null })
+    ).toBe("day");
   });
 
   it("sends each widget's result with it so no empty run follows", () => {

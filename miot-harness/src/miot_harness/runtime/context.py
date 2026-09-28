@@ -19,6 +19,9 @@ from miot_harness.runtime.permissions import (
 # (what the agents emit) and the default when a caller omits the field.
 AnswerFormat = Literal["markdown", "plain", "html", "xml", "yaml", "json"]
 
+# Reasoning effort a caller may pick for one run.
+RunEffort = Literal["low", "medium", "high", "max"]
+
 # A leading "/slug" in a request message selects a skill (e.g.
 # "/fleet-report how is the fleet?"). The slug must be followed by whitespace
 # or end-of-string, so path-like text ("/runs/status") is not matched.
@@ -39,6 +42,8 @@ class HarnessContext(BaseModel):
     # The conversation model the caller chose for the agent loop, or None for
     # the deployment default. Validated against the allowlist at the API.
     model: str | None = None
+    # Reasoning effort the caller chose for this run, or None for the default.
+    effort: RunEffort | None = None
     # The caller-requested output format for the final answer string. Read by
     # HarnessSupervisor._finalize_answer to render record.answer before save.
     answer_format: AnswerFormat = "markdown"
@@ -127,6 +132,8 @@ class UserRequest(BaseModel):
     # Conversation model for the agent loop; one of GET /models, or omitted
     # for the default.
     model: str | None = Field(default=None, max_length=80)
+    # Reasoning effort for this run; omitted for the deployment default.
+    effort: RunEffort | None = None
     conversation_id: str | None = None
     # Prior turns of `conversation_id`, replayed by the caller when the
     # harness has never seen that id — after a restart, or when a user
@@ -214,6 +221,7 @@ class UserRequest(BaseModel):
             user_id=self.user_id,
             route_context=self.route_context,
             model=self.model,
+            effort=self.effort,
             conversation_id=self.conversation_id,
             debug=self.debug,
             answer_format=self.answer_format,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { conversationOf, NO_ANSWER, priorTurns, type AgUiMessage } from "./conversation";
+import { conversationOf, effortOf, NO_ANSWER, priorTurns, type AgUiMessage } from "./conversation";
 
 const user = (id: string, content: unknown): AgUiMessage => ({
   id,
@@ -162,5 +162,16 @@ describe("conversationOf", () => {
       replayTurns: [],
       summary: null,
     });
+  });
+});
+
+describe("effortOf", () => {
+  it("passes a known effort and drops anything else", () => {
+    expect(effortOf({ state: { harnessEffort: "max" } })).toBe("max");
+    expect(effortOf({ state: { harnessEffort: "low" } })).toBe("low");
+    expect(effortOf({ state: { harnessEffort: "extreme" } })).toBeNull();
+    expect(effortOf({ state: { harnessEffort: 3 } })).toBeNull();
+    expect(effortOf({ state: null })).toBeNull();
+    expect(effortOf({})).toBeNull();
   });
 });

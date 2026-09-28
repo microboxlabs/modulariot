@@ -1,6 +1,13 @@
 "use client";
 
-import { HttpAgent, type HttpAgentConfig, type Message, type RunAgentInput } from "@ag-ui/client";
+import {
+  HttpAgent,
+  type HttpAgentConfig,
+  type Message,
+  type RunAgentInput,
+} from "@ag-ui/client";
+import type { RunEffort } from "@microboxlabs/miot-harness-client";
+import { readRunEffort } from "./hooks/use-run-effort";
 
 /**
  * Messages kept in a run request, counted from the end. The relay reads the
@@ -19,27 +26,48 @@ export class HarnessRunAgent extends HttpAgent {
   /** The conversation model the user picked; null asks for the default.
    * Sent with every run in state, next to the conversation id. */
   model: string | null = null;
-
   constructor(config: HttpAgentConfig) {
     super(config);
   }
 
   override run(input: RunAgentInput): ReturnType<HttpAgent["run"]> {
-    return super.run(withModel(trimRunInput(input), this.model));
+    return super.run(
+      withEffort(withModel(trimRunInput(input), this.model), readRunEffort())
+    );
   }
 }
 
-export function withModel(input: RunAgentInput, model: string | null): RunAgentInput {
-  if (model) return { ...input, state: { ...input.state, harnessModel: model } };
-  if (!input.state || !("harnessModel" in input.state)) return input;
+export function withModel(
+  input: RunAgentInput,
+  model: string | null
+): RunAgentInput {
+  return withStateField(input, "harnessModel", model);
+}
+
+export function withEffort(
+  input: RunAgentInput,
+  effort: RunEffort | null
+): RunAgentInput {
+  return withStateField(input, "harnessEffort", effort);
+}
+
+function withStateField(
+  input: RunAgentInput,
+  key: string,
+  value: string | null
+): RunAgentInput {
+  if (value) return { ...input, state: { ...input.state, [key]: value } };
+  if (!input.state || !(key in input.state)) return input;
   const state = { ...input.state };
-  delete state.harnessModel;
+  delete state[key];
   return { ...input, state };
 }
 
 export function trimRunInput(input: RunAgentInput): RunAgentInput {
   const messages = input.messages
-    .filter((message) => message.role !== "reasoning" && message.role !== "activity")
+    .filter(
+      (message) => message.role !== "reasoning" && message.role !== "activity"
+    )
     .map(textOnly)
     .slice(-MAX_UPLOAD_MESSAGES);
   return { ...input, messages };
@@ -48,9 +76,12 @@ export function trimRunInput(input: RunAgentInput): RunAgentInput {
 /** A user message with attachments carries them as binary parts, up to the
  * 20 MB the PDF adapter inlines; the relay only ever reads the text. */
 function textOnly(message: Message): Message {
-  if (message.role !== "user" || !Array.isArray(message.content)) return message;
+  if (message.role !== "user" || !Array.isArray(message.content))
+    return message;
   const text = message.content
-    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .filter(
+      (part): part is { type: "text"; text: string } => part.type === "text"
+    )
     .map((part) => part.text)
     .join("\n");
   return { ...message, content: text };

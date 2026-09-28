@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type UIEvent } from "react";
+import Link from "next/link";
 import { Button, Dropdown, DropdownItem, Spinner } from "flowbite-react";
 import {
   HiChip,
@@ -10,6 +11,7 @@ import {
   HiUserCircle,
 } from "react-icons/hi";
 import {
+  HiAcademicCap,
   HiChartBar,
   HiCpuChip,
   HiInformationCircle,
@@ -21,6 +23,7 @@ import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
+import { useKnowledgeTrainer } from "@/features/knowledge/hooks/use-knowledge-trainer";
 import { ApiError } from "../data/json-client";
 import { useOrgMembers } from "../hooks/use-org-members";
 import type {
@@ -77,6 +80,7 @@ export default function HarnessPageContent({
   const orgSlug = activeOrg?.slug ?? null;
   const { members, isLoading, error } = useOrgMembers(orgSlug);
   const planState = useOrgHarnessPlan(orgSlug);
+  const { isTrainer } = useKnowledgeTrainer();
   const data = planState.data;
   const subscription = data?.subscription ?? null;
 
@@ -233,6 +237,21 @@ export default function HarnessPageContent({
             </p>
           </div>
         </div>
+
+        {isTrainer && (
+          <p className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <HiAcademicCap className="h-5 w-5 shrink-0 text-amber-500" />
+            <span>
+              {tr("learningWorkspace.text", harnessDict)}{" "}
+              <Link
+                href={`/${lang}/harness/learning`}
+                className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                {tr("learningWorkspace.link", harnessDict)}
+              </Link>
+            </span>
+          </p>
+        )}
 
         {planState.isLoading && <Spinner size="md" />}
         {planState.error && (

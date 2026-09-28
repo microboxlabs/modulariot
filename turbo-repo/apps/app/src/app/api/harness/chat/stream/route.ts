@@ -16,9 +16,12 @@ import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { isModulithConfigured } from "@/lib/modulith-host";
 import { logger } from "@/lib/logger";
 import { resolveTenantScope } from "../../../utils/tenant-scope";
+import { expandReview, reviewRefOf } from "./review-transcript";
+import { learningViewOf, sendLearningView } from "./learning-cards";
 import {
   conversationOf,
   effortOf,
+  isLearningRun,
   lastUserAttachments,
   modelOf,
   type AgUiMessage,
@@ -369,6 +372,27 @@ export async function POST(request: Request) {
   );
 }
 
+/**
+ * A learning session's turn before it reaches the harness: `/layers` and
+ * `/diff` get a card that opens the working area, and `/review` gets the
+ * conversation it names. Null when the turn was answered here.
+ */
+export async function learningTurn(
+  send: Sender,
+  message: string,
+  auth: { orgSlug: string; token?: string; userEmail?: string },
+  tr: TrFn
+): Promise<string | null> {
+  const view = learningViewOf(message);
+  if (view) sendLearningView(send, view);
+  const ref = reviewRefOf(message);
+  if (!ref) return message;
+  const expanded = await expandReview(message, { ref }, auth);
+  if (expanded.ok) return expanded.message;
+  sendText(send, tr(`harnessChat.learning.review.${expanded.reason}`));
+  return null;
+}
+
 /** How long the stored-model fallback may wait on the model list. */
 const MODEL_LOOKUP_MS = 5_000;
 
@@ -439,6 +463,13 @@ async function run(
     return;
   }
   const { client, orgSlug, token, userEmail } = connection;
+  const harnessMessage = isLearningRun(body)
+    ? await learningTurn(send, message, { orgSlug, token, userEmail }, tr)
+    : message;
+  if (harnessMessage === null) {
+    send({ type: "RUN_FINISHED", runId, threadId });
+    return;
+  }
   const { conversationId, replayTurns, summary } = conversationOf(
     body,
     messages
@@ -464,7 +495,7 @@ async function run(
     if (relay.signal.aborted) return;
     const { run_id } = await client.runs.create(
       {
-        message,
+        message: harnessMessage,
         ...turnOptions(attachments, effort),
         skill_id: "miot-analyst",
         answer_format: "json",

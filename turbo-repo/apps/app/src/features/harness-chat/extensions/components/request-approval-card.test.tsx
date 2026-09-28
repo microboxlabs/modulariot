@@ -5,6 +5,11 @@ import es from "@/lang/es.json";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
 import { HarnessChatI18nProvider } from "../../context/harness-chat-i18n-context";
 import { HarnessReadOnlyProvider } from "../../context/harness-read-only-context";
+import {
+  WorkAreaProvider,
+  type WorkItem,
+} from "../../context/work-area-context";
+import { SWRConfig } from "swr";
 import type {
   RequestApprovalArgs,
   RequestApprovalResult,
@@ -206,6 +211,138 @@ describe("RequestApprovalCard", () => {
     it("says it was rejected when declined", () => {
       renderCard({ args: factArgs, result: { status: "rejected" } });
       expect(screen.getByRole("status").textContent).toContain("Rechazado");
+    });
+  });
+
+  describe("knowledge changes", () => {
+    const diff = [
+      "--- a/rules/loaded-trips.md",
+      "+++ b/rules/loaded-trips.md",
+      "@@ -1,2 +1,2 @@",
+      " # Loaded trips",
+      "-A loaded trip is planned.",
+      "+A loaded trip was sent to tracking.",
+      "",
+    ].join("\n");
+
+    const editArgs: RequestApprovalArgs = {
+      runId: "run_1",
+      approvalId: "aid_4",
+      tool: "ws_edit",
+      input: {
+        path: "rules/loaded-trips.md",
+        layer: "rule",
+        op: "edit",
+        diff,
+        old_lines: 2,
+        new_lines: 2,
+      },
+    };
+
+    function renderChange(
+      args: RequestApprovalArgs,
+      open?: (item: WorkItem) => void
+    ) {
+      const all = { args, addResult: vi.fn() } as unknown as Props;
+      const card = <RequestApprovalCard {...all} />;
+      return render(
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+          <HarnessChatI18nProvider dict={es as unknown as I18nDictionary}>
+            {open ? (
+              <WorkAreaProvider value={{ open, recordChange: vi.fn() }}>
+                {card}
+              </WorkAreaProvider>
+            ) : (
+              card
+            )}
+          </HarnessChatI18nProvider>
+        </SWRConfig>
+      );
+    }
+
+    it("shows a file edit as a diff with its path, layer and operation", () => {
+      renderChange(editArgs);
+      expect(
+        screen.getByText("Editar archivo «rules/loaded-trips.md»")
+      ).toBeTruthy();
+      expect(screen.getByText("loaded-trips.md")).toBeTruthy();
+      expect(screen.getByText("Reglas y glosario")).toBeTruthy();
+      expect(screen.getByText("Editar")).toBeTruthy();
+      expect(screen.getByText("+1")).toBeTruthy();
+      expect(document.querySelector(".diff-code-insert")).toBeTruthy();
+      expect(screen.queryByText("old_lines")).toBeNull();
+    });
+
+    it("approves or rejects with a comment through the usual flow", async () => {
+      fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
+      renderChange(editArgs);
+      fireEvent.click(screen.getByText("Rechazar"));
+      fireEvent.change(screen.getByPlaceholderText("Motivo (opcional)"), {
+        target: { value: "usa otro nombre" },
+      });
+      fireEvent.click(screen.getByText("Confirmar rechazo"));
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const [url, init] = fetchMock.mock.calls[0]!;
+      expect(url).toBe("/api/harness/chat/runs/run_1/approvals/aid_4");
+      expect(JSON.parse(init.body)).toEqual({
+        decision: "deny",
+        comment: "usa otro nombre",
+      });
+    });
+
+    it("opens the proposed change in the working area", () => {
+      const open = vi.fn();
+      renderChange(editArgs, open);
+      fireEvent.click(screen.getByLabelText("Abrir en el área de trabajo"));
+      expect(open).toHaveBeenCalledWith(
+        expect.objectContaining({
+          kind: "file",
+          layer: "rule",
+          id: "loaded-trips",
+          path: "rules/loaded-trips.md",
+          proposed: expect.objectContaining({ diff }),
+        })
+      );
+    });
+
+    it("diffs a proposed change without a diff against the item as it is now", async () => {
+      fetchMock.mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            layer: "rule",
+            id: "loaded",
+            content: "old line\n",
+            history: [],
+          }),
+          { status: 200 }
+        )
+      );
+      renderChange({
+        runId: "run_1",
+        approvalId: "aid_5",
+        tool: "propose_knowledge_change",
+        input: {
+          summary: "Teach what a loaded trip is",
+          changes: [
+            {
+              layer: "rule",
+              id: "loaded",
+              target: null,
+              op: "upsert",
+              title: "Loaded",
+              content: "new line\n",
+              reason: "glossary",
+            },
+          ],
+        },
+      });
+      expect(screen.getByText("Aplicar cambios de conocimiento")).toBeTruthy();
+      expect(screen.getByText("Teach what a loaded trip is")).toBeTruthy();
+      expect(screen.getByText("glossary")).toBeTruthy();
+      await waitFor(() => expect(screen.getByText("−1")).toBeTruthy());
+      expect(fetchMock.mock.calls[0]![0]).toBe(
+        "/api/harness/knowledge/items/rule/loaded"
+      );
     });
   });
 });

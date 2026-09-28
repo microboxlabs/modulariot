@@ -1,4 +1,9 @@
 import { askUserQuestionExtension } from "./ask-user-question";
+import {
+  showKnowledgeChangeExtension,
+  showLearningEvalExtension,
+  showLearningViewExtension,
+} from "./learning-cards";
 import { requestApprovalExtension } from "./request-approval";
 import { showArtifactExtension } from "./show-artifact";
 import { showDashboardDraftExtension } from "./show-dashboard-draft";
@@ -18,6 +23,9 @@ export const DEFAULT_HARNESS_EXTENSIONS: HarnessExtension[] = [
   showDashboardDraftExtension,
   requestApprovalExtension,
   showShareLinkExtension,
+  showKnowledgeChangeExtension,
+  showLearningEvalExtension,
+  showLearningViewExtension,
 ];
 
 /**

@@ -1894,7 +1894,11 @@
         "notEnforced": "The plan is not applied on this installation yet: usage is recorded, but nobody is blocked.",
         "noSubscription": "Your organization has no seats. Each seat costs ${price} a month and adds {tokens} tokens to the monthly pool.",
         "chooseSeats": "Choose seats",
-        "poolExhausted": "Your organization used all of this month's tokens. The assistant is available again on the 1st, or sooner if you add seats."
+        "poolExhausted": "Your organization used all of this month's tokens. The assistant is available again on the 1st, or sooner if you add seats.",
+        "learningWorkspace": {
+          "text": "Teach the assistant your organization's terms and procedures.",
+          "link": "Open the learning workspace"
+        }
       },
       "breadcrumb": {
         "user": "User",
@@ -2850,7 +2854,8 @@
         "subtitle3": "Client System Validation",
         "subtitle4": "GPS Validation",
         "platform": "Platform",
-        "selectables": "Selectables"
+        "selectables": "Selectables",
+        "harnessLearning": "Assistant learning"
       }
     },
     "calendar": {
@@ -5798,7 +5803,11 @@
           "selectables_replace": "Replace list",
           "selectables_delete": "Delete list",
           "selectables_bind": "Bind lists to fields",
-          "propose_learned_fact": "Save learned fact"
+          "propose_learned_fact": "Save learned fact",
+          "propose_knowledge_change": "Apply knowledge changes",
+          "ws_write": "Write file",
+          "ws_edit": "Edit file",
+          "ws_delete": "Delete file"
         },
         "kind": "Kind",
         "description": "Description",
@@ -5871,6 +5880,188 @@
       "plan_no_seat": "You don't have a Harness seat. Ask an admin of your organization for access.",
       "plan_pool_exhausted": "Your organization used all of this month's tokens. It's available again on the 1st, or sooner if an admin adds seats.",
       "plan_model_not_offered": "That model is no longer available. Pick another one in the selector."
+    },
+    "learning": {
+      "title": "Learning workspace",
+      "subtitle": "Teach the assistant and prove each change with evaluations.",
+      "sessions": "Sessions",
+      "newSession": "New session",
+      "newSessionFailed": "The session could not be created. Try again.",
+      "untitled": "Untitled session",
+      "notTrainer": "Only assistant trainers can use this workspace.",
+      "loading": "Loading…",
+      "emptyTitle": "Teach the assistant something new",
+      "emptyText": "Open a session and use the commands to teach facts, rules and procedures. Then test them with evaluations.",
+      "commandsHeading": "Commands",
+      "showSessions": "Show sessions",
+      "hideSessions": "Hide sessions",
+      "sessionsFailed": "The sessions could not be loaded.",
+      "retry": "Retry",
+      "noSessions": "No sessions yet.",
+      "layers": {
+        "fact": "Data facts",
+        "rule": "Rules and glossary",
+        "skill": "Procedures",
+        "primer": "Data source descriptions",
+        "note": "Agent notes",
+        "eval": "Evaluation cases"
+      },
+      "ops": {
+        "upsert": "Save",
+        "delete": "Delete",
+        "write": "Write",
+        "edit": "Edit"
+      },
+      "change": {
+        "heading": "Knowledge change",
+        "scratchpad": "Scratch file",
+        "open": "Open in the working area",
+        "truncated": "The diff arrived shortened. Open it to see all of it.",
+        "loadingDiff": "Computing the differences…",
+        "version": "v{version}",
+        "count": "{count} changes"
+      },
+      "diff": {
+        "view": "Diff view",
+        "unified": "Unified",
+        "split": "Side by side",
+        "wrap": "Wrap lines",
+        "collapse": "Hide unchanged lines",
+        "hiddenLines": "{count} unchanged lines",
+        "noChanges": "No changes",
+        "invalid": "The diff could not be shown."
+      },
+      "eval": {
+        "heading": "Evaluation",
+        "running": "Evaluating… {done}/{total}",
+        "runningShort": "Evaluating…",
+        "failed": "The evaluation failed.",
+        "loadFailed": "The evaluation could not be loaded.",
+        "baseline": "Before",
+        "candidate": "After",
+        "improved": "{count} improved",
+        "regressed": "{count} regressed",
+        "unchanged": "{count} unchanged",
+        "open": "See cases",
+        "question": "Question",
+        "expectation": "Expected answer",
+        "answer": "Answer",
+        "reason": "Reason",
+        "skills": "Procedures used",
+        "model": "Model",
+        "noResults": "No cases.",
+        "all": "All",
+        "onlyImproved": "Improved",
+        "onlyRegressed": "Regressed",
+        "case": "Case {n}",
+        "noAnswer": "No answer"
+      },
+      "work": {
+        "title": "Working area",
+        "close": "Close the working area",
+        "back": "Back",
+        "forward": "Forward",
+        "recent": "Recent",
+        "resize": "Resize the working area",
+        "empty": "Open a file, an evaluation or /layers from the chat."
+      },
+      "file": {
+        "changes": "Changes",
+        "full": "File",
+        "history": "History",
+        "revert": "Revert",
+        "reverted": "Version {version} restored as a new version.",
+        "revertFailed": "The revert failed.",
+        "confirmRevert": "Restore version {version}? It is saved as a new version.",
+        "edit": "Edit",
+        "save": "Save version",
+        "saving": "Saving…",
+        "saved": "New version saved.",
+        "saveFailed": "The version could not be saved.",
+        "cancel": "Cancel",
+        "reason": "Reason for the change",
+        "titleLabel": "Title",
+        "contentLabel": "Content",
+        "notFound": "This file does not exist yet.",
+        "loadFailed": "The file could not be loaded.",
+        "proposed": "Proposed change",
+        "vsPrevious": "Version {version} against the previous one",
+        "firstVersion": "First version",
+        "readOnly": "Read only",
+        "by": "by {by}",
+        "current": "current",
+        "deleted": "Deleted in this version."
+      },
+      "layersView": {
+        "title": "Editable knowledge",
+        "loadFailed": "The knowledge could not be loaded.",
+        "empty": "Empty",
+        "readOnly": "read only",
+        "refresh": "Refresh"
+      },
+      "changesView": {
+        "title": "This session's changes",
+        "empty": "This session has not changed anything yet."
+      },
+      "view": {
+        "layers": "Editable knowledge",
+        "diff": "Session changes"
+      },
+      "review": {
+        "not_found": "That conversation was not found. Check the link or the id.",
+        "forbidden": "You do not have access to that conversation.",
+        "failed": "That conversation could not be read. Try again."
+      },
+      "commands": {
+        "fact": {
+          "usage": "<text>",
+          "description": "Teach a fact about the data."
+        },
+        "rule": {
+          "usage": "<text>",
+          "description": "Add an organization rule or glossary term."
+        },
+        "skill": {
+          "usage": "<name>: <procedure>",
+          "description": "Create or edit a procedure."
+        },
+        "primer": {
+          "usage": "<connection>: <text>",
+          "description": "Edit a data source's description."
+        },
+        "forget": {
+          "usage": "<what>",
+          "description": "Find the knowledge that says this and propose deleting it."
+        },
+        "eval": {
+          "usage": "<question> => <expected answer>",
+          "description": "Save an evaluation case."
+        },
+        "test": {
+          "usage": "[question]",
+          "description": "Evaluate this session's changes: before and after, on the current model."
+        },
+        "review": {
+          "usage": "<link or id>",
+          "description": "Review a past conversation and propose changes and evaluation cases."
+        },
+        "skillCreator": {
+          "usage": "<goal>",
+          "description": "Guided procedure creation: questions, draft, cases and a test."
+        },
+        "skillDoctor": {
+          "usage": "[name]",
+          "description": "Audit the organization's procedures and propose fixes."
+        },
+        "layers": {
+          "usage": "",
+          "description": "Show the editable knowledge."
+        },
+        "diff": {
+          "usage": "",
+          "description": "Show this session's changes."
+        }
+      }
     }
   },
   "shareLink": {

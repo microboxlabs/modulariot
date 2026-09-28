@@ -35,6 +35,7 @@ _DECK_TYPES = (
     / "turbo-repo/apps/app/src/features/storytelling/storytelling.types.ts"
 )
 URL = "https://api.example/api/v1/mcp"
+THREAD = "8f14e45f-ceea-467a-9575-8a4a9d6b1c2e"
 
 
 def _schema(*props: str) -> dict[str, Any]:
@@ -86,7 +87,8 @@ def _playbooks() -> dict[str, LoadedSkill]:
 def _bundle(server: FakeStories) -> ContextSkillsBundle:
     loaded = _playbooks()["storyteller"]
     skill = loaded.skill
-    assert isinstance(skill, PlaybookSkill) and skill.mcp is not None
+    assert isinstance(skill, PlaybookSkill)
+    assert skill.mcp is not None
     resolved = skill.model_copy(update={"mcp": skill.mcp.model_copy(update={"url": URL})})
     return ContextSkillsBundle(
         playbook_skills=(loaded.model_copy(update={"skill": resolved}),),
@@ -94,12 +96,12 @@ def _bundle(server: FakeStories) -> ContextSkillsBundle:
     )
 
 
-def _ctx() -> HarnessContext:
+def _ctx(conversation_id: str = THREAD) -> HarnessContext:
     return HarnessContext(
         thread_id="t",
         tenant_id="tenant-a",
         user_id="u",
-        conversation_id="conv-1",
+        conversation_id=conversation_id,
         caller_token="user-token",
         organization="acme",
     )
@@ -109,11 +111,13 @@ def test_the_skills_load_and_the_analyst_names_them() -> None:
     playbooks = _playbooks()
     assert {"storyteller", "session-summary"} <= set(playbooks)
     storyteller = playbooks["storyteller"].skill
-    assert isinstance(storyteller, PlaybookSkill) and storyteller.mcp is not None
+    assert isinstance(storyteller, PlaybookSkill)
+    assert storyteller.mcp is not None
     assert storyteller.mcp.tools == ("stories_*",)
     assert storyteller.mcp.conversation_arg == "sourceThreadId"
     analyst = (_SKILLS_DIR / "miot-analyst" / "SKILL.md").read_text()
-    assert "`storyteller`" in analyst and "`session-summary`" in analyst
+    assert "`storyteller`" in analyst
+    assert "`session-summary`" in analyst
 
 
 class _NoContext(ContextSource):
@@ -136,7 +140,8 @@ def test_boot_offers_storyteller_when_the_modulith_is_configured(
 
     assert MCP_CALL_TOOL in registry.names()
     skill = result.bundle.find_mcp_skill("tenant-a", "storyteller")
-    assert skill is not None and skill.mcp is not None
+    assert skill is not None
+    assert skill.mcp is not None
     assert skill.mcp.url == "http://modulith:8180/api/v1/mcp"
 
 
@@ -155,7 +160,8 @@ async def test_a_story_is_saved_in_the_runs_organization_and_conversation() -> N
     server = FakeStories()
     bundle = _bundle(server)
     skill = bundle.find_mcp_skill("tenant-a", "storyteller")
-    assert skill is not None and bundle.mcp is not None
+    assert skill is not None
+    assert bundle.mcp is not None
 
     await bundle.mcp.call(
         skill,
@@ -168,10 +174,23 @@ async def test_a_story_is_saved_in_the_runs_organization_and_conversation() -> N
     assert server.calls == [
         (
             "stories_create",
-            {"title": "T", "kind": "markdown", "sourceThreadId": "conv-1", "organization": "acme"},
+            {"title": "T", "kind": "markdown", "sourceThreadId": THREAD, "organization": "acme"},
         ),
         ("stories_link", {"storyId": "s1", "organization": "acme"}),
     ]
+
+
+@pytest.mark.asyncio
+async def test_a_conversation_id_that_is_not_a_thread_is_left_out() -> None:
+    server = FakeStories()
+    bundle = _bundle(server)
+    skill = bundle.find_mcp_skill("tenant-a", "storyteller")
+    assert skill is not None
+    assert bundle.mcp is not None
+
+    await bundle.mcp.call(skill, _ctx("eval-123"), "stories_create", {"title": "T"})
+
+    assert server.calls == [("stories_create", {"title": "T", "organization": "acme"})]
 
 
 def test_the_deck_slides_the_skill_teaches_are_the_ones_the_app_renders() -> None:
@@ -180,4 +199,5 @@ def test_the_deck_slides_the_skill_teaches_are_the_ones_the_app_renders() -> Non
     app_types = set(re.findall(r'type: "(\w+)"', _DECK_TYPES.read_text()))
     body = (_SKILLS_DIR / "storyteller" / "SKILL.md").read_text()
     taught = set(re.findall(r'\{"type": "(\w+)"', body))
-    assert taught == app_types == {"title", "bullets", "table"}
+    assert app_types == {"title", "bullets", "table"}
+    assert taught == app_types

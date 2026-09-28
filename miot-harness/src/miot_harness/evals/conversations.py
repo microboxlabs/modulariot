@@ -83,7 +83,9 @@ def skills_loaded(record: dict[str, Any]) -> list[str]:
     return [
         str(e["data"].get("skill_id"))
         for e in record.get("events", [])
-        if e.get("type") == "tool.started" and e.get("data", {}).get("tool") == "load_skill"
+        if e.get("type") == "tool.completed"
+        and e.get("data", {}).get("tool") == "load_skill"
+        and e["data"].get("loaded") is True
     ]
 
 

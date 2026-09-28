@@ -50,8 +50,11 @@ def test_an_answer_that_is_not_a_block_array_fails() -> None:
 
 
 def test_a_skill_the_turn_must_load_is_checked() -> None:
-    record = _record([{"type": "markdown", "value": "Listo."}], ("load_skill",))
-    record["events"][0]["data"]["skill_id"] = "session-summary"
+    record = _record([{"type": "markdown", "value": "Listo."}])
+    record["events"] = [
+        {"type": "tool.completed", "data": {"tool": "load_skill", "skill_id": s, "loaded": ok}}
+        for s, ok in (("session-summary", True), ("storyteller", False))
+    ]
     assert check_turn(record, {"skills": ["session-summary"]}) == []
     assert check_turn(record, {"skills": ["storyteller"]}) == ["did not load skill storyteller"]
 

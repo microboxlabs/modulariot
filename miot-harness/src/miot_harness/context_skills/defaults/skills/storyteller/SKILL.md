@@ -70,9 +70,9 @@ No other slide types or fields.
 
 Do not create a new story. Add a version to the same one with
 `stories_add_version`: the full new content, a `label` and a one-line
-`summary` of what changed. Find the story with `stories_list` (by title) or
-`stories_get` when you do not have its id. To go back to an earlier
-version, use `stories_set_current`.
+`summary` of what changed. When you do not have the story's id, find it
+with `stories_list` (by title), then read it with `stories_get`. To go back
+to an earlier version, use `stories_set_current`.
 
 If a call is refused or fails, say so in one line; do not retry with other
 arguments.

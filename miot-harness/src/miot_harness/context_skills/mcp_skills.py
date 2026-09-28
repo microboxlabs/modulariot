@@ -13,7 +13,8 @@ the first caller's token, and kept.
 
 The organization argument is never the model's to choose: the harness
 fills it with the organization the run came through. A skill may also name
-an argument the harness fills with the run's conversation id.
+an argument the harness fills with the run's conversation id, when that id
+is a UUID (a chat thread's id).
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ import json
 import logging
 import os
 import re
+import uuid
 from collections.abc import AsyncIterator, Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from datetime import UTC, datetime
@@ -176,8 +178,9 @@ class McpSkills:
         conv_arg = skill.mcp.conversation_arg
         if conv_arg:
             args.pop(conv_arg, None)
-            if ctx.conversation_id and await self._takes(skill.mcp, ctx, tool, conv_arg):
-                args[conv_arg] = ctx.conversation_id
+            thread = _uuid(ctx.conversation_id)
+            if thread and await self._takes(skill.mcp, ctx, tool, conv_arg):
+                args[conv_arg] = thread
         async with self._open(skill.mcp.url, ctx.caller_token) as session:
             return await session.call_tool(tool, args)
 
@@ -185,6 +188,13 @@ class McpSkills:
         tools = await self.tools(server, ctx.caller_token)
         schema = next((t.input_schema for t in tools if t.name == tool), {})
         return arg in (schema.get("properties") or {})
+
+
+def _uuid(value: str | None) -> str | None:
+    try:
+        return str(uuid.UUID(value)) if value else None
+    except ValueError:
+        return None
 
 
 def _hidden_args(server: McpServer) -> tuple[str, ...]:

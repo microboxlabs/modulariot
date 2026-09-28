@@ -30,6 +30,11 @@ uv run miot-harness-chat-evals --only web-count-question --repeat 3
 uv run miot-harness-chat-evals --model llmgateway:kimi-k3 --model claude-opus-5-5
 ```
 
+`--suite analytics` runs KPI work sessions against the synthetic
+`datasets/fleet_ops` database and checks the numbers against its answer key
+(see that directory's README). Turns can also set `numbers`, `blocks`,
+`max_tools` and `max_seconds`; every turn reports its tool calls and tokens.
+
 The harness must be reachable on localhost: a local run, or a
 `kubectl port-forward` to a deployed one. Each turn prints to stderr as it
 finishes; exit code 1 when any turn fails. `--json` prints every result to

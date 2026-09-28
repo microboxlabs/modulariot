@@ -5670,6 +5670,23 @@
         "otherPlaceholder": "Otro…",
         "otherAriaLabel": "Otro",
         "submit": "Enviar"
+      },
+      "activity": {
+        "label": "Actividad",
+        "summary": "{count} pasos · {duration}",
+        "summaryOne": "1 paso · {duration}",
+        "loading": "Cargando la actividad…",
+        "failed": "No se pudo cargar la actividad.",
+        "empty": "No hay pasos registrados.",
+        "arguments": "Argumentos",
+        "result": "Resultado",
+        "error": "Error",
+        "truncated": "recortado",
+        "copy": "Copiar",
+        "copied": "Copiado",
+        "unfinished": "Sin terminar",
+        "noArguments": "Esta ejecución no guardó los argumentos.",
+        "tokens": "{input} tokens de entrada · {output} de salida"
       }
     },
     "plan": {

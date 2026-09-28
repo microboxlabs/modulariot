@@ -27,6 +27,8 @@ export type HarnessHistoryAdapter = ThreadHistoryAdapter & {
   /** The harness run `load()` found still going, for the caller to re-attach
    * to once the transcript is in; null when there is none or it was taken. */
   takePendingResume(): string | null;
+  /** The harness run a message of this session was stored with. */
+  runIdOf(messageId: string): string | null;
 };
 
 type HistoryItem = { parentId: string | null; message: ThreadMessage };
@@ -146,6 +148,10 @@ export function createHarnessHistoryAdapter(
       const runId = pendingResume;
       pendingResume = null;
       return runId;
+    },
+
+    runIdOf(messageId: string) {
+      return runOfMessage.get(messageId) ?? null;
     },
   };
 }

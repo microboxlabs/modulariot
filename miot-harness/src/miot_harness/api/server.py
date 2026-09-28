@@ -59,6 +59,7 @@ from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.agent_loop import AgentLoopRunner, AgentLoopRunners
 from miot_harness.runtime.agent_seats import AdvisorSeat, LoopSeats, WorkhorseSeat
 from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.conversation_backend import ModulithConversationBackend
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
 from miot_harness.runtime.run_store import HarnessRunRecord
@@ -496,6 +497,11 @@ def _make_lifespan(
             refresh_task = asyncio.create_task(_refresh_model_providers(settings))
             usage_reporter = UsageReporter(settings.modulith_url, settings.provider_key)
             harness.usage_reporter = usage_reporter.report
+            # Conversations survive restarts: saved after each run, loaded back
+            # when a run arrives for one this process does not hold.
+            harness.conversation_backend = ModulithConversationBackend(
+                settings.modulith_url, settings.provider_key
+            )
 
         # The agent loop answers every turn, with or without a datasource.
         try:
@@ -533,6 +539,7 @@ def _make_lifespan(
                 refresh_task.cancel()
             if usage_reporter is not None:
                 await usage_reporter.drain()
+            await harness.drain_saves()
             # Close every provider we booted (primary + each non-primary
             # connection), reverse order. close() is idempotent, so the primary's
             # earlier disabled-path close is a harmless no-op here.

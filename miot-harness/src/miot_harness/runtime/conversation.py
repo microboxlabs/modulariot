@@ -69,6 +69,9 @@ class ConversationHistory:
     conversation_id: str
     turns: list[ConversationTurn] = field(default_factory=list)
     summary: str | None = None
+    # True once the history was loaded from or saved to durable storage. Such
+    # a history is the record: a caller's text replay never replaces it.
+    saved: bool = False
 
 
 class ConversationStore(Protocol):

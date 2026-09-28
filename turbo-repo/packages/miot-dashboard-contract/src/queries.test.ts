@@ -55,6 +55,29 @@ describe("connection-backed query documents", () => {
     ).toBe(false);
   });
 
+  it("counts supplementary Unicode characters like JSON Schema maxLength", () => {
+    const within = {
+      ...query,
+      id: "😀".repeat(128),
+      parameters: { text: { kind: "literal", value: "😀".repeat(2048) } },
+    };
+    expect(
+      validateDashboardConfig({ ...DEFAULT_STORAGE, queries: [within] }).valid,
+    ).toBe(true);
+    for (const outside of [
+      { ...within, id: "😀".repeat(129) },
+      {
+        ...within,
+        parameters: { text: { kind: "literal", value: "😀".repeat(2049) } },
+      },
+    ]) {
+      expect(
+        validateDashboardConfig({ ...DEFAULT_STORAGE, queries: [outside] })
+          .valid,
+      ).toBe(false);
+    }
+  });
+
   it("bounds the number of queries without breaking old documents", () => {
     expect(validateDashboardConfig(DEFAULT_STORAGE).valid).toBe(true);
     expect(

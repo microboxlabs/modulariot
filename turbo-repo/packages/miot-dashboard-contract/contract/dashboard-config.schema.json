@@ -165,6 +165,116 @@
             "additionalProperties": true
           }
         },
+        "queries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "variableName": {
+                "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/id"
+              },
+              "connectionId": {
+                "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/id"
+              },
+              "operationId": {
+                "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/id"
+              },
+              "parameters": {
+                "type": "object",
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "literal"
+                        },
+                        "value": {
+                          "anyOf": [
+                            {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 2048
+                                },
+                                {
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "boolean"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/parameters/additionalProperties/anyOf/0/properties/value/anyOf/0"
+                              },
+                              "maxItems": 100
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "value"
+                      ],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "const": "filter"
+                        },
+                        "key": {
+                          "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/id"
+                        },
+                        "defaultValue": {
+                          "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/parameters/additionalProperties/anyOf/0/properties/value"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "key"
+                      ],
+                      "additionalProperties": true
+                    }
+                  ]
+                },
+                "propertyNames": {
+                  "minLength": 1,
+                  "maxLength": 128
+                }
+              },
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "variableName",
+              "connectionId",
+              "operationId",
+              "parameters"
+            ],
+            "additionalProperties": true
+          },
+          "maxItems": 50
+        },
         "filters": {
           "type": "array",
           "items": {

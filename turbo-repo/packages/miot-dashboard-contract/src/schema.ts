@@ -63,6 +63,40 @@ export const plannerRequestDefinitionSchema = z
   })
   .passthrough();
 
+const queryIdentifierSchema = z.string().min(1).max(128);
+const queryScalarSchema = z.union([
+  z.string().max(2048),
+  z.number().finite(),
+  z.boolean(),
+  z.null(),
+]);
+export const dashboardQueryValueSchema = z.union([
+  queryScalarSchema,
+  z.array(queryScalarSchema).max(100),
+]);
+export const dashboardQueryParameterSchema = z.discriminatedUnion("kind", [
+  z
+    .object({ kind: z.literal("literal"), value: dashboardQueryValueSchema })
+    .passthrough(),
+  z
+    .object({
+      kind: z.literal("filter"),
+      key: queryIdentifierSchema,
+      defaultValue: dashboardQueryValueSchema.optional(),
+    })
+    .passthrough(),
+]);
+export const dashboardQueryDefinitionSchema = z
+  .object({
+    id: queryIdentifierSchema,
+    variableName: queryIdentifierSchema,
+    connectionId: queryIdentifierSchema,
+    operationId: queryIdentifierSchema,
+    parameters: z.record(queryIdentifierSchema, dashboardQueryParameterSchema),
+    schema: z.array(z.string()).optional(),
+  })
+  .passthrough();
+
 export const dashboardFilterParamSchema = z
   .object({
     key: z.string(),
@@ -91,6 +125,7 @@ export const dashboardConfigSchema = z
     widgets: z.array(widgetSchema),
     preferences: dashboardPreferencesSchema,
     requestPlanner: z.array(plannerRequestDefinitionSchema).optional(),
+    queries: z.array(dashboardQueryDefinitionSchema).max(50).optional(),
     filters: z.array(dashboardFilterParamSchema).optional(),
     refreshInterval: refreshIntervalSchema.optional(),
     order: z.number().optional(),

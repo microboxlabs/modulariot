@@ -103,6 +103,10 @@ def _salvage_trailing_blocks(text: str) -> list[AnswerBlock] | None:
     reach the end, and a trailing array of something else fails validation.
     """
     stripped = text.rstrip()
+    # A model that narrates often fences the array too: prose, then
+    # ```json [...] ```. The closing fence goes; the opening one is prose.
+    if stripped.endswith("```"):
+        stripped = stripped[:-3].rstrip()
     if not stripped.endswith("]"):
         return None
     decoder = json.JSONDecoder()

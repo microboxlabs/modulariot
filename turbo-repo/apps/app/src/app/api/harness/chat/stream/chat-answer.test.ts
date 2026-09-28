@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   answerFromToolResult,
   chatAnswerEvents,
+  dateFormatOf,
   humanize,
   parseChatBlocks,
   widgetToDashlet,
@@ -142,6 +143,7 @@ describe("chatAnswerEvents", () => {
       "TOOL_CALL_START:show_dashlet",
       "TOOL_CALL_ARGS",
       "TOOL_CALL_END",
+      "TOOL_CALL_RESULT",
       "TEXT_MESSAGE_START",
       "TEXT_MESSAGE_CONTENT",
       "TEXT_MESSAGE_END",
@@ -235,5 +237,38 @@ describe("answerFromToolResult", () => {
 describe("humanize", () => {
   it("reads a column name as a label", () => {
     expect(humanize("driving_hours")).toBe("Driving hours");
+  });
+});
+
+describe("widget polish", () => {
+  const dated = (dates: string[]): WidgetSpec => ({
+    id: "w",
+    kind: "line",
+    title: "t",
+    x: "d",
+    y: ["n"],
+    columns: ["d", "n"],
+    rows: dates.map((d) => ({ d, n: "1" })),
+  });
+
+  it("formats a date axis by day or month", () => {
+    expect(dateFormatOf(dated(["2026-09-01", "2026-09-02"]))).toBe("day");
+    expect(dateFormatOf(dated(["2026-08-01", "2026-09-01"]))).toBe("month");
+    expect(dateFormatOf(dated(["Cordillera", "Altiplano"]))).toBe("none");
+  });
+
+  it("sends each widget's result with it so no empty run follows", () => {
+    const answer = JSON.stringify([{ type: "widget", value: { id: "w1" } }]);
+    const events = chatAnswerEvents(answer, runEvents, {
+      ...opts,
+      newId: counter(),
+    });
+    const result = events.find((e) => e.type === "TOOL_CALL_RESULT");
+    const start = events.find((e) => e.type === "TOOL_CALL_START");
+    expect(result).toMatchObject({
+      toolCallId: start?.toolCallId,
+      content: "{}",
+      role: "tool",
+    });
   });
 });

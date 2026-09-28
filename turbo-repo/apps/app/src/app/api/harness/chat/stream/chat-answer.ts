@@ -224,6 +224,21 @@ function tableConfig(spec: WidgetSpec): Record<string, unknown> {
   };
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
+
+/** "day" or "month" when every x value is an ISO date (first-of-month means
+ * months), so the chart formats and thins the axis labels; "none" otherwise. */
+export function dateFormatOf(spec: WidgetSpec): "none" | "day" | "month" {
+  const values = spec.rows.map((row) => row[spec.x ?? ""]);
+  if (
+    values.length === 0 ||
+    !values.every((v) => typeof v === "string" && ISO_DATE.test(v))
+  ) {
+    return "none";
+  }
+  return values.every((v) => String(v).slice(8, 10) === "01") ? "month" : "day";
+}
+
 function chartConfig(spec: WidgetSpec): Record<string, unknown> {
   const pie = spec.kind === "pie";
   return {
@@ -231,6 +246,7 @@ function chartConfig(spec: WidgetSpec): Record<string, unknown> {
     title: spec.title,
     chartFamily: pie ? "pie" : "cartesian",
     xAxisColumn: spec.x ?? spec.columns[0] ?? "",
+    ...(pie ? {} : { xAxisDateFormat: dateFormatOf(spec) }),
     representations: spec.y.map((c) => ({
       columnKey: c,
       label: spec.unit ? `${humanize(c)} (${spec.unit})` : humanize(c),
@@ -270,6 +286,23 @@ function toolCall(
     { type: "TOOL_CALL_START", toolCallId, toolCallName: name },
     { type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) },
     { type: "TOOL_CALL_END", toolCallId },
+  ];
+}
+
+/** A widget needs no reply from the user: its result is sent with it, so the
+ * card never acknowledges it and the runtime starts no empty follow-up run. */
+function widgetCall(spec: WidgetSpec, newId: () => string): ChatEvent[] {
+  const events = toolCall("show_dashlet", widgetToDashlet(spec), newId);
+  const toolCallId = events[0]?.toolCallId;
+  return [
+    ...events,
+    {
+      type: "TOOL_CALL_RESULT",
+      messageId: newId(),
+      toolCallId,
+      content: "{}",
+      role: "tool",
+    },
   ];
 }
 
@@ -330,9 +363,7 @@ class AnswerBuilder {
     const spec = this.widgets.get(id);
     if (!spec || this.placed.has(id)) return;
     this.flush();
-    this.out.push(
-      ...toolCall("show_dashlet", widgetToDashlet(spec), this.newId)
-    );
+    this.out.push(...widgetCall(spec, this.newId));
     this.placed.add(id);
   }
 

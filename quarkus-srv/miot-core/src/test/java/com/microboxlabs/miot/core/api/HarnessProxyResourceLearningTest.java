@@ -65,12 +65,13 @@ class HarnessProxyResourceLearningTest {
     void nonTrainersNeverReachTheHarness() {
         var resource = resource(false, Duration.ofSeconds(5));
 
-        assertThrows(ForbiddenException.class, () -> resource
-                .getKnowledge(SLUG, "layers", "Bearer t", uriInfo(new MultivaluedHashMap<>()))
-                .await().indefinitely());
-        assertThrows(ForbiddenException.class, () -> resource
-                .postLearning(SLUG, "evaluations", "Bearer t", uriInfo(new MultivaluedHashMap<>()), "{}")
-                .await().indefinitely());
+        Uni<Response> read = resource.getKnowledge(
+                SLUG, "layers", "Bearer t", uriInfo(new MultivaluedHashMap<>()));
+        Uni<Response> evaluate = resource.postLearning(
+                SLUG, "evaluations", "Bearer t", uriInfo(new MultivaluedHashMap<>()), "{}");
+
+        assertThrows(ForbiddenException.class, read.await()::indefinitely);
+        assertThrows(ForbiddenException.class, evaluate.await()::indefinitely);
         harness.verify(0, anyRequestedFor(anyUrl()));
     }
 

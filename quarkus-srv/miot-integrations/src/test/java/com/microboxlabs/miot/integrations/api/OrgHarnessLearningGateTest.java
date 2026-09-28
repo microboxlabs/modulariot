@@ -16,6 +16,7 @@ import com.microboxlabs.miot.integrations.service.HarnessTranscriptService;
 import com.microboxlabs.miot.integrations.service.InMemoryStories;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -36,8 +37,8 @@ class OrgHarnessLearningGateTest {
         String id = UUID.randomUUID().toString();
         var learning = new ThreadUpsertRequest(id, "session", null, "learning");
 
-        assertThrows(ForbiddenException.class,
-                () -> threads(false).createThread(ORG, learning).await().indefinitely());
+        Uni<Response> refused = threads(false).createThread(ORG, learning);
+        assertThrows(ForbiddenException.class, refused.await()::indefinitely);
         assertTrue(created.isEmpty());
 
         assertEquals(201, threads(true).createThread(ORG, learning).await().indefinitely().getStatus());
@@ -63,8 +64,8 @@ class OrgHarnessLearningGateTest {
         store.threads.addMessage(id, "m1");
         var service = new HarnessTranscriptService(store.threads, store.links);
 
-        assertThrows(ForbiddenException.class,
-                () -> transcripts(service, false).transcript(ORG, id).await().indefinitely());
+        Uni<Response> refused = transcripts(service, false).transcript(ORG, id);
+        assertThrows(ForbiddenException.class, refused.await()::indefinitely);
 
         var response = transcripts(service, true).transcript(ORG, id).await().indefinitely();
         assertEquals(200, response.getStatus());

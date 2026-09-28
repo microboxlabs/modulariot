@@ -442,10 +442,9 @@ class HarnessThreadServiceTest {
     @Test
     void anUnknownKindIsRefused() {
         var service = new HarnessThreadService(new FakeRepository());
-        String id = UUID.randomUUID().toString();
+        var request = new ThreadUpsertRequest(UUID.randomUUID().toString(), "t", null, "other");
 
-        assertThrows(IllegalArgumentException.class,
-                () -> service.create(TENANT, OWNER, new ThreadUpsertRequest(id, "t", null, "other")));
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER, request));
         assertThrows(IllegalArgumentException.class, () -> service.listVisible(TENANT, OWNER, null, "other"));
     }
 

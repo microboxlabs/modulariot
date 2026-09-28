@@ -70,3 +70,49 @@ def test_state_is_kept_outside_the_workspace_directory(tmp_path: Path) -> None:
 def test_the_packaged_directory_itself_is_never_touched(tmp_path: Path) -> None:
     report = refresh_defaults(PACKAGED_DEFAULTS / "skills", PACKAGED_DEFAULTS / "skills")
     assert report.copied == report.replaced == []
+
+
+def test_a_symlinked_target_is_not_followed(tmp_path: Path) -> None:
+    packaged, workspace = _tree(tmp_path)
+    outside = tmp_path / "outside.txt"
+    outside.write_text("keep me")
+    (workspace / "miot-search").mkdir(parents=True)
+    (workspace / "miot-search" / "SKILL.md").symlink_to(outside)
+    refresh_defaults(packaged, workspace)
+    assert outside.read_text() == "keep me"
+
+
+def test_a_symlinked_directory_is_not_followed(tmp_path: Path) -> None:
+    packaged, workspace = _tree(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    workspace.mkdir(parents=True)
+    (workspace / "miot-search").symlink_to(outside, target_is_directory=True)
+    refresh_defaults(packaged, workspace)
+    assert list(outside.iterdir()) == []
+
+
+def test_a_record_that_is_not_an_object_is_ignored(tmp_path: Path) -> None:
+    packaged, workspace = _tree(tmp_path)
+    state = workspace.parent / ".seed-state"
+    state.mkdir(parents=True)
+    (state / "skills.json").write_text("null")
+    report = refresh_defaults(packaged, workspace)
+    assert sorted(report.copied) == ["00-system.yaml", "miot-search/SKILL.md"]
+
+
+def test_an_unreadable_packaged_tree_does_not_raise(tmp_path: Path, monkeypatch) -> None:
+    packaged, workspace = _tree(tmp_path)
+
+    def boom(self: Path, pattern: str):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(Path, "rglob", boom)
+    assert refresh_defaults(packaged, workspace).copied == []
+
+
+def test_no_temporary_files_are_left_behind(tmp_path: Path) -> None:
+    packaged, workspace = _tree(tmp_path)
+    refresh_defaults(packaged, workspace)
+    leftovers = [p for p in tmp_path.rglob(".*") if p.name.startswith(".") and p.is_file()]
+    assert leftovers == []

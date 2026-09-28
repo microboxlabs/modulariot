@@ -16,6 +16,7 @@ import { useThreadModel } from "./hooks/use-thread-model";
 import { buildHarnessToolkit, type HarnessExtension } from "./harness-extension";
 import { resolveDefaultHarnessExtensions } from "./extensions";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
+import { ActiveRunResumer } from "./components/active-run-resumer";
 import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
 import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
@@ -456,7 +457,7 @@ const SessionHost: FC<{
   );
   const tr = useHarnessChatTr();
   const attachmentAdapter = useMemo(() => createHarnessAttachmentAdapter(tr), [tr]);
-  const history = useMemo(() => createHarnessHistoryAdapter(sessionId), [sessionId]);
+  const history = useMemo(() => createHarnessHistoryAdapter(sessionId, agent), [sessionId, agent]);
   const runtime = useAgUiRuntime({
     agent,
     adapters: { attachments: attachmentAdapter, history },
@@ -470,6 +471,7 @@ const SessionHost: FC<{
     agent.model = model;
   }, [agent, model]);
   useThreadModel(sessionId, setModel);
+  const stopRun = useCallback(() => agent.cancelHarnessRun(), [agent]);
 
   // Panel just opened (button or ⌘/Ctrl+C) while this is the active session —
   // send focus straight to the composer input. When it closes (or this stops
@@ -504,6 +506,7 @@ const SessionHost: FC<{
               <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
               <SessionSummaryWatcher sessionId={sessionId} />
               <SessionModelWatcher sessionId={sessionId} />
+              <ActiveRunResumer runtime={runtime} history={history} agent={agent} />
               <InitialMessageSender initialMessage={initialMessage} />
               <PendingAttachmentReceiver
                 label={pendingAttachmentLabel}
@@ -511,7 +514,7 @@ const SessionHost: FC<{
               />
             </>
           )}
-          <Thread skills={skills} />
+          <Thread skills={skills} onStop={stopRun} />
           </HarnessModelProvider>
         </HarnessReadOnlyProvider>
       </AssistantRuntimeProvider>

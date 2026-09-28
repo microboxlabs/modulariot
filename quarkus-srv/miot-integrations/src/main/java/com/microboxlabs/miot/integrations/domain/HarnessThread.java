@@ -26,7 +26,28 @@ public record HarnessThread(
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         /** True once a person named the thread; a generated title never replaces theirs. */
-        boolean titleEdited) {
+        boolean titleEdited,
+        /** {@link #CHAT}, or {@link #LEARNING} for a trainer's session; fixed at creation. */
+        String kind) {
+
+    public static final String CHAT = "chat";
+    public static final String LEARNING = "learning";
+
+    public HarnessThread(
+            String id,
+            String tenantCode,
+            String ownerId,
+            String title,
+            String summary,
+            String model,
+            OffsetDateTime expiresAt,
+            OffsetDateTime lastMessageAt,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt,
+            boolean titleEdited) {
+        this(id, tenantCode, ownerId, title, summary, model, expiresAt, lastMessageAt, createdAt, updatedAt,
+                titleEdited, CHAT);
+    }
 
     public HarnessThread(
             String id,
@@ -39,6 +60,7 @@ public record HarnessThread(
             OffsetDateTime lastMessageAt,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt) {
-        this(id, tenantCode, ownerId, title, summary, model, expiresAt, lastMessageAt, createdAt, updatedAt, false);
+        this(id, tenantCode, ownerId, title, summary, model, expiresAt, lastMessageAt, createdAt, updatedAt, false,
+                CHAT);
     }
 }

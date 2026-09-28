@@ -42,7 +42,7 @@ class HarnessThreadServiceTest {
 
         assertNull(service.get(TENANT, OTHER, id), "another user must not see the thread");
         assertNull(service.listMessages(TENANT, OTHER, id, null, null));
-        assertTrue(service.listVisible(TENANT, OTHER, null).isEmpty());
+        assertTrue(service.listVisible(TENANT, OTHER, null, null).isEmpty());
     }
 
     @Test
@@ -71,7 +71,7 @@ class HarnessThreadServiceTest {
         String theirs = newThread(service, OWNER);
         service.share(TENANT, OWNER, theirs, new ThreadShareRequest(OTHER, null));
 
-        List<ThreadResponse> visible = service.listVisible(TENANT, OTHER, null);
+        List<ThreadResponse> visible = service.listVisible(TENANT, OTHER, null, null);
 
         assertEquals(List.of(mine, theirs), visible.stream().map(ThreadResponse::id).toList());
         assertTrue(visible.get(0).owned());
@@ -101,7 +101,7 @@ class HarnessThreadServiceTest {
             newThread(service, OWNER);
         }
 
-        service.listVisible(TENANT, OWNER, null);
+        service.listVisible(TENANT, OWNER, null, null);
 
         assertEquals(1, repo.batchedShareLookups,
                 "one query for the listing, not one per thread");
@@ -115,7 +115,7 @@ class HarnessThreadServiceTest {
         String theirs = newThread(service, OWNER);
         service.share(TENANT, OWNER, theirs, new ThreadShareRequest(OTHER, null));
 
-        List<ThreadResponse> visible = service.listVisible(TENANT, OTHER, 1);
+        List<ThreadResponse> visible = service.listVisible(TENANT, OTHER, 1, null);
 
         assertEquals(List.of(mine), visible.stream().map(ThreadResponse::id).toList());
     }
@@ -248,7 +248,7 @@ class HarnessThreadServiceTest {
         assertEquals("so far: trips", service.patch(TENANT, OWNER, id,
                 new ThreadPatchRequest("renamed", null, null, null, null)).summary(),
                 "a patch that says nothing about the summary leaves it alone");
-        assertEquals("so far: trips", service.listVisible(TENANT, OWNER, null).get(0).summary());
+        assertEquals("so far: trips", service.listVisible(TENANT, OWNER, null, null).get(0).summary());
     }
 
     @Test
@@ -262,7 +262,7 @@ class HarnessThreadServiceTest {
         assertEquals("claude-opus-5-5", service.patch(TENANT, OWNER, id,
                 new ThreadPatchRequest("renamed", null, null, "so far", null)).model(),
                 "a patch that says nothing about the model leaves it alone");
-        assertEquals("claude-opus-5-5", service.listVisible(TENANT, OWNER, null).get(0).model());
+        assertEquals("claude-opus-5-5", service.listVisible(TENANT, OWNER, null, null).get(0).model());
     }
 
     @Test
@@ -422,6 +422,32 @@ class HarnessThreadServiceTest {
                 .toList();
     }
 
+    @Test
+    void theListCanBeNarrowedToOneKind() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String chat = newThread(service, OWNER);
+        String learning = UUID.randomUUID().toString();
+        service.create(TENANT, OWNER, new ThreadUpsertRequest(learning, "session", null, "learning"));
+
+        assertEquals("chat", service.get(TENANT, OWNER, chat).kind());
+        assertEquals(List.of(learning), service.listVisible(TENANT, OWNER, null, "learning").stream()
+                .map(ThreadResponse::id).toList());
+        assertEquals(List.of(chat), service.listVisible(TENANT, OWNER, null, "chat").stream()
+                .map(ThreadResponse::id).toList());
+        assertEquals(2, service.listVisible(TENANT, OWNER, null, null).size());
+        assertEquals("learning", service.fork(TENANT, OWNER, learning, null).kind(),
+                "a fork of a learning session is one too");
+    }
+
+    @Test
+    void anUnknownKindIsRefused() {
+        var service = new HarnessThreadService(new FakeRepository());
+        var request = new ThreadUpsertRequest(UUID.randomUUID().toString(), "t", null, "other");
+
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER, request));
+        assertThrows(IllegalArgumentException.class, () -> service.listVisible(TENANT, OWNER, null, "other"));
+    }
+
     private static String newThread(HarnessThreadService service, String owner) {
         String id = UUID.randomUUID().toString();
         service.create(TENANT, owner, new ThreadUpsertRequest(id, "chat", null));
@@ -452,31 +478,33 @@ class HarnessThreadServiceTest {
                         existing.id(), existing.tenantCode(), existing.ownerId(),
                         thread.title() == null || existing.titleEdited() ? existing.title() : thread.title(),
                         existing.summary(), existing.model(), existing.expiresAt(), existing.lastMessageAt(),
-                        existing.createdAt(), OffsetDateTime.now(), existing.titleEdited());
+                        existing.createdAt(), OffsetDateTime.now(), existing.titleEdited(), existing.kind());
                 threads.put(renamed.id(), renamed);
                 return renamed;
             }
             OffsetDateTime now = OffsetDateTime.now();
             HarnessThread created = new HarnessThread(
                     thread.id(), thread.tenantCode(), thread.ownerId(), thread.title(),
-                    thread.summary(), thread.model(), thread.expiresAt(), now, now, now);
+                    thread.summary(), thread.model(), thread.expiresAt(), now, now, now, false, thread.kind());
             threads.put(created.id(), created);
             return created;
         }
 
         @Override
-        public List<HarnessThread> listOwned(String tenantCode, String ownerId, int limit) {
+        public List<HarnessThread> listOwned(String tenantCode, String ownerId, String kind, int limit) {
             return threads.values().stream()
                     .filter(t -> Objects.equals(t.tenantCode(), tenantCode))
                     .filter(t -> Objects.equals(t.ownerId(), ownerId))
+                    .filter(t -> kind == null || kind.equals(t.kind()))
                     .limit(limit)
                     .toList();
         }
 
         @Override
-        public List<HarnessThread> listSharedWith(String tenantCode, String principal, int limit) {
+        public List<HarnessThread> listSharedWith(String tenantCode, String principal, String kind, int limit) {
             return threads.values().stream()
                     .filter(t -> Objects.equals(t.tenantCode(), tenantCode))
+                    .filter(t -> kind == null || kind.equals(t.kind()))
                     .filter(t -> listShares(t.id()).stream()
                             .anyMatch(s -> Objects.equals(s.principal(), principal)))
                     .limit(limit)
@@ -508,7 +536,7 @@ class HarnessThreadServiceTest {
                     model == null ? thread.model() : model,
                     clearExpiry ? null : (expiresAt == null ? thread.expiresAt() : expiresAt),
                     thread.lastMessageAt(), thread.createdAt(), OffsetDateTime.now(),
-                    thread.titleEdited() || (title != null && !autoTitle));
+                    thread.titleEdited() || (title != null && !autoTitle), thread.kind());
             threads.put(updated.id(), updated);
             return updated;
         }
@@ -518,7 +546,7 @@ class HarnessThreadServiceTest {
             OffsetDateTime now = OffsetDateTime.now();
             HarnessThread created = new HarnessThread(
                     fork.id(), fork.tenantCode(), fork.ownerId(), fork.title(), fork.summary(), fork.model(),
-                    null, now, now, now, true);
+                    null, now, now, now, true, fork.kind());
             threads.put(created.id(), created);
             for (HarnessThreadMessage message : messages.getOrDefault(sourceThreadId, List.of())) {
                 if (messageIds.contains(message.id())) {

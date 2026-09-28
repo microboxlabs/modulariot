@@ -19,13 +19,17 @@ import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -62,6 +66,18 @@ public class HarnessProxyResource {
     private final OrganizationPermissionService permissions;
     private final HttpClient httpClient;
     private final String harnessBaseUrl;
+    private final HarnessLearningProxy learning;
+
+    public HarnessProxyResource(HarnessClient harness,
+                                TenantContext tenantContext,
+                                OrganizationContext organizationContext,
+                                HarnessPlanGate planGate,
+                                OrganizationPermissionService permissions,
+                                Vertx vertx,
+                                String harnessBaseUrl) {
+        this(harness, tenantContext, organizationContext, planGate, permissions, vertx,
+                harnessBaseUrl, Duration.ofSeconds(30));
+    }
 
     @Inject
     public HarnessProxyResource(@RestClient HarnessClient harness,
@@ -71,7 +87,9 @@ public class HarnessProxyResource {
                                 OrganizationPermissionService permissions,
                                 Vertx vertx,
                                 @ConfigProperty(name = "miot.harness.base-url")
-                                String harnessBaseUrl) {
+                                String harnessBaseUrl,
+                                @ConfigProperty(name = "miot.harness.learning.timeout", defaultValue = "30s")
+                                Duration learningTimeout) {
         this.harness = harness;
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
@@ -83,6 +101,7 @@ public class HarnessProxyResource {
         // through (id:/event:/data: preserved) without SSE re-encoding.
         this.httpClient = vertx.createHttpClient();
         this.harnessBaseUrl = stripTrailingSlash(harnessBaseUrl);
+        this.learning = new HarnessLearningProxy(httpClient, this.harnessBaseUrl, learningTimeout);
     }
 
     private static String stripTrailingSlash(String url) {
@@ -270,6 +289,85 @@ public class HarnessProxyResource {
         String authMode = userEmail != null ? "web" : "m2m";
         return asTrainer(slug, () -> harness.deleteConnectionKnowledge(
                 connection, cardId, authorization, tenantClientId, userEmail, authMode));
+    }
+
+    /**
+     * The trainer's view of the harness's editable knowledge: layers, items,
+     * versions, writes, deletes and reverts. The organization's tenant is set
+     * here, whatever the caller sent.
+     */
+    @GET
+    @Path("/knowledge/{path:.+}")
+    public Uni<Response> getKnowledge(@PathParam("slug") String slug,
+                                      @PathParam("path") String path,
+                                      @HeaderParam("Authorization") String authorization,
+                                      @Context UriInfo uriInfo) {
+        return toLearning(slug, HttpMethod.GET, HarnessLearningProxy.KNOWLEDGE, path, uriInfo,
+                authorization, null);
+    }
+
+    @PUT
+    @Path("/knowledge/{path:.+}")
+    public Uni<Response> putKnowledge(@PathParam("slug") String slug,
+                                      @PathParam("path") String path,
+                                      @HeaderParam("Authorization") String authorization,
+                                      @Context UriInfo uriInfo,
+                                      String body) {
+        return toLearning(slug, HttpMethod.PUT, HarnessLearningProxy.KNOWLEDGE, path, uriInfo,
+                authorization, body);
+    }
+
+    @POST
+    @Path("/knowledge/{path:.+}")
+    public Uni<Response> postKnowledge(@PathParam("slug") String slug,
+                                       @PathParam("path") String path,
+                                       @HeaderParam("Authorization") String authorization,
+                                       @Context UriInfo uriInfo,
+                                       String body) {
+        return toLearning(slug, HttpMethod.POST, HarnessLearningProxy.KNOWLEDGE, path, uriInfo,
+                authorization, body);
+    }
+
+    @DELETE
+    @Path("/knowledge/{path:.+}")
+    public Uni<Response> deleteKnowledge(@PathParam("slug") String slug,
+                                         @PathParam("path") String path,
+                                         @HeaderParam("Authorization") String authorization,
+                                         @Context UriInfo uriInfo) {
+        return toLearning(slug, HttpMethod.DELETE, HarnessLearningProxy.KNOWLEDGE, path, uriInfo,
+                authorization, null);
+    }
+
+    /** Before/after evaluations of knowledge changes. */
+    @GET
+    @Path("/learning/{path:.+}")
+    public Uni<Response> getLearning(@PathParam("slug") String slug,
+                                     @PathParam("path") String path,
+                                     @HeaderParam("Authorization") String authorization,
+                                     @Context UriInfo uriInfo) {
+        return toLearning(slug, HttpMethod.GET, HarnessLearningProxy.LEARNING, path, uriInfo,
+                authorization, null);
+    }
+
+    @POST
+    @Path("/learning/{path:.+}")
+    public Uni<Response> postLearning(@PathParam("slug") String slug,
+                                      @PathParam("path") String path,
+                                      @HeaderParam("Authorization") String authorization,
+                                      @Context UriInfo uriInfo,
+                                      String body) {
+        return toLearning(slug, HttpMethod.POST, HarnessLearningProxy.LEARNING, path, uriInfo,
+                authorization, body);
+    }
+
+    private Uni<Response> toLearning(String slug, HttpMethod method, String area, String path,
+                                     UriInfo uriInfo, String authorization, String body) {
+        String userEmail = organizationContext.getUserEmail();
+        var caller = new HarnessLearningProxy.Caller(authorization, tenantContext.getClientId(),
+                userEmail, userEmail != null ? "web" : "m2m");
+        return permissions.requirePermission(slug, OrganizationPermissionDefinition.HARNESS_TRAINER)
+                .flatMap(ignored -> learning.forward(method, area, path,
+                        uriInfo == null ? null : uriInfo.getQueryParameters(), body, caller));
     }
 
     private Uni<Response> asTrainer(String slug, Supplier<Uni<Response>> call) {

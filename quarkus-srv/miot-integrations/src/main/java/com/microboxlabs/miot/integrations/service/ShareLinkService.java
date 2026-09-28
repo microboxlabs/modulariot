@@ -171,6 +171,7 @@ public class ShareLinkService {
                 thread.createdAt(),
                 thread.updatedAt(),
                 List.of(),
-                thread.titleEdited());
+                thread.titleEdited(),
+                thread.kind());
     }
 }

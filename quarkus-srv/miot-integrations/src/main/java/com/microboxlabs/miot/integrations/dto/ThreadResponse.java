@@ -23,5 +23,7 @@ public record ThreadResponse(
         OffsetDateTime updatedAt,
         List<String> sharedWith,
         /** True once a person named the thread; the panel stops generating titles for it. */
-        boolean titleEdited) {
+        boolean titleEdited,
+        /** {@code chat}, or {@code learning} for a trainer's session. */
+        String kind) {
 }

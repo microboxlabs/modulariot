@@ -86,10 +86,11 @@ public class HarnessThreadService {
     }
 
     /** The caller's own threads followed by the ones shared with them, each
-     * newest-activity first. */
-    public List<ThreadResponse> listVisible(String tenantCode, String userId, Integer limit) {
+     * newest-activity first. A null {@code kind} lists every kind. */
+    public List<ThreadResponse> listVisible(String tenantCode, String userId, Integer limit, String kind) {
         int bounded = boundLimit(limit);
-        List<HarnessThread> owned = repository.listOwned(tenantCode, userId, bounded);
+        String filter = kind == null || kind.isBlank() ? null : requireKind(kind);
+        List<HarnessThread> owned = repository.listOwned(tenantCode, userId, filter, bounded);
         // One query for every thread's shares, not one per thread.
         Map<String, List<HarnessThreadShare>> shares =
                 repository.listSharesFor(owned.stream().map(HarnessThread::id).toList());
@@ -102,7 +103,7 @@ public class HarnessThreadService {
         // getting 200 back would break any caller paging on the number.
         int remaining = bounded - out.size();
         if (remaining > 0) {
-            for (HarnessThread thread : repository.listSharedWith(tenantCode, userId, remaining)) {
+            for (HarnessThread thread : repository.listSharedWith(tenantCode, userId, filter, remaining)) {
                 out.add(toResponse(thread, userId, List.of()));
             }
         }
@@ -123,7 +124,9 @@ public class HarnessThreadService {
                 request.expiresAt(),
                 null,
                 null,
-                null));
+                null,
+                false,
+                kind(request)));
         // The upsert's owner guard did not match, so this id is someone else's.
         return saved == null ? null : toResponse(saved, userId, repository.listShares(saved.id()));
     }
@@ -190,7 +193,8 @@ public class HarnessThreadService {
                 null,
                 null,
                 null,
-                true), source.id(), ids);
+                true,
+                source.kind()), source.id(), ids);
         return saved == null ? null : toResponse(saved, userId, List.of());
     }
 
@@ -362,7 +366,22 @@ public class HarnessThreadService {
                 thread.createdAt(),
                 thread.updatedAt(),
                 List.copyOf(principals),
-                thread.titleEdited());
+                thread.titleEdited(),
+                thread.kind());
+    }
+
+    /** The kind a create asks for; a missing one is a chat. */
+    public static String kind(ThreadUpsertRequest request) {
+        return request == null || request.kind() == null || request.kind().isBlank()
+                ? HarnessThread.CHAT
+                : requireKind(request.kind());
+    }
+
+    private static String requireKind(String kind) {
+        if (!HarnessThread.CHAT.equals(kind) && !HarnessThread.LEARNING.equals(kind)) {
+            throw new IllegalArgumentException("kind must be chat or learning");
+        }
+        return kind;
     }
 
     /** A missing or negative cursor reads from the start. */

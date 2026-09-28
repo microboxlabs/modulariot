@@ -24,6 +24,7 @@
     "advisor.consulted",
     "delegate.completed",
     "widget.created",
+    "dashboard.draft",
     "answer.delta",
     "answer.completed",
     "run.completed",

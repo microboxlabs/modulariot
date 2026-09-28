@@ -24,7 +24,7 @@ import {
   type AgUiMessage,
   type RunAgentInputBody,
 } from "./conversation";
-import { answerFromToolResult } from "./chat-answer";
+import { answerFromToolResult, dashletsInThread } from "./chat-answer";
 import { fetchThread, storedThreadModel } from "./thread-model";
 import {
   connectToHarness,
@@ -501,6 +501,7 @@ async function run(
       signal: relay.signal,
       send,
       tr,
+      priorDashlets: dashletsInThread(messages),
     });
     if (!relayed.completed) return;
 

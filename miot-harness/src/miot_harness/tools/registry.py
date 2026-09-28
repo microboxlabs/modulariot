@@ -10,6 +10,7 @@ from miot_harness.tools.dashboard import (
     create_dashboard_widget_draft_tool,
     get_dashboard_context_tool,
 )
+from miot_harness.tools.dashboard_draft import dashboard_draft_tool
 from miot_harness.tools.delivery_metrics import get_delivery_compliance_metrics_tool
 from miot_harness.tools.filesystem import VirtualFileStore, build_filesystem_tools
 from miot_harness.tools.source import build_source_tools, source_repos
@@ -65,6 +66,7 @@ def build_default_registry(settings: HarnessSettings | None = None) -> ToolRegis
             registry.register(tool)
     registry.register(write_todos_tool(TodoStore()))
     registry.register(artifact_tool())
+    registry.register(dashboard_draft_tool())
     if settings.web_fetch_enabled:
         registry.register(web_fetch_tool(max_per_run=settings.web_fetch_max_per_run))
     if settings.source_enabled and settings.source_repos:

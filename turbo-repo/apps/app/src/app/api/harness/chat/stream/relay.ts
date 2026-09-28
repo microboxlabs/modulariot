@@ -22,6 +22,7 @@ import {
   artifactCallEvents,
   chatAnswerEvents,
   toArtifactSpec,
+  type DraftDashlet,
 } from "./chat-answer";
 import { stepLabel } from "./step-labels";
 import { planRefusalMessage } from "./plan-refusal";
@@ -513,6 +514,8 @@ export async function relayRun(args: {
   signal: AbortSignal;
   send: Sender;
   tr: TrFn;
+  /** Dashlets earlier turns showed, for a dashboard draft to reuse. */
+  priorDashlets?: Map<string, DraftDashlet>;
 }): Promise<RelayedRun> {
   const { client, harnessRunId, runId, threadId, signal, send, tr } = args;
   sendRunMarker(send, { runId: harnessRunId, status: "running" });
@@ -557,6 +560,7 @@ export async function relayRun(args: {
     noAnswer: tr("harnessChat.stream.noAnswer"),
     assumptionLabel: tr("harnessChat.stream.assumption"),
     shownArtifacts: state.shownArtifacts,
+    priorDashlets: args.priorDashlets,
   })) {
     send(event);
   }

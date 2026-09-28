@@ -99,7 +99,10 @@ function cacheKey(question: Entitlement): string {
   return JSON.stringify([
     question.userId,
     question.tenantId,
-    [...question.groups].sort(),
+    [...question.groups].sort((left, right) => {
+      if (left === right) return 0;
+      return left < right ? -1 : 1;
+    }),
   ]);
 }
 
@@ -140,7 +143,7 @@ export function createHttpTenantAuthority(
 
   const absentStatuses = options.absentStatuses ?? DEFAULT_ABSENT;
   const timeoutMs = options.requestTimeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const headers = { ...(options.headers ?? {}) };
+  const headers = { ...options.headers };
 
   function entitledFrom(body: unknown): true | null {
     if (options.entitledPath === undefined) return true;

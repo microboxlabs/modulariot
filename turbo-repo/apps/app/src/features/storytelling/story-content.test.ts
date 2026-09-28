@@ -108,6 +108,29 @@ describe("renderForVersion", () => {
   });
 });
 
+describe("sections validation", () => {
+  it("drops blocks missing the fields their renderer needs", () => {
+    const render = renderForVersion(
+      "sections",
+      version(null, {
+        sections: [
+          { type: "text" },
+          { type: "table", headers: ["a"] },
+          { type: "chart", title: "no option" },
+          { type: "metric", label: "Trips", value: { nested: true } },
+          { type: "table", headers: ["Lane", 2], rows: [["North", 5], "bad"] },
+        ],
+      })
+    );
+    expect(render).toEqual({
+      type: "sections",
+      sections: [
+        { type: "table", headers: ["Lane", "2"], rows: [["North", "5"]] },
+      ],
+    });
+  });
+});
+
 describe("base64ToBytes", () => {
   it("accepts a data URL prefix", () => {
     expect(base64ToBytes(`data:application/pdf;base64,${btoa("ab")}`)).toEqual(

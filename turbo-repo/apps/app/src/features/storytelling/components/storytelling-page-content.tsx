@@ -9,7 +9,10 @@ import { SectionHeader } from "@/features/layout/components/section-header/secti
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { deleteStory, listStories, updateStory } from "../stories-api";
-import type { Story } from "../storytelling.types";
+import type { Story, StoryKind } from "../storytelling.types";
+
+/** The most stories the API returns in one list. */
+const LIST_LIMIT = 200;
 import { StoryDeleteDialog } from "./story-delete-dialog";
 import StoryDetailsModal from "./story-details-modal";
 import StoryGrid from "./story-grid";
@@ -65,7 +68,11 @@ export default function StorytellingPageContent({
   useEffect(() => {
     let cancelled = false;
     setState({ status: "loading" });
-    listStories({ search: nameFilter })
+    // One kind filters upstream; several are filtered here from the
+    // largest page the API serves.
+    const kinds = kindKey ? kindKey.split(",") : [];
+    const kind = kinds.length === 1 ? (kinds[0] as StoryKind) : undefined;
+    listStories({ search: nameFilter, kind, limit: LIST_LIMIT })
       .then((stories) => {
         if (!cancelled) setState({ status: "ready", stories });
       })
@@ -75,7 +82,7 @@ export default function StorytellingPageContent({
     return () => {
       cancelled = true;
     };
-  }, [nameFilter, reload]);
+  }, [nameFilter, kindKey, reload]);
 
   const stories = useMemo(
     () => (state.status === "ready" ? state.stories : []),
@@ -171,6 +178,7 @@ export default function StorytellingPageContent({
       replaceStory({
         ...story,
         title: saved.title,
+        updatedBy: saved.updatedBy,
         updatedAt: saved.updatedAt,
       });
     } catch {

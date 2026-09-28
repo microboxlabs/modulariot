@@ -400,6 +400,12 @@ export type HarnessPathDecision =
   | { handled: true }
   | { handled: false; message: string; attachments?: Attachment[] };
 
+function toHarness(message: string, attachments: Attachment[]): HarnessPathDecision {
+  return attachments.length > 0
+    ? { handled: false, message, attachments }
+    : { handled: false, message };
+}
+
 function isEmptyTurn(message: string, attachments: Attachment[]): boolean {
   return !message && attachments.length === 0;
 }
@@ -488,7 +494,7 @@ export function decideHarnessPath(
     return { handled: true };
   }
 
-  return { handled: false, message, attachments };
+  return toHarness(message, attachments);
 }
 
 type HarnessConnection =
@@ -774,7 +780,7 @@ async function run(
     const { run_id } = await client.runs.create(
       {
         message,
-        ...(attachments && attachments.length > 0 && { attachments }),
+        ...(attachments && { attachments }),
         skill_id: "miot-analyst",
         answer_format: "json",
         ...(model && { model }),

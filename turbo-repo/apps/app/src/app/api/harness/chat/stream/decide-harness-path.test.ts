@@ -71,7 +71,6 @@ describe("decideHarnessPath", () => {
     expect(decision).toEqual({
       handled: false,
       message: "Can you tell me the story behind this alert?",
-      attachments: [],
     });
     // Nothing should have been synthesized locally — this turn goes to the
     // real harness, driven by the caller once decideHarnessPath returns.

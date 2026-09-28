@@ -311,6 +311,7 @@ class GenericPgProvider(DataSourceProvider):
                 workflow_schema=await workflow_schema(
                     self._pool, schema_summary, statement_timeout_ms
                 ),
+                connection=connection.name,
             )
             registered: list[str] = []
             for tool in tools:

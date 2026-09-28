@@ -15,6 +15,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from miot_harness.datasource.knowledge.learned import with_overlay
 from miot_harness.datasource.knowledge.models import KnowledgeCard
 from miot_harness.datasource.profile import safe_profile
 from miot_harness.datasource.routine_call import safe_call_routine
@@ -219,6 +220,7 @@ def build_generic_tools(
     call_security_definer: bool = False,
     workspace_dir: Path | None = None,
     workflow_schema: str | None = None,
+    connection: str | None = None,
 ) -> list[HarnessTool[Any, Any]]:
     """Build the generic safe-query primitives as registrable HarnessTools.
 
@@ -228,7 +230,8 @@ def build_generic_tools(
     call, so a card written after boot is served without a restart; an authored
     card overrides a pack card of the same id.
     `workflow_schema` names the schema holding BPMN engine tables; when set, a
-    `<prefix>workflow` tool is added.
+    `<prefix>workflow` tool is added. `connection` names the connection whose
+    fact changes a run's knowledge overlay applies to the authored cards.
     """
     cards_by_id = {c.id: c for c in (knowledge_cards or [])}
 
@@ -436,7 +439,10 @@ def build_generic_tools(
     ) -> _KnowledgeOutput:
         cards = dict(cards_by_id)
         if authored_cards is not None:
-            cards.update((c.id, c) for c in authored_cards())
+            authored = authored_cards()
+            if connection is not None:
+                authored = with_overlay(authored, connection, ctx.knowledge_overlay)
+            cards.update((c.id, c) for c in authored)
         available = [{"card": c.id, "title": c.title} for c in cards.values()]
         card = cards.get(parsed.card)
         if card is None:

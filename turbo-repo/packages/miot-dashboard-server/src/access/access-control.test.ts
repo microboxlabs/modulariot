@@ -28,6 +28,7 @@ import { FULL_CAPABILITIES, capabilitiesForRole } from "./roles";
 const ALL_ACTIONS: readonly DashboardAction[] = [
   "dashboard.list",
   "dashboard.load",
+  "dashboard.query",
   "dashboard.save",
   "dashboard.delete",
   "dashboard.permissions.read",
@@ -235,7 +236,7 @@ describe("embed principals", () => {
       { scopeId: "ops", slug: "other", action: "dashboard.load" },
       { scopeId: "other", action: "datasource.query" },
       ...ALL_ACTIONS.filter(
-        (a) => a !== "dashboard.load" && a !== "datasource.query",
+        (a) => !["dashboard.load", "dashboard.query", "datasource.query"].includes(a),
       ).map((action) => ({ scopeId: "ops", slug: "fleet", action })),
     ];
     for (const target of cases) {
@@ -304,6 +305,7 @@ describe("capabilities by role", () => {
     const eve = user("eve", "acme");
     for (const action of [
       "dashboard.load",
+  "dashboard.query",
       "dashboard.save",
       "embed.token.issue",
       "datasource.write",

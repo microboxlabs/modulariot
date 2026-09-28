@@ -21,7 +21,9 @@ from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.context_skills.skill_models import PlaybookSkill
 from miot_harness.datasource.knowledge.learned import LearnedFacts
 from miot_harness.datasource.provider import DataSourceProfile
+from miot_harness.knowledge.playbooks import trainer_playbook
 from miot_harness.knowledge.primer import PrimerUpdates
+from miot_harness.knowledge.store import KnowledgeError, KnowledgeStore, virtual_path
 from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.answer_contract import (
     emit_grounding_gap,
@@ -31,7 +33,16 @@ from miot_harness.runtime.answer_contract import (
 from miot_harness.runtime.answer_render import render_answer_with_format
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.attachments import with_markers
-from miot_harness.runtime.commands import Command, parse_command, render_context
+from miot_harness.runtime.commands import (
+    PLAYBOOK_COMMANDS,
+    RUN_LEARNING_EVAL_TOOL,
+    Command,
+    learning_instruction,
+    parse_command,
+    render_context,
+    render_diff,
+    render_layers,
+)
 from miot_harness.runtime.context import (
     MAX_CONVERSATION_HISTORY_TURNS,
     HarnessContext,
@@ -177,6 +188,8 @@ class HarnessSupervisor:
         self.learned_facts: LearnedFacts | None = None
         # Edited descriptions of tenant-locked connections; set by the lifespan.
         self.primer_updates: PrimerUpdates | None = None
+        # A tenant's editable knowledge, for `/layers` and `/diff`; set by the lifespan.
+        self.knowledge_store_for: Callable[[str], KnowledgeStore] | None = None
         # The primary connection's name (e.g. "acs"), stamped onto assumptions
         # so the review surface stages a candidate against the right connection.
         self.primary_connection_name: str | None = None
@@ -274,9 +287,17 @@ class HarnessSupervisor:
             saved_loaded = time.monotonic()
             history = _snapshot(self._seeded_history(request, ctx))
 
-            # `/compact` and `/context` are answered here, without the agent
-            # loop, and their turns are not stored.
-            command = parse_command(request.message)
+            # `/compact`, `/context` and a trainer's `/layers` and `/diff` are
+            # answered here, without the agent loop, and their turns are not
+            # stored. A trainer's other commands run the loop on an instruction.
+            command = parse_command(request.message, trainer=ctx.trainer)
+            loop_request = request
+            learning: Command | None = None
+            if command is not None and not self._answered_here(command):
+                loop_request = request.model_copy(
+                    update={"message": learning_instruction(command)}
+                )
+                learning, command = command, None
             prior_messages: list[BaseMessage] = []
             if command is None:
                 ctx = ctx.model_copy(
@@ -293,6 +314,7 @@ class HarnessSupervisor:
                 prior_messages = self._inject_tenant_context(ctx, prior_messages)
                 prior_messages = self._inject_learned_facts(ctx, prior_messages)
                 prior_messages = await self._inject_skill(request, ctx, prior_messages)
+                prior_messages = self._inject_playbook(learning, prior_messages)
                 prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
             logger.info(
                 "Run %s: prepared in %.0f ms (saved conversation %.0f ms)",
@@ -305,7 +327,7 @@ class HarnessSupervisor:
                 await self._run_command(command, request, ctx, record, progress, history)
             else:
                 turn_messages = await self._run_loop(
-                    request, ctx, record, progress, prior_messages
+                    loop_request, ctx, record, progress, prior_messages
                 )
         except asyncio.CancelledError as cancel:
             # POST /runs/{id}/cancel cancelled this task, or shutdown
@@ -392,9 +414,11 @@ class HarnessSupervisor:
         progress: Any,
         history: ConversationHistory | None,
     ) -> None:
-        """Answer `/compact` or `/context`. Neither turn is stored."""
+        """Answer a command without the agent loop. Its turn is not stored."""
         if command.name == "compact":
             record.answer = await self._compact_now(request, ctx, focus=command.argument)
+        elif command.name in ("layers", "diff", "test"):
+            record.answer = self._learning_answer(command, request, ctx)
         else:
             report = self._context_report(ctx, history)
             if report is None:
@@ -417,6 +441,49 @@ class HarnessSupervisor:
                 data={"length": len(record.answer), "command": command.name},
             )
         )
+
+    def _answered_here(self, command: Command) -> bool:
+        """`/test` is answered here only to say evaluations are unavailable."""
+        if command.name == "test":
+            return RUN_LEARNING_EVAL_TOOL not in self.tools.names()
+        return command.answered_here
+
+    def _learning_answer(
+        self, command: Command, request: UserRequest, ctx: HarnessContext
+    ) -> str:
+        if command.name == "test":
+            return "Evaluations are not available in this deployment yet."
+        if self.knowledge_store_for is None:
+            return "The knowledge workspace is not available in this deployment."
+        try:
+            store = self.knowledge_store_for(ctx.tenant_id)
+            if command.name == "layers":
+                layers = store.layers()
+                for layer in layers:
+                    for item in layer["items"]:
+                        item["path"] = virtual_path(layer["layer"], item["id"], item["target"])
+                return render_layers(layers)
+            conversation = request.conversation_id or ctx.thread_id
+            return render_diff(store.conversation_changes(conversation))
+        except KnowledgeError as exc:
+            return f"The knowledge workspace could not be read: {exc.detail}"
+
+    def _inject_playbook(
+        self, command: Command | None, prior_messages: list[BaseMessage]
+    ) -> list[BaseMessage]:
+        """A trainer playbook command's guidance, as an active skill."""
+        if command is None or command.name not in PLAYBOOK_COMMANDS:
+            return prior_messages
+        body = trainer_playbook(get_settings().skills_dir, command.name)
+        if body is None:
+            return prior_messages
+        guidance = SystemMessage(
+            content=(
+                f"# Active skill: {command.name}\n\n"
+                f"Follow this trainer playbook for this run:\n\n{body}"
+            )
+        )
+        return [guidance, *prior_messages]
 
     async def _compact_now(self, request: UserRequest, ctx: HarnessContext, *, focus: str) -> str:
         key = self._conversation_key(request, ctx)
@@ -907,7 +974,8 @@ class HarnessSupervisor:
             ).append(stored.messages)
         self.conversation_store.reset(key)
         for turn in request.conversation_history[-_MAX_SEEDED_TURNS:]:
-            if parse_command(turn.user_message) is not None:
+            replayed = parse_command(turn.user_message, trainer=request.trainer)
+            if replayed is not None and replayed.answered_here:
                 continue
             matches = transcripts.get((turn.user_message, turn.assistant_answer))
             self.conversation_store.append(

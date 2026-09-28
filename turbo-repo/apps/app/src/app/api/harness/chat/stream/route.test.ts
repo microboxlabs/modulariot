@@ -501,6 +501,50 @@ describe("POST /api/harness/chat/stream", () => {
     });
   });
 
+  it("sends a share link the agent created as a card, once", async () => {
+    const url = "https://app.example.com/app/share/tok_1";
+    const linked = harnessEvent("tool.completed", 2, {
+      tool: "mcp_call",
+      ok: true,
+      preview: {
+        tool: "stories_link",
+        result: { url, targetType: "story", targetId: "s1", access: "org" },
+      },
+    });
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("tool.completed", 1, {
+        tool: "mcp_call",
+        ok: true,
+        preview: {
+          tool: "stories_create",
+          result: { id: "s1", title: "Top destinos" },
+        },
+      });
+      yield linked;
+      yield { ...linked, seq: 3 };
+      yield harnessEvent("run.completed", 4);
+    });
+    runsGetMock.mockResolvedValue(completedRecord);
+
+    const { events } = await readEvents(await POST(chatRequest()));
+
+    const cards = events.filter(
+      (e) =>
+        e.type === "TOOL_CALL_START" && e.toolCallName === "show_share_link"
+    );
+    expect(cards).toHaveLength(1);
+    const args = events.find(
+      (e) =>
+        e.type === "TOOL_CALL_ARGS" && e.toolCallId === cards[0]!.toolCallId
+    );
+    expect(JSON.parse(args!.delta as string)).toEqual({
+      url,
+      targetType: "story",
+      targetId: "s1",
+      title: "Top destinos",
+    });
+  });
+
   it("logs how long each step before the harness run took", async () => {
     runsStreamMock.mockImplementation(async function* () {
       yield harnessEvent("run.completed", 1);

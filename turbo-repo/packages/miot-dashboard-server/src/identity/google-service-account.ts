@@ -59,7 +59,7 @@ export function signAssertion(
   try {
     signature = createSign("RSA-SHA256")
       .update(input)
-      .sign(grant.privateKey.replace(/\\n/g, "\n"), "base64url");
+      .sign(grant.privateKey.replaceAll("\\n", "\n"), "base64url");
   } catch {
     // The error would quote the key material it could not parse.
     throw new ServiceAccountError("The private key is not a usable RSA key");

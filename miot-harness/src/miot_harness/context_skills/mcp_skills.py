@@ -300,6 +300,7 @@ def build_mcp_call_tool(
 class _StreamableSession:
     def __init__(self, client: Any) -> None:
         self._client = client
+        _fall_back_to_text(client.session)
 
     async def list_tools(self) -> list[McpTool]:
         tools: list[McpTool] = []
@@ -323,12 +324,51 @@ class _StreamableSession:
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> McpToolResult:
         result = await self._client.call_tool(name, arguments)
-        text = "\n".join(
-            c.text for c in (result.content or []) if getattr(c, "type", None) == "text"
-        )
         return McpToolResult(
-            is_error=bool(result.is_error), text=text, structured=result.structured_content
+            is_error=bool(result.is_error),
+            text=_text_of(result),
+            structured=result.structured_content,
         )
+
+
+def _text_of(result: Any) -> str:
+    return "\n".join(c.text for c in (result.content or []) if getattr(c, "type", None) == "text")
+
+
+def _json_object(text: str) -> dict[str, Any] | None:
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _fall_back_to_text(session: Any) -> None:
+    """Keep a result whose structured content fails the tool's output schema.
+
+    The client validates structured content and raises when it does not match,
+    dropping a result the server already committed. When the text content holds
+    the same result as a JSON object, use that instead and log the mismatch.
+    """
+    strict = session.validate_tool_result
+
+    async def lenient(name: str, result: Any) -> None:
+        try:
+            await strict(name, result)
+        except RuntimeError as exc:
+            fallback = _json_object(_text_of(result))
+            if fallback is None or result.structured_content not in (None, fallback):
+                raise
+            # The path only: the error message carries the result's values.
+            logger.warning(
+                "MCP tool %s: structured content does not match its output schema at %s;"
+                " using its text content",
+                name,
+                getattr(exc.__cause__, "json_path", "?"),
+            )
+            result.structured_content = fallback
+
+    session.validate_tool_result = lenient
 
 
 @asynccontextmanager

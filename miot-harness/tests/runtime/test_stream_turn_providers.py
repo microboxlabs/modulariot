@@ -181,7 +181,8 @@ async def test_reasoning_content_streams_as_thinking_and_is_never_sent_back():
     assert message.content == "Hello."
     assert message.additional_kwargs["reasoning_content"] == "Plan the reply."
     stored = _storable(message, set())
-    assert stored is not None and "reasoning_content" not in stored.additional_kwargs
+    assert stored is not None
+    assert "reasoning_content" not in stored.additional_kwargs
 
     history = _plain_messages([HumanMessage(content="hi"), message, HumanMessage(content="more")])
     assert "reasoning_content" not in json.dumps(model._get_request_payload(history))

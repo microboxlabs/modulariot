@@ -20,5 +20,7 @@ export type {
   HarnessRunRecord,
   ModelsInfo,
   SkillSummary,
+  ThreadTitle,
+  ThreadTitleRequest,
   UserRequest,
 } from "./types.js";

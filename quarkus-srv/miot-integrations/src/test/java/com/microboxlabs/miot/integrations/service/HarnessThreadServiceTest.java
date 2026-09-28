@@ -2,6 +2,7 @@ package com.microboxlabs.miot.integrations.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -10,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.microboxlabs.miot.integrations.domain.HarnessThread;
 import com.microboxlabs.miot.integrations.domain.HarnessThreadMessage;
 import com.microboxlabs.miot.integrations.domain.HarnessThreadShare;
+import com.microboxlabs.miot.integrations.dto.ThreadForkRequest;
 import com.microboxlabs.miot.integrations.dto.ThreadMessageRequest;
 import com.microboxlabs.miot.integrations.dto.ThreadPatchRequest;
 import com.microboxlabs.miot.integrations.dto.ThreadResponse;
@@ -306,6 +308,118 @@ class HarnessThreadServiceTest {
                 "a negative cursor reads from the start and an oversized page is capped, not refused");
     }
 
+    @Test
+    void aGeneratedTitleNeverReplacesOneAPersonChose() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+
+        var generated = service.patch(TENANT, OWNER, id, autoTitle("Trips by region"));
+        assertEquals("Trips by region", generated.title());
+        assertFalse(generated.titleEdited(), "a generated title does not count as the person's choice");
+
+        var named = service.patch(TENANT, OWNER, id, new ThreadPatchRequest("My trips", null, null, null, null));
+        assertEquals("My trips", named.title());
+        assertTrue(named.titleEdited());
+
+        assertEquals("My trips", service.patch(TENANT, OWNER, id, autoTitle("Something else")).title(),
+                "once named, generated titles are dropped");
+    }
+
+    @Test
+    void forkCopiesEveryMessageIntoANewThreadTheCallerOwns() {
+        var repo = new FakeRepository();
+        var service = new HarnessThreadService(repo);
+        String id = newThread(service, OWNER);
+        appendChain(service, id, "u1", "a1", "u2", "a2");
+        service.patch(TENANT, OWNER, id, new ThreadPatchRequest(null, null, null, "so far", "m-1"));
+
+        ThreadResponse fork = service.fork(TENANT, OWNER, id, null);
+
+        assertNotNull(fork);
+        assertNotEquals(id, fork.id(), "a fork is a new conversation, so it gets its own id");
+        assertEquals("chat (fork)", fork.title());
+        assertTrue(fork.owned());
+        assertTrue(fork.titleEdited(), "the fork's title is not replaced by a generated one");
+        assertEquals("so far", fork.summary(), "a full copy keeps the summary of what it copied");
+        assertEquals("m-1", fork.model());
+        assertEquals(List.of("u1", "a1", "u2", "a2"), messageIds(service, OWNER, fork.id()));
+        assertEquals("u1", service.listMessages(TENANT, OWNER, fork.id(), null, null).get(1).parentId());
+        assertEquals(4, messageIds(service, OWNER, id).size(), "the source is left alone");
+    }
+
+    @Test
+    void forkAtAMessageKeepsOnlyThatMessageAndItsAncestors() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+        appendChain(service, id, "u1", "a1", "u2", "a2");
+        // A regenerated answer: a sibling of a1 under u1.
+        service.appendMessage(TENANT, OWNER, id, new ThreadMessageRequest("a1b", "u1", null, PAYLOAD));
+        service.patch(TENANT, OWNER, id, new ThreadPatchRequest(null, null, null, "covers u2", null));
+
+        ThreadResponse fork = service.fork(TENANT, OWNER, id, new ThreadForkRequest("a1"));
+
+        assertEquals(List.of("u1", "a1"), messageIds(service, OWNER, fork.id()));
+        assertNull(fork.summary(), "the summary may cover turns a partial fork leaves out");
+    }
+
+    @Test
+    void aReaderForksASharedThreadIntoTheirOwn() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+        appendChain(service, id, "u1", "a1");
+        service.share(TENANT, OWNER, id, new ThreadShareRequest(OTHER, "read"));
+
+        ThreadResponse fork = service.fork(TENANT, OTHER, id, new ThreadForkRequest("a1"));
+
+        assertEquals(OTHER, fork.ownerId());
+        assertTrue(fork.owned());
+        assertNotNull(service.appendMessage(TENANT, OTHER, fork.id(),
+                        new ThreadMessageRequest("u2", "a1", null, PAYLOAD)),
+                "the reader can continue their copy");
+        assertEquals(2, messageIds(service, OWNER, id).size(), "and the original does not change");
+    }
+
+    @Test
+    void forkIsRefusedToStrangersAndForUnknownMessages() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+        appendChain(service, id, "u1");
+        var unknown = new ThreadForkRequest("nope");
+
+        assertNull(service.fork(TENANT, OTHER, id, null), "a thread you cannot see cannot be forked");
+        assertThrows(IllegalArgumentException.class, () -> service.fork(TENANT, OWNER, id, unknown));
+    }
+
+    @Test
+    void aForkOfALongTitleKeepsTheSuffix() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = UUID.randomUUID().toString();
+        service.create(TENANT, OWNER, new ThreadUpsertRequest(id, "t".repeat(280), null));
+
+        String title = service.fork(TENANT, OWNER, id, null).title();
+
+        assertEquals(280, title.length());
+        assertTrue(title.endsWith(" (fork)"));
+    }
+
+    private static ThreadPatchRequest autoTitle(String title) {
+        return new ThreadPatchRequest(title, null, null, null, null, true);
+    }
+
+    private static void appendChain(HarnessThreadService service, String threadId, String... ids) {
+        String parent = null;
+        for (String id : ids) {
+            service.appendMessage(TENANT, OWNER, threadId, new ThreadMessageRequest(id, parent, null, PAYLOAD));
+            parent = id;
+        }
+    }
+
+    private static List<String> messageIds(HarnessThreadService service, String userId, String threadId) {
+        return service.listMessages(TENANT, userId, threadId, null, null).stream()
+                .map(HarnessThreadMessage::id)
+                .toList();
+    }
+
     private static String newThread(HarnessThreadService service, String owner) {
         String id = UUID.randomUUID().toString();
         service.create(TENANT, owner, new ThreadUpsertRequest(id, "chat", null));
@@ -336,7 +450,7 @@ class HarnessThreadServiceTest {
                         existing.id(), existing.tenantCode(), existing.ownerId(),
                         thread.title() == null ? existing.title() : thread.title(),
                         existing.summary(), existing.model(), existing.expiresAt(), existing.lastMessageAt(),
-                        existing.createdAt(), OffsetDateTime.now());
+                        existing.createdAt(), OffsetDateTime.now(), existing.titleEdited());
                 threads.put(renamed.id(), renamed);
                 return renamed;
             }
@@ -376,20 +490,39 @@ class HarnessThreadServiceTest {
         @Override
         public HarnessThread update(
                 String threadId, String ownerId, String title,
-                OffsetDateTime expiresAt, boolean clearExpiry, String summary, String model) {
+                OffsetDateTime expiresAt, boolean clearExpiry, String summary, String model,
+                boolean autoTitle) {
             HarnessThread thread = threads.get(threadId);
             if (thread == null || !Objects.equals(thread.ownerId(), ownerId)) {
                 return null;
             }
             HarnessThread updated = new HarnessThread(
                     thread.id(), thread.tenantCode(), thread.ownerId(),
-                    title == null ? thread.title() : title,
+                    title == null || (autoTitle && thread.titleEdited()) ? thread.title() : title,
                     summary == null ? thread.summary() : summary,
                     model == null ? thread.model() : model,
                     clearExpiry ? null : (expiresAt == null ? thread.expiresAt() : expiresAt),
-                    thread.lastMessageAt(), thread.createdAt(), OffsetDateTime.now());
+                    thread.lastMessageAt(), thread.createdAt(), OffsetDateTime.now(),
+                    thread.titleEdited() || (title != null && !autoTitle));
             threads.put(updated.id(), updated);
             return updated;
+        }
+
+        @Override
+        public HarnessThread fork(HarnessThread fork, String sourceThreadId, List<String> messageIds) {
+            OffsetDateTime now = OffsetDateTime.now();
+            HarnessThread created = new HarnessThread(
+                    fork.id(), fork.tenantCode(), fork.ownerId(), fork.title(), fork.summary(), fork.model(),
+                    null, now, now, now, true);
+            threads.put(created.id(), created);
+            for (HarnessThreadMessage message : messages.getOrDefault(sourceThreadId, List.of())) {
+                if (messageIds.contains(message.id())) {
+                    appendMessage(new HarnessThreadMessage(
+                            created.id(), message.id(), message.parentId(), message.format(),
+                            message.payload(), 0, null));
+                }
+            }
+            return created;
         }
 
         @Override

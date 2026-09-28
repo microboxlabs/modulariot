@@ -2,6 +2,7 @@ package com.microboxlabs.miot.integrations.api;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.integrations.dto.ThreadForkRequest;
 import com.microboxlabs.miot.integrations.dto.ThreadMessageRequest;
 import com.microboxlabs.miot.integrations.dto.ThreadPatchRequest;
 import com.microboxlabs.miot.integrations.dto.ThreadShareRequest;
@@ -121,6 +122,17 @@ public class OrgHarnessThreadsResource {
             @PathParam("threadId") String threadId) {
         return withActor(organizationId, (tenant, userId) ->
                 service.delete(tenant, userId, threadId) ? Response.noContent().build() : notFound());
+    }
+
+    @POST
+    @Path("/{threadId}/fork")
+    @Operation(summary = "Copy a thread the caller can read into a new thread they own")
+    public Uni<Response> forkThread(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("threadId") String threadId,
+            ThreadForkRequest request) {
+        return withActor(organizationId, (tenant, userId) ->
+                found(service.fork(tenant, userId, threadId, request), Response.Status.CREATED));
     }
 
     @GET

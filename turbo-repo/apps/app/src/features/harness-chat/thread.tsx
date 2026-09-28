@@ -9,10 +9,12 @@ import { RunCancelProvider } from "./context/run-cancel-context";
 import { useHarnessChatTr } from "./context/harness-chat-i18n-context";
 import type { HarnessSkill } from "./harness-chat-types";
 import { useHarnessReadOnly } from "./context/harness-read-only-context";
+import { useHarnessFork } from "./context/harness-fork-context";
 
 export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
   const tr = useHarnessChatTr();
   const readOnly = useHarnessReadOnly();
+  const fork = useHarnessFork();
   return (
     <RunCancelProvider>
       <ComposerPrimitive.AttachmentDropzone className="group relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -41,9 +43,18 @@ export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
           </ThreadPrimitive.Viewport>
 
           {readOnly ? (
-            <p className="shrink-0 border-t border-gray-200 px-3 py-2 text-center text-[11px] text-gray-400 dark:border-gray-700">
-              {tr("harnessChat.ui.thread.readOnly")}
-            </p>
+            <div className="shrink-0 border-t border-gray-200 px-3 py-2 text-center text-[11px] text-gray-400 dark:border-gray-700">
+              <p>{tr("harnessChat.ui.thread.readOnly")}</p>
+              {fork && (
+                <button
+                  type="button"
+                  onClick={() => fork()}
+                  className="mt-1 font-medium text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  {tr("harnessChat.ui.thread.forkToContinue")}
+                </button>
+              )}
+            </div>
           ) : (
             <Composer skills={skills} />
           )}

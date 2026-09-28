@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FC } from "reac
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { twMerge } from "tailwind-merge";
-import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
+import { LuArrowLeft, LuHistory, LuPencil, LuPlus, LuSparkles, LuX } from "react-icons/lu";
 import { createHarnessAttachmentAdapter } from "./harness-chat-attachments";
 import { useHarnessChatContext } from "./context/harness-chat-context";
 import {
@@ -22,15 +22,21 @@ import { PendingAttachmentReceiver } from "./components/pending-attachment-recei
 import { SessionModelWatcher } from "./components/session-model-watcher";
 import { SessionSummaryWatcher } from "./components/session-summary-watcher";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
+import { TitleInput } from "./components/title-input";
+import { HarnessForkProvider } from "./context/harness-fork-context";
 import { HarnessModelProvider } from "./context/harness-model-context";
 import { HarnessReadOnlyProvider } from "./context/harness-read-only-context";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
 import { createHarnessHistoryAdapter } from "./harness-history-adapter";
+import type { FirstExchange } from "./session-title";
 import { HarnessRunAgent } from "./harness-run-agent";
 import {
+  autoTitleThread,
   createThread,
   deleteThread,
+  forkThread,
   listThreads,
+  renameThread,
   revokeShare,
   shareThread,
   type StoredThread,
@@ -49,6 +55,7 @@ function createSession(initialMessage: string | null = null): Session {
     initialMessage,
     owned: true,
     sharedWith: [],
+    titleEdited: false,
   };
 }
 
@@ -67,6 +74,7 @@ function toSession(thread: StoredThread): Session {
     initialMessage: null,
     owned: thread.owned,
     sharedWith: thread.sharedWith ?? [],
+    titleEdited: thread.titleEdited ?? false,
   };
 }
 
@@ -146,6 +154,16 @@ const HarnessChatPanel: FC<{
   // Titles already written upstream. The watcher fires on every message
   // change; without this every one of them would be a PATCH.
   const persistedTitles = useRef(new Map<string, string>());
+  // Sessions whose title is settled: loaded with one, generated, renamed or
+  // forked. The first-message placeholder only fills an untitled session.
+  const titledIds = useRef(new Set<string>());
+  // Sessions a generated title was already asked for, so it is asked once.
+  const autoTitled = useRef(new Set<string>());
+  const [renamingHeader, setRenamingHeader] = useState(false);
+  const sessionsRef = useRef(sessions);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
 
   const mount = useCallback((id: string) => {
     setMountedIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
@@ -166,6 +184,9 @@ const HarnessChatPanel: FC<{
         if (threads === null) {
           setHistoryFailed(true);
           return;
+        }
+        for (const thread of threads) {
+          if (thread.title) titledIds.current.add(thread.id);
         }
         if (threads.length > 0) setSessions((prev) => mergeStoredThreads(prev, threads));
       })
@@ -208,7 +229,16 @@ const HarnessChatPanel: FC<{
     [mount],
   );
 
+  const setSessionTitle = useCallback((id: string, title: string, titleEdited: boolean) => {
+    titledIds.current.add(id);
+    persistedTitles.current.set(id, title);
+    setSessions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, title, titleEdited: s.titleEdited || titleEdited } : s)),
+    );
+  }, []);
+
   const updateSessionTitle = useCallback((id: string, title: string | null) => {
+    if (!title || titledIds.current.has(id)) return;
     setSessions((prev) => {
       const idx = prev.findIndex((s) => s.id === id);
       if (idx === -1 || prev[idx].title === title) return prev;
@@ -229,6 +259,50 @@ const HarnessChatPanel: FC<{
       });
     }
   }, []);
+
+  // After the first answer, a generated title replaces the first-message
+  // placeholder — unless the person has named the thread, which the store
+  // enforces too.
+  const autoTitleSession = useCallback(
+    (id: string, exchange: FirstExchange) => {
+      const session = sessionsRef.current.find((s) => s.id === id);
+      if (!session?.owned || session.titleEdited || autoTitled.current.has(id)) return;
+      autoTitled.current.add(id);
+      void autoTitleThread(id, exchange).then((saved) => {
+        if (saved?.title) setSessionTitle(id, saved.title, saved.titleEdited ?? false);
+      });
+    },
+    [setSessionTitle],
+  );
+
+  const renameSession = useCallback(
+    (id: string, title: string) => {
+      const previous = sessionsRef.current.find((s) => s.id === id);
+      setSessionTitle(id, title, true);
+      void renameThread(id, title).then((ok) => {
+        if (ok || !previous) return;
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.id === id ? { ...s, title: previous.title, titleEdited: previous.titleEdited } : s,
+          ),
+        );
+      });
+    },
+    [setSessionTitle],
+  );
+
+  const forkSession = useCallback(
+    async (id: string, atMessageId?: string) => {
+      const saved = await forkThread(id, atMessageId);
+      if (!saved) return;
+      titledIds.current.add(saved.id);
+      setSessions((prev) => [toSession(saved), ...prev]);
+      setActiveId(saved.id);
+      mount(saved.id);
+      setView("chat");
+    },
+    [mount],
+  );
 
   const shareSession = useCallback(async (id: string, principal: string) => {
     if (!(await shareThread(id, principal))) return;
@@ -267,6 +341,7 @@ const HarnessChatPanel: FC<{
       for (const session of sessions) {
         if (!idSet.has(session.id)) continue;
         persistedTitles.current.delete(session.id);
+        titledIds.current.delete(session.id);
         // Only the owner may delete upstream. A thread someone shared just
         // leaves this list until the next load; giving it back is the owner's
         // call, not the reader's.
@@ -276,8 +351,8 @@ const HarnessChatPanel: FC<{
     [sessions, activeId, mount],
   );
 
-  const activeTitle =
-    sessions.find((s) => s.id === activeId)?.title ?? tr("harnessChat.ui.emptyChatTitle");
+  const activeSession = sessions.find((s) => s.id === activeId);
+  const activeTitle = activeSession?.title ?? tr("harnessChat.ui.emptyChatTitle");
 
   return (
     <div
@@ -347,9 +422,32 @@ const HarnessChatPanel: FC<{
           ) : (
             <>
               <LuSparkles className="h-3.5 w-3.5 shrink-0" />
-              <span className="flex-1 truncate" title={activeTitle}>
-                {activeTitle}
-              </span>
+              {renamingHeader && activeSession ? (
+                <TitleInput
+                  key={activeSession.id}
+                  initial={activeSession.title ?? ""}
+                  label={tr("harnessChat.ui.history.rename")}
+                  onSubmit={(title) => renameSession(activeSession.id, title)}
+                  onDone={() => setRenamingHeader(false)}
+                />
+              ) : (
+                <span className="group/title flex min-w-0 flex-1 items-center gap-1">
+                  <span className="truncate" title={activeTitle}>
+                    {activeTitle}
+                  </span>
+                  {activeSession?.owned && activeSession.title && (
+                    <button
+                      type="button"
+                      onClick={() => setRenamingHeader(true)}
+                      aria-label={tr("harnessChat.ui.history.rename")}
+                      title={tr("harnessChat.ui.history.rename")}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 focus-visible:opacity-100 group-hover/title:opacity-100 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+                    >
+                      <LuPencil className="h-3 w-3" />
+                    </button>
+                  )}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => setView("history")}
@@ -389,6 +487,8 @@ const HarnessChatPanel: FC<{
             onDelete={(ids) => deleteSessions(ids)}
             onShare={shareSession}
             onUnshare={unshareSession}
+            onRename={renameSession}
+            onFork={(id) => void forkSession(id)}
             locale={locale}
           />
         )}
@@ -406,6 +506,8 @@ const HarnessChatPanel: FC<{
               pendingAttachmentLabel={session.id === activeId ? pendingAttachment : null}
               onAttachmentConsumed={clearPendingAttachment}
               onTitleChange={updateSessionTitle}
+              onFirstExchange={autoTitleSession}
+              onFork={forkSession}
               readOnly={!session.owned}
               extensions={resolvedExtensions}
               skills={skills}
@@ -425,6 +527,8 @@ const SessionHost: FC<{
   pendingAttachmentLabel: string | null;
   onAttachmentConsumed: () => void;
   onTitleChange: (id: string, title: string | null) => void;
+  onFirstExchange: (id: string, exchange: FirstExchange) => void;
+  onFork: (id: string, atMessageId?: string) => Promise<void>;
   readOnly: boolean;
   extensions: HarnessExtension[];
   skills: HarnessSkill[];
@@ -436,6 +540,8 @@ const SessionHost: FC<{
   pendingAttachmentLabel,
   onAttachmentConsumed,
   onTitleChange,
+  onFirstExchange,
+  onFork,
   readOnly,
   extensions,
   skills,
@@ -470,6 +576,10 @@ const SessionHost: FC<{
     agent.model = model;
   }, [agent, model]);
   useThreadModel(sessionId, setModel);
+  const fork = useCallback(
+    (atMessageId?: string) => void onFork(sessionId, atMessageId),
+    [onFork, sessionId],
+  );
 
   // Panel just opened (button or ⌘/Ctrl+C) while this is the active session —
   // send focus straight to the composer input. When it closes (or this stops
@@ -496,12 +606,17 @@ const SessionHost: FC<{
         config={AuiConfig({ tools: Tools({ toolkit }) })}
       >
         <HarnessReadOnlyProvider readOnly={readOnly}>
+          <HarnessForkProvider onFork={fork}>
           <HarnessModelProvider model={model} onChange={setModel}>
           {/* A shared thread is somebody else's conversation: it has a title
               already, takes no pending message, and offers nothing that runs. */}
           {!readOnly && (
             <>
-              <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
+              <SessionTitleWatcher
+                sessionId={sessionId}
+                onTitleChange={onTitleChange}
+                onFirstExchange={onFirstExchange}
+              />
               <SessionSummaryWatcher sessionId={sessionId} />
               <SessionModelWatcher sessionId={sessionId} />
               <InitialMessageSender initialMessage={initialMessage} />
@@ -513,6 +628,7 @@ const SessionHost: FC<{
           )}
           <Thread skills={skills} />
           </HarnessModelProvider>
+          </HarnessForkProvider>
         </HarnessReadOnlyProvider>
       </AssistantRuntimeProvider>
     </div>

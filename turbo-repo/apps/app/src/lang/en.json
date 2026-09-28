@@ -5615,7 +5615,9 @@
         "sharePlaceholder": "the person's email",
         "shareSubmit": "Share",
         "sharedWithYou": "Shared with you",
-        "revokeShare": "Remove access"
+        "revokeShare": "Remove access",
+        "rename": "Rename chat",
+        "fork": "Fork chat"
       },
       "thread": {
         "dropToAttach": "Drop to attach",
@@ -5626,7 +5628,9 @@
         "executionCanceled": "Execution was canceled.",
         "runFailed": "Could not get an answer.",
         "retry": "Try again",
-        "readOnly": "This chat is read-only — someone else shared it with you."
+        "readOnly": "This chat is read-only — someone else shared it with you.",
+        "forkFromHere": "Fork from here",
+        "forkToContinue": "Fork it to continue as your own"
       },
       "attachments": {
         "removeImage": "Remove image"

@@ -5615,7 +5615,9 @@
         "sharePlaceholder": "correo de la persona",
         "shareSubmit": "Compartir",
         "sharedWithYou": "Compartido contigo",
-        "revokeShare": "Quitar acceso"
+        "revokeShare": "Quitar acceso",
+        "rename": "Renombrar chat",
+        "fork": "Bifurcar chat"
       },
       "thread": {
         "dropToAttach": "Suelta para adjuntar",
@@ -5626,7 +5628,9 @@
         "executionCanceled": "La ejecución fue cancelada.",
         "runFailed": "No se pudo obtener una respuesta.",
         "retry": "Reintentar",
-        "readOnly": "Este chat es de solo lectura: lo compartió otra persona."
+        "readOnly": "Este chat es de solo lectura: lo compartió otra persona.",
+        "forkFromHere": "Bifurcar desde aquí",
+        "forkToContinue": "Bifúrcalo para continuarlo como tuyo"
       },
       "attachments": {
         "removeImage": "Quitar imagen"

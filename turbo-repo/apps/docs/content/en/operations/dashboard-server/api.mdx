@@ -71,3 +71,7 @@ Keep the `ETag` from a load and send it as `If-Match` when saving. A `409` prese
 These endpoints enable a parallel migration. Existing legacy dashboard pages remain available until their replacements have been validated. This API alone does not move existing documents or switch the UI.
 
 Pass `?org={activeOrgSlug}` on requests and include the organization in client cache keys. If the active organization changed in another tab, the API returns `409` before reading or writing a dashboard. This parameter confirms the selected organization; it cannot select a different one.
+
+## Request size
+
+Both `createDashboardHandler` and the standalone server enforce `maxBodyBytes` (1 MiB by default). The embedded handler authorizes before reading JSON and counts received bytes, including chunked requests; an oversized body returns `413`. Configure the host’s request deadline and connection limits as well.

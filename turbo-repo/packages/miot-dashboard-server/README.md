@@ -737,3 +737,11 @@ versions do not maintain these counters. For rollback, restore the matching back
 Run `npm run test:coverage` in this package to generate `coverage/lcov.info`
 and a coverage summary. The SonarCloud workflow runs both dashboard packages
 and imports these reports; LCOV paths are relative to the `turbo-repo` root.
+
+### Embedded request limits
+
+`createDashboardHandler({ ...adapters, maxBodyBytes: 1024 * 1024 })` enforces
+the same default 1 MiB JSON body limit as the standalone Node adapter. It
+authorizes before consuming the body and counts received bytes rather than
+trusting `Content-Length`; oversized requests return 413. The host still owns
+request deadlines and connection limits.

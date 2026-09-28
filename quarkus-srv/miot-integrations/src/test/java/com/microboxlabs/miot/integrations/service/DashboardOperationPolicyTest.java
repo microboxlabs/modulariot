@@ -32,6 +32,38 @@ class DashboardOperationPolicyTest {
         return new IntegrationOperation("op", "connection", "summary", "GET", "/summary", schema, Map.of(), false);
     }
 
+
+    private static OperationInvocationException refused(IntegrationOperation operation, Map<String, Object> parameters) {
+        return assertThrows(OperationInvocationException.class,
+                () -> DashboardOperationPolicy.prepare(operation, "ACME", parameters));
+    }
+
+    @Test
+    void allowsOneHundredCallerParametersPlusTheHostTenant() {
+        var schema = schema(settings());
+        Map<String, Object> properties = new LinkedHashMap<>();
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        properties.put("tenant", Map.of("type", "string"));
+        for (int i = 0; i < 100; i++) {
+            properties.put("p" + i, Map.of("type", "integer"));
+            parameters.put("p" + i, i);
+        }
+        schema.put("properties", properties);
+        schema.remove("required");
+        assertEquals(101, DashboardOperationPolicy.prepare(operation(schema), "ACME", parameters).parameters().size());
+        parameters.put("extra", 1);
+        refused(operation(schema), parameters);
+    }
+
+    @Test
+    void includesTheInjectedTenantInTheByteLimit() {
+        var operation = operation(schema(settings()));
+        var parameters = Map.<String, Object>of("days", 1);
+        String oversizedTenant = "t".repeat(262_144);
+        assertThrows(OperationInvocationException.class,
+                () -> DashboardOperationPolicy.prepare(operation, oversizedTenant, parameters));
+    }
+
     @Test
     void validatesAndInjectsTheAuthorizedTenantWithoutMutatingInputs() {
         Map<String, Object> schema = schema(settings());
@@ -47,8 +79,7 @@ class DashboardOperationPolicyTest {
     @Test
     void refusesTenantOverridesEvenWhenTheClaimedValueMatches() {
         for (String tenant : List.of("ACME", "OTHER")) {
-            assertThrows(OperationInvocationException.class,
-                    () -> DashboardOperationPolicy.prepare(operation(schema(settings())), "ACME", Map.of("days", 1, "tenant", tenant)));
+            refused(operation(schema(settings())), Map.of("days", 1, "tenant", tenant));
         }
     }
 
@@ -60,8 +91,7 @@ class DashboardOperationPolicyTest {
                 Map.of("readOnly", true, "kind", "HTTP_GET", "tenantParameter", "tenant", "credentialScoped", true),
                 Map.of("readOnly", true, "kind", "BIGQUERY", "credentialScoped", true));
         for (var settings : invalid) {
-            assertThrows(OperationInvocationException.class,
-                    () -> DashboardOperationPolicy.prepare(operation(schema(settings)), "ACME", Map.of("days", 1)));
+            refused(operation(schema(settings)), Map.of("days", 1));
         }
     }
 
@@ -79,8 +109,7 @@ class DashboardOperationPolicyTest {
                 Map.of("days", 1, "sql", "SELECT private"), Map.of("days", Map.of("nested", true)),
                 Map.of("days", List.of(List.of(1))), Map.of("days", "x".repeat(2049)));
         for (var parameters : invalid) {
-            var error = assertThrows(OperationInvocationException.class,
-                    () -> DashboardOperationPolicy.prepare(operation(schema(settings())), "ACME", parameters));
+            var error = refused(operation(schema(settings())), parameters);
             assertEquals("Dashboard operation or parameters are not permitted", error.getMessage());
         }
     }
@@ -90,8 +119,7 @@ class DashboardOperationPolicyTest {
         for (String field : List.of("type", "properties", "additionalProperties")) {
             var schema = schema(settings());
             schema.remove(field);
-            assertThrows(OperationInvocationException.class,
-                    () -> DashboardOperationPolicy.prepare(operation(schema), "ACME", Map.of("days", 1)));
+            refused(operation(schema), Map.of("days", 1));
         }
     }
 
@@ -100,17 +128,14 @@ class DashboardOperationPolicyTest {
         for (String ref : List.of("#", "https://example.invalid/schema", "classpath:secret.json")) {
             var schema = schema(settings());
             schema.put("$ref", ref);
-            assertThrows(OperationInvocationException.class,
-                    () -> DashboardOperationPolicy.prepare(operation(schema), "ACME", Map.of("days", 1)));
+            refused(operation(schema), Map.of("days", 1));
         }
         var remoteDialect = schema(settings());
         remoteDialect.put("$schema", "https://example.invalid/schema");
-        assertThrows(OperationInvocationException.class,
-                () -> DashboardOperationPolicy.prepare(operation(remoteDialect), "ACME", Map.of("days", 1)));
+        refused(operation(remoteDialect), Map.of("days", 1));
         var schema = schema(settings());
         schema.put("propertyNames", Map.of("pattern", "(a+)+$"));
-        assertThrows(OperationInvocationException.class,
-                () -> DashboardOperationPolicy.prepare(operation(schema), "ACME", Map.of("days", 1)));
+        refused(operation(schema), Map.of("days", 1));
     }
 
     @Test
@@ -119,12 +144,10 @@ class DashboardOperationPolicyTest {
         Map<String, Object> nested = Map.of("type", "string");
         for (int i = 0; i < 20; i++) nested = Map.of("items", nested);
         schema.put("unused", nested);
-        assertThrows(OperationInvocationException.class,
-                () -> DashboardOperationPolicy.prepare(operation(schema), "ACME", Map.of("days", 1)));
+        refused(operation(schema), Map.of("days", 1));
         schema.remove("unused");
         schema.put("description", "x".repeat(65537));
-        assertThrows(OperationInvocationException.class,
-                () -> DashboardOperationPolicy.prepare(operation(schema), "ACME", Map.of("days", 1)));
+        refused(operation(schema), Map.of("days", 1));
     }
 
     @Test

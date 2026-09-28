@@ -48,7 +48,7 @@ public final class DashboardOperationPolicy {
             String kind = operationKind(operation, settings);
             ObjectNode values = parameterValues(parameters);
             bindTenant(settings, values, tenantCode);
-            if (values.size() > 100) throw refused();
+            requireBoundedParameters(values);
             requireClosedSchema(schema);
             JsonSchema validator = VALIDATORS.get(schema.toString(), key -> SCHEMAS.getSchema(key, VALIDATION));
             if (!validator.validate(values).isEmpty()) throw refused();
@@ -99,8 +99,12 @@ public final class DashboardOperationPolicy {
                 requireScalar(value);
             }
         }
-        if (values.toString().getBytes(StandardCharsets.UTF_8).length > 262_144) throw refused();
+        requireBoundedParameters(values);
         return values;
+    }
+
+    private static void requireBoundedParameters(ObjectNode values) {
+        if (values.toString().getBytes(StandardCharsets.UTF_8).length > 262_144) throw refused();
     }
 
     private static void requireScalar(JsonNode value) {

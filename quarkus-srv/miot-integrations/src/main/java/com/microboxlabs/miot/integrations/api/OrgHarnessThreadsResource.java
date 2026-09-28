@@ -2,6 +2,9 @@ package com.microboxlabs.miot.integrations.api;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.permission.OrganizationPermissionDefinition;
+import com.microboxlabs.miot.core.permission.OrganizationPermissionService;
+import com.microboxlabs.miot.integrations.domain.HarnessThread;
 import com.microboxlabs.miot.integrations.dto.ThreadForkRequest;
 import com.microboxlabs.miot.integrations.dto.ThreadMessageRequest;
 import com.microboxlabs.miot.integrations.dto.ThreadPatchRequest;
@@ -62,35 +65,44 @@ public class OrgHarnessThreadsResource {
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
     private final SecurityIdentity identity;
+    private final OrganizationPermissionService permissions;
 
     @Inject
     public OrgHarnessThreadsResource(
             HarnessThreadService service,
             TenantContext tenantContext,
             OrganizationContext organizationContext,
-            SecurityIdentity identity) {
+            SecurityIdentity identity,
+            OrganizationPermissionService permissions) {
         this.service = service;
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
         this.identity = identity;
+        this.permissions = permissions;
     }
 
     @GET
-    @Operation(summary = "List the threads visible to the caller")
+    @Operation(summary = "List the threads visible to the caller, optionally of one kind")
     public Uni<Response> listThreads(
             @PathParam("organizationId") String organizationId,
-            @QueryParam("limit") Integer limit) {
+            @QueryParam("limit") Integer limit,
+            @QueryParam("kind") String kind) {
         return withActor(organizationId, (tenant, userId) ->
-                Response.ok(service.listVisible(tenant, userId, limit)).build());
+                Response.ok(service.listVisible(tenant, userId, limit, kind)).build());
     }
 
     @POST
-    @Operation(summary = "Create a thread, or rename one the caller owns")
+    @Operation(summary = "Create a thread, or rename one the caller owns; a learning thread needs a trainer")
     public Uni<Response> createThread(
             @PathParam("organizationId") String organizationId,
             ThreadUpsertRequest request) {
-        return withActor(organizationId, (tenant, userId) ->
+        Uni<Response> create = withActor(organizationId, (tenant, userId) ->
                 found(service.create(tenant, userId, request), Response.Status.CREATED));
+        boolean learning = request != null && HarnessThread.LEARNING.equals(request.kind());
+        return learning
+                ? permissions.requirePermission(organizationId, OrganizationPermissionDefinition.HARNESS_TRAINER)
+                        .flatMap(allowed -> create)
+                : create;
     }
 
     @GET

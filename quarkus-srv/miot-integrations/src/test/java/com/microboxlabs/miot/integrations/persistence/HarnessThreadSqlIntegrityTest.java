@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.persistence;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
@@ -140,6 +141,17 @@ class HarnessThreadSqlIntegrityTest {
                 "purge must collect expired threads");
         assertTrue(sql.contains("deleted_at IS NOT NULL AND deleted_at <= $1"),
                 "purge must collect deleted threads past the grace cutoff");
+    }
+
+    @Test
+    void bothListingsFilterByKindAndAnUpsertNeverChangesIt() throws Exception {
+        assertTrue(readStaticString("LIST_OWNED").contains("($4::varchar IS NULL OR kind = $4::varchar)"),
+                "the owner's listing narrows to one kind when asked");
+        assertTrue(readStaticString("LIST_SHARED_WITH").contains("($4::varchar IS NULL OR t.kind = $4::varchar)"),
+                "so does the shared-with-me listing");
+        String upsert = readStaticString("UPSERT_THREAD");
+        String conflictBranch = upsert.substring(upsert.indexOf("DO UPDATE"), upsert.indexOf("RETURNING"));
+        assertFalse(conflictBranch.contains("kind"), "a thread's kind is fixed when it is created");
     }
 
     private static String readStaticString(String name) throws Exception {

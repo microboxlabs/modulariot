@@ -38,7 +38,10 @@ public class HarnessThreadRepository {
 
     private static final String THREAD_COLUMNS =
             "id, tenant_code, owner_id, title, summary, model, expires_at, last_message_at, created_at, updated_at,"
-            + " title_edited";
+            + " title_edited, kind";
+
+    /** A null kind lists every kind. */
+    private static final String KIND_FILTER = "($4::varchar IS NULL OR kind = $4::varchar)";
 
     /** A thread is visible while it is neither soft-deleted nor past its expiry. */
     private static final String LIVE = "deleted_at IS NULL AND (expires_at IS NULL OR expires_at > now())";
@@ -52,8 +55,8 @@ public class HarnessThreadRepository {
     // with it when the purge runs.
     private static final String UPSERT_THREAD = """
             INSERT INTO miot_integrations.harness_thread (
-                id, tenant_code, owner_id, title, expires_at, last_message_at
-            ) VALUES ($1, $2, $3, $4, $5, now())
+                id, tenant_code, owner_id, title, expires_at, kind, last_message_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, now())
             ON CONFLICT (id) DO UPDATE
                 SET title = CASE WHEN miot_integrations.harness_thread.title_edited
                                  THEN miot_integrations.harness_thread.title
@@ -70,17 +73,18 @@ public class HarnessThreadRepository {
     private static final String LIST_OWNED = """
             SELECT %s
             FROM miot_integrations.harness_thread
-            WHERE tenant_code = $1 AND owner_id = $2 AND %s
+            WHERE tenant_code = $1 AND owner_id = $2 AND %s AND %s
             ORDER BY last_message_at DESC
-            LIMIT $3""".formatted(THREAD_COLUMNS, LIVE);
+            LIMIT $3""".formatted(THREAD_COLUMNS, LIVE, KIND_FILTER);
 
     private static final String LIST_SHARED_WITH = """
             SELECT t.id, t.tenant_code, t.owner_id, t.title, t.summary, t.model, t.expires_at,
-                   t.last_message_at, t.created_at, t.updated_at, t.title_edited
+                   t.last_message_at, t.created_at, t.updated_at, t.title_edited, t.kind
             FROM miot_integrations.harness_thread t
             JOIN miot_integrations.harness_thread_share s ON s.thread_id = t.id
             WHERE t.tenant_code = $1 AND s.principal = $2
               AND t.deleted_at IS NULL AND (t.expires_at IS NULL OR t.expires_at > now())
+              AND ($4::varchar IS NULL OR t.kind = $4::varchar)
             ORDER BY t.last_message_at DESC
             LIMIT $3""";
 
@@ -106,8 +110,8 @@ public class HarnessThreadRepository {
     private static final String FORK_THREAD = """
             WITH created AS (
                 INSERT INTO miot_integrations.harness_thread (
-                    id, tenant_code, owner_id, title, title_edited, summary, model, last_message_at
-                ) VALUES ($1, $2, $3, $4, true, $5, $6, now())
+                    id, tenant_code, owner_id, title, title_edited, summary, model, kind, last_message_at
+                ) VALUES ($1, $2, $3, $4, true, $5, $6, $9, now())
                 RETURNING %s
             ), copied AS (
                 INSERT INTO miot_integrations.harness_thread_message (
@@ -226,16 +230,26 @@ public class HarnessThreadRepository {
                 .addString(thread.tenantCode())
                 .addString(thread.ownerId())
                 .addString(thread.title())
-                .addValue(thread.expiresAt());
+                .addValue(thread.expiresAt())
+                .addString(thread.kind());
         return firstThread(execute(UPSERT_THREAD, params));
     }
 
-    public List<HarnessThread> listOwned(String tenantCode, String ownerId, int limit) {
-        return threads(execute(LIST_OWNED, Tuple.of(tenantCode, ownerId, limit)));
+    /** {@code kind} null lists threads of every kind. */
+    public List<HarnessThread> listOwned(String tenantCode, String ownerId, String kind, int limit) {
+        return threads(execute(LIST_OWNED, listParams(tenantCode, ownerId, kind, limit)));
     }
 
-    public List<HarnessThread> listSharedWith(String tenantCode, String principal, int limit) {
-        return threads(execute(LIST_SHARED_WITH, Tuple.of(tenantCode, principal, limit)));
+    public List<HarnessThread> listSharedWith(String tenantCode, String principal, String kind, int limit) {
+        return threads(execute(LIST_SHARED_WITH, listParams(tenantCode, principal, kind, limit)));
+    }
+
+    private static Tuple listParams(String tenantCode, String principal, String kind, int limit) {
+        return Tuple.tuple()
+                .addString(tenantCode)
+                .addString(principal)
+                .addInteger(limit)
+                .addString(kind);
     }
 
     public HarnessThread find(String threadId, String tenantCode) {
@@ -278,7 +292,8 @@ public class HarnessThreadRepository {
                 .addString(fork.summary())
                 .addString(fork.model())
                 .addUUID(UUID.fromString(sourceThreadId))
-                .addArrayOfString(messageIds.toArray(String[]::new));
+                .addArrayOfString(messageIds.toArray(String[]::new))
+                .addString(fork.kind());
         return firstThread(execute(FORK_THREAD, params));
     }
 
@@ -400,7 +415,8 @@ public class HarnessThreadRepository {
                 row.getOffsetDateTime("last_message_at"),
                 row.getOffsetDateTime(CREATED_AT),
                 row.getOffsetDateTime("updated_at"),
-                Boolean.TRUE.equals(row.getBoolean("title_edited")));
+                Boolean.TRUE.equals(row.getBoolean("title_edited")),
+                row.getString("kind"));
     }
 
     private HarnessThreadMessage mapMessage(Row row) {

@@ -6,9 +6,10 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from miot_harness.knowledge.changes import MAX_OVERLAY_CHANGES, RUN_LAYERS, KnowledgeChange
 from miot_harness.runtime.approvals import ApprovalRegistry
 from miot_harness.runtime.attachments import MAX_ATTACHMENTS, Attachment
-from miot_harness.runtime.commands import COMMANDS
+from miot_harness.runtime.commands import command_names
 from miot_harness.runtime.permissions import (
     PermissionMode,
     PermissionPolicy,
@@ -81,6 +82,9 @@ class HarnessContext(BaseModel):
     # The caller may teach the agent facts (the organization's trainer
     # permission, as the backend proxy decided it).
     trainer: bool = Field(default=False, exclude=True)
+    # Knowledge changes this run sees in place of the stored ones, and no other
+    # run does. Only a trainer's run or an evaluation carries them.
+    knowledge_overlay: tuple[KnowledgeChange, ...] = Field(default=(), exclude=True)
 
     def scope_key(self) -> str:
         """Key for state kept per conversation (scratchpad, task list).
@@ -181,6 +185,18 @@ class UserRequest(BaseModel):
     # Whether the caller holds the organization's trainer permission. The
     # backend proxy sets it on every run, overwriting what the client sent.
     trainer: bool = False
+    # Knowledge changes to preview in this run only (see HarnessContext).
+    # Ignored unless `trainer` is set or code calls `allow_overlay()`.
+    knowledge_overlay: list[KnowledgeChange] = Field(
+        default_factory=list, max_length=MAX_OVERLAY_CHANGES
+    )
+    _overlay_allowed: bool = False
+
+    def allow_overlay(self) -> "UserRequest":
+        """Honor `knowledge_overlay` on a run that is not a trainer's (the
+        evaluation engine). Not reachable from a request body."""
+        self._overlay_allowed = True
+        return self
 
     @field_validator("tenant_id")
     @classmethod
@@ -200,7 +216,8 @@ class UserRequest(BaseModel):
         """
         if not self.skill_id:
             match = _SKILL_SLUG_RE.match(self.message)
-            if match is not None and match.group("slug") not in COMMANDS:
+            commands = command_names(trainer=self.trainer)
+            if match is not None and match.group("slug") not in commands:
                 self.skill_id = match.group("slug")
                 self.message = match.group("rest") or ""
         return self
@@ -241,4 +258,9 @@ class UserRequest(BaseModel):
             permission_policy=policy,
             attachments=self.attachments,
             trainer=self.trainer,
+            knowledge_overlay=(
+                tuple(c for c in self.knowledge_overlay if c.layer in RUN_LAYERS)
+                if self.trainer or self._overlay_allowed
+                else ()
+            ),
         )

@@ -640,7 +640,9 @@ class AgentLoopRunner:
         skills_index = render_skills_index(context_skills, profile)
         self.native_tools = build_native_tools(registry, profile=profile, trainer=trainer)
         extras = seat_tool_schemas(seats)
-        if skills_index:
+        if skills_index or (context_skills is not None and context_skills.overlays is not None):
+            # Learned skills are listed per run, so the tool is there even
+            # before a tenant has any.
             extras.append(_LOAD_SKILL_SCHEMA)
         if extras:
             # Re-sort so the tool list stays deterministically ordered — the

@@ -211,7 +211,7 @@ export function readPath(source: unknown, path: string): unknown {
   let current = source;
   for (const segment of path.split(".")) {
     if (typeof current !== "object" || current === null) return null;
-    if (!Object.prototype.hasOwnProperty.call(current, segment)) return null;
+    if (!Object.hasOwn(current, segment)) return null;
     current = (current as Record<string, unknown>)[segment];
   }
   return current;
@@ -228,11 +228,9 @@ export function readIdentifierAt(source: unknown, path: string): string | null {
 /** A path read as authority ids: an array, or a comma/space-separated string. */
 export function readGroupsAt(source: unknown, path: string): string[] {
   const value = readPath(source, path);
-  const raw = Array.isArray(value)
-    ? value
-    : typeof value === "string"
-      ? value.split(/[,\s]+/)
-      : [];
+  let raw: unknown[] = [];
+  if (Array.isArray(value)) raw = value;
+  else if (typeof value === "string") raw = value.split(/[,\s]+/);
   return raw
     .filter((entry): entry is string => typeof entry === "string")
     .map((entry) => entry.trim())

@@ -17,6 +17,8 @@ ARGS_BYTES_CAP = 4096
 PREVIEW_BYTES_CAP = 2048
 # What the user reads before approving a call: room for a document's text.
 APPROVAL_INPUT_BYTES_CAP = 16384
+# Tools whose input or result carries a file diff send it whole, up to this.
+DIFF_PAYLOAD_BYTES_CAP = 200_000
 REDACTED = "[redacted]"
 
 _SECRET_KEY = re.compile(
@@ -97,7 +99,12 @@ def args_payload(args: dict[str, Any]) -> dict[str, Any]:
     return payload
 
 
-def preview_payload(output: Any) -> dict[str, Any]:
+def preview_payload(output: Any, *, carries_diff: bool = False) -> dict[str, Any]:
+    """`carries_diff` keeps the whole result, diffs included, up to
+    `DIFF_PAYLOAD_BYTES_CAP`, so the app can show every changed line."""
+    if carries_diff:
+        value, truncated = bounded(output, DIFF_PAYLOAD_BYTES_CAP)
+        return {"preview": value, **({"preview_truncated": True} if truncated else {})}
     capped, info = truncate_for_trace(output)
     value, truncated = bounded(capped, PREVIEW_BYTES_CAP)
     payload: dict[str, Any] = {"preview": value}

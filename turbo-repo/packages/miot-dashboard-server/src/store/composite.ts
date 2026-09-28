@@ -50,7 +50,7 @@ function defaultDocumentKey(ref: ServerDashboardRef): string {
  * store. Escaping the dot as well leaves an alphabet with no path meaning.
  */
 function encodeKeySegment(value: string): string {
-  return encodeURIComponent(value).replace(/\./g, "%2E");
+  return encodeURIComponent(value).replaceAll(".", "%2E");
 }
 
 /**

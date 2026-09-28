@@ -303,7 +303,7 @@ function required(env: ConfigEnv, key: string, why: string): string {
  * shells cannot carry a real one.
  */
 function unescapeNewlines(pem: string): string {
-  return pem.includes("\\n") ? pem.split("\\n").join("\n") : pem;
+  return pem.replaceAll(String.raw`\n`, "\n");
 }
 
 /**

@@ -34,10 +34,12 @@ export function applyHarnessEvent(
     case "steering.mode_denied":
     case "grounding.gap":
     case "context.usage":
+    case "dashboard.draft":
       // Status-only markers (an approval auto-resolved; a steering mode was
       // denied; a ground-or-flag assumption was declared — it also rides the
       // final answer, so nothing to render mid-stream; a context window
-      // report, which rides the run record too). The session reducer /
+      // report, which rides the run record too; a dashboard draft, which only
+      // the web app can save). The session reducer /
       // footer surfaces these; the transcript projector leaves the slice
       // unchanged, like run.completed below. Keeps this switch exhaustive over
       // HarnessEventType.

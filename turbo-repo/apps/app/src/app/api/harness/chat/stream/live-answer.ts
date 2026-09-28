@@ -41,7 +41,7 @@ export function readableAnswer(raw: string): string | null {
 function answerText(events: ChatEvent[]): string {
   return events
     .filter((e) => e.type === "TEXT_MESSAGE_CONTENT")
-    .map((e) => String(e.delta ?? ""))
+    .map((e) => (typeof e.delta === "string" ? e.delta : ""))
     .join("\n\n");
 }
 

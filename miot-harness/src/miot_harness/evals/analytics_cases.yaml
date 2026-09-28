@@ -9,13 +9,18 @@
 #   blocks       block types the answer must contain (table, chart, kpi, ...)
 #   max_tools    upper bound on tool calls in the turn
 #   max_seconds  upper bound on the turn's wall time
+#   one_of       alternatives; the turn passes when any one passes. A term
+#                with two reasonable definitions may get a choices question
+#                instead of a number, which is the behavior the skill asks for.
 cases:
   - id: kpi-driving-time
     turns:
       - message: ¿Cuál es el tiempo de conducción total en 2026?
         expect:
           any_tool: true
-          numbers: [{value: 42351.5, tolerance_pct: 2}]
+          one_of:
+            - numbers: [{value: 42351.5, tolerance_pct: 2}]
+            - blocks: [choices]
 
   - id: kpi-services-then-breakdown
     turns:
@@ -26,16 +31,18 @@ cases:
       - message: ¿Y las horas de conducción por transportista?
         expect:
           any_tool: true
-          contains_any: [Cordillera Cargo]
-          numbers:
-            - {value: 5633.4, tolerance_pct: 1}
-            - {value: 5512.3, tolerance_pct: 1}
-            - {value: 5321.9, tolerance_pct: 1}
-            - {value: 5294.8, tolerance_pct: 1}
-            - {value: 5286.9, tolerance_pct: 1}
-            - {value: 5227.8, tolerance_pct: 1}
-            - {value: 5072.6, tolerance_pct: 1}
-            - {value: 5001.8, tolerance_pct: 1}
+          one_of:
+            - blocks: [choices]
+            - contains_any: [Cordillera Cargo]
+              numbers:
+              - {value: 5633.4, tolerance_pct: 1}
+              - {value: 5512.3, tolerance_pct: 1}
+              - {value: 5321.9, tolerance_pct: 1}
+              - {value: 5294.8, tolerance_pct: 1}
+              - {value: 5286.9, tolerance_pct: 1}
+              - {value: 5227.8, tolerance_pct: 1}
+              - {value: 5072.6, tolerance_pct: 1}
+              - {value: 5001.8, tolerance_pct: 1}
 
   - id: kpi-gps-coverage
     turns:

@@ -1,7 +1,7 @@
 """Conversation evals against a running harness.
 
 Sends each case's turns to `POST /runs` the way the app's chat does
-(`skill_id=miot-search`, `answer_format=json`, one `conversation_id` per case)
+(`skill_id=miot-analyst`, `answer_format=json`, one `conversation_id` per case)
 and checks what the service did: which tools ran, whether the answer is a
 valid block array, and whether the sources it cites exist.
 
@@ -220,7 +220,19 @@ def check_turn(record: dict[str, Any], expect: dict[str, Any]) -> list[str]:
     if _leaks_block_json(blocks):
         failures.append("raw block JSON shown to the user")
     failures += _tool_failures(tools_called(record), expect)
-    return failures + _content_failures(blocks, expect)
+    return failures + _alternative_failures(blocks, expect)
+
+
+def _alternative_failures(blocks: list[dict[str, Any]], expect: dict[str, Any]) -> list[str]:
+    """`one_of`: the turn passes when the content checks of any alternative pass."""
+    alternatives = expect.get("one_of")
+    if not alternatives:
+        return _content_failures(blocks, expect)
+    base = {k: v for k, v in expect.items() if k != "one_of"}
+    tried = [_content_failures(blocks, {**base, **alt}) for alt in alternatives]
+    if any(not failures for failures in tried):
+        return []
+    return ["no alternative passed: " + " | ".join("; ".join(f) for f in tried)]
 
 
 def check_sources(urls: list[str], client: httpx.Client) -> dict[str, int | str]:
@@ -331,6 +343,11 @@ def main(argv: list[str] | None = None) -> int:
         "--model", action="append", help="repeat to compare models; default: the harness default"
     )
     parser.add_argument("--suite", choices=sorted(SUITES), default="chat")
+    parser.add_argument(
+        "--skill",
+        default="miot-analyst",
+        help="skill_id sent with each run (the chat's by default)",
+    )
     parser.add_argument("--only", action="append", help="case id to run; repeatable")
     parser.add_argument("--repeat", type=int, default=1, help="run each case N times")
     parser.add_argument("--no-source-check", action="store_true", help="skip fetching cited URLs")
@@ -358,7 +375,7 @@ def main(argv: list[str] | None = None) -> int:
         jobs: list[tuple[dict[str, Any], dict[str, Any]]] = []
         for model in args.model or [None]:
             base_body: dict[str, Any] = {
-                "skill_id": "miot-search",
+                "skill_id": args.skill,
                 "answer_format": "json",
                 "user_id": args.user_id,
             }

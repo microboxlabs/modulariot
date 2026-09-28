@@ -20,7 +20,7 @@ share a runner; their exit codes mean different things.
 ## Chat suite
 
 Sends each case in `src/miot_harness/evals/chat_cases.yaml` to `POST /runs` on a running
-harness, the way the app's chat does (`skill_id=miot-search`,
+harness, the way the app's chat does (`skill_id=miot-analyst`,
 `answer_format=json`, one `conversation_id` per case). It tests the service as
 deployed, including the context and skills on its volume.
 

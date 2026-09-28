@@ -137,3 +137,11 @@ def test_the_analytics_suite_loads() -> None:
     from miot_harness.evals.conversations import SUITES
 
     assert load_cases(SUITES["analytics"])
+
+
+def test_one_of_passes_when_any_alternative_passes() -> None:
+    record = _record([{"type": "choices", "value": {"question": "?", "options": [{"label": "a"}]}}])
+    expect = {"one_of": [{"numbers": [{"value": 10}]}, {"blocks": ["choices"]}]}
+    assert check_turn(record, expect) == []
+    only_numbers = {"one_of": [{"numbers": [{"value": 10}]}]}
+    assert check_turn(record, only_numbers) == ["no alternative passed: no number near 10 (±1%)"]

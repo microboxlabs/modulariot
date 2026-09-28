@@ -13,6 +13,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.Map;
@@ -47,9 +48,13 @@ public class HarnessConversationsResource {
     }
 
     @GET
-    public Uni<Response> load(@HeaderParam(HarnessKey.HEADER) String presentedKey, @QueryParam("key") String key) {
-        return guarded(presentedKey, () -> service.load(key)
-                .map(memory -> Response.ok(memory).build())
+    public Uni<Response> load(
+            @HeaderParam(HarnessKey.HEADER) String presentedKey,
+            @QueryParam("key") String key,
+            @QueryParam("tenantId") String tenantId) {
+        // A transcript with tool results: never cached by anything in between.
+        return guarded(presentedKey, () -> service.load(key, tenantId)
+                .map(memory -> Response.ok(memory).header(HttpHeaders.CACHE_CONTROL, "no-store").build())
                 .orElseGet(() -> HarnessKey.error(Response.Status.NOT_FOUND, "no memory for this conversation")));
     }
 

@@ -23,7 +23,7 @@ public class HarnessConversationRepository {
             SELECT conversation_key, tenant_id, user_id, conversation_id, model,
                    memory::text AS memory, updated_at
               FROM miot_integrations.harness_conversation
-             WHERE conversation_key = $1""";
+             WHERE conversation_key = $1 AND tenant_id = $2""";
 
     // The key names the tenant, so a write for one tenant cannot replace
     // another's row; the tenant check makes that explicit.
@@ -55,8 +55,8 @@ public class HarnessConversationRepository {
         this.clientInstance = clientInstance;
     }
 
-    public Optional<StoredConversation> find(String key) {
-        Iterator<Row> rows = execute(FIND, Tuple.of(key)).iterator();
+    public Optional<StoredConversation> find(String key, String tenantId) {
+        Iterator<Row> rows = execute(FIND, Tuple.of(key, tenantId)).iterator();
         if (!rows.hasNext()) {
             return Optional.empty();
         }

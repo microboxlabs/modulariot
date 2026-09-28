@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.integrations.dto.HarnessConversationDtos.ConversationMemory;
 import com.microboxlabs.miot.integrations.persistence.HarnessConversationRepository;
-import com.microboxlabs.miot.integrations.persistence.HarnessConversationRepository.StoredConversation;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -35,7 +34,7 @@ class HarnessConversationServiceTest {
     void savedMemoryLoadsBackWithItsModel() throws Exception {
         assertTrue(service.save(body("acme", memory("trips so far"))));
 
-        ConversationMemory loaded = service.load(KEY).orElseThrow();
+        ConversationMemory loaded = service.load(KEY, "acme").orElseThrow();
         assertEquals("llmgateway:deepseek-v4-flash", loaded.model());
         assertEquals("trips so far", loaded.memory().get("summary").asText());
         assertEquals("q", loaded.memory().get("turns").get(0).get("user_message").asText());
@@ -43,35 +42,40 @@ class HarnessConversationServiceTest {
 
     @Test
     void anUnknownConversationHasNoMemory() {
-        assertTrue(service.load("[\"acme\", \"ana\", \"nope\"]").isEmpty());
+        assertTrue(service.load("[\"acme\", \"ana\", \"nope\"]", "acme").isEmpty());
     }
 
     @Test
     void anotherTenantCannotReplaceTheRow() throws Exception {
         assertTrue(service.save(body("acme", memory("mine"))));
         assertFalse(service.save(body("globex", memory("theirs"))));
-        assertEquals("mine", service.load(KEY).orElseThrow().memory().get("summary").asText());
+        assertEquals("mine", service.load(KEY, "acme").orElseThrow().memory().get("summary").asText());
+        assertTrue(service.load(KEY, "globex").isEmpty(), "another tenant cannot read it either");
     }
 
     @Test
     void whatCannotBeStoredIsRefused() throws Exception {
         JsonNode array = mapper.readTree("[1, 2]");
         JsonNode ok = memory("x");
+        ConversationMemory noMemory = body("acme", null);
+        ConversationMemory notAnObject = body("acme", array);
+        ConversationMemory noTenant = body(" ", ok);
+        ConversationMemory noConversation = new ConversationMemory(KEY, "acme", null, null, null, ok);
         assertThrows(IllegalArgumentException.class, () -> service.save(null));
-        assertThrows(IllegalArgumentException.class, () -> service.save(body("acme", null)), "no memory");
-        assertThrows(IllegalArgumentException.class, () -> service.save(body("acme", array)), "not an object");
-        assertThrows(IllegalArgumentException.class, () -> service.save(body(" ", ok)), "no tenant");
-        assertThrows(IllegalArgumentException.class, () -> service.save(
-                new ConversationMemory(KEY, "acme", null, null, null, ok)), "no conversation id");
-        assertThrows(IllegalArgumentException.class, () -> service.load(null), "no key");
+        assertThrows(IllegalArgumentException.class, () -> service.save(noMemory), "no memory");
+        assertThrows(IllegalArgumentException.class, () -> service.save(notAnObject), "not an object");
+        assertThrows(IllegalArgumentException.class, () -> service.save(noTenant), "no tenant");
+        assertThrows(IllegalArgumentException.class, () -> service.save(noConversation), "no conversation id");
+        assertThrows(IllegalArgumentException.class, () -> service.load(null, "acme"), "no key");
+        assertThrows(IllegalArgumentException.class, () -> service.load(KEY, null), "no tenant to load");
         assertTrue(repository.rows.isEmpty());
     }
 
     @Test
     void anOversizedMemoryIsRefused() throws Exception {
         String big = "x".repeat(HarnessConversationService.MAX_MEMORY_CHARS);
-        JsonNode memory = mapper.readTree("{\"summary\": \"" + big + "\"}");
-        assertThrows(IllegalArgumentException.class, () -> service.save(body("acme", memory)));
+        ConversationMemory oversized = body("acme", mapper.readTree("{\"summary\": \"" + big + "\"}"));
+        assertThrows(IllegalArgumentException.class, () -> service.save(oversized));
     }
 
     /** Keeps rows in a map and applies the SQL's tenant guard. */
@@ -83,8 +87,8 @@ class HarnessConversationServiceTest {
         }
 
         @Override
-        public Optional<StoredConversation> find(String key) {
-            return Optional.ofNullable(rows.get(key));
+        public Optional<StoredConversation> find(String key, String tenantId) {
+            return Optional.ofNullable(rows.get(key)).filter(c -> c.tenantId().equals(tenantId));
         }
 
         @Override

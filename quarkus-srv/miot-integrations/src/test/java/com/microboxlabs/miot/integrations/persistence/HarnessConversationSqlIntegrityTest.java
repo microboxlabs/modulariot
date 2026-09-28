@@ -17,8 +17,9 @@ class HarnessConversationSqlIntegrityTest {
     }
 
     @Test
-    void aLoadReadsOneKey() throws Exception {
-        assertTrue(readStaticString("FIND").contains("WHERE conversation_key = $1"));
+    void aLoadReadsOneKeyOfOneTenant() throws Exception {
+        assertTrue(readStaticString("FIND").contains("WHERE conversation_key = $1 AND tenant_id = $2"),
+                "a load is scoped by the tenant as well as the key");
     }
 
     private static String readStaticString(String name) throws Exception {

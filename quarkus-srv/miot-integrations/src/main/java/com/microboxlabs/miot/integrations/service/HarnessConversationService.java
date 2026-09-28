@@ -31,9 +31,11 @@ public class HarnessConversationService {
         this.mapper = mapper;
     }
 
-    public Optional<ConversationMemory> load(String key) {
+    /** The memory saved for {@code key}, only when it belongs to {@code tenantId}. */
+    public Optional<ConversationMemory> load(String key, String tenantId) {
         String k = required(key, "key", MAX_KEY_LENGTH);
-        return repository.find(k).map(this::toMemory);
+        String tenant = required(tenantId, "tenantId", MAX_ID_LENGTH);
+        return repository.find(k, tenant).map(this::toMemory);
     }
 
     /** Returns false when the key already belongs to another tenant. */

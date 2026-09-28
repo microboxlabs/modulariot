@@ -139,7 +139,8 @@ def test_primer_keeps_the_frontmatter(tmp_path: Path) -> None:
     text = (tmp_path / "connections" / "db" / "connection.md").read_text()
     assert text.startswith("---\nname: db\nbackend: postgres")
     assert "tenant_lock: t1" in text
-    assert "New primer." in text and "Old primer." not in text
+    assert "New primer." in text
+    assert "Old primer." not in text
 
     changed_head = text.replace("tenant_lock: t1", "tenant_lock: t9")
     with pytest.raises(KnowledgeError) as refused:
@@ -194,8 +195,9 @@ def test_tenant_must_be_one_path_segment(tmp_path: Path) -> None:
 
 
 def test_new_ids_must_be_slugs(tmp_path: Path) -> None:
+    store = _store(tmp_path)
     with pytest.raises(KnowledgeError) as refused:
-        _store(tmp_path).put("rule", "Not_A_Slug", content="x")
+        store.put("rule", "Not_A_Slug", content="x")
     assert refused.value.status == 400
 
 
@@ -295,8 +297,9 @@ def test_virtual_paths_round_trip(
     ["", "rules/../x.md", "rules/x.txt", "skills/x/other.md", "facts/other/x.md", "base/x"],
 )
 def test_bad_virtual_paths_are_refused(tmp_path: Path, path: str) -> None:
+    store = _store(tmp_path)
     with pytest.raises(KnowledgeError):
-        _store(tmp_path).resolve_path(path)
+        store.resolve_path(path)
 
 
 def test_tree_lists_items_and_base_views(tmp_path: Path) -> None:

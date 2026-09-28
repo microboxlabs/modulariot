@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from miot_harness.knowledge.changes import MAX_OVERLAY_CHANGES, RUN_LAYERS, KnowledgeChange
 from miot_harness.runtime.approvals import ApprovalRegistry
@@ -190,7 +190,7 @@ class UserRequest(BaseModel):
     knowledge_overlay: list[KnowledgeChange] = Field(
         default_factory=list, max_length=MAX_OVERLAY_CHANGES
     )
-    _overlay_allowed: bool = PrivateAttr(default=False)
+    _overlay_allowed: bool = False
 
     def allow_overlay(self) -> "UserRequest":
         """Honor `knowledge_overlay` on a run that is not a trainer's (the

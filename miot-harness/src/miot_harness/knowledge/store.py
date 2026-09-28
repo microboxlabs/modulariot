@@ -109,6 +109,39 @@ def _inside(base: Path, *parts: str) -> Path:
     return Path(path)
 
 
+def _compose_fact(
+    item_id: str,
+    title: str,
+    content: str,
+    meta: dict[str, Any],
+    author: str,
+    provenance: dict[str, Any] | None,
+) -> str:
+    card = ConnectionCardWrite(
+        term=str(meta.get("term") or title or item_id),
+        body=content,
+        kind=str(meta.get("kind") or ""),
+        title=title,
+        scope=str(meta.get("scope") or "tenant"),
+        status=str(meta.get("status") or "approved"),
+        confidence=meta.get("confidence"),
+        card_id=item_id,
+        approved_by=author,
+        provenance=provenance or None,
+    )
+    try:
+        return render_connection_card(card)
+    except ValueError as exc:
+        raise KnowledgeError(400, str(exc)) from exc
+
+
+def _check_primer(connection: str, text: str, current: str | None) -> None:
+    if current is None:
+        raise KnowledgeError(404, f"connection {connection!r} has no description file")
+    if split_raw_frontmatter(text)[0] != split_raw_frontmatter(current)[0]:
+        raise KnowledgeError(400, "a data source's frontmatter is not editable")
+
+
 def _read(path: Path) -> str | None:
     try:
         return path.read_text(encoding="utf-8")
@@ -244,22 +277,7 @@ class KnowledgeStore:
         provenance: dict[str, Any] | None,
     ) -> str:
         if loc.layer == "fact":
-            card = ConnectionCardWrite(
-                term=str(meta.get("term") or title or loc.id),
-                body=content,
-                kind=str(meta.get("kind") or ""),
-                title=title,
-                scope=str(meta.get("scope") or "tenant"),
-                status=str(meta.get("status") or "approved"),
-                confidence=meta.get("confidence"),
-                card_id=loc.id,
-                approved_by=author,
-                provenance=provenance or None,
-            )
-            try:
-                return render_connection_card(card)
-            except ValueError as exc:
-                raise KnowledgeError(400, str(exc)) from exc
+            return _compose_fact(loc.id, title, content, meta, author, provenance)
         if loc.layer == "rule":
             return compose_rule(title or loc.id, content)
         if loc.layer == "skill":
@@ -287,6 +305,11 @@ class KnowledgeStore:
             raise KnowledgeError(
                 400, f"a new id must be a slug (lowercase letters, digits, '-'): {loc.id!r}"
             )
+        self._check_content(loc, text)
+        if loc.layer == "primer":
+            _check_primer(loc.id, text, current)
+
+    def _check_content(self, loc: _Loc, text: str) -> None:
         try:
             title, content, _ = self._parse(loc, text)
         except (ValueError, yaml.YAMLError) as exc:
@@ -300,11 +323,6 @@ class KnowledgeStore:
                 _reject_if_secretish(f"{title}\n{content}")
             except ValueError as exc:
                 raise KnowledgeError(400, str(exc)) from exc
-        if loc.layer == "primer":
-            if current is None:
-                raise KnowledgeError(404, f"connection {loc.id!r} has no description file")
-            if split_raw_frontmatter(text)[0] != split_raw_frontmatter(current)[0]:
-                raise KnowledgeError(400, "a data source's frontmatter is not editable")
 
     # ---- history ----------------------------------------------------------
 

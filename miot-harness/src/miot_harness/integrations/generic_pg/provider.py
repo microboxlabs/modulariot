@@ -22,7 +22,7 @@ import asyncpg
 
 from miot_harness.config import HarnessSettings
 from miot_harness.connections.models import Connection
-from miot_harness.datasource.knowledge.learned import approved_cards
+from miot_harness.datasource.knowledge.learned import approved_cards, with_overlay
 from miot_harness.datasource.knowledge.loader import (
     connection_cards_dir,
     detect_packs,
@@ -42,6 +42,7 @@ from miot_harness.datasource.safe_sql import HARD_LIMIT_CAP
 from miot_harness.datasource.schema_introspect import SchemaSummary, introspect_schema
 from miot_harness.datasource.sql_policy import SchemaAllowlistPolicy
 from miot_harness.integrations.generic_pg.primitive_tools import build_generic_tools
+from miot_harness.runtime.context import HarnessContext
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -111,6 +112,13 @@ async def workflow_schema(
         logger.warning("generic_pg %s: workflow schema lookup failed (%s)", summary.connection, exc)
         return None
     return str(rows[0]["table_schema"]) if rows else None
+
+
+def _run_cards(
+    cards_dir: Path, connection: str, ctx: HarnessContext
+) -> tuple[KnowledgeCard, ...]:
+    """The approved authored cards a run sees: with its knowledge overlay."""
+    return with_overlay(approved_cards(cards_dir), connection, ctx.knowledge_overlay)
 
 
 def _workspace_dir(connection: Connection) -> Path | None:
@@ -304,14 +312,15 @@ class GenericPgProvider(DataSourceProvider):
                 statement_timeout_ms=statement_timeout_ms,
                 knowledge_cards=knowledge_cards,
                 authored_cards=(
-                    partial(approved_cards, cards_dir) if cards_dir is not None else None
+                    partial(_run_cards, cards_dir, connection.name)
+                    if cards_dir is not None
+                    else None
                 ),
                 call_security_definer=call_security_definer,
                 workspace_dir=_workspace_dir(connection),
                 workflow_schema=await workflow_schema(
                     self._pool, schema_summary, statement_timeout_ms
                 ),
-                connection=connection.name,
             )
             registered: list[str] = []
             for tool in tools:

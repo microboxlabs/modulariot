@@ -113,6 +113,11 @@ def _extract_usage(response: LLMResult) -> TokenUsage:
 class AgentTelemetryCallback(BaseCallbackHandler):
     """Emits one OTel span per LLM call, attributed to the owning agent."""
 
+    # Run on the event loop. Otherwise LangChain sends every event, one per
+    # streamed chunk included, through the default thread pool, and a busy
+    # pool holds the whole stream back until it frees.
+    run_inline = True
+
     def __init__(
         self,
         agent_name: str,
@@ -160,6 +165,8 @@ class AgentTelemetryCallback(BaseCallbackHandler):
         model = _model_from_serialized(serialized)
         billed = metadata or {}
         span.set_attribute("gen_ai.operation.name", f"{self._span_prefix}.{self._agent_name}")
+        if provider == "unknown":
+            provider = str(billed.get("miot_provider") or provider)
         span.set_attribute("gen_ai.system", provider)
         if model:
             span.set_attribute("gen_ai.request.model", model)

@@ -138,6 +138,8 @@ export interface AgentCompletedData {
   agent: string;
   graph: string;
   duration_ms: number;
+  /** Time to the model's first streamed chunk; null when none arrived. */
+  first_token_ms?: number | null;
   exit_reason: "ok" | "failure" | "next_action";
   error?: string;
 }

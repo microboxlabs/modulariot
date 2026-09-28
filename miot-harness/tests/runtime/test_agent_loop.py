@@ -634,3 +634,63 @@ async def test_text_sharing_a_frame_with_a_tool_call_chunk_still_streams(monkeyp
     answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
     assert answer_deltas == [*long_text, "tail.", "done"]
     assert [e for e in events if e.type == "thinking.delta"] == []
+
+
+@pytest.mark.asyncio
+async def test_turn_records_time_to_first_chunk(monkeypatch):
+    now = [100.0]
+    monkeypatch.setattr(agent_loop_mod, "monotonic", lambda: now[0])
+
+    class SlowModel(ChunkedModel):
+        async def astream(self, messages: Any, **kwargs: Any) -> Any:
+            now[0] += 0.25
+            yield AIMessageChunk(content=[{"type": "thinking", "thinking": "hm", "index": 0}])
+            now[0] += 1.0
+            yield AIMessageChunk(content="the answer")
+
+    events: list[Any] = []
+    await _runner(SlowModel([])).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    completed = next(e for e in events if e.type == "agent.completed")
+    assert completed.data["first_token_ms"] == 250
+    assert completed.data["duration_ms"] == 1250
+
+
+@pytest.mark.asyncio
+async def test_turn_without_chunks_has_no_first_token_time():
+    events: list[Any] = []
+    await _runner(ChunkedModel([[]])).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    completed = next(e for e in events if e.type == "agent.completed")
+    assert completed.data["first_token_ms"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("repeated", [True, False])
+async def test_a_tool_name_and_id_sent_in_every_chunk_are_not_concatenated(
+    monkeypatch, repeated
+):
+    seen: list[Any] = []
+
+    async def fake_invoke_step(step, **kwargs):
+        seen.append(step)
+        return {"evidence": [_evidence()]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    name = "fake_kpi_summary"
+    again = {"name": name, "call_id": "c1"} if repeated else {}
+    first_turn = [
+        _tc_chunk(0, name=name, args="", call_id="c1"),
+        _tc_chunk(0, args='{"per', **again),
+        _tc_chunk(0, args='iod": "week"}', **again),
+    ]
+    model = ChunkedModel([first_turn, [AIMessageChunk(content="done")]])
+    await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None
+    )
+    assert [s.tool for s in seen] == [name]
+    assert seen[0].args == {"period": "week"}
+    replayed = model.calls[1][-2]
+    assert [(c["name"], c["id"]) for c in replayed.tool_calls] == [(name, "c1")]

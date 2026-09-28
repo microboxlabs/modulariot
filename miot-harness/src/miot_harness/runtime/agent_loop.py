@@ -240,7 +240,8 @@ def _storable(msg: AIMessage, answered: set[str]) -> AIMessage | None:
     blocks, and replaying one the API finds no `tool_result` for is rejected.
     And every thinking block: they are signed by the model that produced them,
     while the conversation model is chosen per run, so a later turn on another
-    model would replay a signature that is not its own.
+    model would replay a signature that is not its own. The streamed
+    `reasoning_content` of OpenAI-compatible providers goes for the same reason.
 
     None when only thinking blocks remain, or nothing does. An assistant
     message with no text and no call is an empty turn, also rejected.
@@ -252,9 +253,13 @@ def _storable(msg: AIMessage, answered: set[str]) -> AIMessage | None:
     if not calls and not content:
         return None
     dropped = isinstance(msg.content, list) and len(content) != len(msg.content)
-    if len(calls) == len(msg.tool_calls) and not dropped:
+    reasoned = "reasoning_content" in msg.additional_kwargs
+    if len(calls) == len(msg.tool_calls) and not dropped and not reasoned:
         return msg
-    return msg.model_copy(update={"tool_calls": calls, "content": content})
+    kwargs = {k: v for k, v in msg.additional_kwargs.items() if k != "reasoning_content"}
+    return msg.model_copy(
+        update={"tool_calls": calls, "content": content, "additional_kwargs": kwargs}
+    )
 
 
 def _is_dropped_block(block: Any, answered: set[str]) -> bool:
@@ -402,7 +407,7 @@ def _mark_message(msg: BaseMessage) -> BaseMessage | None:
 
 async def _stream_turn(
     model: Any, messages: list[BaseMessage], *, progress: Progress, run_id: str
-) -> AIMessage:
+) -> tuple[AIMessage, float | None]:
     """One model turn, streamed.
 
     Thinking blocks stream as `thinking.delta`. Text is held up to
@@ -411,7 +416,8 @@ async def _stream_turn(
     answer and replays as `answer.delta`. Text past the hold streams as
     `answer.delta` as it arrives and is never re-emitted, even when a tool
     call follows. A turn that emitted any thinking or narration closes with
-    `thinking.completed`. Returns the aggregated message, tool calls included.
+    `thinking.completed`. Returns the aggregated message, tool calls included,
+    and the `monotonic()` time the first chunk arrived (None if none did).
     """
     agg: AIMessageChunk | None = None
     held: list[str] = []
@@ -421,6 +427,8 @@ async def _stream_turn(
     tool_call_seen = False
     thinking_chars = 0
     thinking_index = 0
+    first_chunk_at: float | None = None
+    call_parts: dict[tuple[Any, str], str] = {}
 
     def emit_answer(delta: str) -> None:
         nonlocal answer_index
@@ -435,9 +443,12 @@ async def _stream_turn(
         answer_index += 1
 
     async for chunk in model.astream(messages):
-        agg = chunk if agg is None else agg + chunk
+        if first_chunk_at is None:
+            first_chunk_at = monotonic()
         if getattr(chunk, "tool_call_chunks", None):
             tool_call_seen = True
+            chunk = _without_repeated_call_parts(chunk, call_parts)
+        agg = chunk if agg is None else agg + chunk
         for kind, delta in _chunk_deltas(chunk):
             if kind != "text":
                 thinking_chars += len(delta)
@@ -457,10 +468,10 @@ async def _stream_turn(
             streaming = True
             emit_answer(delta)
     if agg is None:
-        return AIMessage(content="")
+        return AIMessage(content=""), first_chunk_at
     message = message_chunk_to_message(agg)
     if not isinstance(message, AIMessage):
-        return AIMessage(content=response_text(message))
+        return AIMessage(content=response_text(message)), first_chunk_at
     if message.tool_calls:
         narration = "".join(held).strip()
         if narration:
@@ -482,7 +493,30 @@ async def _stream_turn(
                 },
             )
         )
-    return message
+    return message, first_chunk_at
+
+
+def _without_repeated_call_parts(chunk: Any, seen: dict[tuple[Any, str], str]) -> Any:
+    """`chunk` without a tool name or id that repeats what its call has so far.
+
+    Some OpenAI-compatible gateways send the whole name and id in every chunk
+    of a call; merged as they come, `gps_query` becomes `gps_querygps_query`.
+    `seen` holds each call's name and id so far, keyed by (index, field).
+    """
+    parts = []
+    for part in chunk.tool_call_chunks:
+        part = dict(part)
+        for field in ("name", "id"):
+            value = part.get(field)
+            if not value:
+                continue
+            key = (part.get("index"), field)
+            if seen.get(key) == value:
+                part[field] = None
+            else:
+                seen[key] = seen.get(key, "") + value
+        parts.append(part)
+    return chunk.model_copy(update={"tool_call_chunks": parts})
 
 
 def _thinking_delta(run_id: str, delta: str, index: int) -> HarnessEvent:
@@ -495,20 +529,33 @@ def _thinking_delta(run_id: str, delta: str, index: int) -> HarnessEvent:
 
 
 def _chunk_deltas(chunk: Any) -> list[tuple[str, str]]:
-    """(kind, text) pairs in a streamed chunk; kind is `text` or `thinking`."""
+    """(kind, text) pairs in a streamed chunk; kind is `text` or `thinking`.
+
+    OpenAI-compatible providers stream reasoning as `reasoning_content`, which
+    ChatDeepSeek keeps in `additional_kwargs`.
+    """
+    out: list[tuple[str, str]] = []
+    reasoning = (getattr(chunk, "additional_kwargs", None) or {}).get("reasoning_content")
+    if isinstance(reasoning, str) and reasoning:
+        out.append(("thinking", reasoning))
     content = getattr(chunk, "content", None)
     if isinstance(content, str):
-        return [("text", content)] if content else []
-    out: list[tuple[str, str]] = []
-    if isinstance(content, list):
-        for block in content:
-            if not isinstance(block, dict):
-                continue
-            if block.get("type") == "text" and block.get("text"):
-                out.append(("text", str(block["text"])))
-            elif block.get("type") == "thinking" and block.get("thinking"):
-                out.append(("thinking", str(block["thinking"])))
+        if content:
+            out.append(("text", content))
+    elif isinstance(content, list):
+        out.extend(d for d in map(_block_delta, content) if d is not None)
     return out
+
+
+def _block_delta(block: Any) -> tuple[str, str] | None:
+    if not isinstance(block, dict):
+        return None
+    kind = block.get("type")
+    if kind == "text" and block.get("text"):
+        return ("text", str(block["text"]))
+    if kind == "thinking" and block.get("thinking"):
+        return ("thinking", str(block["thinking"]))
+    return None
 
 
 def _step(call: dict[str, Any]) -> DataStep:
@@ -677,7 +724,7 @@ class AgentLoopRunner:
                     messages, keep=self.settings.agents_agent_loop_clear_keep_results
                 )
             start = monotonic()
-            response = await _stream_turn(
+            response, first_chunk_at = await _stream_turn(
                 model, self._prepare(messages), progress=progress, run_id=ctx.run_id
             )
             usage_log.append(dict(getattr(response, "usage_metadata", None) or {}))
@@ -709,6 +756,11 @@ class AgentLoopRunner:
                         "graph": "agent_loop",
                         "turn": turn,
                         "duration_ms": int((monotonic() - start) * 1000),
+                        "first_token_ms": (
+                            int((first_chunk_at - start) * 1000)
+                            if first_chunk_at is not None
+                            else None
+                        ),
                         "exit_reason": "tool_calls" if tool_calls else "answer",
                     },
                 )

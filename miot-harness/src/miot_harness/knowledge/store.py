@@ -778,15 +778,16 @@ class KnowledgeStore:
         undo: list[KnowledgeChange] = []
         for (layer, target, item_id), text in before.items():
             loc = self._locate(layer, item_id, target)
+            # Runs skip an unreadable file, so it counts as absent.
+            try:
+                title, content, meta = self._parse(loc, text) if text is not None else ("", "", {})
+            except (ValueError, yaml.YAMLError):
+                text = None
             if text is None:
                 if layer != "primer":
                     undo.append(
                         KnowledgeChange(layer=layer, id=item_id, target=target, op="delete")
                     )
-                continue
-            try:
-                title, content, meta = self._parse(loc, text)
-            except (ValueError, yaml.YAMLError):
                 continue
             unused = layer == "fact" and (meta["status"], meta["scope"]) != ("approved", "tenant")
             undo.append(

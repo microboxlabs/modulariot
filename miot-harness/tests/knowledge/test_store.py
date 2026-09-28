@@ -329,6 +329,19 @@ def test_conversation_undo_restores_what_the_runs_read_before(tmp_path: Path) ->
     assert store.conversation_undo("c2") == []
 
 
+def test_conversation_undo_treats_an_unreadable_prior_file_as_absent(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    rules = tmp_path / "context" / "tenants" / "t1" / "learned"
+    rules.mkdir(parents=True)
+    (rules / "broken.md").write_text("---\n- not a mapping\n---\n\nBody.\n", encoding="utf-8")
+    store.put(
+        "rule", "broken", title="Fixed", content="Fixed.", provenance={"conversation_id": "c1"}
+    )
+
+    [undo] = store.conversation_undo("c1")
+    assert (undo.layer, undo.id, undo.op) == ("rule", "broken", "delete")
+
+
 def test_layers_listing(tmp_path: Path) -> None:
     store = _store(tmp_path)
     store.put("fact", "f", target="shared", title="F", content="Meaning.")

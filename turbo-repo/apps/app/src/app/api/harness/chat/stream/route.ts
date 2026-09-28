@@ -17,11 +17,22 @@ import {
 import type { AskUserQuestionArgs } from "@/features/harness-chat/extensions/ask-user-question";
 import type { CreateStoryArgs } from "@/features/harness-chat/extensions/create-story";
 import type { ShowDashletArgs } from "@/features/harness-chat/extensions/show-dashlet";
-import { getAllDashlets, getAllDashletMetas } from "@/features/dashboard/dashlets";
-import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.service";
+import {
+  getAllDashlets,
+  getAllDashletMetas,
+} from "@/features/dashboard/dashlets";
+import {
+  getDictionary,
+  getLocaleFromHeaders,
+} from "@/features/i18n/i18n.service";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
-import { conversationOf, modelOf, type AgUiMessage, type RunAgentInputBody } from "./conversation";
+import {
+  conversationOf,
+  modelOf,
+  type AgUiMessage,
+  type RunAgentInputBody,
+} from "./conversation";
 import { answerFromToolResult, chatAnswerEvents } from "./chat-answer";
 import { stepLabel } from "./step-labels";
 import { fetchThread, storedThreadModel } from "./thread-model";
@@ -104,9 +115,17 @@ function openNarration(send: Sender): Narrator {
   return { messageId, lastPhase: null, reportedSteps: new Set() };
 }
 
-function appendNarration(send: Sender, narrator: Narrator, delta: string): void {
+function appendNarration(
+  send: Sender,
+  narrator: Narrator,
+  delta: string
+): void {
   if (!delta) return;
-  send({ type: "REASONING_MESSAGE_CONTENT", messageId: narrator.messageId, delta });
+  send({
+    type: "REASONING_MESSAGE_CONTENT",
+    messageId: narrator.messageId,
+    delta,
+  });
 }
 
 function closeNarration(send: Sender, narrator: Narrator): void {
@@ -122,7 +141,7 @@ function appendNarrationDiff(
   send: Sender,
   narrator: Narrator,
   progress: HarnessStreamProgress,
-  tr: TrFn,
+  tr: TrFn
 ): void {
   if (progress.phase !== narrator.lastPhase) {
     const prefix = narrator.lastPhase === null ? "" : "\n\n";
@@ -145,9 +164,16 @@ function sendText(send: Sender, text: string): void {
   send({ type: "TEXT_MESSAGE_END", messageId });
 }
 
-function askUserQuestionToolCall(send: Sender, args: AskUserQuestionArgs): void {
+function askUserQuestionToolCall(
+  send: Sender,
+  args: AskUserQuestionArgs
+): void {
   const toolCallId = crypto.randomUUID();
-  send({ type: "TOOL_CALL_START", toolCallId, toolCallName: "ask_user_question" });
+  send({
+    type: "TOOL_CALL_START",
+    toolCallId,
+    toolCallName: "ask_user_question",
+  });
   send({ type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) });
   send({ type: "TOOL_CALL_END", toolCallId });
 }
@@ -215,7 +241,7 @@ function lastUserText(messages: AgUiMessage[]): string {
           // `.trim()` below throws, and it throws from `decideHarnessPath`,
           // outside `run`'s try/catch, closing the SSE stream after
           // RUN_STARTED with no terminal event at all.
-          typeof (part as { text?: unknown }).text === "string",
+          typeof (part as { text?: unknown }).text === "string"
       );
       return text?.text.trim() ?? "";
     }
@@ -244,9 +270,18 @@ function demoAskUserQuestion(send: Sender, text: string, tr: TrFn): boolean {
       description: tr("harnessChat.stream.demo.regions.description"),
       options: [
         // Region codes are technical shorthand, not translatable prose.
-        { label: tr("harnessChat.stream.demo.regions.northAmerica"), description: "us-east, us-west" },
-        { label: tr("harnessChat.stream.demo.regions.europe"), description: "eu-west, eu-central" },
-        { label: tr("harnessChat.stream.demo.regions.asiaPacific"), description: "ap-southeast" },
+        {
+          label: tr("harnessChat.stream.demo.regions.northAmerica"),
+          description: "us-east, us-west",
+        },
+        {
+          label: tr("harnessChat.stream.demo.regions.europe"),
+          description: "eu-west, eu-central",
+        },
+        {
+          label: tr("harnessChat.stream.demo.regions.asiaPacific"),
+          description: "ap-southeast",
+        },
       ],
       allowMultiple: true,
       allowOther: true,
@@ -260,15 +295,21 @@ function demoAskUserQuestion(send: Sender, text: string, tr: TrFn): boolean {
       options: [
         {
           label: tr("harnessChat.stream.demo.environment.staging"),
-          description: tr("harnessChat.stream.demo.environment.stagingDescription"),
+          description: tr(
+            "harnessChat.stream.demo.environment.stagingDescription"
+          ),
         },
         {
           label: tr("harnessChat.stream.demo.environment.production"),
-          description: tr("harnessChat.stream.demo.environment.productionDescription"),
+          description: tr(
+            "harnessChat.stream.demo.environment.productionDescription"
+          ),
         },
         {
           label: tr("harnessChat.stream.demo.environment.local"),
-          description: tr("harnessChat.stream.demo.environment.localDescription"),
+          description: tr(
+            "harnessChat.stream.demo.environment.localDescription"
+          ),
         },
       ],
       allowMultiple: false,
@@ -346,12 +387,30 @@ function demoCreateStory(send: Sender, text: string): boolean {
   // Needs an explicit creation verb before "story"/"stories" — "create a
   // story", "make me a new story", etc. — so unrelated prompts that merely
   // mention a story ("summarize user story 123") still reach the harness.
-  if (!/\b(?:create|make|generate|new|build)\b.*\bstor(?:y|ies)\b/i.test(text)) return false;
+  if (!/\b(?:create|make|generate|new|build)\b.*\bstor(?:y|ies)\b/i.test(text))
+    return false;
   createStoryToolCall(send, { id: crypto.randomUUID().slice(0, 8) });
   return true;
 }
 
-export type HarnessPathDecision = { handled: true } | { handled: false; message: string };
+export type HarnessPathDecision =
+  | { handled: true }
+  | { handled: false; message: string };
+
+/** A tool result while the harness is configured: the user's pick on an
+ * ask_user_question card is their next turn; a widget's automatic
+ * acknowledgement needs no reply at all. */
+function decideToolResultPath(
+  send: Sender,
+  messages: AgUiMessage[],
+  runId: string,
+  threadId: string
+): HarnessPathDecision {
+  const answer = answerFromToolResult(messages);
+  if (answer) return { handled: false, message: answer };
+  send({ type: "RUN_FINISHED", runId, threadId });
+  return { handled: true };
+}
 
 /** Short-circuits for turns that don't need the real harness at all: an
  * ask_user_question tool result, an empty user message, a demo trigger, or
@@ -363,16 +422,11 @@ export function decideHarnessPath(
   messages: AgUiMessage[],
   runId: string,
   threadId: string,
-  tr: TrFn,
+  tr: TrFn
 ): HarnessPathDecision {
   const toolResult = lastMessageIsToolResult(messages);
   if (toolResult && isModulithConfigured()) {
-    // The user's pick on an ask_user_question card is their next turn; a
-    // widget's automatic acknowledgement needs no reply at all.
-    const answer = answerFromToolResult(messages);
-    if (answer) return { handled: false, message: answer };
-    send({ type: "RUN_FINISHED", runId, threadId });
-    return { handled: true };
+    return decideToolResultPath(send, messages, runId, threadId);
   }
   if (toolResult) {
     // Acknowledge the tool result locally — nothing to forward upstream yet,
@@ -445,7 +499,8 @@ type HarnessConnection =
  * before any other branch (including the demo/placeholder paths) runs. */
 async function connectToHarness(session: Session): Promise<HarnessConnection> {
   const scopeResult = await resolveTenantScope();
-  if (!scopeResult.resolved) return { ok: false, errorMessage: "tenant_unresolved" };
+  if (!scopeResult.resolved)
+    return { ok: false, errorMessage: "tenant_unresolved" };
 
   const orgSlug = scopeResult.scope.activeOrg.slug;
   const token = session.user?.rawJWT ?? session.user?.ticket ?? undefined;
@@ -487,7 +542,7 @@ function narrateForwardedEvent(
   narrator: Narrator,
   progress: HarnessStreamProgress,
   event: HarnessEvent,
-  tr: TrFn,
+  tr: TrFn
 ): void {
   appendNarrationDiff(send, narrator, progress, tr);
   const line = seatNarration(event);
@@ -498,15 +553,22 @@ function narrateForwardedEvent(
 }
 
 /** One narration line for a seat event, or null for any other event. */
-export function seatNarration(event: { type: string; data: Record<string, unknown> }): string | null {
+export function seatNarration(event: {
+  type: string;
+  data: Record<string, unknown>;
+}): string | null {
   if (event.type === "advisor.consulted") {
-    const signal = typeof event.data.signal === "string" ? event.data.signal : "?";
-    const note = typeof event.data.note === "string" ? event.data.note.split("\n")[0] : "";
+    const signal =
+      typeof event.data.signal === "string" ? event.data.signal : "?";
+    const note =
+      typeof event.data.note === "string" ? event.data.note.split("\n")[0] : "";
     const suffix = note ? " — " + note : "";
     return "\nAdvisor: " + signal + suffix;
   }
   if (event.type === "delegate.completed") {
-    const tools = Array.isArray(event.data.tools_run) ? event.data.tools_run.join(", ") : "";
+    const tools = Array.isArray(event.data.tools_run)
+      ? event.data.tools_run.join(", ")
+      : "";
     return tools ? "\nDelegated: ran " + tools : "\nDelegated";
   }
   return null;
@@ -521,7 +583,7 @@ async function relayHarnessEvents(
   signal: AbortSignal,
   send: Sender,
   narrator: Narrator,
-  tr: TrFn,
+  tr: TrFn
 ): Promise<RelayResult> {
   let progress: HarnessStreamProgress = INITIAL_PROGRESS;
   const telemetry: RunTelemetry = { tools: [] };
@@ -532,7 +594,10 @@ async function relayHarnessEvents(
   for await (const event of client.runs.stream(runId, { signal })) {
     trackRunTelemetry(event, telemetry);
     if (FORWARDED_EVENTS.has(event.type)) {
-      progress = reduceHarnessStreamEvent(progress, { event: event.type, data: event.data });
+      progress = reduceHarnessStreamEvent(progress, {
+        event: event.type,
+        data: event.data,
+      });
       narrateForwardedEvent(send, narrator, progress, event, tr);
     }
     if (TERMINAL_EVENT_TYPES.has(event.type)) {
@@ -547,7 +612,10 @@ async function relayHarnessEvents(
 export async function POST(request: Request) {
   const rawBody: unknown = await request.json().catch(() => ({}));
   if (!isValidRunAgentInputBody(rawBody)) {
-    return NextResponse.json({ error: "invalid_request_body" }, { status: 400 });
+    return NextResponse.json(
+      { error: "invalid_request_body" },
+      { status: 400 }
+    );
   }
   const body = rawBody;
   const runId = body.runId ?? crypto.randomUUID();
@@ -632,7 +700,7 @@ async function run(
   runId: string,
   threadId: string,
   requestSignal: AbortSignal,
-  tr: TrFn,
+  tr: TrFn
 ): Promise<void> {
   send({ type: "RUN_STARTED", runId, threadId });
 
@@ -657,13 +725,16 @@ async function run(
     return;
   }
   const { client, orgSlug, token, userEmail } = connection;
-  const { conversationId, replayTurns, summary } = conversationOf(body, messages);
+  const { conversationId, replayTurns, summary } = conversationOf(
+    body,
+    messages
+  );
   const model =
     modelOf(body) ??
     (conversationId
       ? await storedThreadModel(
           () => fetchThread(orgSlug, conversationId, token, userEmail),
-          () => client.models.list(),
+          () => client.models.list()
         )
       : null);
 
@@ -672,7 +743,9 @@ async function run(
   const cancelUpstreamRun = () => {
     if (!activeRunId || runSettled) return;
     runSettled = true;
-    client.runs.cancel(activeRunId, { signal: AbortSignal.timeout(5_000) }).catch(() => {});
+    client.runs
+      .cancel(activeRunId, { signal: AbortSignal.timeout(5_000) })
+      .catch(() => {});
   };
 
   let timedOut = false;
@@ -699,7 +772,7 @@ async function run(
         ...(replayTurns.length > 0 && { conversation_history: replayTurns }),
         ...(summary && { conversation_summary: summary }),
       },
-      { signal: controller.signal },
+      { signal: controller.signal }
     );
     activeRunId = run_id;
 
@@ -712,7 +785,7 @@ async function run(
       controller.signal,
       send,
       narrator,
-      tr,
+      tr
     );
 
     closeNarration(send, narrator);
@@ -723,12 +796,18 @@ async function run(
     // clients avoid by branching on the terminal event. RUN_ERROR is terminal
     // on its own, so no RUN_FINISHED follows it.
     if (outcome !== "completed") {
-      logger.error({ runId: run_id, outcome }, "[harness/chat/stream] run did not complete");
+      logger.error(
+        { runId: run_id, outcome },
+        "[harness/chat/stream] run did not complete"
+      );
       // `failed` has already settled upstream; `truncated` may have left the
       // run alive with nobody listening. Cancelling covers both — on an
       // already-finished run it's a swallowed no-op.
       cancelUpstreamRun();
-      send({ type: "RUN_ERROR", message: outcome === "failed" ? "run_failed" : "stream_truncated" });
+      send({
+        type: "RUN_ERROR",
+        message: outcome === "failed" ? "run_failed" : "stream_truncated",
+      });
       return;
     }
 

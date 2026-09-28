@@ -14,7 +14,27 @@ share a runner; their exit codes mean different things.
 |---|---|---|
 | **Golden** (this dir + `src/miot_harness/evals/run_golden.py`) | Agent quality on the agent loop — tool selection, freshness, refusals, KPI grounding, step economy, cost, drift vs baseline. | `miot-harness-evals` |
 | **Judge** (`judge_prompt.md`) | Advisory Tier-3 LLM-judge rubric scored 1–5 per axis on a real trajectory. | prompt, run out-of-band |
+| **Chat** (`src/miot_harness/evals/chat_cases.yaml`) | What a running harness does with real chat messages: tools used, answer format, cited links resolve. | `miot-harness-chat-evals` |
 | **Deploy** (`deploy/`) | Operational checks that the harness packages and runs as a container. | `deploy/run-all.sh` (see `deploy/README.md`) |
+
+## Chat suite
+
+Sends each case in `src/miot_harness/evals/chat_cases.yaml` to `POST /runs` on a running
+harness, the way the app's chat does (`skill_id=miot-search`,
+`answer_format=json`, one `conversation_id` per case). It tests the service as
+deployed, including the context and skills on its volume.
+
+```bash
+uv run miot-harness-chat-evals --port 8000 --tenant-id "$TENANT"
+uv run miot-harness-chat-evals --only web-count-question --repeat 3
+uv run miot-harness-chat-evals --model llmgateway:kimi-k3 --model claude-opus-5-5
+```
+
+The harness must be reachable on localhost: a local run, or a
+`kubectl port-forward` to a deployed one. Each turn prints to stderr as it
+finishes; exit code 1 when any turn fails. `--json` prints every result to
+stdout. Cited links are fetched unless `--no-source-check`; 401, 403 and 429
+count as existing.
 
 ## Golden suite — three modes
 

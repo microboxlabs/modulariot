@@ -36,6 +36,7 @@ public final class BoundedHttpTransport {
             pending.cancel(true);
             throw e;
         } catch (ExecutionException e) {
+            if (e.getCause() instanceof IOException io) throw io;
             throw new IOException("Operation response could not be read", e.getCause());
         }
     }

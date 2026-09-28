@@ -43,8 +43,9 @@ class BoundedHttpTransportTest {
         });
         server.start();
         try (HttpClient client = HttpClient.newHttpClient()) {
-            assertThrows(IOException.class,
+            var error = assertThrows(IOException.class,
                     () -> BoundedHttpTransport.send(client, request(server), 100, Duration.ofSeconds(2)));
+            assertEquals("Operation response byte limit exceeded", error.getMessage());
         } finally {
             server.stop(0);
         }

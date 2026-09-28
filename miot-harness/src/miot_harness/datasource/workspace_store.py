@@ -31,8 +31,18 @@ NOTE_KINDS = ("definition", "fact", "preference")
 PARAM_TYPES = ("text", "int", "numeric", "date", "timestamptz", "bool")
 MAX_BODY_CHARS = 4000
 MAX_SQL_CHARS = 20000
-# `:name` outside a `::cast`
+# `:name` outside a `::cast`; only matched in SQL code, see _code_spans
 _PLACEHOLDER_RE = re.compile(r"(?<![:\w]):([A-Za-z_]\w*)")
+# Where SQL code stops being code: a string, a quoted identifier, a comment,
+# or a dollar-quoted body.
+_SKIP_RE = re.compile(
+    r"'(?:[^']|'')*'"
+    r'|"(?:[^"]|"")*"'
+    r"|--[^\n]*"
+    r"|/\*.*?\*/"
+    r"|(\$[A-Za-z_]*\$).*?\1",
+    re.DOTALL,
+)
 _INT_RE = re.compile(r"^-?\d+$")
 _NUMERIC_RE = re.compile(r"^-?\d+(\.\d+)?$")
 _HEADER_RE = re.compile(r"^/\*---\n(.*?)\n---\*/\n?", re.DOTALL)
@@ -177,6 +187,25 @@ def _parse_analysis(path: Path) -> Analysis:
     )
 
 
+def _code_spans(sql: str) -> list[tuple[int, int]]:
+    """(start, end) of the parts of `sql` that are code, not literals or comments."""
+    spans, pos = [], 0
+    for match in _SKIP_RE.finditer(sql):
+        spans.append((pos, match.start()))
+        pos = match.end()
+    spans.append((pos, len(sql)))
+    return spans
+
+
+def placeholders(sql: str) -> set[str]:
+    """The `:name` parameters the SQL uses in code."""
+    return {
+        m.group(1)
+        for start, end in _code_spans(sql)
+        for m in _PLACEHOLDER_RE.finditer(sql, start, end)
+    }
+
+
 def validate_params(params: list[dict[str, Any]], sql: str) -> list[dict[str, Any]]:
     """Check each declared parameter and that the SQL uses exactly those names."""
     clean: list[dict[str, Any]] = []
@@ -194,7 +223,7 @@ def validate_params(params: list[dict[str, Any]], sql: str) -> list[dict[str, An
             entry["default"] = p["default"]
         clean.append(entry)
     declared = {p["name"] for p in clean}
-    used = set(_PLACEHOLDER_RE.findall(sql))
+    used = placeholders(sql)
     if used - declared:
         raise ValueError(
             f"the SQL uses undeclared parameters: {', '.join(sorted(used - declared))}"
@@ -249,7 +278,12 @@ def bind(sql: str, params: list[dict[str, Any]], args: dict[str, Any]) -> str:
         name = match.group(1)
         return _literal(kinds[name], values[name], name)
 
-    return _PLACEHOLDER_RE.sub(replace, sql)
+    out, pos = [], 0
+    for start, end in _code_spans(sql):
+        out.append(sql[pos:start])
+        out.append(_PLACEHOLDER_RE.sub(replace, sql[start:end]))
+        pos = end
+    return "".join(out)
 
 
 def list_analyses(root: Path, tenant_id: str) -> list[Analysis]:

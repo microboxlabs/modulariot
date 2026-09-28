@@ -112,3 +112,15 @@ def test_an_analysis_is_versioned_on_save(tmp_path: Path) -> None:
     [listed] = ws.list_analyses(tmp_path, "a")
     assert listed.params == PARAMS
     assert ws.read_analysis(tmp_path, "a", "trips by carrier") is not None
+
+
+def test_colons_in_strings_comments_and_dollar_quotes_are_not_parameters() -> None:
+    sql = (
+        "SELECT ':year' AS label, \"a:b\" AS q, $$ :x $$ AS body -- :note\n"
+        "FROM t /* :old */ WHERE y = :year"
+    )
+    assert ws.placeholders(sql) == {"year"}
+    bound = ws.bind(sql, [{"name": "year", "type": "int"}], {"year": 2026})
+    assert bound.startswith("SELECT ':year' AS label")
+    assert bound.endswith("WHERE y = 2026")
+    assert "-- :note" in bound and "/* :old */" in bound and "$$ :x $$" in bound

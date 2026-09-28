@@ -169,6 +169,9 @@ class GenericPgProvider(DataSourceProvider):
             )
 
         tenant_lock = _resolve_tenant_lock(opts)
+        if tenant_lock is None and connection.scope == "tenant" and connection.tenant_id:
+            # A connection file under tenants/<id>/ serves that tenant only.
+            tenant_lock = connection.tenant_id
         source_label = str(opts.get("source_label") or name)
         tool_prefix = f"{name}_"
         policy = SchemaAllowlistPolicy(schemas)

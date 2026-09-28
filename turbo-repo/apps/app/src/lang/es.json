@@ -5641,7 +5641,9 @@
         "placeholder": "Pregúntale al harness…",
         "cancelRun": "Cancelar",
         "model": "Modelo",
-        "pdfTooLarge": "El PDF es demasiado grande ({size} MB) — el límite es {limit} MB.",
+        "attachmentTooLarge": "{name} es demasiado grande ({size} MB). El límite es {limit} MB por archivo.",
+        "tooManyAttachments": "Puedes adjuntar hasta {limit} archivos por mensaje.",
+        "attachmentNotAccepted": "Ese tipo de archivo no es compatible. Adjunta imágenes PNG, JPEG, WebP o GIF, PDF o archivos de texto.",
         "commands": {
           "compact": {
             "description": "Resume la conversación para liberar contexto. Agrega qué conservar, por ejemplo: /compact conserva las cifras."

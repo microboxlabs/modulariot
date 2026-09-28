@@ -13,11 +13,12 @@ import {
   listMessages,
   type StoredMessage,
 } from "./harness-thread-store";
+import { attachmentMarker } from "./attachment-parts";
 import { clearActiveRun, readActiveRun } from "./harness-active-run";
 
 /**
  * Anything longer is assumed to be inline content rather than a reference and
- * is dropped when persisting. The PDF attachment adapter inlines up to 20 MB
+ * is dropped when persisting. The attachment adapters inline up to 5 MB
  * as a data URL; a transcript is not a blob store, and the upstream row cap is
  * 256 KB for the whole message.
  */
@@ -158,7 +159,7 @@ function harnessRunIdOf(message: ThreadMessage): string | null {
 /**
  * Drops inlined attachment bodies from a message before it is stored. A
  * reloaded thread shows the exchange without the file the user attached —
- * keeping a 20 MB data URL per message to redraw a PDF thumbnail is not a
+ * keeping a 5 MB data URL per file to redraw a PDF thumbnail is not a
  * trade worth making, and the answer that discussed it is what people come
  * back for.
  *
@@ -166,13 +167,44 @@ function harnessRunIdOf(message: ThreadMessage): string | null {
  * renders as a broken image, and a file part with empty `data` renders as a
  * link to the current page. With no part left, the attachment renders as what
  * it now is — a name, and nothing to open.
+ *
+ * In `attachments` the part is swapped for a text marker such as
+ * `[image: chart.png]`. The runtime sends attachment parts with the
+ * transcript, so a replayed turn still tells the model a file was there.
  */
 export function stripInlineContent<T>(message: T): T {
-  return pruneDeep(message, (value) => {
-    const body = attachmentBody(value);
-    if (body === null) return false;
-    return body.startsWith("data:") || body.length > MAX_INLINE_LENGTH;
+  return pruneDeep(markAttachments(message), isInline);
+}
+
+function isInline(value: unknown): boolean {
+  const body = attachmentBody(value);
+  if (body === null) return false;
+  return body.startsWith("data:") || body.length > MAX_INLINE_LENGTH;
+}
+
+function markAttachments<T>(message: T): T {
+  if (!isRecord(message) || !Array.isArray(message.attachments)) return message;
+  const attachments = message.attachments.map((attachment: unknown) => {
+    if (!isRecord(attachment) || !Array.isArray(attachment.content)) return attachment;
+    const content = attachment.content.map((part: unknown) =>
+      isRecord(part) && isInline(part)
+        ? { type: "text", text: markerOf(part, attachment) }
+        : part,
+    );
+    return { ...attachment, content };
   });
+  return { ...message, attachments };
+}
+
+function markerOf(part: Record<string, unknown>, attachment: Record<string, unknown>): string {
+  const name = str(part.filename) ?? str(attachment.name) ?? "file";
+  const mime =
+    str(part.mimeType) ?? str(attachment.contentType) ?? (part.type === "image" ? "image/" : "");
+  return attachmentMarker({ mime, name, data: "" });
+}
+
+function str(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 /** The inlined body of an image or file part, if that is what this is. */

@@ -589,12 +589,24 @@ const SessionHost: FC<{
     [sessionId],
   );
   const tr = useHarnessChatTr();
-  const attachmentAdapter = useMemo(() => createHarnessAttachmentAdapter(tr), [tr]);
+  // The adapter is built before the runtime it counts attachments on.
+  const runtimeRef = useRef<ReturnType<typeof useAgUiRuntime> | null>(null);
+  const attachmentAdapter = useMemo(
+    () =>
+      createHarnessAttachmentAdapter(
+        tr,
+        () => runtimeRef.current?.thread.composer.getState().attachments.length ?? 0,
+      ),
+    [tr],
+  );
   const history = useMemo(() => createHarnessHistoryAdapter(sessionId, agent), [sessionId, agent]);
   const runtime = useAgUiRuntime({
     agent,
     adapters: { attachments: attachmentAdapter, history },
   });
+  useEffect(() => {
+    runtimeRef.current = runtime;
+  }, [runtime]);
   const containerRef = useRef<HTMLDivElement>(null);
   const toolkit = useMemo(() => buildHarnessToolkit(extensions), [extensions]);
   // The picked model rides on the agent so every run of this session carries

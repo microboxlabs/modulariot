@@ -10,7 +10,10 @@ import {
 // re-export ANSI helpers — kept for tests + downstream consumers.
 export { CLEAR_LINE };
 
-function statusPrefix(state: { hasStatusLine: boolean; color: ColorOptions }): string {
+function statusPrefix(state: {
+  hasStatusLine: boolean;
+  color: ColorOptions;
+}): string {
   if (!state.hasStatusLine) return "";
   return useColor(state.color) ? CLEAR_LINE : "\n";
 }
@@ -128,7 +131,10 @@ export function renderEvent(
 
 export function clearStatus(state: RenderState): RenderResult {
   if (!state.hasStatusLine) return { state, output: "" };
-  return { state: { ...state, hasStatusLine: false }, output: statusPrefix(state) };
+  return {
+    state: { ...state, hasStatusLine: false },
+    output: statusPrefix(state),
+  };
 }
 
 export function renderAuthoritativeAnswer(
@@ -190,23 +196,17 @@ function statusFor(event: HarnessEvent): string | null {
       return "starting…";
     case "agent.turn": {
       const agent =
-        typeof event.data.agent === "string"
-          ? event.data.agent
-          : event.message;
+        typeof event.data.agent === "string" ? event.data.agent : event.message;
       return agent ? `agent: ${agent}` : null;
     }
     case "agent.started": {
       const agent =
-        typeof event.data.agent === "string"
-          ? event.data.agent
-          : event.message;
+        typeof event.data.agent === "string" ? event.data.agent : event.message;
       return agent ? `▶ ${agent}` : null;
     }
     case "agent.completed": {
       const agent =
-        typeof event.data.agent === "string"
-          ? event.data.agent
-          : event.message;
+        typeof event.data.agent === "string" ? event.data.agent : event.message;
       const ms =
         typeof event.data.duration_ms === "number"
           ? event.data.duration_ms
@@ -247,7 +247,9 @@ function statusFor(event: HarnessEvent): string | null {
     case "artifact.created": {
       const kind =
         typeof event.data.kind === "string" ? event.data.kind : "artifact";
-      return `artifact: ${kind}`;
+      const title =
+        typeof event.data.title === "string" ? event.data.title : "";
+      return title ? `artifact: ${title} (${kind})` : `artifact: ${kind}`;
     }
     case "usage.recorded": {
       const agent =

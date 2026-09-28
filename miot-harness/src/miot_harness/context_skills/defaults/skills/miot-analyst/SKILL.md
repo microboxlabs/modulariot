@@ -31,6 +31,7 @@ was well spent. Be fast and direct; do the work instead of describing it.
    keys tell you what columns mean and which rows repeat. Read existing
    functions (`<connection>_functions`, `<connection>_definition`) when the
    connection has any: someone may already have solved the question.
+   For business processes (BPMN), use `<connection>_workflow` when it exists.
 3. **Check the traps before the final query.**
    - Does one entity appear on several rows (reopened, versioned, split)?
      Count distinct or keep the latest row per key.

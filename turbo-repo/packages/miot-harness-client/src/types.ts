@@ -68,14 +68,13 @@ export const HARNESS_EVENT_TYPES = [
   "advisor.consulted",
   "delegate.completed",
   "widget.created",
+  "artifact.created",
   "answer.completed",
   "run.completed",
   "run.failed",
   // No longer emitted; kept so run records saved by older versions type-check.
   /** @deprecated no longer emitted. */
   "route.selected",
-  /** @deprecated no longer emitted. */
-  "artifact.created",
   /** @deprecated no longer emitted. */
   "plan.created",
   /** @deprecated no longer emitted. */
@@ -85,6 +84,16 @@ export const HARNESS_EVENT_TYPES = [
 ] as const;
 
 export type HarnessEventType = (typeof HARNESS_EVENT_TYPES)[number];
+
+/** `artifact.created`: a document a tool made for the user, e.g. a process diagram. */
+export interface ArtifactCreatedData {
+  id: string;
+  kind: "svg" | "mermaid";
+  title: string;
+  /** SVG markup (plain shapes and text, no scripts or links) or Mermaid source. */
+  content: string;
+  source?: string;
+}
 
 export interface AgentStartedData {
   agent: string;

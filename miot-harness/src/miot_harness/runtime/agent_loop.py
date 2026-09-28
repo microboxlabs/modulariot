@@ -61,6 +61,7 @@ from miot_harness.runtime.agent_seats import (
     seats_prompt_block,
 )
 from miot_harness.runtime.context import HarnessContext, RunEffort
+from miot_harness.runtime.event_payload import args_payload, preview_payload
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.evidence import DataEvidence, DataStep
 from miot_harness.runtime.freshness import judge_freshness
@@ -712,6 +713,8 @@ class AgentLoopRunner:
                         "error": ctx.data_refusal,
                         "error_type": "TenantRefused",
                         "reason": ctx.data_refusal,
+                        "ok": False,
+                        **args_payload(step.args),
                     },
                 )
             )
@@ -878,6 +881,8 @@ class AgentLoopRunner:
                     "source": "skills",
                     "input_keys": ["skill_id"],
                     "skill_id": skill_id,
+                    "call_id": call_id,
+                    "args": {"skill_id": skill_id},
                 },
             )
         )
@@ -911,6 +916,8 @@ class AgentLoopRunner:
                         "error": f"unknown skill: {skill_id}",
                         "error_type": "SkillNotFound",
                         "reason": f"unknown skill: {skill_id}",
+                        "call_id": call_id,
+                        "ok": False,
                     },
                 )
             )
@@ -957,6 +964,9 @@ class AgentLoopRunner:
                     "skill_id": skill_id,
                     "loaded": loaded,
                     "result_shape": {"type": "str", "length": len(content)},
+                    "call_id": call_id,
+                    "ok": True,
+                    **preview_payload(content),
                 },
             )
         )

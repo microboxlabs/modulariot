@@ -56,6 +56,7 @@ from miot_harness.context_skills.source import (
     SkillLoadResult,
     SkillSource,
 )
+from miot_harness.knowledge.playbooks import is_trainer_playbook_path
 from miot_harness.knowledge.tenant_overlays import is_learned_path
 
 _TENANTS_DIR = "tenants"
@@ -197,7 +198,7 @@ class FileSkillSource(SkillSource):
         for path in sorted(base.rglob("*")):
             if _is_hidden(path, base):
                 continue
-            if not path.is_file():
+            if not path.is_file() or is_trainer_playbook_path(path.relative_to(base).parts):
                 continue
             is_skill_md = path.name.lower() == _SKILL_MD_NAME
             if not is_skill_md and path.suffix.lower() not in {".yaml", ".yml"}:

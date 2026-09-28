@@ -10,6 +10,7 @@ from miot_harness.runtime.approvals import ApprovalResolution
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.event_payload import (
     APPROVAL_INPUT_BYTES_CAP,
+    DIFF_PAYLOAD_BYTES_CAP,
     args_payload,
     bounded,
     preview_payload,
@@ -63,6 +64,11 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
     # Whether the tool can run with the current configuration. A tool that
     # returns False is not offered to the model.
     available: Callable[[], bool] | None = None
+    # Fields added to what the user sees before approving (e.g. the diff of a
+    # file write), computed from the input.
+    approval_details: Callable[[HarnessContext, InputT], Awaitable[dict[str, Any]]] | None = None
+    # Its approval input and result carry file diffs, sent whole to the app.
+    carries_diff: bool = False
 
     async def invoke(
         self,
@@ -140,7 +146,11 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                 approval_id = uuid4().hex
                 # The user decides from this input, and it is stored with the
                 # run: secrets are redacted and big values shortened.
-                shown_input, input_truncated = bounded(input_dump, APPROVAL_INPUT_BYTES_CAP)
+                shown = input_dump
+                if self.approval_details is not None:
+                    shown = {**input_dump, **await self.approval_details(ctx, parsed_input)}
+                cap = DIFF_PAYLOAD_BYTES_CAP if self.carries_diff else APPROVAL_INPUT_BYTES_CAP
+                shown_input, input_truncated = bounded(shown, cap)
                 registry = ctx.approval_registry
                 # Registered before the event goes out, so a decision posted
                 # as soon as the event arrives finds it.
@@ -223,7 +233,7 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
             "call_id": call_id,
             "ok": True,
             "duration_ms": int((monotonic() - started_at) * 1000),
-            **preview_payload(_dump_payload(output)),
+            **preview_payload(_dump_payload(output), carries_diff=self.carries_diff),
         }
         if ctx.debug:
             completed_data.update(_debug_output_payload(output))

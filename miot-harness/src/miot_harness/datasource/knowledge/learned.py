@@ -27,12 +27,31 @@ _HEADER = (
 
 _TRAINER_GUIDANCE = (
     "# Teaching mode\n"
-    "The user is a trainer: they can teach you facts about their business. When "
-    "they correct you, or state a business rule that is not in your data or your "
-    "learned facts, call `propose_learned_fact` with one fact per call, phrased so "
-    "it applies to future questions, then continue answering. Do not propose "
-    "facts you only inferred yourself. If the trainer declines one, ask what to "
-    "change. Connections that take learned facts: {connections}."
+    "The user is a trainer: they can change what you know about their organization. "
+    "When they correct you or state a business rule that is not in your data or your "
+    "knowledge, propose a change, then continue answering. Do not propose what you "
+    "only inferred yourself.\n\n"
+    "Where each kind of knowledge goes (file paths are for the ws_* tools):\n"
+    "| Layer | File | Use for |\n"
+    "|---|---|---|\n"
+    "| fact | `facts/<connection>/<id>.md` | What a table, column, status or value "
+    "means in one data source |\n"
+    "| rule | `rules/<id>.md` | Organization rules and glossary terms that apply "
+    "across data sources |\n"
+    "| skill | `skills/<id>/SKILL.md` | A procedure for a kind of question: steps, "
+    "filters, answer format |\n"
+    "| primer | `primers/<connection>.md` | The description of a data source; body "
+    "only, frontmatter is fixed |\n"
+    "| eval | `evals/<id>.yaml` | A question with its expected answer, to test "
+    "changes |\n"
+    "| note | `notes/<connection>/<id>.md` | Your own notes; read or delete only |\n\n"
+    "`base/` holds the shipped context and skills, read only; copy a shipped skill "
+    "into `skills/` to change it. Look before you write (knowledge_list, ws_ls, "
+    "ws_grep, ws_read) and update an item that covers the subject instead of adding "
+    "a duplicate. Propose one file with ws_write, ws_edit or ws_delete, or several "
+    "with propose_knowledge_change. The trainer approves each change from its diff; "
+    "if they decline, ask what to change. After a change, offer to save the question "
+    "it answers as an eval case. Connections that take facts: {connections}."
 )
 
 
@@ -88,12 +107,12 @@ class LearnedFacts:
         """The sources `tenant_id` may read and add facts to."""
         return tuple(s for s in self.sources if s.tenant_lock in (None, tenant_id))
 
-    def trainer_guidance(self, tenant_id: str | None) -> str | None:
-        """How a trainer's run proposes facts, or None when no connection takes them."""
+    def trainer_guidance(self, tenant_id: str | None) -> str:
+        """How a trainer's run changes the organization's knowledge."""
         names = [s.connection for s in self.usable(tenant_id)]
-        if not names:
-            return None
-        return _TRAINER_GUIDANCE.format(connections=", ".join(f"`{n}`" for n in names))
+        return _TRAINER_GUIDANCE.format(
+            connections=", ".join(f"`{n}`" for n in names) or "none"
+        )
 
     def render(
         self, tenant_id: str | None, overlay: Iterable[KnowledgeChange] = ()

@@ -493,8 +493,53 @@ class KnowledgeStore:
         meta: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         loc = self._locate(layer, item_id, target)
-        if layer not in EDITABLE:
-            raise KnowledgeError(405, f"layer {layer!r} is read-only")
+        _, text = self._composed(
+            loc, title=title, content=content, author=author, provenance=provenance, meta=meta
+        )
+        return self._write(loc, text, author=author, reason=reason, provenance=provenance)
+
+    def preview_put(
+        self,
+        layer: str,
+        item_id: str,
+        *,
+        target: str | None = None,
+        title: str = "",
+        content: str,
+        author: str = "",
+        provenance: dict[str, Any] | None = None,
+        meta: dict[str, Any] | None = None,
+    ) -> tuple[str | None, str]:
+        """(current file, the file `put` would write), checked as `put` checks
+        it, without writing anything."""
+        loc = self._locate(layer, item_id, target)
+        current, text = self._composed(
+            loc, title=title, content=content, author=author, provenance=provenance, meta=meta
+        )
+        self._validate(loc, text, current)
+        return current, text
+
+    def check_file(
+        self, layer: str, item_id: str, text: str, target: str | None = None
+    ) -> str | None:
+        """Refuse `text` as `write_file` would; returns the current file."""
+        loc = self._locate(layer, item_id, target)
+        current = _read(loc.live)
+        self._validate(loc, text, current)
+        return current
+
+    def _composed(
+        self,
+        loc: _Loc,
+        *,
+        title: str,
+        content: str,
+        author: str,
+        provenance: dict[str, Any] | None,
+        meta: dict[str, Any] | None,
+    ) -> tuple[str | None, str]:
+        if loc.layer not in EDITABLE:
+            raise KnowledgeError(405, f"layer {loc.layer!r} is read-only")
         current = _read(loc.live)
         merged: dict[str, Any] = {}
         if current is not None:
@@ -503,7 +548,7 @@ class KnowledgeStore:
             except (ValueError, yaml.YAMLError):
                 merged = {}
         merged.update(meta or {})
-        if layer == "eval" and provenance:
+        if loc.layer == "eval" and provenance:
             merged["source"] = provenance
         text = self._compose(
             loc,
@@ -514,7 +559,7 @@ class KnowledgeStore:
             author=author,
             provenance=provenance,
         )
-        return self._write(loc, text, author=author, reason=reason, provenance=provenance)
+        return current, text
 
     def write_file(
         self,
@@ -565,6 +610,7 @@ class KnowledgeStore:
         target: str | None = None,
         reason: str = "",
         author: str = "",
+        provenance: dict[str, Any] | None = None,
     ) -> None:
         if layer == "primer":
             raise KnowledgeError(405, "a data source description cannot be deleted")
@@ -578,7 +624,7 @@ class KnowledgeStore:
                     loc.live.parent.rmdir()
                 except OSError:
                     pass
-            self._append(loc, None, author=author, reason=reason)
+            self._append(loc, None, author=author, reason=reason, provenance=provenance)
 
     def revert(
         self,
@@ -670,6 +716,54 @@ class KnowledgeStore:
             }
             for layer in LAYERS
         ]
+
+    # ---- one conversation's changes ---------------------------------------
+
+    def _history_items(self) -> Iterator[_Loc]:
+        """Every item of this tenant that has a history."""
+        history = self.root / _HISTORY
+        tenant = self.tenant
+        scopes: list[tuple[str, str | None, Path]] = [
+            (layer, None, history / layer / tenant) for layer in ("rule", "skill", "eval")
+        ]
+        scopes += [("fact", c, history / "fact" / c) for c in self.targets("fact")]
+        scopes += [
+            ("note", c, history / "note" / c / slug_card_id(tenant)) for c in self.targets("note")
+        ]
+        for layer, target, folder in scopes:
+            for item in sorted(folder.iterdir()) if folder.is_dir() else ():
+                if item.is_dir() and safe_segment(item.name) == item.name:
+                    yield self._locate(layer, item.name, target)
+        for conn in self._primer_connections():
+            yield self._locate("primer", conn.name, None)
+
+    def conversation_changes(self, conversation_id: str) -> list[dict[str, Any]]:
+        """What the trainer tools changed in one conversation, per item: the
+        file before its first change there and after its last (None when it
+        did not exist), oldest first. Read from each version's provenance."""
+        out: list[dict[str, Any]] = []
+        for loc in self._history_items():
+            ours = [
+                e
+                for e in self._versions(loc)
+                if (e.get("provenance") or {}).get("conversation_id") == conversation_id
+            ]
+            if not ours:
+                continue
+            first, last = int(ours[0]["version"]), int(ours[-1]["version"])
+            out.append(
+                {
+                    "layer": loc.layer,
+                    "id": loc.id,
+                    "target": loc.target,
+                    "path": virtual_path(loc.layer, loc.id, loc.target),
+                    "version": last,
+                    "updated_at": ours[-1].get("updated_at"),
+                    "before": self._version_text(loc, first - 1) if first > 1 else None,
+                    "after": self._version_text(loc, last),
+                }
+            )
+        return sorted(out, key=lambda c: str(c["updated_at"] or ""))
 
     # ---- virtual tree (the file tools' view) ------------------------------
 

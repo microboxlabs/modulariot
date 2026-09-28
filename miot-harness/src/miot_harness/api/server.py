@@ -78,9 +78,19 @@ from miot_harness.runtime.factory import build_harness
 from miot_harness.runtime.run_store import HarnessRunRecord, RunSummary, summarize
 from miot_harness.runtime.supervisor import HarnessSupervisor
 from miot_harness.runtime.usage_report import UsageReporter
-from miot_harness.tools.learned_fact import (
-    PROPOSE_LEARNED_FACT_TOOL,
-    propose_learned_fact_tool,
+from miot_harness.tools.knowledge_tools import (
+    PROPOSE_KNOWLEDGE_CHANGE_TOOL,
+    knowledge_list_tool,
+    knowledge_read_tool,
+    propose_knowledge_change_tool,
+)
+from miot_harness.tools.workspace_files import (
+    ws_delete_tool,
+    ws_edit_tool,
+    ws_grep_tool,
+    ws_ls_tool,
+    ws_read_tool,
+    ws_write_tool,
 )
 
 logger = logging.getLogger(__name__)
@@ -422,10 +432,21 @@ def _make_lifespan(
             learned_sources, char_budget=settings.learned_facts_char_budget
         )
         harness.primer_updates = PrimerUpdates(_primer_sources(conn_result.connections))
-        if PROPOSE_LEARNED_FACT_TOOL not in harness.tools.names():
-            harness.tools.register(
-                propose_learned_fact_tool(lambda: harness.learned_facts)
-            )
+        store_for = knowledge_store_factory(app, settings)
+        harness.knowledge_store_for = store_for
+        if PROPOSE_KNOWLEDGE_CHANGE_TOOL not in harness.tools.names():
+            for factory in (
+                knowledge_list_tool,
+                knowledge_read_tool,
+                propose_knowledge_change_tool,
+                ws_ls_tool,
+                ws_read_tool,
+                ws_grep_tool,
+                ws_write_tool,
+                ws_edit_tool,
+                ws_delete_tool,
+            ):
+                harness.tools.register(factory(store_for))
 
         # Back-compat single-valued datasource_* state, sourced from the primary
         # connection (or a disabled placeholder when there is no connection).
@@ -1248,19 +1269,9 @@ def create_app() -> FastAPI:
         _enforce_tenant_may_write_connection(conn, auth, connection)
         return connection_cards_dir(conn)
 
-    def _knowledge_store(tenant_id: str) -> KnowledgeStore:
-        return KnowledgeStore(
-            tenant_id=tenant_id,
-            root=settings.knowledge_root or settings.context_dir.parent,
-            context_dir=settings.context_dir,
-            skills_dir=settings.skills_dir,
-            connections=_knowledge_targets(
-                getattr(app.state, "connection_objects", {}).values(),
-                app.state.harness.learned_facts,
-            ),
-        )
-
-    install_knowledge_routes(app, require_auth=require_auth, store_for=_knowledge_store)
+    install_knowledge_routes(
+        app, require_auth=require_auth, store_for=knowledge_store_factory(app, settings)
+    )
 
     @app.get("/knowledge/connections")
     async def list_knowledge_connections(
@@ -1510,6 +1521,26 @@ def _primer_sources(connections: Iterable[Connection]) -> list[PrimerSource]:
         if lock is not None and folder is not None:
             sources.append(PrimerSource(conn.name, folder / "connection.md", lock, conn.primer))
     return sources
+
+
+def knowledge_store_factory(
+    app: FastAPI, settings: HarnessSettings
+) -> Callable[[str], KnowledgeStore]:
+    """A tenant's knowledge store over the connections booted on `app`."""
+
+    def store_for(tenant_id: str) -> KnowledgeStore:
+        return KnowledgeStore(
+            tenant_id=tenant_id,
+            root=settings.knowledge_root or settings.context_dir.parent,
+            context_dir=settings.context_dir,
+            skills_dir=settings.skills_dir,
+            connections=_knowledge_targets(
+                getattr(app.state, "connection_objects", {}).values(),
+                app.state.harness.learned_facts,
+            ),
+        )
+
+    return store_for
 
 
 def _knowledge_targets(

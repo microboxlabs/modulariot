@@ -23,6 +23,7 @@ from miot_harness.runtime.commands import (
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
+from miot_harness.tools.learning_eval import run_learning_eval_tool
 from miot_harness.tools.registry import ToolRegistry
 from tests.fixtures.fake_provider import FAKE_PROFILE
 from tests.runtime.test_agent_loop import ScriptedModel
@@ -166,3 +167,22 @@ async def test_layers_and_test_are_answered_without_the_model(tmp_path: Path) ->
     assert "- `rules/loaded.md` Loaded trips" in (layers.answer or "")
     assert test.answer == "Evaluations are not available in this deployment yet."
     assert model.calls == []
+
+
+@pytest.mark.asyncio
+async def test_test_asks_the_agent_to_run_the_evaluation_tool(tmp_path: Path) -> None:
+    model = ScriptedModel([AIMessage(content="Scores follow.")])
+    sup = _supervisor(tmp_path, model)
+    sup.tools.register(
+        run_learning_eval_tool(lambda: None, sup.knowledge_store_for, max_cases=5, wait_seconds=1)
+    )
+
+    record = await sup.run(
+        UserRequest(message="/test how many trips today?", tenant_id="acme", trainer=True)
+    )
+
+    assert record.answer == "Scores follow."
+    sent = str(model.calls[0])
+    assert "Call `run_learning_eval`" in sent
+    assert "how many trips today?" in sent
+    assert "run_learning_eval" in {t["name"] for t in model.bound_tools or []}

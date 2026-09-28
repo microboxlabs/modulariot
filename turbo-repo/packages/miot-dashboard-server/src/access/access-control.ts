@@ -476,7 +476,7 @@ export function createAccessControl<TRequest>(
       ...target,
       action: "dashboard.load",
     });
-    if (!decision.dashboard || decision.dashboard.record === null) {
+    if (decision.dashboard?.record == null) {
       throw DashboardServerError.notFound("Dashboard not found");
     }
     return decision.dashboard.capabilities;

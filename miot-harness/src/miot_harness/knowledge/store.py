@@ -760,6 +760,22 @@ class KnowledgeStore:
                 )
         return sorted(out, key=lambda c: str(c["updated_at"] or ""))
 
+    def eval_cases(self) -> list[dict[str, Any]]:
+        """The tenant's eval cases, read in full (meta included), by id."""
+        cases = []
+        for item_id in self._live_ids("eval", None):
+            if safe_segment(item_id) is None:
+                continue
+            try:
+                cases.append(self.read("eval", item_id))
+            except KnowledgeError:
+                continue
+        return cases
+
+    def eval_results_dir(self) -> Path:
+        """Where the tenant's evaluation results are kept."""
+        return _inside(self.root / "evals" / "tenants" / self.tenant, "results")
+
     # ---- virtual tree (the file tools' view) ------------------------------
 
     def resolve_path(self, path: str) -> VirtualRef:

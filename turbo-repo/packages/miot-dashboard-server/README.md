@@ -731,3 +731,9 @@ Custom store adapters must also never reuse successful revisions.
 Back up the database and stop writers while upgrading from a version before this
 migration. Do not run old and new server versions against the same database: old
 versions do not maintain these counters. For rollback, restore the matching backup.
+
+## Test coverage
+
+Run `npm run test:coverage` in this package to generate `coverage/lcov.info`
+and a coverage summary. The SonarCloud workflow runs both dashboard packages
+and imports these reports; LCOV paths are relative to the `turbo-repo` root.

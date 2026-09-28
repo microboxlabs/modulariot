@@ -176,13 +176,19 @@
                 "maxLength": 128
               },
               "variableName": {
-                "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/id"
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
               },
               "connectionId": {
-                "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/id"
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
               },
               "operationId": {
-                "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/id"
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
               },
               "parameters": {
                 "type": "object",
@@ -238,7 +244,9 @@
                           "const": "filter"
                         },
                         "key": {
-                          "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/id"
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 128
                         },
                         "defaultValue": {
                           "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/parameters/additionalProperties/anyOf/0/properties/value"
@@ -251,10 +259,6 @@
                       "additionalProperties": true
                     }
                   ]
-                },
-                "propertyNames": {
-                  "minLength": 1,
-                  "maxLength": 128
                 }
               },
               "schema": {

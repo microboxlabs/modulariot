@@ -63,9 +63,22 @@ export const plannerRequestDefinitionSchema = z
   })
   .passthrough();
 
-const queryIdentifierSchema = z.string().min(1).max(128);
+// JSON Schema maxLength counts Unicode code points, not UTF-16 code units.
+export const dashboardQueryIdentifierSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => value.length <= 256 && [...value].length <= 128,
+    "Must contain at most 128 Unicode characters",
+  );
+export const dashboardQueryTextSchema = z
+  .string()
+  .refine(
+    (value) => value.length <= 4096 && [...value].length <= 2048,
+    "Must contain at most 2048 Unicode characters",
+  );
 const queryScalarSchema = z.union([
-  z.string().max(2048),
+  dashboardQueryTextSchema,
   z.number().finite(),
   z.boolean(),
   z.null(),
@@ -81,18 +94,21 @@ export const dashboardQueryParameterSchema = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("filter"),
-      key: queryIdentifierSchema,
+      key: dashboardQueryIdentifierSchema,
       defaultValue: dashboardQueryValueSchema.optional(),
     })
     .passthrough(),
 ]);
 export const dashboardQueryDefinitionSchema = z
   .object({
-    id: queryIdentifierSchema,
-    variableName: queryIdentifierSchema,
-    connectionId: queryIdentifierSchema,
-    operationId: queryIdentifierSchema,
-    parameters: z.record(queryIdentifierSchema, dashboardQueryParameterSchema),
+    id: dashboardQueryIdentifierSchema,
+    variableName: dashboardQueryIdentifierSchema,
+    connectionId: dashboardQueryIdentifierSchema,
+    operationId: dashboardQueryIdentifierSchema,
+    parameters: z.record(
+      dashboardQueryIdentifierSchema,
+      dashboardQueryParameterSchema,
+    ),
     schema: z.array(z.string()).optional(),
   })
   .passthrough();

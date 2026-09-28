@@ -17,7 +17,11 @@
  */
 
 import type { ServerDashboardRef, ServerDashboardStore } from "../seams/store";
-import { refLabel, type LegacyDashboardSource } from "./legacy";
+import {
+  refLabel,
+  type LegacyDashboard,
+  type LegacyDashboardSource,
+} from "./legacy";
 import { migrateConfig } from "./migrate";
 
 export interface ImportOptions {
@@ -116,27 +120,11 @@ export async function importDashboards(
       continue;
     }
 
-    if (legacy.assignments !== undefined && legacy.assignments.length > 0) {
-      try {
-        // Verbatim, and only once the config is written: a failed save must
-        // not leave permissions behind for a dashboard that is not there.
-        await store.setPermissions(legacy.ref, [...legacy.assignments]);
-      } catch (error) {
-        // The config is in the store and its assignments are not. Left alone,
-        // the next run sees that it exists and skips it forever, so the
-        // estate keeps a dashboard carrying permissions nobody chose while
-        // the report calls it failed. Undo the create, so a re-run is a real
-        // retry rather than a skip.
-        const reason = reasonOf(error);
-        const undone = await undoCreate(store, legacy.ref);
-        const full = undone
-          ? `${reason} — the dashboard was removed again, so a re-run retries it`
-          : `${reason} — AND it could not be removed, so it is in the store ` +
-            "without its assignments and a re-run will skip it";
-        result.failed.push({ ref, reason: full });
-        options.onProgress?.({ msg: "failed", ref, reason: full });
-        continue;
-      }
+    const assignmentFailure = await importAssignments(store, legacy);
+    if (assignmentFailure !== null) {
+      result.failed.push({ ref, reason: assignmentFailure });
+      options.onProgress?.({ msg: "failed", ref, reason: assignmentFailure });
+      continue;
     }
 
     result.imported.push(ref);
@@ -144,6 +132,27 @@ export async function importDashboards(
   }
 
   return result;
+}
+
+/** Apply assignments only after creation, undoing the new dashboard on failure. */
+async function importAssignments(
+  store: ServerDashboardStore,
+  legacy: LegacyDashboard,
+): Promise<string | null> {
+  if (!legacy.assignments?.length) return null;
+  try {
+    await store.setPermissions(legacy.ref, [...legacy.assignments]);
+    return null;
+  } catch (error) {
+    // Otherwise the next run would skip the created config forever, leaving it
+    // without the permissions the importer chose.
+    const reason = reasonOf(error);
+    const undone = await undoCreate(store, legacy.ref);
+    return undone
+      ? `${reason} — the dashboard was removed again, so a re-run retries it`
+      : `${reason} — AND it could not be removed, so it is in the store ` +
+          "without its assignments and a re-run will skip it";
+  }
 }
 
 /**

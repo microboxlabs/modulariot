@@ -70,7 +70,8 @@ const defaultLog = (line: Record<string, unknown>) => {
  */
 function originFor(host: string, port: number): string {
   const bracketed = host.includes(":") && !host.startsWith("[");
-  return `http://${bracketed ? `[${host}]` : host}:${port}`;
+  const hostname = bracketed ? `[${host}]` : host;
+  return `http://${hostname}:${port}`;
 }
 
 /**

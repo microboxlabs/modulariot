@@ -36,7 +36,7 @@ export function pickQuery(
  */
 export async function forwardToOrg(
   segments: readonly string[],
-  init?: { method?: string; body?: unknown; query?: URLSearchParams }
+  init?: Parameters<typeof forwardToQuarkus>[1] & { query?: URLSearchParams }
 ) {
   const result = await resolveTenantScope();
   if (!result.resolved) return result.response;

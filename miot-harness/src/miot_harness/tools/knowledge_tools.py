@@ -125,6 +125,52 @@ def _planned(store: KnowledgeStore, change: KnowledgeChange, ctx: HarnessContext
     return {**change.model_dump(), "path": path, **diff_fields(before, after, path)}
 
 
+def _plan_all(
+    store: KnowledgeStore, ctx: HarnessContext, changes: list[KnowledgeChange]
+) -> list[dict[str, Any]]:
+    return [_planned(store, change, ctx) for change in changes]
+
+
+def _apply(store: KnowledgeStore, ctx: HarnessContext, change: KnowledgeChange) -> AppliedChange:
+    path = virtual_path(change.layer, change.id, change.target)
+    before = _current(store, change)
+    version: int | None = None
+    after: str | None = None
+    if change.op == "delete":
+        store.delete(
+            change.layer,
+            change.id,
+            target=change.target,
+            reason=change.reason,
+            author=ctx.user_id,
+            provenance=provenance(ctx),
+        )
+    else:
+        item = store.put(
+            change.layer,
+            change.id,
+            target=change.target,
+            title=change.title,
+            content=change.content,
+            reason=change.reason,
+            author=ctx.user_id,
+            provenance=provenance(ctx),
+        )
+        version = item.get("version")
+        after = store.read_file(change.layer, change.id, change.target)
+    return AppliedChange(
+        layer=change.layer,
+        id=change.id,
+        target=change.target,
+        path=path,
+        op=change.op,
+        title=change.title,
+        reason=change.reason,
+        version=version,
+        **diff_fields(before, after, path),
+    )
+
+
 def knowledge_list_tool(
     store_for: StoreFor,
 ) -> HarnessTool[KnowledgeListInput, KnowledgeListOutput]:
@@ -196,9 +242,7 @@ def propose_knowledge_change_tool(
         if refused is not None:
             return refused
         try:
-            store = store_for(ctx.tenant_id)
-            for change in value.changes:
-                await asyncio.to_thread(_planned, store, change, ctx)
+            await asyncio.to_thread(_plan_all, store_for(ctx.tenant_id), ctx, value.changes)
         except KnowledgeError as exc:
             return PermissionResult.deny(exc.detail)
         count = len(value.changes)
@@ -221,53 +265,15 @@ def propose_knowledge_change_tool(
         except KnowledgeError:
             return {}
 
-    def apply(ctx: HarnessContext, change: KnowledgeChange) -> AppliedChange:
-        store = store_for(ctx.tenant_id)
-        path = virtual_path(change.layer, change.id, change.target)
-        before = _current(store, change)
-        shown.check(ctx.run_id, path, before)
-        version: int | None = None
-        after: str | None = None
-        if change.op == "delete":
-            store.delete(
-                change.layer,
-                change.id,
-                target=change.target,
-                reason=change.reason,
-                author=ctx.user_id,
-                provenance=provenance(ctx),
-            )
-        else:
-            item = store.put(
-                change.layer,
-                change.id,
-                target=change.target,
-                title=change.title,
-                content=change.content,
-                reason=change.reason,
-                author=ctx.user_id,
-                provenance=provenance(ctx),
-            )
-            version = item.get("version")
-            after = store.read_file(change.layer, change.id, change.target)
-        return AppliedChange(
-            layer=change.layer,
-            id=change.id,
-            target=change.target,
-            path=path,
-            op=change.op,
-            title=change.title,
-            reason=change.reason,
-            version=version,
-            **diff_fields(before, after, path),
-        )
-
     def apply_all(ctx: HarnessContext, value: ProposeKnowledgeChangeInput) -> list[AppliedChange]:
         """In order. A failure stops the batch and names what was already applied."""
+        store = store_for(ctx.tenant_id)
         applied: list[AppliedChange] = []
         for change in value.changes:
             try:
-                applied.append(apply(ctx, change))
+                path = virtual_path(change.layer, change.id, change.target)
+                shown.check(ctx.run_id, path, _current(store, change))
+                applied.append(_apply(store, ctx, change))
             except KnowledgeError as exc:
                 done = ", ".join(a.path for a in applied) or "none"
                 raise KnowledgeError(exc.status, f"{exc.detail} (already applied: {done})") from exc

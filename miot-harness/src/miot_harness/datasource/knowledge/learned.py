@@ -14,6 +14,8 @@ from pathlib import Path
 from miot_harness.datasource.knowledge.loader import load_connection_cards_cached
 from miot_harness.datasource.knowledge.models import KnowledgeCard
 
+_TITLE_CHARS = 120
+
 _HEADER = (
     "# Learned facts\n"
     "Your organization's trainers taught you these facts about its data. They "
@@ -33,7 +35,13 @@ class LearnedFactsSource:
 
 
 def approved_cards(cards_dir: Path) -> tuple[KnowledgeCard, ...]:
-    return tuple(c for c in load_connection_cards_cached(cards_dir).cards if c.status == "approved")
+    """Approved tenant-wide cards. Group-scoped cards are left out: a run does
+    not carry the caller's groups, so there is no way to check membership."""
+    return tuple(
+        c
+        for c in load_connection_cards_cached(cards_dir).cards
+        if c.status == "approved" and c.scope == "tenant"
+    )
 
 
 class LearnedFacts:
@@ -62,20 +70,27 @@ class LearnedFacts:
 def _render_section(
     connection: str, cards: Sequence[KnowledgeCard], remaining: int
 ) -> tuple[str, int]:
-    """One connection's cards, and the budget left after them."""
+    """One connection's cards, and the budget left after them. Titles count
+    against the budget too; cards past it are only counted."""
     full: list[str] = []
     titles: list[str] = []
+    omitted = 0
     for card in cards:
         entry = f"### {card.title}\n{card.body}"
-        if not titles and len(entry) <= remaining:
+        line = f"- {card.id}: {card.title[:_TITLE_CHARS]}"
+        if not titles and not omitted and len(entry) <= remaining:
             full.append(entry)
             remaining -= len(entry)
+        elif len(line) <= remaining:
+            titles.append(line)
+            remaining -= len(line)
         else:
-            titles.append(f"- {card.id}: {card.title}")
+            omitted += 1
     parts = [f"## {connection}", *full]
-    if titles:
-        parts.append(
-            f"More learned facts, titles only (open with `{connection}_knowledge`):\n"
-            + "\n".join(titles)
-        )
+    if titles or omitted:
+        tool = f"`{connection}_knowledge`"
+        more = [f"More learned facts, titles only (open with {tool}):", *titles]
+        if omitted:
+            more.append(f"{omitted} more not listed; call {tool} with an empty card id.")
+        parts.append("\n".join(more))
     return "\n\n".join(parts), remaining

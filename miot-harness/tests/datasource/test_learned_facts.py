@@ -68,7 +68,7 @@ def test_budget_falls_back_to_titles_with_tool_pointer(tmp_path: Path) -> None:
     _write(tmp_path, "alpha", "A" * 50)
     _write(tmp_path, "beta", "B" * 50)
     _write(tmp_path, "gamma", "C" * 50)
-    block = LearnedFacts([LearnedFactsSource("db", tmp_path)], char_budget=70).render("t1")
+    block = LearnedFacts([LearnedFactsSource("db", tmp_path)], char_budget=90).render("t1")
     assert block is not None
     assert "A" * 50 in block
     assert "B" * 50 not in block
@@ -76,6 +76,21 @@ def test_budget_falls_back_to_titles_with_tool_pointer(tmp_path: Path) -> None:
     assert "open with `db_knowledge`" in block
     assert "- beta: beta" in block
     assert "- gamma: gamma" in block
+
+
+def test_cards_past_the_budget_are_counted_not_listed(tmp_path: Path) -> None:
+    _write(tmp_path, "alpha", "A" * 50)
+    _write(tmp_path, "beta", "B" * 50)
+    block = LearnedFacts([LearnedFactsSource("db", tmp_path)], char_budget=0).render("t1")
+    assert block is not None
+    assert "A" * 50 not in block
+    assert "- alpha" not in block
+    assert "2 more not listed; call `db_knowledge`" in block
+
+
+def test_group_scoped_cards_are_left_out(tmp_path: Path) -> None:
+    _write(tmp_path, "team term", "Only for one group.", scope="group:ops")
+    assert LearnedFacts([LearnedFactsSource("db", tmp_path)], char_budget=6000).render("t1") is None
 
 
 def test_new_and_deleted_cards_show_on_next_render(tmp_path: Path) -> None:

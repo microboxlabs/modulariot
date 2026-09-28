@@ -278,6 +278,11 @@ empties it between tests — and install `pg`. The PostgreSQL-specific tests
 also exercise concurrent startup and recovery after an idle connection is
 terminated, using temporary schemas in that database.
 
+The `Dashboard Server Tests` CI job runs the full package suite on Node.js 24,
+including HTTP listener tests, SQLite storage, and a disposable PostgreSQL 17
+service. It installs the optional PostgreSQL driver outside the workspace so
+testing that backend does not add a runtime dependency for other deployments.
+
 Config bytes are stored separately from metadata (rows and permissions):
 
 | Where              | Config bytes live                                               |
@@ -714,3 +719,9 @@ finds it — and the conversion should be written against that example.
   and emits `from "sqlite"`, which fails to resolve. The guard rejects the
   static form because the tests import the TypeScript source and do not detect
   it.
+
+## Test coverage
+
+Run `npm run test:coverage` in this package to generate `coverage/lcov.info`
+and a coverage summary. The SonarCloud workflow runs both dashboard packages
+and imports these reports; LCOV paths are relative to the `turbo-repo` root.

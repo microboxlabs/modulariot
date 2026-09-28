@@ -223,6 +223,17 @@ class HarnessSettings(BaseSettings):
     # cases (`evals/`). None → the parent of `context_dir` (the directory
     # holding context/, skills/ and connections/ on the harness volume).
     knowledge_root: Path | None = None
+    # Before/after evaluations of knowledge changes (`POST /learning/evaluations`).
+    # Runs at once, across all evaluations; each run's time limit; the model
+    # that scores answers (None → `agents_summarizer_model`); the skill each
+    # run uses, as the chat does; and how many stored cases the tool takes.
+    learning_eval_concurrency: int = Field(default=3, ge=1, le=16)
+    learning_eval_run_timeout_seconds: float = Field(default=300.0, gt=0)
+    learning_eval_judge_model: str | None = None
+    learning_eval_skill_id: str | None = "miot-analyst"
+    learning_eval_max_cases: int = Field(default=20, ge=1, le=50)
+    # How long `run_learning_eval` waits before returning a running evaluation.
+    learning_eval_tool_wait_seconds: float = Field(default=600.0, gt=0)
     # Background knowledge distiller (semantic-layer continual learning, R3): a
     # reflector that reads interaction episodes OFF the request hot path and
     # distills recurring ungrounded business terms into human-gated candidate

@@ -36,3 +36,7 @@ Esta sección describe el modo autónomo: el servidor corre en su infraestructur
 | [Usuarios y permisos](/es/operations/dashboard-server/identidad) | Identidad, organizaciones, ámbitos y roles |
 | [Fuentes de datos y credenciales](/es/operations/dashboard-server/fuentes-de-datos) | Conectar un tablero a sus datos sin exponer secretos |
 | [API](/es/operations/dashboard-server/api) | Las rutas, el contrato OpenAPI y los errores |
+
+## Cobertura de pruebas
+
+El flujo de SonarCloud ejecuta las pruebas del servidor y del contrato con cobertura V8 e importa ambos informes LCOV. Para reproducirlo localmente, ejecuta `npm run test:coverage` en cada paquete. Configura `MIOT_DASHBOARD_TEST_POSTGRES_URL` para incluir las pruebas opcionales de integración con PostgreSQL.

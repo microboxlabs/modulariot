@@ -86,7 +86,7 @@ export function embed(
   };
 }
 
-export const scopeAuthority = createMemoryScopeAuthority;
+export { createMemoryScopeAuthority as scopeAuthority } from "../testing";
 
 export interface MemoryStore extends ServerDashboardStore {
   load: ReturnType<typeof vi.fn<ServerDashboardStore["load"]>>;

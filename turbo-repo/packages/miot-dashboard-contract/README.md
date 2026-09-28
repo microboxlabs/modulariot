@@ -110,3 +110,9 @@ schemas, or when the OpenAPI document and the TypeScript vocabulary disagree.
 ## Licence
 
 Apache-2.0.
+
+## Test coverage
+
+Run `npm run test:coverage` in this package to generate `coverage/lcov.info`
+and a coverage summary. The SonarCloud workflow runs both dashboard packages
+and imports these reports; LCOV paths are relative to the `turbo-repo` root.

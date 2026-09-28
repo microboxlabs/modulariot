@@ -273,13 +273,15 @@ async def test_searches_running_at_the_same_time_stay_within_the_limit() -> None
         )
 
     searcher = _searcher(("anthropic",), handler, web_search_max_per_run=4)
+    ctx = _ctx()
     await asyncio.gather(
-        searcher.search(_ctx(), "q", lambda _e: None),
-        searcher.search(_ctx(), "q", lambda _e: None),
+        searcher.search(ctx, "q", lambda _e: None),
+        searcher.search(ctx, "q", lambda _e: None),
     )
     assert sorted(max_uses) == [1, 3]
+    third = searcher.search(ctx, "q", lambda _e: None)
     with pytest.raises(WebSearchError, match="limit"):
-        await searcher.search(_ctx(), "q", lambda _e: None)
+        await third
 
 
 @pytest.mark.asyncio
@@ -288,12 +290,14 @@ async def test_a_failed_search_counts_once() -> None:
         return httpx.Response(500, json={"error": "down"})
 
     searcher = _searcher(("anthropic",), refuse, web_search_max_per_run=2)
-    with pytest.raises(WebSearchError):
-        await searcher.search(_ctx(), "q", lambda _e: None)
-    with pytest.raises(WebSearchError, match="500"):
-        await searcher.search(_ctx(), "q", lambda _e: None)
-    with pytest.raises(WebSearchError, match="limit"):
-        await searcher.search(_ctx(), "q", lambda _e: None)
+    ctx = _ctx()
+    outcomes = []
+    for _ in range(3):
+        search = searcher.search(ctx, "q", lambda _e: None)
+        with pytest.raises(WebSearchError) as caught:
+            await search
+        outcomes.append("limit" if "limit" in str(caught.value) else "failed")
+    assert outcomes == ["failed", "failed", "limit"]
 
 
 def test_the_description_mentions_web_fetch_only_when_it_is_offered() -> None:

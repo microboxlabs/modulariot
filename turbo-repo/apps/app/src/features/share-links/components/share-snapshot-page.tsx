@@ -4,7 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { HiLink } from "react-icons/hi2";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
-import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { HarnessChatI18nProvider } from "@/features/harness-chat/context/harness-chat-i18n-context";
+import { HarnessReadOnlyProvider } from "@/features/harness-chat/context/harness-read-only-context";
+import type {
+  I18nDictionary,
+  I18nRecord,
+} from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { StoryContentView } from "@/features/storytelling/components/story-content-view";
 import { renderForVersion } from "@/features/storytelling/story-content";
@@ -16,6 +21,7 @@ import {
   type SharedMessage,
 } from "../share-links-api";
 import { toTranscript, type TranscriptEntry } from "../transcript";
+import { renderToolCard } from "./transcript-tool-card";
 
 /** Messages read per page of a shared thread. */
 export const MESSAGE_PAGE = 200;
@@ -27,6 +33,8 @@ interface ShareSnapshotPageProps {
   readonly dict: I18nRecord;
   /** `storytelling` dict namespace, for the story previewers. */
   readonly storyDict: I18nRecord;
+  /** The whole dictionary, for the chat's cards. */
+  readonly chatDict: I18nDictionary;
 }
 
 type State =
@@ -111,6 +119,14 @@ function Transcript({
               if (part.kind === "text") {
                 return <MarkdownContent key={key}>{part.text}</MarkdownContent>;
               }
+              const card = part.kind === "tool" ? renderToolCard(part) : null;
+              if (card) {
+                return (
+                  <div key={key} className="my-2">
+                    {card}
+                  </div>
+                );
+              }
               const label =
                 part.kind === "attachment"
                   ? part.name
@@ -138,6 +154,7 @@ export default function ShareSnapshotPage({
   lang,
   dict,
   storyDict,
+  chatDict,
 }: ShareSnapshotPageProps) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [messages, setMessages] = useState<readonly SharedMessage[]>([]);
@@ -261,7 +278,11 @@ export default function ShareSnapshotPage({
       />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl px-5 py-6">
-          <Transcript entries={entries} dict={dict} />
+          <HarnessChatI18nProvider dict={chatDict}>
+            <HarnessReadOnlyProvider readOnly>
+              <Transcript entries={entries} dict={dict} />
+            </HarnessReadOnlyProvider>
+          </HarnessChatI18nProvider>
           {hasMore && (
             <div className="mt-6 flex justify-center">
               <button

@@ -15,6 +15,7 @@ from miot_harness.datasource.knowledge.writer import (
     write_connection_card,
 )
 from miot_harness.integrations.generic_pg.provider import GenericPgProvider
+from miot_harness.knowledge.changes import KnowledgeChange
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.tools.registry import ToolRegistry
 from tests.fixtures.recording_pool import RecordingPool
@@ -425,3 +426,37 @@ async def test_authored_cards_are_read_per_call_without_restart(
     out = await tool.invoke(ctx, {"card": "current-process"}, lambda _e: None)
     assert out.body == ""
     assert out.available == []
+
+
+@pytest.mark.asyncio
+async def test_knowledge_tool_applies_the_runs_fact_overlay(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    pool = RecordingPool(responder=_responder)
+    monkeypatch.setattr(
+        "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+        AsyncMock(return_value=pool),
+    )
+    conn_md = tmp_path / "connection.md"
+    conn_md.write_text("---\nname: acs\n---\n", encoding="utf-8")
+    registry = ToolRegistry()
+    await GenericPgProvider().boot(registry, _enabled(), _conn(source_path=str(conn_md)))
+    write_connection_card(
+        tmp_path / "knowledge", ConnectionCardWrite(term="stored", body="Stored meaning.")
+    )
+    tool = registry.get("acs_knowledge")
+    overlay = (
+        KnowledgeChange(layer="fact", id="draft", target="acs", title="Draft", content="New."),
+        KnowledgeChange(layer="fact", id="stored", target="acs", op="delete"),
+    )
+    previewing = HarnessContext(
+        thread_id="t", tenant_id="demo", user_id="u", knowledge_overlay=overlay
+    )
+    out = await tool.invoke(previewing, {"card": "draft"}, lambda _e: None)
+    assert out.body == "New."
+    assert [a["card"] for a in out.available] == ["draft"]
+
+    plain = HarnessContext(thread_id="t", tenant_id="demo", user_id="u")
+    out = await tool.invoke(plain, {"card": "draft"}, lambda _e: None)
+    assert out.body == ""
+    assert [a["card"] for a in out.available] == ["stored"]

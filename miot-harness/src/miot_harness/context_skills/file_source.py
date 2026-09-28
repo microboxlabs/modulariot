@@ -56,6 +56,7 @@ from miot_harness.context_skills.source import (
     SkillLoadResult,
     SkillSource,
 )
+from miot_harness.knowledge.tenant_overlays import is_learned_path
 
 _TENANTS_DIR = "tenants"
 # The Agent-Skills standard: a directory skill is a folder holding a
@@ -65,7 +66,9 @@ _SKILL_ADAPTER: TypeAdapter[Skill] = TypeAdapter(Skill)
 
 
 def _is_hidden(path: Path, base_dir: Path) -> bool:
-    """True if any path component under `base_dir` starts with a dot.
+    """True if any path component under `base_dir` starts with a dot, or the
+    path is in a tenant's `learned/` dir (read live per run instead, see
+    `knowledge.tenant_overlays`).
 
     Excludes Kubernetes projected-volume internals (`..data`,
     `..2026_06_17_...`) and any dotfile, so a mounted ConfigMap doesn't
@@ -75,7 +78,7 @@ def _is_hidden(path: Path, base_dir: Path) -> bool:
         parts = path.relative_to(base_dir).parts
     except ValueError:
         return False
-    return any(part.startswith(".") for part in parts)
+    return any(part.startswith(".") for part in parts) or is_learned_path(parts)
 
 
 def _scope_for(path: Path, base_dir: Path) -> ContextScope:

@@ -6,8 +6,6 @@ import {
   useRef,
   useState,
   type FC,
-  type KeyboardEvent,
-  type PointerEvent,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -140,6 +138,21 @@ const middle = (a: Point, b: Point): Point => ({
   y: (a.y + b.y) / 2,
 });
 
+const pan = (view: View, from: Point, to: Point): View => ({
+  ...view,
+  x: view.x + to.x - from.x,
+  y: view.y + to.y - from.y,
+});
+
+/** One of two fingers moved from `from` to `to`: zoom by the change in
+ * their spread and follow their midpoint. */
+function pinch(view: View, from: Point, to: Point, other: Point): View {
+  const before = middle(from, other);
+  const after = middle(to, other);
+  const factor = distance(to, other) / (distance(from, other) || 1);
+  return pan(zoomAround(view, factor, before), before, after);
+}
+
 const buttonClass =
   "rounded p-1 text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white";
 
@@ -159,7 +172,6 @@ export const ZoomableView: FC<{
   const contentRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<View>({ scale: 1, x: 0, y: 0 });
   const moved = useRef(false);
-  const pointers = useRef(new Map<number, Point>());
   const natural = useDrawingSize(contentRef, size);
 
   const boxSize = useCallback((): Size | null => {
@@ -173,10 +185,10 @@ export const ZoomableView: FC<{
     if (natural && box) setView(fitView(natural, box));
   }, [natural, boxSize]);
 
-  const refit = () => {
+  const refit = useCallback(() => {
     moved.current = false;
     fit();
-  };
+  }, [fit]);
 
   useEffect(() => {
     if (!moved.current) fit();
@@ -189,103 +201,87 @@ export const ZoomableView: FC<{
     return () => observer.disconnect();
   }, [fit]);
 
-  const center = (): Point => {
+  const center = useCallback((): Point => {
     const box = boxSize();
     return box ? { x: box.width / 2, y: box.height / 2 } : { x: 0, y: 0 };
-  };
+  }, [boxSize]);
 
   const zoomBy = useCallback((factor: number, at: Point) => {
     moved.current = true;
     setView((v) => zoomAround(v, factor, at));
   }, []);
 
-  const local = (clientX: number, clientY: number): Point => {
-    const rect = boxRef.current!.getBoundingClientRect();
-    return { x: clientX - rect.left, y: clientY - rect.top };
-  };
-
-  // React's wheel listener is passive, so it could not stop the page scroll.
+  // Native listeners: React's wheel listener is passive and could not stop
+  // the page from scrolling. Keys work anywhere while the view is open.
   useEffect(() => {
     const box = boxRef.current;
     if (!box) return;
+    const pointers = new Map<number, Point>();
+    const local = (event: MouseEvent): Point => {
+      const rect = box.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    };
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
       const perLine = event.deltaMode === 1 ? 20 : 1;
-      const rect = box.getBoundingClientRect();
-      zoomBy(Math.exp(-event.deltaY * perLine * 0.002), {
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
-      });
+      zoomBy(Math.exp(-event.deltaY * perLine * 0.002), local(event));
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+      box.setPointerCapture?.(event.pointerId);
+      pointers.set(event.pointerId, local(event));
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      const previous = pointers.get(event.pointerId);
+      if (!previous) return;
+      const point = local(event);
+      const other = [...pointers].find(([id]) => id !== event.pointerId)?.[1];
+      pointers.set(event.pointerId, point);
+      moved.current = true;
+      setView((v) =>
+        other ? pinch(v, previous, point, other) : pan(v, previous, point)
+      );
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      pointers.delete(event.pointerId);
+    };
+    const onDoubleClick = (event: MouseEvent) => zoomBy(2, local(event));
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (target instanceof HTMLInputElement) return;
+      if (target instanceof HTMLElement && target.isContentEditable) return;
+      if (event.key === "+" || event.key === "=") zoomBy(STEP, center());
+      else if (event.key === "-" || event.key === "_")
+        zoomBy(1 / STEP, center());
+      else if (event.key === "0") refit();
+      else return;
+      event.preventDefault();
     };
     box.addEventListener("wheel", onWheel, { passive: false });
-    return () => box.removeEventListener("wheel", onWheel);
-  }, [zoomBy]);
-
-  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    pointers.current.set(event.pointerId, local(event.clientX, event.clientY));
-  };
-
-  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    const previous = pointers.current.get(event.pointerId);
-    if (!previous) return;
-    const point = local(event.clientX, event.clientY);
-    const others = [...pointers.current].filter(
-      ([id]) => id !== event.pointerId
-    );
-    pointers.current.set(event.pointerId, point);
-    moved.current = true;
-    if (others.length === 0) {
-      setView((v) => ({
-        ...v,
-        x: v.x + point.x - previous.x,
-        y: v.y + point.y - previous.y,
-      }));
-      return;
-    }
-    const other = others[0][1];
-    const before = middle(previous, other);
-    const after = middle(point, other);
-    const factor = distance(point, other) / (distance(previous, other) || 1);
-    setView((v) => {
-      const zoomed = zoomAround(v, factor, before);
-      return {
-        ...zoomed,
-        x: zoomed.x + after.x - before.x,
-        y: zoomed.y + after.y - before.y,
-      };
-    });
-  };
-
-  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    pointers.current.delete(event.pointerId);
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "+" || event.key === "=") zoomBy(STEP, center());
-    else if (event.key === "-" || event.key === "_") zoomBy(1 / STEP, center());
-    else if (event.key === "0") refit();
-    else return;
-    event.preventDefault();
-  };
+    box.addEventListener("pointerdown", onPointerDown);
+    box.addEventListener("pointermove", onPointerMove);
+    box.addEventListener("pointerup", onPointerUp);
+    box.addEventListener("pointercancel", onPointerUp);
+    box.addEventListener("dblclick", onDoubleClick);
+    globalThis.addEventListener("keydown", onKeyDown);
+    return () => {
+      box.removeEventListener("wheel", onWheel);
+      box.removeEventListener("pointerdown", onPointerDown);
+      box.removeEventListener("pointermove", onPointerMove);
+      box.removeEventListener("pointerup", onPointerUp);
+      box.removeEventListener("pointercancel", onPointerUp);
+      box.removeEventListener("dblclick", onDoubleClick);
+      globalThis.removeEventListener("keydown", onKeyDown);
+    };
+  }, [zoomBy, center, refit]);
 
   return (
     <div className={`relative ${className ?? ""}`}>
       <div
         ref={boxRef}
-        role="application"
-        aria-label={tr("harnessChat.ui.showArtifact.zoomArea")}
-        tabIndex={0}
-        className="h-full w-full cursor-grab touch-none overflow-hidden rounded bg-white outline-none select-none focus-visible:ring-2 focus-visible:ring-blue-500 active:cursor-grabbing"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onDoubleClick={(event) =>
-          zoomBy(2, local(event.clientX, event.clientY))
-        }
-        onKeyDown={onKeyDown}
+        data-testid="zoomable-area"
+        title={tr("harnessChat.ui.showArtifact.zoomArea")}
+        className="h-full w-full cursor-grab touch-none overflow-hidden rounded bg-white select-none active:cursor-grabbing"
       >
         <div
           ref={contentRef}

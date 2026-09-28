@@ -73,6 +73,9 @@ logger = logging.getLogger(__name__)
 
 
 _DRAIN_RETRY_AFTER_SECONDS = 10
+_DRAINING_RESPONSE: dict[int | str, dict[str, Any]] = {
+    503: {"description": "Shutting down; retry after Retry-After seconds"}
+}
 
 
 def _configure_logging(settings: HarnessSettings) -> None:
@@ -956,7 +959,7 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=503, detail="title unavailable") from exc
         return {"title": title}
 
-    @app.post("/runs", response_model=HarnessRunRecord)
+    @app.post("/runs", response_model=HarnessRunRecord, responses=_DRAINING_RESPONSE)
     async def create_run(
         request: UserRequest,
         http_request: Request,
@@ -1041,7 +1044,7 @@ def create_app() -> FastAPI:
         tenant_id = auth.get("tenant_id") or tenant or settings.default_tenant_id
         return bundle.list_skills(tenant_id)
 
-    @app.post("/runs:start", status_code=202)
+    @app.post("/runs:start", status_code=202, responses=_DRAINING_RESPONSE)
     async def start_run(
         request: UserRequest,
         http_request: Request,

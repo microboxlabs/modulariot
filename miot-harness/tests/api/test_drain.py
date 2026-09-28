@@ -47,7 +47,8 @@ async def test_drain_waits_for_a_run_that_finishes_in_time(tmp_path: Any) -> Non
 
     draining = asyncio.create_task(drain.drain())
     await asyncio.sleep(0.05)
-    assert drain.draining and not draining.done()
+    assert drain.draining
+    assert not draining.done()
     loop.release.set()
     await asyncio.wait_for(draining, timeout=5)
 

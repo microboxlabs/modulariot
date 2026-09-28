@@ -106,7 +106,7 @@ describe("ZoomableView", () => {
 
   it("zooms with the buttons, the keyboard, the wheel and a double-click", () => {
     renderView();
-    const area = screen.getByRole("application");
+    const area = screen.getByTestId("zoomable-area");
 
     fireEvent.click(
       screen.getByLabelText("harnessChat.ui.showArtifact.actualSize")
@@ -133,7 +133,7 @@ describe("ZoomableView", () => {
 
   it("pans on drag", () => {
     renderView();
-    const area = screen.getByRole("application");
+    const area = screen.getByTestId("zoomable-area");
     fireEvent.pointerDown(area, {
       pointerId: 1,
       button: 0,

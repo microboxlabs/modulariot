@@ -99,7 +99,7 @@ describe("ArtifactCard", () => {
     fireEvent.click(
       screen.getByLabelText("harnessChat.ui.showArtifact.expand")
     );
-    expect(screen.getByRole("application")).toBeTruthy();
+    expect(screen.getByTestId("zoomable-area")).toBeTruthy();
     expect(
       screen.getByLabelText("harnessChat.ui.showArtifact.zoomIn")
     ).toBeTruthy();

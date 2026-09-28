@@ -115,51 +115,60 @@ const NaturalSize: FC<{ size?: Size | null; children: ReactNode }> = ({
   );
 };
 
+type BodyView = "card" | "natural" | "expanded";
+
+/** An SVG (shown as an image of its sanitized markup) or a Mermaid diagram. */
+const DrawingBody: FC<{
+  artifact: ShowArtifactArgs;
+  content: string;
+  view: BodyView;
+}> = ({ artifact, content, view }) => {
+  const svgSize = useMemo(
+    () => (artifact.kind === "svg" ? svgMarkupSize(content) : null),
+    [artifact.kind, content]
+  );
+  const drawing =
+    artifact.kind === "svg" ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(content)}`}
+        alt={artifact.title}
+        draggable={false}
+        className={view === "card" ? "h-auto max-w-full object-contain" : ""}
+      />
+    ) : (
+      <MermaidDiagram code={content} />
+    );
+  if (view === "expanded")
+    return (
+      <ZoomableView size={svgSize} className="min-h-0 flex-1">
+        {drawing}
+      </ZoomableView>
+    );
+  if (view === "natural")
+    return <NaturalSize size={svgSize}>{drawing}</NaturalSize>;
+  return artifact.kind === "svg" ? (
+    <div className="flex max-h-96 justify-center overflow-auto rounded bg-white p-2">
+      {drawing}
+    </div>
+  ) : (
+    <div className="max-h-96 overflow-auto">{drawing}</div>
+  );
+};
+
 const ArtifactBody: FC<{
   artifact: ShowArtifactArgs;
   content: string;
-  view: "card" | "natural" | "expanded";
+  view: BodyView;
 }> = ({ artifact, content, view }) => {
   const expanded = view === "expanded";
-  const svgSize = useMemo(
-    () => (artifact.kind === "svg" && content ? svgMarkupSize(content) : null),
-    [artifact.kind, content]
-  );
   switch (artifact.kind) {
-    case "svg": {
-      if (!content) return null;
-      const image = (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(content)}`}
-          alt={artifact.title}
-          draggable={false}
-          className={view === "card" ? "h-auto max-w-full object-contain" : ""}
-        />
-      );
-      if (expanded)
-        return (
-          <ZoomableView size={svgSize} className="min-h-0 flex-1">
-            {image}
-          </ZoomableView>
-        );
-      if (view === "natural")
-        return <NaturalSize size={svgSize}>{image}</NaturalSize>;
-      return (
-        <div className="flex max-h-96 justify-center overflow-auto rounded bg-white p-2">
-          {image}
-        </div>
-      );
-    }
-    case "mermaid": {
-      const diagram = <MermaidDiagram code={content} />;
-      if (expanded)
-        return (
-          <ZoomableView className="min-h-0 flex-1">{diagram}</ZoomableView>
-        );
-      if (view === "natural") return <NaturalSize>{diagram}</NaturalSize>;
-      return <div className="max-h-96 overflow-auto">{diagram}</div>;
-    }
+    case "svg":
+      return content ? (
+        <DrawingBody artifact={artifact} content={content} view={view} />
+      ) : null;
+    case "mermaid":
+      return <DrawingBody artifact={artifact} content={content} view={view} />;
     case "markdown":
       return (
         <div

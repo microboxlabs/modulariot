@@ -126,9 +126,10 @@ async def test_bus_emits_cancelled_run_failed_on_task_cancel(tmp_path: Any) -> N
 @pytest.mark.asyncio
 async def test_run_interrupted_by_shutdown_says_so(tmp_path: Any) -> None:
     sup = _supervisor(tmp_path, _Loop(raises=asyncio.CancelledError("interrupted")))
+    request = _request()
 
     with pytest.raises(asyncio.CancelledError):
-        await sup.run(_request(), run_id_override="run_interrupted")
+        await sup.run(request, run_id_override="run_interrupted")
 
     record = sup.run_store.load("run_interrupted")
     assert record.status == "failed"

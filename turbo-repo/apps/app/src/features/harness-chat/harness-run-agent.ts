@@ -42,6 +42,10 @@ export class HarnessRunAgent extends HttpAgent {
    * Sent with every run in state, next to the conversation id. */
   model: string | null = null;
 
+  /** A trainer's learning session; the relay expands its `/review` and
+   * shows its workspace cards. */
+  learning = false;
+
   /** The harness run behind this thread's current or last run. */
   harnessRunId: string | null = null;
 
@@ -74,7 +78,10 @@ export class HarnessRunAgent extends HttpAgent {
     this.setRunStartedAt(null);
     if (!resumeRunId) {
       return super.run(
-        withEffort(withModel(trimRunInput(input), this.model), readRunEffort())
+        withLearning(
+          withEffort(withModel(trimRunInput(input), this.model), readRunEffort()),
+          this.learning
+        )
       );
     }
     const url = resumeRunUrl(resumeRunId, this.threadId, input.runId);
@@ -158,6 +165,13 @@ export function withEffort(
   effort: RunEffort | null
 ): RunAgentInput {
   return withStateField(input, "harnessEffort", effort);
+}
+
+export function withLearning(
+  input: RunAgentInput,
+  learning: boolean
+): RunAgentInput {
+  return withStateField(input, "harnessLearning", learning ? "true" : null);
 }
 
 function withStateField(

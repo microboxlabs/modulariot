@@ -205,7 +205,9 @@ export function createDashboardHandler(
         // authorize already loaded it; a second store round trip would be
         // both wasteful and a chance for the two reads to disagree.
         const record = decision.dashboard?.record ?? null;
-        return jsonResponse({ data: record?.config ?? null });
+        const response = jsonResponse({ data: record?.config ?? null });
+        response.headers.set("ETag", `"${record?.revision ?? 0}"`);
+        return response;
       }
       if (method === "PUT") {
         // Authorize before parsing: an unauthorized caller learns nothing
@@ -227,10 +229,12 @@ export function createDashboardHandler(
             ...(expectedRevision === undefined ? {} : { expectedRevision }),
           },
         );
-        return jsonResponse(
+        const response = jsonResponse(
           { data: { revision: saved.revision, updatedAt: saved.updatedAt } },
           200,
         );
+        response.headers.set("ETag", `"${saved.revision}"`);
+        return response;
       }
       if (method === "DELETE") {
         const decision = await access.authorize(request, {

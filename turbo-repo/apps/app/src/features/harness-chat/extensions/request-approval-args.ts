@@ -40,6 +40,10 @@ export const APPROVAL_ACTIONS = [
   "selectables_delete",
   "selectables_bind",
   "propose_learned_fact",
+  "propose_knowledge_change",
+  "ws_write",
+  "ws_edit",
+  "ws_delete",
 ] as const;
 
 export type ApprovalAction = (typeof APPROVAL_ACTIONS)[number];
@@ -100,6 +104,7 @@ export function approvalSubject(input: Record<string, unknown>): string | null {
     str(input.name) ??
     str(input.key) ??
     str(version.label) ??
+    str(input.path) ??
     null
   );
 }

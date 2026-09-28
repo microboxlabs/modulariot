@@ -20,4 +20,6 @@ export type HarnessSkill = {
   id: string;
   label: string;
   description: string;
+  /** What goes after the command, e.g. `<question> => <expected answer>`. */
+  usage?: string;
 };

@@ -19,14 +19,16 @@ Toda ruta nombra la organización y el ámbito, y el servidor comprueba ambos an
 
 ## Guardar un tablero
 
-Cada tablero tiene una revisión entera. Al guardar, envíe en `If-Match` la revisión que leyó; si alguien guardó entre medias, el servidor responde `409` y la interfaz vuelve a leer antes de intentarlo de nuevo.
+Cada tablero tiene una revisión entera. `GET` la devuelve entre comillas en `ETag`, por ejemplo `"3"`. Copie ese encabezado en `If-Match` al guardar. Un `PUT` correcto devuelve el nuevo `ETag` y la revisión en `data.revision`. Si no hay un tablero guardado, `GET` devuelve `data: null` y `ETag: "0"`; enviar ese valor evita sobrescribir un tablero creado por otra persona mientras tanto.
+
+Una revisión desactualizada devuelve `409`. Conserve los cambios sin guardar y permita compararlos con el tablero actual antes de guardar de nuevo. No reintente automáticamente el documento anterior con la nueva revisión: sobrescribiría los cambios de la otra persona. Por compatibilidad, las peticiones sin `If-Match` siguen siendo incondicionales.
 
 ```bash
 curl -X PUT http://127.0.0.1:3070/tenants/acme/scopes/operaciones/dashboards/flota \
   -H "Authorization: Bearer $TOKEN" \
-  -H 'If-Match: 3' \
+  -H 'If-Match: "3"' \
   -H 'Content-Type: application/json' \
-  -d '{"version":2,"name":"Flota","widgets":[]}'
+  -d '{"version":2,"name":"Flota","widgets":[],"preferences":{"editMode":false}}'
 ```
 
 El documento se valida contra el contrato antes de guardarse. Una `version` distinta de `2` o una estructura que no es un tablero se rechazan con `400` diciendo qué campo falla. Los campos que el contrato no conoce se conservan, así que un documento escrito por una interfaz más nueva pasa intacto por un servidor más antiguo.
@@ -53,7 +55,7 @@ Los mensajes de las excepciones internas nunca llegan al cliente.
 
 ## Renderizar los tableros
 
-`@microboxlabs/miot-dashboard-ui` es el componente de React que dibuja y edita los tableros contra esta API. Se le indica la URL base del servidor y cómo obtener el token; el resto del vocabulario lo comparten a través de `@microboxlabs/miot-dashboard-contract`.
+Cualquier interfaz puede consumir la API del servidor. La interfaz dibuja y edita el tablero; el servidor guarda el documento y controla el acceso. Se prevé publicar el paquete de interfaz por separado.
 
 ## API de ModularIoT
 

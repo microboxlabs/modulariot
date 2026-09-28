@@ -38,6 +38,7 @@ describe("filterSettings", () => {
     const filtered = filterSettings(pages, {
       harness: true,
       platformOwner: false,
+      trainer: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/platform");
@@ -48,6 +49,7 @@ describe("filterSettings", () => {
     const filtered = filterSettings(pages, {
       harness: false,
       platformOwner: true,
+      trainer: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/harness");
@@ -58,6 +60,7 @@ describe("filterSettings", () => {
     const filtered = filterSettings(pages, {
       harness: false,
       platformOwner: false,
+      trainer: false,
     });
 
     expect(settingsHrefs(filtered)).toEqual([
@@ -82,15 +85,27 @@ describe("filterSettings", () => {
     const filtered = filterSettings(pages, {
       harness: true,
       platformOwner: true,
+      trainer: true,
     });
 
     expect(settingsHrefs(filtered)).toEqual(settingsHrefs(pages));
+  });
+
+  it("offers the learning workspace to trainers only", () => {
+    const gates = { harness: true, platformOwner: true };
+    expect(
+      settingsHrefs(filterSettings(pages, { ...gates, trainer: true })),
+    ).toContain("/harness/learning");
+    expect(
+      settingsHrefs(filterSettings(pages, { ...gates, trainer: false })),
+    ).not.toContain("/harness/learning");
   });
 
   it("touches no page outside Settings", () => {
     const filtered = filterSettings(pages, {
       harness: false,
       platformOwner: false,
+      trainer: false,
     });
 
     expect(filtered.map((page) => page.label)).toEqual(

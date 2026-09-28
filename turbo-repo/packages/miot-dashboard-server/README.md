@@ -272,6 +272,20 @@ signed with its private key; no Google SDK is needed. The target may then be
 the dataset alone. A `BEARER` token is sent as it is, and the target has to
 name the project.
 
+### Concurrent editing
+
+Loading a dashboard returns its revision in `ETag`, for example `"3"`.
+Send that value unchanged in `If-Match` when saving. A successful save returns
+the new `ETag` as well as `data.revision`. An empty dashboard address returns
+`data: null` and `ETag: "0"`; use that precondition to create without replacing
+a dashboard another editor just created. Unauthorized responses disclose no
+revision. Config response bodies are unchanged.
+
+A stale revision returns `409`. Preserve the person's edits and compare them
+with the latest document before retrying; automatically replacing the revision
+would discard someone else's work. Omitting `If-Match` remains an unconditional
+write for compatibility. Cross-origin clients can read `ETag` when CORS is enabled.
+
 To run the contract suite against a real server, point
 `MIOT_DASHBOARD_TEST_POSTGRES_URL` at a **throwaway** database — the suite
 empties it between tests — and install `pg`. The PostgreSQL-specific tests
@@ -758,7 +772,7 @@ retain their slot until they settle. See the
 [query integration guide](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/apps/docs/content/en/operations/dashboard-server/queries.mdx)
 for the contract and configurable limits.
 
-### Embedded request limits
+## Embedded request limits
 
 `createDashboardHandler({ ...adapters, maxBodyBytes: 1024 * 1024 })` enforces
 the same default 1 MiB JSON body limit as the standalone Node adapter. It

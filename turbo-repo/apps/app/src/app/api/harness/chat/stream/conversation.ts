@@ -22,6 +22,8 @@ export type RunAgentInputBody = {
     harnessModel?: unknown;
     /** The reasoning effort the panel picked; omitted for the default. */
     harnessEffort?: unknown;
+    /** "true" when the run belongs to a trainer's learning session. */
+    harnessLearning?: unknown;
   } | null;
   messages?: AgUiMessage[];
 };
@@ -81,6 +83,10 @@ const RUN_EFFORTS: readonly RunEffort[] = ["low", "medium", "high", "max"];
 export function effortOf(body: RunAgentInputBody): RunEffort | null {
   const effort = body.state?.harnessEffort;
   return RUN_EFFORTS.find((level) => level === effort) ?? null;
+}
+
+export function isLearningRun(body: RunAgentInputBody): boolean {
+  return body.state?.harnessLearning === "true";
 }
 
 /** Stands in for the answer a failed run never produced. */

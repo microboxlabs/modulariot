@@ -49,7 +49,8 @@ class ArtifactOutput(BaseModel):
     note: str
 
 
-async def _allow(_: HarnessContext, __: BaseModel) -> PermissionResult:
+# HarnessTool.check_permission and call must return awaitables.
+async def _allow(_: HarnessContext, __: BaseModel) -> PermissionResult:  # NOSONAR
     return PermissionResult.allow("Artifacts are shown to the user; nothing is stored.")
 
 
@@ -64,7 +65,9 @@ def validate_artifact(kind: ArtifactKind, content: str) -> int:
 
 
 def artifact_tool() -> HarnessTool[ArtifactInput, ArtifactOutput]:
-    async def call(ctx: HarnessContext, value: ArtifactInput, progress: Progress) -> ArtifactOutput:
+    async def call(  # NOSONAR
+        ctx: HarnessContext, value: ArtifactInput, progress: Progress
+    ) -> ArtifactOutput:
         size = validate_artifact(value.kind, value.content)
         artifact_id = f"a{uuid4().hex[:10]}"
         progress(

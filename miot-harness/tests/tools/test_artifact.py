@@ -72,10 +72,11 @@ async def test_unsafe_svg_is_refused_without_an_event(svg: str) -> None:
 async def test_content_over_the_limit_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(artifact, "MAX_ARTIFACT_BYTES", 10)
     events: list[HarnessEvent] = []
+    tool = artifact.artifact_tool()
+    ctx = _ctx()
+    raw = {"kind": "markdown", "title": "x", "content": "x" * 11}
     with pytest.raises(ValueError, match="limit"):
-        await artifact.artifact_tool().invoke(
-            _ctx(), {"kind": "markdown", "title": "x", "content": "x" * 11}, events.append
-        )
+        await tool.invoke(ctx, raw, events.append)
     assert not any(e.type == "artifact.created" for e in events)
 
 

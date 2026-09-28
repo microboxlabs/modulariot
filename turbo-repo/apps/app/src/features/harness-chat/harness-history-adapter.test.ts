@@ -52,6 +52,7 @@ describe("stripInlineContent", () => {
             {
               type: "file",
               filename: "report.pdf",
+              mimeType: "application/pdf",
               data: `data:application/pdf;base64,${"A".repeat(50_000)}`,
             },
           ],
@@ -67,8 +68,26 @@ describe("stripInlineContent", () => {
     expect(stored.attachments[0]).toEqual({
       name: "report.pdf",
       type: "document",
-      content: [],
+      content: [{ type: "text", text: "[pdf: report.pdf]" }],
     });
+  });
+
+  it("leaves a marker for an inlined image in the attachment", () => {
+    const message = {
+      content: [{ type: "text", text: "and this?" }],
+      attachments: [
+        {
+          name: "chart.png",
+          type: "image",
+          contentType: "image/png",
+          content: [{ type: "image", image: "data:image/png;base64,iVBO" }],
+        },
+      ],
+    };
+
+    expect(stripInlineContent(message).attachments[0].content).toEqual([
+      { type: "text", text: "[image: chart.png]" },
+    ]);
   });
 
   it("keeps a short remote reference, which costs nothing to store", () => {

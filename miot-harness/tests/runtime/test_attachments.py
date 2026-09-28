@@ -10,7 +10,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import ValidationError
 
 from miot_harness.runtime.agent_loop import _compose_human, _plain_messages, _with_tail_marker
-from miot_harness.runtime.attachments import MAX_ATTACHMENT_BYTES, Attachment
+from miot_harness.runtime.attachments import MAX_ATTACHMENT_BYTES, Attachment, content_block
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.conversation import InMemoryConversationStore
 from miot_harness.runtime.run_store import JsonRunStore
@@ -54,6 +54,13 @@ def test_unsupported_type_is_rejected() -> None:
         Attachment(mime="application/zip", name="x.zip", data=PNG)
 
 
+def test_json_is_read_as_text() -> None:
+    data = base64.b64encode(b'{"a": 1}').decode()
+    block = content_block(Attachment(mime="application/json", name="a.json", data=data))
+    assert block["type"] == "text"
+    assert '{"a": 1}' in block["text"]
+
+
 def test_invalid_base64_is_rejected() -> None:
     with pytest.raises(ValidationError, match="not valid base64"):
         Attachment(mime="image/png", name="x.png", data="not base64!")
@@ -66,8 +73,9 @@ def test_a_file_over_the_size_cap_is_rejected() -> None:
 
 
 def test_more_than_five_attachments_are_rejected() -> None:
+    six = [_image()] * 6
     with pytest.raises(ValidationError):
-        UserRequest(message="q", tenant_id="acme", attachments=[_image()] * 6)
+        UserRequest(message="q", tenant_id="acme", attachments=six)
 
 
 def test_mime_parameters_are_dropped() -> None:

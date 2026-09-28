@@ -55,6 +55,19 @@ describe("createHarnessAttachmentAdapter", () => {
     ).toBe(true);
   });
 
+  it("sends a text file as a file part, not inlined text", async () => {
+    const adapter = createHarnessAttachmentAdapter(tr, () => 0);
+    const pending = await add(0, file("trips.csv", "text/csv"));
+    const complete = await adapter.send(pending);
+    expect(complete.content).toEqual([
+      expect.objectContaining({
+        type: "file",
+        filename: "trips.csv",
+        mimeType: "text/csv",
+      }),
+    ]);
+  });
+
   it("sends a PDF as a file part", async () => {
     const adapter = createHarnessAttachmentAdapter(tr, () => 0);
     const pending = await add(0, file("report.pdf", "application/pdf"));

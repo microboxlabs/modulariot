@@ -3,6 +3,7 @@ import type { Session } from "next-auth";
 import {
   createMiotHarnessClient,
   TERMINAL_EVENT_TYPES,
+  type Attachment,
   type HarnessEvent,
 } from "@microboxlabs/miot-harness-client";
 import { requireAuth } from "../../../utils/alfresco-crud-client";
@@ -27,7 +28,6 @@ import {
 } from "@/features/i18n/i18n.service";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
-import type { Attachment } from "@microboxlabs/miot-harness-client";
 import {
   conversationOf,
   lastUserAttachments,
@@ -399,6 +399,10 @@ export type HarnessPathDecision =
   | { handled: true }
   | { handled: false; message: string; attachments?: Attachment[] };
 
+function isEmptyTurn(message: string, attachments: Attachment[]): boolean {
+  return !message && attachments.length === 0;
+}
+
 /** A tool result while the harness is configured: the user's pick on an
  * ask_user_question card is their next turn; a widget's automatic
  * acknowledgement needs no reply at all. */
@@ -441,7 +445,7 @@ export function decideHarnessPath(
 
   const message = lastUserText(messages);
   const attachments = lastUserAttachments(messages);
-  if (!message && attachments.length === 0) {
+  if (isEmptyTurn(message, attachments)) {
     send({ type: "RUN_FINISHED", runId, threadId });
     return { handled: true };
   }

@@ -18,6 +18,8 @@ MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
 _MAX_BASE64_CHARS = (MAX_ATTACHMENT_BYTES + 2) // 3 * 4
 IMAGE_TYPES = frozenset({"image/png", "image/jpeg", "image/webp", "image/gif"})
 PDF_TYPE = "application/pdf"
+# Read as text, like `text/*`.
+JSON_TYPE = "application/json"
 
 
 class Attachment(BaseModel):
@@ -29,7 +31,7 @@ class Attachment(BaseModel):
     @classmethod
     def _allowed_type(cls, value: str) -> str:
         mime = value.split(";", 1)[0].strip().lower()
-        if mime in IMAGE_TYPES or mime == PDF_TYPE or mime.startswith("text/"):
+        if mime in IMAGE_TYPES or mime in (PDF_TYPE, JSON_TYPE) or mime.startswith("text/"):
             return mime
         raise ValueError(f"unsupported attachment type {value!r}")
 
@@ -37,7 +39,7 @@ class Attachment(BaseModel):
     def _decodes_within_cap(self) -> "Attachment":
         try:
             raw = base64.b64decode(self.data, validate=True)
-        except (binascii.Error, ValueError) as exc:
+        except binascii.Error as exc:
             raise ValueError(f"attachment {self.name!r} is not valid base64") from exc
         if len(raw) > MAX_ATTACHMENT_BYTES:
             raise ValueError(f"attachment {self.name!r} is larger than 5 MB")

@@ -11,7 +11,7 @@ export interface ConversationTurn {
 
 /**
  * A file attached to the message. The harness accepts up to 5, each at most
- * 5 MB: PNG, JPEG, WebP or GIF images, PDFs, and `text/*` files.
+ * 5 MB: PNG, JPEG, WebP or GIF images, PDFs, JSON and `text/*` files.
  */
 export interface Attachment {
   mime: string;

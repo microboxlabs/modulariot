@@ -94,6 +94,18 @@ describe("saved dashboard query service", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it("does not decode a deferred body until dashboard access is authorized", async () => {
+    const { service, execute } = setup();
+    const read = vi.fn().mockResolvedValue({ service: "storage" });
+    await expect(
+      service.execute(null, ref, "costs", read),
+    ).rejects.toMatchObject({ status: 401 });
+    expect(read).not.toHaveBeenCalled();
+    await service.execute(viewer, ref, "costs", read);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(execute.mock.lastCall?.[0].parameters.service).toBe("storage");
+  });
+
   it("enforces the embed dashboard boundary", async () => {
     const { service, execute } = setup();
     const token = embed("acme", "ops", "costs");

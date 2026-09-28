@@ -17,7 +17,7 @@ Una consulta guardada identifica una conexión y operación del host mediante `c
 
 ## Integración de la biblioteca
 
-`createDashboardQueryService` recibe los adaptadores de identidad, tenant, ámbito, almacenamiento y políticas del control de acceso, además de un `DashboardOperationExecutor`. El host llama a `service.execute(request, ref, queryId, filters, signal)`. Este servicio programático no registra una ruta HTTP automáticamente.
+`createDashboardQueryService` recibe los adaptadores de identidad, tenant, ámbito, almacenamiento y políticas del control de acceso, además de un `DashboardOperationExecutor`. El host llama a `service.execute(request, ref, queryId, filters, signal)`. En un host HTTP, pasa una función asíncrona como `filters` para leer el cuerpo después de autorizar. Este servicio programático no registra una ruta HTTP automáticamente.
 
 La autorización ocurre antes de cargar o ejecutar una consulta. Un Consumer puede consultar un dashboard al que tiene acceso; las identidades embed siguen limitadas a su dashboard exacto. Se rechazan IDs desconocidos, definiciones ambiguas, valores inválidos y filtros no declarados. Las decisiones de acceso usan el evento `dashboard.query`, sin incluir valores de filtros ni filas.
 

@@ -196,7 +196,9 @@ async def test_a_conversation_id_that_is_not_a_thread_is_left_out() -> None:
 def test_the_deck_slides_the_skill_teaches_are_the_ones_the_app_renders() -> None:
     if not _DECK_TYPES.exists():
         pytest.skip("monorepo checkout not available")
-    app_types = set(re.findall(r'type: "(\w+)"', _DECK_TYPES.read_text()))
+    deck = re.search(r"export type DeckSlide =(.*?)\n\n", _DECK_TYPES.read_text(), re.S)
+    assert deck is not None
+    app_types = set(re.findall(r'type: "(\w+)"', deck.group(1)))
     body = (_SKILLS_DIR / "storyteller" / "SKILL.md").read_text()
     taught = set(re.findall(r'\{"type": "(\w+)"', body))
     assert app_types == {"title", "bullets", "table"}

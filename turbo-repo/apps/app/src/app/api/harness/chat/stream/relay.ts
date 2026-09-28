@@ -372,6 +372,36 @@ async function* withIdleChecks<T>(
   }
 }
 
+/** What one event adds to the relay's view of the run: its start time, the
+ * tools used, and any artifact, sent as a card at once. */
+function trackEvent(
+  event: HarnessEvent,
+  r: { runId: string; opened: number; send: Sender; state: RelayState }
+): void {
+  const { runId, send, state } = r;
+  if (state.startedAt === null && event.created_at) {
+    state.startedAt = event.created_at;
+    logger.info(
+      { runId, firstEventMs: Math.round(performance.now() - r.opened) },
+      "[harness/chat/stream] first harness event"
+    );
+    sendRunMarker(send, {
+      runId,
+      status: "running",
+      startedAt: event.created_at,
+    });
+  }
+  if (event.type === "tool.started" && typeof event.data.tool === "string") {
+    state.tools.push(event.data.tool);
+  }
+  if (event.type !== "artifact.created") return;
+  const spec = toArtifactSpec(event.data);
+  if (spec && !state.shownArtifacts.has(spec.id)) {
+    state.shownArtifacts.add(spec.id);
+    for (const call of artifactCallEvents(spec)) send(call);
+  }
+}
+
 async function relayHarnessEvents(
   client: HarnessClient,
   runId: string,
@@ -403,28 +433,7 @@ async function relayHarnessEvents(
   );
 
   for await (const event of events) {
-    if (state.startedAt === null && event.created_at) {
-      state.startedAt = event.created_at;
-      logger.info(
-        { runId, firstEventMs: Math.round(performance.now() - opened) },
-        "[harness/chat/stream] first harness event"
-      );
-      sendRunMarker(send, {
-        runId,
-        status: "running",
-        startedAt: event.created_at,
-      });
-    }
-    if (event.type === "tool.started" && typeof event.data.tool === "string") {
-      state.tools.push(event.data.tool);
-    }
-    if (event.type === "artifact.created") {
-      const spec = toArtifactSpec(event.data);
-      if (spec && !state.shownArtifacts.has(spec.id)) {
-        state.shownArtifacts.add(spec.id);
-        for (const call of artifactCallEvents(spec)) send(call);
-      }
-    }
+    trackEvent(event, { runId, opened, send, state });
     if (FORWARDED_EVENTS.has(event.type)) {
       progress = reduceHarnessStreamEvent(progress, {
         event: event.type,

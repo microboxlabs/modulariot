@@ -951,7 +951,11 @@ def create_app() -> FastAPI:
         _enforce_model_allowlist(request)
         return await harness.run(request, **_caller(http_request))
 
-    @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
+    @app.get(
+        "/runs/{run_id}",
+        response_model=HarnessRunRecord,
+        responses={404: {"description": "No run with this id"}},
+    )
     async def get_run(
         run_id: str,
         auth: Mapping[str, Any] = Depends(require_auth),

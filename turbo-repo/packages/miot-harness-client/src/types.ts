@@ -28,7 +28,11 @@ export interface UserRequest {
   /** Conversation model for the agent loop; one of `models.list()`. Omit
    * for the harness default. */
   model?: string;
+  /** Reasoning effort for this run. Omit for the harness default. */
+  effort?: RunEffort;
 }
+
+export type RunEffort = "low" | "medium" | "high" | "max";
 
 /** GET /models: the models a run may name in `model`. */
 export interface ModelsInfo {

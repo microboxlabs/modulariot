@@ -1,4 +1,4 @@
-import type { ConversationTurn } from "@microboxlabs/miot-harness-client";
+import type { ConversationTurn, RunEffort } from "@microboxlabs/miot-harness-client";
 
 export type AgUiMessage = {
   id: string;
@@ -19,6 +19,8 @@ export type RunAgentInputBody = {
     harnessConversationSummary?: unknown;
     /** The conversation model the panel picked; omitted for the default. */
     harnessModel?: unknown;
+    /** The reasoning effort the panel picked; omitted for the default. */
+    harnessEffort?: unknown;
   } | null;
   messages?: AgUiMessage[];
 };
@@ -70,6 +72,14 @@ export function conversationOf(
 /** The model the panel asked for, or null for the harness default. */
 export function modelOf(body: RunAgentInputBody): string | null {
   return text(body.state?.harnessModel) ?? null;
+}
+
+const RUN_EFFORTS: readonly RunEffort[] = ["low", "medium", "high", "max"];
+
+/** The reasoning effort the panel asked for, or null for the harness default. */
+export function effortOf(body: RunAgentInputBody): RunEffort | null {
+  const effort = body.state?.harnessEffort;
+  return RUN_EFFORTS.find((level) => level === effort) ?? null;
 }
 
 /** Stands in for the answer a failed run never produced. */

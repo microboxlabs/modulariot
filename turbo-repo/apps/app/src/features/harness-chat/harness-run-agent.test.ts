@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RunAgentInput } from "@ag-ui/client";
-import { trimRunInput, withModel } from "./harness-run-agent";
+import { trimRunInput, withEffort, withModel } from "./harness-run-agent";
 
 function input(messages: RunAgentInput["messages"]): RunAgentInput {
   return {
@@ -70,7 +70,11 @@ describe("trimRunInput", () => {
       ])
     );
 
-    expect(trimmed.messages.map((m) => m.role)).toEqual(["user", "assistant", "tool"]);
+    expect(trimmed.messages.map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "tool",
+    ]);
   });
 
   it("keeps only the recent part of a long transcript", () => {
@@ -106,6 +110,28 @@ describe("withModel", () => {
       ...input([]),
       state: { harnessConversationId: "t1", harnessModel: "claude-sonnet-4-6" },
     };
-    expect(withModel(base, null).state).toEqual({ harnessConversationId: "t1" });
+    expect(withModel(base, null).state).toEqual({
+      harnessConversationId: "t1",
+    });
+  });
+});
+
+describe("withEffort", () => {
+  it("puts the picked effort in state next to the model", () => {
+    const base = withModel(
+      { ...input([]), state: { harnessConversationId: "t1" } },
+      "m"
+    );
+    expect(withEffort(base, "max").state).toEqual({
+      harnessConversationId: "t1",
+      harnessModel: "m",
+      harnessEffort: "max",
+    });
+  });
+
+  it("drops the effort when the default is chosen again", () => {
+    const base = { ...input([]), state: { harnessEffort: "low" } };
+    expect(withEffort(base, null).state).toEqual({});
+    expect(withEffort(input([]), null)).toEqual(input([]));
   });
 });

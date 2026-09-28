@@ -20,12 +20,13 @@ import {
   LuThumbsDown,
   LuThumbsUp,
 } from "react-icons/lu";
-import { useState, type FC } from "react";
+import { useEffect, useState, type FC } from "react";
 import { twMerge } from "tailwind-merge";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import { useRunCancel } from "../context/run-cancel-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 import { useHarnessReadOnly } from "../context/harness-read-only-context";
+import { formatElapsed, splitNarration } from "../run-progress";
 import { SentAttachment } from "./attachments";
 
 const actionButtonClass =
@@ -111,7 +112,7 @@ const EditComposer: FC = () => {
 // spotlight search answer uses, so a harness reply reads the same wherever
 // it shows up.
 const AssistantText: FC<TextMessagePartProps> = ({ text }) => (
-  <div className="max-w-[95%] text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+  <div className="max-w-[95%] animate-harness-enter text-xs leading-relaxed text-gray-700 dark:text-gray-300">
     <MarkdownContent>{text}</MarkdownContent>
   </div>
 );
@@ -133,12 +134,16 @@ const AssistantReasoning: FC<ReasoningMessagePartProps> = ({ text, status }) => 
   const tr = useHarnessChatTr();
   const [expanded, setExpanded] = useState(false);
   const isLast = useAuiState((s) => s.message.isLast);
+  const live = useLiveRun();
   if (!isLast || !text.trim()) return null;
 
   if (status?.type !== "complete") {
+    // While RunStatus shows the step in progress, only the finished ones stay here.
+    const shown = live ? splitNarration(text).earlier : text;
+    if (!shown) return null;
     return (
       <div className="mb-1 max-w-[90%] whitespace-pre-wrap text-[10px] leading-snug text-gray-400 dark:text-gray-500">
-        {text}
+        {shown}
       </div>
     );
   }
@@ -161,6 +166,59 @@ const AssistantReasoning: FC<ReasoningMessagePartProps> = ({ text, status }) => 
           {text}
         </div>
       )}
+    </div>
+  );
+};
+
+/** True while this is the newest message, its run is going and no answer
+ * text has arrived yet: from the moment of sending, before the first byte. */
+function useLiveRun(): boolean {
+  return useAuiState(
+    (s) =>
+      s.message.isLast &&
+      s.message.status?.type === "running" &&
+      !s.message.parts.some((part) => part.type === "text" && part.text.trim() !== "")
+  );
+}
+
+function useElapsedMs(since: Date | undefined, running: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!running) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [running]);
+  return since ? now - since.getTime() : 0;
+}
+
+// The step in progress, with a soft pulse, a shimmer and the time so far.
+const RunStatus: FC = () => {
+  const tr = useHarnessChatTr();
+  const live = useLiveRun();
+  const narration = useAuiState((s) =>
+    s.message.parts.map((part) => (part.type === "reasoning" ? part.text : "")).join("\n")
+  );
+  const createdAt = useAuiState((s) => s.message.createdAt);
+  const elapsed = useElapsedMs(createdAt, live);
+  if (!live) return null;
+
+  const step = splitNarration(narration).current ?? tr("harnessChat.ui.thread.working");
+  return (
+    <div className="flex max-w-[90%] animate-harness-enter items-center gap-2 text-[11px] leading-snug">
+      <span
+        aria-hidden
+        className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 motion-safe:animate-pulse dark:bg-amber-400"
+      />
+      <span role="status" className="min-w-0 truncate animate-harness-shimmer">
+        {step}
+      </span>
+      <time
+        title={tr("harnessChat.ui.thread.elapsed")}
+        className="shrink-0 text-[10px] tabular-nums text-gray-400 dark:text-gray-500"
+      >
+        {formatElapsed(elapsed)}
+      </time>
     </div>
   );
 };
@@ -216,6 +274,7 @@ export const AssistantMessage: FC = () => (
         <MessagePrimitive.Parts
           components={{ Text: AssistantText, Reasoning: AssistantReasoning }}
         />
+        <RunStatus />
         <CancelledNotice />
         <FailedRunNotice />
       </div>

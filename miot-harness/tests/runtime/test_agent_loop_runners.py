@@ -60,3 +60,32 @@ def test_unknown_model_is_refused_even_by_a_direct_caller() -> None:
 def test_empty_model_name_is_refused_not_defaulted() -> None:
     with pytest.raises(ValueError, match="allowlist"):
         _runners([]).runner_for("")
+
+
+@pytest.mark.asyncio
+async def test_run_effort_builds_its_own_runner() -> None:
+    built: list[tuple[str, str | None]] = []
+
+    def build(name: str, effort: str | None = None) -> Any:
+        built.append((name, effort))
+        return ScriptedModel([AIMessage(content=f"from {name} at {effort}")])
+
+    runners = AgentLoopRunners(
+        default_model="claude-opus-4-8",
+        models=["claude-opus-4-8"],
+        build_model=build,
+        registry=_registry(),
+        settings=HarnessSettings(agents_agent_loop_max_turns=3),
+        profile=FAKE_PROFILE,
+    )
+    ctx = UserRequest(message="q", tenant_id="acme", effort="low").to_context()
+    assert ctx.effort == "low"
+    delta = await runners.run(user_message="q", ctx=ctx, prior_messages=[], progress=lambda e: None)
+    assert delta["answer"] == "from claude-opus-4-8 at low"
+    assert runners.runner_for(None) is not runners.runner_for(None, "low")
+    assert built == [("claude-opus-4-8", "low"), ("claude-opus-4-8", None)]
+
+
+def test_unknown_effort_is_rejected_at_the_request() -> None:
+    with pytest.raises(ValueError):
+        UserRequest(message="q", tenant_id="acme", effort="extreme")

@@ -12,7 +12,8 @@ list is the same for everyone, so it is fetched once per server, with
 the first caller's token, and kept.
 
 The organization argument is never the model's to choose: the harness
-fills it with the organization the run came through.
+fills it with the organization the run came through. A skill may also name
+an argument the harness fills with the run's conversation id.
 """
 
 from __future__ import annotations
@@ -140,7 +141,7 @@ class McpSkills:
         except Exception as exc:  # noqa: BLE001 — the model is told, the run goes on
             logger.warning("MCP skill %s: could not list tools: %s", skill.id, exc)
             return f"## Tools\n\nThe tools of this skill could not be listed: {exc}"
-        hidden = skill.mcp.organization_arg
+        hidden = _hidden_args(skill.mcp)
         lines = [
             "## Tools",
             "",
@@ -148,7 +149,8 @@ class McpSkills:
             "tool's name and its arguments.",
         ]
         if hidden:
-            lines.append(f"The `{hidden}` argument is filled in for you; leave it out.")
+            names = ", ".join(f"`{h}`" for h in hidden)
+            lines.append(f"The harness fills in {names}; leave them out.")
         for tool in tools:
             kind = "read-only" if tool.read_only else "changes data, asks the user first"
             lines += [
@@ -166,25 +168,37 @@ class McpSkills:
         if not ctx.caller_token:
             raise RuntimeError("this run carries no user token to call the MCP server with")
         args = dict(arguments)
-        hidden = skill.mcp.organization_arg
-        if hidden:
+        org_arg = skill.mcp.organization_arg
+        if org_arg:
             if not ctx.organization:
                 raise RuntimeError("this run did not come through an organization")
-            args[hidden] = ctx.organization
+            args[org_arg] = ctx.organization
+        conv_arg = skill.mcp.conversation_arg
+        if conv_arg:
+            args.pop(conv_arg, None)
+            if ctx.conversation_id and await self._takes(skill.mcp, ctx, tool, conv_arg):
+                args[conv_arg] = ctx.conversation_id
         async with self._open(skill.mcp.url, ctx.caller_token) as session:
             return await session.call_tool(tool, args)
 
+    async def _takes(self, server: McpServer, ctx: HarnessContext, tool: str, arg: str) -> bool:
+        tools = await self.tools(server, ctx.caller_token)
+        schema = next((t.input_schema for t in tools if t.name == tool), {})
+        return arg in (schema.get("properties") or {})
 
-def _without(schema: dict[str, Any], hidden: str | None) -> dict[str, Any]:
-    """The input schema minus the argument the harness fills in."""
+
+def _hidden_args(server: McpServer) -> tuple[str, ...]:
+    return tuple(a for a in (server.organization_arg, server.conversation_arg) if a)
+
+
+def _without(schema: dict[str, Any], hidden: tuple[str, ...]) -> dict[str, Any]:
+    """The input schema minus the arguments the harness fills in."""
     if not hidden:
         return schema
     out = dict(schema)
-    props = dict(out.get("properties") or {})
-    props.pop(hidden, None)
-    out["properties"] = props
+    out["properties"] = {k: v for k, v in (out.get("properties") or {}).items() if k not in hidden}
     if "required" in out:
-        out["required"] = [r for r in out["required"] if r != hidden]
+        out["required"] = [r for r in out["required"] if r not in hidden]
     return out
 
 

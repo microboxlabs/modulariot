@@ -9,6 +9,7 @@
 #   contains_any  the answer must mention one of these (case-insensitive)
 #   not_contains  the answer must not say any of these
 #   intent        the value of the answer's intent block
+#   skills        skills that must be loaded (load_skill) in this turn
 #
 # Every turn is also checked for: run completed, answer is a JSON block
 # array, no raw block JSON inside a markdown block, and (unless
@@ -105,3 +106,23 @@ cases:
         expect:
           tools: [web_search, web_fetch]
           links: true
+
+  # storyteller is offered only when MIOT_HARNESS_MODULITH_URL is set.
+  - id: story-from-session
+    turns:
+      - message: ¿cuántos conductores hay registrados?
+        expect:
+          any_tool: true
+      - message: haz una historia con un resumen de esto
+        expect:
+          skills: [storyteller]
+
+  - id: session-wrap-up
+    turns:
+      - message: ¿cuántos viajes hay en curso?
+        expect:
+          any_tool: true
+      - message: listo, eso es todo por hoy. Resume lo que hicimos.
+        expect:
+          skills: [session-summary]
+          blocks: [choices]

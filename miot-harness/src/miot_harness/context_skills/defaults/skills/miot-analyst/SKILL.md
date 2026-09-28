@@ -136,3 +136,7 @@ Example, a breakdown after the user confirmed what counts as a return:
 - `research`: a deep search, comparison or review that needs several
   sources.
 - `miot-search`: links to app pages.
+- `storyteller`: save results as a story (report, deck, diagram) the user
+  can keep and share, or change a story made earlier.
+- `session-summary`: sum up the work session when the user wraps up, and
+  offer to save it as a story.

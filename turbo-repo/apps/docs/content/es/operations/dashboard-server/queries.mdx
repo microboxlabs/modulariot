@@ -32,3 +32,30 @@ Limita las lecturas de respuestas antes de cargarlas en memoria. Respeta la señ
 Por defecto: 8 operaciones simultáneas por instancia, 20 segundos, 5.000 filas y 2 MiB de JSON UTF-8. Cada fila admite hasta 100 campos. Los valores siguen los límites del contrato; se admiten hasta 32 filtros y 100 parámetros por definición. Configura `maxConcurrent`, `timeoutMs`, `maxRows` y `maxBytes` al crear el servicio.
 
 Un timeout cancela la señal del adaptador. El servidor HTTP independiente también la cancela cuando el cliente se desconecta antes de completar la respuesta. Si el adaptador ignora la cancelación, mantiene su cupo hasta terminar, evitando trabajo ilimitado en segundo plano. Los fallos y resultados inválidos se convierten en `UPSTREAM_ERROR`. Estos límites complementan la autenticación, el tamaño máximo del cuerpo HTTP y los límites de solicitudes del despliegue.
+
+Un timeout cancela la señal del adaptador. Si el adaptador ignora la cancelación, mantiene su cupo hasta terminar, evitando trabajo ilimitado en segundo plano. Los fallos y resultados inválidos se convierten en `UPSTREAM_ERROR`. Estos límites complementan la autenticación, el tamaño máximo del cuerpo HTTP y los límites de solicitudes del despliegue.
+
+## Ejecución HTTP en el host
+
+Un pod independiente puede reutilizar el catálogo de conexiones del host con
+`createHttpDashboardOperationExecutor({ url, proxyKey })`. Entrega ese ejecutor
+como `operations` al crear el servicio de consultas. La URL es un endpoint fijo
+configurado por el operador; los valores del dashboard no pueden cambiar el
+destino. Se exige HTTPS salvo para desarrollo en loopback. Usa `allowHttp: true`
+solo en un despliegue explícitamente confiable dentro de una red privada.
+
+El adaptador envía un `POST` JSON autenticado mediante `x-miot-proxy-key` (al
+menos 32 caracteres). El cuerpo contiene `tenantId`, `scopeId`, `dashboardSlug`,
+`userId`, `connectionId`, `operationId`, `parameters` y
+`limits: { maxRows, maxBytes }`. No envía tokens de usuario ni credenciales del
+origen. El host debe autenticar la clave de servicio, resolver la conexión dentro
+del tenant, aplicar las políticas de solo lectura y parámetros de la operación
+guardada, y responder `{ "rows": [...] }`. No debe publicar este endpoint sin
+autenticación. Puede aplicar límites más estrictos que los solicitados.
+
+Se rechazan las redirecciones. El plazo HTTP predeterminado es de 20 segundos;
+usa `requestTimeoutMs` para reducirlo. La cancelación del cliente se propaga a
+la solicitud HTTP. El adaptador limita los bytes recibidos antes de parsearlos,
+valida los valores de las filas, descarta metadatos adicionales y devuelve un
+error genérico ante fallos del host. El host sigue siendo responsable de la
+cancelación y del control de costos del origen.

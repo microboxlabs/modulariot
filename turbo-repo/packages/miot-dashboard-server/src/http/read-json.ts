@@ -4,7 +4,7 @@ export const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
 
 /** Count received bytes rather than trusting the caller's Content-Length. */
 export async function readJsonBody(
-  request: Request,
+  request: Pick<Request, "body">,
   maxBytes: number,
 ): Promise<unknown> {
   if (request.body === null)

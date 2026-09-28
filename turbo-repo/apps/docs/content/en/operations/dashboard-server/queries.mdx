@@ -32,3 +32,29 @@ Bound upstream response reads before buffering. Honor the supplied abort signal 
 Defaults are 8 concurrent operations per service instance, a 20-second deadline, 5,000 rows, and 2 MiB of UTF-8 JSON. Each row has at most 100 fields. Filter values follow the contract's limits; requests allow at most 32 filters and definitions at most 100 parameters. Configure `maxConcurrent`, `timeoutMs`, `maxRows` and `maxBytes` when constructing the service.
 
 Timeouts cancel the adapter's signal. The standalone HTTP server also cancels it when the client disconnects before the response completes. An adapter that ignores cancellation keeps its concurrency slot until it settles, preventing repeated timeouts from creating unlimited background work. Upstream failures and invalid results become a generic `UPSTREAM_ERROR`. These instance limits complement host authentication, request-body limits and deployment rate limits; they do not replace them.
+
+Timeouts cancel the adapter's signal. An adapter that ignores cancellation keeps its concurrency slot until it settles, preventing repeated timeouts from creating unlimited background work. Upstream failures and invalid results become a generic `UPSTREAM_ERROR`. These instance limits complement host authentication, request-body limits and deployment rate limits; they do not replace them.
+
+## Host execution over HTTP
+
+A standalone pod can reuse the host's connection catalog with
+`createHttpDashboardOperationExecutor({ url, proxyKey })`. Supply the executor
+as `operations` when constructing the query service. The URL is a fixed,
+operator-configured endpoint; dashboard values cannot change its destination.
+HTTPS is required except for loopback development. Set `allowHttp: true` only
+for an explicitly trusted private-network deployment.
+
+The adapter sends a JSON `POST` authenticated by `x-miot-proxy-key` (at least
+32 characters). The body contains `tenantId`, `scopeId`, `dashboardSlug`,
+`userId`, `connectionId`, `operationId`, `parameters`, and
+`limits: { maxRows, maxBytes }`. No user token or credential material is sent.
+The host must authenticate the service key, resolve the connection within that
+tenant, enforce the saved operation's read-only and parameter policies, and
+answer `{ "rows": [...] }`. It must not expose this as a public unauthenticated
+execution endpoint. A host may impose stricter limits than those requested.
+
+Redirects are refused. The default HTTP deadline is 20 seconds; configure
+`requestTimeoutMs` to shorten it. Caller cancellation propagates to the HTTP
+request. The adapter bounds received bytes before parsing, validates row
+values, discards extra response metadata, and returns a generic error on any
+host failure. The host still owns upstream cancellation and cost controls.

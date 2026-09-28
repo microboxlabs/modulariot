@@ -38,8 +38,9 @@ from miot_harness.datasource.knowledge.writer import (
     slug_card_id,
 )
 from miot_harness.datasource.workspace_store import _write_atomic
-from miot_harness.knowledge.changes import LAYERS
+from miot_harness.knowledge.changes import LAYERS, RUN_LAYERS, KnowledgeChange, Layer
 from miot_harness.knowledge.formats import (
+    check_eval,
     compose_eval,
     compose_rule,
     compose_skill,
@@ -303,7 +304,10 @@ class KnowledgeStore:
             head = split_raw_frontmatter(current)[0]
             return f"{head}\n\n{content.strip()}\n" if head else f"{content.strip()}\n"
         if loc.layer == "eval":
-            return compose_eval(title, content, meta)
+            try:
+                return compose_eval(title, content, meta)
+            except ValueError as exc:
+                raise KnowledgeError(400, str(exc)) from exc
         raise KnowledgeError(405, f"layer {loc.layer!r} is read-only")
 
     def _validate(
@@ -326,6 +330,8 @@ class KnowledgeStore:
 
     def _check_content(self, loc: _Loc, text: str) -> None:
         try:
+            if loc.layer == "eval":
+                check_eval(text)
             title, content, _ = self._parse(loc, text)
         except (ValueError, yaml.YAMLError) as exc:
             raise KnowledgeError(400, f"unreadable {loc.layer}: {exc}") from exc
@@ -759,6 +765,41 @@ class KnowledgeStore:
                     }
                 )
         return sorted(out, key=lambda c: str(c["updated_at"] or ""))
+
+    def conversation_undo(self, conversation_id: str) -> list[KnowledgeChange]:
+        """A run overlay that shows the knowledge runs read as it was before
+        this conversation changed it: an item it created is deleted, one it
+        changed or deleted is back at its version before the first change."""
+        before: dict[tuple[Layer, str | None, str], str | None] = {}
+        for change in self.conversation_changes(conversation_id):
+            if change["layer"] in RUN_LAYERS:
+                key = (change["layer"], change["target"], change["id"])
+                before.setdefault(key, change["before"])
+        undo: list[KnowledgeChange] = []
+        for (layer, target, item_id), text in before.items():
+            loc = self._locate(layer, item_id, target)
+            if text is None:
+                if layer != "primer":
+                    undo.append(
+                        KnowledgeChange(layer=layer, id=item_id, target=target, op="delete")
+                    )
+                continue
+            try:
+                title, content, meta = self._parse(loc, text)
+            except (ValueError, yaml.YAMLError):
+                continue
+            unused = layer == "fact" and (meta["status"], meta["scope"]) != ("approved", "tenant")
+            undo.append(
+                KnowledgeChange(
+                    layer=layer,
+                    id=item_id,
+                    target=target,
+                    op="delete" if unused else "upsert",
+                    title=title,
+                    content=content,
+                )
+            )
+        return undo
 
     def eval_cases(self) -> list[dict[str, Any]]:
         """The tenant's eval cases, read in full (meta included), by id."""

@@ -19,9 +19,9 @@ from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import (
     get_chat_model,
+    loop_model_kwargs,
     provider_registry,
     set_provider_registry,
-    supports_effort,
 )
 from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
 from miot_harness.agents.model_providers import (
@@ -615,14 +615,14 @@ def _build_agent_loop(
         models=settings.agents_agent_loop_models,
         # Models the configured providers offer, and the owner's default.
         providers=provider_registry,
-        # `effort` on the adaptive-thinking models, a thinking budget on the rest.
-        build_model=lambda name: get_chat_model(
+        build_model=lambda name, effort=None: get_chat_model(
             name,
             timeout=settings.agents_agent_loop_llm_timeout_seconds,
-            **(
-                {"effort": settings.agents_agent_loop_effort}
-                if supports_effort(name)
-                else {"thinking_budget_tokens": settings.agents_agent_loop_thinking_budget}
+            **loop_model_kwargs(
+                name,
+                default_effort=settings.agents_agent_loop_effort,
+                default_thinking_budget=settings.agents_agent_loop_thinking_budget,
+                run_effort=effort,
             ),
         ),
         registry=harness.tools,
@@ -1008,6 +1008,9 @@ def create_app() -> FastAPI:
         def _cleanup(_task: asyncio.Task[HarnessRunRecord]) -> None:
             app.state.in_flight.pop(run_id, None)
             app.state.in_flight_tenants.pop(run_id, None)
+            # A run that raised before reaching a terminal point never
+            # released its live record.
+            app.state.harness.forget_live(run_id)
 
         task.add_done_callback(_cleanup)
         return {"run_id": run_id}
@@ -1306,6 +1309,41 @@ def _enforce_debug_allowlist(request: UserRequest, settings: HarnessSettings) ->
     )
 
 
+# Proxies drop a stream that sends nothing for about a minute; the model can
+# think for longer than that without emitting an event.
+_SSE_KEEPALIVE_SECONDS = 15.0
+_SSE_KEEPALIVE = b": keepalive\n\n"
+
+
+async def _with_keepalive(
+    events: AsyncIterator[HarnessEvent], interval: float
+) -> AsyncIterator[HarnessEvent | None]:
+    """`events`, with a None whenever `interval` passes without one.
+
+    The pending read is kept across timeouts rather than cancelled:
+    cancelling an async generator's `__anext__` closes the generator.
+    """
+
+    pending: asyncio.Future[HarnessEvent] | None = None
+    try:
+        while True:
+            if pending is None:
+                pending = asyncio.ensure_future(anext(events))
+            done, _ = await asyncio.wait({pending}, timeout=interval)
+            if not done:
+                yield None
+                continue
+            try:
+                evt = pending.result()
+            except StopAsyncIteration:
+                return
+            pending = None
+            yield evt
+    finally:
+        if pending is not None:
+            pending.cancel()
+
+
 def _format_sse_event(evt: HarnessEvent) -> bytes:
     return (f"id: {evt.id}\nevent: {evt.type}\ndata: {evt.model_dump_json()}\n\n").encode()
 
@@ -1317,6 +1355,16 @@ def _format_sse_error(run_id: str, error: str) -> bytes:
     # payload or inject a forged SSE frame; json.dumps escapes both.
     payload = json.dumps({"error": error, "run_id": run_id})
     return f"event: error\ndata: {payload}\n\n".encode()
+
+
+def _replay_record(harness: HarnessSupervisor, run_id: str) -> HarnessRunRecord | None:
+    live = harness.live_record(run_id)
+    if live is not None:
+        return live
+    try:
+        return harness.run_store.load(run_id)
+    except FileNotFoundError:
+        return None
 
 
 async def _sse_iterator(
@@ -1336,32 +1384,21 @@ async def _sse_iterator(
 
     last_seq = -1
 
-    # Resolve Last-Event-ID → seq via the persisted record (if any).
-    if last_event_id:
-        try:
-            record = harness.run_store.load(run_id)
-            for evt in record.events:
-                if evt.id == last_event_id:
-                    last_seq = evt.seq
-                    break
-        except FileNotFoundError:
-            pass
-
     # Subscribe BEFORE replay so we don't miss events that fire between
-    # the disk read and the subscribe call.
+    # the record read and the subscribe call.
     bus_iter = event_bus.subscribe(run_id) if event_bus is not None else None
 
-    # Replay every persisted event past the cursor.
-    record_existed = False
-    try:
-        record = harness.run_store.load(run_id)
-        record_existed = True
-        for evt in record.events:
-            if evt.seq > last_seq:
-                yield _format_sse_event(evt)
-                last_seq = evt.seq
-    except FileNotFoundError:
-        pass
+    # An in-flight run's in-memory record holds every event so far; the
+    # disk copy is only checkpointed every few events.
+    record = _replay_record(harness, run_id)
+    record_existed = record is not None
+    events = list(record.events) if record is not None else []
+    if last_event_id:
+        last_seq = next((evt.seq for evt in events if evt.id == last_event_id), -1)
+    for evt in events:
+        if evt.seq > last_seq:
+            yield _format_sse_event(evt)
+            last_seq = evt.seq
 
     # If neither the record exists nor the run is in-flight, this is an
     # unknown run_id — emit an error and close.
@@ -1387,7 +1424,9 @@ async def _sse_iterator(
     # `_closed` tracking queues the sentinel on our subscribe and the
     # iterator ends immediately.
     if bus_iter is not None:
-        async for evt in bus_iter:
-            if evt.seq > last_seq:
-                yield _format_sse_event(evt)
-                last_seq = evt.seq
+        async for live in _with_keepalive(bus_iter, _SSE_KEEPALIVE_SECONDS):
+            if live is None:
+                yield _SSE_KEEPALIVE
+            elif live.seq > last_seq:
+                yield _format_sse_event(live)
+                last_seq = live.seq

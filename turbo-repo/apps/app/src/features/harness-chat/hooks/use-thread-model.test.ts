@@ -38,6 +38,8 @@ describe("useThreadModel", () => {
     modelsMock.mockReturnValue({
       default: "llmgateway:deepseek-v4-flash",
       models: ["llmgateway:deepseek-v4-flash", "claude-opus-5-5"],
+      status: "ready",
+      retry: () => {},
     });
   });
 

@@ -5630,7 +5630,9 @@
         "retry": "Try again",
         "readOnly": "This chat is read-only — someone else shared it with you.",
         "forkFromHere": "Fork from here",
-        "forkToContinue": "Fork it to continue as your own"
+        "forkToContinue": "Fork it to continue as your own",
+        "working": "Working…",
+        "elapsed": "Elapsed time"
       },
       "attachments": {
         "removeImage": "Remove image"
@@ -5647,7 +5649,17 @@
           "context": {
             "description": "Shows how much of the model's context this conversation uses."
           }
-        }
+        },
+        "effort": "Thinking effort",
+        "effortLevels": {
+          "default": "Auto",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High",
+          "max": "Max"
+        },
+        "defaultModel": "Default model",
+        "modelsUnavailable": "Could not load the models. Retry"
       },
       "showDashlet": {
         "unknown": "Unknown dashlet: {id}",

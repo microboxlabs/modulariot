@@ -45,6 +45,7 @@ dependencies = [
   "wrapt<2",
   "json-repair>=0.61.2",
   "mcp>=2.0",
+  "defusedxml>=0.7",
 ]
 
 [project.scripts]
@@ -59,6 +60,7 @@ dev = [
   "pytest-opentelemetry>=0.5",
   "pytest-postgresql>=6.1",
   "ruff>=0.8",
+  "types-defusedxml>=0.7.0.20260504",
 ]
 
 [tool.hatch.build.targets.wheel]

@@ -16,6 +16,7 @@ import { useThreadModel } from "./hooks/use-thread-model";
 import { buildHarnessToolkit, type HarnessExtension } from "./harness-extension";
 import { resolveDefaultHarnessExtensions } from "./extensions";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
+import { ActiveRunResumer } from "./components/active-run-resumer";
 import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
 import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
@@ -27,6 +28,7 @@ import { HarnessForkProvider } from "./context/harness-fork-context";
 import { HarnessModelProvider } from "./context/harness-model-context";
 import { HarnessReadOnlyProvider } from "./context/harness-read-only-context";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
+import { readActiveRun } from "./harness-active-run";
 import { createHarnessHistoryAdapter } from "./harness-history-adapter";
 import type { FirstExchange } from "./session-title";
 import { HarnessRunAgent } from "./harness-run-agent";
@@ -167,6 +169,7 @@ const HarnessChatPanel: FC<{
   useEffect(() => {
     sessionsRef.current = sessions;
   }, [sessions]);
+  const openingSessionId = useRef(activeId);
 
   const mount = useCallback((id: string) => {
     setMountedIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
@@ -192,11 +195,17 @@ const HarnessChatPanel: FC<{
           if (thread.title) titledIds.current.add(thread.id);
         }
         if (threads.length > 0) setSessions((prev) => mergeStoredThreads(prev, threads));
+        // A reload in the middle of a run reopens that chat, which then
+        // re-attaches to the run.
+        const running = threads.find((thread) => thread.owned && readActiveRun(thread.id));
+        if (!running) return;
+        mount(running.id);
+        setActiveId((current) => (current === openingSessionId.current ? running.id : current));
       })
       .finally(() => {
         if (!signal?.aborted) setIsLoadingHistory(false);
       });
-  }, []);
+  }, [mount]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -581,7 +590,7 @@ const SessionHost: FC<{
   );
   const tr = useHarnessChatTr();
   const attachmentAdapter = useMemo(() => createHarnessAttachmentAdapter(tr), [tr]);
-  const history = useMemo(() => createHarnessHistoryAdapter(sessionId), [sessionId]);
+  const history = useMemo(() => createHarnessHistoryAdapter(sessionId, agent), [sessionId, agent]);
   const runtime = useAgUiRuntime({
     agent,
     adapters: { attachments: attachmentAdapter, history },
@@ -599,6 +608,7 @@ const SessionHost: FC<{
     (atMessageId?: string) => void onFork(sessionId, atMessageId),
     [onFork, sessionId],
   );
+  const stopRun = useCallback(() => agent.cancelHarnessRun(), [agent]);
 
   // Panel just opened (button or ⌘/Ctrl+C) while this is the active session —
   // send focus straight to the composer input. When it closes (or this stops
@@ -638,6 +648,7 @@ const SessionHost: FC<{
               />
               <SessionSummaryWatcher sessionId={sessionId} />
               <SessionModelWatcher sessionId={sessionId} />
+              <ActiveRunResumer runtime={runtime} history={history} agent={agent} />
               <InitialMessageSender initialMessage={initialMessage} />
               <PendingAttachmentReceiver
                 label={pendingAttachmentLabel}
@@ -645,7 +656,7 @@ const SessionHost: FC<{
               />
             </>
           )}
-          <Thread skills={skills} />
+          <Thread skills={skills} onStop={stopRun} />
           </HarnessModelProvider>
           </HarnessForkProvider>
         </HarnessReadOnlyProvider>

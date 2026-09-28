@@ -9,7 +9,6 @@ tools:
   - get_delivery_compliance_metrics
   - get_workflow_bottlenecks
   - get_dashboard_context
-  - create_story_draft
   - create_dashboard_widget_draft
   - apply_dashboard_patch
 playbook_ref: delivery_compliance_story.md

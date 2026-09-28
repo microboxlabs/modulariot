@@ -1,6 +1,23 @@
 "use client";
 
-import { HttpAgent, type HttpAgentConfig, type Message, type RunAgentInput } from "@ag-ui/client";
+import {
+  HttpAgent,
+  runHttpRequest,
+  transformHttpEventStream,
+  type HttpAgentConfig,
+  type Message,
+  type RunAgentInput,
+} from "@ag-ui/client";
+import type { RunEffort } from "@microboxlabs/miot-harness-client";
+import { readRunEffort } from "./hooks/use-run-effort";
+import {
+  HARNESS_RUN_EVENT,
+  cancelRun,
+  clearActiveRun,
+  isHarnessRunMarker,
+  resumeRunUrl,
+  writeActiveRun,
+} from "./harness-active-run";
 
 /**
  * Messages kept in a run request, counted from the end. The relay reads the
@@ -20,26 +37,93 @@ export class HarnessRunAgent extends HttpAgent {
    * Sent with every run in state, next to the conversation id. */
   model: string | null = null;
 
+  /** The harness run behind this thread's current or last run. */
+  harnessRunId: string | null = null;
+
+  /** When set, the next run re-attaches to this harness run instead of
+   * starting a new one. */
+  resumeRunId: string | null = null;
+
   constructor(config: HttpAgentConfig) {
     super(config);
+    this.subscribe({
+      onCustomEvent: ({ event }) => this.onRunMarker(event.name, event.value),
+    });
   }
 
   override run(input: RunAgentInput): ReturnType<HttpAgent["run"]> {
-    return super.run(withModel(trimRunInput(input), this.model));
+    const resumeRunId = this.resumeRunId;
+    this.resumeRunId = null;
+    this.harnessRunId = resumeRunId;
+    if (!resumeRunId) {
+      return super.run(
+        withEffort(withModel(trimRunInput(input), this.model), readRunEffort())
+      );
+    }
+    const url = resumeRunUrl(resumeRunId, this.threadId, input.runId);
+    return transformHttpEventStream(
+      runHttpRequest(() =>
+        this.fetch(url, {
+          method: "GET",
+          headers: { ...this.headers, Accept: "text/event-stream" },
+          signal: this.abortController.signal,
+        })
+      ),
+      this.debugLogger
+    );
+  }
+
+  /** Stop. Aborting the request only stops the relay; this cancels the
+   * harness run itself. */
+  cancelHarnessRun(): void {
+    const runId = this.harnessRunId;
+    if (!runId) return;
+    clearActiveRun(this.threadId, runId);
+    void cancelRun(runId);
+  }
+
+  private onRunMarker(name: string, value: unknown): void {
+    if (name !== HARNESS_RUN_EVENT || !isHarnessRunMarker(value)) return;
+    if (value.status === "running") {
+      this.harnessRunId = value.runId;
+      writeActiveRun(this.threadId, value.runId);
+    } else {
+      clearActiveRun(this.threadId, value.runId);
+    }
   }
 }
 
-export function withModel(input: RunAgentInput, model: string | null): RunAgentInput {
-  if (model) return { ...input, state: { ...input.state, harnessModel: model } };
-  if (!input.state || !("harnessModel" in input.state)) return input;
+export function withModel(
+  input: RunAgentInput,
+  model: string | null
+): RunAgentInput {
+  return withStateField(input, "harnessModel", model);
+}
+
+export function withEffort(
+  input: RunAgentInput,
+  effort: RunEffort | null
+): RunAgentInput {
+  return withStateField(input, "harnessEffort", effort);
+}
+
+function withStateField(
+  input: RunAgentInput,
+  key: string,
+  value: string | null
+): RunAgentInput {
+  if (value) return { ...input, state: { ...input.state, [key]: value } };
+  if (!input.state || !(key in input.state)) return input;
   const state = { ...input.state };
-  delete state.harnessModel;
+  delete state[key];
   return { ...input, state };
 }
 
 export function trimRunInput(input: RunAgentInput): RunAgentInput {
   const messages = input.messages
-    .filter((message) => message.role !== "reasoning" && message.role !== "activity")
+    .filter(
+      (message) => message.role !== "reasoning" && message.role !== "activity"
+    )
     .map(textOnly)
     .slice(-MAX_UPLOAD_MESSAGES);
   return { ...input, messages };
@@ -48,9 +132,12 @@ export function trimRunInput(input: RunAgentInput): RunAgentInput {
 /** A user message with attachments carries them as binary parts, up to the
  * 20 MB the PDF adapter inlines; the relay only ever reads the text. */
 function textOnly(message: Message): Message {
-  if (message.role !== "user" || !Array.isArray(message.content)) return message;
+  if (message.role !== "user" || !Array.isArray(message.content))
+    return message;
   const text = message.content
-    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .filter(
+      (part): part is { type: "text"; text: string } => part.type === "text"
+    )
     .map((part) => part.text)
     .join("\n");
   return { ...message, content: text };

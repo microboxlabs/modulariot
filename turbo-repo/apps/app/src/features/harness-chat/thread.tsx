@@ -11,12 +11,15 @@ import type { HarnessSkill } from "./harness-chat-types";
 import { useHarnessReadOnly } from "./context/harness-read-only-context";
 import { useHarnessFork } from "./context/harness-fork-context";
 
-export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
+export const Thread: FC<{ skills: HarnessSkill[]; onStop?: () => void }> = ({
+  skills,
+  onStop,
+}) => {
   const tr = useHarnessChatTr();
   const readOnly = useHarnessReadOnly();
   const fork = useHarnessFork();
   return (
-    <RunCancelProvider>
+    <RunCancelProvider onCancel={onStop}>
       <ComposerPrimitive.AttachmentDropzone className="group relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="pointer-events-none absolute inset-2 z-20 hidden flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-gray-400 bg-white/90 text-xs font-medium text-gray-600 group-data-[dragging=true]:flex dark:border-gray-500 dark:bg-gray-800/90 dark:text-gray-300">
           <LuPaperclip className="h-5 w-5" />

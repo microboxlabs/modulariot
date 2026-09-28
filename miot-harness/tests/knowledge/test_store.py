@@ -8,8 +8,10 @@ from pathlib import Path
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from miot_harness.datasource.knowledge.loader import load_connection_cards
+from miot_harness.knowledge.changes import KnowledgeChange
 from miot_harness.knowledge.store import (
     ConnectionTarget,
     KnowledgeError,
@@ -322,3 +324,18 @@ def test_tree_lists_items_and_base_views(tmp_path: Path) -> None:
     assert "Rule." in store.read_path("rules/cargado.md")
     with pytest.raises(KnowledgeError):
         store.read_path("base/context/tenants/t2/secret.md")
+
+
+def test_a_primer_delete_change_is_refused() -> None:
+    with pytest.raises(ValidationError):
+        KnowledgeChange(layer="primer", id="db", op="delete")
+
+
+def test_history_keeps_its_lock_out_of_the_versions(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.put("rule", "r", title="R", content="One.")
+    store.put("rule", "r", title="R", content="Two.")
+    store.delete("rule", "r")
+    history = tmp_path / ".history" / "rule" / "t1" / "r"
+    assert (history / ".lock").exists()
+    assert sorted(p.name for p in history.glob("*.json")) == ["0001.json", "0002.json", "0003.json"]

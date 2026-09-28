@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 Layer = Literal["fact", "rule", "skill", "primer", "note", "eval"]
 LAYERS: tuple[Layer, ...] = ("fact", "rule", "skill", "primer", "note", "eval")
@@ -25,6 +25,13 @@ class KnowledgeChange(BaseModel):
     title: str = Field(default="", max_length=500)
     content: str = Field(default="", max_length=MAX_CHANGE_CHARS)
     reason: str = Field(default="", max_length=2000)
+
+    @model_validator(mode="after")
+    def _primer_is_never_deleted(self) -> KnowledgeChange:
+        # A data source always has a description; the store refuses deletes too.
+        if self.layer == "primer" and self.op == "delete":
+            raise ValueError("a data source description cannot be deleted")
+        return self
 
 
 def changes_for(

@@ -18,9 +18,11 @@ as a version of its own before the next write, so nothing is lost.
 
 from __future__ import annotations
 
+import fcntl
 import json
 import os
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -140,6 +142,19 @@ def _check_primer(connection: str, text: str, current: str | None) -> None:
         raise KnowledgeError(404, f"connection {connection!r} has no description file")
     if split_raw_frontmatter(text)[0] != split_raw_frontmatter(current)[0]:
         raise KnowledgeError(400, "a data source's frontmatter is not editable")
+
+
+@contextmanager
+def _locked(loc: _Loc) -> Iterator[None]:
+    """Hold an item's lock (shared by every process on the volume) while its
+    live file and history change, so two writers never take one version number."""
+    loc.history.mkdir(parents=True, exist_ok=True)
+    with open(loc.history / ".lock", "a") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
 
 
 def _read(path: Path) -> str | None:
@@ -533,13 +548,14 @@ class KnowledgeStore:
         provenance: dict[str, Any] | None,
         restoring: bool = False,
     ) -> dict[str, Any]:
-        self._validate(loc, text, _read(loc.live), restoring=restoring)
-        current = self._record_current(loc)
-        if current == text:
-            return self.read(loc.layer, loc.id, loc.target)
-        _write_atomic(loc.live, text)
-        entry = self._append(loc, text, author=author, reason=reason, provenance=provenance)
-        return self._with_history(loc, self._item(loc, text, entry))
+        with _locked(loc):
+            self._validate(loc, text, _read(loc.live), restoring=restoring)
+            current = self._record_current(loc)
+            if current == text:
+                return self.read(loc.layer, loc.id, loc.target)
+            _write_atomic(loc.live, text)
+            entry = self._append(loc, text, author=author, reason=reason, provenance=provenance)
+            return self._with_history(loc, self._item(loc, text, entry))
 
     def delete(
         self,
@@ -553,15 +569,16 @@ class KnowledgeStore:
         if layer == "primer":
             raise KnowledgeError(405, "a data source description cannot be deleted")
         loc = self._locate(layer, item_id, target)
-        if self._record_current(loc) is None:
-            raise KnowledgeError(404, f"no {layer} {item_id!r}")
-        loc.live.unlink()
-        if layer == "skill":
-            try:
-                loc.live.parent.rmdir()
-            except OSError:
-                pass
-        self._append(loc, None, author=author, reason=reason)
+        with _locked(loc):
+            if self._record_current(loc) is None:
+                raise KnowledgeError(404, f"no {layer} {item_id!r}")
+            loc.live.unlink()
+            if layer == "skill":
+                try:
+                    loc.live.parent.rmdir()
+                except OSError:
+                    pass
+            self._append(loc, None, author=author, reason=reason)
 
     def revert(
         self,

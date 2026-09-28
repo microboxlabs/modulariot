@@ -35,7 +35,9 @@ SUITES = {
     "chat": DEFAULT_CASES,
     "analytics": Path(__file__).with_name("analytics_cases.yaml"),
 }
-_NUMBER_RE = re.compile(r"\d[\d.,\u00a0 ]*\d|\d")
+# A separator must be followed by a digit, so "2026, 9.813" is two numbers.
+# A space or no-break space groups thousands only before exactly three digits.
+_NUMBER_RE = re.compile(r"\d+(?:[\u00a0 ]\d{3}(?!\d))*(?:[.,]\d+)*")
 
 _LINK_RE = re.compile(r"https?://[^\s)\]>\"'`]+")
 # A block array written inside a markdown value: the model narrated and the
@@ -111,23 +113,24 @@ def links(blocks: list[dict[str, Any]]) -> list[str]:
     return sorted(set(_LINK_RE.findall(answer_text(blocks))))
 
 
+def _number_candidates(token: str) -> list[str]:
+    if "." in token and "," in token:
+        decimal = "." if token.rfind(".") > token.rfind(",") else ","
+        thousands = "," if decimal == "." else "."
+        return [token.replace(thousands, "").replace(decimal, ".")]
+    sep = "," if "," in token else "."
+    if sep not in token:
+        return [token]
+    if token.count(sep) > 1:
+        return [token.replace(sep, "")]
+    return [token.replace(sep, ""), token.replace(sep, ".")]
+
+
 def _number_readings(token: str) -> set[float]:
     """Every value a formatted number can mean: 38.325,9 / 38,325.9 / 38.325 (es or en)."""
     token = token.replace("\u00a0", "").replace(" ", "")
     readings: set[float] = set()
-    if "." in token and "," in token:
-        decimal = "." if token.rfind(".") > token.rfind(",") else ","
-        thousands = "," if decimal == "." else "."
-        candidates = [token.replace(thousands, "").replace(decimal, ".")]
-    elif "," in token or "." in token:
-        sep = "," if "," in token else "."
-        candidates = [
-            token.replace(sep, ""),
-            token.replace(sep, ".", 1) if token.count(sep) == 1 else "",
-        ]
-    else:
-        candidates = [token]
-    for candidate in candidates:
+    for candidate in _number_candidates(token):
         try:
             readings.add(float(candidate))
         except ValueError:
@@ -138,8 +141,19 @@ def _number_readings(token: str) -> set[float]:
 def numbers(text: str) -> set[float]:
     found: set[float] = set()
     for token in _NUMBER_RE.findall(text):
-        found |= _number_readings(token.strip(" .,"))
+        found |= _number_readings(token)
     return found
+
+
+def _leaf_text(value: Any) -> list[str]:
+    """Every scalar inside a block tree, as text, so tables and KPIs are checked too."""
+    if isinstance(value, dict):
+        return [t for v in value.values() for t in _leaf_text(v)]
+    if isinstance(value, list):
+        return [t for v in value for t in _leaf_text(v)]
+    if value is None or isinstance(value, bool):
+        return []
+    return [str(value)]
 
 
 def _number_failures(text: str, expect: dict[str, Any]) -> list[str]:
@@ -192,7 +206,7 @@ def _content_failures(blocks: list[dict[str, Any]], expect: dict[str, Any]) -> l
         failures.append(f"intent {got!r}, expected {intent!r}")
     types = {b.get("type") for b in blocks}
     failures += [f"no {t} block" for t in expect.get("blocks", []) if t not in types]
-    return failures + _number_failures(answer_text(blocks), expect)
+    return failures + _number_failures("\n".join(_leaf_text(blocks)), expect)
 
 
 def check_turn(record: dict[str, Any], expect: dict[str, Any]) -> list[str]:

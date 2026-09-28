@@ -13,7 +13,8 @@ solve before a KPI is right:
     uv run python evals/datasets/fleet_ops/generate.py > /tmp/fleet_ops.sql
     psql -d fleet_demo -f /tmp/fleet_ops.sql
 
-Output is deterministic for a given --seed.
+Output is deterministic for a given --seed and --now; the default --now is
+the current time.
 """
 
 from __future__ import annotations
@@ -216,10 +217,12 @@ def generate(seed: int, months: int, services_per_month: int, now: datetime) -> 
     tasks: list[list[object]] = []
     gps: list[list[object]] = []
 
-    start_month = (now.replace(day=1) - timedelta(days=31 * (months - 1))).replace(day=1)
+    first = now.year * 12 + now.month - 1 - (months - 1)
     code = 100000
-    for m in range(months):
-        month_start = (start_month + timedelta(days=32 * m)).replace(day=1)
+    for m in range(first, first + months):
+        month_start = now.replace(
+            year=m // 12, month=m % 12 + 1, day=1, hour=0, minute=0, second=0, microsecond=0
+        )
         volume = int(services_per_month * rng.uniform(0.85, 1.15))
         for _ in range(volume):
             code += 1

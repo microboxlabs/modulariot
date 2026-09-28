@@ -1,5 +1,5 @@
 -- Answer key for the fleet_ops dataset. Each query is the correct answer to a
--- question in chat_cases; the eval compares the harness answer with it.
+-- question in analytics_cases.yaml; the eval compares the harness answer with it.
 --
 -- Rules the correct answers follow:
 --   * one row per service: the latest process by proc_end (reopened services)

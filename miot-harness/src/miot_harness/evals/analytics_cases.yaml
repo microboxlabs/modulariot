@@ -15,27 +15,38 @@ cases:
       - message: ¿Cuál es el tiempo de conducción total en 2026?
         expect:
           any_tool: true
-          numbers: [{value: 38325.9, tolerance_pct: 2}]
+          numbers: [{value: 42351.5, tolerance_pct: 2}]
 
   - id: kpi-services-then-breakdown
     turns:
       - message: ¿Cuántos servicios hubo en 2026?
         expect:
-          numbers: [{value: 9813, tolerance_pct: 0.5}]
+          any_tool: true
+          numbers: [{value: 10853, tolerance_pct: 0.5}]
       - message: ¿Y las horas de conducción por transportista?
         expect:
+          any_tool: true
+          contains_any: [Cordillera Cargo]
           numbers:
-            - {value: 4983.1, tolerance_pct: 2}
-            - {value: 4490.1, tolerance_pct: 2}
+            - {value: 5633.4, tolerance_pct: 1}
+            - {value: 5512.3, tolerance_pct: 1}
+            - {value: 5321.9, tolerance_pct: 1}
+            - {value: 5294.8, tolerance_pct: 1}
+            - {value: 5286.9, tolerance_pct: 1}
+            - {value: 5227.8, tolerance_pct: 1}
+            - {value: 5072.6, tolerance_pct: 1}
+            - {value: 5001.8, tolerance_pct: 1}
 
   - id: kpi-gps-coverage
     turns:
       - message: ¿Qué porcentaje de los servicios de 2026 tiene datos GPS?
         expect:
-          numbers: [{value: 69.2, tolerance_pct: 2}]
+          any_tool: true
+          numbers: [{value: 69.4, tolerance_pct: 2}]
 
   - id: kpi-black-codes-attended
     turns:
       - message: ¿Qué porcentaje de los códigos negros de 2026 fue atendido?
         expect:
-          numbers: [{value: 57.9, tolerance_pct: 3}]
+          any_tool: true
+          numbers: [{value: 58.0, tolerance_pct: 3}]

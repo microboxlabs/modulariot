@@ -102,6 +102,23 @@ def test_numbers_are_read_in_spanish_and_english_formats() -> None:
     assert {38325.9, 57.9} <= found
 
 
+def test_a_comma_and_space_end_a_number() -> None:
+    from miot_harness.evals.conversations import numbers
+
+    assert 9813 in numbers("En 2026, 9.813 servicios")
+    assert {2026, 9813} <= numbers("2026 9813")
+    assert 38325.9 in numbers("38 325,9 h")
+
+
+def test_numbers_inside_table_blocks_are_checked() -> None:
+    table = {"type": "table", "value": {"columns": ["h"], "rows": [[38325.9]]}}
+    expect = {"numbers": [{"value": 38325.9, "tolerance_pct": 1}]}
+    assert check_turn(_record([table]), expect) == []
+    assert check_turn(_record([{"type": "table", "value": [[1.0]]}]), expect) == [
+        "no number near 38325.9 (±1%)"
+    ]
+
+
 def test_a_number_outside_tolerance_fails() -> None:
     record = _record([{"type": "markdown", "value": "Fueron 36.000 horas"}])
     failures = check_turn(record, {"numbers": [{"value": 38325.9, "tolerance_pct": 2}]})

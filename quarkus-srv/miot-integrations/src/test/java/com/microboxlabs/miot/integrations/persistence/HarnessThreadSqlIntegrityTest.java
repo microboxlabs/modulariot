@@ -45,6 +45,34 @@ class HarnessThreadSqlIntegrityTest {
     }
 
     @Test
+    void aGeneratedTitleCannotReplaceANamedOne() throws Exception {
+        String sql = readStaticString("UPDATE_THREAD");
+        assertTrue(sql.contains("WHEN $3 IS NULL OR ($8 AND title_edited) THEN title"),
+                "an automatic rename must leave a title the person chose");
+        assertTrue(sql.contains("title_edited = title_edited OR ($3 IS NOT NULL AND NOT $8)"),
+                "a rename by the person marks the title as theirs");
+    }
+
+    @Test
+    void aLatePlaceholderUpsertKeepsANamedTitle() throws Exception {
+        assertTrue(readStaticString("UPSERT_THREAD").contains(
+                        "CASE WHEN miot_integrations.harness_thread.title_edited"),
+                "the first-message title must not replace one the person chose");
+    }
+
+    @Test
+    void aForkAndItsMessagesAreWrittenTogether() throws Exception {
+        String sql = readStaticString("FORK_THREAD");
+        assertTrue(sql.startsWith("WITH created AS ("),
+                "one statement, so a fork never exists without its messages");
+        assertTrue(sql.contains("WHERE m.thread_id = $7 AND m.id = ANY($8)"),
+                "only the chosen messages of the source are copied");
+        assertTrue(sql.contains("FROM created c"),
+                "the copy takes the new id from the parent insert, so it runs after it");
+        assertTrue(sql.contains("ORDER BY m.seq"), "the copy keeps the source's append order");
+    }
+
+    @Test
     void sharesForAListingAreFetchedInOneQuery() throws Exception {
         assertTrue(readStaticString("LIST_SHARES_FOR").contains("thread_id = ANY($1)"),
                 "the listing must not run one share query per thread");

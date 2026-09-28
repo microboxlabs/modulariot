@@ -5321,40 +5321,31 @@
       "menu": {
         "label": "Acciones de versión",
         "open": "Abrir",
-        "iterate": "Iterar",
-        "delete": "Eliminar"
-      },
-      "delete": {
-        "title": "¿Eliminar esta versión?",
-        "branchWarning": "También se elimina todo lo que deriva de esta versión.",
-        "confirm": "Eliminar",
-        "cancel": "Cancelar"
+        "iterate": "Iterar"
       },
       "toast": {
-        "iterated": "Se creó la v{label}",
-        "deleted": "Se eliminó la v{label}"
+        "iterated": "Se creó la v{label}"
       }
     },
     "title": "Storytelling",
-    "description": "Historias generadas por IA y curadas para tu organización.",
-    "artifactType": {
-      "html": "HTML",
-      "markdown": "Markdown",
-      "ppt": "PPT",
-      "pdf": "PDF"
-    },
+    "description": "Documentos, presentaciones y reportes guardados desde el chat.",
     "filters": {
       "noMatches": "Ninguna historia coincide con los filtros actuales."
     },
     "list": {
-      "empty": "Todavía no hay historias."
+      "empty": "Todavía no hay historias.",
+      "emptyHint": "Las historias se crean desde el chat. Pide al asistente: \"haz una historia con esto\".",
+      "openChat": "Abrir el asistente",
+      "loadFailed": "No se pudieron cargar las historias.",
+      "retry": "Reintentar"
     },
     "menu": {
       "label": "Acciones",
       "share": "Compartir",
       "details": "Detalles",
       "delete": "Eliminar",
-      "download": "Descargar"
+      "download": "Descargar",
+      "rename": "Renombrar"
     },
     "card": {
       "editedBy": "Editado por {name} el {date}"
@@ -5389,18 +5380,15 @@
       "remove": "Quitar",
       "removeFor": "Quitar a {name}",
       "peopleWithAccess": "Personas con acceso",
-      "owner": "Tú",
-      "ownerBadge": "Propietario",
-      "generalAccess": "Acceso general",
-      "linkRestricted": "Restringido",
-      "linkAnyone": "Cualquiera con el enlace",
-      "linkRestrictedHint": "Solo las personas invitadas pueden abrir esta historia",
-      "linkViewerHint": "Cualquiera con el enlace puede ver esta historia",
-      "linkEditorHint": "Cualquiera con el enlace puede ver y editar esta historia"
+      "failed": "No se pudo cambiar el acceso.",
+      "permissionLabel": "Nivel de acceso",
+      "onlyYou": "Solo tú tienes acceso.",
+      "linkHint": "Cualquier persona de tu organización con el enlace puede ver la versión actual."
     },
     "toast": {
       "deleted": "Se eliminó {name}",
-      "deletedMultiple": "Se eliminaron {count} historias"
+      "deletedMultiple": "Se eliminaron {count} historias",
+      "failed": "No se pudo completar la acción. Inténtalo de nuevo."
     },
     "selection": {
       "selectAll": "Seleccionar todo",
@@ -5409,7 +5397,6 @@
       "deleteSelected": "Eliminar seleccionadas"
     },
     "detail": {
-      "aiGeneratedBadge": "Generado por IA",
       "loading": "Cargando panel…",
       "loadError": "No se pudo cargar este panel.",
       "search": {
@@ -5419,11 +5406,7 @@
         "clear": "Limpiar búsqueda"
       },
       "markdown": {
-        "error": "No se pudo cargar este documento.",
         "outline": "Índice"
-      },
-      "ppt": {
-        "comingSoon": "La vista previa de PPT aún no está disponible — esto es un marcador de posición para este tipo de artefacto."
       },
       "pdf": {
         "loading": "Cargando documento…",
@@ -5442,7 +5425,29 @@
         "title": "Historia no encontrada",
         "description": "Esta historia no existe, o fue eliminada.",
         "backButton": "Volver a Storytelling"
-      }
+      },
+      "emptyContent": "Esta versión no tiene contenido para mostrar.",
+      "loadFailed": "No se pudo cargar la historia.",
+      "openConversation": "Abrir conversación",
+      "continueInChat": "Continuar en el chat"
+    },
+    "kind": {
+      "markdown": "Markdown",
+      "html": "HTML",
+      "svg": "SVG",
+      "deck": "Presentación",
+      "pdf": "PDF",
+      "sections": "Reporte"
+    },
+    "rename": {
+      "title": "Renombrar historia",
+      "label": "Título",
+      "cancel": "Cancelar",
+      "confirm": "Guardar"
+    },
+    "chat": {
+      "continueMessage": "Sigamos trabajando en la historia \"{title}\" (id {id}). Léela y dime qué contiene.",
+      "askAboutComponent": "Me refiero al componente \"{label}\" de la historia \"{title}\" (id {id})."
     }
   },
   "conversations": {
@@ -5567,7 +5572,12 @@
         "write_todos": "Planificando los pasos",
         "delegate": "Delegando una tarea a un subagente",
         "ask_advisor": "Consultando al asesor",
-        "fs_write": "Guardando un borrador"
+        "fs_write": "Guardando un borrador",
+        "artifact": "Preparando un documento",
+        "workflow": "Revisando el proceso de negocio",
+        "source_search": "Buscando en el código y la documentación del producto",
+        "source_read": "Leyendo el código y la documentación del producto",
+        "source_list": "Recorriendo el código y la documentación del producto"
       },
       "noAnswer": "El harness no devolvió una respuesta.",
       "unconfigured": "El harness no está configurado en este entorno — esta es una respuesta de marcador de posición.",
@@ -5615,7 +5625,13 @@
         "sharePlaceholder": "correo de la persona",
         "shareSubmit": "Compartir",
         "sharedWithYou": "Compartido contigo",
-        "revokeShare": "Quitar acceso"
+        "revokeShare": "Quitar acceso",
+        "rename": "Renombrar chat",
+        "fork": "Bifurcar chat",
+        "shareLink": "Compartir enlace",
+        "shareWithPerson": "O dale acceso a una persona:",
+        "linkCopied": "Enlace copiado. Cualquier persona de tu organización puede abrirlo.",
+        "linkFailed": "No se pudo crear el enlace."
       },
       "thread": {
         "dropToAttach": "Suelta para adjuntar",
@@ -5627,6 +5643,8 @@
         "runFailed": "No se pudo obtener una respuesta.",
         "retry": "Reintentar",
         "readOnly": "Este chat es de solo lectura: lo compartió otra persona.",
+        "forkFromHere": "Bifurcar desde aquí",
+        "forkToContinue": "Bifúrcalo para continuarlo como tuyo",
         "working": "Trabajando…",
         "elapsed": "Tiempo transcurrido"
       },
@@ -5637,7 +5655,9 @@
         "placeholder": "Pregúntale al harness…",
         "cancelRun": "Cancelar",
         "model": "Modelo",
-        "pdfTooLarge": "El PDF es demasiado grande ({size} MB) — el límite es {limit} MB.",
+        "attachmentTooLarge": "{name} es demasiado grande ({size} MB). El límite es {limit} MB por archivo.",
+        "tooManyAttachments": "Puedes adjuntar hasta {limit} archivos por mensaje.",
+        "attachmentNotAccepted": "Ese tipo de archivo no es compatible. Adjunta imágenes PNG, JPEG, WebP o GIF, PDF o archivos de texto.",
         "commands": {
           "compact": {
             "description": "Resume la conversación para liberar contexto. Agrega qué conservar, por ejemplo: /compact conserva las cifras."
@@ -5657,12 +5677,17 @@
         "defaultModel": "Modelo por defecto",
         "modelsUnavailable": "No se pudieron cargar los modelos. Reintentar"
       },
+      "showArtifact": {
+        "expand": "Ampliar",
+        "copy": "Copiar contenido",
+        "copied": "Copiado",
+        "download": "Descargar",
+        "saveAsStory": "Guardar como historia",
+        "omitted": "Este resultado era demasiado grande para guardarlo en el historial de la conversación."
+      },
       "showDashlet": {
         "unknown": "Dashlet desconocido: {id}",
         "unsupported": "{name} no se puede mostrar en el chat."
-      },
-      "createStory": {
-        "open": "Clic para abrir"
       },
       "askUserQuestion": {
         "skipped": "Omitido — reemplazado por un mensaje posterior.",
@@ -5672,6 +5697,23 @@
         "submit": "Enviar"
       },
       "activity": {
+        "label": "Actividad",
+        "summary": "{count} pasos · {duration}",
+        "summaryOne": "1 paso · {duration}",
+        "loading": "Cargando la actividad…",
+        "failed": "No se pudo cargar la actividad.",
+        "empty": "No hay pasos registrados.",
+        "arguments": "Argumentos",
+        "result": "Resultado",
+        "error": "Error",
+        "truncated": "recortado",
+        "copy": "Copiar",
+        "copied": "Copiado",
+        "unfinished": "Sin terminar",
+        "noArguments": "Esta ejecución no guardó los argumentos.",
+        "tokens": "{input} tokens de entrada · {output} de salida"
+      },
+      "jobs": {
         "open": "Actividad",
         "title": "Actividad",
         "running": "En curso",
@@ -5699,6 +5741,21 @@
       "plan_no_seat": "No tienes un asiento de Harness. Pide a un administrador de tu organización que te dé acceso.",
       "plan_pool_exhausted": "Tu organización usó todos los tokens de este mes. Vuelve a estar disponible el día 1, o antes si un administrador agrega asientos.",
       "plan_model_not_offered": "Ese modelo ya no está disponible. Elige otro en el selector."
+    }
+  },
+  "shareLink": {
+    "readOnly": "Solo lectura",
+    "loadFailed": "No se pudo abrir el enlace.",
+    "notFound": {
+      "title": "Enlace no disponible",
+      "description": "El enlace fue revocado, o lo que compartía ya no existe."
+    },
+    "thread": {
+      "untitled": "Conversación",
+      "user": "Usuario",
+      "assistant": "Asistente",
+      "empty": "Esta conversación no tiene mensajes.",
+      "loadMore": "Cargar más mensajes"
     }
   }
 }

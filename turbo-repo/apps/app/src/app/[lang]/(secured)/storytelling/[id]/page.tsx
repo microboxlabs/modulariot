@@ -26,8 +26,8 @@ export default async function StoryDetailRoute({ params }: StoryRouteParams) {
     <RouteGuard path="/storytelling" fallbackPath={`/${lang}/shipping`}>
       {/* outline-none: Next's App Router focuses this segment's root on a
           client-side navigation (for scroll/a11y bookkeeping, not as a real
-          keyboard tab-stop) — reaching this page via the chat's create_story
-          router.push otherwise leaves a visible default focus ring around
+          keyboard tab-stop) — reaching this page by a router.push
+          otherwise leaves a visible default focus ring around
           the whole page. */}
       <div className="flex h-full w-full flex-col overflow-y-auto bg-white outline-none dark:bg-gray-900">
         <StoryDetailPage

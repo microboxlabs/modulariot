@@ -29,6 +29,7 @@ from miot_harness.agents.model_providers import (
     is_anthropic,
     registry_from_settings,
 )
+from miot_harness.agents.thread_titler import build_thread_titler
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
 from miot_harness.api.identity import (
     IdentityVerificationError,
@@ -127,6 +128,13 @@ class DistillRequest(BaseModel):
     reads them defensively, so the schema stays permissive."""
 
     episodes: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class TitleRequest(BaseModel):
+    """Body for POST /titles: the first exchange of a chat thread."""
+
+    message: str = Field(min_length=1, max_length=20_000)
+    answer: str = Field(default="", max_length=200_000)
 
 
 def _make_lifespan(
@@ -903,6 +911,24 @@ def create_app() -> FastAPI:
         if loop is None:
             return {"default": None, "models": []}
         return {"default": loop.default_model, "models": list(loop.models)}
+
+    @app.post("/titles", responses={503: {"description": "No title could be generated"}})
+    async def create_title(
+        body: TitleRequest,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, str]:
+        """A short title for a chat thread, from its first exchange. Uses the
+        summarizer's model, which is picked to be cheap."""
+        # Tests inject a stub via app.state.title_model.
+        model = getattr(app.state, "title_model", None)
+        try:
+            if model is None:
+                model = get_chat_model(settings.agents_summarizer_model)
+            title = await build_thread_titler(model)(body.message, body.answer)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Thread title failed: %s", exc)
+            raise HTTPException(status_code=503, detail="title unavailable") from exc
+        return {"title": title}
 
     @app.post("/runs", response_model=HarnessRunRecord)
     async def create_run(

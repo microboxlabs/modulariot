@@ -126,4 +126,14 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode,
             Map<String, Object> body);
+
+    /** A short title for a chat thread, from its first exchange. */
+    @POST
+    @Path("/titles")
+    Uni<Response> createTitle(
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode,
+            Map<String, Object> body);
 }

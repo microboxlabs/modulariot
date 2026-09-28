@@ -19,7 +19,9 @@ import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from time import monotonic
 from typing import Any, Protocol
+from uuid import uuid4
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import (
@@ -344,6 +346,7 @@ class WorkhorseSeat:
         progress: Progress,
     ) -> tuple[ToolMessage, list[DataEvidence]]:
         call_id = str(call.get("id", ""))
+        delegate_id = call_id or uuid4().hex[:12]
         args = dict(call.get("args") or {})
         brief = str(args.get("brief", "")).strip()
         if args.get("expected"):
@@ -353,14 +356,20 @@ class WorkhorseSeat:
                 run_id=ctx.run_id,
                 type="agent.started",
                 message="Delegating to a workhorse",
-                data={"agent": "workhorse", "graph": "agent_loop", "brief": brief[:200]},
+                data={
+                    "agent": "workhorse",
+                    "graph": "agent_loop",
+                    "brief": brief[:200],
+                    "delegate_id": delegate_id,
+                },
             )
         )
+        started_at = monotonic()
         delta = await self.loop().run(
             user_message=brief,
             ctx=ctx,
             prior_messages=[],
-            progress=_child_progress(progress),
+            progress=_child_progress(progress, delegate_id),
         )
         evidence: list[DataEvidence] = list(delta.get("evidence") or [])
         summary = str(delta.get("answer") or "").strip()
@@ -375,7 +384,12 @@ class WorkhorseSeat:
                 run_id=ctx.run_id,
                 type="delegate.completed",
                 message="Workhorse finished",
-                data={"brief": brief[:200], **{k: v for k, v in payload.items() if k != "summary"}},
+                data={
+                    "brief": brief[:200],
+                    "delegate_id": delegate_id,
+                    "duration_ms": int((monotonic() - started_at) * 1000),
+                    **{k: v for k, v in payload.items() if k != "summary"},
+                },
             )
         )
         progress(
@@ -383,26 +397,28 @@ class WorkhorseSeat:
                 run_id=ctx.run_id,
                 type="agent.completed",
                 message="Workhorse finished",
-                data={"agent": "workhorse", "graph": "agent_loop"},
+                data={"agent": "workhorse", "graph": "agent_loop", "delegate_id": delegate_id},
             )
         )
         result = ToolMessage(content=json.dumps(payload, ensure_ascii=False), tool_call_id=call_id)
         return result, evidence
 
 
-def _child_progress(progress: Progress) -> Progress:
+def _child_progress(progress: Progress, delegate_id: str) -> Progress:
     """Events of a workhorse run as the parent stream sees them.
 
     Its text is not the answer, so `answer.*` events are dropped; its turns
-    and thinking are relabelled `workhorse`; tool events pass through.
+    and thinking are relabelled `workhorse`; every event carries
+    `delegate_id` so parallel delegations can be told apart.
     """
 
     def emit(event: HarnessEvent) -> None:
         if event.type in ("answer.delta", "answer.completed"):
             return
-        if event.data.get("agent") == "agent_loop":
-            event = event.model_copy(update={"data": {**event.data, "agent": "workhorse"}})
-        progress(event)
+        data = {**event.data, "delegate_id": delegate_id}
+        if data.get("agent") == "agent_loop":
+            data["agent"] = "workhorse"
+        progress(event.model_copy(update={"data": data}))
 
     return emit
 

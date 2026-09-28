@@ -158,6 +158,14 @@ async def test_delegate_runs_briefs_concurrently_and_merges_evidence(monkeypatch
     assert {r["summary"] for r in results} == {"41 late trips", "12 on time"}
     assert all(r["tools_run"] == ["fake_kpi_summary"] and r["turns"] == 2 for r in results)
     assert [e.type for e in events].count("delegate.completed") == 2
+    # Each delegation's events are tagged with its own id.
+    completed = [e for e in events if e.type == "delegate.completed"]
+    assert {e.data["delegate_id"] for e in completed} == {"d1", "d2"}
+    assert all(isinstance(e.data["duration_ms"], int) for e in completed)
+    inner_turns = [
+        e for e in events if e.type == "agent.started" and e.data.get("agent") == "workhorse"
+    ]
+    assert {e.data["delegate_id"] for e in inner_turns} == {"d1", "d2"}
     # The workhorse's own text never reaches the parent's answer stream.
     answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
     assert answer_deltas == ["41 late, 12 on time"]

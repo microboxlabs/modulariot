@@ -27,15 +27,15 @@ function stepOf(run: RunSummary, tr: TrFn): string {
   const key = run.last_step?.tool ? stepKeyOf(run.last_step.tool) : null;
   return key
     ? tr(`harnessChat.stream.steps.${key}`)
-    : tr("harnessChat.ui.activity.working");
+    : tr("harnessChat.ui.jobs.working");
 }
 
 function statusLabel(run: RunSummary, tr: TrFn): string {
   if (run.status === "completed")
-    return tr("harnessChat.ui.activity.statusCompleted");
+    return tr("harnessChat.ui.jobs.statusCompleted");
   if (run.status === "interrupted")
-    return tr("harnessChat.ui.activity.statusInterrupted");
-  return tr("harnessChat.ui.activity.statusFailed");
+    return tr("harnessChat.ui.jobs.statusInterrupted");
+  return tr("harnessChat.ui.jobs.statusFailed");
 }
 
 /** Briefs can repeat; their order within the run is stable. */
@@ -66,21 +66,21 @@ export const ActivityList: FC<{
   if (failed) {
     return (
       <p className="px-3 py-4 text-xs text-gray-500">
-        {tr("harnessChat.ui.activity.loadFailed")}
+        {tr("harnessChat.ui.jobs.loadFailed")}
       </p>
     );
   }
   if (runs.length === 0) {
     return (
       <p className="px-3 py-4 text-xs text-gray-500">
-        {tr("harnessChat.ui.activity.empty")}
+        {tr("harnessChat.ui.jobs.empty")}
       </p>
     );
   }
 
   const row = (run: RunSummary, live: boolean) => {
     const title =
-      titleOf(run.conversation_id) ?? tr("harnessChat.ui.activity.untitled");
+      titleOf(run.conversation_id) ?? tr("harnessChat.ui.jobs.untitled");
     const conversationId = run.conversation_id;
     const elapsed = live
       ? msBetween(run.started_at, now)
@@ -126,7 +126,7 @@ export const ActivityList: FC<{
         </button>
         {live && run.delegates.length > 0 && (
           <ul
-            aria-label={tr("harnessChat.ui.activity.delegates")}
+            aria-label={tr("harnessChat.ui.jobs.delegates")}
             className="ml-5 flex flex-col gap-0.5 pb-1"
           >
             {withKeys(run).map((delegate) => (
@@ -151,7 +151,7 @@ export const ActivityList: FC<{
       {running.length > 0 && (
         <section>
           <h3 className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-            {tr("harnessChat.ui.activity.running")}
+            {tr("harnessChat.ui.jobs.running")}
           </h3>
           <ul>{running.map((run) => row(run, true))}</ul>
         </section>
@@ -159,7 +159,7 @@ export const ActivityList: FC<{
       {recent.length > 0 && (
         <section>
           <h3 className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-            {tr("harnessChat.ui.activity.recent")}
+            {tr("harnessChat.ui.jobs.recent")}
           </h3>
           <ul>{recent.map((run) => row(run, false))}</ul>
         </section>
@@ -200,7 +200,7 @@ export const ActivityButton: FC<{
       <button
         type="button"
         onClick={() => onOpenChange(!open)}
-        aria-label={tr("harnessChat.ui.activity.open")}
+        aria-label={tr("harnessChat.ui.jobs.open")}
         aria-expanded={open}
         className={twMerge(className, "relative")}
       >
@@ -214,7 +214,7 @@ export const ActivityButton: FC<{
       {open && (
         <dialog
           open
-          aria-label={tr("harnessChat.ui.activity.title")}
+          aria-label={tr("harnessChat.ui.jobs.title")}
           className="absolute left-auto right-0 top-8 z-30 m-0 w-72 rounded-lg border border-gray-200 bg-white p-0 text-inherit shadow-lg dark:border-gray-700 dark:bg-gray-800"
         >
           {children}

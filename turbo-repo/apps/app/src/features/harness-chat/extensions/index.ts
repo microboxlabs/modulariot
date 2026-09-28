@@ -1,5 +1,5 @@
 import { askUserQuestionExtension } from "./ask-user-question";
-import { createStoryExtension } from "./create-story";
+import { showArtifactExtension } from "./show-artifact";
 import { showDashletExtension } from "./show-dashlet";
 import type { HarnessExtension } from "../harness-extension";
 
@@ -11,16 +11,8 @@ import type { HarnessExtension } from "../harness-extension";
 export const DEFAULT_HARNESS_EXTENSIONS: HarnessExtension[] = [
   askUserQuestionExtension,
   showDashletExtension,
-  createStoryExtension,
+  showArtifactExtension,
 ];
-
-/** Extension tools that only make sense while storytelling is enabled —
- * `create_story` builds `/storytelling/{id}` entries whose pages 404 when
- * the flag is off, so the tool shouldn't be registered (nor advertised to
- * the harness) in that case. */
-const STORYTELLING_EXTENSION_TOOLS: ReadonlySet<string> = new Set([
-  createStoryExtension.toolName,
-]);
 
 /**
  * The default extension list for a live `HarnessChat`, minus any card whose
@@ -31,7 +23,6 @@ export function resolveDefaultHarnessExtensions(opts: {
   storytellingEnabled: boolean;
 }): HarnessExtension[] {
   return DEFAULT_HARNESS_EXTENSIONS.filter(
-    (extension) =>
-      opts.storytellingEnabled || !STORYTELLING_EXTENSION_TOOLS.has(extension.toolName),
+    (extension) => opts.storytellingEnabled || !extension.requiresStorytelling,
   );
 }

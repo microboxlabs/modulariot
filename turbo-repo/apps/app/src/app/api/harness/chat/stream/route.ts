@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
+import type { Attachment, RunEffort } from "@microboxlabs/miot-harness-client";
 import { requireAuth } from "../../../utils/alfresco-crud-client";
 import { recordEpisode } from "../../../interactions/episodes/record-episode";
 import type { AskUserQuestionArgs } from "@/features/harness-chat/extensions/ask-user-question";
-import type { CreateStoryArgs } from "@/features/harness-chat/extensions/create-story";
 import type { ShowDashletArgs } from "@/features/harness-chat/extensions/show-dashlet";
 import {
   getAllDashlets,
@@ -17,6 +17,7 @@ import { isModulithConfigured } from "@/lib/modulith-host";
 import {
   conversationOf,
   effortOf,
+  lastUserAttachments,
   modelOf,
   type AgUiMessage,
   type RunAgentInputBody,
@@ -58,13 +59,6 @@ function askUserQuestionToolCall(
 function showDashletToolCall(send: Sender, args: ShowDashletArgs): void {
   const toolCallId = crypto.randomUUID();
   send({ type: "TOOL_CALL_START", toolCallId, toolCallName: "show_dashlet" });
-  send({ type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) });
-  send({ type: "TOOL_CALL_END", toolCallId });
-}
-
-function createStoryToolCall(send: Sender, args: CreateStoryArgs): void {
-  const toolCallId = crypto.randomUUID();
-  send({ type: "TOOL_CALL_START", toolCallId, toolCallName: "create_story" });
   send({ type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) });
   send({ type: "TOOL_CALL_END", toolCallId });
 }
@@ -255,24 +249,19 @@ function demoShowDashlet(send: Sender, text: string, tr: TrFn): boolean {
   return true;
 }
 
-/** Demo trigger for the create_story human tool — makes a new /storytelling/{id}
- * entry "AI generated", entirely client-side (see create-story-card.tsx):
- * this route can't touch the browser's localStorage itself, so it only hands
- * the tool call a fresh id and lets the card do the actual creation. Nothing
- * renders in the chat for this one — that's the point (see CreateStoryCard). */
-function demoCreateStory(send: Sender, text: string): boolean {
-  // Needs an explicit creation verb before "story"/"stories" — "create a
-  // story", "make me a new story", etc. — so unrelated prompts that merely
-  // mention a story ("summarize user story 123") still reach the harness.
-  if (!/\b(?:create|make|generate|new|build)\b.*\bstor(?:y|ies)\b/i.test(text))
-    return false;
-  createStoryToolCall(send, { id: crypto.randomUUID().slice(0, 8) });
-  return true;
-}
-
 export type HarnessPathDecision =
   | { handled: true }
-  | { handled: false; message: string };
+  | { handled: false; message: string; attachments?: Attachment[] };
+
+function toHarness(message: string, attachments: Attachment[]): HarnessPathDecision {
+  return attachments.length > 0
+    ? { handled: false, message, attachments }
+    : { handled: false, message };
+}
+
+function isEmptyTurn(message: string, attachments: Attachment[]): boolean {
+  return !message && attachments.length === 0;
+}
 
 /** A tool result while the harness is configured: the user's pick on an
  * ask_user_question card is their next turn; a widget's automatic
@@ -315,28 +304,20 @@ export function decideHarnessPath(
   }
 
   const message = lastUserText(messages);
-  if (!message) {
+  const attachments = lastUserAttachments(messages);
+  if (isEmptyTurn(message, attachments)) {
     send({ type: "RUN_FINISHED", runId, threadId });
     return { handled: true };
   }
 
-  // Both storytelling-related trigger words — "create a story" and "show
-  // all dashlets" — are testing scaffolding, gated the same as the
+  // The "show all dashlets" trigger word is testing scaffolding, gated the same as the
   // storytelling pages themselves (see ENABLE_STORYTELLING in
   // runtime-config.types.ts).
   const storytellingTestingEnabled = process.env.ENABLE_STORYTELLING === "true";
 
   if (!isModulithConfigured()) {
     // Demo triggers only ever run as a stand-in for the real harness — they
-    // must stay inside this branch. `demoCreateStory` used to run ahead of
-    // this check, so with the flag on, any real (configured-harness) turn
-    // that merely mentioned "story"/"stories" got hijacked into a fake
-    // create_story card instead of reaching the actual harness.
-    if (storytellingTestingEnabled && demoCreateStory(send, message)) {
-      send({ type: "RUN_FINISHED", runId, threadId });
-      return { handled: true };
-    }
-
+    // must stay inside this branch.
     if (demoAskUserQuestion(send, message, tr)) {
       send({ type: "RUN_FINISHED", runId, threadId });
       return { handled: true };
@@ -357,7 +338,7 @@ export function decideHarnessPath(
     return { handled: true };
   }
 
-  return { handled: false, message };
+  return toHarness(message, attachments);
 }
 
 export async function POST(request: Request) {
@@ -383,6 +364,17 @@ export async function POST(request: Request) {
   );
 }
 
+/** The per-turn fields of a run request, left out when unset. */
+function turnOptions(
+  attachments: Attachment[] | undefined,
+  effort: RunEffort | null
+): { attachments?: Attachment[]; effort?: RunEffort } {
+  return {
+    ...(attachments && { attachments }),
+    ...(effort && { effort }),
+  };
+}
+
 async function run(
   send: Sender,
   body: RunAgentInputBody,
@@ -406,7 +398,7 @@ async function run(
 
   const decision = decideHarnessPath(send, messages, runId, threadId, tr);
   if (decision.handled) return;
-  const { message } = decision;
+  const { message, attachments } = decision;
 
   const connection = await connectToHarness(authResult.session);
   if (!connection.ok) {
@@ -437,10 +429,10 @@ async function run(
     const { run_id } = await client.runs.create(
       {
         message,
+        ...turnOptions(attachments, effort),
         skill_id: "miot-analyst",
         answer_format: "json",
         ...(model && { model }),
-        ...(effort && { effort }),
         ...(userEmail && { user_id: userEmail }),
         ...(conversationId && { conversation_id: conversationId }),
         ...(replayTurns.length > 0 && { conversation_history: replayTurns }),

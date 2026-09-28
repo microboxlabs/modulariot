@@ -170,6 +170,7 @@ public class ShareLinkService {
                 thread.lastMessageAt(),
                 thread.createdAt(),
                 thread.updatedAt(),
-                List.of());
+                List.of(),
+                thread.titleEdited());
     }
 }

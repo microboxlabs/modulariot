@@ -10,6 +10,7 @@ export { parseSSE } from "./sse.js";
 export type { SSEFrame } from "./sse.js";
 export { TERMINAL_EVENT_TYPES } from "./types.js";
 export type {
+  Attachment,
   ClientConfig,
   ConversationTurn,
   ErrorResponse,
@@ -24,5 +25,7 @@ export type {
   RunSummary,
   RunSummaryStatus,
   SkillSummary,
+  ThreadTitle,
+  ThreadTitleRequest,
   UserRequest,
 } from "./types.js";

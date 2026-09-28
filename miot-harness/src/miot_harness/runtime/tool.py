@@ -1,11 +1,13 @@
 import json
 from collections.abc import Awaitable, Callable
+from time import monotonic
 from typing import Any, Generic, TypeVar
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from miot_harness.runtime.context import HarnessContext
+from miot_harness.runtime.event_payload import args_payload, preview_payload, scrub_text
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.permissions import (
     PermissionDecision,
@@ -56,7 +58,20 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
         raw_input: dict[str, Any],
         progress: Progress,
     ) -> OutputT:
-        parsed_input = self.input_model.model_validate(raw_input)
+        call_id = uuid4().hex[:12]
+        try:
+            parsed_input = self.input_model.model_validate(raw_input)
+        except ValidationError as exc:
+            _emit_failed(
+                progress,
+                ctx,
+                self.name,
+                str(exc),
+                type(exc).__name__,
+                call_id=call_id,
+                args=raw_input,
+            )
+            raise
         input_dump = parsed_input.model_dump()
         input_keys = sorted(input_dump.keys())
 
@@ -64,12 +79,10 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
         policy = ctx.permission_policy
         rule_decision = None
         if policy is not None and policy.rules:
-            rule_decision = evaluate_rules(
-                policy.rules, tool_name=self.name, tool_input=input_dump
-            )
+            rule_decision = evaluate_rules(policy.rules, tool_name=self.name, tool_input=input_dump)
         if rule_decision == PermissionDecision.DENY:
             reason = f"rule denied tool {self.name}"
-            _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+            _emit_failed(progress, ctx, self.name, reason, "PermissionError", call_id=call_id)
             raise PermissionError(reason)
 
         if rule_decision == PermissionDecision.ALLOW:
@@ -84,7 +97,9 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
             permission = await self.check_permission(ctx, parsed_input)
 
         if permission.decision == PermissionDecision.DENY:
-            _emit_failed(progress, ctx, self.name, permission.reason, "PermissionError")
+            _emit_failed(
+                progress, ctx, self.name, permission.reason, "PermissionError", call_id=call_id
+            )
             raise PermissionError(permission.reason)
 
         if permission.decision == PermissionDecision.ASK:
@@ -128,7 +143,9 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                     # is safer than silently proceeding — the caller has no
                     # way to approve.
                     reason = "approval required but no approval_registry on context"
-                    _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+                    _emit_failed(
+                        progress, ctx, self.name, reason, "PermissionError", call_id=call_id
+                    )
                     raise PermissionError(reason)
                 event = registry.register(approval_id, ctx.run_id)
                 try:
@@ -142,12 +159,16 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                     registry.discard(approval_id)
                 if decision != "approve":
                     reason = f"approval {approval_id} denied"
-                    _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+                    _emit_failed(
+                        progress, ctx, self.name, reason, "PermissionError", call_id=call_id
+                    )
                     raise PermissionError(reason)
         started_data: dict[str, Any] = {
             "tool": self.name,
             "source": self.source,
             "input_keys": input_keys,
+            "call_id": call_id,
+            **args_payload(input_dump),
         }
         if ctx.debug:
             started_data.update(_debug_input_payload(input_dump))
@@ -159,15 +180,28 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                 data=started_data,
             )
         )
+        started_at = monotonic()
         try:
             output = await self.call(ctx, parsed_input, progress)
         except Exception as exc:
-            _emit_failed(progress, ctx, self.name, str(exc), type(exc).__name__)
+            _emit_failed(
+                progress,
+                ctx,
+                self.name,
+                str(exc),
+                type(exc).__name__,
+                call_id=call_id,
+                duration_ms=int((monotonic() - started_at) * 1000),
+            )
             raise
         completed_data: dict[str, Any] = {
             "tool": self.name,
             "result_shape": _compute_result_shape(output),
             **_lift_metadata(output),
+            "call_id": call_id,
+            "ok": True,
+            "duration_ms": int((monotonic() - started_at) * 1000),
+            **preview_payload(_dump_payload(output)),
         }
         if ctx.debug:
             completed_data.update(_debug_output_payload(output))
@@ -188,7 +222,13 @@ def _emit_failed(
     tool: str,
     error: str,
     error_type: str,
+    *,
+    call_id: str,
+    duration_ms: int = 0,
+    args: dict[str, Any] | None = None,
 ) -> None:
+    error = scrub_text(error)
+    extra = args_payload(args) if args is not None else {}
     progress(
         HarnessEvent(
             run_id=ctx.run_id,
@@ -199,6 +239,10 @@ def _emit_failed(
                 "error": error,
                 "error_type": error_type,
                 "reason": error,
+                "call_id": call_id,
+                "ok": False,
+                "duration_ms": duration_ms,
+                **extra,
             },
         )
     )
@@ -269,9 +313,7 @@ def _debug_output_payload(output: Any) -> dict[str, Any]:
         # errors="ignore" drops any incomplete codepoint at the cut
         # boundary so the decoded string is always valid UTF-8.
         return {
-            "output": encoded[:_DEBUG_OUTPUT_BYTES_CAP].decode(
-                "utf-8", errors="ignore"
-            ),
+            "output": encoded[:_DEBUG_OUTPUT_BYTES_CAP].decode("utf-8", errors="ignore"),
             "truncated": True,
         }
     return {"output": capped, "truncated": truncated}
@@ -295,9 +337,7 @@ def _debug_input_payload(input_dump: dict[str, Any]) -> dict[str, Any]:
         # See _debug_output_payload — byte-slice + lossy decode so
         # multibyte characters can't blow past the SSE frame cap.
         return {
-            "input": encoded[:_DEBUG_OUTPUT_BYTES_CAP].decode(
-                "utf-8", errors="ignore"
-            ),
+            "input": encoded[:_DEBUG_OUTPUT_BYTES_CAP].decode("utf-8", errors="ignore"),
             "truncated": True,
         }
     return {"input": capped, "truncated": truncated}

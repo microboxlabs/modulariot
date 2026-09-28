@@ -18,6 +18,8 @@ from xml.sax.saxutils import escape
 
 import defusedxml.ElementTree as SafeET
 
+from miot_harness.utils import svg as svg_check
+
 MAX_XML_BYTES = 5_000_000
 MAX_NODES = 600
 MAX_SVG_BYTES = 400_000
@@ -638,13 +640,7 @@ def _svg_nodes(placed: list[Node], heat: Mapping[str, float]) -> list[str]:
 def check_svg(svg: str) -> None:
     """Refuse anything but the plain shapes this module draws: no scripts,
     event handlers, foreign content or links."""
-    root = SafeET.fromstring(svg, forbid_dtd=True)
-    for el in root.iter():
-        if _local(el.tag) not in _SVG_TAGS:
-            raise BpmnError(f"unexpected SVG element {_local(el.tag)!r}")
-        for key, value in el.attrib.items():
-            name = _local(key).lower()
-            if name.startswith("on") or "href" in name:
-                raise BpmnError(f"unexpected SVG attribute {name!r}")
-            if "url(" in value and value != "url(#arrow)":
-                raise BpmnError("SVG references outside the document")
+    try:
+        svg_check.check_svg(svg, tags=_SVG_TAGS)
+    except svg_check.SvgError as exc:
+        raise BpmnError(str(exc)) from exc

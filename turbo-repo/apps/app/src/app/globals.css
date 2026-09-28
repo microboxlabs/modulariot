@@ -8,12 +8,6 @@
    the package's Tailwind preset/@source contract for external consumers. */
 @source "../../../../packages/miot-calendar-ui/src";
 
-/* Standalone dashboard mockups under storytelling/testing are raw HTML
-   dumps (multi-MB, no real class usage) served through an API route for
-   iframe preview. The oxide scanner chokes on their huge single lines, so
-   exclude them from source detection entirely. */
-@source not "../features/storytelling/testing/**/*";
-
 @config "../../tailwind.config.ts";
 
 @custom-variant dark (&:where(.dark, .dark *));

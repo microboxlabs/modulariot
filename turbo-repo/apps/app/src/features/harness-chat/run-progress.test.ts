@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatElapsed, runElapsedSince, splitNarration } from "./run-progress";
+import {
+  formatElapsed,
+  runElapsedSince,
+  splitNarration,
+  withoutStatusLines,
+} from "./run-progress";
 
 describe("runElapsedSince", () => {
   const sent = new Date("2026-09-28T09:00:05Z");
@@ -26,6 +31,17 @@ describe("splitNarration", () => {
       earlier: "Connecting\n\nQuerying the data",
       current: "Reading trips",
     });
+  });
+
+  it("leaves status lines out of the steps done, but not out of the current one", () => {
+    const text = "Connecting\nThinking\n\nExploring\nReading trips\nThinking";
+    expect(splitNarration(text, ["Connecting", "Thinking"])).toEqual({
+      earlier: "Exploring\nReading trips",
+      current: "Thinking",
+    });
+    expect(withoutStatusLines(text, ["Connecting", "Thinking"])).toBe(
+      "Exploring\nReading trips"
+    );
   });
 
   it("handles a single line and empty narration", () => {

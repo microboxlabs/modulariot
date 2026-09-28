@@ -94,7 +94,8 @@ function toChatBlock(item: unknown): ChatBlock | null {
       type,
       value: {
         term: value.term,
-        interpretation: String(value.interpretation ?? ""),
+        interpretation:
+          typeof value.interpretation === "string" ? value.interpretation : "",
       },
     };
   }
@@ -281,6 +282,65 @@ function textMessage(text: string, newId: () => string): ChatEvent[] {
   ];
 }
 
+/** Collects the answer's parts in order while blocks are read. */
+class AnswerBuilder {
+  readonly out: ChatEvent[] = [];
+  private text: string[] = [];
+  private readonly placed = new Set<string>();
+  readonly assumptions: string[] = [];
+  choices: ChoicesValue | null = null;
+
+  constructor(
+    private readonly widgets: Map<string, WidgetSpec>,
+    private readonly newId: () => string
+  ) {}
+
+  add(block: ChatBlock): void {
+    switch (block.type) {
+      case "markdown":
+        this.text.push(block.value);
+        return;
+      case "url":
+        this.text.push(`[${block.value.name}](${block.value.url})`);
+        return;
+      case "assumption":
+        this.assumptions.push(
+          `'${block.value.term}' = ${block.value.interpretation}`
+        );
+        return;
+      case "choices":
+        this.choices = block.value;
+        return;
+      case "widget":
+        this.placeWidget(block.value.id);
+    }
+  }
+
+  note(line: string): void {
+    this.text.push(line);
+  }
+
+  flush(): void {
+    if (this.text.length)
+      this.out.push(...textMessage(this.text.join("\n\n"), this.newId));
+    this.text = [];
+  }
+
+  placeWidget(id: string): void {
+    const spec = this.widgets.get(id);
+    if (!spec || this.placed.has(id)) return;
+    this.flush();
+    this.out.push(
+      ...toolCall("show_dashlet", widgetToDashlet(spec), this.newId)
+    );
+    this.placed.add(id);
+  }
+
+  placeRemainingWidgets(): void {
+    for (const id of this.widgets.keys()) this.placeWidget(id);
+  }
+}
+
 /**
  * The AG-UI events that present one run's answer: text in order, each widget
  * where its block sits (widgets the answer never placed come after the text),
@@ -292,49 +352,58 @@ export function chatAnswerEvents(
   opts: { noAnswer: string; assumptionLabel: string; newId?: () => string }
 ): ChatEvent[] {
   const newId = opts.newId ?? (() => crypto.randomUUID());
-  const widgets = new Map(widgetsOf(events).map((w) => [w.id, w]));
-  const placed = new Set<string>();
-  const out: ChatEvent[] = [];
-  let text: string[] = [];
-  let choices: ChoicesValue | null = null;
-  const assumptions: string[] = [];
-
-  const flush = () => {
-    if (text.length) out.push(...textMessage(text.join("\n\n"), newId));
-    text = [];
-  };
-
-  for (const block of parseChatBlocks(answer)) {
-    if (block.type === "markdown") text.push(block.value);
-    else if (block.type === "url")
-      text.push(`[${block.value.name}](${block.value.url})`);
-    else if (block.type === "assumption") {
-      assumptions.push(`'${block.value.term}' = ${block.value.interpretation}`);
-    } else if (block.type === "choices") choices = block.value;
-    else {
-      const spec = widgets.get(block.value.id);
-      if (!spec || placed.has(spec.id)) continue;
-      flush();
-      out.push(...toolCall("show_dashlet", widgetToDashlet(spec), newId));
-      placed.add(spec.id);
-    }
+  const builder = new AnswerBuilder(
+    new Map(widgetsOf(events).map((w) => [w.id, w])),
+    newId
+  );
+  for (const block of parseChatBlocks(answer)) builder.add(block);
+  if (builder.assumptions.length) {
+    builder.note(
+      `_${opts.assumptionLabel}: ${builder.assumptions.join("; ")}_`
+    );
   }
-  if (assumptions.length)
-    text.push(`_${opts.assumptionLabel}: ${assumptions.join("; ")}_`);
-  flush();
-  for (const spec of widgets.values()) {
-    if (!placed.has(spec.id))
-      out.push(...toolCall("show_dashlet", widgetToDashlet(spec), newId));
-  }
-  if (choices) out.push(...toolCall("ask_user_question", choices, newId));
-  if (out.length === 0) out.push(...textMessage(opts.noAnswer, newId));
-  return out;
+  builder.flush();
+  builder.placeRemainingWidgets();
+  if (builder.choices)
+    builder.out.push(...toolCall("ask_user_question", builder.choices, newId));
+  if (builder.out.length === 0)
+    builder.out.push(...textMessage(opts.noAnswer, newId));
+  return builder.out;
 }
 
 type ToolCallRecord = {
   id?: unknown;
   function?: { name?: unknown; arguments?: unknown };
 };
+
+function questionOf(call: ToolCallRecord): string {
+  const raw = call.function?.arguments;
+  try {
+    const args: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return isRecord(args) && typeof args.question === "string"
+      ? args.question
+      : "";
+  } catch {
+    return "";
+  }
+}
+
+function pickedOf(content: unknown): string[] {
+  let result: unknown = content;
+  if (typeof content === "string") {
+    try {
+      result = JSON.parse(content);
+    } catch {
+      return content ? [content] : [];
+    }
+  }
+  if (!isRecord(result)) return [];
+  const selected = Array.isArray(result.selected)
+    ? result.selected.map(String)
+    : [];
+  const other = typeof result.other === "string" ? result.other : "";
+  return [...selected, other].filter(Boolean);
+}
 
 /**
  * When the user answered an `ask_user_question` card, the message the harness
@@ -357,32 +426,8 @@ export function answerFromToolResult(
     )
     .find((c) => c.id === last.toolCallId);
   if (call?.function?.name !== "ask_user_question") return null;
-  let question = "";
-  try {
-    const args: unknown = JSON.parse(String(call.function.arguments ?? "{}"));
-    if (isRecord(args) && typeof args.question === "string")
-      question = args.question;
-  } catch {
-    // no question text; the answer still goes through
-  }
-  let picked: string[] = [];
-  try {
-    const result: unknown =
-      typeof last.content === "string"
-        ? JSON.parse(last.content)
-        : last.content;
-    if (isRecord(result)) {
-      const selected = Array.isArray(result.selected)
-        ? result.selected.map(String)
-        : [];
-      picked = [
-        ...selected,
-        typeof result.other === "string" ? result.other : "",
-      ].filter(Boolean);
-    }
-  } catch {
-    picked = typeof last.content === "string" ? [last.content] : [];
-  }
+  const picked = pickedOf(last.content);
   if (picked.length === 0) return null;
+  const question = questionOf(call);
   return question ? `${question} → ${picked.join(", ")}` : picked.join(", ");
 }

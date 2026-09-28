@@ -70,10 +70,17 @@ export function modelOf(body: RunAgentInputBody): string | null {
   return text(body.state?.harnessModel) ?? null;
 }
 
+/** Stands in for the answer a failed run never produced. */
+export const NO_ANSWER = "(No answer: this run did not finish.)";
+
 /**
  * Pairs each user message with the answer that followed it, up to but not
  * including the message this run is for. Only text carries over: the
  * harness's memory is a list of {user_message, assistant_answer} strings.
+ *
+ * A question that got no answer (its run failed) is kept with `NO_ANSWER`,
+ * so a follow-up like "¿me respondes?" reaches the model with the question
+ * it refers to.
  */
 export function priorTurns(messages: AgUiMessage[]): ConversationTurn[] {
   const current = messages.findLastIndex((m) => m.role === "user");
@@ -82,14 +89,14 @@ export function priorTurns(messages: AgUiMessage[]): ConversationTurn[] {
   for (const message of messages.slice(0, Math.max(current, 0))) {
     const body = messageText(message);
     if (message.role === "user") {
-      // Two questions in a row (the first got no answer): the later one is
-      // the question the assistant actually replied to.
+      if (pendingUser && body) turns.push({ user_message: pendingUser, assistant_answer: NO_ANSWER });
       pendingUser = body || pendingUser;
     } else if (message.role === "assistant" && pendingUser && body) {
       turns.push({ user_message: pendingUser, assistant_answer: body });
       pendingUser = null;
     }
   }
+  if (pendingUser) turns.push({ user_message: pendingUser, assistant_answer: NO_ANSWER });
   return turns.slice(-MAX_REPLAY_TURNS);
 }
 

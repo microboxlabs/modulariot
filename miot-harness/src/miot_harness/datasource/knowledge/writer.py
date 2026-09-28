@@ -171,11 +171,15 @@ def _history_versions(history_dir: Path) -> list[Path]:
     return sorted(history_dir.glob("[0-9]" * 4 + ".md"))
 
 
-def _snapshot(history_dir: Path, content: str) -> Path:
+def _next_version(history_dir: Path) -> Path:
     history_dir.mkdir(parents=True, exist_ok=True)
     existing = _history_versions(history_dir)
     next_num = int(existing[-1].stem) + 1 if existing else 1
-    path = history_dir / f"{next_num:04d}.md"
+    return history_dir / f"{next_num:04d}.md"
+
+
+def _snapshot(history_dir: Path, content: str) -> Path:
+    path = _next_version(history_dir)
     path.write_text(content, encoding="utf-8")
     return path
 
@@ -214,10 +218,9 @@ def revert_connection_card(cards_dir: Path, card_id: str) -> Path | None:
     versions = _history_versions(_history_dir(cards_dir, stem))
     if not versions:
         return None
-    latest = versions[-1]
     path = _card_path(cards_dir, stem)
-    path.write_text(latest.read_text(encoding="utf-8"), encoding="utf-8")
-    latest.unlink()
+    os.replace(versions[-1], path)
+    os.utime(path)  # a restored card counts as changed now (mtime cache, updated_at)
     return path
 
 
@@ -230,6 +233,5 @@ def delete_connection_card(cards_dir: Path, card_id: str) -> bool:
     path = _card_path(cards_dir, stem)
     if not path.is_file():
         return False
-    _snapshot(_history_dir(cards_dir, stem), path.read_text(encoding="utf-8"))
-    path.unlink()
+    os.replace(path, _next_version(_history_dir(cards_dir, stem)))
     return True

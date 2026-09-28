@@ -12,12 +12,14 @@ import {
   useHarnessChatTr,
 } from "./context/harness-chat-i18n-context";
 import { useResizablePanelWidth } from "./hooks/use-resizable-panel-width";
+import { useThreadModel } from "./hooks/use-thread-model";
 import { buildHarnessToolkit, type HarnessExtension } from "./harness-extension";
 import { resolveDefaultHarnessExtensions } from "./extensions";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
 import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
+import { SessionModelWatcher } from "./components/session-model-watcher";
 import { SessionSummaryWatcher } from "./components/session-summary-watcher";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
 import { HarnessModelProvider } from "./context/harness-model-context";
@@ -467,6 +469,7 @@ const SessionHost: FC<{
   useEffect(() => {
     agent.model = model;
   }, [agent, model]);
+  useThreadModel(sessionId, setModel);
 
   // Panel just opened (button or ⌘/Ctrl+C) while this is the active session —
   // send focus straight to the composer input. When it closes (or this stops
@@ -500,6 +503,7 @@ const SessionHost: FC<{
             <>
               <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
               <SessionSummaryWatcher sessionId={sessionId} />
+              <SessionModelWatcher sessionId={sessionId} />
               <InitialMessageSender initialMessage={initialMessage} />
               <PendingAttachmentReceiver
                 label={pendingAttachmentLabel}

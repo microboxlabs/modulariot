@@ -23,6 +23,7 @@ import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.servic
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
 import { conversationOf, modelOf, type AgUiMessage, type RunAgentInputBody } from "./conversation";
+import { fetchThread, storedThreadModel } from "./thread-model";
 import { planRefusalMessage } from "./plan-refusal";
 
 /**
@@ -657,7 +658,14 @@ async function run(
   }
   const { client, orgSlug, token, userEmail } = connection;
   const { conversationId, replayTurns, summary } = conversationOf(body, messages);
-  const model = modelOf(body);
+  const model =
+    modelOf(body) ??
+    (conversationId
+      ? await storedThreadModel(
+          () => fetchThread(orgSlug, conversationId, token, userEmail),
+          () => client.models.list(),
+        )
+      : null);
 
   let activeRunId: string | null = null;
   let runSettled = false;
@@ -735,6 +743,9 @@ async function run(
         // What the harness holds now, compacted or seeded; the panel stores
         // it with the thread so the next process can be handed it back.
         harnessConversationSummary: record.conversation_summary ?? null,
+        // The model the run actually used, stored with the thread so reopening
+        // it starts on the same one.
+        harnessModelUsed: record.context?.model ?? null,
       },
     });
     send({ type: "RUN_FINISHED", runId, threadId });

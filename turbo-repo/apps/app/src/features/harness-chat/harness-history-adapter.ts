@@ -50,7 +50,7 @@ type HistoryItem = { parentId: string | null; message: ThreadMessage };
  */
 export function createHarnessHistoryAdapter(
   threadId: string,
-  runs: { readonly harnessRunId: string | null } = { harnessRunId: null },
+  runs?: { readonly harnessRunId: string | null },
 ): HarnessHistoryAdapter {
   let pendingResume: string | null = null;
   // Fixed the first time a message is stored, so a later rewrite of it does
@@ -64,7 +64,7 @@ export function createHarnessHistoryAdapter(
     const { message } = item;
     let runId: string | null = null;
     if (message.role === "assistant") {
-      if (!runOfMessage.has(message.id)) runOfMessage.set(message.id, runs.harnessRunId);
+      if (!runOfMessage.has(message.id)) runOfMessage.set(message.id, runs?.harnessRunId ?? null);
       runId = runOfMessage.get(message.id) ?? null;
       const replaced = runId ? replacedByRun.get(runId) : undefined;
       if (replaced) storedIds.set(message.id, replaced);

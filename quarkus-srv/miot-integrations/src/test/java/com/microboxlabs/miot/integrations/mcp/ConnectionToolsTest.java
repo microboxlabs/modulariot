@@ -144,6 +144,7 @@ class ConnectionToolsTest {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("region", "north");
         metadata.put("accessToken", "raw-value");
+        metadata.put("token_value", "raw-value");
         metadata.put("headers", Map.of("Authorization", "Bearer raw-value", "Accept", "application/json"));
         connectionRows.rows.put("legacy", new IntegrationConnection("legacy", TENANT, "Legacy",
                 ProviderType.CUSTOM_HTTP, URI.create("https://legacy.example.test"), null, ConnectionStatus.ACTIVE,
@@ -153,6 +154,7 @@ class ConnectionToolsTest {
 
         assertEquals("north", shown.get("region"));
         assertEquals(ConnectionTools.MASK, shown.get("accessToken"));
+        assertEquals(ConnectionTools.MASK, shown.get("token_value"));
         assertEquals(Map.of("Authorization", ConnectionTools.MASK, "Accept", "application/json"),
                 shown.get("headers"));
         assertFalse(shown.toString().contains("raw-value"));
@@ -209,6 +211,8 @@ class ConnectionToolsTest {
                 failure(owner.create(ORG, "A", "tmpl-1", "ftp://a.example.test", null, null)).getMessage());
         assertEquals("baseUrl must not carry a user or password; use a credential",
                 failure(owner.create(ORG, "A", "tmpl-1", "https://u:p@a.example.test", null, null)).getMessage());
+        assertEquals("baseUrl must not have a query or fragment",
+                failure(owner.create(ORG, "A", "tmpl-1", "https://a.example.test/?key=x", null, null)).getMessage());
         assertEquals("name is required",
                 failure(owner.create(ORG, " ", "tmpl-1", "https://a.example.test", null, null)).getMessage());
         assertEquals("connection not found: nope", failure(owner.get(ORG, "nope")).getMessage());

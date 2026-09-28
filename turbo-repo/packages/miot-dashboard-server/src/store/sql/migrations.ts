@@ -98,6 +98,21 @@ export const MIGRATIONS: readonly Migration[] = [
        )`,
     ],
   },
+  {
+    version: 5,
+    name: "persistent dashboard revision counters",
+    statements: [
+      `CREATE TABLE dashboard_revisions (
+         tenant_id TEXT NOT NULL,
+         scope_id TEXT NOT NULL,
+         slug TEXT NOT NULL,
+         revision INTEGER NOT NULL,
+         PRIMARY KEY (tenant_id, scope_id, slug)
+       )`,
+      `INSERT INTO dashboard_revisions (tenant_id, scope_id, slug, revision)
+       SELECT tenant_id, scope_id, slug, revision FROM dashboards`,
+    ],
+  },
 ];
 
 export const DEFAULT_HISTORY_TABLE = "schema_migrations";

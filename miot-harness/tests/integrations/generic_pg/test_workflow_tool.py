@@ -119,11 +119,32 @@ def _summary(names: list[tuple[str, str]], schemas: tuple[str, ...]) -> SchemaSu
     )
 
 
-def test_workflow_schema_is_where_procdef_lives() -> None:
+@pytest.mark.asyncio
+async def test_workflow_schema_is_where_procdef_lives() -> None:
     both = ("app", "wf")
-    assert workflow_schema(_summary([("app", "orders"), ("wf", "act_re_procdef")], both)) == "wf"
-    assert workflow_schema(_summary([("app", "orders")], both)) is None
-    assert workflow_schema(None) is None
+    pool = RecordingPool()
+    listed = _summary([("app", "orders"), ("wf", "act_re_procdef")], both)
+    assert await workflow_schema(pool, listed, 5000) == "wf"
+    assert await workflow_schema(pool, _summary([("app", "orders")], both), 5000) is None
+    assert await workflow_schema(pool, None, 5000) is None
+    assert pool.conn.fetched == []
+
+
+@pytest.mark.asyncio
+async def test_workflow_schema_past_the_table_cap_is_looked_up() -> None:
+    pool = RecordingPool(fetch_return=[{"table_schema": "wf"}])
+    capped = _summary([("app", "orders")], ("app", "wf"))
+    capped = SchemaSummary(
+        connection=capped.connection,
+        schemas=capped.schemas,
+        tables=capped.tables,
+        total_tables=500,
+        all_table_names=capped.all_table_names | {"act_re_procdef"},
+    )
+    assert await workflow_schema(pool, capped, 5000) == "wf"
+    [(sql, args)] = pool.conn.fetched
+    assert "information_schema.tables" in sql
+    assert args == (["app", "wf"],)
 
 
 @pytest.mark.asyncio
@@ -275,3 +296,35 @@ async def test_graph_needs_a_key_or_id() -> None:
     pool = RecordingPool(responder=_responder())
     with pytest.raises(ValueError, match="pass key"):
         await _run(pool, action="graph")
+
+
+@pytest.mark.asyncio
+async def test_list_without_history_still_lists_definitions() -> None:
+    respond = _responder()
+
+    def no_history(sql: str) -> list[dict[str, Any]]:
+        if "act_hi_procinst" in sql and not sql.startswith("EXPLAIN"):
+            raise RuntimeError('relation "wf.act_hi_procinst" does not exist')
+        return respond(sql)
+
+    out, _ = await _run(RecordingPool(responder=no_history), action="list")
+    assert [r["key"] for r in out.rows] == ["requestReview", "other"]
+    assert "Instance counts skipped" in out.note
+
+
+@pytest.mark.asyncio
+async def test_stats_names_rework_when_only_rework_is_skipped() -> None:
+    pool = RecordingPool(responder=_responder(expensive="HAVING"))
+    out, _ = await _run(pool, action="stats", key="requestReview")
+    assert out.transitions
+    assert out.rework == []
+    assert "Skipped: rework" in out.note
+
+
+@pytest.mark.asyncio
+async def test_stats_cover_every_task_type() -> None:
+    pool = RecordingPool(responder=_responder())
+    await _run(pool, action="stats", key="requestReview")
+    stats_sql = next(s for s in _sql(pool) if "PERCENTILE_CONT" in s)
+    assert "'serviceTask'" in stats_sql
+    assert "'userTask'" in stats_sql

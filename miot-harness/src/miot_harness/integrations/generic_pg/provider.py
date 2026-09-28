@@ -35,7 +35,7 @@ from miot_harness.datasource.provider import (
     DataSourceProvider,
 )
 from miot_harness.datasource.routine_introspect import introspect_routines
-from miot_harness.datasource.safe_query import DEFAULT_STATEMENT_TIMEOUT_MS
+from miot_harness.datasource.safe_query import DEFAULT_STATEMENT_TIMEOUT_MS, fetch_readonly
 from miot_harness.datasource.safe_sql import HARD_LIMIT_CAP
 from miot_harness.datasource.schema_introspect import SchemaSummary, introspect_schema
 from miot_harness.datasource.sql_policy import SchemaAllowlistPolicy
@@ -82,14 +82,33 @@ def _resolve_tenant_lock(opts: dict[str, object]) -> str | None:
     return lock or None
 
 
-def workflow_schema(summary: SchemaSummary | None) -> str | None:
-    """The schema holding the BPMN engine's process definitions, if visible."""
+async def workflow_schema(
+    pool: object, summary: SchemaSummary | None, statement_timeout_ms: int
+) -> str | None:
+    """The schema holding the BPMN engine's process definitions, if visible.
+
+    `summary.tables` is capped, so a table past the cap is looked up directly.
+    """
     if summary is None or "act_re_procdef" not in summary.all_table_names:
         return None
     for table in summary.tables:
         if table.name == "act_re_procdef":
             return table.schema
-    return summary.schemas[0] if len(summary.schemas) == 1 else None
+    if len(summary.schemas) == 1:
+        return summary.schemas[0]
+    try:
+        rows = await fetch_readonly(
+            pool,
+            "SELECT table_schema FROM information_schema.tables "
+            "WHERE table_name = 'act_re_procdef' AND table_schema = ANY($1::text[]) "
+            "ORDER BY table_schema LIMIT 1",
+            list(summary.schemas),
+            statement_timeout_ms=statement_timeout_ms,
+        )
+    except Exception as exc:  # noqa: BLE001 — the workflow tool is optional
+        logger.warning("generic_pg %s: workflow schema lookup failed (%s)", summary.connection, exc)
+        return None
+    return str(rows[0]["table_schema"]) if rows else None
 
 
 def _workspace_dir(connection: Connection) -> Path | None:
@@ -283,7 +302,9 @@ class GenericPgProvider(DataSourceProvider):
                 knowledge_cards=knowledge_cards,
                 call_security_definer=call_security_definer,
                 workspace_dir=_workspace_dir(connection),
-                workflow_schema=workflow_schema(schema_summary),
+                workflow_schema=await workflow_schema(
+                    self._pool, schema_summary, statement_timeout_ms
+                ),
             )
             registered: list[str] = []
             for tool in tools:

@@ -175,6 +175,7 @@ def _pick_process(root: Element, process_key: str | None) -> Element:
         for el in processes:
             if el.get("id") == process_key:
                 return el
+        raise BpmnError(f"no process with id {process_key!r} in the definition")
     executable = [p for p in processes if (p.get("isExecutable") or "true").lower() == "true"]
     return (executable or processes)[0]
 

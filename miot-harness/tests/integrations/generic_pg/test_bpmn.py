@@ -183,3 +183,8 @@ def test_format_duration() -> None:
     assert bpmn.format_duration(45 * 60_000) == "45 min"
     assert bpmn.format_duration(5 * 3_600_000) == "5.0 h"
     assert bpmn.format_duration(3 * 86_400_000) == "3.0 d"
+
+
+def test_a_missing_process_key_is_refused(xml: bytes) -> None:
+    with pytest.raises(bpmn.BpmnError, match="no process with id 'other'"):
+        bpmn.parse_bpmn(xml, "other")

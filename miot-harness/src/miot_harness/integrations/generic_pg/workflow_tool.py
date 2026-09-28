@@ -24,7 +24,10 @@ from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.tool import HarnessTool, Progress
 
 DEFAULT_DAYS = 90
-_TASK_TYPES = "('userTask', 'manualTask', 'receiveTask', 'callActivity', 'subProcess')"
+_TASK_TYPES = (
+    "('task', 'userTask', 'manualTask', 'receiveTask', 'serviceTask', 'scriptTask', "
+    "'sendTask', 'businessRuleTask', 'callActivity', 'subProcess')"
+)
 
 
 class _WorkflowInput(BaseModel):
@@ -117,7 +120,7 @@ class _Workflow:
                 f"FROM {self.s}.act_hi_procinst GROUP BY proc_def_id_ LIMIT 5000",
                 5000,
             )
-        except CostGateViolation as exc:
+        except Exception as exc:  # noqa: BLE001 — history may be off, missing or too costly
             counts, note = [], f"Instance counts skipped: {exc}."
         by_def = {r["proc_def_id_"]: r for r in counts}
         out: dict[str, dict[str, Any]] = {}
@@ -236,9 +239,12 @@ class _Workflow:
             h.skipped.append(f"open tasks ({exc})")
         try:
             h.transitions = await self.transitions(where, rng)
-            h.rework = await self.rework(where, rng)
         except CostGateViolation as exc:
             h.skipped.append(f"transitions ({exc})")
+        try:
+            h.rework = await self.rework(where, rng)
+        except CostGateViolation as exc:
+            h.skipped.append(f"rework ({exc})")
         return h
 
 

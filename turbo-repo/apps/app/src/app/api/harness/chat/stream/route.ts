@@ -23,6 +23,7 @@ import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
 import { conversationOf, modelOf, type AgUiMessage, type RunAgentInputBody } from "./conversation";
 import { answerFromToolResult, chatAnswerEvents } from "./chat-answer";
+import { stepLabel } from "./step-labels";
 import { fetchThread, storedThreadModel } from "./thread-model";
 import { planRefusalMessage } from "./plan-refusal";
 
@@ -129,9 +130,11 @@ function appendNarrationDiff(
     narrator.lastPhase = progress.phase;
   }
   for (const step of progress.steps) {
-    if (step.status !== "done" || narrator.reportedSteps.has(step.tool)) continue;
-    narrator.reportedSteps.add(step.tool);
-    appendNarration(send, narrator, `\nRan ${step.tool}`);
+    // One line per kind of step: five queries read as one "querying" line.
+    const label = stepLabel(step.tool, tr);
+    if (step.status !== "done" || narrator.reportedSteps.has(label)) continue;
+    narrator.reportedSteps.add(label);
+    appendNarration(send, narrator, `\n${label}`);
   }
 }
 

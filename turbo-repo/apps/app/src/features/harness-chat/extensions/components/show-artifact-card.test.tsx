@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ShowArtifactArgs } from "../show-artifact-args";
@@ -118,6 +118,41 @@ describe("ArtifactCard", () => {
     );
     screen.getByLabelText("harnessChat.ui.showArtifact.saveAsStory").click();
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ id: "a1" }));
+  });
+
+  it("shows a wide diagram at its own size on request, scrolling in the card", () => {
+    const wide =
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 640"><rect width="10" height="10"/></svg>';
+    render(<ArtifactCard artifact={artifact("svg", wide)} />);
+    const toggle = screen.getByLabelText(
+      "harnessChat.ui.showArtifact.actualSizeInline"
+    );
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    const img = screen.getByRole("img", { name: "Proceso de venta" });
+    expect(img.parentElement!.style.width).toBe("1800px");
+    expect(img.parentElement!.parentElement!.className).toContain(
+      "overflow-auto"
+    );
+  });
+
+  it("opens a diagram in a pan and zoom view", () => {
+    render(<ArtifactCard artifact={artifact("svg", hostileSvg)} />);
+    fireEvent.click(
+      screen.getByLabelText("harnessChat.ui.showArtifact.expand")
+    );
+    expect(screen.getByTestId("zoomable-area")).toBeTruthy();
+    expect(
+      screen.getByLabelText("harnessChat.ui.showArtifact.zoomIn")
+    ).toBeTruthy();
+  });
+
+  it("offers the actual size toggle only for diagrams", () => {
+    render(<ArtifactCard artifact={artifact("markdown", "x")} />);
+    expect(
+      screen.queryByLabelText("harnessChat.ui.showArtifact.actualSizeInline")
+    ).toBeNull();
   });
 
   it("says when the content was not kept", () => {

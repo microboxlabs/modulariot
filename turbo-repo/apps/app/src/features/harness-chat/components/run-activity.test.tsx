@@ -12,7 +12,12 @@ const activity: RunActivity = {
   status: "completed",
   stepCount: 3,
   durationMs: 42_000,
-  usage: { inputTokens: 1200, outputTokens: 80, models: ["m-large"] },
+  usage: {
+    inputTokens: 181_200,
+    cachedInputTokens: 150_000,
+    outputTokens: 80,
+    models: ["m-large"],
+  },
   steps: [
     {
       id: "c1",
@@ -87,7 +92,9 @@ describe("RunActivityRow", () => {
     expect(screen.getByText("1.9 s")).toBeTruthy();
     // The delegation's own step is listed under it.
     expect(screen.getByText("Leyendo la estructura de una tabla")).toBeTruthy();
-    expect(screen.getByText(/1,200|1.200/)).toBeTruthy();
+    expect(
+      screen.getByText(/181[.,]200 tokens de entrada \(150[.,]000 en caché\)/)
+    ).toBeTruthy();
 
     fireEvent.click(screen.getByText("Consultando la base de datos"));
     expect(screen.getByText("Argumentos")).toBeTruthy();

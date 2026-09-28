@@ -31,6 +31,7 @@ from miot_harness.agents.model_providers import (
 )
 from miot_harness.agents.thread_titler import build_thread_titler
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
+from miot_harness.api.drain import RunDrain, install_sigterm_drain
 from miot_harness.api.identity import (
     IdentityVerificationError,
     verify_signed_identity,
@@ -69,6 +70,12 @@ from miot_harness.runtime.supervisor import HarnessSupervisor
 from miot_harness.runtime.usage_report import UsageReporter
 
 logger = logging.getLogger(__name__)
+
+
+_DRAIN_RETRY_AFTER_SECONDS = 10
+_DRAINING_RESPONSE: dict[int | str, dict[str, Any]] = {
+    503: {"description": "Shutting down; retry after Retry-After seconds"}
+}
 
 
 def _configure_logging(settings: HarnessSettings) -> None:
@@ -178,6 +185,8 @@ def _make_lifespan(
         # /stream refuse a cross-tenant subscriber before the record
         # ever lands on disk.
         app.state.in_flight_tenants = {}
+        app.state.drain = RunDrain(app.state.in_flight, settings.shutdown_drain_seconds)
+        restore_sigterm = install_sigterm_drain(app.state.drain, asyncio.get_running_loop())
 
         # Auth (defense-in-depth behind the Quarkus proxy): instantiate
         # a JwksCache when enabled; require_auth reads it from
@@ -526,6 +535,11 @@ def _make_lifespan(
         try:
             yield
         finally:
+            # Runs still here were not drained (a signal other than SIGTERM):
+            # save them as interrupted rather than lose them.
+            await app.state.drain.interrupt_all()
+            if restore_sigterm is not None:
+                restore_sigterm()
             if refresh_task is not None:
                 refresh_task.cancel()
             if usage_reporter is not None:
@@ -874,12 +888,15 @@ def create_app() -> FastAPI:
         ]
         if settings.context_skills_strict and cs_errors:
             ready = False
-        if not ready:
+        status = "ready" if ready else "not_ready"
+        if _draining():
+            status = "draining"
+        if status != "ready":
             response.status_code = 503
         provider = getattr(app.state, "datasource_provider", None)
         ds_name = provider.profile.name if provider is not None else settings.datasource_kind
         return {
-            "status": "ready" if ready else "not_ready",
+            "status": status,
             "env": settings.env,
             "datasource": {
                 "name": ds_name,
@@ -893,6 +910,36 @@ def create_app() -> FastAPI:
             # `datasource` block above stays the single-connection contract.
             "connections": conns,
         }
+
+    def _track_in_flight(
+        run_id: str, tenant_id: str | None, task: asyncio.Task[HarnessRunRecord]
+    ) -> None:
+        app.state.in_flight[run_id] = task
+        # Track the tenant for in-flight runs so /stream can reject
+        # cross-tenant subscribers even before the record lands on
+        # disk. Cleared in the done-callback alongside in_flight.
+        app.state.in_flight_tenants[run_id] = tenant_id
+
+        def _cleanup(_task: asyncio.Task[HarnessRunRecord]) -> None:
+            app.state.in_flight.pop(run_id, None)
+            app.state.in_flight_tenants.pop(run_id, None)
+            # A run that raised before reaching a terminal point never
+            # released its live record.
+            app.state.harness.forget_live(run_id)
+
+        task.add_done_callback(_cleanup)
+
+    def _draining() -> bool:
+        drain: RunDrain | None = getattr(app.state, "drain", None)
+        return drain is not None and drain.draining
+
+    def _refuse_while_draining() -> None:
+        if _draining():
+            raise HTTPException(
+                status_code=503,
+                detail="Harness is shutting down",
+                headers={"Retry-After": str(_DRAIN_RETRY_AFTER_SECONDS)},
+            )
 
     def _enforce_model_allowlist(request: UserRequest) -> None:
         if request.model is None:
@@ -933,7 +980,7 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=503, detail="title unavailable") from exc
         return {"title": title}
 
-    @app.post("/runs", response_model=HarnessRunRecord)
+    @app.post("/runs", responses=_DRAINING_RESPONSE)
     async def create_run(
         request: UserRequest,
         http_request: Request,
@@ -943,13 +990,19 @@ def create_app() -> FastAPI:
         # Read harness from app.state so tests that patch it see their patch.
         # Explicit annotation narrows `app.state` (Any) for mypy.
         harness: HarnessSupervisor = app.state.harness
+        _refuse_while_draining()
         request = _resolve_request_identity(http_request, request)
         if debug:
             request = request.model_copy(update={"debug": True})
         request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
         _enforce_model_allowlist(request)
-        return await harness.run(request, **_caller(http_request))
+        run_id = f"run_{uuid4().hex}"
+        task = asyncio.create_task(
+            harness.run(request, run_id_override=run_id, **_caller(http_request))
+        )
+        _track_in_flight(run_id, request.tenant_id, task)
+        return await task
 
     @app.get("/runs")
     async def list_runs(
@@ -1016,13 +1069,14 @@ def create_app() -> FastAPI:
         tenant_id = auth.get("tenant_id") or tenant or settings.default_tenant_id
         return bundle.list_skills(tenant_id)
 
-    @app.post("/runs:start", status_code=202)
+    @app.post("/runs:start", status_code=202, responses=_DRAINING_RESPONSE)
     async def start_run(
         request: UserRequest,
         http_request: Request,
         debug: bool = Query(False),
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> dict[str, str]:
+        _refuse_while_draining()
         request = _resolve_request_identity(http_request, request)
         if debug:
             request = request.model_copy(update={"debug": True})
@@ -1033,20 +1087,7 @@ def create_app() -> FastAPI:
         task = asyncio.create_task(
             app.state.harness.run(request, run_id_override=run_id, **_caller(http_request))
         )
-        app.state.in_flight[run_id] = task
-        # Track the tenant for in-flight runs so /stream can reject
-        # cross-tenant subscribers even before the record lands on
-        # disk. Cleared in the done-callback alongside in_flight.
-        app.state.in_flight_tenants[run_id] = request.tenant_id
-
-        def _cleanup(_task: asyncio.Task[HarnessRunRecord]) -> None:
-            app.state.in_flight.pop(run_id, None)
-            app.state.in_flight_tenants.pop(run_id, None)
-            # A run that raised before reaching a terminal point never
-            # released its live record.
-            app.state.harness.forget_live(run_id)
-
-        task.add_done_callback(_cleanup)
+        _track_in_flight(run_id, request.tenant_id, task)
         return {"run_id": run_id}
 
     @app.post("/runs/{run_id}/approvals/{approval_id}", status_code=204)

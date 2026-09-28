@@ -291,7 +291,14 @@ export interface RunSummary {
   skill_id: string | null;
   /** The last tool the run started. */
   last_step: { label: string; tool: string | null } | null;
-  usage: { calls: number; input_tokens: number; output_tokens: number };
+  /** `input_tokens` excludes the prompt read from or written to the cache. */
+  usage: {
+    calls: number;
+    input_tokens: number;
+    output_tokens: number;
+    cache_read_input_tokens?: number;
+    cache_creation_input_tokens?: number;
+  };
   /** Briefs handed to a workhorse by `delegate`, in order. */
   delegates: Array<{ brief: string; status: string }>;
 }

@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
   type FC,
+  type ReactNode,
 } from "react";
 import {
   useAuiState,
@@ -19,6 +20,7 @@ import { Badge, Modal, ModalBody, ModalHeader } from "flowbite-react";
 import {
   HiArrowDownTray,
   HiArrowsPointingOut,
+  HiArrowsRightLeft,
   HiBookmark,
   HiCheck,
   HiClipboard,
@@ -34,6 +36,13 @@ import {
 import { useHarnessChatTr } from "../../context/harness-chat-i18n-context";
 import { useHarnessThreadId } from "../../context/harness-session-context";
 import { ARTIFACT_FILES, type ShowArtifactArgs } from "../show-artifact-args";
+import {
+  FILL_DRAWING,
+  svgMarkupSize,
+  useDrawingSize,
+  ZoomableView,
+  type Size,
+} from "./zoomable-view";
 
 const KIND_LABELS: Record<ShowArtifactArgs["kind"], string> = {
   svg: "SVG",
@@ -90,35 +99,95 @@ function download(artifact: ShowArtifactArgs, content: string): void {
   URL.revokeObjectURL(url);
 }
 
+const EXPANDED_MODAL_THEME = {
+  root: { sizes: { "7xl": "max-w-none" } },
+  content: {
+    base: "relative h-[90dvh] w-[95vw] p-0 md:h-[90dvh]",
+    inner: "flex h-full max-h-none flex-col",
+  },
+  body: { base: "flex min-h-0 flex-1 flex-col overflow-hidden p-3" },
+};
+
+const isDrawing = (kind: ShowArtifactArgs["kind"]) =>
+  kind === "svg" || kind === "mermaid";
+
+/** The drawing at its own size, scrolling when wider than the card. */
+const NaturalSize: FC<{ size?: Size | null; children: ReactNode }> = ({
+  size,
+  children,
+}) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const natural = useDrawingSize(ref, size);
+  return (
+    <div className="max-h-96 overflow-auto rounded bg-white p-2">
+      <div ref={ref} className={FILL_DRAWING} style={natural ?? undefined}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+type BodyView = "card" | "natural" | "expanded";
+
+/** An SVG (shown as an image of its sanitized markup) or a Mermaid diagram. */
+const DrawingBody: FC<{
+  artifact: ShowArtifactArgs;
+  content: string;
+  view: BodyView;
+}> = ({ artifact, content, view }) => {
+  const svgSize = useMemo(
+    () => (artifact.kind === "svg" ? svgMarkupSize(content) : null),
+    [artifact.kind, content]
+  );
+  const drawing =
+    artifact.kind === "svg" ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(content)}`}
+        alt={artifact.title}
+        draggable={false}
+        className={view === "card" ? "h-auto max-w-full object-contain" : ""}
+      />
+    ) : (
+      <MermaidDiagram code={content} />
+    );
+  if (view === "expanded")
+    return (
+      <ZoomableView size={svgSize} className="min-h-0 flex-1">
+        {drawing}
+      </ZoomableView>
+    );
+  if (view === "natural")
+    return <NaturalSize size={svgSize}>{drawing}</NaturalSize>;
+  return artifact.kind === "svg" ? (
+    <div className="flex max-h-96 justify-center overflow-auto rounded bg-white p-2">
+      {drawing}
+    </div>
+  ) : (
+    <div className="max-h-96 overflow-auto">{drawing}</div>
+  );
+};
+
 const ArtifactBody: FC<{
   artifact: ShowArtifactArgs;
   content: string;
-  expanded: boolean;
-}> = ({ artifact, content, expanded }) => {
-  const height = expanded ? "h-[75vh]" : "max-h-96";
+  view: BodyView;
+}> = ({ artifact, content, view }) => {
+  const expanded = view === "expanded";
   switch (artifact.kind) {
     case "svg":
       return content ? (
-        <div
-          className={`flex justify-center overflow-auto rounded bg-white p-2 ${height}`}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(content)}`}
-            alt={artifact.title}
-            className="h-auto max-w-full object-contain"
-          />
-        </div>
+        <DrawingBody artifact={artifact} content={content} view={view} />
       ) : null;
     case "mermaid":
-      return (
-        <div className={`overflow-auto ${height}`}>
-          <MermaidDiagram code={content} />
-        </div>
-      );
+      return <DrawingBody artifact={artifact} content={content} view={view} />;
     case "markdown":
       return (
-        <div className={`overflow-auto ${height}`}>
+        <div
+          className={
+            expanded ? "min-h-0 flex-1 overflow-auto" : "max-h-96 overflow-auto"
+          }
+        >
           <MarkdownContent
             variant="document"
             className="text-sm"
@@ -135,7 +204,7 @@ const ArtifactBody: FC<{
           sandbox="allow-scripts"
           referrerPolicy="no-referrer"
           srcDoc={sandboxedHtml(content)}
-          className={`w-full rounded border-0 bg-white ${expanded ? "h-[75vh]" : "h-96"}`}
+          className={`w-full rounded border-0 bg-white ${expanded ? "min-h-0 flex-1" : "h-96"}`}
         />
       );
   }
@@ -154,6 +223,7 @@ export const ArtifactCard: FC<{
 }> = ({ artifact, onSaveAsStory }) => {
   const tr = useHarnessChatTr();
   const [expanded, setExpanded] = useState(false);
+  const [natural, setNatural] = useState(false);
   const [copied, setCopied] = useState(false);
   const content = useMemo(
     () =>
@@ -240,6 +310,18 @@ export const ArtifactCard: FC<{
           >
             <HiArrowDownTray className="h-4 w-4" />
           </button>
+          {isDrawing(artifact.kind) && (
+            <button
+              type="button"
+              className={actionClass}
+              title={tr("harnessChat.ui.showArtifact.actualSizeInline")}
+              aria-label={tr("harnessChat.ui.showArtifact.actualSizeInline")}
+              aria-pressed={natural}
+              onClick={() => setNatural((on) => !on)}
+            >
+              <HiArrowsRightLeft className="h-4 w-4" />
+            </button>
+          )}
           <button
             type="button"
             className={actionClass}
@@ -252,18 +334,27 @@ export const ArtifactCard: FC<{
         </div>
       </div>
       {!expanded && (
-        <ArtifactBody artifact={artifact} content={content} expanded={false} />
+        <ArtifactBody
+          artifact={artifact}
+          content={content}
+          view={natural ? "natural" : "card"}
+        />
       )}
       <Modal
         dismissible
         show={expanded}
         onClose={() => setExpanded(false)}
         size="7xl"
+        theme={EXPANDED_MODAL_THEME}
       >
         <ModalHeader>{artifact.title}</ModalHeader>
         <ModalBody>
           {expanded && (
-            <ArtifactBody artifact={artifact} content={content} expanded />
+            <ArtifactBody
+              artifact={artifact}
+              content={content}
+              view="expanded"
+            />
           )}
         </ModalBody>
       </Modal>

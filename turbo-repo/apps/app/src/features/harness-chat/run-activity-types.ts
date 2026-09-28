@@ -19,7 +19,10 @@ export interface RunActivityStep {
 }
 
 export interface RunActivityUsage {
+  /** Every prompt token, cached or not. */
   inputTokens: number;
+  /** The part of `inputTokens` read from the prompt cache. */
+  cachedInputTokens: number;
   outputTokens: number;
   models: string[];
 }

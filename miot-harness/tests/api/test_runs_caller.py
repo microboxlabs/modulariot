@@ -33,7 +33,7 @@ def test_the_proxys_token_and_organization_reach_the_run_but_not_the_record() ->
         run = harness.run
 
         async def spy(request: Any, **kwargs: Any) -> Any:
-            seen.append(kwargs)
+            seen.append({k: v for k, v in kwargs.items() if k != "run_id_override"})
             return await run(request, **kwargs)
 
         harness.run = spy
@@ -56,7 +56,7 @@ def test_a_run_without_the_headers_has_no_caller() -> None:
         run = harness.run
 
         async def spy(request: Any, **kwargs: Any) -> Any:
-            seen.append(kwargs)
+            seen.append({k: v for k, v in kwargs.items() if k != "run_id_override"})
             return await run(request, **kwargs)
 
         harness.run = spy

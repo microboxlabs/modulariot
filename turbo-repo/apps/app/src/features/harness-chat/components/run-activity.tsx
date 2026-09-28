@@ -102,10 +102,16 @@ const ActivityPanel: FC<{ load: Load }> = ({ load }) => {
       {(usage.inputTokens > 0 || usage.models.length > 0) && (
         <p className="border-t border-gray-100 px-2 pt-1 text-[10px] tabular-nums text-gray-400 dark:border-gray-700 dark:text-gray-500">
           {[
-            tr("harnessChat.ui.activity.tokens", {
-              input: usage.inputTokens.toLocaleString(),
-              output: usage.outputTokens.toLocaleString(),
-            }),
+            usage.cachedInputTokens > 0
+              ? tr("harnessChat.ui.activity.tokensCached", {
+                  input: usage.inputTokens.toLocaleString(),
+                  cached: usage.cachedInputTokens.toLocaleString(),
+                  output: usage.outputTokens.toLocaleString(),
+                })
+              : tr("harnessChat.ui.activity.tokens", {
+                  input: usage.inputTokens.toLocaleString(),
+                  output: usage.outputTokens.toLocaleString(),
+                }),
             ...usage.models,
           ].join(" · ")}
         </p>

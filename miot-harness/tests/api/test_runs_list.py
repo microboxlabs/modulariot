@@ -63,7 +63,15 @@ def _record(
         events=[
             _event(run_id, "run.started", 0),
             _event(run_id, "tool.started", 2, tool="db_query", message="Starting db_query"),
-            _event(run_id, "usage.recorded", 3, input_tokens=100, output_tokens=20),
+            _event(
+                run_id,
+                "usage.recorded",
+                3,
+                input_tokens=100,
+                output_tokens=20,
+                cache_read_input_tokens=9000,
+                cache_creation_input_tokens=700,
+            ),
             _event(run_id, "usage.recorded", 4, input_tokens=50, output_tokens=5),
             _event(run_id, "run.completed", 9),
         ],
@@ -83,6 +91,8 @@ def test_summary_carries_step_usage_and_times() -> None:
         150,
         25,
     )
+    assert summary.usage.cache_read_input_tokens == 9000
+    assert summary.usage.cache_creation_input_tokens == 700
     assert (summary.model, summary.skill_id) == ("model-a", "analyst")
 
 

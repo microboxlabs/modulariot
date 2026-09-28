@@ -124,6 +124,20 @@ async def test_bus_emits_cancelled_run_failed_on_task_cancel(tmp_path: Any) -> N
 
 
 @pytest.mark.asyncio
+async def test_run_interrupted_by_shutdown_says_so(tmp_path: Any) -> None:
+    sup = _supervisor(tmp_path, _Loop(raises=asyncio.CancelledError("interrupted")))
+    request = _request()
+
+    with pytest.raises(asyncio.CancelledError):
+        await sup.run(request, run_id_override="run_interrupted")
+
+    record = sup.run_store.load("run_interrupted")
+    assert record.status == "failed"
+    [failed] = [e for e in record.events if e.type == "run.failed"]
+    assert failed.data == {"error": "interrupted", "reason": "interrupted"}
+
+
+@pytest.mark.asyncio
 async def test_supervisor_without_bus_behaves_unchanged(tmp_path: Any) -> None:
     record = await _supervisor(tmp_path, _Loop()).run(_request())
 
@@ -175,3 +189,21 @@ async def test_supervisor_skips_checkpoint_when_no_event_bus(tmp_path: Any) -> N
     await sup.run(_request())
 
     assert len(store.saves) == 1, f"expected one terminal save, got {store.saves}"
+
+
+@pytest.mark.asyncio
+async def test_run_interrupted_before_the_loop_is_saved(tmp_path: Any) -> None:
+    sup = _supervisor(tmp_path, _Loop())
+
+    async def interrupted(*_args: Any) -> None:
+        raise asyncio.CancelledError("interrupted")
+
+    sup._load_saved = interrupted  # type: ignore[method-assign]
+    request = _request()
+
+    with pytest.raises(asyncio.CancelledError):
+        await sup.run(request, run_id_override="run_early")
+
+    record = sup.run_store.load("run_early")
+    assert record.status == "failed"
+    assert record.events[-1].data["reason"] == "interrupted"

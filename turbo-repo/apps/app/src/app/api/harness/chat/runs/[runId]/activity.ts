@@ -27,6 +27,7 @@ class ActivityBuilder {
   readonly steps: RunActivityStep[] = [];
   stepCount = 0;
   inputTokens = 0;
+  cachedInputTokens = 0;
   outputTokens = 0;
   readonly models = new Set<string>();
   private readonly delegates = new Map<string, RunActivityStep>();
@@ -171,8 +172,15 @@ class ActivityBuilder {
     };
   }
 
+  /** `input_tokens` leaves out the prompt read from or written to the
+   * cache; the total counts all three. */
   private usageRecorded(event: HarnessEvent): void {
-    this.inputTokens += num(event.data.input_tokens) ?? 0;
+    const cacheRead = num(event.data.cache_read_input_tokens) ?? 0;
+    this.inputTokens +=
+      (num(event.data.input_tokens) ?? 0) +
+      cacheRead +
+      (num(event.data.cache_creation_input_tokens) ?? 0);
+    this.cachedInputTokens += cacheRead;
     this.outputTokens += num(event.data.output_tokens) ?? 0;
     const model = str(event.data.model);
     if (model) this.models.add(model);
@@ -204,6 +212,7 @@ export function mapRunActivity(
       first && last ? elapsed(first.created_at, last.created_at) : null,
     usage: {
       inputTokens: builder.inputTokens,
+      cachedInputTokens: builder.cachedInputTokens,
       outputTokens: builder.outputTokens,
       models: [...builder.models],
     },

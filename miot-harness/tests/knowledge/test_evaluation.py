@@ -348,8 +348,9 @@ async def test_recent_reads_only_the_newest_files(tmp_path: Path) -> None:
 def test_start_fails_when_results_cannot_be_saved(tmp_path: Path) -> None:
     (tmp_path / "t1").write_text("a file where the folder should be", encoding="utf-8")
     engine = _engine(tmp_path, FakeRunner())
+    request = EvaluationRequest(cases=_cases(1))
     with pytest.raises(OSError):
-        engine.start("t1", EvaluationRequest(cases=_cases(1)))
+        engine.start("t1", request)
 
 
 @pytest.mark.asyncio

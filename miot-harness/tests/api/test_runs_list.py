@@ -92,15 +92,16 @@ def test_summary_lists_delegates() -> None:
         status="running",
         events=[
             _event("run_d", "agent.started", 0, agent="workhorse", brief="count trips"),
-            _event("run_d", "delegate.completed", 1),
-            _event("run_d", "agent.started", 2, agent="workhorse", brief="list drivers"),
-            _event("run_d", "agent.started", 3, agent="workhorse", turn=1),
+            _event("run_d", "agent.started", 1, agent="workhorse", brief="list drivers"),
+            _event("run_d", "agent.started", 2, agent="workhorse", turn=1),
+            # Concurrent delegates: the second one finishes first.
+            _event("run_d", "delegate.completed", 3, brief="list drivers"),
         ],
     )
     summary = summarize(record)
     assert [(d.brief, d.status) for d in summary.delegates] == [
-        ("count trips", "completed"),
-        ("list drivers", "running"),
+        ("count trips", "running"),
+        ("list drivers", "completed"),
     ]
     assert summary.finished_at is None
 

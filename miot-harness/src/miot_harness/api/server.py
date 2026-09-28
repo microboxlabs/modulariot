@@ -922,7 +922,7 @@ def create_app() -> FastAPI:
         _enforce_model_allowlist(request)
         return await harness.run(request, **_caller(http_request))
 
-    @app.get("/runs", response_model=list[RunSummary])
+    @app.get("/runs")
     async def list_runs(
         http_request: Request,
         conversation_id: str | None = Query(None),
@@ -1232,11 +1232,12 @@ def _list_runs(
     def visible(summary: RunSummary) -> bool:
         # Legacy records carry no tenant; a listing never shows them to a
         # tenant-scoped caller.
-        if tenant_id and summary.tenant_id != tenant_id:
-            return False
-        if user_id and summary.user_id != user_id:
-            return False
-        if conversation_id and summary.conversation_id != conversation_id:
+        wanted = (
+            (tenant_id, summary.tenant_id),
+            (user_id, summary.user_id),
+            (conversation_id, summary.conversation_id),
+        )
+        if any(expected and actual != expected for expected, actual in wanted):
             return False
         return statuses is None or summary.status in statuses
 

@@ -212,13 +212,13 @@ export const ActivityButton: FC<{
         )}
       </button>
       {open && (
-        <div
-          role="dialog"
+        <dialog
+          open
           aria-label={tr("harnessChat.ui.activity.title")}
-          className="absolute right-0 top-8 z-30 w-72 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+          className="absolute left-auto right-0 top-8 z-30 m-0 w-72 rounded-lg border border-gray-200 bg-white p-0 text-inherit shadow-lg dark:border-gray-700 dark:bg-gray-800"
         >
           {children}
-        </div>
+        </dialog>
       )}
     </div>
   );

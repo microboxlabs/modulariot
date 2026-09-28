@@ -146,7 +146,7 @@ describe("useHarnessActivity", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(ACTIVITY_POLL_MS * 2);
     });
-    expect(fetchMock.mock.calls.length).toBe(afterOpen + 2);
+    expect(fetchMock.mock.calls).toHaveLength(afterOpen + 2);
   });
 
   it("refreshes at once when a thread announces a run", async () => {

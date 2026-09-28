@@ -93,26 +93,43 @@ class RunSummary(BaseModel):
     delegates: list[RunDelegate] = Field(default_factory=list)
 
 
-def summarize(record: HarnessRunRecord) -> RunSummary:
-    events = record.events
-    last_step: RunStep | None = None
+def _last_step(events: list[HarnessEvent]) -> RunStep | None:
+    event = next((e for e in reversed(events) if e.type == "tool.started"), None)
+    if event is None:
+        return None
+    tool = event.data.get("tool")
+    return RunStep(label=event.message, tool=tool if isinstance(tool, str) else None)
+
+
+def _usage(events: list[HarnessEvent]) -> RunUsage:
     usage = RunUsage()
+    for event in events:
+        if event.type != "usage.recorded":
+            continue
+        usage.calls += 1
+        usage.input_tokens += int(event.data.get("input_tokens") or 0)
+        usage.output_tokens += int(event.data.get("output_tokens") or 0)
+    return usage
+
+
+def _delegates(events: list[HarnessEvent]) -> list[RunDelegate]:
     delegates: list[RunDelegate] = []
     for event in events:
-        data = event.data
-        if event.type == "tool.started":
-            tool = data.get("tool")
-            last_step = RunStep(label=event.message, tool=tool if isinstance(tool, str) else None)
-        elif event.type == "usage.recorded":
-            usage.calls += 1
-            usage.input_tokens += int(data.get("input_tokens") or 0)
-            usage.output_tokens += int(data.get("output_tokens") or 0)
-        elif event.type == "agent.started" and data.get("agent") == "workhorse" and "brief" in data:
-            delegates.append(RunDelegate(brief=str(data["brief"]), status="running"))
+        brief = event.data.get("brief")
+        if not isinstance(brief, str):
+            continue
+        if event.type == "agent.started" and event.data.get("agent") == "workhorse":
+            delegates.append(RunDelegate(brief=brief, status="running"))
         elif event.type == "delegate.completed":
-            open_one = next((d for d in delegates if d.status == "running"), None)
-            if open_one is not None:
-                open_one.status = "completed"
+            # Delegates run concurrently, so match the finished one by brief.
+            match = next((d for d in delegates if d.status == "running" and d.brief == brief), None)
+            if match is not None:
+                match.status = "completed"
+    return delegates
+
+
+def summarize(record: HarnessRunRecord) -> RunSummary:
+    events = record.events
     finished = record.status in _TERMINAL and bool(events)
     return RunSummary(
         run_id=record.run_id,
@@ -124,9 +141,9 @@ def summarize(record: HarnessRunRecord) -> RunSummary:
         finished_at=events[-1].created_at if finished else None,
         model=record.model or (record.context or {}).get("model"),
         skill_id=record.skill_id,
-        last_step=last_step,
-        usage=usage,
-        delegates=delegates,
+        last_step=_last_step(events),
+        usage=_usage(events),
+        delegates=_delegates(events),
     )
 
 

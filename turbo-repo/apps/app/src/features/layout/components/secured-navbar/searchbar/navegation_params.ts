@@ -1,6 +1,6 @@
 "use client";
 
-import { STORY_AUTHOR_NAMES } from "@/features/storytelling/people";
+import { STORY_KINDS } from "@/features/storytelling/storytelling.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
@@ -122,16 +122,10 @@ const collaborators_management_params: ParamType[] = [
 function storytelling_params(): ParamType[] {
   return [
     setParam("name", "text"),
-    setParam("artifactType", "selector", [
-      { value: "html", label: "HTML" },
-      { value: "markdown", label: "Markdown" },
-      { value: "ppt", label: "PPT" },
-      { value: "pdf", label: "PDF" },
-    ]),
     setParam(
-      "creator",
+      "artifactType",
       "selector",
-      STORY_AUTHOR_NAMES.map((name) => ({ value: name, label: name }))
+      STORY_KINDS.map((kind) => ({ value: kind, label: kind }))
     ),
     setParam("createdAt", "date_range"),
   ];

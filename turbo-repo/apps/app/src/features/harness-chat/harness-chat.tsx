@@ -6,7 +6,10 @@ import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { twMerge } from "tailwind-merge";
 import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
 import { createHarnessAttachmentAdapter } from "./harness-chat-attachments";
-import { useHarnessChatContext } from "./context/harness-chat-context";
+import {
+  useHarnessChatContext,
+  type PendingAttachment,
+} from "./context/harness-chat-context";
 import {
   HarnessChatI18nProvider,
   useHarnessChatTr,
@@ -30,6 +33,7 @@ import { HarnessRunAgent } from "./harness-run-agent";
 import {
   createThread,
   deleteThread,
+  getThread,
   listThreads,
   revokeShare,
   shareThread,
@@ -130,6 +134,8 @@ const HarnessChatPanel: FC<{
     clearPendingMessage,
     pendingAttachment,
     clearPendingAttachment,
+    pendingThreadId,
+    clearPendingThreadId,
   } = useHarnessChatContext();
   const { width, isDragging, startDrag, toggleMinMax, onHandleKeyDown, bounds } =
     useResizablePanelWidth();
@@ -207,6 +213,22 @@ const HarnessChatPanel: FC<{
     },
     [mount],
   );
+
+  // "Open conversation" from elsewhere in the app (a story's source thread).
+  // A thread the panel has not listed yet is read on its own and added.
+  useEffect(() => {
+    if (!pendingThreadId) return;
+    clearPendingThreadId();
+    if (sessions.some((s) => s.id === pendingThreadId)) {
+      selectSession(pendingThreadId);
+      return;
+    }
+    void getThread(pendingThreadId).then((thread) => {
+      if (!thread) return;
+      setSessions((prev) => (prev.some((s) => s.id === thread.id) ? prev : [toSession(thread), ...prev]));
+      selectSession(thread.id);
+    });
+  }, [pendingThreadId, clearPendingThreadId, sessions, selectSession]);
 
   const updateSessionTitle = useCallback((id: string, title: string | null) => {
     setSessions((prev) => {
@@ -403,7 +425,7 @@ const HarnessChatPanel: FC<{
               // Only the active session should receive it — every session's
               // SessionHost stays mounted (just hidden), so a session-agnostic
               // prop would add the same attachment to all of them at once.
-              pendingAttachmentLabel={session.id === activeId ? pendingAttachment : null}
+              pendingAttachment={session.id === activeId ? pendingAttachment : null}
               onAttachmentConsumed={clearPendingAttachment}
               onTitleChange={updateSessionTitle}
               readOnly={!session.owned}
@@ -422,7 +444,7 @@ const SessionHost: FC<{
   active: boolean;
   shouldFocus: boolean;
   initialMessage: string | null;
-  pendingAttachmentLabel: string | null;
+  pendingAttachment: PendingAttachment | null;
   onAttachmentConsumed: () => void;
   onTitleChange: (id: string, title: string | null) => void;
   readOnly: boolean;
@@ -433,7 +455,7 @@ const SessionHost: FC<{
   active,
   shouldFocus,
   initialMessage,
-  pendingAttachmentLabel,
+  pendingAttachment,
   onAttachmentConsumed,
   onTitleChange,
   readOnly,
@@ -506,7 +528,7 @@ const SessionHost: FC<{
               <SessionModelWatcher sessionId={sessionId} />
               <InitialMessageSender initialMessage={initialMessage} />
               <PendingAttachmentReceiver
-                label={pendingAttachmentLabel}
+                attachment={pendingAttachment}
                 onConsumed={onAttachmentConsumed}
               />
             </>

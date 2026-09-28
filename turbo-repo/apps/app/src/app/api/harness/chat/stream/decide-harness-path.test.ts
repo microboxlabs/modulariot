@@ -1,10 +1,7 @@
 /**
- * Regression test for the chat's demo-trigger ordering: `demoCreateStory`
- * must only ever fire as a stand-in for the real harness, never ahead of
- * `isModulithConfigured()` — otherwise, with ENABLE_STORYTELLING on, any
- * real (configured-harness) turn that merely mentions "story"/"stories"
- * gets hijacked into a fake create_story card instead of reaching the
- * actual harness. See decideHarnessPath in route.ts.
+ * Regression test for the chat's demo triggers: a configured harness always
+ * gets the turn, and the retired client-side create_story card is never
+ * synthesized — the harness saves stories through its own story tools.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
@@ -79,39 +76,13 @@ describe("decideHarnessPath", () => {
     );
   });
 
-  it("still serves the demo create_story trigger when the harness is unconfigured", async () => {
+  it("never synthesizes a create_story card, even with the harness unconfigured", async () => {
     process.env.ENABLE_STORYTELLING = "true";
     isModulithConfiguredMock.mockReturnValue(false);
     const { decideHarnessPath } = await import("./route");
 
     const send = vi.fn();
-    const decision = decideHarnessPath(
-      send,
-      userMessage("create a story about the fleet"),
-      "run-1",
-      "thread-1",
-      tr,
-    );
-
-    expect(decision).toEqual({ handled: true });
-    expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "TOOL_CALL_START", toolCallName: "create_story" }),
-    );
-  });
-
-  it("never triggers create_story when the storytelling flag is off, even if the harness is unconfigured", async () => {
-    process.env.ENABLE_STORYTELLING = "false";
-    isModulithConfiguredMock.mockReturnValue(false);
-    const { decideHarnessPath } = await import("./route");
-
-    const send = vi.fn();
-    decideHarnessPath(
-      send,
-      userMessage("create a story about the fleet"),
-      "run-1",
-      "thread-1",
-      tr,
-    );
+    decideHarnessPath(send, userMessage("create a story about the fleet"), "run-1", "thread-1", tr);
 
     expect(send).not.toHaveBeenCalledWith(
       expect.objectContaining({ toolCallName: "create_story" }),

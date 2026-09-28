@@ -5321,40 +5321,31 @@
       "menu": {
         "label": "Version actions",
         "open": "Open",
-        "iterate": "Iterate",
-        "delete": "Delete"
-      },
-      "delete": {
-        "title": "Delete this version?",
-        "branchWarning": "Everything branched from this version is removed too.",
-        "confirm": "Delete",
-        "cancel": "Cancel"
+        "iterate": "Iterate"
       },
       "toast": {
-        "iterated": "Created v{label}",
-        "deleted": "Removed v{label}"
+        "iterated": "Created v{label}"
       }
     },
     "title": "Storytelling",
-    "description": "AI-generated and curated stories for your organization.",
-    "artifactType": {
-      "html": "HTML",
-      "markdown": "Markdown",
-      "ppt": "PPT",
-      "pdf": "PDF"
-    },
+    "description": "Documents, decks and reports saved from the chat.",
     "filters": {
       "noMatches": "No stories match the current filters."
     },
     "list": {
-      "empty": "No stories yet."
+      "empty": "No stories yet.",
+      "emptyHint": "Stories are made from the chat. Ask the assistant: \"make a story out of this\".",
+      "openChat": "Open the assistant",
+      "loadFailed": "Could not load the stories.",
+      "retry": "Retry"
     },
     "menu": {
       "label": "Actions",
       "share": "Share",
       "details": "Details",
       "delete": "Delete",
-      "download": "Download"
+      "download": "Download",
+      "rename": "Rename"
     },
     "card": {
       "editedBy": "Edited by {name} on {date}"
@@ -5389,18 +5380,14 @@
       "remove": "Remove",
       "removeFor": "Remove {name}",
       "peopleWithAccess": "People with access",
-      "owner": "You",
-      "ownerBadge": "Owner",
-      "generalAccess": "General access",
-      "linkRestricted": "Restricted",
-      "linkAnyone": "Anyone with the link",
-      "linkRestrictedHint": "Only invited people can open this story",
-      "linkViewerHint": "Anyone with the link can view this story",
-      "linkEditorHint": "Anyone with the link can view and edit this story"
+      "failed": "Could not change access.",
+      "permissionLabel": "Access level",
+      "onlyYou": "Only you have access."
     },
     "toast": {
       "deleted": "Deleted {name}",
-      "deletedMultiple": "Deleted {count} stories"
+      "deletedMultiple": "Deleted {count} stories",
+      "failed": "That did not work. Please try again."
     },
     "selection": {
       "selectAll": "Select all",
@@ -5409,7 +5396,6 @@
       "deleteSelected": "Delete selected"
     },
     "detail": {
-      "aiGeneratedBadge": "AI Generated",
       "loading": "Loading dashboard…",
       "loadError": "Couldn't load this dashboard.",
       "search": {
@@ -5419,11 +5405,7 @@
         "clear": "Clear search"
       },
       "markdown": {
-        "error": "Couldn't load this document.",
         "outline": "Outline"
-      },
-      "ppt": {
-        "comingSoon": "PPT preview isn't available yet — this is a placeholder for the artifact type."
       },
       "pdf": {
         "loading": "Loading document…",
@@ -5442,7 +5424,29 @@
         "title": "Story not found",
         "description": "This story doesn't exist, or was deleted.",
         "backButton": "Back to Storytelling"
-      }
+      },
+      "emptyContent": "This version has no content to show.",
+      "loadFailed": "Could not load the story.",
+      "openConversation": "Open conversation",
+      "continueInChat": "Continue in chat"
+    },
+    "kind": {
+      "markdown": "Markdown",
+      "html": "HTML",
+      "svg": "SVG",
+      "deck": "Deck",
+      "pdf": "PDF",
+      "sections": "Report"
+    },
+    "rename": {
+      "title": "Rename story",
+      "label": "Title",
+      "cancel": "Cancel",
+      "confirm": "Save"
+    },
+    "chat": {
+      "continueMessage": "Let's keep working on the story \"{title}\" (id {id}). Read it and tell me what it contains.",
+      "askAboutComponent": "I mean the \"{label}\" component of the story \"{title}\" (id {id})."
     }
   },
   "conversations": {
@@ -5660,9 +5664,6 @@
       "showDashlet": {
         "unknown": "Unknown dashlet: {id}",
         "unsupported": "{name} can't be shown in chat."
-      },
-      "createStory": {
-        "open": "Click to open"
       },
       "askUserQuestion": {
         "skipped": "Skipped — superseded by a later message.",

@@ -37,9 +37,8 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
 export const DEV_PAGE_LABEL = "dev";
 
 /**
- * Storytelling is still testing-only content (see storytelling-store.ts,
- * the `testing/` fixtures) — hidden unless ENABLE_STORYTELLING is
- * switched on, same mechanism as DEV_PAGE_LABEL above.
+ * Storytelling is hidden unless ENABLE_STORYTELLING is switched on, same
+ * mechanism as DEV_PAGE_LABEL above.
  */
 export const STORYTELLING_PAGE_LABEL = "storytelling";
 

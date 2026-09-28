@@ -5321,40 +5321,31 @@
       "menu": {
         "label": "Acciones de versión",
         "open": "Abrir",
-        "iterate": "Iterar",
-        "delete": "Eliminar"
-      },
-      "delete": {
-        "title": "¿Eliminar esta versión?",
-        "branchWarning": "También se elimina todo lo que deriva de esta versión.",
-        "confirm": "Eliminar",
-        "cancel": "Cancelar"
+        "iterate": "Iterar"
       },
       "toast": {
-        "iterated": "Se creó la v{label}",
-        "deleted": "Se eliminó la v{label}"
+        "iterated": "Se creó la v{label}"
       }
     },
     "title": "Storytelling",
-    "description": "Historias generadas por IA y curadas para tu organización.",
-    "artifactType": {
-      "html": "HTML",
-      "markdown": "Markdown",
-      "ppt": "PPT",
-      "pdf": "PDF"
-    },
+    "description": "Documentos, presentaciones y reportes guardados desde el chat.",
     "filters": {
       "noMatches": "Ninguna historia coincide con los filtros actuales."
     },
     "list": {
-      "empty": "Todavía no hay historias."
+      "empty": "Todavía no hay historias.",
+      "emptyHint": "Las historias se crean desde el chat. Pide al asistente: \"haz una historia con esto\".",
+      "openChat": "Abrir el asistente",
+      "loadFailed": "No se pudieron cargar las historias.",
+      "retry": "Reintentar"
     },
     "menu": {
       "label": "Acciones",
       "share": "Compartir",
       "details": "Detalles",
       "delete": "Eliminar",
-      "download": "Descargar"
+      "download": "Descargar",
+      "rename": "Renombrar"
     },
     "card": {
       "editedBy": "Editado por {name} el {date}"
@@ -5389,18 +5380,14 @@
       "remove": "Quitar",
       "removeFor": "Quitar a {name}",
       "peopleWithAccess": "Personas con acceso",
-      "owner": "Tú",
-      "ownerBadge": "Propietario",
-      "generalAccess": "Acceso general",
-      "linkRestricted": "Restringido",
-      "linkAnyone": "Cualquiera con el enlace",
-      "linkRestrictedHint": "Solo las personas invitadas pueden abrir esta historia",
-      "linkViewerHint": "Cualquiera con el enlace puede ver esta historia",
-      "linkEditorHint": "Cualquiera con el enlace puede ver y editar esta historia"
+      "failed": "No se pudo cambiar el acceso.",
+      "permissionLabel": "Nivel de acceso",
+      "onlyYou": "Solo tú tienes acceso."
     },
     "toast": {
       "deleted": "Se eliminó {name}",
-      "deletedMultiple": "Se eliminaron {count} historias"
+      "deletedMultiple": "Se eliminaron {count} historias",
+      "failed": "No se pudo completar la acción. Inténtalo de nuevo."
     },
     "selection": {
       "selectAll": "Seleccionar todo",
@@ -5409,7 +5396,6 @@
       "deleteSelected": "Eliminar seleccionadas"
     },
     "detail": {
-      "aiGeneratedBadge": "Generado por IA",
       "loading": "Cargando panel…",
       "loadError": "No se pudo cargar este panel.",
       "search": {
@@ -5419,11 +5405,7 @@
         "clear": "Limpiar búsqueda"
       },
       "markdown": {
-        "error": "No se pudo cargar este documento.",
         "outline": "Índice"
-      },
-      "ppt": {
-        "comingSoon": "La vista previa de PPT aún no está disponible — esto es un marcador de posición para este tipo de artefacto."
       },
       "pdf": {
         "loading": "Cargando documento…",
@@ -5442,7 +5424,29 @@
         "title": "Historia no encontrada",
         "description": "Esta historia no existe, o fue eliminada.",
         "backButton": "Volver a Storytelling"
-      }
+      },
+      "emptyContent": "Esta versión no tiene contenido para mostrar.",
+      "loadFailed": "No se pudo cargar la historia.",
+      "openConversation": "Abrir conversación",
+      "continueInChat": "Continuar en el chat"
+    },
+    "kind": {
+      "markdown": "Markdown",
+      "html": "HTML",
+      "svg": "SVG",
+      "deck": "Presentación",
+      "pdf": "PDF",
+      "sections": "Reporte"
+    },
+    "rename": {
+      "title": "Renombrar historia",
+      "label": "Título",
+      "cancel": "Cancelar",
+      "confirm": "Guardar"
+    },
+    "chat": {
+      "continueMessage": "Sigamos trabajando en la historia \"{title}\" (id {id}). Léela y dime qué contiene.",
+      "askAboutComponent": "Me refiero al componente \"{label}\" de la historia \"{title}\" (id {id})."
     }
   },
   "conversations": {
@@ -5660,9 +5664,6 @@
       "showDashlet": {
         "unknown": "Dashlet desconocido: {id}",
         "unsupported": "{name} no se puede mostrar en el chat."
-      },
-      "createStory": {
-        "open": "Clic para abrir"
       },
       "askUserQuestion": {
         "skipped": "Omitido — reemplazado por un mensaje posterior.",

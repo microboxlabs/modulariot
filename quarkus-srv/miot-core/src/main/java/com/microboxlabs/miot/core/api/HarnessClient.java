@@ -54,6 +54,18 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-Organization") String organization,
             Map<String, Object> body);
 
+    /** The caller's running and recent runs, as summaries. */
+    @GET
+    @Path("/runs")
+    Uni<Response> listRuns(
+            @QueryParam("conversation_id") String conversationId,
+            @QueryParam("status") String status,
+            @QueryParam("limit") Integer limit,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
+
     @GET
     @Path("/runs/{runId}")
     Uni<Response> getRun(

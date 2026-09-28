@@ -233,6 +233,43 @@ export interface HarnessRunRecord {
    * back-compat with harness versions / persisted records predating the field.
    */
   assumptions?: HarnessAssumption[];
+  /** The model and skill the run was asked for. Optional for older records. */
+  model?: string | null;
+  skill_id?: string | null;
+}
+
+/** `interrupted`: saved mid-run by a harness process that is gone. */
+export type RunSummaryStatus =
+  | "running"
+  | "completed"
+  | "failed"
+  | "interrupted";
+
+/** One run as `GET /runs` lists it. Mirrors the Python `RunSummary` in
+ * `miot-harness/src/miot_harness/runtime/run_store.py`. */
+export interface RunSummary {
+  run_id: string;
+  conversation_id: string | null;
+  tenant_id: string | null;
+  user_id: string | null;
+  status: RunSummaryStatus | (string & {});
+  started_at: string | null;
+  finished_at: string | null;
+  model: string | null;
+  skill_id: string | null;
+  /** The last tool the run started. */
+  last_step: { label: string; tool: string | null } | null;
+  usage: { calls: number; input_tokens: number; output_tokens: number };
+  /** Briefs handed to a workhorse by `delegate`, in order. */
+  delegates: Array<{ brief: string; status: string }>;
+}
+
+export interface ListRunsQuery {
+  conversation_id?: string;
+  /** One status or several, sent comma-separated. */
+  status?: RunSummaryStatus | RunSummaryStatus[];
+  /** 1–100; the server defaults to 20. */
+  limit?: number;
 }
 
 /**

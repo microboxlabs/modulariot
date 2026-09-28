@@ -5670,6 +5670,28 @@
         "otherPlaceholder": "Otro…",
         "otherAriaLabel": "Otro",
         "submit": "Enviar"
+      },
+      "activity": {
+        "open": "Actividad",
+        "title": "Actividad",
+        "running": "En curso",
+        "recent": "Recientes",
+        "empty": "No hay ejecuciones recientes.",
+        "loadFailed": "No se pudo cargar la actividad.",
+        "untitled": "Chat sin título",
+        "working": "Trabajando…",
+        "statusCompleted": "Listo",
+        "statusFailed": "Falló",
+        "statusInterrupted": "Interrumpida",
+        "delegates": "Subtareas",
+        "toastDone": "Listo: {title}",
+        "toastFailed": "Falló: {title}",
+        "toastOpen": "Abrir"
+      },
+      "menu": {
+        "open": "Más opciones",
+        "sessionSummary": "Resumen de la sesión",
+        "sessionSummaryPrompt": "Cierra esta sesión de trabajo: resume lo que hicimos, con las preguntas, las respuestas y sus números, lo que quedó guardado y lo que sigue pendiente."
       }
     },
     "plan": {

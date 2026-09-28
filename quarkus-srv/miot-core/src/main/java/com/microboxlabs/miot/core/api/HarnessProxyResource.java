@@ -101,6 +101,25 @@ public class HarnessProxyResource {
         return forward(authorization, body, harness::startRun);
     }
 
+    /**
+     * The caller's running and recent runs — the chat's activity panel. The
+     * harness scopes the list to the forwarded tenant and user email; a
+     * {@code user_id} query param from the caller is not forwarded.
+     */
+    @GET
+    @Path("/runs")
+    public Uni<Response> listRuns(@PathParam("slug") String slug,
+                                  @QueryParam("conversation_id") String conversationId,
+                                  @QueryParam("status") String status,
+                                  @QueryParam("limit") Integer limit,
+                                  @HeaderParam("Authorization") String authorization) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return passThrough(harness.listRuns(conversationId, status, limit,
+                authorization, tenantClientId, userEmail, authMode));
+    }
+
     @GET
     @Path("/runs/{runId}")
     public Uni<Response> getRun(@PathParam("slug") String slug,

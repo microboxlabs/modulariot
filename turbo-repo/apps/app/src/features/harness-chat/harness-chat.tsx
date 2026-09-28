@@ -4,7 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FC } from "reac
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { twMerge } from "tailwind-merge";
-import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
+import {
+  LuArrowLeft,
+  LuEllipsisVertical,
+  LuHistory,
+  LuPlus,
+  LuSparkles,
+  LuX,
+} from "react-icons/lu";
+import { Dropdown, DropdownItem } from "flowbite-react";
+import { toast } from "sonner";
+import type { RunSummary } from "@microboxlabs/miot-harness-client";
 import { createHarnessAttachmentAdapter } from "./harness-chat-attachments";
 import { useHarnessChatContext } from "./context/harness-chat-context";
 import {
@@ -17,6 +27,9 @@ import { buildHarnessToolkit, type HarnessExtension } from "./harness-extension"
 import { resolveDefaultHarnessExtensions } from "./extensions";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { ActiveRunResumer } from "./components/active-run-resumer";
+import { ActivityButton, ActivityList } from "./components/activity-panel";
+import { PromptSender } from "./components/prompt-sender";
+import { useHarnessActivity } from "./hooks/use-harness-activity";
 import { HistoryList } from "./components/history-list";
 import { InitialMessageSender } from "./components/initial-message-sender";
 import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
@@ -285,8 +298,57 @@ const HarnessChatPanel: FC<{
     [sessions, activeId, mount],
   );
 
-  const activeTitle =
-    sessions.find((s) => s.id === activeId)?.title ?? tr("harnessChat.ui.emptyChatTitle");
+  const activeSession = sessions.find((s) => s.id === activeId);
+  const activeTitle = activeSession?.title ?? tr("harnessChat.ui.emptyChatTitle");
+  const [activityOpen, setActivityOpen] = useState(false);
+
+  const titleOf = useCallback(
+    (conversationId: string | null) =>
+      sessions.find((s) => s.id === conversationId)?.title ?? null,
+    [sessions],
+  );
+  const openThread = useCallback(
+    (conversationId: string) => {
+      if (!sessions.some((s) => s.id === conversationId)) return;
+      selectSession(conversationId);
+      setActivityOpen(false);
+    },
+    [sessions, selectSession],
+  );
+
+  // Read by the finish notification, which fires from a poll, not a render.
+  const watching = useRef({ activeId, isOpen, view, titleOf, openThread, tr });
+  useEffect(() => {
+    watching.current = { activeId, isOpen, view, titleOf, openThread, tr };
+  });
+  const notifyFinished = useCallback((run: RunSummary) => {
+    const current = watching.current;
+    const onScreen =
+      current.isOpen && current.view === "chat" && run.conversation_id === current.activeId;
+    if (onScreen || !run.conversation_id) return;
+    const conversationId = run.conversation_id;
+    const title = current.titleOf(conversationId) ?? current.tr("harnessChat.ui.activity.untitled");
+    const message =
+      run.status === "completed"
+        ? current.tr("harnessChat.ui.activity.toastDone", { title })
+        : current.tr("harnessChat.ui.activity.toastFailed", { title });
+    toast(message, {
+      action: {
+        label: current.tr("harnessChat.ui.activity.toastOpen"),
+        onClick: () => watching.current.openThread(conversationId),
+      },
+    });
+  }, []);
+
+  const activity = useHarnessActivity({ panelOpen: activityOpen, onFinished: notifyFinished });
+  const activeRunning = activity.runs.some(
+    (run) => run.status === "running" && run.conversation_id === activeId,
+  );
+
+  const [pendingPrompt, setPendingPrompt] = useState<{ id: string; text: string } | null>(null);
+  const clearPendingPrompt = useCallback(() => setPendingPrompt(null), []);
+  const askSessionSummary = () =>
+    setPendingPrompt({ id: activeId, text: tr("harnessChat.ui.menu.sessionSummaryPrompt") });
 
   return (
     <div
@@ -369,6 +431,19 @@ const HarnessChatPanel: FC<{
               </button>
             </>
           )}
+          <ActivityButton
+            open={activityOpen}
+            onOpenChange={setActivityOpen}
+            runningCount={activity.runningCount}
+            className={headerButtonClass}
+          >
+            <ActivityList
+              runs={activity.runs}
+              failed={activity.failed}
+              titleOf={titleOf}
+              onOpen={openThread}
+            />
+          </ActivityButton>
           <button
             type="button"
             onClick={() => newChat()}
@@ -377,6 +452,28 @@ const HarnessChatPanel: FC<{
           >
             <LuPlus className="h-3.5 w-3.5" />
           </button>
+          <Dropdown
+            label=""
+            dismissOnClick
+            placement="bottom-end"
+            renderTrigger={() => (
+              <button
+                type="button"
+                aria-label={tr("harnessChat.ui.menu.open")}
+                className={headerButtonClass}
+              >
+                <LuEllipsisVertical className="h-3.5 w-3.5" />
+              </button>
+            )}
+          >
+            <DropdownItem
+              onClick={askSessionSummary}
+              disabled={view !== "chat" || !activeSession?.owned || activeRunning}
+              className="text-xs"
+            >
+              {tr("harnessChat.ui.menu.sessionSummary")}
+            </DropdownItem>
+          </Dropdown>
           <button
             type="button"
             onClick={close}
@@ -414,6 +511,8 @@ const HarnessChatPanel: FC<{
               // prop would add the same attachment to all of them at once.
               pendingAttachmentLabel={session.id === activeId ? pendingAttachment : null}
               onAttachmentConsumed={clearPendingAttachment}
+              pendingPrompt={pendingPrompt?.id === session.id ? pendingPrompt.text : null}
+              onPromptSent={clearPendingPrompt}
               onTitleChange={updateSessionTitle}
               readOnly={!session.owned}
               extensions={resolvedExtensions}
@@ -433,6 +532,8 @@ const SessionHost: FC<{
   initialMessage: string | null;
   pendingAttachmentLabel: string | null;
   onAttachmentConsumed: () => void;
+  pendingPrompt: string | null;
+  onPromptSent: () => void;
   onTitleChange: (id: string, title: string | null) => void;
   readOnly: boolean;
   extensions: HarnessExtension[];
@@ -444,6 +545,8 @@ const SessionHost: FC<{
   initialMessage,
   pendingAttachmentLabel,
   onAttachmentConsumed,
+  pendingPrompt,
+  onPromptSent,
   onTitleChange,
   readOnly,
   extensions,
@@ -516,6 +619,7 @@ const SessionHost: FC<{
               <SessionModelWatcher sessionId={sessionId} />
               <ActiveRunResumer runtime={runtime} history={history} agent={agent} />
               <InitialMessageSender initialMessage={initialMessage} />
+              <PromptSender prompt={pendingPrompt} onSent={onPromptSent} />
               <PendingAttachmentReceiver
                 label={pendingAttachmentLabel}
                 onConsumed={onAttachmentConsumed}

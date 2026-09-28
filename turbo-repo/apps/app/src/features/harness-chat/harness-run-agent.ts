@@ -12,6 +12,7 @@ import type { RunEffort } from "@microboxlabs/miot-harness-client";
 import { readRunEffort } from "./hooks/use-run-effort";
 import {
   HARNESS_RUN_EVENT,
+  announceRunMarker,
   cancelRun,
   clearActiveRun,
   isHarnessRunMarker,
@@ -90,6 +91,7 @@ export class HarnessRunAgent extends HttpAgent {
     } else {
       clearActiveRun(this.threadId, value.runId);
     }
+    announceRunMarker(this.threadId, value);
   }
 }
 

@@ -63,7 +63,7 @@ from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.conversation_backend import ModulithConversationBackend
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
-from miot_harness.runtime.run_store import HarnessRunRecord
+from miot_harness.runtime.run_store import HarnessRunRecord, RunSummary, summarize
 from miot_harness.runtime.supervisor import HarnessSupervisor
 from miot_harness.runtime.usage_report import UsageReporter
 
@@ -922,6 +922,38 @@ def create_app() -> FastAPI:
         _enforce_model_allowlist(request)
         return await harness.run(request, **_caller(http_request))
 
+    @app.get("/runs", response_model=list[RunSummary])
+    async def list_runs(
+        http_request: Request,
+        conversation_id: str | None = Query(None),
+        status: str | None = Query(None),
+        user_id: str | None = Query(None),
+        limit: int = Query(20, ge=1, le=_RUNS_LIST_MAX),
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> list[RunSummary]:
+        """The caller's runs, running ones first, then the rest newest first.
+
+        Scoped to the caller's tenant like GET /runs/{id}, and to one user:
+        the signed identity when present, else the proxy's user header, else
+        the `user_id` query param. `status` takes a comma-separated list.
+        """
+        harness: HarnessSupervisor = app.state.harness
+        identity = getattr(http_request.state, "identity", None)
+        user = (
+            (identity.user_id if identity is not None else None)
+            or (http_request.headers.get("X-Miot-User-Email") or "").strip()
+            or user_id
+        )
+        statuses = {s.strip() for s in status.split(",") if s.strip()} if status else None
+        return _list_runs(
+            harness,
+            tenant_id=auth.get("tenant_id"),
+            user_id=user or None,
+            conversation_id=conversation_id,
+            statuses=statuses,
+            limit=limit,
+        )
+
     @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
     async def get_run(
         run_id: str,
@@ -1172,6 +1204,48 @@ def create_app() -> FastAPI:
         )
 
     return app
+
+
+_RUNS_LIST_MAX = 100
+
+
+def _list_runs(
+    harness: HarnessSupervisor,
+    *,
+    tenant_id: str | None,
+    user_id: str | None,
+    conversation_id: str | None,
+    statuses: set[str] | None,
+    limit: int,
+) -> list[RunSummary]:
+    live = [summarize(record) for record in harness.live_records()]
+    live_ids = {summary.run_id for summary in live}
+    stored: list[RunSummary] = []
+    for summary in harness.run_store.recent_summaries():
+        if summary.run_id in live_ids:
+            continue
+        if summary.status == "running":
+            # Saved mid-run by a process that is gone: it will never finish.
+            summary = summary.model_copy(update={"status": "interrupted"})
+        stored.append(summary)
+
+    def visible(summary: RunSummary) -> bool:
+        # Legacy records carry no tenant; a listing never shows them to a
+        # tenant-scoped caller.
+        if tenant_id and summary.tenant_id != tenant_id:
+            return False
+        if user_id and summary.user_id != user_id:
+            return False
+        if conversation_id and summary.conversation_id != conversation_id:
+            return False
+        return statuses is None or summary.status in statuses
+
+    running = sorted(
+        (s for s in live if visible(s)),
+        key=lambda s: s.started_at.timestamp() if s.started_at else 0.0,
+        reverse=True,
+    )
+    return (running + [s for s in stored if visible(s)])[:limit]
 
 
 def _enforce_tenant_owns_run(

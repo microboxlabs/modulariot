@@ -132,6 +132,7 @@ createMiotHarnessClient(config: ClientConfig) => MiotHarnessClient
 | `runs` | `create(body, opts?)` | `POST /runs:start` | Returns `{ run_id }` (the harness assigns the id). `opts.signal` is forwarded to `fetch`. |
 | `runs` | `stream(id, opts?)` | `GET /runs/{id}/stream` | `AsyncIterable<HarnessEvent>`. Pass `opts.lastEventId` for resume; pass `opts.signal` to cancel. Throws `MiotHarnessApiError` on `event: error` frames. |
 | `runs` | `get(id)` | `GET /runs/{id}` | Full `HarnessRunRecord` with `events[]`, `answer`, `artifacts`, `conversation_id`. |
+| `runs` | `list(query?, opts?)` | `GET /runs` | `RunSummary[]` for the caller's tenant and user: running first, then newest first. Filters: `conversation_id`, `status` (one or an array), `limit` (1–100, default 20). |
 
 ### `ClientConfig`
 

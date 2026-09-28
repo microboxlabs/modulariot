@@ -174,6 +174,9 @@ class HarnessSupervisor:
         # Called with each finished run to charge its tokens; set by the
         # lifespan when the modulith is configured.
         self.usage_reporter: Callable[[HarnessRunRecord, HarnessContext], None] | None = None
+        # Records of runs still in flight, so a stream subscriber can replay
+        # events not yet checkpointed to the run store.
+        self._live_records: dict[str, HarnessRunRecord] = {}
 
     def _stamp_connection(
         self, assumptions: list[dict[str, Any]]
@@ -229,6 +232,7 @@ class HarnessSupervisor:
             tenant_id=ctx.tenant_id,
             user_id=ctx.user_id,
         )
+        self._live_records[ctx.run_id] = record
 
         def progress(event: HarnessEvent) -> None:
             self._emit(record, event)
@@ -579,12 +583,21 @@ class HarnessSupervisor:
             ):
                 self.run_store.save(record)
 
+    def live_record(self, run_id: str) -> HarnessRunRecord | None:
+        """The in-memory record of a run still in flight in this process."""
+
+        return self._live_records.get(run_id)
+
+    def forget_live(self, run_id: str) -> None:
+        self._live_records.pop(run_id, None)
+
     def _close_bus(self, run_id: str) -> None:
         """Tell the event bus this run is done. No-op when no bus is
         injected. Called at every terminal point in `run()` so SSE
         subscribers' iterators always end, failures included.
         """
 
+        self.forget_live(run_id)
         if self.event_bus is not None:
             self.event_bus.close(run_id)
 

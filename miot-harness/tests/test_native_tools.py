@@ -42,7 +42,7 @@ def _registry() -> ToolRegistry:
         ("fake_kpi_summary", "curated"),
         ("fake_alpha_query", "curated"),
         ("pg_explore", "primitive"),
-        ("create_story_draft", "general"),  # must be excluded
+        ("write_todos", "general"),  # must be excluded
     ]:
         reg.register(_tool(name, kind))
     return reg

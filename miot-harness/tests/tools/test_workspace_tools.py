@@ -79,7 +79,6 @@ def test_reading_a_task_list_counts_as_use() -> None:
 def test_the_loop_is_offered_the_utility_tools() -> None:
     names = {t["name"] for t in build_native_tools(build_default_registry(), profile=FAKE_PROFILE)}
     assert {"fs_write", "fs_read", "fs_ls", "fs_edit", "write_todos"} <= names
-    assert "create_story_draft" not in names
 
 
 @pytest.mark.asyncio

@@ -64,6 +64,10 @@ class McpServer(BaseModel):
     # hides from the model, so a call cannot name another organization.
     # None when the server's tools take no organization.
     organization_arg: str | None = "organization"
+    # The argument the harness fills with the run's conversation id, on the
+    # tools whose schema has it, and hides from the model. Filled only when
+    # the id is a UUID, as chat thread ids are; left out otherwise.
+    conversation_arg: str | None = None
 
 
 class PlaybookSkill(_ConnectionBinding):

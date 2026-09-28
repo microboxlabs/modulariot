@@ -12,7 +12,6 @@ from miot_harness.tools.dashboard import (
 from miot_harness.tools.delivery_metrics import get_delivery_compliance_metrics_tool
 from miot_harness.tools.filesystem import VirtualFileStore, build_filesystem_tools
 from miot_harness.tools.source import build_source_tools, source_repos
-from miot_harness.tools.storytelling import create_story_draft_tool
 from miot_harness.tools.todos import TodoStore, write_todos_tool
 from miot_harness.tools.web_fetch import web_fetch_tool
 from miot_harness.tools.web_search import WebSearcher, web_search_tool
@@ -50,7 +49,6 @@ def build_default_registry(settings: HarnessSettings | None = None) -> ToolRegis
     registry.register(get_delivery_compliance_metrics_tool())
     registry.register(get_workflow_bottlenecks_tool())
     registry.register(get_dashboard_context_tool())
-    registry.register(create_story_draft_tool())
     registry.register(create_dashboard_widget_draft_tool())
     registry.register(apply_dashboard_patch_tool())
     if settings.fs_enabled:

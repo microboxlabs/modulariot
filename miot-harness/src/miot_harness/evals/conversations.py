@@ -79,6 +79,16 @@ def tools_called(record: dict[str, Any]) -> list[str]:
     ]
 
 
+def skills_loaded(record: dict[str, Any]) -> list[str]:
+    return [
+        str(e["data"].get("skill_id"))
+        for e in record.get("events", [])
+        if e.get("type") == "tool.completed"
+        and e.get("data", {}).get("tool") == "load_skill"
+        and e["data"].get("loaded") is True
+    ]
+
+
 def tokens_used(record: dict[str, Any]) -> int:
     return sum(
         int(e.get("data", {}).get("input_tokens") or 0)
@@ -232,6 +242,8 @@ def check_turn(record: dict[str, Any], expect: dict[str, Any]) -> list[str]:
         return [*failures, "answer is not a JSON block array"]
     if _leaks_block_json(blocks):
         failures.append("raw block JSON shown to the user")
+    loaded = skills_loaded(record)
+    failures += [f"did not load skill {s}" for s in expect.get("skills", []) if s not in loaded]
     return failures + _alternative_failures(
         [*blocks, *shown_widgets(record)], tools_called(record), expect
     )

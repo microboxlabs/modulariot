@@ -244,6 +244,44 @@ def source_failures(results: dict[str, int | str]) -> list[str]:
     return [f"source not found: {url} ({results[url]})" for url in missing]
 
 
+def _run_turn(
+    case_id: str,
+    index: int,
+    turn: dict[str, Any],
+    post: Callable[[dict[str, Any]], dict[str, Any]],
+    body: dict[str, Any],
+    verify_sources: Callable[[list[str]], dict[str, int | str]] | None,
+) -> TurnResult:
+    started = time.monotonic()
+    try:
+        record = post(body)
+    except httpx.HTTPError as exc:
+        record = {"status": f"http error: {exc}"}
+    seconds = time.monotonic() - started
+    expect = turn.get("expect", {})
+    failures = check_turn(record, expect)
+    if expect.get("max_seconds") and seconds > float(expect["max_seconds"]):
+        failures.append(f"took {seconds:.0f}s, budget {expect['max_seconds']}s")
+    blocks = parse_blocks(record.get("answer")) or []
+    sources: dict[str, int | str] = {}
+    if verify_sources and blocks and links(blocks):
+        sources = verify_sources(links(blocks))
+        failures += source_failures(sources)
+    return TurnResult(
+        case=case_id,
+        turn=index,
+        message=turn["message"],
+        passed=not failures,
+        failures=failures,
+        tools=tools_called(record),
+        model=(record.get("context") or {}).get("model"),
+        seconds=round(seconds, 1),
+        answer=answer_text(blocks) if blocks else str(record.get("answer") or ""),
+        sources=sources,
+        tokens=tokens_used(record),
+    )
+
+
 def run_case(
     case: dict[str, Any],
     post: Callable[[dict[str, Any]], dict[str, Any]],
@@ -255,34 +293,7 @@ def run_case(
     results: list[TurnResult] = []
     for index, turn in enumerate(case["turns"], start=1):
         body = {**base_body, "message": turn["message"], "conversation_id": conversation_id}
-        started = time.monotonic()
-        try:
-            record = post(body)
-        except httpx.HTTPError as exc:
-            record = {"status": f"http error: {exc}"}
-        seconds = time.monotonic() - started
-        expect = turn.get("expect", {})
-        failures = check_turn(record, expect)
-        if expect.get("max_seconds") and seconds > float(expect["max_seconds"]):
-            failures.append(f"took {seconds:.0f}s, budget {expect['max_seconds']}s")
-        blocks = parse_blocks(record.get("answer")) or []
-        sources: dict[str, int | str] = {}
-        if verify_sources and blocks and links(blocks):
-            sources = verify_sources(links(blocks))
-            failures += source_failures(sources)
-        result = TurnResult(
-            case=case["id"],
-            turn=index,
-            message=turn["message"],
-            passed=not failures,
-            failures=failures,
-            tools=tools_called(record),
-            model=(record.get("context") or {}).get("model"),
-            seconds=round(seconds, 1),
-            answer=answer_text(blocks) if blocks else str(record.get("answer") or ""),
-            sources=sources,
-            tokens=tokens_used(record),
-        )
+        result = _run_turn(case["id"], index, turn, post, body, verify_sources)
         results.append(result)
         if on_turn:
             on_turn(result)

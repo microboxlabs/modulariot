@@ -37,6 +37,17 @@ def _settings(max_turns: int = 3) -> HarnessSettings:
     return HarnessSettings(agents_agent_loop_max_turns=max_turns)
 
 
+class _BriefModel(ScriptedModel):
+    def __init__(self, by_brief: dict[str, list[AIMessage]]) -> None:
+        super().__init__([])
+        self.by_brief = by_brief
+
+    async def ainvoke(self, messages: Any, **kwargs: Any) -> AIMessage:
+        self.calls.append(list(messages))
+        brief = next(b for b in self.by_brief if b in str(messages[1].content))
+        return self.by_brief[brief].pop(0)
+
+
 def _runner(model: ScriptedModel, seats: LoopSeats | None) -> AgentLoopRunner:
     return AgentLoopRunner(
         model=model,
@@ -127,13 +138,19 @@ async def test_delegate_runs_briefs_concurrently_and_merges_evidence(monkeypatch
         return {"evidence": [_evidence()]}
 
     monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
-    inner = ScriptedModel(
-        [
-            AIMessage(content="", tool_calls=[_call("fake_kpi_summary", {}, "w1")]),
-            AIMessage(content="41 late trips"),
-            AIMessage(content="", tool_calls=[_call("fake_kpi_summary", {}, "w2")]),
-            AIMessage(content="12 on time"),
-        ]
+    # The briefs run at the same time, so the inner model answers by brief
+    # rather than in call order.
+    inner = _BriefModel(
+        {
+            "count late": [
+                AIMessage(content="", tool_calls=[_call("fake_kpi_summary", {}, "w1")]),
+                AIMessage(content="41 late trips"),
+            ],
+            "count on time": [
+                AIMessage(content="", tool_calls=[_call("fake_kpi_summary", {}, "w2")]),
+                AIMessage(content="12 on time"),
+            ],
+        }
     )
     workhorse = WorkhorseSeat(build=lambda: _runner(inner, None), max_parallel=2)
     parent = ScriptedModel(

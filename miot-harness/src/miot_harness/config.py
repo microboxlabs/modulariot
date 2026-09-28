@@ -101,6 +101,9 @@ class HarnessSettings(BaseSettings):
     # Minimum holds the compact envelope the loop falls back to (tool name,
     # row count, note), so a tool message is always valid JSON.
     agents_agent_loop_tool_result_max_chars: int = Field(default=6000, ge=200)
+    # Read-only tool calls of one model turn that run at the same time; 1 runs
+    # them one after another. Calls that may ask for approval always do.
+    agents_agent_loop_tool_concurrency: int = Field(default=4, ge=1)
     # Context window per conversation model, as a JSON object in the env
     # (`{"deepseek:deepseek-chat": 128000}`). Claude models default to 200K,
     # the rest to `agents_context_window_default`.

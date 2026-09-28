@@ -76,13 +76,13 @@ describe("widgetToDashlet", () => {
     expect(config).toMatchObject({
       dataMode: "static",
       chartFamily: "cartesian",
-      xAxisColumn: "carrier",
+      xAxisColumn: "c0",
       representations: [
-        { columnKey: "driving_hours", label: "Driving hours (h)", type: "bar" },
+        { columnKey: "c1", label: "Driving hours (h)", type: "bar" },
       ],
       rows: [
-        { carrier: "Cordillera", driving_hours: "4983.1" },
-        { carrier: "Altiplano", driving_hours: "4490.1" },
+        { c0: "Cordillera", c1: "4983.1" },
+        { c0: "Altiplano", c1: "4490.1" },
       ],
     });
   });
@@ -90,10 +90,10 @@ describe("widgetToDashlet", () => {
   it("maps a kpi to stat_icon over the first row", () => {
     const { dashletId, config } = widgetToDashlet({ ...spec, kind: "kpi" });
     expect(dashletId).toBe("stat_icon");
-    expect(config.value).toBe("{{row.driving_hours}}");
+    expect(config.value).toBe("{{row.c1}}");
     expect(JSON.parse(String(config.staticData))).toEqual({
-      carrier: "Cordillera",
-      driving_hours: "4983.1",
+      c0: "Cordillera",
+      c1: "4983.1",
     });
   });
 
@@ -101,16 +101,16 @@ describe("widgetToDashlet", () => {
     const { dashletId, config } = widgetToDashlet({ ...spec, kind: "table" });
     expect(dashletId).toBe("data_table_v2");
     expect(config.columns).toEqual([
-      { key: "{{row.carrier}}", label: "Carrier", type: "text" },
+      { key: "{{row.c0}}", label: "Carrier", type: "text" },
       {
-        key: "{{row.driving_hours}}",
+        key: "{{row.c1}}",
         label: "Driving hours",
         type: "highlight",
       },
     ]);
     expect(config.sort).toEqual({
       enabled: true,
-      columns: ["{{row.carrier}}", "{{row.driving_hours}}"],
+      columns: ["{{row.c0}}", "{{row.c1}}"],
     });
   });
 
@@ -270,5 +270,26 @@ describe("widget polish", () => {
       content: "{}",
       role: "tool",
     });
+  });
+});
+
+describe("column names the model chose", () => {
+  it("are replaced by safe keys and kept as labels", () => {
+    const spec: WidgetSpec = {
+      id: "w",
+      kind: "table",
+      title: "Top patentes",
+      x: null,
+      y: ["Códigos negros", "% atendido"],
+      columns: ["Patente", "Códigos negros", "% atendido"],
+      rows: [{ Patente: "LWZS50", "Códigos negros": 41, "% atendido": "0.0" }],
+    };
+    const { config } = widgetToDashlet(spec);
+    expect(config.columns).toEqual([
+      { key: "{{row.c0}}", label: "Patente", type: "text" },
+      { key: "{{row.c1}}", label: "Códigos negros", type: "highlight" },
+      { key: "{{row.c2}}", label: "% atendido", type: "highlight" },
+    ]);
+    expect(config.rows).toEqual([{ c0: "LWZS50", c1: "41", c2: "0.0" }]);
   });
 });

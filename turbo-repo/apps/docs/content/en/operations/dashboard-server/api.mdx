@@ -69,3 +69,5 @@ The application exposes `/api/dashboards` through its server-side session and th
 Keep the `ETag` from a load and send it as `If-Match` when saving. A `409` preserves the newer server version; retain the user's edits and resolve the conflict before retrying. The browser never needs the session's raw JWT.
 
 These endpoints enable a parallel migration. Existing legacy dashboard pages remain available until their replacements have been validated. This API alone does not move existing documents or switch the UI.
+
+Pass `?org={activeOrgSlug}` on requests and include the organization in client cache keys. If the active organization changed in another tab, the API returns `409` before reading or writing a dashboard. This parameter confirms the selected organization; it cannot select a different one.

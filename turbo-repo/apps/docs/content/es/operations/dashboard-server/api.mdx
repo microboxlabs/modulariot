@@ -69,3 +69,5 @@ La aplicación expone `/api/dashboards` mediante su sesión del lado del servido
 Conserva el `ETag` recibido al cargar y envíalo como `If-Match` al guardar. Un `409` conserva la versión más reciente del servidor; mantén los cambios del usuario y resuelve el conflicto antes de reintentar. El navegador no necesita el JWT de la sesión.
 
 Estas rutas permiten una migración en paralelo. Las páginas anteriores siguen disponibles hasta validar sus reemplazos. Esta API por sí sola no migra documentos ni cambia la interfaz.
+
+Envía `?org={activeOrgSlug}` e incluye la organización en las claves de caché del cliente. Si la organización activa cambió en otra pestaña, la API responde `409` antes de leer o guardar un dashboard. Este parámetro confirma la organización seleccionada; no permite elegir otra.

@@ -81,6 +81,18 @@ describe("new dashboard product routes", () => {
     expect(forwardMock).not.toHaveBeenCalled();
   });
 
+  it("refuses an old tab's write after switching organizations", async () => {
+    const response = await save(
+      new Request("https://app.test/api/dashboards/fleet?org=previous-org", {
+        method: "PUT",
+        body: "{}",
+      }),
+      context
+    );
+    expect(response.status).toBe(409);
+    expect(forwardMock).not.toHaveBeenCalled();
+  });
+
   it("rejects malformed JSON without writing upstream", async () => {
     const response = await save(
       new Request("https://app.test/api/dashboards/fleet", {

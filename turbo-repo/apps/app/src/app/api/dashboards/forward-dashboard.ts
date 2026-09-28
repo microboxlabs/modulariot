@@ -16,6 +16,14 @@ export async function forwardDashboard(
 ) {
   const tenant = await resolveTenantScope();
   if (!tenant.resolved) return tenant.response;
+  // A tab opened in one organization must not save into another after a switch.
+  const expectedOrg = new URL(request.url).searchParams.get("org");
+  if (expectedOrg !== null && expectedOrg !== tenant.scope.activeOrg.slug) {
+    return NextResponse.json(
+      { error: "Active organization changed" },
+      { status: 409 }
+    );
+  }
   const segments = ["dashboards"];
   if (context) {
     const { dashboard } = await context.params;

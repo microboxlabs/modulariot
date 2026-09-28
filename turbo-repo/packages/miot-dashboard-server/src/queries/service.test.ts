@@ -229,10 +229,12 @@ describe("saved dashboard query service", () => {
     const { service, execute } = setup();
     const controller = new AbortController();
     controller.abort();
+    const read = vi.fn().mockResolvedValue({});
     await expect(
-      service.execute(viewer, ref, "costs", {}, controller.signal),
+      service.execute(viewer, ref, "costs", read, controller.signal),
     ).rejects.toMatchObject({ status: 502 });
     expect(execute).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
     const running = new AbortController();
     execute.mockImplementationOnce(async ({ signal }) => {
       running.abort();

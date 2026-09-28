@@ -88,6 +88,7 @@ export function createDashboardQueryService<TRequest>(
     if (decision.dashboard?.record == null)
       throw DashboardServerError.notFound("Dashboard not found");
     const query = savedQuery(decision.dashboard.record.config, queryId);
+    if (signal?.aborted) throw upstreamError();
     // A host can defer body decoding until after authorization.
     const values: unknown =
       typeof filters === "function" ? await filters() : filters;

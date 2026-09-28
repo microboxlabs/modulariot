@@ -113,6 +113,22 @@ export function applyHarnessEvent(
       });
     }
 
+    case "widget.created": {
+      // The web chat renders the widget; the terminal notes that one exists.
+      const widget = (event.data.widget ?? {}) as {
+        title?: unknown;
+        rows?: unknown;
+      };
+      const title = typeof widget.title === "string" ? widget.title : "widget";
+      const rows = Array.isArray(widget.rows) ? widget.rows.length : 0;
+      return appendItem(slice, {
+        kind: "system",
+        id: ctx.uuid(),
+        text: `widget: ${title} (${rows} rows)`,
+        ts: ctx.now(),
+      });
+    }
+
     case "advisor.consulted":
     case "delegate.completed":
       // Seat events from the agent loop. The web narrator renders them inline
@@ -403,8 +419,7 @@ function flipOrAppendTool(
       item.status === "running" &&
       item.name === name
     ) {
-      const message =
-        event.message.length > 0 ? event.message : item.message;
+      const message = event.message.length > 0 ? event.message : item.message;
       const updated: TranscriptItem = { ...item, status, message };
       const next = slice.transcript.slice();
       next[i] = updated;

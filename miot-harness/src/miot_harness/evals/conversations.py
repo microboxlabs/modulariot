@@ -220,7 +220,16 @@ def check_turn(record: dict[str, Any], expect: dict[str, Any]) -> list[str]:
     if _leaks_block_json(blocks):
         failures.append("raw block JSON shown to the user")
     failures += _tool_failures(tools_called(record), expect)
-    return failures + _alternative_failures(blocks, expect)
+    return failures + _alternative_failures([*blocks, *shown_widgets(record)], expect)
+
+
+def shown_widgets(record: dict[str, Any]) -> list[dict[str, Any]]:
+    """The run's widgets as blocks: the chat shows each one, rows included."""
+    return [
+        {"type": "widget_data", "value": e["data"]["widget"]}
+        for e in record.get("events", [])
+        if e.get("type") == "widget.created" and isinstance(e.get("data", {}).get("widget"), dict)
+    ]
 
 
 def _alternative_failures(blocks: list[dict[str, Any]], expect: dict[str, Any]) -> list[str]:

@@ -145,3 +145,17 @@ def test_one_of_passes_when_any_alternative_passes() -> None:
     assert check_turn(record, expect) == []
     only_numbers = {"one_of": [{"numbers": [{"value": 10}]}]}
     assert check_turn(record, only_numbers) == ["no alternative passed: no number near 10 (±1%)"]
+
+
+def test_numbers_and_names_in_a_shown_widget_count_as_answered() -> None:
+    record = _record([{"type": "markdown", "value": "Cordillera lidera."}])
+    record["events"].append(
+        {
+            "type": "widget.created",
+            "data": {
+                "widget": {"title": "Horas", "rows": [{"carrier": "Altiplano", "h": "5001.8"}]}
+            },
+        }
+    )
+    expect = {"numbers": [{"value": 5001.8}], "contains_any": ["Altiplano"]}
+    assert check_turn(record, expect) == []

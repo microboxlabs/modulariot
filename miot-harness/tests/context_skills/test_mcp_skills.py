@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from mcp import Client, types
+from mcp.server.lowlevel import Server
 
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.context_skills.file_source import FileSkillSource
@@ -16,6 +18,7 @@ from miot_harness.context_skills.mcp_skills import (
     McpSkills,
     McpTool,
     McpToolResult,
+    _StreamableSession,
     build_mcp_call_tool,
     offers,
     resolve_url,
@@ -288,3 +291,42 @@ async def test_the_model_gets_a_share_link_as_the_app_url(
         get_settings.cache_clear()
 
     assert out.result["url"] == "https://app.example/app/share/tok_9"
+
+
+def _schema_server(structured: dict[str, Any], text: str) -> Server[Any]:
+    """A server whose one tool answers with a null its output schema does not allow."""
+    tool = types.Tool(
+        name="stories_create",
+        input_schema={"type": "object"},
+        output_schema={"type": "object", "properties": {"sourceMessageId": {"type": "string"}}},
+    )
+
+    async def list_tools(_ctx: Any, _params: Any) -> types.ListToolsResult:
+        return types.ListToolsResult(tools=[tool])
+
+    async def call_tool(_ctx: Any, _params: Any) -> types.CallToolResult:
+        return types.CallToolResult(
+            content=[types.TextContent(type="text", text=text)], structured_content=structured
+        )
+
+    return Server("test", on_list_tools=list_tools, on_call_tool=call_tool)
+
+
+@pytest.mark.asyncio
+async def test_a_result_that_fails_its_output_schema_falls_back_to_its_text(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    story = {"id": "s1", "sourceMessageId": None}
+    async with Client(_schema_server(story, '{"id": "s1", "sourceMessageId": null}')) as client:
+        result = await _StreamableSession(client).call_tool("stories_create", {})
+
+    assert result.structured == story
+    assert "stories_create" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_without_json_text_a_result_that_fails_its_output_schema_is_an_error() -> None:
+    story = {"id": "s1", "sourceMessageId": None}
+    async with Client(_schema_server(story, "created")) as client:
+        with pytest.raises(RuntimeError, match="Invalid structured content"):
+            await _StreamableSession(client).call_tool("stories_create", {})

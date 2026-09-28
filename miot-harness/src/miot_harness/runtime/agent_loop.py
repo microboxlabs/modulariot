@@ -463,14 +463,19 @@ def _chunk_deltas(chunk: Any) -> list[tuple[str, str]]:
         if content:
             out.append(("text", content))
     elif isinstance(content, list):
-        for block in content:
-            if not isinstance(block, dict):
-                continue
-            if block.get("type") == "text" and block.get("text"):
-                out.append(("text", str(block["text"])))
-            elif block.get("type") == "thinking" and block.get("thinking"):
-                out.append(("thinking", str(block["thinking"])))
+        out.extend(d for d in map(_block_delta, content) if d is not None)
     return out
+
+
+def _block_delta(block: Any) -> tuple[str, str] | None:
+    if not isinstance(block, dict):
+        return None
+    kind = block.get("type")
+    if kind == "text" and block.get("text"):
+        return ("text", str(block["text"]))
+    if kind == "thinking" and block.get("thinking"):
+        return ("thinking", str(block["thinking"]))
+    return None
 
 
 def _provenance_entry(

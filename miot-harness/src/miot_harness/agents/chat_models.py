@@ -17,6 +17,7 @@ from langchain_core.language_models import BaseChatModel
 from pydantic import SecretStr
 
 from miot_harness.agents.model_providers import (
+    Provider,
     ProviderRegistry,
     is_anthropic,
     registry_from_settings,
@@ -136,11 +137,19 @@ def get_chat_model(
         return ChatAnthropic(**kwargs)  # type: ignore[arg-type]
 
     # Thinking and effort are Anthropic controls; the others ignore them.
+    return _openai_compatible_model(
+        provider, model_id, reasoning_effort, timeout if timeout is not None else 60
+    )
+
+
+def _openai_compatible_model(
+    provider: Provider, model_id: str, reasoning_effort: str | None, timeout: int
+) -> BaseChatModel:
     common: dict[str, Any] = {
         "model": model_id,
         "reasoning_effort": reasoning_effort,
         "api_key": SecretStr(provider.api_key),
-        "timeout": timeout if timeout is not None else 60,
+        "timeout": timeout,
         # Token counts on streamed turns, for usage and billing.
         "stream_usage": True,
         "metadata": _billing_metadata(provider.name, model_id),

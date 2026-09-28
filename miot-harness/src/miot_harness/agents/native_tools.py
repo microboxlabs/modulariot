@@ -57,22 +57,23 @@ def compact_schema(node: Any) -> Any:
     if not isinstance(node, dict):
         return node
     required = set(node.get("required") or ())
-    out: dict[str, Any] = {}
-    for key, value in node.items():
-        if key == "properties" and isinstance(value, dict):
-            props = {name: compact_schema(sub) for name, sub in value.items()}
-            out[key] = {
-                name: sub if name in required else _optional(sub) for name, sub in props.items()
-            }
-        elif key in _NAME_MAPS and isinstance(value, dict):
-            out[key] = {name: compact_schema(sub) for name, sub in value.items()}
-        elif (key == "title" and isinstance(value, str)) or (key == "default" and value is None):
-            continue
-        elif key in _DATA_KEYWORDS:
-            out[key] = value
-        else:
-            out[key] = compact_schema(value)
-    return out
+    return {
+        key: _compact_keyword(key, value, required)
+        for key, value in node.items()
+        if not (key == "title" and isinstance(value, str))
+        and not (key == "default" and value is None)
+    }
+
+
+def _compact_keyword(key: str, value: Any, required: set[str]) -> Any:
+    if key in _DATA_KEYWORDS:
+        return value
+    if key == "properties" and isinstance(value, dict):
+        props = {name: compact_schema(sub) for name, sub in value.items()}
+        return {name: sub if name in required else _optional(sub) for name, sub in props.items()}
+    if key in _NAME_MAPS and isinstance(value, dict):
+        return {name: compact_schema(sub) for name, sub in value.items()}
+    return compact_schema(value)
 
 
 def _optional(schema: Any) -> Any:

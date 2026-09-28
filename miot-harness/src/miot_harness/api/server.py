@@ -977,7 +977,7 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=503, detail="title unavailable") from exc
         return {"title": title}
 
-    @app.post("/runs", response_model=HarnessRunRecord, responses=_DRAINING_RESPONSE)
+    @app.post("/runs", responses=_DRAINING_RESPONSE)
     async def create_run(
         request: UserRequest,
         http_request: Request,

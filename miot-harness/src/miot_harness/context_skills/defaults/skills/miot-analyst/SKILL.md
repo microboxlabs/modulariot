@@ -58,7 +58,7 @@ without asking again.
 | one number | a markdown sentence; add a `kpi` widget when it is the headline of the session |
 | a few numbers (up to 3) | a markdown sentence |
 | a breakdown by category | `bar` widget |
-| a trend over time | `line` (or `area`) widget |
+| a trend over time | `line` widget |
 | shares of a whole, few categories | `pie` widget |
 | a list to scan or export | `table` widget |
 

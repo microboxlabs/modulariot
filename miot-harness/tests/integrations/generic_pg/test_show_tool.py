@@ -87,3 +87,20 @@ async def test_a_table_needs_no_axes() -> None:
     out, events = await _show(ROWS, widget="table")
     assert events[0].data["widget"]["columns"] == ["carrier", "hours"]
     assert out.row_count == 12
+
+
+@pytest.mark.asyncio
+async def test_an_empty_result_is_refused_for_charts_but_not_tables() -> None:
+    with pytest.raises(ValueError, match="no rows"):
+        await _show([], widget="kpi", y=["hours"])
+    out, events = await _show([], widget="table")
+    assert out.row_count == 0
+    assert events[0].data["widget"]["rows"] == []
+
+
+@pytest.mark.asyncio
+async def test_a_capped_result_is_reported_as_partial() -> None:
+    many = [{"carrier": f"C{i}", "hours": i} for i in range(500)]
+    out, events = await _show(many, widget="table")
+    assert events[0].data["widget"]["truncated"] is True
+    assert "cut at 500 rows" in out.note

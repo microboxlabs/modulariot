@@ -7,7 +7,7 @@
  * tool calls. Pure, so the whole mapping is unit-tested.
  */
 
-export type WidgetKind = "kpi" | "table" | "bar" | "line" | "area" | "pie";
+export type WidgetKind = "kpi" | "table" | "bar" | "line" | "pie";
 
 export type WidgetSpec = {
   id: string;
@@ -44,7 +44,6 @@ const WIDGET_KINDS: ReadonlySet<string> = new Set([
   "table",
   "bar",
   "line",
-  "area",
   "pie",
 ]);
 
@@ -235,7 +234,7 @@ function chartConfig(spec: WidgetSpec): Record<string, unknown> {
       columnKey: c,
       label: spec.unit ? `${humanize(c)} (${spec.unit})` : humanize(c),
       type: spec.kind === "bar" || pie ? "bar" : "line",
-      smooth: spec.kind === "line" || spec.kind === "area",
+      smooth: spec.kind === "line",
       showLabels: spec.rows.length <= 12,
     })),
     xAxisLabel: "",

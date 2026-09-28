@@ -142,6 +142,7 @@ type ActionRule =
 const ACTION_RULES: Readonly<Record<DashboardAction, ActionRule>> = {
   "dashboard.list": { level: "scope", floor: "Consumer", capability: null },
   "dashboard.load": { level: "dashboard", capability: null },
+  "dashboard.query": { level: "dashboard", capability: null },
   "dashboard.save": { level: "dashboard", capability: "canEdit" },
   "dashboard.delete": { level: "dashboard", capability: "canDelete" },
   "dashboard.permissions.read": {
@@ -172,6 +173,7 @@ const ACTION_RULES: Readonly<Record<DashboardAction, ActionRule>> = {
  */
 const EMBED_ACTIONS: ReadonlySet<DashboardAction> = new Set<DashboardAction>([
   "dashboard.load",
+  "dashboard.query",
   "datasource.query",
 ]);
 

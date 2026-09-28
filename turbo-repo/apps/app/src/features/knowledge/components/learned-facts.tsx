@@ -6,6 +6,7 @@ import { HiTrash } from "react-icons/hi";
 import { toast } from "sonner";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { cardKey } from "../hooks/use-knowledge-cards";
 import type { ConnectionCards, KnowledgeCard } from "../types";
 
 /**
@@ -35,8 +36,9 @@ export default function LearnedFacts({
   const [confirming, setConfirming] = useState<string | null>(null);
 
   async function handleDelete(connection: string, card: KnowledgeCard) {
-    if (confirming !== card.id) {
-      setConfirming(card.id);
+    const key = cardKey(connection, card.id);
+    if (confirming !== key) {
+      setConfirming(key);
       return;
     }
     const term = card.term ?? card.title ?? card.id;
@@ -123,12 +125,16 @@ export default function LearnedFacts({
                   </div>
                   <Button
                     size="xs"
-                    color={confirming === card.id ? "failure" : "light"}
-                    disabled={deleting === card.id}
+                    color={
+                      confirming === cardKey(group.connection, card.id)
+                        ? "failure"
+                        : "light"
+                    }
+                    disabled={deleting === cardKey(group.connection, card.id)}
                     onClick={() => handleDelete(group.connection, card)}
                   >
                     <HiTrash className="mr-1 h-4 w-4" />
-                    {confirming === card.id
+                    {confirming === cardKey(group.connection, card.id)
                       ? tr("confirmDelete", kn)
                       : tr("delete", kn)}
                   </Button>

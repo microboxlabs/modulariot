@@ -101,11 +101,21 @@ describe("GET /api/knowledge/trainer", () => {
     expect(res.status).toBe(401);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("passes a modulith 403 through", async () => {
+    fetchMock.mockResolvedValueOnce(json({}, 403));
+    const res = await getTrainer();
+    expect(res.status).toBe(403);
+  });
 });
 
 describe("GET /api/knowledge/cards", () => {
+  const trainer = (allowed: boolean) =>
+    json({ permissionCode: "HARNESS_TRAINER", allowed });
+
   it("lists the cards of each connection with an approved candidate", async () => {
     fetchMock
+      .mockResolvedValueOnce(trainer(true))
       .mockResolvedValueOnce(
         json([candidate("b"), candidate("a"), candidate("b")])
       )
@@ -119,16 +129,24 @@ describe("GET /api/knowledge/cards", () => {
         { connection: "b", cards: [], error: true },
       ],
     });
-    expect(fetchMock.mock.calls[0][0]).toBe(
+    expect(fetchMock.mock.calls[1][0]).toBe(
       "http://modulith.test/api/v1/orgs/acme/knowledge/candidates?status=approved&limit=500"
     );
-    expect(fetchMock.mock.calls[1][0]).toBe(
+    expect(fetchMock.mock.calls[2][0]).toBe(
       "http://modulith.test/api/v1/orgs/acme/harness/connections/a/knowledge"
     );
   });
 
-  it("answers 403 when the caller is not a trainer", async () => {
+  it("answers 403 to a non-trainer before reading the history", async () => {
+    fetchMock.mockResolvedValueOnce(trainer(false));
+    const res = await getCards();
+    expect(res.status).toBe(403);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers 403 when the harness proxy refuses", async () => {
     fetchMock
+      .mockResolvedValueOnce(trainer(true))
       .mockResolvedValueOnce(json([candidate("a")]))
       .mockResolvedValueOnce(json({ error: "forbidden" }, 403));
     const res = await getCards();

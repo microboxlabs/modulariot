@@ -4,6 +4,7 @@ import { requireAuth } from "../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../utils/tenant-scope";
 import {
   failureStatus,
+  isTrainer,
   listCandidates,
   listCards,
   type KnowledgeCard,
@@ -35,16 +36,25 @@ export async function GET() {
 
   let connectionNames: string[];
   try {
+    if (!(await isTrainer({ orgSlug, token }))) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
     const approved = await listCandidates({
       orgSlug,
       token,
       status: "approved",
       limit: 500,
     });
-    connectionNames = [...new Set(approved.map((c) => c.connection))].sort();
+    connectionNames = [...new Set(approved.map((c) => c.connection))].sort(
+      (a, b) => a.localeCompare(b)
+    );
   } catch (err) {
     logger.error({ err }, "[knowledge/cards] candidate history failed");
-    return NextResponse.json({ error: "list_failed" }, { status: 502 });
+    const status = failureStatus(err);
+    return NextResponse.json(
+      { error: status === 403 ? "forbidden" : "list_failed" },
+      { status }
+    );
   }
 
   const results = await Promise.allSettled(

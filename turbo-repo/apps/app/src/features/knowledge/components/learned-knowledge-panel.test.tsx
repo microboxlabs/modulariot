@@ -46,6 +46,7 @@ vi.mock("../hooks/use-knowledge-candidates", () => ({
 const cardsHook = vi.fn();
 vi.mock("../hooks/use-knowledge-cards", () => ({
   useKnowledgeCards: (enabled: boolean) => cardsHook(enabled),
+  cardKey: (connection: string, cardId: string) => `${connection}/${cardId}`,
 }));
 
 const dict = {

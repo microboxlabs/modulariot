@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../utils/tenant-scope";
-import { isTrainer } from "../candidates/candidates-client";
+import { failureStatus, isTrainer } from "../candidates/candidates-client";
 
 /**
  * Whether the signed-in user may review learned facts and manage cards. Only
@@ -28,6 +28,10 @@ export async function GET() {
     return NextResponse.json({ trainer });
   } catch (err) {
     logger.error({ err }, "[knowledge/trainer] check failed");
-    return NextResponse.json({ error: "check_failed" }, { status: 502 });
+    const status = failureStatus(err);
+    return NextResponse.json(
+      { error: status === 403 ? "forbidden" : "check_failed" },
+      { status }
+    );
   }
 }

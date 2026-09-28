@@ -54,6 +54,17 @@ class HarnessConversationServiceTest {
     }
 
     @Test
+    void aSaveForAnotherUserOrConversationUnderTheSameKeyIsRefused() throws Exception {
+        assertTrue(service.save(body("acme", memory("mine"))));
+        JsonNode theirs = memory("theirs");
+        ConversationMemory otherUser = new ConversationMemory(KEY, "acme", "bob@acme.test", "conv-1", null, theirs);
+        ConversationMemory otherConversation = new ConversationMemory(KEY, "acme", "ana@acme.test", "conv-2", null, theirs);
+        assertFalse(service.save(otherUser));
+        assertFalse(service.save(otherConversation));
+        assertEquals("mine", service.load(KEY, "acme").orElseThrow().memory().get("summary").asText());
+    }
+
+    @Test
     void whatCannotBeStoredIsRefused() throws Exception {
         JsonNode array = mapper.readTree("[1, 2]");
         JsonNode ok = memory("x");
@@ -94,7 +105,9 @@ class HarnessConversationServiceTest {
         @Override
         public boolean upsert(StoredConversation c) {
             StoredConversation existing = rows.get(c.key());
-            if (existing != null && !existing.tenantId().equals(c.tenantId())) {
+            if (existing != null && (!existing.tenantId().equals(c.tenantId())
+                    || !java.util.Objects.equals(existing.userId(), c.userId())
+                    || !existing.conversationId().equals(c.conversationId()))) {
                 return false;
             }
             rows.put(c.key(), c);

@@ -62,7 +62,8 @@ public class HarnessConversationsResource {
     public Uni<Response> save(@HeaderParam(HarnessKey.HEADER) String presentedKey, ConversationMemory body) {
         return guarded(presentedKey, () -> service.save(body)
                 ? Response.ok(Map.of("stored", true)).build()
-                : HarnessKey.error(Response.Status.CONFLICT, "the key belongs to another tenant"));
+                : HarnessKey.error(Response.Status.CONFLICT,
+                        "the key belongs to another tenant, user or conversation"));
     }
 
     private Uni<Response> guarded(String presentedKey, Supplier<Response> work) {

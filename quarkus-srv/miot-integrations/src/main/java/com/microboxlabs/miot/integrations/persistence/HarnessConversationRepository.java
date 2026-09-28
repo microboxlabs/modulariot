@@ -25,8 +25,9 @@ public class HarnessConversationRepository {
               FROM miot_integrations.harness_conversation
              WHERE conversation_key = $1 AND tenant_id = $2""";
 
-    // The key names the tenant, so a write for one tenant cannot replace
-    // another's row; the tenant check makes that explicit.
+    // The key names the tenant, user and conversation, so a write that
+    // disagrees with the row on any of them is a caller bug: it is refused
+    // rather than storing one identity's memory under another's.
     private static final String UPSERT = """
             INSERT INTO miot_integrations.harness_conversation (
                 conversation_key, tenant_id, user_id, conversation_id, model, memory
@@ -35,7 +36,9 @@ public class HarnessConversationRepository {
                 SET model = EXCLUDED.model,
                     memory = EXCLUDED.memory,
                     updated_at = now()
-                WHERE miot_integrations.harness_conversation.tenant_id = EXCLUDED.tenant_id""";
+                WHERE miot_integrations.harness_conversation.tenant_id = EXCLUDED.tenant_id
+                  AND miot_integrations.harness_conversation.user_id IS NOT DISTINCT FROM EXCLUDED.user_id
+                  AND miot_integrations.harness_conversation.conversation_id = EXCLUDED.conversation_id""";
 
     /** One stored conversation; {@code memory} is the harness's JSON document. */
     public record StoredConversation(
@@ -71,7 +74,7 @@ public class HarnessConversationRepository {
                 row.getOffsetDateTime("updated_at")));
     }
 
-    /** Returns false when the key already belongs to another tenant. */
+    /** Returns false when the key already belongs to another tenant, user or conversation. */
     public boolean upsert(StoredConversation c) {
         Tuple params = Tuple.tuple()
                 .addString(c.key())

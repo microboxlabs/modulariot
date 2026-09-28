@@ -14,6 +14,10 @@ class HarnessConversationSqlIntegrityTest {
         assertTrue(sql.contains("ON CONFLICT (conversation_key) DO UPDATE"), "saving is idempotent per key");
         assertTrue(sql.contains("harness_conversation.tenant_id = EXCLUDED.tenant_id"),
                 "the conflict update must be guarded by the tenant");
+        assertTrue(sql.contains("harness_conversation.user_id IS NOT DISTINCT FROM EXCLUDED.user_id"),
+                "and by the user");
+        assertTrue(sql.contains("harness_conversation.conversation_id = EXCLUDED.conversation_id"),
+                "and by the conversation");
     }
 
     @Test

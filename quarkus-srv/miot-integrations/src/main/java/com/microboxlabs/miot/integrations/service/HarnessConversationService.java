@@ -38,7 +38,7 @@ public class HarnessConversationService {
         return repository.find(k, tenant).map(this::toMemory);
     }
 
-    /** Returns false when the key already belongs to another tenant. */
+    /** Returns false when the key already belongs to another tenant, user or conversation. */
     public boolean save(ConversationMemory body) {
         if (body == null) {
             throw new IllegalArgumentException("body is required");

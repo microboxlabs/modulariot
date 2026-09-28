@@ -40,6 +40,15 @@ export interface ModelsInfo {
   models: string[];
 }
 
+export interface ThreadTitleRequest {
+  message: string;
+  answer: string;
+}
+
+export interface ThreadTitle {
+  title: string;
+}
+
 /**
  * Source-of-truth list of HarnessEventType literals. Mirrored from
  * the Python `HarnessEventType` Literal in

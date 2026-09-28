@@ -21,5 +21,7 @@ export type {
   ModelsInfo,
   RunEffort,
   SkillSummary,
+  ThreadTitle,
+  ThreadTitleRequest,
   UserRequest,
 } from "./types.js";

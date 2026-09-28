@@ -137,8 +137,8 @@ def render_connection_card(card: ConnectionCardWrite) -> str:
 def _inside(cards_dir: Path, *parts: str) -> Path:
     """`cards_dir/<parts>`, refused if it resolves outside `cards_dir`. Stems
     are already slugged; this keeps the containment check next to the I/O."""
-    root = os.path.normpath(cards_dir)
-    path = os.path.normpath(os.path.join(root, *parts))
+    root = os.path.realpath(cards_dir)
+    path = os.path.realpath(os.path.join(root, *parts))
     if not path.startswith(root + os.sep):
         raise ValueError(f"card path escapes {cards_dir}")
     return Path(path)

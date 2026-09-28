@@ -54,3 +54,18 @@ Messages from internal exceptions never reach the client.
 ## Rendering dashboards
 
 `@microboxlabs/miot-dashboard-ui` is the React component that renders and edits dashboards against this API. It takes the server's base URL and a way to obtain the token; the rest of the vocabulary they share through `@microboxlabs/miot-dashboard-contract`.
+
+## ModularIoT product API
+
+The application exposes `/api/dashboards` through its server-side session and the ModularIoT proxy. The active organization comes from authenticated membership resolution. Browser-supplied tenant identifiers and authorization headers do not select another organization or identity. The dashboard server can run in its own pod and has no Alfresco runtime dependency.
+
+| Method | Application route | Operation |
+| --- | --- | --- |
+| GET | `/api/dashboards` | List dashboards |
+| GET, PUT, DELETE | `/api/dashboards/{dashboard}` | Load, save, delete |
+| GET | `/api/dashboards/{dashboard}/capabilities` | Read allowed actions |
+| GET, PUT | `/api/dashboards/{dashboard}/permissions` | Read or replace role assignments |
+
+Keep the `ETag` from a load and send it as `If-Match` when saving. A `409` preserves the newer server version; retain the user's edits and resolve the conflict before retrying. The browser never needs the session's raw JWT.
+
+These endpoints enable a parallel migration. Existing legacy dashboard pages remain available until their replacements have been validated. This API alone does not move existing documents or switch the UI.

@@ -54,3 +54,18 @@ Los mensajes de las excepciones internas nunca llegan al cliente.
 ## Renderizar los tableros
 
 `@microboxlabs/miot-dashboard-ui` es el componente de React que dibuja y edita los tableros contra esta API. Se le indica la URL base del servidor y cómo obtener el token; el resto del vocabulario lo comparten a través de `@microboxlabs/miot-dashboard-contract`.
+
+## API de ModularIoT
+
+La aplicación expone `/api/dashboards` mediante su sesión del lado del servidor y el proxy de ModularIoT. La organización activa se obtiene de las membresías autenticadas. Los identificadores de tenant y encabezados de autorización enviados por el navegador no permiten seleccionar otra organización o identidad. El servidor de dashboards puede ejecutarse en su propio pod y no depende de Alfresco en tiempo de ejecución.
+
+| Método | Ruta de la aplicación | Operación |
+| --- | --- | --- |
+| GET | `/api/dashboards` | Listar dashboards |
+| GET, PUT, DELETE | `/api/dashboards/{dashboard}` | Cargar, guardar, eliminar |
+| GET | `/api/dashboards/{dashboard}/capabilities` | Consultar acciones permitidas |
+| GET, PUT | `/api/dashboards/{dashboard}/permissions` | Consultar o reemplazar asignaciones de roles |
+
+Conserva el `ETag` recibido al cargar y envíalo como `If-Match` al guardar. Un `409` conserva la versión más reciente del servidor; mantén los cambios del usuario y resuelve el conflicto antes de reintentar. El navegador no necesita el JWT de la sesión.
+
+Estas rutas permiten una migración en paralelo. Las páginas anteriores siguen disponibles hasta validar sus reemplazos. Esta API por sí sola no migra documentos ni cambia la interfaz.

@@ -332,9 +332,7 @@ def _memory_write(env: ToolEnv, ctx: HarnessContext, parsed: _MemoryInput) -> _M
 _MEMORY_ACTIONS = {"list": _memory_list, "read": _memory_read, "write": _memory_write}
 
 
-async def _analysis_list(
-    env: ToolEnv, ctx: HarnessContext, parsed: _AnalysisInput
-) -> _AnalysisOutput:
+def _analysis_list(env: ToolEnv, ctx: HarnessContext, parsed: _AnalysisInput) -> _AnalysisOutput:
     root = _require(env.workspace_dir, env.source_label)
     return _AnalysisOutput(
         analyses=[
@@ -345,9 +343,7 @@ async def _analysis_list(
     )
 
 
-async def _analysis_read(
-    env: ToolEnv, ctx: HarnessContext, parsed: _AnalysisInput
-) -> _AnalysisOutput:
+def _analysis_read(env: ToolEnv, ctx: HarnessContext, parsed: _AnalysisInput) -> _AnalysisOutput:
     root = _require(env.workspace_dir, env.source_label)
     analysis = ws.read_analysis(root, ctx.tenant_id, parsed.name or "")
     if analysis is None:
@@ -382,14 +378,6 @@ async def _analysis_save(
     return _AnalysisOutput(analysis=_analysis_dict(saved), rows=run.rows, source=env.source_label)
 
 
-_ANALYSIS_ACTIONS = {
-    "list": _analysis_list,
-    "read": _analysis_read,
-    "run": _analysis_run,
-    "save": _analysis_save,
-}
-
-
 def build_workspace_tools(env: ToolEnv) -> list[HarnessTool[Any, Any]]:
     if env.workspace_dir is None:
         return []
@@ -404,7 +392,13 @@ def build_workspace_tools(env: ToolEnv) -> list[HarnessTool[Any, Any]]:
     async def call_analysis(
         ctx: HarnessContext, parsed: _AnalysisInput, progress: Progress
     ) -> _AnalysisOutput:
-        return await _ANALYSIS_ACTIONS[parsed.action](env, ctx, parsed)
+        if parsed.action == "run":
+            return await _analysis_run(env, ctx, parsed)
+        if parsed.action == "save":
+            return await _analysis_save(env, ctx, parsed)
+        if parsed.action == "read":
+            return _analysis_read(env, ctx, parsed)
+        return _analysis_list(env, ctx, parsed)
 
     writable = {**common, "read_only": False}
     tools.append(

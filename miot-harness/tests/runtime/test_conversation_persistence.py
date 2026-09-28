@@ -55,7 +55,8 @@ def test_a_history_round_trips_through_its_document() -> None:
     messages = back.turns[0].messages
     assert isinstance(messages[1], AIMessage)
     assert messages[1].tool_calls[0]["args"] == {"sql": "select count(*)"}
-    assert isinstance(messages[2], ToolMessage) and messages[2].tool_call_id == "t1"
+    assert isinstance(messages[2], ToolMessage)
+    assert messages[2].tool_call_id == "t1"
 
 
 class _Backend:
@@ -123,7 +124,8 @@ async def test_a_restarted_harness_picks_up_the_tool_history(tmp_path: Any) -> N
 
     prior = loop.priors[0]
     calls = [m for m in prior if isinstance(m, AIMessage) and m.tool_calls]
-    assert calls and calls[0].tool_calls[0]["args"] == {"sql": "select count(*)"}
+    assert calls
+    assert calls[0].tool_calls[0]["args"] == {"sql": "select count(*)"}
     assert any(isinstance(m, ToolMessage) for m in prior)
 
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { conversationOf, priorTurns, type AgUiMessage } from "./conversation";
+import { conversationOf, NO_ANSWER, priorTurns, type AgUiMessage } from "./conversation";
 
 const user = (id: string, content: unknown): AgUiMessage => ({
   id,
@@ -32,7 +32,7 @@ describe("priorTurns", () => {
     expect(priorTurns([user("u1", "hola")])).toEqual([]);
   });
 
-  it("takes the question the assistant actually answered", () => {
+  it("keeps a question that got no answer, marked as such", () => {
     // The first question got no answer — a failed run leaves nothing behind.
     const turns = priorTurns([
       user("u1", "unanswered"),
@@ -41,7 +41,26 @@ describe("priorTurns", () => {
       user("u3", "next"),
     ]);
 
-    expect(turns).toEqual([{ user_message: "asked again", assistant_answer: "here" }]);
+    expect(turns).toEqual([
+      { user_message: "unanswered", assistant_answer: NO_ANSWER },
+      { user_message: "asked again", assistant_answer: "here" },
+    ]);
+  });
+
+  it("keeps an unanswered question right before the current one", () => {
+    // Dev, 2026-09-28: the first question's run never finished and the
+    // follow-up "me respondes?" reached the model with no history at all.
+    const turns = priorTurns([
+      user("u1", "/selectables cuantos seleccionables existen actualmente"),
+      user("u2", "me respondes?"),
+    ]);
+
+    expect(turns).toEqual([
+      {
+        user_message: "/selectables cuantos seleccionables existen actualmente",
+        assistant_answer: NO_ANSWER,
+      },
+    ]);
   });
 
   it("reads the text parts of a message that carried more than text", () => {

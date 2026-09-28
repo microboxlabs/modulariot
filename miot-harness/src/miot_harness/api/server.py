@@ -45,6 +45,7 @@ from miot_harness.context_skills.loader import (
     ActiveConnections,
     boot_context_skills,
 )
+from miot_harness.context_skills.seed import PACKAGED_DEFAULTS, refresh_defaults
 from miot_harness.context_skills.skill_models import SkillSummary
 from miot_harness.datasource.knowledge.distiller import distill_episodes
 from miot_harness.datasource.knowledge.loader import load_connection_cards
@@ -84,9 +85,7 @@ def _configure_logging(settings: HarnessSettings) -> None:
     pkg_logger.setLevel(settings.log_level)
     if not pkg_logger.handlers:
         handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
-        )
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
         pkg_logger.addHandler(handler)
 
 
@@ -239,15 +238,11 @@ def _make_lifespan(
         # Keep the resolved Connection objects (not just the JSON summary in
         # app.state.connections) so the knowledge-write endpoint can resolve a
         # connection to its on-disk source_path + tenant scope.
-        app.state.connection_objects = {
-            c.name: c for c in conn_result.connections
-        }
+        app.state.connection_objects = {c.name: c for c in conn_result.connections}
         for conn_diag in conn_result.diagnostics:
-            (
-                logger.error
-                if conn_diag.level == "error"
-                else logger.warning
-            )("Connections: %s (%s)", conn_diag.message, conn_diag.path)
+            (logger.error if conn_diag.level == "error" else logger.warning)(
+                "Connections: %s (%s)", conn_diag.message, conn_diag.path
+            )
 
         # The primary connection's provider supplies the profile and the tenant
         # lock. Resolve it even when nothing booted, so the loop still has a
@@ -268,21 +263,16 @@ def _make_lifespan(
             provider = resolve_datasource(primary_kind)
         except ValueError:
             logger.error(
-                "Primary connection backend %r has no provider; using %r for "
-                "profile wiring",
+                "Primary connection backend %r has no provider; using %r for profile wiring",
                 primary_kind,
                 settings.datasource_kind,
             )
             provider = resolve_datasource(settings.datasource_kind)
         app.state.datasource_provider = provider
         harness.profile = provider.profile
-        primary_lock = (
-            primary.options.get("tenant_lock") if primary is not None else None
-        )
+        primary_lock = primary.options.get("tenant_lock") if primary is not None else None
         resolved_lock = (
-            primary_lock
-            or settings.datasource_tenant_lock
-            or provider.profile.tenant_lock
+            primary_lock or settings.datasource_tenant_lock or provider.profile.tenant_lock
         )
         if resolved_lock is not None:
             harness.tenant_lock = resolved_lock
@@ -308,17 +298,13 @@ def _make_lifespan(
             # (resolve_datasource raises ValueError) or a provider boot error
             # must disable just that connection, never abort the lifespan.
             try:
-                conn_provider = (
-                    provider if is_primary else resolve_datasource(conn.backend)
-                )
+                conn_provider = provider if is_primary else resolve_datasource(conn.backend)
                 if not is_primary:
                     providers_to_close.append(conn_provider)
                 boot_res = await conn_provider.boot(harness.tools, settings, conn)
             except Exception as exc:  # noqa: BLE001 — a bad connection mustn't abort boot
                 logger.critical("Connection %s: boot failed (%s)", conn.name, exc)
-                boot_res = BootResult(
-                    enabled=False, registered=(), reason=f"boot failed: {exc}"
-                )
+                boot_res = BootResult(enabled=False, registered=(), reason=f"boot failed: {exc}")
             summary = boot_res.schema_summary
             app.state.connections[conn.name] = {
                 "backend": conn.backend,
@@ -361,9 +347,7 @@ def _make_lifespan(
                     parts.append(conn.primer)
                 for dp in boot_res.detected_packs:
                     ver = f" (v{dp.version})" if dp.version else ""
-                    card_titles = "; ".join(
-                        f"{c.id}: {c.title}" for c in dp.pack.cards
-                    )
+                    card_titles = "; ".join(f"{c.id}: {c.title}" for c in dp.pack.cards)
                     parts.append(
                         f"**Knowledge pack: {dp.pack.title}{ver}**\n{dp.pack.overview}"
                         + (
@@ -396,9 +380,7 @@ def _make_lifespan(
             name: {
                 "status": probe.status,
                 "age_minutes": probe.age_minutes,
-                "refreshed_at": (
-                    probe.refreshed_at.isoformat() if probe.refreshed_at else None
-                ),
+                "refreshed_at": (probe.refreshed_at.isoformat() if probe.refreshed_at else None),
             }
             for name, probe in result.freshness.items()
         }
@@ -420,18 +402,14 @@ def _make_lifespan(
         # process lifetime (cache prefix stays hot).
         primer_sections: list[str] = [provider.profile.primer]
         if ckb_blocks:
-            primer_sections.append(
-                "# Connected data sources\n" + "\n\n".join(ckb_blocks)
-            )
+            primer_sections.append("# Connected data sources\n" + "\n\n".join(ckb_blocks))
         # Active connection landscape for connection-bound skills (Phase 4): a
         # skill bound to a connection name / capability surfaces only when a
         # matching connection booted enabled. `known` spans every configured
         # connection so the loader can flag a typo'd binding distinctly from a
         # connection that merely failed to boot.
         enabled_names = {
-            name
-            for name, conn_state in app.state.connections.items()
-            if conn_state.get("enabled")
+            name for name, conn_state in app.state.connections.items() if conn_state.get("enabled")
         }
         active_connections = ActiveConnections(
             enabled=frozenset(enabled_names),
@@ -444,10 +422,16 @@ def _make_lifespan(
             ),
             known=frozenset(conn.name for conn in conn_result.connections),
         )
+        if settings.refresh_packaged_defaults:
+            try:
+                if settings.context_source_kind == "file":
+                    refresh_defaults(PACKAGED_DEFAULTS / "context", settings.context_dir)
+                if settings.skills_source_kind == "file":
+                    refresh_defaults(PACKAGED_DEFAULTS / "skills", settings.skills_dir)
+            except Exception:
+                logger.exception("Refreshing packaged context/skills failed; using what is there")
         try:
-            cs = boot_context_skills(
-                harness.tools, settings, active_connections=active_connections
-            )
+            cs = boot_context_skills(harness.tools, settings, active_connections=active_connections)
             harness.context_skills = cs.bundle
             app.state.context_skills_registered = list(cs.registered_tools)
             app.state.context_skills_diagnostics = list(cs.diagnostics)
@@ -477,9 +461,7 @@ def _make_lifespan(
         )
 
         if not result.enabled:
-            logger.info(
-                "Datasource %s: disabled (%s)", provider.profile.name, result.reason
-            )
+            logger.info("Datasource %s: disabled (%s)", provider.profile.name, result.reason)
         else:
             logger.info(
                 "Datasource %s: %d tools registered",
@@ -528,9 +510,7 @@ def _make_lifespan(
                 try:
                     await provider.close()
                 except Exception as close_exc:  # noqa: BLE001
-                    logger.warning(
-                        "Datasource: provider close raised %s", close_exc
-                    )
+                    logger.warning("Datasource: provider close raised %s", close_exc)
 
         try:
             yield
@@ -587,9 +567,7 @@ def _build_agent_loop(
     profile: DataSourceProfile,
 ) -> AgentLoopRunners:
     """One runner per offered model, built on first use; seats when configured."""
-    provenance = ProvenanceLog(
-        settings.provenance_log_dir, enabled=settings.provenance_log_enabled
-    )
+    provenance = ProvenanceLog(settings.provenance_log_dir, enabled=settings.provenance_log_enabled)
     seats = LoopSeats(
         advisor=(
             AdvisorSeat(
@@ -682,9 +660,7 @@ def create_app() -> FastAPI:
                     return Response(status_code=401, content="invalid identity")
         return await call_next(request)
 
-    def _resolve_request_identity(
-        request: Request, body: UserRequest
-    ) -> UserRequest:
+    def _resolve_request_identity(request: Request, body: UserRequest) -> UserRequest:
         """Reconcile the verified header (if any) with the request body.
 
         - Header present and verified: header wins, body-supplied
@@ -703,9 +679,7 @@ def create_app() -> FastAPI:
                 }
             )
         if settings.identity_signing_key is not None:
-            raise HTTPException(
-                status_code=401, detail="X-MIOT-Identity required"
-            )
+            raise HTTPException(status_code=401, detail="X-MIOT-Identity required")
         return body
 
     async def require_auth(request: Request) -> Mapping[str, Any]:
@@ -735,9 +709,7 @@ def create_app() -> FastAPI:
             # real tenant instead of silently falling back. Absent header → None,
             # which `_apply_tenant_override` turns into a 400 unless the caller
             # supplied a body tenant (the dev/test escape hatch).
-            header_tenant = (
-                request.headers.get("X-Miot-Tenant-Client-Id") or ""
-            ).strip() or None
+            header_tenant = (request.headers.get("X-Miot-Tenant-Client-Id") or "").strip() or None
             return {"claims": {}, "tenant_id": header_tenant}
 
         auth_header = request.headers.get("Authorization") or ""
@@ -792,9 +764,7 @@ def create_app() -> FastAPI:
                 headers={"Retry-After": "5"},
             ) from exc
 
-        header_tenant = (
-            request.headers.get("X-Miot-Tenant-Client-Id") or ""
-        ).strip() or None
+        header_tenant = (request.headers.get("X-Miot-Tenant-Client-Id") or "").strip() or None
         if header_tenant is None:
             raise HTTPException(
                 status_code=401,
@@ -807,17 +777,11 @@ def create_app() -> FastAPI:
         """The caller's bearer token and organization slug, as the backend
         proxy forwarded them, for MCP skills to call back with."""
         auth_header = http_request.headers.get("Authorization") or ""
-        token = (
-            auth_header[len("Bearer ") :].strip()
-            if auth_header.startswith("Bearer ")
-            else ""
-        )
+        token = auth_header[len("Bearer ") :].strip() if auth_header.startswith("Bearer ") else ""
         organization = (http_request.headers.get("X-Miot-Organization") or "").strip()
         return {"caller_token": token or None, "organization": organization or None}
 
-    def _apply_tenant_override(
-        user_request: UserRequest, auth: Mapping[str, Any]
-    ) -> UserRequest:
+    def _apply_tenant_override(user_request: UserRequest, auth: Mapping[str, Any]) -> UserRequest:
         """Resolve the run's tenant and enforce that one exists.
 
         A verified ``X-Miot-Tenant-Client-Id`` header (set by the Quarkus
@@ -836,9 +800,7 @@ def create_app() -> FastAPI:
                 user_request.tenant_id,
                 header_tenant,
             )
-            user_request = user_request.model_copy(
-                update={"tenant_id": header_tenant}
-            )
+            user_request = user_request.model_copy(update={"tenant_id": header_tenant})
         if not user_request.tenant_id:
             logger.error(
                 "Run rejected: unresolved tenant — no X-Miot-Tenant-Client-Id "
@@ -846,17 +808,13 @@ def create_app() -> FastAPI:
                 "never defaulted; verify the request is routed through the "
                 "Quarkus org proxy."
             )
-            raise HTTPException(
-                status_code=400, detail="missing_required_tenant"
-            )
+            raise HTTPException(status_code=400, detail="missing_required_tenant")
         return user_request
 
     @app.get("/health")
     async def health() -> dict[str, object]:
         provider = getattr(app.state, "datasource_provider", None)
-        ds_name = (
-            provider.profile.name if provider is not None else settings.datasource_kind
-        )
+        ds_name = provider.profile.name if provider is not None else settings.datasource_kind
         diagnostics = getattr(app.state, "context_skills_diagnostics", [])
         return {
             "status": "ok",
@@ -869,12 +827,9 @@ def create_app() -> FastAPI:
                 "freshness": getattr(app.state, "datasource_freshness", {}),
             },
             "context_skills": {
-                "connector_tools": list(
-                    getattr(app.state, "context_skills_registered", [])
-                ),
+                "connector_tools": list(getattr(app.state, "context_skills_registered", [])),
                 "diagnostics": [
-                    {"level": d.level, "path": d.path, "message": d.message}
-                    for d in diagnostics
+                    {"level": d.level, "path": d.path, "message": d.message} for d in diagnostics
                 ],
             },
         }
@@ -904,18 +859,14 @@ def create_app() -> FastAPI:
         # manifest, unsafe connector) fails readiness so a bad ConfigMap is
         # caught before the pod takes traffic. Default off = log-and-serve.
         cs_errors = [
-            d
-            for d in getattr(app.state, "context_skills_diagnostics", [])
-            if d.level == "error"
+            d for d in getattr(app.state, "context_skills_diagnostics", []) if d.level == "error"
         ]
         if settings.context_skills_strict and cs_errors:
             ready = False
         if not ready:
             response.status_code = 503
         provider = getattr(app.state, "datasource_provider", None)
-        ds_name = (
-            provider.profile.name if provider is not None else settings.datasource_kind
-        )
+        ds_name = provider.profile.name if provider is not None else settings.datasource_kind
         return {
             "status": "ready" if ready else "not_ready",
             "env": settings.env,
@@ -981,9 +932,7 @@ def create_app() -> FastAPI:
             record = harness.run_store.load(run_id)
         except FileNotFoundError as exc:
             # An unknown run is a 404, not a 500 leaked from the store.
-            raise HTTPException(
-                status_code=404, detail=f"unknown run_id {run_id!r}"
-            ) from exc
+            raise HTTPException(status_code=404, detail=f"unknown run_id {run_id!r}") from exc
         _enforce_tenant_owns_run(record, auth, run_id)
         return record
 
@@ -1022,9 +971,7 @@ def create_app() -> FastAPI:
         _enforce_model_allowlist(request)
         run_id = f"run_{uuid4().hex}"
         task = asyncio.create_task(
-            app.state.harness.run(
-                request, run_id_override=run_id, **_caller(http_request)
-            )
+            app.state.harness.run(request, run_id_override=run_id, **_caller(http_request))
         )
         app.state.in_flight[run_id] = task
         # Track the tenant for in-flight runs so /stream can reject
@@ -1059,9 +1006,7 @@ def create_app() -> FastAPI:
         # collapsed into the same response so leaked approval_ids don't
         # leak ownership through differential 403/404 responses.
         registry = app.state.harness.approval_registry
-        if registry is None or not registry.resolve(
-            approval_id, body.decision, run_id
-        ):
+        if registry is None or not registry.resolve(approval_id, body.decision, run_id):
             raise HTTPException(status_code=404, detail="Approval not pending")
         return Response(status_code=204)
 
@@ -1078,9 +1023,7 @@ def create_app() -> FastAPI:
         # 404 as a missing run — no existence leak.
         task = app.state.in_flight.get(run_id)
         caller = auth.get("tenant_id")
-        if task is None or (
-            caller and app.state.in_flight_tenants.get(run_id) != caller
-        ):
+        if task is None or (caller and app.state.in_flight_tenants.get(run_id) != caller):
             raise HTTPException(status_code=404, detail="Run not in flight")
         task.cancel()
         return Response(status_code=204)
@@ -1099,13 +1042,9 @@ def create_app() -> FastAPI:
         endpoint only writes what an authenticated, tenant-authorized caller
         approved.
         """
-        conn: Connection | None = getattr(
-            app.state, "connection_objects", {}
-        ).get(connection)
+        conn: Connection | None = getattr(app.state, "connection_objects", {}).get(connection)
         if conn is None:
-            raise HTTPException(
-                status_code=404, detail=f"unknown connection {connection!r}"
-            )
+            raise HTTPException(status_code=404, detail=f"unknown connection {connection!r}")
         _enforce_tenant_may_write_connection(conn, auth, connection)
 
         # A personal fact never becomes a shared connection card — it would leak
@@ -1170,13 +1109,9 @@ def create_app() -> FastAPI:
         """
         if not settings.knowledge_distiller_enabled:
             raise HTTPException(status_code=503, detail="knowledge distiller disabled")
-        conn: Connection | None = getattr(
-            app.state, "connection_objects", {}
-        ).get(connection)
+        conn: Connection | None = getattr(app.state, "connection_objects", {}).get(connection)
         if conn is None:
-            raise HTTPException(
-                status_code=404, detail=f"unknown connection {connection!r}"
-            )
+            raise HTTPException(status_code=404, detail=f"unknown connection {connection!r}")
         _enforce_tenant_may_write_connection(conn, auth, connection)
 
         # Skip terms this connection already grounds — the distiller proposes only
@@ -1186,9 +1121,7 @@ def create_app() -> FastAPI:
         source_path = conn.source_path
         if source_path and not source_path.startswith("<"):
             cards_dir = Path(source_path).parent / "knowledge"
-            existing_terms = [
-                c.term or c.id for c in load_connection_cards(cards_dir).cards
-            ]
+            existing_terms = [c.term or c.id for c in load_connection_cards(cards_dir).cards]
 
         # Tests inject a stub via app.state.distiller_model; prod builds the seat
         # on demand (a background batch call, not the hot path).
@@ -1289,9 +1222,7 @@ def _enforce_tenant_may_write_connection(
         )
 
 
-def _enforce_tenant_owns_stream(
-    app: FastAPI, run_id: str, auth: Mapping[str, Any]
-) -> None:
+def _enforce_tenant_owns_stream(app: FastAPI, run_id: str, auth: Mapping[str, Any]) -> None:
     """SSE-side counterpart to ``_enforce_tenant_owns_run``: checks
     the in-flight tenant tracker first (for runs that have not yet
     persisted) and falls back to the on-disk record. An unknown
@@ -1350,11 +1281,7 @@ def _enforce_debug_allowlist(request: UserRequest, settings: HarnessSettings) ->
 
 
 def _format_sse_event(evt: HarnessEvent) -> bytes:
-    return (
-        f"id: {evt.id}\n"
-        f"event: {evt.type}\n"
-        f"data: {evt.model_dump_json()}\n\n"
-    ).encode()
+    return (f"id: {evt.id}\nevent: {evt.type}\ndata: {evt.model_dump_json()}\n\n").encode()
 
 
 def _format_sse_error(run_id: str, error: str) -> bytes:

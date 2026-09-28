@@ -153,6 +153,9 @@ class HarnessSettings(BaseSettings):
     # `get_settings()` stays side-effect-free.
     context_dir: Path = Path(__file__).parent / "context_skills" / "defaults" / "context"
     skills_dir: Path = Path(__file__).parent / "context_skills" / "defaults" / "skills"
+    # When the dirs above are not the packaged ones, copy newer packaged
+    # files into them at boot (context_skills/seed.py).
+    refresh_packaged_defaults: bool = True
     # Source-kind seam for the future API/DB-backed source (Phase 2).
     context_source_kind: str = "file"
     skills_source_kind: str = "file"

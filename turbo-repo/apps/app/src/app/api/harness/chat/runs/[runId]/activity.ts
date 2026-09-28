@@ -64,7 +64,7 @@ class ActivityBuilder {
     return {
       id: str(event.data.call_id) ?? event.id,
       tool,
-      label: stepLabel(tool, this.tr),
+      label: stepLabel(tool, this.tr, event.data.args),
       args: event.data.args ?? null,
       argsTruncated: event.data.args_truncated === true,
       preview: null,

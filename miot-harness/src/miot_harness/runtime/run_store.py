@@ -82,6 +82,11 @@ class RunDelegate(BaseModel):
     status: str
 
 
+class RunPendingApproval(BaseModel):
+    approval_id: str
+    tool: str | None = None
+
+
 class RunUsage(BaseModel):
     """`input_tokens` excludes the prompt read from or written to the cache,
     which the cache fields count."""
@@ -108,6 +113,8 @@ class RunSummary(BaseModel):
     last_step: RunStep | None = None
     usage: RunUsage = Field(default_factory=RunUsage)
     delegates: list[RunDelegate] = Field(default_factory=list)
+    # A call the run is waiting for the user to approve.
+    pending_approval: RunPendingApproval | None = None
 
 
 def _last_step(events: list[HarnessEvent]) -> RunStep | None:
@@ -147,6 +154,24 @@ def _delegates(events: list[HarnessEvent]) -> list[RunDelegate]:
     return delegates
 
 
+def _pending_approval(events: list[HarnessEvent]) -> RunPendingApproval | None:
+    resolved = {e.data.get("approval_id") for e in events if e.type == "approval.resolved"}
+    for event in reversed(events):
+        approval_id = event.data.get("approval_id")
+        # Concurrent delegates can resolve a later approval before an earlier one.
+        if (
+            event.type != "approval.requested"
+            or not isinstance(approval_id, str)
+            or approval_id in resolved
+        ):
+            continue
+        tool = event.data.get("tool")
+        return RunPendingApproval(
+            approval_id=approval_id, tool=tool if isinstance(tool, str) else None
+        )
+    return None
+
+
 def summarize(record: HarnessRunRecord) -> RunSummary:
     events = record.events
     finished = record.status in _TERMINAL and bool(events)
@@ -163,6 +188,7 @@ def summarize(record: HarnessRunRecord) -> RunSummary:
         last_step=_last_step(events),
         usage=_usage(events),
         delegates=_delegates(events),
+        pending_approval=_pending_approval(events) if record.status == "running" else None,
     )
 
 

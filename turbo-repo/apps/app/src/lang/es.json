@@ -5579,6 +5579,18 @@
         "source_read": "Leyendo el código y la documentación del producto",
         "source_list": "Recorriendo el código y la documentación del producto"
       },
+      "mcpSteps": {
+        "stories_list": "Buscando historias",
+        "stories_get": "Leyendo historia",
+        "stories_create": "Guardando la historia",
+        "stories_add_version": "Guardando una versión",
+        "stories_link": "Creando el enlace",
+        "connections_create": "Creando conexión",
+        "connections_test": "Probando conexión",
+        "connections": "Revisando conexiones",
+        "selectables": "Revisando listas",
+        "other": "Usando {tool}"
+      },
       "noAnswer": "El harness no devolvió una respuesta.",
       "unconfigured": "El harness no está configurado en este entorno — esta es una respuesta de marcador de posición.",
       "demo": {
@@ -5647,7 +5659,8 @@
         "forkFromHere": "Bifurcar desde aquí",
         "forkToContinue": "Bifúrcalo para continuarlo como tuyo",
         "working": "Trabajando…",
-        "elapsed": "Tiempo transcurrido"
+        "elapsed": "Tiempo transcurrido",
+        "awaitingApproval": "Esperando aprobación"
       },
       "attachments": {
         "removeImage": "Quitar imagen"
@@ -5720,6 +5733,39 @@
         "otherAriaLabel": "Otro",
         "submit": "Enviar"
       },
+      "approval": {
+        "heading": "Se necesita tu aprobación",
+        "actions": {
+          "stories_create": "Guardar historia",
+          "stories_add_version": "Guardar una nueva versión",
+          "stories_set_current": "Cambiar la versión actual de una historia",
+          "stories_link": "Crear el enlace de una historia",
+          "connections_create": "Crear conexión",
+          "connections_test": "Probar una conexión",
+          "selectables_replace": "Reemplazar la lista",
+          "selectables_delete": "Eliminar la lista",
+          "selectables_bind": "Vincular listas a campos"
+        },
+        "kind": "Tipo",
+        "description": "Descripción",
+        "content": "Contenido",
+        "showAll": "Ver todo",
+        "showLess": "Ver menos",
+        "truncated": "Parte de los datos se acortó para mostrarla.",
+        "approve": "Aprobar",
+        "reject": "Rechazar",
+        "commentPlaceholder": "Motivo (opcional)",
+        "confirmReject": "Confirmar rechazo",
+        "cancel": "Cancelar",
+        "sending": "Enviando…",
+        "sent": "Decisión enviada. Esperando al asistente…",
+        "approved": "Aprobado",
+        "rejected": "Rechazado",
+        "expired": "Sin respuesta: la ejecución terminó",
+        "by": "por {by}",
+        "notPending": "Esta solicitud ya no está pendiente.",
+        "failed": "No se pudo enviar tu decisión. Inténtalo de nuevo."
+      },
       "activity": {
         "label": "Actividad",
         "summary": "{count} pasos · {duration}",
@@ -5753,7 +5799,8 @@
         "delegates": "Subtareas",
         "toastDone": "Listo: {title}",
         "toastFailed": "Falló: {title}",
-        "toastOpen": "Abrir"
+        "toastOpen": "Abrir",
+        "awaitingApproval": "Esperando tu aprobación"
       },
       "menu": {
         "open": "Más opciones",

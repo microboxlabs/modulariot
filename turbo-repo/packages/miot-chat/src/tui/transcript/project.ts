@@ -30,6 +30,17 @@ export function applyHarnessEvent(
     case "run.started":
       return { ...slice, currentRunId: runId };
 
+    case "approval.resolved": {
+      // Decided here or by another client: the modal no longer applies.
+      const approvalId = event.data.approval_id;
+      return {
+        ...slice,
+        pendingApprovals: slice.pendingApprovals.filter(
+          (p) => p.data.approval_id !== approvalId,
+        ),
+      };
+    }
+
     case "approval.auto":
     case "steering.mode_denied":
     case "grounding.gap":

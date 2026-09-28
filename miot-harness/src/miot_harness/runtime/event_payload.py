@@ -15,10 +15,12 @@ from miot_harness.utils.truncation import truncate_for_trace
 
 ARGS_BYTES_CAP = 4096
 PREVIEW_BYTES_CAP = 2048
+# What the user reads before approving a call: room for a document's text.
+APPROVAL_INPUT_BYTES_CAP = 16384
 REDACTED = "[redacted]"
 
 _SECRET_KEY = re.compile(
-    r"password|passwd|token(?!s)|secret|dsn|authorization|api[_-]?key|credential",
+    r"password|passwd|token(?!s)|secret|dsn|authorization|api[_-]?key|private[_-]?key|credential",
     re.IGNORECASE,
 )
 _DATA_URI = re.compile(r"^data:[\w.+-]+/[\w.+-]+;base64,", re.IGNORECASE)

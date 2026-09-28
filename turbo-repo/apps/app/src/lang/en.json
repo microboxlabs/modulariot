@@ -5579,6 +5579,18 @@
         "source_read": "Reading the product's code and docs",
         "source_list": "Browsing the product's code and docs"
       },
+      "mcpSteps": {
+        "stories_list": "Searching stories",
+        "stories_get": "Reading story",
+        "stories_create": "Saving the story",
+        "stories_add_version": "Saving a version",
+        "stories_link": "Creating the link",
+        "connections_create": "Creating connection",
+        "connections_test": "Testing connection",
+        "connections": "Checking connections",
+        "selectables": "Checking lists",
+        "other": "Using {tool}"
+      },
       "noAnswer": "The harness didn't return an answer.",
       "unconfigured": "The harness isn't configured in this environment — this is a placeholder response.",
       "demo": {
@@ -5647,7 +5659,8 @@
         "forkFromHere": "Fork from here",
         "forkToContinue": "Fork it to continue as your own",
         "working": "Working…",
-        "elapsed": "Elapsed time"
+        "elapsed": "Elapsed time",
+        "awaitingApproval": "Waiting for approval"
       },
       "attachments": {
         "removeImage": "Remove image"
@@ -5720,6 +5733,39 @@
         "otherAriaLabel": "Other",
         "submit": "Submit"
       },
+      "approval": {
+        "heading": "Needs your approval",
+        "actions": {
+          "stories_create": "Save story",
+          "stories_add_version": "Save a new version",
+          "stories_set_current": "Change a story's current version",
+          "stories_link": "Create a story's link",
+          "connections_create": "Create connection",
+          "connections_test": "Test a connection",
+          "selectables_replace": "Replace list",
+          "selectables_delete": "Delete list",
+          "selectables_bind": "Bind lists to fields"
+        },
+        "kind": "Kind",
+        "description": "Description",
+        "content": "Content",
+        "showAll": "Show all",
+        "showLess": "Show less",
+        "truncated": "Part of the input was shortened for display.",
+        "approve": "Approve",
+        "reject": "Reject",
+        "commentPlaceholder": "Reason (optional)",
+        "confirmReject": "Confirm rejection",
+        "cancel": "Cancel",
+        "sending": "Sending…",
+        "sent": "Decision sent. Waiting for the assistant…",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "expired": "No answer: the run ended",
+        "by": "by {by}",
+        "notPending": "This request is no longer pending.",
+        "failed": "Your decision could not be sent. Try again."
+      },
       "activity": {
         "label": "Activity",
         "summary": "{count} steps · {duration}",
@@ -5753,7 +5799,8 @@
         "delegates": "Subtasks",
         "toastDone": "Done: {title}",
         "toastFailed": "Failed: {title}",
-        "toastOpen": "Open"
+        "toastOpen": "Open",
+        "awaitingApproval": "Waiting for your approval"
       },
       "menu": {
         "open": "More options",

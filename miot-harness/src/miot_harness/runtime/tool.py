@@ -6,8 +6,15 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from miot_harness.runtime.approvals import ApprovalResolution
 from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.event_payload import args_payload, preview_payload, scrub_text
+from miot_harness.runtime.event_payload import (
+    APPROVAL_INPUT_BYTES_CAP,
+    args_payload,
+    bounded,
+    preview_payload,
+    scrub_text,
+)
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.permissions import (
     PermissionDecision,
@@ -125,6 +132,13 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                 )
             else:
                 approval_id = uuid4().hex
+                # The user decides from this input, and it is stored with the
+                # run: secrets are redacted and big values shortened.
+                shown_input, input_truncated = bounded(input_dump, APPROVAL_INPUT_BYTES_CAP)
+                registry = ctx.approval_registry
+                # Registered before the event goes out, so a decision posted
+                # as soon as the event arrives finds it.
+                event = registry.register(approval_id, ctx.run_id) if registry is not None else None
                 progress(
                     HarnessEvent(
                         run_id=ctx.run_id,
@@ -132,13 +146,13 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                         message=permission.reason,
                         data={
                             "tool": self.name,
-                            "input": input_dump,
+                            "input": shown_input,
                             "approval_id": approval_id,
+                            **({"input_truncated": True} if input_truncated else {}),
                         },
                     )
                 )
-                registry = ctx.approval_registry
-                if registry is None:
+                if registry is None or event is None:
                     # No human-in-the-loop wired (CLI / eval path). Refusing
                     # is safer than silently proceeding — the caller has no
                     # way to approve.
@@ -147,18 +161,20 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                         progress, ctx, self.name, reason, "PermissionError", call_id=call_id
                     )
                     raise PermissionError(reason)
-                event = registry.register(approval_id, ctx.run_id)
                 try:
                     await event.wait()
-                    decision = registry.decision(approval_id)
+                    resolution = registry.resolution(approval_id)
                 finally:
                     # Always discard so a cancelled wait (e.g. POST
                     # /runs/{id}/cancel during an approval pause) doesn't
                     # leak the registry entry. Without this, _pending grows
                     # unbounded across the process lifetime.
                     registry.discard(approval_id)
-                if decision != "approve":
-                    reason = f"approval {approval_id} denied"
+                progress(_resolved_event(ctx, self.name, approval_id, resolution))
+                if resolution is None or resolution.decision != "approve":
+                    reason = f"approval {approval_id} denied by the user"
+                    if resolution is not None and resolution.comment:
+                        reason += f": {resolution.comment}"
                     _emit_failed(
                         progress, ctx, self.name, reason, "PermissionError", call_id=call_id
                     )
@@ -214,6 +230,30 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
             )
         )
         return self.output_model.model_validate(output)
+
+
+def _resolved_event(
+    ctx: HarnessContext,
+    tool: str,
+    approval_id: str,
+    resolution: ApprovalResolution | None,
+) -> HarnessEvent:
+    data: dict[str, Any] = {
+        "tool": tool,
+        "approval_id": approval_id,
+        "decision": resolution.decision if resolution is not None else "deny",
+    }
+    if resolution is not None and resolution.comment:
+        data["comment"] = resolution.comment
+    if resolution is not None and resolution.resolved_by:
+        data["resolved_by"] = resolution.resolved_by
+    verb = "Approved" if data["decision"] == "approve" else "Rejected"
+    return HarnessEvent(
+        run_id=ctx.run_id,
+        type="approval.resolved",
+        message=f"{verb} {tool}",
+        data=data,
+    )
 
 
 def _emit_failed(

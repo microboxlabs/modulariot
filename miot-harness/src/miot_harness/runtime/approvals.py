@@ -25,6 +25,15 @@ class _PendingApproval:
     run_id: str
     event: asyncio.Event = field(default_factory=asyncio.Event)
     decision: ApprovalDecision | None = None
+    comment: str | None = None
+    resolved_by: str | None = None
+
+
+@dataclass(frozen=True)
+class ApprovalResolution:
+    decision: ApprovalDecision
+    comment: str | None = None
+    resolved_by: str | None = None
 
 
 class ApprovalRegistry:
@@ -48,7 +57,13 @@ class ApprovalRegistry:
         return entry.event
 
     def resolve(
-        self, approval_id: str, decision: ApprovalDecision, run_id: str
+        self,
+        approval_id: str,
+        decision: ApprovalDecision,
+        run_id: str,
+        *,
+        comment: str | None = None,
+        resolved_by: str | None = None,
     ) -> bool:
         """Set the decision and unblock the waiter. Returns False when
         - no approval with that id is pending (never requested or
@@ -70,6 +85,8 @@ class ApprovalRegistry:
         if entry is None or entry.run_id != run_id or entry.event.is_set():
             return False
         entry.decision = decision
+        entry.comment = comment
+        entry.resolved_by = resolved_by
         entry.event.set()
         return True
 
@@ -79,6 +96,14 @@ class ApprovalRegistry:
         """
         entry = self._pending.get(approval_id)
         return entry.decision if entry is not None else None
+
+    def resolution(self, approval_id: str) -> ApprovalResolution | None:
+        """The decision with who made it and their comment; None while the
+        approval is still pending or unknown."""
+        entry = self._pending.get(approval_id)
+        if entry is None or entry.decision is None:
+            return None
+        return ApprovalResolution(entry.decision, entry.comment, entry.resolved_by)
 
     def discard(self, approval_id: str) -> None:
         """Remove the approval entry. Called by the waiter once it has

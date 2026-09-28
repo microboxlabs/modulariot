@@ -116,6 +116,35 @@ def test_summary_lists_delegates() -> None:
     assert summary.finished_at is None
 
 
+def test_summary_shows_the_approval_a_running_run_waits_for() -> None:
+    events = [
+        _event("run_a", "approval.requested", 0, approval_id="a1", tool="mcp_call"),
+        _event("run_a", "approval.resolved", 1, approval_id="a1", decision="approve"),
+        _event("run_a", "approval.requested", 2, approval_id="a2", tool="mcp_call"),
+    ]
+    waiting = summarize(HarnessRunRecord(run_id="run_a", status="running", events=events))
+    assert waiting.pending_approval is not None
+    assert (waiting.pending_approval.approval_id, waiting.pending_approval.tool) == (
+        "a2",
+        "mcp_call",
+    )
+
+    answered = summarize(HarnessRunRecord(run_id="run_a", status="running", events=events[:2]))
+    assert answered.pending_approval is None
+    ended = summarize(HarnessRunRecord(run_id="run_a", status="failed", events=events))
+    assert ended.pending_approval is None
+
+    # A later approval resolved first leaves the earlier one waiting.
+    concurrent = [
+        *events[2:],
+        _event("run_a", "approval.requested", 3, approval_id="a3", tool="mcp_call"),
+        _event("run_a", "approval.resolved", 4, approval_id="a3", decision="deny"),
+    ]
+    waiting = summarize(HarnessRunRecord(run_id="run_a", status="running", events=concurrent))
+    assert waiting.pending_approval is not None
+    assert waiting.pending_approval.approval_id == "a2"
+
+
 def test_list_scopes_to_tenant_and_user() -> None:
     app = create_app()
     with TestClient(app) as client:

@@ -15,6 +15,7 @@ import {
   LuCopy,
   LuFileDown,
   LuGitBranch,
+  LuPause,
   LuPencil,
   LuRotateCcw,
   LuSparkles,
@@ -31,6 +32,7 @@ import { useHarnessReadOnly } from "../context/harness-read-only-context";
 import { useMessageRunId } from "../context/harness-run-lookup-context";
 import { useRunStartedAt } from "../context/harness-session-context";
 import { formatElapsed, runElapsedSince, splitNarration } from "../run-progress";
+import { REQUEST_APPROVAL_TOOL } from "../extensions/request-approval-args";
 import { SentAttachment } from "./attachments";
 import { RunActivityRow } from "./run-activity";
 
@@ -217,7 +219,32 @@ const RunStatus: FC = () => {
   // A reply rebuilt after a reload counts from where the harness started.
   const runStartedAt = useRunStartedAt();
   const elapsed = useElapsedMs(runElapsedSince(runStartedAt, createdAt), live);
+  const awaitingApproval = useAuiState((s) =>
+    s.message.parts.some(
+      (part) =>
+        part.type === "tool-call" &&
+        part.toolName === REQUEST_APPROVAL_TOOL &&
+        part.result === undefined
+    )
+  );
   if (!live) return null;
+
+  if (awaitingApproval) {
+    return (
+      <div className="flex max-w-[90%] animate-harness-enter items-center gap-2 text-[11px] leading-snug">
+        <LuPause aria-hidden className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-400" />
+        <output className="min-w-0 truncate font-medium text-amber-600 dark:text-amber-400">
+          {tr("harnessChat.ui.thread.awaitingApproval")}
+        </output>
+        <time
+          title={tr("harnessChat.ui.thread.elapsed")}
+          className="shrink-0 text-[10px] tabular-nums text-gray-400 dark:text-gray-500"
+        >
+          {formatElapsed(elapsed)}
+        </time>
+      </div>
+    );
+  }
 
   const step = splitNarration(narration).current ?? tr("harnessChat.ui.thread.working");
   return (

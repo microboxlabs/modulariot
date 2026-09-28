@@ -84,6 +84,18 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode);
 
+    /** Approves or rejects a call a run is waiting on. */
+    @POST
+    @Path("/runs/{runId}/approvals/{approvalId}")
+    Uni<Response> resolveApproval(
+            @PathParam("runId") String runId,
+            @PathParam("approvalId") String approvalId,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode,
+            Map<String, Object> body);
+
     @GET
     @Path("/skills")
     Uni<Response> listSkills(

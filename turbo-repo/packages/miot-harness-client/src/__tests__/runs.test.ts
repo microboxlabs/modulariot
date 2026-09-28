@@ -92,6 +92,28 @@ describe("runs.cancel", () => {
   });
 });
 
+describe("runs.resolveApproval", () => {
+  it("POSTs the decision to /runs/{id}/approvals/{approvalId}", async () => {
+    const { fn, call } = createMockFetch(undefined, 204);
+    const client = createMiotHarnessClient({
+      baseUrl: "http://harness.local",
+      fetch: fn,
+    });
+    await expect(
+      client.runs.resolveApproval("run_a", "aid 1", {
+        decision: "deny",
+        comment: "not now",
+      }),
+    ).resolves.toBeUndefined();
+    expect(call.url).toBe("http://harness.local/runs/run_a/approvals/aid%201");
+    expect(call.init.method).toBe("POST");
+    expect(JSON.parse(String(call.init.body))).toEqual({
+      decision: "deny",
+      comment: "not now",
+    });
+  });
+});
+
 describe("runs.stream", () => {
   it("consumes SSE frames and yields parsed events", async () => {
     const body =

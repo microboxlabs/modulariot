@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FC, type ReactNode } from "react";
-import { LuActivity } from "react-icons/lu";
+import { LuActivity, LuPause } from "react-icons/lu";
 import { twMerge } from "tailwind-merge";
 import type { RunSummary } from "@microboxlabs/miot-harness-client";
 import { stepKeyOf } from "@/app/api/harness/chat/stream/step-labels";
@@ -51,6 +51,34 @@ function msBetween(from: string | null, to: string | number | null): number {
   const end = typeof to === "number" ? to : Date.parse(to);
   return end - Date.parse(from);
 }
+
+const LiveStep: FC<{ run: RunSummary }> = ({ run }) => {
+  const tr = useHarnessChatTr();
+  if (run.pending_approval) {
+    return (
+      <span className="flex items-center gap-2 text-[11px]">
+        <LuPause
+          aria-hidden
+          className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-400"
+        />
+        <output className="min-w-0 truncate font-medium text-amber-600 dark:text-amber-400">
+          {tr("harnessChat.ui.jobs.awaitingApproval")}
+        </output>
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-2 text-[11px]">
+      <span
+        aria-hidden
+        className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 motion-safe:animate-pulse dark:bg-amber-400"
+      />
+      <output className="min-w-0 truncate animate-harness-shimmer">
+        {stepOf(run, tr)}
+      </output>
+    </span>
+  );
+};
 
 export const ActivityList: FC<{
   runs: RunSummary[];
@@ -102,15 +130,7 @@ export const ActivityList: FC<{
             </time>
           </span>
           {live ? (
-            <span className="flex items-center gap-2 text-[11px]">
-              <span
-                aria-hidden
-                className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 motion-safe:animate-pulse dark:bg-amber-400"
-              />
-              <output className="min-w-0 truncate animate-harness-shimmer">
-                {stepOf(run, tr)}
-              </output>
-            </span>
+            <LiveStep run={run} />
           ) : (
             <span
               className={twMerge(

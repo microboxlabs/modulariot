@@ -13,6 +13,11 @@ import {
   type DraftDashlet,
   type ShowDashboardDraftArgs,
 } from "@/features/harness-chat/extensions/dashboard-draft";
+import {
+  REQUEST_APPROVAL_TOOL,
+  type RequestApprovalArgs,
+  type RequestApprovalResult,
+} from "@/features/harness-chat/extensions/request-approval-args";
 
 export type { DraftDashlet };
 
@@ -471,17 +476,47 @@ export function resolveDraft(
   };
 }
 
-function toolCall(
+function callEvents(
   name: string,
   args: unknown,
-  newId: () => string
+  toolCallId: string
 ): ChatEvent[] {
-  const toolCallId = newId();
   return [
     { type: "TOOL_CALL_START", toolCallId, toolCallName: name },
     { type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) },
     { type: "TOOL_CALL_END", toolCallId },
   ];
+}
+
+function toolCall(
+  name: string,
+  args: unknown,
+  newId: () => string
+): ChatEvent[] {
+  return callEvents(name, args, newId());
+}
+
+/** A `request_approval` card. It stays open: its result is sent when the
+ * harness reports the decision, or when the run ends without one. */
+export function approvalCallEvents(
+  args: RequestApprovalArgs,
+  toolCallId: string
+): ChatEvent[] {
+  return callEvents(REQUEST_APPROVAL_TOOL, args, toolCallId);
+}
+
+export function approvalResultEvent(
+  toolCallId: string,
+  result: RequestApprovalResult,
+  newId: () => string = () => crypto.randomUUID()
+): ChatEvent {
+  return {
+    type: "TOOL_CALL_RESULT",
+    messageId: newId(),
+    toolCallId,
+    content: JSON.stringify(result),
+    role: "tool",
+  };
 }
 
 /** A widget or artifact needs no reply from the user: its result is sent

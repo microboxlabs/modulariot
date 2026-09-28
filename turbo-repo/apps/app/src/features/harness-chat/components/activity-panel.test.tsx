@@ -83,6 +83,17 @@ describe("ActivityList", () => {
     expect(within(recent).getByText("Falló")).toBeTruthy();
   });
 
+  it("shows a run waiting for an approval instead of its step", () => {
+    renderList([
+      run({
+        last_step: { label: "Starting load_skill", tool: "load_skill" },
+        pending_approval: { approval_id: "a1", tool: "mcp_call" },
+      }),
+    ]);
+    expect(screen.getByText("Esperando tu aprobación")).toBeTruthy();
+    expect(screen.queryByText("Cargando instrucciones")).toBeNull();
+  });
+
   it("opens the run's thread on click", () => {
     const onOpen = renderList([
       run({ run_id: "b", conversation_id: "t2", status: "completed" }),

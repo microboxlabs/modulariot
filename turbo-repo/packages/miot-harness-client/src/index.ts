@@ -10,6 +10,7 @@ export { parseSSE } from "./sse.js";
 export type { SSEFrame } from "./sse.js";
 export { TERMINAL_EVENT_TYPES } from "./types.js";
 export type {
+  ApprovalDecision,
   Attachment,
   ClientConfig,
   ConversationTurn,

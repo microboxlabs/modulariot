@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -250,6 +251,47 @@ async def test_every_search_an_anthropic_call_runs_counts_toward_the_limit() -> 
     # 3 of 4 used, so the next call may run only one more.
     await searcher.search(_ctx(), "q", lambda _e: None)
     assert max_uses == [3, 1]
+    with pytest.raises(WebSearchError, match="limit"):
+        await searcher.search(_ctx(), "q", lambda _e: None)
+
+
+@pytest.mark.asyncio
+async def test_searches_running_at_the_same_time_stay_within_the_limit() -> None:
+    max_uses: list[int] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        uses = json.loads(request.content)["tools"][0]["max_uses"]
+        max_uses.append(uses)
+        return httpx.Response(
+            200,
+            json={
+                "content": [
+                    {"type": "text", "text": "x", "citations": [{"url": "https://a.example"}]}
+                ],
+                "usage": {"server_tool_use": {"web_search_requests": uses}},
+            },
+        )
+
+    searcher = _searcher(("anthropic",), handler, web_search_max_per_run=4)
+    await asyncio.gather(
+        searcher.search(_ctx(), "q", lambda _e: None),
+        searcher.search(_ctx(), "q", lambda _e: None),
+    )
+    assert sorted(max_uses) == [1, 3]
+    with pytest.raises(WebSearchError, match="limit"):
+        await searcher.search(_ctx(), "q", lambda _e: None)
+
+
+@pytest.mark.asyncio
+async def test_a_failed_search_counts_once() -> None:
+    def refuse(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={"error": "down"})
+
+    searcher = _searcher(("anthropic",), refuse, web_search_max_per_run=2)
+    with pytest.raises(WebSearchError):
+        await searcher.search(_ctx(), "q", lambda _e: None)
+    with pytest.raises(WebSearchError, match="500"):
+        await searcher.search(_ctx(), "q", lambda _e: None)
     with pytest.raises(WebSearchError, match="limit"):
         await searcher.search(_ctx(), "q", lambda _e: None)
 

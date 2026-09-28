@@ -21,6 +21,7 @@ fan-out turns.
 
 from __future__ import annotations
 
+import asyncio
 import copy
 import json
 import logging
@@ -67,6 +68,7 @@ from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.evidence import DataEvidence, DataStep
 from miot_harness.runtime.freshness import judge_freshness
 from miot_harness.runtime.instrumentation import instrument_model
+from miot_harness.runtime.permissions import PermissionDecision
 from miot_harness.runtime.tool import Progress
 from miot_harness.runtime.tool_step import invoke_step
 from miot_harness.tools.registry import ToolRegistry
@@ -461,6 +463,15 @@ def _chunk_deltas(chunk: Any) -> list[tuple[str, str]]:
     return out
 
 
+def _step(call: dict[str, Any]) -> DataStep:
+    return DataStep(
+        intent=str(call.get("name", "")),
+        tool=str(call.get("name", "")),
+        args=dict(call.get("args") or {}),
+        rationale="agent_loop",
+    )
+
+
 def _provenance_entry(
     *,
     ctx: HarnessContext,
@@ -654,8 +665,23 @@ class AgentLoopRunner:
                 answer = response_text(response).strip()
                 break
             delegations: list[dict[str, Any]] = []
+            batch: list[dict[str, Any]] = []
             for call in tool_calls:
                 name = call.get("name")
+                if self._runs_concurrently(str(name), ctx):
+                    batch.append(call)
+                    continue
+                if batch:
+                    messages.extend(
+                        await self._run_batch(
+                            batch,
+                            ctx=ctx,
+                            user_message=user_message,
+                            evidence=evidence,
+                            progress=progress,
+                        )
+                    )
+                    batch = []
                 if name == _LOAD_SKILL_TOOL:
                     messages.append(
                         await self._load_skill(
@@ -683,6 +709,16 @@ class AgentLoopRunner:
                 messages.append(
                     await self._execute_tool_call(
                         call,
+                        ctx=ctx,
+                        user_message=user_message,
+                        evidence=evidence,
+                        progress=progress,
+                    )
+                )
+            if batch:
+                messages.extend(
+                    await self._run_batch(
+                        batch,
                         ctx=ctx,
                         user_message=user_message,
                         evidence=evidence,
@@ -718,6 +754,60 @@ class AgentLoopRunner:
             ),
         }
 
+    def _runs_concurrently(self, name: str, ctx: HarnessContext) -> bool:
+        """Whether a call may run alongside the others of its turn: a registry
+        tool that is read-only, not destructive and not named by a rule that
+        could deny it or ask for approval. Read-only tools are allowed
+        without approval, so these calls never pause for a human."""
+        if self.settings.agents_agent_loop_tool_concurrency <= 1:
+            return False
+        if name in (_LOAD_SKILL_TOOL, ADVISOR_TOOL, DELEGATE_TOOL):
+            return False
+        if name not in self.registry.names():
+            return False
+        tool = self.registry.get(name)
+        if not tool.read_only or tool.destructive:
+            return False
+        if tool.kind != "utility" and not self._is_data_tool(name):
+            return False
+        policy = ctx.permission_policy
+        rules = policy.rules if policy is not None else []
+        return not any(r.tool == name and r.decision != PermissionDecision.ALLOW for r in rules)
+
+    async def _run_batch(
+        self,
+        calls: list[dict[str, Any]],
+        *,
+        ctx: HarnessContext,
+        user_message: str,
+        evidence: list[DataEvidence],
+        progress: Progress,
+    ) -> list[ToolMessage]:
+        """Run read-only calls at the same time, up to the concurrency cap.
+        Results, evidence and provenance keep the order of the calls."""
+        limit = asyncio.Semaphore(self.settings.agents_agent_loop_tool_concurrency)
+
+        async def run(call: dict[str, Any]) -> ToolMessage | DataEvidence:
+            async with limit:
+                if self._is_utility_tool(str(call.get("name"))):
+                    return await self._run_utility(call, ctx=ctx, progress=progress)
+                return await self._invoke_data_tool(call, ctx=ctx, progress=progress)
+
+        outcomes = await asyncio.gather(*(run(call) for call in calls))
+        return [
+            outcome
+            if isinstance(outcome, ToolMessage)
+            else self._record_evidence(
+                call,
+                outcome,
+                ctx=ctx,
+                user_message=user_message,
+                evidence=evidence,
+                progress=progress,
+            )
+            for call, outcome in zip(calls, outcomes, strict=True)
+        ]
+
     async def _execute_tool_call(
         self,
         call: dict[str, Any],
@@ -727,12 +817,23 @@ class AgentLoopRunner:
         evidence: list[DataEvidence],
         progress: Progress,
     ) -> ToolMessage:
-        step = DataStep(
-            intent=str(call.get("name", "")),
-            tool=str(call.get("name", "")),
-            args=dict(call.get("args") or {}),
-            rationale="agent_loop",
+        outcome = await self._invoke_data_tool(call, ctx=ctx, progress=progress)
+        if isinstance(outcome, ToolMessage):
+            return outcome
+        return self._record_evidence(
+            call,
+            outcome,
+            ctx=ctx,
+            user_message=user_message,
+            evidence=evidence,
+            progress=progress,
         )
+
+    async def _invoke_data_tool(
+        self, call: dict[str, Any], *, ctx: HarnessContext, progress: Progress
+    ) -> ToolMessage | DataEvidence:
+        """The call's evidence, or the error result the model sees."""
+        step = _step(call)
         call_id = str(call.get("id", ""))
         if ctx.data_refusal and self._is_data_tool(step.tool):
             progress(
@@ -773,6 +874,18 @@ class AgentLoopRunner:
                 status="error",
             )
         ev: DataEvidence = delta["evidence"][0]
+        return ev
+
+    def _record_evidence(
+        self,
+        call: dict[str, Any],
+        ev: DataEvidence,
+        *,
+        ctx: HarnessContext,
+        user_message: str,
+        evidence: list[DataEvidence],
+        progress: Progress,
+    ) -> ToolMessage:
         evidence.append(ev)
         # Emits freshness.warning. The refuse verdict does not stop the run:
         # the evidence is already marked stale and the prompt has the model
@@ -786,9 +899,11 @@ class AgentLoopRunner:
         )
         if self.provenance_log is not None:
             self.provenance_log.append(
-                _provenance_entry(ctx=ctx, user_message=user_message, step=step, evidence=ev)
+                _provenance_entry(ctx=ctx, user_message=user_message, step=_step(call), evidence=ev)
             )
-        return ToolMessage(content=self._render_tool_result(ev), tool_call_id=call_id)
+        return ToolMessage(
+            content=self._render_tool_result(ev), tool_call_id=str(call.get("id", ""))
+        )
 
     @property
     def prefix_tokens(self) -> dict[str, int]:

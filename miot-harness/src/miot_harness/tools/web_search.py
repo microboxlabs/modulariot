@@ -147,7 +147,10 @@ class WebSearcher:
             raise WebSearchError(
                 "web search is not set up: no LLM Gateway, Anthropic or OpenAI provider"
             )
-        remaining = self._reserve(ctx.run_id)
+        # Calls of one turn can run at the same time, so an Anthropic call
+        # holds every search it may run until it reports how many it ran.
+        anthropic = route.provider.name == "anthropic"
+        reserved = self._reserve(ctx.run_id, _ANTHROPIC_MAX_USES if anthropic else 1)
         logger.info(
             "web_search tenant=%s user=%s run=%s via=%s query=%r",
             ctx.tenant_id,
@@ -156,20 +159,21 @@ class WebSearcher:
             route.name,
             query,
         )
-        async with httpx.AsyncClient(
-            transport=self._transport,
-            timeout=self._settings.web_search_timeout_seconds,
-        ) as client:
-            if route.provider.name == "anthropic":
-                result = await _anthropic(
-                    client, route, query, max_uses=min(_ANTHROPIC_MAX_USES, remaining)
-                )
-            elif route.provider.name == "openai":
-                result = await _openai(client, route, query)
-            else:
-                result = await _llmgateway(client, route, query)
-        # One search was reserved; a call can run more (Anthropic's max_uses).
-        self._add(ctx.run_id, max(0, result.searches - 1))
+        ran = 1  # a failed call still counts once
+        try:
+            async with httpx.AsyncClient(
+                transport=self._transport,
+                timeout=self._settings.web_search_timeout_seconds,
+            ) as client:
+                if anthropic:
+                    result = await _anthropic(client, route, query, max_uses=reserved)
+                elif route.provider.name == "openai":
+                    result = await _openai(client, route, query)
+                else:
+                    result = await _llmgateway(client, route, query)
+            ran = max(1, result.searches)
+        finally:
+            self._add(ctx.run_id, ran - reserved)
         progress(
             HarnessEvent(
                 run_id=ctx.run_id,
@@ -205,9 +209,9 @@ class WebSearcher:
             searched_with=route.name,
         )
 
-    def _reserve(self, run_id: str) -> int:
-        """Count one search for the run and return how many it had left,
-        this one included. Raises when the run has used them all."""
+    def _reserve(self, run_id: str, wanted: int) -> int:
+        """Count up to `wanted` searches for the run and return how many were
+        counted. Raises when the run has used them all."""
         self._forget_idle()
         used = self._counts.get(run_id, (0, 0.0))[0]
         limit = self._settings.web_search_max_per_run
@@ -215,8 +219,9 @@ class WebSearcher:
             raise WebSearchError(
                 f"search limit reached: {used} searches in this run. Answer with what you found."
             )
-        self._add(run_id, 1)
-        return limit - used
+        reserved = min(wanted, limit - used)
+        self._add(run_id, reserved)
+        return reserved
 
     def _add(self, run_id: str, searches: int) -> None:
         used = self._counts.get(run_id, (0, 0.0))[0]

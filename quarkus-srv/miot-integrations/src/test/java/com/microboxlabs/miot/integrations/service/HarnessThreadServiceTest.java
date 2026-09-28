@@ -57,7 +57,7 @@ class HarnessThreadServiceTest {
         assertNull(
                 service.appendMessage(TENANT, OTHER, id, new ThreadMessageRequest("m2", "m1", null, PAYLOAD)),
                 "a reader must not append to someone else's conversation");
-        assertNull(service.patch(TENANT, OTHER, id, new ThreadPatchRequest("mine now", null, null, null)));
+        assertNull(service.patch(TENANT, OTHER, id, new ThreadPatchRequest("mine now", null, null, null, null)));
         assertFalse(service.delete(TENANT, OTHER, id));
     }
 
@@ -188,9 +188,9 @@ class HarnessThreadServiceTest {
         assertNull(service.create(TENANT, OWNER, new ThreadUpsertRequest(id, "t", null)).expiresAt(),
                 "threads do not expire unless someone says so");
 
-        assertEquals(expiry, service.patch(TENANT, OWNER, id, new ThreadPatchRequest(null, expiry, null, null))
+        assertEquals(expiry, service.patch(TENANT, OWNER, id, new ThreadPatchRequest(null, expiry, null, null, null))
                 .expiresAt());
-        assertNull(service.patch(TENANT, OWNER, id, new ThreadPatchRequest(null, null, true, null)).expiresAt(),
+        assertNull(service.patch(TENANT, OWNER, id, new ThreadPatchRequest(null, null, true, null, null)).expiresAt(),
                 "clearExpiry is how a caller asks for 'never'");
     }
 
@@ -242,18 +242,32 @@ class HarnessThreadServiceTest {
 
         assertNull(service.get(TENANT, OWNER, id).summary(), "nothing compacted yet");
         assertEquals("so far: trips", service.patch(TENANT, OWNER, id,
-                new ThreadPatchRequest(null, null, null, "so far: trips")).summary());
+                new ThreadPatchRequest(null, null, null, "so far: trips", null)).summary());
         assertEquals("so far: trips", service.patch(TENANT, OWNER, id,
-                new ThreadPatchRequest("renamed", null, null, null)).summary(),
+                new ThreadPatchRequest("renamed", null, null, null, null)).summary(),
                 "a patch that says nothing about the summary leaves it alone");
         assertEquals("so far: trips", service.listVisible(TENANT, OWNER, null).get(0).summary());
+    }
+
+    @Test
+    void theModelRoundTripsAndSurvivesUnrelatedPatches() {
+        var service = new HarnessThreadService(new FakeRepository());
+        String id = newThread(service, OWNER);
+
+        assertNull(service.get(TENANT, OWNER, id).model(), "the default until one is picked");
+        assertEquals("claude-opus-5-5", service.patch(TENANT, OWNER, id,
+                new ThreadPatchRequest(null, null, null, null, "claude-opus-5-5")).model());
+        assertEquals("claude-opus-5-5", service.patch(TENANT, OWNER, id,
+                new ThreadPatchRequest("renamed", null, null, "so far", null)).model(),
+                "a patch that says nothing about the model leaves it alone");
+        assertEquals("claude-opus-5-5", service.listVisible(TENANT, OWNER, null).get(0).model());
     }
 
     @Test
     void aSummaryLongerThanTheHarnessAcceptsIsRefused() {
         var service = new HarnessThreadService(new FakeRepository());
         String id = newThread(service, OWNER);
-        var request = new ThreadPatchRequest(null, null, null, "s".repeat(8_001));
+        var request = new ThreadPatchRequest(null, null, null, "s".repeat(8_001), null);
 
         assertThrows(IllegalArgumentException.class, () -> service.patch(TENANT, OWNER, id, request));
     }
@@ -266,7 +280,7 @@ class HarnessThreadServiceTest {
         String summary = "\uD83D\uDE80".repeat(4_001);
 
         assertEquals(summary, service.patch(TENANT, OWNER, id,
-                new ThreadPatchRequest(null, null, null, summary)).summary());
+                new ThreadPatchRequest(null, null, null, summary, null)).summary());
     }
 
     @Test
@@ -321,7 +335,7 @@ class HarnessThreadServiceTest {
                 HarnessThread renamed = new HarnessThread(
                         existing.id(), existing.tenantCode(), existing.ownerId(),
                         thread.title() == null ? existing.title() : thread.title(),
-                        existing.summary(), existing.expiresAt(), existing.lastMessageAt(),
+                        existing.summary(), existing.model(), existing.expiresAt(), existing.lastMessageAt(),
                         existing.createdAt(), OffsetDateTime.now());
                 threads.put(renamed.id(), renamed);
                 return renamed;
@@ -329,7 +343,7 @@ class HarnessThreadServiceTest {
             OffsetDateTime now = OffsetDateTime.now();
             HarnessThread created = new HarnessThread(
                     thread.id(), thread.tenantCode(), thread.ownerId(), thread.title(),
-                    thread.summary(), thread.expiresAt(), now, now, now);
+                    thread.summary(), thread.model(), thread.expiresAt(), now, now, now);
             threads.put(created.id(), created);
             return created;
         }
@@ -362,7 +376,7 @@ class HarnessThreadServiceTest {
         @Override
         public HarnessThread update(
                 String threadId, String ownerId, String title,
-                OffsetDateTime expiresAt, boolean clearExpiry, String summary) {
+                OffsetDateTime expiresAt, boolean clearExpiry, String summary, String model) {
             HarnessThread thread = threads.get(threadId);
             if (thread == null || !Objects.equals(thread.ownerId(), ownerId)) {
                 return null;
@@ -371,6 +385,7 @@ class HarnessThreadServiceTest {
                     thread.id(), thread.tenantCode(), thread.ownerId(),
                     title == null ? thread.title() : title,
                     summary == null ? thread.summary() : summary,
+                    model == null ? thread.model() : model,
                     clearExpiry ? null : (expiresAt == null ? thread.expiresAt() : expiresAt),
                     thread.lastMessageAt(), thread.createdAt(), OffsetDateTime.now());
             threads.put(updated.id(), updated);

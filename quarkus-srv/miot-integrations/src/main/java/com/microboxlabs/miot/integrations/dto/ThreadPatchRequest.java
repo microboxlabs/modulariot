@@ -11,5 +11,7 @@ public record ThreadPatchRequest(
         String title,
         OffsetDateTime expiresAt,
         Boolean clearExpiry,
-        String summary) {
+        String summary,
+        /** The conversation model picked for this thread. */
+        String model) {
 }

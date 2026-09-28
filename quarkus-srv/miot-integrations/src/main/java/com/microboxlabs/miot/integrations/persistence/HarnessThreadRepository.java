@@ -37,7 +37,7 @@ public class HarnessThreadRepository {
     private static final String CREATED_AT = "created_at";
 
     private static final String THREAD_COLUMNS =
-            "id, tenant_code, owner_id, title, summary, expires_at, last_message_at, created_at, updated_at";
+            "id, tenant_code, owner_id, title, summary, model, expires_at, last_message_at, created_at, updated_at";
 
     /** A thread is visible while it is neither soft-deleted nor past its expiry. */
     private static final String LIVE = "deleted_at IS NULL AND (expires_at IS NULL OR expires_at > now())";
@@ -72,7 +72,7 @@ public class HarnessThreadRepository {
             LIMIT $3""".formatted(THREAD_COLUMNS, LIVE);
 
     private static final String LIST_SHARED_WITH = """
-            SELECT t.id, t.tenant_code, t.owner_id, t.title, t.summary, t.expires_at,
+            SELECT t.id, t.tenant_code, t.owner_id, t.title, t.summary, t.model, t.expires_at,
                    t.last_message_at, t.created_at, t.updated_at
             FROM miot_integrations.harness_thread t
             JOIN miot_integrations.harness_thread_share s ON s.thread_id = t.id
@@ -91,6 +91,7 @@ public class HarnessThreadRepository {
             SET title = COALESCE($3, title),
                 expires_at = CASE WHEN $5 THEN NULL ELSE COALESCE($4, expires_at) END,
                 summary = COALESCE($6, summary),
+                model = COALESCE($7, model),
                 updated_at = now()
             WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL
             RETURNING %s""".formatted(THREAD_COLUMNS);
@@ -224,14 +225,16 @@ public class HarnessThreadRepository {
             String title,
             OffsetDateTime expiresAt,
             boolean clearExpiry,
-            String summary) {
+            String summary,
+            String model) {
         Tuple params = Tuple.tuple()
                 .addUUID(UUID.fromString(threadId))
                 .addString(ownerId)
                 .addString(title)
                 .addValue(expiresAt)
                 .addBoolean(clearExpiry)
-                .addString(summary);
+                .addString(summary)
+                .addString(model);
         return firstThread(execute(UPDATE_THREAD, params));
     }
 
@@ -348,6 +351,7 @@ public class HarnessThreadRepository {
                 row.getString("owner_id"),
                 row.getString("title"),
                 row.getString("summary"),
+                row.getString("model"),
                 row.getOffsetDateTime("expires_at"),
                 row.getOffsetDateTime("last_message_at"),
                 row.getOffsetDateTime(CREATED_AT),

@@ -1,0 +1,29 @@
+package com.microboxlabs.miot.integrations.persistence;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.lang.reflect.Field;
+import org.junit.jupiter.api.Test;
+
+/** Guards the repository's static SQL without a database. */
+class HarnessConversationSqlIntegrityTest {
+
+    @Test
+    void aSaveCannotReplaceAnotherTenantsMemory() throws Exception {
+        String sql = readStaticString("UPSERT");
+        assertTrue(sql.contains("ON CONFLICT (conversation_key) DO UPDATE"), "saving is idempotent per key");
+        assertTrue(sql.contains("harness_conversation.tenant_id = EXCLUDED.tenant_id"),
+                "the conflict update must be guarded by the tenant");
+    }
+
+    @Test
+    void aLoadReadsOneKey() throws Exception {
+        assertTrue(readStaticString("FIND").contains("WHERE conversation_key = $1"));
+    }
+
+    private static String readStaticString(String name) throws Exception {
+        Field field = HarnessConversationRepository.class.getDeclaredField(name);
+        field.setAccessible(true);
+        return (String) field.get(null);
+    }
+}

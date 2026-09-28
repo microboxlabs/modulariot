@@ -20,6 +20,8 @@ export type WidgetSpec = {
   columns: string[];
   rows: Record<string, unknown>[];
   truncated?: boolean;
+  /** Display name per column key, when keys were replaced by safe ones. */
+  labels?: Record<string, string>;
 };
 
 export type ChoicesValue = {
@@ -165,6 +167,30 @@ export function humanize(column: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+function labelOf(spec: WidgetSpec, column: string): string {
+  return humanize(spec.labels?.[column] ?? column);
+}
+
+/**
+ * The same widget with columns renamed c0, c1, … Dashlet templates address a
+ * cell as `{{row.<column>}}`, which breaks on names with spaces, accents or
+ * symbols ("Códigos negros", "% atendido"); the names stay as labels.
+ */
+export function withSafeKeys(spec: WidgetSpec): WidgetSpec {
+  const keys = new Map(spec.columns.map((c, i) => [c, `c${i}`]));
+  const key = (c: string) => keys.get(c) ?? c;
+  return {
+    ...spec,
+    x: spec.x ? key(spec.x) : spec.x,
+    y: spec.y.map(key),
+    columns: spec.columns.map(key),
+    rows: spec.rows.map((row) =>
+      Object.fromEntries(spec.columns.map((c) => [key(c), row[c]]))
+    ),
+    labels: Object.fromEntries(spec.columns.map((c) => [key(c), c])),
+  };
+}
+
 function cell(value: unknown): string {
   if (value === null || value === undefined) return "";
   return typeof value === "string" ? value : JSON.stringify(value);
@@ -215,7 +241,7 @@ function tableConfig(spec: WidgetSpec): Record<string, unknown> {
     striped: true,
     columns: spec.columns.map((c) => ({
       key: `{{row.${c}}}`,
-      label: humanize(c),
+      label: labelOf(spec, c),
       type: numeric.has(c) ? "highlight" : "text",
     })),
     rows: stringRows(spec),
@@ -224,16 +250,40 @@ function tableConfig(spec: WidgetSpec): Record<string, unknown> {
   };
 }
 
+/** The chart's category axis: the declared x, else the first column. */
+function xColumnOf(spec: WidgetSpec): string {
+  return spec.x ?? spec.columns[0] ?? "";
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
+
+/** "day" or "month" when every x value is an ISO date (first-of-month means
+ * months), so the chart formats and thins the axis labels; "none" otherwise. */
+export function dateFormatOf(spec: WidgetSpec): "none" | "day" | "month" {
+  const x = xColumnOf(spec);
+  const values = spec.rows.map((row) => row[x]);
+  if (
+    values.length === 0 ||
+    !values.every((v) => typeof v === "string" && ISO_DATE.test(v))
+  ) {
+    return "none";
+  }
+  return values.every((v) => String(v).slice(8, 10) === "01") ? "month" : "day";
+}
+
 function chartConfig(spec: WidgetSpec): Record<string, unknown> {
   const pie = spec.kind === "pie";
   return {
     ...STATIC_DATA,
     title: spec.title,
     chartFamily: pie ? "pie" : "cartesian",
-    xAxisColumn: spec.x ?? spec.columns[0] ?? "",
+    xAxisColumn: xColumnOf(spec),
+    ...(pie ? {} : { xAxisDateFormat: dateFormatOf(spec) }),
     representations: spec.y.map((c) => ({
       columnKey: c,
-      label: spec.unit ? `${humanize(c)} (${spec.unit})` : humanize(c),
+      label: spec.unit
+        ? `${labelOf(spec, c)} (${spec.unit})`
+        : labelOf(spec, c),
       type: spec.kind === "bar" || pie ? "bar" : "line",
       smooth: spec.kind === "line",
       showLabels: spec.rows.length <= 12,
@@ -249,10 +299,11 @@ function chartConfig(spec: WidgetSpec): Record<string, unknown> {
 }
 
 /** The dashboard dashlet that renders a widget, with its data inline. */
-export function widgetToDashlet(spec: WidgetSpec): {
+export function widgetToDashlet(input: WidgetSpec): {
   dashletId: string;
   config: Record<string, unknown>;
 } {
+  const spec = withSafeKeys(input);
   if (spec.kind === "kpi")
     return { dashletId: "stat_icon", config: kpiConfig(spec) };
   if (spec.kind === "table")
@@ -270,6 +321,23 @@ function toolCall(
     { type: "TOOL_CALL_START", toolCallId, toolCallName: name },
     { type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) },
     { type: "TOOL_CALL_END", toolCallId },
+  ];
+}
+
+/** A widget needs no reply from the user: its result is sent with it, so the
+ * card never acknowledges it and the runtime starts no empty follow-up run. */
+function widgetCall(spec: WidgetSpec, newId: () => string): ChatEvent[] {
+  const events = toolCall("show_dashlet", widgetToDashlet(spec), newId);
+  const toolCallId = events[0]?.toolCallId;
+  return [
+    ...events,
+    {
+      type: "TOOL_CALL_RESULT",
+      messageId: newId(),
+      toolCallId,
+      content: "{}",
+      role: "tool",
+    },
   ];
 }
 
@@ -330,9 +398,7 @@ class AnswerBuilder {
     const spec = this.widgets.get(id);
     if (!spec || this.placed.has(id)) return;
     this.flush();
-    this.out.push(
-      ...toolCall("show_dashlet", widgetToDashlet(spec), this.newId)
-    );
+    this.out.push(...widgetCall(spec, this.newId));
     this.placed.add(id);
   }
 

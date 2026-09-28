@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   answerFromToolResult,
   chatAnswerEvents,
+  dateFormatOf,
   humanize,
   parseChatBlocks,
   widgetToDashlet,
@@ -75,13 +76,13 @@ describe("widgetToDashlet", () => {
     expect(config).toMatchObject({
       dataMode: "static",
       chartFamily: "cartesian",
-      xAxisColumn: "carrier",
+      xAxisColumn: "c0",
       representations: [
-        { columnKey: "driving_hours", label: "Driving hours (h)", type: "bar" },
+        { columnKey: "c1", label: "Driving hours (h)", type: "bar" },
       ],
       rows: [
-        { carrier: "Cordillera", driving_hours: "4983.1" },
-        { carrier: "Altiplano", driving_hours: "4490.1" },
+        { c0: "Cordillera", c1: "4983.1" },
+        { c0: "Altiplano", c1: "4490.1" },
       ],
     });
   });
@@ -89,10 +90,10 @@ describe("widgetToDashlet", () => {
   it("maps a kpi to stat_icon over the first row", () => {
     const { dashletId, config } = widgetToDashlet({ ...spec, kind: "kpi" });
     expect(dashletId).toBe("stat_icon");
-    expect(config.value).toBe("{{row.driving_hours}}");
+    expect(config.value).toBe("{{row.c1}}");
     expect(JSON.parse(String(config.staticData))).toEqual({
-      carrier: "Cordillera",
-      driving_hours: "4983.1",
+      c0: "Cordillera",
+      c1: "4983.1",
     });
   });
 
@@ -100,16 +101,16 @@ describe("widgetToDashlet", () => {
     const { dashletId, config } = widgetToDashlet({ ...spec, kind: "table" });
     expect(dashletId).toBe("data_table_v2");
     expect(config.columns).toEqual([
-      { key: "{{row.carrier}}", label: "Carrier", type: "text" },
+      { key: "{{row.c0}}", label: "Carrier", type: "text" },
       {
-        key: "{{row.driving_hours}}",
+        key: "{{row.c1}}",
         label: "Driving hours",
         type: "highlight",
       },
     ]);
     expect(config.sort).toEqual({
       enabled: true,
-      columns: ["{{row.carrier}}", "{{row.driving_hours}}"],
+      columns: ["{{row.c0}}", "{{row.c1}}"],
     });
   });
 
@@ -142,6 +143,7 @@ describe("chatAnswerEvents", () => {
       "TOOL_CALL_START:show_dashlet",
       "TOOL_CALL_ARGS",
       "TOOL_CALL_END",
+      "TOOL_CALL_RESULT",
       "TEXT_MESSAGE_START",
       "TEXT_MESSAGE_CONTENT",
       "TEXT_MESSAGE_END",
@@ -235,5 +237,62 @@ describe("answerFromToolResult", () => {
 describe("humanize", () => {
   it("reads a column name as a label", () => {
     expect(humanize("driving_hours")).toBe("Driving hours");
+  });
+});
+
+describe("widget polish", () => {
+  const dated = (dates: string[]): WidgetSpec => ({
+    id: "w",
+    kind: "line",
+    title: "t",
+    x: "d",
+    y: ["n"],
+    columns: ["d", "n"],
+    rows: dates.map((d) => ({ d, n: "1" })),
+  });
+
+  it("formats a date axis by day or month", () => {
+    expect(dateFormatOf(dated(["2026-09-01", "2026-09-02"]))).toBe("day");
+    expect(dateFormatOf(dated(["2026-08-01", "2026-09-01"]))).toBe("month");
+    expect(dateFormatOf(dated(["Cordillera", "Altiplano"]))).toBe("none");
+    expect(
+      dateFormatOf({ ...dated(["2026-09-01", "2026-09-02"]), x: null })
+    ).toBe("day");
+  });
+
+  it("sends each widget's result with it so no empty run follows", () => {
+    const answer = JSON.stringify([{ type: "widget", value: { id: "w1" } }]);
+    const events = chatAnswerEvents(answer, runEvents, {
+      ...opts,
+      newId: counter(),
+    });
+    const result = events.find((e) => e.type === "TOOL_CALL_RESULT");
+    const start = events.find((e) => e.type === "TOOL_CALL_START");
+    expect(result).toMatchObject({
+      toolCallId: start?.toolCallId,
+      content: "{}",
+      role: "tool",
+    });
+  });
+});
+
+describe("column names the model chose", () => {
+  it("are replaced by safe keys and kept as labels", () => {
+    const spec: WidgetSpec = {
+      id: "w",
+      kind: "table",
+      title: "Top patentes",
+      x: null,
+      y: ["Códigos negros", "% atendido"],
+      columns: ["Patente", "Códigos negros", "% atendido"],
+      rows: [{ Patente: "LWZS50", "Códigos negros": 41, "% atendido": "0.0" }],
+    };
+    const { config } = widgetToDashlet(spec);
+    expect(config.columns).toEqual([
+      { key: "{{row.c0}}", label: "Patente", type: "text" },
+      { key: "{{row.c1}}", label: "Códigos negros", type: "highlight" },
+      { key: "{{row.c2}}", label: "% atendido", type: "highlight" },
+    ]);
+    expect(config.rows).toEqual([{ c0: "LWZS50", c1: "41", c2: "0.0" }]);
   });
 });

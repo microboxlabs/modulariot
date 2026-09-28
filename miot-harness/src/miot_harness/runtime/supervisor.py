@@ -456,7 +456,7 @@ class HarnessSupervisor:
         if runner_for is None:
             return None
         try:
-            runner = runner_for(ctx.model)
+            runner = runner_for(ctx.model, ctx.effort, ctx.trainer)
         except ValueError:
             return None
         prefix = runner.prefix_tokens

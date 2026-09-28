@@ -169,9 +169,10 @@ async def test_refused_before_asking(
 ) -> None:
     tool = propose_learned_fact_tool(lambda: _learned(tmp_path, lock="acme"))
     events: list[HarnessEvent] = []
+    ctx = _ctx(approval_registry=ApprovalRegistry(), **ctx_kw)
 
     with pytest.raises(PermissionError) as err:
-        await tool.invoke(_ctx(approval_registry=ApprovalRegistry(), **ctx_kw), args, events.append)
+        await tool.invoke(ctx, args, events.append)
 
     assert reason in str(err.value)
     assert "approval.requested" not in [e.type for e in events]
@@ -287,3 +288,44 @@ def test_trainer_block_is_a_system_message(tmp_path: Path) -> None:
     assert plain == []
     assert len(taught) == 1
     assert isinstance(taught[0], SystemMessage)
+
+
+@pytest.mark.asyncio
+async def test_an_ask_rule_still_runs_the_personal_data_check(tmp_path: Path) -> None:
+    tool = propose_learned_fact_tool(lambda: _learned(tmp_path))
+    policy = PermissionPolicy(
+        rules=[PermissionRule(tool=PROPOSE_LEARNED_FACT_TOOL, decision=PermissionDecision.ASK)],
+    )
+    events: list[HarnessEvent] = []
+    ctx = _ctx(permission_policy=policy, approval_registry=_Approver("approve"))
+    args = {**_FACT, "title": "Escalate to ops.lead@example.com"}
+
+    with pytest.raises(PermissionError) as err:
+        await tool.invoke(ctx, args, events.append)
+
+    assert "email" in str(err.value)
+    assert "approval.requested" not in [e.type for e in events]
+    assert not list(tmp_path.glob("*.md"))
+
+
+@pytest.mark.asyncio
+async def test_context_report_counts_the_trainer_tools(tmp_path: Path) -> None:
+    registry = ToolRegistry.__new__(ToolRegistry)
+    registry._tools = {}
+    sup = HarnessSupervisor(tools=registry, run_store=JsonRunStore(tmp_path / "runs"))
+    sup.learned_facts = LearnedFacts(_sources(tmp_path / "k"), char_budget=6000)
+    registry.register(propose_learned_fact_tool(lambda: sup.learned_facts))
+    sup.agent_loop = AgentLoopRunners(
+        default_model="claude-opus-4-8",
+        models=["claude-opus-4-8"],
+        build_model=lambda name, effort=None: ScriptedModel([]),
+        registry=registry,
+        settings=HarnessSettings(),
+        profile=FAKE_PROFILE,
+    )
+
+    async def tools_tokens(trainer: bool) -> int:
+        record = await sup.run(UserRequest(message="/context", tenant_id="acme", trainer=trainer))
+        return int(record.artifacts[-1]["tools"])
+
+    assert await tools_tokens(True) > await tools_tokens(False)

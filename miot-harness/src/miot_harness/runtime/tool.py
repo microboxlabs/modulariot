@@ -44,7 +44,7 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
     read_only: bool = True
     destructive: bool = False
     # Always pauses for a human: allow rules and auto-approve modes do not
-    # skip its approval.
+    # skip its approval, and rules never skip its check_permission.
     always_ask: bool = False
     # What the model is told when the human rejects the call.
     declined_message: str = ""
@@ -99,7 +99,7 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
 
         if rule_decision == PermissionDecision.ALLOW and not self.always_ask:
             permission = PermissionResult.allow("allowed by rule")
-        elif rule_decision == PermissionDecision.ASK:
+        elif rule_decision == PermissionDecision.ASK and not self.always_ask:
             # An explicit `ask` rule forces the human-pause decision,
             # skipping check_permission. The mode handling below still
             # applies (bypass/auto_safe can auto-approve), matching Claude

@@ -8,6 +8,7 @@ its "Learned facts" block.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Literal
@@ -70,7 +71,9 @@ def propose_learned_fact_tool(
 ) -> HarnessTool[ProposeLearnedFactInput, ProposeLearnedFactOutput]:
     """`learned` gives the connections with a knowledge folder, read per call."""
 
-    async def check(ctx: HarnessContext, value: ProposeLearnedFactInput) -> PermissionResult:
+    async def check(  # NOSONAR
+        ctx: HarnessContext, value: ProposeLearnedFactInput
+    ) -> PermissionResult:
         if not ctx.trainer:
             return PermissionResult.deny("only a trainer can teach facts")
         usable = _usable(learned(), ctx)
@@ -93,9 +96,11 @@ def propose_learned_fact_tool(
         source = _usable(learned(), ctx).get(value.connection)
         if source is None:
             raise PermissionError(f"connection {value.connection!r} does not take learned facts")
+        _reject_if_secretish(_text(value))
         card_id = slug_card_id(value.term)
         existed = (source.cards_dir / f"{card_id}.md").is_file()
-        write_connection_card(
+        await asyncio.to_thread(
+            write_connection_card,
             source.cards_dir,
             ConnectionCardWrite(
                 term=value.term,

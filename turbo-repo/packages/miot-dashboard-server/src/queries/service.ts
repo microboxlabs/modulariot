@@ -1,15 +1,12 @@
-import { dashboardQueryValueSchema } from "@microboxlabs/miot-dashboard-contract/schema";
 import {
   createAccessControl,
   type AccessControlOptions,
 } from "../access/access-control";
 import { DashboardServerError } from "../access/errors";
-import type {
-  DashboardOperationExecutor,
-  DashboardQueryResult,
-} from "../seams/operations";
+import type { DashboardOperationExecutor } from "../seams/operations";
 import type { ServerDashboardRef } from "../seams/store";
 import { bindParameters, savedQuery } from "./bindings";
+import { upstreamError, validateResult } from "./result";
 
 export interface DashboardQueryOptions<
   TRequest,
@@ -26,38 +23,6 @@ function positive(value: number, name: string): number {
   if (!Number.isSafeInteger(value) || value < 1)
     throw new TypeError(`${name} must be a positive safe integer`);
   return value;
-}
-
-function upstreamError(): DashboardServerError {
-  return new DashboardServerError(
-    "UPSTREAM_ERROR",
-    "Dashboard query could not be completed",
-  );
-}
-
-function validateResult(
-  result: DashboardQueryResult,
-  maxRows: number,
-  maxBytes: number,
-) {
-  if (!Array.isArray(result?.rows) || result.rows.length > maxRows)
-    throw upstreamError();
-  for (const row of result.rows) {
-    if (typeof row !== "object" || row === null || Array.isArray(row))
-      throw upstreamError();
-    const values = Object.values(row);
-    if (
-      values.length > 100 ||
-      values.some(
-        (value) => !dashboardQueryValueSchema.safeParse(value).success,
-      )
-    )
-      throw upstreamError();
-  }
-  const safe = { rows: result.rows };
-  if (new TextEncoder().encode(JSON.stringify(safe)).byteLength > maxBytes)
-    throw upstreamError();
-  return safe;
 }
 
 /** Authorization and saved bindings precede every host operation. No viewer SQL. */

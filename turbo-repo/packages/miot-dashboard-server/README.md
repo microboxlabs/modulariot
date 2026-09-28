@@ -761,3 +761,13 @@ the same default 1 MiB JSON body limit as the standalone Node adapter. It
 authorizes before consuming the body and counts received bytes rather than
 trusting `Content-Length`; oversized requests return 413. The host still owns
 request deadlines and connection limits.
+
+### Remote host operation adapter
+
+`createHttpDashboardOperationExecutor({ url, proxyKey })` implements the query
+executor seam over authenticated HTTP. It calls one fixed host endpoint, sends
+only authorized context and saved bindings, refuses redirects, propagates
+cancellation, and bounds response bytes before parsing. The host owns the
+connection/template/credential catalog and enforces read-only operations, tenant
+predicates and query costs. See the query integration guide above for the wire
+shape and private-network deployment options.

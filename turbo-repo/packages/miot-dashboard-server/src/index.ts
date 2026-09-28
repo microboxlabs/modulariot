@@ -135,3 +135,7 @@ export type {
   DashboardOperationRequest,
   DashboardQueryResult,
 } from "./seams/operations";
+export {
+  createHttpDashboardOperationExecutor,
+  type HttpDashboardOperationsOptions,
+} from "./queries/http-operations";

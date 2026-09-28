@@ -300,7 +300,7 @@ async def _select(env: ToolEnv, sql: str, max_rows: int) -> Any:
     )
 
 
-def _memory_list(env: ToolEnv, ctx: HarnessContext, parsed: _MemoryInput) -> _MemoryOutput:
+def _memory_list(env: ToolEnv, ctx: HarnessContext) -> _MemoryOutput:
     notes = ws.list_notes(_require(env.workspace_dir, env.source_label), ctx.tenant_id)
     return _MemoryOutput(
         notes=[{"id": n.id, "title": n.title, "kind": n.kind} for n in notes],
@@ -329,10 +329,7 @@ def _memory_write(env: ToolEnv, ctx: HarnessContext, parsed: _MemoryInput) -> _M
     return _MemoryOutput(note=_note_dict(note), source=env.source_label)
 
 
-_MEMORY_ACTIONS = {"list": _memory_list, "read": _memory_read, "write": _memory_write}
-
-
-def _analysis_list(env: ToolEnv, ctx: HarnessContext, parsed: _AnalysisInput) -> _AnalysisOutput:
+def _analysis_list(env: ToolEnv, ctx: HarnessContext) -> _AnalysisOutput:
     root = _require(env.workspace_dir, env.source_label)
     return _AnalysisOutput(
         analyses=[
@@ -387,7 +384,11 @@ def build_workspace_tools(env: ToolEnv) -> list[HarnessTool[Any, Any]]:
     async def call_memory(  # NOSONAR
         ctx: HarnessContext, parsed: _MemoryInput, progress: Progress
     ) -> _MemoryOutput:
-        return _MEMORY_ACTIONS[parsed.action](env, ctx, parsed)
+        if parsed.action == "write":
+            return _memory_write(env, ctx, parsed)
+        if parsed.action == "read":
+            return _memory_read(env, ctx, parsed)
+        return _memory_list(env, ctx)
 
     async def call_analysis(
         ctx: HarnessContext, parsed: _AnalysisInput, progress: Progress
@@ -398,7 +399,7 @@ def build_workspace_tools(env: ToolEnv) -> list[HarnessTool[Any, Any]]:
             return await _analysis_save(env, ctx, parsed)
         if parsed.action == "read":
             return _analysis_read(env, ctx, parsed)
-        return _analysis_list(env, ctx, parsed)
+        return _analysis_list(env, ctx)
 
     writable = {**common, "read_only": False}
     tools.append(

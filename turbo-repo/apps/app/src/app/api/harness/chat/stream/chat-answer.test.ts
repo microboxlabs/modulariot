@@ -4,6 +4,7 @@ import {
   answerFromToolResult,
   artifactsOf,
   chatAnswerEvents,
+  dashletsInThread,
   dateFormatOf,
   humanize,
   parseChatBlocks,
@@ -335,5 +336,112 @@ describe("artifacts", () => {
     expect(
       out.filter((e) => e.type === "TEXT_MESSAGE_CONTENT").map((e) => e.delta)
     ).toEqual(["Antes", "Después"]);
+  });
+});
+
+describe("dashboard drafts", () => {
+  const kpiWidget = {
+    id: "w2",
+    kind: "kpi",
+    title: "Viajes",
+    y: ["trips"],
+    columns: ["trips"],
+    rows: [{ trips: 41 }],
+  };
+  const draftEvent = (widgets: string[]) => ({
+    type: "dashboard.draft",
+    data: { id: "d1", title: "Semana", description: "Viajes", widgets },
+  });
+
+  function argsOf(events: Record<string, unknown>[], name: string): unknown[] {
+    const ids = new Set(
+      events
+        .filter((e) => e.type === "TOOL_CALL_START" && e.toolCallName === name)
+        .map((e) => e.toolCallId)
+    );
+    return events
+      .filter((e) => e.type === "TOOL_CALL_ARGS" && ids.has(e.toolCallId))
+      .map((e) => JSON.parse(String(e.delta)));
+  }
+
+  it("tags each shown dashlet with its widget id", () => {
+    const events = chatAnswerEvents("[]", runEvents, {
+      ...opts,
+      newId: counter(),
+    });
+    expect(argsOf(events, "show_dashlet")).toEqual([
+      { ...widgetToDashlet(barWidget as WidgetSpec), widgetId: "w1" },
+    ]);
+  });
+
+  it("resolves the draft's widgets from this run and from earlier turns, in its order", () => {
+    const prior = dashletsInThread([
+      { toolCalls: "not a list" },
+      {
+        toolCalls: [
+          {
+            id: "t1",
+            function: {
+              name: "show_dashlet",
+              arguments: JSON.stringify({
+                widgetId: "w2",
+                ...widgetToDashlet(kpiWidget as WidgetSpec),
+              }),
+            },
+          },
+          {
+            id: "t2",
+            function: { name: "ask_user_question", arguments: "{}" },
+          },
+          { id: "t3", function: { name: "show_dashlet", arguments: "{bad" } },
+        ],
+      },
+    ]);
+
+    const events = chatAnswerEvents(
+      "[]",
+      [...runEvents, draftEvent(["w2", "w1", "w9"])],
+      { ...opts, newId: counter(), priorDashlets: prior }
+    );
+
+    const [draft] = argsOf(events, "show_dashboard_draft") as {
+      dashlets: { widgetId: string; dashletId: string }[];
+      missing: string[];
+    }[];
+    expect(draft).toMatchObject({
+      id: "d1",
+      title: "Semana",
+      description: "Viajes",
+    });
+    expect(draft!.dashlets.map((d) => [d.widgetId, d.dashletId])).toEqual([
+      ["w2", "stat_icon"],
+      ["w1", "chart_v2"],
+    ]);
+    expect(draft!.missing).toEqual(["w9"]);
+    expect(events.at(-1)).toMatchObject({
+      type: "TOOL_CALL_RESULT",
+      content: "{}",
+    });
+  });
+
+  it("comes after the widgets and before the choices card", () => {
+    const answer = JSON.stringify([
+      { type: "markdown", value: "Listo" },
+      {
+        type: "choices",
+        value: { question: "¿Guardar?", options: [{ label: "Sí" }] },
+      },
+    ]);
+    const names = chatAnswerEvents(answer, [...runEvents, draftEvent(["w1"])], {
+      ...opts,
+      newId: counter(),
+    })
+      .filter((e) => e.type === "TOOL_CALL_START")
+      .map((e) => e.toolCallName);
+    expect(names).toEqual([
+      "show_dashlet",
+      "show_dashboard_draft",
+      "ask_user_question",
+    ]);
   });
 });

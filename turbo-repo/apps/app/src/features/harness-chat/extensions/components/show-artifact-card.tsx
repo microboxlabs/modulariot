@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -8,7 +9,12 @@ import {
   type FC,
   type ReactNode,
 } from "react";
-import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import {
+  useAuiState,
+  type ToolCallMessagePartProps,
+} from "@assistant-ui/react";
+import { useParams, useRouter } from "next/navigation";
+import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { Badge, Modal, ModalBody, ModalHeader } from "flowbite-react";
 import {
@@ -22,7 +28,13 @@ import {
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import { MERMAID_COMPONENTS } from "@/features/storytelling/components/previewers/markdown/markdown-previewer";
 import { MermaidDiagram } from "@/features/storytelling/components/previewers/markdown/mermaid-diagram";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
+import {
+  saveArtifactAsStory,
+  type ArtifactToSave,
+} from "@/features/storytelling/stories-api";
 import { useHarnessChatTr } from "../../context/harness-chat-i18n-context";
+import { useHarnessThreadId } from "../../context/harness-session-context";
 import { ARTIFACT_FILES, type ShowArtifactArgs } from "../show-artifact-args";
 import {
   FILL_DRAWING,
@@ -203,7 +215,7 @@ const actionClass =
 
 /**
  * A diagram, note or page the agent made. `onSaveAsStory` shows a save
- * action when given; nothing passes it yet.
+ * action when given.
  */
 export const ArtifactCard: FC<{
   artifact: ShowArtifactArgs;
@@ -355,6 +367,7 @@ export const ArtifactCard: FC<{
 export const ShowArtifactCard: FC<
   ToolCallMessagePartProps<ShowArtifactArgs, Record<string, never>>
 > = ({ args, result, addResult }) => {
+  const saveAsStory = useSaveAsStory();
   useEffect(() => {
     if (!result) addResult({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -362,5 +375,68 @@ export const ShowArtifactCard: FC<
 
   if (!args || !(args.kind in KIND_LABELS) || typeof args.content !== "string")
     return null;
-  return <ArtifactCard artifact={args} />;
+  return <ArtifactCard artifact={args} onSaveAsStory={saveAsStory} />;
 };
+
+/** The story an artifact is kept as. Stories have no Mermaid kind, so a
+ * diagram is kept as Markdown that draws it. */
+export function artifactToStory(
+  artifact: ShowArtifactArgs
+): Pick<ArtifactToSave, "title" | "kind" | "content"> {
+  if (artifact.kind === "mermaid") {
+    return {
+      title: artifact.title,
+      kind: "markdown",
+      content: "```mermaid\n" + artifact.content + "\n```\n",
+    };
+  }
+  return {
+    title: artifact.title,
+    kind: artifact.kind,
+    content: artifact.content,
+  };
+}
+
+/** Saves the card's artifact as a story, with the chat message it came
+ * from; undefined while storytelling is off. */
+function useSaveAsStory(): ((artifact: ShowArtifactArgs) => void) | undefined {
+  const tr = useHarnessChatTr();
+  const router = useRouter();
+  const params = useParams<{ lang?: string }>();
+  const storytelling = useRuntimeConfig()?.ENABLE_STORYTELLING === "true";
+  const threadId = useHarnessThreadId();
+  const messageId = useAuiState((s) => s.message.id);
+  const saving = useRef(false);
+
+  const save = useCallback(
+    (artifact: ShowArtifactArgs) => {
+      if (saving.current) return;
+      saving.current = true;
+      saveArtifactAsStory({
+        ...artifactToStory(artifact),
+        ...(threadId ? { threadId } : {}),
+        messageId,
+      })
+        .then((story) => {
+          const prefix = params?.lang ? `/${params.lang}` : "";
+          toast.success(tr("harnessChat.ui.showArtifact.savedAsStory"), {
+            action: {
+              label: tr("harnessChat.ui.showArtifact.openStory"),
+              onClick: () =>
+                router.push(
+                  `${prefix}/storytelling/${encodeURIComponent(story.id)}`
+                ),
+            },
+          });
+        })
+        .catch(() =>
+          toast.error(tr("harnessChat.ui.showArtifact.saveAsStoryFailed"))
+        )
+        .finally(() => {
+          saving.current = false;
+        });
+    },
+    [tr, router, params, threadId, messageId]
+  );
+  return storytelling ? save : undefined;
+}

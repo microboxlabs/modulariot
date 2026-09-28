@@ -14,6 +14,8 @@ import {
 } from "@/features/i18n/i18n.service";
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { isModulithConfigured } from "@/lib/modulith-host";
+import { logger } from "@/lib/logger";
+import { resolveTenantScope } from "../../../utils/tenant-scope";
 import {
   conversationOf,
   effortOf,
@@ -22,7 +24,7 @@ import {
   type AgUiMessage,
   type RunAgentInputBody,
 } from "./conversation";
-import { answerFromToolResult } from "./chat-answer";
+import { answerFromToolResult, dashletsInThread } from "./chat-answer";
 import { fetchThread, storedThreadModel } from "./thread-model";
 import {
   connectToHarness,
@@ -253,7 +255,10 @@ export type HarnessPathDecision =
   | { handled: true }
   | { handled: false; message: string; attachments?: Attachment[] };
 
-function toHarness(message: string, attachments: Attachment[]): HarnessPathDecision {
+function toHarness(
+  message: string,
+  attachments: Attachment[]
+): HarnessPathDecision {
   return attachments.length > 0
     ? { handled: false, message, attachments }
     : { handled: false, message };
@@ -364,6 +369,27 @@ export async function POST(request: Request) {
   );
 }
 
+/** How long the stored-model fallback may wait on the model list. */
+const MODEL_LOOKUP_MS = 5_000;
+
+/** Durations of the steps before the harness run starts, for the log. */
+function stopwatch(): {
+  lap: (name: string) => void;
+  laps: () => Record<string, number>;
+} {
+  const start = performance.now();
+  let last = start;
+  const laps: Record<string, number> = {};
+  return {
+    lap(name) {
+      const now = performance.now();
+      laps[name] = Math.round(now - last);
+      last = now;
+    },
+    laps: () => ({ ...laps, totalMs: Math.round(performance.now() - start) }),
+  };
+}
+
 /** The per-turn fields of a run request, left out when unset. */
 function turnOptions(
   attachments: Attachment[] | undefined,
@@ -385,12 +411,17 @@ async function run(
   tr: TrFn
 ): Promise<void> {
   send({ type: "RUN_STARTED", runId, threadId });
+  const timing = stopwatch();
 
   // Authenticate before anything else — including the demo/placeholder
   // branches in decideHarnessPath, which would otherwise run for anonymous
   // callers hitting this route directly (no auth middleware sits in front
-  // of it; the page-level (secured) layout only gates the browser UI).
+  // of it; the page-level (secured) layout only gates the browser UI). The
+  // tenant scope is read meanwhile; nothing is done with it until then.
+  const scope = resolveTenantScope();
+  scope.catch(() => {}); // awaited, and reported, only past the auth check
   const authResult = await requireAuth();
+  timing.lap("authMs");
   if (!authResult.authenticated) {
     send({ type: "RUN_ERROR", message: "unauthenticated" });
     return;
@@ -400,7 +431,8 @@ async function run(
   if (decision.handled) return;
   const { message, attachments } = decision;
 
-  const connection = await connectToHarness(authResult.session);
+  const connection = await connectToHarness(authResult.session, scope);
+  timing.lap("connectMs");
   if (!connection.ok) {
     // RUN_ERROR is terminal on its own — no RUN_FINISHED follows it.
     send({ type: "RUN_ERROR", message: connection.errorMessage });
@@ -411,14 +443,18 @@ async function run(
     body,
     messages
   );
+  // The first turn of a thread has no stored model to fall back to, so it
+  // does not wait on the lookup.
   const model =
     modelOf(body) ??
-    (conversationId
+    (conversationId && replayTurns.length > 0
       ? await storedThreadModel(
           () => fetchThread(orgSlug, conversationId, token, userEmail),
-          () => client.models.list()
+          () =>
+            client.models.list({ signal: AbortSignal.timeout(MODEL_LOOKUP_MS) })
         )
       : null);
+  timing.lap("modelMs");
 
   const effort = effortOf(body);
 
@@ -443,6 +479,11 @@ async function run(
       { signal: AbortSignal.timeout(30_000) }
     );
     harnessRunId = run_id;
+    timing.lap("createMs");
+    logger.info(
+      { runId: run_id, ...timing.laps() },
+      "[harness/chat/stream] harness run created"
+    );
     if (relay.signal.aborted) {
       // Gone (Stop or reload) before the browser was told the run id: it can
       // neither re-attach nor stop it later.
@@ -460,6 +501,7 @@ async function run(
       signal: relay.signal,
       send,
       tr,
+      priorDashlets: dashletsInThread(messages),
     });
     if (!relayed.completed) return;
 

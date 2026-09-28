@@ -29,7 +29,8 @@ import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 import { useHarnessFork } from "../context/harness-fork-context";
 import { useHarnessReadOnly } from "../context/harness-read-only-context";
 import { useMessageRunId } from "../context/harness-run-lookup-context";
-import { formatElapsed, splitNarration } from "../run-progress";
+import { useRunStartedAt } from "../context/harness-session-context";
+import { formatElapsed, runElapsedSince, splitNarration } from "../run-progress";
 import { SentAttachment } from "./attachments";
 import { RunActivityRow } from "./run-activity";
 
@@ -213,7 +214,9 @@ const RunStatus: FC = () => {
     s.message.parts.map((part) => (part.type === "reasoning" ? part.text : "")).join("\n")
   );
   const createdAt = useAuiState((s) => s.message.createdAt);
-  const elapsed = useElapsedMs(createdAt, live);
+  // A reply rebuilt after a reload counts from where the harness started.
+  const runStartedAt = useRunStartedAt();
+  const elapsed = useElapsedMs(runElapsedSince(runStartedAt, createdAt), live);
   if (!live) return null;
 
   const step = splitNarration(narration).current ?? tr("harnessChat.ui.thread.working");
@@ -261,10 +264,20 @@ const FailedRunNotice: FC = () => {
   const readOnly = useHarnessReadOnly();
   const status = useAuiState((s) => s.message.status);
   if (status?.type !== "incomplete" || status.reason !== "error") return null;
+  // The harness lost the run (it restarted): nothing was wrong with the question.
+  const interrupted = status.error === "interrupted";
   return (
     <div className="flex max-w-[90%] flex-col gap-1">
-      <p className="text-xs text-amber-600 dark:text-amber-500">
-        {tr("harnessChat.ui.thread.runFailed")}
+      <p
+        className={
+          interrupted
+            ? "text-xs text-gray-500 dark:text-gray-400"
+            : "text-xs text-amber-600 dark:text-amber-500"
+        }
+      >
+        {interrupted
+          ? tr("harnessChat.ui.thread.runInterrupted")
+          : tr("harnessChat.ui.thread.runFailed")}
       </p>
       {!readOnly && (
         <ActionBarPrimitive.Reload className="w-fit text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">

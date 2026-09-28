@@ -31,6 +31,7 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
 
+from miot_harness.config import get_settings
 from miot_harness.context_skills.skill_models import McpServer, PlaybookSkill
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionResult
@@ -41,6 +42,12 @@ logger = logging.getLogger(__name__)
 MCP_CALL_TOOL = "mcp_call"
 
 _ENV_PREFIX_RE = re.compile(r"^\$\{([A-Z_][A-Z0-9_]*)\}")
+
+# A share link as the modulith returns it: an API path ending in the token.
+_SHARE_LINK_PATH_RE = re.compile(r"^/api/v1/orgs/[^/]+/links/([^/?#]+)$")
+
+# The app's base path, used when no public URL is configured.
+_APP_BASE_PATH = "/app"
 
 
 class McpTool(BaseModel):
@@ -212,6 +219,23 @@ def _without(schema: dict[str, Any], hidden: tuple[str, ...]) -> dict[str, Any]:
     return out
 
 
+def with_share_url(result: Any, app_public_url: str) -> Any:
+    """A share-link result with `url` added: the app page that opens the link.
+
+    The modulith answers with the API path of the link; the page people open
+    is the app's `/share/{token}`, absolute when the app's public URL is
+    configured.
+    """
+    if not isinstance(result, dict):
+        return result
+    path = result.get("path")
+    match = _SHARE_LINK_PATH_RE.match(path) if isinstance(path, str) else None
+    if match is None:
+        return result
+    base = app_public_url.rstrip("/") or _APP_BASE_PATH
+    return {**result, "url": f"{base}/share/{match.group(1)}"}
+
+
 def build_mcp_call_tool(
     find_skill: Callable[[str, str], PlaybookSkill | None], mcp: McpSkills
 ) -> HarnessTool[McpCallInput, McpCallOutput]:
@@ -247,7 +271,11 @@ def build_mcp_call_tool(
             raise RuntimeError(result.text or f"{inp.tool} failed")
         return McpCallOutput(
             tool=inp.tool,
-            result=result.structured if result.structured is not None else result.text,
+            result=(
+                with_share_url(result.structured, get_settings().app_public_url)
+                if result.structured is not None
+                else result.text
+            ),
             source=f"mcp:{inp.skill_id}",
             refreshed_at=datetime.now(UTC),
         )

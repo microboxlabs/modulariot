@@ -57,6 +57,7 @@ def test_event_type_full_set_is_pinned():
         "advisor.consulted",
         "delegate.completed",
         "widget.created",
+        "dashboard.draft",
         "answer.delta",
         "answer.completed",
         "run.completed",

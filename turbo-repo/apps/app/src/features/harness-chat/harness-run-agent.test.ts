@@ -6,6 +6,7 @@ import {
   withEffort,
   withModel,
 } from "./harness-run-agent";
+import { STREAM_IDLE_MS } from "./stream-watchdog";
 
 function input(messages: RunAgentInput["messages"]): RunAgentInput {
   return {
@@ -240,5 +241,96 @@ describe("HarnessRunAgent run tracking", () => {
 
     expect(fetch).toHaveBeenCalledWith("/api/harness/chat/runs/run_a/cancel", { method: "POST" });
     expect(window.localStorage.getItem(MARKER_KEY)).toBeNull();
+  });
+
+  it("counts the run's time from when the harness started it", async () => {
+    const fetch = vi.fn(async () =>
+      sseBody([
+        { type: "RUN_STARTED", runId: "r1", threadId: "t1" },
+        {
+          type: "CUSTOM",
+          name: "harness_run",
+          value: { runId: "run_a", status: "running", startedAt: "2026-09-28T09:00:00Z" },
+        },
+        { type: "RUN_FINISHED", runId: "r1", threadId: "t1" },
+      ])
+    );
+    const agent = new HarnessRunAgent({ url: "/api/harness/chat/stream", threadId: "t1", fetch });
+    const ticks = vi.fn();
+    agent.subscribeClock(ticks);
+
+    await agent.runAgent({ runId: "r1" });
+
+    expect(agent.runStartedAt).toBe(Date.parse("2026-09-28T09:00:00Z"));
+    expect(ticks).toHaveBeenCalled();
+  });
+});
+
+/** A relay that sends the run's first events, then goes silent without
+ * closing, like a connection that died behind a proxy. */
+function silentStream(): Response {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const event of [
+        { type: "RUN_STARTED", runId: "r1", threadId: "t1" },
+        { type: "CUSTOM", name: "harness_run", value: { runId: "run_a", status: "running" } },
+      ]) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      }
+    },
+  });
+  return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+}
+
+describe("HarnessRunAgent on a silent stream", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  async function runUntilSilent(
+    status: Response,
+    onReattach?: (runId: string) => void
+  ): Promise<string | undefined> {
+    vi.stubGlobal("fetch", vi.fn(async () => status));
+    const agent = new HarnessRunAgent({
+      url: "/api/harness/chat/stream",
+      threadId: "t1",
+      fetch: async () => silentStream(),
+    });
+    agent.onReattach = onReattach ?? null;
+    let error: string | undefined;
+    agent.subscribe({
+      onRunErrorEvent: ({ event }) => {
+        error = event.message;
+      },
+    });
+    const running = agent.runAgent({ runId: "r1" }).catch(() => undefined);
+    await vi.advanceTimersByTimeAsync(STREAM_IDLE_MS);
+    await running;
+    return error;
+  }
+
+  it("ends the run as interrupted when the harness lost it", async () => {
+    const error = await runUntilSilent(new Response(null, { status: 404 }));
+
+    expect(fetch).toHaveBeenCalledWith("/api/harness/chat/runs/run_a", expect.anything());
+    expect(error).toBe("interrupted");
+    expect(window.localStorage.getItem(MARKER_KEY)).toBeNull();
+  });
+
+  it("asks to re-attach when the run may still have an answer", async () => {
+    const reattach = vi.fn();
+
+    const error = await runUntilSilent(Response.json({ status: "running" }), reattach);
+
+    expect(error).toBe("stream_lost");
+    expect(reattach).toHaveBeenCalledWith("run_a");
+    expect(window.localStorage.getItem(MARKER_KEY)).toBe("run_a");
   });
 });

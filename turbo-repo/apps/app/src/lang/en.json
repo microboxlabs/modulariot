@@ -5641,6 +5641,7 @@
         "thoughtProcess": "Thought process",
         "executionCanceled": "Execution was canceled.",
         "runFailed": "Could not get an answer.",
+        "runInterrupted": "The run was interrupted.",
         "retry": "Try again",
         "readOnly": "This chat is read-only — someone else shared it with you.",
         "forkFromHere": "Fork from here",
@@ -5689,11 +5690,28 @@
         "zoomOut": "Zoom out",
         "fit": "Fit to window",
         "actualSize": "Actual size (100%)",
+        "savedAsStory": "Saved as a story",
+        "openStory": "Open story",
+        "saveAsStoryFailed": "Could not save the story",
         "omitted": "This result was too large to keep in the conversation history."
       },
       "showDashlet": {
         "unknown": "Unknown dashlet: {id}",
         "unsupported": "{name} can't be shown in chat."
+      },
+      "dashboardDraft": {
+        "title": "Dashboard draft",
+        "widgets": "{count} widgets",
+        "missing": "{count} widgets from earlier in this conversation are no longer available and were left out.",
+        "nameLabel": "Name",
+        "site": "Site: {site}",
+        "noSite": "Your user has no site, so the dashboard cannot be saved.",
+        "snapshot": "The dashboard keeps the data as shown here; it does not refresh.",
+        "create": "Create dashboard",
+        "creating": "Creating...",
+        "created": "Dashboard created",
+        "open": "Open dashboard",
+        "error": "The dashboard could not be created."
       },
       "askUserQuestion": {
         "skipped": "Skipped — superseded by a later message.",

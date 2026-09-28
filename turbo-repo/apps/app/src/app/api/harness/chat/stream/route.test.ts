@@ -52,19 +52,28 @@ vi.mock("../../../interactions/episodes/record-episode", () => ({
   recordEpisode: vi.fn(async () => {}),
 }));
 
+const storedThreadModelMock = vi.fn(async () => null);
+
 vi.mock("./thread-model", () => ({
   fetchThread: vi.fn(),
-  storedThreadModel: async () => null,
+  storedThreadModel: () => storedThreadModelMock(),
 }));
 
+const loggerInfoMock = vi.fn();
+
 vi.mock("@/lib/logger", () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  logger: {
+    info: (...args: unknown[]) => loggerInfoMock(...args),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 
 import { POST } from "./route";
 import { GET as RESUME } from "../runs/[runId]/stream/route";
 import { POST as CANCEL } from "../runs/[runId]/cancel/route";
-import { SSE_KEEPALIVE_MS, sseResponse } from "./relay";
+import { RELAY_IDLE_CHECK_MS, SSE_KEEPALIVE_MS, sseResponse } from "./relay";
 
 type AgUiEvent = { type: string; [key: string]: unknown };
 
@@ -100,14 +109,20 @@ function withSignal(request: Request, signal?: AbortSignal): Request {
   return request;
 }
 
-function chatRequest(signal?: AbortSignal): Request {
+function chatRequest(
+  signal?: AbortSignal,
+  earlier: { id: string; role: string; content: string }[] = []
+): Request {
   const request = new Request("http://test/api/harness/chat/stream", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       runId: "agui-1",
       threadId: "thread-1",
-      messages: [{ id: "u1", role: "user", content: "how many trips?" }],
+      messages: [
+        ...earlier,
+        { id: "u1", role: "user", content: "how many trips?" },
+      ],
     }),
   });
   return withSignal(request, signal);
@@ -184,6 +199,11 @@ describe("POST /api/harness/chat/stream", () => {
     const markers = events.filter((e) => e.type === "CUSTOM");
     expect(markers.map((e) => e.value)).toEqual([
       { runId: "run_1", status: "running" },
+      {
+        runId: "run_1",
+        status: "running",
+        startedAt: "2026-09-28T00:00:00Z",
+      },
       { runId: "run_1", status: "finished" },
     ]);
     expect(events.at(-1)).toEqual({
@@ -227,6 +247,7 @@ describe("POST /api/harness/chat/stream", () => {
     runsStreamMock.mockImplementation(async function* () {
       yield harnessEvent("agent.started", 1);
     });
+    runsGetMock.mockResolvedValue({ ...completedRecord, status: "running" });
 
     const { events } = await readEvents(await POST(chatRequest()));
 
@@ -247,6 +268,195 @@ describe("POST /api/harness/chat/stream", () => {
 
     expect(events.some(isMarker("finished"))).toBe(true);
     expect(events.at(-1)).toEqual({ type: "RUN_ERROR", message: "run_failed" });
+  });
+
+  it("reports a run the harness lost to a restart as interrupted", async () => {
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("run.failed", 1, { reason: "interrupted" });
+    });
+
+    const { events } = await readEvents(await POST(chatRequest()));
+
+    expect(events.some(isMarker("finished"))).toBe(true);
+    expect(events.at(-1)).toEqual({
+      type: "RUN_ERROR",
+      message: "interrupted",
+    });
+  });
+
+  it("asks for the run's status when the harness stream drops", async () => {
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("agent.started", 1);
+    });
+    runsGetMock.mockResolvedValue({
+      ...completedRecord,
+      status: "failed",
+      events: [harnessEvent("run.failed", 2, { reason: "interrupted" })],
+    });
+
+    const { events } = await readEvents(await POST(chatRequest()));
+
+    expect(events.some(isMarker("finished"))).toBe(true);
+    expect(events.at(-1)).toEqual({
+      type: "RUN_ERROR",
+      message: "interrupted",
+    });
+  });
+
+  it("answers a run that finished while its stream dropped", async () => {
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("agent.started", 1);
+    });
+    runsGetMock.mockResolvedValue({ ...completedRecord, status: "completed" });
+
+    const { events } = await readEvents(await POST(chatRequest()));
+
+    const answer = events
+      .filter((e) => e.type === "TEXT_MESSAGE_CONTENT")
+      .map((e) => e.delta)
+      .join("");
+    expect(answer).toContain("41 trips");
+    expect(events.at(-1)?.type).toBe("RUN_FINISHED");
+  });
+
+  describe("a harness stream that goes silent", () => {
+    afterEach(() => vi.useRealTimers());
+
+    it("ends the run once the harness says it was lost", async () => {
+      vi.useFakeTimers();
+      blockingRun();
+      runsGetMock.mockResolvedValue({
+        ...completedRecord,
+        status: "failed",
+        events: [harnessEvent("run.failed", 2, { reason: "interrupted" })],
+      });
+
+      const res = await POST(chatRequest());
+      const reading = readEvents(res);
+      await vi.advanceTimersByTimeAsync(RELAY_IDLE_CHECK_MS);
+      const { events } = await reading;
+
+      expect(runsGetMock).toHaveBeenCalledTimes(1);
+      expect(events.at(-1)).toEqual({
+        type: "RUN_ERROR",
+        message: "interrupted",
+      });
+    });
+
+    it("keeps waiting while the harness says the run is going", async () => {
+      vi.useFakeTimers();
+      const caller = new AbortController();
+      blockingRun();
+      runsGetMock.mockResolvedValue({ ...completedRecord, status: "running" });
+
+      const res = await POST(chatRequest(caller.signal));
+      const { reader } = await readEvents(res, isMarker("running"));
+      await vi.advanceTimersByTimeAsync(RELAY_IDLE_CHECK_MS * 2);
+      caller.abort();
+      while (!(await reader.read()).done) {
+        // drain
+      }
+
+      expect(runsGetMock).toHaveBeenCalledTimes(2);
+      expect(runsCancelMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("names every start of a tool, counting repeats, so the last line is the step in progress", async () => {
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("tool.started", 1, { tool: "acs_query" });
+      yield harnessEvent("tool.completed", 2, { tool: "acs_query" });
+      yield harnessEvent("tool.started", 3, { tool: "acs_analysis" });
+      yield harnessEvent("tool.completed", 4, { tool: "acs_analysis" });
+      yield harnessEvent("tool.started", 5, { tool: "acs_query" });
+      yield harnessEvent("run.completed", 6);
+    });
+    runsGetMock.mockResolvedValue(completedRecord);
+
+    const { events } = await readEvents(await POST(chatRequest()));
+
+    const narration = events
+      .filter((e) => e.type === "REASONING_MESSAGE_CONTENT")
+      .map((e) => e.delta)
+      .join("");
+    const lines = narration.split("\n").filter(Boolean);
+    expect(lines.slice(-3)).toEqual([
+      "harnessChat.stream.steps.query",
+      "harnessChat.stream.steps.analysis",
+      "harnessChat.stream.steps.query ×2",
+    ]);
+  });
+
+  it("shows an artifact as soon as the harness reports it, and only once", async () => {
+    const diagram = {
+      id: "a1",
+      kind: "mermaid",
+      title: "Flow",
+      content: "graph TD; A-->B",
+    };
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("artifact.created", 1, diagram);
+      yield harnessEvent("run.completed", 2);
+    });
+    runsGetMock.mockResolvedValue({
+      ...completedRecord,
+      answer: JSON.stringify([
+        { type: "markdown", value: "41 trips" },
+        { type: "artifact", value: { id: "a1" } },
+      ]),
+      events: [harnessEvent("artifact.created", 1, diagram)],
+    });
+
+    const { events } = await readEvents(await POST(chatRequest()));
+
+    const cards = events.filter(
+      (e) => e.type === "TOOL_CALL_START" && e.toolCallName === "show_artifact"
+    );
+    expect(cards).toHaveLength(1);
+    const cardAt = events.indexOf(cards[0]!);
+    const answerAt = events.findIndex((e) => e.type === "TEXT_MESSAGE_START");
+    expect(cardAt).toBeLessThan(answerAt);
+  });
+
+  it("logs how long each step before the harness run took", async () => {
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("run.completed", 1);
+    });
+    runsGetMock.mockResolvedValue(completedRecord);
+
+    await readEvents(await POST(chatRequest()));
+
+    const created = loggerInfoMock.mock.calls.find(
+      ([, msg]) => msg === "[harness/chat/stream] harness run created"
+    );
+    expect(created?.[0]).toMatchObject({
+      runId: "run_1",
+      authMs: expect.any(Number),
+      connectMs: expect.any(Number),
+      modelMs: expect.any(Number),
+      createMs: expect.any(Number),
+      totalMs: expect.any(Number),
+    });
+  });
+
+  it("skips the stored-model lookup on a thread's first message", async () => {
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("run.completed", 1);
+    });
+    runsGetMock.mockResolvedValue(completedRecord);
+
+    await readEvents(await POST(chatRequest()));
+    expect(storedThreadModelMock).not.toHaveBeenCalled();
+
+    await readEvents(
+      await POST(
+        chatRequest(undefined, [
+          { id: "u0", role: "user", content: "hello" },
+          { id: "a0", role: "assistant", content: "hi" },
+        ])
+      )
+    );
+    expect(storedThreadModelMock).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -292,7 +502,7 @@ describe("GET /api/harness/chat/runs/[runId]/stream", () => {
     });
   });
 
-  it("marks a run the harness no longer knows as finished", async () => {
+  it("marks a run the harness no longer knows as finished and interrupted", async () => {
     runsStreamMock.mockImplementation(async function* () {
       yield* [];
       throw new MiotHarnessApiError("unknown_run_id", "run_gone");
@@ -309,7 +519,7 @@ describe("GET /api/harness/chat/runs/[runId]/stream", () => {
     expect(events.some(isMarker("finished"))).toBe(true);
     expect(events.at(-1)).toEqual({
       type: "RUN_ERROR",
-      message: "stream_failed",
+      message: "interrupted",
     });
   });
 

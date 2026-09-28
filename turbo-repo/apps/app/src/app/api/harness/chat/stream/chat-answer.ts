@@ -8,6 +8,14 @@
  * `ask_user_question` tool calls. Pure, so the whole mapping is unit-tested.
  */
 
+import {
+  SHOW_DASHBOARD_DRAFT_TOOL,
+  type DraftDashlet,
+  type ShowDashboardDraftArgs,
+} from "@/features/harness-chat/extensions/dashboard-draft";
+
+export type { DraftDashlet };
+
 export type WidgetKind = "kpi" | "table" | "bar" | "line" | "pie";
 
 export type WidgetSpec = {
@@ -184,7 +192,7 @@ export function widgetsOf(events: unknown): WidgetSpec[] {
     .filter((w): w is WidgetSpec => w !== null);
 }
 
-function toArtifactSpec(value: unknown): ArtifactSpec | null {
+export function toArtifactSpec(value: unknown): ArtifactSpec | null {
   if (
     !isRecord(value) ||
     typeof value.id !== "string" ||
@@ -363,6 +371,106 @@ export function widgetToDashlet(input: WidgetSpec): {
   return { dashletId: "chart_v2", config: chartConfig(spec) };
 }
 
+export type DashboardDraftSpec = {
+  id: string;
+  title: string;
+  description: string;
+  widgets: string[];
+};
+
+function toDraftSpec(value: unknown): DashboardDraftSpec | null {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.title !== "string" ||
+    !Array.isArray(value.widgets)
+  ) {
+    return null;
+  }
+  return {
+    id: value.id,
+    title: value.title,
+    description: typeof value.description === "string" ? value.description : "",
+    widgets: value.widgets.filter((w): w is string => typeof w === "string"),
+  };
+}
+
+/** The dashboard drafts a run offered, from its `dashboard.draft` events. */
+export function dashboardDraftsOf(events: unknown): DashboardDraftSpec[] {
+  if (!Array.isArray(events)) return [];
+  return events
+    .filter(
+      (e) => isRecord(e) && e.type === "dashboard.draft" && isRecord(e.data)
+    )
+    .map((e) => toDraftSpec((e as { data: unknown }).data))
+    .filter((d): d is DashboardDraftSpec => d !== null);
+}
+
+function parseArgs(raw: unknown): unknown {
+  if (typeof raw !== "string") return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The dashlets earlier turns showed, by widget id, from the `show_dashlet`
+ * calls the browser sends back with the thread's messages.
+ */
+export function dashletsInThread(
+  messages: { toolCalls?: unknown }[]
+): Map<string, DraftDashlet> {
+  const found = new Map<string, DraftDashlet>();
+  for (const message of messages) {
+    if (!Array.isArray(message.toolCalls)) continue;
+    for (const call of message.toolCalls as ToolCallRecord[]) {
+      if (call.function?.name !== "show_dashlet") continue;
+      const args = parseArgs(call.function.arguments);
+      if (
+        isRecord(args) &&
+        typeof args.widgetId === "string" &&
+        typeof args.dashletId === "string" &&
+        isRecord(args.config)
+      ) {
+        found.set(args.widgetId, {
+          widgetId: args.widgetId,
+          dashletId: args.dashletId,
+          config: args.config,
+        });
+      }
+    }
+  }
+  return found;
+}
+
+/** A draft with each widget replaced by its dashlet: this run's widgets
+ * first, then the ones earlier turns showed. */
+export function resolveDraft(
+  draft: DashboardDraftSpec,
+  widgets: Map<string, WidgetSpec>,
+  prior: Map<string, DraftDashlet>
+): ShowDashboardDraftArgs {
+  const dashlets: DraftDashlet[] = [];
+  const missing: string[] = [];
+  for (const id of draft.widgets) {
+    const spec = widgets.get(id);
+    const dashlet = spec
+      ? { widgetId: id, ...widgetToDashlet(spec) }
+      : prior.get(id);
+    if (dashlet) dashlets.push(dashlet);
+    else missing.push(id);
+  }
+  return {
+    id: draft.id,
+    title: draft.title,
+    description: draft.description,
+    dashlets,
+    missing,
+  };
+}
+
 function toolCall(
   name: string,
   args: unknown,
@@ -407,20 +515,31 @@ function textMessage(text: string, newId: () => string): ChatEvent[] {
   ];
 }
 
+/** A `show_artifact` card for one artifact, as its own resolved tool call. */
+export function artifactCallEvents(
+  spec: ArtifactSpec,
+  newId: () => string = () => crypto.randomUUID()
+): ChatEvent[] {
+  return resolvedCall("show_artifact", spec, newId);
+}
+
 /** Collects the answer's parts in order while blocks are read. */
 class AnswerBuilder {
   readonly out: ChatEvent[] = [];
   private text: string[] = [];
   private readonly placed = new Set<string>();
-  private readonly placedArtifacts = new Set<string>();
+  private readonly placedArtifacts: Set<string>;
   readonly assumptions: string[] = [];
   choices: ChoicesValue | null = null;
 
   constructor(
     private readonly widgets: Map<string, WidgetSpec>,
     private readonly artifacts: Map<string, ArtifactSpec>,
-    private readonly newId: () => string
-  ) {}
+    private readonly newId: () => string,
+    shownArtifacts: Iterable<string> = []
+  ) {
+    this.placedArtifacts = new Set(shownArtifacts);
+  }
 
   add(block: ChatBlock): void {
     switch (block.type) {
@@ -461,7 +580,11 @@ class AnswerBuilder {
     if (!spec || this.placed.has(id)) return;
     this.flush();
     this.out.push(
-      ...resolvedCall("show_dashlet", widgetToDashlet(spec), this.newId)
+      ...resolvedCall(
+        "show_dashlet",
+        { ...widgetToDashlet(spec), widgetId: id },
+        this.newId
+      )
     );
     this.placed.add(id);
   }
@@ -478,24 +601,48 @@ class AnswerBuilder {
     for (const id of this.widgets.keys()) this.placeWidget(id);
     for (const id of this.artifacts.keys()) this.placeArtifact(id);
   }
+
+  placeDrafts(
+    drafts: DashboardDraftSpec[],
+    prior: Map<string, DraftDashlet>
+  ): void {
+    for (const draft of drafts) {
+      this.out.push(
+        ...resolvedCall(
+          SHOW_DASHBOARD_DRAFT_TOOL,
+          resolveDraft(draft, this.widgets, prior),
+          this.newId
+        )
+      );
+    }
+  }
 }
 
 /**
  * The AG-UI events that present one run's answer: text in order, each widget
  * and artifact where its block sits (those the answer never placed come after
- * the text, widgets first),
- * and a choices block as an `ask_user_question` card at the end.
+ * the text, widgets first), then each dashboard draft, resolved against this
+ * run's widgets and `priorDashlets`, and a choices block as an
+ * `ask_user_question` card at the end. Artifacts in `shownArtifacts` were
+ * sent while the run was going and are left out.
  */
 export function chatAnswerEvents(
   answer: string | null | undefined,
   events: unknown,
-  opts: { noAnswer: string; assumptionLabel: string; newId?: () => string }
+  opts: {
+    noAnswer: string;
+    assumptionLabel: string;
+    newId?: () => string;
+    shownArtifacts?: Iterable<string>;
+    priorDashlets?: Map<string, DraftDashlet>;
+  }
 ): ChatEvent[] {
   const newId = opts.newId ?? (() => crypto.randomUUID());
   const builder = new AnswerBuilder(
     new Map(widgetsOf(events).map((w) => [w.id, w])),
     new Map(artifactsOf(events).map((a) => [a.id, a])),
-    newId
+    newId,
+    opts.shownArtifacts
   );
   for (const block of parseChatBlocks(answer)) builder.add(block);
   if (builder.assumptions.length) {
@@ -505,6 +652,10 @@ export function chatAnswerEvents(
   }
   builder.flush();
   builder.placeRemaining();
+  builder.placeDrafts(
+    dashboardDraftsOf(events),
+    opts.priorDashlets ?? new Map()
+  );
   if (builder.choices)
     builder.out.push(...toolCall("ask_user_question", builder.choices, newId));
   if (builder.out.length === 0)

@@ -90,6 +90,7 @@ export const HARNESS_EVENT_TYPES = [
   "delegate.completed",
   "widget.created",
   "artifact.created",
+  "dashboard.draft",
   "answer.completed",
   "run.completed",
   "run.failed",
@@ -115,6 +116,15 @@ export interface ArtifactCreatedData {
    * Markdown source, or an HTML page to show in a sandboxed frame. */
   content: string;
   source?: string;
+}
+
+/** `dashboard.draft`: a dashboard the user can create from widgets of the thread. */
+export interface DashboardDraftData {
+  id: string;
+  title: string;
+  description: string;
+  /** Ids of `widget.created` widgets, in display order. */
+  widgets: string[];
 }
 
 export interface AgentStartedData {

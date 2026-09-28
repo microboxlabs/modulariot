@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -240,6 +241,11 @@ class HarnessSupervisor:
             self._emit(record, event)
 
         progress(HarnessEvent(run_id=ctx.run_id, type="run.started", message="Run started"))
+        if self.event_bus is not None:
+            # Saved from the first event, so a restart before the first
+            # checkpoint still leaves a record the next process marks interrupted.
+            self.run_store.save(record)
+        prep_started = time.monotonic()
         if mode_denied:
             progress(
                 HarnessEvent(
@@ -257,6 +263,7 @@ class HarnessSupervisor:
             # snapshot, so a run in the same conversation finishing while this one
             # awaits cannot slip its turn into this request's prior context.
             await self._load_saved(request, ctx)
+            saved_loaded = time.monotonic()
             history = _snapshot(self._seeded_history(request, ctx))
 
             # `/compact` and `/context` are answered here, without the agent
@@ -278,6 +285,12 @@ class HarnessSupervisor:
                 prior_messages = self._inject_tenant_context(ctx, prior_messages)
                 prior_messages = await self._inject_skill(request, ctx, prior_messages)
                 prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
+            logger.info(
+                "Run %s: prepared in %.0f ms (saved conversation %.0f ms)",
+                ctx.run_id,
+                (time.monotonic() - prep_started) * 1000,
+                (saved_loaded - prep_started) * 1000,
+            )
 
             if command is not None:
                 await self._run_command(command, request, ctx, record, progress, history)

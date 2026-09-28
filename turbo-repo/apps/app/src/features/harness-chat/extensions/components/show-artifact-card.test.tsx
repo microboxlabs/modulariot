@@ -1,10 +1,53 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ComponentProps } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ShowArtifactArgs } from "../show-artifact-args";
-import { ArtifactCard, sandboxedHtml, sanitizeSvg } from "./show-artifact-card";
+import {
+  ArtifactCard,
+  ShowArtifactCard,
+  artifactToStory,
+  sandboxedHtml,
+  sanitizeSvg,
+} from "./show-artifact-card";
 
 vi.mock("../../context/harness-chat-i18n-context", () => ({
   useHarnessChatTr: () => (key: string) => key,
+}));
+
+const pushMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+  useParams: () => ({ lang: "es" }),
+}));
+
+const toastSuccessMock = vi.fn();
+vi.mock("sonner", () => ({
+  toast: {
+    success: (...args: unknown[]) => toastSuccessMock(...args),
+    error: vi.fn(),
+  },
+}));
+
+let storytellingEnabled = true;
+vi.mock("@/features/runtime-config/runtime-config-context", () => ({
+  useRuntimeConfig: () => ({
+    ENABLE_STORYTELLING: storytellingEnabled ? "true" : "false",
+  }),
+}));
+
+const saveMock = vi.fn();
+vi.mock("@/features/storytelling/stories-api", () => ({
+  saveArtifactAsStory: (...args: unknown[]) => saveMock(...args),
+}));
+
+vi.mock("../../context/harness-session-context", () => ({
+  useHarnessThreadId: () => "thread-1",
+}));
+
+vi.mock("@assistant-ui/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/react")>()),
+  useAuiState: (select: (s: { message: { id: string } }) => unknown) =>
+    select({ message: { id: "msg-1" } }),
 }));
 
 const hostileSvg =
@@ -120,6 +163,68 @@ describe("ArtifactCard", () => {
       screen.getByText("harnessChat.ui.showArtifact.omitted")
     ).toBeTruthy();
     expect(screen.queryByRole("img")).toBeNull();
+  });
+});
+
+describe("ShowArtifactCard save as story", () => {
+  const diagram = artifact("mermaid", "graph TD; A-->B");
+  const card = () =>
+    render(
+      <ShowArtifactCard
+        {...({
+          args: diagram,
+          result: {},
+          addResult: vi.fn(),
+        } as unknown as ComponentProps<typeof ShowArtifactCard>)}
+      />
+    );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    storytellingEnabled = true;
+  });
+
+  it("keeps the artifact as a story from this chat, then offers to open it", async () => {
+    saveMock.mockResolvedValue({ id: "s1" });
+    card();
+
+    screen.getByLabelText("harnessChat.ui.showArtifact.saveAsStory").click();
+
+    await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
+    expect(saveMock).toHaveBeenCalledWith({
+      title: "Proceso de venta",
+      kind: "markdown",
+      content: "```mermaid\ngraph TD; A-->B\n```\n",
+      threadId: "thread-1",
+      messageId: "msg-1",
+    });
+    const [message, options] = toastSuccessMock.mock.calls[0] as [
+      string,
+      { action: { label: string; onClick: () => void } },
+    ];
+    expect(message).toBe("harnessChat.ui.showArtifact.savedAsStory");
+    expect(options.action.label).toBe("harnessChat.ui.showArtifact.openStory");
+    options.action.onClick();
+    expect(pushMock).toHaveBeenCalledWith("/es/storytelling/s1");
+  });
+
+  it("offers no save while storytelling is off", () => {
+    storytellingEnabled = false;
+    card();
+
+    expect(
+      screen.queryByLabelText("harnessChat.ui.showArtifact.saveAsStory")
+    ).toBeNull();
+  });
+});
+
+describe("artifactToStory", () => {
+  it("keeps the story kinds as they are", () => {
+    expect(artifactToStory(artifact("svg", "<svg/>"))).toEqual({
+      title: "Proceso de venta",
+      kind: "svg",
+      content: "<svg/>",
+    });
   });
 });
 

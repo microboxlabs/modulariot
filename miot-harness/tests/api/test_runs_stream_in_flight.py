@@ -85,8 +85,9 @@ async def test_late_subscriber_replays_uncheckpointed_events_then_goes_live(
     tmp_path: Any,
 ) -> None:
     app, loop, run_id, task = await _start(tmp_path)
-    # Nothing has been checkpointed yet: the disk has no record of this run.
-    assert not (tmp_path / "runs" / f"{run_id}.json").exists()
+    # The disk holds the run as saved at its start, before the loop's events.
+    saved = JsonRunStore(tmp_path).load(run_id)
+    assert [e.type for e in saved.events] == ["run.started"]
 
     stream = _sse_iterator(app, run_id, None)  # type: ignore[arg-type]
     frames = [await _next(stream) for _ in range(3)]

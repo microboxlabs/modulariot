@@ -46,6 +46,7 @@ import { TitleInput } from "./components/title-input";
 import { HarnessForkProvider } from "./context/harness-fork-context";
 import { HarnessModelProvider } from "./context/harness-model-context";
 import { HarnessReadOnlyProvider } from "./context/harness-read-only-context";
+import { HarnessSessionProvider, type HarnessSession } from "./context/harness-session-context";
 import {
   HarnessRunLookupProvider,
   type HarnessRunLookup,
@@ -775,6 +776,14 @@ const SessionHost: FC<{
     agent.model = model;
   }, [agent, model]);
   useThreadModel(sessionId, setModel);
+  const session = useMemo<HarnessSession>(
+    () => ({
+      threadId: sessionId,
+      runStartedAt: () => agent.runStartedAt,
+      subscribeRunClock: agent.subscribeClock,
+    }),
+    [sessionId, agent],
+  );
   const fork = useCallback(
     (atMessageId?: string) => void onFork(sessionId, atMessageId),
     [onFork, sessionId],
@@ -812,6 +821,7 @@ const SessionHost: FC<{
         <HarnessReadOnlyProvider readOnly={readOnly}>
           <HarnessForkProvider onFork={fork}>
           <HarnessModelProvider model={model} onChange={setModel}>
+          <HarnessSessionProvider session={session}>
           {/* A shared thread is somebody else's conversation: it has a title
               already, takes no pending message, and offers nothing that runs. */}
           {!readOnly && (
@@ -835,6 +845,7 @@ const SessionHost: FC<{
           <HarnessRunLookupProvider lookup={runLookup}>
             <Thread skills={skills} onStop={stopRun} />
           </HarnessRunLookupProvider>
+          </HarnessSessionProvider>
           </HarnessModelProvider>
           </HarnessForkProvider>
         </HarnessReadOnlyProvider>

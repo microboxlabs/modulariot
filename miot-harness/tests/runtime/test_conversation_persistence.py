@@ -10,7 +10,7 @@ import httpx
 import pytest
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 
-from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.context import ConversationTurnInput, UserRequest
 from miot_harness.runtime.conversation import (
     ConversationHistory,
     ConversationTurn,
@@ -64,7 +64,7 @@ class _Backend:
         self.meta: dict[str, dict[str, Any]] = {}
         self.fail_load = False
 
-    async def load(self, key: str) -> dict[str, Any] | None:
+    async def load(self, key: str, *, tenant_id: str) -> dict[str, Any] | None:
         if self.fail_load:
             raise RuntimeError("modulith down")
         return self.docs.get(key)
@@ -100,8 +100,8 @@ def _supervisor(tmp_path: Any, backend: _Backend) -> tuple[HarnessSupervisor, _L
     return supervisor, loop
 
 
-def _request(message: str) -> UserRequest:
-    return UserRequest(message=message, tenant_id="orion", conversation_id="conv")
+def _request(message: str, **kwargs: Any) -> UserRequest:
+    return UserRequest(message=message, tenant_id="orion", conversation_id="conv", **kwargs)
 
 
 @pytest.mark.asyncio
@@ -127,13 +127,49 @@ async def test_a_restarted_harness_picks_up_the_tool_history(tmp_path: Any) -> N
     assert any(isinstance(m, ToolMessage) for m in prior)
 
 
+_REPLAY = [
+    ConversationTurnInput(user_message="earlier question", assistant_answer="earlier answer")
+]
+
+
 @pytest.mark.asyncio
 async def test_a_failed_load_falls_back_to_the_replay(tmp_path: Any) -> None:
     backend = _Backend()
     backend.fail_load = True
-    supervisor, _ = _supervisor(tmp_path, backend)
-    record = await supervisor.run(_request("hello"))
+    supervisor, loop = _supervisor(tmp_path, backend)
+    record = await supervisor.run(_request("hello", conversation_history=_REPLAY))
     assert record.status == "completed"
+    assert "earlier question" in [m.content for m in loop.priors[0]]
+
+
+@pytest.mark.asyncio
+async def test_a_malformed_saved_document_falls_back_to_the_replay(tmp_path: Any) -> None:
+    backend = _Backend()
+    backend.docs[_KEY] = {"turns": [{"messages": [{"type": "nonsense"}]}]}
+    supervisor, loop = _supervisor(tmp_path, backend)
+    record = await supervisor.run(_request("hello", conversation_history=_REPLAY))
+    assert record.status == "completed"
+    assert "earlier question" in [m.content for m in loop.priors[0]]
+
+
+@pytest.mark.asyncio
+async def test_a_loaded_history_is_not_replaced_by_a_longer_replay(tmp_path: Any) -> None:
+    backend = _Backend()
+    first, _ = _supervisor(tmp_path, backend)
+    await first.run(_request("trips today?"))
+    await first.drain_saves()
+
+    restarted, loop = _supervisor(tmp_path, backend)
+    # The app's replay: its own rendering of the answer, plus a question whose
+    # run never finished. Seeding from it would drop the tool history.
+    replay = [
+        ConversationTurnInput(user_message="trips today?", assistant_answer="41 trips (rendered)"),
+        ConversationTurnInput(user_message="unanswered", assistant_answer="(No answer)"),
+    ]
+    await restarted.run(_request("what SQL did you run?", conversation_history=replay))
+
+    calls = [m for m in loop.priors[0] if isinstance(m, AIMessage) and m.tool_calls]
+    assert calls, "the saved tool history must survive the longer replay"
 
 
 @pytest.mark.asyncio
@@ -173,8 +209,9 @@ async def test_the_modulith_backend_speaks_the_internal_endpoint() -> None:
     backend = ModulithConversationBackend(
         "http://modulith:8080/", "secret", transport=httpx.MockTransport(handler)
     )
-    assert await backend.load("missing") is None
-    assert await backend.load("k") == {"summary": "s", "turns": []}
+    assert await backend.load("missing", tenant_id="orion") is None
+    assert await backend.load("k", tenant_id="orion") == {"summary": "s", "turns": []}
+    assert seen[0].url.params["tenantId"] == "orion"
     await backend.save("k", {"turns": []}, meta={"tenantId": "orion", "conversationId": "c"})
 
     put = seen[-1]

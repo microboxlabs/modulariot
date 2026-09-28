@@ -474,12 +474,14 @@ class HarnessSupervisor:
         if key is None or store is None or backend is None or store.get(key) is not None:
             return
         try:
-            doc = await backend.load(key)
+            doc = await backend.load(key, tenant_id=ctx.tenant_id)
+            loaded = doc_to_history(key, doc) if doc is not None else None
         except Exception:  # noqa: BLE001 — memory upkeep must not fail the run
             logger.warning("Could not load the saved conversation; using the replay", exc_info=True)
             return
-        if doc is not None and store.get(key) is None:
-            store.seed(doc_to_history(key, doc))
+        if loaded is not None and store.get(key) is None:
+            loaded.saved = True
+            store.seed(loaded)
 
     def _save_later(self, request: UserRequest, ctx: HarnessContext) -> None:
         """Save the conversation in the background, after any save still in
@@ -491,6 +493,7 @@ class HarnessSupervisor:
         history = store.get(key)
         if history is None:
             return
+        history.saved = True
         doc = history_to_doc(history)
         default_model = getattr(self.agent_loop, "default_model", None)
         meta = {
@@ -774,6 +777,8 @@ class HarnessSupervisor:
             return False
         if history is None:
             return True
+        if history.saved:
+            return False
         return history.summary is None and len(history.turns) < len(
             request.conversation_history
         )

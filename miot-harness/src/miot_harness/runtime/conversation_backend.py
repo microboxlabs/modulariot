@@ -25,7 +25,7 @@ _VERSION = 1
 
 
 class ConversationBackend(Protocol):
-    async def load(self, key: str) -> dict[str, Any] | None: ...
+    async def load(self, key: str, *, tenant_id: str) -> dict[str, Any] | None: ...
 
     async def save(self, key: str, doc: dict[str, Any], *, meta: dict[str, str | None]) -> None: ...
 
@@ -76,9 +76,10 @@ class ModulithConversationBackend:
         self._timeout = timeout
         self._transport = transport
 
-    async def load(self, key: str) -> dict[str, Any] | None:
+    async def load(self, key: str, *, tenant_id: str) -> dict[str, Any] | None:
+        params = {"key": key, "tenantId": tenant_id}
         async with httpx.AsyncClient(transport=self._transport, timeout=self._timeout) as client:
-            response = await client.get(self._url, params={"key": key}, headers=self._headers)
+            response = await client.get(self._url, params=params, headers=self._headers)
         if response.status_code == 404:
             return None
         response.raise_for_status()

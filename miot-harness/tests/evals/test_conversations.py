@@ -137,3 +137,31 @@ def test_the_analytics_suite_loads() -> None:
     from miot_harness.evals.conversations import SUITES
 
     assert load_cases(SUITES["analytics"])
+
+
+def test_one_of_passes_when_any_alternative_passes() -> None:
+    question = {"question": "¿Cuál?", "options": [{"label": "a"}, {"label": "b"}]}
+    record = _record([{"type": "choices", "value": question}])
+    expect = {"one_of": [{"any_tool": True, "numbers": [{"value": 10}]}, {"blocks": ["choices"]}]}
+    assert check_turn(record, expect) == []
+    only_numbers = {"one_of": [{"numbers": [{"value": 10}]}]}
+    assert check_turn(record, only_numbers) == ["no alternative passed: no number near 10 (±1%)"]
+
+
+def test_a_choices_block_without_a_real_question_does_not_count() -> None:
+    empty = _record([{"type": "choices", "value": {"question": "", "options": []}}])
+    assert check_turn(empty, {"blocks": ["choices"]}) == ["no choices block"]
+
+
+def test_numbers_and_names_in_a_shown_widget_count_as_answered() -> None:
+    record = _record([{"type": "markdown", "value": "Cordillera lidera."}])
+    record["events"].append(
+        {
+            "type": "widget.created",
+            "data": {
+                "widget": {"title": "Horas", "rows": [{"carrier": "Altiplano", "h": "5001.8"}]}
+            },
+        }
+    )
+    expect = {"numbers": [{"value": 5001.8}], "contains_any": ["Altiplano"]}
+    assert check_turn(record, expect) == []

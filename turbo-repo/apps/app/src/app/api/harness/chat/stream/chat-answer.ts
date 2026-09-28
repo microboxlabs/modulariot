@@ -577,6 +577,15 @@ export function shareLinkCallEvents(
   return resolvedCall(SHOW_SHARE_LINK_TOOL, args, newId);
 }
 
+/** Any other informational card, as its own resolved tool call. */
+export function resolvedCardEvents(
+  name: string,
+  args: unknown,
+  newId: () => string = () => crypto.randomUUID()
+): ChatEvent[] {
+  return resolvedCall(name, args, newId);
+}
+
 /** Collects the answer's parts in order while blocks are read. */
 class AnswerBuilder {
   readonly out: ChatEvent[] = [];

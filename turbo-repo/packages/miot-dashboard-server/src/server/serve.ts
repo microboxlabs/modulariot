@@ -106,6 +106,9 @@ export function createRequestHandler(options: ServeOptions) {
     tenants: options.tenants,
     scopes: options.scopes,
     store: options.store,
+    ...(options.maxBodyBytes === undefined
+      ? {}
+      : { maxBodyBytes: options.maxBodyBytes }),
     // The 500 body says nothing on purpose, so without this a failing
     // database is a wall of INTERNAL_ERROR and an empty log.
     onError: (error, request) =>

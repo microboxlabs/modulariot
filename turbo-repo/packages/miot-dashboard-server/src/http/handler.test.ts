@@ -801,3 +801,40 @@ describe("onError", () => {
     expect(seen).toEqual([]);
   });
 });
+
+describe("embedded handler body limits", () => {
+  it("authorizes before reading and refuses oversized authorized writes", async () => {
+    const { options, store } = buildOptions();
+    const handler = createDashboardHandler({ ...options, maxBodyBytes: 10 });
+    const url =
+      "https://dashboard.test/tenants/acme/scopes/ops/dashboards/fleet";
+    const body = JSON.stringify(sampleConfig());
+    expect(
+      (await handler(new Request(url, { method: "PUT", body }))).status,
+    ).toBe(401);
+    expect(
+      (
+        await handler(
+          new Request(url, {
+            method: "PUT",
+            body,
+            headers: { "x-dev-user": "alice" },
+          }),
+        )
+      ).status,
+    ).toBe(413);
+    expect(
+      (await store.load({ tenantId: "acme", scopeId: "ops", slug: "fleet" }))
+        ?.revision,
+    ).toBe(1);
+  });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 1.5])(
+    "refuses invalid maxBodyBytes %s",
+    (maxBodyBytes) => {
+      expect(() =>
+        createDashboardHandler({ ...buildOptions().options, maxBodyBytes }),
+      ).toThrow(TypeError);
+    },
+  );
+});

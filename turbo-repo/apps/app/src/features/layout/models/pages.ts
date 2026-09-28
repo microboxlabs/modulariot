@@ -79,6 +79,7 @@ export function visiblePages(devToolsEnabled: boolean, storytellingEnabled: bool
 
 const HARNESS_SETTINGS_HREF = "/users/settings/harness";
 const PLATFORM_SETTINGS_HREF = "/users/settings/platform";
+export const HARNESS_LEARNING_HREF = "/harness/learning";
 
 /** Which flag decides whether a gated Settings entry is offered. */
 export interface SettingsGates {
@@ -86,6 +87,8 @@ export interface SettingsGates {
   readonly harness: boolean;
   /** Whether the signed-in user holds `PLATFORM_OWNER`. */
   readonly platformOwner: boolean;
+  /** Whether the signed-in user may train the assistant (`HARNESS_TRAINER`). */
+  readonly trainer: boolean;
 }
 
 /**
@@ -99,12 +102,13 @@ export function filterSettings(
   input: SidebarItem[],
   gates: SettingsGates
 ): SidebarItem[] {
-  if (gates.harness && gates.platformOwner) return input;
+  if (gates.harness && gates.platformOwner && gates.trainer) return input;
 
   return input.map((page) => ({
     ...page,
     items: (page.items ?? []).filter((item) => {
       if (!gates.harness && item.href === HARNESS_SETTINGS_HREF) return false;
+      if (!gates.trainer && item.href === HARNESS_LEARNING_HREF) return false;
       return gates.platformOwner || item.href !== PLATFORM_SETTINGS_HREF;
     }),
   }));

@@ -21,6 +21,8 @@ const READ_ONLY_CARDS = new Set([
   "show_dashlet",
   "request_approval",
   "show_share_link",
+  "show_knowledge_change",
+  "show_learning_eval",
 ]);
 
 const noop = () => undefined;

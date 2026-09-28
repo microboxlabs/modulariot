@@ -1894,7 +1894,11 @@
         "notEnforced": "El plan todavía no se aplica en esta instalación: el uso se registra, pero no se bloquea a nadie.",
         "noSubscription": "Tu organización no tiene asientos. Cada asiento cuesta ${price} al mes y suma {tokens} tokens al cupo mensual.",
         "chooseSeats": "Elegir asientos",
-        "poolExhausted": "Tu organización usó todos los tokens de este mes. El asistente vuelve a estar disponible el día 1, o antes si agregas asientos."
+        "poolExhausted": "Tu organización usó todos los tokens de este mes. El asistente vuelve a estar disponible el día 1, o antes si agregas asientos.",
+        "learningWorkspace": {
+          "text": "Enseña al asistente los términos y procedimientos de tu organización.",
+          "link": "Abrir el espacio de aprendizaje"
+        }
       },
       "breadcrumb": {
         "user": "Usuario",
@@ -2850,7 +2854,8 @@
         "createDashboard": "Nuevo dashboard",
         "closePanel": "Cerrar panel",
         "platform": "Plataforma",
-        "selectables": "Seleccionables"
+        "selectables": "Seleccionables",
+        "harnessLearning": "Aprendizaje del asistente"
       }
     },
     "calendar": {
@@ -5798,7 +5803,11 @@
           "selectables_replace": "Reemplazar la lista",
           "selectables_delete": "Eliminar la lista",
           "selectables_bind": "Vincular listas a campos",
-          "propose_learned_fact": "Guardar hecho aprendido"
+          "propose_learned_fact": "Guardar hecho aprendido",
+          "propose_knowledge_change": "Aplicar cambios de conocimiento",
+          "ws_write": "Escribir archivo",
+          "ws_edit": "Editar archivo",
+          "ws_delete": "Eliminar archivo"
         },
         "kind": "Tipo",
         "description": "Descripción",
@@ -5871,6 +5880,190 @@
       "plan_no_seat": "No tienes un asiento de Harness. Pide a un administrador de tu organización que te dé acceso.",
       "plan_pool_exhausted": "Tu organización usó todos los tokens de este mes. Vuelve a estar disponible el día 1, o antes si un administrador agrega asientos.",
       "plan_model_not_offered": "Ese modelo ya no está disponible. Elige otro en el selector."
+    },
+    "learning": {
+      "title": "Espacio de aprendizaje",
+      "subtitle": "Enseña al asistente y comprueba cada cambio con evaluaciones.",
+      "sessions": "Sesiones",
+      "newSession": "Nueva sesión",
+      "newSessionFailed": "No se pudo crear la sesión. Inténtalo de nuevo.",
+      "untitled": "Sesión sin título",
+      "notTrainer": "Solo los entrenadores del asistente pueden usar este espacio.",
+      "loading": "Cargando…",
+      "emptyTitle": "Enseña algo nuevo al asistente",
+      "emptyText": "Abre una sesión y usa los comandos para enseñar hechos, reglas y procedimientos. Luego pruébalos con evaluaciones.",
+      "commandsHeading": "Comandos",
+      "showSessions": "Mostrar sesiones",
+      "hideSessions": "Ocultar sesiones",
+      "sessionsFailed": "No se pudieron cargar las sesiones.",
+      "retry": "Reintentar",
+      "noSessions": "Aún no hay sesiones.",
+      "layers": {
+        "fact": "Hechos de datos",
+        "rule": "Reglas y glosario",
+        "skill": "Procedimientos",
+        "primer": "Descripciones de fuentes",
+        "note": "Notas del agente",
+        "eval": "Casos de evaluación"
+      },
+      "ops": {
+        "upsert": "Guardar",
+        "delete": "Eliminar",
+        "write": "Escribir",
+        "edit": "Editar"
+      },
+      "change": {
+        "heading": "Cambio de conocimiento",
+        "scratchpad": "Archivo de trabajo",
+        "open": "Abrir en el área de trabajo",
+        "truncated": "El diff llegó acortado. Ábrelo para verlo completo.",
+        "loadingDiff": "Calculando diferencias…",
+        "version": "v{version}",
+        "count": "{count} cambios"
+      },
+      "diff": {
+        "view": "Vista del diff",
+        "unified": "Unificada",
+        "split": "Lado a lado",
+        "wrap": "Ajustar líneas",
+        "collapse": "Ocultar líneas sin cambios",
+        "hiddenLines": "{count} líneas sin cambios",
+        "noChanges": "Sin cambios",
+        "invalid": "No se pudo mostrar el diff."
+      },
+      "eval": {
+        "heading": "Evaluación",
+        "running": "Evaluando… {done}/{total}",
+        "runningShort": "Evaluando…",
+        "failed": "La evaluación falló.",
+        "loadFailed": "No se pudo cargar la evaluación.",
+        "baseline": "Antes",
+        "candidate": "Después",
+        "improved": "{count} mejoraron",
+        "regressed": "{count} empeoraron",
+        "unchanged": "{count} igual",
+        "open": "Ver casos",
+        "question": "Pregunta",
+        "expectation": "Respuesta esperada",
+        "answer": "Respuesta",
+        "reason": "Motivo",
+        "skills": "Procedimientos usados",
+        "model": "Modelo",
+        "noResults": "Sin casos.",
+        "all": "Todos",
+        "onlyImproved": "Mejoraron",
+        "onlyRegressed": "Empeoraron",
+        "case": "Caso {n}",
+        "noAnswer": "Sin respuesta",
+        "triggerOk": "Usó los procedimientos esperados",
+        "triggerMiss": "Procedimientos: faltó {missing}; sobró {unexpected}"
+      },
+      "work": {
+        "title": "Área de trabajo",
+        "close": "Cerrar el área de trabajo",
+        "back": "Atrás",
+        "forward": "Adelante",
+        "recent": "Recientes",
+        "resize": "Cambiar el ancho del área de trabajo",
+        "empty": "Abre un archivo, una evaluación o /layers desde el chat."
+      },
+      "file": {
+        "changes": "Cambios",
+        "full": "Archivo",
+        "history": "Historial",
+        "revert": "Revertir",
+        "reverted": "Versión {version} restaurada como una versión nueva.",
+        "revertFailed": "No se pudo revertir.",
+        "confirmRevert": "¿Restaurar la versión {version}? Se guardará como una versión nueva.",
+        "edit": "Editar",
+        "save": "Guardar versión",
+        "saving": "Guardando…",
+        "saved": "Nueva versión guardada.",
+        "saveFailed": "No se pudo guardar.",
+        "cancel": "Cancelar",
+        "reason": "Motivo del cambio",
+        "titleLabel": "Título",
+        "contentLabel": "Contenido",
+        "notFound": "Este archivo aún no existe.",
+        "loadFailed": "No se pudo cargar el archivo.",
+        "proposed": "Cambio propuesto",
+        "vsPrevious": "Versión {version} contra la anterior",
+        "firstVersion": "Primera versión",
+        "readOnly": "Solo lectura",
+        "by": "por {by}",
+        "current": "actual",
+        "deleted": "Eliminado en esta versión."
+      },
+      "layersView": {
+        "title": "Conocimiento editable",
+        "loadFailed": "No se pudo cargar el conocimiento.",
+        "empty": "Vacío",
+        "readOnly": "solo lectura",
+        "refresh": "Actualizar"
+      },
+      "changesView": {
+        "title": "Cambios de esta sesión",
+        "empty": "Esta sesión aún no cambió nada."
+      },
+      "view": {
+        "layers": "Conocimiento editable",
+        "diff": "Cambios de la sesión"
+      },
+      "review": {
+        "not_found": "No encontré esa conversación. Revisa el enlace o el id.",
+        "forbidden": "No tienes acceso a esa conversación.",
+        "failed": "No se pudo leer esa conversación. Inténtalo de nuevo."
+      },
+      "commands": {
+        "fact": {
+          "usage": "<texto>",
+          "description": "Enseña un hecho sobre los datos."
+        },
+        "rule": {
+          "usage": "<texto>",
+          "description": "Agrega una regla o un término del glosario de la organización."
+        },
+        "skill": {
+          "usage": "<nombre>: <procedimiento>",
+          "description": "Crea o edita un procedimiento."
+        },
+        "primer": {
+          "usage": "<conexión>: <texto>",
+          "description": "Edita la descripción de una fuente de datos."
+        },
+        "forget": {
+          "usage": "<qué>",
+          "description": "Busca el conocimiento que dice esto y propone borrarlo."
+        },
+        "eval": {
+          "usage": "<pregunta> => <respuesta esperada>",
+          "description": "Guarda un caso de evaluación."
+        },
+        "test": {
+          "usage": "[pregunta]",
+          "description": "Evalúa los cambios de esta sesión: antes y después, con el modelo actual."
+        },
+        "review": {
+          "usage": "<enlace o id>",
+          "description": "Revisa una conversación pasada y propone cambios y casos de evaluación."
+        },
+        "skillCreator": {
+          "usage": "<objetivo>",
+          "description": "Crea un procedimiento guiado: preguntas, borrador, casos y prueba."
+        },
+        "skillDoctor": {
+          "usage": "[nombre]",
+          "description": "Revisa los procedimientos de la organización y propone arreglos."
+        },
+        "layers": {
+          "usage": "",
+          "description": "Muestra el conocimiento editable."
+        },
+        "diff": {
+          "usage": "",
+          "description": "Muestra los cambios de esta sesión."
+        }
+      }
     }
   },
   "shareLink": {

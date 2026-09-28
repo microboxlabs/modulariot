@@ -753,3 +753,11 @@ operations, 20 seconds, 5,000 rows and 2 MiB JSON. Cancellation-ignoring adapter
 retain their slot until they settle. See the
 [query integration guide](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/apps/docs/content/en/operations/dashboard-server/queries.mdx)
 for the contract and configurable limits.
+
+## Embedded request limits
+
+`createDashboardHandler({ ...adapters, maxBodyBytes: 1024 * 1024 })` enforces
+the same default 1 MiB JSON body limit as the standalone Node adapter. It
+authorizes before consuming the body and counts received bytes rather than
+trusting `Content-Length`; oversized requests return 413. The host still owns
+request deadlines and connection limits.

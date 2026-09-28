@@ -14,6 +14,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from miot_harness.datasource.knowledge.models import KnowledgeCard
+from miot_harness.datasource.profile import safe_profile
 from miot_harness.datasource.routine_call import safe_call_routine
 from miot_harness.datasource.routine_introspect import (
     fetch_definition,
@@ -26,6 +27,7 @@ from miot_harness.datasource.safe_query import (
     safe_list_tables,
     safe_run_select,
     safe_select,
+    safe_table_comment,
 )
 from miot_harness.datasource.schema_introspect import introspect_foreign_keys
 from miot_harness.datasource.sql_policy import TableAccessPolicy
@@ -40,6 +42,22 @@ class _ListTablesInput(BaseModel):
 
 class _DescribeInput(BaseModel):
     table: str = Field(description="Schema-qualified table, e.g. acs.act_ru_task")
+
+
+class _ProfileInput(BaseModel):
+    table: str = Field(description="Schema-qualified table, e.g. ops.orders")
+    columns: list[str] | None = Field(
+        default=None, description="Columns to profile; omit for all (up to 40)"
+    )
+
+
+class _ProfileOutput(BaseModel):
+    table: str = ""
+    est_rows: int | None = None
+    sampled_rows: int = 0
+    sample: str = ""
+    columns: list[dict[str, Any]] = Field(default_factory=list)
+    source: str = ""
 
 
 class _SelectInput(BaseModel):
@@ -81,6 +99,7 @@ class _RowsOutput(BaseModel):
 
 
 class _DescribeOutput(BaseModel):
+    comment: str | None = None
     columns: list[dict[str, Any]] = Field(default_factory=list)
     foreign_keys: list[dict[str, Any]] = Field(default_factory=list)
     source: str = ""
@@ -132,7 +151,7 @@ class _CallInput(BaseModel):
     args: dict[str, Any] = Field(
         default_factory=dict,
         description=(
-            "IN arguments by name, e.g. {\"p_client_id\": \"abc\"}; arguments "
+            'IN arguments by name, e.g. {"p_client_id": "abc"}; arguments '
             "with defaults may be omitted. Values are cast to the declared types."
         ),
     )
@@ -183,7 +202,8 @@ def build_generic_tools(
     """
     cards_by_id = {c.id: c for c in (knowledge_cards or [])}
 
-    async def check_permission(
+    # HarnessTool.check_permission must return an awaitable.
+    async def check_permission(  # NOSONAR
         ctx: HarnessContext, _input: BaseModel
     ) -> PermissionResult:
         if tenant_lock is not None and ctx.tenant_id != tenant_lock:
@@ -222,7 +242,14 @@ def build_generic_tools(
         # Only surface FKs whose referenced table is itself within the
         # allowlist — don't leak table/schema names the agent can't query
         # (e.g. an FK into public.*).
+        comment = await safe_table_comment(
+            pool=pool,
+            policy=policy,
+            table=parsed.table,
+            statement_timeout_ms=statement_timeout_ms,
+        )
         return _DescribeOutput(
+            comment=comment,
             columns=columns,
             foreign_keys=[
                 {
@@ -234,6 +261,18 @@ def build_generic_tools(
             ],
             source=source_label,
         )
+
+    async def call_profile(
+        ctx: HarnessContext, parsed: _ProfileInput, progress: Progress
+    ) -> _ProfileOutput:
+        result = await safe_profile(
+            pool=pool,
+            policy=policy,
+            table=parsed.table,
+            columns=parsed.columns,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        return _ProfileOutput(**result, source=source_label)
 
     async def call_select(
         ctx: HarnessContext, parsed: _SelectInput, progress: Progress
@@ -251,9 +290,7 @@ def build_generic_tools(
         )
         return _RowsOutput(rows=run.rows, source=source_label, executed_sql=run.sql)
 
-    async def call_grep(
-        ctx: HarnessContext, parsed: _GrepInput, progress: Progress
-    ) -> _RowsOutput:
+    async def call_grep(ctx: HarnessContext, parsed: _GrepInput, progress: Progress) -> _RowsOutput:
         run = await safe_grep(
             pool=pool,
             policy=policy,
@@ -372,8 +409,11 @@ def build_generic_tools(
         if card is None:
             return _KnowledgeOutput(available=available, source=source_label)
         return _KnowledgeOutput(
-            card=card.id, title=card.title, body=card.body,
-            available=available, source=source_label,
+            card=card.id,
+            title=card.title,
+            body=card.body,
+            available=available,
+            source=source_label,
         )
 
     common: dict[str, Any] = {
@@ -388,8 +428,8 @@ def build_generic_tools(
         HarnessTool(
             name=f"{tool_prefix}list_tables",
             description=(
-                f"List tables/views {scope}. Use first to discover what exists "
-                "before describe/select (this connection has no curated catalog)."
+                f"List tables/views {scope} with estimated row counts and their "
+                "comments. Call once at the start: it is the whole catalog."
             ),
             input_model=_ListTablesInput,
             output_model=_RowsOutput,
@@ -399,13 +439,29 @@ def build_generic_tools(
         HarnessTool(
             name=f"{tool_prefix}describe",
             description=(
-                f"Columns + types AND foreign-key relationships of a "
-                f"schema-qualified table {scope}. Use to discover a table's shape "
-                "and how it joins to others before select."
+                f"Columns + types, column and table comments, AND foreign-key "
+                f"relationships of a schema-qualified table {scope}. Use to discover "
+                "a table's shape and how it joins to others."
             ),
             input_model=_DescribeInput,
             output_model=_DescribeOutput,
             call=call_describe,
+            **common,
+        ),
+        HarnessTool(
+            name=f"{tool_prefix}profile",
+            description=(
+                f"Profile a schema-qualified table {scope} on a bounded sample: per "
+                "column the comment, null %, distinct count, min/max for numbers and "
+                "dates, the most common values (text columns, and any column with "
+                "few distinct values), and for JSON columns the keys it carries "
+                "with an example. "
+                "Use it on the tables a question needs before writing the query: "
+                "it shows what values mean and which rows repeat."
+            ),
+            input_model=_ProfileInput,
+            output_model=_ProfileOutput,
+            call=call_profile,
             **common,
         ),
         HarnessTool(
@@ -467,7 +523,9 @@ def build_generic_tools(
                 "Optional ILIKE pattern on name or description. `total` is the "
                 "match count; rows carry a one-line summary (definition has the "
                 "full text). Read these before writing a query someone may "
-                "already have written."
+                "already have written. With no pattern, total=0 means the "
+                "connection has none, so do not retry with patterns; with a "
+                "pattern it only means nothing matched."
             ),
             input_model=_FunctionsInput,
             output_model=_FunctionsOutput,

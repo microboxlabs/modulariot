@@ -174,10 +174,11 @@ export const DiffView: FC<DiffViewProps> = ({
     );
   }
 
-  const last = file.hunks[file.hunks.length - 1];
-  const trailing = hasTexts
-    ? Math.max(lineCount(oldText) - (last.oldStart + last.oldLines - 1), 0)
-    : 0;
+  const last = file.hunks.at(-1);
+  const trailing =
+    hasTexts && last
+      ? Math.max(lineCount(oldText) - (last.oldStart + last.oldLines - 1), 0)
+      : 0;
 
   const fold = (count: number, key: string): ReactNode => {
     const label = tr("harnessChat.learning.diff.hiddenLines", {
@@ -233,11 +234,10 @@ export const DiffView: FC<DiffViewProps> = ({
             −{stats.removed}
           </span>
         </span>
-        <div
-          role="group"
-          aria-label={tr("harnessChat.learning.diff.view")}
-          className="ml-auto flex items-center gap-0.5"
-        >
+        <fieldset className="m-0 ml-auto flex items-center gap-0.5 border-0 p-0">
+          <legend className="sr-only">
+            {tr("harnessChat.learning.diff.view")}
+          </legend>
           <button
             type="button"
             aria-pressed={viewType === "unified"}
@@ -262,7 +262,7 @@ export const DiffView: FC<DiffViewProps> = ({
               {tr("harnessChat.learning.diff.split")}
             </span>
           </button>
-        </div>
+        </fieldset>
         <button
           type="button"
           aria-pressed={wrap}

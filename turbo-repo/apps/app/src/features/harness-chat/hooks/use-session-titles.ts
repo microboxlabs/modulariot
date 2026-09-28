@@ -4,7 +4,7 @@ import {
   useCallback,
   useRef,
   type Dispatch,
-  type MutableRefObject,
+  type RefObject,
   type SetStateAction,
 } from "react";
 import type { Session } from "../harness-chat-types";
@@ -26,7 +26,7 @@ export function useSessionTitles({
   setSessions,
   kind,
 }: {
-  sessionsRef: MutableRefObject<Session[]>;
+  sessionsRef: RefObject<Session[]>;
   setSessions: Dispatch<SetStateAction<Session[]>>;
   kind?: ThreadKind;
 }) {

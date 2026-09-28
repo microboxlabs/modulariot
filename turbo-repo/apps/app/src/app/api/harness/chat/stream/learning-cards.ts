@@ -54,6 +54,29 @@ function previewOf(value: unknown): Record<string, unknown> | null {
   }
 }
 
+/** The card for a trainer tool's result, if it has one to show. */
+function cardOf(
+  tool: string,
+  args: Record<string, unknown>,
+  data: Record<string, unknown>
+): { name: string; args: unknown } | null {
+  const preview = previewOf(data.preview);
+  if (tool === RUN_LEARNING_EVAL_TOOL) {
+    const card = learningEvalArgsOf(preview);
+    return card ? { name: SHOW_LEARNING_EVAL_TOOL, args: card } : null;
+  }
+  const changes = knowledgeChangesOf(tool, { ...args, ...preview });
+  if (changes.length === 0) return null;
+  const summary = typeof preview?.summary === "string" ? preview.summary : null;
+  const card: ShowKnowledgeChangeArgs = {
+    tool,
+    changes,
+    ...(summary ? { summary } : {}),
+    ...(data.preview_truncated === true ? { truncated: true } : {}),
+  };
+  return { name: SHOW_KNOWLEDGE_CHANGE_TOOL, args: card };
+}
+
 /**
  * Sends a card for a trainer tool's result: the diff of what a knowledge or
  * scratchpad write changed, or an evaluation's summary.
@@ -67,38 +90,19 @@ export function trackLearningCards(
   const tool = typeof data.tool === "string" ? data.tool : null;
   const callId = typeof data.call_id === "string" ? data.call_id : null;
   if (!tool || !callId) return;
-  const tracked = CHANGE_TOOLS.has(tool) || tool === RUN_LEARNING_EVAL_TOOL;
-  if (!tracked) return;
+  if (!CHANGE_TOOLS.has(tool) && tool !== RUN_LEARNING_EVAL_TOOL) return;
   if (event.type === "tool.started") {
     if (isRecord(data.args)) state.args.set(callId, data.args);
     return;
   }
   if (event.type !== "tool.completed" || data.ok === false) return;
   if (state.shown.has(callId)) return;
-  const preview = previewOf(data.preview);
   const args = state.args.get(callId) ?? {};
   state.args.delete(callId);
-
-  if (tool === RUN_LEARNING_EVAL_TOOL) {
-    const card = learningEvalArgsOf(preview);
-    if (!card) return;
-    state.shown.add(callId);
-    for (const e of resolvedCardEvents(SHOW_LEARNING_EVAL_TOOL, card)) send(e);
-    return;
-  }
-
-  const changes = knowledgeChangesOf(tool, { ...args, ...(preview ?? {}) });
-  if (changes.length === 0) return;
+  const card = cardOf(tool, args, data);
+  if (!card) return;
   state.shown.add(callId);
-  const summary =
-    typeof preview?.summary === "string" ? preview.summary : undefined;
-  const card: ShowKnowledgeChangeArgs = {
-    tool,
-    changes,
-    ...(summary ? { summary } : {}),
-    ...(data.preview_truncated === true ? { truncated: true } : {}),
-  };
-  for (const e of resolvedCardEvents(SHOW_KNOWLEDGE_CHANGE_TOOL, card)) send(e);
+  for (const e of resolvedCardEvents(card.name, card.args)) send(e);
 }
 
 /** The workspace view a learning-session command asks for, if any. */

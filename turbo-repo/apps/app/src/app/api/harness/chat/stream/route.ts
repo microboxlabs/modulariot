@@ -380,9 +380,15 @@ export async function POST(request: Request) {
 export async function learningTurn(
   send: Sender,
   message: string,
-  auth: { orgSlug: string; token?: string; userEmail?: string },
+  auth: {
+    learning: boolean;
+    orgSlug: string;
+    token?: string;
+    userEmail?: string;
+  },
   tr: TrFn
 ): Promise<string | null> {
+  if (!auth.learning) return message;
   const view = learningViewOf(message);
   if (view) sendLearningView(send, view);
   const ref = reviewRefOf(message);
@@ -463,9 +469,12 @@ async function run(
     return;
   }
   const { client, orgSlug, token, userEmail } = connection;
-  const harnessMessage = isLearningRun(body)
-    ? await learningTurn(send, message, { orgSlug, token, userEmail }, tr)
-    : message;
+  const harnessMessage = await learningTurn(
+    send,
+    message,
+    { learning: isLearningRun(body), orgSlug, token, userEmail },
+    tr
+  );
   if (harnessMessage === null) {
     send({ type: "RUN_FINISHED", runId, threadId });
     return;

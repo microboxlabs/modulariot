@@ -378,6 +378,7 @@ async def _stream_turn(
     thinking_chars = 0
     thinking_index = 0
     first_chunk_at: float | None = None
+    call_parts: dict[tuple[Any, str], str] = {}
 
     def emit_answer(delta: str) -> None:
         nonlocal answer_index
@@ -394,9 +395,10 @@ async def _stream_turn(
     async for chunk in model.astream(messages):
         if first_chunk_at is None:
             first_chunk_at = monotonic()
-        agg = chunk if agg is None else agg + chunk
         if getattr(chunk, "tool_call_chunks", None):
             tool_call_seen = True
+            chunk = _without_repeated_call_parts(chunk, call_parts)
+        agg = chunk if agg is None else agg + chunk
         for kind, delta in _chunk_deltas(chunk):
             if kind != "text":
                 thinking_chars += len(delta)
@@ -442,6 +444,29 @@ async def _stream_turn(
             )
         )
     return message, first_chunk_at
+
+
+def _without_repeated_call_parts(chunk: Any, seen: dict[tuple[Any, str], str]) -> Any:
+    """`chunk` without a tool name or id that repeats what its call has so far.
+
+    Some OpenAI-compatible gateways send the whole name and id in every chunk
+    of a call; merged as they come, `gps_query` becomes `gps_querygps_query`.
+    `seen` holds each call's name and id so far, keyed by (index, field).
+    """
+    parts = []
+    for part in chunk.tool_call_chunks:
+        part = dict(part)
+        for field in ("name", "id"):
+            value = part.get(field)
+            if not value:
+                continue
+            key = (part.get("index"), field)
+            if seen.get(key) == value:
+                part[field] = None
+            else:
+                seen[key] = seen.get(key, "") + value
+        parts.append(part)
+    return chunk.model_copy(update={"tool_call_chunks": parts})
 
 
 def _thinking_delta(run_id: str, delta: str, index: int) -> HarnessEvent:

@@ -665,3 +665,32 @@ async def test_turn_without_chunks_has_no_first_token_time():
     )
     completed = next(e for e in events if e.type == "agent.completed")
     assert completed.data["first_token_ms"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("repeated", [True, False])
+async def test_a_tool_name_and_id_sent_in_every_chunk_are_not_concatenated(
+    monkeypatch, repeated
+):
+    seen: list[Any] = []
+
+    async def fake_invoke_step(step, **kwargs):
+        seen.append(step)
+        return {"evidence": [_evidence()]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    name = "fake_kpi_summary"
+    again = {"name": name, "call_id": "c1"} if repeated else {}
+    first_turn = [
+        _tc_chunk(0, name=name, args="", call_id="c1"),
+        _tc_chunk(0, args='{"per', **again),
+        _tc_chunk(0, args='iod": "week"}', **again),
+    ]
+    model = ChunkedModel([first_turn, [AIMessageChunk(content="done")]])
+    await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None
+    )
+    assert [s.tool for s in seen] == [name]
+    assert seen[0].args == {"period": "week"}
+    replayed = model.calls[1][-2]
+    assert [(c["name"], c["id"]) for c in replayed.tool_calls] == [(name, "c1")]

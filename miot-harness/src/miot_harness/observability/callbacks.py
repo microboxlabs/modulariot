@@ -113,6 +113,11 @@ def _extract_usage(response: LLMResult) -> TokenUsage:
 class AgentTelemetryCallback(BaseCallbackHandler):
     """Emits one OTel span per LLM call, attributed to the owning agent."""
 
+    # Run on the event loop. Otherwise LangChain sends every event, one per
+    # streamed chunk included, through the default thread pool, and a busy
+    # pool holds the whole stream back until it frees.
+    run_inline = True
+
     def __init__(
         self,
         agent_name: str,

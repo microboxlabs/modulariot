@@ -8,8 +8,12 @@ export type TranscriptPart =
   | { readonly kind: "text"; readonly text: string }
   | {
       readonly kind: "tool";
+      readonly id: string;
       readonly name: string;
       readonly title: string | null;
+      readonly args: Record<string, unknown>;
+      readonly result: unknown;
+      readonly isError: boolean;
     }
   | { readonly kind: "attachment"; readonly name: string };
 
@@ -38,7 +42,15 @@ function toPart(raw: unknown): TranscriptPart | null {
     return { kind: "text", text: raw.text };
   }
   if (raw.type === "tool-call" && typeof raw.toolName === "string") {
-    return { kind: "tool", name: raw.toolName, title: toolTitle(raw.args) };
+    return {
+      kind: "tool",
+      id: typeof raw.toolCallId === "string" ? raw.toolCallId : "",
+      name: raw.toolName,
+      title: toolTitle(raw.args),
+      args: isRecord(raw.args) ? raw.args : {},
+      result: raw.result,
+      isError: raw.isError === true,
+    };
   }
   return null;
 }
@@ -53,16 +65,38 @@ function attachmentParts(raw: unknown): TranscriptPart[] {
 }
 
 /**
- * The user and assistant turns of a stored thread, in the order they were
- * appended, reduced to what a reader can show without the chat runtime:
- * text, the tools the assistant used, and attachment names. Messages in an
- * unknown format, other roles and empty turns are left out.
+ * The messages on the thread's current branch, oldest first. A retried or
+ * edited turn is stored as a sibling of the attempt it replaces (same
+ * parent), so reading every row in append order would show both; the chat
+ * shows the branch that ends at the newest message, and so does this.
+ * Threads stored without parent links are read in append order.
+ */
+function currentBranch(sorted: readonly SharedMessage[]): SharedMessage[] {
+  if (!sorted.some((m) => m.parentId !== null)) return [...sorted];
+  const byId = new Map(sorted.map((m) => [m.id, m]));
+  const branch: SharedMessage[] = [];
+  const seen = new Set<string>();
+  let current = sorted.at(-1);
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id);
+    branch.push(current);
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+  return branch.reverse();
+}
+
+/**
+ * The user and assistant turns of a stored thread's current branch, reduced
+ * to what a reader can show without the chat runtime: text, the tool calls
+ * the assistant made (with their args, for the cards), and attachment names.
+ * Messages in an unknown format, other roles and empty turns are left out.
  */
 export function toTranscript(
   messages: readonly SharedMessage[]
 ): TranscriptEntry[] {
   const entries: TranscriptEntry[] = [];
-  for (const message of [...messages].sort((a, b) => a.seq - b.seq)) {
+  const sorted = [...messages].sort((a, b) => a.seq - b.seq);
+  for (const message of currentBranch(sorted)) {
     if (message.format !== SUPPORTED_FORMAT) continue;
     const { role, content, attachments } = message.payload;
     if (role !== "user" && role !== "assistant") continue;

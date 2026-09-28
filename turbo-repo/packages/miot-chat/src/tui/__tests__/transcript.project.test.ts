@@ -333,7 +333,10 @@ describe("transcript projector — labels with message fallback", () => {
     const ctx = mkCtx();
     const route = applyHarnessEvent(
       emptySlice(),
-      evt("route.selected", { message: "NEXO_QUERY", data: { route: "NEXO_QUERY" } }),
+      evt("route.selected", {
+        message: "NEXO_QUERY",
+        data: { route: "NEXO_QUERY" },
+      }),
       "r1",
       ctx,
     );
@@ -398,8 +401,8 @@ describe("transcript projector — labels with message fallback", () => {
       ctx,
     );
     expect(next.transcript[0]).toMatchObject({
-      kind: "artifact",
-      artifactKind: "artifact",
+      kind: "system",
+      text: "artifact: artifact (artifact)",
     });
   });
 });
@@ -485,7 +488,10 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
     );
     const s2 = applyHarnessEvent(s1, evt("thinking.completed"), "r1", ctx);
     expect(s2.currentThinkingItemId).toBeNull();
-    expect(s2.transcript[0]).toMatchObject({ kind: "thinking", status: "complete" });
+    expect(s2.transcript[0]).toMatchObject({
+      kind: "thinking",
+      status: "complete",
+    });
   });
 
   it("usage.recorded accumulates token totals across calls", () => {
@@ -540,7 +546,9 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
     const ctx = mkCtx();
     const next = applyHarnessEvent(
       emptySlice(),
-      evt("agent.completed", { data: { agent: "filter_expert", duration_ms: 100 } }),
+      evt("agent.completed", {
+        data: { agent: "filter_expert", duration_ms: 100 },
+      }),
       "r1",
       ctx,
     );
@@ -558,7 +566,12 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
     const seeded: TranscriptSlice = {
       ...emptySlice(),
       transcript: [
-        { kind: "system", id: "id-0", text: "seed", ts: "2026-01-01T00:00:00Z" },
+        {
+          kind: "system",
+          id: "id-0",
+          text: "seed",
+          ts: "2026-01-01T00:00:00Z",
+        },
       ],
       currentRunId: "r1",
     };

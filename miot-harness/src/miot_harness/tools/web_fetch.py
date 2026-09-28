@@ -15,6 +15,7 @@ import asyncio
 import ipaddress
 import re
 import socket
+import time
 from collections.abc import Awaitable, Callable
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlsplit
@@ -69,10 +70,21 @@ def _public_address(addresses: list[str], host: str) -> str:
     if not addresses:
         raise WebFetchError(f"{host} does not resolve")
     for address in addresses:
-        ip = ipaddress.ip_address(address)
-        if not ip.is_global or ip.is_multicast:
+        if not _is_public(ipaddress.ip_address(address)):
             raise WebFetchError(f"{host} resolves to a non-public address")
     return addresses[0]
+
+
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+
+
+def _is_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    if not ip.is_global or ip.is_multicast:
+        return False
+    # A NAT64 address reaches the IPv4 address in its last 32 bits.
+    if isinstance(ip, ipaddress.IPv6Address) and ip in _NAT64:
+        return _is_public(ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF))
+    return True
 
 
 class WebFetcher:
@@ -211,10 +223,35 @@ async def _allow(_: HarnessContext, __: BaseModel) -> PermissionResult:
     return PermissionResult.allow("Reads public web pages only.")
 
 
-def web_fetch_tool(fetcher: WebFetcher | None = None) -> HarnessTool[WebFetchInput, WebFetchOutput]:
+class _RunBudget:
+    """Fetches per run. A run is forgotten once idle longer than any run lasts."""
+
+    _IDLE_SECONDS = 2 * 60 * 60
+
+    def __init__(self, limit: int) -> None:
+        self._limit = limit
+        self._counts: dict[str, tuple[int, float]] = {}
+
+    def take(self, run_id: str) -> None:
+        now = time.monotonic()
+        for key in [k for k, (_, at) in self._counts.items() if at < now - self._IDLE_SECONDS]:
+            del self._counts[key]
+        used = self._counts.get(run_id, (0, now))[0]
+        if used >= self._limit:
+            raise WebFetchError(
+                f"fetch limit reached: {used} pages in this run. Answer with what you read."
+            )
+        self._counts[run_id] = (used + 1, now)
+
+
+def web_fetch_tool(
+    fetcher: WebFetcher | None = None, *, max_per_run: int = 20
+) -> HarnessTool[WebFetchInput, WebFetchOutput]:
     fetcher = fetcher or WebFetcher()
+    budget = _RunBudget(max_per_run)
 
     async def call(ctx: HarnessContext, value: WebFetchInput, _: Progress) -> WebFetchOutput:
+        budget.take(ctx.run_id)
         return await fetcher.fetch(value.url, max_chars=value.max_chars)
 
     return HarnessTool(

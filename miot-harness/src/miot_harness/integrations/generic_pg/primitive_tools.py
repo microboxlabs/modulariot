@@ -32,6 +32,7 @@ from miot_harness.datasource.safe_query import (
 )
 from miot_harness.datasource.schema_introspect import introspect_foreign_keys
 from miot_harness.datasource.sql_policy import TableAccessPolicy
+from miot_harness.integrations.generic_pg.workflow_tool import build_workflow_tool
 from miot_harness.integrations.generic_pg.workspace_tools import (
     ToolEnv,
     build_show_tool,
@@ -201,11 +202,14 @@ def build_generic_tools(
     knowledge_cards: list[KnowledgeCard] | None = None,
     call_security_definer: bool = False,
     workspace_dir: Path | None = None,
+    workflow_schema: str | None = None,
 ) -> list[HarnessTool[Any, Any]]:
     """Build the generic safe-query primitives as registrable HarnessTools.
 
     When `knowledge_cards` is non-empty (a knowledge pack matched the schema), a
     `<prefix>knowledge` tool is added so the agent can open card bodies on demand.
+    `workflow_schema` names the schema holding BPMN engine tables; when set, a
+    `<prefix>workflow` tool is added.
     """
     cards_by_id = {c.id: c for c in (knowledge_cards or [])}
 
@@ -582,6 +586,8 @@ def build_generic_tools(
     )
     tools.insert(3, build_show_tool(env))
     tools.extend(build_workspace_tools(env))
+    if workflow_schema is not None:
+        tools.append(build_workflow_tool(env, workflow_schema))
     if cards_by_id:
         titles = "; ".join(f"{c.id}: {c.title}" for c in cards_by_id.values())
         tools.append(

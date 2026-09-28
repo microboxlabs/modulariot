@@ -19,9 +19,9 @@ from traceloop.sdk import Traceloop
 
 from miot_harness.agents.chat_models import (
     get_chat_model,
+    loop_model_kwargs,
     provider_registry,
     set_provider_registry,
-    supports_effort,
 )
 from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
 from miot_harness.agents.model_providers import (
@@ -607,14 +607,14 @@ def _build_agent_loop(
         models=settings.agents_agent_loop_models,
         # Models the configured providers offer, and the owner's default.
         providers=provider_registry,
-        # `effort` on the adaptive-thinking models, a thinking budget on the rest.
-        build_model=lambda name: get_chat_model(
+        build_model=lambda name, effort=None: get_chat_model(
             name,
             timeout=settings.agents_agent_loop_llm_timeout_seconds,
-            **(
-                {"effort": settings.agents_agent_loop_effort}
-                if supports_effort(name)
-                else {"thinking_budget_tokens": settings.agents_agent_loop_thinking_budget}
+            **loop_model_kwargs(
+                name,
+                default_effort=settings.agents_agent_loop_effort,
+                default_thinking_budget=settings.agents_agent_loop_thinking_budget,
+                run_effort=effort,
             ),
         ),
         registry=harness.tools,

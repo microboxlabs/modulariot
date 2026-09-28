@@ -16,6 +16,7 @@ import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { isModulithConfigured } from "@/lib/modulith-host";
 import {
   conversationOf,
+  effortOf,
   modelOf,
   type AgUiMessage,
   type RunAgentInputBody,
@@ -427,6 +428,8 @@ async function run(
         )
       : null);
 
+  const effort = effortOf(body);
+
   const relay = relaySignal(requestSignal);
   let harnessRunId: string | null = null;
   try {
@@ -437,6 +440,7 @@ async function run(
         skill_id: "miot-analyst",
         answer_format: "json",
         ...(model && { model }),
+        ...(effort && { effort }),
         ...(userEmail && { user_id: userEmail }),
         ...(conversationId && { conversation_id: conversationId }),
         ...(replayTurns.length > 0 && { conversation_history: replayTurns }),

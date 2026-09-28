@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.api;
 
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
@@ -138,6 +139,27 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode,
             Map<String, Object> body);
+
+    /** The approved knowledge cards attached to a connection. */
+    @GET
+    @Path("/connections/{connection}/knowledge")
+    Uni<Response> listConnectionKnowledge(
+            @PathParam("connection") String connection,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
+
+    /** Removes one knowledge card from a connection. */
+    @DELETE
+    @Path("/connections/{connection}/knowledge/{cardId}")
+    Uni<Response> deleteConnectionKnowledge(
+            @PathParam("connection") String connection,
+            @PathParam("cardId") String cardId,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
 
     /** A short title for a chat thread, from its first exchange. */
     @POST

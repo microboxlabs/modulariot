@@ -55,14 +55,16 @@ export function shareLinkOf(
 }
 
 /** Story titles, by id, that a completed `mcp_call` returned: one story
- * (create, get) or a list of them. */
+ * (create; get wraps it in `story`) or a list of them. */
 export function storyTitlesOf(
   data: Record<string, unknown>
 ): [string, string][] {
   const call = mcpResultOf(data);
   if (!call) return [];
   const { result } = call;
-  const stories = Array.isArray(result.stories) ? result.stories : [result];
+  let stories: unknown[] = [result];
+  if (Array.isArray(result.stories)) stories = result.stories;
+  else if (isRecord(result.story)) stories = [result.story];
   return stories.flatMap((story: unknown) =>
     isRecord(story) &&
     typeof story.id === "string" &&

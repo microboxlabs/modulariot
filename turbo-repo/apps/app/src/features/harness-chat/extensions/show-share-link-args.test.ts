@@ -56,6 +56,15 @@ describe("storyTitlesOf", () => {
     ).toEqual([["s1", "A"]]);
     expect(
       storyTitlesOf(
+        completed("stories_get", {
+          story: { id: "s1", title: "A" },
+          version: { id: "v1" },
+          versions: [],
+        })
+      )
+    ).toEqual([["s1", "A"]]);
+    expect(
+      storyTitlesOf(
         completed("stories_list", {
           stories: [{ id: "s1", title: "A" }, { id: "s2" }],
         })

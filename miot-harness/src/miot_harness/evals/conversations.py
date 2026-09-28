@@ -5,7 +5,7 @@ Sends each case's turns to `POST /runs` the way the app's chat does
 and checks what the service did: which tools ran, whether the answer is a
 valid block array, and whether the sources it cites exist.
 
-    uv run miot-harness-chat-evals --base-url http://localhost:8010 --tenant-id "$TENANT"
+    uv run miot-harness-chat-evals --port 8010 --tenant-id "$TENANT"
 
 Cases live in `evals/conversations/cases.yaml`. Exit code 1 when any turn fails.
 """
@@ -95,6 +95,40 @@ def links(blocks: list[dict[str, Any]]) -> list[str]:
     return sorted(set(_LINK_RE.findall(answer_text(blocks))))
 
 
+def _leaks_block_json(blocks: list[dict[str, Any]]) -> bool:
+    return any(
+        b.get("type") == "markdown"
+        and ("```json" in b.get("value", "") or _LEAKED_BLOCKS_RE.search(b.get("value", "")))
+        for b in blocks
+    )
+
+
+def _tool_failures(tools: list[str], expect: dict[str, Any]) -> list[str]:
+    failures = [f"did not call {n}" for n in expect.get("tools", []) if n not in tools]
+    failures += [f"called {n}" for n in expect.get("no_tools", []) if n in tools]
+    if expect.get("any_tool") and not tools:
+        failures.append("called no tool")
+    return failures
+
+
+def _content_failures(blocks: list[dict[str, Any]], expect: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+    if expect.get("links") and not links(blocks):
+        failures.append("cites no link")
+    lowered = answer_text(blocks).lower()
+    wanted = expect.get("contains_any", [])
+    if wanted and not any(w.lower() in lowered for w in wanted):
+        failures.append(f"answer mentions none of {wanted}")
+    failures += [
+        f"answer says {p!r}" for p in expect.get("not_contains", []) if p.lower() in lowered
+    ]
+    intent = expect.get("intent")
+    got = next((b.get("value") for b in blocks if b.get("type") == "intent"), None)
+    if intent and got != intent:
+        failures.append(f"intent {got!r}, expected {intent!r}")
+    return failures
+
+
 def check_turn(record: dict[str, Any], expect: dict[str, Any]) -> list[str]:
     """Return the failed checks for one turn; empty means it passed."""
     failures: list[str] = []
@@ -103,37 +137,10 @@ def check_turn(record: dict[str, Any], expect: dict[str, Any]) -> list[str]:
     blocks = parse_blocks(record.get("answer"))
     if blocks is None:
         return [*failures, "answer is not a JSON block array"]
-    text = answer_text(blocks)
-    for block in blocks:
-        if block.get("type") == "markdown" and (
-            "```json" in block.get("value", "") or _LEAKED_BLOCKS_RE.search(block.get("value", ""))
-        ):
-            failures.append("raw block JSON shown to the user")
-            break
-    tools = tools_called(record)
-    for name in expect.get("tools", []):
-        if name not in tools:
-            failures.append(f"did not call {name}")
-    for name in expect.get("no_tools", []):
-        if name in tools:
-            failures.append(f"called {name}")
-    if expect.get("any_tool") and not tools:
-        failures.append("called no tool")
-    if expect.get("links") and not links(blocks):
-        failures.append("cites no link")
-    lowered = text.lower()
-    wanted = expect.get("contains_any", [])
-    if wanted and not any(w.lower() in lowered for w in wanted):
-        failures.append(f"answer mentions none of {wanted}")
-    for phrase in expect.get("not_contains", []):
-        if phrase.lower() in lowered:
-            failures.append(f"answer says {phrase!r}")
-    intent = expect.get("intent")
-    if intent:
-        got = next((b.get("value") for b in blocks if b.get("type") == "intent"), None)
-        if got != intent:
-            failures.append(f"intent {got!r}, expected {intent!r}")
-    return failures
+    if _leaks_block_json(blocks):
+        failures.append("raw block JSON shown to the user")
+    failures += _tool_failures(tools_called(record), expect)
+    return failures + _content_failures(blocks, expect)
 
 
 def check_sources(urls: list[str], client: httpx.Client) -> dict[str, int | str]:
@@ -212,33 +219,35 @@ def _print(result: TurnResult) -> None:
         *(f"     ! {failure}" for failure in result.failures),
     ]
     with _print_lock:
-        print("\n".join(lines), flush=True)
+        print("\n".join(lines), file=sys.stderr, flush=True)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
-        "--base-url", default=os.environ.get("MIOT_EVAL_BASE_URL", "http://localhost:8010")
+        "--port",
+        type=int,
+        default=int(os.environ.get("MIOT_EVAL_PORT", "8010")),
+        help="harness port on localhost (a local run, or a port-forward to a cluster)",
     )
     parser.add_argument("--tenant-id", default=os.environ.get("MIOT_EVAL_TENANT_ID"))
     parser.add_argument("--user-id", default="chat-evals@example.com")
     parser.add_argument(
         "--model", action="append", help="repeat to compare models; default: the harness default"
     )
-    parser.add_argument("--cases", type=Path, default=DEFAULT_CASES)
     parser.add_argument("--only", action="append", help="case id to run; repeatable")
     parser.add_argument("--repeat", type=int, default=1, help="run each case N times")
     parser.add_argument("--no-source-check", action="store_true", help="skip fetching cited URLs")
     parser.add_argument("--jobs", type=int, default=4, help="conversations run at once")
-    parser.add_argument("--out", type=Path, help="write every turn result as JSON")
+    parser.add_argument("--json", action="store_true", help="print every turn result as JSON")
     args = parser.parse_args(argv)
 
-    cases = [c for c in load_cases(args.cases) if not args.only or c["id"] in args.only]
+    cases = [c for c in load_cases(DEFAULT_CASES) if not args.only or c["id"] in args.only]
     if not cases:
         parser.error("no case matches --only")
     all_results: list[dict[str, Any]] = []
     with (
-        httpx.Client(base_url=args.base_url, timeout=300) as harness,
+        httpx.Client(base_url=f"http://localhost:{args.port}", timeout=300) as harness,
         httpx.Client(headers={"user-agent": "Mozilla/5.0 (miot-harness chat evals)"}) as web,
     ):
 
@@ -262,7 +271,9 @@ def main(argv: list[str] | None = None) -> int:
             if model:
                 base_body["model"] = model
             jobs += [(case, base_body) for _ in range(args.repeat) for case in cases]
-        print(f"{len(jobs)} conversations against {args.base_url}", flush=True)
+        print(
+            f"{len(jobs)} conversations against localhost:{args.port}", file=sys.stderr, flush=True
+        )
         with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
             futures = [
                 pool.submit(run_case, case, post, body, verify, _print) for case, body in jobs
@@ -273,9 +284,9 @@ def main(argv: list[str] | None = None) -> int:
                 ]
     failed = sum(not r["passed"] for r in all_results)
     total = len(all_results)
-    print(f"\n{total - failed}/{total} turns passed")
-    if args.out:
-        args.out.write_text(json.dumps(all_results, indent=2, ensure_ascii=False))
+    print(f"\n{total - failed}/{total} turns passed", file=sys.stderr)
+    if args.json:
+        print(json.dumps(all_results, indent=2, ensure_ascii=False))
     return 1 if failed else 0
 
 

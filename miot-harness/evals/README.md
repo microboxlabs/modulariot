@@ -25,14 +25,16 @@ harness, the way the app's chat does (`skill_id=miot-search`,
 deployed, including the context and skills on its volume.
 
 ```bash
-uv run miot-harness-chat-evals --base-url http://localhost:8000 --tenant-id "$TENANT"
+uv run miot-harness-chat-evals --port 8000 --tenant-id "$TENANT"
 uv run miot-harness-chat-evals --only web-count-question --repeat 3
 uv run miot-harness-chat-evals --model llmgateway:kimi-k3 --model claude-opus-5-5
 ```
 
-Each turn prints as it finishes; exit code 1 when any turn fails. `--out`
-writes every result as JSON. Cited links are fetched unless
-`--no-source-check`; 401, 403 and 429 count as existing.
+The harness must be reachable on localhost: a local run, or a
+`kubectl port-forward` to a deployed one. Each turn prints to stderr as it
+finishes; exit code 1 when any turn fails. `--json` prints every result to
+stdout. Cited links are fetched unless `--no-source-check`; 401, 403 and 429
+count as existing.
 
 ## Golden suite — three modes
 

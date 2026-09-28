@@ -50,6 +50,22 @@ export function clearActiveRun(threadId: string, runId?: string): void {
   }
 }
 
+/** Window event fired when any thread's run starts or ends, so the activity
+ * panel refreshes without waiting for its next poll. */
+export const RUN_MARKER_WINDOW_EVENT = "harness-chat:run-marker";
+
+export function announceRunMarker(
+  threadId: string,
+  marker: HarnessRunMarker
+): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(RUN_MARKER_WINDOW_EVENT, {
+      detail: { threadId, ...marker },
+    })
+  );
+}
+
 /** `aguiRunId` is the id the browser gave this AG-UI run; the relay echoes it
  * in RUN_STARTED and RUN_FINISHED. */
 export function resumeRunUrl(

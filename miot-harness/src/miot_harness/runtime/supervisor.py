@@ -232,6 +232,8 @@ class HarnessSupervisor:
             conversation_id=request.conversation_id,
             tenant_id=ctx.tenant_id,
             user_id=ctx.user_id,
+            model=ctx.model or _model_name(getattr(self.agent_loop, "default_model", None)),
+            skill_id=request.skill_id,
         )
         self._live_records[ctx.run_id] = record
 
@@ -601,6 +603,11 @@ class HarnessSupervisor:
 
         return self._live_records.get(run_id)
 
+    def live_records(self) -> list[HarnessRunRecord]:
+        """Every run still in flight in this process."""
+
+        return list(self._live_records.values())
+
     def forget_live(self, run_id: str) -> None:
         self._live_records.pop(run_id, None)
 
@@ -967,3 +974,7 @@ class HarnessSupervisor:
         # to end in the answer the user was shown, or the next turn replays a
         # different one.
         return _with_canonical_answer(list(delta.get("messages") or []), record.answer)
+
+
+def _model_name(value: object) -> str | None:
+    return value if isinstance(value, str) else None

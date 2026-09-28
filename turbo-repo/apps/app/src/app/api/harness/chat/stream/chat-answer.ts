@@ -18,6 +18,10 @@ import {
   type RequestApprovalArgs,
   type RequestApprovalResult,
 } from "@/features/harness-chat/extensions/request-approval-args";
+import {
+  SHOW_SHARE_LINK_TOOL,
+  type ShowShareLinkArgs,
+} from "@/features/harness-chat/extensions/show-share-link-args";
 
 export type { DraftDashlet };
 
@@ -102,7 +106,7 @@ function isChoices(value: unknown): value is ChoicesValue {
   );
 }
 
-function toChatBlock(item: unknown): ChatBlock | null {
+export function toChatBlock(item: unknown): ChatBlock | null {
   if (!isRecord(item)) return null;
   const { type, value } = item;
   if (type === "markdown" && typeof value === "string") return { type, value };
@@ -137,6 +141,13 @@ function toChatBlock(item: unknown): ChatBlock | null {
       },
     };
   }
+  return null;
+}
+
+/** What a block adds to the answer's text; null for a block shown as a card. */
+export function blockText(block: ChatBlock): string | null {
+  if (block.type === "markdown") return block.value;
+  if (block.type === "url") return `[${block.value.name}](${block.value.url})`;
   return null;
 }
 
@@ -558,6 +569,14 @@ export function artifactCallEvents(
   return resolvedCall("show_artifact", spec, newId);
 }
 
+/** A `show_share_link` card for a link the agent created. */
+export function shareLinkCallEvents(
+  args: ShowShareLinkArgs,
+  newId: () => string = () => crypto.randomUUID()
+): ChatEvent[] {
+  return resolvedCall(SHOW_SHARE_LINK_TOOL, args, newId);
+}
+
 /** Collects the answer's parts in order while blocks are read. */
 class AnswerBuilder {
   readonly out: ChatEvent[] = [];
@@ -579,10 +598,8 @@ class AnswerBuilder {
   add(block: ChatBlock): void {
     switch (block.type) {
       case "markdown":
-        this.text.push(block.value);
-        return;
       case "url":
-        this.text.push(`[${block.value.name}](${block.value.url})`);
+        this.text.push(blockText(block) ?? "");
         return;
       case "assumption":
         this.assumptions.push(

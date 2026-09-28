@@ -5733,6 +5733,15 @@
         "otherAriaLabel": "Otro",
         "submit": "Enviar"
       },
+      "shareLink": {
+        "story": "Enlace a la historia",
+        "thread": "Enlace a la conversación",
+        "access": "Cualquier persona con sesión en esta organización puede abrirlo.",
+        "copy": "Copiar enlace",
+        "copied": "Enlace copiado",
+        "copyFailed": "No se pudo copiar el enlace",
+        "open": "Abrir"
+      },
       "approval": {
         "heading": "Se necesita tu aprobación",
         "actions": {

@@ -5,11 +5,12 @@ import { toTranscript } from "./transcript";
 function message(
   seq: number,
   payload: Record<string, unknown>,
-  format = "aui-v1"
+  format = "aui-v1",
+  parentId: string | null = null
 ): SharedMessage {
   return {
     id: `m${seq}`,
-    parentId: null,
+    parentId,
     format,
     payload,
     seq,
@@ -32,25 +33,104 @@ describe("toTranscript", () => {
     ]);
   });
 
-  it("names the tools the assistant used, with a title when the args carry one", () => {
+  it("keeps each tool call with its args and stored result", () => {
+    const artifact = {
+      kind: "mermaid",
+      title: "Flow",
+      content: "graph TD; A-->B",
+    };
     const [entry] = toTranscript([
       message(1, {
         role: "assistant",
         content: [
           {
             type: "tool-call",
-            toolName: "show_dashlet",
-            args: { title: "Trips by lane" },
+            toolCallId: "c1",
+            toolName: "show_artifact",
+            args: artifact,
+            result: {},
           },
-          { type: "tool-call", toolName: "query", args: {} },
+          {
+            type: "tool-call",
+            toolCallId: "c2",
+            toolName: "ask_user_question",
+            args: { question: "Which?", options: [] },
+            result: { error: "cancelled" },
+            isError: true,
+          },
           { type: "reasoning", text: "thinking" },
         ],
       }),
     ]);
     expect(entry.parts).toEqual([
-      { kind: "tool", name: "show_dashlet", title: "Trips by lane" },
-      { kind: "tool", name: "query", title: null },
+      {
+        kind: "tool",
+        id: "c1",
+        name: "show_artifact",
+        title: "Flow",
+        args: artifact,
+        result: {},
+        isError: false,
+      },
+      {
+        kind: "tool",
+        id: "c2",
+        name: "ask_user_question",
+        title: null,
+        args: { question: "Which?", options: [] },
+        result: { error: "cancelled" },
+        isError: true,
+      },
     ]);
+  });
+
+  it("shows one copy of a question resent after a failed run", () => {
+    // The failed attempt and the resend are siblings under the same parent;
+    // only the resend is on the branch that reaches the newest message.
+    const ask = { role: "user", content: [{ type: "text", text: "Which?" }] };
+    const entries = toTranscript([
+      message(1, { role: "user", content: [{ type: "text", text: "hi" }] }),
+      message(
+        2,
+        { role: "assistant", content: [{ type: "text", text: "Hello" }] },
+        "aui-v1",
+        "m1"
+      ),
+      message(3, ask, "aui-v1", "m2"),
+      message(
+        4,
+        {
+          role: "assistant",
+          content: [],
+          status: { type: "incomplete", reason: "error" },
+        },
+        "aui-v1",
+        "m3"
+      ),
+      message(5, ask, "aui-v1", "m2"),
+      message(
+        6,
+        { role: "assistant", content: [{ type: "text", text: "North" }] },
+        "aui-v1",
+        "m5"
+      ),
+    ]);
+    expect(entries.map((e) => e.id)).toEqual(["m1", "m2", "m5", "m6"]);
+  });
+
+  it("keeps a question the user asked again after an answer", () => {
+    const ask = { role: "user", content: [{ type: "text", text: "Again?" }] };
+    const answer = {
+      role: "assistant",
+      content: [{ type: "text", text: "Yes" }],
+    };
+    const entries = toTranscript([
+      message(1, ask),
+      message(2, answer, "aui-v1", "m1"),
+      message(3, ask, "aui-v1", "m2"),
+      message(4, answer, "aui-v1", "m3"),
+    ]);
+    expect(entries.map((e) => e.id)).toEqual(["m1", "m2", "m3", "m4"]);
   });
 
   it("lists attachment names on a user turn", () => {

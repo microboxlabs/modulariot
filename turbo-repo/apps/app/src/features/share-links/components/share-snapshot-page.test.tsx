@@ -1,7 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
-import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type {
+  I18nDictionary,
+  I18nRecord,
+} from "@/features/i18n/i18n.service.types";
 import {
   LinkApiError,
   type LinkSnapshot,
@@ -26,6 +29,7 @@ function renderPage() {
       lang="es"
       dict={root.shareLink as I18nRecord}
       storyDict={root.storytelling as I18nRecord}
+      chatDict={es as I18nDictionary}
     />
   );
 }
@@ -36,6 +40,31 @@ function textMessage(seq: number, role: string, text: string): SharedMessage {
     parentId: null,
     format: "aui-v1",
     payload: { role, content: [{ type: "text", text }] },
+    seq,
+    createdAt: null,
+  };
+}
+
+function artifactMessage(
+  seq: number,
+  args: Record<string, unknown>
+): SharedMessage {
+  return {
+    id: `m${seq}`,
+    parentId: null,
+    format: "aui-v1",
+    payload: {
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: `c${seq}`,
+          toolName: "show_artifact",
+          args,
+          result: {},
+        },
+      ],
+    },
     seq,
     createdAt: null,
   };
@@ -97,6 +126,75 @@ describe("ShareSnapshotPage", () => {
     expect(screen.getByText("North is late.")).toBeInTheDocument();
     expect(screen.getByText("Lane review")).toBeInTheDocument();
     expect(screen.queryByText("Cargar más mensajes")).toBeNull();
+  });
+
+  it("renders an artifact the assistant showed as the chat's card", async () => {
+    resolveLinkMock.mockResolvedValue(
+      threadSnapshot([
+        artifactMessage(1, {
+          id: "a1",
+          kind: "markdown",
+          title: "Lane notes",
+          content: "## Late lanes\n\nNorth is late.",
+        }),
+      ])
+    );
+    renderPage();
+    expect(
+      await screen.findByRole("heading", { name: "Late lanes" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Lane notes")).toBeInTheDocument();
+    expect(screen.queryByText(/show_artifact/)).toBeNull();
+  });
+
+  it("says so when an artifact's content was not stored", async () => {
+    resolveLinkMock.mockResolvedValue(
+      threadSnapshot([
+        artifactMessage(1, {
+          id: "a1",
+          kind: "html",
+          title: "Big page",
+          content: "",
+          omitted: true,
+        }),
+      ])
+    );
+    renderPage();
+    expect(await screen.findByText("Big page")).toBeInTheDocument();
+    expect(screen.getByText(/demasiado grande/)).toBeInTheDocument();
+  });
+
+  it("shows an unanswered question without a way to answer it", async () => {
+    resolveLinkMock.mockResolvedValue(
+      threadSnapshot([
+        {
+          id: "m1",
+          parentId: null,
+          format: "aui-v1",
+          payload: {
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "c1",
+                toolName: "ask_user_question",
+                args: {
+                  question: "Which lane?",
+                  options: [{ label: "North" }, { label: "South" }],
+                },
+              },
+            ],
+          },
+          seq: 1,
+          createdAt: null,
+        },
+      ])
+    );
+    renderPage();
+    expect(await screen.findByText("Which lane?")).toBeInTheDocument();
+    expect(screen.getByText("North")).toBeInTheDocument();
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Enviar" })).toBeNull();
   });
 
   it("loads the next page of a long thread after the last seq", async () => {

@@ -23,6 +23,7 @@ import {
   approvalResultEvent,
   artifactCallEvents,
   chatAnswerEvents,
+  shareLinkCallEvents,
   toArtifactSpec,
   type DraftDashlet,
 } from "./chat-answer";
@@ -30,6 +31,11 @@ import {
   approvalArgsOf,
   approvalResultOf,
 } from "@/features/harness-chat/extensions/request-approval-args";
+import {
+  shareLinkOf,
+  storyTitlesOf,
+} from "@/features/harness-chat/extensions/show-share-link-args";
+import { LiveAnswer } from "./live-answer";
 import { stepLabel } from "./step-labels";
 import { planRefusalMessage } from "./plan-refusal";
 import {
@@ -158,13 +164,20 @@ type Narrator = {
   lastPhase: HarnessStreamProgress["phase"] | null;
   /** How many times each step label has started in this run. */
   stepStarts: Map<string, number>;
+  /** The last line says the model is thinking. */
+  thinking: boolean;
 };
 
 function openNarration(send: Sender): Narrator {
   const messageId = crypto.randomUUID();
   send({ type: "REASONING_START", messageId });
   send({ type: "REASONING_MESSAGE_START", messageId, role: "reasoning" });
-  return { messageId, lastPhase: null, stepStarts: new Map() };
+  return {
+    messageId,
+    lastPhase: null,
+    stepStarts: new Map(),
+    thinking: false,
+  };
 }
 
 function appendNarration(
@@ -173,11 +186,33 @@ function appendNarration(
   delta: string
 ): void {
   if (!delta) return;
+  narrator.thinking = false;
   send({
     type: "REASONING_MESSAGE_CONTENT",
     messageId: narrator.messageId,
     delta,
   });
+}
+
+/** "Thinking…" as the last line, while the model works on a turn. */
+function appendThinking(send: Sender, narrator: Narrator, tr: TrFn): void {
+  if (narrator.thinking) return;
+  appendNarration(
+    send,
+    narrator,
+    `\n${tr("harnessChat.stream.progress.thinking")}`
+  );
+  narrator.thinking = true;
+}
+
+/** The harness took the run, or its agent starts another model turn. */
+function startsModelTurn(event: HarnessEvent): boolean {
+  if (event.type === "run.started") return true;
+  return (
+    event.type === "agent.started" &&
+    event.data.agent === "agent_loop" &&
+    event.data.delegate_id === undefined
+  );
 }
 
 function closeNarration(send: Sender, narrator: Narrator): void {
@@ -275,7 +310,13 @@ type RelayState = {
   shownArtifacts: Set<string>;
   /** Approval cards still open, by approval id: their tool call ids. */
   approvals: Map<string, string>;
+  /** Share link URLs already sent as cards. */
+  shownLinks: Set<string>;
+  /** Story titles the run's tool results named, by story id. */
+  storyTitles: Map<string, string>;
   startedAt: string | null;
+  /** The answer's text, streamed as the harness writes it. */
+  live: LiveAnswer;
 };
 
 /** Narrates one forwarded event: always the phase-diff headline, plus the
@@ -295,6 +336,7 @@ function narrateForwardedEvent(
   }
   const line = seatNarration(event);
   if (line) appendNarration(send, narrator, line);
+  if (startsModelTurn(event)) appendThinking(send, narrator, tr);
   if (event.type !== "thinking.delta") return;
   const delta = event.data.delta;
   if (typeof delta === "string") appendNarration(send, narrator, delta);
@@ -421,8 +463,39 @@ export function expireApprovals(
   state.approvals.clear();
 }
 
+/** A share link the agent created is sent as a card at once, so the user
+ * gets it even when the answer text leaves it out. */
+export function trackShareLink(
+  event: HarnessEvent,
+  send: Sender,
+  state: Pick<RelayState, "shownLinks" | "storyTitles">
+): void {
+  if (event.type !== "tool.completed") return;
+  for (const [id, title] of storyTitlesOf(event.data)) {
+    state.storyTitles.set(id, title);
+  }
+  const link = shareLinkOf(event.data, state.storyTitles);
+  if (!link || state.shownLinks.has(link.url)) return;
+  state.shownLinks.add(link.url);
+  for (const call of shareLinkCallEvents(link)) send(call);
+}
+
+/** Answer text goes out as it arrives. A turn that ends in tool calls wrote
+ * narration, not the answer, and each turn numbers its text from 0. */
+function trackAnswer(event: HarnessEvent, live: LiveAnswer): void {
+  const { data } = event;
+  if (data.agent !== "agent_loop") return;
+  if (event.type === "agent.completed" && data.exit_reason === "tool_calls") {
+    live.restart();
+  } else if (event.type === "answer.delta" && typeof data.delta === "string") {
+    if (data.index === 0) live.restart();
+    live.push(data.delta);
+  }
+}
+
 /** What one event adds to the relay's view of the run: its start time, the
- * tools used, and any artifact, sent as a card at once. */
+ * tools used, the answer's text, and any artifact or share link, sent as a
+ * card at once. */
 function trackEvent(
   event: HarnessEvent,
   r: { runId: string; opened: number; send: Sender; state: RelayState }
@@ -443,7 +516,9 @@ function trackEvent(
   if (event.type === "tool.started" && typeof event.data.tool === "string") {
     state.tools.push(event.data.tool);
   }
+  trackAnswer(event, state.live);
   trackApproval(event, runId, send, state);
+  trackShareLink(event, send, state);
   if (event.type !== "artifact.created") return;
   const spec = toArtifactSpec(event.data);
   if (spec && !state.shownArtifacts.has(spec.id)) {
@@ -575,7 +650,10 @@ export async function relayRun(args: {
     tools: [],
     shownArtifacts: new Set(),
     approvals: new Map(),
+    shownLinks: new Set(),
+    storyTitles: new Map(),
     startedAt: null,
+    live: new LiveAnswer(send),
   };
   const outcome = await followRun(
     client,
@@ -596,6 +674,7 @@ export async function relayRun(args: {
   // alive, so the browser keeps it as the thread's active run and re-attaches
   // on reload; the others are over.
   if (outcome !== "completed") {
+    state.live.end();
     logger.error(
       { runId: harnessRunId, outcome },
       "[harness/chat/stream] run did not complete"
@@ -608,13 +687,17 @@ export async function relayRun(args: {
   }
 
   const record = await client.runs.get(harnessRunId, { signal });
-  for (const event of chatAnswerEvents(record.answer, record.events, {
+  const answer = chatAnswerEvents(record.answer, record.events, {
     noAnswer: tr("harnessChat.stream.noAnswer"),
     assumptionLabel: tr("harnessChat.stream.assumption"),
     shownArtifacts: state.shownArtifacts,
     priorDashlets: args.priorDashlets,
-  })) {
-    send(event);
+  });
+  if (!state.live.settle(answer)) {
+    logger.warn(
+      { runId: harnessRunId },
+      "[harness/chat/stream] streamed text is not the start of the answer"
+    );
   }
   send({
     type: "STATE_SNAPSHOT",

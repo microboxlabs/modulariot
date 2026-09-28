@@ -19,6 +19,7 @@ export default async function ShareRoute({ params }: ShareRouteParams) {
         lang={lang}
         dict={(dictionary.shareLink as I18nRecord) ?? {}}
         storyDict={(dictionary.storytelling as I18nRecord) ?? {}}
+        chatDict={dictionary}
       />
     </div>
   );

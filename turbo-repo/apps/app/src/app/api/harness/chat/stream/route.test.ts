@@ -387,6 +387,205 @@ describe("POST /api/harness/chat/stream", () => {
     ]);
   });
 
+  it("says it is connecting only until the harness takes the run, then thinking between steps", async () => {
+    const turn = (seq: number, n: number) =>
+      harnessEvent("agent.started", seq, { agent: "agent_loop", turn: n });
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("run.started", 1);
+      yield turn(2, 0);
+      yield harnessEvent("tool.started", 3, { tool: "acs_query" });
+      yield harnessEvent("tool.completed", 4, { tool: "acs_query" });
+      yield turn(5, 1);
+      yield harnessEvent("agent.started", 6, {
+        agent: "workhorse",
+        delegate_id: "d1",
+      });
+      yield harnessEvent("run.completed", 7);
+    });
+    runsGetMock.mockResolvedValue(completedRecord);
+
+    const { events } = await readEvents(await POST(chatRequest()));
+
+    const narration = events
+      .filter((e) => e.type === "REASONING_MESSAGE_CONTENT")
+      .map((e) => e.delta)
+      .join("");
+    expect(narration.split("\n").filter(Boolean)).toEqual([
+      "harnessChat.stream.progress.connecting",
+      "harnessChat.stream.progress.thinking",
+      "harnessChat.stream.progress.exploring",
+      "harnessChat.stream.steps.query",
+      "harnessChat.stream.progress.thinking",
+    ]);
+  });
+
+  describe("the answer's text", () => {
+    const ANSWER = JSON.stringify([
+      { type: "markdown", value: 'Hubo **41** viajes — "tarde": 3.' },
+      { type: "widget", value: { id: "w1" } },
+      { type: "markdown", value: "Día pico: lunes" },
+    ]);
+    const WIDGET = {
+      id: "w1",
+      kind: "kpi",
+      title: "Viajes",
+      columns: ["n"],
+      rows: [{ n: 41 }],
+      y: ["n"],
+    };
+    const TEXT = 'Hubo **41** viajes — "tarde": 3.\n\nDía pico: lunes';
+
+    /** The answer in chunks cut mid-key, mid-escape and mid-character. */
+    function answerDeltas(answer: string, from: number) {
+      const cuts = [1, 9, 23, 31, 34, 37, 52, 60, 75, 90, answer.length];
+      let start = 0;
+      return cuts.map((end, index) => {
+        const delta = answer.slice(start, end);
+        start = end;
+        return harnessEvent("answer.delta", from + index, {
+          agent: "agent_loop",
+          delta,
+          index,
+        });
+      });
+    }
+
+    function answeredRun(release?: Promise<void>) {
+      runsStreamMock.mockImplementation(async function* () {
+        yield harnessEvent("run.started", 1);
+        yield harnessEvent("agent.started", 2, { agent: "agent_loop" });
+        yield harnessEvent("widget.created", 3, { widget: WIDGET });
+        yield* answerDeltas(ANSWER, 10);
+        await release;
+        yield harnessEvent("agent.completed", 40, {
+          agent: "agent_loop",
+          exit_reason: "answer",
+        });
+        yield harnessEvent("answer.completed", 41);
+        yield harnessEvent("run.completed", 42);
+      });
+      runsGetMock.mockResolvedValue({
+        ...completedRecord,
+        answer: ANSWER,
+        events: [{ type: "widget.created", data: { widget: WIDGET } }],
+      });
+    }
+
+    const textOf = (events: AgUiEvent[]) =>
+      events
+        .filter((e) => e.type === "TEXT_MESSAGE_CONTENT")
+        .map((e) => e.delta)
+        .join("");
+
+    it("streams while the run is still going", async () => {
+      let release = () => {};
+      answeredRun(new Promise<void>((resolve) => (release = resolve)));
+
+      const res = await POST(chatRequest());
+      const { events, reader } = await readEvents(
+        res,
+        (e) =>
+          e.type === "TEXT_MESSAGE_CONTENT" && String(e.delta).includes("lunes")
+      );
+
+      expect(runsGetMock).not.toHaveBeenCalled();
+      expect(textOf(events)).toBe(TEXT);
+      release();
+      await reader.cancel();
+    });
+
+    it("ends as the final answer, its text once, and its cards after it", async () => {
+      answeredRun();
+
+      const { events } = await readEvents(await POST(chatRequest()));
+
+      expect(textOf(events)).toBe(TEXT);
+      expect(
+        events.filter((e) => e.type === "TEXT_MESSAGE_START")
+      ).toHaveLength(1);
+      const end = events.findIndex((e) => e.type === "TEXT_MESSAGE_END");
+      const card = events.findIndex(
+        (e) => e.type === "TOOL_CALL_START" && e.toolCallName === "show_dashlet"
+      );
+      expect(card).toBeGreaterThan(end);
+      expect(events.at(-1)?.type).toBe("RUN_FINISHED");
+    });
+
+    it("streams plain text too", async () => {
+      runsStreamMock.mockImplementation(async function* () {
+        yield harnessEvent("run.started", 1);
+        yield harnessEvent("answer.delta", 2, {
+          agent: "agent_loop",
+          delta: "41 ",
+          index: 0,
+        });
+        yield harnessEvent("answer.delta", 3, {
+          agent: "agent_loop",
+          delta: "trips\n",
+          index: 1,
+        });
+        yield harnessEvent("run.completed", 4);
+      });
+      runsGetMock.mockResolvedValue({ ...completedRecord, answer: "41 trips" });
+
+      const { events } = await readEvents(await POST(chatRequest()));
+
+      expect(
+        events
+          .filter((e) => e.type === "TEXT_MESSAGE_CONTENT")
+          .map((e) => e.delta)
+      ).toEqual(["41", " trips"]);
+    });
+
+    it("keeps a turn that went on to call tools apart from the answer", async () => {
+      runsStreamMock.mockImplementation(async function* () {
+        yield harnessEvent("run.started", 1);
+        yield harnessEvent("answer.delta", 2, {
+          agent: "agent_loop",
+          delta: "Let me look at the trips table.",
+          index: 0,
+        });
+        yield harnessEvent("agent.completed", 3, {
+          agent: "agent_loop",
+          exit_reason: "tool_calls",
+        });
+        yield harnessEvent("tool.started", 4, { tool: "acs_query" });
+        yield harnessEvent("tool.completed", 5, { tool: "acs_query" });
+        yield* answerDeltas(ANSWER, 10);
+        yield harnessEvent("run.completed", 40);
+      });
+      runsGetMock.mockResolvedValue({
+        ...completedRecord,
+        answer: ANSWER,
+        events: [{ type: "widget.created", data: { widget: WIDGET } }],
+      });
+
+      const { events } = await readEvents(await POST(chatRequest()));
+
+      const starts = events.filter((e) => e.type === "TEXT_MESSAGE_START");
+      expect(starts).toHaveLength(2);
+      const second = starts[1]?.messageId;
+      expect(textOf(events.filter((e) => e.messageId === second))).toBe(TEXT);
+    });
+
+    it("rebuilds once when a reload re-attaches and the run is replayed", async () => {
+      answeredRun();
+
+      const res = await RESUME(
+        new Request(
+          "http://test/api/harness/chat/runs/run_1/stream?threadId=thread-1&runId=agui-2"
+        ),
+        { params: Promise.resolve({ runId: "run_1" }) }
+      );
+      const { events } = await readEvents(res);
+
+      expect(textOf(events)).toBe(TEXT);
+      expect(
+        events.filter((e) => e.type === "TEXT_MESSAGE_START")
+      ).toHaveLength(1);
+    });
+  });
+
   it("shows an artifact as soon as the harness reports it, and only once", async () => {
     const diagram = {
       id: "a1",
@@ -498,6 +697,50 @@ describe("POST /api/harness/chat/stream", () => {
     );
     expect(JSON.parse(result!.content as string)).toEqual({
       status: "expired",
+    });
+  });
+
+  it("sends a share link the agent created as a card, once", async () => {
+    const url = "https://app.example.com/app/share/tok_1";
+    const linked = harnessEvent("tool.completed", 2, {
+      tool: "mcp_call",
+      ok: true,
+      preview: {
+        tool: "stories_link",
+        result: { url, targetType: "story", targetId: "s1", access: "org" },
+      },
+    });
+    runsStreamMock.mockImplementation(async function* () {
+      yield harnessEvent("tool.completed", 1, {
+        tool: "mcp_call",
+        ok: true,
+        preview: {
+          tool: "stories_create",
+          result: { id: "s1", title: "Top destinos" },
+        },
+      });
+      yield linked;
+      yield { ...linked, seq: 3 };
+      yield harnessEvent("run.completed", 4);
+    });
+    runsGetMock.mockResolvedValue(completedRecord);
+
+    const { events } = await readEvents(await POST(chatRequest()));
+
+    const cards = events.filter(
+      (e) =>
+        e.type === "TOOL_CALL_START" && e.toolCallName === "show_share_link"
+    );
+    expect(cards).toHaveLength(1);
+    const args = events.find(
+      (e) =>
+        e.type === "TOOL_CALL_ARGS" && e.toolCallId === cards[0]!.toolCallId
+    );
+    expect(JSON.parse(args!.delta as string)).toEqual({
+      url,
+      targetType: "story",
+      targetId: "s1",
+      title: "Top destinos",
     });
   });
 

@@ -660,13 +660,19 @@ class HarnessSupervisor:
     def _inject_learned_facts(
         self, ctx: HarnessContext, prior_messages: list[BaseMessage]
     ) -> list[BaseMessage]:
-        """Prepend the approved authored cards this tenant may use. Like the
-        tenant context, it rides in the user turn, not the cached system prompt."""
+        """Prepend the approved authored cards this tenant may use, and for a
+        trainer how to propose new ones. Like the tenant context, it rides in
+        the user turn, not the cached system prompt."""
 
-        block = self.learned_facts.render(ctx.tenant_id) if self.learned_facts else None
-        if not block:
+        if self.learned_facts is None:
             return prior_messages
-        return [SystemMessage(content=block), *prior_messages]
+        blocks = [self.learned_facts.render(ctx.tenant_id)]
+        if ctx.trainer:
+            blocks.append(self.learned_facts.trainer_guidance(ctx.tenant_id))
+        text = "\n\n".join(b for b in blocks if b)
+        if not text:
+            return prior_messages
+        return [SystemMessage(content=text), *prior_messages]
 
     def _indexed_skills(self) -> set[tuple[str, str]]:
         """(fact name, body) of the skills the loop's system prompt already

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Alert, Badge, Button } from "flowbite-react";
 import { HiTrash } from "react-icons/hi";
 import { toast } from "sonner";
+import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { cardKey } from "../hooks/use-knowledge-cards";
@@ -119,9 +120,9 @@ export default function LearnedFacts({
                       {card.scope && <Badge color="purple">{card.scope}</Badge>}
                       {card.kind && <Badge color="blue">{card.kind}</Badge>}
                     </div>
-                    <p className="mt-1 break-words text-sm text-gray-600 dark:text-gray-300">
+                    <MarkdownContent className="mt-1 break-words text-sm text-gray-600 dark:text-gray-300">
                       {card.body}
-                    </p>
+                    </MarkdownContent>
                   </div>
                   <Button
                     size="xs"

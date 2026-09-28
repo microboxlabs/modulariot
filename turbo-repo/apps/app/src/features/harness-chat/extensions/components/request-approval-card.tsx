@@ -4,6 +4,7 @@ import { useState, type FC } from "react";
 import { type ToolCallMessagePartProps } from "@assistant-ui/react";
 import { LuCheck, LuClock, LuShieldQuestion, LuX } from "react-icons/lu";
 import { twMerge } from "tailwind-merge";
+import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import {
   useHarnessChatTr,
   type TrFn,
@@ -12,7 +13,9 @@ import { useHarnessReadOnly } from "../../context/harness-read-only-context";
 import {
   approvalActionOf,
   approvalSubject,
+  learnedFactOf,
   storyContentOf,
+  type LearnedFactInput,
   visibleEntries,
   type RequestApprovalArgs,
   type RequestApprovalResult,
@@ -87,6 +90,21 @@ const StoryPreview: FC<{ input: Record<string, unknown>; content: string }> = ({
   );
 };
 
+const FactPreview: FC<{ fact: LearnedFactInput }> = ({ fact }) => {
+  const tr = useHarnessChatTr();
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-gray-500 dark:text-gray-400">
+        {tr("harnessChat.ui.approval.fact.connection")}: {fact.connection}
+        {fact.kind && ` · ${tr("harnessChat.ui.approval.kind")}: ${fact.kind}`}
+      </p>
+      <MarkdownContent className="rounded-md bg-gray-50 p-2 text-xs text-gray-700 dark:bg-gray-900 dark:text-gray-300">
+        {fact.body}
+      </MarkdownContent>
+    </div>
+  );
+};
+
 const InputList: FC<{ input: Record<string, unknown> }> = ({ input }) => {
   const entries = visibleEntries(input);
   if (entries.length === 0) return null;
@@ -107,7 +125,10 @@ const InputList: FC<{ input: Record<string, unknown> }> = ({ input }) => {
   );
 };
 
-const Outcome: FC<{ result: RequestApprovalResult }> = ({ result }) => {
+const Outcome: FC<{ result: RequestApprovalResult; fact: boolean }> = ({
+  result,
+  fact,
+}) => {
   const tr = useHarnessChatTr();
   const when = result.at ? new Date(result.at) : null;
   const details = [
@@ -131,7 +152,11 @@ const Outcome: FC<{ result: RequestApprovalResult }> = ({ result }) => {
     <div className="flex flex-col gap-0.5">
       <output className={twMerge("flex items-center gap-1 font-medium", tone)}>
         <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <span>{tr(`harnessChat.ui.approval.${result.status}`)}</span>
+        <span>
+          {fact && result.status === "approved"
+            ? tr("harnessChat.ui.approval.fact.saved")
+            : tr(`harnessChat.ui.approval.${result.status}`)}
+        </span>
         {details.length > 0 && (
           <span className="font-normal text-gray-400 dark:text-gray-500">
             · {details.join(" · ")}
@@ -168,6 +193,7 @@ export const RequestApprovalCard: FC<
   const content = args.tool.startsWith("stories_")
     ? storyContentOf(args.input)
     : null;
+  const fact = learnedFactOf(args.tool, args.input);
 
   const decide = async (decision: "approve" | "deny") => {
     setPhase({ state: "sending" });
@@ -224,18 +250,18 @@ export const RequestApprovalCard: FC<
         </div>
       </div>
 
-      {content !== null ? (
+      {fact && <FactPreview fact={fact} />}
+      {!fact && content !== null && (
         <StoryPreview input={args.input} content={content} />
-      ) : (
-        <InputList input={args.input} />
       )}
+      {!fact && content === null && <InputList input={args.input} />}
       {args.inputTruncated && (
         <p className="text-[10px] text-gray-400 dark:text-gray-500">
           {tr("harnessChat.ui.approval.truncated")}
         </p>
       )}
 
-      {outcome && <Outcome result={outcome} />}
+      {outcome && <Outcome result={outcome} fact={fact !== null} />}
 
       {pending && !readOnly && !closed && phase.state === "rejecting" && (
         <div className="flex flex-col gap-1.5">

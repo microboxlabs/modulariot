@@ -5,8 +5,8 @@ import { resolveTenantScope } from "../../utils/tenant-scope";
 import {
   failureStatus,
   isTrainer,
-  listCandidates,
   listCards,
+  listKnowledgeConnections,
   type KnowledgeCard,
 } from "../candidates/candidates-client";
 
@@ -17,9 +17,9 @@ interface ConnectionCards {
 }
 
 /**
- * The approved cards of every connection that has an approved candidate. The
- * connections come from the candidate history; the cards come from the harness
- * through the modulith proxy, which requires HARNESS_TRAINER.
+ * The approved cards of every connection the harness keeps learned facts on,
+ * whether they were approved from a candidate or in chat. Both lists come from
+ * the harness through the modulith proxy, which requires HARNESS_TRAINER.
  */
 export async function GET() {
   const authResult = await requireAuth();
@@ -39,17 +39,11 @@ export async function GET() {
     if (!(await isTrainer({ orgSlug, token }))) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
-    const approved = await listCandidates({
-      orgSlug,
-      token,
-      status: "approved",
-      limit: 500,
-    });
-    connectionNames = [...new Set(approved.map((c) => c.connection))].sort(
+    connectionNames = (await listKnowledgeConnections({ orgSlug, token })).sort(
       (a, b) => a.localeCompare(b)
     );
   } catch (err) {
-    logger.error({ err }, "[knowledge/cards] candidate history failed");
+    logger.error({ err }, "[knowledge/cards] connections failed");
     const status = failureStatus(err);
     return NextResponse.json(
       { error: status === 403 ? "forbidden" : "list_failed" },

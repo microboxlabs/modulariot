@@ -22,6 +22,7 @@ from miot_harness.api.server import (
 )
 from miot_harness.config import get_settings
 from miot_harness.connections.models import Connection
+from miot_harness.datasource.knowledge.learned import LearnedFacts, LearnedFactsSource
 from miot_harness.datasource.knowledge.loader import load_connection_cards
 
 
@@ -269,3 +270,19 @@ def test_list_and_delete_respect_tenant_lock(tmp_path: Path) -> None:
         owner = {"X-Miot-Tenant-Client-Id": "T1"}
         assert len(client.get("/connections/acs/knowledge", headers=owner).json()["cards"]) == 1
     assert (knowledge_dir / "current-process.md").exists()
+
+
+def test_knowledge_connections_are_the_tenants_learned_fact_sources(tmp_path: Path) -> None:
+    app = create_app()
+    with TestClient(app) as client:
+        client.app.state.harness.learned_facts = LearnedFacts(
+            [
+                LearnedFactsSource("mine", tmp_path / "b", tenant_lock="t1"),
+                LearnedFactsSource("shared", tmp_path / "a"),
+                LearnedFactsSource("theirs", tmp_path / "c", tenant_lock="t2"),
+            ],
+            char_budget=100,
+        )
+        resp = client.get("/knowledge/connections", headers={"X-Miot-Tenant-Client-Id": "t1"})
+    assert resp.status_code == 200
+    assert resp.json() == {"connections": ["mine", "shared"]}

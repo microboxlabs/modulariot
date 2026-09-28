@@ -39,6 +39,7 @@ export const APPROVAL_ACTIONS = [
   "selectables_replace",
   "selectables_delete",
   "selectables_bind",
+  "propose_learned_fact",
 ] as const;
 
 export type ApprovalAction = (typeof APPROVAL_ACTIONS)[number];
@@ -117,6 +118,29 @@ export function visibleEntries(
     ([key, value]) =>
       !SECRET_KEY.test(key) && value !== REDACTED && value !== undefined
   );
+}
+
+/** The harness tool a trainer's run proposes a learned fact with. */
+export const PROPOSE_LEARNED_FACT_TOOL = "propose_learned_fact";
+
+export type LearnedFactInput = {
+  connection: string;
+  title: string;
+  body: string;
+  kind: string | null;
+};
+
+/** The fact a `propose_learned_fact` call would save, when the input has one. */
+export function learnedFactOf(
+  tool: string,
+  input: Record<string, unknown>
+): LearnedFactInput | null {
+  if (tool !== PROPOSE_LEARNED_FACT_TOOL) return null;
+  const connection = str(input.connection);
+  const title = str(input.title);
+  const body = str(input.body);
+  if (!connection || !title || !body) return null;
+  return { connection, title, body, kind: str(input.kind) };
 }
 
 /** A story version's text, when the input carries one. */

@@ -44,10 +44,12 @@ class HarnessProxyResourceKnowledgeGateTest {
         Uni<Response> write = resource.writeConnectionKnowledge(SLUG, "conn", "Bearer t", Map.of());
         Uni<Response> list = resource.listConnectionKnowledge(SLUG, "conn", "Bearer t");
         Uni<Response> delete = resource.deleteConnectionKnowledge(SLUG, "conn", "card", "Bearer t");
+        Uni<Response> connections = resource.listKnowledgeConnections(SLUG, "Bearer t");
 
         assertThrows(ForbiddenException.class, write.await()::indefinitely);
         assertThrows(ForbiddenException.class, list.await()::indefinitely);
         assertThrows(ForbiddenException.class, delete.await()::indefinitely);
+        assertThrows(ForbiddenException.class, connections.await()::indefinitely);
         assertTrue(harnessCalls.isEmpty());
     }
 
@@ -61,8 +63,10 @@ class HarnessProxyResourceKnowledgeGateTest {
                 .await().indefinitely().getStatus());
         assertEquals(200, resource.writeConnectionKnowledge(SLUG, "conn", "Bearer t", Map.of())
                 .await().indefinitely().getStatus());
+        assertEquals(200, resource.listKnowledgeConnections(SLUG, "Bearer t")
+                .await().indefinitely().getStatus());
         assertEquals(List.of("listConnectionKnowledge", "deleteConnectionKnowledge",
-                "writeConnectionKnowledge"), harnessCalls);
+                "writeConnectionKnowledge", "listKnowledgeConnections"), harnessCalls);
     }
 
     private HarnessProxyResource resource(boolean trainer) {

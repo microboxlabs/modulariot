@@ -190,6 +190,25 @@ export async function isTrainer(args: {
   return decision.allowed === true;
 }
 
+/** The connections the harness keeps learned facts on for this organization. */
+export async function listKnowledgeConnections(args: {
+  orgSlug: string;
+  token: string | undefined;
+}): Promise<string[]> {
+  const res = await modulith(
+    `/api/v1/orgs/${args.orgSlug}/harness/knowledge/connections`,
+    args.token,
+    { method: "GET" }
+  );
+  if (!res.ok)
+    throw new ModulithStatusError(
+      `list knowledge connections failed: ${res.status}`,
+      res.status
+    );
+  const payload = (await res.json()) as { connections?: string[] };
+  return payload.connections ?? [];
+}
+
 function knowledgePath(orgSlug: string, connection: string): string {
   return `/api/v1/orgs/${orgSlug}/harness/connections/${encodeURIComponent(connection)}/knowledge`;
 }

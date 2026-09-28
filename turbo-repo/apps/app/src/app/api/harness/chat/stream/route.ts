@@ -5,6 +5,7 @@ import {
   TERMINAL_EVENT_TYPES,
   type Attachment,
   type HarnessEvent,
+  type RunEffort,
 } from "@microboxlabs/miot-harness-client";
 import { requireAuth } from "../../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../../utils/tenant-scope";
@@ -707,6 +708,17 @@ function reportRunFailure(err: unknown, f: RunFailure): void {
   // and nothing left to notify: the listener is already gone.
 }
 
+/** The per-turn fields of a run request, left out when unset. */
+function turnOptions(
+  attachments: Attachment[] | undefined,
+  effort: RunEffort | null
+): { attachments?: Attachment[]; effort?: RunEffort } {
+  return {
+    ...(attachments && { attachments }),
+    ...(effort && { effort }),
+  };
+}
+
 async function run(
   send: Sender,
   body: RunAgentInputBody,
@@ -780,11 +792,10 @@ async function run(
     const { run_id } = await client.runs.create(
       {
         message,
-        ...(attachments && { attachments }),
+        ...turnOptions(attachments, effort),
         skill_id: "miot-analyst",
         answer_format: "json",
         ...(model && { model }),
-        ...(effort && { effort }),
         ...(userEmail && { user_id: userEmail }),
         ...(conversationId && { conversation_id: conversationId }),
         ...(replayTurns.length > 0 && { conversation_history: replayTurns }),

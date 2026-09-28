@@ -7,6 +7,7 @@ the same gate, read-only envelope and cost check as `<conn>_query`.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 from uuid import uuid4
@@ -223,6 +224,68 @@ class _Workflow:
             30,
         )
 
+    async def history(self, definition: dict[str, Any], where: str, rng: str) -> _History:
+        h = _History(tasks=await self.task_stats(where, rng))
+        try:
+            h.graph = await self.graph(definition)
+        except (ValueError, CostGateViolation) as exc:
+            h.skipped.append(f"diagram ({exc})")
+        try:
+            h.open_now = await self.open_tasks(where)
+        except Exception as exc:  # noqa: BLE001 — act_ru_task may be missing or outside the policy
+            h.skipped.append(f"open tasks ({exc})")
+        try:
+            h.transitions = await self.transitions(where, rng)
+            h.rework = await self.rework(where, rng)
+        except CostGateViolation as exc:
+            h.skipped.append(f"transitions ({exc})")
+        return h
+
+
+@dataclass
+class _History:
+    tasks: list[dict[str, Any]]
+    graph: bpmn.ProcessGraph | None = None
+    open_now: dict[str, int] = field(default_factory=dict)
+    transitions: list[dict[str, Any]] = field(default_factory=list)
+    rework: list[dict[str, Any]] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
+
+
+def _duration(ms: Any) -> str | None:
+    return None if ms is None else bpmn.format_duration(float(ms))
+
+
+def _task_row(
+    r: dict[str, Any], graph: bpmn.ProcessGraph | None, open_now: dict[str, int]
+) -> dict[str, Any]:
+    return {
+        "task": r["task"],
+        "name": r["name"] or _label(graph, r["task"]),
+        "started": r["started"],
+        "completed": r["completed"],
+        "open_now": open_now.get(r["task"], 0),
+        "median": _duration(r["median_ms"]),
+        "p90": _duration(r["p90_ms"]),
+        "median_ms": _ms(r["median_ms"]),
+        "p90_ms": _ms(r["p90_ms"]),
+    }
+
+
+def _transition_row(
+    t: dict[str, Any],
+    graph: bpmn.ProcessGraph | None,
+    edges: dict[tuple[str, str], bpmn.Edge],
+) -> dict[str, Any]:
+    edge = edges.get((t["from_id"], t["to_id"]))
+    return {
+        "from": _label(graph, t["from_id"]),
+        "to": _label(graph, t["to_id"]),
+        "count": t["n"],
+        "back": bool(edge and edge.back),
+        "in_model": edge is not None or graph is None,
+    }
+
 
 def _process_info(definition: dict[str, Any]) -> dict[str, Any]:
     return {
@@ -304,74 +367,29 @@ def build_workflow_tool(env: ToolEnv, schema: str) -> HarnessTool[Any, Any]:
     async def call_stats(wf: _Workflow, parsed: _WorkflowInput) -> _WorkflowOutput:
         definition = await wf.definition(parsed)
         since, until = _period(parsed)
-        where, rng = wf.def_filter(parsed, definition), wf.range_filter(since, until)
-        skipped: list[str] = []
-        graph: bpmn.ProcessGraph | None = None
-        try:
-            graph = await wf.graph(definition)
-        except (ValueError, CostGateViolation) as exc:
-            skipped.append(f"diagram ({exc})")
-        tasks = await wf.task_stats(where, rng)
-        open_now: dict[str, int] = {}
-        try:
-            open_now = await wf.open_tasks(where)
-        except Exception as exc:  # noqa: BLE001 — act_ru_task may be missing or outside the policy
-            skipped.append(f"open tasks ({exc})")
-        transitions: list[dict[str, Any]] = []
-        rework: list[dict[str, Any]] = []
-        try:
-            transitions = await wf.transitions(where, rng)
-            rework = await wf.rework(where, rng)
-        except CostGateViolation as exc:
-            skipped.append(f"transitions ({exc})")
-        edges = {(e.source, e.target): e for e in graph.edges} if graph else {}
-        rows = [
-            {
-                "task": r["task"],
-                "name": r["name"] or _label(graph, r["task"]),
-                "started": r["started"],
-                "completed": r["completed"],
-                "open_now": open_now.get(r["task"], 0),
-                "median": bpmn.format_duration(r["median_ms"])
-                if r["median_ms"] is not None
-                else None,
-                "p90": bpmn.format_duration(r["p90_ms"]) if r["p90_ms"] is not None else None,
-                "median_ms": _ms(r["median_ms"]),
-                "p90_ms": _ms(r["p90_ms"]),
-            }
-            for r in tasks
-        ]
-        trans = []
-        for t in transitions:
-            edge = edges.get((t["from_id"], t["to_id"]))
-            trans.append(
-                {
-                    "from": _label(graph, t["from_id"]),
-                    "to": _label(graph, t["to_id"]),
-                    "count": t["n"],
-                    "back": bool(edge and edge.back),
-                    "in_model": edge is not None or graph is None,
-                }
-            )
+        h = await wf.history(
+            definition, wf.def_filter(parsed, definition), wf.range_filter(since, until)
+        )
+        edges = {(e.source, e.target): e for e in h.graph.edges} if h.graph else {}
         note = (
             "Durations are from activity history started in the period; open_now "
             "counts tasks open today. Transitions follow each instance's activity "
             "order, so parallel branches can add pairs that are not model edges "
             "(in_model=false). Use show for a chart of these numbers."
         )
-        if skipped:
-            note += " Skipped: " + "; ".join(skipped) + ". Narrow the period to include them."
+        if h.skipped:
+            note += " Skipped: " + "; ".join(h.skipped) + ". Narrow the period to include them."
         return _WorkflowOutput(
             process=_process_info(definition),
-            rows=rows,
-            transitions=trans,
+            rows=[_task_row(r, h.graph, h.open_now) for r in h.tasks],
+            transitions=[_transition_row(t, h.graph, edges) for t in h.transitions],
             rework=[
                 {
-                    "task": _label(graph, r["task"]),
+                    "task": _label(h.graph, r["task"]),
                     "instances": r["instances"],
                     "repeats": r["repeats"],
                 }
-                for r in rework
+                for r in h.rework
             ],
             period={"since": since.isoformat(), "until": until.isoformat()},
             note=note,

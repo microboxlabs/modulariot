@@ -8,6 +8,7 @@ process; a process without it gets Mermaid only.
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -161,7 +162,7 @@ def _floats(el: Element, *names: str) -> tuple[float, ...] | None:
         values = tuple(float(el.attrib[n]) for n in names)
     except (KeyError, ValueError):
         return None
-    if any(v != v or abs(v) > 1e6 for v in values):
+    if any(not math.isfinite(v) or abs(v) > 1e6 for v in values):
         return None
     return values
 
@@ -256,48 +257,100 @@ def _diagram(root: Element) -> _Diagram:
     return d
 
 
+def _walk(
+    root: str, out: dict[str, list[tuple[str, str]]], state: dict[str, int], back: set[str]
+) -> None:
+    """Iterative DFS from `root`; state 1 = on the stack, 2 = done."""
+    state[root] = 1
+    stack: list[tuple[str, int]] = [(root, 0)]
+    while stack:
+        node, i = stack[-1]
+        if i >= len(out[node]):
+            state[node] = 2
+            stack.pop()
+            continue
+        stack[-1] = (node, i + 1)
+        edge_id, nxt = out[node][i]
+        seen = state.get(nxt)
+        if seen == 1:
+            back.add(edge_id)
+        elif seen is None:
+            state[nxt] = 1
+            stack.append((nxt, 0))
+
+
 def _back_edges(node_ids: list[str], edges: list[tuple[str, str, str]]) -> set[str]:
-    """Edge ids that close a cycle, found by an iterative DFS from the entry nodes."""
+    """Edge ids that close a cycle, found by a DFS from the entry nodes."""
     out: dict[str, list[tuple[str, str]]] = {n: [] for n in node_ids}
     has_incoming: set[str] = set()
     for edge_id, src, dst in edges:
         if src in out and dst in out:
             out[src].append((edge_id, dst))
             has_incoming.add(dst)
-    roots = [n for n in node_ids if n not in has_incoming] + node_ids
     state: dict[str, int] = {}
     back: set[str] = set()
-    for root in roots:
-        if root in state:
-            continue
-        state[root] = 1
-        stack: list[tuple[str, int]] = [(root, 0)]
-        while stack:
-            node, i = stack[-1]
-            if i >= len(out[node]):
-                state[node] = 2
-                stack.pop()
-                continue
-            stack[-1] = (node, i + 1)
-            edge_id, nxt = out[node][i]
-            seen = state.get(nxt)
-            if seen == 1:
-                back.add(edge_id)
-            elif seen is None:
-                state[nxt] = 1
-                stack.append((nxt, 0))
+    for root in [n for n in node_ids if n not in has_incoming] + node_ids:
+        if root not in state:
+            _walk(root, out, state, back)
     return back
 
 
-def parse_bpmn(xml: bytes | str, process_key: str | None = None) -> ProcessGraph:
-    """Parse one process of a BPMN definition. DTDs and entities are refused."""
+def _read_root(xml: bytes | str) -> Element:
     raw = xml.encode() if isinstance(xml, str) else xml
     if len(raw) > MAX_XML_BYTES:
         raise BpmnError(f"definition is larger than {MAX_XML_BYTES} bytes")
     try:
-        root = SafeET.fromstring(raw, forbid_dtd=True)
+        root: Element = SafeET.fromstring(raw, forbid_dtd=True)
     except Exception as exc:  # noqa: BLE001 — ParseError and defusedxml refusals alike
         raise BpmnError(f"not a readable BPMN document: {exc}") from exc
+    return root
+
+
+def _condition(flow: Element) -> str:
+    for child in flow:
+        if _local(child.tag) == "conditionExpression":
+            return _clean("".join(child.itertext()))
+    return ""
+
+
+def _node(el: Element, lane_of: dict[str, str], diagram: _Diagram) -> Node:
+    node_id = el.get("id") or ""
+    return Node(
+        id=node_id,
+        type=_local(el.tag),
+        name=_clean(el.get("name")),
+        form_key=_attr(el, "formKey"),
+        lane=lane_of.get(node_id),
+        bounds=diagram.shapes.get(node_id),
+        label_at=diagram.labels.get(node_id),
+    )
+
+
+def _edges(
+    flow_els: list[Element], node_ids: list[str], defaults: set[str], diagram: _Diagram
+) -> tuple[Edge, ...]:
+    ends = [(el.get("id") or "", el.get("sourceRef") or "", el.get("targetRef") or "")
+            for el in flow_els]  # fmt: skip
+    back = _back_edges(node_ids, ends)
+    return tuple(
+        Edge(
+            id=eid,
+            source=src,
+            target=dst,
+            name=_clean(el.get("name")),
+            condition=_condition(el),
+            default=eid in defaults,
+            back=eid in back,
+            waypoints=diagram.waypoints.get(eid, ()),
+            label_at=diagram.labels.get(eid),
+        )
+        for el, (eid, src, dst) in zip(flow_els, ends, strict=True)
+    )
+
+
+def parse_bpmn(xml: bytes | str, process_key: str | None = None) -> ProcessGraph:
+    """Parse one process of a BPMN definition. DTDs and entities are refused."""
+    root = _read_root(xml)
     process = _pick_process(root, process_key)
     node_els: list[Element] = []
     flow_els: list[Element] = []
@@ -306,59 +359,14 @@ def parse_bpmn(xml: bytes | str, process_key: str | None = None) -> ProcessGraph
         raise BpmnError(f"process has {len(node_els)} nodes; the limit is {MAX_NODES}")
     lane_of, lane_list = _lanes(process)
     diagram = _diagram(root)
-
-    defaults = {el.get("default") for el in node_els if el.get("default")}
-    nodes = tuple(
-        Node(
-            id=el.get("id") or "",
-            type=_local(el.tag),
-            name=_clean(el.get("name")),
-            form_key=_attr(el, "formKey"),
-            lane=lane_of.get(el.get("id") or ""),
-            bounds=diagram.shapes.get(el.get("id") or ""),
-            label_at=diagram.labels.get(el.get("id") or ""),
-        )
-        for el in node_els
-        if el.get("id")
-    )
-    ids = [n.id for n in nodes]
-    raw_edges: list[tuple[str, str, str, str, str]] = []
-    for el in flow_els:
-        condition = ""
-        for child in el:
-            if _local(child.tag) == "conditionExpression":
-                condition = _clean("".join(child.itertext()))
-        raw_edges.append(
-            (
-                el.get("id") or "",
-                el.get("sourceRef") or "",
-                el.get("targetRef") or "",
-                _clean(el.get("name")),
-                condition,
-            )
-        )
-    back = _back_edges(ids, [(e[0], e[1], e[2]) for e in raw_edges])
-    edges = tuple(
-        Edge(
-            id=eid,
-            source=src,
-            target=dst,
-            name=name,
-            condition=cond,
-            default=eid in defaults,
-            back=eid in back,
-            waypoints=diagram.waypoints.get(eid, ()),
-            label_at=diagram.labels.get(eid),
-        )
-        for eid, src, dst, name, cond in raw_edges
-    )
-    lanes = tuple(Lane(id=i, name=n, bounds=diagram.shapes.get(i)) for i, n in lane_list)
+    nodes = tuple(_node(el, lane_of, diagram) for el in node_els if el.get("id"))
+    defaults = {d for el in node_els if (d := el.get("default"))}
     return ProcessGraph(
         process_id=process.get("id") or "",
         name=_clean(process.get("name")) or process.get("id") or "",
         nodes=nodes,
-        edges=edges,
-        lanes=lanes,
+        edges=_edges(flow_els, [n.id for n in nodes], defaults, diagram),
+        lanes=tuple(Lane(id=i, name=n, bounds=diagram.shapes.get(i)) for i, n in lane_list),
     )
 
 
@@ -451,9 +459,10 @@ def _wrap(text: str, width_px: float, max_lines: int = 4) -> list[str]:
     return [line if len(line) <= per_line else line[: per_line - 1] + "…" for line in lines]
 
 
-def _text(x: float, y: float, lines: list[str], size: int = 11, anchor: str = "middle") -> str:
+def _text(at: Point, lines: list[str], size: int = 11, anchor: str = "middle") -> str:
     if not lines:
         return ""
+    x, y = at
     top = y - (len(lines) - 1) * (size + 2) / 2
     spans = "".join(
         f'<tspan x="{_n(x)}" y="{_n(top + i * (size + 2))}">{escape(line)}</tspan>'
@@ -523,8 +532,8 @@ def _svg_node(n: Node, fill: str, tooltip: str) -> str:
         symbol = _GATEWAY_SYMBOL.get(n.type, "")
         return (
             f'<g>{title}<polygon points="{pts}" fill="#fef9c3" stroke="#475569" '
-            f'stroke-width="1.5"/>{_text(cx, cy, [symbol], 14)}'
-            f"{_text(*_name_at(n, above=True), _wrap(n.name, max(w, 120), 2), 10)}</g>"
+            f'stroke-width="1.5"/>{_text((cx, cy), [symbol], 14)}'
+            f"{_text(_name_at(n, above=True), _wrap(n.name, max(w, 120), 2), 10)}</g>"
         )
     if n.type.endswith("Event"):
         r = min(w, h) / 2
@@ -535,12 +544,12 @@ def _svg_node(n: Node, fill: str, tooltip: str) -> str:
         return (
             f'<g>{title}<circle cx="{_n(cx)}" cy="{_n(cy)}" r="{_n(r)}" fill="#ffffff" '
             f'stroke="{color}" stroke-width="{stroke}"/>'
-            f"{_text(*_name_at(n, above=False), _wrap(n.name, max(w, 120), 2), 10)}</g>"
+            f"{_text(_name_at(n, above=False), _wrap(n.name, max(w, 120), 2), 10)}</g>"
         )
     return (
         f'<g>{title}<rect x="{_n(x)}" y="{_n(y)}" width="{_n(w)}" height="{_n(h)}" rx="10" '
         f'fill="{fill}" stroke="#475569" stroke-width="1.5"/>'
-        f"{_text(cx, cy, _wrap(n.name or n.type, w - 8), 11)}</g>"
+        f"{_text((cx, cy), _wrap(n.name or n.type, w - 8), 11)}</g>"
     )
 
 
@@ -555,10 +564,10 @@ def _svg_edge(e: Edge) -> str:
     label = short_condition(edge_label(e), 32)
     if label:
         if e.label_at is not None:
-            out += _text(*e.label_at, [label], 9)
+            out += _text(e.label_at, [label], 9)
         else:
             x, y = e.waypoints[1]
-            out += _text(x + 4, y - 7, [label], 9, anchor="start")
+            out += _text((x + 4, y - 7), [label], 9, anchor="start")
     return out
 
 
@@ -582,9 +591,6 @@ def to_svg(
     pad, head = 20.0, 28.0 if title else 0.0
     min_x, min_y, max_x, max_y = extent
     width, height = max_x - min_x + 2 * pad, max_y - min_y + 2 * pad + head
-    dx, dy = pad - min_x, pad - min_y + head
-    colors = _heat_colors(heat or {})
-
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {_n(width)} {_n(height)}" '
         f'width="{_n(width)}" height="{_n(height)}" font-family="sans-serif">',
@@ -592,33 +598,40 @@ def to_svg(
         'markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" '
         'fill="#64748b"/></marker></defs>',
         f'<rect x="0" y="0" width="{_n(width)}" height="{_n(height)}" fill="#ffffff"/>',
+        _text((pad, pad + 4), [title[:120]], 14, anchor="start") if title else "",
+        f'<g transform="translate({_n(pad - min_x)},{_n(pad - min_y + head)})">',
+        *(_svg_lane(lane) for lane in graph.lanes if lane.bounds),
+        *(_svg_edge(e) for e in graph.edges if len(e.waypoints) >= 2),
+        *_svg_nodes(placed, heat or {}),
+        "</g></svg>",
     ]
-    if title:
-        parts.append(_text(pad, pad + 4, [title[:120]], 14, anchor="start"))
-    parts.append(f'<g transform="translate({_n(dx)},{_n(dy)})">')
-    for lane in graph.lanes:
-        if lane.bounds:
-            x, y, w, h = lane.bounds
-            parts.append(
-                f'<rect x="{_n(x)}" y="{_n(y)}" width="{_n(w)}" height="{_n(h)}" '
-                f'fill="#f8fafc" stroke="#cbd5e1"/>'
-                + _text(x + 6, y + 12, [lane.name[:60]], 10, anchor="start")
-            )
-    for e in graph.edges:
-        if len(e.waypoints) >= 2:
-            parts.append(_svg_edge(e))
-    for n in placed:
-        value = (heat or {}).get(n.id)
-        tooltip = n.name or n.type
-        if value is not None:
-            tooltip += f" · median {format_duration(value)}"
-        parts.append(_svg_node(n, colors.get(n.id, "#ffffff"), tooltip))
-    parts.append("</g></svg>")
     svg = "".join(parts)
     if len(svg.encode()) > MAX_SVG_BYTES:
         return None
     check_svg(svg)
     return svg
+
+
+def _svg_lane(lane: Lane) -> str:
+    assert lane.bounds is not None
+    x, y, w, h = lane.bounds
+    return (
+        f'<rect x="{_n(x)}" y="{_n(y)}" width="{_n(w)}" height="{_n(h)}" '
+        f'fill="#f8fafc" stroke="#cbd5e1"/>'
+        + _text((x + 6, y + 12), [lane.name[:60]], 10, anchor="start")
+    )
+
+
+def _svg_nodes(placed: list[Node], heat: Mapping[str, float]) -> list[str]:
+    colors = _heat_colors(heat)
+    out = []
+    for n in placed:
+        value = heat.get(n.id)
+        tooltip = n.name or n.type
+        if value is not None:
+            tooltip += f" · median {format_duration(value)}"
+        out.append(_svg_node(n, colors.get(n.id, "#ffffff"), tooltip))
+    return out
 
 
 def check_svg(svg: str) -> None:

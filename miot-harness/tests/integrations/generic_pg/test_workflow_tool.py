@@ -272,5 +272,6 @@ async def test_stats_reports_what_the_cost_gate_skipped() -> None:
 
 @pytest.mark.asyncio
 async def test_graph_needs_a_key_or_id() -> None:
+    pool = RecordingPool(responder=_responder())
     with pytest.raises(ValueError, match="pass key"):
-        await _run(RecordingPool(responder=_responder()), action="graph")
+        await _run(pool, action="graph")

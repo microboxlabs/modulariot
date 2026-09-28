@@ -131,6 +131,37 @@ def _plan_all(
     return [_planned(store, change, ctx) for change in changes]
 
 
+def _shown_plan(
+    store: KnowledgeStore,
+    ctx: HarnessContext,
+    changes: list[KnowledgeChange],
+    shown: ShownFiles,
+) -> list[dict[str, Any]]:
+    planned = _plan_all(store, ctx, changes)
+    for change, entry in zip(changes, planned, strict=True):
+        shown.remember(ctx.run_id, entry["path"], _current(store, change))
+    return planned
+
+
+def _apply_all(
+    store: KnowledgeStore,
+    ctx: HarnessContext,
+    changes: list[KnowledgeChange],
+    shown: ShownFiles,
+) -> list[AppliedChange]:
+    """In order. A failure stops the batch and names what was already applied."""
+    applied: list[AppliedChange] = []
+    for change in changes:
+        try:
+            path = virtual_path(change.layer, change.id, change.target)
+            shown.check(ctx.run_id, path, _current(store, change))
+            applied.append(_apply(store, ctx, change))
+        except KnowledgeError as exc:
+            done = ", ".join(a.path for a in applied) or "none"
+            raise KnowledgeError(exc.status, f"{exc.detail} (already applied: {done})") from exc
+    return applied
+
+
 def _apply(store: KnowledgeStore, ctx: HarnessContext, change: KnowledgeChange) -> AppliedChange:
     path = virtual_path(change.layer, change.id, change.target)
     before = _current(store, change)
@@ -251,38 +282,19 @@ def propose_knowledge_change_tool(
 
     shown = ShownFiles()
 
-    def plan(ctx: HarnessContext, value: ProposeKnowledgeChangeInput) -> list[dict[str, Any]]:
-        store = store_for(ctx.tenant_id)
-        planned = []
-        for change in value.changes:
-            planned.append(_planned(store, change, ctx))
-            shown.remember(ctx.run_id, planned[-1]["path"], _current(store, change))
-        return planned
-
     async def details(ctx: HarnessContext, value: ProposeKnowledgeChangeInput) -> dict[str, Any]:
         try:
-            return {"changes": await asyncio.to_thread(plan, ctx, value)}
+            store = store_for(ctx.tenant_id)
+            planned = await asyncio.to_thread(_shown_plan, store, ctx, value.changes, shown)
+            return {"changes": planned}
         except KnowledgeError:
             return {}
-
-    def apply_all(ctx: HarnessContext, value: ProposeKnowledgeChangeInput) -> list[AppliedChange]:
-        """In order. A failure stops the batch and names what was already applied."""
-        store = store_for(ctx.tenant_id)
-        applied: list[AppliedChange] = []
-        for change in value.changes:
-            try:
-                path = virtual_path(change.layer, change.id, change.target)
-                shown.check(ctx.run_id, path, _current(store, change))
-                applied.append(_apply(store, ctx, change))
-            except KnowledgeError as exc:
-                done = ", ".join(a.path for a in applied) or "none"
-                raise KnowledgeError(exc.status, f"{exc.detail} (already applied: {done})") from exc
-        return applied
 
     async def call(
         ctx: HarnessContext, value: ProposeKnowledgeChangeInput, _: Progress
     ) -> ProposeKnowledgeChangeOutput:
-        applied = await asyncio.to_thread(apply_all, ctx, value)
+        store = store_for(ctx.tenant_id)
+        applied = await asyncio.to_thread(_apply_all, store, ctx, value.changes, shown)
         return ProposeKnowledgeChangeOutput(
             summary=value.summary,
             changes=applied,

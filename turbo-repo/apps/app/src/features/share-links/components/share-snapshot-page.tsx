@@ -62,6 +62,14 @@ function Header({
   );
 }
 
+/** A turn's parts never reorder, so their position is a stable key. */
+function partsWithKeys(entry: TranscriptEntry) {
+  return entry.parts.map((part, position) => ({
+    key: `${entry.id}-${position}`,
+    part,
+  }));
+}
+
 function Transcript({
   entries,
   dict,
@@ -99,9 +107,9 @@ function Transcript({
                 : "w-full text-sm text-gray-800 dark:text-gray-200"
             }
           >
-            {entry.parts.map((part, i) => {
+            {partsWithKeys(entry).map(({ key, part }) => {
               if (part.kind === "text") {
-                return <MarkdownContent key={i}>{part.text}</MarkdownContent>;
+                return <MarkdownContent key={key}>{part.text}</MarkdownContent>;
               }
               const label =
                 part.kind === "attachment"
@@ -109,7 +117,7 @@ function Transcript({
                   : [part.name, part.title].filter(Boolean).join(" · ");
               return (
                 <span
-                  key={i}
+                  key={key}
                   className="my-1 mr-1 inline-flex items-center rounded-md border border-gray-200 px-2 py-0.5 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400"
                 >
                   {label}

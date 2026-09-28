@@ -77,10 +77,9 @@ export function resolveLink(
   const query = new URLSearchParams();
   if (page.after !== undefined) query.set("after", String(page.after));
   if (page.limit !== undefined) query.set("limit", String(page.limit));
+  const url = `${API}/${encodeURIComponent(token)}`;
   const qs = query.toString();
-  return send<LinkSnapshot>(
-    `${API}/${encodeURIComponent(token)}${qs ? `?${qs}` : ""}`
-  );
+  return send<LinkSnapshot>(qs ? `${url}?${qs}` : url);
 }
 
 /** The app page that opens a link, as an absolute URL to paste anywhere. */

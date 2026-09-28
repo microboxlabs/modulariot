@@ -56,6 +56,7 @@ def test_event_type_full_set_is_pinned():
         "grounding.gap",
         "advisor.consulted",
         "delegate.completed",
+        "widget.created",
         "answer.delta",
         "answer.completed",
         "run.completed",

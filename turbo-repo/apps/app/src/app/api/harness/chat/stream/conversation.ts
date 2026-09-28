@@ -5,6 +5,8 @@ export type AgUiMessage = {
   role: "developer" | "system" | "assistant" | "user" | "tool" | "activity" | "reasoning";
   content?: unknown;
   toolCallId?: string;
+  /** On assistant messages: the tool calls it made, as the runtime echoes them. */
+  toolCalls?: unknown;
 };
 
 export type RunAgentInputBody = {

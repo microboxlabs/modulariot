@@ -63,6 +63,7 @@ export const HARNESS_EVENT_TYPES = [
   "answer.delta",
   "advisor.consulted",
   "delegate.completed",
+  "widget.created",
   "answer.completed",
   "run.completed",
   "run.failed",

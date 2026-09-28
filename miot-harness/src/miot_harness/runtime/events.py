@@ -26,6 +26,9 @@ HarnessEventType = Literal[
     # The advisor answered a consult; a workhorse finished a delegated brief.
     "advisor.consulted",
     "delegate.completed",
+    # A tool produced a chart, table or KPI for the user; `data.widget` holds
+    # the spec and the rows, which the model never sees in full.
+    "widget.created",
     "answer.delta",
     "answer.completed",
     "run.completed",

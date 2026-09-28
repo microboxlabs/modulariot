@@ -9,7 +9,6 @@ import { requireAuth } from "../../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
 import { recordEpisode } from "../../../interactions/episodes/record-episode";
-import { parseAnswerBlocks } from "../../search/search-blocks";
 import {
   INITIAL_PROGRESS,
   reduceHarnessStreamEvent,
@@ -23,6 +22,7 @@ import { getDictionary, getLocaleFromHeaders } from "@/features/i18n/i18n.servic
 import type { TrFn } from "@/features/i18n/i18n.service.types";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
 import { conversationOf, modelOf, type AgUiMessage, type RunAgentInputBody } from "./conversation";
+import { answerFromToolResult, chatAnswerEvents } from "./chat-answer";
 import { fetchThread, storedThreadModel } from "./thread-model";
 import { planRefusalMessage } from "./plan-refusal";
 
@@ -133,17 +133,6 @@ function appendNarrationDiff(
     narrator.reportedSteps.add(step.tool);
     appendNarration(send, narrator, `\nRan ${step.tool}`);
   }
-}
-
-/** The miot-search skill answers with a JSON array of typed blocks — fold
- * them into plain text for the chat bubble (markdown as-is, urls as links). */
-function blocksToText(answer: string | null, tr: TrFn): string {
-  if (!answer) return tr("harnessChat.stream.noAnswer");
-  const blocks = parseAnswerBlocks(answer).filter((b) => b.type !== "intent");
-  if (blocks.length === 0) return tr("harnessChat.stream.noAnswer");
-  return blocks
-    .map((b) => (b.type === "markdown" ? b.value : `[${b.value.name}](${b.value.url})`))
-    .join("\n\n");
 }
 
 function sendText(send: Sender, text: string): void {
@@ -374,6 +363,14 @@ export function decideHarnessPath(
   tr: TrFn,
 ): HarnessPathDecision {
   const toolResult = lastMessageIsToolResult(messages);
+  if (toolResult && isModulithConfigured()) {
+    // The user's pick on an ask_user_question card is their next turn; a
+    // widget's automatic acknowledgement needs no reply at all.
+    const answer = answerFromToolResult(messages);
+    if (answer) return { handled: false, message: answer };
+    send({ type: "RUN_FINISHED", runId, threadId });
+    return { handled: true };
+  }
   if (toolResult) {
     // Acknowledge the tool result locally — nothing to forward upstream yet,
     // the real harness can't consume these results. Kept neutral since this
@@ -691,7 +688,7 @@ async function run(
     const { run_id } = await client.runs.create(
       {
         message,
-        skill_id: "miot-search",
+        skill_id: "miot-analyst",
         answer_format: "json",
         ...(model && { model }),
         ...(userEmail && { user_id: userEmail }),
@@ -735,7 +732,12 @@ async function run(
     runSettled = true;
 
     const record = await client.runs.get(run_id, { signal: controller.signal });
-    sendText(send, blocksToText(record.answer, tr));
+    for (const event of chatAnswerEvents(record.answer, record.events, {
+      noAnswer: tr("harnessChat.stream.noAnswer"),
+      assumptionLabel: tr("harnessChat.stream.assumption"),
+    })) {
+      send(event);
+    }
     send({
       type: "STATE_SNAPSHOT",
       snapshot: {

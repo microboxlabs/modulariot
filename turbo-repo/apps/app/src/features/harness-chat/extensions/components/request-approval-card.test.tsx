@@ -169,4 +169,43 @@ describe("RequestApprovalCard", () => {
     renderCard({}, true);
     expect(screen.queryByText("Aprobar")).toBeNull();
   });
+
+  describe("a learned fact", () => {
+    const factArgs: RequestApprovalArgs = {
+      runId: "run_1",
+      approvalId: "aid_3",
+      tool: "propose_learned_fact",
+      input: {
+        connection: "procesos",
+        term: "proceso vigente",
+        title: "Solo la v152 del proceso está vigente",
+        kind: "gotcha",
+        body: "Solo la versión **v152** está vigente.",
+      },
+    };
+
+    it("shows the fact with its body as markdown, not the raw input", () => {
+      renderCard({ args: factArgs });
+      expect(
+        screen.getByText(
+          "Guardar hecho aprendido «Solo la v152 del proceso está vigente»"
+        )
+      ).toBeTruthy();
+      expect(screen.getByText(/Conexión: procesos/)).toBeTruthy();
+      expect(screen.getByText("v152").tagName).toBe("STRONG");
+      expect(screen.queryByText("proceso vigente")).toBeNull();
+    });
+
+    it("says it was saved once approved", () => {
+      renderCard({ args: factArgs, result: { status: "approved" } });
+      expect(screen.getByRole("status").textContent).toContain(
+        "Guardado en hechos aprendidos"
+      );
+    });
+
+    it("says it was rejected when declined", () => {
+      renderCard({ args: factArgs, result: { status: "rejected" } });
+      expect(screen.getByRole("status").textContent).toContain("Rechazado");
+    });
+  });
 });

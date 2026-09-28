@@ -43,6 +43,11 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
     output_model: type[OutputT]
     read_only: bool = True
     destructive: bool = False
+    # Always pauses for a human: allow rules and auto-approve modes do not
+    # skip its approval, and rules never skip its check_permission.
+    always_ask: bool = False
+    # What the model is told when the human rejects the call.
+    declined_message: str = ""
     # Tool family. The model is given the datasource's prefixed tools,
     # "primitive" exploration tools, "mcp" (`mcp_call`) and "utility" tools
     # (scratchpad files, task list), whose results are not data evidence;
@@ -92,9 +97,9 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
             _emit_failed(progress, ctx, self.name, reason, "PermissionError", call_id=call_id)
             raise PermissionError(reason)
 
-        if rule_decision == PermissionDecision.ALLOW:
+        if rule_decision == PermissionDecision.ALLOW and not self.always_ask:
             permission = PermissionResult.allow("allowed by rule")
-        elif rule_decision == PermissionDecision.ASK:
+        elif rule_decision == PermissionDecision.ASK and not self.always_ask:
             # An explicit `ask` rule forces the human-pause decision,
             # skipping check_permission. The mode handling below still
             # applies (bypass/auto_safe can auto-approve), matching Claude
@@ -112,8 +117,9 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
         if permission.decision == PermissionDecision.ASK:
             # Mode-based auto-approval upgrades an "ask" without a human.
             mode = policy.mode if policy is not None else None
-            auto_approve = mode is PermissionMode.BYPASS or (
-                mode is PermissionMode.AUTO_SAFE and not self.destructive
+            auto_approve = not self.always_ask and (
+                mode is PermissionMode.BYPASS
+                or (mode is PermissionMode.AUTO_SAFE and not self.destructive)
             )
             if auto_approve:
                 # auto_approve is only True when mode is BYPASS or AUTO_SAFE
@@ -172,7 +178,7 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                     registry.discard(approval_id)
                 progress(_resolved_event(ctx, self.name, approval_id, resolution))
                 if resolution is None or resolution.decision != "approve":
-                    reason = f"approval {approval_id} denied by the user"
+                    reason = self.declined_message or f"approval {approval_id} denied by the user"
                     if resolution is not None and resolution.comment:
                         reason += f": {resolution.comment}"
                     _emit_failed(

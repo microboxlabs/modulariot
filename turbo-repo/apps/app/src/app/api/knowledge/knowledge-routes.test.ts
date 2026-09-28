@@ -113,12 +113,10 @@ describe("GET /api/knowledge/cards", () => {
   const trainer = (allowed: boolean) =>
     json({ permissionCode: "HARNESS_TRAINER", allowed });
 
-  it("lists the cards of each connection with an approved candidate", async () => {
+  it("lists the cards of each connection the harness keeps facts on", async () => {
     fetchMock
       .mockResolvedValueOnce(trainer(true))
-      .mockResolvedValueOnce(
-        json([candidate("b"), candidate("a"), candidate("b")])
-      )
+      .mockResolvedValueOnce(json({ connections: ["b", "a"] }))
       .mockResolvedValueOnce(json({ cards: [card] }))
       .mockResolvedValueOnce(json({ detail: "boom" }, 500));
     const res = await getCards();
@@ -130,24 +128,32 @@ describe("GET /api/knowledge/cards", () => {
       ],
     });
     expect(fetchMock.mock.calls[1][0]).toBe(
-      "http://modulith.test/api/v1/orgs/acme/knowledge/candidates?status=approved&limit=500"
+      "http://modulith.test/api/v1/orgs/acme/harness/knowledge/connections"
     );
     expect(fetchMock.mock.calls[2][0]).toBe(
       "http://modulith.test/api/v1/orgs/acme/harness/connections/a/knowledge"
     );
   });
 
-  it("answers 403 to a non-trainer before reading the history", async () => {
+  it("answers 403 to a non-trainer before listing connections", async () => {
     fetchMock.mockResolvedValueOnce(trainer(false));
     const res = await getCards();
     expect(res.status).toBe(403);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("answers 403 when the harness proxy refuses", async () => {
+  it("answers 403 when the harness proxy refuses the connection list", async () => {
     fetchMock
       .mockResolvedValueOnce(trainer(true))
-      .mockResolvedValueOnce(json([candidate("a")]))
+      .mockResolvedValueOnce(json({ error: "forbidden" }, 403));
+    const res = await getCards();
+    expect(res.status).toBe(403);
+  });
+
+  it("answers 403 when the harness proxy refuses a connection's cards", async () => {
+    fetchMock
+      .mockResolvedValueOnce(trainer(true))
+      .mockResolvedValueOnce(json({ connections: ["a"] }))
       .mockResolvedValueOnce(json({ error: "forbidden" }, 403));
     const res = await getCards();
     expect(res.status).toBe(403);

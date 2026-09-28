@@ -16,8 +16,9 @@ from miot_harness.tools.registry import ToolRegistry
 
 
 def build_native_tools(
-    registry: ToolRegistry, *, profile: DataSourceProfile
+    registry: ToolRegistry, *, profile: DataSourceProfile, trainer: bool = False
 ) -> list[dict[str, Any]]:
+    """`trainer` adds the tools only a trainer's run is offered."""
     tools: list[dict[str, Any]] = []
     for name in registry.names():  # .names() is already sorted
         tool = registry.get(name)
@@ -27,6 +28,8 @@ def build_native_tools(
             "mcp",
             "utility",
         )
+        if trainer and tool.kind == "trainer":
+            in_scope = True
         if not in_scope:
             continue
         if tool.available is not None and not tool.available():

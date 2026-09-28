@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.api;
 
+import com.microboxlabs.miot.core.api.dto.AuthorizationDecisionDto;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.harness.HarnessPlanGate;
@@ -93,7 +94,7 @@ public class HarnessProxyResource {
     public Uni<Response> createRun(@PathParam("slug") String slug,
                                    @HeaderParam("Authorization") String authorization,
                                    Map<String, Object> body) {
-        return forward(authorization, body, harness::createRun);
+        return forward(slug, authorization, body, harness::createRun);
     }
 
     // Quarkus REST Reactive does not register a literal ':' in @Path values,
@@ -105,7 +106,7 @@ public class HarnessProxyResource {
                                   @PathParam("startAction") String startAction,
                                   @HeaderParam("Authorization") String authorization,
                                   Map<String, Object> body) {
-        return forward(authorization, body, harness::startRun);
+        return forward(slug, authorization, body, harness::startRun);
     }
 
     /**
@@ -236,6 +237,17 @@ public class HarnessProxyResource {
     }
 
     @GET
+    @Path("/knowledge/connections")
+    public Uni<Response> listKnowledgeConnections(@PathParam("slug") String slug,
+                                                  @HeaderParam("Authorization") String authorization) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return asTrainer(slug, () -> harness.listKnowledgeConnections(
+                authorization, tenantClientId, userEmail, authMode));
+    }
+
+    @GET
     @Path("/connections/{connection}/knowledge")
     public Uni<Response> listConnectionKnowledge(@PathParam("slug") String slug,
                                                  @PathParam("connection") String connection,
@@ -340,7 +352,8 @@ public class HarnessProxyResource {
                 });
     }
 
-    private Uni<Response> forward(String authorization,
+    private Uni<Response> forward(String slug,
+                                  String authorization,
                                   Map<String, Object> body,
                                   HarnessCall call) {
         String tenantClientId = tenantContext.getClientId();
@@ -356,17 +369,33 @@ public class HarnessProxyResource {
         return model.flatMap(resolved -> planGate.checkRun(organization, userEmail, resolved)
                 .flatMap(refusal -> refusal != null
                         ? Uni.createFrom().item(refused(refusal))
-                        : passThrough(call.apply(authorization, tenantClientId, userEmail, authMode,
-                                organization, withModel(body, named, resolved)))));
+                        : isTrainer(slug).flatMap(trainer -> passThrough(call.apply(
+                                authorization, tenantClientId, userEmail, authMode, organization,
+                                runBody(body, named, resolved, trainer))))));
     }
 
-    /** The body with the gate's default model filled in when the request named none. */
-    private static Map<String, Object> withModel(Map<String, Object> body, Object named, String resolved) {
-        if (named != null || resolved == null) {
-            return body;
-        }
+    /**
+     * Whether the caller may teach the harness facts. A failed lookup counts as
+     * no, so it never blocks the run.
+     */
+    private Uni<Boolean> isTrainer(String slug) {
+        return permissions.checkCurrentUser(
+                        slug, OrganizationPermissionDefinition.HARNESS_TRAINER.permissionCode())
+                .map(AuthorizationDecisionDto::allowed)
+                .onFailure().recoverWithItem(false);
+    }
+
+    /**
+     * The body sent to the harness: the gate's default model filled in when the
+     * request named none, and {@code trainer} set here whatever the caller sent.
+     */
+    private static Map<String, Object> runBody(
+            Map<String, Object> body, Object named, String resolved, boolean trainer) {
         Map<String, Object> out = body == null ? new HashMap<>() : new HashMap<>(body);
-        out.put("model", resolved);
+        if (named == null && resolved != null) {
+            out.put("model", resolved);
+        }
+        out.put("trainer", trainer);
         return out;
     }
 

@@ -24,6 +24,17 @@ _HEADER = (
 )
 
 
+_TRAINER_GUIDANCE = (
+    "# Teaching mode\n"
+    "The user is a trainer: they can teach you facts about their business. When "
+    "they correct you, or state a business rule that is not in your data or your "
+    "learned facts, call `propose_learned_fact` with one fact per call, phrased so "
+    "it applies to future questions, then continue answering. Do not propose "
+    "facts you only inferred yourself. If the trainer declines one, ask what to "
+    "change. Connections that take learned facts: {connections}."
+)
+
+
 @dataclass(frozen=True)
 class LearnedFactsSource:
     """One connection whose authored cards feed the block. `tenant_lock` is the
@@ -49,15 +60,24 @@ class LearnedFacts:
         self.sources = tuple(sorted(sources, key=lambda s: s.connection))
         self.char_budget = char_budget
 
+    def usable(self, tenant_id: str | None) -> tuple[LearnedFactsSource, ...]:
+        """The sources `tenant_id` may read and add facts to."""
+        return tuple(s for s in self.sources if s.tenant_lock in (None, tenant_id))
+
+    def trainer_guidance(self, tenant_id: str | None) -> str | None:
+        """How a trainer's run proposes facts, or None when no connection takes them."""
+        names = [s.connection for s in self.usable(tenant_id)]
+        if not names:
+            return None
+        return _TRAINER_GUIDANCE.format(connections=", ".join(f"`{n}`" for n in names))
+
     def render(self, tenant_id: str | None) -> str | None:
         """The block for `tenant_id`, or None when no card applies. Full bodies
         until the character budget is spent, then titles only. Deterministic for
         unchanged cards, so the cached prompt prefix survives across turns."""
         remaining = self.char_budget
         sections: list[str] = []
-        for source in self.sources:
-            if source.tenant_lock is not None and tenant_id != source.tenant_lock:
-                continue
+        for source in self.usable(tenant_id):
             cards = approved_cards(source.cards_dir)
             if cards:
                 section, remaining = _render_section(source.connection, cards, remaining)

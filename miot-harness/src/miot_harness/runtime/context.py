@@ -78,6 +78,9 @@ class HarnessContext(BaseModel):
     # Why this tenant may not read the datasource, or None when it may. The
     # model still answers; the datasource tools return this instead.
     data_refusal: str | None = Field(default=None, exclude=True)
+    # The caller may teach the agent facts (the organization's trainer
+    # permission, as the backend proxy decided it).
+    trainer: bool = Field(default=False, exclude=True)
 
     def scope_key(self) -> str:
         """Key for state kept per conversation (scratchpad, task list).
@@ -175,6 +178,9 @@ class UserRequest(BaseModel):
     rules: list[PermissionRule] = Field(default_factory=list)
     # Output format for the response `answer` string (default markdown).
     answer_format: AnswerFormat = "markdown"
+    # Whether the caller holds the organization's trainer permission. The
+    # backend proxy sets it on every run, overwriting what the client sent.
+    trainer: bool = False
 
     @field_validator("tenant_id")
     @classmethod
@@ -234,4 +240,5 @@ class UserRequest(BaseModel):
             answer_format=self.answer_format,
             permission_policy=policy,
             attachments=self.attachments,
+            trainer=self.trainer,
         )

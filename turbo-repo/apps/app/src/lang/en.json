@@ -5772,7 +5772,8 @@
           "connections_test": "Test a connection",
           "selectables_replace": "Replace list",
           "selectables_delete": "Delete list",
-          "selectables_bind": "Bind lists to fields"
+          "selectables_bind": "Bind lists to fields",
+          "propose_learned_fact": "Save learned fact"
         },
         "kind": "Kind",
         "description": "Description",
@@ -5792,7 +5793,11 @@
         "expired": "No answer: the run ended",
         "by": "by {by}",
         "notPending": "This request is no longer pending.",
-        "failed": "Your decision could not be sent. Try again."
+        "failed": "Your decision could not be sent. Try again.",
+        "fact": {
+          "connection": "Connection",
+          "saved": "Saved to learned facts"
+        }
       },
       "activity": {
         "label": "Activity",

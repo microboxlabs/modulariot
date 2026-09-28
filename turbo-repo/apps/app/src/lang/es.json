@@ -5772,7 +5772,8 @@
           "connections_test": "Probar una conexión",
           "selectables_replace": "Reemplazar la lista",
           "selectables_delete": "Eliminar la lista",
-          "selectables_bind": "Vincular listas a campos"
+          "selectables_bind": "Vincular listas a campos",
+          "propose_learned_fact": "Guardar hecho aprendido"
         },
         "kind": "Tipo",
         "description": "Descripción",
@@ -5792,7 +5793,11 @@
         "expired": "Sin respuesta: la ejecución terminó",
         "by": "por {by}",
         "notPending": "Esta solicitud ya no está pendiente.",
-        "failed": "No se pudo enviar tu decisión. Inténtalo de nuevo."
+        "failed": "No se pudo enviar tu decisión. Inténtalo de nuevo.",
+        "fact": {
+          "connection": "Conexión",
+          "saved": "Guardado en hechos aprendidos"
+        }
       },
       "activity": {
         "label": "Actividad",

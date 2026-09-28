@@ -75,6 +75,10 @@ from miot_harness.runtime.factory import build_harness
 from miot_harness.runtime.run_store import HarnessRunRecord, RunSummary, summarize
 from miot_harness.runtime.supervisor import HarnessSupervisor
 from miot_harness.runtime.usage_report import UsageReporter
+from miot_harness.tools.learned_fact import (
+    PROPOSE_LEARNED_FACT_TOOL,
+    propose_learned_fact_tool,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -414,6 +418,10 @@ def _make_lifespan(
         harness.learned_facts = LearnedFacts(
             learned_sources, char_budget=settings.learned_facts_char_budget
         )
+        if PROPOSE_LEARNED_FACT_TOOL not in harness.tools.names():
+            harness.tools.register(
+                propose_learned_fact_tool(lambda: harness.learned_facts)
+            )
 
         # Back-compat single-valued datasource_* state, sourced from the primary
         # connection (or a disabled placeholder when there is no connection).
@@ -1235,6 +1243,15 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=404, detail=f"unknown connection {connection!r}")
         _enforce_tenant_may_write_connection(conn, auth, connection)
         return connection_cards_dir(conn)
+
+    @app.get("/knowledge/connections")
+    async def list_knowledge_connections(
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, list[str]]:
+        """The connections the caller's tenant may keep learned facts on."""
+        learned: LearnedFacts | None = app.state.harness.learned_facts
+        sources = learned.usable(auth.get("tenant_id")) if learned else ()
+        return {"connections": [s.connection for s in sources]}
 
     @app.get("/connections/{connection}/knowledge", responses=_CARDS_RESPONSES)
     async def list_connection_knowledge(

@@ -140,6 +140,15 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-Auth-Mode") String authMode,
             Map<String, Object> body);
 
+    /** The connections the caller's tenant may keep knowledge cards on. */
+    @GET
+    @Path("/knowledge/connections")
+    Uni<Response> listKnowledgeConnections(
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
+
     /** The approved knowledge cards attached to a connection. */
     @GET
     @Path("/connections/{connection}/knowledge")

@@ -620,6 +620,7 @@ class AgentLoopRunner:
         seats: LoopSeats | None = None,
         anthropic_format: bool = True,
         model_name: str = "",
+        trainer: bool = False,
     ) -> None:
         self.registry = registry
         self.model_name = model_name
@@ -637,7 +638,7 @@ class AgentLoopRunner:
         self.context_skills = context_skills
         self.seats = seats
         skills_index = render_skills_index(context_skills, profile)
-        self.native_tools = build_native_tools(registry, profile=profile)
+        self.native_tools = build_native_tools(registry, profile=profile, trainer=trainer)
         extras = seat_tool_schemas(seats)
         if skills_index:
             extras.append(_LOAD_SKILL_SCHEMA)
@@ -1067,7 +1068,10 @@ class AgentLoopRunner:
         return _plain_messages(messages)
 
     def _is_utility_tool(self, name: str) -> bool:
-        return name in self.registry.names() and self.registry.get(name).kind == "utility"
+        return name in self.registry.names() and self.registry.get(name).kind in (
+            "utility",
+            "trainer",
+        )
 
     async def _run_utility(
         self, call: dict[str, Any], *, ctx: HarnessContext, progress: Progress
@@ -1353,7 +1357,11 @@ class AgentLoopRunners:
     def allowed(self, model: str | None) -> bool:
         return model is None or model in self.models
 
-    def runner_for(self, model: str | None, effort: RunEffort | None = None) -> AgentLoopRunner:
+    def runner_for(
+        self, model: str | None, effort: RunEffort | None = None, trainer: bool = False
+    ) -> AgentLoopRunner:
+        """A trainer's runner offers the trainer tools too, so it has its own
+        cached prefix."""
         name = self.default_model if model is None else model
         if name not in self.models:
             raise ValueError(f"model {name!r} is not in the agent loop allowlist")
@@ -1363,6 +1371,8 @@ class AgentLoopRunners:
                 self._runners.clear()
                 self._providers_version = version
         key = name if effort is None else f"{name}#{effort}"
+        if trainer:
+            key += "#trainer"
         runner = self._runners.get(key)
         if runner is None:
             built = self._build_model(name) if effort is None else self._build_model(name, effort)
@@ -1370,6 +1380,7 @@ class AgentLoopRunners:
                 model=built,
                 anthropic_format=is_anthropic(name),
                 model_name=name,
+                trainer=trainer,
                 **self._kwargs,
             )
             self._runners[key] = runner
@@ -1383,7 +1394,7 @@ class AgentLoopRunners:
         prior_messages: list[BaseMessage],
         progress: Progress,
     ) -> dict[str, Any]:
-        runner = self.runner_for(ctx.model, ctx.effort)
+        runner = self.runner_for(ctx.model, ctx.effort, ctx.trainer)
         return await runner.run(
             user_message=user_message,
             ctx=ctx,

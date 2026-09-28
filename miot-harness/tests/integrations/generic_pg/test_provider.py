@@ -197,6 +197,34 @@ async def test_tenant_lock_denies_other_tenant(
 
 
 @pytest.mark.asyncio
+async def test_a_tenant_scoped_connection_serves_only_its_tenant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_pool = MagicMock()
+    fake_pool.close = AsyncMock()
+    monkeypatch.setattr(
+        "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+        AsyncMock(return_value=fake_pool),
+    )
+    registry = ToolRegistry()
+    await GenericPgProvider().boot(
+        registry,
+        _enabled(),
+        _conn(options={"search_path": "acs"}, scope="tenant", tenant_id="acme"),
+    )
+    tool = registry.get("acs_select")
+    from miot_harness.runtime.permissions import PermissionDecision
+
+    def _ctx(tenant: str) -> HarnessContext:
+        return HarnessContext(thread_id="t", tenant_id=tenant, user_id="u")
+
+    deny = await tool.check_permission(_ctx("other"), tool.input_model(table="acs.x"))
+    allow = await tool.check_permission(_ctx("acme"), tool.input_model(table="acs.x"))
+    assert deny.decision == PermissionDecision.DENY
+    assert allow.decision == PermissionDecision.ALLOW
+
+
+@pytest.mark.asyncio
 async def test_boot_populates_schema_summary(monkeypatch: pytest.MonkeyPatch) -> None:
     pool = RecordingPool(responder=_responder)
     monkeypatch.setattr(

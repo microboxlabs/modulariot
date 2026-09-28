@@ -55,9 +55,7 @@ _GENERIC_DEFAULT_PROFILE = DataSourceProfile(
     tool_prefix="generic_",
     primer="",
     tenant_lock=None,
-    tenant_refusal_template=(
-        "{display_name} is {lock}-only. I can't answer for other tenants."
-    ),
+    tenant_refusal_template=("{display_name} is {lock}-only. I can't answer for other tenants."),
     freshness_warn_minutes=0,
     freshness_refuse_minutes=0,
     has_freshness_model=False,
@@ -82,6 +80,17 @@ def _resolve_tenant_lock(opts: dict[str, object]) -> str | None:
         return None
     lock = str(opts.get("tenant_lock") or "").strip()
     return lock or None
+
+
+def _workspace_dir(connection: Connection) -> Path | None:
+    """Where the agent keeps notes and saved analyses: next to the connection file.
+
+    Synthesized and legacy connections have no file, so they get no workspace.
+    """
+    source_path = connection.source_path
+    if not source_path or source_path.startswith("<"):
+        return None
+    return Path(source_path).parent
 
 
 class GenericPgProvider(DataSourceProvider):
@@ -155,12 +164,14 @@ class GenericPgProvider(DataSourceProvider):
                 enabled=False,
                 registered=(),
                 reason=(
-                    f"connection {name!r}: no schemas "
-                    "(set options.schemas or options.search_path)"
+                    f"connection {name!r}: no schemas (set options.schemas or options.search_path)"
                 ),
             )
 
         tenant_lock = _resolve_tenant_lock(opts)
+        if tenant_lock is None and connection.scope == "tenant" and connection.tenant_id:
+            # A connection file under tenants/<id>/ serves that tenant only.
+            tenant_lock = connection.tenant_id
         source_label = str(opts.get("source_label") or name)
         tool_prefix = f"{name}_"
         policy = SchemaAllowlistPolicy(schemas)
@@ -170,7 +181,7 @@ class GenericPgProvider(DataSourceProvider):
             source_label=source_label,
             tool_prefix=tool_prefix,
             primer=connection.primer,
-                    tenant_lock=tenant_lock,
+            tenant_lock=tenant_lock,
             tenant_refusal_template=(
                 "{display_name} is {lock}-only. I can't answer for other tenants."
             ),
@@ -179,9 +190,7 @@ class GenericPgProvider(DataSourceProvider):
             has_freshness_model=False,
         )
 
-        application_name = (
-            str(opts["application_name"]) if opts.get("application_name") else None
-        )
+        application_name = str(opts["application_name"]) if opts.get("application_name") else None
         schema_summary = None
         detected: tuple[DetectedPack, ...] = ()
         try:
@@ -219,9 +228,7 @@ class GenericPgProvider(DataSourceProvider):
                             limit=1,
                             statement_timeout_ms=statement_timeout_ms,
                         )
-                        schema_summary = replace(
-                            schema_summary, routine_count=catalog.total
-                        )
+                        schema_summary = replace(schema_summary, routine_count=catalog.total)
                     except Exception as exc:  # noqa: BLE001 — count is best-effort
                         logger.error(
                             "generic_pg %s: routine survey failed (%s); continuing",
@@ -265,6 +272,7 @@ class GenericPgProvider(DataSourceProvider):
                 statement_timeout_ms=statement_timeout_ms,
                 knowledge_cards=knowledge_cards,
                 call_security_definer=call_security_definer,
+                workspace_dir=_workspace_dir(connection),
             )
             registered: list[str] = []
             for tool in tools:
@@ -273,9 +281,7 @@ class GenericPgProvider(DataSourceProvider):
         except Exception as exc:  # noqa: BLE001 — boot must not die (base-class contract)
             logger.critical("generic_pg %s: boot failed (%s)", name, exc)
             await self.close()
-            return BootResult(
-                enabled=False, registered=(), reason=f"boot failed: {exc}"
-            )
+            return BootResult(enabled=False, registered=(), reason=f"boot failed: {exc}")
 
         return BootResult(
             enabled=True,
@@ -308,9 +314,7 @@ class GenericPgProvider(DataSourceProvider):
                         statement_timeout_ms=statement_timeout_ms,
                     )
                 except Exception as exc:  # noqa: BLE001 — probe is best-effort
-                    logger.warning(
-                        "knowledge pack %s: version probe failed (%s)", pack.id, exc
-                    )
+                    logger.warning("knowledge pack %s: version probe failed (%s)", pack.id, exc)
             out.append(DetectedPack(pack=pack, version=version))
         return tuple(out)
 

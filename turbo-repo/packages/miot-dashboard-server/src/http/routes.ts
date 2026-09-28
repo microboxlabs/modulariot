@@ -66,7 +66,14 @@ export function matchRoute(pathname: string): RouteMatch | null {
     return matchCredentials(segments, tenantId, scopeId);
   }
   if (collection !== "dashboards") return null;
+  return matchDashboards(segments, tenantId, scopeId);
+}
 
+function matchDashboards(
+  segments: readonly string[],
+  tenantId: string,
+  scopeId: string,
+): RouteMatch | null {
   if (segments.length === 5) return { route: "dashboards", tenantId, scopeId };
 
   const slug = decodeSegment(segments[5]);

@@ -36,8 +36,8 @@ export interface ServeOptions {
   /** Omit, or pass a read-only vault, and the credential routes answer 404. */
   credentials?: CredentialsVault;
   audit?: AuditSink;
-  queries?: DashboardHandlerOptions["queries"];
-  policy?: DashboardHandlerOptions["policy"];
+  queries?: NonNullable<DashboardHandlerOptions["queries"]>;
+  policy?: NonNullable<DashboardHandlerOptions["policy"]>;
   basePath?: string;
   cors?: CorsOptions;
   port: number;

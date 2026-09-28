@@ -5641,6 +5641,7 @@
         "thoughtProcess": "Proceso de pensamiento",
         "executionCanceled": "La ejecución fue cancelada.",
         "runFailed": "No se pudo obtener una respuesta.",
+        "runInterrupted": "La ejecución se interrumpió.",
         "retry": "Reintentar",
         "readOnly": "Este chat es de solo lectura: lo compartió otra persona.",
         "forkFromHere": "Bifurcar desde aquí",
@@ -5683,6 +5684,9 @@
         "copied": "Copiado",
         "download": "Descargar",
         "saveAsStory": "Guardar como historia",
+        "savedAsStory": "Guardado como historia",
+        "openStory": "Abrir historia",
+        "saveAsStoryFailed": "No se pudo guardar la historia",
         "omitted": "Este resultado era demasiado grande para guardarlo en el historial de la conversación."
       },
       "showDashlet": {

@@ -170,6 +170,9 @@ def _make_lifespan(
             harness.conversation_summarizer = None
             logger.warning("Conversation compaction disabled: %s", exc)
         app.state.in_flight = {}
+        interrupted = harness.run_store.mark_interrupted()
+        if interrupted:
+            logger.warning("Run store: %d unfinished run(s) marked interrupted", len(interrupted))
         # Parallel map from in-flight run_id → tenant_id, populated by
         # /runs:start and cleared in the task's done-callback. Lets
         # /stream refuse a cross-tenant subscriber before the record
@@ -954,11 +957,10 @@ def create_app() -> FastAPI:
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> HarnessRunRecord:
         harness: HarnessSupervisor = app.state.harness
-        try:
-            record = harness.run_store.load(run_id)
-        except FileNotFoundError as exc:
+        record = _replay_record(harness, run_id)
+        if record is None:
             # An unknown run is a 404, not a 500 leaked from the store.
-            raise HTTPException(status_code=404, detail=f"unknown run_id {run_id!r}") from exc
+            raise HTTPException(status_code=404, detail=f"unknown run_id {run_id!r}")
         _enforce_tenant_owns_run(record, auth, run_id)
         return record
 

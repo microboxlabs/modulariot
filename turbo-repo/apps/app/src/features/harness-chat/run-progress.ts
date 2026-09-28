@@ -15,6 +15,18 @@ export function splitNarration(text: string): {
   };
 }
 
+/** Where the run's timer counts from: the earlier of the reply's creation
+ * and the harness's own start. A reply rebuilt after a reload is created
+ * late; the harness start keeps it counting from the real beginning. */
+export function runElapsedSince(
+  runStartedAt: number | null,
+  createdAt: Date | undefined
+): Date | undefined {
+  if (runStartedAt === null) return createdAt;
+  if (!createdAt) return new Date(runStartedAt);
+  return new Date(Math.min(runStartedAt, createdAt.getTime()));
+}
+
 /** mm:ss, growing to h:mm:ss past an hour. */
 export function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));

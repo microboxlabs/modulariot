@@ -1,10 +1,22 @@
 import json
+import logging
+import re
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from miot_harness.runtime.events import HarnessEvent
+
+logger = logging.getLogger(__name__)
+
+# Statuses of a run that has not reached a terminal point.
+UNFINISHED_STATUSES = frozenset({"created", "queued", "running"})
+
+# `status` is the second field a record is saved with, so reading the head of
+# the file tells an unfinished run apart without parsing its events.
+_UNFINISHED_HEAD = re.compile(r'"status":\s*"(created|queued|running)"')
+_HEAD_BYTES = 512
 
 
 class HarnessRunRecord(BaseModel):
@@ -65,3 +77,37 @@ class JsonRunStore:
     def load(self, run_id: str) -> HarnessRunRecord:
         path = self.runs_dir / f"{run_id}.json"
         return HarnessRunRecord.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
+    def mark_interrupted(self) -> list[str]:
+        """Fail every run saved as unfinished, with reason ``interrupted``.
+
+        Run tasks live in the process, so after a restart nothing will finish
+        them; without this a caller polling or re-attaching waits forever.
+        Returns the ids it marked.
+        """
+        marked: list[str] = []
+        for path in self.runs_dir.glob("*.json"):
+            try:
+                with path.open("rb") as file:
+                    head = file.read(_HEAD_BYTES).decode("utf-8", "ignore")
+                if not _UNFINISHED_HEAD.search(head):
+                    continue
+                record = self.load(path.stem)
+            except (OSError, ValueError):
+                logger.warning("Run store: could not read %s", path.name, exc_info=True)
+                continue
+            if record.status not in UNFINISHED_STATUSES:
+                continue
+            record.status = "failed"
+            record.events.append(
+                HarnessEvent(
+                    run_id=record.run_id,
+                    seq=len(record.events),
+                    type="run.failed",
+                    message="Run interrupted: the harness restarted",
+                    data={"error": "interrupted", "reason": "interrupted"},
+                )
+            )
+            self.save(record)
+            marked.append(record.run_id)
+        return marked

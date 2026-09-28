@@ -9,6 +9,8 @@ export const HARNESS_RUN_EVENT = "harness_run";
 export type HarnessRunMarker = {
   runId: string;
   status: "running" | "finished";
+  /** When the harness started the run (ISO), sent once its first event is in. */
+  startedAt?: string;
 };
 
 const BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/chat/runs`;
@@ -57,6 +59,21 @@ export function resumeRunUrl(
 ): string {
   const query = new URLSearchParams({ threadId, runId: aguiRunId });
   return `${BASE}/${encodeURIComponent(runId)}/stream?${query.toString()}`;
+}
+
+/** The harness run's status ("running", "completed", "failed"), "unknown"
+ * when the harness does not know it, or null when it could not be asked. */
+export async function fetchRunStatus(runId: string): Promise<string | null> {
+  const res = await fetch(`${BASE}/${encodeURIComponent(runId)}`, {
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null);
+  if (!res) return null;
+  if (res.status === 404) return "unknown";
+  if (!res.ok) return null;
+  const body = (await res.json().catch(() => null)) as {
+    status?: unknown;
+  } | null;
+  return typeof body?.status === "string" ? body.status : null;
 }
 
 export async function cancelRun(runId: string): Promise<boolean> {

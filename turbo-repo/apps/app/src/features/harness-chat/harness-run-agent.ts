@@ -15,10 +15,12 @@ import {
   HARNESS_RUN_EVENT,
   cancelRun,
   clearActiveRun,
+  fetchRunStatus,
   isHarnessRunMarker,
   resumeRunUrl,
   writeActiveRun,
 } from "./harness-active-run";
+import { STREAM_IDLE_MS, sseFrame, watchIdle } from "./stream-watchdog";
 
 /**
  * Messages kept in a run request, counted from the end. The relay reads the
@@ -46,8 +48,19 @@ export class HarnessRunAgent extends HttpAgent {
    * starting a new one. */
   resumeRunId: string | null = null;
 
+  /** When the harness started the current run (epoch ms), once known. */
+  runStartedAt: number | null = null;
+
+  /** Called when a run's stream went silent while its harness run may still
+   * have an answer: the caller re-attaches to it once this run has ended. */
+  onReattach: ((harnessRunId: string) => void) | null = null;
+
+  private readonly clockListeners = new Set<() => void>();
+
   constructor(config: HttpAgentConfig) {
     super(config);
+    const fetchStream = this.fetch;
+    this.fetch = (url, init) => fetchStream(url, init).then((res) => this.watched(res));
     this.subscribe({
       onCustomEvent: ({ event }) => this.onRunMarker(event.name, event.value),
     });
@@ -57,6 +70,7 @@ export class HarnessRunAgent extends HttpAgent {
     const resumeRunId = this.resumeRunId;
     this.resumeRunId = null;
     this.harnessRunId = resumeRunId;
+    this.setRunStartedAt(null);
     if (!resumeRunId) {
       return super.run(
         withEffort(withModel(trimRunInput(input), this.model), readRunEffort())
@@ -84,14 +98,49 @@ export class HarnessRunAgent extends HttpAgent {
     void cancelRun(runId);
   }
 
+  subscribeClock = (listener: () => void): (() => void) => {
+    this.clockListeners.add(listener);
+    return () => this.clockListeners.delete(listener);
+  };
+
+  private setRunStartedAt(value: number | null): void {
+    if (this.runStartedAt === value) return;
+    this.runStartedAt = value;
+    for (const listener of this.clockListeners) listener();
+  }
+
   private onRunMarker(name: string, value: unknown): void {
     if (name !== HARNESS_RUN_EVENT || !isHarnessRunMarker(value)) return;
     if (value.status === "running") {
       this.harnessRunId = value.runId;
       writeActiveRun(this.threadId, value.runId);
+      const startedAt = value.startedAt ? Date.parse(value.startedAt) : Number.NaN;
+      if (!Number.isNaN(startedAt)) this.setRunStartedAt(startedAt);
     } else {
       clearActiveRun(this.threadId, value.runId);
     }
+  }
+
+  private watched(res: Response): Response {
+    if (!res.ok || !res.body) return res;
+    return new Response(watchIdle(res.body, STREAM_IDLE_MS, () => this.onStreamIdle()), {
+      status: res.status,
+      statusText: res.statusText,
+      headers: res.headers,
+    });
+  }
+
+  /** The stream went silent: a run the harness failed or lost ends here as
+   * interrupted; one it may still hold is re-attached to. */
+  private async onStreamIdle(): Promise<string> {
+    const runId = this.harnessRunId;
+    const status = runId ? await fetchRunStatus(runId) : "unknown";
+    if (!runId || status === "failed" || status === "unknown") {
+      if (runId) clearActiveRun(this.threadId, runId);
+      return sseFrame({ type: "RUN_ERROR", message: "interrupted" });
+    }
+    this.onReattach?.(runId);
+    return sseFrame({ type: "RUN_ERROR", message: "stream_lost" });
   }
 }
 

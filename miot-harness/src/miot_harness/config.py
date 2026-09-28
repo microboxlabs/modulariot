@@ -384,6 +384,10 @@ class HarnessSettings(BaseSettings):
     modulith_url: str | None = None
     provider_key: str | None = Field(default=None, repr=False)
     model_providers_refresh_seconds: int = Field(default=60, gt=0)
+    # The web app's public base URL, basePath included (e.g.
+    # https://host/app). Share links in tool results are made absolute with
+    # it; unset, they stay app-relative.
+    app_public_url: str = ""
 
     # Auth0 / JWT verification (defense-in-depth in front of the
     # Quarkus proxy). Off by default so unit tests and local dev see

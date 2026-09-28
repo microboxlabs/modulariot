@@ -9,7 +9,9 @@ model is given them.
 
 from __future__ import annotations
 
-from typing import Any
+import json
+from typing import Any, Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
@@ -32,6 +34,7 @@ from miot_harness.datasource.safe_query import (
 from miot_harness.datasource.schema_introspect import introspect_foreign_keys
 from miot_harness.datasource.sql_policy import TableAccessPolicy
 from miot_harness.runtime.context import HarnessContext
+from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.permissions import PermissionResult
 from miot_harness.runtime.tool import HarnessTool, Progress
 
@@ -58,6 +61,77 @@ class _ProfileOutput(BaseModel):
     sample: str = ""
     columns: list[dict[str, Any]] = Field(default_factory=list)
     source: str = ""
+
+
+WidgetKind = Literal["kpi", "table", "bar", "line", "pie"]
+WIDGET_MAX_ROWS = 500
+WIDGET_PREVIEW_ROWS = 5
+
+
+class _ShowInput(BaseModel):
+    sql: str = Field(
+        description=(
+            "Read-only SELECT whose result is the data to show, same rules as "
+            "query. Name the columns the way the user should read them."
+        )
+    )
+    widget: WidgetKind = Field(
+        description=(
+            "kpi: one headline number (first row, first y column); table: a "
+            "list to scan; bar: compare categories; line: a trend over "
+            "time; pie: shares of a whole (few categories)"
+        )
+    )
+    title: str = Field(description="Short title in the user's language")
+    x: str | None = Field(
+        default=None, description="Category or time column (charts); omit for kpi/table"
+    )
+    y: list[str] = Field(
+        default_factory=list,
+        description="Value columns: the series of a chart, or the kpi's value column",
+    )
+    unit: str | None = Field(default=None, description="Unit of the values, e.g. h or km")
+    subtitle: str | None = Field(default=None, description="One line of context")
+
+
+class _ShowOutput(BaseModel):
+    widget_id: str = ""
+    row_count: int = 0
+    columns: list[str] = Field(default_factory=list)
+    preview: list[dict[str, Any]] = Field(default_factory=list)
+    note: str = ""
+    source: str = ""
+    executed_sql: str | None = None
+
+
+def _jsonable_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Decimals, dates and UUIDs as JSON values, so the rows can travel in an event."""
+    converted: list[dict[str, Any]] = json.loads(json.dumps(rows, default=str))
+    return converted
+
+
+def _show_note(widget_id: str, truncated: bool, row_count: int) -> str:
+    placement = (
+        f'Place it in your answer with {{"type": "widget", "value": {{"id": "{widget_id}"}}}} '
+        "and write what it shows; do not repeat the rows."
+    )
+    if truncated:
+        return (
+            f"The result was cut at {row_count} rows; the widget shows only those. "
+            "Say so, or aggregate or filter the query and show it again. " + placement
+        )
+    return "The user sees every row in the widget. " + placement
+
+
+def _widget_problems(parsed: _ShowInput, columns: list[str], row_count: int) -> list[str]:
+    if parsed.widget in ("bar", "line", "pie") and not (parsed.x and parsed.y):
+        return [f"a {parsed.widget} chart needs x and at least one y column"]
+    if row_count == 0:
+        if parsed.widget == "table":
+            return []
+        return ["the query returned no rows; say there is no data instead of showing a widget"]
+    missing = [c for c in [parsed.x, *parsed.y] if c and c not in columns]
+    return [f"column {c!r} is not in the result ({', '.join(columns)})" for c in missing]
 
 
 class _SelectInput(BaseModel):
@@ -274,6 +348,55 @@ def build_generic_tools(
         )
         return _ProfileOutput(**result, source=source_label)
 
+    async def call_show(ctx: HarnessContext, parsed: _ShowInput, progress: Progress) -> _ShowOutput:
+        run = await safe_run_select(
+            pool=pool,
+            policy=policy,
+            sql=parsed.sql,
+            max_rows=min(max_rows, WIDGET_MAX_ROWS),
+            cost_threshold=explain_cost_threshold,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        rows = _jsonable_rows(run.rows)
+        columns = list(rows[0].keys()) if rows else []
+        problems = _widget_problems(parsed, columns, len(rows))
+        if problems:
+            raise ValueError("; ".join(problems))
+        widget_id = f"w{uuid4().hex[:10]}"
+        truncated = len(rows) >= min(max_rows, WIDGET_MAX_ROWS)
+        progress(
+            HarnessEvent(
+                run_id=ctx.run_id,
+                type="widget.created",
+                message=f"Widget {parsed.title}",
+                data={
+                    "widget": {
+                        "id": widget_id,
+                        "kind": parsed.widget,
+                        "title": parsed.title,
+                        "subtitle": parsed.subtitle,
+                        "x": parsed.x,
+                        "y": parsed.y,
+                        "unit": parsed.unit,
+                        "columns": columns,
+                        "rows": rows,
+                        "truncated": truncated,
+                        "source": source_label,
+                        "sql": run.sql,
+                    }
+                },
+            )
+        )
+        return _ShowOutput(
+            widget_id=widget_id,
+            row_count=len(rows),
+            columns=columns,
+            preview=rows[:WIDGET_PREVIEW_ROWS],
+            note=_show_note(widget_id, truncated, len(rows)),
+            source=source_label,
+            executed_sql=run.sql,
+        )
+
     async def call_select(
         ctx: HarnessContext, parsed: _SelectInput, progress: Progress
     ) -> _RowsOutput:
@@ -462,6 +585,20 @@ def build_generic_tools(
             input_model=_ProfileInput,
             output_model=_ProfileOutput,
             call=call_profile,
+            **common,
+        ),
+        HarnessTool(
+            name=f"{tool_prefix}show",
+            description=(
+                f"Show a query result {scope} to the user as a widget: a kpi card, "
+                "a table, or a bar/line/pie chart. Runs the SELECT under the "
+                "same rules as query and sends every row to the user's screen; "
+                "you get back only a preview. Use it whenever the answer is more "
+                "than one or two numbers: a breakdown, a ranking, a trend."
+            ),
+            input_model=_ShowInput,
+            output_model=_ShowOutput,
+            call=call_show,
             **common,
         ),
         HarnessTool(

@@ -5545,6 +5545,7 @@
         "thinking": "Pensando…"
       },
       "gotIt": "Entendido.",
+      "assumption": "Supuesto",
       "noAnswer": "El harness no devolvió una respuesta.",
       "unconfigured": "El harness no está configurado en este entorno — esta es una respuesta de marcador de posición.",
       "demo": {

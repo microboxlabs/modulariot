@@ -23,6 +23,7 @@
     "grounding.gap",
     "advisor.consulted",
     "delegate.completed",
+    "widget.created",
     "answer.delta",
     "answer.completed",
     "run.completed",

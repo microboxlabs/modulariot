@@ -5545,6 +5545,7 @@
         "thinking": "Thinking…"
       },
       "gotIt": "Got it.",
+      "assumption": "Assumption",
       "noAnswer": "The harness didn't return an answer.",
       "unconfigured": "The harness isn't configured in this environment — this is a placeholder response.",
       "demo": {

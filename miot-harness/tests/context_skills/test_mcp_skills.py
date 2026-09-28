@@ -328,5 +328,6 @@ async def test_a_result_that_fails_its_output_schema_falls_back_to_its_text(
 async def test_without_json_text_a_result_that_fails_its_output_schema_is_an_error() -> None:
     story = {"id": "s1", "sourceMessageId": None}
     async with Client(_schema_server(story, "created")) as client:
+        session = _StreamableSession(client)
         with pytest.raises(RuntimeError, match="Invalid structured content"):
-            await _StreamableSession(client).call_tool("stories_create", {})
+            await session.call_tool("stories_create", {})

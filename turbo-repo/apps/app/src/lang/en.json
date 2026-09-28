@@ -1673,6 +1673,27 @@
           "save": "Save permission",
           "saving": "Saving…"
         },
+        "harnessTrainerPermission": {
+          "title": "Assistant trainers",
+          "description": "Trainers teach the assistant: they edit its knowledge and run evaluations.",
+          "ownersNote": "Organization owners are always trainers.",
+          "enabledLabel": "Enable trainers",
+          "enabledHelp": "Assigned members can train the assistant while this option is on.",
+          "assignedCount": "{count} trainers assigned",
+          "searchLabel": "Search members",
+          "searchPlaceholder": "Search by name or email…",
+          "memberColumn": "Member",
+          "permissionColumn": "Trainer",
+          "ownerBadge": "Owner",
+          "memberPermissionLabel": "Trainer permission for {member}",
+          "noSearchResults": "No members match your search.",
+          "noMembers": "Add members to the organization before assigning trainers.",
+          "unavailableMember": "No longer in the organization; uncheck to remove",
+          "loadError": "Couldn't load the assistant trainers.",
+          "saveError": "Couldn't save the trainers.",
+          "save": "Save trainers",
+          "saving": "Saving…"
+        },
         "whatsappChannel": {
           "title": "WhatsApp Channel",
           "description": "Configure and test the WhatsApp connection used to reach drivers.",
@@ -1894,6 +1915,10 @@
         }
       },
       "dataSources": {
+        "learningWorkspace": {
+          "text": "Assistant knowledge is now managed in the learning workspace.",
+          "link": "Open learning workspace"
+        },
         "learnedKnowledge": {
           "title": "Learned knowledge",
           "description": "Business definitions the assistant learned from your questions. Approve them so it uses them in future answers.",

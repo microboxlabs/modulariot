@@ -4,8 +4,10 @@ import { getJson, sendJson } from "./json-client";
 import type {
   ContentReviewPermission,
   OrgMember,
+  OrganizationPermission,
   OrganizationRole,
   SetContentReviewPermission,
+  SetOrganizationPermission,
   SetOrganizationRole,
 } from "../types";
 
@@ -52,6 +54,27 @@ export function updateContentReviewPermission(
   return sendJson<ContentReviewPermission>(
     "PUT",
     contentReviewPermissionUrl(orgSlug),
+    value
+  );
+}
+
+const HARNESS_TRAINER_PERMISSION_CODE = "HARNESS_TRAINER";
+
+export function fetchHarnessTrainerPermission(
+  orgSlug: string
+): Promise<OrganizationPermission> {
+  return getJson<OrganizationPermission>(
+    organizationPermissionUrl(orgSlug, HARNESS_TRAINER_PERMISSION_CODE)
+  );
+}
+
+export function updateHarnessTrainerPermission(
+  orgSlug: string,
+  value: SetOrganizationPermission
+): Promise<OrganizationPermission> {
+  return sendJson<OrganizationPermission>(
+    "PUT",
+    organizationPermissionUrl(orgSlug, HARNESS_TRAINER_PERMISSION_CODE),
     value
   );
 }

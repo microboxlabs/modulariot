@@ -5563,7 +5563,11 @@
         "analysis": "Revisando los análisis guardados",
         "web_search": "Buscando en la web",
         "web_fetch": "Leyendo una página web",
-        "load_skill": "Cargando instrucciones"
+        "load_skill": "Cargando instrucciones",
+        "write_todos": "Planificando los pasos",
+        "delegate": "Delegando una tarea a un subagente",
+        "ask_advisor": "Consultando al asesor",
+        "fs_write": "Guardando un borrador"
       },
       "noAnswer": "El harness no devolvió una respuesta.",
       "unconfigured": "El harness no está configurado en este entorno — esta es una respuesta de marcador de posición.",

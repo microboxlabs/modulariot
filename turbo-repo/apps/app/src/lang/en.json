@@ -5563,7 +5563,11 @@
         "analysis": "Checking saved analyses",
         "web_search": "Searching the web",
         "web_fetch": "Reading a web page",
-        "load_skill": "Loading instructions"
+        "load_skill": "Loading instructions",
+        "write_todos": "Planning the steps",
+        "delegate": "Handing a task to a sub-agent",
+        "ask_advisor": "Asking the advisor",
+        "fs_write": "Saving a draft"
       },
       "noAnswer": "The harness didn't return an answer.",
       "unconfigured": "The harness isn't configured in this environment — this is a placeholder response.",

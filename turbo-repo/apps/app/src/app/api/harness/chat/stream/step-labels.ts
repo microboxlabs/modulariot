@@ -22,6 +22,10 @@ export const STEP_KEYS = [
   "web_search",
   "web_fetch",
   "load_skill",
+  "write_todos",
+  "delegate",
+  "ask_advisor",
+  "fs_write",
 ] as const;
 
 export type StepKey = (typeof STEP_KEYS)[number];

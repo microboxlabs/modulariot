@@ -108,7 +108,7 @@ class ConnectionToolsTest {
     }
 
     private ConnectionTools.ConnectionView createOrders(ConnectionTools tools) {
-        return await(tools.create(ORG, "Orders", "tmpl-1", "https://orders.example.test", "cred-1",
+        return await(tools.create(ORG, "Orders", "tmpl-1", "https://203.0.113.10", "cred-1",
                 Map.of("region", "north")));
     }
 
@@ -136,7 +136,7 @@ class ConnectionToolsTest {
 
         assertEquals(List.of("Orders API"), found.templates().stream().map(IntegrationTemplate::name).toList());
         assertEquals(List.of(new ConnectionTools.CredentialRef("cred-1", "Orders key", CredentialType.API_KEY,
-                "PRODUCTION", null)), found.credentials());
+                "PRODUCTION")), found.credentials());
     }
 
     @Test
@@ -162,7 +162,7 @@ class ConnectionToolsTest {
     void secretsAreRefusedAsCreateArguments() {
         ConnectionTools tools = toolsFor(OWNER);
 
-        String message = failure(tools.create(ORG, "Orders", "tmpl-1", "https://orders.example.test", null,
+        String message = failure(tools.create(ORG, "Orders", "tmpl-1", "https://203.0.113.10", null,
                 Map.of("auth", Map.of("password", "x")))).getMessage();
 
         assertTrue(message.startsWith("metadata.auth.password looks like a secret"), message);
@@ -184,6 +184,17 @@ class ConnectionToolsTest {
     }
 
     @Test
+    void aConnectionToAnInternalAddressIsNotProbed() {
+        ConnectionTools tools = toolsFor(OWNER);
+        ConnectionTools.ConnectionView created = await(tools.create(ORG, "Local", "tmpl-1", "http://127.0.0.1:8080",
+                null, null));
+
+        assertEquals("baseUrl must not point to an internal address",
+                failure(tools.test(ORG, created.id(), null, null)).getMessage());
+        assertTrue(tested.isEmpty());
+    }
+
+    @Test
     void refusalsAreFailedToolCalls() {
         ConnectionTools owner = toolsFor(OWNER);
 
@@ -196,6 +207,8 @@ class ConnectionToolsTest {
                 failure(owner.create(ORG, "A", "tmpl-1", "https://a.example.test", "cred-x", null)).getMessage());
         assertEquals("baseUrl must be an absolute http(s) URL",
                 failure(owner.create(ORG, "A", "tmpl-1", "ftp://a.example.test", null, null)).getMessage());
+        assertEquals("baseUrl must not carry a user or password; use a credential",
+                failure(owner.create(ORG, "A", "tmpl-1", "https://u:p@a.example.test", null, null)).getMessage());
         assertEquals("name is required",
                 failure(owner.create(ORG, " ", "tmpl-1", "https://a.example.test", null, null)).getMessage());
         assertEquals("connection not found: nope", failure(owner.get(ORG, "nope")).getMessage());

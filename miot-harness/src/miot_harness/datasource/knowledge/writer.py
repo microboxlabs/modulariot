@@ -152,6 +152,17 @@ def _history_dir(cards_dir: Path, stem: str) -> Path:
     return _inside(cards_dir, _HISTORY_DIR, stem)
 
 
+def _stored_stem(cards_dir: Path, card_id: str) -> str | None:
+    """The stored name (live card or its history) matching `card_id`, taken
+    from the directory listing rather than from the caller's input."""
+    stem = slug_card_id(card_id)
+    names = [p.stem for p in cards_dir.glob("*.md")]
+    history = cards_dir / _HISTORY_DIR
+    if history.is_dir():
+        names += [p.name for p in history.iterdir() if p.is_dir()]
+    return next((name for name in names if name == stem), None)
+
+
 def _history_versions(history_dir: Path) -> list[Path]:
     """Superseded versions oldest→newest. Zero-padded numeric names sort
     lexicographically in version order, so `[-1]` is the most recent."""
@@ -195,9 +206,11 @@ def revert_connection_card(cards_dir: Path, card_id: str) -> Path | None:
     the live file and pop it off the history stack, so a bad promotion is undone
     in a single call (a second call steps back another version). Returns the live
     card path, or None when there is no prior version to restore."""
-    stem = slug_card_id(card_id)
-    if not stem:
+    if not slug_card_id(card_id):
         raise ValueError(f"cannot derive a card id from {card_id!r}")
+    stem = _stored_stem(cards_dir, card_id)
+    if stem is None:
+        return None
     versions = _history_versions(_history_dir(cards_dir, stem))
     if not versions:
         return None
@@ -211,8 +224,8 @@ def revert_connection_card(cards_dir: Path, card_id: str) -> Path | None:
 def delete_connection_card(cards_dir: Path, card_id: str) -> bool:
     """Remove a live card, keeping its current version on the history stack so
     `revert_connection_card` can restore it. False when there is no such card."""
-    stem = slug_card_id(card_id)
-    if not stem:
+    stem = _stored_stem(cards_dir, card_id)
+    if stem is None:
         return False
     path = _card_path(cards_dir, stem)
     if not path.is_file():

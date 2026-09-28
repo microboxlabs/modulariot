@@ -54,7 +54,7 @@ class OrganizationPermissionServiceTest {
         var service = service(null);
         Uni<Void> gate = service.requirePermission(
                 "org", OrganizationPermissionDefinition.HARNESS_TRAINER);
-        assertThrows(ForbiddenException.class, () -> gate.await().indefinitely());
+        assertThrows(ForbiddenException.class, gate.await()::indefinitely);
     }
 
     @Test

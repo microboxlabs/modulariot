@@ -36,9 +36,9 @@ class OrgKnowledgeCandidatesResourceTest {
         var reject = resource.reject(ORG, ID);
         var edit = resource.edit(ORG, ID, new CandidateEditRequest("term", "body"));
 
-        assertThrows(ForbiddenException.class, () -> approve.await().indefinitely());
-        assertThrows(ForbiddenException.class, () -> reject.await().indefinitely());
-        assertThrows(ForbiddenException.class, () -> edit.await().indefinitely());
+        assertThrows(ForbiddenException.class, approve.await()::indefinitely);
+        assertThrows(ForbiddenException.class, reject.await()::indefinitely);
+        assertThrows(ForbiddenException.class, edit.await()::indefinitely);
         assertTrue(repository.calls.isEmpty());
     }
 

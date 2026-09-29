@@ -127,6 +127,8 @@ describe("server dashboard document", () => {
     });
     rerender({ org: "two" });
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
+    expect(result.current.busy).toBe(true);
+    expect(result.current.readOnly).toBe(true);
     await act(async () => {
       release(
         Response.json(
@@ -136,6 +138,8 @@ describe("server dashboard document", () => {
       );
       await pending;
     });
+    expect(result.current.busy).toBe(false);
+    expect(result.current.readOnly).toBe(false);
     expect(result.current.config.name).toBe(empty.name);
     expect(result.current.dirty).toBe(false);
     act(() => result.current.onChange({ ...empty, name: "Org two" }));

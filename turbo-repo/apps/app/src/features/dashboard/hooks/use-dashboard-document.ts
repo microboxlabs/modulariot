@@ -43,7 +43,8 @@ export function useDashboardDocument(
   const currentDraft = draft?.key === key ? draft : null;
   const currentActivity = activity?.key === key ? activity : null;
   const config = currentDraft?.config ?? data?.config ?? emptyDocument;
-  const busy = currentActivity?.busy ?? false;
+  // A previous organization may still have a write in flight.
+  const busy = activity?.busy ?? false;
   const readOnly =
     !data || !data.capabilities.canEdit || data.capabilities.readOnly || busy;
 

@@ -15,12 +15,15 @@ const ALLOWED = new Set([
 export function importProblems(source, file, root = SOURCE) {
   const origin = relative(root, file);
   const isCore = origin === "core.ts" || origin.startsWith("core/");
+  const isTemplates =
+    origin === "templates.ts" || origin.startsWith("templates/");
   const isReact = origin === "react.ts" || origin.startsWith("react/");
   return ts
     .preProcessFile(source, true, true)
     .importedFiles.map(({ fileName }) => fileName)
     .filter((specifier) => {
       if (specifier === "react" && isReact) return false;
+      if (specifier === "handlebars" && isTemplates) return false;
       if (ALLOWED.has(specifier)) return false;
       if (!specifier.startsWith("./") && !specifier.startsWith("../"))
         return true;

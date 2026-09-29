@@ -18,7 +18,12 @@ export default defineConfig((options) => {
   return [
     {
       ...shared,
-      entry: ["src/core.ts", "src/client.ts", "src/document.ts"],
+      entry: [
+        "src/core.ts",
+        "src/client.ts",
+        "src/document.ts",
+        "src/templates.ts",
+      ],
       splitting: true,
     },
     {

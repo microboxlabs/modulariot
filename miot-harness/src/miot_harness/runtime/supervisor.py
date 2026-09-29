@@ -830,8 +830,8 @@ class HarnessSupervisor:
             await self.conversation_store.summarize_if_needed(
                 key, summarizer=self.conversation_summarizer
             )
-        except Exception:  # noqa: BLE001 — memory upkeep must not fail the run
-            logger.warning("Conversation compaction failed; keeping the full history")
+        except Exception as exc:  # noqa: BLE001 — memory upkeep must not fail the run
+            logger.warning("Conversation compaction failed; keeping the full history: %s", exc)
 
     @staticmethod
     def _conversation_key(request: UserRequest, ctx: HarnessContext) -> str | None:

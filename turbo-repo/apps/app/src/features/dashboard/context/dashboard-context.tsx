@@ -402,6 +402,10 @@ export function DashboardProvider({
     [setOrderStorage]
   );
 
+  const hasStorage = Boolean(storage);
+  const storageLoaded = storage?.isLoaded ?? false;
+  const storageReadOnly = storage?.readOnly ?? false;
+
   const value: DashboardContextValue = useMemo(
     () => ({
       widgets,
@@ -410,9 +414,9 @@ export function DashboardProvider({
       isLoaded,
       dictionary,
       siteId,
-      hostAccess: storage
+      hostAccess: hasStorage
         ? {
-            canEdit: storage.isLoaded && !storage.readOnly,
+            canEdit: storageLoaded && !storageReadOnly,
             canManagePermissions: false,
           }
         : undefined,
@@ -454,7 +458,9 @@ export function DashboardProvider({
       isLoaded,
       dictionary,
       siteId,
-      storage,
+      hasStorage,
+      storageLoaded,
+      storageReadOnly,
       filters,
       setFilters,
       effectiveRefreshInterval,

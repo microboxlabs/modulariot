@@ -108,14 +108,14 @@ network. It trusts the authenticated dashboard service to authorize the user,
 scope and dashboard; it resolves the organization slug to its tenant code and
 checks the connection and operation itself.
 
-The initial executor supports `HTTP_GET` operations returning a JSON array of
+The HTTP executor supports `HTTP_GET` operations returning a JSON array of
 rows. It requires an ACTIVE tenant-owned connection and the opt-in policy above,
 then executes the exact operation snapshot that was validated. Named parameters
 are URL-encoded; scalar strings are sent literally and other values as JSON.
 Stored URLs may not contain query strings or fragments, and parameters cannot
 overwrite credential query parameters. Public-URL checks and credential
-resolution reuse the integration invoker. BIGQUERY operations require the
-separate BigQuery executor and are refused by this HTTP-only implementation.
+resolution reuse the integration invoker. BIGQUERY operations use the bounded
+executor described below.
 
 The host permits at most eight concurrent executions, 5,000 rows and 2 MiB of
 result JSON, and honors smaller requested limits. Invalid provider responses
@@ -123,3 +123,30 @@ and internal failures return a generic error without provider data. Every
 endpoint response includes `Cache-Control: no-store`.
 
 The ingress authenticates before body buffering or JSON decoding and limits requests to 512 KiB, including chunked bodies. Framework-generated errors also carry the no-store header.
+
+## BigQuery saved operations
+
+Use the existing BigQuery connection and its Google service-account credential.
+Its base URL must be `https://bigquery.googleapis.com`; configure the credential's
+OAuth scope as `https://www.googleapis.com/auth/bigquery` for the jobs API. The
+service account still needs only the required job execution and dataset read
+permissions; the OAuth scope does not grant additional IAM permissions.
+
+A POST operation opts in with `kind: "BIGQUERY"` and the normal isolation policy.
+Its `x-dashboard` settings also contain `projectId`, `location`, the saved `query`,
+`maximumBytesBilled` (a decimal string), and `parameterTypes` (a map from each
+bound parameter name to its BigQuery type). Types include `STRING`, `INT64`,
+`FLOAT64`, `NUMERIC`, `BIGNUMERIC`, `BOOL`, `DATE`, `DATETIME`, `TIME`, `TIMESTAMP`
+and flat arrays such as `ARRAY<STRING>`. Use an empty map when there are no
+parameters. SQL uses named placeholders such as `@days`; values are never
+interpolated into SQL. Editors and viewers cannot send SQL or job settings.
+
+Every execution performs a dry run and requires statement type SELECT and an
+estimated scan within the saved billing limit. The operation limit cannot exceed
+`miot.dashboards.bigquery.maximum-bytes-billed` (default 1,000,000,000 bytes).
+Submitted jobs carry the same billing cap and a 20-second job timeout; the host
+also enforces a total request deadline and attempts cancellation on failure.
+Only complete, bounded scalar-column results are returned. Nested/repeated
+columns and paginated results are refused; shape the saved SQL for dashboard
+consumption. No query results are logged by this executor.
+

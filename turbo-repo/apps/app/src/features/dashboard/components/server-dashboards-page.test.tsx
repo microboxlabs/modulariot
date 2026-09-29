@@ -49,6 +49,8 @@ const dictionary = {
       loadError: "Dashboard unavailable",
       unsaved: "Unsaved changes",
       create: "Create dashboard",
+      slug: "Dashboard identifier",
+      newName: "New dashboard",
     },
   },
 };
@@ -109,6 +111,20 @@ describe("parallel dashboard pages", () => {
     show();
     await screen.findByRole("link", { name: "Fleet" });
     expect(screen.queryByRole("button", { name: "Create dashboard" })).not.toBeInTheDocument();
+  });
+  it("lets an authorized MEMBER create with a zero-revision precondition", async () => {
+    state.orgRole = "MEMBER";
+    state.canEdit = true;
+    show();
+    const createButton = await screen.findByRole("button", { name: "Create dashboard" });
+    fireEvent.change(screen.getByRole("textbox", { name: "Dashboard identifier" }), {
+      target: { value: "demo-validation" },
+    });
+    fireEvent.click(createButton);
+    await waitFor(() => expect(state.push).toHaveBeenCalledWith("/en/dashboards/demo-validation"));
+    const write = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(write?.[0]).toBe("/app/api/dashboards/demo-validation?org=acme");
+    expect(write?.[1]?.headers).toMatchObject({ "if-match": '\"0\"' });
   });
   it("does not fall back to the application role when permission lookup fails", async () => {
     state.orgRole = "OWNER";

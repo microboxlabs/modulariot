@@ -14,16 +14,22 @@ We follow semantic versioning: `MAJOR.MINOR.PATCH`
 
 Features and improvements in development:
 
-- Paquetes de dashboards v0.5.0 (preparación de lanzamiento; aún sin publicar): consultar el permiso para iniciar la creación sin leer documentos; mantener la política del documento al guardar.
-
-- Corrección de seguridad del servidor v0.5.0: aplicar las restricciones `canEdit` de la política del documento y la identidad al crear dashboards, conservando la creación por Contributor con la política predeterminada.
-
 - JavaScript, Python, and Java SDKs
 - Advanced symptom patterns
 - Enhanced notification channels
 - Historical analytics dashboard
 
 ## Lanzamientos Recientes
+
+### Paquetes de dashboards v0.5.0 — Permisos de creación (2026-09-29)
+
+[Contrato](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract) y [servidor](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) compatibles v0.5.0 publicados:
+
+- Nuevo endpoint de capacidades del ámbito y método embebido para consultar si se puede iniciar la creación sin leer documentos. Los tokens de embed no pueden usarlo.
+- Al crear un dashboard se aplican tanto el límite de edición de la credencial como la política del documento. Contributor conserva la creación con la política predeterminada.
+- El servidor requiere el contrato `^0.5.0` para mantener el OpenAPI instalado alineado con el runtime.
+
+Una instalación nueva desde npm validó las 11 exportaciones y los permisos del servidor independiente con SQLite/JWT. Despliegue primero el servidor, después el proxy del host y finalmente el espacio de trabajo. La publicación no completa la aceptación de Consumer en navegador ni la migración de telemetría.
 
 ### Paquetes de dashboards v0.4.0 — Herramientas de migración (2026-09-29)
 

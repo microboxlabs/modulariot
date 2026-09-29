@@ -1,5 +1,20 @@
 import { DashboardApiError } from "./error";
 
+function hasDotPathSegment(endpoint: string): boolean {
+  const pathAndOrigin = endpoint.split("?")[0] ?? "";
+  const start = endpoint.startsWith("/")
+    ? 0
+    : pathAndOrigin.indexOf("/", endpoint.indexOf("://") + 3);
+  if (start < 0) return false;
+  return pathAndOrigin
+    .slice(start)
+    .split("/")
+    .some((segment) => {
+      const decoded = segment.replaceAll(/%2e/gi, ".");
+      return decoded === "." || decoded === "..";
+    });
+}
+
 export function pathSegment(value: string): string {
   if (
     !value ||
@@ -16,8 +31,9 @@ export function validateEndpoint(value: string): void {
     !value ||
     value.includes("\\") ||
     value.includes("#") ||
-    [...value].some((character) => character.charCodeAt(0) <= 32) ||
-    value.startsWith("//")
+    [...value].some((character) => character <= " ") ||
+    value.startsWith("//") ||
+    hasDotPathSegment(value)
   ) {
     throw new DashboardApiError(400);
   }
@@ -48,7 +64,8 @@ export function appendRoute(
   const prefix = path.endsWith("/") ? path.slice(0, -1) : path;
   const resource =
     slug === undefined ? prefix : `${prefix}/${pathSegment(slug)}`;
-  return `${resource}${action === undefined ? "" : `/${action}`}${query}`;
+  const suffix = action === undefined ? "" : `/${action}`;
+  return `${resource}${suffix}${query}`;
 }
 
 /** Build routes for a standalone server, including any host-owned URL prefix. */

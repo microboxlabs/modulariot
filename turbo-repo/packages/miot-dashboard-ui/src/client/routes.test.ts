@@ -30,6 +30,11 @@ describe("standalone routing and authentication", () => {
     "relative/path",
     "",
     "http://[",
+    "/api/%2e%2e",
+    "/api/%2E.",
+    "/api/.%2e/dashboards",
+    "https://dashboards.example/api/../dashboards",
+    "https://dashboards.example/api/%2e/dashboards",
   ])("rejects ambiguous endpoint %j", (endpoint) => {
     expect(() =>
       createDashboardClient({
@@ -53,6 +58,17 @@ describe("standalone routing and authentication", () => {
         scopeId: "b",
       }),
     ).toThrow("(400)");
+  });
+
+  it("does not mistake query values or hostnames for path segments", () => {
+    expect(() =>
+      createDashboardClient({
+        routes: {
+          dashboards: "/api/dashboards?filter=/../",
+          scopeCapabilities: "https://dashboards.example",
+        },
+      }),
+    ).not.toThrow();
   });
 
   it("refreshes host tokens on every request and omits cookies by default", async () => {

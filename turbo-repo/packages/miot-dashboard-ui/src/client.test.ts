@@ -33,6 +33,39 @@ it("preserves cancellation while reading the response body", async () => {
   );
 });
 
+it.each([
+  { status: 403, etag: '"1"', expected: 403 },
+  { status: 200, etag: "invalid", expected: 502 },
+])(
+  "cancels an unread body before rejecting %j",
+  async ({ status, etag, expected }) => {
+    const cancel = vi.fn();
+    const body = new ReadableStream({ cancel });
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response(body, { status, headers: { etag } }));
+    await expect(
+      createDashboardServerClient("org", fetcher).load("sales"),
+    ).rejects.toMatchObject({ status: expected });
+    expect(cancel).toHaveBeenCalledOnce();
+  },
+);
+
+it("preserves HTTP status when body cancellation fails or has no body", async () => {
+  const body = new ReadableStream({
+    cancel() {
+      throw new Error("private stream failure");
+    },
+  });
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(new Response(body, { status: 500 }))
+    .mockResolvedValueOnce(new Response(null, { status: 401 }));
+  const client = createDashboardServerClient("org", fetcher);
+  await expect(client.list()).rejects.toMatchObject({ status: 500 });
+  await expect(client.list()).rejects.toMatchObject({ status: 401 });
+});
+
 describe("dashboard server browser client", () => {
   it("binds cache keys and requests to the original organization", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response([]));

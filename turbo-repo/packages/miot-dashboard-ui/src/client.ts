@@ -36,6 +36,30 @@ function requireRevision(etag: string | null): string {
   return etag;
 }
 
+/** Release unconsumed bodies without replacing the original protocol error. */
+async function cancelBody(response: Response) {
+  await response.body?.cancel().catch(() => undefined);
+}
+
+async function responseRevision(response: Response): Promise<string> {
+  try {
+    return requireRevision(response.headers.get("etag"));
+  } catch (error) {
+    await cancelBody(response);
+    throw error;
+  }
+}
+
+async function read<T>(response: Response, schema: z.ZodType<T>): Promise<T> {
+  const body = await response.json().catch((error: Error) => {
+    if (error.name === "AbortError") throw error;
+    throw new DashboardApiError(502);
+  });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) throw new DashboardApiError(502);
+  return parsed.data;
+}
+
 export interface DashboardClientOptions {
   /** Host-owned routes, already bound to one tenant/scope or organization. */
   routes: { dashboards: string; scopeCapabilities: string };
@@ -78,17 +102,11 @@ export function createDashboardClient(options: DashboardClientOptions) {
       if (init?.signal?.aborted) throw error;
       throw new DashboardApiError(502);
     });
-    if (!response.ok) throw new DashboardApiError(response.status);
+    if (!response.ok) {
+      await cancelBody(response);
+      throw new DashboardApiError(response.status);
+    }
     return response;
-  }
-  async function read<T>(response: Response, schema: z.ZodType<T>): Promise<T> {
-    const body = await response.json().catch((error: Error) => {
-      if (error.name === "AbortError") throw error;
-      throw new DashboardApiError(502);
-    });
-    const parsed = schema.safeParse(body);
-    if (!parsed.success) throw new DashboardApiError(502);
-    return parsed.data;
   }
   return {
     /** Resource URL includes the host-bound scope; hosts also isolate caches by auth session. */
@@ -109,7 +127,7 @@ export function createDashboardClient(options: DashboardClientOptions) {
     },
     async load(slug: string, signal?: AbortSignal) {
       const response = await request(url(slug), { signal });
-      const etag = requireRevision(response.headers.get("etag"));
+      const etag = await responseRevision(response);
       const { data: config } = await read(
         response,
         z.object({ data: dashboardConfigSchema.nullable() }),

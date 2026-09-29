@@ -7,6 +7,10 @@
  * configuration, and the server never grows an opinion about authorization.
  */
 
+import {
+  createHttpDashboardOperationExecutor,
+  type HttpDashboardOperationsOptions,
+} from "../queries/http-operations";
 import type { JwtAlgorithm } from "../identity/jwt";
 import type { TicketPresentation } from "../identity/ticket";
 import { MIN_PROXY_KEY_LENGTH } from "../identity/proxy";
@@ -59,6 +63,8 @@ export interface ServerConfig {
   proxyKey: string | undefined;
   /** Where datasource credentials come from. */
   credentials: CredentialsConfig;
+  /** Optional fixed endpoint for the host connection catalog. */
+  operations?: HttpDashboardOperationsOptions;
 }
 
 /** Who owns a datasource credential. One of these, never a mix. */
@@ -1018,6 +1024,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
   const host = env.HOST ?? "127.0.0.1";
   const auth = readAuth(env, host);
   const proxyKey = readProxyKey(env, auth);
+  const operations = readOperationsConfig(env, proxyKey);
 
   const store = env.MIOT_DASHBOARD_STORE ?? "memory";
   if (!(STORE_KINDS as readonly string[]).includes(store)) {
@@ -1079,6 +1086,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     cors: readCors(env),
     proxyKey,
     credentials: readCredentials(env, store as StoreKind, proxyKey),
+    ...(operations ? { operations } : {}),
   };
 }
 
@@ -1131,4 +1139,37 @@ function readCors(env: ConfigEnv): CorsOptions | undefined {
     );
   }
   return cors;
+}
+
+/** Fixed host endpoint; absent leaves saved-query HTTP execution disabled. */
+function readOperationsConfig(
+  env: ConfigEnv,
+  proxyKey: string | undefined,
+): HttpDashboardOperationsOptions | undefined {
+  const url = env.MIOT_DASHBOARD_OPERATIONS_URL?.trim();
+  if (!url) return undefined;
+  if (!proxyKey)
+    throw new ConfigError(
+      "MIOT_DASHBOARD_OPERATIONS_URL requires MIOT_DASHBOARD_PROXY_KEY",
+    );
+  const options = {
+    url,
+    proxyKey,
+    allowHttp: env.MIOT_DASHBOARD_OPERATIONS_ALLOW_HTTP === "true",
+    requestTimeoutMs: Number(env.MIOT_DASHBOARD_OPERATIONS_TIMEOUT ?? "20000"),
+  };
+  if (options.requestTimeoutMs > 20000)
+    throw new ConfigError(
+      "MIOT_DASHBOARD_OPERATIONS_TIMEOUT cannot exceed 20000 milliseconds",
+    );
+  try {
+    // Validate before opening stores or listeners. Construction performs no I/O.
+    createHttpDashboardOperationExecutor(options);
+  } catch {
+    // Do not quote operator URLs or keys in startup errors.
+    throw new ConfigError(
+      "Invalid dashboard operations endpoint or timeout configuration",
+    );
+  }
+  return options;
 }

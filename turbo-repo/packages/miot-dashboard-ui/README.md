@@ -346,10 +346,12 @@ and `meta.hasChildren` / `meta.hasSettings`. The component receives
 `unknownWidgetLabel` supplies localized text when a definition is unavailable.
 
 Rendering is read-only by default. Editing requires both `editMode: true` and an
-`onAction(widget, action)` handler. Derive edit mode from current server
+`onAction(widget, action, componentId?)` handler. Derive edit mode from current server
 capabilities; UI controls cannot grant authorization. Actions are `add`,
 `settings`, `duplicate`, and `delete`; add/settings are additionally gated by
-widget metadata. View-mode components receive no mutation callbacks.
+widget metadata. A widget calling `onAddChild(componentId)` forwards that requested
+child type to the host as the optional third argument; the host remains responsible
+for validating allowed nesting. View-mode components receive no mutation callbacks.
 
 A host may provide a stable `Frame` component receiving `WidgetFrameProps` to
 render controls around each widget. Its `onAction` is gated by the same rules.

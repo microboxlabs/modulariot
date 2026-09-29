@@ -30,7 +30,11 @@ export interface WidgetRendererProps {
   /** Host must derive this from authorized edit capabilities. Defaults to false. */
   editMode?: boolean;
   isRoot?: boolean;
-  onAction?: (widget: Widget, action: WidgetAction) => void;
+  onAction?: (
+    widget: Widget,
+    action: WidgetAction,
+    componentId?: string,
+  ) => void;
   Frame?: ComponentType<WidgetFrameProps>;
   /** Localized fallback text for unavailable widget implementations. */
   unknownWidgetLabel: string;
@@ -60,11 +64,12 @@ function WidgetNode({
 }: Readonly<WidgetRendererProps & { instance: string }>) {
   const definition = registry.get(widget.componentId);
   const editable = editMode && !!onAction;
-  const act = (action: WidgetAction) => {
+  const act = (action: WidgetAction, componentId?: string) => {
     if (!editable) return;
     if (action === "add" && !definition?.meta.hasChildren) return;
     if (action === "settings" && !definition?.meta.hasSettings) return;
-    onAction?.(widget, action);
+    if (componentId === undefined) onAction?.(widget, action);
+    else onAction?.(widget, action, componentId);
   };
   const Component = definition?.Component;
   const children = widget.children?.map((child) => (
@@ -99,7 +104,7 @@ function WidgetNode({
             isRoot={isRoot}
             onAddChild={
               editable && definition.meta.hasChildren
-                ? () => act("add")
+                ? (componentId) => act("add", componentId)
                 : undefined
             }
             onOpenSettings={

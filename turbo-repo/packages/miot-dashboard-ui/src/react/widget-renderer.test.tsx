@@ -32,11 +32,15 @@ function Fixture({
   children,
   editMode,
   onDelete,
+  onAddChild,
 }: Readonly<WidgetComponentProps>) {
   return (
     <section aria-label={widget.id}>
       <span>{editMode ? "editing" : "viewing"}</span>
       {onDelete && <button onClick={onDelete}>Delete {widget.id}</button>}
+      {onAddChild && (
+        <button onClick={() => onAddChild("info_card")}>Add typed child</button>
+      )}
       {children}
     </section>
   );
@@ -102,6 +106,8 @@ describe("portable widget renderer", () => {
     expect(action).not.toHaveBeenCalled();
     fireEvent.click(screen.getAllByText("Add")[0]!);
     expect(action).toHaveBeenLastCalledWith(widget, "add");
+    fireEvent.click(screen.getByText("Add typed child"));
+    expect(action).toHaveBeenLastCalledWith(widget, "add", "info_card");
     fireEvent.click(screen.getByText("Delete child"));
     expect(action).toHaveBeenLastCalledWith(widget.children![0], "delete");
   });

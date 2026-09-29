@@ -156,17 +156,26 @@ const ALFRESCO_RETRY_BASE_MS = 1000;
  * @param siteId        - Optional Alfresco site short name. When provided, configs
  *                        are fetched from and persisted to Alfresco.
  */
+/** Controlled document state supplied by a host with its own persistence protocol. */
+export interface DashboardStorageController {
+  config: DashboardStorageSchema;
+  isLoaded: boolean;
+  readOnly: boolean;
+  onChange: (config: DashboardStorageSchema) => void;
+}
+
 export function useDashboardStorage(
   slug: string,
   defaultConfig?: DashboardStorageSchema | null,
-  siteId?: string | null
+  siteId?: string | null,
+  controller?: DashboardStorageController
 ) {
   // Stabilize fallback via ref — defaultConfig comes from server props and is
   // referentially stable per page load, but we guard against inline objects.
   const fallbackRef = useRef(defaultConfig ?? DEFAULT_STORAGE);
 
   // SWR key — null when no siteId (disables fetch)
-  const swrKey = siteId
+  const swrKey = siteId && !controller
     ? `/app/api/dashboard/config?site=${encodeURIComponent(siteId)}&slug=${encodeURIComponent(slug)}`
     : null;
 
@@ -181,7 +190,7 @@ export function useDashboardStorage(
     }
   );
 
-  const rawConfig = response?.data ?? fallbackRef.current;
+  const rawConfig = controller?.config ?? response?.data ?? fallbackRef.current;
 
   // Resolved config with widget defaults applied
   const resolvedConfig = useMemo(() => ({
@@ -200,8 +209,9 @@ export function useDashboardStorage(
   // Refs for debounced Alfresco save
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<DashboardStorageSchema | null>(null);
-  const siteIdRef = useRef(siteId);
-  siteIdRef.current = siteId;
+  const effectiveSiteId = controller ? null : siteId;
+  const siteIdRef = useRef(effectiveSiteId);
+  siteIdRef.current = effectiveSiteId;
 
   /** Save config to Alfresco with retry */
   const saveToAlfresco = useCallback(
@@ -297,10 +307,14 @@ export function useDashboardStorage(
   // Raw save: optimistic SWR mutate + debounced Alfresco PUT (no history)
   const rawSaveData = useCallback(
     (newData: DashboardStorageSchema) => {
+      if (controller) {
+        if (!controller.readOnly) controller.onChange(stripEphemeralState(newData));
+        return;
+      }
       void mutate({ data: newData }, { revalidate: false });
       scheduleSaveToAlfresco(newData);
     },
-    [mutate, scheduleSaveToAlfresco]
+    [controller, mutate, scheduleSaveToAlfresco]
   );
 
   // Undo/redo history wrapping rawSaveData
@@ -329,7 +343,7 @@ export function useDashboardStorage(
   );
 
   // isLoaded: null key means no fetch needed → immediately loaded
-  const isLoaded = swrKey ? !isLoading : true;
+  const isLoaded = controller?.isLoaded ?? (swrKey ? !isLoading : true);
 
   // Find widget by ID (recursive search)
   const findWidget = useCallback(

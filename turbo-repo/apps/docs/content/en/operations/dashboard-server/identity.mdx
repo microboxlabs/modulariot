@@ -129,3 +129,5 @@ An organization the person does not belong to and one that does not exist answer
 The standalone CLI enforces nonempty `allowedGroups` through the group policy before role capabilities. Missing or nonmatching verified groups hide restricted dashboards from lists and deny reads, writes and saved queries. Unrestricted dashboards retain their existing role behavior.
 
 Set `MIOT_DASHBOARD_JWT_GROUPS_CLAIM` to a trusted issuer claim containing group identifiers. Use globally unique or tenant-qualified IDs and explicitly map legacy groups before migration. Proxy role assertions alone do not grant group membership. No Alfresco runtime is required. Embedded hosts must configure `createAllowedGroupsPolicy()` when importing these restrictions. This tightens standalone access: configure trusted claims before upgrading deployments that previously ignored `allowedGroups`.
+
+For ticket authentication, set `MIOT_DASHBOARD_TICKET_GROUPS_PATH` to the group-array path in the trusted ticket-validation response. JWT group-claim settings do not configure ticket identities. Without the appropriate group source, restricted dashboards remain denied.

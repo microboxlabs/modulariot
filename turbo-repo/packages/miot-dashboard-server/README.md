@@ -876,3 +876,5 @@ grant group membership. This requires no Alfresco runtime. Embedded hosts retain
 control of their policy and should pass `createAllowedGroupsPolicy()` when
 importing documents with this restriction. Existing standalone deployments that
 relied on ignored restrictions must configure trusted claims before upgrading.
+
+For ticket authentication, set `MIOT_DASHBOARD_TICKET_GROUPS_PATH` to the group-array path in the trusted ticket-validation response. JWT group-claim settings do not configure ticket identities. Without the appropriate group source, restricted dashboards remain denied.

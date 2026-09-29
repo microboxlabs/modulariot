@@ -63,7 +63,7 @@ jobs:
         working-directory: turbo-repo
 
       - name: Verify standalone group restrictions
-        run: node --test scripts/cli-groups.test.mjs
+        run: node --test scripts/smoke-cli-groups.mjs
         working-directory: turbo-repo/packages/miot-dashboard-server
 
       - name: Prepare Docker context

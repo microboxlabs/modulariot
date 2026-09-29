@@ -67,6 +67,7 @@ La aplicación expone `/api/dashboards` mediante su sesión del lado del servido
 | GET, PUT, DELETE | `/api/dashboards/{dashboard}` | Cargar, guardar, eliminar |
 | GET | `/api/dashboards/{dashboard}/capabilities` | Consultar acciones permitidas |
 | GET, PUT | `/api/dashboards/{dashboard}/permissions` | Consultar o reemplazar asignaciones de roles |
+| POST | `/api/dashboards/{dashboard}/queries/{query}` | Ejecutar una consulta guardada |
 
 Conserva el `ETag` recibido al cargar y envíalo como `If-Match` al guardar. Un `409` conserva la versión más reciente del servidor; mantén los cambios del usuario y resuelve el conflicto antes de reintentar. El navegador no necesita el JWT de la sesión.
 
@@ -77,3 +78,7 @@ Envía `?org={activeOrgSlug}` e incluye la organización en las claves de caché
 ## Tamaño de solicitudes
 
 Tanto `createDashboardHandler` como el servidor independiente aplican `maxBodyBytes` (1 MiB por defecto). El handler embebido autoriza antes de leer JSON y cuenta los bytes recibidos, incluidas las solicitudes por fragmentos; un cuerpo excesivo devuelve `413`. Configura también el tiempo máximo y los límites de conexiones del host.
+
+## Consultas guardadas
+
+Envía `{ "filters": { ... } }` para ejecutar una consulta guardada. El cliente del navegador, vinculado a la organización, ofrece `query(slug, queryId, filters, signal)` y valida las filas recibidas. No envía credenciales ni SQL y propaga la cancelación a través del proxy de la aplicación.

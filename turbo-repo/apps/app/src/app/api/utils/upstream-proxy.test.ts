@@ -103,3 +103,33 @@ describe("dashboard revision forwarding", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-store");
   });
 });
+
+it("propagates browser cancellation through the authenticated proxy", async () => {
+  const controller = new AbortController();
+  fetchMock.mockResolvedValue(new Response('{"data":{"rows":[]}}'));
+  await forwardToQuarkus("/api/v1/orgs/acme/dashboards/fleet/queries/costs", {
+    method: "POST",
+    body: { filters: {} },
+    signal: controller.signal,
+  });
+  const signal = fetchMock.mock.calls[0]![1].signal as AbortSignal;
+  expect(signal.aborted).toBe(false);
+  controller.abort();
+  expect(signal.aborted).toBe(true);
+});
+
+it.each([undefined, 30_000])(
+  "uses the internal timeout budget %s",
+  async (timeoutMs) => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    fetchMock.mockResolvedValue(new Response("{}"));
+    try {
+      await forwardToQuarkus("/api/v1/orgs/acme/dashboards/fleet", {
+        timeoutMs,
+      });
+      expect(timeout).toHaveBeenCalledWith(timeoutMs ?? 15_000);
+    } finally {
+      timeout.mockRestore();
+    }
+  }
+);

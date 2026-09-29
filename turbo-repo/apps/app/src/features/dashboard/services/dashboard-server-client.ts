@@ -1,6 +1,12 @@
 import { z } from "zod";
-import { dashboardConfigSchema } from "@microboxlabs/miot-dashboard-contract/schema";
-import type { DashboardStorageSchema } from "@microboxlabs/miot-dashboard-contract/document";
+import {
+  dashboardConfigSchema,
+  dashboardQueryValueSchema,
+} from "@microboxlabs/miot-dashboard-contract/schema";
+import type {
+  DashboardStorageSchema,
+  DashboardQueryValue,
+} from "@microboxlabs/miot-dashboard-contract/document";
 import { DASHBOARD_ROLES } from "@microboxlabs/miot-dashboard-contract/roles";
 
 const summarySchema = z.object({ slug: z.string(), name: z.string() });
@@ -112,6 +118,33 @@ export function createDashboardServerClient(
         ...revision,
         etag: requireRevision(response.headers.get("etag")),
       };
+    },
+    async query(
+      slug: string,
+      queryId: string,
+      filters: Record<string, DashboardQueryValue> = {},
+      signal?: AbortSignal
+    ) {
+      const result = await read(
+        await request(url(slug, `queries/${pathSegment(queryId)}`), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ filters }),
+          signal,
+        }),
+        z.object({
+          data: z.object({
+            rows: z
+              .array(
+                z
+                  .record(z.string(), dashboardQueryValueSchema)
+                  .refine((row) => Object.keys(row).length <= 100)
+              )
+              .max(5000),
+          }),
+        })
+      );
+      return result.data.rows;
     },
     async capabilities(slug: string, signal?: AbortSignal) {
       return read(

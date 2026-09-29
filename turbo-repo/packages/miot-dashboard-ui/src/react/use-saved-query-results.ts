@@ -5,6 +5,7 @@ import type {
   DashboardQueryValue,
 } from "@microboxlabs/miot-dashboard-contract/document";
 import type { PlannerQueryResult } from "./planner-results";
+import { QueryScheduler } from "./query-scheduler";
 import { usePollingInterval } from "./use-polling-interval";
 
 /** Minimal saved-query transport; compatible with createDashboardClient. */
@@ -51,6 +52,7 @@ export function useSavedQueryResults({
     results: Map<string, PlannerQueryResult>;
   } | null>(null);
   const running = useRef(false);
+  const [scheduler] = useState(() => new QueryScheduler());
   usePollingInterval(
     () => {
       if (!running.current) setPoll((value) => value + 1);
@@ -95,13 +97,17 @@ export function useSavedQueryResults({
     async function worker() {
       while (next < queries.length && !controller.signal.aborted) {
         const query = queries[next++]!;
-        const result = await queryResult(
-          { client, slug, errorMessage },
-          query,
-          activeFilters,
+        const result = await scheduler.run(
+          () =>
+            queryResult(
+              { client, slug, errorMessage },
+              query,
+              activeFilters,
+              controller.signal,
+            ),
           controller.signal,
         );
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || result === undefined) return;
         setState((previous) => {
           const results = new Map(
             previous?.key === requestKey && previous.client === client
@@ -123,7 +129,7 @@ export function useSavedQueryResults({
       running.current = false;
     };
     // The serialized key includes every query/filter value; client identity handles host changes.
-  }, [requestKey, client, poll, errorMessage]);
+  }, [requestKey, client, poll, errorMessage, scheduler]);
 
   const value = useMemo(() => {
     const results =

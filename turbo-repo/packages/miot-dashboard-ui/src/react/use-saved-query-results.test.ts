@@ -252,3 +252,47 @@ it("returns empty results without requests for an empty query list", async () =>
   expect(result.current.results.size).toBe(0);
   expect(execute).not.toHaveBeenCalled();
 });
+
+it("shares the four request slots across rapidly replaced sessions", async () => {
+  const { execute, options } = setup();
+  const pending: ReturnType<
+    typeof deferred<Record<string, DashboardQueryValue>[]>
+  >[] = [];
+  let active = 0;
+  let maximum = 0;
+  execute.mockImplementation(() => {
+    const item = deferred<Record<string, DashboardQueryValue>[]>();
+    pending.push(item);
+    active++;
+    maximum = Math.max(maximum, active);
+    return item.promise.finally(() => {
+      active--;
+    });
+  });
+  const queries = Array.from({ length: 7 }, (_, id) => ({
+    ...query,
+    id: String(id),
+    variableName: String(id),
+  }));
+  const { result, rerender, unmount } = renderHook(
+    (input: SavedQueryOptions) => useSavedQueryResults(input),
+    { initialProps: { ...options, queries } },
+  );
+  await waitFor(() => expect(execute).toHaveBeenCalledTimes(4));
+  rerender({ ...options, queries, sessionKey: "second" });
+  rerender({ ...options, queries, sessionKey: "third" });
+  await act(async () => {});
+  expect(execute).toHaveBeenCalledTimes(4);
+  await act(async () => pending[0]!.resolve([{ obsolete: true }]));
+  await waitFor(() => expect(execute).toHaveBeenCalledTimes(5));
+  expect(maximum).toBe(4);
+  expect(
+    [...result.current.results.values()].every(
+      (value) => value.rows.length === 0,
+    ),
+  ).toBe(true);
+  unmount();
+  await act(async () => pending.forEach((item) => item.resolve([])));
+  expect(execute).toHaveBeenCalledTimes(5);
+  expect(active).toBe(0);
+});

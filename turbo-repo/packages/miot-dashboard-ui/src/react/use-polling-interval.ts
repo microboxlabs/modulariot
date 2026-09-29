@@ -13,7 +13,12 @@ export function usePollingInterval(
   callbackRef.current = callback;
 
   useEffect(() => {
-    if (!Number.isFinite(intervalMs) || intervalMs <= 0) return;
+    if (
+      !Number.isFinite(intervalMs) ||
+      intervalMs <= 0 ||
+      intervalMs > 2_147_483_647
+    )
+      return;
 
     let id: ReturnType<typeof setInterval> | null = null;
 

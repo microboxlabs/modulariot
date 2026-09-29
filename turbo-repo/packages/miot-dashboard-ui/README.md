@@ -282,7 +282,9 @@ for `PlannerResultsProvider`. Required options are `client`, `sessionKey`, `slug
   logout/login or identity changes, even when server and resource URLs stay the same.
 - Only filters declared by each saved query are forwarded. Connection credentials,
   SQL execution and access checks remain on the dashboard server.
-- At most four queries run concurrently per hook. Duplicate query IDs or variable
+- At most four queries run concurrently per mounted hook, across request generations.
+  A cancelled transport retains its slot until its promise settles; custom transports
+  must honor cancellation to avoid delaying the replacement session. Duplicate query IDs or variable
   names produce the host's generic `errorMessage` without executing requests.
 - Resource, session, client, query or declared-filter changes abort obsolete work.
   Old results are hidden immediately, and late responses are ignored. Unmounting
@@ -299,4 +301,4 @@ Hidden tabs pause polling and refresh when visible again. Failures expose only
 
 `usePollingInterval(callback, intervalMs)` is also exported. It invokes the latest
 callback, pauses while hidden, and removes timers/listeners on cleanup. Zero,
-negative and nonfinite intervals disable polling.
+negative, nonfinite and overflowing intervals (above 2,147,483,647 ms) disable polling.

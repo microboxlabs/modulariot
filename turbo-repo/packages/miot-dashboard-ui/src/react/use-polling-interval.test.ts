@@ -7,18 +7,22 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
 });
-it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
-  "does not schedule invalid or disabled interval %s",
-  (interval) => {
-    vi.useFakeTimers();
-    vi.spyOn(document, "hidden", "get").mockReturnValue(false);
-    const callback = vi.fn();
-    renderHook(() => usePollingInterval(callback, interval));
-    act(() => vi.advanceTimersByTime(5000));
-    expect(callback).not.toHaveBeenCalled();
-    expect(vi.getTimerCount()).toBe(0);
-  },
-);
+it.each([
+  0,
+  -1,
+  Number.NaN,
+  Number.POSITIVE_INFINITY,
+  2_147_483_648,
+  Number.MAX_SAFE_INTEGER,
+])("does not schedule invalid or disabled interval %s", (interval) => {
+  vi.useFakeTimers();
+  vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  const callback = vi.fn();
+  renderHook(() => usePollingInterval(callback, interval));
+  act(() => vi.advanceTimersByTime(5000));
+  expect(callback).not.toHaveBeenCalled();
+  expect(vi.getTimerCount()).toBe(0);
+});
 it("pauses when hidden, resumes immediately and clears timers on removal", () => {
   vi.useFakeTimers();
   const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
@@ -45,4 +49,15 @@ it("pauses when hidden, resumes immediately and clears timers on removal", () =>
   expect(vi.getTimerCount()).toBe(0);
   act(() => document.dispatchEvent(new Event("visibilitychange")));
   expect(second).toHaveBeenCalledTimes(2);
+});
+
+it("accepts the maximum timer interval without firing early", () => {
+  vi.useFakeTimers();
+  vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  const callback = vi.fn();
+  renderHook(() => usePollingInterval(callback, 2_147_483_647));
+  act(() => vi.advanceTimersByTime(2_147_483_646));
+  expect(callback).not.toHaveBeenCalled();
+  act(() => vi.advanceTimersByTime(1));
+  expect(callback).toHaveBeenCalledTimes(1);
 });

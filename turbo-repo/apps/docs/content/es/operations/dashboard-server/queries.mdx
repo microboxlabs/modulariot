@@ -165,3 +165,14 @@ Para ejecución portable, el host expone `POST /internal/dashboard-operations/re
 Reutiliza la conexión activa del tenant, el esquema cerrado de la operación y la política `x-dashboard` de solo lectura y aislamiento. BigQuery devuelve un plan validado y un token OAuth resuelto, nunca la clave privada de la cuenta de servicio. HTTP devuelve URL, valores de entrada y cabeceras de credencial permitidas; rechaza credenciales en query strings y destinos sin HTTPS. El proveedor TypeScript debe aplicar además su propia lista de orígenes permitidos y límites.
 
 Es una respuesta sensible entre servicios, siempre con `Cache-Control: no-store`. Mantenga el endpoint en la red privada, proteja la clave compartida y nunca reenvíe la respuesta al navegador ni a logs. El servicio de dashboards debe autorizar usuario y dashboard antes de solicitar un plan. ModularIoT resuelve su catálogo; la biblioteca npm sigue independiente y otros hosts aportan su propio adaptador. El cliente portable y el despliegue deben configurarse antes de sustituir la ejecución remota.
+
+## Proveedor HTTP/PostgREST portable
+
+`createHttpGetOperationExecutor`, desde `@microboxlabs/miot-dashboard-server/queries`, ejecuta operaciones GET guardadas directamente, sin Java. Su callback confiable `resolve(request)` resuelve una conexión/plantilla activa y autorizada y su credencial bajo el tenant verificado. Configure `allowedOrigins` exactos del operador; los editores no proporcionan destinos.
+
+El plan resuelto contiene `readOnly: true`, `url` sin query ni fragmento, `parameterTypes` escalares cerrados (`string`, `number`, `boolean`), `parameters` correspondientes e `isolation`. Use `{ tenantParameter, tenantValue }` para inyectar el predicado de tenant resuelto por el servidor; los parámetros de entrada no pueden contener ese nombre. Use `{ credentialScoped: true }` solo si el host verifica que la propia credencial aísla el tenant. Los `headers` opcionales admiten únicamente `authorization`, `x-api-key` y `apikey`.
+
+El proveedor solo ejecuta GET y solicita `Prefer: count=exact`. Rechaza redirecciones, HTTP 206, `Content-Range` incompleto o desconocido, objetos anidados en filas y respuestas excesivas. Los máximos son 20 segundos, ocho llamadas simultáneas, 5.000 filas y 2 MiB. El host debe respetar la cancelación al resolver y elegir credenciales/funciones de solo lectura. Los orígenes permitidos son servicios confiables, no un firewall DNS: aplique también políticas de egreso. HTTP privado requiere `allowHttp: true`; loopback está disponible para validación local.
+
+Se utiliza mediante `queries: { operations: executor }` o el módulo standalone, como el proveedor BigQuery. El resolver optativo de ModularIoT se describe arriba; la conexión del cliente portable y la migración de telemetría real siguen pendientes.
+

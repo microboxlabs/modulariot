@@ -31,6 +31,7 @@ export {
   type DashboardQueryClient,
 } from "./react/use-saved-query-results";
 export { usePollingInterval } from "./react/use-polling-interval";
+export { TextCard, type TextCardProps } from "./react/text-card";
 export {
   WidgetRenderer,
   type WidgetRendererProps,

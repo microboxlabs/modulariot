@@ -92,3 +92,7 @@ Editors save explicitly. A revision conflict retains local changes and requires 
 Enable the server's operation executor and configure the private host endpoint before validating data. Migrate each legacy widget's data binding to a saved query and compare its results before retiring its old dashboard. Specialized domain widgets still require their own compatibility validation.
 
 Dashboard lists apply the configured per-dashboard visibility policy before returning names. Denied or concurrently deleted dashboards are omitted. Policy and storage errors fail the request instead of returning unfiltered metadata. The built-in role policy grants scope members read access; hosts that use `allowedGroups` must configure `createAllowedGroupsPolicy()`.
+
+## Import validation
+
+`importDashboards` defaults to a dry run. Both dry and apply runs validate the document version and shared contract before accessing the store. Malformed preferences, widgets, or saved queries are reported in `refused` with field paths; no document is written. Extension fields are preserved. A valid document still needs live datasource, filter and permission acceptance before replacing its legacy dashboard.

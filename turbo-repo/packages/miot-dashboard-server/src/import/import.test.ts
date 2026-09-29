@@ -4,12 +4,13 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_STORAGE } from "@microboxlabs/miot-dashboard-contract/document";
 import { createMemoryStore } from "../testing";
 import type { ServerDashboardStore, ServerDashboardRef } from "../seams/store";
 import { importDashboards } from "./import";
 import type { LegacyDashboard, LegacyDashboardSource } from "./legacy";
 
-const v2 = (name: string) => ({ version: 2, name, widgets: [] });
+const v2 = (name: string) => ({ ...DEFAULT_STORAGE, name, widgets: [] });
 
 const ref = (slug: string, tenantId = "acme", scopeId = "ops") => ({
   tenantId,
@@ -24,6 +25,57 @@ const sourceOf = (...items: LegacyDashboard[]): LegacyDashboardSource => ({
 });
 
 describe("importDashboards", () => {
+  it.each([true, false])(
+    "refuses malformed current documents before store access (dryRun=%s)",
+    async (dryRun) => {
+      const store = createMemoryStore();
+      const load = vi.spyOn(store, "load");
+      const save = vi.spyOn(store, "save");
+      const result = await importDashboards({
+        source: sourceOf(
+          {
+            ref: ref("preferences"),
+            config: { version: 2, name: "Missing preferences", widgets: [] },
+          },
+          {
+            ref: ref("widgets"),
+            config: { ...v2("Bad widget"), widgets: [{ type: "stat_icon" }] },
+          },
+          {
+            ref: ref("queries"),
+            config: { ...v2("Bad query"), queries: [{ id: "costs" }] },
+          },
+        ),
+        store,
+        dryRun,
+      });
+      expect(result.imported).toEqual([]);
+      expect(result.failed).toEqual([]);
+      expect(result.refused.map(({ ref }) => ref)).toEqual([
+        "acme/ops/preferences",
+        "acme/ops/widgets",
+        "acme/ops/queries",
+      ]);
+      expect(result.refused[0]?.reason).toContain("preferences");
+      expect(result.refused[1]?.reason).toContain("widgets.0");
+      expect(result.refused[2]?.reason).toContain("queries.0");
+      expect(load).not.toHaveBeenCalled();
+      expect(save).not.toHaveBeenCalled();
+    },
+  );
+
+  it("preserves extension fields while validating an imported document", async () => {
+    const store = createMemoryStore();
+    const config = { ...v2("Extended"), customMetadata: { owner: "ops" } };
+    const result = await importDashboards({
+      source: sourceOf({ ref: ref("extended"), config }),
+      store,
+      dryRun: false,
+    });
+    expect(result.imported).toEqual(["acme/ops/extended"]);
+    expect((await store.load(ref("extended")))?.config).toEqual(config);
+  });
+
   it("writes nothing unless asked, and says what it would do", async () => {
     // The default is the harmless one, because the flag people forget is the
     // one that must not destroy anything.

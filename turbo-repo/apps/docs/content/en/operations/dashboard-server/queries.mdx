@@ -17,7 +17,7 @@ A saved dashboard query names a host-owned `connectionId` and `operationId`. Vie
 
 ## Library integration
 
-`createDashboardQueryService` accepts the same identity, tenant, scope, store and policy adapters as access control, plus a `DashboardOperationExecutor`. Call `service.execute(request, ref, queryId, filters, signal)` from your host. For an HTTP host, pass an async callback as `filters` to defer decoding the body until after authorization. This programmatic service does not register an HTTP route automatically.
+`createDashboardQueryService` accepts the same identity, tenant, scope, store and policy adapters as access control, plus a `DashboardOperationExecutor`. Call `service.execute(request, ref, queryId, filters, signal)` from your host. For an HTTP host, pass an async callback as `filters` to defer decoding the body until after authorization. Set `queries: { operations: executor }` on `createDashboardHandler` or `serve` to enable `POST /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/queries/{queryId}`. Its JSON body is `{ "filters": {} }` and its response is `{ "data": { "rows": [] } }`. The route returns 404 when no executor is configured. It authorizes before decoding the body and uses the configured request byte limit.
 
 Authorization happens before loading or executing a query. A Consumer can run a query on a dashboard they can read; embed identities remain restricted to their exact dashboard. Unknown query IDs, ambiguous definitions, invalid values and undeclared filters are refused. Access decisions use the `dashboard.query` audit action; filter values and returned rows are not included in that event.
 
@@ -30,6 +30,8 @@ Bound upstream response reads before buffering. Honor the supplied abort signal 
 ## Execution limits
 
 Defaults are 8 concurrent operations per service instance, a 20-second deadline, 5,000 rows, and 2 MiB of UTF-8 JSON. Each row has at most 100 fields. Filter values follow the contract's limits; requests allow at most 32 filters and definitions at most 100 parameters. Configure `maxConcurrent`, `timeoutMs`, `maxRows` and `maxBytes` when constructing the service.
+
+Timeouts cancel the adapter's signal. The standalone HTTP server also cancels it when the client disconnects before the response completes. An adapter that ignores cancellation keeps its concurrency slot until it settles, preventing repeated timeouts from creating unlimited background work. Upstream failures and invalid results become a generic `UPSTREAM_ERROR`. These instance limits complement host authentication, request-body limits and deployment rate limits; they do not replace them.
 
 Timeouts cancel the adapter's signal. An adapter that ignores cancellation keeps its concurrency slot until it settles, preventing repeated timeouts from creating unlimited background work. Upstream failures and invalid results become a generic `UPSTREAM_ERROR`. These instance limits complement host authentication, request-body limits and deployment rate limits; they do not replace them.
 

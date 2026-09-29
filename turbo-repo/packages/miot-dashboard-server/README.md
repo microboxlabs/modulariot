@@ -2,10 +2,10 @@
 
 Framework-agnostic backend services for MIOT embeddable dashboards.
 
-`@microboxlabs/miot-dashboard-ui` renders dashboards and does not know about
-tenants. This package handles that instead: saving data, verifying users,
-keeping tenants separate, and securing datasource credentials and embed
-tokens — all on the server, in one place.
+The browser UI currently ships inside ModularIoT; a separate
+`@microboxlabs/miot-dashboard-ui` package is planned. This server package saves
+data, verifies users, keeps tenants separate, and secures datasource credentials
+and embed tokens. Other frontends can use its shared HTTP contract.
 
 A host plugs it in by implementing a few interfaces. The host's framework,
 identity provider, and database stay outside this package.

@@ -14,16 +14,22 @@ We follow semantic versioning: `MAJOR.MINOR.PATCH`
 
 Features and improvements in development:
 
-- Dashboard packages v0.5.0 (release preparation; not yet published): expose scope creation eligibility without reading documents; keep per-document policy enforcement on save.
-
-- Dashboard server v0.5.0 security fix: enforce document policy and identity `canEdit` restrictions when creating dashboards, while preserving creation by Contributors under the default policy.
-
 - JavaScript, Python, and Java SDKs
 - Advanced symptom patterns
 - Enhanced notification channels
 - Historical analytics dashboard
 
 ## Recent Releases
+
+### Dashboard packages v0.5.0 — Creation permissions (2026-09-29)
+
+Published compatible [contract](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract) and [server](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) v0.5.0:
+
+- New scope capabilities endpoint and embedded method let a workspace check creation eligibility without reading dashboard documents. Embed tokens cannot use it.
+- New-dashboard saves now enforce both the credential edit ceiling and the document policy. Contributors can still create under the default policy.
+- The server requires contract `^0.5.0`, keeping installed OpenAPI documentation aligned with the runtime.
+
+A fresh registry install passed all 11 server exports and standalone SQLite/JWT permission checks. Deploy the server, host forwarding route and workspace in that order. This release does not complete Consumer browser or telemetry migration acceptance.
 
 ### Dashboard packages v0.4.0 — Migration tools (2026-09-29)
 

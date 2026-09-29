@@ -33,10 +33,22 @@ A fresh registry installation of both 0.4.0 packages passed all 11 server export
 
 ## Dev acceptance — 2026-09-29
 
-The dev deployment uses dashboard server image `sha-43ae9ae` and application image `sha-aab43fa`. The standalone pod resolves authorized catalog plans through ModularIoT and executes BigQuery in Node. Deployment validation included manifest and Helm rendering checks, readiness, unauthenticated rejection, and a SQLite backup and integrity check.
+The initial 0.4.0 dev acceptance used dashboard server image `sha-43ae9ae` and application image `sha-aab43fa`. The standalone pod resolves authorized catalog plans through ModularIoT and executes BigQuery in Node. Deployment validation included manifest and Helm rendering checks, readiness, unauthenticated rejection, and a SQLite backup and integrity check.
 
 The signed-in billing pilot rendered 13 live service rows from the billing database. Selecting a service reduced the table to the matching row; restoring all services restored the results. An organization Owner created a dashboard through the UI and entered its editor; the temporary dashboard was then deleted. Server-backed dashboards no longer show an implicit date control when their saved configuration declares none.
 
 An isolated operation with a one-byte billing limit was rejected after its dry run estimated 146,865,127 bytes, before submitting a billed query job. The browser displayed a generic query failure. The temporary failure dashboard was deleted; its one-byte-limit validation operation remains in the catalog. Attempts to supply undeclared SQL or project filters, or override the connection in the request body, returned 400. Three concurrent billing requests each returned 13 rows; this is a smoke check, not a capacity benchmark.
 
 These checks used an Owner account and do not prove Consumer access or cross-tenant isolation. The telemetry pilot still needs a verified mapping between the legacy upstream data scope and the dev organization before its operations can be migrated. Existing dashboards remain available until those acceptance checks and widget compatibility comparisons pass.
+
+## v0.5.0 release and Editor acceptance — 2026-09-29
+
+Both compatible v0.5.0 packages are published. A fresh registry installation verified all 11 server exports, the installed OpenAPI scope-capabilities route and standalone SQLite/JWT authorization: Editor and Contributor creation eligibility, Consumer denial, foreign-scope rejection and unauthenticated rejection. The server suite passed 1,205 tests with one skipped; the contract suite passed 70 tests. Host integration validation passed 14 tests, and the dashboard application checks passed 446 tests.
+
+Dev now runs dashboard server image `sha-3cc6af8` and application image `sha-f33dc40`, with the matching host proxy. The server upgrade preserved the stored dashboards and datasources after a stopped-writer volume backup and SQLite integrity check. The live billing query returned 13 rows after the upgrade.
+
+The Demo organization is registered separately, with dashboard access enabled and no Mintral connections or credentials copied. A signed-in Demo SiteCollaborator maps to dashboard Editor. Its scope-capabilities request returned `canCreate: true`; the same account's request for Mintral returned 403. The workspace now uses the server's scope capability instead of inferring creation permission from the application's coarse role. New-dashboard saves still enforce document policy and the credential edit ceiling.
+
+The Editor created a Demo dashboard through the browser, renamed it and saved a static text widget. Both persisted after full reloads; the document API returned revision `"3"`. An attempted deletion returned 403 and the document remained readable, consistent with `canDelete: false`. This validates Editor creation/editing and its deletion restriction, not Consumer behavior.
+
+Consumer browser acceptance remains open: the supplied account is an Editor, and its membership was not changed. Telemetry migration still requires the verified upstream data-scope mapping described above. The UI remains part of the ModularIoT application; extracting a separate UI package is future work.

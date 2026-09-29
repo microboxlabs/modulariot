@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { proxyToUpstream } from "@/app/api/utils/upstream-proxy";
 import { modulithHost } from "@/lib/modulith-host";
+import { sessionAuthHeader } from "@/features/auth/services/session-auth";
 
 /**
  * Forward the caller's session JWT to a Quarkus endpoint and return the
@@ -64,9 +65,10 @@ export async function quarkusAuthHeaders(): Promise<Record<
 }
 
 function buildAuthHeaders(session: Session): Record<string, string> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  const token = session.user?.rawJWT;
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...sessionAuthHeader(session),
+  };
   if (session.user?.email) {
     headers["X-Dev-User-Email"] = session.user.email;
   }

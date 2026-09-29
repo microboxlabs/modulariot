@@ -14,6 +14,7 @@ import {
   parseTaskDrivenOrigins,
   readBookingOrigin,
 } from "@/features/calendar/services/task-driven-origin";
+import { sessionAuthHeader } from "@/features/auth/services/session-auth";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 
@@ -217,7 +218,7 @@ export async function POST(
   const client = createMiotCalendarClient({
     baseUrl: MIOT_CALENDAR_URL,
     headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? ""}`,
+      ...sessionAuthHeader(authResult.session),
     },
   });
 

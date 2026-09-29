@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { logger } from "@/lib/logger";
 import { modulithHost } from "@/lib/modulith-host";
+import { sessionAuthHeader } from "@/features/auth/services/session-auth";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -203,12 +204,10 @@ async function fetchScopes(session: Session): Promise<OrganizationScope[]> {
     );
   }
 
-  const token = session.user?.rawJWT;
-
-  const headers: Record<string, string> = { Accept: "application/json" };
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...sessionAuthHeader(session),
+  };
   // Dev fallback: forward the session email so Quarkus can resolve the caller
   // when local JWT validation is unavailable. Quarkus ignores this when a
   // valid authenticated identity already provides an email claim.

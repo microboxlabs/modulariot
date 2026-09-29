@@ -9,6 +9,7 @@ import {
   listKnowledgeConnections,
   type KnowledgeCard,
 } from "../candidates/candidates-client";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
 interface ConnectionCards {
   connection: string;
@@ -29,7 +30,7 @@ export async function GET() {
   if (!scopeResult.resolved) return scopeResult.response;
 
   const orgSlug = scopeResult.scope.activeOrg.slug;
-  const token = authResult.session.user?.rawJWT;
+  const token = sessionToken(authResult.session);
 
   let connectionNames: string[];
   try {

@@ -2,6 +2,7 @@ import "server-only";
 import { createMiotResourceClient } from "@microboxlabs/miot-resource-client";
 import type { Session } from "next-auth";
 import { modulithHost } from "@/lib/modulith-host";
+import { sessionAuthHeader, sessionToken } from "@/features/auth/services/session-auth";
 
 export function createResourceClient(session: Session) {
   const baseUrl = modulithHost();
@@ -18,15 +19,12 @@ export function createResourceClient(session: Session) {
         "Ensure it is defined before starting the server."
     );
   }
-  const token = session.user?.rawJWT;
-  if (!token) {
+  if (!sessionToken(session)) {
     throw new Error("No authentication token found in session.");
   }
   return createMiotResourceClient({
     baseUrl,
     organizationId,
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers: sessionAuthHeader(session),
   });
 }

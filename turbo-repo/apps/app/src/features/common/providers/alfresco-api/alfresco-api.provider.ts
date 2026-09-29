@@ -48,6 +48,7 @@ import {
   alfrescoNodeIdSchema,
   normalizeAlfrescoTaskId,
 } from "./alfresco-identifiers";
+import { sessionAuthHeader } from "@/features/auth/services/session-auth";
 
 function validateNodeId(nodeId: string): string {
   return alfrescoNodeIdSchema.parse(nodeId);
@@ -72,15 +73,11 @@ export function prepareAlfrescoAuth(
   url: string;
   headers: Record<string, string>;
 } {
-  const headers: Record<string, string> = {};
-  const user = session?.user;
-  if (user?.rawJWT) {
-    headers["Authorization"] = `Bearer ${user.rawJWT}`;
-  }
+  const headers = sessionAuthHeader(session);
 
   alfrescoApiLogger.debug(
     {
-      user: user?.email,
+      user: session?.user?.email,
       baseUrl,
       hasAuthorization: "Authorization" in headers,
     },

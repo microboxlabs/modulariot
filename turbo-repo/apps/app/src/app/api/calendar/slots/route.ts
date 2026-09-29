@@ -5,6 +5,7 @@ import {
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { sessionAuthHeader } from "@/features/auth/services/session-auth";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
   const client = createMiotCalendarClient({
     baseUrl: MIOT_CALENDAR_URL,
     headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? ""}`,
+      ...sessionAuthHeader(authResult.session),
     },
   });
 

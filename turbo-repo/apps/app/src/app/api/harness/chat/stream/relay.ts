@@ -47,6 +47,7 @@ import {
   HARNESS_RUN_EVENT,
   type HarnessRunMarker,
 } from "@/features/harness-chat/harness-active-run";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
 /**
  * The harness side of the chat relay, shared by the route that starts a run
@@ -282,7 +283,7 @@ export async function connectToHarness(
     return { ok: false, errorMessage: "tenant_unresolved" };
 
   const orgSlug = scopeResult.scope.activeOrg.slug;
-  const token = session.user?.rawJWT;
+  const token = sessionToken(session);
   const userEmail = session.user?.email;
 
   const client = createMiotHarnessClient({

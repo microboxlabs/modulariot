@@ -4,6 +4,7 @@ import { createCliAuthHandoff } from "../handoff-store";
 import { resolvePublicOrigin } from "../public-origin";
 import { getLocaleFromHeaders } from "@/features/i18n/i18n.service";
 import { NextResponse } from "next/server";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
 /**
  * CLI auth handoff endpoint.
@@ -195,7 +196,7 @@ export async function GET(request: Request): Promise<Response> {
       : errorRedirect(redirectUri!, state, message);
   }
 
-  const token = session.user.rawJWT;
+  const token = sessionToken(session);
   if (!token) {
     const message = "Current session has no API token.";
     return isManual

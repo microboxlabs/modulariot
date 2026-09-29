@@ -8,6 +8,7 @@ import { resolveTenantScope } from "../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
 import { toSearchResult } from "./search-blocks";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
 /** ms before we abort a run that hasn't completed. A run that makes several
  * datasource calls can take 30-45s, so 30s aborted real answers. */
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
 
   // The harness accepts the Auth0 id_token (rawJWT) as the bearer token.
   // The opaque access_token (no AUTH_AUTH0_AUDIENCE) is NOT a JWT and is rejected.
-  const token = authResult.session.user?.rawJWT;
+  const token = sessionToken(authResult.session);
 
   const client = createMiotHarnessClient({
     baseUrl: harnessUrl,

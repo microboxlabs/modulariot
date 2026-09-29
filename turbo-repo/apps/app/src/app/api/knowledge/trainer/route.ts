@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../utils/tenant-scope";
 import { failureStatus, isTrainer } from "../candidates/candidates-client";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
 /**
  * Whether the signed-in user may review learned facts and manage cards. Only
@@ -15,7 +16,7 @@ export async function GET() {
   const scopeResult = await resolveTenantScope();
   if (!scopeResult.resolved) return scopeResult.response;
 
-  const token = authResult.session.user?.rawJWT;
+  const token = sessionToken(authResult.session);
 
   try {
     const trainer = await isTrainer({

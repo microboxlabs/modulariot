@@ -4,7 +4,7 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.vertx.http.runtime.RouteConstants;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.handler.BodyHandler;
+import io.quarkus.vertx.http.runtime.VertxHttpRecorder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
@@ -18,8 +18,6 @@ public class DashboardOperationsIngress {
     static final int MAX_BODY_BYTES = 524_288;
     private static final String PATH = "/internal/dashboard-operations";
     private final Optional<String> proxyKey;
-    private final BodyHandler body = BodyHandler.create().setBodyLimit(MAX_BODY_BYTES)
-            .setHandleFileUploads(false).setMergeFormAttributes(false);
 
     @Inject
     public DashboardOperationsIngress(@ConfigProperty(name = "miot.dashboards.proxy-key") Optional<String> proxyKey) {
@@ -28,11 +26,14 @@ public class DashboardOperationsIngress {
 
     void routes(@Observes Router router) {
         router.route().order(RouteConstants.ROUTE_ORDER_BODY_HANDLER - 1).handler(this::guard);
+        router.route().order(RouteConstants.ROUTE_ORDER_BEFORE_DEFAULT).handler(context -> {
+            if (matches(context)) context.put(VertxHttpRecorder.MAX_REQUEST_SIZE_KEY, (long) MAX_BODY_BYTES);
+            context.next();
+        });
     }
 
     private void guard(RoutingContext context) {
-        String path = context.normalizedPath();
-        if (!PATH.equals(path) && !(PATH + "/").equals(path)) {
+        if (!matches(context)) {
             context.next();
             return;
         }
@@ -43,8 +44,15 @@ public class DashboardOperationsIngress {
         } else if (!DashboardCredentialsResource.keyAccepted(configured, context.request().getHeader("x-miot-proxy-key"))) {
             reject(context, 401, "Unauthorized");
         } else {
-            body.handle(context);
+            String length = context.request().getHeader("Content-Length");
+            if (length != null && Long.parseLong(length) > MAX_BODY_BYTES) reject(context, 413, "Request body is too large");
+            else context.next();
         }
+    }
+
+    private static boolean matches(RoutingContext context) {
+        String path = context.normalizedPath();
+        return PATH.equals(path) || (PATH + "/").equals(path);
     }
 
     private static void reject(RoutingContext context, int status, String message) {

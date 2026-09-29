@@ -798,7 +798,7 @@ shape and private-network deployment options.
 
 ### Portable BigQuery execution
 
-Import `createBigQueryOperationExecutor` from `@microboxlabs/miot-dashboard-server/queries` and pass it as the handler's `operations` adapter. Its trusted `resolve(request)` callback returns an authorized operator-owned `plan`, bound `parameters` (including enforced tenant predicates), and a short-lived `accessToken`, or `null` to deny. Resolve active connection/template records and credentials under `request.identity.tenantId`, and honor `request.signal`. Never populate the plan from viewer-supplied SQL or URLs.
+Import `createBigQueryOperationExecutor` from `@microboxlabs/miot-dashboard-server/queries` and pass it to the handler or `serve()` as `queries: { operations: executor }`. Its trusted `resolve(request)` callback returns an authorized operator-owned `plan`, bound `parameters` (including enforced tenant predicates), and a short-lived `accessToken`, or `null` to deny. Resolve active connection/template records and credentials under `request.identity.tenantId`, and honor `request.signal`. Never populate the plan from viewer-supplied SQL or URLs.
 
 The TypeScript executor calls Google directly without Java, Quarkus, Alfresco or the Google SDK. It requires a SELECT dry run, enforces the template billing cap below the host ceiling (default 1 GB), and limits execution to 20 seconds and eight concurrent operations. Results are bounded to 5,000 rows and 2 MiB at most; nested, repeated and paginated results are rejected. Cancellation is best effort, with a Google job deadline as an additional bound.
 

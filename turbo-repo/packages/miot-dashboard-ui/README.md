@@ -362,3 +362,19 @@ Each mounted root generates its own widget ID namespace. `widgetDomId(widget)`
 is an optional compatibility override for host anchor links; its returned IDs
 must be unique across all mounted dashboards. `isRoot` is passed only to the
 initial widget; descendants receive `false`.
+
+## Text card and scoped styles
+
+`TextCard` from `./react` displays already-resolved text. Its props are `text`,
+`italic` (default `true`), and `align` (`left`, `center`, or `right`, default
+`left`). It does not compile templates, fetch data, or interpret text as HTML.
+
+Import `@microboxlabs/miot-dashboard-ui/styles.css` once in the host application.
+The published stylesheet is precompiled and scoped to `miot-*` classes; hosts do
+not need Tailwind source scanning. It is marked as a CSS side effect so bundlers
+retain an explicit stylesheet import. JavaScript modules remain tree-shakeable.
+
+A parent with `data-miot-theme="dark"` enables the dark card palette. Existing
+`.dark` ancestors are also supported. Hosts can override `--miot-card-background`,
+`--miot-card-border`, and `--miot-card-text` on a containing element. Typography
+inherits the host font, and the card fills the host-provided height.

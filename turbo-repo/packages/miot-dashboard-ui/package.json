@@ -9,7 +9,9 @@
     "directory": "turbo-repo/packages/miot-dashboard-ui"
   },
   "type": "module",
-  "sideEffects": false,
+  "sideEffects": [
+    "./styles.css"
+  ],
   "exports": {
     "./core": {
       "types": "./dist/core.d.ts",
@@ -31,10 +33,12 @@
     "./templates": {
       "types": "./dist/templates.d.ts",
       "import": "./dist/templates.js"
-    }
+    },
+    "./styles.css": "./styles.css"
   },
   "files": [
-    "dist"
+    "dist",
+    "styles.css"
   ],
   "scripts": {
     "build": "tsup",

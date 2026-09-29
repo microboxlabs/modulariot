@@ -1,0 +1,36 @@
+/* Scoped, precompiled styles. Hosts may override the --miot-* custom properties. */
+.miot-text-card {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  border: 1px solid var(--miot-card-border, #e5e7eb);
+  border-radius: 0.5rem;
+  background: var(--miot-card-background, #fff);
+  padding: 1rem;
+}
+.miot-text-card__text {
+  width: 100%;
+  margin: 0;
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--miot-card-text, #6b7280);
+  text-align: left;
+}
+.miot-text-card__text[data-align="center"] {
+  text-align: center;
+}
+.miot-text-card__text[data-align="right"] {
+  text-align: right;
+}
+.miot-text-card__text[data-italic="true"] {
+  font-style: italic;
+}
+:where(.dark, [data-miot-theme="dark"]) .miot-text-card {
+  border-color: var(--miot-card-border, #374151);
+  background: var(--miot-card-background, #1f2937);
+}
+:where(.dark, [data-miot-theme="dark"]) .miot-text-card__text {
+  color: var(--miot-card-text, #9ca3af);
+}

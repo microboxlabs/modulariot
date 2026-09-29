@@ -14,9 +14,26 @@ We follow semantic versioning: `MAJOR.MINOR.PATCH`
 
 Features and improvements in development:
 
+### Paquetes de dashboards v0.4.0 — Herramientas de migración (2026-09-29)
+
+Preparación del contrato y servidor compatibles v0.4.0:
+
+- Validar documentos importados con el contrato compartido antes de acceder al almacén, incluso en simulaciones.
+- Convertir solicitudes del planner mediante mapas explícitos de conexión/operación, conservando vínculos de widgets y configuración.
+- Usar `omitWhenEmpty` para argumentos de filtros opcionales, conservando el comportamiento anterior y el control de tenant del host.
+
+Actualizar ambos paquetes juntos. Estas herramientas no sustituyen la aceptación de datos, filtros y permisos reales.
+
+- JavaScript, Python, and Java SDKs
+- Advanced symptom patterns
+- Enhanced notification channels
+- Historical analytics dashboard
+
+## Lanzamientos Recientes
+
 ### Paquetes de dashboards v0.3.0 — Ejecución portable (2026-09-29)
 
-Preparación de `@microboxlabs/miot-dashboard-server` y `@microboxlabs/miot-dashboard-contract` v0.3.0. La publicación sigue a las etiquetas de entrega; la aceptación de la migración en dev sigue pendiente.
+Publicados `@microboxlabs/miot-dashboard-server` y `@microboxlabs/miot-dashboard-contract` v0.3.0. Ambos paquetes están disponibles en npm; la aceptación de la migración en dev sigue pendiente.
 
 - El contrato incorpora consultas basadas en conexiones con límites y filtros identificados por nombre, manteniendo compatibilidad con documentos de versión 2.
 - El servidor exporta ejecutores TypeScript para BigQuery y HTTP de solo lectura en `/queries`, con aislamiento de tenant, plazos, cancelación y límites de costo y respuesta.
@@ -25,12 +42,7 @@ Preparación de `@microboxlabs/miot-dashboard-server` y `@microboxlabs/miot-dash
 
 Consultar la [guía de consultas](/es/operations/dashboard-server/queries) y la [hoja de ruta de aceptación](/es/operations/dashboard-server/roadmap).
 
-- JavaScript, Python, and Java SDKs
-- Advanced symptom patterns
-- Enhanced notification channels
-- Historical analytics dashboard
-
-## Lanzamientos Recientes
+---
 
 ### `miot-calendar-client` v0.8.0 — Bloqueos de ventanas horarias (2026-05-02)
 

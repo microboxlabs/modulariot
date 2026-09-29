@@ -18,10 +18,7 @@ export async function DELETE(_request: Request, ctx: RouteContext) {
   if (!scopeResult.resolved) return scopeResult.response;
 
   const { connection, cardId } = await ctx.params;
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = authResult.session.user?.rawJWT;
 
   try {
     const deleted = await deleteCard({

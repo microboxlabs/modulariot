@@ -10,7 +10,7 @@ export function createCalendarClient(session: Session) {
         "Ensure it is defined before starting the server."
     );
   }
-  const token = session.user?.rawJWT ?? session.user?.ticket;
+  const token = session.user?.rawJWT;
   if (!token) {
     throw new Error("No authentication token found in session.");
   }

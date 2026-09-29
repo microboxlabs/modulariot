@@ -203,7 +203,7 @@ async function fetchScopes(session: Session): Promise<OrganizationScope[]> {
     );
   }
 
-  const token = session.user?.rawJWT ?? session.user?.ticket;
+  const token = session.user?.rawJWT;
 
   const headers: Record<string, string> = { Accept: "application/json" };
   if (token) {

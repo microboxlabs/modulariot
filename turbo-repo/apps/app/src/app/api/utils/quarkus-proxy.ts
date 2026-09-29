@@ -65,7 +65,7 @@ export async function quarkusAuthHeaders(): Promise<Record<
 
 function buildAuthHeaders(session: Session): Record<string, string> {
   const headers: Record<string, string> = { Accept: "application/json" };
-  const token = session.user?.rawJWT ?? session.user?.ticket;
+  const token = session.user?.rawJWT;
   if (token) headers.Authorization = `Bearer ${token}`;
   if (session.user?.email) {
     headers["X-Dev-User-Email"] = session.user.email;

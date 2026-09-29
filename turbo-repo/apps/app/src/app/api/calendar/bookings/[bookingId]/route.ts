@@ -26,7 +26,7 @@ export async function DELETE(
   const client = createMiotCalendarClient({
     baseUrl: MIOT_CALENDAR_URL,
     headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
+      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? ""}`,
     },
   });
 
@@ -76,7 +76,7 @@ export async function PUT(
   const client = createMiotCalendarClient({
     baseUrl: MIOT_CALENDAR_URL,
     headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
+      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? ""}`,
     },
   });
 

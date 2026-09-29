@@ -24,7 +24,7 @@ export async function harnessRouteClient(): Promise<HarnessRouteClient> {
   const user = authResult.session.user;
   const client = createMiotHarnessClient({
     baseUrl: `${modulithHost()}/api/v1/orgs/${orgSlug}/harness`,
-    token: user?.rawJWT ?? user?.ticket ?? undefined,
+    token: user?.rawJWT,
     headers: user?.email ? { "X-Dev-User-Email": user.email } : {},
   });
   return { ok: true, client, orgSlug };

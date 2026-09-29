@@ -1,5 +1,4 @@
 import {
-  AlfrescoApiClient,
   PersonEntry,
   NodeChildAssociationPaging,
   GroupPaging,
@@ -69,21 +68,14 @@ const alfrescoApiLogger = createManagedLogger(
 export function prepareAlfrescoAuth(
   baseUrl: string,
   session?: Session
-  // contentType: string = "application/json",
 ): {
   url: string;
   headers: Record<string, string>;
 } {
-  let url = baseUrl;
-  const headers: Record<string, string> = {
-    // "Content-Type": contentType,
-  };
+  const headers: Record<string, string> = {};
   const user = session?.user;
-  if (session?.user?.rawJWT) {
-    headers["Authorization"] = `Bearer ${session.user.rawJWT}`;
-  } else if (session?.user?.ticket) {
-    const separator = baseUrl.includes("?") ? "&" : "?";
-    url = `${baseUrl}${separator}alf_ticket=${session.user.ticket}`;
+  if (user?.rawJWT) {
+    headers["Authorization"] = `Bearer ${user.rawJWT}`;
   }
 
   alfrescoApiLogger.debug(
@@ -92,27 +84,11 @@ export function prepareAlfrescoAuth(
       baseUrl,
       headers,
       rawJWT: user?.rawJWT,
-      ticket: user?.ticket,
     },
     "prepareAlfrescoAuth"
   );
 
-  return { url, headers };
-}
-
-export function prepareAlfrescoAuthWithAccessToken(session: Session): void {
-  const idToken = session.user?.rawJWT;
-  if (idToken) {
-    alfrescoApi = new AlfrescoApiClient(process.env.ECM_API_URL);
-  } else {
-    alfrescoApi.config.ticket = session.user?.ticket ?? "";
-  }
-}
-
-let alfrescoApi = new AlfrescoApiClient(process.env.ECM_API_URL);
-
-export function getAlfrescoApi(): AlfrescoApiClient {
-  return alfrescoApi;
+  return { url: baseUrl, headers };
 }
 
 export async function getUserProfile(

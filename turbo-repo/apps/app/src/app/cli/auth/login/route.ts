@@ -195,7 +195,7 @@ export async function GET(request: Request): Promise<Response> {
       : errorRedirect(redirectUri!, state, message);
   }
 
-  const token = session.user.rawJWT ?? session.user.ticket;
+  const token = session.user.rawJWT;
   if (!token) {
     const message = "Current session has no API token.";
     return isManual

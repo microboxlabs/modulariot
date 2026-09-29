@@ -78,10 +78,7 @@ export async function POST(request: Request) {
   if (!scopeResult.resolved) return scopeResult.response;
   const orgSlug = scopeResult.scope.activeOrg.slug;
 
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = authResult.session.user?.rawJWT;
   const userEmail = authResult.session.user?.email;
 
   const client = createMiotHarnessClient({

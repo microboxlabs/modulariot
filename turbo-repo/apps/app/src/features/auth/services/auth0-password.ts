@@ -15,6 +15,7 @@ type Auth0TokenResponse = {
 
 type IdTokenClaims = {
   sub?: string;
+  exp?: number;
   name?: string;
   email?: string;
   picture?: string;
@@ -31,6 +32,29 @@ function decodeJwtPayload(token: string): IdTokenClaims {
 }
 
 /**
+ * Epoch seconds when the session must be refreshed: the earlier of the
+ * id_token's `exp` and the access token's expiry. Backends receive the
+ * id_token as the Bearer, and Auth0 issues it with a shorter lifetime than the
+ * access token, so the access token's expiry alone lets an expired id_token be
+ * forwarded.
+ */
+export function earliestTokenExpiry(
+  idToken: string | undefined,
+  accessTokenExpiresAt: number | undefined
+): number | undefined {
+  let idTokenExp: number | undefined;
+  try {
+    idTokenExp = idToken ? decodeJwtPayload(idToken).exp : undefined;
+  } catch {
+    idTokenExp = undefined;
+  }
+  const candidates = [idTokenExp, accessTokenExpiresAt].filter(
+    (value): value is number => typeof value === "number"
+  );
+  return candidates.length > 0 ? Math.min(...candidates) : undefined;
+}
+
+/**
  * Token fields to persist for a credentials sign-in. Credentials users are
  * validated against Auth0 and carry an id_token, so they get the same
  * JWT-shaped token as OAuth users (the session/refresh/Bearer-forwarding paths
@@ -38,15 +62,13 @@ function decodeJwtPayload(token: string): IdTokenClaims {
  */
 export function tokenFieldsForCredentialsUser(user: User): {
   rawJWT?: string;
-  accessTokenExpiresAt?: number;
+  expiresAt?: number;
   refreshToken?: string;
-  ticket?: string;
 } {
   return {
     rawJWT: user.idToken,
-    accessTokenExpiresAt: user.expiresAt,
+    expiresAt: earliestTokenExpiry(user.idToken, user.expiresAt),
     refreshToken: user.refreshToken,
-    ticket: undefined,
   };
 }
 

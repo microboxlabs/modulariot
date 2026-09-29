@@ -282,7 +282,7 @@ export async function connectToHarness(
     return { ok: false, errorMessage: "tenant_unresolved" };
 
   const orgSlug = scopeResult.scope.activeOrg.slug;
-  const token = session.user?.rawJWT ?? session.user?.ticket ?? undefined;
+  const token = session.user?.rawJWT;
   const userEmail = session.user?.email;
 
   const client = createMiotHarnessClient({

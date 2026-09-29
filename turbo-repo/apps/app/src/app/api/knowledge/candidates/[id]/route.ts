@@ -39,10 +39,7 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
   }
 
   const orgSlug = scopeResult.scope.activeOrg.slug;
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = authResult.session.user?.rawJWT;
 
   let reviewed;
   try {
@@ -101,10 +98,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: "invalid_candidate" }, { status: 400 });
   }
 
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = authResult.session.user?.rawJWT;
 
   try {
     const candidate = await editCandidate({

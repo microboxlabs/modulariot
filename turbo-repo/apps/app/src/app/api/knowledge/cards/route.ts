@@ -29,10 +29,7 @@ export async function GET() {
   if (!scopeResult.resolved) return scopeResult.response;
 
   const orgSlug = scopeResult.scope.activeOrg.slug;
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = authResult.session.user?.rawJWT;
 
   let connectionNames: string[];
   try {

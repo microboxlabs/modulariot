@@ -15,10 +15,7 @@ export async function GET() {
   const scopeResult = await resolveTenantScope();
   if (!scopeResult.resolved) return scopeResult.response;
 
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = authResult.session.user?.rawJWT;
 
   try {
     const trainer = await isTrainer({

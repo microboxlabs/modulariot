@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { CredentialsSignin } from "next-auth";
-import { authenticateWithAuth0Password } from "./auth0-password";
+import {
+  authenticateWithAuth0Password,
+  earliestTokenExpiry,
+  tokenFieldsForCredentialsUser,
+} from "./auth0-password";
 
 function makeIdToken(payload: Record<string, unknown>): string {
   const encode = (obj: Record<string, unknown>) =>
@@ -57,7 +61,6 @@ describe("authenticateWithAuth0Password", () => {
     expect(user.idToken).toContain(".");
     expect(user.refreshToken).toBe("refresh-token");
     expect(user.expiresAt).toBeGreaterThanOrEqual(before + 3600);
-    expect(user.ticket).toBeUndefined();
   });
 
   it("posts the password-realm grant to the issuer token endpoint", async () => {
@@ -155,23 +158,43 @@ describe("authenticateWithAuth0Password", () => {
   });
 });
 
+describe("earliestTokenExpiry", () => {
+  it("uses the id_token exp when it expires before the access token", () => {
+    const idToken = makeIdToken({ sub: "auth0|abc123", exp: 1_000 });
+    expect(earliestTokenExpiry(idToken, 5_000)).toBe(1_000);
+  });
+
+  it("uses the access token expiry when it expires first", () => {
+    const idToken = makeIdToken({ sub: "auth0|abc123", exp: 5_000 });
+    expect(earliestTokenExpiry(idToken, 1_000)).toBe(1_000);
+  });
+
+  it("falls back to the access token expiry when the id_token is unreadable", () => {
+    expect(earliestTokenExpiry("not-a-jwt", 1_000)).toBe(1_000);
+    expect(earliestTokenExpiry(undefined, 1_000)).toBe(1_000);
+  });
+
+  it("returns undefined when neither expiry is known", () => {
+    expect(earliestTokenExpiry(undefined, undefined)).toBeUndefined();
+  });
+});
+
 describe("tokenFieldsForCredentialsUser", () => {
-  it("maps an Auth0-credentials user to a JWT-shaped token (no ticket)", async () => {
-    const { tokenFieldsForCredentialsUser } = await import("./auth0-password");
+  it("expires the session when the id_token expires, even if the access token is still valid", () => {
+    const idToken = makeIdToken({ sub: "auth0|abc123", exp: 1_700_000_000 });
     const fields = tokenFieldsForCredentialsUser({
       id: "auth0|abc123",
       name: "Jane Doe",
       email: "jane@example.com",
       groups: [],
-      idToken: "header.payload.sig",
+      idToken,
       refreshToken: "refresh-token",
-      expiresAt: 1750000000,
+      expiresAt: 1_750_000_000,
     });
     expect(fields).toEqual({
-      rawJWT: "header.payload.sig",
-      accessTokenExpiresAt: 1750000000,
+      rawJWT: idToken,
+      expiresAt: 1_700_000_000,
       refreshToken: "refresh-token",
-      ticket: undefined,
     });
   });
 });

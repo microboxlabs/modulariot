@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const client = createMiotCalendarClient({
     baseUrl: MIOT_CALENDAR_URL,
     headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
+      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? ""}`,
     },
   });
 

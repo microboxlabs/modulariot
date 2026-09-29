@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   if (!scopeResult.resolved) return scopeResult.response;
 
   const token =
-    authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? undefined;
+    authResult.session.user?.rawJWT;
   const status = new URL(request.url).searchParams.get("status") ?? "pending";
 
   try {
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   }
 
   const token =
-    authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? undefined;
+    authResult.session.user?.rawJWT;
 
   try {
     const candidate = await createCandidate({

@@ -7,7 +7,6 @@ declare module "next-auth" {
       email: string;
       name: string;
       groups: string[];
-      ticket?: string;
       rawJWT?: string;
       accessToken?: string;
     };
@@ -19,11 +18,10 @@ declare module "next-auth" {
     email: string;
     name: string;
     groups: string[];
-    ticket?: string;
     /** Auth0 id_token from the password-realm grant (credentials via Auth0). */
     idToken?: string;
     refreshToken?: string;
-    /** Epoch seconds when idToken expires. */
+    /** Epoch seconds when the access token expires (from `expires_in`). */
     expiresAt?: number;
   }
 }
@@ -34,11 +32,11 @@ declare module "next-auth/jwt" {
     email: string;
     name: string;
     groups: string[];
-    ticket?: string;
     rawJWT?: string;
     accessToken?: string;
     refreshToken?: string;
-    accessTokenExpiresAt?: number;
+    /** Epoch seconds: the earlier of the id_token and access token expiries. */
+    expiresAt?: number;
     error?: "RefreshTokenError";
   }
 }

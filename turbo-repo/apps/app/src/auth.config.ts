@@ -1,7 +1,8 @@
-import { NextAuthConfig } from "next-auth";
+import type { NextAuthConfig, Session } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import {
   authenticateWithAuth0Password,
+  earliestTokenExpiry,
   tokenFieldsForCredentialsUser,
 } from "@/features/auth/services/auth0-password";
 import { isAuth0Configured } from "@/features/auth/config/auth0-connections";
@@ -212,7 +213,7 @@ export const authConfig: NextAuthConfig = {
           // When AUTH_AUTH0_AUDIENCE is set, access_token is a JWT scoped to the API audience
           // (harness, ECM, etc.). Store it separately from rawJWT (id_token).
           token.accessToken = account.access_token;
-          token.accessTokenExpiresAt = account.expires_at;
+          token.expiresAt = earliestTokenExpiry(account.id_token, account.expires_at);
           token.refreshToken = account.refresh_token;
 
           // Store user info from initial sign-in
@@ -225,13 +226,15 @@ export const authConfig: NextAuthConfig = {
           authAuth0Logger.debug({
             email: token.email,
             hasRawJWT: !!token.rawJWT,
-            expiresAt: token.accessTokenExpiresAt,
+            expiresAt: token.expiresAt,
           }, "Auth0 tokens stored in JWT");
         }
 
-        // Auth0 token refresh on subsequent invocations
-        if (token.refreshToken && !account && !token.ticket) {
-          const expiresAt = Number(token.accessTokenExpiresAt ?? 0) * 1000;
+        // Auth0 token refresh on subsequent invocations. `expiresAt` is the
+        // earlier of the id_token and access token expiries; a session cookie
+        // written before that field existed has none, so it refreshes at once.
+        if (token.refreshToken && !account) {
+          const expiresAt = Number(token.expiresAt ?? 0) * 1000;
           const shouldRefresh = expiresAt - Date.now() < 5 * 60 * 1000; // 5 min before expiry
 
           if (shouldRefresh) {
@@ -250,9 +253,13 @@ export const authConfig: NextAuthConfig = {
               const tokens = await response.json();
               token.rawJWT = tokens.id_token;
               token.accessToken = tokens.access_token ?? undefined;
-              token.accessTokenExpiresAt = Math.floor(Date.now() / 1000) + tokens.expires_in;
+              token.expiresAt = earliestTokenExpiry(
+                tokens.id_token,
+                Math.floor(Date.now() / 1000) + tokens.expires_in
+              );
               if (tokens.refresh_token) token.refreshToken = tokens.refresh_token;
-              authAuth0Logger.debug({ expiresAt: token.accessTokenExpiresAt }, "Auth0 token refreshed");
+              token.error = undefined;
+              authAuth0Logger.debug({ expiresAt: token.expiresAt }, "Auth0 token refreshed");
             } else {
               authAuth0Logger.warn({ status: response.status }, "Auth0 token refresh failed");
               token.error = "RefreshTokenError";
@@ -274,7 +281,6 @@ export const authConfig: NextAuthConfig = {
             Object.assign(token, tokenFieldsForCredentialsUser(user));
             authJwtLogger.debug( {
               email: user.email,
-              hasTicket: !!token.ticket,
               hasRawJWT: !!token.rawJWT,
               provider: account?.provider,
             }, "Processing user in JWT callback");
@@ -291,62 +297,36 @@ export const authConfig: NextAuthConfig = {
     },
     session({ session, token }) {
       try {
-        // authSessionLogger.debug( {
-        //   hasSession: !!session,
-        //   hasToken: !!token,
-        //   hasTicket: !!token?.ticket,
-        //   tokenSub: token?.sub,
-        //   accessTokenExpiresAt: token?.accessTokenExpiresAt,
-        //   rawJWT: token?.rawJWT,
-        // }, "Session callback triggered");
+        const expiresAt = Number(token.expiresAt ?? 0);
+        const expiresAtMs = expiresAt * 1000;
+        const now = Date.now();
+        authSessionLogger.debug( {
+          expiresAt: expiresAt,
+          isValid: expiresAtMs  > now,
+          hasRawJWT: !!token.rawJWT,
+        }, "Processing Auth0 token");
 
-        if (token && !token.ticket) {
-          const expiresAt = Number(token.accessTokenExpiresAt ?? 0);
-          const expiresAtMs = expiresAt * 1000;
-          const now = Date.now();
-          authSessionLogger.debug( {
+        if (expiresAtMs <= now) {
+          authSessionLogger.warn( {
             expiresAt: expiresAt,
-            isValid: expiresAtMs  > now,
-            hasRawJWT: !!(token as any).rawJWT,
-          }, "Processing OAuth token");
-
-          if (expiresAtMs > now) {
-            session.user.ticket = undefined;
-            session.user.id = token.sub as string;
-            // Make raw JWT available in session
-            (session.user as any).rawJWT = (token as any).rawJWT;
-            (session.user as any).accessToken = (token as any).accessToken;
-
-            authSessionLogger.debug( {
-              sub: token.sub,
-              email: session.user.email,
-            }, "Session created successfully for OAuth user");
-          } else {
-            authSessionLogger.warn( {
-              expiresAt: expiresAt,
-              tokenSub: token.sub,
-            }, "Token expired, returning empty session");
-            return {
-              user: undefined,
-              expires: new Date(expiresAtMs).toISOString(),
-            };
-          }
-        } else if (token.ticket) {
-          authSessionLogger.debug( {
-            userId: token.sub,
-            hasTicket: !!token.ticket,
-          }, "Processing ticket-based session");
-          session.user.ticket = token.ticket as string;
-          session.user.id = token.sub as string;
+            tokenSub: token.sub,
+          }, "Token expired, returning empty session");
+          return {
+            user: undefined,
+            expires: new Date(expiresAtMs).toISOString(),
+          };
         }
 
+        session.user.id = token.sub as string;
+        session.user.rawJWT = token.rawJWT as string | undefined;
+        session.user.accessToken = token.accessToken as string | undefined;
+
         authSessionLogger.debug( {
-          userId: session.user?.email,
-          hasTicket: !!session.user?.ticket,
+          userId: session.user.email,
         }, "Session created successfully");
 
         // Propagate refresh error to session for UI/flow control
-        (session as any).error = (token as any).error;
+        session.error = token.error as Session["error"];
         return session;
       } catch (error) {
         authSessionLogger.error({ error }, "Error in session callback");

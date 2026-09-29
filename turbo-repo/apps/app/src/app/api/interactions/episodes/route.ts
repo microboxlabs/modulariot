@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   }
 
   const token =
-    authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? undefined;
+    authResult.session.user?.rawJWT;
 
   await recordEpisode({
     orgSlug: scopeResult.scope.activeOrg.slug,

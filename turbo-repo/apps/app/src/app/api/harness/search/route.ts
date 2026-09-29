@@ -37,10 +37,7 @@ export async function POST(request: Request) {
 
   // The harness accepts the Auth0 id_token (rawJWT) as the bearer token.
   // The opaque access_token (no AUTH_AUTH0_AUDIENCE) is NOT a JWT and is rejected.
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = authResult.session.user?.rawJWT;
 
   const client = createMiotHarnessClient({
     baseUrl: harnessUrl,

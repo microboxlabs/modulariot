@@ -68,7 +68,7 @@ async function buildHeaders(session: Session): Promise<Record<string, string>> {
     return headers;
   }
 
-  const token = session.user?.rawJWT ?? session.user?.ticket;
+  const token = session.user?.rawJWT;
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }

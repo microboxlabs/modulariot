@@ -5,7 +5,11 @@ import type { PropsWithChildren } from "react";
 import { ServerDashboardsPage } from "./server-dashboards-page";
 import { DEFAULT_STORAGE } from "../types/dashboard.types";
 
-const state = vi.hoisted(() => ({ canEdit: false, push: vi.fn() }));
+const state = vi.hoisted(() => ({
+  canEdit: false,
+  missing: false,
+  push: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: state.push }) }));
 vi.mock(
   "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes",
@@ -40,6 +44,7 @@ const dictionary = {
       delete: "Delete",
       reload: "Reload",
       loading: "Loading",
+      loadError: "Dashboard unavailable",
       unsaved: "Unsaved changes",
       create: "Create dashboard",
     },
@@ -48,6 +53,7 @@ const dictionary = {
 const fetcher = vi.fn<typeof fetch>();
 beforeEach(() => {
   state.canEdit = false;
+  state.missing = false;
   state.push.mockReset();
   fetcher.mockReset();
   fetcher.mockImplementation(async (input, init) => {
@@ -66,7 +72,7 @@ beforeEach(() => {
       });
     if (String(input).includes("/fleet?"))
       return Response.json(
-        { data: { ...DEFAULT_STORAGE, name: "Fleet" } },
+        { data: state.missing ? null : { ...DEFAULT_STORAGE, name: "Fleet" } },
         { headers: { ETag: '"7"' } }
       );
     return Response.json({ data: [{ slug: "fleet", name: "Fleet" }] });
@@ -130,5 +136,20 @@ describe("parallel dashboard pages", () => {
     expect(write?.[0]).toBe("/app/api/dashboards/fleet?org=acme");
     expect(write?.[1]?.headers).toMatchObject({ "if-match": '"7"' });
     expect(JSON.parse(String(write?.[1]?.body)).name).toBe("Changed");
+  });
+  it("does not expose an editor for a missing dashboard", async () => {
+    state.canEdit = true;
+    state.missing = true;
+    show("fleet");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Dashboard unavailable"
+    );
+    expect(screen.queryByText("Widget canvas")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save" })
+    ).not.toBeInTheDocument();
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(
+      false
+    );
   });
 });

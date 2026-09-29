@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type SubmitEvent } from "react";
 import Link from "next/link";
+import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { Button, TextInput } from "flowbite-react";
@@ -32,11 +33,7 @@ export function ServerDashboardsPage(props: Readonly<Props>) {
       </p>
     );
   if (isLoading || !activeOrg)
-    return (
-      <p role="status" className="p-6">
-        {t("loading")}
-      </p>
-    );
+    return <output className="block p-6">{t("loading")}</output>;
   return props.slug ? (
     <ServerDashboardEditor
       key={`${activeOrg.slug}/${props.slug}`}
@@ -73,7 +70,7 @@ function ServerDashboardList({
   const [createError, setCreateError] = useState(false);
   const router = useRouter();
   const t = (key: string) => tr(`dashboard.server.${key}`, dictionary);
-  async function create(event: FormEvent) {
+  async function create(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (creating || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(slug)) return;
     setCreating(true);
@@ -115,7 +112,7 @@ function ServerDashboardList({
       {(error || createError) && (
         <p role="alert">{t(createError ? "createError" : "loadError")}</p>
       )}
-      {isLoading && <p role="status">{t("loading")}</p>}
+      {isLoading && <output>{t("loading")}</output>}
       {data?.length === 0 && <p>{t("empty")}</p>}
       <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {data?.map((dashboard) => (
@@ -151,14 +148,7 @@ function ServerDashboardEditor({
   const router = useRouter();
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState(false);
-  useEffect(() => {
-    if (!document.dirty) return;
-    const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-    };
-    globalThis.addEventListener("beforeunload", warn);
-    return () => globalThis.removeEventListener("beforeunload", warn);
-  }, [document.dirty]);
+  useUnsavedNavigation(document.dirty, t("leave"));
   async function reload() {
     if (!document.dirty || globalThis.confirm(t("discard")))
       await document.discardAndReload();
@@ -183,18 +173,16 @@ function ServerDashboardEditor({
         {t(document.error ? "loadError" : "loading")}
       </p>
     );
+  if (!document.exists)
+    return (
+      <p role="alert" className="p-6">
+        {t("loadError")}
+      </p>
+    );
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-wrap items-center gap-3 border-b p-3">
-        <Link
-          href={`/${lang}/dashboards`}
-          onClick={(event) => {
-            if (document.dirty && !globalThis.confirm(t("leave")))
-              event.preventDefault();
-          }}
-        >
-          {t("title")}
-        </Link>
+        <Link href={`/${lang}/dashboards`}>{t("title")}</Link>
         <TextInput
           aria-label={t("name")}
           value={document.config.name}
@@ -230,11 +218,7 @@ function ServerDashboardEditor({
             {t("delete")}
           </Button>
         )}
-        {document.dirty && (
-          <span role="status" className="text-sm">
-            {t("unsaved")}
-          </span>
-        )}
+        {document.dirty && <output className="text-sm">{t("unsaved")}</output>}
       </div>
       {(document.error || removeError) && (
         <p role="alert" className="p-3 text-red-600">

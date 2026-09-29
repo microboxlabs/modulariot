@@ -19,7 +19,7 @@ Every route names the organization and the scope, and the server checks both bef
 
 ## Creation eligibility
 
-After v0.4.0, `GET /tenants/{t}/scopes/{s}/capabilities` returns `{ "canCreate": true }` or `{ "canCreate": false }` for an authenticated scope member. Use it to decide whether to offer creation in an empty workspace. It checks the scope role and credential's edit permission without reading dashboards. Embed tokens are refused, and responses are not cacheable. A save still applies the document policy and validation; eligibility does not authorize every possible document. This route belongs to the dashboard server; the application proxy must forward it before its UI can use it.
+After v0.4.0, `GET /tenants/{t}/scopes/{s}/capabilities` returns `{ "canCreate": true }` or `{ "canCreate": false }` for an authenticated scope member. Use it to decide whether to offer creation in an empty workspace. It checks the scope role and credential's edit permission without reading dashboards. Embed tokens are refused, and responses are not cacheable. A save still applies the document policy and validation; eligibility does not authorize every possible document. The application forwards this through `/api/dashboard-capabilities?org={activeOrgSlug}` and the host route `/api/v1/orgs/{slug}/dashboard-capabilities`. This route is separate from dashboard slugs. Deploy the server endpoint and host proxy before the updated workspace; older deployments hide creation and show an access-load error when the endpoint is unavailable.
 
 ## Saving a dashboard
 
@@ -68,6 +68,7 @@ The application exposes `/api/dashboards` through its server-side session and th
 | Method | Application route | Operation |
 | --- | --- | --- |
 | GET | `/api/dashboards` | List dashboards |
+| GET | `/api/dashboard-capabilities` | Check scope creation eligibility (after v0.4.0) |
 | GET, PUT, DELETE | `/api/dashboards/{dashboard}` | Load, save, delete |
 | GET | `/api/dashboards/{dashboard}/capabilities` | Read allowed actions |
 | GET, PUT | `/api/dashboards/{dashboard}/permissions` | Read or replace role assignments |
@@ -90,6 +91,8 @@ Send `{ "filters": { ... } }` to execute a saved query. The organization-bound b
 ## Parallel application workspace
 
 Open **Dashboards** in the application navigation (`/app/{lang}/dashboards`). This workspace lists the active organization's server-backed dashboards. Existing `/home` dashboards remain available during migration. No legacy site lookup is needed to load these documents.
+
+The workspace uses the server's `canCreate` result for creation controls, not the application's coarse organization role. Loading, failed checks and denied results hide creation; successful saves still require server authorization.
 
 Editors save explicitly. A revision conflict retains local changes and requires an explicit reload; it never overwrites the newer document automatically. Consumers can view and query but cannot edit or delete. Stored query definitions bind widgets to operations in the existing connection catalog. The browser sends filter values, never credentials or SQL.
 

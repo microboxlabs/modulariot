@@ -8,11 +8,15 @@ export type DashboardRouteContext = {
   params: Promise<{ dashboard: string; query?: string }>;
 };
 
+function isSafeIdentifier(value: string | undefined): value is string {
+  return !!value && !value.split("/").some((part) => part === "." || part === "..");
+}
+
 /** Active-org selection and session authentication stay on the server. */
 export async function forwardDashboard(
   request: Request,
   context?: DashboardRouteContext,
-  action?: "capabilities" | "permissions" | "query"
+  action?: "capabilities" | "permissions" | "query" | "scopeCapabilities"
 ) {
   const tenant = await resolveTenantScope();
   if (!tenant.resolved) return tenant.response;
@@ -24,14 +28,17 @@ export async function forwardDashboard(
       { status: 409 }
     );
   }
+  if (action === "scopeCapabilities") {
+    return forwardToQuarkus(
+      orgPath(tenant.scope.activeOrg.slug, ["dashboard-capabilities"]),
+      { method: "GET" }
+    );
+  }
   const segments = ["dashboards"];
   if (context) {
     const { dashboard } = await context.params;
     // URL normalizers resolve dot segments even after percent encoding.
-    if (
-      !dashboard ||
-      dashboard.split("/").some((part) => part === "." || part === "..")
-    ) {
+    if (!isSafeIdentifier(dashboard)) {
       return NextResponse.json(
         { error: "Invalid dashboard identifier" },
         { status: 400 }
@@ -41,10 +48,7 @@ export async function forwardDashboard(
   }
   if (action === "query") {
     const query = (await context?.params)?.query;
-    if (
-      !query ||
-      query.split("/").some((part) => part === "." || part === "..")
-    ) {
+    if (!isSafeIdentifier(query)) {
       return NextResponse.json(
         { error: "Invalid query identifier" },
         { status: 400 }

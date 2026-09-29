@@ -61,6 +61,7 @@ export function createDashboardServerClient(
     const tail = action === undefined ? "" : `/${action}`;
     return `${process.env.NEXT_PUBLIC_BASE_PATH ?? "/app"}/api/dashboards${suffix}${tail}?org=${encodeURIComponent(orgSlug)}`;
   };
+  const scopeKey = `${process.env.NEXT_PUBLIC_BASE_PATH ?? "/app"}/api/dashboard-capabilities?org=${encodeURIComponent(orgSlug)}`;
   async function request(path: string, init?: RequestInit) {
     const response = await fetchImpl(path, {
       ...init,
@@ -85,6 +86,10 @@ export function createDashboardServerClient(
   return {
     /** SWR key includes organization and slug; caches cannot cross organizations. */
     key: url,
+    scopeKey,
+    async scopeCapabilities(signal?: AbortSignal) {
+      return read(await request(scopeKey, { signal }), z.object({ canCreate: z.boolean() }));
+    },
     async list(signal?: AbortSignal) {
       const result = await read(
         await request(url(), { signal }),

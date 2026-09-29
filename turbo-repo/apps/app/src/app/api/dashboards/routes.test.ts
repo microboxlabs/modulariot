@@ -13,6 +13,7 @@ vi.mock("@/app/api/utils/quarkus-proxy", () => ({
 
 import { POST as query } from "./[dashboard]/queries/[query]/route";
 import { GET as list } from "./route";
+import { GET as scopeCapabilities } from "../dashboard-capabilities/route";
 import { GET as get, PUT as save, DELETE as remove } from "./[dashboard]/route";
 import { GET as capabilities } from "./[dashboard]/capabilities/route";
 import {
@@ -158,4 +159,26 @@ describe("saved dashboard query route", () => {
       expect(forwardMock).not.toHaveBeenCalled();
     }
   );
+});
+
+
+describe("scope capabilities proxy", () => {
+  it("uses authenticated organization context instead of browser identity or tenant headers", async () => {
+    await scopeCapabilities(new Request("https://app.test/api/dashboard-capabilities?tenantId=foreign", {
+      headers: { Authorization: "Bearer attacker", "x-tenant-id": "foreign" },
+    }));
+    expect(forwardMock).toHaveBeenCalledWith("/api/v1/orgs/acme%20org/dashboard-capabilities", {
+      method: "GET",
+    });
+  });
+  it("rejects a stale organization before forwarding", async () => {
+    const response = await scopeCapabilities(new Request("https://app.test/api/dashboard-capabilities?org=old"));
+    expect(response.status).toBe(409);
+    expect(forwardMock).not.toHaveBeenCalled();
+  });
+  it("keeps scope denial without contacting the host", async () => {
+    scopeMock.mockResolvedValue({ resolved: false, response: new Response(null, { status: 403 }) });
+    expect((await scopeCapabilities(new Request("https://app.test/api/dashboard-capabilities"))).status).toBe(403);
+    expect(forwardMock).not.toHaveBeenCalled();
+  });
 });

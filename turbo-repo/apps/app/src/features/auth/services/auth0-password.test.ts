@@ -174,6 +174,11 @@ describe("earliestTokenExpiry", () => {
     expect(earliestTokenExpiry(undefined, 1_000)).toBe(1_000);
   });
 
+  it("ignores an access token expiry that is not a finite number", () => {
+    const idToken = makeIdToken({ sub: "auth0|abc123", exp: 1_000 });
+    expect(earliestTokenExpiry(idToken, Number.NaN)).toBe(1_000);
+  });
+
   it("returns undefined when neither expiry is known", () => {
     expect(earliestTokenExpiry(undefined, undefined)).toBeUndefined();
   });

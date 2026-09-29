@@ -37,6 +37,8 @@ declare module "next-auth/jwt" {
     refreshToken?: string;
     /** Epoch seconds: the earlier of the id_token and access token expiries. */
     expiresAt?: number;
+    /** Only present in sessions saved before `expiresAt` existed. */
+    accessTokenExpiresAt?: number;
     error?: "RefreshTokenError";
   }
 }

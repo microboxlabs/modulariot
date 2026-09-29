@@ -5,6 +5,7 @@ import {
   earliestTokenExpiry,
   tokenFieldsForCredentialsUser,
 } from "@/features/auth/services/auth0-password";
+import { refreshAuth0Tokens } from "@/features/auth/services/auth0-refresh";
 import { isAuth0Configured } from "@/features/auth/config/auth0-connections";
 import type { SignInCredentials } from "@/features/auth/services/auth.service.types";
 import Auth0 from "next-auth/providers/auth0"
@@ -230,38 +231,24 @@ export const authConfig: NextAuthConfig = {
           }, "Auth0 tokens stored in JWT");
         }
 
-        // Auth0 token refresh on subsequent invocations. `expiresAt` is the
-        // earlier of the id_token and access token expiries; a session cookie
-        // written before that field existed has none, so it refreshes at once.
+        // Sessions saved before `expiresAt` existed only carry the access token expiry.
+        if (!account && token.expiresAt === undefined) {
+          token.expiresAt = earliestTokenExpiry(token.rawJWT, token.accessTokenExpiresAt);
+        }
+
+        // Auth0 token refresh on subsequent invocations
         if (token.refreshToken && !account) {
           const expiresAt = Number(token.expiresAt ?? 0) * 1000;
           const shouldRefresh = expiresAt - Date.now() < 5 * 60 * 1000; // 5 min before expiry
 
           if (shouldRefresh) {
-            const response = await fetch(`${process.env.AUTH_AUTH0_ISSUER}/oauth/token`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                grant_type: "refresh_token",
-                client_id: process.env.AUTH_AUTH0_ID,
-                client_secret: process.env.AUTH_AUTH0_SECRET,
-                refresh_token: token.refreshToken,
-              }),
-            });
-
-            if (response.ok) {
-              const tokens = await response.json();
-              token.rawJWT = tokens.id_token;
-              token.accessToken = tokens.access_token ?? undefined;
-              token.expiresAt = earliestTokenExpiry(
-                tokens.id_token,
-                Math.floor(Date.now() / 1000) + tokens.expires_in
-              );
-              if (tokens.refresh_token) token.refreshToken = tokens.refresh_token;
+            const result = await refreshAuth0Tokens(token.refreshToken, token.rawJWT);
+            if (result.ok) {
+              Object.assign(token, result.tokens);
               token.error = undefined;
               authAuth0Logger.debug({ expiresAt: token.expiresAt }, "Auth0 token refreshed");
             } else {
-              authAuth0Logger.warn({ status: response.status }, "Auth0 token refresh failed");
+              authAuth0Logger.warn({ status: result.status }, "Auth0 token refresh failed");
               token.error = "RefreshTokenError";
             }
           }
@@ -306,7 +293,7 @@ export const authConfig: NextAuthConfig = {
           hasRawJWT: !!token.rawJWT,
         }, "Processing Auth0 token");
 
-        if (expiresAtMs <= now) {
+        if (expiresAtMs <= now || !token.rawJWT) {
           authSessionLogger.warn( {
             expiresAt: expiresAt,
             tokenSub: token.sub,

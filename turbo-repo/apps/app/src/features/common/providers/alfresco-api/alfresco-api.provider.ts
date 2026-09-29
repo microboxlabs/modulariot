@@ -63,7 +63,7 @@ const alfrescoApiLogger = createManagedLogger(
  * Prepares authentication configuration for Alfresco API calls
  * @param baseUrl - The base URL for the API endpoint
  * @param session - The user session containing authentication data
- * @returns Object containing the modified URL and headers for authentication
+ * @returns The unchanged URL and the Bearer header for the session's id_token
  */
 export function prepareAlfrescoAuth(
   baseUrl: string,
@@ -82,8 +82,7 @@ export function prepareAlfrescoAuth(
     {
       user: user?.email,
       baseUrl,
-      headers,
-      rawJWT: user?.rawJWT,
+      hasAuthorization: "Authorization" in headers,
     },
     "prepareAlfrescoAuth"
   );

@@ -49,7 +49,7 @@ export function earliestTokenExpiry(
     idTokenExp = undefined;
   }
   const candidates = [idTokenExp, accessTokenExpiresAt].filter(
-    (value): value is number => typeof value === "number"
+    (value): value is number => Number.isFinite(value)
   );
   return candidates.length > 0 ? Math.min(...candidates) : undefined;
 }

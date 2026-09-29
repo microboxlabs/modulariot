@@ -188,3 +188,6 @@ export function createDashboardOperations() {
 ```
 
 For ModularIoT, the URL ends in `/internal/dashboard-operations/resolve`; enable host plan resolution explicitly. Inject the key from a deployment secret. Private catalog HTTP requires `allowHttp: true`; HTTP data-service transport has its own `allowDataHttp` opt-in. The two destinations and credentials are kept separate. An empty data-origin list supports BigQuery-only deployments. Embedded hosts pass the same executor as `queries.operations`, or supply their own local resolver directly to the individual providers.
+
+
+The official image also ships `/app/examples/modulariot-operations.mjs`, so the standard ModularIoT integration needs no custom code mount. Select it with `MIOT_DASHBOARD_OPERATIONS_MODULE`, set `MIOT_DASHBOARD_PLAN_URL`, and reuse the existing secret-backed `MIOT_DASHBOARD_PROXY_KEY`. `MIOT_DASHBOARD_DATA_ORIGINS` is a comma-separated list of approved data origins. Set `MIOT_DASHBOARD_PLAN_ALLOW_HTTP=true` only for the private cluster catalog service; data HTTP has a separate `MIOT_DASHBOARD_DATA_ALLOW_HTTP` flag. Both flags accept only `true` or `false`. The module retains the default 1 GB billing ceiling; custom hosts can supply a different factory when needed.

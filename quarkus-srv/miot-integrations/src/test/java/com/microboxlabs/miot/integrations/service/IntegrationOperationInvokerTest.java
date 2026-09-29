@@ -193,6 +193,29 @@ class IntegrationOperationInvokerTest {
     }
 
     @Test
+    void boundedSnapshotDoesNotReloadTheOperation() {
+        var invoker = new IntegrationOperationInvoker(null, null, null, 2);
+        var connection = new ResolvedConnection("c1", URI.create("http://127.0.0.1"), Map.of(), Map.of());
+        var operation = new IntegrationOperation("op", "c1", "summary", "GET", "/approved", Map.of(), Map.of(), false);
+        var parameters = Map.of("tenant", "ACME");
+        JobHttpTrace.begin();
+        assertThrows(IllegalArgumentException.class, () -> invoker.executeBounded(connection, operation, parameters, 1000));
+        var exchanges = JobHttpTrace.end();
+        assertEquals(1, exchanges.size());
+        assertEquals("http://127.0.0.1/approved?tenant=ACME", exchanges.get(0).get("url"));
+        assertEquals("GET", exchanges.get(0).get("method"));
+    }
+
+    @Test
+    void boundedSnapshotRefusesAnOperationFromAnotherConnection() {
+        var invoker = new IntegrationOperationInvoker(null, null, null, 2);
+        var connection = new ResolvedConnection("c1", URI.create("http://127.0.0.1"), Map.of(), Map.of());
+        var operation = new IntegrationOperation("op", "other", "summary", "GET", "/approved", Map.of(), Map.of(), false);
+        Map<String, String> parameters = Map.of();
+        assertThrows(OperationInvocationException.class, () -> invoker.executeBounded(connection, operation, parameters, 1000));
+    }
+
+    @Test
     void recordsTheIntendedRequestWhenTheGuardRejectsTheHostBeforeSending() {
         // The exact production failure: the connection base URL resolves to an address the
         // SSRF guard refuses, so the request never leaves the process. Before this change the

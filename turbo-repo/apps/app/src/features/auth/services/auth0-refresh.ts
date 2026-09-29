@@ -44,6 +44,7 @@ async function requestRefresh(
           client_secret: process.env.AUTH_AUTH0_SECRET,
           refresh_token: refreshToken,
         }),
+        signal: AbortSignal.timeout(10_000),
       }
     );
     if (!response.ok) return { ok: false, status: response.status };

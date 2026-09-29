@@ -250,6 +250,9 @@
                         },
                         "defaultValue": {
                           "$ref": "#/definitions/DashboardConfig/properties/queries/items/properties/parameters/additionalProperties/anyOf/0/properties/value"
+                        },
+                        "omitWhenEmpty": {
+                          "type": "boolean"
                         }
                       },
                       "required": [

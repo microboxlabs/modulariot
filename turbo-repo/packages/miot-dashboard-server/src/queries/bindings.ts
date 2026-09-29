@@ -57,16 +57,18 @@ export function bindParameters(
     values.set(key, parsed.data);
   }
   return Object.fromEntries(
-    parameters.map(([name, binding]) => {
-      if (binding.kind === "literal") return [name, binding.value];
+    parameters.flatMap(([name, binding]) => {
+      if (binding.kind === "literal") return [[name, binding.value]];
       const value = values.has(binding.key)
         ? values.get(binding.key)
         : binding.defaultValue;
+      if (binding.omitWhenEmpty && (value === undefined || value === ""))
+        return [];
       if (value === undefined)
         throw DashboardServerError.badRequest(
           "Required dashboard filter is missing",
         );
-      return [name, value];
+      return [[name, value]];
     }),
   ) as Record<string, DashboardQueryValue>;
 }

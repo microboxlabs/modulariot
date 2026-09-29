@@ -116,3 +116,14 @@ Apache-2.0.
 Run `npm run test:coverage` in this package to generate `coverage/lcov.info`
 and a coverage summary. The SonarCloud workflow runs both dashboard packages
 and imports these reports; LCOV paths are relative to the `turbo-repo` root.
+
+### Optional query filters
+
+Filter bindings may set `omitWhenEmpty: true` to omit a parameter whose resolved
+value is missing or an empty string. A missing filter first uses `defaultValue`,
+when present; an explicit empty string does not use the default. Null, false, zero,
+empty arrays, whitespace and operator strings are preserved. Existing bindings
+keep their required/default behavior. The host operation schema must allow the
+parameter to be absent; tenant predicates remain host-controlled. Upgrade both
+contract and server to a release containing this option before using it; 0.3.0
+does not implement omission.

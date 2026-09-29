@@ -55,6 +55,70 @@ const viewer = user("viewer", "acme");
 afterEach(() => vi.useRealTimers());
 
 describe("saved dashboard query service", () => {
+  it("omits only missing and empty-string filters when explicitly configured", async () => {
+    const { service, execute } = setup(
+      {},
+      {
+        ...document,
+        queries: [
+          {
+            ...query,
+            parameters: {
+              service: { kind: "filter", key: "service", omitWhenEmpty: true },
+            },
+          },
+        ],
+      },
+    );
+    for (const filters of [{}, { service: "" }]) {
+      await service.execute(viewer, ref, "costs", filters);
+      expect(execute.mock.lastCall?.[0].parameters).toEqual({});
+    }
+    for (const value of [null, false, 0, [], " ", "eq.", "storage"]) {
+      await service.execute(viewer, ref, "costs", { service: value });
+      expect(execute.mock.lastCall?.[0].parameters).toEqual({ service: value });
+    }
+  });
+
+  it("applies defaults before omission and preserves empty values without opt-in", async () => {
+    const parameters = {
+      service: {
+        kind: "filter",
+        key: "service",
+        defaultValue: "all",
+        omitWhenEmpty: true,
+      },
+      optional: {
+        kind: "filter",
+        key: "optional",
+        defaultValue: "",
+        omitWhenEmpty: true,
+      },
+      unchanged: {
+        kind: "filter",
+        key: "unchanged",
+        defaultValue: "",
+        omitWhenEmpty: false,
+      },
+      literal: { kind: "literal", value: "" },
+    };
+    const { service, execute } = setup(
+      {},
+      { ...document, queries: [{ ...query, parameters }] },
+    );
+    await service.execute(viewer, ref, "costs");
+    expect(execute.mock.lastCall?.[0].parameters).toEqual({
+      service: "all",
+      unchanged: "",
+      literal: "",
+    });
+    await service.execute(viewer, ref, "costs", { service: "" });
+    expect(execute.mock.lastCall?.[0].parameters).toEqual({
+      unchanged: "",
+      literal: "",
+    });
+  });
+
   it("binds only stored operations and preserves null, false and zero filters", async () => {
     const { service, execute } = setup();
     for (const value of [null, false, 0, "storage"]) {

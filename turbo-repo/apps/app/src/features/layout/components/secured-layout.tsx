@@ -16,6 +16,7 @@ import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-
 import { KioskShell } from "./kiosk-shell";
 
 const isHarnessSettingsEnabled = process.env.ENABLE_HARNESS_SETTINGS === "true";
+const isDashboardServerEnabled = process.env.ENABLE_DASHBOARD_SERVER === "true";
 
 export default async function SecuredLayout({
   children,
@@ -48,6 +49,7 @@ export default async function SecuredLayout({
             initialOrgLogoDark={branding?.logoUrlDark}
             isSeachEnabled={isSeachEnabled}
             isHarnessSettingsEnabled={isHarnessSettingsEnabled}
+            isDashboardServerEnabled={isDashboardServerEnabled}
           />
           <div
             data-testid="content-with-sidebar"
@@ -59,6 +61,7 @@ export default async function SecuredLayout({
                   ?.sidebar as I18nRecord
               }
               isHarnessSettingsEnabled={isHarnessSettingsEnabled}
+              isDashboardServerEnabled={isDashboardServerEnabled}
             />
             <LayoutContent dict={dictionary as I18nRecord}>
               {children}

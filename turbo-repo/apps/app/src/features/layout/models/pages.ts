@@ -43,6 +43,9 @@ export const DEV_PAGE_LABEL = "dev";
  */
 export const STORYTELLING_PAGE_LABEL = "storytelling";
 
+/** The server-backed dashboard workspace, hidden unless ENABLE_DASHBOARD_SERVER is "true". */
+export const DASHBOARD_SERVER_PAGE_LABEL = "dashboardServer";
+
 // cpd-off — sidebar configuration data, structural repetition is intentional
 /**
  * Every registered page, Dev included. Anything that *renders* navigation
@@ -59,8 +62,10 @@ export const pages: SidebarItem[] = pagesConfig.map((p) => ({
 // cpd-on
 
 /**
- * `pages` minus the Dev section unless dev tools are enabled, and minus
- * Storytelling unless storytelling testing is enabled.
+ * `pages` minus the Dev section unless dev tools are enabled, minus
+ * Storytelling unless storytelling testing is enabled, and minus the
+ * dashboard workspace unless `ENABLE_DASHBOARD_SERVER` is on. That last flag
+ * is server-only and reaches the client as a prop from SecuredLayout.
  *
  * Both flags arrive as arguments rather than being read here because they
  * come from the runtime config (`ENABLE_DEV_TOOLS` / `ENABLE_STORYTELLING`,
@@ -70,10 +75,15 @@ export const pages: SidebarItem[] = pagesConfig.map((p) => ({
  * deploy. Module scope can't await that fetch, so the filter moved out to
  * the consumers — see `useVisiblePages`.
  */
-export function visiblePages(devToolsEnabled: boolean, storytellingEnabled: boolean): SidebarItem[] {
+export function visiblePages(
+  devToolsEnabled: boolean,
+  storytellingEnabled: boolean,
+  dashboardServerEnabled: boolean
+): SidebarItem[] {
   return pages.filter((p) => {
     if (p.label === DEV_PAGE_LABEL) return devToolsEnabled;
     if (p.label === STORYTELLING_PAGE_LABEL) return storytellingEnabled;
+    if (p.label === DASHBOARD_SERVER_PAGE_LABEL) return dashboardServerEnabled;
     return true;
   });
 }

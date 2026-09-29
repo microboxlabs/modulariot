@@ -90,6 +90,8 @@ Envía `{ "filters": { ... } }` para ejecutar una consulta guardada. El cliente 
 
 ## Espacio paralelo en la aplicación
 
+Configure `ENABLE_DASHBOARD_SERVER=true` en la aplicación para mostrar este espacio. Si la variable no está definida o tiene otro valor, la entrada de navegación se oculta y las rutas responden 404.
+
 Abra **Dashboards** en la navegación (`/app/{lang}/dashboards`). Este espacio lista los dashboards del servidor para la organización activa. Los dashboards existentes de `/home` siguen disponibles durante la migración. No necesita consultar sitios heredados para cargar estos documentos.
 
 El espacio de trabajo usa `canCreate` del servidor para ofrecer la creación, sin deducirla del rol general de la organización. Mientras carga, si falla la consulta o si se deniega el permiso, oculta la creación; guardar sigue requiriendo autorización del servidor.

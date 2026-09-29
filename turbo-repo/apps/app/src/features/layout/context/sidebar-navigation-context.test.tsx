@@ -5,7 +5,13 @@ import {
   SidebarNavigationProvider,
   useSidebarNavigation,
 } from "./sidebar-navigation-context";
-import { pages, visiblePages, DEV_PAGE_LABEL, STORYTELLING_PAGE_LABEL } from "../models/pages";
+import {
+  pages,
+  visiblePages,
+  DEV_PAGE_LABEL,
+  STORYTELLING_PAGE_LABEL,
+  DASHBOARD_SERVER_PAGE_LABEL,
+} from "../models/pages";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -117,7 +123,23 @@ function setDefaultMocks({
 }
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <SidebarNavigationProvider isHarnessSettingsEnabled={false}>
+  <SidebarNavigationProvider
+    isHarnessSettingsEnabled={false}
+    isDashboardServerEnabled={false}
+  >
+    {children}
+  </SidebarNavigationProvider>
+);
+
+const dashboardServerWrapper = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => (
+  <SidebarNavigationProvider
+    isHarnessSettingsEnabled={false}
+    isDashboardServerEnabled
+  >
     {children}
   </SidebarNavigationProvider>
 );
@@ -147,7 +169,9 @@ describe("SidebarNavigationProvider", () => {
 
   it("exposes all pages as items", () => {
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
-    expect(result.current.items).toHaveLength(visiblePages(false, false).length);
+    expect(result.current.items).toHaveLength(
+      visiblePages(false, false, false).length
+    );
   });
 
   it("hides the Dev section when the runtime config hasn't enabled it", () => {
@@ -164,6 +188,24 @@ describe("SidebarNavigationProvider", () => {
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
     expect(result.current.items.some((i) => i.label === STORYTELLING_PAGE_LABEL)).toBe(false);
     expect(pages.some((p) => p.label === STORYTELLING_PAGE_LABEL)).toBe(true);
+  });
+
+  it("hides the dashboard workspace unless ENABLE_DASHBOARD_SERVER is on", () => {
+    const hidden = renderHook(() => useSidebarNavigation(), { wrapper });
+    expect(
+      hidden.result.current.items.some(
+        (i) => i.label === DASHBOARD_SERVER_PAGE_LABEL
+      )
+    ).toBe(false);
+
+    const shown = renderHook(() => useSidebarNavigation(), {
+      wrapper: dashboardServerWrapper,
+    });
+    expect(
+      shown.result.current.items.some(
+        (i) => i.label === DASHBOARD_SERVER_PAGE_LABEL
+      )
+    ).toBe(true);
   });
 
   describe("pages immutability", () => {

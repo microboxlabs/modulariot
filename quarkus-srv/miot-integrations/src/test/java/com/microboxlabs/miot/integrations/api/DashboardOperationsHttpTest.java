@@ -74,6 +74,7 @@ class DashboardOperationsHttpTest {
                         .header("x-miot-proxy-key", KEY).header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofInputStream(() -> new ByteArrayInputStream(bytes))).build();
                 var rejected = client.send(oversized, HttpResponse.BodyHandlers.discarding());
+                assertEquals(version, rejected.version());
                 assertEquals(413, rejected.statusCode());
                 assertEquals("no-store", rejected.headers().firstValue("Cache-Control").orElse(""));
             }

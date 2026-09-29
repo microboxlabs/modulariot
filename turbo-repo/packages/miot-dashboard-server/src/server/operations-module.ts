@@ -19,12 +19,12 @@ export async function loadConfiguredOperations(
   }
   try {
     if (config.operations || !isOperationsModulePath(config.operationsModule))
-      throw new Error();
+      throw new Error("Invalid operation module configuration");
     const module = await import(
       /* @vite-ignore */ pathToFileURL(config.operationsModule).href
     );
     if (typeof module.createDashboardOperations !== "function")
-      throw new Error();
+      throw new Error("Missing operation module factory");
     const executor: unknown = await module.createDashboardOperations();
     if (
       !executor ||
@@ -32,7 +32,7 @@ export async function loadConfiguredOperations(
       !("execute" in executor) ||
       typeof executor.execute !== "function"
     )
-      throw new Error();
+      throw new Error("Invalid operation executor");
     return executor as DashboardOperationExecutor;
   } catch {
     // A host's import/factory failure may contain credentials. Never forward it.

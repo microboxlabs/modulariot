@@ -1028,8 +1028,14 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
   const auth = readAuth(env, host);
   const proxyKey = readProxyKey(env, auth);
   const operationsModule = env.MIOT_DASHBOARD_OPERATIONS_MODULE;
-  if (operationsModule !== undefined && (!isOperationsModulePath(operationsModule) || env.MIOT_DASHBOARD_OPERATIONS_URL)) {
-    throw new ConfigError("Operations module must be an absolute JavaScript file path and cannot be combined with an operations URL");
+  if (
+    operationsModule !== undefined &&
+    (!isOperationsModulePath(operationsModule) ||
+      env.MIOT_DASHBOARD_OPERATIONS_URL?.trim())
+  ) {
+    throw new ConfigError(
+      "Operations module must be an absolute JavaScript file path and cannot be combined with an operations URL",
+    );
   }
   const operations = readOperationsConfig(env, proxyKey);
 

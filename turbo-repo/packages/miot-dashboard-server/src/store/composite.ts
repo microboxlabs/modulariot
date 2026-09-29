@@ -208,6 +208,14 @@ export function createCompositeStore(
       if (row !== null) await forget(row.documentKey);
     },
 
+    async removeIfRevision(ref, revision) {
+      if (!metadata.removeIfRevision) return false;
+      const row = await metadata.removeIfRevision(ref, revision);
+      if (row === null) return false;
+      await forget(row.documentKey);
+      return true;
+    },
+
     getPermissions(ref: ServerDashboardRef) {
       return metadata.getPermissions(ref);
     },

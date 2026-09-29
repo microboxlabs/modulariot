@@ -11,10 +11,10 @@ afterEach(async () => {
     dirs.splice(0).map((path) => rm(path, { recursive: true, force: true })),
   );
 });
-async function fixture(source: string) {
+async function fixture(source: string, extension = "mjs") {
   const dir = await mkdtemp(join(tmpdir(), "dashboard-operations-"));
   dirs.push(dir);
-  const path = join(dir, "operations.mjs");
+  const path = join(dir, `operations.${extension}`);
   await writeFile(path, source);
   return path;
 }
@@ -37,6 +37,49 @@ describe("standalone portable operations module", () => {
     expect(config.proxyKey).toBeUndefined();
     expect(await loadConfiguredOperations(config)).toHaveProperty("execute");
   });
+  it.each(["js", "cjs"])(
+    "executes a conventional CommonJS %s module",
+    async (extension) => {
+      const path = await fixture(
+        "exports.createDashboardOperations = () => ({ execute: async () => ({ rows: [] }) });",
+        extension,
+      );
+      const executor = await loadConfiguredOperations({
+        operationsModule: path,
+      });
+      expect(await executor?.execute({} as never)).toEqual({ rows: [] });
+    },
+  );
+  it("treats a whitespace-only remote URL as absent", () => {
+    expect(
+      readServerConfig({
+        ...auth,
+        MIOT_DASHBOARD_OPERATIONS_MODULE: "/operator/module.mjs",
+        MIOT_DASHBOARD_OPERATIONS_URL: "   ",
+      }).operations,
+    ).toBeUndefined();
+  });
+  it("allows no executor and preserves the HTTP adapter fallback", async () => {
+    expect(await loadConfiguredOperations({})).toBeUndefined();
+    expect(
+      await loadConfiguredOperations({
+        operations: { url: "https://host.example", proxyKey: "a".repeat(32) },
+      }),
+    ).toHaveProperty("execute");
+  });
+  it.each(["./relative.mjs", "/operator/module.mjs"])(
+    "validates configuration passed directly to the loader",
+    async (path) => {
+      await expect(
+        loadConfiguredOperations({
+          operationsModule: path,
+          operations: { url: "https://host.example", proxyKey: "a".repeat(32) },
+        }),
+      ).rejects.toMatchObject({
+        message: "Dashboard operation module could not be initialized",
+      });
+    },
+  );
   it.each([
     "./relative.mjs",
     "https://remote.example/module.mjs",
@@ -61,10 +104,15 @@ describe("standalone portable operations module", () => {
     'export function createDashboardOperations() { throw new Error("private-token"); }',
     'export function createDashboardOperations() { return { execute: "private-token" }; }',
     "export default {};",
+    "export function createDashboardOperations() { return null; }",
+    "export function createDashboardOperations() { return 1; }",
+    "export function createDashboardOperations() { return {}; }",
   ])("fails closed without exposing module diagnostics", async (source) => {
     const path = await fixture(source);
     await expect(
       loadConfiguredOperations({ operationsModule: path }),
-    ).rejects.toThrow("Dashboard operation module could not be initialized");
+    ).rejects.toMatchObject({
+      message: "Dashboard operation module could not be initialized",
+    });
   });
 });

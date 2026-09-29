@@ -4,13 +4,16 @@ The tool sends the query to a model whose provider runs web search on its
 own servers, and returns that model's short summary with its sources. The
 conversation model does not need search support of its own.
 
-Routes, first configured one wins unless `web_search_model` names one:
+`web_search_model` (`MIOT_HARNESS_WEB_SEARCH_MODEL`) picks the route:
 
 | Provider | Call |
 |---|---|
 | `llmgateway` | chat completions with `web_search: true` |
 | `anthropic` | messages with the `web_search` server tool |
 | `openai` | responses with the `web_search` tool |
+
+Unset, or naming a provider that is not configured, every call answers with
+an error that says so.
 
 An answer with no sources is returned as an error rather than as web
 results. LLM Gateway answers from the model's own knowledge when the model
@@ -40,7 +43,7 @@ from miot_harness.runtime.tool import HarnessTool, Progress
 
 logger = logging.getLogger(__name__)
 
-_ROUTE_ORDER = ("llmgateway", "anthropic", "openai")
+_SEARCH_PROVIDERS = ("llmgateway", "anthropic", "openai")
 _ANTHROPIC_URL = "https://api.anthropic.com"
 _ANTHROPIC_VERSION = "2023-06-01"
 _OPENAI_URL = "https://api.openai.com/v1"
@@ -101,27 +104,28 @@ class _Result:
     cost: float | None = None
 
 
-def pick_route(registry: ProviderRegistry, settings: HarnessSettings) -> Route | None:
-    """The provider and model searches go to, or None when none can search."""
-    if settings.web_search_model:
-        try:
-            provider_name, model = split_model(settings.web_search_model)
-        except ValueError:
-            return None
-        provider = registry.get(provider_name)
-        if provider is None or provider_name not in _ROUTE_ORDER:
-            return None
-        return Route(provider, model)
-    defaults = {
-        "llmgateway": settings.web_search_llmgateway_model,
-        "anthropic": settings.web_search_anthropic_model,
-        "openai": settings.web_search_openai_model,
-    }
-    for name in _ROUTE_ORDER:
-        provider = registry.get(name)
-        if provider is not None and defaults[name]:
-            return Route(provider, defaults[name])
-    return None
+def pick_route(registry: ProviderRegistry, settings: HarnessSettings) -> Route:
+    """The provider and model `web_search_model` names. Raises when it is
+    unset or its provider cannot search or is not configured."""
+    name = settings.web_search_model
+    if not name:
+        raise WebSearchError("web search is not set up: set MIOT_HARNESS_WEB_SEARCH_MODEL")
+    try:
+        provider_name, model = split_model(name)
+    except ValueError as exc:
+        raise WebSearchError(f"MIOT_HARNESS_WEB_SEARCH_MODEL is not valid: {exc}") from exc
+    if provider_name not in _SEARCH_PROVIDERS:
+        raise WebSearchError(
+            f"MIOT_HARNESS_WEB_SEARCH_MODEL names {name!r}; web search needs an "
+            "llmgateway, anthropic or openai model"
+        )
+    provider = registry.get(provider_name)
+    if provider is None:
+        raise WebSearchError(
+            f"MIOT_HARNESS_WEB_SEARCH_MODEL names {name!r}, but the {provider_name} "
+            "provider is not configured"
+        )
+    return Route(provider, model)
 
 
 class WebSearcher:
@@ -138,15 +142,8 @@ class WebSearcher:
         # run id -> (searches used, when the last one started)
         self._counts: dict[str, tuple[int, float]] = {}
 
-    def available(self) -> bool:
-        return pick_route(self._providers(), self._settings) is not None
-
     async def search(self, ctx: HarnessContext, query: str, progress: Progress) -> WebSearchOutput:
         route = pick_route(self._providers(), self._settings)
-        if route is None:
-            raise WebSearchError(
-                "web search is not set up: no LLM Gateway, Anthropic or OpenAI provider"
-            )
         # Calls of one turn can run at the same time, so an Anthropic call
         # holds every search it may run until it reports how many it ran.
         anthropic = route.provider.name == "anthropic"
@@ -199,7 +196,7 @@ class WebSearcher:
                 )
             raise WebSearchError(
                 f"{route.name} returned no web sources and reported no search. Answer "
-                "without web data; an administrator can set web_search_model to a "
+                "without web data; an administrator can set MIOT_HARNESS_WEB_SEARCH_MODEL to a "
                 "model whose provider searches."
             )
         return WebSearchOutput(
@@ -410,5 +407,4 @@ def web_search_tool(
         source="web",
         check_permission=_allow,
         call=call,
-        available=searcher.available,
     )

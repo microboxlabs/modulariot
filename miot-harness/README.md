@@ -40,7 +40,7 @@ refuse for it.
 
 | Env var | Default | Purpose |
 |---|---|---|
-| `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL` | `claude-sonnet-4-6` | Default conversation model. |
+| `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL` | _(unset)_ | Conversation model for runs that name none, when the platform providers mark no default. Unset: those runs fail. |
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_MODELS` | `[]` | Other models a run may name (JSON list). |
 | `MIOT_HARNESS_MODEL_PROVIDERS` | _(unset)_ | More providers: JSON list of `{provider, api_key_env, models, base_url?}`. Their models are offered to runs. |
 | `MIOT_HARNESS_MODULITH_URL` | _(unset)_ | The modulith. MCP skills call it with the user's token. |
@@ -51,9 +51,11 @@ refuse for it.
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_THINKING_BUDGET` | `4096` | Thinking budget on the other models; `0` turns it off. |
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_MAX_TURNS` | `12` | Model calls per run before it must answer. |
 | `MIOT_HARNESS_AGENTS_AGENT_LOOP_TOOL_CONCURRENCY` | `4` | Read-only tool calls of one turn that run at the same time; `1` runs them in order. |
-| `MIOT_HARNESS_AGENTS_ADVISOR_MODEL` | `claude-opus-4-8` | `ask_advisor` seat; empty disables it. |
-| `MIOT_HARNESS_AGENTS_WORKHORSE_MODEL` | `claude-sonnet-4-6` | `delegate` seat; empty disables it. |
-| `MIOT_HARNESS_AGENTS_SUMMARIZER_MODEL` | `claude-haiku-4-5` | Conversation compaction. |
+| `MIOT_HARNESS_AGENTS_ADVISOR_MODEL` | _(unset)_ | `ask_advisor` seat; unset disables it. |
+| `MIOT_HARNESS_AGENTS_WORKHORSE_MODEL` | _(unset)_ | `delegate` seat; unset disables it. |
+| `MIOT_HARNESS_AGENTS_SUMMARIZER_MODEL` | _(unset)_ | Conversation compaction and thread titles. Unset: both are off and `POST /titles` answers 503. |
+| `MIOT_HARNESS_KNOWLEDGE_DISTILLER_MODEL` | _(unset)_ | Model for `POST /connections/{connection}/distill`. Unset: the endpoint answers 503. |
+| `MIOT_HARNESS_WEB_SEARCH_MODEL` | _(unset)_ | Model for the `web_search` tool: `llmgateway:<model>`, `anthropic:<model>` or `openai:<model>`. Unset, or its provider not configured: the tool answers with an error. |
 
 A model is named `provider:model` (`deepseek:deepseek-chat`,
 `openrouter:anthropic/claude-sonnet-4`); bare `claude-*` and `gpt-*` names mean
@@ -61,7 +63,7 @@ Anthropic and OpenAI. Known providers: `anthropic`, `openai`, `openrouter`,
 `llmgateway`, `deepseek`, `qwen`, `kimi`, `glm`. Anthropic models use the Anthropic client;
 the others use the OpenAI client on the provider's base URL.
 
-Without a working model every run answers that no model is configured.
+No model has a built-in default. A model the harness needs and nobody set is logged as an error at boot, and the feature that needs it fails with a message naming the env var.
 
 ## Setup
 

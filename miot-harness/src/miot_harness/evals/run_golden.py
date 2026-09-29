@@ -47,7 +47,7 @@ import yaml
 from langchain_core.messages import AIMessage, AIMessageChunk
 from pydantic import BaseModel
 
-from miot_harness.config import HarnessSettings, get_settings
+from miot_harness.config import HarnessSettings, get_settings, required_model
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.datasource.registry import resolve as resolve_datasource
 from miot_harness.runtime.agent_loop import AgentLoopRunner
@@ -427,7 +427,7 @@ def _real_model(settings: HarnessSettings) -> Any:
     """The conversation model for real mode (built once per suite)."""
     from miot_harness.agents.chat_models import get_chat_model, supports_effort
 
-    name = settings.agents_agent_loop_model
+    name = required_model(settings.agents_agent_loop_model, "MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL")
     return get_chat_model(
         name,
         timeout=settings.agents_agent_loop_llm_timeout_seconds,
@@ -451,7 +451,8 @@ async def _build_real_setup(
         raise RuntimeError(
             "real mode requires MIOT_HARNESS_DATASOURCE_DSN (datasource credentials)"
         )
-    if settings.agents_agent_loop_model.startswith("claude-") and not settings.anthropic_api_key:
+    model = required_model(settings.agents_agent_loop_model, "MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL")
+    if model.startswith("claude-") and not settings.anthropic_api_key:
         raise RuntimeError(
             "real mode requires ANTHROPIC_API_KEY (the conversation model is claude-*)"
         )

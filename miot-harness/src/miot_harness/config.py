@@ -93,9 +93,9 @@ class HarnessSettings(BaseSettings):
             "agents_agent_loop_thinking_budget",
         ),
     )
-    # The default conversation model: the one that talks to the user and
-    # calls tools when a run names none.
-    agents_agent_loop_model: str = "claude-sonnet-4-6"
+    # The conversation model for runs that name none, when the platform
+    # providers mark no default. Unset: such runs fail.
+    agents_agent_loop_model: str | None = None
     # Per-tool-result cap on the JSON fed back to the model. Bounds context
     # growth (and cache-write size) when a tool returns a large row set.
     # Minimum holds the compact envelope the loop falls back to (tool name,
@@ -127,11 +127,11 @@ class HarnessSettings(BaseSettings):
     # always allowed and is the default. One runner, with its own prompt-cache
     # prefix, is built per model on first use.
     agents_agent_loop_models: list[str] = Field(default_factory=list)
-    # Seats the conversation model can call. Empty model name disables the
-    # seat; its tool then never appears in the prompt.
-    agents_advisor_model: str = "claude-opus-4-8"
+    # Seats the conversation model can call. Unset disables the seat; its
+    # tool then never appears in the prompt.
+    agents_advisor_model: str | None = None
     agents_advisor_max_consults: int = Field(default=2, ge=0)
-    agents_workhorse_model: str = "claude-sonnet-4-6"
+    agents_workhorse_model: str | None = None
     agents_workhorse_max_turns: int = Field(default=6, ge=1)
     agents_workhorse_max_parallel: int = Field(default=3, ge=1)
     # Provenance log for tool calls: one JSONL line per call under
@@ -240,7 +240,8 @@ class HarnessSettings(BaseSettings):
     # facts. OFF by default — turning the background pass on is an ops decision,
     # and it never auto-applies anything (see knowledge_auto_promote_enabled).
     knowledge_distiller_enabled: bool = False
-    knowledge_distiller_model: str = "claude-sonnet-4-6"
+    # Unset: the distill endpoint answers 503.
+    knowledge_distiller_model: str | None = None
     # Decay window: a promoted card whose `last_confirmed` is older than this
     # resurfaces for review instead of silently rotting (safety.is_stale).
     knowledge_card_decay_days: int = Field(default=90, ge=1)
@@ -293,18 +294,12 @@ class HarnessSettings(BaseSettings):
     source_refresh_hours: float = Field(default=6.0, gt=0)
     source_git_timeout_seconds: float = Field(default=180.0, gt=0)
     # `web_search`: the conversation model's query goes to a model whose
-    # provider searches the web. `web_search_model` names that model
-    # (`llmgateway:gpt-5.6-luna`, `claude-haiku-4-5`, `openai:gpt-5-mini`);
-    # empty picks the first configured of LLM Gateway, Anthropic and OpenAI
-    # with the per-provider default below. With none configured the tool is
-    # not offered.
+    # provider searches the web. `web_search_model` names that model as
+    # `llmgateway:<model>`, `anthropic:<model>` or `openai:<model>`; LLM
+    # Gateway searches only with models whose provider searches. Unset, or
+    # a provider that is not configured: the tool answers with an error.
     web_search_enabled: bool = True
-    web_search_model: str = ""
-    # LLM Gateway searches only with models whose provider searches, and
-    # answers without searching for the rest (qwen3.8-flash does).
-    web_search_llmgateway_model: str = "gpt-5.6-luna"
-    web_search_anthropic_model: str = "claude-haiku-4-5"
-    web_search_openai_model: str = "gpt-5-mini"
+    web_search_model: str | None = None
     web_search_max_per_run: int = Field(default=5, ge=1)
     web_search_timeout_seconds: float = Field(default=30.0, gt=0)
 
@@ -324,8 +319,9 @@ class HarnessSettings(BaseSettings):
     # prod this becomes the deployed Langfuse URL.
     langfuse_host: str = "http://localhost:3000"
 
-    # Folds long conversations into a summary (compaction).
-    agents_summarizer_model: str = "claude-haiku-4-5"
+    # Folds long conversations into a summary (compaction) and titles threads.
+    # Unset: both fail.
+    agents_summarizer_model: str | None = None
 
     # Tenants permitted to request `debug=true` runs. Debug runs surface
     # full tool inputs and truncated tool outputs over SSE, which on a
@@ -466,6 +462,17 @@ class HarnessSettings(BaseSettings):
                     "auth_enabled=True but the following settings are unset: "
                     + ", ".join(missing)
                 )
+
+
+class ModelNotConfiguredError(ValueError):
+    pass
+
+
+def required_model(name: str | None, env_var: str) -> str:
+    """`name`, or an error naming the env var that sets it."""
+    if not name:
+        raise ModelNotConfiguredError(f"no model configured: set {env_var}")
+    return name
 
 
 @lru_cache(maxsize=1)

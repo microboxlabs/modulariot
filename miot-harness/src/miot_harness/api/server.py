@@ -40,8 +40,10 @@ from miot_harness.api.knowledge_routes import install_knowledge_routes
 from miot_harness.api.learning_routes import install_learning_routes
 from miot_harness.config import (
     HarnessSettings,
+    ModelNotConfiguredError,
     get_settings,
     load_dotenv_into_environ,
+    required_model,
 )
 from miot_harness.connections.loader import load_connections, select_primary
 from miot_harness.connections.models import Connection
@@ -71,7 +73,7 @@ from miot_harness.knowledge.primer import PrimerSource, PrimerUpdates
 from miot_harness.knowledge.store import ConnectionTarget, KnowledgeStore
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
-from miot_harness.runtime.agent_loop import AgentLoopRunner, AgentLoopRunners
+from miot_harness.runtime.agent_loop import NO_DEFAULT_MODEL, AgentLoopRunner, AgentLoopRunners
 from miot_harness.runtime.agent_seats import AdvisorSeat, LoopSeats, WorkhorseSeat
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.conversation_backend import ModulithConversationBackend
@@ -87,6 +89,7 @@ from miot_harness.tools.knowledge_tools import (
     propose_knowledge_change_tool,
 )
 from miot_harness.tools.learning_eval import RUN_LEARNING_EVAL_TOOL, run_learning_eval_tool
+from miot_harness.tools.web_search import WebSearchError, pick_route
 from miot_harness.tools.workspace_files import (
     ws_delete_tool,
     ws_edit_tool,
@@ -203,11 +206,14 @@ def _make_lifespan(
         app.state.event_bus = harness.event_bus
         # Conversation compaction is independent of the datasource: turns
         # accumulate on the direct and disabled paths too. Without a model
-        # the history just keeps growing, as before.
+        # the history just keeps growing.
         try:
             harness.conversation_summarizer = build_conversation_summarizer(
-                get_chat_model(settings.agents_summarizer_model)
+                get_chat_model(_summarizer_model(settings))
             )
+        except ModelNotConfiguredError as exc:
+            harness.conversation_summarizer = None
+            logger.error("Conversation compaction and thread titles disabled: %s", exc)
         except Exception as exc:  # noqa: BLE001
             harness.conversation_summarizer = None
             logger.warning("Conversation compaction disabled: %s", exc)
@@ -577,6 +583,8 @@ def _make_lifespan(
                 harness.agent_loop.default_model,
                 ", ".join(harness.agent_loop.models),
             )
+            if harness.agent_loop.default_model is None:
+                logger.error("Agent loop: %s", NO_DEFAULT_MODEL)
         except Exception as exc:  # noqa: BLE001
             logger.critical(
                 "Agent loop: failed to build the conversation model (%s); "
@@ -595,6 +603,17 @@ def _make_lifespan(
                     await provider.close()
                 except Exception as close_exc:  # noqa: BLE001
                     logger.warning("Datasource: provider close raised %s", close_exc)
+
+        if settings.web_search_enabled:
+            try:
+                pick_route(provider_registry(), settings)
+            except WebSearchError as exc:
+                logger.error("Web search: %s", exc)
+        if settings.knowledge_distiller_enabled and not settings.knowledge_distiller_model:
+            logger.error(
+                "Knowledge distiller: no model configured: "
+                "set MIOT_HARNESS_KNOWLEDGE_DISTILLER_MODEL"
+            )
 
         try:
             yield
@@ -657,6 +676,7 @@ def _build_agent_loop(
 ) -> AgentLoopRunners:
     """One runner per offered model, built on first use; seats when configured."""
     provenance = ProvenanceLog(settings.provenance_log_dir, enabled=settings.provenance_log_enabled)
+    workhorse_model = settings.agents_workhorse_model or ""
     seats = LoopSeats(
         advisor=(
             AdvisorSeat(
@@ -672,7 +692,7 @@ def _build_agent_loop(
             WorkhorseSeat(
                 build=lambda: AgentLoopRunner(
                     model=get_chat_model(
-                        settings.agents_workhorse_model,
+                        workhorse_model,
                         timeout=settings.agents_agent_loop_llm_timeout_seconds,
                     ),
                     registry=harness.tools,
@@ -682,12 +702,12 @@ def _build_agent_loop(
                     profile=profile,
                     provenance_log=provenance,
                     context_skills=harness.context_skills,
-                    anthropic_format=is_anthropic(settings.agents_workhorse_model),
-                    model_name=settings.agents_workhorse_model,
+                    anthropic_format=is_anthropic(workhorse_model),
+                    model_name=workhorse_model,
                 ),
                 max_parallel=settings.agents_workhorse_max_parallel,
             )
-            if settings.agents_workhorse_model
+            if workhorse_model
             else None
         ),
     )
@@ -1037,7 +1057,7 @@ def create_app() -> FastAPI:
         model = getattr(app.state, "title_model", None)
         try:
             if model is None:
-                model = get_chat_model(settings.agents_summarizer_model)
+                model = get_chat_model(_summarizer_model(settings))
             title = await build_thread_titler(model)(body.message, body.answer)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Thread title failed: %s", exc)
@@ -1281,7 +1301,9 @@ def create_app() -> FastAPI:
         # Tests inject a stub via app.state.judge_model.
         model = getattr(app.state, "judge_model", None)
         if model is None:
-            name = name or _default_model(app.state.harness) or settings.agents_summarizer_model
+            name = name or _default_model(app.state.harness)
+            if not name:
+                raise ModelNotConfiguredError(f"no judge model: {NO_DEFAULT_MODEL}")
             model = judge_models.get(name) or judge_models.setdefault(name, get_chat_model(name))
         return model
 
@@ -1426,7 +1448,13 @@ def create_app() -> FastAPI:
         # on demand (a background batch call, not the hot path).
         model = getattr(app.state, "distiller_model", None)
         if model is None:
-            model = get_chat_model(settings.knowledge_distiller_model)
+            try:
+                name = required_model(
+                    settings.knowledge_distiller_model, "MIOT_HARNESS_KNOWLEDGE_DISTILLER_MODEL"
+                )
+            except ModelNotConfiguredError as exc:
+                raise HTTPException(status_code=503, detail=str(exc)) from exc
+            model = get_chat_model(name)
         candidates = await distill_episodes(
             body.episodes,
             connection=connection,
@@ -1584,6 +1612,11 @@ def knowledge_store_factory(
         )
 
     return store_for
+
+
+def _summarizer_model(settings: HarnessSettings) -> str:
+    return required_model(settings.agents_summarizer_model, "MIOT_HARNESS_AGENTS_SUMMARIZER_MODEL")
+
 
 def _default_model(harness: HarnessSupervisor) -> str | None:
     model = getattr(getattr(harness, "agent_loop", None), "default_model", None)

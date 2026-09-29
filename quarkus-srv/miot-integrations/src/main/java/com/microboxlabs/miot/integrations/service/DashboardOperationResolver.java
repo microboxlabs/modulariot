@@ -17,6 +17,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 /** Private catalog boundary: resolves authorized plans but never executes a data query. */
 @ApplicationScoped
 public class DashboardOperationResolver {
+    private static final String PARAMETER_TYPES = "parameterTypes";
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Set<String> HEADERS = Set.of("authorization", "x-api-key", "apikey");
     private final IntegrationConnectionResolver connections;
@@ -63,7 +64,7 @@ public class DashboardOperationResolver {
         if (!authorization.startsWith("Bearer ") || authorization.length() <= 7) throw refused();
         ObjectNode plan = JSON.createObjectNode().put("projectId", checked.project).put("location", checked.location)
                 .put("sql", source.settings().path("query").asText()).put("maximumBytesBilled", checked.maximumBytesBilled);
-        plan.set("parameterTypes", source.settings().path("parameterTypes").deepCopy());
+        plan.set(PARAMETER_TYPES, source.settings().path(PARAMETER_TYPES).deepCopy());
         ObjectNode result = JSON.createObjectNode().put("accessToken", authorization.substring(7));
         result.set("plan", plan);
         result.set("parameters", source.parameters().deepCopy());
@@ -86,7 +87,7 @@ public class DashboardOperationResolver {
             isolation.put("tenantParameter", tenantParameter).put("tenantValue", plan.parameters().path(tenantParameter).asText());
         }
         var values = result.putObject("parameters");
-        var types = result.putObject("parameterTypes");
+        var types = result.putObject(PARAMETER_TYPES);
         plan.parameters().fields().forEachRemaining(entry -> {
             if (!entry.getKey().equals(tenantParameter)) {
                 var value = entry.getValue();

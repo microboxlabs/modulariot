@@ -610,6 +610,8 @@ what the caller can do.
 | `Editor`      | Edit, share                                   |
 | `Coordinator` | Full access, including delete and permissions |
 
+Dashboard lists apply the same per-dashboard visibility policy as loads. Hidden or concurrently deleted dashboards are omitted; policy or storage failures fail the request. Identity and scope membership are resolved once, with at most four dashboard policy checks in flight.
+
 Override with a custom `CapabilityPolicy` if your role model differs. A policy
 can only restrict, never grant more than the identity allows.
 

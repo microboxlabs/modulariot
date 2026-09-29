@@ -82,3 +82,6 @@ Both `createDashboardHandler` and the standalone server enforce `maxBodyBytes` (
 ## Saved queries
 
 Send `{ "filters": { ... } }` to execute a saved query. The organization-bound browser client exposes `query(slug, queryId, filters, signal)` and validates returned rows. It sends no credentials or raw SQL, and propagates cancellation through the application proxy.
+
+
+Dashboard lists apply the configured per-dashboard visibility policy before returning names. Denied or concurrently deleted dashboards are omitted. Policy and storage errors fail the request instead of returning unfiltered metadata. The built-in role policy grants scope members read access; hosts that use `allowedGroups` must configure `createAllowedGroupsPolicy()`.

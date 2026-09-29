@@ -9,7 +9,6 @@ import {
 } from "react-icons/hi2";
 import type { Widget } from "../../types/dashboard.types";
 import { useDashboard } from "../../context/dashboard-context";
-import { getDashlet } from "../../dashlets";
 import { DeleteWidgetModal } from "../delete-widget-modal";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -107,6 +106,7 @@ export function WidgetRenderer({
   isRoot = false,
 }: Readonly<WidgetRendererProps>) {
   const {
+    registry,
     editMode,
     updateWidgetConfig,
     deleteWidget,
@@ -117,7 +117,7 @@ export function WidgetRenderer({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false);
 
-  const dashlet = getDashlet(widget.componentId);
+  const dashlet = registry.get(widget.componentId);
 
   const handleDelete = () => setIsDeleteModalOpen(true);
   const handleConfirmDelete = () => {

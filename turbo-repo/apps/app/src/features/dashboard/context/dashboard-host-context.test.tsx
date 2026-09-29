@@ -11,7 +11,7 @@ vi.mock("./dashboard-filters-context", () => ({
 vi.mock("@/features/layout/hooks/use-kiosk-mode", () => ({
   useKioskMode: () => false,
 }));
-vi.mock("../dashlets", () => ({ getDashlet: () => undefined }));
+vi.mock("../dashlets", () => ({ getDashlet: () => undefined, dashboardRegistry: { get: () => undefined, all: () => [] } }));
 import { DashboardProvider, useDashboard } from "./dashboard-context";
 
 const DataProvider = ({ children }: Readonly<PropsWithChildren>) => children;

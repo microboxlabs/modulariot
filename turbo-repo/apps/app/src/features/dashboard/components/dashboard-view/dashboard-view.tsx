@@ -65,7 +65,6 @@ function DashboardPlaceholder({
 }
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
-import { getDashlet } from "../../dashlets";
 import { type GridLayoutItem } from "../../types/dashboard.types";
 import { computeGridSizing } from "../../utils/grid-sizing";
 import { fitLayoutToCols } from "../../utils/fit-layout-to-cols";
@@ -81,6 +80,7 @@ import { SectionHeader } from "@/features/layout/components/section-header/secti
  */
 export function DashboardView() {
   const {
+    registry,
     widgets,
     editMode,
     isKiosk,
@@ -138,11 +138,11 @@ export function DashboardView() {
   const usedCols = useMemo(
     () =>
       widgets.reduce((max, w) => {
-        const defaults = getDashlet(w.componentId)?.getLayoutDefaults(w.config);
+        const defaults = registry.get(w.componentId)?.getLayoutDefaults(w.config);
         const width = w.layout?.w ?? Math.max(1, defaults?.minW ?? 1);
         return Math.max(max, (w.layout?.x ?? 0) + width);
       }, 0),
-    [widgets]
+    [widgets, registry]
   );
 
   // Grid sizing: fills the width (scaled, clamped), identically in edit and
@@ -232,7 +232,7 @@ export function DashboardView() {
   // Convert widgets to react-grid-layout format
   const layout: Layout = useMemo(() => {
     const items = widgets.map((widget, index) => {
-      const dashlet = getDashlet(widget.componentId);
+      const dashlet = registry.get(widget.componentId);
       const layoutDefaults = dashlet?.getLayoutDefaults(widget.config);
       const fallbackMinW = Math.max(1, layoutDefaults?.minW ?? 1);
       const fallbackMinH = Math.max(1, layoutDefaults?.minH ?? 1);
@@ -259,7 +259,7 @@ export function DashboardView() {
     // — never persisted directly; handleLayoutChange only persists positions
     // the user actually drags/resizes to while in edit mode.
     return fitLayoutToCols(items, cols);
-  }, [widgets, editMode, cols]);
+  }, [widgets, editMode, cols, registry]);
 
   // Persist only on drag/resize *stop*, not onLayoutChange: react-grid-layout
   // also fires onLayoutChange from prop-driven re-syncs (e.g. a cols change on
@@ -484,7 +484,7 @@ export function DashboardView() {
       />
 
       {/* Custom styles for root grid */}
-      <style jsx global>{`
+      <style>{`
         /* Widget controls - hidden by default */
         .widget-controls {
           opacity: 0;

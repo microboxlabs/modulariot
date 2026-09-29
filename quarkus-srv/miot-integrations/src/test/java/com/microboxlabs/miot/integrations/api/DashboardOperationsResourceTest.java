@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.microboxlabs.miot.integrations.service.DashboardOperationService;
+import com.microboxlabs.miot.integrations.service.DashboardOperationResolver;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.core.Response;
 import java.time.Duration;
@@ -64,6 +65,31 @@ class DashboardOperationsResourceTest {
         assertEquals(Map.of("error", "Dashboard operation could not be completed"), response.getEntity());
     }
 
+    @Test
+    void planResolutionIsOptInAuthenticatedAndNeverExecutesQueries() {
+        Resource disabled = new Resource(KEY);
+        assertResponse(503, disabled.resolve(KEY, REQUEST));
+        assertEquals(0, disabled.lookups);
+        Resource enabled = new Resource(KEY, true);
+        assertResponse(401, enabled.resolve("wrong", REQUEST));
+        assertEquals(0, enabled.lookups);
+        assertResponse(400, enabled.resolve(KEY, null));
+        Response response = assertResponse(200, enabled.resolve(KEY, REQUEST));
+        assertEquals("HTTP_GET", ((ObjectNode) response.getEntity()).path("kind").asText());
+        assertEquals(0, enabled.service.calls);
+        enabled.lookupFailure = true;
+        assertResponse(502, enabled.resolve(KEY, REQUEST));
+    }
+
+    private static class Resolver extends DashboardOperationResolver {
+        Resolver() { super(null, null, null, 1000); }
+        @Override public ObjectNode resolve(String tenant, DashboardOperationService.Request request) {
+            assertEquals("ACME", tenant);
+            assertEquals(REQUEST, request);
+            return new ObjectMapper().createObjectNode().put("kind", "HTTP_GET");
+        }
+    }
+
     private static Response assertResponse(int status, Uni<Response> pending) {
         Response response = pending.await().atMost(Duration.ofSeconds(2));
         assertEquals(status, response.getStatus());
@@ -77,9 +103,10 @@ class DashboardOperationsResourceTest {
         String slug;
         int lookups;
         boolean lookupFailure;
-        Resource(String key) { this(new Service(), key); }
-        Resource(Service service, String key) {
-            super(service, Optional.of(key));
+        Resource(String key) { this(new Service(), key, false); }
+        Resource(String key, boolean enabled) { this(new Service(), key, enabled); }
+        Resource(Service service, String key, boolean enabled) {
+            super(service, new Resolver(), enabled, Optional.of(key));
             this.service = service;
         }
         @Override Uni<Optional<String>> tenantCodeFor(String slug) {

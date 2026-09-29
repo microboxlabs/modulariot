@@ -98,3 +98,28 @@ la solicitud HTTP. El adaptador limita los bytes recibidos antes de parsearlos,
 valida los valores de las filas, descarta metadatos adicionales y devuelve un
 error genérico ante fallos del host. El host sigue siendo responsable de la
 cancelación y del control de costos del origen.
+
+## Endpoint de ejecución de ModularIoT
+
+El módulo de integraciones acepta `POST /internal/dashboard-operations` con el
+cuerpo del adaptador HTTP descrito arriba. Configure la misma clave
+`miot.dashboards.proxy-key` en ambos servicios (al menos 32 caracteres) y mantenga
+este endpoint en la red privada. Confía en que el servidor autenticado de
+dashboards autorice al usuario, ámbito y dashboard; convierte el slug de la
+organización a su código de tenant y verifica la conexión y operación.
+
+El ejecutor inicial admite operaciones `HTTP_GET` que devuelven un arreglo JSON
+de filas. Exige una conexión ACTIVE del tenant y la política explícita anterior,
+y ejecuta exactamente la operación que validó. Codifica los parámetros en la URL;
+las cadenas se envían literalmente y los demás valores como JSON. Las URL guardadas
+no pueden incluir query strings ni fragmentos, y los parámetros no pueden reemplazar
+los de las credenciales. Reutiliza la validación de URL públicas y las credenciales
+del invocador de integraciones. Las operaciones BIGQUERY necesitan un ejecutor
+específico y esta implementación HTTP las rechaza.
+
+El host permite hasta ocho ejecuciones simultáneas, 5.000 filas y 2 MiB de JSON,
+y respeta límites solicitados menores. Los errores internos y respuestas inválidas
+del proveedor producen un error genérico sin datos privados. Todas las respuestas
+incluyen `Cache-Control: no-store`.
+
+El ingreso autentica antes de almacenar el cuerpo o decodificar JSON y limita las solicitudes a 512 KiB, incluidos los cuerpos fragmentados. Los errores generados por el framework también incluyen la cabecera no-store.

@@ -5,5 +5,6 @@ export default {
   identity: 'Users and Permissions',
   datasources: 'Datasources and Credentials',
   queries: 'Connection-backed Queries',
+  roadmap: 'Roadmap and Acceptance',
   api: 'API'
 }

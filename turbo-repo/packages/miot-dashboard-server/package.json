@@ -61,6 +61,10 @@
     "./vault-http": {
       "types": "./dist/vault-http.d.ts",
       "import": "./dist/vault-http.js"
+    },
+    "./queries": {
+      "types": "./dist/queries.d.ts",
+      "import": "./dist/queries.js"
     }
   },
   "bin": {

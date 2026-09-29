@@ -150,3 +150,10 @@ Only complete, bounded scalar-column results are returned. Nested/repeated
 columns and paginated results are refused; shape the saved SQL for dashboard
 consumption. No query results are logged by this executor.
 
+
+
+## Portable TypeScript BigQuery executor
+
+The npm `@microboxlabs/miot-dashboard-server/queries` export provides `createBigQueryOperationExecutor`. Supply a trusted `resolve(request)` callback that checks the active tenant-owned connection/template, applies tenant predicates, and returns `{ plan, parameters, accessToken }` or `null`. The plan contains `projectId`, `location`, operator-owned `sql`, `maximumBytesBilled`, and a closed `parameterTypes` map. Honor the request signal during catalog and credential resolution.
+
+Execution calls Google directly without Quarkus or Alfresco. SELECT dry-run validation, host/template billing limits, deadlines, cancellation and bounded complete flat results are enforced in TypeScript. The default host billing cap is 1 GB. Standalone wiring and the ModularIoT catalog resolver remain separate roadmap items; the existing HTTP execution path remains available during migration.

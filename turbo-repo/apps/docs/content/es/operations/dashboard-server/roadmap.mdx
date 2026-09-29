@@ -4,7 +4,7 @@ El objetivo de entrega es una biblioteca npm segura y portable que también func
 
 ## Obligatorio: ejecución portable de consultas en TypeScript
 
-Es un requisito de aceptación de la entrega, no una mejora opcional. Los proveedores TypeScript portables de BigQuery y HTTP están implementados. ModularIoT resuelve planes autorizados de conexión/plantilla/credencial mediante su endpoint privado de catálogo; el servidor de dashboards ejecuta las consultas. Otros hosts aportan su propio adaptador sin requerir Java ni Alfresco. El pod independiente está desplegado en dev y el dashboard de facturación pasó la validación en navegador. Siguen pendientes la migración de telemetría y la aceptación de Consumer en navegador.
+Es un requisito de aceptación de la entrega, no una mejora opcional. Los proveedores TypeScript portables de BigQuery y HTTP están implementados. ModularIoT resuelve planes autorizados de conexión/plantilla/credencial mediante su endpoint privado de catálogo; el servidor de dashboards ejecuta las consultas. Otros hosts aportan su propio adaptador sin requerir Java ni Alfresco. El pod independiente está desplegado en dev y el dashboard de facturación pasó la validación en navegador. La aceptación de Consumer en navegador corresponde a la futura fase del paquete de UI embebible. Por decisión del responsable del proyecto, los dashboards históricos de telemetría sin uso quedan fuera de esta etapa.
 
 - [x] Implementar ejecución de BigQuery en TypeScript dentro del paquete: parámetros tipados, dry run que acepte solo SELECT, límites de lectura y facturación, plazos, cancelación y límites de filas y bytes.
 - [x] Implementar operaciones HTTP/PostgREST portables de solo lectura, con validación de destinos, parámetros de tenant impuestos por el servidor, esquemas cerrados y respuestas limitadas.
@@ -13,21 +13,28 @@ Es un requisito de aceptación de la entrega, no una mejora opcional. Los provee
 - [x] Conectar el ejecutor portable a la configuración standalone y documentar sus exports npm para hosts embebidos.
 - [x] Ejecutar el paquete npm compilado localmente contra la base real de facturación **sin ningún proceso Quarkus ni endpoint de ejecución Java**, tanto embebido como standalone. Las pruebas unitarias no cierran este punto.
 
-## Migración paralela y aceptación del producto
+## Aceptación de la etapa actual del servidor
 
 - [x] Enviar las solicitudes del producto por rutas autenticadas y conservar ETag/If-Match.
 - [x] Incorporar páginas y navegación por organización, almacenamiento controlado del editor y widgets conectados a consultas guardadas.
-- [ ] Validar en navegador un Consumer autenticado sin rol de sitio legado, incluidos los rechazos de escritura.
-- [ ] Migrar un dashboard de telemetría de Coordinador con operaciones de conexión/plantilla y comparar datos y filtros con el existente.
+- [x] Validar acceso Consumer a la API autónoma sin roles de sitio legados, con datos reales, rechazo de escrituras, aislamiento de tenants y persistencia tras reiniciar.
+- [x] Proveer herramientas validadas de importación y conversión de planners con mapeos explícitos de catálogo, conservación de permisos, dry run y rollback seguro.
 - [x] Crear y validar un dashboard para la base BigQuery de facturación, incluidos límites de costo y estados de error.
 - [x] Publicar paquetes npm compatibles (0.3.0 verificado mediante instalación desde el registro y BigQuery real).
 - [x] Publicar herramientas de migración, filtros opcionales y control de grupos standalone en 0.4.0; verificar una instalación nueva desde npm.
-- [x] Desplegar el pod independiente mediante `miot-deployments` y validar el recorrido de facturación desde el navegador hasta el ejecutor portable. La telemetría y la aceptación de Consumer siguen como requisitos separados arriba.
-- [ ] Retirar la implementación anterior solo después de aceptar la sustituta. Conservar los dashboards actuales durante la validación.
+- [x] Publicar paquetes compatibles de contrato/servidor 0.5.0 y verificar sus exportaciones y el comportamiento autónomo con JWT/SQLite.
+- [x] Desplegar el pod independiente mediante `miot-deployments` y validar el recorrido de facturación desde el navegador hasta el ejecutor portable.
+- [x] Conservar los dashboards existentes durante el despliegue paralelo. Retirar la implementación anterior corresponde a una etapa posterior de transición; esta validación del servidor no autoriza eliminaciones.
+
+### Decisiones de alcance — 2026-09-29
+
+El responsable del proyecto difirió la aceptación de Consumer en la UI al futuro paquete de interfaz, que permitirá embeberla en otros sistemas. No se requiere una cuenta Consumer de la UI del producto ni cambiar temporalmente el rol de Demo para esta etapa del servidor. Las pruebas firmadas de Consumer en la API del servidor independiente constituyen la evidencia de permisos.
+
+Los dashboards históricos de telemetría de Coordinador eran pruebas de plataforma sin uso de un antiguo cliente. El responsable del proyecto los excluyó explícitamente de migración y validación. Su alcance de datos ya no es una decisión pendiente; no se debe consultar ni migrar esa información para la aceptación. El dashboard funcional de costos de Streamhub es el caso de referencia. Estas decisiones no significan que las pruebas de UI hayan pasado ni autorizan borrar dashboards históricos.
 
 ## Evidencia y límites actuales
 
-La validación local del paquete compilado obtuvo 13 filas reales de facturación tanto mediante el listener Node embebido como mediante el CLI independiente, usando el proveedor TypeScript sin servicio de ejecución Java. Ambos recorridos verificaron JWT y rechazaron solicitudes sin autenticación con 401. Otra prueba local usó el catálogo real de ModularIoT y su servicio de credenciales cifradas: el CLI compilado obtuvo 13 filas reales de facturación con una solicitud al catálogo, tres a Google y ninguna solicitud de ejecución Java. La suite del producto pasó 2.002 pruebas, con una omitida, tras los cambios del espacio paralelo. La suite combinada del servidor 0.4.0 pasó 1.180 pruebas con una omitida, incluidas pruebas reales de inicio y recuperación en PostgreSQL local. La aceptación de la migración en navegador sigue pendiente. Los widgets legados especializados requieren validación individual.
+La validación local del paquete compilado obtuvo 13 filas reales de facturación tanto mediante el listener Node embebido como mediante el CLI independiente, usando el proveedor TypeScript sin servicio de ejecución Java. Ambos recorridos verificaron JWT y rechazaron solicitudes sin autenticación con 401. Otra prueba local usó el catálogo real de ModularIoT y su servicio de credenciales cifradas: el CLI compilado obtuvo 13 filas reales de facturación con una solicitud al catálogo, tres a Google y ninguna solicitud de ejecución Java. La suite del producto pasó 2.002 pruebas, con una omitida, tras los cambios del espacio paralelo. La suite combinada del servidor 0.4.0 pasó 1.180 pruebas con una omitida, incluidas pruebas reales de inicio y recuperación en PostgreSQL local. La extracción de la UI y cualquier futura migración de widgets especializados requieren su propia validación de compatibilidad en la fase posterior de UI.
 
 Una instalación nueva desde el registro de ambos paquetes 0.4.0 verificó los 11 exports del servidor, la carga del módulo de operaciones incluido, el inicio del CLI con SQLite, el rechazo sin autenticación, las restricciones de grupos en listas/lecturas/consultas y el rechazo de escrituras de Consumer. El CLI instalado también verificó la omisión de filtros HTTP opcionales y la conservación del tenant contra un servicio RPC local. El ejecutor BigQuery publicado obtuvo 13 filas reales de facturación tanto directamente como mediante un listener Node embebido autenticado, con un límite de facturación de 1 GB y sin servicio de ejecución Java. Estas pruebas desde el registro verifican el comportamiento del paquete; la aceptación en navegador se registra por separado a continuación.
 
@@ -39,19 +46,19 @@ El piloto de facturación autenticado mostró 13 filas reales de servicios de la
 
 Una operación aislada con un límite de facturación de un byte se rechazó después de que su dry run estimara 146.865.127 bytes, antes de enviar un trabajo de consulta facturable. El navegador mostró un error genérico de consulta. Se eliminó el dashboard temporal de error; su operación de validación con límite de un byte permanece en el catálogo. Los intentos de enviar filtros no declarados de SQL o proyecto, o sustituir la conexión en el cuerpo de la solicitud, recibieron 400. Tres solicitudes simultáneas de facturación devolvieron 13 filas cada una; es una comprobación básica, no una medición de capacidad.
 
-Estas comprobaciones usaron una cuenta Owner y no demuestran acceso de Consumer ni aislamiento entre tenants. El piloto de telemetría aún necesita verificar la correspondencia entre el alcance de datos legado y la organización de dev antes de migrar sus operaciones. Los dashboards existentes siguen disponibles hasta completar esas comprobaciones de aceptación y las comparaciones de compatibilidad de widgets.
+Estas comprobaciones históricas usaron una cuenta Owner y no demuestran acceso de Consumer ni aislamiento entre tenants; la evidencia de GKE independiente descrita abajo cubre la autorización de Consumer en la API. El piloto de telemetría se excluyó posteriormente según las decisiones de alcance anteriores. Los dashboards existentes siguen disponibles.
 
 ## Publicación v0.5.0 y aceptación de Editor — 2026-09-29
 
 Ambos paquetes compatibles v0.5.0 están publicados. Una instalación nueva desde npm verificó las 11 exportaciones del servidor, la ruta de capacidades del ámbito en el OpenAPI instalado y la autorización del CLI con SQLite/JWT: permiso de creación para Editor y Contributor, denegación para Consumer, rechazo de otro ámbito y rechazo sin autenticación. La suite del servidor pasó 1.205 pruebas con una omitida; la del contrato pasó 70. La integración del host pasó 14 pruebas y las comprobaciones de la aplicación de dashboards pasaron 446.
 
-Dev ahora ejecuta la imagen `sha-3cc6af8` del servidor y `sha-f33dc40` de la aplicación, con el proxy correspondiente del host. La actualización del servidor conservó los dashboards y datasources guardados tras respaldar el volumen con el proceso de escritura detenido y comprobar la integridad de SQLite. La consulta real de facturación devolvió 13 filas después de actualizar.
+Esta aceptación de v0.5.0 utilizó la imagen `sha-3cc6af8` del servidor y `sha-f33dc40` de la aplicación, con el proxy correspondiente del host. La actualización del servidor conservó los dashboards y datasources guardados tras respaldar el volumen con el proceso de escritura detenido y comprobar la integridad de SQLite. La consulta real de facturación devolvió 13 filas después de actualizar.
 
 La organización Demo está registrada por separado, con acceso a dashboards habilitado y sin copiar conexiones ni credenciales de Mintral. Una cuenta autenticada SiteCollaborator de Demo corresponde a Editor de dashboards. Su consulta de capacidades devolvió `canCreate: true`; la solicitud de la misma cuenta para Mintral recibió 403. El espacio de trabajo ahora usa la capacidad del servidor en lugar de inferir el permiso de creación desde el rol general de la aplicación. La creación sigue aplicando la política del documento y el límite de edición de la credencial.
 
 El Editor creó un dashboard de Demo desde el navegador, cambió su nombre y guardó un widget de texto estático. Ambos persistieron tras recargar por completo; la API del documento devolvió la revisión `"3"`. Un intento de eliminación recibió 403 y el documento siguió disponible, conforme a `canDelete: false`. Esto valida creación/edición de Editor y su restricción de eliminación, no el comportamiento de Consumer.
 
-La aceptación de Consumer en navegador sigue pendiente: la cuenta proporcionada es Editor y no se cambió su membresía. La migración de telemetría todavía requiere verificar la correspondencia del alcance de datos descrita arriba. La UI sigue dentro de la aplicación ModularIoT; extraerla a un paquete independiente es trabajo futuro.
+La cuenta proporcionada es Editor y no se cambió su membresía. La aceptación de Consumer en navegador se difiere a la fase del paquete de UI embebible; la migración de telemetría histórica queda excluida. El espacio actual de ModularIoT se controla con `ENABLE_DASHBOARD_SERVER`; consulte la [guía de integración de la API](/es/operations/dashboard-server/api).
 
 ## Despliegue independiente en GKE — 2026-09-29
 
@@ -59,4 +66,4 @@ El [kit autónomo de Dox](https://github.com/microboxlabs/dox-miot-dashboard-sta
 
 Con autorización del usuario, un adaptador de conexión/plantilla controlado por el operador consulta el dataset de facturación de Streamhub mediante el proveedor TypeScript publicado de BigQuery. El Consumer autónomo obtuvo 13 filas reales de costos. La plantilla fija proyecto, dataset y SQL, no admite parámetros de entrada y aplica un límite de facturación de 1 GB; la clave de la cuenta de servicio se monta desde un Secret. Las consultas anónimas recibieron 401, las solicitudes de otro tenant 403 y los filtros SQL no declarados 400.
 
-Pasaron quince comprobaciones reales de permisos, incluidos los rechazos de creación, edición, eliminación y escritura de credenciales por Consumer. Tras reiniciar el pod, pasaron catorce comprobaciones de permisos/persistencia conservando la revisión original del documento. Son identidades sintéticas firmadas, sin roles de sitio legados. Esto verifica autorización y ejecución HTTP autónomas; siguen sin verificarse la aceptación en el navegador del producto, el login de producción de Dox y la migración de telemetría. Este despliegue no incluye una interfaz visual de dashboards.
+Pasaron quince comprobaciones reales de permisos, incluidos los rechazos de creación, edición, eliminación y escritura de credenciales por Consumer. Tras reiniciar el pod, pasaron catorce comprobaciones de permisos/persistencia conservando la revisión original del documento. Son identidades sintéticas firmadas, sin roles de sitio legados. Esto verifica autorización y ejecución HTTP autónomas para la etapa actual del servidor. La aceptación en el navegador del producto corresponde a la futura fase de UI; el login de producción de Dox no se ha validado. La migración de telemetría histórica queda excluida. Este despliegue no incluye una interfaz visual de dashboards.

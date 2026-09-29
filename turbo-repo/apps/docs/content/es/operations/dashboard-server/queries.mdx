@@ -121,3 +121,5 @@ El host permite hasta ocho ejecuciones simultáneas, 5.000 filas y 2 MiB de JSON
 y respeta límites solicitados menores. Los errores internos y respuestas inválidas
 del proveedor producen un error genérico sin datos privados. Todas las respuestas
 incluyen `Cache-Control: no-store`.
+
+El ingreso autentica antes de almacenar el cuerpo o decodificar JSON y limita las solicitudes a 512 KiB, incluidos los cuerpos fragmentados. Los errores generados por el framework también incluyen la cabecera no-store.

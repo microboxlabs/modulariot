@@ -121,3 +121,5 @@ The host permits at most eight concurrent executions, 5,000 rows and 2 MiB of
 result JSON, and honors smaller requested limits. Invalid provider responses
 and internal failures return a generic error without provider data. Every
 endpoint response includes `Cache-Control: no-store`.
+
+The ingress authenticates before body buffering or JSON decoding and limits requests to 512 KiB, including chunked bodies. Framework-generated errors also carry the no-store header.

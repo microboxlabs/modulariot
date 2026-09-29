@@ -233,3 +233,37 @@ provide renderer components or authorize an imported document for server storage
 
 `useUndoRedo(getCurrentConfig, saveData, readOnly?)` is also exported for hosts
 that need the same snapshot history with their own editing controls.
+
+## Host filter and planner contexts
+
+`useDashboardFilterState({ definitions, values, onChange })` manages active filter
+values without reading location, browser storage or a shared cache. The host owns
+`values` and feeds accepted changes back to the hook. `definitions` uses the
+shared contract's filter definitions. The result exposes `activeFilters`,
+`setFilter(key, value)`, `removeFilter(key)` and `clearFilters()`.
+
+Empty values are omitted from `activeFilters`. Setting an empty value removes
+that key. Clearing filters removes configured keys (including date-range suffixes)
+and preserves unrelated host values. When no date-range definition exists,
+`date_range_from` and `date_range_to` are included in the clear operation.
+A unique filter replaces values belonging to its configured group.
+
+`DashboardFiltersProvider` accepts this controller as its `controller` prop and
+makes those actions available through `useDashboardFilters()`. Each host supplies
+its own state. The Next.js app provides a URL adapter; external hosts can keep
+filters in memory or synchronize them through their own routing system. Supply
+only values intended for dashboard queries—this context does not discover URL
+parameters or grant query permissions.
+
+`PlannerResultsProvider` accepts a `value` with `results`, `definitions` and
+`schemas`. `results` is a readonly map from planner variable names to
+`{ rows, loading, error }`, where rows contain string-valued fields for existing
+widget compatibility. `definitions` uses shared-contract planner definitions;
+`schemas` maps variable names to column-name arrays. The host executes queries,
+handles cancellation and redacts errors before passing results to this provider.
+Treat result objects as immutable and pass an updated value when results change.
+
+`usePlannerContext()` requires a provider. `useOptionalPlannerContext()` returns
+an isolated empty fallback when none is mounted. Neither provider fetches data,
+imports legacy executors or shares results between dashboards. Remount host
+providers on identity or resource changes and cancel their outstanding requests.

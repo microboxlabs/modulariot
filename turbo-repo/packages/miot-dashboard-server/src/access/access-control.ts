@@ -25,6 +25,7 @@
  * is the operation's own event.
  */
 
+import { dashboardDisplayName } from "../store/display-name";
 import type { AuditAction, AuditSink } from "../seams/audit";
 import { noopAuditSink } from "../seams/audit";
 import type {
@@ -408,7 +409,12 @@ export function createAccessControl<TRequest>(
         ),
       );
       batch.forEach((summary, index) => {
-        if (access[index]?.record) visible.push(summary);
+        const record = access[index]?.record;
+        if (record)
+          visible.push({
+            slug: summary.slug,
+            name: dashboardDisplayName(record.config, summary.slug),
+          });
       });
     }
     return visible;

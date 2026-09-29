@@ -81,4 +81,20 @@ describe("dashboard list visibility", () => {
     vi.spyOn(store, "load").mockResolvedValue(null);
     expect(await (await request()).json()).toEqual({ data: [] });
   });
+  it("returns the name from the same record that passed the visibility policy", async () => {
+    const { store, request } = setup();
+    const load = store.load.bind(store);
+    vi.spyOn(store, "load").mockImplementation(async (ref) => {
+      const record = await load(ref);
+      if (ref.slug !== "secret" || !record) return record;
+      return { ...record, config: sampleConfig({ name: "Now public" }) };
+    });
+    const response = await request();
+    expect(await response.json()).toEqual({
+      data: [
+        { slug: "open", name: "Open" },
+        { slug: "secret", name: "Now public" },
+      ],
+    });
+  });
 });

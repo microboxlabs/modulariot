@@ -102,6 +102,11 @@ export interface AccessControlOptions<TRequest> {
 export interface AccessControl<TRequest> {
   /** Authorize one action against one target, or throw a `DashboardServerError`. */
   authorize(request: TRequest, target: AccessTarget): Promise<AccessDecision>;
+  /** Scope eligibility; saving still applies the document's policy and validation. */
+  scopeCapabilities(
+    request: TRequest,
+    target: { tenantId: string; scopeId: string },
+  ): Promise<{ canCreate: boolean }>;
   /** List only existing dashboards visible to the caller's dashboard policy. */
   list(
     request: TRequest,
@@ -189,8 +194,8 @@ const EMBED_ACTIONS: ReadonlySet<DashboardAction> = new Set<DashboardAction>([
  * already intersected with the caller's ceiling, so no further narrowing is
  * needed here.
  *
- * Creating a dashboard is the one case decided by scope standing instead:
- * a dashboard that does not exist yet has no capabilities to consult.
+ * Creating a dashboard additionally requires Contributor scope standing, even
+ * if a host policy grants editing capabilities to a lower role.
  */
 function dashboardActionAllowed(
   action: DashboardAction,
@@ -202,6 +207,10 @@ function dashboardActionAllowed(
   }
   const { capability } = ACTION_RULES[action];
   return capability === null || access.capabilities[capability];
+}
+
+function canCreateInScope(identity: DashboardIdentity, role: DashboardRole): boolean {
+  return roleAtLeast(role, "Contributor") && identity.capabilities.canEdit;
 }
 
 /**
@@ -536,5 +545,17 @@ export function createAccessControl<TRequest>(
     return decision.dashboard.capabilities;
   }
 
-  return { authorize, capabilities, list };
+  async function scopeCapabilities(
+    request: TRequest,
+    target: { tenantId: string; scopeId: string },
+  ): Promise<{ canCreate: boolean }> {
+    const decision = await authorize(request, {
+      tenantId: target.tenantId,
+      scopeId: target.scopeId,
+      action: "dashboard.list",
+    });
+    return { canCreate: canCreateInScope(decision.identity, decision.scopeRole) };
+  }
+
+  return { authorize, capabilities, scopeCapabilities, list };
 }

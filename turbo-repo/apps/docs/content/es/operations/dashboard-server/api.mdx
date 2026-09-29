@@ -17,6 +17,10 @@ Toda ruta nombra la organización y el ámbito, y el servidor comprueba ambos an
 | `POST …/datasources/test`, `POST …/datasources/{id}/test` | Prueba de conexión |
 | `GET …/credentials`, `GET`, `PUT …/credentials/{ref}` | Credenciales, siempre como resumen |
 
+## Permiso para iniciar la creación
+
+Después de v0.4.0, `GET /tenants/{t}/scopes/{s}/capabilities` devuelve `{ "canCreate": true }` o `{ "canCreate": false }` para un miembro autenticado del ámbito. Permite decidir si se ofrece la creación en un espacio vacío. Comprueba el rol del ámbito y el permiso de edición de la credencial sin leer dashboards. Rechaza tokens de embed y sus respuestas no se pueden almacenar en caché. Al guardar se siguen aplicando la política del documento y la validación; este resultado no autoriza cualquier documento. La ruta pertenece al servidor de dashboards; el proxy de la aplicación debe reenviarla antes de que su interfaz pueda usarla.
+
 ## Guardar un tablero
 
 Cada tablero tiene una revisión entera. `GET` la devuelve entre comillas en `ETag`, por ejemplo `"3"`. Copie ese encabezado en `If-Match` al guardar. Un `PUT` correcto devuelve el nuevo `ETag` y la revisión en `data.revision`. Si no hay un tablero guardado, `GET` devuelve `data: null` y `ETag: "0"`; enviar ese valor evita sobrescribir un tablero creado por otra persona mientras tanto.

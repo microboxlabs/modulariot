@@ -303,6 +303,7 @@ describe("the serialization gate", () => {
    */
   function callsFor(id: string): Record<RouteName, readonly Call[] | string> {
     return {
+      scopeCapabilities: "answers authorized scope eligibility, never credentials",
       dashboards: CONFIG_NOT_CREDENTIALS,
       dashboard: CONFIG_NOT_CREDENTIALS,
       query: "answers host operation rows, never the credential vault",

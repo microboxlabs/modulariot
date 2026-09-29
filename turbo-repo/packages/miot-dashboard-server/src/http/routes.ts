@@ -7,6 +7,7 @@
  */
 
 export type RouteName =
+  | "scopeCapabilities"
   | "dashboards"
   | "dashboard"
   | "query"
@@ -59,6 +60,9 @@ export function matchRoute(pathname: string): RouteMatch | null {
   if (scopeId === null) return null;
 
   const collection = segments[4];
+  if (collection === "capabilities" && segments.length === 5) {
+    return { route: "scopeCapabilities", tenantId, scopeId };
+  }
   if (collection === "datasources") {
     return matchDataSources(segments, tenantId, scopeId);
   }

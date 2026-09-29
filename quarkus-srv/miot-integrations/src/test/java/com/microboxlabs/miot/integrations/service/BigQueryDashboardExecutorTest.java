@@ -100,15 +100,30 @@ class BigQueryDashboardExecutorTest {
     }
 
     @Test
-    void cancelsSubmittedJobsOnResultFailureOrTruncation() {
-        for (boolean truncated : List.of(false, true)) {
-            var executor = new Fake();
-            executor.failResults = !truncated;
-            executor.truncated = truncated;
-            var plan = plan(settings());
-            assertThrows(Exception.class, () -> executor.execute(CONNECTION, plan, LIMITS));
-            assertEquals(1, executor.cancellations);
-        }
+    void cancelsSubmittedJobsOnResultTransportFailure() {
+        var executor = new Fake();
+        executor.failResults = true;
+        var plan = plan(settings());
+        assertThrows(IOException.class, () -> executor.execute(CONNECTION, plan, LIMITS));
+        assertEquals(1, executor.cancellations);
+    }
+
+    @Test
+    void cancelsSubmittedJobsWhenResultsAreTruncated() {
+        var executor = new Fake();
+        executor.truncated = true;
+        var plan = plan(settings());
+        assertThrows(OperationInvocationException.class, () -> executor.execute(CONNECTION, plan, LIMITS));
+        assertEquals(1, executor.cancellations);
+    }
+
+    @Test
+    void refusesMissingRowsEvenWithoutPaginationToken() {
+        var executor = new Fake();
+        executor.totalRows = "2";
+        var plan = plan(settings());
+        assertThrows(OperationInvocationException.class, () -> executor.execute(CONNECTION, plan, LIMITS));
+        assertEquals(1, executor.cancellations);
     }
 
     @Test
@@ -129,6 +144,7 @@ class BigQueryDashboardExecutorTest {
         final List<JsonNode> bodies = new ArrayList<>();
         String statementType = "SELECT";
         String dryBytes = "100";
+        String totalRows = "1";
         boolean failResults;
         boolean truncated;
         int cancellations;
@@ -150,7 +166,7 @@ class BigQueryDashboardExecutorTest {
             }
             if (url.contains("/queries/")) {
                 if (failResults) throw new IOException("private provider error");
-                var result = JSON.createObjectNode().put("jobComplete", true).put("totalRows", "1");
+                var result = JSON.createObjectNode().put("jobComplete", true).put("totalRows", totalRows);
                 if (truncated) result.put("pageToken", "next");
                 result.putObject("schema").putArray("fields").addObject().put("name", "tenant").put("type", "STRING");
                 result.putArray("rows").addObject().putArray("f").addObject().put("v", "ACME");

@@ -114,7 +114,7 @@ class DashboardOperationServiceTest {
     void boundsConcurrentInvocationsAndRestoresCapacityWhenOneFinishes() throws Exception {
         var invoker = new BlockingInvoker();
         var service = new DashboardOperationService(new IntegrationConnectionResolver(new Connections(), null, null),
-                new Operations(), invoker);
+                new Operations(), invoker, null);
         var request = request(10, 1000);
         var pool = Executors.newFixedThreadPool(8);
         try {

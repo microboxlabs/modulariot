@@ -185,3 +185,48 @@ committed; a new session must load the server revision.
 
 The host owns navigation/discard prompts and authentication lifecycle. This
 controller does not write browser storage or flush a teardown beacon.
+
+## Controlled React editing state
+
+The optional `./react` entry exports `useDashboardState(controller, resolveWidget?)`.
+It requires React 18.2 or 19 as a host peer. Other entries do not import React.
+The hook manages widget trees, layouts, filters, planner definitions, dashboard
+settings, JSON import/export and undo/redo. It performs no query or persistence
+requests. The host supplies the current shared-contract document and accepts edits:
+
+```tsx
+import { useDashboardState } from "@microboxlabs/miot-dashboard-ui/react";
+import type { DashboardStorageController } from "@microboxlabs/miot-dashboard-ui/react";
+
+function DashboardName({
+  controller,
+}: Readonly<{ controller: DashboardStorageController }>) {
+  const editor = useDashboardState(controller);
+  return (
+    <input
+      aria-label="Dashboard name"
+      value={editor.dashboardName}
+      disabled={!controller.isLoaded || controller.readOnly}
+      onChange={(event) => editor.setDashboardName(event.target.value)}
+    />
+  );
+}
+```
+
+`controller` requires `config`, `isLoaded`, `readOnly`, and `onChange(config)`.
+Edits require an explicitly loaded, writable controller. Permission enforcement
+on the server remains authoritative. Feed accepted changes back as `config`;
+treat documents as immutable. `editMode` is ephemeral and is stripped from
+outgoing documents. A widget resolver returns `{ defaultConfig }` or `undefined`;
+its defaults are applied recursively, with saved configuration taking precedence.
+No widget catalog is imported automatically.
+
+Mount a separate hook per dashboard. Remount the editor on identity, tenant,
+scope, document or successful discard/reload changes, using the document
+controller's `editorKey` when applicable, so undo history cannot cross sessions.
+Undo history holds up to 50 snapshots and batches changes within 500 ms.
+Import clears history after accepting a version-2 document. The hook does not
+provide renderer components or authorize an imported document for server storage.
+
+`useUndoRedo(getCurrentConfig, saveData, readOnly?)` is also exported for hosts
+that need the same snapshot history with their own editing controls.

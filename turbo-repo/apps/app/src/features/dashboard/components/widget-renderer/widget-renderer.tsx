@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  WidgetRenderer as PortableWidgetRenderer,
+  type WidgetFrameProps,
+  type WidgetAction,
+} from "@microboxlabs/miot-dashboard-ui/react";
 import {
   HiCog6Tooth,
   HiDocumentDuplicate,
@@ -87,148 +92,123 @@ function WidgetControls({
 }
 
 // ============================================================================
-// WidgetRenderer - Main component
+// App controls and dialogs around the shared recursive renderer
 // ============================================================================
 
-interface WidgetRendererProps {
-  widget: Widget;
-  /** Whether this widget is at root level (not inside another widget) */
-  isRoot?: boolean;
+function AppWidgetFrame({
+  widget,
+  definition,
+  editMode,
+  onAction,
+  children,
+}: Readonly<WidgetFrameProps>) {
+  const { dictionary, registry } = useDashboard();
+  const dashlet = registry.get(widget.componentId);
+  return (
+    <>
+      {editMode && (
+        <WidgetControls
+          hasChildren={definition?.meta.hasChildren ?? false}
+          hasSettings={
+            !!dashlet?.SettingsModal && !!definition?.meta.hasSettings
+          }
+          duplicateLabel={tr("dashboard.settings.duplicate", dictionary)}
+          onAddChild={() => onAction("add")}
+          onOpenSettings={() => onAction("settings")}
+          onDuplicate={() => onAction("duplicate")}
+          onDelete={() => onAction("delete")}
+        />
+      )}
+      {children}
+    </>
+  );
 }
 
-/**
- * Recursive widget renderer
- * Renders the appropriate dashlet component based on widget.componentId
- * Includes edit/delete controls and settings modal integration
- */
+const legacyWidgetDomId = (widget: Widget) => `widget-${widget.id}`;
+
 export function WidgetRenderer({
   widget,
   isRoot = false,
-}: Readonly<WidgetRendererProps>) {
+}: Readonly<{ widget: Widget; isRoot?: boolean }>) {
   const {
     registry,
     editMode,
     updateWidgetConfig,
     deleteWidget,
     duplicateWidget,
+    findWidget,
     dictionary,
   } = useDashboard();
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false);
-
-  const dashlet = registry.get(widget.componentId);
-
-  const handleDelete = () => setIsDeleteModalOpen(true);
-  const handleConfirmDelete = () => {
-    deleteWidget(widget.id);
-    setIsDeleteModalOpen(false);
+  const [selection, setSelection] = useState<{
+    widgetId: string;
+    action: WidgetAction;
+  } | null>(null);
+  const onAction = (target: Widget, action: WidgetAction) => {
+    if (!editMode) return;
+    if (action === "duplicate") duplicateWidget(target.id);
+    else setSelection({ widgetId: target.id, action });
   };
-
-  // Handle unknown widget type
-  if (!dashlet) {
-    return (
-      <div className="relative flex h-full items-center justify-center rounded-lg border border-red-300 bg-red-50 p-4 text-red-600 dark:border-red-700 dark:bg-red-900/20 dark:text-red-400">
-        {editMode && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="no-drag cursor-pointer absolute right-2 top-2 rounded bg-red-100 p-1.5 text-red-500 hover:bg-red-200 hover:text-red-700 dark:bg-red-900/50 dark:text-red-400 dark:hover:bg-red-800 dark:hover:text-red-300"
-            title="Delete"
-          >
-            <HiTrash className="h-4 w-4" />
-          </button>
-        )}
-        <span className="text-center text-sm">
-          Widget not found
-          <br />
-          <span className="text-xs opacity-70">({widget.componentId})</span>
-        </span>
-        <DeleteWidgetModal
-          isOpen={isDeleteModalOpen}
-          onClose={() => setIsDeleteModalOpen(false)}
-          onConfirm={handleConfirmDelete}
-          widgetName={widget.componentId}
-        />
-      </div>
-    );
-  }
-
-  const { Component, SettingsModal, meta } = dashlet;
-
-  const handleOpenAddChild = () => setIsAddChildModalOpen(true);
-  const handleOpenSettings = () => setIsSettingsOpen(true);
-  const handleDuplicate = () => duplicateWidget(widget.id);
-
-  const handleSaveSettings = (config: Record<string, unknown>) => {
-    updateWidgetConfig(widget.id, config);
-  };
-
-  // Render children recursively
-  const childrenElements = widget.children?.map((child) => (
-    <div key={child.id} className="h-full">
-      <WidgetRenderer widget={child} />
-    </div>
-  ));
-
+  const selectedWidget = selection ? findWidget(selection.widgetId) : undefined;
+  useEffect(() => {
+    if (!editMode || !selectedWidget) setSelection(null);
+  }, [editMode, selectedWidget]);
+  const selectedDefinition = selectedWidget
+    ? registry.get(selectedWidget.componentId)
+    : undefined;
+  const SettingsModal = selectedDefinition?.SettingsModal;
+  const close = () => setSelection(null);
   return (
-    <div id={`widget-${widget.id}`} className="widget-wrapper relative h-full">
-      {/* Edit mode controls */}
-      {editMode && (
-        <WidgetControls
-          hasChildren={meta.hasChildren}
-          hasSettings={meta.hasSettings && !!SettingsModal}
-          duplicateLabel={tr("dashboard.settings.duplicate", dictionary)}
-          onAddChild={handleOpenAddChild}
-          onOpenSettings={handleOpenSettings}
-          onDuplicate={handleDuplicate}
-          onDelete={handleDelete}
-        />
-      )}
-
-      {/* Dashlet component */}
-      <Component
+    <>
+      <PortableWidgetRenderer
         widget={widget}
-        editMode={editMode}
         isRoot={isRoot}
-        onAddChild={meta.hasChildren ? handleOpenAddChild : undefined}
-        onOpenSettings={meta.hasSettings ? handleOpenSettings : undefined}
-        onDelete={handleDelete}
-      >
-        {childrenElements}
-      </Component>
-
-      {/* Add child widget modal (for container types) */}
-      {meta.hasChildren && (
-        <AddWidgetModal
-          isOpen={isAddChildModalOpen}
-          onClose={() => setIsAddChildModalOpen(false)}
-          parentId={widget.id}
-          parentComponentId={widget.componentId}
-        />
-      )}
-
-      {/* Settings modal */}
-      {SettingsModal && (
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          config={widget.config}
-          onSave={handleSaveSettings}
-          dictionary={dictionary}
-          dashletName={trDynamic(meta.name, dictionary)}
-          widgetId={widget.id}
-        />
-      )}
-
-      {/* Delete modal */}
-      <DeleteWidgetModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleConfirmDelete}
-        widgetName={(widget.config as { name?: string }).name || meta.name}
+        registry={registry}
+        editMode={editMode}
+        onAction={onAction}
+        Frame={AppWidgetFrame}
+        widgetDomId={legacyWidgetDomId}
+        unknownWidgetLabel="Widget not found"
       />
-    </div>
+      {editMode && selection && selectedWidget && (
+        <>
+          {selection.action === "add" && (
+            <AddWidgetModal
+              isOpen
+              onClose={close}
+              parentId={selectedWidget.id}
+              parentComponentId={selectedWidget.componentId}
+            />
+          )}
+          {selection.action === "settings" && SettingsModal && (
+            <SettingsModal
+              isOpen
+              onClose={close}
+              config={selectedWidget.config}
+              onSave={(config: Record<string, unknown>) => {
+                if (editMode) updateWidgetConfig(selectedWidget.id, config);
+              }}
+              dictionary={dictionary}
+              dashletName={trDynamic(selectedDefinition.meta.name, dictionary)}
+              widgetId={selectedWidget.id}
+            />
+          )}
+          {selection.action === "delete" && (
+            <DeleteWidgetModal
+              isOpen
+              onClose={close}
+              onConfirm={() => {
+                if (editMode) deleteWidget(selectedWidget.id);
+                close();
+              }}
+              widgetName={
+                (selectedWidget.config as { name?: string }).name ||
+                selectedDefinition?.meta.name ||
+                selectedWidget.componentId
+              }
+            />
+          )}
+        </>
+      )}
+    </>
   );
 }

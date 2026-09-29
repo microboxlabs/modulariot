@@ -336,3 +336,27 @@ safe strings can produce raw markup. Template output is not an HTML or URL
 sanitizer: render text as text and validate URL/HTML destinations in the host.
 Custom helpers execute trusted JavaScript and must never contain credentials or
 perform privileged query execution in the browser.
+
+## Recursive widget rendering
+
+`WidgetRenderer` from `./react` renders a contract `widget` and its descendants
+using a host-owned `registry.get(componentId)`. Definitions supply `Component`
+and `meta.hasChildren` / `meta.hasSettings`. The component receives
+`WidgetComponentProps`, including nested children and optional edit callbacks.
+`unknownWidgetLabel` supplies localized text when a definition is unavailable.
+
+Rendering is read-only by default. Editing requires both `editMode: true` and an
+`onAction(widget, action)` handler. Derive edit mode from current server
+capabilities; UI controls cannot grant authorization. Actions are `add`,
+`settings`, `duplicate`, and `delete`; add/settings are additionally gated by
+widget metadata. View-mode components receive no mutation callbacks.
+
+A host may provide a stable `Frame` component receiving `WidgetFrameProps` to
+render controls around each widget. Its `onAction` is gated by the same rules.
+The host owns dialogs and applies confirmed edits through its document controller.
+The renderer does not fetch data, persist changes, or open global portals.
+
+Each mounted root generates its own widget ID namespace. `widgetDomId(widget)`
+is an optional compatibility override for host anchor links; its returned IDs
+must be unique across all mounted dashboards. `isRoot` is passed only to the
+initial widget; descendants receive `false`.

@@ -5,12 +5,7 @@ import type { DashboardStorageSchema } from "@microboxlabs/miot-dashboard-contra
 
 const MAX_HISTORY = 50;
 
-/**
- * Batch window in ms. Mutations within this window of each other are treated
- * as a single undoable action. This prevents react-grid-layout's automatic
- * `onLayoutChange` (which fires right after add/remove/undo/redo) from
- * creating a separate undo entry or clearing the redo stack.
- */
+/** Group consecutive edits, but start a new history branch after undo/redo. */
 const BATCH_WINDOW_MS = 500;
 
 /**
@@ -27,21 +22,10 @@ export function useUndoRedo(
   const undoStackRef = useRef<DashboardStorageSchema[]>([]);
   const redoStackRef = useRef<DashboardStorageSchema[]>([]);
   // Timestamp of the last snapshot push — used for batching normal mutations
-  const lastPushTimeRef = useRef(0);
-  // Timestamp of the last undo/redo — side-effect mutations within the batch
-  // window after an undo/redo are silently ignored (no snapshot, no redo clear).
-  const lastUndoRedoTimeRef = useRef(0);
-
+  const lastPushTimeRef = useRef(Number.NEGATIVE_INFINITY);
   /** Push current state to undo stack before a mutation */
   const pushSnapshot = useCallback(() => {
     const now = Date.now();
-
-    // If we're within the batch window of an undo/redo, this mutation is a
-    // side-effect (e.g. onLayoutChange). Ignore it completely — don't push
-    // a snapshot and don't clear the redo stack.
-    if (now - lastUndoRedoTimeRef.current <= BATCH_WINDOW_MS) {
-      return;
-    }
 
     if (now - lastPushTimeRef.current > BATCH_WINDOW_MS) {
       // Outside batch window → new undo entry
@@ -77,7 +61,7 @@ export function useUndoRedo(
     if (stack.length === 0) return;
     const previous = stack.pop()!;
     redoStackRef.current.push(getCurrentConfig());
-    lastUndoRedoTimeRef.current = Date.now();
+    lastPushTimeRef.current = Number.NEGATIVE_INFINITY;
     saveData(previous);
   }, [getCurrentConfig, saveData, readOnly]);
 
@@ -87,7 +71,7 @@ export function useUndoRedo(
     if (stack.length === 0) return;
     const next = stack.pop()!;
     undoStackRef.current.push(getCurrentConfig());
-    lastUndoRedoTimeRef.current = Date.now();
+    lastPushTimeRef.current = Number.NEGATIVE_INFINITY;
     saveData(next);
   }, [getCurrentConfig, saveData, readOnly]);
 
@@ -105,8 +89,7 @@ export function useUndoRedo(
     if (readOnly) return;
     undoStackRef.current = [];
     redoStackRef.current = [];
-    lastPushTimeRef.current = 0;
-    lastUndoRedoTimeRef.current = 0;
+    lastPushTimeRef.current = Number.NEGATIVE_INFINITY;
   }, [readOnly]);
 
   return {

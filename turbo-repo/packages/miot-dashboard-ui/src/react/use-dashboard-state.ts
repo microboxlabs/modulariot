@@ -8,8 +8,8 @@ import {
   type DashboardFilterParam,
   type PlannerRequestDefinition,
   type RefreshInterval,
-  DEFAULT_STORAGE,
 } from "@microboxlabs/miot-dashboard-contract/document";
+import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
 import { getNextPosition } from "../core/get-next-position";
 import { useUndoRedo } from "./use-undo-redo";
 
@@ -56,7 +56,20 @@ export function applyLayoutToWidget(
 ): Widget {
   const layout = layouts.find((l) => l.i === widget.id);
   if (layout) {
-    return { ...widget, layout, updatedAt: new Date().toISOString() };
+    const current = widget.layout;
+    if (
+      current.i === layout.i &&
+      current.x === layout.x &&
+      current.y === layout.y &&
+      current.w === layout.w &&
+      current.h === layout.h
+    )
+      return widget;
+    return {
+      ...widget,
+      layout: { ...current, ...layout },
+      updatedAt: new Date().toISOString(),
+    };
   }
   return widget;
 }
@@ -73,6 +86,12 @@ export function updateChildrenLayouts(
     const updatedChildren = widget.children.map((child) =>
       applyLayoutToWidget(child, layouts),
     );
+    if (
+      updatedChildren.every(
+        (child, index) => child === widget.children?.[index],
+      )
+    )
+      return widget;
     return {
       ...widget,
       children: updatedChildren,
@@ -80,12 +99,12 @@ export function updateChildrenLayouts(
     };
   }
   if (widget.children) {
-    return {
-      ...widget,
-      children: widget.children.map((w) =>
-        updateChildrenLayouts(w, parentId, layouts),
-      ),
-    };
+    const children = widget.children.map((w) =>
+      updateChildrenLayouts(w, parentId, layouts),
+    );
+    return children.every((child, index) => child === widget.children?.[index])
+      ? widget
+      : { ...widget, children };
   }
   return widget;
 }
@@ -203,12 +222,15 @@ export function useDashboardState(
   // Edit mode — ephemeral React state only
   const [editMode, setEditMode] = useState(false);
 
+  const onChangeRef = useRef(controller.onChange);
+  onChangeRef.current = controller.onChange;
   const rawSaveData = useCallback(
     (config: DashboardStorageSchema) => {
-      if (!readOnly) controller.onChange(stripEphemeralState(config));
+      if (!readOnly) onChangeRef.current(stripEphemeralState(config));
     },
-    [controller, readOnly],
+    [readOnly],
   );
+  const getCurrentConfig = useCallback(() => configRef.current, []);
 
   // Undo/redo history wrapping rawSaveData
   const {
@@ -218,7 +240,7 @@ export function useDashboardState(
     canUndo,
     canRedo,
     clearHistory,
-  } = useUndoRedo(() => configRef.current, rawSaveData, readOnly);
+  } = useUndoRedo(getCurrentConfig, rawSaveData, readOnly);
 
   // Helper: update config via a transform on the current widgets.
   // Reads from configRef so mutation callbacks remain stable.
@@ -231,7 +253,7 @@ export function useDashboardState(
       const current = configRef.current;
       const newData =
         typeof patch === "function" ? patch(current) : { ...current, ...patch };
-      saveData(newData);
+      if (newData !== current) saveData(newData);
       return newData;
     },
     [saveData],
@@ -336,18 +358,14 @@ export function useDashboardState(
       layouts: { i: string; x: number; y: number; w: number; h: number }[],
     ) => {
       updateConfig((c) => {
-        if (parentId === null) {
-          return {
-            ...c,
-            widgets: c.widgets.map((w) => applyLayoutToWidget(w, layouts)),
-          };
-        }
-        return {
-          ...c,
-          widgets: c.widgets.map((w) =>
-            updateChildrenLayouts(w, parentId, layouts),
-          ),
-        };
+        const widgets = c.widgets.map((widget) =>
+          parentId === null
+            ? applyLayoutToWidget(widget, layouts)
+            : updateChildrenLayouts(widget, parentId, layouts),
+        );
+        return widgets.every((widget, index) => widget === c.widgets[index])
+          ? c
+          : { ...c, widgets };
       });
     },
     [updateConfig],
@@ -534,29 +552,21 @@ export function useDashboardState(
           return { success: false, error: "Invalid dashboard format" };
         }
 
-        const imported = parsed as DashboardStorageSchema;
-
-        if (imported.version !== 2) {
+        if (parsed.version !== 2) {
           return {
             success: false,
-            error: `Unsupported version: ${imported.version}`,
+            error: `Unsupported version: ${parsed.version}`,
           };
         }
-
-        const normalizedWidgets = imported.widgets.map((widget, index) =>
-          ensureWidgetDefaults(widget, index, resolveDashlet),
-        );
-
+        const validation = validateDashboardConfig(parsed);
+        if (!validation.valid)
+          return { success: false, error: "Invalid dashboard format" };
+        const imported = validation.config;
         const newData: DashboardStorageSchema = {
-          version: 2,
-          name: imported.name || DEFAULT_STORAGE.name,
-          widgets: normalizedWidgets,
-          preferences: imported.preferences ?? { editMode: false },
-          requestPlanner: imported.requestPlanner,
-          queries: imported.queries,
-          filters: imported.filters,
-          refreshInterval: imported.refreshInterval,
-          order: imported.order,
+          ...imported,
+          widgets: imported.widgets.map((widget, index) =>
+            ensureWidgetDefaults(widget, index, resolveDashlet),
+          ),
           allowedGroups: normalizeAllowedGroups(imported.allowedGroups),
         };
 

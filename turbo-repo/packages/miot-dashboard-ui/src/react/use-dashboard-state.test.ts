@@ -218,3 +218,98 @@ it("round-trips planner definitions, filters and settings through JSON", () => {
     "billing",
   );
 });
+
+it("rejects malformed imported fields without losing the current draft or history", () => {
+  const { result } = renderHook(useEditableDashboard);
+  act(() => result.current.setDashboardName("Keep draft"));
+  for (const patch of [
+    { name: 1 },
+    { widgets: [{}] },
+    { filters: [false] },
+    { preferences: { editMode: "yes" } },
+    { queries: [{}] },
+  ]) {
+    act(() => {
+      expect(
+        result.current.importDashboard(
+          JSON.stringify({ ...makeDashboardStorage(), ...patch }),
+        ).success,
+      ).toBe(false);
+    });
+    expect(result.current.dashboardName).toBe("Keep draft");
+    expect(result.current.canUndo()).toBe(true);
+  }
+});
+
+it("preserves extension fields through validated import/export", () => {
+  const { result } = renderHook(useEditableDashboard);
+  const imported = {
+    ...makeDashboardStorage(),
+    extension: { custom: [1, 2] },
+    preferences: { editMode: true, extension: "keep" },
+  };
+  act(() => {
+    expect(
+      result.current.importDashboard(JSON.stringify(imported)).success,
+    ).toBe(true);
+  });
+  expect(JSON.parse(result.current.exportDashboard())).toMatchObject({
+    extension: { custom: [1, 2] },
+    preferences: { editMode: false, extension: "keep" },
+  });
+});
+
+it("keeps edit callbacks stable while using the latest host onChange", () => {
+  const first = vi.fn();
+  const second = vi.fn();
+  const { result, rerender } = renderHook(
+    ({ onChange }) =>
+      useDashboardState({
+        config: makeDashboardStorage(),
+        onChange,
+        isLoaded: true,
+        readOnly: false,
+      }),
+    { initialProps: { onChange: first } },
+  );
+  const edit = result.current.setDashboardName;
+  rerender({ onChange: second });
+  expect(result.current.setDashboardName).toBe(edit);
+  act(() => edit("Latest host"));
+  expect(first).not.toHaveBeenCalled();
+  expect(second).toHaveBeenCalledWith(
+    expect.objectContaining({ name: "Latest host" }),
+  );
+});
+
+it("ignores unchanged layout events after undo while preserving layout constraints", () => {
+  const { result } = renderHook(useEditableDashboard);
+  const widget = {
+    id: "w",
+    componentId: "card",
+    config: {},
+    layout: { i: "w", x: 0, y: 0, w: 2, h: 2, minW: 1 },
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-01T00:00:00Z",
+  };
+  act(() => {
+    result.current.importDashboard(
+      JSON.stringify(makeDashboardStorage({ widgets: [widget] })),
+    );
+  });
+  act(() =>
+    result.current.updateWidgetLayouts(null, [
+      { i: "w", x: 2, y: 0, w: 2, h: 2 },
+    ]),
+  );
+  act(() => result.current.undo());
+  act(() =>
+    result.current.updateWidgetLayouts(null, [
+      { i: "w", x: 0, y: 0, w: 2, h: 2 },
+    ]),
+  );
+  expect(result.current.canRedo()).toBe(true);
+  expect(result.current.widgets[0]?.layout.minW).toBe(1);
+  act(() => result.current.redo());
+  expect(result.current.widgets[0]?.layout.x).toBe(2);
+});

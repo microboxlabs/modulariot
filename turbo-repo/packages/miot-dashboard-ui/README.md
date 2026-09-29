@@ -224,8 +224,11 @@ No widget catalog is imported automatically.
 Mount a separate hook per dashboard. Remount the editor on identity, tenant,
 scope, document or successful discard/reload changes, using the document
 controller's `editorKey` when applicable, so undo history cannot cross sessions.
-Undo history holds up to 50 snapshots and batches changes within 500 ms.
-Import clears history after accepting a version-2 document. The hook does not
+Undo history holds up to 50 snapshots and batches consecutive changes within 500 ms.
+An edit after undo or redo always starts a new history branch. Unchanged grid
+layout events do not create edits or clear redo history.
+Imports must pass the shared version-2 schema before any state or history changes.
+Unknown extension fields survive import/export. A successful import clears history. The hook does not
 provide renderer components or authorize an imported document for server storage.
 
 `useUndoRedo(getCurrentConfig, saveData, readOnly?)` is also exported for hosts

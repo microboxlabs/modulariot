@@ -168,58 +168,38 @@ describe("useUndoRedo", () => {
     expect(result.current.canRedo()).toBe(false);
   });
 
-  it("ignores side-effect mutations after undo (preserves redo stack)", () => {
-    const saveData = vi.fn();
+  it.each([0, 100, 500])(
+    "starts a new undo branch for edits %d ms after undo",
+    (delay) => {
+      let current = stateA;
+      const saveData = vi.fn((next) => {
+        current = next;
+      });
+      const { result } = renderHook(() => useUndoRedo(() => current, saveData));
+      act(() => result.current.saveDataWithHistory(stateB));
+      act(() => result.current.undo());
+      act(() => vi.advanceTimersByTime(delay));
+      act(() => result.current.saveDataWithHistory(stateC));
+      expect(result.current.canRedo()).toBe(false);
+      act(() => result.current.undo());
+      expect(current).toBe(stateA);
+      act(() => result.current.redo());
+      expect(current).toBe(stateC);
+    },
+  );
+
+  it("records edits immediately after redo", () => {
     let current = stateA;
+    const saveData = vi.fn((next) => {
+      current = next;
+    });
     const { result } = renderHook(() => useUndoRedo(() => current, saveData));
-
-    // A -> B
     act(() => result.current.saveDataWithHistory(stateB));
-    current = stateB;
-    act(() => vi.advanceTimersByTime(600));
-
-    // Undo: B -> A
     act(() => result.current.undo());
-    current = stateA;
-    expect(result.current.canRedo()).toBe(true);
-
-    // Simulate onLayoutChange side-effect within 500ms of undo
-    const layoutState = makeDashboardStorage({ name: "Layout adjustment" });
-    act(() => vi.advanceTimersByTime(100));
-    act(() => result.current.saveDataWithHistory(layoutState));
-    current = layoutState;
-
-    // Redo stack should NOT have been cleared by the side-effect
-    expect(result.current.canRedo()).toBe(true);
-  });
-
-  it("ignores side-effect mutations after redo (preserves undo stack)", () => {
-    const saveData = vi.fn();
-    let current = stateA;
-    const { result } = renderHook(() => useUndoRedo(() => current, saveData));
-
-    // A -> B
-    act(() => result.current.saveDataWithHistory(stateB));
-    current = stateB;
-    act(() => vi.advanceTimersByTime(600));
-
-    // Undo: B -> A
-    act(() => result.current.undo());
-    current = stateA;
-
-    // Redo: A -> B
     act(() => result.current.redo());
-    current = stateB;
-    expect(result.current.canUndo()).toBe(true);
-
-    // Simulate side-effect within 500ms of redo
-    const layoutState = makeDashboardStorage({ name: "Layout adjustment" });
-    act(() => vi.advanceTimersByTime(100));
-    act(() => result.current.saveDataWithHistory(layoutState));
-    current = layoutState;
-
-    // Undo stack should still work — undo the redo
-    expect(result.current.canUndo()).toBe(true);
+    act(() => result.current.saveDataWithHistory(stateC));
+    act(() => result.current.undo());
+    expect(current).toBe(stateB);
   });
 
   it("undo/redo are no-ops when stacks are empty", () => {

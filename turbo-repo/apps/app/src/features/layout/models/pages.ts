@@ -15,6 +15,7 @@ import pagesConfig from "./pages-config.json";
 
 const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   home: HomeIcon,
+  dashboardServer: HomeIcon,
   calendar: CalendarIcon,
   kanban: ClipboardIcon,
   tasks: FaBookIcon,

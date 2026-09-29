@@ -1,5 +1,7 @@
 "use client";
 
+import { confirmNavigation } from "@/features/common/hooks/use-unsaved-navigation";
+
 import {
   useCallback,
   useEffect,
@@ -182,7 +184,9 @@ export default function SpotlightSearch({
   );
 
   // ── Stable nav callbacks ──────────────────────────────────────────────────
-  const onNavigate = useCallback((href: string) => router.push(href), [router]);
+  const onNavigate = useCallback((href: string) => {
+    if (confirmNavigation()) router.push(href);
+  }, [router]);
 
   const canAccess = useCallback(
     (requiredGroups: string[], blockedGroups: string[]) => {
@@ -282,7 +286,7 @@ export default function SpotlightSearch({
         globalThis.open(url, "_blank", "noopener,noreferrer");
         return;
       }
-      if (url.startsWith("/") && !url.startsWith("//")) {
+      if (url.startsWith("/") && !url.startsWith("//") && confirmNavigation()) {
         router.push(url);
         close();
       }

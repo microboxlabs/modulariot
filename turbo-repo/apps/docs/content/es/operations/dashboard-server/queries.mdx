@@ -174,7 +174,7 @@ El plan resuelto contiene `readOnly: true`, `url` sin query ni fragmento, `param
 
 El proveedor solo ejecuta GET y solicita `Prefer: count=exact`. Rechaza redirecciones, HTTP 206, `Content-Range` incompleto o desconocido, objetos anidados en filas y respuestas excesivas. Los máximos son 20 segundos, ocho llamadas simultáneas, 5.000 filas y 2 MiB. El host debe respetar la cancelación al resolver y elegir credenciales/funciones de solo lectura. Los orígenes permitidos son servicios confiables, no un firewall DNS: aplique también políticas de egreso. HTTP privado requiere `allowHttp: true`; loopback está disponible para validación local.
 
-Se utiliza mediante `queries: { operations: executor }` o el módulo standalone, como el proveedor BigQuery. El resolver optativo de ModularIoT se describe arriba; la conexión del cliente portable está implementada; la migración de telemetría real sigue como requisito de aceptación (ver la [hoja de ruta](./roadmap)).
+Se utiliza mediante `queries: { operations: executor }` o el módulo standalone, como el proveedor BigQuery. El resolver optativo de ModularIoT se describe arriba; la conexión del cliente portable está implementada; la migración de telemetría histórica queda excluida de la aceptación actual por decisión del responsable del proyecto (ver la [hoja de ruta](./roadmap)).
 
 ## Conectar proveedores portables al catálogo del host
 

@@ -98,3 +98,29 @@ Redirects are refused. The default HTTP deadline is 20 seconds; configure
 request. The adapter bounds received bytes before parsing, validates row
 values, discards extra response metadata, and returns a generic error on any
 host failure. The host still owns upstream cancellation and cost controls.
+
+## BigQuery saved operations
+
+Use the existing BigQuery connection and its Google service-account credential.
+Its base URL must be `https://bigquery.googleapis.com`; configure the credential's
+OAuth scope as `https://www.googleapis.com/auth/bigquery` for the jobs API. The
+service account still needs only the required job execution and dataset read
+permissions; the OAuth scope does not grant additional IAM permissions.
+
+A POST operation opts in with `kind: "BIGQUERY"` and the normal isolation policy.
+Its `x-dashboard` settings also contain `projectId`, `location`, the saved `query`,
+`maximumBytesBilled` (a decimal string), and `parameterTypes` (a map from each
+bound parameter name to its BigQuery type). Types include `STRING`, `INT64`,
+`FLOAT64`, `NUMERIC`, `BIGNUMERIC`, `BOOL`, `DATE`, `DATETIME`, `TIME`, `TIMESTAMP`
+and flat arrays such as `ARRAY<STRING>`. Use an empty map when there are no
+parameters. SQL uses named placeholders such as `@days`; values are never
+interpolated into SQL. Editors and viewers cannot send SQL or job settings.
+
+Every execution performs a dry run and requires statement type SELECT and an
+estimated scan within the saved billing limit. The operation limit cannot exceed
+`miot.dashboards.bigquery.maximum-bytes-billed` (default 1,000,000,000 bytes).
+Submitted jobs carry the same billing cap and a 20-second job timeout; the host
+also enforces a total request deadline and attempts cancellation on failure.
+Only complete, bounded scalar-column results are returned. Nested/repeated
+columns and paginated results are refused; shape the saved SQL for dashboard
+consumption. No query results are logged by this executor.

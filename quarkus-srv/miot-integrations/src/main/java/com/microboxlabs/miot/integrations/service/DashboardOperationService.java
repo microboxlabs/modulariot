@@ -19,6 +19,7 @@ public class DashboardOperationService {
     private final IntegrationConnectionResolver connections;
     private final IntegrationOperationRepository operations;
     private final IntegrationOperationInvoker invoker;
+    private final BigQueryDashboardExecutor bigQuery;
     private final Semaphore slots = new Semaphore(8);
 
     public record Limits(int maxRows, int maxBytes) { }
@@ -27,10 +28,11 @@ public class DashboardOperationService {
 
     @Inject
     public DashboardOperationService(IntegrationConnectionResolver connections,
-            IntegrationOperationRepository operations, IntegrationOperationInvoker invoker) {
+            IntegrationOperationRepository operations, IntegrationOperationInvoker invoker, BigQueryDashboardExecutor bigQuery) {
         this.connections = connections;
         this.operations = operations;
         this.invoker = invoker;
+        this.bigQuery = bigQuery;
     }
 
     /** tenantCode is resolved from the authenticated service request's organization slug. */
@@ -41,6 +43,9 @@ public class DashboardOperationService {
             var connection = connections.resolveActive(tenantCode, request.connectionId());
             var operation = operations.findByConnectionAndId(request.connectionId(), request.operationId());
             var plan = DashboardOperationPolicy.prepare(operation, tenantCode, request.parameters());
+            if ("BIGQUERY".equals(plan.kind())) {
+                return result(bigQuery.execute(connection, plan, request.limits()), request.limits());
+            }
             if (!"HTTP_GET".equals(plan.kind())) throw refused();
             Map<String, String> parameters = new LinkedHashMap<>();
             plan.parameters().fields().forEachRemaining(entry -> parameters.put(entry.getKey(),
@@ -48,6 +53,9 @@ public class DashboardOperationService {
             var response = invoker.executeBounded(connection, operation, parameters, request.limits().maxBytes());
             if (!response.successful() || response.body() == null) throw refused();
             return result(response.body(), request.limits());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw refused();
         } catch (RuntimeException | IOException e) {
             // Provider failures can contain credentials, URLs or data. Never forward them.
             throw refused();

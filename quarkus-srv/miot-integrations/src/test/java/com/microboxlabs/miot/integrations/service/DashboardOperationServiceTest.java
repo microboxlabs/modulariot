@@ -113,7 +113,7 @@ class DashboardOperationServiceTest {
         final Operations operations = new Operations();
         final Invoker invoker = new Invoker();
         final DashboardOperationService service = new DashboardOperationService(
-                new IntegrationConnectionResolver(connections, null, null), operations, invoker);
+                new IntegrationConnectionResolver(connections, null, null), operations, invoker, null);
     }
 
     private static class Connections extends IntegrationConnectionRepository {

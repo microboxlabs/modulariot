@@ -98,3 +98,29 @@ la solicitud HTTP. El adaptador limita los bytes recibidos antes de parsearlos,
 valida los valores de las filas, descarta metadatos adicionales y devuelve un
 error genérico ante fallos del host. El host sigue siendo responsable de la
 cancelación y del control de costos del origen.
+
+## Operaciones guardadas de BigQuery
+
+Reutilice la conexión BigQuery y su credencial de cuenta de servicio de Google.
+Su URL base debe ser `https://bigquery.googleapis.com`; configure el scope OAuth
+`https://www.googleapis.com/auth/bigquery` para la API de trabajos. La cuenta de
+servicio solo necesita los permisos de ejecución de trabajos y lectura del dataset;
+el scope OAuth no concede permisos IAM adicionales.
+
+Una operación POST habilita `kind: "BIGQUERY"` junto con la política de aislamiento.
+Sus opciones `x-dashboard` también incluyen `projectId`, `location`, el SQL
+`query` guardado, `maximumBytesBilled` (cadena decimal) y `parameterTypes`, un mapa
+del nombre de cada parámetro vinculado a su tipo BigQuery. Se admiten `STRING`,
+`INT64`, `FLOAT64`, `NUMERIC`, `BIGNUMERIC`, `BOOL`, `DATE`, `DATETIME`, `TIME`,
+`TIMESTAMP` y arreglos planos como `ARRAY<STRING>`. Use un mapa vacío si no hay
+parámetros. El SQL usa parámetros nombrados como `@days`; los valores nunca se
+interpolan en el SQL. Editores y lectores no pueden enviar SQL ni opciones del trabajo.
+
+Cada ejecución hace primero un dry run y exige una sentencia SELECT cuya lectura
+estimada no supere el límite guardado. Ese límite no puede superar
+`miot.dashboards.bigquery.maximum-bytes-billed` (1.000.000.000 bytes por defecto).
+Los trabajos llevan el mismo límite de facturación y un plazo de 20 segundos;
+el host aplica además un plazo total e intenta cancelar ante un error.
+Solo devuelve resultados completos y acotados con columnas escalares. Rechaza
+columnas anidadas o repetidas y resultados paginados; adapte el SQL guardado al
+dashboard. Este ejecutor no registra las filas en logs.

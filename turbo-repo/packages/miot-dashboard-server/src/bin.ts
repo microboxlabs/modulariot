@@ -14,7 +14,7 @@
  * emits it as `dist/bin.js`, matching the path `package.json` publishes.
  */
 
-import { createHttpDashboardOperationExecutor } from "./queries/http-operations";
+import { loadConfiguredOperations } from "./server/operations-module";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -245,6 +245,7 @@ const log = (line: Record<string, unknown>) => {
 
 async function main(): Promise<void> {
   const config = readServerConfig(process.env);
+  const operations = await loadConfiguredOperations(config);
   const seed = readSeed(config.seedPath);
   const memberships = seed.memberships ?? {};
 
@@ -317,13 +318,7 @@ async function main(): Promise<void> {
     tenants: tenants.tenants,
     scopes: scopes.scopes,
     store: assembled.store,
-    ...(config.operations
-      ? {
-          queries: {
-            operations: createHttpDashboardOperationExecutor(config.operations),
-          },
-        }
-      : {}),
+    ...(operations ? { queries: { operations } } : {}),
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,

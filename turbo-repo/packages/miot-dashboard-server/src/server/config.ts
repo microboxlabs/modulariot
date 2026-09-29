@@ -7,6 +7,7 @@
  * configuration, and the server never grows an opinion about authorization.
  */
 
+import { isOperationsModulePath } from "./operations-module";
 import {
   createHttpDashboardOperationExecutor,
   type HttpDashboardOperationsOptions,
@@ -65,6 +66,8 @@ export interface ServerConfig {
   credentials: CredentialsConfig;
   /** Optional fixed endpoint for the host connection catalog. */
   operations?: HttpDashboardOperationsOptions;
+  /** Absolute operator-installed JavaScript module for portable execution. */
+  operationsModule?: string;
 }
 
 /** Who owns a datasource credential. One of these, never a mix. */
@@ -1024,6 +1027,10 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
   const host = env.HOST ?? "127.0.0.1";
   const auth = readAuth(env, host);
   const proxyKey = readProxyKey(env, auth);
+  const operationsModule = env.MIOT_DASHBOARD_OPERATIONS_MODULE;
+  if (operationsModule !== undefined && (!isOperationsModulePath(operationsModule) || env.MIOT_DASHBOARD_OPERATIONS_URL)) {
+    throw new ConfigError("Operations module must be an absolute JavaScript file path and cannot be combined with an operations URL");
+  }
   const operations = readOperationsConfig(env, proxyKey);
 
   const store = env.MIOT_DASHBOARD_STORE ?? "memory";
@@ -1087,6 +1094,7 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     proxyKey,
     credentials: readCredentials(env, store as StoreKind, proxyKey),
     ...(operations ? { operations } : {}),
+    ...(operationsModule ? { operationsModule } : {}),
   };
 }
 

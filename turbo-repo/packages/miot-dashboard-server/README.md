@@ -794,3 +794,10 @@ cancellation, and bounds response bytes before parsing. The host owns the
 connection/template/credential catalog and enforces read-only operations, tenant
 predicates and query costs. See the query integration guide above for the wire
 shape and private-network deployment options.
+
+
+### Standalone operation module
+
+Set `MIOT_DASHBOARD_OPERATIONS_MODULE=/opt/dashboard/operations.mjs` to load operator-owned JavaScript at startup. The file exports an async or synchronous `createDashboardOperations()` returning a `DashboardOperationExecutor`; it can assemble portable providers and the host catalog/credential resolver. This is mutually exclusive with `MIOT_DASHBOARD_OPERATIONS_URL` and does not itself require a proxy key. Identity and tenancy checks still run before queries.
+
+Modules are trusted code with server privileges: install them through deployment review, mount them read-only, and never accept their path from users or remote URLs. Module initialization failures stop startup without forwarding potentially sensitive module diagnostics.

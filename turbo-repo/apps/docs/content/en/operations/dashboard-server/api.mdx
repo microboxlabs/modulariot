@@ -90,6 +90,8 @@ Send `{ "filters": { ... } }` to execute a saved query. The organization-bound b
 
 ## Parallel application workspace
 
+Set `ENABLE_DASHBOARD_SERVER=true` on the application to show this workspace. When the variable is unset or has any other value, the navigation entry is hidden and the routes return 404.
+
 Open **Dashboards** in the application navigation (`/app/{lang}/dashboards`). This workspace lists the active organization's server-backed dashboards. Existing `/home` dashboards remain available during migration. No legacy site lookup is needed to load these documents.
 
 The workspace uses the server's `canCreate` result for creation controls, not the application's coarse organization role. Loading, failed checks and denied results hide creation; successful saves still require server authorization.

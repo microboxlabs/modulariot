@@ -139,11 +139,14 @@ interface SpotlightSearchProps {
   dict: I18nRecord;
   /** Keeps Spotlight's "Go to" results in sync with the sidebar's Harness settings gate. */
   isHarnessSettingsEnabled?: boolean;
+  /** Keeps Spotlight's "Go to" results in sync with the sidebar's dashboard workspace gate. */
+  isDashboardServerEnabled?: boolean;
 }
 
 export default function SpotlightSearch({
   dict,
   isHarnessSettingsEnabled = false,
+  isDashboardServerEnabled = false,
 }: Readonly<SpotlightSearchProps>) {
   const router = useRouter();
   const { userGroups } = usePermissions();
@@ -198,7 +201,7 @@ export default function SpotlightSearch({
   );
 
   // ── Navigate item registry ────────────────────────────────────────────────
-  const visiblePages = useVisiblePages();
+  const visiblePages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
   const { isTrainer } = useKnowledgeTrainer();
   const navigateItems = useMemo(

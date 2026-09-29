@@ -6,6 +6,7 @@ import {
   visiblePages,
   DEV_PAGE_LABEL,
   STORYTELLING_PAGE_LABEL,
+  DASHBOARD_SERVER_PAGE_LABEL,
 } from "./pages";
 
 function settingsHrefs(input: ReturnType<typeof visiblePages>): string[] {
@@ -16,19 +17,36 @@ function settingsHrefs(input: ReturnType<typeof visiblePages>): string[] {
 describe("visiblePages", () => {
   it("hides the Dev section unless dev tools are on", () => {
     expect(
-      visiblePages(false, false).some((p) => p.label === DEV_PAGE_LABEL),
+      visiblePages(false, false, false).some((p) => p.label === DEV_PAGE_LABEL)
     ).toBe(false);
     expect(
-      visiblePages(true, false).some((p) => p.label === DEV_PAGE_LABEL),
+      visiblePages(true, false, false).some((p) => p.label === DEV_PAGE_LABEL)
     ).toBe(true);
   });
 
   it("hides Storytelling unless storytelling testing is on", () => {
     expect(
-      visiblePages(false, false).some((p) => p.label === STORYTELLING_PAGE_LABEL),
+      visiblePages(false, false, false).some(
+        (p) => p.label === STORYTELLING_PAGE_LABEL
+      )
     ).toBe(false);
     expect(
-      visiblePages(false, true).some((p) => p.label === STORYTELLING_PAGE_LABEL),
+      visiblePages(false, true, false).some(
+        (p) => p.label === STORYTELLING_PAGE_LABEL
+      )
+    ).toBe(true);
+  });
+
+  it("hides the dashboard workspace unless ENABLE_DASHBOARD_SERVER is on", () => {
+    expect(
+      visiblePages(false, false, false).some(
+        (p) => p.label === DASHBOARD_SERVER_PAGE_LABEL
+      )
+    ).toBe(false);
+    expect(
+      visiblePages(false, false, true).some(
+        (p) => p.label === DASHBOARD_SERVER_PAGE_LABEL
+      )
     ).toBe(true);
   });
 });

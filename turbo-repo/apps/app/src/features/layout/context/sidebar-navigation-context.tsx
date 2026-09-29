@@ -152,11 +152,14 @@ interface SidebarNavigationProviderProps extends PropsWithChildren {
    * flag itself to the client.
    */
   isHarnessSettingsEnabled: boolean;
+  /** Server-only `ENABLE_DASHBOARD_SERVER`, passed down the same way. */
+  isDashboardServerEnabled: boolean;
 }
 
 export function SidebarNavigationProvider({
   children,
   isHarnessSettingsEnabled,
+  isDashboardServerEnabled,
 }: Readonly<SidebarNavigationProviderProps>) {
   const router = useRouter();
   const { data, error } = useMyTasksCount();
@@ -166,7 +169,7 @@ export function SidebarNavigationProvider({
   const taskDynamicItems = useTaskDynamicItems();
   const calendarDynamicItems = useCalendarDynamicItems();
   const dashboardDynamicItems = useDashboardDynamicItems();
-  const pages = useVisiblePages();
+  const pages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
   const { isTrainer } = useKnowledgeTrainer();
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import HandlebarsLibrary from "handlebars";
 const Handlebars = HandlebarsLibrary.create();
 import {
-  registerHandlebarsHelpers,
+  registerTemplateHelpers,
   formatNumberHelper,
   extractNumberHelper,
   toFixedHelper,
@@ -12,15 +12,15 @@ import {
   formatDateHelper,
   datePartHelper,
   timeAgoHelper,
-} from "./register-handlebars-helpers";
-registerHandlebarsHelpers(Handlebars);
+} from "./helpers";
+registerTemplateHelpers(Handlebars);
 
 // ============================================================================
 // Helpers to build a mock Handlebars options object
 // ============================================================================
 
 function opts(
-  hash: Record<string, unknown> = {}
+  hash: Record<string, unknown> = {},
 ): HandlebarsLibrary.HelperOptions {
   return { hash } as HandlebarsLibrary.HelperOptions;
 }
@@ -45,7 +45,7 @@ describe("formatNumberHelper", () => {
     const result = formatNumberHelper.call(
       {},
       100,
-      opts({ prefix: "$", suffix: " USD" })
+      opts({ prefix: "$", suffix: " USD" }),
     );
     expect(result).toMatch(/^\$.*100.* USD$/);
   });
@@ -179,7 +179,7 @@ describe("formatDateHelper", () => {
     const result = formatDateHelper.call(
       {},
       recent,
-      opts({ format: "relative" })
+      opts({ format: "relative" }),
     );
     expect(result).toBe("3h");
   });
@@ -240,7 +240,7 @@ describe("timeAgoHelper", () => {
 
   it("returns days ago", () => {
     const threeDaysAgo = new Date(
-      Date.now() - 3 * 24 * 60 * 60 * 1000
+      Date.now() - 3 * 24 * 60 * 60 * 1000,
     ).toISOString();
     expect(timeAgoHelper(threeDaysAgo)).toBe("3d ago");
   });
@@ -257,7 +257,7 @@ describe("timeAgoHelper", () => {
 describe("Handlebars integration", () => {
   it("formatNumber in template", () => {
     const tpl = Handlebars.compile(
-      "Temp: {{formatNumber row.temperature decimals=1}}"
+      "Temp: {{formatNumber row.temperature decimals=1}}",
     );
     const result = tpl({ row: { temperature: 25.678 } });
     expect(result).toMatch(/Temp: 25[,.]7/);
@@ -290,7 +290,7 @@ describe("Handlebars integration", () => {
 
   it("formatDate in template", () => {
     const tpl = Handlebars.compile(
-      '{{formatDate row.created_at format="date"}}'
+      '{{formatDate row.created_at format="date"}}',
     );
     const result = tpl({ row: { created_at: "2025-06-15T14:30:00Z" } });
     expect(result).toContain("15");
@@ -315,7 +315,7 @@ describe("Handlebars integration", () => {
 
   it("combines multiple helpers", () => {
     const tpl = Handlebars.compile(
-      '{{formatNumber row.temp decimals=1}}°C at {{formatDate row.ts format="time"}}'
+      '{{formatNumber row.temp decimals=1}}°C at {{formatDate row.ts format="time"}}',
     );
     const result = tpl({
       row: { temp: 25.678, ts: "2025-06-15T14:30:00Z" },

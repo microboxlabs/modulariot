@@ -302,3 +302,37 @@ Hidden tabs pause polling and refresh when visible again. Failures expose only
 `usePollingInterval(callback, intervalMs)` is also exported. It invokes the latest
 callback, pauses while hidden, and removes timers/listeners on cleanup. Zero,
 negative, nonfinite and overflowing intervals (above 2,147,483,647 ms) disable polling.
+
+## Isolated Handlebars templates
+
+Import `createTemplateEngine` and `buildDataProviderContext` from
+`@microboxlabs/miot-dashboard-ui/templates`. This entry needs neither React nor
+Next.js. Each engine owns its helper registry without changing shared Handlebars.
+
+```ts
+const engine = createTemplateEngine();
+const compiled = engine.compileTemplates([
+  { id: "total", template: "{{multiply data_provider.count 2}}" },
+]);
+const context = buildDataProviderContext([{ key: "count", value: "3" }]);
+const total = engine.resolveTemplate(compiled, "total", context, "Unavailable");
+```
+
+`compileTemplates` validates syntax eagerly, skips plain text and malformed
+expressions, and returns a map reusable across data updates. `resolveTemplate`
+returns the supplied fallback for missing templates or render errors.
+`resolveField(template, context)` returns its original text on error.
+Data-provider contexts preserve own keys safely, ignore empty keys, and use the
+last value for duplicate keys.
+
+Built-in helpers are `formatNumber`, `extractNumber`, `toFixed`, `round`,
+`multiply`, `divide`, `formatDate`, `datePart`, and `timeAgo`. Trusted hosts may
+supply additional helpers with `createTemplateEngine({ helpers })`; these are
+local to that engine.
+
+Inherited properties and methods are disabled during rendering. Ordinary
+interpolations are HTML-escaped, but triple-brace expressions and helper-returned
+safe strings can produce raw markup. Template output is not an HTML or URL
+sanitizer: render text as text and validate URL/HTML destinations in the host.
+Custom helpers execute trusted JavaScript and must never contain credentials or
+perform privileged query execution in the browser.

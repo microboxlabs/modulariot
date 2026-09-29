@@ -101,6 +101,7 @@ value you have confirmed; never emit a literal placeholder.
 | Route | Names / synonyms | What it shows | Filter params |
 |---|---|---|---|
 | `/home` | home, inicio, dashboards, tableros | User dashboards (each dashboard at `/home/{slug}`) | — |
+| `/dashboards` | dashboard server, dashboards del servidor, tableros de organización | Parallel organization dashboards backed by the dashboard server (each at `/dashboards/{slug}`); legacy dashboards remain under `/home` | — |
 | `/calendar` | calendar, calendario, agenda, reservas, bookings | Calendar services overview; planning at `/calendar/planning` and per-calendar `/calendar/{calendarId}/planning` | — |
 | `/planning` | planning, planificación (kanban) | Services being planned (kanban board) | kanban params (below) |
 | `/shipping` | shipping, embarque, despacho (kanban) | Services in shipping | kanban params |

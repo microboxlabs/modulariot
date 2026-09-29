@@ -2855,7 +2855,8 @@
         "closePanel": "Cerrar panel",
         "platform": "Plataforma",
         "selectables": "Seleccionables",
-        "harnessLearning": "Aprendizaje del asistente"
+        "harnessLearning": "Aprendizaje del asistente",
+        "dashboardServer": "Dashboards"
       }
     },
     "calendar": {
@@ -3719,6 +3720,28 @@
       "untitled": "Sin título",
       "group": "Grupo",
       "noWidgetsYet": "Sin widgets aún"
+    },
+    "server": {
+      "title": "Dashboards",
+      "parallel": "Este espacio funciona junto a los dashboards existentes mientras se valida la migración.",
+      "loading": "Cargando dashboard…",
+      "loadError": "No se pudieron cargar los dashboards. Revisa tu organización y acceso.",
+      "newName": "Nuevo dashboard",
+      "slug": "ID del dashboard (minúsculas, números y guiones)",
+      "create": "Crear dashboard",
+      "createError": "No se pudo crear el dashboard. Revisa tus permisos o elige otro ID.",
+      "empty": "Esta organización aún no tiene dashboards.",
+      "name": "Nombre del dashboard",
+      "save": "Guardar",
+      "reload": "Recargar",
+      "delete": "Eliminar",
+      "discard": "¿Descartar los cambios sin guardar y cargar la versión del servidor?",
+      "confirmDelete": "¿Eliminar este dashboard? Esta acción no se puede deshacer.",
+      "unsaved": "Cambios sin guardar",
+      "conflict": "Cambió el dashboard o la organización activa. Tus cambios se conservan. Recarga explícitamente antes de reintentar.",
+      "saveError": "La operación falló. Tus cambios sin guardar se conservan.",
+      "queryError": "No se pudieron cargar los resultados.",
+      "leave": "¿Salir de este dashboard y descartar los cambios sin guardar?"
     }
   },
   "liveStreams": {

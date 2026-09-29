@@ -5,7 +5,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { createMemoryStore } from "../testing";
-import type { ServerDashboardStore } from "../seams/store";
+import type { ServerDashboardStore, ServerDashboardRef } from "../seams/store";
 import { importDashboards } from "./import";
 import type { LegacyDashboard, LegacyDashboardSource } from "./legacy";
 
@@ -302,5 +302,83 @@ describe("importDashboards", () => {
     });
 
     expect(lines.map((l) => l["msg"])).toEqual(["would import", "refused"]);
+  });
+  it("rolls back its actual generation after a previous dashboard was deleted", async () => {
+    const inner = createMemoryStore();
+    await inner.save(ref("fleet"), v2("Previous"), { updatedBy: "old" });
+    await inner.remove(ref("fleet"));
+    const store = {
+      ...inner,
+      setPermissions: async () => {
+        throw new Error("unavailable");
+      },
+    };
+    const result = await importDashboards({
+      source: sourceOf({
+        ref: ref("fleet"),
+        config: v2("Imported"),
+        assignments: [{ authorityId: "viewer", role: "Consumer" }],
+      }),
+      store,
+      dryRun: false,
+    });
+    expect(result.failed[0]?.reason).toMatch(/removed again/);
+    expect(await inner.load(ref("fleet"))).toBeNull();
+  });
+
+  it("does not delete a write racing the rollback itself", async () => {
+    const inner = createMemoryStore();
+    const store = {
+      ...inner,
+      setPermissions: async () => {
+        throw new Error("unavailable");
+      },
+      removeIfRevision: async (
+        target: ServerDashboardRef,
+        revision: number,
+      ) => {
+        await inner.save(target, v2("Concurrent edit"), {
+          updatedBy: "editor",
+        });
+        return inner.removeIfRevision!(target, revision);
+      },
+    };
+    const result = await importDashboards({
+      source: sourceOf({
+        ref: ref("fleet"),
+        config: v2("Imported"),
+        assignments: [{ authorityId: "viewer", role: "Consumer" }],
+      }),
+      store,
+      dryRun: false,
+    });
+    expect(result.failed[0]?.reason).toMatch(/could not be removed/);
+    expect((await inner.load(ref("fleet")))?.config).toEqual(
+      v2("Concurrent edit"),
+    );
+  });
+
+  it("preserves records when a host cannot guarantee atomic rollback", async () => {
+    const inner = createMemoryStore();
+    const store: ServerDashboardStore = {
+      ...inner,
+      removeIfRevision: undefined,
+      setPermissions: async () => {
+        throw new Error("unavailable");
+      },
+    };
+    const remove = vi.spyOn(store, "remove");
+    const result = await importDashboards({
+      source: sourceOf({
+        ref: ref("fleet"),
+        config: v2("Imported"),
+        assignments: [{ authorityId: "viewer", role: "Consumer" }],
+      }),
+      store,
+      dryRun: false,
+    });
+    expect(result.failed[0]?.reason).toMatch(/could not be removed/);
+    expect(remove).not.toHaveBeenCalled();
+    expect(await inner.load(ref("fleet"))).not.toBeNull();
   });
 });

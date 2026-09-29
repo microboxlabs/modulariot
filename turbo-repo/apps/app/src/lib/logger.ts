@@ -1,3 +1,4 @@
+import { SENSITIVE_LOG_PATHS } from "./logger-redaction";
 import pino from "pino";
 
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -288,18 +289,7 @@ const createLoggerConfig = () => {
       err: pino.stdSerializers.err,
     },
     redact: {
-      paths: [
-        "req.headers.authorization",
-        "req.headers.cookie",
-        "req.body.password",
-        "req.body.token",
-        'res.headers["set-cookie"]',
-        "password",
-        "token",
-        "authorization",
-        "secret",
-        "key",
-      ],
+      paths: SENSITIVE_LOG_PATHS,
       remove: true,
     },
   };

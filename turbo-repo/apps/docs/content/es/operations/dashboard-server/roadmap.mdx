@@ -1,0 +1,28 @@
+# Hoja de ruta del servidor de dashboards
+
+El objetivo de entrega es una biblioteca npm segura y portable que también funcione como pod independiente. Alfresco y Java no son runtimes obligatorios. ModularIoT es una integración de host; embeber el servidor en Next.js u otra tecnología de administración no debe exigir adoptar su backend.
+
+## Obligatorio: ejecución portable de consultas en TypeScript
+
+Es un requisito de aceptación de la entrega, no una mejora opcional. La integración actual delega la ejecución en Quarkus; valida ese recorrido, pero **no** cumple la portabilidad.
+
+- [ ] Implementar ejecución de BigQuery en TypeScript dentro del paquete: parámetros tipados, dry run que acepte solo SELECT, límites de lectura y facturación, plazos, cancelación y límites de filas y bytes.
+- [ ] Implementar operaciones HTTP/PostgREST portables de solo lectura, con validación de destinos, parámetros de tenant impuestos por el servidor, esquemas cerrados y respuestas limitadas.
+- [ ] Separar ejecución y resolución del catálogo. Un adaptador confiable resuelve la conexión/plantilla activa y autorizada y su credencial bajo el tenant verificado; los dashboards contienen referencias y filtros declarados, nunca credenciales ni SQL/URLs arbitrarios.
+- [ ] Integrar las conexiones/plantillas/credenciales existentes de ModularIoT mediante ese adaptador, sin duplicar el catálogo de datasources. Mantener la ejecución remota en Java como opción durante la migración.
+- [ ] Conectar el ejecutor portable a la configuración standalone y documentar sus exports npm para hosts embebidos.
+- [ ] Ejecutar el paquete npm compilado localmente contra la base real de facturación **sin ningún proceso Quarkus ni endpoint de ejecución Java**, tanto embebido como standalone. Las pruebas unitarias no cierran este punto.
+
+## Migración paralela y aceptación del producto
+
+- [x] Enviar las solicitudes del producto por rutas autenticadas y conservar ETag/If-Match.
+- [x] Incorporar páginas y navegación por organización, almacenamiento controlado del editor y widgets conectados a consultas guardadas.
+- [ ] Validar en navegador un Consumer autenticado sin rol de sitio legado, incluidos los rechazos de escritura.
+- [ ] Migrar un dashboard de telemetría de Coordinador con operaciones de conexión/plantilla y comparar datos y filtros con el existente.
+- [ ] Crear y validar un dashboard para la base BigQuery de facturación, incluidos límites de costo y estados de error.
+- [ ] Desplegar el pod independiente mediante `miot-deployments`, validar el recorrido completo y publicar paquetes npm compatibles.
+- [ ] Retirar la implementación anterior solo después de aceptar la sustituta. Conservar los dashboards actuales durante la validación.
+
+## Evidencia y límites actuales
+
+El servidor compilado consultó BigQuery real mediante el catálogo y ejecutor Java de ModularIoT. La suite del producto pasó 2.002 pruebas, con una omitida, tras los cambios del espacio paralelo. Esto no demuestra ejecución sin Java ni aceptación completa de la migración en navegador. Los widgets legados especializados requieren validación individual.

@@ -2855,7 +2855,8 @@
         "subtitle4": "GPS Validation",
         "platform": "Platform",
         "selectables": "Selectables",
-        "harnessLearning": "Assistant learning"
+        "harnessLearning": "Assistant learning",
+        "dashboardServer": "Dashboards"
       }
     },
     "calendar": {
@@ -3719,6 +3720,28 @@
       "untitled": "Untitled",
       "group": "Group",
       "noWidgetsYet": "No widgets yet"
+    },
+    "server": {
+      "title": "Dashboards",
+      "parallel": "This workspace runs alongside the existing dashboards while migration is validated.",
+      "loading": "Loading dashboard…",
+      "loadError": "Could not load dashboards. Check your organization and access.",
+      "newName": "New dashboard",
+      "slug": "Dashboard ID (lowercase letters, numbers and hyphens)",
+      "create": "Create dashboard",
+      "createError": "Could not create the dashboard. Check your permissions or choose a different ID.",
+      "empty": "No dashboards in this organization yet.",
+      "name": "Dashboard name",
+      "save": "Save",
+      "reload": "Reload",
+      "delete": "Delete",
+      "discard": "Discard your unsaved changes and reload the server version?",
+      "confirmDelete": "Delete this dashboard? This cannot be undone.",
+      "unsaved": "Unsaved changes",
+      "conflict": "The dashboard or active organization changed. Your edits are retained. Reload explicitly before trying again.",
+      "saveError": "The operation failed. Your unsaved changes are retained.",
+      "queryError": "Could not load query results.",
+      "leave": "Leave this dashboard and discard unsaved changes?"
     }
   },
   "liveStreams": {

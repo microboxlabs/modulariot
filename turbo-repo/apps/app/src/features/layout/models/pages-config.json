@@ -1,4 +1,5 @@
 [
+  { "label": "dashboardServer", "href": "/dashboards", "requiredGroups": [], "blockedGroups": [] },
   {
     "label": "home",
     "dynamicItemsSource": "dashboards",

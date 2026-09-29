@@ -803,3 +803,5 @@ Import `createBigQueryOperationExecutor` from `@microboxlabs/miot-dashboard-serv
 The TypeScript executor calls Google directly without Java, Quarkus, Alfresco or the Google SDK. It requires a SELECT dry run, enforces the template billing cap below the host ceiling (default 1 GB), and limits execution to 20 seconds and eight concurrent operations. Results are bounded to 5,000 rows and 2 MiB at most; nested, repeated and paginated results are rejected. Cancellation is best effort, with a Google job deadline as an additional bound.
 
 The ModularIoT catalog resolver and standalone configuration for this executor are separate integration work. The existing HTTP executor remains available during migration.
+
+Import rollback uses the optional store `removeIfRevision(ref, revision)` operation to atomically delete only the revision created by that import. SQL and memory stores support it, including revisions after deletion/recreation. Custom stores without atomic deletion retain the record and report the assignment failure for operator repair; the importer never falls back to an unsafe read-then-delete sequence.

@@ -215,6 +215,53 @@ describe("remote catalog resolution with portable local execution", () => {
       message: "Dashboard query could not be completed",
     });
   });
+  it("keeps the original deadline after slow catalog resolution", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(AbortSignal, "timeout").mockImplementation((ms) => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), ms);
+      return controller.signal;
+    });
+    try {
+      let providerSignal: AbortSignal | null | undefined;
+      const fetchImpl = vi
+        .fn<typeof fetch>()
+        .mockImplementationOnce(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 60));
+          return Response.json(httpPlan);
+        })
+        .mockImplementationOnce(async (_url, init) => {
+          providerSignal = init?.signal;
+          return new Promise((_resolve, reject) =>
+            providerSignal!.addEventListener(
+              "abort",
+              () => reject(new Error("provider aborted")),
+              { once: true },
+            ),
+          );
+        });
+      const pending = createRemotePlanOperationExecutor({
+        ...config,
+        fetchImpl,
+        timeoutMs: 100,
+      })
+        .execute(input())
+        .catch((error: Error) => error);
+      await vi.advanceTimersByTimeAsync(60);
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      expect(providerSignal?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(39);
+      expect(providerSignal?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(providerSignal?.aborted).toBe(true);
+      expect(await pending).toMatchObject({
+        message: "Dashboard query could not be completed",
+      });
+    } finally {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    }
+  });
   it("sanitizes malformed service credentials at startup", () => {
     expect(() =>
       createRemotePlanOperationExecutor({

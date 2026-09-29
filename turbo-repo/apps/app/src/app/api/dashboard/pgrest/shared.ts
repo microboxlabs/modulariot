@@ -91,7 +91,10 @@ export async function resolveDataSourceCredentials(
   let ds: AlfrescoDataSource;
   try {
     ds = await getDataSource(session, dataSourceId);
-  } catch {
+  } catch (error) {
+    if ((error as { status?: number })?.status === 401) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     return NextResponse.json(
       { error: "Data source not found" },
       { status: 404 }

@@ -1,4 +1,5 @@
 import { NextAuthConfig } from "next-auth";
+import { sessionExpiresAt } from "@/features/auth/utils/token-expiry";
 import Credentials from "next-auth/providers/credentials";
 import {
   authenticateWithAuth0Password,
@@ -301,7 +302,7 @@ export const authConfig: NextAuthConfig = {
         // }, "Session callback triggered");
 
         if (token && !token.ticket) {
-          const expiresAt = Number(token.accessTokenExpiresAt ?? 0);
+          const expiresAt = sessionExpiresAt(Number(token.accessTokenExpiresAt ?? 0), token.rawJWT as string | undefined);
           const expiresAtMs = expiresAt * 1000;
           const now = Date.now();
           authSessionLogger.debug( {

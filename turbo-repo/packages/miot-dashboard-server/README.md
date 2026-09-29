@@ -720,6 +720,11 @@ records it on the first write only, and the capability policy reads it to
 decide whether a Contributor may edit their own dashboard. Permission
 assignments are carried verbatim, and only after the config was written.
 
+Both dry runs and apply runs validate current-version documents against the shared
+contract before accessing the store. Invalid preferences, widgets, or saved queries
+are reported in `refused` with field paths; extension fields are preserved. A dry
+run validates documents, not datasource reachability or query authorization.
+
 There is no conversion from an older version, and the refusal says so by name
 rather than guessing. If a real older config turns up, the dry run is what
 finds it — and the conversion should be written against that example.

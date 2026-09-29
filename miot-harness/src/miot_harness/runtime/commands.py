@@ -222,8 +222,9 @@ def _test(arg: str) -> str:
     )
     return (
         f"Test this session's knowledge changes on {cases}. Call `{RUN_LEARNING_EVAL_TOOL}` "
-        "with saved cases by `case_ids` and new ones in `cases`. To compare before and "
-        "after a change that is not saved yet, pass it in `changes`. Then report "
+        "with saved cases by `case_ids` and new ones in `cases`. Without `changes` it "
+        "compares the knowledge before and after this session's saved changes; pass "
+        "`changes` only to test a change that is not saved yet. Then report "
         "the before and after scores per case, say which "
         "improved or regressed, and suggest a fix for each regression."
     )

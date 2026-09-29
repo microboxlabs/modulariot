@@ -225,8 +225,8 @@ class HarnessSettings(BaseSettings):
     knowledge_root: Path | None = None
     # Before/after evaluations of knowledge changes (`POST /learning/evaluations`).
     # Runs at once, across all evaluations; each run's time limit; the model
-    # that scores answers (None → `agents_summarizer_model`); the skill each
-    # run uses, as the chat does; and how many stored cases the tool takes.
+    # that scores answers (None → the model the evaluation runs on); the skill
+    # each run uses, as the chat does; and how many stored cases the tool takes.
     learning_eval_concurrency: int = Field(default=3, ge=1, le=16)
     learning_eval_run_timeout_seconds: float = Field(default=300.0, gt=0)
     learning_eval_judge_model: str | None = None

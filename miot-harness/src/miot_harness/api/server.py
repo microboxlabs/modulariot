@@ -1277,11 +1277,11 @@ def create_app() -> FastAPI:
 
     judge_models: dict[str, Any] = {}
 
-    def _judge_model() -> Any:
+    def _judge_model(name: str | None) -> Any:
         # Tests inject a stub via app.state.judge_model.
         model = getattr(app.state, "judge_model", None)
         if model is None:
-            name = settings.learning_eval_judge_model or settings.agents_summarizer_model
+            name = name or _default_model(app.state.harness) or settings.agents_summarizer_model
             model = judge_models.get(name) or judge_models.setdefault(name, get_chat_model(name))
         return model
 
@@ -1293,7 +1293,7 @@ def create_app() -> FastAPI:
         concurrency=settings.learning_eval_concurrency,
         run_timeout=settings.learning_eval_run_timeout_seconds,
         skill_id=settings.learning_eval_skill_id,
-        judge_model=settings.learning_eval_judge_model or settings.agents_summarizer_model,
+        judge_model=settings.learning_eval_judge_model,
     )
 
     def _check_model(model: str | None) -> None:

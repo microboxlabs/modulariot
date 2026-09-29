@@ -196,6 +196,76 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/queries/{queryId}:
+    post:
+      operationId: executeDashboardQuery
+      tags: [dashboards]
+      summary: Execute a saved connection query
+      description: >
+        Requires read access to this dashboard. The server resolves the saved
+        connection and operation; callers supply only declared filter values.
+        Disabled (404) unless the host configures a query executor. Host adapters
+        enforce tenant predicates, active read-only operations and query costs.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+        - name: queryId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                filters:
+                  type: object
+                  maxProperties: 32
+                  additionalProperties:
+                    $ref: "#/components/schemas/QueryValue"
+      responses:
+        "200":
+          description: Bounded query rows; never cached by the server.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [rows]
+                    properties:
+                      rows:
+                        type: array
+                        items:
+                          type: object
+                          maxProperties: 100
+                          additionalProperties:
+                            $ref: "#/components/schemas/QueryValue"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          description: Request body exceeds the configured byte limit.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "502":
+          description: Operation failed, timed out, returned invalid data or exceeded a limit.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/capabilities:
     get:
       operationId: getDashboardCapabilities
@@ -796,6 +866,18 @@ components:
             code: CONFLICT
 
   schemas:
+    QueryScalar:
+      oneOf:
+        - { type: string, maxLength: 2048 }
+        - { type: number }
+        - { type: boolean }
+        - { type: "null" }
+    QueryValue:
+      oneOf:
+        - { $ref: "#/components/schemas/QueryScalar" }
+        - type: array
+          maxItems: 100
+          items: { $ref: "#/components/schemas/QueryScalar" }
     Error:
       description: >
         The one error envelope. Superset of the shape apps/app dashboard routes

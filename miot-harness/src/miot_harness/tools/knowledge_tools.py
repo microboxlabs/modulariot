@@ -309,9 +309,11 @@ def propose_knowledge_change_tool(
             "layer (fact, rule, skill, primer, eval; "
             "note for deletes only), id (a slug), target (the connection, for facts), op "
             "(upsert or delete), title, content (the item's text, without frontmatter) "
-            "and reason. For a skill the title is its trigger description; for an eval "
-            "the title is the question and the content the expected answer. Read an item "
-            "first when changing it."
+            "and reason. For a skill the title is its trigger description. For an eval "
+            "the title is the question and the content the expected answer as plain "
+            "text, or a YAML mapping with the keys question, expectation (text), and "
+            "optional expect_skill, expect_no_skill and checks; never put a whole case "
+            "inside expectation. Read an item first when changing it."
         ),
         input_model=ProposeKnowledgeChangeInput,
         output_model=ProposeKnowledgeChangeOutput,

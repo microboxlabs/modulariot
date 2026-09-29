@@ -248,6 +248,100 @@ def test_eval_case_keeps_expected_skills(tmp_path: Path) -> None:
         store.put("eval", "no-question", content="x")
 
 
+# What an agent passed as an eval case's content in a live session: the whole
+# case as YAML, stored as the expectation with the question repeated inside.
+_QUESTION = "¿Cuántos viajes han sido cargados en modular hoy?"
+_EXPECTATION = (
+    "No se puede responder con exactitud porque live_trip no tiene columna created_at "
+    "ni fecha de carga. Lo que se puede reportar es el total de servicios actualmente en "
+    "live_trip (monitoreados), filtrando por created_by_client_id = 'tenant-a', "
+    "desglosado por status (ADDED y SCHEDULED). historical_trip no cuenta porque son "
+    "servicios ya terminados."
+)
+_WHOLE_CASE = f"question: {_QUESTION}\n\nexpectation: {_EXPECTATION}"
+
+
+def test_eval_content_given_as_a_whole_case_is_stored_flat(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    item = store.put(
+        "eval",
+        "viajes-cargados-modular-hoy",
+        title=_QUESTION,
+        content=_WHOLE_CASE,
+        provenance={"conversation_id": "c1"},
+    )
+    assert (item["title"], item["content"]) == (_QUESTION, _EXPECTATION)
+    path = tmp_path / "evals" / "tenants" / "t1" / "viajes-cargados-modular-hoy.yaml"
+    doc = yaml.safe_load(path.read_text())
+    assert doc == {
+        "question": _QUESTION,
+        "expectation": _EXPECTATION,
+        "source": {"conversation_id": "c1"},
+    }
+
+
+def test_eval_content_as_a_mapping_carries_the_case_fields(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    content = yaml.safe_dump(
+        {"question": "Q?", "expectation": "A.", "expect_skill": "trips", "checks": ["x"]}
+    )
+    item = store.put("eval", "q", content=content)
+    assert (item["title"], item["content"]) == ("Q?", "A.")
+    assert item["meta"] == {"expect_skill": "trips", "checks": ["x"]}
+    with pytest.raises(KnowledgeError, match="unknown eval case keys expected"):
+        store.put("eval", "q2", content="question: Q?\nexpected: A.")
+    with pytest.raises(KnowledgeError, match="differs from the title"):
+        store.put("eval", "q3", title="Other?", content="question: Q?\nexpectation: A.")
+
+
+def test_a_nested_eval_file_is_refused_on_write_and_read_flat(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    nested = yaml.safe_dump({"question": _QUESTION, "expectation": _WHOLE_CASE}, allow_unicode=True)
+    with pytest.raises(KnowledgeError, match="holds a whole eval case"):
+        store.write_file("eval", "viajes", nested)
+    # A case saved before the check still reads as a plain case.
+    path = tmp_path / "evals" / "tenants" / "t1" / "viajes.yaml"
+    path.parent.mkdir(parents=True)
+    path.write_text(nested, encoding="utf-8")
+    item = store.read("eval", "viajes")
+    assert (item["title"], item["content"]) == (_QUESTION, _EXPECTATION)
+
+
+def test_conversation_undo_restores_what_the_runs_read_before(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    before, session = {"conversation_id": "c0"}, {"conversation_id": "c1"}
+    store.put("fact", "old", target="db", title="Old", content="Before.", provenance=before)
+    store.put("fact", "old", target="db", title="Old", content="After.", provenance=session)
+    store.put("fact", "new", target="db", title="New", content="Created.", provenance=session)
+    store.put("rule", "gone", title="Gone", content="Deleted later.", provenance=before)
+    store.delete("rule", "gone", provenance=session)
+    store.put("primer", "db", content="New primer.", provenance=session)
+    store.put("eval", "case", title="Q?", content="A.", provenance=session)
+
+    undo = {(c.layer, c.id): c for c in store.conversation_undo("c1")}
+
+    assert set(undo) == {("fact", "old"), ("fact", "new"), ("rule", "gone"), ("primer", "db")}
+    assert (undo["fact", "old"].op, undo["fact", "old"].content) == ("upsert", "Before.")
+    assert undo["fact", "old"].target == "db"
+    assert undo["fact", "new"].op == "delete"
+    assert (undo["rule", "gone"].op, undo["rule", "gone"].title) == ("upsert", "Gone")
+    assert (undo["primer", "db"].op, undo["primer", "db"].content) == ("upsert", "Old primer.")
+    assert store.conversation_undo("c2") == []
+
+
+def test_conversation_undo_treats_an_unreadable_prior_file_as_absent(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    rules = tmp_path / "context" / "tenants" / "t1" / "learned"
+    rules.mkdir(parents=True)
+    (rules / "broken.md").write_text("---\n- not a mapping\n---\n\nBody.\n", encoding="utf-8")
+    store.put(
+        "rule", "broken", title="Fixed", content="Fixed.", provenance={"conversation_id": "c1"}
+    )
+
+    [undo] = store.conversation_undo("c1")
+    assert (undo.layer, undo.id, undo.op) == ("rule", "broken", "delete")
+
+
 def test_layers_listing(tmp_path: Path) -> None:
     store = _store(tmp_path)
     store.put("fact", "f", target="shared", title="F", content="Meaning.")

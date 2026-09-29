@@ -1,12 +1,14 @@
 """Before/after evaluations of knowledge changes.
 
 Each case is asked twice in a fresh one-shot run on the same model: the
-baseline with the stored knowledge, the candidate with the same knowledge plus
-the evaluation's `changes` as a run overlay. With no changes the case is asked
-once, as the candidate. A judge model scores every answer 0–5 against the
-case's expectation; expected skills are checked separately against the skills
-the run loaded. The evaluation is kept as JSON under the tenant's
-`evals/tenants/<T>/results/`.
+baseline with the stored knowledge plus `baseline_changes` (the undo of changes
+already saved, when those are what is tested), the candidate with the stored
+knowledge plus `changes`, each as a run overlay. With neither, the case is
+asked once, as the candidate. A judge model scores every answer 0–5 against
+the case's expectation: the configured judge model, else the evaluation's
+model, and the run's own model once if that call fails. Expected skills are
+checked separately against the skills the run loaded. The evaluation is kept
+as JSON under the tenant's `evals/tenants/<T>/results/`.
 """
 
 from __future__ import annotations
@@ -58,6 +60,9 @@ class EvaluationRequest(BaseModel):
     model: str | None = Field(default=None, max_length=80)
     cases: list[EvalCaseInput] = Field(min_length=1, max_length=MAX_CASES)
     changes: list[KnowledgeChange] = Field(default_factory=list, max_length=MAX_OVERLAY_CHANGES)
+    baseline_changes: list[KnowledgeChange] = Field(
+        default_factory=list, max_length=MAX_OVERLAY_CHANGES
+    )
     repeat: int = Field(default=1, ge=1, le=MAX_REPEAT)
 
 
@@ -72,8 +77,8 @@ class Runner(Protocol):
     ) -> Awaitable[HarnessRunRecord]: ...
 
 
-# (question, expectation, answer) -> (score 0–5 or None, one-line reason)
-Judge = Callable[[str, str, str], Awaitable[tuple[float | None, str]]]
+# (question, expectation, answer, model or None) -> (score 0–5 or None, one-line reason)
+Judge = Callable[[str, str, str, str | None], Awaitable[tuple[float | None, str]]]
 ProgressFn = Callable[[dict[str, Any]], None]
 
 
@@ -132,15 +137,17 @@ def parse_verdict(text: str) -> tuple[float | None, str]:
     return None, "unreadable judge reply: " + _one_line(text, 120)
 
 
-def build_judge(model: Callable[[], BaseChatModel]) -> Judge:
-    """A judge on the chat model `model()` returns, built on first use."""
+def build_judge(model: Callable[[str | None], BaseChatModel]) -> Judge:
+    """A judge on the chat model `model(name)` returns, built on first use."""
 
-    async def judge(question: str, expectation: str, answer: str) -> tuple[float | None, str]:
+    async def judge(
+        question: str, expectation: str, answer: str, name: str | None
+    ) -> tuple[float | None, str]:
         prompt = (
             f"Question:\n{question}\n\nExpectation:\n{expectation or '(none given)'}\n\n"
             f"Answer:\n{answer[:_MAX_JUDGED_CHARS]}"
         )
-        response = await model().ainvoke(
+        response = await model(name).ainvoke(
             [SystemMessage(content=_JUDGE_SYSTEM), HumanMessage(content=prompt)]
         )
         return parse_verdict(response_text(response))
@@ -345,17 +352,20 @@ class EvaluationEngine:
         organization: str | None = None,
     ) -> str:
         evaluation_id = f"ev-{uuid4().hex[:16]}"
-        sides = ("baseline", "candidate") if request.changes else ("candidate",)
+        compared = bool(request.changes or request.baseline_changes)
+        sides = ("baseline", "candidate") if compared else ("candidate",)
+        model = request.model or self._default_model()
         doc: dict[str, Any] = {
             "id": evaluation_id,
             "status": "running",
-            "model": request.model or self._default_model(),
-            "judge_model": self._judge_model,
+            "model": model,
+            "judge_model": self._judge_model or model,
             "created_at": _now(),
             "finished_at": None,
             "started_by": started_by,
             "repeat": request.repeat,
             "changes": [c.model_dump() for c in request.changes],
+            "baseline_changes": [c.model_dump() for c in request.baseline_changes],
             "progress": {"done": 0, "total": len(request.cases) * len(sides) * request.repeat},
             "summary": None,
             "results": [
@@ -436,7 +446,7 @@ class EvaluationEngine:
     async def _attempt(
         self, job: _Job, index: int, case: EvalCaseInput, side: str, attempt: int
     ) -> dict[str, Any]:
-        candidate = side == "candidate"
+        overlay = job.request.changes if side == "candidate" else job.request.baseline_changes
         user_request = UserRequest(
             message=case.question,
             thread_id=f"learning-{job.doc['id']}-{index}-{side}-{attempt}",
@@ -445,9 +455,9 @@ class EvaluationEngine:
             model=job.request.model,
             skill_id=self._skill_id,
             answer_format="json",
-            knowledge_overlay=list(job.request.changes) if candidate else [],
+            knowledge_overlay=list(overlay),
         )
-        if candidate:
+        if overlay:
             user_request.allow_overlay()
         run: dict[str, Any] = {
             "answer": "",
@@ -473,7 +483,7 @@ class EvaluationEngine:
                 if record.status != "completed":
                     run["error"] = f"run {record.status}"
             run["trigger"] = trigger_check(case, run["skills_used"])
-            await self._score(case, run)
+            await self._score(case, run, job.doc["judge_model"])
         job.doc["progress"]["done"] += 1
         self._notify(job.key, job.doc)
         return run
@@ -498,19 +508,26 @@ class EvaluationEngine:
             run["error"] = _one_line(str(exc) or type(exc).__name__)
         return None
 
-    async def _score(self, case: EvalCaseInput, run: dict[str, Any]) -> None:
+    async def _score(self, case: EvalCaseInput, run: dict[str, Any], judge: str | None) -> None:
+        """Score with `judge`; if that call fails, once more with the model the
+        run answered on."""
         if run.get("error"):
             run["reason"] = run["error"]
             return
         if not run["answer"].strip():
             run.update(score=0.0, reason="empty answer")
             return
-        try:
-            run["score"], run["reason"] = await self._judge(
-                case.question, case.expectation, run["answer"]
-            )
-        except Exception as exc:  # noqa: BLE001
-            run["reason"] = "judge failed: " + _one_line(str(exc) or type(exc).__name__)
+        for model in dict.fromkeys([judge, run.get("model") or judge]):
+            try:
+                run["score"], run["reason"] = await self._judge(
+                    case.question, case.expectation, run["answer"], model
+                )
+            except Exception as exc:  # noqa: BLE001
+                run["reason"] = "judge failed: " + _one_line(str(exc) or type(exc).__name__)
+                logger.warning("Judge model %s failed: %s", model, run["reason"])
+                continue
+            run["judge_model"] = model
+            return
 
     def _notify(self, key: tuple[str, str], doc: dict[str, Any]) -> None:
         for listener in self._listeners.get(key, ()):

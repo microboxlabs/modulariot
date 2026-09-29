@@ -188,6 +188,7 @@ export function createMemoryStore(
     },
 
     removeIfRevision(ref, revision) {
+      if (!Number.isSafeInteger(revision) || revision < 1) return Promise.resolve(false);
       if (entries.get(key(ref))?.record.revision !== revision)
         return Promise.resolve(false);
       entries.delete(key(ref));

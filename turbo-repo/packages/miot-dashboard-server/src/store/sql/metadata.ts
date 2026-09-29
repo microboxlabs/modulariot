@@ -239,7 +239,7 @@ export function createSqlMetadataStore(
     },
 
     remove: (ref) => remove(ref),
-    removeIfRevision: (ref, revision) => remove(ref, revision),
+    removeIfRevision: (ref, revision) => Number.isSafeInteger(revision) && revision > 0 ? remove(ref, revision) : Promise.resolve(null),
 
     async getPermissions(ref) {
       const p = placeholders(driver.dialect);

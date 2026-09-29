@@ -802,4 +802,14 @@ Set `MIOT_DASHBOARD_OPERATIONS_MODULE=/opt/dashboard/operations.mjs` to load ope
 
 Modules are trusted code with server privileges: install them through deployment review, mount them read-only, and never accept their path from users or remote URLs. Module initialization failures stop startup without forwarding potentially sensitive module diagnostics.
 
+### Portable BigQuery execution
+
+Import `createBigQueryOperationExecutor` from `@microboxlabs/miot-dashboard-server/queries` and pass it to the handler or `serve()` as `queries: { operations: executor }`. Its trusted `resolve(request)` callback returns an authorized operator-owned `plan`, bound `parameters` (including enforced tenant predicates), and a short-lived `accessToken`, or `null` to deny. Resolve active connection/template records and credentials under `request.identity.tenantId`, and honor `request.signal`. Never populate the plan from viewer-supplied SQL or URLs.
+
+The TypeScript executor calls Google directly without Java, Quarkus, Alfresco or the Google SDK. It requires a SELECT dry run, enforces the template billing cap below the host ceiling (default 1 GB), and limits execution to 20 seconds and eight concurrent operations. Results are bounded to 5,000 rows and 2 MiB at most; nested, repeated and paginated results are rejected. Cancellation is best effort, with a Google job deadline as an additional bound.
+
+The standalone CLI can load this executor through the operator module described above. The ModularIoT catalog resolver remains separate integration work. The existing HTTP executor remains available during migration.
+
+### Atomic import rollback
+
 Import rollback uses the optional store `removeIfRevision(ref, revision)` operation to atomically delete only the revision created by that import. SQL and memory stores support it, including revisions after deletion/recreation. Custom stores without atomic deletion retain the record and report the assignment failure for operator repair; the importer never falls back to an unsafe read-then-delete sequence.

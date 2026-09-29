@@ -491,6 +491,20 @@ describe("capabilities by role", () => {
     expect(h.audit.events.at(-1)).toMatchObject({ outcome: "denied" });
   });
 
+  it.each(["alice", "eve", "carl"])(
+    "a custom policy can refuse creation for %s despite scope membership",
+    async (userId) => {
+      const h = harness({ memberships, policy: {
+        resolve: () => ({ ...FULL_CAPABILITIES, canEdit: false }),
+      } });
+      const error = await expectError(h.control.authorize(user(userId, "acme"), {
+        scopeId: "ops", slug: "new-dashboard", action: "dashboard.save",
+      }));
+      expect(error.status).toBe(403);
+      expect(error.reason).toBe("CAPABILITY");
+    },
+  );
+
   it("a custom policy cannot grant past the ceiling", async () => {
     const h = harness({
       memberships,

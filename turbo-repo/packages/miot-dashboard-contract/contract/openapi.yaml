@@ -56,6 +56,10 @@ paths:
   /tenants/{tenantId}/scopes/{scopeId}/capabilities:
     get:
       operationId: getScopeCapabilities
+      security:
+        - bearerAuth: []
+        - ticketAuth: []
+        - devUser: []
       tags: [access]
       summary: Creation eligibility in one dashboard scope
       description: >

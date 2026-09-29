@@ -28,6 +28,7 @@ interface SchemaNode {
 }
 
 interface Operation {
+  security?: Record<string, string[]>[];
   requestBody?: {
     content?: Record<string, { schema?: SchemaNode & { $ref?: string } }>;
   };
@@ -74,6 +75,11 @@ const CAPABILITY_ORDER = {
 const CAPABILITY_KEYS = Object.keys(CAPABILITY_ORDER);
 
 describe("the OpenAPI document", () => {
+  it("excludes embed tokens from scope capabilities authentication", () => {
+    expect(spec.paths["/tenants/{tenantId}/scopes/{scopeId}/capabilities"]?.get?.security)
+      .toEqual([{ bearerAuth: [] }, { ticketAuth: [] }, { devUser: [] }]);
+  });
+
   it("describes the same roles as the role vocabulary", () => {
     expect(spec.components.schemas.Role?.enum).toEqual([...DASHBOARD_ROLES]);
   });

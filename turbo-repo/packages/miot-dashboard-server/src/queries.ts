@@ -9,3 +9,7 @@ export type {
   HttpGetExecutorOptions,
   ResolvedHttpGetOperation,
 } from "./queries/http-get";
+export {
+  createRemotePlanOperationExecutor,
+  type RemotePlanExecutorOptions,
+} from "./queries/remote-plan";

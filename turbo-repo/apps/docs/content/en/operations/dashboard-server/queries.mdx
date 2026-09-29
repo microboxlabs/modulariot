@@ -176,3 +176,26 @@ The provider performs GET only and requests `Prefer: count=exact`. It rejects re
 
 Use it through the same `queries: { operations: executor }` seam or standalone operation module as the BigQuery provider. The opt-in ModularIoT resolver is described above; portable client wiring and real telemetry migration remain separate acceptance gates.
 
+## Connect portable providers to the host catalog
+
+The `createRemotePlanOperationExecutor` npm export calls a private plan-resolution endpoint and then executes BigQuery or HTTP GET in the dashboard Node process. It never delegates query execution to that endpoint. Resolution and execution share a maximum 20-second deadline and eight-call limit; plan requests and responses are bounded to 512 KiB. Only final data rows are returned.
+
+For the official standalone image, mount an operator-owned module read-only under `/app` (for example `/app/operations.mjs`) and select that absolute path with `MIOT_DASHBOARD_OPERATIONS_MODULE`. The image preserves the package exports so modules within `/app` can use the npm import below:
+
+```js
+import { createRemotePlanOperationExecutor } from '@microboxlabs/miot-dashboard-server/queries';
+
+export function createDashboardOperations() {
+  return createRemotePlanOperationExecutor({
+    url: process.env.DASHBOARD_PLAN_URL,
+    proxyKey: process.env.DASHBOARD_PLAN_KEY,
+    allowedDataOrigins: ['https://pgrest.streamhub.cl'],
+    maximumBytesBilled: 1_000_000_000,
+  });
+}
+```
+
+For ModularIoT, the URL ends in `/internal/dashboard-operations/resolve`; enable host plan resolution explicitly. Inject the key from a deployment secret. Private catalog HTTP requires `allowHttp: true`; HTTP data-service transport has its own `allowDataHttp` opt-in. The two destinations and credentials are kept separate. An empty data-origin list supports BigQuery-only deployments. Embedded hosts pass the same executor as `queries.operations`, or supply their own local resolver directly to the individual providers.
+
+
+The official image also ships `/app/examples/modulariot-operations.mjs`, so the standard ModularIoT integration needs no custom code mount. Select it with `MIOT_DASHBOARD_OPERATIONS_MODULE`, set `MIOT_DASHBOARD_PLAN_URL`, and reuse the existing secret-backed `MIOT_DASHBOARD_PROXY_KEY`. `MIOT_DASHBOARD_DATA_ORIGINS` is a comma-separated list of approved data origins. Set `MIOT_DASHBOARD_PLAN_ALLOW_HTTP=true` only for the private cluster catalog service; data HTTP has a separate `MIOT_DASHBOARD_DATA_ALLOW_HTTP` flag. Both flags accept only `true` or `false`. The module retains the default 1 GB billing ceiling; custom hosts can supply a different factory when needed.

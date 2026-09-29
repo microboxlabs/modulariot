@@ -94,7 +94,8 @@ jobs:
               dependencies[name] = range;
             }
             require("fs").writeFileSync(out, JSON.stringify({
-              name: "miot-dashboard-server-runtime",
+              name: pkg.name,
+              exports: pkg.exports,
               private: true,
               version: pkg.version,
               type: "module",
@@ -160,6 +161,14 @@ jobs:
           fi
 
           curl -fsS http://localhost:3070/readyz | grep -q '"ready"'
+          # Exercise the shipped catalog module and its public package self-import.
+          docker exec \
+            -e MIOT_DASHBOARD_PLAN_URL=https://catalog.invalid/resolve \
+            -e MIOT_DASHBOARD_PROXY_KEY=image-smoke-fixture-key-32-characters \
+            dashboard-smoke node --input-type=module -e '
+              import { createDashboardOperations } from "./examples/modulariot-operations.mjs";
+              createDashboardOperations();
+            '
           # No credential: the server must refuse rather than answer.
           status="$(curl -s -o /dev/null -w '%{http_code}' \
             http://localhost:3070/tenants/t/scopes/s/dashboards)"

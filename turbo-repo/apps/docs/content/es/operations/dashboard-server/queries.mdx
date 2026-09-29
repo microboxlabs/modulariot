@@ -176,3 +176,26 @@ El proveedor solo ejecuta GET y solicita `Prefer: count=exact`. Rechaza redirecc
 
 Se utiliza mediante `queries: { operations: executor }` o el módulo standalone, como el proveedor BigQuery. El resolver optativo de ModularIoT se describe arriba; la conexión del cliente portable y la migración de telemetría real siguen pendientes.
 
+## Conectar proveedores portables al catálogo del host
+
+El export npm `createRemotePlanOperationExecutor` consulta un endpoint privado de resolución de planes y después ejecuta BigQuery o HTTP GET en el proceso Node del dashboard. No delega la ejecución de consultas al endpoint. Resolución y ejecución comparten un máximo de 20 segundos y ocho llamadas simultáneas; solicitudes y respuestas de planes se limitan a 512 KiB. Solo se devuelven filas de datos finales.
+
+En la imagen oficial, monte el módulo del operador en modo solo lectura dentro de `/app` (por ejemplo `/app/operations.mjs`) y seleccione esa ruta con `MIOT_DASHBOARD_OPERATIONS_MODULE`. La imagen conserva los exports del paquete para usar el import npm desde módulos dentro de `/app`:
+
+```js
+import { createRemotePlanOperationExecutor } from '@microboxlabs/miot-dashboard-server/queries';
+
+export function createDashboardOperations() {
+  return createRemotePlanOperationExecutor({
+    url: process.env.DASHBOARD_PLAN_URL,
+    proxyKey: process.env.DASHBOARD_PLAN_KEY,
+    allowedDataOrigins: ['https://pgrest.streamhub.cl'],
+    maximumBytesBilled: 1_000_000_000,
+  });
+}
+```
+
+En ModularIoT, la URL termina en `/internal/dashboard-operations/resolve`; habilite explícitamente la resolución en el host. Inyecte la clave mediante un secreto del despliegue. HTTP privado para el catálogo requiere `allowHttp: true`; el transporte HTTP de datos tiene su propio permiso `allowDataHttp`. Destinos y credenciales permanecen separados. Una lista de orígenes vacía permite despliegues solo BigQuery. Los hosts embebidos pasan el ejecutor como `queries.operations` o aportan su propio adaptador local a cada proveedor.
+
+
+La imagen oficial incluye `/app/examples/modulariot-operations.mjs`, de modo que la integración estándar no necesita montar código personalizado. Selecciónelo con `MIOT_DASHBOARD_OPERATIONS_MODULE`, configure `MIOT_DASHBOARD_PLAN_URL` y reutilice `MIOT_DASHBOARD_PROXY_KEY` desde el secreto existente. `MIOT_DASHBOARD_DATA_ORIGINS` contiene orígenes permitidos separados por comas. Use `MIOT_DASHBOARD_PLAN_ALLOW_HTTP=true` solo para el catálogo privado del clúster; HTTP de datos tiene su propia opción `MIOT_DASHBOARD_DATA_ALLOW_HTTP`. Ambas opciones solo aceptan `true` o `false`. El módulo mantiene el límite de facturación predeterminado de 1 GB; otros hosts pueden aportar una fábrica propia.

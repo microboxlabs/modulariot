@@ -155,7 +155,7 @@ export function createHttpGetOperationExecutor(
         }
         const rows = await readJsonBody(response, request.limits.maxBytes);
         const range = response.headers.get("content-range");
-        if (range) {
+        if (range !== null) {
           const count = Array.isArray(rows) ? rows.length : -1;
           const expected = count === 0 ? "*/0" : `0-${count - 1}/${count}`;
           if (range !== expected) throw upstreamError();

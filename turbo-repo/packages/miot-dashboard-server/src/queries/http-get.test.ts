@@ -111,7 +111,7 @@ describe("portable HTTP GET operation execution", () => {
       setup(operation(), Response.json(body)).executor.execute(request()),
     ).rejects.toThrow("could not be completed");
   });
-  it.each(["0-0/5", "0-0/*", "1-1/1"])(
+  it.each(["", "   ", "0-0/5", "0-0/*", "1-1/1"])(
     "rejects incomplete Content-Range %s",
     async (range) => {
       await expect(
@@ -178,9 +178,11 @@ describe("portable HTTP GET operation execution", () => {
       allowedOrigins: ["https://data.example"],
       timeoutMs: 10,
     });
-    await expect(executor.execute(request())).rejects.toMatchObject({
-      message: "Dashboard query could not be completed",
-    });
+    for (let i = 0; i < 8; i++) {
+      await expect(executor.execute(request())).rejects.toMatchObject({
+        message: "Dashboard query could not be completed",
+      });
+    }
     fetchImpl.mockResolvedValue(Response.json([]));
     expect(await executor.execute(request())).toEqual({ rows: [] });
   });

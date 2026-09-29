@@ -47,6 +47,7 @@ export function ServerDashboardsPage(props: Readonly<Props>) {
       {...props}
       org={activeOrg.slug}
       canCreate={[
+        "OWNER",
         "SITE_MANAGER",
         "SITE_COLLABORATOR",
         "SITE_CONTRIBUTOR",

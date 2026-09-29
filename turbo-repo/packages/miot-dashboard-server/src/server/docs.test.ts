@@ -467,6 +467,7 @@ describe("the spec against the router", () => {
    * ship undocumented.
    */
   const ROUTE_PATHS: Readonly<Record<RouteName, string>> = {
+    scopeCapabilities: "/tenants/{tenantId}/scopes/{scopeId}/capabilities",
     dashboards: "/tenants/{tenantId}/scopes/{scopeId}/dashboards",
     dashboard: "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}",
     query: "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/queries/{queryId}",

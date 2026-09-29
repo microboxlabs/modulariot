@@ -601,6 +601,17 @@ Denials are audited. Embed tokens are read-only and locked to one dashboard
 `access.capabilities(request, { tenantId, scopeId, slug })` tells an embed host
 what the caller can do.
 
+`access.scopeCapabilities(request, { tenantId, scopeId })` returns
+`{ canCreate: boolean }` for a dashboard list or empty workspace. Its HTTP route
+is `GET /tenants/{tenantId}/scopes/{scopeId}/capabilities` (introduced after
+v0.4.0). It authenticates the caller, checks tenant and scope membership, and
+requires Contributor-or-higher standing plus the identity's `canEdit` ceiling
+for `canCreate: true`. It does not read the dashboard store or evaluate a
+per-document policy. Saving still validates the document and applies that
+policy, so eligibility does not guarantee a particular document can be saved.
+Embed tokens cannot use this endpoint. HTTP responses use `Cache-Control:
+no-store`; hosts should also keep any UI state separated by identity and scope.
+
 ### Roles
 
 | Role          | Can do                                        |

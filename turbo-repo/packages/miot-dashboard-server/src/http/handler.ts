@@ -265,6 +265,13 @@ export function createDashboardHandler(
       return jsonResponse({ data });
     },
 
+    async scopeCapabilities(request, match) {
+      if (request.method.toUpperCase() !== "GET") return methodNotAllowed();
+      return jsonResponse(await access.scopeCapabilities(request, {
+        tenantId: match.tenantId, scopeId: match.scopeId,
+      }));
+    },
+
     async capabilities(request, match) {
       const method = request.method.toUpperCase();
       if (method !== "GET") return methodNotAllowed();

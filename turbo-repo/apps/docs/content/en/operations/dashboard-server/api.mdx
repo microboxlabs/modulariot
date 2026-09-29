@@ -17,6 +17,10 @@ Every route names the organization and the scope, and the server checks both bef
 | `POST …/datasources/test`, `POST …/datasources/{id}/test` | Connection test |
 | `GET …/credentials`, `GET`, `PUT …/credentials/{ref}` | Credentials, always as summaries |
 
+## Creation eligibility
+
+After v0.4.0, `GET /tenants/{t}/scopes/{s}/capabilities` returns `{ "canCreate": true }` or `{ "canCreate": false }` for an authenticated scope member. Use it to decide whether to offer creation in an empty workspace. It checks the scope role and credential's edit permission without reading dashboards. Embed tokens are refused, and responses are not cacheable. A save still applies the document policy and validation; eligibility does not authorize every possible document. This route belongs to the dashboard server; the application proxy must forward it before its UI can use it.
+
 ## Saving a dashboard
 
 Each dashboard has an integer revision. `GET` returns it as a quoted `ETag`, such as `"3"`. Copy that header into `If-Match` when saving. A successful `PUT` returns the new `ETag` and the revision in `data.revision`. When no dashboard is stored, `GET` returns `data: null` and `ETag: "0"`; sending that value prevents overwriting a dashboard created by another editor in the meantime.

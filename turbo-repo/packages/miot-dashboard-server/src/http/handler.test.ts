@@ -341,6 +341,26 @@ describe.each([
     });
   });
 
+  it.each([
+    ["alice", true], ["carl", true], ["con", false], ["capped", false],
+  ])("reports scope creation eligibility for %s without loading documents", async (who, canCreate) => {
+    const load = vi.spyOn(mode().store, "load");
+    const response = await mode().fetch("/tenants/acme/scopes/ops/capabilities", asUser(who));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    await expect(response.json()).resolves.toEqual({ canCreate });
+    expect(load).not.toHaveBeenCalled();
+    load.mockRestore();
+  });
+
+  it("protects scope capabilities with identity and tenant/scope membership", async () => {
+    const path = "/tenants/acme/scopes/ops/capabilities";
+    expect((await mode().fetch(path)).status).toBe(401);
+    expect((await mode().fetch(path, asUser("bob"))).status).toBe(403);
+    expect((await mode().fetch("/tenants/acme/scopes/unknown/capabilities", asUser("alice"))).status).toBe(403);
+    expect((await mode().fetch(path, { ...asUser("alice"), method: "PUT" })).status).toBe(404);
+  });
+
   it("returns effective capabilities, and 404 for a dashboard that is not there", async () => {
     const coordinator = await mode().fetch(
       "/tenants/acme/scopes/ops/dashboards/fleet/capabilities",

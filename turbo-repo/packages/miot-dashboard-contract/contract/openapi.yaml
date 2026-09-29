@@ -53,6 +53,41 @@ security:
   - devUser: []
 
 paths:
+  /tenants/{tenantId}/scopes/{scopeId}/capabilities:
+    get:
+      operationId: getScopeCapabilities
+      security:
+        - bearerAuth: []
+        - ticketAuth: []
+        - devUser: []
+      tags: [access]
+      summary: Creation eligibility in one dashboard scope
+      description: >
+        Requires dashboard-list access in the requested tenant and scope.
+        Returns canCreate for Contributor-or-higher members whose credential
+        permits editing, without reading or creating a dashboard. Embed tokens
+        cannot use this endpoint. Saving still applies document-specific policy
+        and validation; canCreate is not a guarantee that any document is accepted.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+      responses:
+        "200":
+          description: Scope eligibility; responses are not cacheable.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [canCreate]
+                properties:
+                  canCreate:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /tenants/{tenantId}/scopes/{scopeId}/dashboards:
     get:
       operationId: listDashboards

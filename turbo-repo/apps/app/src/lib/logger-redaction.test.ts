@@ -11,11 +11,15 @@ describe("session log redaction", () => {
     );
     logger.debug(
       {
-        rawJWT: "private-jwt",
+        accessToken: "private-camel-access",
+      refreshToken: "private-camel-refresh",
+      idToken: "private-camel-id",
+      session: { user: { accessToken: "private-session-access", refreshToken: "private-session-refresh", idToken: "private-session-id", rawJWT: "private-session-jwt" } },
+      rawJWT: "private-jwt",
         access_token: "private-access",
         refresh_token: "private-refresh",
         id_token: "private-id",
-        user: { rawJWT: "private-user-jwt", id: "viewer" },
+        user: { rawJWT: "private-user-jwt", accessToken: "private-user-access", refreshToken: "private-user-refresh", idToken: "private-user-id", id: "viewer" },
         account: {
           access_token: "private-account-access",
           refresh_token: "private-account-refresh",

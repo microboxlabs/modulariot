@@ -7,10 +7,8 @@
     "moduleResolution": "Bundler",
     "noUncheckedIndexedAccess": true,
     "types": [],
-    // No DOM and no Node: this package is imported by both, so anything it
-    // reaches for has to exist in either. A platform global appearing here
-    // would compile and then fail in half the places it ships to.
-    "lib": ["es2022"]
+    // Browser HTTP types; the pure core has a separate environment-free check.
+    "lib": ["es2022", "DOM", "DOM.Iterable"]
   },
   "include": ["src", "scripts"],
   "exclude": ["node_modules", "dist"]

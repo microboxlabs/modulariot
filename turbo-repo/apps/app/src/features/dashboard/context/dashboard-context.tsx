@@ -19,7 +19,8 @@ import {
   type PlannerRequestDefinition,
   type RefreshInterval,
 } from "../types/dashboard.types";
-import { getDashlet, canNestIn, getDefaultContainerVariant } from "../dashlets";
+import { dashboardRegistry, canNestIn, getDefaultContainerVariant, type DashletDefinition } from "../dashlets";
+import type { WidgetRegistry } from "@microboxlabs/miot-dashboard-ui/core";
 import { getNextPosition } from "../utils/get-next-position";
 import { PlannerProvider } from "./planner-context";
 import { DashboardFiltersProvider } from "./dashboard-filters-context";
@@ -29,6 +30,7 @@ import { useKioskMode } from "@/features/layout/hooks/use-kiosk-mode";
 
 /** Context value type */
 interface DashboardContextValue {
+  registry: WidgetRegistry<DashletDefinition>;
   /** All root-level widgets */
   widgets: Widget[];
   /** Whether edit mode is active */
@@ -119,6 +121,8 @@ function generateId(): string {
 
 
 interface DashboardProviderProps extends PropsWithChildren {
+  /** Catalog owned by this dashboard host. Defaults to the app catalog. */
+  registry?: WidgetRegistry<DashletDefinition>;
   dictionary: I18nRecord;
   /** Dashboard slug (e.g. "dashboard", "maintenanceStatus") */
   slug: string;
@@ -140,6 +144,7 @@ export function DashboardProvider({
   siteId: legacySiteId,
   storage,
   dataProvider: DataProvider = PlannerProvider,
+  registry = dashboardRegistry,
 }: Readonly<DashboardProviderProps>) {
   const siteId = storage ? null : legacySiteId;
   const {
@@ -175,7 +180,7 @@ export function DashboardProvider({
     redo,
     canUndo,
     canRedo,
-  } = useDashboardStorage(slug, defaultConfig, siteId, storage);
+  } = useDashboardStorage(slug, defaultConfig, siteId, storage, registry.get);
 
   const isKiosk = useKioskMode();
 
@@ -223,7 +228,7 @@ export function DashboardProvider({
           ? (widgetConfig.variant as "bento-box" | "labeled-group" | undefined)
           : undefined;
       if (
-        !canNestIn(componentId, parentComponentId, childVariant, parentConfig)
+        !canNestIn(componentId, parentComponentId, childVariant, parentConfig, registry)
       ) {
         console.error(
           `Cannot nest ${componentId} in ${parentComponentId ?? "root"}`
@@ -231,7 +236,7 @@ export function DashboardProvider({
         return null;
       }
 
-      const dashlet = getDashlet(componentId);
+      const dashlet = registry.get(componentId);
       if (!dashlet) {
         console.error(`Unknown dashlet: ${componentId}`);
         return null;
@@ -281,7 +286,7 @@ export function DashboardProvider({
         return addWidgetStorage(newWidget);
       }
     },
-    [widgets, findWidget, addWidgetStorage, addChildWidget]
+    [widgets, findWidget, addWidgetStorage, addChildWidget, registry]
   );
 
   const updateWidgetConfig = useCallback(
@@ -408,6 +413,7 @@ export function DashboardProvider({
 
   const value: DashboardContextValue = useMemo(
     () => ({
+      registry,
       widgets,
       editMode: preferences.editMode,
       isKiosk,
@@ -452,6 +458,7 @@ export function DashboardProvider({
       canRedo,
     }),
     [
+      registry,
       widgets,
       preferences.editMode,
       isKiosk,
@@ -513,6 +520,7 @@ export function useDashboard() {
 
 const NOOP = () => {};
 const DASHBOARD_FALLBACK: DashboardContextValue = {
+  registry: dashboardRegistry,
   widgets: [],
   editMode: false,
   isKiosk: false,

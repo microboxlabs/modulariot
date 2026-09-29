@@ -11,6 +11,7 @@
  * 4. Add yourDashletDefinition to DASHLET_DEFINITIONS array
  */
 
+import { createWidgetRegistry, type WidgetRegistry } from "@microboxlabs/miot-dashboard-ui/core";
 import type { DashletDefinition, DashletMeta } from "./types";
 import type { DashletCategory } from "../types/dashboard.types";
 import type { ContainerConfig, ContainerVariant } from "./container";
@@ -66,34 +67,27 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
 ];
 
 /** Registry of all available dashlets */
-const DASHLET_REGISTRY: Record<string, DashletDefinition> =
-  DASHLET_DEFINITIONS.reduce<Record<string, DashletDefinition>>(
-    (registry, definition) => {
-      registry[definition.meta.id] = definition;
-      return registry;
-    },
-    {}
-  );
+export const dashboardRegistry = createWidgetRegistry(DASHLET_DEFINITIONS);
 
 /**
  * Get a dashlet definition by its component ID
  */
 export function getDashlet(componentId: string): DashletDefinition | undefined {
-  return DASHLET_REGISTRY[componentId];
+  return dashboardRegistry.get(componentId);
 }
 
 /**
  * Get all available dashlets
  */
 export function getAllDashlets(): DashletDefinition[] {
-  return Object.values(DASHLET_REGISTRY);
+  return dashboardRegistry.all();
 }
 
 /**
  * Get all dashlet metadata (for use in selectors)
  */
 export function getAllDashletMetas(): DashletMeta[] {
-  return Object.values(DASHLET_REGISTRY).map((d) => d.meta);
+  return dashboardRegistry.all().map((d) => d.meta);
 }
 
 /**
@@ -102,25 +96,19 @@ export function getAllDashletMetas(): DashletMeta[] {
 export function getDashletsByCategory(
   category: DashletCategory
 ): DashletDefinition[] {
-  return Object.values(DASHLET_REGISTRY).filter(
+  return dashboardRegistry.all().filter(
     (d) => d.meta.category === category
   );
 }
 
-/**
- * Get dashlets that can be nested inside a specific parent
- * @param _parentComponentId - The parent's componentId, or null for root level (reserved for future use)
- * @param _parentConfig - The parent's config for variant-based nesting rules (reserved for future use)
- */
+/** Get candidates using the same nesting policy as widget creation. */
 export function getValidDashletsForParent(
-  _parentComponentId: string | null,
-  _parentConfig?: Record<string, unknown>
+  parentComponentId: string | null,
+  parentConfig?: Record<string, unknown>
 ): DashletDefinition[] {
-  // Currently all dashlets are allowed at all levels.
-  // Variant-based restrictions (e.g., bento-box cannot nest bento-box)
-  // are enforced at creation time via canNestIn().
-  // Filter here if category or type-based restrictions are needed in the future.
-  return Object.values(DASHLET_REGISTRY);
+  return dashboardRegistry.all().filter((definition) =>
+    canNestIn(definition.meta.id, parentComponentId, undefined, parentConfig)
+  );
 }
 
 /**
@@ -134,9 +122,10 @@ export function canNestIn(
   childComponentId: string,
   parentComponentId: string | null,
   childVariant?: ContainerVariant,
-  parentConfig?: Record<string, unknown>
+  parentConfig?: Record<string, unknown>,
+  registry: WidgetRegistry<DashletDefinition> = dashboardRegistry
 ): boolean {
-  const dashlet = DASHLET_REGISTRY[childComponentId];
+  const dashlet = registry.get(childComponentId);
   if (!dashlet) return false;
 
   // If placing at root level, all widgets are valid
@@ -179,7 +168,7 @@ export function getDefaultContainerVariant(
  */
 export function getCategories(): DashletCategory[] {
   const categories = new Set<DashletCategory>();
-  for (const dashlet of Object.values(DASHLET_REGISTRY)) {
+  for (const dashlet of dashboardRegistry.all()) {
     categories.add(dashlet.meta.category);
   }
   return Array.from(categories);

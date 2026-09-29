@@ -43,6 +43,30 @@ DOM globals or the dashboard server runtime. It depends on the shared contract
 version `^0.5.0`; it does not define another document schema. Only documented
 package exports are supported import paths.
 
+## Widget registry
+
+`createWidgetRegistry(definitions)` from `./core` creates a separate catalog for
+each host. Definitions are host-owned immutable objects with a `meta.id` string;
+the registry preserves their other fields and types, without importing React or
+any widgets. Duplicate or blank IDs throw during construction. There is no
+global registration or implicit override.
+
+```ts
+import { createWidgetRegistry } from "@microboxlabs/miot-dashboard-ui/core";
+
+const catalog = createWidgetRegistry([
+  { meta: { id: "cost-card" }, format: (value: number) => `$${value}` },
+]);
+catalog.get("cost-card")?.format(12); // "$12"
+catalog.get("unknown"); // undefined
+catalog.all(); // independent array in registration order
+```
+
+`WidgetRegistry<Definition>` exposes `get(id): Definition | undefined` and
+`all(): Definition[]`. Catalog membership is fixed at construction; create a new
+registry to change it. Input-array and returned-array changes do not alter the
+catalog. Two registries may use the same ID with different definitions.
+
 ## Dashboard server client
 
 The `./client` entry uses standard Fetch APIs (modern browsers or Node.js 22+).

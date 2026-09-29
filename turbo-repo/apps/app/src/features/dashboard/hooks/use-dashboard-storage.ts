@@ -19,8 +19,8 @@ import { getNextPosition } from "../utils/get-next-position";
 /**
  * Ensure widget has all required fields with defaults
  */
-export function ensureWidgetDefaults(widget: Widget, index: number): Widget {
-  const dashlet = getDashlet(widget.componentId);
+export function ensureWidgetDefaults(widget: Widget, index: number, resolveDashlet: typeof getDashlet = getDashlet): Widget {
+  const dashlet = resolveDashlet(widget.componentId);
   const defaultConfig = dashlet?.defaultConfig ?? {};
 
   return {
@@ -34,7 +34,7 @@ export function ensureWidgetDefaults(widget: Widget, index: number): Widget {
     },
     config: { ...defaultConfig, ...widget.config },
     children: widget.children?.map((child, i) =>
-      ensureWidgetDefaults(child, i)
+      ensureWidgetDefaults(child, i, resolveDashlet)
     ),
   };
 }
@@ -168,7 +168,8 @@ export function useDashboardStorage(
   slug: string,
   defaultConfig?: DashboardStorageSchema | null,
   siteId?: string | null,
-  controller?: DashboardStorageController
+  controller?: DashboardStorageController,
+  resolveDashlet: typeof getDashlet = getDashlet
 ) {
   // Stabilize fallback via ref — defaultConfig comes from server props and is
   // referentially stable per page load, but we guard against inline objects.
@@ -198,8 +199,8 @@ export function useDashboardStorage(
   // Resolved config with widget defaults applied
   const resolvedConfig = useMemo(() => ({
     ...rawConfig,
-    widgets: rawConfig.widgets.map((w, i) => ensureWidgetDefaults(w, i)),
-  }), [rawConfig]);
+    widgets: rawConfig.widgets.map((w, i) => ensureWidgetDefaults(w, i, resolveDashlet)),
+  }), [rawConfig, resolveDashlet]);
 
   // Keep a ref so mutation callbacks don't depend on resolvedConfig directly,
   // preventing cascading callback recreation on every widget change.
@@ -638,7 +639,7 @@ export function useDashboardStorage(
         }
 
         const normalizedWidgets = imported.widgets.map((widget, index) =>
-          ensureWidgetDefaults(widget, index)
+          ensureWidgetDefaults(widget, index, resolveDashlet)
         );
 
         const newData: DashboardStorageSchema = {
@@ -664,7 +665,7 @@ export function useDashboardStorage(
         };
       }
     },
-    [clearHistory, rawSaveData, readOnly]
+    [clearHistory, rawSaveData, readOnly, resolveDashlet]
   );
 
   return {

@@ -95,7 +95,7 @@ class DashboardOperationsResourceTest {
         Request request;
         int calls;
         boolean fail;
-        Service() { super(null, null, null); }
+        Service() { super(null, null, null, null); }
         @Override public ObjectNode execute(String tenant, Request request) {
             calls++;
             if (fail) throw new IllegalStateException("private provider details");

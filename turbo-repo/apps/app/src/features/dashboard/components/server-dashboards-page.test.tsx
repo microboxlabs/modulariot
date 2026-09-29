@@ -8,6 +8,7 @@ import { DEFAULT_STORAGE } from "../types/dashboard.types";
 const state = vi.hoisted(() => ({
   canEdit: false,
   orgRole: undefined as string | undefined,
+  scopeFailure: false,
   missing: false,
   push: vi.fn(),
 }));
@@ -56,6 +57,7 @@ beforeEach(() => {
   state.canEdit = false;
   state.orgRole = undefined;
   state.missing = false;
+  state.scopeFailure = false;
   state.push.mockReset();
   fetcher.mockReset();
   fetcher.mockImplementation(async (input, init) => {
@@ -64,6 +66,10 @@ beforeEach(() => {
         { data: { revision: 8, updatedAt: "now" } },
         { headers: { ETag: '"8"' } }
       );
+    if (String(input).includes("/dashboard-capabilities?"))
+      return state.scopeFailure
+        ? new Response(null, { status: 503 })
+        : Response.json({ canCreate: state.canEdit });
     if (String(input).includes("capabilities"))
       return Response.json({
         readOnly: !state.canEdit,
@@ -91,17 +97,26 @@ function show(slug?: string) {
 }
 
 describe("parallel dashboard pages", () => {
-  it("allows an organization owner to create without a legacy site role", async () => {
-    state.orgRole = "OWNER";
+  it.each(["OWNER", "MEMBER"])("uses server permission to offer creation for %s", async (role) => {
+    state.orgRole = role;
+    state.canEdit = true;
     show();
     await screen.findByRole("link", { name: "Fleet" });
-    expect(screen.getByRole("button", { name: "Create dashboard" })).toBeEnabled();
+    expect(await screen.findByRole("button", { name: "Create dashboard" })).toBeEnabled();
   });
-  it.each(["MEMBER", "unknown"])("does not offer creation for %s", async (role) => {
+  it.each(["OWNER", "MEMBER", "unknown"])("respects server creation denial for %s", async (role) => {
     state.orgRole = role;
     show();
     await screen.findByRole("link", { name: "Fleet" });
     expect(screen.queryByRole("button", { name: "Create dashboard" })).not.toBeInTheDocument();
+  });
+  it("does not fall back to the application role when permission lookup fails", async () => {
+    state.orgRole = "OWNER";
+    state.scopeFailure = true;
+    show();
+    expect(await screen.findByRole("alert")).toHaveTextContent("Dashboard unavailable");
+    expect(screen.queryByRole("button", { name: "Create dashboard" })).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Fleet" })).toBeInTheDocument();
   });
   it("lists the active organization's dashboards without a legacy site", async () => {
     show();

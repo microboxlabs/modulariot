@@ -12,7 +12,7 @@ export type DashboardRouteContext = {
 export async function forwardDashboard(
   request: Request,
   context?: DashboardRouteContext,
-  action?: "capabilities" | "permissions" | "query"
+  action?: "capabilities" | "permissions" | "query" | "scopeCapabilities"
 ) {
   const tenant = await resolveTenantScope();
   if (!tenant.resolved) return tenant.response;
@@ -24,7 +24,7 @@ export async function forwardDashboard(
       { status: 409 }
     );
   }
-  const segments = ["dashboards"];
+  const segments = [action === "scopeCapabilities" ? "dashboard-capabilities" : "dashboards"];
   if (context) {
     const { dashboard } = await context.params;
     // URL normalizers resolve dot segments even after percent encoding.
@@ -51,7 +51,7 @@ export async function forwardDashboard(
       );
     }
     segments.push("queries", query);
-  } else if (action) segments.push(action);
+  } else if (action && action !== "scopeCapabilities") segments.push(action);
   let body: unknown;
   if (request.method === "PUT" || request.method === "POST") {
     try {

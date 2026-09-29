@@ -46,26 +46,25 @@ export function ServerDashboardsPage(props: Readonly<Props>) {
       key={activeOrg.slug}
       {...props}
       org={activeOrg.slug}
-      canCreate={[
-        "OWNER",
-        "SITE_MANAGER",
-        "SITE_COLLABORATOR",
-        "SITE_CONTRIBUTOR",
-      ].includes(activeOrg.role)}
     />
   );
 }
 
 function ServerDashboardList({
   org,
-  canCreate,
   lang,
   dictionary,
-}: Readonly<Props & { org: string; canCreate: boolean }>) {
+}: Readonly<Props & { org: string }>) {
   const client = useMemo(() => createDashboardServerClient(org), [org]);
   const { data, error, isLoading } = useSWR(client.key(), () => client.list(), {
     shouldRetryOnError: false,
   });
+  const { data: scope, error: scopeError, isValidating: checkingScope } = useSWR(
+    client.scopeKey,
+    () => client.scopeCapabilities(),
+    { shouldRetryOnError: false, revalidateOnMount: true }
+  );
+  const canCreate = !scopeError && !checkingScope && scope?.canCreate === true;
   const [slug, setSlug] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState(false);
@@ -73,7 +72,7 @@ function ServerDashboardList({
   const t = (key: string) => tr(`dashboard.server.${key}`, dictionary);
   async function create(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (creating || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(slug)) return;
+    if (!canCreate || creating || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(slug)) return;
     setCreating(true);
     setCreateError(false);
     try {
@@ -110,7 +109,7 @@ function ServerDashboardList({
           </Button>
         </form>
       )}
-      {(error || createError) && (
+      {(error || scopeError || createError) && (
         <p role="alert">{t(createError ? "createError" : "loadError")}</p>
       )}
       {isLoading && <output>{t("loading")}</output>}

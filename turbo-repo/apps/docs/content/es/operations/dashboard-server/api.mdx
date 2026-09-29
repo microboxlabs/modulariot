@@ -19,7 +19,7 @@ Toda ruta nombra la organización y el ámbito, y el servidor comprueba ambos an
 
 ## Permiso para iniciar la creación
 
-Después de v0.4.0, `GET /tenants/{t}/scopes/{s}/capabilities` devuelve `{ "canCreate": true }` o `{ "canCreate": false }` para un miembro autenticado del ámbito. Permite decidir si se ofrece la creación en un espacio vacío. Comprueba el rol del ámbito y el permiso de edición de la credencial sin leer dashboards. Rechaza tokens de embed y sus respuestas no se pueden almacenar en caché. Al guardar se siguen aplicando la política del documento y la validación; este resultado no autoriza cualquier documento. La ruta pertenece al servidor de dashboards; el proxy de la aplicación debe reenviarla antes de que su interfaz pueda usarla.
+Después de v0.4.0, `GET /tenants/{t}/scopes/{s}/capabilities` devuelve `{ "canCreate": true }` o `{ "canCreate": false }` para un miembro autenticado del ámbito. Permite decidir si se ofrece la creación en un espacio vacío. Comprueba el rol del ámbito y el permiso de edición de la credencial sin leer dashboards. Rechaza tokens de embed y sus respuestas no se pueden almacenar en caché. Al guardar se siguen aplicando la política del documento y la validación; este resultado no autoriza cualquier documento. La aplicación la reenvía mediante `/api/dashboard-capabilities?org={activeOrgSlug}` y la ruta del host `/api/v1/orgs/{slug}/dashboard-capabilities`, separada de los slugs de dashboards. Despliegue el endpoint del servidor y el proxy antes de actualizar el espacio de trabajo; si no están disponibles, la interfaz oculta la creación y muestra un error al cargar permisos.
 
 ## Guardar un tablero
 
@@ -68,6 +68,7 @@ La aplicación expone `/api/dashboards` mediante su sesión del lado del servido
 | Método | Ruta de la aplicación | Operación |
 | --- | --- | --- |
 | GET | `/api/dashboards` | Listar dashboards |
+| GET | `/api/dashboard-capabilities` | Consultar permiso de creación en el ámbito (después de v0.4.0) |
 | GET, PUT, DELETE | `/api/dashboards/{dashboard}` | Cargar, guardar, eliminar |
 | GET | `/api/dashboards/{dashboard}/capabilities` | Consultar acciones permitidas |
 | GET, PUT | `/api/dashboards/{dashboard}/permissions` | Consultar o reemplazar asignaciones de roles |
@@ -90,6 +91,8 @@ Envía `{ "filters": { ... } }` para ejecutar una consulta guardada. El cliente 
 ## Espacio paralelo en la aplicación
 
 Abra **Dashboards** en la navegación (`/app/{lang}/dashboards`). Este espacio lista los dashboards del servidor para la organización activa. Los dashboards existentes de `/home` siguen disponibles durante la migración. No necesita consultar sitios heredados para cargar estos documentos.
+
+El espacio de trabajo usa `canCreate` del servidor para ofrecer la creación, sin deducirla del rol general de la organización. Mientras carga, si falla la consulta o si se deniega el permiso, oculta la creación; guardar sigue requiriendo autorización del servidor.
 
 Los editores guardan explícitamente. Un conflicto de revisión conserva los cambios locales y exige una recarga explícita; nunca sobrescribe automáticamente la versión más reciente. Los consumidores pueden ver y consultar, pero no editar ni eliminar. Las consultas guardadas vinculan widgets con operaciones del catálogo de conexiones existente. El navegador envía filtros, nunca credenciales ni SQL.
 

@@ -187,3 +187,20 @@ it("refuses query rows exceeding the field limit", async () => {
     createDashboardServerClient("acme", fetcher).query("fleet", "costs")
   ).rejects.toMatchObject({ status: 502 });
 });
+
+
+describe("scope creation capabilities", () => {
+  it("uses a distinct organization-bound route, including for a dashboard named capabilities", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ canCreate: true }));
+    const client = createDashboardServerClient("org/a", fetcher);
+    expect(client.scopeKey).toBe("/app/api/dashboard-capabilities?org=org%2Fa");
+    expect(client.scopeKey).not.toBe(client.key("capabilities"));
+    expect(client.scopeKey).not.toBe(createDashboardServerClient("other").scopeKey);
+    await expect(client.scopeCapabilities()).resolves.toEqual({ canCreate: true });
+    expect(fetcher).toHaveBeenCalledWith(client.scopeKey, expect.objectContaining({ cache: "no-store" }));
+  });
+  it.each([{}, { canCreate: "true" }, { canEdit: true }])("rejects malformed scope response %j", async (body) => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(Response.json(body));
+    await expect(createDashboardServerClient("org", fetcher).scopeCapabilities()).rejects.toMatchObject({ status: 502 });
+  });
+});

@@ -65,3 +65,16 @@ describe("standalone host operations", () => {
     ).toBe(1500);
   });
 });
+
+it.each(["1", "TRUE", "true"])(
+  "uses the shared boolean convention for private HTTP: %s",
+  (value) => {
+    expect(
+      readServerConfig({
+        ...env,
+        MIOT_DASHBOARD_OPERATIONS_URL: "http://host.internal",
+        MIOT_DASHBOARD_OPERATIONS_ALLOW_HTTP: value,
+      }).operations?.allowHttp,
+    ).toBe(true);
+  },
+);

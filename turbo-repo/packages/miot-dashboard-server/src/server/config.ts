@@ -1155,7 +1155,7 @@ function readOperationsConfig(
   const options = {
     url,
     proxyKey,
-    allowHttp: env.MIOT_DASHBOARD_OPERATIONS_ALLOW_HTTP === "true",
+    allowHttp: readBoolean(env.MIOT_DASHBOARD_OPERATIONS_ALLOW_HTTP),
     requestTimeoutMs: Number(env.MIOT_DASHBOARD_OPERATIONS_TIMEOUT ?? "20000"),
   };
   if (options.requestTimeoutMs > 20000)

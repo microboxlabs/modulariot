@@ -21,6 +21,7 @@ Release preparation for compatible contract and server v0.4.0:
 - Validate imported documents against the shared contract before any store access, including dry runs.
 - Convert legacy planner requests using explicit connection/operation mappings while preserving widget bindings and document settings.
 - Opt into `omitWhenEmpty` for optional filter arguments; keep existing binding behavior and host tenant controls.
+- Standalone servers enforce `allowedGroups`; configure trusted JWT or ticket group mappings before upgrading restricted dashboards.
 
 Upgrade both packages together. These migration capabilities do not replace live dashboard, filter and permission acceptance.
 

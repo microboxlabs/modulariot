@@ -20,7 +20,9 @@ This is a release acceptance requirement, not an optional follow-up. Portable Ty
 - [ ] Validate a signed-in Consumer with no legacy site role in the browser, including rejected writes.
 - [ ] Migrate one existing Coordinador telemetry dashboard using connection/template operations; compare its rendered data and filters with the existing dashboard.
 - [ ] Build and validate a dashboard for the BigQuery billing database, including query cost limits and failure states.
-- [ ] Deploy the separate pod through `miot-deployments`, validate the complete product path, and publish compatible npm packages.
+- [x] Publish compatible npm packages (0.3.0 verified through a fresh registry install and live BigQuery).
+- [ ] Publish the subsequent migration tools and optional-filter support in 0.4.0.
+- [ ] Deploy the separate pod through `miot-deployments` and validate the complete product path.
 - [ ] Remove the old implementation only after replacement acceptance. Keep existing dashboards available throughout validation.
 
 ## Evidence and current limits

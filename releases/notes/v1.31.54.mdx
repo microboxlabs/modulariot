@@ -1,0 +1,82 @@
+# 🔔 Release Notes v1.31.54 — ModularIoT
+
+### Fecha: 29/09/2026
+
+**Objetivo**: Esta versión amplía las capacidades del asistente Harness, con nuevas herramientas de análisis, colaboración y aprendizaje, y refuerza la persistencia y la seguridad de edición de dashboards. También incorpora mejoras en integraciones, selectables y la experiencia de chat.
+
+## 🚀 Evolutivos
+
+- **📍 Espacio de aprendizaje para entrenadores**
+  - **Punto clave**: Los entrenadores pueden gestionar conocimientos del asistente, proponer y revisar hechos, y evaluar cambios antes de aplicarlos.
+  - **Detalle técnico**: El espacio conecta la aplicación, Harness y Modulith con almacenamiento de conocimientos por organización, historial de versiones y evaluaciones de resultados. *(Integración OSS — MIOT-0.5.55)*
+- **📍 Herramientas de investigación y análisis en Harness**
+  - **Punto clave**: El asistente puede investigar en la web, consultar código y documentación configurados, analizar datos y presentar resultados como tablas, indicadores, gráficos o preguntas con opciones.
+  - **Detalle técnico**: Se incorporan herramientas de búsqueda y lectura web, análisis de conexiones, perfiles de tablas y consultas de procesos BPMN. *(Integración OSS — MIOT-0.5.55)*
+- **📍 Conversaciones más completas y persistentes**
+  - **Punto clave**: El chat admite respuestas en streaming, archivos adjuntos, artefactos, enlaces compartidos, títulos editables, bifurcaciones y seguimiento de ejecuciones.
+  - **Detalle técnico**: La memoria de conversación y el modelo elegido pueden persistir entre sesiones; las ejecuciones pueden reanudarse tras recargar la página. *(Integración OSS — MIOT-0.5.55)*
+- **📍 Historias y dashboards desde el chat**
+  - **Punto clave**: Los resultados del chat pueden guardarse como historias y compartirse; también se puede revisar una propuesta de dashboard antes de crearla.
+  - **Detalle técnico**: Las historias usan una API con versiones y enlaces compartidos, y los artefactos se muestran directamente en la conversación. *(Integración OSS — MIOT-0.5.55)*
+- **📍 Gestión de contexto y modelos**
+  - **Punto clave**: Se puede elegir el modelo por conversación y consultar o compactar el contexto para mantener conversaciones largas.
+  - **Detalle técnico**: Harness añade proveedores configurables, controles de uso, caché de conversación y ejecución concurrente de ciertas herramientas de solo lectura. *(Integración OSS — MIOT-0.5.55)*
+- **📍 Herramientas de entrenador en preparación**
+  - **Punto clave**: Está planificada la incorporación de herramientas para proponer cambios de conocimiento, trabajar con archivos del espacio de aprendizaje y usar comandos de entrenador.
+  - **Detalle técnico**: Este trabajo permanece abierto y no se presenta como funcionalidad entregada en esta versión. *(Integración OSS — MIOT-0.5.55)*
+
+## 🔧 Integraciones
+
+- **🔌 API de dashboards con control de revisiones**
+  - **Alcance**: Las operaciones de lectura y guardado pueden intercambiar revisiones mediante `ETag` e `If-Match`; el contrato también admite consultas guardadas para conexiones. *(Integración OSS — MIOT-0.5.55)*
+- **🔌 Selectables por organización**
+  - **Alcance**: Las listas configurables se guardan en PostgreSQL y pueden obtener datos de miembros de la organización o de conexiones activas; se incorporan herramientas de configuración para administrarlas. *(Integración OSS — MIOT-0.5.55)*
+- **🔌 Proveedores, planes y herramientas de integración**
+  - **Alcance**: Se agregan proveedores de modelos y controles de uso por tokens, planes de asientos para Harness y herramientas MCP para conexiones, selectables e historias. *(Integración OSS — MIOT-0.5.55)*
+- **🔌 Verificaciones y mantenimiento de servicios**
+  - **Alcance**: El servidor de dashboards añade pruebas de persistencia y HTTP en CI, análisis SonarCloud dedicado y ajustes en sus manejadores y comprobaciones de almacenamiento. *(Integración OSS — MIOT-0.5.55)*
+
+## 🐛 Correcciones
+
+- **🐛 Recuperación y continuidad del chat**
+  - **Impacto**: Algunas ejecuciones podían quedar interrumpidas tras una desconexión o un reinicio, y las preguntas sin respuesta podían perderse del historial.
+  - **Solución**: Se recuperan ejecuciones interrumpidas y se conserva el contexto de preguntas incompletas. *(Integración OSS — MIOT-0.5.55)*
+- **🐛 Enlaces, uso compartido y respuestas del chat**
+  - **Impacto**: Algunos enlaces internos abrían la página equivocada; los chats compartidos podían mostrar tarjetas incompletas o duplicar preguntas, y ciertos widgets iniciaban respuestas vacías.
+  - **Solución**: Se corrige la navegación interna, la presentación de tarjetas compartidas y el seguimiento de mensajes; también se ajusta el formato de fechas en gráficos. *(Integración OSS — MIOT-0.5.55)*
+- **🐛 Resultados estructurados y búsqueda web**
+  - **Impacto**: Las respuestas con campos nulos podían fallar en la validación, y algunos modelos de búsqueda podían responder sin fuentes.
+  - **Solución**: Se admiten valores nulos en los esquemas correspondientes y se tratan las respuestas de búsqueda sin fuentes como errores. *(Integración OSS — MIOT-0.5.55)*
+- **🐛 Visualización y persistencia de datos**
+  - **Impacto**: El zoom del mapa podía seguir un elemento incorrectamente y los anchos de columnas de dashboards no se guardaban como se esperaba.
+  - **Solución**: Se corrige el seguimiento en el mapa y se restaura la persistencia del tamaño de columnas. *(Integración OSS — MIOT-0.5.55)*
+- **🐛 Autenticación de dashboards en preparación**
+  - **Impacto**: Un token vencido puede provocar errores repetidos al consultar dashboards y no dirigir al usuario a iniciar sesión.
+  - **Solución**: La corrección está registrada como trabajo abierto; no se considera resuelta en esta versión. *(Integración OSS — MIOT-0.5.55)*
+
+## 📊 Beneficios
+
+- Los entrenadores disponen de un flujo para proponer y evaluar cambios al conocimiento del asistente.
+- Las conversaciones conservan más contexto y pueden reanudarse después de recargas o interrupciones.
+- Los resultados de análisis se presentan en formatos más útiles para interpretar datos.
+- Historias y dashboards pueden crearse y compartirse desde el flujo de trabajo del chat.
+- Las ediciones concurrentes de dashboards cuentan con precondiciones de revisión para evitar sobrescrituras inadvertidas.
+- Las listas configurables y la memoria del asistente se conservan mejor entre reinicios y réplicas.
+- La cobertura de pruebas y análisis del servidor de dashboards mejora la verificación de cambios.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.55`
+- App: `app@v0.5.55` — con cambios
+- Docs: `docs@v0.5.55` — con cambios
+- Web: `web@v0.5.55` — con cambios
+- Modulith: `modulith@v0.5.34` — con cambios
+- Harness: `harness@v0.1.10` — con cambios
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.54 amplía Harness desde la conversación hacia la investigación, el análisis y el aprendizaje controlado, y mejora la continuidad del trabajo al conservar contexto, resultados e historias.
+
+También fortalece las bases de integración y persistencia de ModularIoT, especialmente en dashboards y selectables. Algunas mejoras relacionadas con entrenadores y autenticación de dashboards siguen en preparación y no se presentan como entregadas.

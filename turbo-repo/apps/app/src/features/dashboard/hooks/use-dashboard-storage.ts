@@ -647,6 +647,7 @@ export function useDashboardStorage(
           widgets: normalizedWidgets,
           preferences: imported.preferences ?? { editMode: false },
           requestPlanner: imported.requestPlanner,
+          queries: imported.queries,
           filters: imported.filters,
           refreshInterval: imported.refreshInterval,
           order: imported.order,

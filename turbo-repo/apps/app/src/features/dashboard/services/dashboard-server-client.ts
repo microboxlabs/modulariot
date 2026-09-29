@@ -59,7 +59,7 @@ export function createDashboardServerClient(
   const url = (slug?: string, action?: string) => {
     const suffix = slug === undefined ? "" : `/${pathSegment(slug)}`;
     const tail = action === undefined ? "" : `/${action}`;
-    return `/api/dashboards${suffix}${tail}?org=${encodeURIComponent(orgSlug)}`;
+    return `${process.env.NEXT_PUBLIC_BASE_PATH ?? "/app"}/api/dashboards${suffix}${tail}?org=${encodeURIComponent(orgSlug)}`;
   };
   async function request(path: string, init?: RequestInit) {
     const response = await fetchImpl(path, {

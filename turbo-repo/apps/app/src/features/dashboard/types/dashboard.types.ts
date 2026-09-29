@@ -1,3 +1,4 @@
+import type { DashboardQueryDefinition } from "@microboxlabs/miot-dashboard-contract/document";
 /**
  * Dashboard Widget Type Definitions
  *
@@ -153,6 +154,8 @@ export interface DashboardFilterParam {
 
 /** Versioned storage schema for dashboard config (supports migrations) */
 export interface DashboardStorageSchema {
+  /** Saved connection operations executed by the dashboard server. */
+  queries?: DashboardQueryDefinition[];
   /** Schema version for migrations */
   version: 2;
   /** Dashboard display name */

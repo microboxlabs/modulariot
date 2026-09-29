@@ -14,14 +14,14 @@ describe("dashboard server browser client", () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response([]));
     const client = createDashboardServerClient("org/a", fetcher);
     expect(client.key("sales & costs")).toBe(
-      "/api/dashboards/sales%20%26%20costs?org=org%2Fa"
+      "/app/api/dashboards/sales%20%26%20costs?org=org%2Fa"
     );
     expect(client.key("sales")).not.toBe(
       createDashboardServerClient("other").key("sales")
     );
     await client.list();
     expect(fetcher).toHaveBeenCalledWith(
-      "/api/dashboards?org=org%2Fa",
+      "/app/api/dashboards?org=org%2Fa",
       expect.objectContaining({
         credentials: "same-origin",
         cache: "no-store",
@@ -159,7 +159,7 @@ it("executes a saved query with filters and an abort signal", async () => {
     )
   ).toEqual([{ cost: 3, service: "storage" }]);
   expect(fetcher).toHaveBeenCalledWith(
-    "/api/dashboards/fleet/queries/costs%20%26%20usage?org=acme",
+    "/app/api/dashboards/fleet/queries/costs%20%26%20usage?org=acme",
     expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ filters: { days: 30 } }),

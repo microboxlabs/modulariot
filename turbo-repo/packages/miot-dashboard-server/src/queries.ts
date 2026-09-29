@@ -4,3 +4,8 @@ export {
   type ResolvedBigQueryOperation,
   type BigQueryPlan,
 } from "./queries/bigquery";
+export { createHttpGetOperationExecutor } from "./queries/http-get";
+export type {
+  HttpGetExecutorOptions,
+  ResolvedHttpGetOperation,
+} from "./queries/http-get";

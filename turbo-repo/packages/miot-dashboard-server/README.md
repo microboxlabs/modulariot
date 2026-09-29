@@ -813,3 +813,9 @@ The standalone CLI can load this executor through the operator module described 
 ### Atomic import rollback
 
 Import rollback uses the optional store `removeIfRevision(ref, revision)` operation to atomically delete only the revision created by that import. SQL and memory stores support it, including revisions after deletion/recreation. Custom stores without atomic deletion retain the record and report the assignment failure for operator repair; the importer never falls back to an unsafe read-then-delete sequence.
+
+### Portable HTTP/PostgREST queries
+
+`createHttpGetOperationExecutor` from the `/queries` export executes authorized GET templates directly. Configure exact operator-owned `allowedOrigins` and a trusted `resolve(request)` that checks active tenant connection/template ownership and resolves credentials server-side. The resolved plan requires `readOnly: true`, a URL without query parameters, closed scalar `parameterTypes` and matching `parameters`, and either a server-resolved tenant parameter/value or explicit `credentialScoped: true`. Tenant parameters cannot be supplied in the bound inputs. This is an execution provider, not another datasource catalog.
+
+Only authorization/API-key headers are accepted. Redirects, partial responses, invalid rows and reported incomplete PostgREST ranges fail closed. The provider requests exact PostgREST counts and enforces a 20-second maximum deadline, eight concurrent calls, 5,000 rows and 2 MiB. Hosts must honor cancellation during resolution, enforce connection access and use read-only upstream credentials/functions. Approved services are trusted network destinations; constrain their egress with deployment network policy. Private HTTP requires `allowHttp: true` (loopback is allowed for local validation). The same executor works inside an embedded host or a standalone operator module.

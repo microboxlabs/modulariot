@@ -28,7 +28,13 @@ export async function forwardDashboard(
       { status: 409 }
     );
   }
-  const segments = [action === "scopeCapabilities" ? "dashboard-capabilities" : "dashboards"];
+  if (action === "scopeCapabilities") {
+    return forwardToQuarkus(
+      orgPath(tenant.scope.activeOrg.slug, ["dashboard-capabilities"]),
+      { method: "GET" }
+    );
+  }
+  const segments = ["dashboards"];
   if (context) {
     const { dashboard } = await context.params;
     // URL normalizers resolve dot segments even after percent encoding.
@@ -49,7 +55,7 @@ export async function forwardDashboard(
       );
     }
     segments.push("queries", query);
-  } else if (action && action !== "scopeCapabilities") segments.push(action);
+  } else if (action) segments.push(action);
   let body: unknown;
   if (request.method === "PUT" || request.method === "POST") {
     try {

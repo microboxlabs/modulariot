@@ -168,7 +168,7 @@ describe("scope capabilities proxy", () => {
       headers: { Authorization: "Bearer attacker", "x-tenant-id": "foreign" },
     }));
     expect(forwardMock).toHaveBeenCalledWith("/api/v1/orgs/acme%20org/dashboard-capabilities", {
-      method: "GET", body: undefined, ifMatch: undefined,
+      method: "GET",
     });
   });
   it("rejects a stale organization before forwarding", async () => {

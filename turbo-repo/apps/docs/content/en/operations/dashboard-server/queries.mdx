@@ -167,3 +167,24 @@ The resolved plan contains `readOnly: true`, `url` (no query or fragment), close
 The provider performs GET only and requests `Prefer: count=exact`. It rejects redirects, HTTP 206, incomplete or unknown `Content-Range`, nested row objects and oversized responses. Limits are at most 20 seconds, eight concurrent calls, 5,000 rows and 2 MiB. Hosts must honor the resolver's cancellation signal and choose read-only credentials/functions. Exact allowed origins are trusted services, not a DNS firewall: apply deployment egress policy as well. Private HTTP requires explicit `allowHttp: true`; loopback is available for local validation.
 
 Use it through the same `queries: { operations: executor }` seam or standalone operation module as the BigQuery provider. The ModularIoT catalog adapter and real telemetry migration remain separate acceptance gates.
+
+## Connect portable providers to the host catalog
+
+The `createRemotePlanOperationExecutor` npm export calls a private plan-resolution endpoint and then executes BigQuery or HTTP GET in the dashboard Node process. It never delegates query execution to that endpoint. Resolution and execution share a maximum 20-second deadline and eight-call limit; plan requests and responses are bounded to 512 KiB. Only final data rows are returned.
+
+For a standalone pod, install an operator-owned module like this and select its absolute path with `MIOT_DASHBOARD_OPERATIONS_MODULE`:
+
+```js
+import { createRemotePlanOperationExecutor } from '@microboxlabs/miot-dashboard-server/queries';
+
+export function createDashboardOperations() {
+  return createRemotePlanOperationExecutor({
+    url: process.env.DASHBOARD_PLAN_URL,
+    proxyKey: process.env.DASHBOARD_PLAN_KEY,
+    allowedDataOrigins: ['https://pgrest.streamhub.cl'],
+    maximumBytesBilled: 1_000_000_000,
+  });
+}
+```
+
+For ModularIoT, the URL ends in `/internal/dashboard-operations/resolve`; enable host plan resolution explicitly. Inject the key from a deployment secret. Private catalog HTTP requires `allowHttp: true`; HTTP data-service transport has its own `allowDataHttp` opt-in. The two destinations and credentials are kept separate. An empty data-origin list supports BigQuery-only deployments. Embedded hosts pass the same executor as `queries.operations`, or supply their own local resolver directly to the individual providers.

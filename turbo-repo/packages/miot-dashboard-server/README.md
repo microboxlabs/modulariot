@@ -729,6 +729,25 @@ There is no conversion from an older version, and the refusal says so by name
 rather than guessing. If a real older config turns up, the dry run is what
 finds it — and the conversion should be written against that example.
 
+### Convert planner requests to saved queries
+
+`migratePlannerQueries(config, mappings)` prepares a new document without network
+calls or store writes. Supply exactly one `PlannerQueryMapping` per legacy request:
+`plannerId`, `connectionId`, `operationId`, and explicit `parameters` using the
+contract's literal/filter bindings. Verify those operations and parameter types in
+the authorized host catalog first. Tenant predicates belong to the host plan.
+
+The result is `{ ok: true, config }` or `{ ok: false, problems }`. A successful
+conversion removes `requestPlanner`, retains request IDs, variable names and known
+columns, and preserves widgets, filters, permissions metadata and document extension
+fields. The source is untouched. Duplicate identifiers, incomplete mappings,
+existing saved queries and invalid output contracts are refused.
+
+This helper does not interpret legacy templates, infer filter defaults, rewrite
+widget settings or certify their compatibility. Review nested and direct-datasource
+widgets separately. Pass the prepared document to an import dry run, then compare
+live data, filters and permissions before applying a parallel migration.
+
 ## Boundaries (enforced by `npm run guard`, part of `check-types`)
 
 - No React — this is a backend. The UI package's React entries are off-limits;

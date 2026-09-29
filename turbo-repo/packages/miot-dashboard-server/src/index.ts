@@ -125,6 +125,11 @@ export { refLabel } from "./import/legacy";
 export type { LegacyDashboard, LegacyDashboardSource } from "./import/legacy";
 export { migrateConfig, CURRENT_CONFIG_VERSION } from "./import/migrate";
 export type { MigrationResult } from "./import/migrate";
+export { migratePlannerQueries } from "./import/planner";
+export type {
+  PlannerQueryMapping,
+  PlannerMigrationResult,
+} from "./import/planner";
 
 export {
   createDashboardQueryService,

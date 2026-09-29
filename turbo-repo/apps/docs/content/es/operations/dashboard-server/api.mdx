@@ -96,3 +96,5 @@ Los listados aplican la política de visibilidad de cada dashboard antes de devo
 ## Validación de importaciones
 
 `importDashboards` usa una simulación por defecto. Tanto la simulación como la aplicación validan la versión y el contrato compartido antes de acceder al almacén. Las preferencias, widgets o consultas guardadas inválidas se informan en `refused` con la ruta del campo; no se escribe ningún documento. Se conservan los campos de extensión. Un documento válido aún requiere validar sus datos, filtros y permisos reales antes de sustituir el dashboard anterior.
+
+`migratePlannerQueries(config, mappings)` prepara las solicitudes del planner mediante un mapa explícito de conexión, operación y parámetros para cada solicitud. Conserva IDs, nombres de variables, widgets y filtros, elimina las definiciones anteriores y rechaza mapas parciales o ambiguos y consultas guardadas existentes. No escribe datos ni realiza llamadas de red. Revise por separado los valores por defecto, el aislamiento del tenant y los widgets con acceso directo a datos; la conversión no acredita compatibilidad real.

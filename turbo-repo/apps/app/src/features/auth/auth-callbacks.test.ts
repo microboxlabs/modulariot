@@ -65,7 +65,7 @@ describe("jwt callback refresh", () => {
       rawJWT: makeIdToken({ exp: nowSeconds() - 3_600 }),
       refreshToken: "old-refresh-token",
       accessTokenExpiresAt: nowSeconds() + 40_000,
-    } as JWT;
+    } as JWT & { accessTokenExpiresAt: number };
 
     const result = await jwt({ token });
 

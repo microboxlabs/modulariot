@@ -99,6 +99,31 @@ request. The adapter bounds received bytes before parsing, validates row
 values, discards extra response metadata, and returns a generic error on any
 host failure. The host still owns upstream cancellation and cost controls.
 
+## ModularIoT host endpoint
+
+The integrations module accepts `POST /internal/dashboard-operations` using the
+HTTP adapter envelope above. Configure the same `miot.dashboards.proxy-key` on
+both sides (at least 32 characters). Keep this service endpoint on the private
+network. It trusts the authenticated dashboard service to authorize the user,
+scope and dashboard; it resolves the organization slug to its tenant code and
+checks the connection and operation itself.
+
+The HTTP executor supports `HTTP_GET` operations returning a JSON array of
+rows. It requires an ACTIVE tenant-owned connection and the opt-in policy above,
+then executes the exact operation snapshot that was validated. Named parameters
+are URL-encoded; scalar strings are sent literally and other values as JSON.
+Stored URLs may not contain query strings or fragments, and parameters cannot
+overwrite credential query parameters. Public-URL checks and credential
+resolution reuse the integration invoker. BIGQUERY operations use the bounded
+executor described below.
+
+The host permits at most eight concurrent executions, 5,000 rows and 2 MiB of
+result JSON, and honors smaller requested limits. Invalid provider responses
+and internal failures return a generic error without provider data. Every
+endpoint response includes `Cache-Control: no-store`.
+
+The ingress authenticates before body buffering or JSON decoding and limits requests to 512 KiB, including chunked bodies. Framework-generated errors also carry the no-store header.
+
 ## BigQuery saved operations
 
 Use the existing BigQuery connection and its Google service-account credential.
@@ -124,3 +149,4 @@ also enforces a total request deadline and attempts cancellation on failure.
 Only complete, bounded scalar-column results are returned. Nested/repeated
 columns and paginated results are refused; shape the saved SQL for dashboard
 consumption. No query results are logged by this executor.
+

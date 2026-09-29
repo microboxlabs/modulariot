@@ -89,6 +89,7 @@ export function DashboardView() {
     setDashboardName,
     dictionary,
     siteId,
+    hostAccess,
     toggleEditMode,
     setEditMode,
     updateWidgetLayouts,
@@ -101,10 +102,11 @@ export function DashboardView() {
   const pathname = usePathname();
   const params = useParams<{ lang: string; slug: string }>();
 
-  const { canEdit, canManagePermissions } = useDashboardAccess(
-    siteId,
+  const legacyAccess = useDashboardAccess(
+    hostAccess ? null : siteId,
     params.slug
   );
+  const { canEdit, canManagePermissions } = hostAccess ?? legacyAccess;
 
   // Force edit mode off for read-only users so they can never accidentally
   // stay in edit mode if their role was downgraded mid-session.
@@ -343,12 +345,12 @@ export function DashboardView() {
                   {tr("dashboard.editMode", dictionary)}
                 </Button>
               )}
-              {canEdit && (
+              {canEdit && !hostAccess && (
                 <DashboardSettingsDropdown
                   canManagePermissions={canManagePermissions}
                 />
               )}
-              <DashboardShareDropdown />
+              {!hostAccess && <DashboardShareDropdown />}
               <Link
                 href={kioskUrl}
                 target="_blank"

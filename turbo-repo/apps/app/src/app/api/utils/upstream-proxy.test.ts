@@ -117,3 +117,19 @@ it("propagates browser cancellation through the authenticated proxy", async () =
   controller.abort();
   expect(signal.aborted).toBe(true);
 });
+
+it.each([undefined, 30_000])(
+  "uses the internal timeout budget %s",
+  async (timeoutMs) => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    fetchMock.mockResolvedValue(new Response("{}"));
+    try {
+      await forwardToQuarkus("/api/v1/orgs/acme/dashboards/fleet", {
+        timeoutMs,
+      });
+      expect(timeout).toHaveBeenCalledWith(timeoutMs ?? 15_000);
+    } finally {
+      timeout.mockRestore();
+    }
+  }
+);

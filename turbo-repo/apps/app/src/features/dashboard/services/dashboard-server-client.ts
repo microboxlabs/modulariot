@@ -135,7 +135,11 @@ export function createDashboardServerClient(
         z.object({
           data: z.object({
             rows: z
-              .array(z.record(z.string(), dashboardQueryValueSchema))
+              .array(
+                z
+                  .record(z.string(), dashboardQueryValueSchema)
+                  .refine((row) => Object.keys(row).length <= 100)
+              )
               .max(5000),
           }),
         })

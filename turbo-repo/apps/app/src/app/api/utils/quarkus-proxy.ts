@@ -29,6 +29,8 @@ export async function forwardToQuarkus(
     /** Dashboard revision precondition; never accepts arbitrary auth headers. */
     ifMatch?: string;
     signal?: AbortSignal;
+    /** Internal route budget; never read from request headers or JSON. */
+    timeoutMs?: number;
   }
 ): Promise<NextResponse> {
   const session = await auth();

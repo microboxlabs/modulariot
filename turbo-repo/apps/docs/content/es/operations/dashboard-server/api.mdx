@@ -79,4 +79,6 @@ Envía `?org={activeOrgSlug}` e incluye la organización en las claves de caché
 
 Tanto `createDashboardHandler` como el servidor independiente aplican `maxBodyBytes` (1 MiB por defecto). El handler embebido autoriza antes de leer JSON y cuenta los bytes recibidos, incluidas las solicitudes por fragmentos; un cuerpo excesivo devuelve `413`. Configura también el tiempo máximo y los límites de conexiones del host.
 
+## Consultas guardadas
+
 Envía `{ "filters": { ... } }` para ejecutar una consulta guardada. El cliente del navegador, vinculado a la organización, ofrece `query(slug, queryId, filters, signal)` y valida las filas recibidas. No envía credenciales ni SQL y propaga la cancelación a través del proxy de la aplicación.

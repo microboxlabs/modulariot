@@ -65,7 +65,7 @@ export async function forwardDashboard(
   }
   return forwardToQuarkus(orgPath(tenant.scope.activeOrg.slug, segments), {
     method: request.method,
-    ...(action === "query" ? { signal: request.signal } : {}),
+    ...(action === "query" ? { signal: request.signal, timeoutMs: 30_000 } : {}),
     body,
     ifMatch: request.headers.get("if-match") ?? undefined,
   });

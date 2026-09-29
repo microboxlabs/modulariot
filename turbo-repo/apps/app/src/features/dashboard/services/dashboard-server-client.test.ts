@@ -175,3 +175,15 @@ it("refuses malformed query rows", async () => {
     createDashboardServerClient("acme", fetcher).query("fleet", "costs")
   ).rejects.toMatchObject({ status: 502 });
 });
+
+it("refuses query rows exceeding the field limit", async () => {
+  const row = Object.fromEntries(
+    Array.from({ length: 101 }, (_, i) => [`field${i}`, i])
+  );
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(response({ rows: [row] }));
+  await expect(
+    createDashboardServerClient("acme", fetcher).query("fleet", "costs")
+  ).rejects.toMatchObject({ status: 502 });
+});

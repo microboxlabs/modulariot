@@ -139,6 +139,7 @@ describe("saved dashboard query route", () => {
         method: "POST",
         body: { filters: { days: 30 } },
         signal: request.signal,
+        timeoutMs: 30_000,
         ifMatch: undefined,
       }
     );

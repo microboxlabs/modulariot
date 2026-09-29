@@ -3,7 +3,7 @@ import { dashboardQueryValueSchema } from "@microboxlabs/miot-dashboard-contract
 import type { DashboardQueryValue } from "@microboxlabs/miot-dashboard-contract/document";
 import { upstreamError } from "./result";
 
-const scalarTypes = [
+const scalarTypes: readonly string[] = [
   "STRING",
   "INT64",
   "FLOAT64",
@@ -14,7 +14,7 @@ const scalarTypes = [
   "DATETIME",
   "TIME",
   "TIMESTAMP",
-] as const;
+];
 const planSchema = z
   .object({
     projectId: z.string().regex(/^[a-z][a-z0-9-]{4,61}[a-z0-9]$/),
@@ -22,7 +22,7 @@ const planSchema = z
     sql: z.string().trim().min(1).max(65_536),
     maximumBytesBilled: z.number().int().positive().safe(),
     parameterTypes: z.record(
-      z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,127}$/),
+      z.string().regex(/^[A-Za-z_]\w{0,127}$/),
       z.string(),
     ),
   })
@@ -35,7 +35,7 @@ function parameter(name: string, type: string, value: DashboardQueryValue) {
   const array = type.startsWith("ARRAY<") && type.endsWith(">");
   const scalarType = array ? type.slice(6, -1) : type;
   if (
-    !scalarTypes.some((candidate) => candidate === scalarType) ||
+    !scalarTypes.includes(scalarType) ||
     array !== Array.isArray(value)
   )
     throw upstreamError();

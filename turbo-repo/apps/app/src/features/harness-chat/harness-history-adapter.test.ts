@@ -19,6 +19,7 @@ function storedThread(summary: string | null): StoredThread {
     id: "thread-1",
     title: "chat",
     summary,
+    model: null,
     ownerId: "me",
     owned: true,
     expiresAt: null,
@@ -51,6 +52,7 @@ describe("stripInlineContent", () => {
             {
               type: "file",
               filename: "report.pdf",
+              mimeType: "application/pdf",
               data: `data:application/pdf;base64,${"A".repeat(50_000)}`,
             },
           ],
@@ -66,8 +68,26 @@ describe("stripInlineContent", () => {
     expect(stored.attachments[0]).toEqual({
       name: "report.pdf",
       type: "document",
-      content: [],
+      content: [{ type: "text", text: "[pdf: report.pdf]" }],
     });
+  });
+
+  it("leaves a marker for an inlined image in the attachment", () => {
+    const message = {
+      content: [{ type: "text", text: "and this?" }],
+      attachments: [
+        {
+          name: "chart.png",
+          type: "image",
+          contentType: "image/png",
+          content: [{ type: "image", image: "data:image/png;base64,iVBO" }],
+        },
+      ],
+    };
+
+    expect(stripInlineContent(message).attachments[0].content).toEqual([
+      { type: "text", text: "[image: chart.png]" },
+    ]);
   });
 
   it("keeps a short remote reference, which costs nothing to store", () => {
@@ -191,5 +211,141 @@ describe("createHarnessHistoryAdapter", () => {
       content: unknown[];
     };
     expect(stored.content).toEqual([]);
+  });
+
+  it("keeps artifacts that fit and stores the rest without content", async () => {
+    appendMessageMock.mockResolvedValue(true);
+    const call = (id: string, size: number) => {
+      const args = { id, kind: "svg", title: id, content: "é\"".repeat(size / 2) };
+      return { type: "tool-call", toolCallId: id, toolName: "show_artifact", args, argsText: JSON.stringify(args) };
+    };
+    const adapter = createHarnessHistoryAdapter("thread-1");
+
+    await adapter.append({
+      parentId: null,
+      message: {
+        id: "m3",
+        role: "assistant",
+        content: [{ type: "text", text: "hi" }, call("a1", 30_000), call("a2", 30_000), call("a3", 6_000)],
+      } as unknown as ThreadMessage,
+    });
+
+    const stored = appendMessageMock.mock.calls[0][1].payload as {
+      content: { args?: { content: string; omitted?: boolean }; argsText?: string }[];
+    };
+    const [, a1, a2, a3] = stored.content;
+    expect(a1?.args?.content).toHaveLength(30_000);
+    expect(a2?.args).toMatchObject({ content: "", omitted: true });
+    expect(JSON.parse(a2!.argsText!)).toMatchObject({ omitted: true });
+    expect(a3?.args?.content).toHaveLength(6_000);
+    expect(new TextEncoder().encode(JSON.stringify(stored)).length).toBeLessThan(256 * 1024);
+  });
+});
+
+describe("createHarnessHistoryAdapter with a run in flight", () => {
+  const user = {
+    id: "m1",
+    parentId: null,
+    format: "aui-v1",
+    payload: { id: "m1", role: "user", content: [{ type: "text", text: "trips?" }] },
+  };
+  const halfAnswer = (runId: string, status: string) => ({
+    id: "m2",
+    parentId: "m1",
+    format: "aui-v1",
+    payload: {
+      id: "m2",
+      role: "assistant",
+      content: [{ type: "text", text: "Thinking" }],
+      status: { type: status, reason: "error" },
+      metadata: { custom: { harnessRunId: runId } },
+    },
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    getThreadMock.mockResolvedValue(storedThread(null));
+    appendMessageMock.mockResolvedValue(true);
+  });
+
+  it("stamps an assistant message with the run that produced it", async () => {
+    const runs = { harnessRunId: "run_a" as string | null };
+    const adapter = createHarnessHistoryAdapter("thread-1", runs);
+    const answer = { id: "m2", role: "assistant", content: [] } as unknown as ThreadMessage;
+
+    await adapter.append({ parentId: "m1", message: answer });
+    runs.harnessRunId = "run_b";
+    await adapter.update!({ parentId: "m1", message: answer });
+
+    expect(appendMessageMock).toHaveBeenCalledTimes(2);
+    for (const [, stored] of appendMessageMock.mock.calls) {
+      expect(stored.payload).toMatchObject({ metadata: { custom: { harnessRunId: "run_a" } } });
+    }
+  });
+
+  it("resumes the thread's active run and drops the answer it left half-written", async () => {
+    window.localStorage.setItem("harness-chat.active-run.thread-1", "run_a");
+    listMessagesMock.mockResolvedValue([user, halfAnswer("run_a", "incomplete")]);
+    const runs = { harnessRunId: null as string | null };
+    const adapter = createHarnessHistoryAdapter("thread-1", runs);
+
+    const loaded = await adapter.load();
+
+    expect(loaded.messages.map((item) => item.message.id)).toEqual(["m1"]);
+    expect(loaded.headId).toBe("m1");
+    expect(adapter.takePendingResume()).toBe("run_a");
+    expect(adapter.takePendingResume()).toBeNull();
+
+    // The re-attached run's answer is stored over the half-written one, and
+    // what follows it points at the stored id.
+    runs.harnessRunId = "run_a";
+    await adapter.append({
+      parentId: "m1",
+      message: { id: "fresh", role: "assistant", content: [] } as unknown as ThreadMessage,
+    });
+    runs.harnessRunId = null;
+    await adapter.append({
+      parentId: "fresh",
+      message: { id: "m3", role: "user", content: [] } as unknown as ThreadMessage,
+    });
+    expect(appendMessageMock.mock.calls.map(([, m]) => [m.id, m.parentId])).toEqual([
+      ["m2", "m1"],
+      ["m3", "m2"],
+    ]);
+    expect(appendMessageMock.mock.calls[0][1].payload).toMatchObject({ id: "m2" });
+  });
+
+  it("resumes from the user message when no half-written answer was stored", async () => {
+    window.localStorage.setItem("harness-chat.active-run.thread-1", "run_a");
+    listMessagesMock.mockResolvedValue([user]);
+    const adapter = createHarnessHistoryAdapter("thread-1");
+
+    const loaded = await adapter.load();
+
+    expect(loaded.headId).toBe("m1");
+    expect(adapter.takePendingResume()).toBe("run_a");
+  });
+
+  it("forgets a run whose answer was already stored complete", async () => {
+    window.localStorage.setItem("harness-chat.active-run.thread-1", "run_a");
+    listMessagesMock.mockResolvedValue([user, halfAnswer("run_a", "complete")]);
+    const adapter = createHarnessHistoryAdapter("thread-1");
+
+    const loaded = await adapter.load();
+
+    expect(loaded.headId).toBe("m2");
+    expect(adapter.takePendingResume()).toBeNull();
+    expect(window.localStorage.getItem("harness-chat.active-run.thread-1")).toBeNull();
+  });
+
+  it("does not resume a thread with no active run", async () => {
+    listMessagesMock.mockResolvedValue([user, halfAnswer("run_a", "incomplete")]);
+    const adapter = createHarnessHistoryAdapter("thread-1");
+
+    const loaded = await adapter.load();
+
+    expect(loaded.headId).toBe("m2");
+    expect(adapter.takePendingResume()).toBeNull();
   });
 });

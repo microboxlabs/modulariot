@@ -89,7 +89,7 @@ describe("startSweepSchedule", () => {
     const before = sweep.mock.calls.length;
     await stop();
     await vi.advanceTimersByTimeAsync(10_000);
-    expect(sweep.mock.calls.length).toBe(before);
+    expect(sweep.mock.calls).toHaveLength(before);
     vi.useRealTimers();
   });
 

@@ -15,6 +15,7 @@ import pagesConfig from "./pages-config.json";
 
 const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   home: HomeIcon,
+  dashboardServer: HomeIcon,
   calendar: CalendarIcon,
   kanban: ClipboardIcon,
   tasks: FaBookIcon,
@@ -37,9 +38,8 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
 export const DEV_PAGE_LABEL = "dev";
 
 /**
- * Storytelling is still testing-only content (see storytelling-store.ts,
- * the `testing/` fixtures) — hidden unless ENABLE_STORYTELLING is
- * switched on, same mechanism as DEV_PAGE_LABEL above.
+ * Storytelling is hidden unless ENABLE_STORYTELLING is switched on, same
+ * mechanism as DEV_PAGE_LABEL above.
  */
 export const STORYTELLING_PAGE_LABEL = "storytelling";
 
@@ -80,6 +80,7 @@ export function visiblePages(devToolsEnabled: boolean, storytellingEnabled: bool
 
 const HARNESS_SETTINGS_HREF = "/users/settings/harness";
 const PLATFORM_SETTINGS_HREF = "/users/settings/platform";
+export const HARNESS_LEARNING_HREF = "/harness/learning";
 
 /** Which flag decides whether a gated Settings entry is offered. */
 export interface SettingsGates {
@@ -87,6 +88,8 @@ export interface SettingsGates {
   readonly harness: boolean;
   /** Whether the signed-in user holds `PLATFORM_OWNER`. */
   readonly platformOwner: boolean;
+  /** Whether the signed-in user may train the assistant (`HARNESS_TRAINER`). */
+  readonly trainer: boolean;
 }
 
 /**
@@ -100,12 +103,13 @@ export function filterSettings(
   input: SidebarItem[],
   gates: SettingsGates
 ): SidebarItem[] {
-  if (gates.harness && gates.platformOwner) return input;
+  if (gates.harness && gates.platformOwner && gates.trainer) return input;
 
   return input.map((page) => ({
     ...page,
     items: (page.items ?? []).filter((item) => {
       if (!gates.harness && item.href === HARNESS_SETTINGS_HREF) return false;
+      if (!gates.trainer && item.href === HARNESS_LEARNING_HREF) return false;
       return gates.platformOwner || item.href !== PLATFORM_SETTINGS_HREF;
     }),
   }));

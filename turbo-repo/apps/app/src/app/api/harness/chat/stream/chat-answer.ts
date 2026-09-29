@@ -1,0 +1,786 @@
+/**
+ * The chat's answer contract: the miot-analyst skill answers with a JSON
+ * array of blocks (markdown, url, widget, artifact, choices, assumption), and
+ * the harness reports each widget's data in a `widget.created` event and each
+ * artifact in an `artifact.created` event. This module turns them into the
+ * AG-UI events the chat panel renders: text messages, `show_dashlet` tool
+ * calls (real dashboard widgets), `show_artifact` tool calls and
+ * `ask_user_question` tool calls. Pure, so the whole mapping is unit-tested.
+ */
+
+import {
+  SHOW_DASHBOARD_DRAFT_TOOL,
+  type DraftDashlet,
+  type ShowDashboardDraftArgs,
+} from "@/features/harness-chat/extensions/dashboard-draft";
+import {
+  REQUEST_APPROVAL_TOOL,
+  type RequestApprovalArgs,
+  type RequestApprovalResult,
+} from "@/features/harness-chat/extensions/request-approval-args";
+import {
+  SHOW_SHARE_LINK_TOOL,
+  type ShowShareLinkArgs,
+} from "@/features/harness-chat/extensions/show-share-link-args";
+
+export type { DraftDashlet };
+
+export type WidgetKind = "kpi" | "table" | "bar" | "line" | "pie";
+
+export type WidgetSpec = {
+  id: string;
+  kind: WidgetKind;
+  title: string;
+  subtitle?: string | null;
+  x?: string | null;
+  y: string[];
+  unit?: string | null;
+  columns: string[];
+  rows: Record<string, unknown>[];
+  truncated?: boolean;
+  /** Display name per column key, when keys were replaced by safe ones. */
+  labels?: Record<string, string>;
+};
+
+export type ArtifactKind = "svg" | "mermaid" | "markdown" | "html";
+
+export type ArtifactSpec = {
+  id: string;
+  kind: ArtifactKind;
+  title: string;
+  content: string;
+  source?: string;
+};
+
+export type ChoicesValue = {
+  question: string;
+  description?: string;
+  options: { label: string; description?: string }[];
+  allowMultiple?: boolean;
+  allowOther?: boolean;
+};
+
+export type ChatBlock =
+  | { type: "markdown"; value: string }
+  | { type: "url"; value: { url: string; name: string } }
+  | { type: "widget"; value: { id: string } }
+  | { type: "artifact"; value: { id: string } }
+  | { type: "choices"; value: ChoicesValue }
+  | { type: "assumption"; value: { term: string; interpretation: string } };
+
+export type ChatEvent = Record<string, unknown>;
+
+const ARTIFACT_KINDS: ReadonlySet<string> = new Set([
+  "svg",
+  "mermaid",
+  "markdown",
+  "html",
+]);
+
+const WIDGET_KINDS: ReadonlySet<string> = new Set([
+  "kpi",
+  "table",
+  "bar",
+  "line",
+  "pie",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Absolute http(s), or an app-relative path (a protocol-relative `//host` is rejected). */
+function isSafeHref(url: string): boolean {
+  return (
+    /^https?:\/\//i.test(url) || (url.startsWith("/") && !url.startsWith("//"))
+  );
+}
+
+function isChoices(value: unknown): value is ChoicesValue {
+  if (!isRecord(value) || typeof value.question !== "string") return false;
+  const options = value.options;
+  return (
+    Array.isArray(options) &&
+    options.length > 0 &&
+    options.every((o) => isRecord(o) && typeof o.label === "string")
+  );
+}
+
+export function toChatBlock(item: unknown): ChatBlock | null {
+  if (!isRecord(item)) return null;
+  const { type, value } = item;
+  if (type === "markdown" && typeof value === "string") return { type, value };
+  if (
+    type === "url" &&
+    isRecord(value) &&
+    typeof value.url === "string" &&
+    typeof value.name === "string"
+  ) {
+    return isSafeHref(value.url)
+      ? { type, value: { url: value.url, name: value.name } }
+      : null;
+  }
+  if (
+    (type === "widget" || type === "artifact") &&
+    isRecord(value) &&
+    typeof value.id === "string"
+  )
+    return { type, value: { id: value.id } };
+  if (type === "choices" && isChoices(value)) return { type, value };
+  if (
+    type === "assumption" &&
+    isRecord(value) &&
+    typeof value.term === "string"
+  ) {
+    return {
+      type,
+      value: {
+        term: value.term,
+        interpretation:
+          typeof value.interpretation === "string" ? value.interpretation : "",
+      },
+    };
+  }
+  return null;
+}
+
+/** What a block adds to the answer's text; null for a block shown as a card. */
+export function blockText(block: ChatBlock): string | null {
+  if (block.type === "markdown") return block.value;
+  if (block.type === "url") return `[${block.value.name}](${block.value.url})`;
+  return null;
+}
+
+/** Parse the run's answer; anything that is not a block array is one markdown block. */
+export function parseChatBlocks(
+  answer: string | null | undefined
+): ChatBlock[] {
+  if (!answer) return [];
+  try {
+    const parsed: unknown = JSON.parse(answer);
+    if (Array.isArray(parsed)) {
+      return parsed.map(toChatBlock).filter((b): b is ChatBlock => b !== null);
+    }
+  } catch {
+    // not JSON: shown as text below
+  }
+  return [{ type: "markdown", value: answer }];
+}
+
+function toWidgetSpec(value: unknown): WidgetSpec | null {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    !WIDGET_KINDS.has(String(value.kind))
+  ) {
+    return null;
+  }
+  const rows = Array.isArray(value.rows) ? value.rows.filter(isRecord) : [];
+  const columns = Array.isArray(value.columns)
+    ? value.columns.filter((c): c is string => typeof c === "string")
+    : Object.keys(rows[0] ?? {});
+  return {
+    id: value.id,
+    kind: value.kind as WidgetKind,
+    title: typeof value.title === "string" ? value.title : "",
+    subtitle: typeof value.subtitle === "string" ? value.subtitle : null,
+    x: typeof value.x === "string" ? value.x : null,
+    y: Array.isArray(value.y)
+      ? value.y.filter((c): c is string => typeof c === "string")
+      : [],
+    unit: typeof value.unit === "string" ? value.unit : null,
+    columns,
+    rows,
+    truncated: value.truncated === true,
+  };
+}
+
+/** The widgets a run produced, from its `widget.created` events, in order. */
+export function widgetsOf(events: unknown): WidgetSpec[] {
+  if (!Array.isArray(events)) return [];
+  return events
+    .filter(
+      (e) => isRecord(e) && e.type === "widget.created" && isRecord(e.data)
+    )
+    .map((e) =>
+      toWidgetSpec((e as { data: Record<string, unknown> }).data.widget)
+    )
+    .filter((w): w is WidgetSpec => w !== null);
+}
+
+export function toArtifactSpec(value: unknown): ArtifactSpec | null {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.content !== "string" ||
+    !ARTIFACT_KINDS.has(String(value.kind))
+  ) {
+    return null;
+  }
+  return {
+    id: value.id,
+    kind: value.kind as ArtifactKind,
+    title: typeof value.title === "string" ? value.title : "",
+    content: value.content,
+    ...(typeof value.source === "string" ? { source: value.source } : {}),
+  };
+}
+
+/** The artifacts a run produced, from its `artifact.created` events, in order. */
+export function artifactsOf(events: unknown): ArtifactSpec[] {
+  if (!Array.isArray(events)) return [];
+  return events
+    .filter(
+      (e) => isRecord(e) && e.type === "artifact.created" && isRecord(e.data)
+    )
+    .map((e) => toArtifactSpec((e as { data: unknown }).data))
+    .filter((a): a is ArtifactSpec => a !== null);
+}
+
+/** `driving_hours` → `Driving hours`: column names read as labels. */
+export function humanize(column: string): string {
+  const spaced = column.replace(/_/g, " ").trim();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function labelOf(spec: WidgetSpec, column: string): string {
+  return humanize(spec.labels?.[column] ?? column);
+}
+
+/**
+ * The same widget with columns renamed c0, c1, … Dashlet templates address a
+ * cell as `{{row.<column>}}`, which breaks on names with spaces, accents or
+ * symbols ("Códigos negros", "% atendido"); the names stay as labels.
+ */
+export function withSafeKeys(spec: WidgetSpec): WidgetSpec {
+  const keys = new Map(spec.columns.map((c, i) => [c, `c${i}`]));
+  const key = (c: string) => keys.get(c) ?? c;
+  return {
+    ...spec,
+    x: spec.x ? key(spec.x) : spec.x,
+    y: spec.y.map(key),
+    columns: spec.columns.map(key),
+    rows: spec.rows.map((row) =>
+      Object.fromEntries(spec.columns.map((c) => [key(c), row[c]]))
+    ),
+    labels: Object.fromEntries(spec.columns.map((c) => [key(c), c])),
+  };
+}
+
+function cell(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+function stringRows(spec: WidgetSpec): Record<string, string>[] {
+  return spec.rows.map((row) =>
+    Object.fromEntries(spec.columns.map((c) => [c, cell(row[c])]))
+  );
+}
+
+const STATIC_DATA = {
+  dataMode: "static",
+  pgrestFunctionName: "",
+  pgrestParams: [],
+  pgrestHttpMethod: "POST",
+} as const;
+
+function kpiConfig(spec: WidgetSpec): Record<string, unknown> {
+  const valueColumn =
+    spec.y[0] ??
+    spec.columns.find((c) => c !== spec.x) ??
+    spec.columns[0] ??
+    "value";
+  const row = stringRows(spec)[0] ?? {};
+  return {
+    ...STATIC_DATA,
+    staticData: JSON.stringify(row),
+    title: spec.title,
+    value: `{{row.${valueColumn}}}`,
+    unit: spec.unit ?? "",
+    subtitle: spec.subtitle ?? "",
+    cardVariant: "horizontal",
+    showIcon: true,
+    icon: "hi2-chart-bar",
+    iconColor: "1c64f2",
+  };
+}
+
+function tableConfig(spec: WidgetSpec): Record<string, unknown> {
+  const numeric = new Set(spec.y);
+  return {
+    ...STATIC_DATA,
+    title: spec.truncated ? `${spec.title} (${spec.rows.length}+)` : spec.title,
+    showRowCount: true,
+    showColumnDividers: true,
+    showExport: true,
+    striped: true,
+    columns: spec.columns.map((c) => ({
+      key: `{{row.${c}}}`,
+      label: labelOf(spec, c),
+      type: numeric.has(c) ? "highlight" : "text",
+    })),
+    rows: stringRows(spec),
+    filter: { enabled: false, items: [] },
+    sort: { enabled: true, columns: spec.columns.map((c) => `{{row.${c}}}`) },
+  };
+}
+
+/** The chart's category axis: the declared x, else the first column. */
+function xColumnOf(spec: WidgetSpec): string {
+  return spec.x ?? spec.columns[0] ?? "";
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
+
+/** "day" or "month" when every x value is an ISO date (first-of-month means
+ * months), so the chart formats and thins the axis labels; "none" otherwise. */
+export function dateFormatOf(spec: WidgetSpec): "none" | "day" | "month" {
+  const x = xColumnOf(spec);
+  const values = spec.rows.map((row) => row[x]);
+  if (
+    values.length === 0 ||
+    !values.every((v) => typeof v === "string" && ISO_DATE.test(v))
+  ) {
+    return "none";
+  }
+  return values.every((v) => String(v).slice(8, 10) === "01") ? "month" : "day";
+}
+
+function chartConfig(spec: WidgetSpec): Record<string, unknown> {
+  const pie = spec.kind === "pie";
+  return {
+    ...STATIC_DATA,
+    title: spec.title,
+    chartFamily: pie ? "pie" : "cartesian",
+    xAxisColumn: xColumnOf(spec),
+    ...(pie ? {} : { xAxisDateFormat: dateFormatOf(spec) }),
+    representations: spec.y.map((c) => ({
+      columnKey: c,
+      label: spec.unit
+        ? `${labelOf(spec, c)} (${spec.unit})`
+        : labelOf(spec, c),
+      type: spec.kind === "bar" || pie ? "bar" : "line",
+      smooth: spec.kind === "line",
+      showLabels: spec.rows.length <= 12,
+    })),
+    xAxisLabel: "",
+    yAxisLabel: spec.unit ?? "",
+    showLegend: pie || spec.y.length > 1,
+    horizontal: false,
+    colorPalette: "default",
+    customColors: [],
+    rows: stringRows(spec),
+  };
+}
+
+/** The dashboard dashlet that renders a widget, with its data inline. */
+export function widgetToDashlet(input: WidgetSpec): {
+  dashletId: string;
+  config: Record<string, unknown>;
+} {
+  const spec = withSafeKeys(input);
+  if (spec.kind === "kpi")
+    return { dashletId: "stat_icon", config: kpiConfig(spec) };
+  if (spec.kind === "table")
+    return { dashletId: "data_table_v2", config: tableConfig(spec) };
+  return { dashletId: "chart_v2", config: chartConfig(spec) };
+}
+
+export type DashboardDraftSpec = {
+  id: string;
+  title: string;
+  description: string;
+  widgets: string[];
+};
+
+function toDraftSpec(value: unknown): DashboardDraftSpec | null {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.title !== "string" ||
+    !Array.isArray(value.widgets)
+  ) {
+    return null;
+  }
+  return {
+    id: value.id,
+    title: value.title,
+    description: typeof value.description === "string" ? value.description : "",
+    widgets: value.widgets.filter((w): w is string => typeof w === "string"),
+  };
+}
+
+/** The dashboard drafts a run offered, from its `dashboard.draft` events. */
+export function dashboardDraftsOf(events: unknown): DashboardDraftSpec[] {
+  if (!Array.isArray(events)) return [];
+  return events
+    .filter(
+      (e) => isRecord(e) && e.type === "dashboard.draft" && isRecord(e.data)
+    )
+    .map((e) => toDraftSpec((e as { data: unknown }).data))
+    .filter((d): d is DashboardDraftSpec => d !== null);
+}
+
+function parseArgs(raw: unknown): unknown {
+  if (typeof raw !== "string") return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The dashlets earlier turns showed, by widget id, from the `show_dashlet`
+ * calls the browser sends back with the thread's messages.
+ */
+export function dashletsInThread(
+  messages: { toolCalls?: unknown }[]
+): Map<string, DraftDashlet> {
+  const found = new Map<string, DraftDashlet>();
+  for (const message of messages) {
+    if (!Array.isArray(message.toolCalls)) continue;
+    for (const call of message.toolCalls as ToolCallRecord[]) {
+      if (call.function?.name !== "show_dashlet") continue;
+      const args = parseArgs(call.function.arguments);
+      if (
+        isRecord(args) &&
+        typeof args.widgetId === "string" &&
+        typeof args.dashletId === "string" &&
+        isRecord(args.config)
+      ) {
+        found.set(args.widgetId, {
+          widgetId: args.widgetId,
+          dashletId: args.dashletId,
+          config: args.config,
+        });
+      }
+    }
+  }
+  return found;
+}
+
+/** A draft with each widget replaced by its dashlet: this run's widgets
+ * first, then the ones earlier turns showed. */
+export function resolveDraft(
+  draft: DashboardDraftSpec,
+  widgets: Map<string, WidgetSpec>,
+  prior: Map<string, DraftDashlet>
+): ShowDashboardDraftArgs {
+  const dashlets: DraftDashlet[] = [];
+  const missing: string[] = [];
+  for (const id of draft.widgets) {
+    const spec = widgets.get(id);
+    const dashlet = spec
+      ? { widgetId: id, ...widgetToDashlet(spec) }
+      : prior.get(id);
+    if (dashlet) dashlets.push(dashlet);
+    else missing.push(id);
+  }
+  return {
+    id: draft.id,
+    title: draft.title,
+    description: draft.description,
+    dashlets,
+    missing,
+  };
+}
+
+function callEvents(
+  name: string,
+  args: unknown,
+  toolCallId: string
+): ChatEvent[] {
+  return [
+    { type: "TOOL_CALL_START", toolCallId, toolCallName: name },
+    { type: "TOOL_CALL_ARGS", toolCallId, delta: JSON.stringify(args) },
+    { type: "TOOL_CALL_END", toolCallId },
+  ];
+}
+
+function toolCall(
+  name: string,
+  args: unknown,
+  newId: () => string
+): ChatEvent[] {
+  return callEvents(name, args, newId());
+}
+
+/** A `request_approval` card. It stays open: its result is sent when the
+ * harness reports the decision, or when the run ends without one. */
+export function approvalCallEvents(
+  args: RequestApprovalArgs,
+  toolCallId: string
+): ChatEvent[] {
+  return callEvents(REQUEST_APPROVAL_TOOL, args, toolCallId);
+}
+
+export function approvalResultEvent(
+  toolCallId: string,
+  result: RequestApprovalResult,
+  newId: () => string = () => crypto.randomUUID()
+): ChatEvent {
+  return {
+    type: "TOOL_CALL_RESULT",
+    messageId: newId(),
+    toolCallId,
+    content: JSON.stringify(result),
+    role: "tool",
+  };
+}
+
+/** A widget or artifact needs no reply from the user: its result is sent
+ * with it, so the card never acknowledges it and the runtime starts no empty
+ * follow-up run. */
+function resolvedCall(
+  name: string,
+  args: unknown,
+  newId: () => string
+): ChatEvent[] {
+  const events = toolCall(name, args, newId);
+  const toolCallId = events[0]?.toolCallId;
+  return [
+    ...events,
+    {
+      type: "TOOL_CALL_RESULT",
+      messageId: newId(),
+      toolCallId,
+      content: "{}",
+      role: "tool",
+    },
+  ];
+}
+
+function textMessage(text: string, newId: () => string): ChatEvent[] {
+  const messageId = newId();
+  return [
+    { type: "TEXT_MESSAGE_START", messageId },
+    { type: "TEXT_MESSAGE_CONTENT", messageId, delta: text },
+    { type: "TEXT_MESSAGE_END", messageId },
+  ];
+}
+
+/** A `show_artifact` card for one artifact, as its own resolved tool call. */
+export function artifactCallEvents(
+  spec: ArtifactSpec,
+  newId: () => string = () => crypto.randomUUID()
+): ChatEvent[] {
+  return resolvedCall("show_artifact", spec, newId);
+}
+
+/** A `show_share_link` card for a link the agent created. */
+export function shareLinkCallEvents(
+  args: ShowShareLinkArgs,
+  newId: () => string = () => crypto.randomUUID()
+): ChatEvent[] {
+  return resolvedCall(SHOW_SHARE_LINK_TOOL, args, newId);
+}
+
+/** Any other informational card, as its own resolved tool call. */
+export function resolvedCardEvents(
+  name: string,
+  args: unknown,
+  newId: () => string = () => crypto.randomUUID()
+): ChatEvent[] {
+  return resolvedCall(name, args, newId);
+}
+
+/** Collects the answer's parts in order while blocks are read. */
+class AnswerBuilder {
+  readonly out: ChatEvent[] = [];
+  private text: string[] = [];
+  private readonly placed = new Set<string>();
+  private readonly placedArtifacts: Set<string>;
+  readonly assumptions: string[] = [];
+  choices: ChoicesValue | null = null;
+
+  constructor(
+    private readonly widgets: Map<string, WidgetSpec>,
+    private readonly artifacts: Map<string, ArtifactSpec>,
+    private readonly newId: () => string,
+    shownArtifacts: Iterable<string> = []
+  ) {
+    this.placedArtifacts = new Set(shownArtifacts);
+  }
+
+  add(block: ChatBlock): void {
+    switch (block.type) {
+      case "markdown":
+      case "url":
+        this.text.push(blockText(block) ?? "");
+        return;
+      case "assumption":
+        this.assumptions.push(
+          `'${block.value.term}' = ${block.value.interpretation}`
+        );
+        return;
+      case "choices":
+        this.choices = block.value;
+        return;
+      case "widget":
+        this.placeWidget(block.value.id);
+        return;
+      case "artifact":
+        this.placeArtifact(block.value.id);
+    }
+  }
+
+  note(line: string): void {
+    this.text.push(line);
+  }
+
+  flush(): void {
+    if (this.text.length)
+      this.out.push(...textMessage(this.text.join("\n\n"), this.newId));
+    this.text = [];
+  }
+
+  placeWidget(id: string): void {
+    const spec = this.widgets.get(id);
+    if (!spec || this.placed.has(id)) return;
+    this.flush();
+    this.out.push(
+      ...resolvedCall(
+        "show_dashlet",
+        { ...widgetToDashlet(spec), widgetId: id },
+        this.newId
+      )
+    );
+    this.placed.add(id);
+  }
+
+  placeArtifact(id: string): void {
+    const spec = this.artifacts.get(id);
+    if (!spec || this.placedArtifacts.has(id)) return;
+    this.flush();
+    this.out.push(...resolvedCall("show_artifact", spec, this.newId));
+    this.placedArtifacts.add(id);
+  }
+
+  placeRemaining(): void {
+    for (const id of this.widgets.keys()) this.placeWidget(id);
+    for (const id of this.artifacts.keys()) this.placeArtifact(id);
+  }
+
+  placeDrafts(
+    drafts: DashboardDraftSpec[],
+    prior: Map<string, DraftDashlet>
+  ): void {
+    for (const draft of drafts) {
+      this.out.push(
+        ...resolvedCall(
+          SHOW_DASHBOARD_DRAFT_TOOL,
+          resolveDraft(draft, this.widgets, prior),
+          this.newId
+        )
+      );
+    }
+  }
+}
+
+/**
+ * The AG-UI events that present one run's answer: text in order, each widget
+ * and artifact where its block sits (those the answer never placed come after
+ * the text, widgets first), then each dashboard draft, resolved against this
+ * run's widgets and `priorDashlets`, and a choices block as an
+ * `ask_user_question` card at the end. Artifacts in `shownArtifacts` were
+ * sent while the run was going and are left out.
+ */
+export function chatAnswerEvents(
+  answer: string | null | undefined,
+  events: unknown,
+  opts: {
+    noAnswer: string;
+    assumptionLabel: string;
+    newId?: () => string;
+    shownArtifacts?: Iterable<string>;
+    priorDashlets?: Map<string, DraftDashlet>;
+  }
+): ChatEvent[] {
+  const newId = opts.newId ?? (() => crypto.randomUUID());
+  const builder = new AnswerBuilder(
+    new Map(widgetsOf(events).map((w) => [w.id, w])),
+    new Map(artifactsOf(events).map((a) => [a.id, a])),
+    newId,
+    opts.shownArtifacts
+  );
+  for (const block of parseChatBlocks(answer)) builder.add(block);
+  if (builder.assumptions.length) {
+    builder.note(
+      `_${opts.assumptionLabel}: ${builder.assumptions.join("; ")}_`
+    );
+  }
+  builder.flush();
+  builder.placeRemaining();
+  builder.placeDrafts(
+    dashboardDraftsOf(events),
+    opts.priorDashlets ?? new Map()
+  );
+  if (builder.choices)
+    builder.out.push(...toolCall("ask_user_question", builder.choices, newId));
+  if (builder.out.length === 0)
+    builder.out.push(...textMessage(opts.noAnswer, newId));
+  return builder.out;
+}
+
+type ToolCallRecord = {
+  id?: unknown;
+  function?: { name?: unknown; arguments?: unknown };
+};
+
+function questionOf(call: ToolCallRecord): string {
+  const raw = call.function?.arguments;
+  try {
+    const args: unknown = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return isRecord(args) && typeof args.question === "string"
+      ? args.question
+      : "";
+  } catch {
+    return "";
+  }
+}
+
+function pickedOf(content: unknown): string[] {
+  let result: unknown = content;
+  if (typeof content === "string") {
+    try {
+      result = JSON.parse(content);
+    } catch {
+      return content ? [content] : [];
+    }
+  }
+  if (!isRecord(result)) return [];
+  const selected = Array.isArray(result.selected)
+    ? result.selected.map(String)
+    : [];
+  const other = typeof result.other === "string" ? result.other : "";
+  return [...selected, other].filter(Boolean);
+}
+
+/**
+ * When the user answered an `ask_user_question` card, the message the harness
+ * should receive: the question and the chosen options, in plain words. Null
+ * for any other tool result (a widget's or artifact's acknowledgement).
+ */
+export function answerFromToolResult(
+  messages: {
+    role: string;
+    content?: unknown;
+    toolCallId?: string;
+    toolCalls?: unknown;
+  }[]
+): string | null {
+  const last = messages.at(-1);
+  if (last?.role !== "tool" || !last.toolCallId) return null;
+  const call = messages
+    .flatMap((m) =>
+      Array.isArray(m.toolCalls) ? (m.toolCalls as ToolCallRecord[]) : []
+    )
+    .find((c) => c.id === last.toolCallId);
+  if (call?.function?.name !== "ask_user_question") return null;
+  const picked = pickedOf(last.content);
+  if (picked.length === 0) return null;
+  const question = questionOf(call);
+  return question ? `${question} → ${picked.join(", ")}` : picked.join(", ");
+}

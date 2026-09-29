@@ -1,8 +1,8 @@
 # @microboxlabs/miot-dashboard-server — standalone image.
 #
 # The context is assembled by .github/workflows/dashboard-server.yml: dist/,
-# examples/ and a package.json naming the runtime dependencies, which are
-# installed below from the registry.
+# examples/, the matching contract archive, and a runtime package.json.
+# Only third-party dependencies are installed from the registry.
 #
 # The store is node:sqlite, which ships with Node, so nothing is installed
 # for persistence.
@@ -17,7 +17,7 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 dashboards
 
-COPY package.json ./
+COPY package.json dashboard-contract.tgz ./
 RUN npm install --omit=dev --no-audit --no-fund \
     && npm cache clean --force \
     && chown -R dashboards:nodejs /app

@@ -15,7 +15,6 @@ import asyncio
 import json
 from collections.abc import Iterator
 from typing import Any
-from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -202,9 +201,9 @@ async def test_stream_receives_live_events_during_in_flight(
     tmp_path: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """While a run is in-flight, GET /stream subscribes to the RunEventBus
-    and yields events live. We slot a controllable data_graph onto the
-    harness after lifespan starts, then start a run via /runs:start and
-    immediately consume the stream.
+    and yields events live. We slot a controllable loop onto the harness
+    after lifespan starts, then start a run via /runs:start and immediately
+    consume the stream.
     """
 
     import httpx
@@ -220,33 +219,18 @@ async def test_stream_receives_live_events_during_in_flight(
     # Drive lifespan via TestClient, then run the actual stream test
     # against httpx.AsyncClient(transport=ASGITransport) on the same app.
     with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}):
-        # Force route to DATA_QUERY via a scripted llm_router, and inject
-        # a slow graph that emits 2 events and blocks until released.
+        # A loop that emits two events, then waits until released.
         gate = asyncio.Event()
 
-        async def slow_ainvoke(state: dict[str, Any]) -> dict[str, Any]:
-            events = [
-                HarnessEvent(run_id="ignored", type="agent.turn", message="planner"),
-                HarnessEvent(run_id="ignored", type="tool.completed", message="probe"),
-            ]
-            # Surface the first batch via the graph's _events channel,
-            # then await release. The supervisor's drain runs AFTER
-            # ainvoke returns, so these events arrive at the bus only
-            # once the gate opens; that's fine — we'll observe the
-            # supervisor-level events live too (run.started, route.selected).
-            await gate.wait()
-            return {"answer": "released", "_events": events}
+        class _SlowLoop:
+            async def run(self, *, user_message, ctx, prior_messages, progress):
+                progress(HarnessEvent(run_id=ctx.run_id, type="agent.started", message="loop"))
+                progress(HarnessEvent(run_id=ctx.run_id, type="tool.completed", message="probe"))
+                await gate.wait()
+                return {"answer": "released", "messages": []}
 
-        data_graph = AsyncMock()
-        data_graph.ainvoke = slow_ainvoke
-
-        # Attach controllable graph + force DATA_QUERY routing keyword.
-        harness = app.state.harness
-        harness.data_graph = data_graph
-        # No LLM router → keyword router picks DATA_QUERY when the message
-        # contains a keyword. Easiest: use a Orion-related keyword.
-        # Looking at router.py for an actual DATA_QUERY trigger word.
-        message = "orion status"  # keyword router routes this to DATA_QUERY
+        app.state.harness.agent_loop = _SlowLoop()
+        message = "orion status"
 
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app),
@@ -269,11 +253,11 @@ async def test_stream_receives_live_events_during_in_flight(
             consumer_task = asyncio.create_task(consume())
             # Give the consumer a tick to subscribe.
             await asyncio.sleep(0.05)
-            # Release the slow graph; supervisor finishes, _close_bus fires.
+            # Release the slow loop; supervisor finishes, _close_bus fires.
             gate.set()
             records = await asyncio.wait_for(consumer_task, timeout=5.0)
 
-    # We should have at least: run.started, route.selected, run.completed.
+    # We should have at least: run.started, the loop's events, run.completed.
     event_types = [r["event"] for r in records]
     assert "run.started" in event_types
     assert "run.completed" in event_types

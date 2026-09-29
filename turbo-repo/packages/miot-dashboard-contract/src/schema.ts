@@ -63,6 +63,57 @@ export const plannerRequestDefinitionSchema = z
   })
   .passthrough();
 
+// JSON Schema maxLength counts Unicode code points, not UTF-16 code units.
+export const dashboardQueryIdentifierSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value) => value.length <= 256 && [...value].length <= 128,
+    "Must contain at most 128 Unicode characters",
+  );
+export const dashboardQueryTextSchema = z
+  .string()
+  .refine(
+    (value) => value.length <= 4096 && [...value].length <= 2048,
+    "Must contain at most 2048 Unicode characters",
+  );
+const queryScalarSchema = z.union([
+  dashboardQueryTextSchema,
+  z.number().finite(),
+  z.boolean(),
+  z.null(),
+]);
+export const dashboardQueryValueSchema = z.union([
+  queryScalarSchema,
+  z.array(queryScalarSchema).max(100),
+]);
+export const dashboardQueryParameterSchema = z.discriminatedUnion("kind", [
+  z
+    .object({ kind: z.literal("literal"), value: dashboardQueryValueSchema })
+    .passthrough(),
+  z
+    .object({
+      kind: z.literal("filter"),
+      key: dashboardQueryIdentifierSchema,
+      defaultValue: dashboardQueryValueSchema.optional(),
+      omitWhenEmpty: z.boolean().optional(),
+    })
+    .passthrough(),
+]);
+export const dashboardQueryDefinitionSchema = z
+  .object({
+    id: dashboardQueryIdentifierSchema,
+    variableName: dashboardQueryIdentifierSchema,
+    connectionId: dashboardQueryIdentifierSchema,
+    operationId: dashboardQueryIdentifierSchema,
+    parameters: z.record(
+      dashboardQueryIdentifierSchema,
+      dashboardQueryParameterSchema,
+    ),
+    schema: z.array(z.string()).optional(),
+  })
+  .passthrough();
+
 export const dashboardFilterParamSchema = z
   .object({
     key: z.string(),
@@ -91,6 +142,7 @@ export const dashboardConfigSchema = z
     widgets: z.array(widgetSchema),
     preferences: dashboardPreferencesSchema,
     requestPlanner: z.array(plannerRequestDefinitionSchema).optional(),
+    queries: z.array(dashboardQueryDefinitionSchema).max(50).optional(),
     filters: z.array(dashboardFilterParamSchema).optional(),
     refreshInterval: refreshIntervalSchema.optional(),
     order: z.number().optional(),

@@ -55,7 +55,7 @@ def test_get_chat_model_effort_sets_adaptive_thinking(monkeypatch):
     # and crucially NOT thinking.type=enabled (which Opus 4.8 rejects with a 400).
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
     model = get_chat_model("claude-opus-4-8", effort="xhigh")
-    assert model.thinking == {"type": "adaptive"}
+    assert model.thinking == {"type": "adaptive", "display": "summarized"}
     assert model.effort == "xhigh"
 
 

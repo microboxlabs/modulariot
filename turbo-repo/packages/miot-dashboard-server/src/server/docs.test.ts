@@ -455,6 +455,7 @@ describe("the spec against the router", () => {
     slug: "fleet",
     dataSourceId: "telemetry",
     credentialRef: "telemetry-token",
+    queryId: "summary",
   };
 
   /**
@@ -466,8 +467,10 @@ describe("the spec against the router", () => {
    * ship undocumented.
    */
   const ROUTE_PATHS: Readonly<Record<RouteName, string>> = {
+    scopeCapabilities: "/tenants/{tenantId}/scopes/{scopeId}/capabilities",
     dashboards: "/tenants/{tenantId}/scopes/{scopeId}/dashboards",
     dashboard: "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}",
+    query: "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/queries/{queryId}",
     capabilities:
       "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/capabilities",
     permissions:
@@ -489,7 +492,8 @@ describe("the spec against the router", () => {
       .replace("{scopeId}", EXAMPLE.scopeId)
       .replace("{slug}", EXAMPLE.slug)
       .replace("{dataSourceId}", EXAMPLE.dataSourceId)
-      .replace("{credentialRef}", EXAMPLE.credentialRef);
+      .replace("{credentialRef}", EXAMPLE.credentialRef)
+      .replace("{queryId}", EXAMPLE.queryId);
 
   const spec = readSpecPaths();
 
@@ -519,9 +523,10 @@ describe("the spec against the router", () => {
       scopes: createMemoryScopeAuthority({}),
       store: createMemoryStore(),
       // The document describes a server with every route mounted. Left out,
-      // these two answer 404 and the check below reads them as unserved.
+      // optional adapters answer 404 when omitted.
       dataSources: createMemoryDataSourceStore(),
       credentials: createMemoryCredentialsStore(),
+      queries: { operations: { execute: async () => ({ rows: [] }) } },
       port: 0,
       host: "127.0.0.1",
       log: () => {},

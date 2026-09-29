@@ -39,6 +39,24 @@ def test_prose_before_the_array_is_dropped():
     assert "Let me compile" not in json.dumps(blocks)
 
 
+def test_prose_then_a_fenced_array_keeps_the_blocks():
+    # DeepSeek V4 Flash on dev, 2026-09-28: reasoning, then the array in a
+    # ```json fence. The fence hid the array's closing bracket from the scan.
+    raw = (
+        'The user asked "me respondes?". I\'ll respond briefly.\n\n'
+        "```json\n"
+        '[\n  {"type": "intent", "value": "ask"},\n'
+        '  {"type": "markdown", "value": "Sí, estoy aquí. ¿En qué puedo ayudarte?"}\n]\n'
+        "```"
+    )
+
+    blocks = _blocks(to_json_blocks(raw))
+
+    assert [b["type"] for b in blocks] == ["intent", "markdown"]
+    assert blocks[1]["value"] == "Sí, estoy aquí. ¿En qué puedo ayudarte?"
+    assert "respond briefly" not in json.dumps(blocks)
+
+
 def test_a_clean_answer_is_untouched():
     raw = json.dumps([{"type": "markdown", "value": "hi"}])
 

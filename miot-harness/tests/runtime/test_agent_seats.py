@@ -29,12 +29,23 @@ from tests.test_native_tools import _registry
 
 def _ctx(conversation_id: str = "conv-1"):
     return UserRequest(
-        message="q", tenant_id="acme", mode="agentic", conversation_id=conversation_id
+        message="q", tenant_id="acme", conversation_id=conversation_id
     ).to_context()
 
 
 def _settings(max_turns: int = 3) -> HarnessSettings:
-    return HarnessSettings(agents_agentic_max_turns=max_turns)
+    return HarnessSettings(agents_agent_loop_max_turns=max_turns)
+
+
+class _BriefModel(ScriptedModel):
+    def __init__(self, by_brief: dict[str, list[AIMessage]]) -> None:
+        super().__init__([])
+        self.by_brief = by_brief
+
+    async def ainvoke(self, messages: Any, **kwargs: Any) -> AIMessage:
+        self.calls.append(list(messages))
+        brief = next(b for b in self.by_brief if b in str(messages[1].content))
+        return self.by_brief[brief].pop(0)
 
 
 def _runner(model: ScriptedModel, seats: LoopSeats | None) -> AgentLoopRunner:
@@ -127,13 +138,19 @@ async def test_delegate_runs_briefs_concurrently_and_merges_evidence(monkeypatch
         return {"evidence": [_evidence()]}
 
     monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
-    inner = ScriptedModel(
-        [
-            AIMessage(content="", tool_calls=[_call("fake_kpi_summary", {}, "w1")]),
-            AIMessage(content="41 late trips"),
-            AIMessage(content="", tool_calls=[_call("fake_kpi_summary", {}, "w2")]),
-            AIMessage(content="12 on time"),
-        ]
+    # The briefs run at the same time, so the inner model answers by brief
+    # rather than in call order.
+    inner = _BriefModel(
+        {
+            "count late": [
+                AIMessage(content="", tool_calls=[_call("fake_kpi_summary", {}, "w1")]),
+                AIMessage(content="41 late trips"),
+            ],
+            "count on time": [
+                AIMessage(content="", tool_calls=[_call("fake_kpi_summary", {}, "w2")]),
+                AIMessage(content="12 on time"),
+            ],
+        }
     )
     workhorse = WorkhorseSeat(build=lambda: _runner(inner, None), max_parallel=2)
     parent = ScriptedModel(
@@ -158,6 +175,14 @@ async def test_delegate_runs_briefs_concurrently_and_merges_evidence(monkeypatch
     assert {r["summary"] for r in results} == {"41 late trips", "12 on time"}
     assert all(r["tools_run"] == ["fake_kpi_summary"] and r["turns"] == 2 for r in results)
     assert [e.type for e in events].count("delegate.completed") == 2
+    # Each delegation's events are tagged with its own id.
+    completed = [e for e in events if e.type == "delegate.completed"]
+    assert {e.data["delegate_id"] for e in completed} == {"d1", "d2"}
+    assert all(isinstance(e.data["duration_ms"], int) for e in completed)
+    inner_turns = [
+        e for e in events if e.type == "agent.started" and e.data.get("agent") == "workhorse"
+    ]
+    assert {e.data["delegate_id"] for e in inner_turns} == {"d1", "d2"}
     # The workhorse's own text never reaches the parent's answer stream.
     answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
     assert answer_deltas == ["41 late, 12 on time"]
@@ -181,9 +206,9 @@ def test_signal_is_read_from_the_start_of_the_reply_only() -> None:
 
 
 def test_advisor_transcripts_are_scoped_by_tenant_user_and_conversation() -> None:
-    a = UserRequest(message="q", tenant_id="acme", mode="agentic", conversation_id="c1")
-    b = UserRequest(message="q", tenant_id="other", mode="agentic", conversation_id="c1")
-    one_shot = UserRequest(message="q", tenant_id="acme", mode="agentic")
+    a = UserRequest(message="q", tenant_id="acme", conversation_id="c1")
+    b = UserRequest(message="q", tenant_id="other", conversation_id="c1")
+    one_shot = UserRequest(message="q", tenant_id="acme")
     keys = {AdvisorTranscripts.key_for(r.to_context()) for r in (a, b, one_shot)}
     assert len(keys) == 3
     assert AdvisorTranscripts.key_for(a.to_context()).endswith("/conv/c1")

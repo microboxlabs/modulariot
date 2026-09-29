@@ -45,9 +45,6 @@ export function approxTokenCount(state: SessionState): number {
       case "tool":
         chars += item.name.length + (item.message?.length ?? 0);
         break;
-      case "route":
-        chars += item.route.length;
-        break;
       case "agent":
         chars += item.agent.length;
         break;

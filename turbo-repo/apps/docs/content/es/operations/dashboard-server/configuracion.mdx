@@ -78,3 +78,16 @@ Las variables `MIOT_DASHBOARD_JWT_*`, `MIOT_DASHBOARD_TICKET_*`, `MIOT_DASHBOARD
 | `MIOT_DASHBOARD_INSECURE_AUTH` | Acepta la identidad de las cabeceras `x-dev-user` y `x-dev-groups` sin verificarla |
 
 Solo funciona escuchando en `localhost`. El servidor se niega a arrancar con esta variable si `HOST` apunta a otra dirección, si `NODE_ENV` es `production` o si también hay variables JWT o de ticket configuradas.
+
+## Operaciones guardadas de conexiones
+
+Configure `MIOT_DASHBOARD_OPERATIONS_URL` para habilitar consultas guardadas en el pod independiente. Delega la ejecución al catálogo de conexiones del host mediante `MIOT_DASHBOARD_PROXY_KEY`; este servidor no necesita un catálogo de credenciales. Sin la URL, las consultas permanecen desactivadas. El endpoint debe usar HTTPS (se admite loopback para validación local). Active `MIOT_DASHBOARD_OPERATIONS_ALLOW_HTTP=true` solo para un host confiable en una red privada. `MIOT_DASHBOARD_OPERATIONS_TIMEOUT` establece un plazo de 1–20000 milisegundos, con 20000 por defecto. La autenticación debe verificar identidades; no se admite combinar cabeceras de identidad no verificadas con la clave del proxy.
+
+
+## Módulos portables de operaciones
+
+Configura `MIOT_DASHBOARD_OPERATIONS_MODULE` con la ruta absoluta de un archivo `.mjs`, `.js` o `.cjs` instalado por el operador. Debe exportar `createDashboardOperations()`, que puede ser asíncrona y devuelve un `DashboardOperationExecutor`. El CLI lo carga una vez antes de abrir almacenamiento o escuchar solicitudes y lo conecta al servicio autenticado de consultas guardadas.
+
+Esto permite conectar el ejecutor TypeScript de BigQuery con el catálogo autorizado y el resolvedor de credenciales del host, sin servicio Java remoto. Conserva la configuración de identidad, tenant y ámbito. El módulo no necesita proxy key salvo que otro adaptador configurado la utilice.
+
+Estos archivos son código confiable con los privilegios del servidor. Móntalos en solo lectura y gestiónalos mediante revisión de despliegue. Nunca derives la ruta de un dashboard, de datos del usuario ni de una URL remota. `MIOT_DASHBOARD_OPERATIONS_MODULE` y `MIOT_DASHBOARD_OPERATIONS_URL` son excluyentes. Un módulo inválido impide el arranque con un diagnóstico genérico que no revela errores internos ni credenciales.

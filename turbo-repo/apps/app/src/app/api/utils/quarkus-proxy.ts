@@ -26,7 +26,12 @@ export async function forwardToQuarkus(
   init?: {
     method?: string;
     body?: unknown;
-  },
+    /** Dashboard revision precondition; never accepts arbitrary auth headers. */
+    ifMatch?: string;
+    signal?: AbortSignal;
+    /** Internal route budget; never read from request headers or JSON. */
+    timeoutMs?: number;
+  }
 ): Promise<NextResponse> {
   const session = await auth();
   if (!session?.user?.id) {
@@ -37,7 +42,7 @@ export async function forwardToQuarkus(
   if (!baseUrl) {
     return NextResponse.json(
       { error: "MIOT_MODULITH_URL is not configured" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 

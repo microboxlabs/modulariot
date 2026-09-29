@@ -106,3 +106,6 @@ At startup it logs three lines saying how it ended up configured:
 ```
 
 If the second or third says `0 tenants`, no request gets through: the server does not know who belongs where, and answers `403` to everything.
+
+
+Importers use atomic revision-checked rollback when permission assignment fails. SQL and memory stores support it. Custom stores must implement `removeIfRevision(ref, revision)` to allow automatic cleanup; otherwise the failed record is retained and reported for operator repair, preserving concurrent edits.

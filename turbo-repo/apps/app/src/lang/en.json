@@ -1439,7 +1439,7 @@
         "description": "Settings that belong to no organization: they apply across every domain and account.",
         "listTitle": "Platform settings",
         "notOwnerTitle": "You don't have access to this section",
-        "notOwnerBody": "Only platform administrators can configure branding by domain.",
+        "notOwnerBody": "Only platform administrators can see and change these settings.",
         "branding": {
           "title": "Branding",
           "menuHint": "One logo per domain",
@@ -1529,6 +1529,105 @@
             "bootstrapBadge": "From configuration",
             "bootstrapHelp": "The marked administrators come from the deployment's configuration and can only be changed there. They exist so access can be recovered if the list is ever emptied."
           }
+        },
+        "models": {
+          "title": "AI models",
+          "menuHint": "Providers, keys and prices",
+          "description": "The providers the assistant uses. Every organization can use the enabled models and is charged per token at these prices.",
+          "add": "Add provider",
+          "empty": "No providers configured yet. The assistant uses the ones set by the deployment.",
+          "loadError": "Could not load the providers.",
+          "saveError": "Could not save the change.",
+          "statusEnabled": "Enabled",
+          "statusDisabled": "Disabled",
+          "keyPreview": "Key {preview}",
+          "noModels": "No models. Add at least one so it can be used.",
+          "defaultBadge": "Default",
+          "edit": "Edit",
+          "remove": "Remove",
+          "removeConfirm": "Confirm",
+          "columns": {
+            "model": "Model",
+            "input": "Input (USD / 1M tokens)",
+            "output": "Output (USD / 1M tokens)",
+            "multiplier": "Multiplier"
+          },
+          "toast": {
+            "saved": "{provider} saved.",
+            "removed": "{provider} and its key removed."
+          },
+          "editor": {
+            "addTitle": "Add provider",
+            "editTitle": "Edit {provider}",
+            "provider": "Provider",
+            "providerPlaceholder": "Choose a provider",
+            "apiKey": "API key",
+            "apiKeyKeep": "Leave blank to keep {preview}",
+            "baseUrl": "Base URL (optional)",
+            "baseUrlPlaceholder": "https://… (blank uses the provider's)",
+            "enabled": "Enabled",
+            "models": "Models",
+            "modelsHelp": "The provider's model id and its price per million tokens. The default is what the assistant uses when nobody picks another.",
+            "modelId": "Model id",
+            "inputPrice": "Input",
+            "outputPrice": "Output",
+            "default": "Default",
+            "removeModel": "Remove model",
+            "addModel": "Add model",
+            "save": "Save",
+            "saving": "Saving…",
+            "cancel": "Cancel",
+            "multiplier": "Multiplier: how many pool tokens each of the model's tokens uses"
+          },
+          "errors": {
+            "provider": "Choose a provider.",
+            "apiKey": "Enter the API key.",
+            "baseUrl": "The base URL must start with https://.",
+            "modelId": "Every model needs an id.",
+            "duplicateModel": "A model is listed twice.",
+            "price": "Prices must be numbers of zero or more."
+          }
+        },
+        "plan": {
+          "title": "Seat plan",
+          "menuHint": "Price per seat and included tokens",
+          "description": "Each organization buys seats. Every seat adds its tokens to a monthly pool the whole organization shares.",
+          "seatPrice": "Price per seat (USD / month)",
+          "tokensPerSeat": "Tokens per seat (millions / month)",
+          "yearlyDiscount": "Yearly discount (%)",
+          "summary": "A seat costs ${price} a month (${yearly} a month billed yearly) and adds {tokens}M tokens to the pool.",
+          "multiplierHelp": "Models with a ×2 or ×3 multiplier use the pool 2 or 3 times faster. Set it under AI models.",
+          "save": "Save",
+          "saving": "Saving…",
+          "saved": "Plan saved.",
+          "saveError": "Could not save the plan.",
+          "loadError": "Could not load the plan.",
+          "errors": {
+            "seatPrice": "The price per seat must be a number of zero or more.",
+            "tokensPerSeat": "Tokens per seat must be a number of zero or more.",
+            "yearlyDiscount": "The yearly discount must be between 0 and 99."
+          }
+        },
+        "usage": {
+          "title": "Usage",
+          "menuHint": "Tokens and cost per organization",
+          "description": "Tokens the assistant used per organization and model, with their cost at the prices in force when used.",
+          "period": "Period",
+          "thisMonth": "This month",
+          "lastMonth": "Last month",
+          "empty": "No usage in this period.",
+          "loadError": "Could not load the usage.",
+          "noOrganization": "No organization",
+          "total": "Total",
+          "unpriced": "{count} runs used models with no price and add no cost.",
+          "columns": {
+            "organization": "Organization",
+            "model": "Model",
+            "runs": "Runs",
+            "input": "Input tokens",
+            "output": "Output tokens",
+            "cost": "Cost (USD)"
+          }
         }
       },
       "organizations": {
@@ -1572,6 +1671,27 @@
           "saveError": "Couldn't save the permission.",
           "roleSaveError": "Couldn't update the organization role.",
           "save": "Save permission",
+          "saving": "Saving…"
+        },
+        "harnessTrainerPermission": {
+          "title": "Assistant trainers",
+          "description": "Trainers teach the assistant: they edit its knowledge and run evaluations.",
+          "ownersNote": "Organization owners are always trainers.",
+          "enabledLabel": "Enable trainers",
+          "enabledHelp": "Assigned members can train the assistant while this option is on.",
+          "assignedCount": "{count} trainers assigned",
+          "searchLabel": "Search members",
+          "searchPlaceholder": "Search by name or email…",
+          "memberColumn": "Member",
+          "permissionColumn": "Trainer",
+          "ownerBadge": "Owner",
+          "memberPermissionLabel": "Trainer permission for {member}",
+          "noSearchResults": "No members match your search.",
+          "noMembers": "Add members to the organization before assigning trainers.",
+          "unavailableMember": "No longer in the organization; uncheck to remove",
+          "loadError": "Couldn't load the assistant trainers.",
+          "saveError": "Couldn't save the trainers.",
+          "save": "Save trainers",
           "saving": "Saving…"
         },
         "whatsappChannel": {
@@ -1692,23 +1812,14 @@
       },
       "harness": {
         "title": "Harness",
-        "description": "Manage Harness seats, usage, and which users can access the AI assistant.",
-        "loadError": "Couldn't load Harness settings.",
-        "unpaidAlert": "Your last payment didn't go through. Update your payment method to keep Harness active.",
-        "unpaidAlertAction": "Handle it",
+        "description": "Manage seats, the token pool and who uses the AI assistant.",
+        "loadError": "Could not load the Harness plan.",
         "pricing": {
           "title": "Pricing",
-          "description": "Estimated monthly cost for your current seat plan.",
+          "description": "What you pay for your seats.",
           "perSeatLabel": "Per seat",
           "estimatedTotalLabel": "What you pay for",
           "seatsLabel": "{count} seats",
-          "extraTokensLabel": "Extra tokens",
-          "lastPaymentLabel": "Last payment",
-          "paymentStatus": {
-            "paid": "Paid",
-            "failed": "Failed",
-            "pending": "Pending"
-          },
           "seatsModal": {
             "title": "Payment plan",
             "description": "Choose how you'd like to be billed for Harness seats.",
@@ -1724,7 +1835,8 @@
             "diffFewer": "{count} fewer seats",
             "savePercent": "Save {percent}%",
             "save": "Save"
-          }
+          },
+          "tokensPerSeat": "Each seat adds {tokens} tokens to the monthly pool."
         },
         "usage": {
           "seats": {
@@ -1732,29 +1844,24 @@
             "description": "Active members",
             "unitLabel": "seats",
             "remaining": "{count} seats remaining",
-            "status": {
-              "fullyUsed": "Fully utilized",
-              "underused": "Seats unused"
-            }
+            "tooFew": "{count} more seats are needed for the members with access."
           },
           "tokens": {
-            "title": "Tokens used",
+            "title": "Token pool",
             "unitLabel": "tokens",
             "remaining": "{count} tokens remaining",
-            "status": {
-              "onTrack": "On track",
-              "atLimit": "Limit reached"
-            }
+            "multiplierHelp": "×2 and ×3 models use the pool faster."
           },
-          "extraTokens": {
-            "title": "Extra tokens",
-            "description": "On-demand token top-up",
-            "unitLabel": "tokens",
-            "remaining": "{count} tokens remaining",
-            "status": {
-              "onTrack": "On track",
-              "atLimit": "Limit reached"
-            }
+          "breakdown": {
+            "byModel": "Use by model this month",
+            "byMember": "Use by member this month",
+            "model": "Model",
+            "member": "Member",
+            "runs": "Questions",
+            "tokens": "Tokens",
+            "poolTokens": "From pool",
+            "empty": "No use this month.",
+            "machine": "Integrations"
           }
         },
         "access": {
@@ -1777,7 +1884,20 @@
           "empty": "No members found.",
           "noSearchResults": "No members match your search.",
           "loading": "Loading…",
-          "loadError": "Couldn't load organization members."
+          "loadError": "Couldn't load organization members.",
+          "save": "Save access",
+          "tooFewSeats": "More members have access than there are seats ({seats}). Add seats or remove access."
+        },
+        "forbidden": "Only an owner of the organization can see and change the Harness plan.",
+        "saved": "Changes saved.",
+        "saveError": "Could not save the changes.",
+        "notEnforced": "The plan is not applied on this installation yet: usage is recorded, but nobody is blocked.",
+        "noSubscription": "Your organization has no seats. Each seat costs ${price} a month and adds {tokens} tokens to the monthly pool.",
+        "chooseSeats": "Choose seats",
+        "poolExhausted": "Your organization used all of this month's tokens. The assistant is available again on the 1st, or sooner if you add seats.",
+        "learningWorkspace": {
+          "text": "Teach the assistant your organization's terms and procedures.",
+          "link": "Open the learning workspace"
         }
       },
       "breadcrumb": {
@@ -1788,7 +1908,8 @@
         "credentials": "Credentials",
         "connections": "Connections",
         "harness": "Harness",
-        "platform": "Platform"
+        "platform": "Platform",
+        "selectables": "Selectables"
       },
       "symptoms": {
         "config": {
@@ -1798,6 +1919,10 @@
         }
       },
       "dataSources": {
+        "learningWorkspace": {
+          "text": "Assistant knowledge is now managed in the learning workspace.",
+          "link": "Open learning workspace"
+        },
         "learnedKnowledge": {
           "title": "Learned knowledge",
           "description": "Business definitions the assistant learned from your questions. Approve them so it uses them in future answers.",
@@ -1806,11 +1931,30 @@
           "retry": "Retry",
           "approve": "Approve",
           "reject": "Dismiss",
+          "edit": "Edit",
+          "save": "Save",
+          "cancel": "Cancel",
+          "termLabel": "Term",
+          "bodyLabel": "Meaning",
+          "pendingTitle": "Pending review",
+          "readOnly": "Only trainers can review learned knowledge.",
+          "factsTitle": "Learned facts",
+          "factsDescription": "Approved facts the assistant uses in its answers, by connection.",
+          "factsEmpty": "No learned facts yet.",
+          "factsError": "Couldn't load learned facts.",
+          "factsConnectionError": "Couldn't load the facts of this connection.",
+          "factsReadOnly": "Only trainers can see and manage learned facts.",
+          "delete": "Delete",
+          "confirmDelete": "Confirm delete",
           "toast": {
             "approved": "\"{term}\" approved and applied.",
             "approvedNotApplied": "\"{term}\" approved, but not applied yet. Retry later.",
             "rejected": "\"{term}\" dismissed.",
-            "reviewError": "Couldn't complete the review."
+            "reviewError": "Couldn't complete the review.",
+            "edited": "\"{term}\" updated.",
+            "editError": "Couldn't save the changes.",
+            "deleted": "\"{term}\" deleted.",
+            "deleteError": "Couldn't delete the fact."
           }
         },
         "title": "Data Sources",
@@ -1891,7 +2035,8 @@
         "title": "Settings",
         "general": "General",
         "dataSources": "Data Sources",
-        "credentials": "Credentials"
+        "credentials": "Credentials",
+        "selectables": "Selectables"
       },
       "credentials": {
         "title": "Credentials",
@@ -2099,6 +2244,137 @@
           "clientEmailRequired": "Service account email is required",
           "clientEmailInvalid": "Enter the service account's email",
           "privateKeyRequired": "Private key is required"
+        }
+      },
+      "selectables": {
+        "title": "Selectables",
+        "description": "Reusable option lists for forms: priorities, reasons, document types, regions and more.",
+        "newSelectable": "New selectable",
+        "editTitle": "Edit selectable",
+        "editorSubtitle": "Texts are set per language; each option stores a stable value and shows its label.",
+        "empty": "No selectables yet. Create one or restore the defaults.",
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "removeSelectable": "Delete",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saveFailed": "The change could not be saved.",
+        "resetSeed": "Restore defaults",
+        "resetConfirmTitle": "Restore the default selectables?",
+        "resetConfirmBody": "Every list and binding of this organization is deleted, including the ones made by hand, and the defaults are created again.",
+        "resetConfirm": "Restore",
+        "deleteConfirmTitle": "Delete this selectable?",
+        "deleteConfirmBody": "\"{name}\" will be deleted and the fields that use it will stop showing its options.",
+        "deleteConfirm": "Delete",
+        "modeSingle": "Single choice",
+        "modeMultiple": "Multiple choice",
+        "sourceStatic": "Fixed list",
+        "sourceSystem": "From the system",
+        "sourceConnection": "From a connection",
+        "optionsCount": "{count} options",
+        "groupsCount": "{count} groups",
+        "badgeCreatable": "Free tags",
+        "badgeMax": "Max {count}",
+        "badgeDependsOn": "Depends on {list}",
+        "editor": {
+          "tabGeneral": "General",
+          "tabOptions": "Options",
+          "tabGroups": "Groups",
+          "tabBehavior": "Behavior",
+          "nameLabel": "Name",
+          "namePlaceholder": "e.g. Delay reason",
+          "keyLabel": "Key",
+          "keyHintNew": "Identifies the list in forms and integrations. Made from the name; it cannot change later.",
+          "keyHintFixed": "The key does not change once the list exists.",
+          "descriptionLabel": "Description",
+          "descriptionPlaceholder": "What this list is for",
+          "modeLabel": "Selection",
+          "modeSingle": "Single",
+          "modeMultiple": "Multiple",
+          "sourceLabel": "Where options come from",
+          "sourceStatic": "Fixed list",
+          "sourceSystem": "System",
+          "sourceConnection": "Connection",
+          "sourcePickLabel": "Source",
+          "sourcePickPlaceholder": "Pick a source",
+          "noSources": "No sources available",
+          "dynamicHint": "Options are fetched when the field opens; they are not stored in the list.",
+          "mappingTitle": "Reading the answer",
+          "mappingItems": "Items",
+          "mappingValue": "Value",
+          "mappingLabel": "Label",
+          "mappingDescription": "Description",
+          "mappingParent": "Parent",
+          "mappingHint": "Type {{ to pick a field. Items is one variable over the answer, such as {{response.data}}; the others are rendered for each item and may combine fields, such as {{item.name}} ({{item.code}}). Leave one blank for its default. Only active connections and their GET operations are offered.",
+          "mappingNoSchema": "This connection's template declares no response schema, so no fields are suggested. Add one in Settings › Connections.",
+          "mappingInvalid": "Not a valid template",
+          "dynamicOptions": "This list gets its options from its source, so they are not edited here. Try the field in the preview.",
+          "valueLabel": "Value",
+          "valueHint": "The code records store. Changing it means records that already use it no longer find the option.",
+          "labelLabel": "Label",
+          "labelPlaceholder": "e.g. Traffic",
+          "optionDescriptionPlaceholder": "Description (optional)",
+          "moreLabel": "More properties",
+          "addOption": "Add option",
+          "removeOption": "Remove option",
+          "tabHint": "Tab on the last label adds another option.",
+          "groupLabel": "Group",
+          "noGroup": "No group",
+          "colorLabel": "Color",
+          "noColor": "No color",
+          "iconLabel": "Icon",
+          "iconSearch": "Search icons…",
+          "iconNone": "No icon matches",
+          "noIcon": "Remove icon",
+          "parentLabel": "Belongs to",
+          "noParent": "No parent value",
+          "disabledLabel": "Disabled (shown, but cannot be picked)",
+          "groupsHint": "Groups sort options under a heading. Each option picks its group under \"More properties\".",
+          "groupKeyLabel": "Group key",
+          "groupLabelPlaceholder": "e.g. On the road",
+          "addGroup": "Add group",
+          "removeGroup": "Remove group",
+          "searchableLabel": "Allow search",
+          "creatableLabel": "Allow new values (free tags)",
+          "maxSelectionsLabel": "Maximum selections",
+          "maxSelectionsHint": "Leave empty for no limit.",
+          "dependsOnLabel": "Filter by another list",
+          "noDependsOn": "Does not depend on another list",
+          "dependsOnHint": "Shows only the options whose \"Belongs to\" matches what was picked in that list (for example, communes by region).",
+          "placeholderLabel": "Field help text",
+          "placeholderPlaceholder": "e.g. Pick up to three reasons",
+          "previewTitle": "Preview",
+          "previewAfterSave": "Save the list to try it: its options come from the source.",
+          "colors": {
+            "gray": "Gray",
+            "blue": "Blue",
+            "green": "Green",
+            "red": "Red",
+            "yellow": "Yellow",
+            "indigo": "Indigo",
+            "purple": "Purple",
+            "pink": "Pink",
+            "cyan": "Cyan",
+            "teal": "Teal",
+            "lime": "Lime"
+          },
+          "errors": {
+            "nameRequired": "The name is required in at least one language.",
+            "keyInvalid": "The key must start with a letter and use only lowercase letters, digits and underscores (2 to 64 characters).",
+            "keyTaken": "Another list already uses this key.",
+            "sourceRequired": "Pick a source for the options.",
+            "duplicateValues": "Two options have the same value."
+          }
+        },
+        "field": {
+          "placeholder": "Select…",
+          "create": "Create \"{value}\"",
+          "noResults": "No results",
+          "loading": "Loading…",
+          "max": "Up to {count}",
+          "pickParentFirst": "Pick a value in \"{list}\" first",
+          "clear": "Clear",
+          "remove": "Remove {label}"
         }
       }
     },
@@ -2418,6 +2694,8 @@
           "operationNamePlaceholder": "e.g. Report verdict",
           "requestSchema": "Payload schema (JSON Schema)",
           "requestSchemaHelp": "The fields the review process will map. An object with properties; nested objects and arrays are supported.",
+          "responseSchema": "Response schema (JSON Schema)",
+          "responseSchemaHelp": "Optional. What the operation answers, so a selectable list fed from it can suggest fields. Declare its lists as arrays of objects.",
           "fieldsDetected": "Detected fields"
         }
       },
@@ -2575,7 +2853,10 @@
         "subtitle2": "Document Separation",
         "subtitle3": "Client System Validation",
         "subtitle4": "GPS Validation",
-        "platform": "Platform"
+        "platform": "Platform",
+        "selectables": "Selectables",
+        "harnessLearning": "Assistant learning",
+        "dashboardServer": "Dashboards"
       }
     },
     "calendar": {
@@ -2822,6 +3103,7 @@
       "selectBorderColor": "Select border color",
       "selectColor": "Select color",
       "visualization": "Visualization",
+      "requiresMigration": "requires migration",
       "dataProvider": "Data Provider",
       "widgetAnchor": "Anchor",
       "descriptor": "Descriptor",
@@ -3438,6 +3720,28 @@
       "untitled": "Untitled",
       "group": "Group",
       "noWidgetsYet": "No widgets yet"
+    },
+    "server": {
+      "title": "Dashboards",
+      "parallel": "This workspace runs alongside the existing dashboards while migration is validated.",
+      "loading": "Loading dashboard…",
+      "loadError": "Could not load dashboards. Check your organization and access.",
+      "newName": "New dashboard",
+      "slug": "Dashboard ID (lowercase letters, numbers and hyphens)",
+      "create": "Create dashboard",
+      "createError": "Could not create the dashboard. Check your permissions or choose a different ID.",
+      "empty": "No dashboards in this organization yet.",
+      "name": "Dashboard name",
+      "save": "Save",
+      "reload": "Reload",
+      "delete": "Delete",
+      "discard": "Discard your unsaved changes and reload the server version?",
+      "confirmDelete": "Delete this dashboard? This cannot be undone.",
+      "unsaved": "Unsaved changes",
+      "conflict": "The dashboard or active organization changed. Your edits are retained. Reload explicitly before trying again.",
+      "saveError": "The operation failed. Your unsaved changes are retained.",
+      "queryError": "Could not load query results.",
+      "leave": "Leave this dashboard and discard unsaved changes?"
     }
   },
   "liveStreams": {
@@ -5090,40 +5394,31 @@
       "menu": {
         "label": "Version actions",
         "open": "Open",
-        "iterate": "Iterate",
-        "delete": "Delete"
-      },
-      "delete": {
-        "title": "Delete this version?",
-        "branchWarning": "Everything branched from this version is removed too.",
-        "confirm": "Delete",
-        "cancel": "Cancel"
+        "iterate": "Iterate"
       },
       "toast": {
-        "iterated": "Created v{label}",
-        "deleted": "Removed v{label}"
+        "iterated": "Created v{label}"
       }
     },
     "title": "Storytelling",
-    "description": "AI-generated and curated stories for your organization.",
-    "artifactType": {
-      "html": "HTML",
-      "markdown": "Markdown",
-      "ppt": "PPT",
-      "pdf": "PDF"
-    },
+    "description": "Documents, decks and reports saved from the chat.",
     "filters": {
       "noMatches": "No stories match the current filters."
     },
     "list": {
-      "empty": "No stories yet."
+      "empty": "No stories yet.",
+      "emptyHint": "Stories are made from the chat. Ask the assistant: \"make a story out of this\".",
+      "openChat": "Open the assistant",
+      "loadFailed": "Could not load the stories.",
+      "retry": "Retry"
     },
     "menu": {
       "label": "Actions",
       "share": "Share",
       "details": "Details",
       "delete": "Delete",
-      "download": "Download"
+      "download": "Download",
+      "rename": "Rename"
     },
     "card": {
       "editedBy": "Edited by {name} on {date}"
@@ -5158,18 +5453,15 @@
       "remove": "Remove",
       "removeFor": "Remove {name}",
       "peopleWithAccess": "People with access",
-      "owner": "You",
-      "ownerBadge": "Owner",
-      "generalAccess": "General access",
-      "linkRestricted": "Restricted",
-      "linkAnyone": "Anyone with the link",
-      "linkRestrictedHint": "Only invited people can open this story",
-      "linkViewerHint": "Anyone with the link can view this story",
-      "linkEditorHint": "Anyone with the link can view and edit this story"
+      "failed": "Could not change access.",
+      "permissionLabel": "Access level",
+      "onlyYou": "Only you have access.",
+      "linkHint": "Anyone in your organization with the link can view the current version."
     },
     "toast": {
       "deleted": "Deleted {name}",
-      "deletedMultiple": "Deleted {count} stories"
+      "deletedMultiple": "Deleted {count} stories",
+      "failed": "That did not work. Please try again."
     },
     "selection": {
       "selectAll": "Select all",
@@ -5178,7 +5470,6 @@
       "deleteSelected": "Delete selected"
     },
     "detail": {
-      "aiGeneratedBadge": "AI Generated",
       "loading": "Loading dashboard…",
       "loadError": "Couldn't load this dashboard.",
       "search": {
@@ -5188,11 +5479,7 @@
         "clear": "Clear search"
       },
       "markdown": {
-        "error": "Couldn't load this document.",
         "outline": "Outline"
-      },
-      "ppt": {
-        "comingSoon": "PPT preview isn't available yet — this is a placeholder for the artifact type."
       },
       "pdf": {
         "loading": "Loading document…",
@@ -5211,7 +5498,29 @@
         "title": "Story not found",
         "description": "This story doesn't exist, or was deleted.",
         "backButton": "Back to Storytelling"
-      }
+      },
+      "emptyContent": "This version has no content to show.",
+      "loadFailed": "Could not load the story.",
+      "openConversation": "Open conversation",
+      "continueInChat": "Continue in chat"
+    },
+    "kind": {
+      "markdown": "Markdown",
+      "html": "HTML",
+      "svg": "SVG",
+      "deck": "Deck",
+      "pdf": "PDF",
+      "sections": "Report"
+    },
+    "rename": {
+      "title": "Rename story",
+      "label": "Title",
+      "cancel": "Cancel",
+      "confirm": "Save"
+    },
+    "chat": {
+      "continueMessage": "Let's keep working on the story \"{title}\" (id {id}). Read it and tell me what it contains.",
+      "askAboutComponent": "I mean the \"{label}\" component of the story \"{title}\" (id {id})."
     }
   },
   "conversations": {
@@ -5289,9 +5598,7 @@
     "harnessEmpty": "No answer found, please try again!",
     "progress": {
       "connecting": "Searching…",
-      "routing": "Understanding your question…",
       "exploring": "Querying the data…",
-      "verifying": "Verifying the answer…",
       "answering": "Writing the answer…",
       "tools": {
         "query": "Querying the database",
@@ -5311,14 +5618,52 @@
     "stream": {
       "progress": {
         "connecting": "Connecting to the harness…",
-        "routingWithRoute": "Routing via {route}…",
-        "routingGeneric": "Routing your question…",
         "exploring": "Exploring your data…",
-        "verifying": "Verifying the answer…",
         "answering": "Preparing an answer…",
         "thinking": "Thinking…"
       },
       "gotIt": "Got it.",
+      "assumption": "Assumption",
+      "steps": {
+        "list_tables": "Reviewing the table catalog",
+        "describe": "Reading a table's structure",
+        "profile": "Profiling the data",
+        "select": "Reading records",
+        "query": "Querying the database",
+        "grep": "Searching for matches",
+        "explain": "Estimating the query cost",
+        "functions": "Reviewing existing functions",
+        "definition": "Reading a SQL definition",
+        "call": "Running a function",
+        "knowledge": "Reading the domain guide",
+        "show": "Preparing a chart",
+        "memory": "Checking saved notes",
+        "analysis": "Checking saved analyses",
+        "web_search": "Searching the web",
+        "web_fetch": "Reading a web page",
+        "load_skill": "Loading instructions",
+        "write_todos": "Planning the steps",
+        "delegate": "Handing a task to a sub-agent",
+        "ask_advisor": "Asking the advisor",
+        "fs_write": "Saving a draft",
+        "artifact": "Preparing a document",
+        "workflow": "Reading the business process",
+        "source_search": "Searching the product's code and docs",
+        "source_read": "Reading the product's code and docs",
+        "source_list": "Browsing the product's code and docs"
+      },
+      "mcpSteps": {
+        "stories_list": "Searching stories",
+        "stories_get": "Reading story",
+        "stories_create": "Saving the story",
+        "stories_add_version": "Saving a version",
+        "stories_link": "Creating the link",
+        "connections_create": "Creating connection",
+        "connections_test": "Testing connection",
+        "connections": "Checking connections",
+        "selectables": "Checking lists",
+        "other": "Using {tool}"
+      },
       "noAnswer": "The harness didn't return an answer.",
       "unconfigured": "The harness isn't configured in this environment — this is a placeholder response.",
       "demo": {
@@ -5365,7 +5710,13 @@
         "sharePlaceholder": "the person's email",
         "shareSubmit": "Share",
         "sharedWithYou": "Shared with you",
-        "revokeShare": "Remove access"
+        "revokeShare": "Remove access",
+        "rename": "Rename chat",
+        "fork": "Fork chat",
+        "shareLink": "Share link",
+        "shareWithPerson": "Or give one person access:",
+        "linkCopied": "Link copied. Anyone in your organization can open it.",
+        "linkFailed": "Could not create the link."
       },
       "thread": {
         "dropToAttach": "Drop to attach",
@@ -5375,8 +5726,14 @@
         "thoughtProcess": "Thought process",
         "executionCanceled": "Execution was canceled.",
         "runFailed": "Could not get an answer.",
+        "runInterrupted": "The run was interrupted.",
         "retry": "Try again",
-        "readOnly": "This chat is read-only — someone else shared it with you."
+        "readOnly": "This chat is read-only — someone else shared it with you.",
+        "forkFromHere": "Fork from here",
+        "forkToContinue": "Fork it to continue as your own",
+        "working": "Working…",
+        "elapsed": "Elapsed time",
+        "awaitingApproval": "Waiting for approval"
       },
       "attachments": {
         "removeImage": "Remove image"
@@ -5385,14 +5742,62 @@
         "placeholder": "Ask the harness…",
         "cancelRun": "Cancel",
         "model": "Model",
-        "pdfTooLarge": "PDF is too large ({size} MB) — the limit is {limit} MB."
+        "attachmentTooLarge": "{name} is too large ({size} MB). The limit is {limit} MB per file.",
+        "tooManyAttachments": "You can attach up to {limit} files per message.",
+        "attachmentNotAccepted": "That file type is not supported. Attach PNG, JPEG, WebP or GIF images, PDFs or text files.",
+        "commands": {
+          "compact": {
+            "description": "Summarizes the conversation to free context. Add what to keep, for example: /compact keep the figures."
+          },
+          "context": {
+            "description": "Shows how much of the model's context this conversation uses."
+          }
+        },
+        "effort": "Thinking effort",
+        "effortLevels": {
+          "default": "Auto",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High",
+          "max": "Max"
+        },
+        "defaultModel": "Default model",
+        "modelsUnavailable": "Could not load the models. Retry"
+      },
+      "showArtifact": {
+        "expand": "Expand",
+        "copy": "Copy content",
+        "copied": "Copied",
+        "download": "Download",
+        "saveAsStory": "Save as story",
+        "actualSizeInline": "View at actual size",
+        "zoomArea": "Diagram: wheel or pinch to zoom, drag to pan, + - and 0 to fit",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "fit": "Fit to window",
+        "actualSize": "Actual size (100%)",
+        "savedAsStory": "Saved as a story",
+        "openStory": "Open story",
+        "saveAsStoryFailed": "Could not save the story",
+        "omitted": "This result was too large to keep in the conversation history."
       },
       "showDashlet": {
         "unknown": "Unknown dashlet: {id}",
         "unsupported": "{name} can't be shown in chat."
       },
-      "createStory": {
-        "open": "Click to open"
+      "dashboardDraft": {
+        "title": "Dashboard draft",
+        "widgets": "{count} widgets",
+        "missing": "{count} widgets from earlier in this conversation are no longer available and were left out.",
+        "nameLabel": "Name",
+        "site": "Site: {site}",
+        "noSite": "Your user has no site, so the dashboard cannot be saved.",
+        "snapshot": "The dashboard keeps the data as shown here; it does not refresh.",
+        "create": "Create dashboard",
+        "creating": "Creating...",
+        "created": "Dashboard created",
+        "open": "Open dashboard",
+        "error": "The dashboard could not be created."
       },
       "askUserQuestion": {
         "skipped": "Skipped — superseded by a later message.",
@@ -5400,7 +5805,304 @@
         "otherPlaceholder": "Other…",
         "otherAriaLabel": "Other",
         "submit": "Submit"
+      },
+      "shareLink": {
+        "story": "Story link",
+        "thread": "Chat link",
+        "access": "Anyone signed in to this organization can open it.",
+        "copy": "Copy link",
+        "copied": "Link copied",
+        "copyFailed": "Could not copy the link",
+        "open": "Open"
+      },
+      "approval": {
+        "heading": "Needs your approval",
+        "actions": {
+          "stories_create": "Save story",
+          "stories_add_version": "Save a new version",
+          "stories_set_current": "Change a story's current version",
+          "stories_link": "Create a story's link",
+          "connections_create": "Create connection",
+          "connections_test": "Test a connection",
+          "selectables_replace": "Replace list",
+          "selectables_delete": "Delete list",
+          "selectables_bind": "Bind lists to fields",
+          "propose_learned_fact": "Save learned fact",
+          "propose_knowledge_change": "Apply knowledge changes",
+          "ws_write": "Write file",
+          "ws_edit": "Edit file",
+          "ws_delete": "Delete file"
+        },
+        "kind": "Kind",
+        "description": "Description",
+        "content": "Content",
+        "showAll": "Show all",
+        "showLess": "Show less",
+        "truncated": "Part of the input was shortened for display.",
+        "approve": "Approve",
+        "reject": "Reject",
+        "commentPlaceholder": "Reason (optional)",
+        "confirmReject": "Confirm rejection",
+        "cancel": "Cancel",
+        "sending": "Sending…",
+        "sent": "Decision sent. Waiting for the assistant…",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "expired": "No answer: the run ended",
+        "by": "by {by}",
+        "notPending": "This request is no longer pending.",
+        "failed": "Your decision could not be sent. Try again.",
+        "fact": {
+          "connection": "Connection",
+          "saved": "Saved to learned facts"
+        }
+      },
+      "activity": {
+        "label": "Activity",
+        "summary": "{count} steps · {duration}",
+        "summaryOne": "1 step · {duration}",
+        "loading": "Loading activity…",
+        "failed": "Could not load the activity.",
+        "empty": "No steps recorded.",
+        "arguments": "Arguments",
+        "result": "Result",
+        "error": "Error",
+        "truncated": "truncated",
+        "copy": "Copy",
+        "copied": "Copied",
+        "unfinished": "Did not finish",
+        "noArguments": "This run did not record its arguments.",
+        "tokens": "{input} input tokens · {output} output",
+        "tokensCached": "{input} input tokens ({cached} cached) · {output} output"
+      },
+      "jobs": {
+        "open": "Activity",
+        "title": "Activity",
+        "running": "Running",
+        "recent": "Recent",
+        "empty": "No recent runs.",
+        "loadFailed": "Could not load activity.",
+        "untitled": "Untitled chat",
+        "working": "Working…",
+        "statusCompleted": "Done",
+        "statusFailed": "Failed",
+        "statusInterrupted": "Interrupted",
+        "delegates": "Subtasks",
+        "toastDone": "Done: {title}",
+        "toastFailed": "Failed: {title}",
+        "toastOpen": "Open",
+        "awaitingApproval": "Waiting for your approval"
+      },
+      "menu": {
+        "open": "More options",
+        "sessionSummary": "Session summary",
+        "sessionSummaryPrompt": "Wrap up this work session: summarize what we did, with the questions, the answers and their numbers, what was saved and what is still open."
       }
+    },
+    "plan": {
+      "plan_no_subscription": "Your organization has no Harness seats. Ask an admin to buy them in Settings › Harness.",
+      "plan_no_seat": "You don't have a Harness seat. Ask an admin of your organization for access.",
+      "plan_pool_exhausted": "Your organization used all of this month's tokens. It's available again on the 1st, or sooner if an admin adds seats.",
+      "plan_model_not_offered": "That model is no longer available. Pick another one in the selector."
+    },
+    "learning": {
+      "title": "Learning workspace",
+      "subtitle": "Teach the assistant and prove each change with evaluations.",
+      "sessions": "Sessions",
+      "newSession": "New session",
+      "newSessionFailed": "The session could not be created. Try again.",
+      "untitled": "Untitled session",
+      "notTrainer": "Only assistant trainers can use this workspace.",
+      "loading": "Loading…",
+      "emptyTitle": "Teach the assistant something new",
+      "emptyText": "Open a session and use the commands to teach facts, rules and procedures. Then test them with evaluations.",
+      "commandsHeading": "Commands",
+      "showSessions": "Show sessions",
+      "hideSessions": "Hide sessions",
+      "sessionsFailed": "The sessions could not be loaded.",
+      "retry": "Retry",
+      "noSessions": "No sessions yet.",
+      "layers": {
+        "fact": "Data facts",
+        "rule": "Rules and glossary",
+        "skill": "Procedures",
+        "primer": "Data source descriptions",
+        "note": "Agent notes",
+        "eval": "Evaluation cases"
+      },
+      "ops": {
+        "upsert": "Save",
+        "delete": "Delete",
+        "write": "Write",
+        "edit": "Edit"
+      },
+      "change": {
+        "heading": "Knowledge change",
+        "scratchpad": "Scratch file",
+        "open": "Open in the working area",
+        "truncated": "The diff arrived shortened. Open it to see all of it.",
+        "loadingDiff": "Computing the differences…",
+        "version": "v{version}",
+        "count": "{count} changes"
+      },
+      "diff": {
+        "view": "Diff view",
+        "unified": "Unified",
+        "split": "Side by side",
+        "wrap": "Wrap lines",
+        "collapse": "Hide unchanged lines",
+        "hiddenLines": "{count} unchanged lines",
+        "noChanges": "No changes",
+        "invalid": "The diff could not be shown."
+      },
+      "eval": {
+        "heading": "Evaluation",
+        "running": "Evaluating… {done}/{total}",
+        "runningShort": "Evaluating…",
+        "failed": "The evaluation failed.",
+        "loadFailed": "The evaluation could not be loaded.",
+        "baseline": "Before",
+        "candidate": "After",
+        "improved": "{count} improved",
+        "regressed": "{count} regressed",
+        "unchanged": "{count} unchanged",
+        "open": "See cases",
+        "question": "Question",
+        "expectation": "Expected answer",
+        "answer": "Answer",
+        "reason": "Reason",
+        "skills": "Procedures used",
+        "model": "Model",
+        "noResults": "No cases.",
+        "all": "All",
+        "onlyImproved": "Improved",
+        "onlyRegressed": "Regressed",
+        "case": "Case {n}",
+        "noAnswer": "No answer",
+        "triggerOk": "Used the expected procedures",
+        "triggerMiss": "Procedures: missing {missing}; unexpected {unexpected}"
+      },
+      "work": {
+        "title": "Working area",
+        "close": "Close the working area",
+        "back": "Back",
+        "forward": "Forward",
+        "recent": "Recent",
+        "resize": "Resize the working area",
+        "empty": "Open a file, an evaluation or /layers from the chat."
+      },
+      "file": {
+        "changes": "Changes",
+        "full": "File",
+        "history": "History",
+        "revert": "Revert",
+        "reverted": "Version {version} restored as a new version.",
+        "revertFailed": "The revert failed.",
+        "confirmRevert": "Restore version {version}? It is saved as a new version.",
+        "edit": "Edit",
+        "save": "Save version",
+        "saving": "Saving…",
+        "saved": "New version saved.",
+        "saveFailed": "The version could not be saved.",
+        "cancel": "Cancel",
+        "reason": "Reason for the change",
+        "titleLabel": "Title",
+        "contentLabel": "Content",
+        "notFound": "This file does not exist yet.",
+        "loadFailed": "The file could not be loaded.",
+        "proposed": "Proposed change",
+        "vsPrevious": "Version {version} against the previous one",
+        "firstVersion": "First version",
+        "readOnly": "Read only",
+        "by": "by {by}",
+        "current": "current",
+        "deleted": "Deleted in this version."
+      },
+      "layersView": {
+        "title": "Editable knowledge",
+        "loadFailed": "The knowledge could not be loaded.",
+        "empty": "Empty",
+        "readOnly": "read only",
+        "refresh": "Refresh"
+      },
+      "changesView": {
+        "title": "This session's changes",
+        "empty": "This session has not changed anything yet."
+      },
+      "view": {
+        "layers": "Editable knowledge",
+        "diff": "Session changes"
+      },
+      "review": {
+        "not_found": "That conversation was not found. Check the link or the id.",
+        "forbidden": "You do not have access to that conversation.",
+        "failed": "That conversation could not be read. Try again."
+      },
+      "commands": {
+        "fact": {
+          "usage": "<text>",
+          "description": "Teach a fact about the data."
+        },
+        "rule": {
+          "usage": "<text>",
+          "description": "Add an organization rule or glossary term."
+        },
+        "skill": {
+          "usage": "<name>: <procedure>",
+          "description": "Create or edit a procedure."
+        },
+        "primer": {
+          "usage": "<connection>: <text>",
+          "description": "Edit a data source's description."
+        },
+        "forget": {
+          "usage": "<what>",
+          "description": "Find the knowledge that says this and propose deleting it."
+        },
+        "eval": {
+          "usage": "<question> => <expected answer>",
+          "description": "Save an evaluation case."
+        },
+        "test": {
+          "usage": "[question]",
+          "description": "Evaluate this session's changes: before and after, on the current model."
+        },
+        "review": {
+          "usage": "<link or id>",
+          "description": "Review a past conversation and propose changes and evaluation cases."
+        },
+        "skillCreator": {
+          "usage": "<goal>",
+          "description": "Guided procedure creation: questions, draft, cases and a test."
+        },
+        "skillDoctor": {
+          "usage": "[name]",
+          "description": "Audit the organization's procedures and propose fixes."
+        },
+        "layers": {
+          "usage": "",
+          "description": "Show the editable knowledge."
+        },
+        "diff": {
+          "usage": "",
+          "description": "Show this session's changes."
+        }
+      }
+    }
+  },
+  "shareLink": {
+    "readOnly": "Read only",
+    "loadFailed": "Could not open the link.",
+    "notFound": {
+      "title": "Link not available",
+      "description": "The link was revoked, or what it shared no longer exists."
+    },
+    "thread": {
+      "untitled": "Conversation",
+      "user": "User",
+      "assistant": "Assistant",
+      "empty": "This conversation has no messages.",
+      "loadMore": "Load more messages"
     }
   }
 }

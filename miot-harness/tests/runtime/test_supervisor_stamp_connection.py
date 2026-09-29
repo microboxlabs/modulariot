@@ -10,18 +10,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from miot_harness.runtime.router import IntentRouter
 from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
-from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
 
 
 def _supervisor(tmp_path: Any) -> HarnessSupervisor:
     return HarnessSupervisor(
-        router=IntentRouter(),
         tools=ToolRegistry(),
-        stories=StorytellingModule(),
         run_store=JsonRunStore(tmp_path),
     )
 

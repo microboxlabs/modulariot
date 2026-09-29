@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Alert, Button } from "flowbite-react";
-import { HiPlus, HiClipboardList } from "react-icons/hi";
+import { HiPlus, HiClipboardList, HiOutlineLightBulb } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -10,7 +11,7 @@ import { useDataSources } from "../hooks/use-data-sources";
 import { DataSourceTable } from "./data-source-table";
 import { DataSourceModal } from "./data-source-modal";
 import { DataSourceDeleteDialog } from "./data-source-delete-dialog";
-import LearnedKnowledgePanel from "@/features/knowledge/components/learned-knowledge-panel";
+import { useKnowledgeTrainer } from "@/features/knowledge/hooks/use-knowledge-trainer";
 import type { DataSourceListItem, DataSourceFormData } from "../types";
 import { shouldTestStoredCredential } from "../test-decision";
 import { toast } from "sonner";
@@ -39,6 +40,7 @@ export default function DataSourcesPageContent({
     toggleActive,
     refetch,
   } = useDataSources(siteId);
+  const { isTrainer } = useKnowledgeTrainer();
 
   const [showModal, setShowModal] = useState(false);
   const [editingSource, setEditingSource] = useState<DataSourceListItem | null>(
@@ -211,7 +213,20 @@ export default function DataSourcesPageContent({
           />
         )}
 
-        <LearnedKnowledgePanel dict={dsDict} />
+        {isTrainer && (
+          <p className="mt-6 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <HiOutlineLightBulb className="h-5 w-5 shrink-0 text-yellow-400" />
+            <span>
+              {tr("learningWorkspace.text", dsDict)}{" "}
+              <Link
+                href={`/${lang}/harness/learning`}
+                className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+              >
+                {tr("learningWorkspace.link", dsDict)}
+              </Link>
+            </span>
+          </p>
+        )}
       </div>
 
       <DataSourceModal

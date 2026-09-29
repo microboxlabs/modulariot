@@ -5,6 +5,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from miot_harness.agents.native_tools import build_native_tools
 from miot_harness.runtime.agent_loop import (
     _compose_human,
+    _lead_with_reminders,
     _split_prior,
     _with_tail_marker,
 )
@@ -39,11 +40,13 @@ def test_split_prior_extracts_system_messages():
     assert reminders == ["# Active skill: x\nbody"]
 
 
-def test_compose_human_wraps_reminders():
-    msg = _compose_human("the question", ["do X"])
-    text = json.dumps(msg.content)
-    assert "<system-reminder>" in text
-    assert "the question" in text
+def test_reminders_are_wrapped_and_lead_the_first_user_message():
+    history = [HumanMessage(content="q1"), AIMessage(content="a1")]
+    lead = _lead_with_reminders([*history, _compose_human("q2")], ["do X"], cache=False)
+    assert lead[0].content[0]["text"].startswith("<system-reminder>\ndo X\n</system-reminder>")
+    assert lead[0].content[1] == {"type": "text", "text": "q1"}
+    assert lead[2].content == "q2"
+    assert history[0].content == "q1"  # the stored history is not touched
 
 
 def test_request_has_exactly_two_breakpoints_and_stable_prefix():
@@ -51,14 +54,12 @@ def test_request_has_exactly_two_breakpoints_and_stable_prefix():
 
     tools = build_native_tools(_registry(), profile=FAKE_PROFILE)
     system = cached_system_message(build_agent_system_prompt(FAKE_PROFILE))
-    messages = [system, _compose_human("q", [])]
+    messages = [system, _compose_human("q")]
     payload = _payload(_with_tail_marker(messages), tools)
 
     assert _count_markers(payload) == 2  # system block + tail marker, never more
     # Prefix layout: tools first, then system with the ephemeral marker.
-    assert [t["name"] for t in payload["tools"]] == sorted(
-        t["name"] for t in payload["tools"]
-    )
+    assert [t["name"] for t in payload["tools"]] == sorted(t["name"] for t in payload["tools"])
     assert payload["system"][-1]["cache_control"] == {"type": "ephemeral"}
 
 
@@ -69,7 +70,7 @@ def test_tail_marker_lands_on_valid_top_level_block():
     system = cached_system_message(build_agent_system_prompt(FAKE_PROFILE))
     messages = [
         system,
-        _compose_human("q", []),
+        _compose_human("q"),
         AIMessage(
             content="",
             tool_calls=[{"name": "fake_kpi_summary", "args": {}, "id": "c1", "type": "tool_call"}],
@@ -85,7 +86,7 @@ def test_tail_marker_lands_on_valid_top_level_block():
 
 
 def test_stored_history_stays_unmarked():
-    messages = [cached_system_message("s"), _compose_human("q", [])]
+    messages = [cached_system_message("s"), _compose_human("q")]
     _with_tail_marker(messages)
     assert "cache_control" not in json.dumps(messages[-1].content)
 

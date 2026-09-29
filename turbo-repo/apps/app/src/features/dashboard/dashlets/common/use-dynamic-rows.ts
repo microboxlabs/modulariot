@@ -1,3 +1,4 @@
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { useState, useEffect } from "react";
 import { parseRows } from "./pgrest-utils";
 
@@ -9,6 +10,7 @@ export function useDynamicRows(
   loading: boolean;
   fetchError: string | null;
 } {
+  const hosted = Boolean(useOptionalDashboard().hostAccess);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -16,7 +18,7 @@ export function useDynamicRows(
   useEffect(() => {
     let cancelled = false;
 
-    if (dataMode !== "dynamic" || !apiUrl) {
+    if (hosted || dataMode !== "dynamic" || !apiUrl) {
       setRows([]);
       setLoading(false);
       setFetchError(null);
@@ -45,7 +47,7 @@ export function useDynamicRows(
     return () => {
       cancelled = true;
     };
-  }, [dataMode, apiUrl]);
+  }, [dataMode, apiUrl, hosted]);
 
   return { rows, loading, fetchError };
 }

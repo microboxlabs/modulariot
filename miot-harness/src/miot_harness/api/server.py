@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Callable, Iterable, Mapping
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import asdict, replace
 from pathlib import Path
@@ -17,14 +17,27 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from pydantic import BaseModel, Field
 from traceloop.sdk import Traceloop
 
-from miot_harness.agents.chat_models import get_chat_model, supports_effort
+from miot_harness.agents.chat_models import (
+    get_chat_model,
+    loop_model_kwargs,
+    provider_registry,
+    set_provider_registry,
+)
 from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
-from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
+from miot_harness.agents.model_providers import (
+    fetch_modulith_registry,
+    is_anthropic,
+    registry_from_settings,
+)
+from miot_harness.agents.thread_titler import build_thread_titler
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
+from miot_harness.api.drain import RunDrain, install_sigterm_drain
 from miot_harness.api.identity import (
     IdentityVerificationError,
     verify_signed_identity,
 )
+from miot_harness.api.knowledge_routes import install_knowledge_routes
+from miot_harness.api.learning_routes import install_learning_routes
 from miot_harness.config import (
     HarnessSettings,
     get_settings,
@@ -36,30 +49,66 @@ from miot_harness.context_skills.loader import (
     ActiveConnections,
     boot_context_skills,
 )
+from miot_harness.context_skills.seed import PACKAGED_DEFAULTS, refresh_defaults
 from miot_harness.context_skills.skill_models import SkillSummary
 from miot_harness.datasource.knowledge.distiller import distill_episodes
-from miot_harness.datasource.knowledge.loader import load_connection_cards
+from miot_harness.datasource.knowledge.learned import LearnedFacts, LearnedFactsSource
+from miot_harness.datasource.knowledge.loader import (
+    connection_cards_dir,
+    load_connection_cards_cached,
+)
 from miot_harness.datasource.knowledge.writer import (
     ConnectionCardWrite,
+    delete_connection_card,
+    revert_connection_card,
+    slug_card_id,
     write_connection_card,
 )
-from miot_harness.datasource.provider import BootResult, DataSourceProvider
+from miot_harness.datasource.provider import BootResult, DataSourceProfile, DataSourceProvider
 from miot_harness.datasource.registry import resolve as resolve_datasource
+from miot_harness.knowledge.evaluation import EvaluationEngine, build_judge
+from miot_harness.knowledge.primer import PrimerSource, PrimerUpdates
+from miot_harness.knowledge.store import ConnectionTarget, KnowledgeStore
 from miot_harness.observability.otel import configure_tracing, shutdown_tracing
 from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.agent_loop import AgentLoopRunner, AgentLoopRunners
 from miot_harness.runtime.agent_seats import AdvisorSeat, LoopSeats, WorkhorseSeat
-from miot_harness.runtime.agentic_graph import build_agentic_graph
 from miot_harness.runtime.context import UserRequest
-from miot_harness.runtime.data_graph import build_data_graph
+from miot_harness.runtime.conversation_backend import ModulithConversationBackend
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
-from miot_harness.runtime.intent_router import LLMIntentRouter
-from miot_harness.runtime.router import IntentRouter
-from miot_harness.runtime.run_store import HarnessRunRecord
+from miot_harness.runtime.run_store import HarnessRunRecord, RunSummary, summarize
 from miot_harness.runtime.supervisor import HarnessSupervisor
+from miot_harness.runtime.usage_report import UsageReporter
+from miot_harness.tools.knowledge_tools import (
+    PROPOSE_KNOWLEDGE_CHANGE_TOOL,
+    knowledge_list_tool,
+    knowledge_read_tool,
+    propose_knowledge_change_tool,
+)
+from miot_harness.tools.learning_eval import RUN_LEARNING_EVAL_TOOL, run_learning_eval_tool
+from miot_harness.tools.workspace_files import (
+    ws_delete_tool,
+    ws_edit_tool,
+    ws_grep_tool,
+    ws_ls_tool,
+    ws_read_tool,
+    ws_write_tool,
+)
 
 logger = logging.getLogger(__name__)
+
+
+_DRAIN_RETRY_AFTER_SECONDS = 10
+
+_CARDS_RESPONSES: dict[int | str, dict[str, Any]] = {
+    403: {"description": "The connection is locked to another tenant"},
+    404: {"description": "Unknown connection or card"},
+}
+
+_DRAINING_RESPONSE: dict[int | str, dict[str, Any]] = {
+    503: {"description": "Shutting down; retry after Retry-After seconds"}
+}
 
 
 def _configure_logging(settings: HarnessSettings) -> None:
@@ -77,9 +126,7 @@ def _configure_logging(settings: HarnessSettings) -> None:
     pkg_logger.setLevel(settings.log_level)
     if not pkg_logger.handlers:
         handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
-        )
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
         pkg_logger.addHandler(handler)
 
 
@@ -91,6 +138,8 @@ class ApprovalDecision(BaseModel):
     """
 
     decision: Literal["approve", "deny"]
+    # Why the user rejected the call; the model reads it with the denial.
+    comment: str | None = Field(default=None, max_length=2000)
 
 
 class KnowledgeCardWrite(BaseModel):
@@ -121,6 +170,13 @@ class DistillRequest(BaseModel):
     reads them defensively, so the schema stays permissive."""
 
     episodes: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class TitleRequest(BaseModel):
+    """Body for POST /titles: the first exchange of a chat thread."""
+
+    message: str = Field(min_length=1, max_length=20_000)
+    answer: str = Field(default="", max_length=200_000)
 
 
 def _make_lifespan(
@@ -156,11 +212,16 @@ def _make_lifespan(
             harness.conversation_summarizer = None
             logger.warning("Conversation compaction disabled: %s", exc)
         app.state.in_flight = {}
+        interrupted = harness.run_store.mark_interrupted()
+        if interrupted:
+            logger.warning("Run store: %d unfinished run(s) marked interrupted", len(interrupted))
         # Parallel map from in-flight run_id → tenant_id, populated by
         # /runs:start and cleared in the task's done-callback. Lets
         # /stream refuse a cross-tenant subscriber before the record
         # ever lands on disk.
         app.state.in_flight_tenants = {}
+        app.state.drain = RunDrain(app.state.in_flight, settings.shutdown_drain_seconds)
+        restore_sigterm = install_sigterm_drain(app.state.drain, asyncio.get_running_loop())
 
         # Auth (defense-in-depth behind the Quarkus proxy): instantiate
         # a JwksCache when enabled; require_auth reads it from
@@ -232,27 +293,22 @@ def _make_lifespan(
         # Keep the resolved Connection objects (not just the JSON summary in
         # app.state.connections) so the knowledge-write endpoint can resolve a
         # connection to its on-disk source_path + tenant scope.
-        app.state.connection_objects = {
-            c.name: c for c in conn_result.connections
-        }
+        app.state.connection_objects = {c.name: c for c in conn_result.connections}
         for conn_diag in conn_result.diagnostics:
-            (
-                logger.error
-                if conn_diag.level == "error"
-                else logger.warning
-            )("Connections: %s (%s)", conn_diag.message, conn_diag.path)
+            (logger.error if conn_diag.level == "error" else logger.warning)(
+                "Connections: %s (%s)", conn_diag.message, conn_diag.path
+            )
 
-        # The primary connection's provider drives profile/router/tenant-lock
-        # wiring. Resolve the provider even when nothing booted so the keyword
-        # router and tenant gate stay wired (matches the prior behaviour where
-        # a disabled datasource still routes its keywords to the data path).
+        # The primary connection's provider supplies the profile and the tenant
+        # lock. Resolve it even when nothing booted, so the loop still has a
+        # profile to build its prompt from.
         primary = select_primary(conn_result.connections, settings)
         primary_kind = primary.backend if primary is not None else settings.datasource_kind
         app.state.primary_connection_name = primary.name if primary is not None else None
         # Let the supervisor stamp this connection onto ground-or-flag assumptions
         # so the review surface stages candidates against the right connection.
         harness.primary_connection_name = app.state.primary_connection_name
-        # Profile/router/tenant-lock wiring needs a provider profile. If the
+        # Profile and tenant-lock wiring need a provider profile. If the
         # primary connection's backend has no registered provider yet (e.g. an
         # acs connection pending the generic provider), fall back to the
         # configured datasource_kind so the harness still wires + serves; the
@@ -262,24 +318,16 @@ def _make_lifespan(
             provider = resolve_datasource(primary_kind)
         except ValueError:
             logger.error(
-                "Primary connection backend %r has no provider; using %r for "
-                "profile wiring",
+                "Primary connection backend %r has no provider; using %r for profile wiring",
                 primary_kind,
                 settings.datasource_kind,
             )
             provider = resolve_datasource(settings.datasource_kind)
         app.state.datasource_provider = provider
         harness.profile = provider.profile
-        harness.router = IntentRouter(
-            data_keywords=provider.profile.router_keywords
-        )
-        primary_lock = (
-            primary.options.get("tenant_lock") if primary is not None else None
-        )
+        primary_lock = primary.options.get("tenant_lock") if primary is not None else None
         resolved_lock = (
-            primary_lock
-            or settings.datasource_tenant_lock
-            or provider.profile.tenant_lock
+            primary_lock or settings.datasource_tenant_lock or provider.profile.tenant_lock
         )
         if resolved_lock is not None:
             harness.tenant_lock = resolved_lock
@@ -299,23 +347,20 @@ def _make_lifespan(
         # Connection Knowledge Base (Phase 2): per-connection grounding blocks
         # (secondary primers + schema indexes), folded into the agent primer below.
         ckb_blocks: list[str] = []
+        learned_sources: list[LearnedFactsSource] = []
         for conn in conn_result.connections:
             is_primary = primary is not None and conn.name == primary.name
             # Resolve + boot inside the guard: an unknown/typo'd backend
             # (resolve_datasource raises ValueError) or a provider boot error
             # must disable just that connection, never abort the lifespan.
             try:
-                conn_provider = (
-                    provider if is_primary else resolve_datasource(conn.backend)
-                )
+                conn_provider = provider if is_primary else resolve_datasource(conn.backend)
                 if not is_primary:
                     providers_to_close.append(conn_provider)
                 boot_res = await conn_provider.boot(harness.tools, settings, conn)
             except Exception as exc:  # noqa: BLE001 — a bad connection mustn't abort boot
                 logger.critical("Connection %s: boot failed (%s)", conn.name, exc)
-                boot_res = BootResult(
-                    enabled=False, registered=(), reason=f"boot failed: {exc}"
-                )
+                boot_res = BootResult(enabled=False, registered=(), reason=f"boot failed: {exc}")
             summary = boot_res.schema_summary
             app.state.connections[conn.name] = {
                 "backend": conn.backend,
@@ -358,9 +403,7 @@ def _make_lifespan(
                     parts.append(conn.primer)
                 for dp in boot_res.detected_packs:
                     ver = f" (v{dp.version})" if dp.version else ""
-                    card_titles = "; ".join(
-                        f"{c.id}: {c.title}" for c in dp.pack.cards
-                    )
+                    card_titles = "; ".join(f"{c.id}: {c.title}" for c in dp.pack.cards)
                     parts.append(
                         f"**Knowledge pack: {dp.pack.title}{ver}**\n{dp.pack.overview}"
                         + (
@@ -379,6 +422,34 @@ def _make_lifespan(
                     ckb_blocks.append(f"## {conn.name}\n" + "\n\n".join(parts))
             if is_primary:
                 primary_result = boot_res
+            cards_dir = connection_cards_dir(conn)
+            if (
+                settings.generic_connection_cards_enabled
+                and cards_dir is not None
+                and f"{conn.name}_knowledge" in boot_res.registered
+            ):
+                learned_sources.append(
+                    LearnedFactsSource(conn.name, cards_dir, _connection_tenant_lock(conn))
+                )
+        harness.learned_facts = LearnedFacts(
+            learned_sources, char_budget=settings.learned_facts_char_budget
+        )
+        harness.primer_updates = PrimerUpdates(_primer_sources(conn_result.connections))
+        store_for = knowledge_store_factory(app, settings)
+        harness.knowledge_store_for = store_for
+        if PROPOSE_KNOWLEDGE_CHANGE_TOOL not in harness.tools.names():
+            for factory in (
+                knowledge_list_tool,
+                knowledge_read_tool,
+                propose_knowledge_change_tool,
+                ws_ls_tool,
+                ws_read_tool,
+                ws_grep_tool,
+                ws_write_tool,
+                ws_edit_tool,
+                ws_delete_tool,
+            ):
+                harness.tools.register(factory(store_for))
 
         # Back-compat single-valued datasource_* state, sourced from the primary
         # connection (or a disabled placeholder when there is no connection).
@@ -393,9 +464,7 @@ def _make_lifespan(
             name: {
                 "status": probe.status,
                 "age_minutes": probe.age_minutes,
-                "refreshed_at": (
-                    probe.refreshed_at.isoformat() if probe.refreshed_at else None
-                ),
+                "refreshed_at": (probe.refreshed_at.isoformat() if probe.refreshed_at else None),
             }
             for name, probe in result.freshness.items()
         }
@@ -417,18 +486,14 @@ def _make_lifespan(
         # process lifetime (cache prefix stays hot).
         primer_sections: list[str] = [provider.profile.primer]
         if ckb_blocks:
-            primer_sections.append(
-                "# Connected data sources\n" + "\n\n".join(ckb_blocks)
-            )
+            primer_sections.append("# Connected data sources\n" + "\n\n".join(ckb_blocks))
         # Active connection landscape for connection-bound skills (Phase 4): a
         # skill bound to a connection name / capability surfaces only when a
         # matching connection booted enabled. `known` spans every configured
         # connection so the loader can flag a typo'd binding distinctly from a
         # connection that merely failed to boot.
         enabled_names = {
-            name
-            for name, conn_state in app.state.connections.items()
-            if conn_state.get("enabled")
+            name for name, conn_state in app.state.connections.items() if conn_state.get("enabled")
         }
         active_connections = ActiveConnections(
             enabled=frozenset(enabled_names),
@@ -441,10 +506,16 @@ def _make_lifespan(
             ),
             known=frozenset(conn.name for conn in conn_result.connections),
         )
+        if settings.refresh_packaged_defaults:
+            try:
+                if settings.context_source_kind == "file":
+                    refresh_defaults(PACKAGED_DEFAULTS / "context", settings.context_dir)
+                if settings.skills_source_kind == "file":
+                    refresh_defaults(PACKAGED_DEFAULTS / "skills", settings.skills_dir)
+            except Exception:
+                logger.exception("Refreshing packaged context/skills failed; using what is there")
         try:
-            cs = boot_context_skills(
-                harness.tools, settings, active_connections=active_connections
-            )
+            cs = boot_context_skills(harness.tools, settings, active_connections=active_connections)
             harness.context_skills = cs.bundle
             app.state.context_skills_registered = list(cs.registered_tools)
             app.state.context_skills_diagnostics = list(cs.diagnostics)
@@ -474,227 +545,70 @@ def _make_lifespan(
         )
 
         if not result.enabled:
-            logger.info(
-                "Datasource %s: disabled (%s)", provider.profile.name, result.reason
-            )
+            logger.info("Datasource %s: disabled (%s)", provider.profile.name, result.reason)
         else:
             logger.info(
                 "Datasource %s: %d tools registered",
                 provider.profile.name,
                 len(result.registered),
             )
-            # Build the conversational graph and inject into the
-            # supervisor. Per-agent models come from settings.
-            try:
-                synth_thinking_budget = (
-                    settings.agents_synthesizer_thinking_budget
-                    if settings.agents_synthesizer_stream
-                    else None
-                )
-                models = {
-                    "filter_expert": get_chat_model(settings.agents_filter_expert_model),
-                    "domain_analyst": get_chat_model(settings.agents_analyst_model),
-                    "synthesizer": get_chat_model(
-                        settings.agents_synthesizer_model,
-                        thinking_budget_tokens=synth_thinking_budget,
-                    ),
-                    "critic": get_chat_model(settings.agents_critic_model),
-                    "summarizer": get_chat_model(settings.agents_summarizer_model),
-                }
-                harness.data_graph = build_data_graph(
-                    registry=harness.tools,
-                    settings=settings,
-                    models=models,
-                    # effective_profile = provider.profile with the global
-                    # system-context block folded into its primer.
-                    profile=effective_profile,
-                )
 
-                # Phase E wiring: agentic_graph + meta agent + LLM
-                # intent router. All optional on the supervisor —
-                # falling back to keyword routing if any of these
-                # aren't injected. (tenant_lock + keyword router are
-                # wired above, before boot, so the disabled path keeps
-                # routing and mode gating intact.)
-                harness.agentic_graph = build_agentic_graph(
-                    settings=settings,
-                    models={
-                        **models,
-                        # Agentic plan mode (Phase 3) runs a dedicated planner
-                        # seat — Opus 4.8 by default, at configurable effort —
-                        # instead of reusing the cheaper canned analyst. This
-                        # removes the Sonnet-4.6 planner's hallucination/
-                        # satisficing seen vs Claude Code.
-                        "planner": get_chat_model(
-                            settings.agents_planner_model,
-                            effort=settings.agents_planner_effort,
-                        ),
-                        # Small "did we answer it?" judge for the Phase 3 verify
-                        # gate. Only build it when the gate is ON and a model is
-                        # set — otherwise a misconfigured verifier model name
-                        # would raise and disable the datasource at boot for a
-                        # model that wouldn't even be used. Empty model name (gate
-                        # on) → rules-only verification.
-                        **(
-                            {"verifier": get_chat_model(settings.agents_verifier_model)}
-                            if settings.agents_agentic_verify_enabled
-                            and settings.agents_verifier_model
-                            else {}
-                        ),
-                    },
-                    provenance_log=ProvenanceLog(
-                        settings.provenance_log_dir,
-                        enabled=settings.provenance_log_enabled,
-                    ),
-                    # effective_profile = provider.profile with the global
-                    # system-context block folded into its primer.
-                    profile=effective_profile,
-                    registry=harness.tools,
-                    # Phase 4: the resolved skills bundle so the planner can
-                    # surface this tenant's eligible connection-bound playbooks.
-                    context_skills=harness.context_skills,
-                )
-                # Single-agent loop (flag-gated). Reuses the planner seat's
-                # model/effort; the runner freezes prompt + tool list at boot
-                # so every request shares one prompt-cache prefix.
-                if settings.agents_agent_loop_enabled:
-                    loop_provenance = ProvenanceLog(
-                        settings.provenance_log_dir,
-                        enabled=settings.provenance_log_enabled,
-                    )
-                    seats = LoopSeats(
-                        advisor=(
-                            AdvisorSeat(
-                                model=get_chat_model(settings.agents_advisor_model),
-                                display_name=effective_profile.display_name,
-                                max_consults=settings.agents_advisor_max_consults,
-                                span_prefix=effective_profile.name,
-                            )
-                            if settings.agents_advisor_model
-                            else None
-                        ),
-                        workhorse=(
-                            WorkhorseSeat(
-                                build=lambda: AgentLoopRunner(
-                                    model=get_chat_model(
-                                        settings.agents_workhorse_model,
-                                        timeout=settings.agents_agent_loop_llm_timeout_seconds,
-                                    ),
-                                    registry=harness.tools,
-                                    settings=settings.model_copy(
-                                        update={
-                                            "agents_agentic_max_turns": (
-                                                settings.agents_workhorse_max_turns
-                                            )
-                                        }
-                                    ),
-                                    profile=effective_profile,
-                                    provenance_log=loop_provenance,
-                                    context_skills=harness.context_skills,
-                                ),
-                                max_parallel=settings.agents_workhorse_max_parallel,
-                            )
-                            if settings.agents_workhorse_model
-                            else None
-                        ),
-                    )
-                    harness.agent_loop = AgentLoopRunners(
-                        default_model=settings.agents_agent_loop_model,
-                        models=settings.agents_agent_loop_models,
-                        # Reasoning knob per model generation: `effort` on the
-                        # adaptive-thinking models, a thinking budget on the rest.
-                        build_model=lambda name: get_chat_model(
-                            name,
-                            timeout=settings.agents_agent_loop_llm_timeout_seconds,
-                            **(
-                                {"effort": settings.agents_planner_effort}
-                                if supports_effort(name)
-                                else {
-                                    "thinking_budget_tokens": (
-                                        settings.agents_synthesizer_thinking_budget
-                                    )
-                                }
-                            ),
-                        ),
-                        registry=harness.tools,
-                        settings=settings,
-                        profile=effective_profile,
-                        provenance_log=loop_provenance,
-                        # Skills index in the frozen prefix + lazy
-                        # `load_skill` bodies (booted above, before wiring).
-                        context_skills=harness.context_skills,
-                        seats=seats,
-                    )
-                harness.meta_model = get_chat_model(
-                    settings.intent_router_model,
-                    thinking_budget_tokens=synth_thinking_budget,
-                )
-                harness.meta_primer = effective_profile.primer
-                # Descriptor-derived entries (title/layer/body + freshness
-                # suffix) when the provider supplies them; generic
-                # fallback otherwise so the meta agent never goes blind.
-                harness.meta_catalog = list(result.catalog_entries) or [
-                    MetaAgentCatalogEntry(
-                        name=name,
-                        layer="L*",
-                        title=name,
-                        body=f"Auto-registered curated function `{name}`.",
-                    )
-                    for name in result.registered
-                ]
-                harness.llm_router = LLMIntentRouter(
-                    get_chat_model(settings.intent_router_model),
-                    confidence_threshold=settings.intent_router_confidence_threshold,
-                    keyword_fallback=IntentRouter(data_keywords=provider.profile.router_keywords),
-                    profile=provider.profile,
-                )
-                logger.info(
-                    "Datasource %s: Phase E wired "
-                    "(LLM router=%s, agentic_graph, meta_agent)",
-                    provider.profile.name,
-                    settings.intent_router_model,
-                )
-            except Exception as exc:  # noqa: BLE001
-                logger.critical(
-                    "Datasource %s: failed to build chat models / graph (%s); "
-                    "falling back to datasource disabled",
-                    provider.profile.name,
-                    exc,
-                )
-                # Tools registered fine but the supervisor can't reach
-                # them without the graph — clear the public state so
-                # /health reports the disabled-and-empty truth, not a
-                # tool list that is unreachable. Every graph/meta entry
-                # point is cleared (the failure may have struck after
-                # some were already wired — a live agentic_graph behind
-                # a disabled /health would silently keep serving), and
-                # the provider is closed NOW so its pool doesn't stay
-                # allocated for an app that can't use it (close() is
-                # idempotent; the outer `finally` re-close is a no-op).
-                # harness.router (keyword routing) is intentionally
-                # kept: it powers the disabled-path "integration
-                # disabled" answer.
+        # The platform owner's model providers, before the loop is built so
+        # its default model is theirs from the first run. The tokens each run
+        # used go back to the modulith to be charged.
+        refresh_task: asyncio.Task[None] | None = None
+        usage_reporter: UsageReporter | None = None
+        if settings.modulith_url and settings.provider_key:
+            await _load_model_providers(settings)
+            refresh_task = asyncio.create_task(_refresh_model_providers(settings))
+            usage_reporter = UsageReporter(settings.modulith_url, settings.provider_key)
+            harness.usage_reporter = usage_reporter.report
+            # Conversations survive restarts: saved after each run, loaded back
+            # when a run arrives for one this process does not hold.
+            harness.conversation_backend = ModulithConversationBackend(
+                settings.modulith_url, settings.provider_key
+            )
+
+        # The agent loop answers every turn, with or without a datasource.
+        try:
+            harness.agent_loop = _build_agent_loop(settings, harness, effective_profile)
+            logger.info(
+                "Agent loop: default model %s, offered %s",
+                harness.agent_loop.default_model,
+                ", ".join(harness.agent_loop.models),
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.critical(
+                "Agent loop: failed to build the conversation model (%s); "
+                "every run answers that no model is configured",
+                exc,
+            )
+            harness.agent_loop = None
+            if result.enabled:
+                # Nothing can reach the datasource tools without the loop, so
+                # /health reports the datasource as disabled and its pool closes.
                 app.state.datasource_enabled = False
                 app.state.datasource_registered = []
                 app.state.datasource_snapshot_age_minutes = None
                 app.state.datasource_freshness = {}
-                harness.data_graph = None
-                harness.agentic_graph = None
-                harness.agent_loop = None
-                harness.meta_model = None
-                harness.meta_primer = ""  # meta path gates on meta_model
-                harness.meta_catalog = []
-                harness.llm_router = None
                 try:
                     await provider.close()
                 except Exception as close_exc:  # noqa: BLE001
-                    logger.warning(
-                        "Datasource: provider close raised %s", close_exc
-                    )
+                    logger.warning("Datasource: provider close raised %s", close_exc)
 
         try:
             yield
         finally:
+            # Runs still here were not drained (a signal other than SIGTERM):
+            # save them as interrupted rather than lose them.
+            await app.state.drain.interrupt_all()
+            if restore_sigterm is not None:
+                restore_sigterm()
+            if refresh_task is not None:
+                refresh_task.cancel()
+            if usage_reporter is not None:
+                await usage_reporter.drain()
+            await harness.drain_saves()
             # Close every provider we booted (primary + each non-primary
             # connection), reverse order. close() is idempotent, so the primary's
             # earlier disabled-path close is a harmless no-op here.
@@ -709,6 +623,96 @@ def _make_lifespan(
                 logger.warning("OTel: shutdown_tracing raised %s", exc)
 
     return lifespan
+
+
+async def _load_model_providers(settings: HarnessSettings) -> bool:
+    """Set the providers to the environment's plus the modulith's. On failure
+    the providers in use stay as they were. Returns whether it loaded."""
+    assert settings.modulith_url and settings.provider_key
+    try:
+        from_modulith = await fetch_modulith_registry(settings.modulith_url, settings.provider_key)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Model providers: could not read them from the modulith (%s)", exc)
+        return False
+    from_env = registry_from_settings(
+        anthropic_api_key=settings.anthropic_api_key,
+        openai_api_key=settings.openai_api_key,
+        providers_json=settings.model_providers,
+    )
+    set_provider_registry(from_env.merged(from_modulith))
+    logger.info("Model providers: %d models offered", len(provider_registry().offered()))
+    return True
+
+
+async def _refresh_model_providers(settings: HarnessSettings) -> None:
+    while True:
+        await asyncio.sleep(settings.model_providers_refresh_seconds)
+        await _load_model_providers(settings)
+
+
+def _build_agent_loop(
+    settings: HarnessSettings,
+    harness: HarnessSupervisor,
+    profile: DataSourceProfile,
+) -> AgentLoopRunners:
+    """One runner per offered model, built on first use; seats when configured."""
+    provenance = ProvenanceLog(settings.provenance_log_dir, enabled=settings.provenance_log_enabled)
+    seats = LoopSeats(
+        advisor=(
+            AdvisorSeat(
+                model=get_chat_model(settings.agents_advisor_model),
+                display_name=profile.display_name,
+                max_consults=settings.agents_advisor_max_consults,
+                span_prefix=profile.name,
+            )
+            if settings.agents_advisor_model
+            else None
+        ),
+        workhorse=(
+            WorkhorseSeat(
+                build=lambda: AgentLoopRunner(
+                    model=get_chat_model(
+                        settings.agents_workhorse_model,
+                        timeout=settings.agents_agent_loop_llm_timeout_seconds,
+                    ),
+                    registry=harness.tools,
+                    settings=settings.model_copy(
+                        update={"agents_agent_loop_max_turns": settings.agents_workhorse_max_turns}
+                    ),
+                    profile=profile,
+                    provenance_log=provenance,
+                    context_skills=harness.context_skills,
+                    anthropic_format=is_anthropic(settings.agents_workhorse_model),
+                    model_name=settings.agents_workhorse_model,
+                ),
+                max_parallel=settings.agents_workhorse_max_parallel,
+            )
+            if settings.agents_workhorse_model
+            else None
+        ),
+    )
+    return AgentLoopRunners(
+        default_model=settings.agents_agent_loop_model,
+        models=settings.agents_agent_loop_models,
+        # Models the configured providers offer, and the owner's default.
+        providers=provider_registry,
+        build_model=lambda name, effort=None: get_chat_model(
+            name,
+            timeout=settings.agents_agent_loop_llm_timeout_seconds,
+            **loop_model_kwargs(
+                name,
+                default_effort=settings.agents_agent_loop_effort,
+                default_thinking_budget=settings.agents_agent_loop_thinking_budget,
+                run_effort=effort,
+            ),
+        ),
+        registry=harness.tools,
+        settings=settings,
+        profile=profile,
+        provenance_log=provenance,
+        context_skills=harness.context_skills,
+        seats=seats,
+    )
 
 
 def create_app() -> FastAPI:
@@ -745,9 +749,7 @@ def create_app() -> FastAPI:
                     return Response(status_code=401, content="invalid identity")
         return await call_next(request)
 
-    def _resolve_request_identity(
-        request: Request, body: UserRequest
-    ) -> UserRequest:
+    def _resolve_request_identity(request: Request, body: UserRequest) -> UserRequest:
         """Reconcile the verified header (if any) with the request body.
 
         - Header present and verified: header wins, body-supplied
@@ -766,9 +768,7 @@ def create_app() -> FastAPI:
                 }
             )
         if settings.identity_signing_key is not None:
-            raise HTTPException(
-                status_code=401, detail="X-MIOT-Identity required"
-            )
+            raise HTTPException(status_code=401, detail="X-MIOT-Identity required")
         return body
 
     async def require_auth(request: Request) -> Mapping[str, Any]:
@@ -798,9 +798,7 @@ def create_app() -> FastAPI:
             # real tenant instead of silently falling back. Absent header → None,
             # which `_apply_tenant_override` turns into a 400 unless the caller
             # supplied a body tenant (the dev/test escape hatch).
-            header_tenant = (
-                request.headers.get("X-Miot-Tenant-Client-Id") or ""
-            ).strip() or None
+            header_tenant = (request.headers.get("X-Miot-Tenant-Client-Id") or "").strip() or None
             return {"claims": {}, "tenant_id": header_tenant}
 
         auth_header = request.headers.get("Authorization") or ""
@@ -855,9 +853,7 @@ def create_app() -> FastAPI:
                 headers={"Retry-After": "5"},
             ) from exc
 
-        header_tenant = (
-            request.headers.get("X-Miot-Tenant-Client-Id") or ""
-        ).strip() or None
+        header_tenant = (request.headers.get("X-Miot-Tenant-Client-Id") or "").strip() or None
         if header_tenant is None:
             raise HTTPException(
                 status_code=401,
@@ -866,9 +862,15 @@ def create_app() -> FastAPI:
             )
         return {"claims": claims, "tenant_id": header_tenant}
 
-    def _apply_tenant_override(
-        user_request: UserRequest, auth: Mapping[str, Any]
-    ) -> UserRequest:
+    def _caller(http_request: Request) -> dict[str, str | None]:
+        """The caller's bearer token and organization slug, as the backend
+        proxy forwarded them, for MCP skills to call back with."""
+        auth_header = http_request.headers.get("Authorization") or ""
+        token = auth_header[len("Bearer ") :].strip() if auth_header.startswith("Bearer ") else ""
+        organization = (http_request.headers.get("X-Miot-Organization") or "").strip()
+        return {"caller_token": token or None, "organization": organization or None}
+
+    def _apply_tenant_override(user_request: UserRequest, auth: Mapping[str, Any]) -> UserRequest:
         """Resolve the run's tenant and enforce that one exists.
 
         A verified ``X-Miot-Tenant-Client-Id`` header (set by the Quarkus
@@ -887,9 +889,7 @@ def create_app() -> FastAPI:
                 user_request.tenant_id,
                 header_tenant,
             )
-            user_request = user_request.model_copy(
-                update={"tenant_id": header_tenant}
-            )
+            user_request = user_request.model_copy(update={"tenant_id": header_tenant})
         if not user_request.tenant_id:
             logger.error(
                 "Run rejected: unresolved tenant — no X-Miot-Tenant-Client-Id "
@@ -897,17 +897,13 @@ def create_app() -> FastAPI:
                 "never defaulted; verify the request is routed through the "
                 "Quarkus org proxy."
             )
-            raise HTTPException(
-                status_code=400, detail="missing_required_tenant"
-            )
+            raise HTTPException(status_code=400, detail="missing_required_tenant")
         return user_request
 
     @app.get("/health")
     async def health() -> dict[str, object]:
         provider = getattr(app.state, "datasource_provider", None)
-        ds_name = (
-            provider.profile.name if provider is not None else settings.datasource_kind
-        )
+        ds_name = provider.profile.name if provider is not None else settings.datasource_kind
         diagnostics = getattr(app.state, "context_skills_diagnostics", [])
         return {
             "status": "ok",
@@ -920,12 +916,9 @@ def create_app() -> FastAPI:
                 "freshness": getattr(app.state, "datasource_freshness", {}),
             },
             "context_skills": {
-                "connector_tools": list(
-                    getattr(app.state, "context_skills_registered", [])
-                ),
+                "connector_tools": list(getattr(app.state, "context_skills_registered", [])),
                 "diagnostics": [
-                    {"level": d.level, "path": d.path, "message": d.message}
-                    for d in diagnostics
+                    {"level": d.level, "path": d.path, "message": d.message} for d in diagnostics
                 ],
             },
         }
@@ -955,20 +948,19 @@ def create_app() -> FastAPI:
         # manifest, unsafe connector) fails readiness so a bad ConfigMap is
         # caught before the pod takes traffic. Default off = log-and-serve.
         cs_errors = [
-            d
-            for d in getattr(app.state, "context_skills_diagnostics", [])
-            if d.level == "error"
+            d for d in getattr(app.state, "context_skills_diagnostics", []) if d.level == "error"
         ]
         if settings.context_skills_strict and cs_errors:
             ready = False
-        if not ready:
+        status = "ready" if ready else "not_ready"
+        if _draining():
+            status = "draining"
+        if status != "ready":
             response.status_code = 503
         provider = getattr(app.state, "datasource_provider", None)
-        ds_name = (
-            provider.profile.name if provider is not None else settings.datasource_kind
-        )
+        ds_name = provider.profile.name if provider is not None else settings.datasource_kind
         return {
-            "status": "ready" if ready else "not_ready",
+            "status": status,
             "env": settings.env,
             "datasource": {
                 "name": ds_name,
@@ -982,6 +974,36 @@ def create_app() -> FastAPI:
             # `datasource` block above stays the single-connection contract.
             "connections": conns,
         }
+
+    def _track_in_flight(
+        run_id: str, tenant_id: str | None, task: asyncio.Task[HarnessRunRecord]
+    ) -> None:
+        app.state.in_flight[run_id] = task
+        # Track the tenant for in-flight runs so /stream can reject
+        # cross-tenant subscribers even before the record lands on
+        # disk. Cleared in the done-callback alongside in_flight.
+        app.state.in_flight_tenants[run_id] = tenant_id
+
+        def _cleanup(_task: asyncio.Task[HarnessRunRecord]) -> None:
+            app.state.in_flight.pop(run_id, None)
+            app.state.in_flight_tenants.pop(run_id, None)
+            # A run that raised before reaching a terminal point never
+            # released its live record.
+            app.state.harness.forget_live(run_id)
+
+        task.add_done_callback(_cleanup)
+
+    def _draining() -> bool:
+        drain: RunDrain | None = getattr(app.state, "drain", None)
+        return drain is not None and drain.draining
+
+    def _refuse_while_draining() -> None:
+        if _draining():
+            raise HTTPException(
+                status_code=503,
+                detail="Harness is shutting down",
+                headers={"Retry-After": str(_DRAIN_RETRY_AFTER_SECONDS)},
+            )
 
     def _enforce_model_allowlist(request: UserRequest) -> None:
         if request.model is None:
@@ -997,45 +1019,97 @@ def create_app() -> FastAPI:
     async def get_models(
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> dict[str, Any]:
-        """Conversation models a run may name in `model`. Empty when the agent
-        loop is off: the planner graph has no per-run model."""
+        """Conversation models a run may name in `model`. Empty when no model
+        could be built."""
         loop = getattr(app.state.harness, "agent_loop", None)
         if loop is None:
             return {"default": None, "models": []}
         return {"default": loop.default_model, "models": list(loop.models)}
 
-    @app.post("/runs", response_model=HarnessRunRecord)
+    @app.post("/titles", responses={503: {"description": "No title could be generated"}})
+    async def create_title(
+        body: TitleRequest,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, str]:
+        """A short title for a chat thread, from its first exchange. Uses the
+        summarizer's model, which is picked to be cheap."""
+        # Tests inject a stub via app.state.title_model.
+        model = getattr(app.state, "title_model", None)
+        try:
+            if model is None:
+                model = get_chat_model(settings.agents_summarizer_model)
+            title = await build_thread_titler(model)(body.message, body.answer)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Thread title failed: %s", exc)
+            raise HTTPException(status_code=503, detail="title unavailable") from exc
+        return {"title": title}
+
+    @app.post("/runs", responses=_DRAINING_RESPONSE)
     async def create_run(
         request: UserRequest,
         http_request: Request,
         debug: bool = Query(False),
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> HarnessRunRecord:
-        # Read harness from app.state so tests that inject a controlled
-        # graph (via app.state.harness.data_graph = ...) see their patch.
+        # Read harness from app.state so tests that patch it see their patch.
         # Explicit annotation narrows `app.state` (Any) for mypy.
         harness: HarnessSupervisor = app.state.harness
+        _refuse_while_draining()
         request = _resolve_request_identity(http_request, request)
         if debug:
             request = request.model_copy(update={"debug": True})
         request = _apply_tenant_override(request, auth)
         _enforce_debug_allowlist(request, settings)
         _enforce_model_allowlist(request)
-        return await harness.run(request)
+        run_id = f"run_{uuid4().hex}"
+        task = asyncio.create_task(
+            harness.run(request, run_id_override=run_id, **_caller(http_request))
+        )
+        _track_in_flight(run_id, request.tenant_id, task)
+        return await task
 
-    @app.get("/runs/{run_id}", response_model=HarnessRunRecord)
+    @app.get("/runs")
+    async def list_runs(
+        http_request: Request,
+        conversation_id: str | None = Query(None),
+        status: str | None = Query(None),
+        user_id: str | None = Query(None),
+        limit: int = Query(20, ge=1, le=_RUNS_LIST_MAX),
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> list[RunSummary]:
+        """The caller's runs, running ones first, then the rest newest first.
+
+        Scoped to the caller's tenant like GET /runs/{id}, and to one user:
+        the signed identity when present, else the proxy's user header, else
+        the `user_id` query param. `status` takes a comma-separated list.
+        """
+        harness: HarnessSupervisor = app.state.harness
+        identity = getattr(http_request.state, "identity", None)
+        user = (
+            (identity.user_id if identity is not None else None)
+            or (http_request.headers.get("X-Miot-User-Email") or "").strip()
+            or user_id
+        )
+        statuses = {s.strip() for s in status.split(",") if s.strip()} if status else None
+        return _list_runs(
+            harness,
+            tenant_id=auth.get("tenant_id"),
+            user_id=user or None,
+            conversation_id=conversation_id,
+            statuses=statuses,
+            limit=limit,
+        )
+
+    @app.get("/runs/{run_id}", responses={404: {"description": "No run with this id"}})
     async def get_run(
         run_id: str,
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> HarnessRunRecord:
         harness: HarnessSupervisor = app.state.harness
-        try:
-            record = harness.run_store.load(run_id)
-        except FileNotFoundError as exc:
+        record = _replay_record(harness, run_id)
+        if record is None:
             # An unknown run is a 404, not a 500 leaked from the store.
-            raise HTTPException(
-                status_code=404, detail=f"unknown run_id {run_id!r}"
-            ) from exc
+            raise HTTPException(status_code=404, detail=f"unknown run_id {run_id!r}")
         _enforce_tenant_owns_run(record, auth, run_id)
         return record
 
@@ -1059,13 +1133,14 @@ def create_app() -> FastAPI:
         tenant_id = auth.get("tenant_id") or tenant or settings.default_tenant_id
         return bundle.list_skills(tenant_id)
 
-    @app.post("/runs:start", status_code=202)
+    @app.post("/runs:start", status_code=202, responses=_DRAINING_RESPONSE)
     async def start_run(
         request: UserRequest,
         http_request: Request,
         debug: bool = Query(False),
         auth: Mapping[str, Any] = Depends(require_auth),
     ) -> dict[str, str]:
+        _refuse_while_draining()
         request = _resolve_request_identity(http_request, request)
         if debug:
             request = request.model_copy(update={"debug": True})
@@ -1074,23 +1149,14 @@ def create_app() -> FastAPI:
         _enforce_model_allowlist(request)
         run_id = f"run_{uuid4().hex}"
         task = asyncio.create_task(
-            app.state.harness.run(request, run_id_override=run_id)
+            app.state.harness.run(request, run_id_override=run_id, **_caller(http_request))
         )
-        app.state.in_flight[run_id] = task
-        # Track the tenant for in-flight runs so /stream can reject
-        # cross-tenant subscribers even before the record lands on
-        # disk. Cleared in the done-callback alongside in_flight.
-        app.state.in_flight_tenants[run_id] = request.tenant_id
-
-        def _cleanup(_task: asyncio.Task[HarnessRunRecord]) -> None:
-            app.state.in_flight.pop(run_id, None)
-            app.state.in_flight_tenants.pop(run_id, None)
-
-        task.add_done_callback(_cleanup)
+        _track_in_flight(run_id, request.tenant_id, task)
         return {"run_id": run_id}
 
     @app.post("/runs/{run_id}/approvals/{approval_id}", status_code=204)
     async def resolve_approval(
+        http_request: Request,
         run_id: str,
         approval_id: str,
         body: ApprovalDecision,
@@ -1109,8 +1175,13 @@ def create_app() -> FastAPI:
         # collapsed into the same response so leaked approval_ids don't
         # leak ownership through differential 403/404 responses.
         registry = app.state.harness.approval_registry
+        identity = getattr(http_request.state, "identity", None)
+        resolved_by = (identity.user_id if identity is not None else None) or (
+            http_request.headers.get("X-Miot-User-Email") or ""
+        ).strip()
+        comment = (body.comment or "").strip() or None
         if registry is None or not registry.resolve(
-            approval_id, body.decision, run_id
+            approval_id, body.decision, run_id, comment=comment, resolved_by=resolved_by or None
         ):
             raise HTTPException(status_code=404, detail="Approval not pending")
         return Response(status_code=204)
@@ -1128,9 +1199,7 @@ def create_app() -> FastAPI:
         # 404 as a missing run — no existence leak.
         task = app.state.in_flight.get(run_id)
         caller = auth.get("tenant_id")
-        if task is None or (
-            caller and app.state.in_flight_tenants.get(run_id) != caller
-        ):
+        if task is None or (caller and app.state.in_flight_tenants.get(run_id) != caller):
             raise HTTPException(status_code=404, detail="Run not in flight")
         task.cancel()
         return Response(status_code=204)
@@ -1143,19 +1212,14 @@ def create_app() -> FastAPI:
     ) -> dict[str, str]:
         """Persist a human-approved business fact as a connection-scoped
         authored card on the harness PVC — the APPLY seam of the
-        continual-learning loop. R0's knowledge loader picks up
-        `<conn>/knowledge/*.md` on the next run, so grounding improves without a
-        redeploy. Promotion is human-gated upstream (the app's review UI); this
-        endpoint only writes what an authenticated, tenant-authorized caller
-        approved.
+        continual-learning loop. Cards are read from disk per run and per tool
+        call, so the next run uses it without a restart. Promotion is
+        human-gated upstream (the app's review UI); this endpoint only writes
+        what an authenticated, tenant-authorized caller approved.
         """
-        conn: Connection | None = getattr(
-            app.state, "connection_objects", {}
-        ).get(connection)
+        conn: Connection | None = getattr(app.state, "connection_objects", {}).get(connection)
         if conn is None:
-            raise HTTPException(
-                status_code=404, detail=f"unknown connection {connection!r}"
-            )
+            raise HTTPException(status_code=404, detail=f"unknown connection {connection!r}")
         _enforce_tenant_may_write_connection(conn, auth, connection)
 
         # A personal fact never becomes a shared connection card — it would leak
@@ -1168,16 +1232,13 @@ def create_app() -> FastAPI:
                 "(expected 'tenant' or 'group[:<id>]')",
             )
 
-        # Synthesized / legacy-env connections have no authored file on disk,
-        # hence no sibling knowledge dir to attach a card to.
-        source_path = conn.source_path
-        if not source_path or source_path.startswith("<"):
+        cards_dir = connection_cards_dir(conn)
+        if cards_dir is None:
             raise HTTPException(
                 status_code=409,
                 detail=f"connection {connection!r} has no authored file on disk; "
                 "cannot attach knowledge",
             )
-        cards_dir = Path(source_path).parent / "knowledge"
         card = ConnectionCardWrite(
             term=body.term,
             body=body.body,
@@ -1202,6 +1263,132 @@ def create_app() -> FastAPI:
             "status": "approved",
         }
 
+    def _authorized_cards_dir(
+        connection: str, auth: Mapping[str, Any]
+    ) -> Path | None:
+        conn: Connection | None = getattr(app.state, "connection_objects", {}).get(connection)
+        if conn is None:
+            raise HTTPException(status_code=404, detail=f"unknown connection {connection!r}")
+        _enforce_tenant_may_write_connection(conn, auth, connection)
+        return connection_cards_dir(conn)
+
+    _knowledge_store = knowledge_store_factory(app, settings)
+    install_knowledge_routes(app, require_auth=require_auth, store_for=_knowledge_store)
+
+    judge_models: dict[str, Any] = {}
+
+    def _judge_model(name: str | None) -> Any:
+        # Tests inject a stub via app.state.judge_model.
+        model = getattr(app.state, "judge_model", None)
+        if model is None:
+            name = name or _default_model(app.state.harness) or settings.agents_summarizer_model
+            model = judge_models.get(name) or judge_models.setdefault(name, get_chat_model(name))
+        return model
+
+    app.state.learning_evals = EvaluationEngine(
+        runner=lambda request, **kw: app.state.harness.run(request, **kw),
+        judge=build_judge(_judge_model),
+        results_dir=lambda tenant: _knowledge_store(tenant).eval_results_dir(),
+        default_model=lambda: _default_model(app.state.harness),
+        concurrency=settings.learning_eval_concurrency,
+        run_timeout=settings.learning_eval_run_timeout_seconds,
+        skill_id=settings.learning_eval_skill_id,
+        judge_model=settings.learning_eval_judge_model,
+    )
+
+    def _check_model(model: str | None) -> None:
+        _enforce_model_allowlist(UserRequest(message="", model=model))
+
+    install_learning_routes(
+        app,
+        require_auth=require_auth,
+        engine=lambda: app.state.learning_evals,
+        caller=_caller,
+        check_model=_check_model,
+    )
+    if RUN_LEARNING_EVAL_TOOL not in harness.tools.names():
+        harness.tools.register(
+            run_learning_eval_tool(
+                lambda: app.state.learning_evals,
+                _knowledge_store,
+                max_cases=settings.learning_eval_max_cases,
+                wait_seconds=settings.learning_eval_tool_wait_seconds,
+            )
+        )
+
+    @app.get("/knowledge/connections")
+    async def list_knowledge_connections(
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, list[str]]:
+        """The connections the caller's tenant may keep learned facts on."""
+        learned: LearnedFacts | None = app.state.harness.learned_facts
+        sources = learned.usable(auth.get("tenant_id")) if learned else ()
+        return {"connections": [s.connection for s in sources]}
+
+    @app.get("/connections/{connection}/knowledge", responses=_CARDS_RESPONSES)
+    async def list_connection_knowledge(
+        connection: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, list[dict[str, Any]]]:
+        """The connection's authored cards (pack cards are not listed)."""
+        cards_dir = _authorized_cards_dir(connection, auth)
+        cards = load_connection_cards_cached(cards_dir).cards if cards_dir else ()
+        return {
+            "cards": [
+                {
+                    "id": c.id,
+                    "title": c.title,
+                    "term": c.term,
+                    "kind": c.kind,
+                    "scope": c.scope,
+                    "body": c.body,
+                    "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+                }
+                for c in cards
+            ]
+        }
+
+    @app.delete(
+        "/connections/{connection}/knowledge/{card_id}",
+        status_code=204,
+        responses=_CARDS_RESPONSES,
+    )
+    async def delete_connection_knowledge(
+        connection: str,
+        card_id: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> Response:
+        """Remove an authored card. Its current version stays in the card's
+        history, so `POST .../revert` restores it."""
+        cards_dir = _authorized_cards_dir(connection, auth)
+        if cards_dir is None or not delete_connection_card(
+            cards_dir, _card_file_stem(cards_dir, card_id)
+        ):
+            raise HTTPException(status_code=404, detail=f"unknown card {card_id!r}")
+        return Response(status_code=204)
+
+    @app.post(
+        "/connections/{connection}/knowledge/{card_id}/revert",
+        responses=_CARDS_RESPONSES,
+    )
+    async def revert_connection_knowledge(
+        connection: str,
+        card_id: str,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, str]:
+        """Restore the card's previous version (or a deleted card)."""
+        cards_dir = _authorized_cards_dir(connection, auth)
+        path = None
+        if cards_dir is not None:
+            stem = _card_file_stem(cards_dir, card_id)
+            if slug_card_id(stem):
+                path = revert_connection_card(cards_dir, stem)
+        if path is None:
+            raise HTTPException(
+                status_code=404, detail=f"no previous version of card {card_id!r}"
+            )
+        return {"connection": connection, "card_id": path.stem}
+
     @app.post("/connections/{connection}/distill")
     async def distill_connection(
         connection: str,
@@ -1220,24 +1407,19 @@ def create_app() -> FastAPI:
         """
         if not settings.knowledge_distiller_enabled:
             raise HTTPException(status_code=503, detail="knowledge distiller disabled")
-        conn: Connection | None = getattr(
-            app.state, "connection_objects", {}
-        ).get(connection)
+        conn: Connection | None = getattr(app.state, "connection_objects", {}).get(connection)
         if conn is None:
-            raise HTTPException(
-                status_code=404, detail=f"unknown connection {connection!r}"
-            )
+            raise HTTPException(status_code=404, detail=f"unknown connection {connection!r}")
         _enforce_tenant_may_write_connection(conn, auth, connection)
 
         # Skip terms this connection already grounds — the distiller proposes only
         # what is still ungrounded. The authoritative cards are the harness's own,
         # on the PVC beside the connection file.
         existing_terms: list[str] = []
-        source_path = conn.source_path
-        if source_path and not source_path.startswith("<"):
-            cards_dir = Path(source_path).parent / "knowledge"
+        cards_dir = connection_cards_dir(conn)
+        if cards_dir is not None:
             existing_terms = [
-                c.term or c.id for c in load_connection_cards(cards_dir).cards
+                c.term or c.id for c in load_connection_cards_cached(cards_dir).cards
             ]
 
         # Tests inject a stub via app.state.distiller_model; prod builds the seat
@@ -1288,6 +1470,49 @@ def create_app() -> FastAPI:
     return app
 
 
+_RUNS_LIST_MAX = 100
+
+
+def _list_runs(
+    harness: HarnessSupervisor,
+    *,
+    tenant_id: str | None,
+    user_id: str | None,
+    conversation_id: str | None,
+    statuses: set[str] | None,
+    limit: int,
+) -> list[RunSummary]:
+    live = [summarize(record) for record in harness.live_records()]
+    live_ids = {summary.run_id for summary in live}
+    stored: list[RunSummary] = []
+    for summary in harness.run_store.recent_summaries():
+        if summary.run_id in live_ids:
+            continue
+        if summary.status == "running":
+            # Saved mid-run by a process that is gone: it will never finish.
+            summary = summary.model_copy(update={"status": "interrupted"})
+        stored.append(summary)
+
+    def visible(summary: RunSummary) -> bool:
+        # Legacy records carry no tenant; a listing never shows them to a
+        # tenant-scoped caller.
+        wanted = (
+            (tenant_id, summary.tenant_id),
+            (user_id, summary.user_id),
+            (conversation_id, summary.conversation_id),
+        )
+        if any(expected and actual != expected for expected, actual in wanted):
+            return False
+        return statuses is None or summary.status in statuses
+
+    running = sorted(
+        (s for s in live if visible(s)),
+        key=lambda s: s.started_at.timestamp() if s.started_at else 0.0,
+        reverse=True,
+    )
+    return (running + [s for s in stored if visible(s)])[:limit]
+
+
 def _enforce_tenant_owns_run(
     record: HarnessRunRecord, auth: Mapping[str, Any], run_id: str
 ) -> None:
@@ -1311,6 +1536,87 @@ def _enforce_tenant_owns_run(
         )
 
 
+def _connection_tenant_lock(conn: Connection) -> str | None:
+    """The one tenant a connection serves, or None when it is shared. Same
+    order as the generic provider: `options.tenant_lock`, then the tenant of a
+    tenant-scoped connection."""
+    raw_lock = str(conn.options.get("tenant_lock") or "").strip()
+    if raw_lock:
+        return raw_lock
+    if conn.scope == "tenant" and conn.tenant_id:
+        return str(conn.tenant_id)
+    return None
+
+
+def _connection_dir(conn: Connection) -> Path | None:
+    source_path = conn.source_path
+    if not source_path or source_path.startswith("<"):
+        return None
+    return Path(source_path).parent
+
+
+def _primer_sources(connections: Iterable[Connection]) -> list[PrimerSource]:
+    """Connections locked to one tenant, whose description that tenant edits."""
+    sources = []
+    for conn in connections:
+        lock = _connection_tenant_lock(conn)
+        folder = _connection_dir(conn)
+        if lock is not None and folder is not None:
+            sources.append(PrimerSource(conn.name, folder / "connection.md", lock, conn.primer))
+    return sources
+
+
+def knowledge_store_factory(
+    app: FastAPI, settings: HarnessSettings
+) -> Callable[[str], KnowledgeStore]:
+    """A tenant's knowledge store over the connections booted on `app`."""
+
+    def store_for(tenant_id: str) -> KnowledgeStore:
+        return KnowledgeStore(
+            tenant_id=tenant_id,
+            root=settings.knowledge_root or settings.context_dir.parent,
+            context_dir=settings.context_dir,
+            skills_dir=settings.skills_dir,
+            connections=_knowledge_targets(
+                getattr(app.state, "connection_objects", {}).values(),
+                app.state.harness.learned_facts,
+            ),
+        )
+
+    return store_for
+
+def _default_model(harness: HarnessSupervisor) -> str | None:
+    model = getattr(getattr(harness, "agent_loop", None), "default_model", None)
+    return model if isinstance(model, str) else None
+
+
+def _knowledge_targets(
+    connections: Iterable[Connection], learned: LearnedFacts | None
+) -> list[ConnectionTarget]:
+    """Connections with a file on disk, and whether each takes learned facts."""
+    targets: dict[str, ConnectionTarget] = {}
+    for conn in connections:
+        folder = _connection_dir(conn)
+        if folder is not None:
+            targets[conn.name] = ConnectionTarget(
+                conn.name, folder, _connection_tenant_lock(conn), cards=False
+            )
+    for source in learned.sources if learned else ():
+        targets[source.connection] = ConnectionTarget(
+            source.connection, source.cards_dir.parent, source.tenant_lock, cards=True
+        )
+    return list(targets.values())
+
+
+def _card_file_stem(cards_dir: Path, card_id: str) -> str:
+    """The file holding the live card `card_id`. A hand-written card's id can
+    differ from its file name; otherwise the id is the file name."""
+    for card in load_connection_cards_cached(cards_dir).cards:
+        if card.id == card_id and card.file_stem:
+            return card.file_stem
+    return card_id
+
+
 def _enforce_tenant_may_write_connection(
     conn: Connection, auth: Mapping[str, Any], name: str
 ) -> None:
@@ -1327,11 +1633,7 @@ def _enforce_tenant_may_write_connection(
     caller = auth.get("tenant_id")
     if not caller:
         return
-    if conn.scope == "tenant" and conn.tenant_id:
-        lock: str | None = str(conn.tenant_id)
-    else:
-        raw_lock = conn.options.get("tenant_lock")
-        lock = str(raw_lock) if raw_lock else None
+    lock = _connection_tenant_lock(conn)
     if lock is not None and caller != lock:
         raise HTTPException(
             status_code=403,
@@ -1339,9 +1641,7 @@ def _enforce_tenant_may_write_connection(
         )
 
 
-def _enforce_tenant_owns_stream(
-    app: FastAPI, run_id: str, auth: Mapping[str, Any]
-) -> None:
+def _enforce_tenant_owns_stream(app: FastAPI, run_id: str, auth: Mapping[str, Any]) -> None:
     """SSE-side counterpart to ``_enforce_tenant_owns_run``: checks
     the in-flight tenant tracker first (for runs that have not yet
     persisted) and falls back to the on-disk record. An unknown
@@ -1399,12 +1699,43 @@ def _enforce_debug_allowlist(request: UserRequest, settings: HarnessSettings) ->
     )
 
 
+# Proxies drop a stream that sends nothing for about a minute; the model can
+# think for longer than that without emitting an event.
+_SSE_KEEPALIVE_SECONDS = 15.0
+_SSE_KEEPALIVE = b": keepalive\n\n"
+
+
+async def _with_keepalive(
+    events: AsyncIterator[HarnessEvent], interval: float
+) -> AsyncIterator[HarnessEvent | None]:
+    """`events`, with a None whenever `interval` passes without one.
+
+    The pending read is kept across timeouts rather than cancelled:
+    cancelling an async generator's `__anext__` closes the generator.
+    """
+
+    pending: asyncio.Future[HarnessEvent] | None = None
+    try:
+        while True:
+            if pending is None:
+                pending = asyncio.ensure_future(anext(events))
+            done, _ = await asyncio.wait({pending}, timeout=interval)
+            if not done:
+                yield None
+                continue
+            try:
+                evt = pending.result()
+            except StopAsyncIteration:
+                return
+            pending = None
+            yield evt
+    finally:
+        if pending is not None:
+            pending.cancel()
+
+
 def _format_sse_event(evt: HarnessEvent) -> bytes:
-    return (
-        f"id: {evt.id}\n"
-        f"event: {evt.type}\n"
-        f"data: {evt.model_dump_json()}\n\n"
-    ).encode()
+    return (f"id: {evt.id}\nevent: {evt.type}\ndata: {evt.model_dump_json()}\n\n").encode()
 
 
 def _format_sse_error(run_id: str, error: str) -> bytes:
@@ -1414,6 +1745,16 @@ def _format_sse_error(run_id: str, error: str) -> bytes:
     # payload or inject a forged SSE frame; json.dumps escapes both.
     payload = json.dumps({"error": error, "run_id": run_id})
     return f"event: error\ndata: {payload}\n\n".encode()
+
+
+def _replay_record(harness: HarnessSupervisor, run_id: str) -> HarnessRunRecord | None:
+    live = harness.live_record(run_id)
+    if live is not None:
+        return live
+    try:
+        return harness.run_store.load(run_id)
+    except FileNotFoundError:
+        return None
 
 
 async def _sse_iterator(
@@ -1433,32 +1774,21 @@ async def _sse_iterator(
 
     last_seq = -1
 
-    # Resolve Last-Event-ID → seq via the persisted record (if any).
-    if last_event_id:
-        try:
-            record = harness.run_store.load(run_id)
-            for evt in record.events:
-                if evt.id == last_event_id:
-                    last_seq = evt.seq
-                    break
-        except FileNotFoundError:
-            pass
-
     # Subscribe BEFORE replay so we don't miss events that fire between
-    # the disk read and the subscribe call.
+    # the record read and the subscribe call.
     bus_iter = event_bus.subscribe(run_id) if event_bus is not None else None
 
-    # Replay every persisted event past the cursor.
-    record_existed = False
-    try:
-        record = harness.run_store.load(run_id)
-        record_existed = True
-        for evt in record.events:
-            if evt.seq > last_seq:
-                yield _format_sse_event(evt)
-                last_seq = evt.seq
-    except FileNotFoundError:
-        pass
+    # An in-flight run's in-memory record holds every event so far; the
+    # disk copy is only checkpointed every few events.
+    record = _replay_record(harness, run_id)
+    record_existed = record is not None
+    events = list(record.events) if record is not None else []
+    if last_event_id:
+        last_seq = next((evt.seq for evt in events if evt.id == last_event_id), -1)
+    for evt in events:
+        if evt.seq > last_seq:
+            yield _format_sse_event(evt)
+            last_seq = evt.seq
 
     # If neither the record exists nor the run is in-flight, this is an
     # unknown run_id — emit an error and close.
@@ -1484,7 +1814,9 @@ async def _sse_iterator(
     # `_closed` tracking queues the sentinel on our subscribe and the
     # iterator ends immediately.
     if bus_iter is not None:
-        async for evt in bus_iter:
-            if evt.seq > last_seq:
-                yield _format_sse_event(evt)
-                last_seq = evt.seq
+        async for live in _with_keepalive(bus_iter, _SSE_KEEPALIVE_SECONDS):
+            if live is None:
+                yield _SSE_KEEPALIVE
+            elif live.seq > last_seq:
+                yield _format_sse_event(live)
+                last_seq = live.seq

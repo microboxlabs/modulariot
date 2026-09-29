@@ -1,6 +1,6 @@
 /**
- * Event→UI-state mapping for the streaming harness search (R1 acceptance:
- * route.selected → phase, tool.started/completed → step states,
+ * Event→UI-state mapping for the streaming harness search
+ * (tool.started/completed → step states,
  * thinking.delta accumulation, search.result → final results,
  * run.failed/search.error → error state).
  */
@@ -29,10 +29,12 @@ describe("reduceHarnessStreamEvent", () => {
     expect(startProgress().phase).toBe("connecting");
   });
 
-  it("route.selected sets the routing phase and captures the route", () => {
-    const s = reduceAll([harnessFrame("route.selected", { route: "data_agentic" })]);
-    expect(s.phase).toBe("routing");
-    expect(s.route).toBe("data_agentic");
+  it("events the harness no longer emits leave the state alone", () => {
+    const s = reduceAll([
+      harnessFrame("route.selected", { route: "data_agentic" }),
+      harnessFrame("verification.completed", {}),
+    ]);
+    expect(s).toEqual(startProgress());
   });
 
   it("tool.started appends a running step; tool.completed marks it done", () => {
@@ -64,11 +66,6 @@ describe("reduceHarnessStreamEvent", () => {
     ]);
     expect(s.phase).toBe("answering");
     expect(s.thinking).toBe("The evidence is clear.");
-  });
-
-  it("verification.completed surfaces the verifying phase", () => {
-    const s = reduceAll([harnessFrame("verification.completed", {})]);
-    expect(s.phase).toBe("verifying");
   });
 
   it("search.result lands the final results and finishes", () => {

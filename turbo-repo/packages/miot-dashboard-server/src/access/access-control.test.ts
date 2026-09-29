@@ -28,6 +28,7 @@ import { FULL_CAPABILITIES, capabilitiesForRole } from "./roles";
 const ALL_ACTIONS: readonly DashboardAction[] = [
   "dashboard.list",
   "dashboard.load",
+  "dashboard.query",
   "dashboard.save",
   "dashboard.delete",
   "dashboard.permissions.read",
@@ -235,7 +236,7 @@ describe("embed principals", () => {
       { scopeId: "ops", slug: "other", action: "dashboard.load" },
       { scopeId: "other", action: "datasource.query" },
       ...ALL_ACTIONS.filter(
-        (a) => a !== "dashboard.load" && a !== "datasource.query",
+        (a) => !["dashboard.load", "dashboard.query", "datasource.query"].includes(a),
       ).map((action) => ({ scopeId: "ops", slug: "fleet", action })),
     ];
     for (const target of cases) {
@@ -304,6 +305,7 @@ describe("capabilities by role", () => {
     const eve = user("eve", "acme");
     for (const action of [
       "dashboard.load",
+  "dashboard.query",
       "dashboard.save",
       "embed.token.issue",
       "datasource.write",
@@ -455,6 +457,27 @@ describe("capabilities by role", () => {
     expect(error.reason).toBe("CAPABILITY");
   });
 
+  it.each(["alice", "eve", "carl"])(
+    "a read-only credential cannot create a dashboard as %s",
+    async (userId) => {
+      const h = harness({ memberships, seed });
+      const target = { scopeId: "ops", slug: "new-dashboard", action: "dashboard.save" as const };
+      const error = await expectError(h.control.authorize(
+        user(userId, "acme", {
+          capabilities: { ...FULL_CAPABILITIES, canEdit: false },
+        }),
+        target,
+      ));
+      expect(error.status).toBe(403);
+      expect(error.reason).toBe("CAPABILITY");
+      expect(h.audit.events.at(-1)).toMatchObject({
+        action: "dashboard.save", outcome: "denied",
+      });
+      await expect(h.control.authorize(user(userId, "acme"), target))
+        .resolves.toMatchObject({ dashboard: { record: null } });
+    },
+  );
+
   it("a custom policy returning null denies a scope member", async () => {
     const h = harness({
       memberships,
@@ -467,6 +490,20 @@ describe("capabilities by role", () => {
     expect(error.reason).toBe("CAPABILITY");
     expect(h.audit.events.at(-1)).toMatchObject({ outcome: "denied" });
   });
+
+  it.each(["alice", "eve", "carl"])(
+    "a custom policy can refuse creation for %s despite scope membership",
+    async (userId) => {
+      const h = harness({ memberships, policy: {
+        resolve: () => ({ ...FULL_CAPABILITIES, canEdit: false }),
+      } });
+      const error = await expectError(h.control.authorize(user(userId, "acme"), {
+        scopeId: "ops", slug: "new-dashboard", action: "dashboard.save",
+      }));
+      expect(error.status).toBe(403);
+      expect(error.reason).toBe("CAPABILITY");
+    },
+  );
 
   it("a custom policy cannot grant past the ceiling", async () => {
     const h = harness({
@@ -660,5 +697,36 @@ describe("the tenant gate, against a scope authority that ignores the tenant", (
       }),
     );
     expect(load).not.toHaveBeenCalled();
+  });
+});
+
+describe("scope creation eligibility", () => {
+  it.each([
+    ["alice", true], ["eve", true], ["carl", true], ["con", false],
+  ])("reports eligibility for %s without accessing the store", async (userId, canCreate) => {
+    const h = harness({ memberships, seed });
+    await expect(h.control.scopeCapabilities(user(userId, "acme"), A))
+      .resolves.toEqual({ canCreate });
+    expect(h.store.touched()).toBe(false);
+  });
+
+  it("denies embed tokens before accessing the store", async () => {
+    const h = harness({ memberships, seed });
+    const error = await expectError(h.control.scopeCapabilities(embed("acme", "ops", "fleet"), A));
+    expect(error.status).toBe(403);
+    expect(error.reason).toBe("EMBED_SCOPE");
+    expect(h.store.touched()).toBe(false);
+  });
+
+  it("keeps document-specific policy enforcement on save", async () => {
+    const policy = { resolve: vi.fn(() => ({ ...FULL_CAPABILITIES, canEdit: false })) };
+    const h = harness({ memberships, policy });
+    const caller = user("eve", "acme");
+    await expect(h.control.scopeCapabilities(caller, A)).resolves.toEqual({ canCreate: true });
+    expect(policy.resolve).not.toHaveBeenCalled();
+    expect(h.store.touched()).toBe(false);
+    const error = await expectError(h.control.authorize(caller, { ...A, action: "dashboard.save" }));
+    expect(error.status).toBe(403);
+    expect(error.reason).toBe("CAPABILITY");
   });
 });

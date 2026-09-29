@@ -3,11 +3,8 @@ import { useTerminalWidth } from "../hooks/useTerminalWidth.js";
 import { useTheme } from "../theme/ThemeProvider.js";
 
 export interface InputFrameProps {
-  // Status label embedded in the bottom border, e.g. "miot · auto".
+  // Status label embedded in the bottom border, e.g. "miot · default model".
   label: string;
-  // Render the label in the warn color with a ⚠ prefix (agentic
-  // tenant mismatch).
-  labelWarn?: boolean;
   children: React.ReactNode;
 }
 
@@ -29,11 +26,7 @@ export function InputFrame(props: InputFrameProps): React.ReactElement {
       >
         {props.children}
       </Box>
-      <BottomBorder
-        cols={cols}
-        label={props.label}
-        warn={props.labelWarn ?? false}
-      />
+      <BottomBorder cols={cols} label={props.label} />
     </Box>
   );
 }
@@ -41,11 +34,9 @@ export function InputFrame(props: InputFrameProps): React.ReactElement {
 function BottomBorder(props: {
   cols: number;
   label: string;
-  warn: boolean;
 }): React.ReactElement {
   const { theme } = useTheme();
-  const visibleLabel = props.warn ? `⚠ ${props.label}` : props.label;
-  const labelText = ` ${visibleLabel} `;
+  const labelText = ` ${props.label} `;
   // corners (2) + fill + label + trailing "──" must equal cols.
   const fill = props.cols - 2 - labelText.length - 2;
 
@@ -60,7 +51,7 @@ function BottomBorder(props: {
   return (
     <Text>
       <Text color={theme.border}>╰{"─".repeat(fill)}</Text>
-      <Text color={props.warn ? theme.warn : theme.dim}>{labelText}</Text>
+      <Text color={theme.dim}>{labelText}</Text>
       <Text color={theme.border}>──╯</Text>
     </Text>
   );

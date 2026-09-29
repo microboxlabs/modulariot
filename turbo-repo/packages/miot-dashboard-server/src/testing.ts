@@ -108,6 +108,7 @@ export function createMemoryStore(
 ): ServerDashboardStore {
   const { seed = [], now = () => new Date() } = options;
   const entries = new Map<string, Entry>();
+  const revisions = new Map<string, number>();
   const permissions = new Map<string, PermissionAssignment[]>();
 
   for (const item of seed) {
@@ -124,6 +125,7 @@ export function createMemoryStore(
         ...item.record,
       },
     });
+    revisions.set(key(item.ref), item.record?.revision ?? 1);
     permissions.set(key(item.ref), item.assignments ?? []);
   }
 
@@ -150,13 +152,14 @@ export function createMemoryStore(
         config,
         updatedAt: now().toISOString(),
         updatedBy: saveOptions.updatedBy,
-        revision: current + 1,
+        revision: (revisions.get(key(ref)) ?? current) + 1,
         // Set once, on creation, and preserved from then on: the default
         // capability policy reads it to decide Contributor edit-own.
         ...(existing?.record.createdBy !== undefined
           ? { createdBy: existing.record.createdBy }
           : { createdBy: saveOptions.updatedBy }),
       };
+      revisions.set(key(ref), record.revision);
       entries.set(key(ref), {
         ref,
         // Derived from the config, as the SQL store does. Keeping the name
@@ -182,6 +185,15 @@ export function createMemoryStore(
       entries.delete(key(ref));
       permissions.delete(key(ref));
       return Promise.resolve();
+    },
+
+    removeIfRevision(ref, revision) {
+      if (!Number.isSafeInteger(revision) || revision < 1) return Promise.resolve(false);
+      if (entries.get(key(ref))?.record.revision !== revision)
+        return Promise.resolve(false);
+      entries.delete(key(ref));
+      permissions.delete(key(ref));
+      return Promise.resolve(true);
     },
 
     getPermissions(ref) {

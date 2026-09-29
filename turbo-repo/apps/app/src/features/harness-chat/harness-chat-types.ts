@@ -9,6 +9,8 @@ export type Session = {
   /** Who the owner shared it with. Empty for a session that is not the
    * caller's, since a reader is not told about the other readers. */
   sharedWith: string[];
+  /** True once a person named the thread, so no generated title replaces it. */
+  titleEdited: boolean;
 };
 
 export type View = "chat" | "history";
@@ -18,4 +20,6 @@ export type HarnessSkill = {
   id: string;
   label: string;
   description: string;
+  /** What goes after the command, e.g. `<question> => <expected answer>`. */
+  usage?: string;
 };

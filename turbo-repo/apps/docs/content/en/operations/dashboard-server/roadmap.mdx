@@ -1,0 +1,54 @@
+# Dashboard server roadmap
+
+The completion target is a secure, portable npm library that also runs as a standalone pod. Alfresco and Java are not required runtimes. ModularIoT is one host integration; embedding in Next.js or a different administration framework must not require adopting ModularIoT's backend.
+
+## Mandatory: portable TypeScript query execution
+
+This is a release acceptance requirement, not an optional follow-up. Portable TypeScript BigQuery and HTTP providers are implemented. ModularIoT resolves authorized connection/template/credential plans through its private catalog endpoint; the dashboard server executes the queries. Other hosts supply their own resolver without requiring Java or Alfresco. The separate pod is deployed in dev and the billing dashboard has passed browser validation. Telemetry migration and Consumer browser acceptance remain open.
+
+- [x] Implement TypeScript BigQuery execution in the dashboard server package, including typed parameters, SELECT-only dry runs, scan and billing limits, deadlines, cancellation, and bounded result rows and bytes.
+- [x] Implement portable read-only HTTP/PostgREST operation execution with destination validation, tenant parameter enforcement, closed parameter schemas, and response limits.
+- [x] Separate query execution from catalog resolution. A trusted host adapter resolves an authorized, active connection/template and server-side credential under the verified tenant; dashboard documents hold references and declared filter bindings, never credentials or arbitrary SQL/URLs.
+- [x] Integrate ModularIoT's existing connections/templates/credentials through that resolver. Do not introduce another ModularIoT datasource catalog. Keep remote Java execution optional during migration.
+- [x] Wire the portable executor into standalone configuration and expose documented npm exports for embedded hosts.
+- [x] Run the built npm package locally against the real billing database **with no Quarkus process or execution endpoint**, and validate it through an embedded host as well as the standalone server. Unit tests alone do not close this item.
+
+## Parallel migration and product acceptance
+
+- [x] Forward product requests through authenticated server routes and preserve ETag/If-Match concurrency.
+- [x] Add organization-scoped dashboard pages, navigation, controlled editor storage, and saved-query widget bindings.
+- [ ] Validate a signed-in Consumer with no legacy site role in the browser, including rejected writes.
+- [ ] Migrate one existing Coordinador telemetry dashboard using connection/template operations; compare its rendered data and filters with the existing dashboard.
+- [x] Build and validate a dashboard for the BigQuery billing database, including query cost limits and failure states.
+- [x] Publish compatible npm packages (0.3.0 verified through a fresh registry install and live BigQuery).
+- [x] Publish migration tools, optional-filter support and standalone group enforcement in 0.4.0; verify a fresh npm installation.
+- [x] Deploy the separate pod through `miot-deployments` and validate the billing product path from browser to the portable executor. Telemetry and Consumer acceptance remain separate requirements above.
+- [ ] Remove the old implementation only after replacement acceptance. Keep existing dashboards available throughout validation.
+
+## Evidence and current limits
+
+Local validation of the built package returned 13 live billing rows through both the embedded Node listener and standalone CLI using the TypeScript provider, with no Java execution service. Both paths verified JWTs and rejected unauthenticated requests with 401. A separate local integration test used the real ModularIoT catalog and encrypted credential service: the built CLI returned 13 live billing rows with one catalog request, three Google requests, and zero Java execution requests. The product application suite passed 2,002 tests with one skipped after the parallel workspace changes. The combined 0.4.0 server suite passed 1,180 tests with one skipped, including real local PostgreSQL startup/recovery tests. Browser migration acceptance is still open. Specialized legacy widgets require individual compatibility validation.
+
+A fresh registry installation of both 0.4.0 packages passed all 11 server exports, shipped operator-module loading, SQLite CLI startup, unauthenticated rejection, group-restricted list/read/query access and Consumer write rejection. The installed CLI also verified optional HTTP filter omission and tenant retention against a local RPC service. The published BigQuery executor returned 13 live billing rows both directly and through an authenticated embedded Node listener, with a 1 GB billing limit and no Java execution service. These registry checks establish package behavior; browser acceptance is recorded separately below.
+
+## Dev acceptance — 2026-09-29
+
+The initial 0.4.0 dev acceptance used dashboard server image `sha-43ae9ae` and application image `sha-aab43fa`. The standalone pod resolves authorized catalog plans through ModularIoT and executes BigQuery in Node. Deployment validation included manifest and Helm rendering checks, readiness, unauthenticated rejection, and a SQLite backup and integrity check.
+
+The signed-in billing pilot rendered 13 live service rows from the billing database. Selecting a service reduced the table to the matching row; restoring all services restored the results. An organization Owner created a dashboard through the UI and entered its editor; the temporary dashboard was then deleted. Server-backed dashboards no longer show an implicit date control when their saved configuration declares none.
+
+An isolated operation with a one-byte billing limit was rejected after its dry run estimated 146,865,127 bytes, before submitting a billed query job. The browser displayed a generic query failure. The temporary failure dashboard was deleted; its one-byte-limit validation operation remains in the catalog. Attempts to supply undeclared SQL or project filters, or override the connection in the request body, returned 400. Three concurrent billing requests each returned 13 rows; this is a smoke check, not a capacity benchmark.
+
+These checks used an Owner account and do not prove Consumer access or cross-tenant isolation. The telemetry pilot still needs a verified mapping between the legacy upstream data scope and the dev organization before its operations can be migrated. Existing dashboards remain available until those acceptance checks and widget compatibility comparisons pass.
+
+## v0.5.0 release and Editor acceptance — 2026-09-29
+
+Both compatible v0.5.0 packages are published. A fresh registry installation verified all 11 server exports, the installed OpenAPI scope-capabilities route and standalone SQLite/JWT authorization: Editor and Contributor creation eligibility, Consumer denial, foreign-scope rejection and unauthenticated rejection. The server suite passed 1,205 tests with one skipped; the contract suite passed 70 tests. Host integration validation passed 14 tests, and the dashboard application checks passed 446 tests.
+
+Dev now runs dashboard server image `sha-3cc6af8` and application image `sha-f33dc40`, with the matching host proxy. The server upgrade preserved the stored dashboards and datasources after a stopped-writer volume backup and SQLite integrity check. The live billing query returned 13 rows after the upgrade.
+
+The Demo organization is registered separately, with dashboard access enabled and no Mintral connections or credentials copied. A signed-in Demo SiteCollaborator maps to dashboard Editor. Its scope-capabilities request returned `canCreate: true`; the same account's request for Mintral returned 403. The workspace now uses the server's scope capability instead of inferring creation permission from the application's coarse role. New-dashboard saves still enforce document policy and the credential edit ceiling.
+
+The Editor created a Demo dashboard through the browser, renamed it and saved a static text widget. Both persisted after full reloads; the document API returned revision `"3"`. An attempted deletion returned 403 and the document remained readable, consistent with `canDelete: false`. This validates Editor creation/editing and its deletion restriction, not Consumer behavior.
+
+Consumer browser acceptance remains open: the supplied account is an Editor, and its membership was not changed. Telemetry migration still requires the verified upstream data-scope mapping described above. The UI remains part of the ModularIoT application; extracting a separate UI package is future work.

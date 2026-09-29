@@ -1,6 +1,6 @@
 {
   "name": "@microboxlabs/miot-dashboard-contract",
-  "version": "0.2.0",
+  "version": "0.5.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -54,7 +54,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
-    "guard": "node scripts/guard-imports.mjs"
+    "guard": "node scripts/guard-imports.mjs",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "zod": "^3.23.8"
@@ -63,6 +64,7 @@
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^5.0.0",
     "tsup": "^8.0.0",
     "tsx": "^4.22.0",
     "typescript": "5.8.2",

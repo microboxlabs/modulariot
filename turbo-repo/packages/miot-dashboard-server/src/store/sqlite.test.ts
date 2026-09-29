@@ -683,3 +683,32 @@ describe("the document backend recorded in the database", () => {
     }
   });
 });
+
+it("atomically deletes only matching revisions and retains newer permissions", async () => {
+  const { driver, store } = await assemble();
+  try {
+    const first = await store.save(ref, config, { updatedBy: "creator" });
+    const edited = await store.save(
+      ref,
+      { ...config, name: "Edited" },
+      { updatedBy: "editor", expectedRevision: first.revision },
+    );
+    await store.setPermissions(ref, [
+      { authorityId: "viewer", role: "Consumer" },
+    ]);
+    expect(await store.removeIfRevision!(ref, first.revision)).toBe(false);
+    expect((await store.load(ref))?.revision).toBe(edited.revision);
+    expect(await store.getPermissions(ref)).toHaveLength(1);
+    expect(await store.removeIfRevision!(ref, edited.revision)).toBe(true);
+    expect(await store.load(ref)).toBeNull();
+    expect(await store.getPermissions(ref)).toEqual([]);
+    const recreated = await store.save(ref, config, {
+      updatedBy: "creator",
+      expectedRevision: 0,
+    });
+    expect(await store.removeIfRevision!(ref, edited.revision)).toBe(false);
+    expect((await store.load(ref))?.revision).toBe(recreated.revision);
+  } finally {
+    await driver.close();
+  }
+});

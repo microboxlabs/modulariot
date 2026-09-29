@@ -7,6 +7,7 @@ import java.util.Set;
 
 /** Operator-owned SQL and typed named values; no SQL interpolation or viewer job options. */
 final class BigQueryDashboardPlan {
+    private static final String QUERY = "query";
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final Set<String> TYPES = Set.of("STRING", "INT64", "FLOAT64", "NUMERIC", "BIGNUMERIC",
             "BOOL", "DATE", "DATETIME", "TIME", "TIMESTAMP");
@@ -19,7 +20,7 @@ final class BigQueryDashboardPlan {
         JsonNode settings = plan.settings();
         project = identifier(settings, "projectId", "[a-z][a-z0-9-]{4,61}[a-z0-9]");
         location = identifier(settings, "location", "[A-Za-z0-9-]{2,64}");
-        String sql = settings.path("query").asText("");
+        String sql = settings.path(QUERY).asText("");
         if (sql.isBlank() || sql.length() > 65_536) throw refused();
         try {
             maximumBytesBilled = Long.parseLong(settings.path("maximumBytesBilled").asText());
@@ -27,11 +28,15 @@ final class BigQueryDashboardPlan {
             throw refused();
         }
         if (maximumBytesBilled < 1 || maximumBytesBilled > hostByteCap) throw refused();
-        query = JSON.createObjectNode().put("query", sql).put("useLegacySql", false)
+        query = JSON.createObjectNode().put(QUERY, sql).put("useLegacySql", false)
                 .put("useQueryCache", true).put("maximumBytesBilled", Long.toString(maximumBytesBilled))
                 .put("parameterMode", "NAMED");
+        addParameters(plan);
+    }
+
+    private void addParameters(DashboardOperationPolicy.Plan plan) {
         var parameters = query.putArray("queryParameters");
-        JsonNode types = settings.path("parameterTypes");
+        JsonNode types = plan.settings().path("parameterTypes");
         if (!types.isObject() || types.size() != plan.parameters().size()) throw refused();
         plan.parameters().fields().forEachRemaining(entry -> {
             String type = types.path(entry.getKey()).asText();
@@ -58,13 +63,13 @@ final class BigQueryDashboardPlan {
         var reference = job.putObject("jobReference").put("projectId", project).put("location", location);
         if (jobId != null) reference.put("jobId", jobId);
         var configuration = job.putObject("configuration").put("dryRun", dryRun).put("jobTimeoutMs", "20000");
-        configuration.set("query", query.deepCopy());
+        configuration.set(QUERY, query.deepCopy());
         return job;
     }
 
     void checkDryRun(JsonNode response) {
         JsonNode statistics = response.path("statistics");
-        if (!"SELECT".equals(statistics.path("query").path("statementType").asText())) throw refused();
+        if (!"SELECT".equals(statistics.path(QUERY).path("statementType").asText())) throw refused();
         try {
             long bytes = Long.parseLong(statistics.path("totalBytesProcessed").asText());
             if (bytes < 0 || bytes > maximumBytesBilled) throw refused();

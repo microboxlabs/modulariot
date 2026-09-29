@@ -22,6 +22,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 /** Bounded Google REST jobs; SQL and budgets come only from the host operation policy. */
 @ApplicationScoped
 public class BigQueryDashboardExecutor {
+    private static final String FIELDS = "fields";
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final String ORIGIN = "https://bigquery.googleapis.com";
     private final CredentialAuthRegistry credentials;
@@ -99,8 +100,8 @@ public class BigQueryDashboardExecutor {
     }
 
     private static ArrayNode rows(JsonNode result, int maxRows) {
-        if (result.hasNonNull("pageToken") || !result.path("schema").path("fields").isArray()) throw refused();
-        JsonNode fields = result.path("schema").path("fields");
+        if (result.hasNonNull("pageToken") || !result.path("schema").path(FIELDS).isArray()) throw refused();
+        JsonNode fields = result.path("schema").path(FIELDS);
         JsonNode data = result.path("rows");
         if (fields.size() > 100 || (!data.isMissingNode() && !data.isArray()) || data.size() > maxRows) throw refused();
         try {
@@ -108,11 +109,7 @@ public class BigQueryDashboardExecutor {
         } catch (NumberFormatException e) {
             throw refused();
         }
-        Set<String> names = new HashSet<>();
-        for (JsonNode field : fields) {
-            if (!field.path("name").isTextual() || !names.add(field.path("name").asText())
-                    || "REPEATED".equals(field.path("mode").asText()) || field.has("fields")) throw refused();
-        }
+        validateFields(fields);
         ArrayNode rows = JSON.createArrayNode();
         for (JsonNode row : data) {
             JsonNode cells = row.path("f");
@@ -125,6 +122,14 @@ public class BigQueryDashboardExecutor {
             }
         }
         return rows;
+    }
+
+    private static void validateFields(JsonNode fields) {
+        Set<String> names = new HashSet<>();
+        for (JsonNode field : fields) {
+            if (!field.path("name").isTextual() || !names.add(field.path("name").asText())
+                    || "REPEATED".equals(field.path("mode").asText()) || field.has(FIELDS)) throw refused();
+        }
     }
 
     private static OperationInvocationException refused() {

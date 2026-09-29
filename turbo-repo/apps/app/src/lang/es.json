@@ -3102,6 +3102,7 @@
       "selectBorderColor": "Seleccionar color del borde",
       "selectColor": "Seleccionar color",
       "visualization": "Visualización",
+      "requiresMigration": "requiere migración",
       "dataProvider": "Proveedor de Datos",
       "widgetAnchor": "Ancla",
       "descriptor": "Descriptor",

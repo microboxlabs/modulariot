@@ -1,5 +1,6 @@
 "use client";
 
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { useMemo, useState } from "react";
 import {
   Label,
@@ -211,6 +212,10 @@ export function SettingsSelectField({
   onChange,
   options,
 }: Readonly<SettingsSelectFieldProps>) {
+  const { hostAccess, dictionary } = useOptionalDashboard();
+  const unsupported = (mode: string) => Boolean(hostAccess) && ["pgrest", "dynamic"].includes(mode);
+  const available = options.filter((option) => option.value === value || !unsupported(option.value));
+
   return (
     <div className="w-full">
       <Label
@@ -226,9 +231,9 @@ export function SettingsSelectField({
         sizing="sm"
         className="[&>select]:cursor-pointer"
       >
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
+        {available.map((opt) => (
+          <option key={opt.value} value={opt.value} disabled={unsupported(opt.value)}>
+            {opt.label}{unsupported(opt.value) ? ` (${trDynamic("dashboard.requiresMigration", dictionary)})` : ""}
           </option>
         ))}
       </Select>

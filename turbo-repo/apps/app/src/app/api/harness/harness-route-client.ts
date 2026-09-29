@@ -3,6 +3,7 @@ import { createMiotHarnessClient } from "@microboxlabs/miot-harness-client";
 import { requireAuth } from "../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../utils/tenant-scope";
 import { modulithHost } from "@/lib/modulith-host";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
 type HarnessRouteClient =
   | { ok: true; client: ReturnType<typeof createMiotHarnessClient>; orgSlug: string }
@@ -24,7 +25,7 @@ export async function harnessRouteClient(): Promise<HarnessRouteClient> {
   const user = authResult.session.user;
   const client = createMiotHarnessClient({
     baseUrl: `${modulithHost()}/api/v1/orgs/${orgSlug}/harness`,
-    token: user?.rawJWT ?? user?.ticket ?? undefined,
+    token: sessionToken(authResult.session),
     headers: user?.email ? { "X-Dev-User-Email": user.email } : {},
   });
   return { ok: true, client, orgSlug };

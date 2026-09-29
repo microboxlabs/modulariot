@@ -8,6 +8,7 @@ import {
   reviewCandidate,
   writeHarnessCard,
 } from "../candidates-client";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -39,10 +40,7 @@ export async function POST(request: NextRequest, ctx: RouteContext) {
   }
 
   const orgSlug = scopeResult.scope.activeOrg.slug;
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = sessionToken(authResult.session);
 
   let reviewed;
   try {
@@ -101,10 +99,7 @@ export async function PATCH(request: NextRequest, ctx: RouteContext) {
     return NextResponse.json({ error: "invalid_candidate" }, { status: 400 });
   }
 
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = sessionToken(authResult.session);
 
   try {
     const candidate = await editCandidate({

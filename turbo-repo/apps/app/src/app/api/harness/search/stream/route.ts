@@ -9,6 +9,7 @@ import { logger } from "@/lib/logger";
 import { toSearchResult } from "../search-blocks";
 import { recordEpisode } from "../../../interactions/episodes/record-episode";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
 /**
  * Streaming twin of the buffered POST /api/harness/search.
@@ -78,10 +79,7 @@ export async function POST(request: Request) {
   if (!scopeResult.resolved) return scopeResult.response;
   const orgSlug = scopeResult.scope.activeOrg.slug;
 
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = sessionToken(authResult.session);
   const userEmail = authResult.session.user?.email;
 
   const client = createMiotHarnessClient({

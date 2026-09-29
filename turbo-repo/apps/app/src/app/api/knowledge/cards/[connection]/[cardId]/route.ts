@@ -6,6 +6,7 @@ import {
   deleteCard,
   failureStatus,
 } from "../../../candidates/candidates-client";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
 type RouteContext = { params: Promise<{ connection: string; cardId: string }> };
 
@@ -18,10 +19,7 @@ export async function DELETE(_request: Request, ctx: RouteContext) {
   if (!scopeResult.resolved) return scopeResult.response;
 
   const { connection, cardId } = await ctx.params;
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = sessionToken(authResult.session);
 
   try {
     const deleted = await deleteCard({

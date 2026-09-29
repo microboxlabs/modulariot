@@ -8,6 +8,10 @@ export type DashboardRouteContext = {
   params: Promise<{ dashboard: string; query?: string }>;
 };
 
+function isSafeIdentifier(value: string | undefined): value is string {
+  return !!value && !value.split("/").some((part) => part === "." || part === "..");
+}
+
 /** Active-org selection and session authentication stay on the server. */
 export async function forwardDashboard(
   request: Request,
@@ -28,10 +32,7 @@ export async function forwardDashboard(
   if (context) {
     const { dashboard } = await context.params;
     // URL normalizers resolve dot segments even after percent encoding.
-    if (
-      !dashboard ||
-      dashboard.split("/").some((part) => part === "." || part === "..")
-    ) {
+    if (!isSafeIdentifier(dashboard)) {
       return NextResponse.json(
         { error: "Invalid dashboard identifier" },
         { status: 400 }
@@ -41,10 +42,7 @@ export async function forwardDashboard(
   }
   if (action === "query") {
     const query = (await context?.params)?.query;
-    if (
-      !query ||
-      query.split("/").some((part) => part === "." || part === "..")
-    ) {
+    if (!isSafeIdentifier(query)) {
       return NextResponse.json(
         { error: "Invalid query identifier" },
         { status: 400 }

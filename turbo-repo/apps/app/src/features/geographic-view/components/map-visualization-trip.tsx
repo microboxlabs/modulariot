@@ -589,7 +589,7 @@ export default function MapVisualizationTrip({
       </div>
 
       {!minimized && distanceToOriginKm != null && (
-        <div className="pointer-events-none absolute left-1/2 top-2 z-[600] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs shadow dark:border-gray-700 dark:bg-gray-800/90">
+        <div className="pointer-events-none absolute left-1/2 top-2 z-[600] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs text-gray-900 shadow dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100">
           <span className="flex items-center gap-1">
             <span className="font-semibold">
               {tr("geographic_view.distance_to_origin", dict)}:

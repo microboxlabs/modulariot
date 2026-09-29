@@ -4,7 +4,8 @@ import { useMemo, useState, type SubmitEvent } from "react";
 import Link from "next/link";
 import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import { useRouter } from "next/navigation";
-import useSWR from "swr";
+import useSWR, { SWRConfig } from "swr";
+import { useSession } from "next-auth/react";
 import { Button, TextInput } from "flowbite-react";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -24,6 +25,30 @@ const EMPTY_QUERIES: NonNullable<typeof DEFAULT_STORAGE.queries> = [];
 
 /** Parallel entry point: organization membership replaces legacy site discovery. */
 export function ServerDashboardsPage(props: Readonly<Props>) {
+  const { data: session, status } = useSession();
+  if (status !== "authenticated" || !session?.user?.id || session.error)
+    return (
+      <output className="block p-6">
+        {tr("dashboard.server.loading", props.dictionary)}
+      </output>
+    );
+  return <AuthenticatedWorkspace key={session.user.id} {...props} />;
+}
+
+function AuthenticatedWorkspace(props: Readonly<Props>) {
+  const [sessionKey] = useState(() => crypto.randomUUID());
+  const [cache] = useState(() => new Map());
+  const swr = useMemo(() => ({ provider: () => cache }), [cache]);
+  return (
+    <SWRConfig value={swr}>
+      <OrganizationDashboards {...props} sessionKey={sessionKey} />
+    </SWRConfig>
+  );
+}
+
+function OrganizationDashboards(
+  props: Readonly<Props & { sessionKey: string }>
+) {
   const { activeOrg, error, isLoading } = useOrgScopes();
   const t = (key: string) => tr(`dashboard.server.${key}`, props.dictionary);
   if (error)
@@ -42,11 +67,7 @@ export function ServerDashboardsPage(props: Readonly<Props>) {
       org={activeOrg.slug}
     />
   ) : (
-    <ServerDashboardList
-      key={activeOrg.slug}
-      {...props}
-      org={activeOrg.slug}
-    />
+    <ServerDashboardList key={activeOrg.slug} {...props} org={activeOrg.slug} />
   );
 }
 
@@ -59,11 +80,14 @@ function ServerDashboardList({
   const { data, error, isLoading } = useSWR(client.key(), () => client.list(), {
     shouldRetryOnError: false,
   });
-  const { data: scope, error: scopeError, isValidating: checkingScope } = useSWR(
-    client.scopeKey,
-    () => client.scopeCapabilities(),
-    { shouldRetryOnError: false, revalidateOnMount: true }
-  );
+  const {
+    data: scope,
+    error: scopeError,
+    isValidating: checkingScope,
+  } = useSWR(client.scopeKey, () => client.scopeCapabilities(), {
+    shouldRetryOnError: false,
+    revalidateOnMount: true,
+  });
   const canCreate = !scopeError && !checkingScope && scope?.canCreate === true;
   const [slug, setSlug] = useState("");
   const [creating, setCreating] = useState(false);
@@ -72,7 +96,8 @@ function ServerDashboardList({
   const t = (key: string) => tr(`dashboard.server.${key}`, dictionary);
   async function create(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canCreate || creating || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(slug)) return;
+    if (!canCreate || creating || !/^[a-z0-9][a-z0-9-]{0,79}$/.test(slug))
+      return;
     setCreating(true);
     setCreateError(false);
     try {
@@ -135,7 +160,8 @@ function ServerDashboardEditor({
   slug,
   lang,
   dictionary,
-}: Readonly<Props & { org: string; slug: string }>) {
+  sessionKey,
+}: Readonly<Props & { org: string; slug: string; sessionKey: string }>) {
   const t = (key: string) => tr(`dashboard.server.${key}`, dictionary);
   const empty = useMemo(
     () => ({
@@ -144,7 +170,7 @@ function ServerDashboardEditor({
     }),
     [dictionary]
   );
-  const document = useDashboardDocument(org, slug, empty);
+  const document = useDashboardDocument(org, slug, empty, sessionKey);
   const router = useRouter();
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState(false);

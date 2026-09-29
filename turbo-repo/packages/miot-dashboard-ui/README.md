@@ -1,7 +1,7 @@
 # @microboxlabs/miot-dashboard-ui
 
 Dashboard layout utilities and a portable HTTP client, using the types and schemas
-from `@microboxlabs/miot-dashboard-contract`. The package exports `./core` and `./client`;
+from `@microboxlabs/miot-dashboard-contract`. The package exports `./core`, `./client` and `./document`;
 it does not yet export a dashboard renderer or editor. This workspace version is
 unreleased.
 
@@ -102,3 +102,62 @@ details. Caller cancellation remains a cancellation error.
 `key(slug?)` and `scopeKey` expose scoped resource URLs for host caches. They are
 not session identifiers: hosts must clear or partition cached data on identity
 changes and cancel outstanding requests. The client has no application cache.
+
+## Document editing session
+
+`createDashboardDocument` from `./document` manages an existing document's
+revision, draft and permissions without React or a shared cache. Create one
+instance per mounted dashboard and authentication generation:
+
+```ts
+import { createDashboardDocument } from "@microboxlabs/miot-dashboard-ui/document";
+import { DEFAULT_STORAGE } from "@microboxlabs/miot-dashboard-contract/document";
+
+const document = createDashboardDocument({
+  client,
+  slug: "costs",
+  sessionKey: "host-login-generation-1",
+  emptyDocument: DEFAULT_STORAGE,
+});
+const unsubscribe = document.subscribe(() => render(document.getSnapshot()));
+await document.load();
+// On a permitted user edit:
+document.onChange({ ...document.getSnapshot().config, name: "Updated costs" });
+await document.save();
+// When this dashboard/session is removed:
+unsubscribe();
+document.destroy();
+```
+
+`render` is your host's renderer. The required `sessionKey` is a non-secret host
+generation identifier, never a token. Destroy and replace the instance on logout,
+login, identity, server, tenant, scope or dashboard changes. There is no global
+registry: separate instances never share drafts, documents or results. A host can
+set `readOnly: true` to restrict editing further, but cannot grant permissions.
+
+`getSnapshot()` returns a stable object until state changes: `config`, `etag`,
+`capabilities`, `isLoaded`, `exists`, `dirty`, `busy`, `readOnly`, `error` (HTTP
+status or null) and `editorKey`. Treat snapshots and nested documents as immutable.
+`subscribe(listener)` returns an unsubscribe function, compatible with an external
+store subscription. Initial state is read-only; editing requires a successfully
+loaded existing document and server edit permission. Missing documents stay
+read-only; create them explicitly through the HTTP client's zero-revision save.
+
+| Method               | Behavior                                                                                     |
+| -------------------- | -------------------------------------------------------------------------------------------- |
+| `load()`             | Loads document and capabilities together; refuses to discard a draft                         |
+| `onChange(config)`   | Stages an edit when permitted; returns whether accepted                                      |
+| `save()`             | Saves the draft with its original ETag; advances the revision on success                     |
+| `discardAndReload()` | Explicit discard intent; replaces draft and editor history only after a successful reload    |
+| `destroy()`          | Aborts outstanding work, drops local data/subscribers and permanently disables this instance |
+
+Async methods return a boolean success result. Operations are serialized; edits
+are disabled while a request is pending. Failures retain the draft, expose a
+redacted status, and never trigger automatic writes. Authentication/authorization
+errors also disable edits until a successful reload. Failed paired loads cancel
+their sibling request. Teardown ignores late results even if a host transport
+does not honor cancellation. Cancellation cannot undo a write the server already
+committed; a new session must load the server revision.
+
+The host owns navigation/discard prompts and authentication lifecycle. This
+controller does not write browser storage or flush a teardown beacon.

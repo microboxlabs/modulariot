@@ -1,0 +1,45 @@
+{
+  "name": "@microboxlabs/miot-dashboard-ui",
+  "version": "0.1.0",
+  "description": "Reusable dashboard UI utilities using the MIOT dashboard contract.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/microboxlabs/modulariot",
+    "directory": "turbo-repo/packages/miot-dashboard-ui"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@microboxlabs/miot-dashboard-contract": "^0.5.0"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "*",
+    "@repo/typescript-config": "*",
+    "@vitest/coverage-v8": "^5.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "5.8.2",
+    "vitest": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

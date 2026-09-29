@@ -43,6 +43,7 @@
     "@microboxlabs/miot-calendar-client": "*",
     "@microboxlabs/miot-calendar-ui": "*",
     "@microboxlabs/miot-dashboard-server": "*",
+    "@microboxlabs/miot-dashboard-ui": "*",
     "@microboxlabs/miot-harness-client": "*",
     "@microboxlabs/miot-resource-client": "*",
     "@modulariot/ui": "*",

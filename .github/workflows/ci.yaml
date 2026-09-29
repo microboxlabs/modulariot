@@ -156,6 +156,10 @@ jobs:
         run: npx vitest run
         working-directory: turbo-repo/packages/miot-dashboard-contract
 
+      - name: Test the dashboard UI package
+        run: npm test --workspace=@microboxlabs/miot-dashboard-ui
+        working-directory: turbo-repo
+
   dashboard-server-test:
     name: Dashboard Server Tests
     runs-on: ubuntu-latest

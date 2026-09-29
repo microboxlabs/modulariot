@@ -112,16 +112,21 @@ public class BigQueryDashboardExecutor {
         validateFields(fields);
         ArrayNode rows = JSON.createArrayNode();
         for (JsonNode row : data) {
-            JsonNode cells = row.path("f");
-            if (!cells.isArray() || cells.size() != fields.size()) throw refused();
-            var output = rows.addObject();
-            for (int index = 0; index < fields.size(); index++) {
-                JsonNode value = cells.get(index).get("v");
-                if (value == null || !value.isValueNode()) throw refused();
-                output.set(fields.get(index).path("name").asText(), value);
-            }
+            rows.add(convertRow(fields, row));
         }
         return rows;
+    }
+
+    private static JsonNode convertRow(JsonNode fields, JsonNode row) {
+        JsonNode cells = row.path("f");
+        if (!cells.isArray() || cells.size() != fields.size()) throw refused();
+        var output = JSON.createObjectNode();
+        for (int index = 0; index < fields.size(); index++) {
+            JsonNode value = cells.get(index).get("v");
+            if (value == null || !value.isValueNode()) throw refused();
+            output.set(fields.get(index).path("name").asText(), value);
+        }
+        return output;
     }
 
     private static void validateFields(JsonNode fields) {

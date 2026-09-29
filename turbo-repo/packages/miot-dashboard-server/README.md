@@ -849,3 +849,14 @@ Only authorization/API-key headers are accepted. Redirects, partial responses, i
 `createRemotePlanOperationExecutor` from `/queries` connects the portable providers to a private host plan endpoint. Set `url` to ModularIoT's `/internal/dashboard-operations/resolve`, provide the server-only `proxyKey`, and list approved HTTP data services in `allowedDataOrigins` (empty for BigQuery-only hosts). Use `allowHttp` only for the private catalog transport and `allowDataHttp` separately for trusted HTTP data services. The factory validates configuration, bounds plan requests/responses to 512 KiB and shares a 20-second total deadline and eight-call limit across resolution and execution. Only final data rows leave the executor; plans, SQL and credentials never become API responses or diagnostics.
 
 Return this executor from a standalone `createDashboardOperations()` module or inject it into an embedded handler. Enable plan resolution on ModularIoT before changing the module. Other hosts can implement the same private plan contract, or directly inject a local resolver into either portable provider; no Java runtime is required by the library.
+
+### Optional query filters
+
+Filter bindings may set `omitWhenEmpty: true` to omit a parameter whose resolved
+value is missing or an empty string. A missing filter first uses `defaultValue`,
+when present; an explicit empty string does not use the default. Null, false, zero,
+empty arrays, whitespace and operator strings are preserved. Existing bindings
+keep their required/default behavior. The host operation schema must allow the
+parameter to be absent; tenant predicates remain host-controlled. Upgrade both
+contract and server to a release containing this option before using it; 0.3.0
+does not implement omission.

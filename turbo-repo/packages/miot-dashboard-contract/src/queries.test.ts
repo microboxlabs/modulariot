@@ -38,6 +38,7 @@ describe("connection-backed query documents", () => {
   });
 
   it.each([
+    { parameters: { x: { kind: "filter", key: "x", omitWhenEmpty: "true" } } },
     { connectionId: "" },
     { operationId: "" },
     { parameters: { x: { kind: "expression", value: "process.env" } } },

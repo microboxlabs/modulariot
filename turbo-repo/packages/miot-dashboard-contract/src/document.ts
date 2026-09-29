@@ -74,7 +74,13 @@ export type DashboardQueryValue = DashboardQueryScalar | DashboardQueryScalar[];
 /** Bind a fixed value or a named dashboard filter to an operation parameter. */
 export type DashboardQueryParameter =
   | { kind: "literal"; value: DashboardQueryValue }
-  | { kind: "filter"; key: string; defaultValue?: DashboardQueryValue };
+  | {
+      kind: "filter";
+      key: string;
+      defaultValue?: DashboardQueryValue;
+      /** Omit a missing or empty-string value after applying the default. */
+      omitWhenEmpty?: boolean;
+    };
 
 /**
  * A named query over a host-owned connection operation. The host owns the

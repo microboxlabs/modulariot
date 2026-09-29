@@ -96,6 +96,7 @@ export const dashboardQueryParameterSchema = z.discriminatedUnion("kind", [
       kind: z.literal("filter"),
       key: dashboardQueryIdentifierSchema,
       defaultValue: dashboardQueryValueSchema.optional(),
+      omitWhenEmpty: z.boolean().optional(),
     })
     .passthrough(),
 ]);

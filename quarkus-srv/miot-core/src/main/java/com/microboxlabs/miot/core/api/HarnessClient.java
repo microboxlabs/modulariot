@@ -77,6 +77,15 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode);
 
+    /** The conversation models a run may name in {@code model}; the chat picker. */
+    @GET
+    @Path("/models")
+    Uni<Response> listModels(
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
+
     /**
      * Writes a human-approved business fact as a connection-scoped knowledge card
      * (the semantic-layer learning loop's APPLY seam). The harness resolves the

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { HiMagnifyingGlass } from "react-icons/hi2";
 import type { DashboardFilterParam } from "../../types/dashboard.types";
 import { useOutsideClick } from "./use-outside-click";
 import { useFilterOptions } from "../../hooks/use-filter-options";
@@ -26,12 +27,25 @@ interface SelectFilterBadgeProps {
 export function SelectFilterBadge({ filter, values, onApply, onClear, dictionary }: Readonly<SelectFilterBadgeProps>) {
   const [open, setOpen] = useState(false);
   const [localValues, setLocalValues] = useState<string[]>(values);
+  const [query, setQuery] = useState("");
   const { options, loading, error } = useFilterOptions(filter);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setLocalValues(values); }, [values]);
+  useEffect(() => { if (!open) setQuery(""); }, [open]);
   useOutsideClick(containerRef, () => setOpen(false), open, panelRef);
+
+  // Long option lists (e.g. a person picker) get a search field — short ones
+  // don't need the extra chrome.
+  const searchable = options.length > 8;
+  const visibleOptions = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) =>
+      `${o.label ?? ""} ${o.value}`.toLowerCase().includes(q)
+    );
+  }, [options, query]);
 
   const hasValue = localValues.length > 0;
   const displayLabel = hasValue
@@ -76,6 +90,21 @@ export function SelectFilterBadge({ filter, values, onApply, onClear, dictionary
       containerRef={containerRef}
       panelRef={panelRef}
     >
+      {searchable && (
+        <div className="px-2 pb-1">
+          <div className="flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-600 dark:bg-gray-700">
+            <HiMagnifyingGlass className="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500" />
+            <input
+              type="text"
+              value={query}
+              autoFocus
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={tr("dashboard.settings.optionsSearchPlaceholder", dictionary)}
+              className="w-full min-w-0 bg-transparent text-xs text-gray-700 placeholder-gray-400 outline-none dark:text-gray-200 dark:placeholder-gray-500"
+            />
+          </div>
+        </div>
+      )}
       <button
         type="button"
         onMouseDown={(e) => {
@@ -98,7 +127,13 @@ export function SelectFilterBadge({ filter, values, onApply, onClear, dictionary
           )}
         </p>
       )}
-      {options.map((opt) => {
+      {options.length > 0 && visibleOptions.length === 0 && (
+        <p className="px-3 py-1.5 text-xs italic text-gray-400 dark:text-gray-500">
+          {tr("dashboard.settings.optionsNoMatches", dictionary)}
+        </p>
+      )}
+      <div className={searchable ? "max-h-56 overflow-y-auto" : undefined}>
+      {visibleOptions.map((opt) => {
         const checked = localValues.includes(opt.value);
         return (
           <button
@@ -132,6 +167,7 @@ export function SelectFilterBadge({ filter, values, onApply, onClear, dictionary
           </button>
         );
       })}
+      </div>
     </FilterBadgeShell>
   );
 }

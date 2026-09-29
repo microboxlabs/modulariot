@@ -1,0 +1,54 @@
+# 🔔 Release Notes v1.31.53 — ModularIoT
+
+### Fecha: 23/09/2026
+
+**Objetivo**: Mejorar la confiabilidad del procesamiento de eventos MIOT y corregir problemas de visualización en la aplicación. Esta versión también facilita la operación de trabajos de integración mediante búsquedas, filtros y paginación sobre todo el historial disponible.
+
+## 🚀 Evolutivos
+
+- **📍 Consola de trabajos de integraciones**
+  - **Key point**: La consola permite aplicar filtros de estado, tipo de trabajo, carril de ejecución y búsqueda de texto desde el backend, además de paginar los resultados y mostrar el total correspondiente a los filtros activos.
+  - **Technical detail**: Las consultas abarcan todo el registro de trabajos en lugar de limitarse a las 100 filas más recientes, y las opciones de filtrado se obtienen del historial completo. *(Integración OSS — MIOT-0.5.54)*
+
+## 🔧 Integraciones
+
+- **🔌 Procesamiento de eventos MIOT**
+  - **Scope**: El procesamiento evita ejecuciones simultáneas del mismo trabajo, marca cada evento inmediatamente después de procesarlo correctamente y conserva sin marcar los eventos fallidos para reintentos posteriores.
+  - **Technical detail**: El tamaño del lote del componente `jobMiotEvents` se configura como una propiedad modificable en tiempo de ejecución desde la consola JS, reduciendo conflictos entre ejecuciones y bloqueos de la cola.
+
+## 🐛 Correcciones
+
+- **🐛 Visualización de notificaciones**
+  - **Impacto**: Las notificaciones podían mostrarse con dimensiones, posición o ancho incorrectos.
+  - **Solución**: Se ajustaron el ancho fijo, el posicionamiento y el tamaño para una presentación consistente. *(Integración OSS — MIOT-0.5.54)*
+
+- **🐛 Botón de cierre en modales absolutos**
+  - **Impacto**: Un botón de cierre añadido por error interfería con elementos superpuestos, como tooltips del kanban y componentes del dashboard.
+  - **Solución**: Se eliminó el botón incorrecto para preservar el funcionamiento de estos elementos. *(Integración OSS — MIOT-0.5.54)*
+
+## 📊 Beneficios
+
+- Mayor continuidad en el procesamiento de eventos MIOT cuando un evento individual falla.
+- Menor riesgo de procesamiento duplicado y conflictos de actualización en tareas concurrentes.
+- Reintentos automáticos de eventos fallidos sin bloquear los eventos que sí se procesaron correctamente.
+- Mejor capacidad operativa para localizar trabajos antiguos mediante filtros y búsqueda global.
+- Mayor visibilidad del volumen de trabajos que coincide con los filtros seleccionados.
+- Presentación más clara y consistente de notificaciones, tooltips y superposiciones del dashboard.
+- Configuración operativa más flexible al permitir ajustar el tamaño de lote sin desplegar una nueva versión.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.54`
+- **App**: `app@v0.5.54` — actualizado.
+- **Docs**: `docs@v0.5.53` — sin cambios.
+- **Web**: `web@v0.5.53` — sin cambios.
+- **Modulith**: `modulith@v0.5.33` — actualizado.
+- **Harness**: `harness@v0.1.9` — sin cambios.
+
+Los hashes exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.53 refuerza la estabilidad operativa de ModularIoT al hacer más resistente el procesamiento de eventos y evitar que errores individuales o ejecuciones superpuestas bloqueen las colas.
+
+También mejora las herramientas de diagnóstico y operación de integraciones, junto con la experiencia visual de la aplicación. La combinación de estas mejoras facilita el seguimiento de trabajos y reduce las interrupciones en los flujos de coordinación industrial.

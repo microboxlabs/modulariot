@@ -1,0 +1,38 @@
+# Dashboard Server
+
+The dashboard server stores dashboards, verifies who asks for them, keeps each organization's data apart, and protects the credentials used to query datasources. It ships on npm as `@microboxlabs/miot-dashboard-server` under the Apache 2.0 license, and runs with or without the rest of ModularIoT.
+
+## The three pieces
+
+| Package | Does |
+| --- | --- |
+| `@microboxlabs/miot-dashboard-ui` | Renders and edits dashboards in the browser. Knows nothing about users or organizations. |
+| `@microboxlabs/miot-dashboard-server` | Stores dashboards, authorizes every request, protects credentials. |
+| `@microboxlabs/miot-dashboard-contract` | The contract between the two: document schema, roles, errors and the OpenAPI specification. |
+
+Replacing either of the first two with your own only requires honoring the third.
+
+## Two ways to deploy it
+
+| Mode | Who verifies users and memberships | Where credentials live |
+| --- | --- | --- |
+| **Standalone** | The server itself, with your identity provider and a membership list | In the server's own database, encrypted |
+| **Integrated with ModularIoT** | ModularIoT, whose proxy sits in front | In ModularIoT's connections component |
+
+This section covers standalone mode: the server runs in your infrastructure, with no ModularIoT and no proxy in front. The same variables serve integrated mode; only what gets configured differs.
+
+## What it needs
+
+- Node.js 22.13 or later, or Docker, or a Kubernetes cluster with Helm.
+- An identity provider that issues JWTs: Auth0, Microsoft Entra ID, Keycloak, or any other with a JWKS endpoint. A local trial can do without one.
+- Optional: a PostgreSQL database. Without it, the server keeps everything in one SQLite file.
+
+## Where to go next
+
+| Page | Covers |
+| --- | --- |
+| [Standalone installation](/en/operations/dashboard-server/installation) | Starting it with npm, Docker or Helm and checking it answers |
+| [Configuration](/en/operations/dashboard-server/configuration) | Every environment variable |
+| [Users and permissions](/en/operations/dashboard-server/identity) | Identity, organizations, scopes and roles |
+| [Datasources and credentials](/en/operations/dashboard-server/datasources) | Connecting a dashboard to its data without exposing secrets |
+| [API](/en/operations/dashboard-server/api) | Routes, the OpenAPI contract and errors |

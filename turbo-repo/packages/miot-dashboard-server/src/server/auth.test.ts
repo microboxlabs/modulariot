@@ -7,6 +7,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { sampleConfig } from "../test/fixtures";
 import {
   generateTestKeyPair,
   signRs256,
@@ -181,7 +182,7 @@ describe("the server behind a verifying resolver", () => {
         "content-type": "application/json",
         ...(token === null ? {} : { authorization: `Bearer ${token}` }),
       },
-      body: JSON.stringify({ version: 2, name: "Fleet", widgets: [] }),
+      body: JSON.stringify(sampleConfig()),
     });
 
   it("saves and reads back a dashboard for a bearer token", async () => {

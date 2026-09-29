@@ -20,6 +20,7 @@ import { InitialMessageSender } from "./components/initial-message-sender";
 import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
 import { SessionSummaryWatcher } from "./components/session-summary-watcher";
 import { SessionTitleWatcher } from "./components/session-title-watcher";
+import { HarnessModelProvider } from "./context/harness-model-context";
 import { HarnessReadOnlyProvider } from "./context/harness-read-only-context";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
 import { createHarnessHistoryAdapter } from "./harness-history-adapter";
@@ -460,6 +461,12 @@ const SessionHost: FC<{
   });
   const containerRef = useRef<HTMLDivElement>(null);
   const toolkit = useMemo(() => buildHarnessToolkit(extensions), [extensions]);
+  // The picked model rides on the agent so every run of this session carries
+  // it; null keeps the harness default.
+  const [model, setModel] = useState<string | null>(null);
+  useEffect(() => {
+    agent.model = model;
+  }, [agent, model]);
 
   // Panel just opened (button or ⌘/Ctrl+C) while this is the active session —
   // send focus straight to the composer input. When it closes (or this stops
@@ -486,6 +493,7 @@ const SessionHost: FC<{
         config={AuiConfig({ tools: Tools({ toolkit }) })}
       >
         <HarnessReadOnlyProvider readOnly={readOnly}>
+          <HarnessModelProvider model={model} onChange={setModel}>
           {/* A shared thread is somebody else's conversation: it has a title
               already, takes no pending message, and offers nothing that runs. */}
           {!readOnly && (
@@ -500,6 +508,7 @@ const SessionHost: FC<{
             </>
           )}
           <Thread skills={skills} />
+          </HarnessModelProvider>
         </HarnessReadOnlyProvider>
       </AssistantRuntimeProvider>
     </div>

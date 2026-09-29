@@ -527,4 +527,26 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
     );
     expect(next.transcript).toHaveLength(0);
   });
+
+  // The switch is exhaustive with no default, so a seat event missing a case
+  // makes applyHarnessEvent return undefined and the reducer crash on
+  // `slice.transcript`. Seed the slice so a dropped case cannot pass as a
+  // no-op: it would return undefined, not the slice.
+  it.each([
+    ["advisor.consulted", { signal: "green", note: "margin holds" }],
+    ["delegate.completed", { tools_run: ["gps_scan"] }],
+  ] as const)("%s leaves a seeded slice untouched", (type, data) => {
+    const seeded: TranscriptSlice = {
+      ...emptySlice(),
+      transcript: [
+        { kind: "system", id: "id-0", text: "seed", ts: "2026-01-01T00:00:00Z" },
+      ],
+      currentRunId: "r1",
+    };
+
+    const next = applyHarnessEvent(seeded, evt(type, { data }), "r1", mkCtx());
+
+    expect(next).toBe(seeded);
+    expect(next.transcript).toHaveLength(1);
+  });
 });

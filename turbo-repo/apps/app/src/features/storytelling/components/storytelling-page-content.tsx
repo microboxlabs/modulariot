@@ -10,8 +10,8 @@ import { tr } from "@/features/i18n/tr.service";
 import { getStories, removeStories } from "../storytelling-store";
 import type { StoryItem } from "../storytelling.types";
 import { StoryDeleteDialog } from "./story-delete-dialog";
+import StoryDetailsModal from "./story-details-modal";
 import StoryGrid from "./story-grid";
-import StoryShareModal from "./story-share-modal";
 
 interface StorytellingPageContentProps {
   /** `storytelling` dict namespace — its own `breadcrumb` subtree included. */
@@ -33,24 +33,44 @@ export default function StorytellingPageContent({
   // from, and a fresh mount picks up anything the chat's create_story
   // trigger has added since the last visit.
   const [stories, setStories] = useState<StoryItem[]>(() => getStories());
-  const [sharing, setSharing] = useState<StoryItem | null>(null);
+  const [detailing, setDetailing] = useState<StoryItem | null>(null);
   // Single delete (per-card kebab menu) and mass delete (selection toolbar)
   // both just populate this with the stories to confirm — the dialog itself
   // doesn't care which triggered it.
   const [deleting, setDeleting] = useState<readonly StoryItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
 
-  // URL-driven filter from the breadcrumb's own filter bar (see
+  // URL-driven filters from the breadcrumb's own filter bar (see
   // navegation_params.ts's `storytelling` entry), same pattern as fleet-management.
   const nameFilter = (searchParams.get("name") ?? "").trim().toLowerCase();
+  const typeFilter = (searchParams.get("artifactType") ?? "").split(",").filter(Boolean);
+  const creatorFilter = (searchParams.get("creator") ?? "").split(",").filter(Boolean);
+  const createdFrom = searchParams.get("createdAt_from") ?? "";
+  const createdTo = searchParams.get("createdAt_to") ?? "";
+
+  const hasActiveFilters =
+    nameFilter !== "" ||
+    typeFilter.length > 0 ||
+    creatorFilter.length > 0 ||
+    createdFrom !== "" ||
+    createdTo !== "";
+
+  // Comma-joined so the memo key stays a primitive — the arrays are rebuilt
+  // every render from the URL.
+  const typeKey = typeFilter.join(",");
+  const creatorKey = creatorFilter.join(",");
 
   const visible = useMemo(() => {
-    return stories.filter((story) =>
-      nameFilter ? story.title.toLowerCase().includes(nameFilter) : true
-    );
-  }, [stories, nameFilter]);
-
-  const hasActiveFilters = nameFilter !== "";
+    return stories.filter((story) => {
+      if (nameFilter && !story.title.toLowerCase().includes(nameFilter)) return false;
+      if (typeFilter.length > 0 && !typeFilter.includes(story.artifactType)) return false;
+      if (creatorFilter.length > 0 && !creatorFilter.includes(story.createdBy)) return false;
+      if (createdFrom && story.createdAt < createdFrom) return false;
+      if (createdTo && story.createdAt > createdTo) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stories, nameFilter, typeKey, creatorKey, createdFrom, createdTo]);
 
   // "Select all" only ever acts on what's actually on screen — filtering to
   // a name match and hitting it shouldn't reach out and select stories the
@@ -182,15 +202,15 @@ export default function StorytellingPageContent({
           }
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
-          onShare={setSharing}
+          onDetails={setDetailing}
           onDelete={(story) => setDeleting([story])}
         />
       </div>
 
-      <StoryShareModal
-        story={sharing}
+      <StoryDetailsModal
+        story={detailing}
         lang={lang}
-        onClose={() => setSharing(null)}
+        onClose={() => setDetailing(null)}
         dict={dict}
       />
 

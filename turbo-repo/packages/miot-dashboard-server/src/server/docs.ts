@@ -1,11 +1,10 @@
 /**
  * The contract, served and rendered.
  *
- * `GET /openapi.yaml` returns `contract/openapi.yaml` verbatim, and `GET /docs`
- * renders it with Swagger UI. Verbatim matters: the document a reader explores
- * in the browser is byte-for-byte the one an integrator generates a client
- * from, so the two cannot disagree. Nothing here re-describes the API in
- * TypeScript, which would have created a second definition to keep in step.
+ * `GET /openapi.yaml` returns the contract package's document verbatim,
+ * `GET /dashboard-config.schema.json` the document schema it refers to, and
+ * `GET /docs` renders both with Swagger UI. Both files come from
+ * `@microboxlabs/miot-dashboard-contract`; nothing here re-describes the API.
  *
  * These routes sit beside the health probes rather than inside the handler,
  * for the same reason the probes do: they describe the deployable, not the
@@ -23,11 +22,16 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { normalizeBasePath, pathnameOf } from "../http/handler";
 
 export const DOCS_PATH = "/docs";
 export const SPEC_PATH = "/openapi.yaml";
+
+/**
+ * The document schema. The spec refers to it by a bare relative name, so the
+ * two must stay siblings.
+ */
+export const SCHEMA_PATH = "/dashboard-config.schema.json";
 
 /**
  * The Swagger UI files this server will serve, and nothing else.
@@ -80,41 +84,19 @@ export interface DocsHandler {
 }
 
 /**
- * Locate `contract/openapi.yaml`.
+ * Locate the OpenAPI document.
  *
- * Walking up rather than resolving a fixed relative path, because the layout
- * differs between running from source (`src/server/docs.ts`, two levels down)
- * and running a build (`dist/server.js`, one). A fixed `../..` would work in
- * exactly one of the two and fail confusingly in the other.
+ * Resolved through `@microboxlabs/miot-dashboard-contract`'s export name, so
+ * it answers the same for a workspace link and an ordinary install.
  *
- * The walk stops at the first directory holding a `package.json` — our own
- * package root. Without that boundary, a missing contract would send the
- * search into the parent workspace, where it might find some *other*
- * project's document and serve it as ours. Failing to find one is a 500 that
- * names the problem; finding the wrong one is a documented API that quietly
- * describes something else.
+ * Null when the dependency is not installed.
  */
-export function resolveSpecPath(
-  from: string = fileURLToPath(import.meta.url),
-): string | null {
-  let directory = dirname(from);
-  for (let depth = 0; depth < 5; depth++) {
-    const candidate = join(directory, "contract", "openapi.yaml");
-    if (exists(candidate)) return candidate;
-    if (exists(join(directory, "package.json"))) return null;
-    const parent = dirname(directory);
-    if (parent === directory) return null;
-    directory = parent;
-  }
-  return null;
-}
-
-function exists(path: string): boolean {
+export function resolveSpecPath(): string | null {
   try {
-    readFileSync(path);
-    return true;
+    const require = createRequire(import.meta.url);
+    return require.resolve("@microboxlabs/miot-dashboard-contract/openapi.yaml");
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -160,7 +142,8 @@ export function createDocsHandler(options: DocsOptions = {}): DocsHandler {
     if (specPath === null) {
       return problem(
         500,
-        "The OpenAPI document could not be found next to the installed package.",
+        "The OpenAPI document could not be found. It ships in " +
+          "@microboxlabs/miot-dashboard-contract, which is not installed.",
       );
     }
     try {
@@ -178,9 +161,38 @@ export function createDocsHandler(options: DocsOptions = {}): DocsHandler {
     }
   }
 
+  /** Resolved from the spec, so a host's own `specPath` brings its schema. */
+  function schema(): Response {
+    if (specPath === null) {
+      return problem(
+        500,
+        "The document schema could not be found. It ships in " +
+          "@microboxlabs/miot-dashboard-contract, which is not installed.",
+      );
+    }
+    try {
+      const path = join(dirname(specPath), SCHEMA_PATH.slice(1));
+      return new Response(readFileSync(path, "utf8"), {
+        status: 200,
+        headers: {
+          "content-type": "application/schema+json; charset=utf-8",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    } catch {
+      return problem(500, "The document schema could not be read.");
+    }
+  }
+
   function handle(request: Request): Response | null {
     const pathname = pathnameOf(request.url);
-    if (pathname !== SPEC_PATH && !isDocsPath(pathname)) return null;
+    if (
+      pathname !== SPEC_PATH &&
+      pathname !== SCHEMA_PATH &&
+      !isDocsPath(pathname)
+    ) {
+      return null;
+    }
 
     // GET and HEAD only; the docs surface is read-only by construction.
     const method = request.method.toUpperCase();
@@ -189,6 +201,7 @@ export function createDocsHandler(options: DocsOptions = {}): DocsHandler {
     }
 
     if (pathname === SPEC_PATH) return spec();
+    if (pathname === SCHEMA_PATH) return schema();
     if (pathname === DOCS_PATH || pathname === `${DOCS_PATH}/`) {
       return html(
         assetsDir === null ? missingAssetsPage(SPEC_PATH) : page(basePath),
@@ -280,8 +293,10 @@ export const REQUEST_INTERCEPTOR_SOURCE = `function (req, basePath, origin) {
   var url = new URL(req.url, origin);
   if (url.origin !== origin) return req;
   // The documentation surface is served at the root whatever the API's prefix
-  // is. These are the page's own fetches, not calls to the API.
+  // is. These are the page's own fetches, not calls to the API — including the
+  // schema, which the page fetches on its own when it follows the spec's $ref.
   if (url.pathname === ${JSON.stringify(SPEC_PATH)} ||
+      url.pathname === ${JSON.stringify(SCHEMA_PATH)} ||
       url.pathname === ${JSON.stringify(DOCS_PATH)} ||
       url.pathname.indexOf(${JSON.stringify(`${DOCS_PATH}/`)}) === 0) {
     return req;

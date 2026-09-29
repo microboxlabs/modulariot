@@ -146,3 +146,84 @@ describe("mapBookingToPlannedService — plan/assign origin", () => {
     expect(mapped?.planned.service.plannedIn).toBe("something-new");
   });
 });
+
+describe("mapBookingToPlannedService — client name", () => {
+  function withResource(resource: BookingResponse["resource"]) {
+    return mapBookingToPlannedService(booking({ resource }));
+  }
+
+  it("reads the client from the stored blob the planner persists", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      data: { mintral_serviceCode: "1658427", cliente: "ACME" },
+    });
+    expect(mapped?.planned.service.cliente).toBe("ACME");
+  });
+
+  it("never falls back to the resource id — an ECM-written row carries no label", () => {
+    expect(mapBookingToPlannedService(booking())?.planned.service.cliente).toBe(
+      ""
+    );
+  });
+
+  it("ignores a label that is just the resource id echoed back", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: "1658427-V",
+    });
+    expect(mapped?.planned.service.cliente).toBe("");
+  });
+
+  it("still accepts a real label from rows written before the blob carried it", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: "ACME",
+    });
+    expect(mapped?.planned.service.cliente).toBe("ACME");
+  });
+
+  it("rejects a stored client the old self-perpetuating write baked the id into", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: "1658427-V",
+      data: { cliente: "1658427-V" },
+    });
+    expect(mapped?.planned.service.cliente).toBe("");
+  });
+
+  it("falls through a poisoned stored client to a usable label", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: "ACME",
+      data: { cliente: "1658427-V" },
+    });
+    expect(mapped?.planned.service.cliente).toBe("ACME");
+  });
+
+  // `unlessResourceId` returns "" for a null label because `&&` binds tighter
+  // than `?:` — its result is the condition, never the value. Pinning that,
+  // since a null leaking through would put a non-string on SelectedService.
+  it("normalizes a null label to an empty string, not null", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: null,
+    } as unknown as BookingResponse["resource"]);
+    expect(mapped?.planned.service.cliente).toBe("");
+  });
+
+  it("prefers the stored blob over a label the id was baked into", () => {
+    const mapped = withResource({
+      id: "1658427-V",
+      type: "service",
+      label: "1658427-V",
+      data: { cliente: "ACME" },
+    });
+    expect(mapped?.planned.service.cliente).toBe("ACME");
+  });
+});

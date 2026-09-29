@@ -31,17 +31,36 @@ export class EndpointError extends Error {
  * type: a bad JWKS URL is a `KeySourceError`, a bad membership URL is a
  * `ConfigError`, and the difference decides whether the process starts.
  */
-export function secureUrlProblem(raw: string, what: string): string | null {
+export function secureUrlProblem(
+  raw: string,
+  what: string,
+  options: { allowHttp?: boolean } = {},
+): string | null {
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
     return `"${raw}" is not a URL`;
   }
-  if (url.protocol !== "https:" && !isLoopbackHost(url.hostname)) {
+  const plainHttpAllowed =
+    options.allowHttp === true && url.protocol === "http:";
+  if (
+    url.protocol !== "https:" &&
+    !plainHttpAllowed &&
+    !isLoopbackHost(url.hostname)
+  ) {
     return (
       `${what} must use https (got "${url.protocol}//"). Anyone able to ` +
       "answer it decides who this server lets in."
+    );
+  }
+  // Credentials in a URL are a secret in a value that gets stored, listed
+  // and logged. The message names neither half, because it reaches a caller
+  // and a log line.
+  if (url.username !== "" || url.password !== "") {
+    return (
+      `${what} carries credentials in the URL. Take the "user:password@" ` +
+      "out and supply the secret as a credential."
     );
   }
   // A fragment is never sent. Left in, it silently deletes whatever it holds

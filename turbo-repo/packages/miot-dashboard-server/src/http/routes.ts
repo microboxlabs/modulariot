@@ -10,7 +10,13 @@ export type RouteName =
   | "dashboards"
   | "dashboard"
   | "capabilities"
-  | "permissions";
+  | "permissions"
+  | "datasources"
+  | "datasourcesTest"
+  | "datasource"
+  | "datasourceTest"
+  | "credentials"
+  | "credential";
 
 export interface RouteMatch {
   route: RouteName;
@@ -20,9 +26,16 @@ export interface RouteMatch {
    * and a shared link all say which tenant they mean.
    */
   tenantId: string;
+  /**
+   * Present on every route. Datasources and credentials belong to the
+   * tenant, but a role is granted per scope, so authorizing one still needs
+   * the scope the caller is acting in.
+   */
   scopeId: string;
   /** Absent only for the collection route. */
   slug?: string;
+  /** Datasource id or credential ref, on the routes that address one. */
+  id?: string;
 }
 
 /**
@@ -36,19 +49,22 @@ export interface RouteMatch {
 export function matchRoute(pathname: string): RouteMatch | null {
   const segments = pathname.split("/").filter((s) => s.length > 0);
 
-  // /tenants/{tenantId}/scopes/{scopeId}/dashboards[/{slug}[/capabilities|permissions]]
-  if (
-    segments[0] !== "tenants" ||
-    segments[2] !== "scopes" ||
-    segments[4] !== "dashboards"
-  ) {
-    return null;
-  }
+  // /tenants/{tenantId}/scopes/{scopeId}/<collection>[/{id}[/<action>]]
+  if (segments[0] !== "tenants" || segments[2] !== "scopes") return null;
 
   const tenantId = decodeSegment(segments[1]);
   if (tenantId === null) return null;
   const scopeId = decodeSegment(segments[3]);
   if (scopeId === null) return null;
+
+  const collection = segments[4];
+  if (collection === "datasources") {
+    return matchDataSources(segments, tenantId, scopeId);
+  }
+  if (collection === "credentials") {
+    return matchCredentials(segments, tenantId, scopeId);
+  }
+  if (collection !== "dashboards") return null;
 
   if (segments.length === 5) return { route: "dashboards", tenantId, scopeId };
 
@@ -67,6 +83,55 @@ export function matchRoute(pathname: string): RouteMatch | null {
       return { route: "permissions", tenantId, scopeId, slug };
   }
 
+  return null;
+}
+
+/** The datasource id `test` addresses the collection's test route. */
+const TEST = "test";
+
+/** /datasources, /datasources/test, /datasources/{id}, /datasources/{id}/test */
+function matchDataSources(
+  segments: readonly string[],
+  tenantId: string,
+  scopeId: string,
+): RouteMatch | null {
+  if (segments.length === 5) return { route: "datasources", tenantId, scopeId };
+
+  const id = decodeSegment(segments[5]);
+  if (id === null) return null;
+
+  // Decoded first, so `%74est` cannot arrive as a datasource id. `test`
+  // names the collection's test route and nothing else: as an item id it is
+  // no route at all, which is what the contract promises.
+  if (id === TEST) {
+    if (segments.length === 6) {
+      return { route: "datasourcesTest", tenantId, scopeId };
+    }
+    return null;
+  }
+
+  if (segments.length === 6) {
+    return { route: "datasource", tenantId, scopeId, id };
+  }
+  if (segments.length === 7 && decodeSegment(segments[6]) === TEST) {
+    return { route: "datasourceTest", tenantId, scopeId, id };
+  }
+  return null;
+}
+
+/** /credentials, /credentials/{ref} */
+function matchCredentials(
+  segments: readonly string[],
+  tenantId: string,
+  scopeId: string,
+): RouteMatch | null {
+  if (segments.length === 5) return { route: "credentials", tenantId, scopeId };
+
+  const id = decodeSegment(segments[5]);
+  if (id === null) return null;
+  if (segments.length === 6) {
+    return { route: "credential", tenantId, scopeId, id };
+  }
   return null;
 }
 

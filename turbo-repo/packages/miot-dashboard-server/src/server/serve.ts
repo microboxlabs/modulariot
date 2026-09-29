@@ -10,6 +10,8 @@
 import { createServer, type Server } from "node:http";
 import { createDashboardHandler, pathnameOf } from "../http/handler";
 import type { AuditSink } from "../seams/audit";
+import type { CredentialsVault } from "../seams/credentials";
+import type { DataSourceStore } from "../seams/datasources";
 import type {
   IdentityResolver,
   ScopeAuthority,
@@ -25,6 +27,10 @@ export interface ServeOptions {
   tenants: TenantAuthority;
   scopes: ScopeAuthority;
   store: ServerDashboardStore;
+  /** Omit and the datasource routes answer 404. */
+  dataSources?: DataSourceStore;
+  /** Omit, or pass a read-only vault, and the credential routes answer 404. */
+  credentials?: CredentialsVault;
   audit?: AuditSink;
   basePath?: string;
   cors?: CorsOptions;
@@ -112,6 +118,8 @@ export function createRequestHandler(options: ServeOptions) {
     ...(options.cors ? { cors: options.cors } : {}),
     ...(options.audit ? { audit: options.audit } : {}),
     ...(options.basePath ? { basePath: options.basePath } : {}),
+    ...(options.dataSources ? { dataSources: options.dataSources } : {}),
+    ...(options.credentials ? { credentials: options.credentials } : {}),
   });
 
   const docs =

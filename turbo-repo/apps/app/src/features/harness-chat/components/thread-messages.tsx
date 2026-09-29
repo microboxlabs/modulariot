@@ -107,10 +107,11 @@ const EditComposer: FC = () => {
 // Plain text replies stay bubble-width, but non-text parts (like an
 // ask-user-question card) render outside this cap, at the full row width —
 // see the flex-1 wrapper below. Rendered as real markdown (bold, links,
-// lists…) via the same MarkdownContent the spotlight search answer uses,
-// so a harness reply reads the same wherever it shows up.
+// lists, tables…) via the same MarkdownContent + "compact" variant the
+// spotlight search answer uses, so a harness reply reads the same wherever
+// it shows up.
 const AssistantText: FC<TextMessagePartProps> = ({ text }) => (
-  <div className="max-w-[90%] text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+  <div className="max-w-[95%] text-xs leading-relaxed text-gray-700 dark:text-gray-300">
     <MarkdownContent>{text}</MarkdownContent>
   </div>
 );

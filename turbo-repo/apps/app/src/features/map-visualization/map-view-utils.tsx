@@ -41,7 +41,7 @@ export function center_in_bounds(
   if (!isLoading) {
     if (coordinates.length === 1 && coordinates[0].length === 2) {
       // If only one point, center on it with a reasonable zoom level
-      flyTo(mapRef, [coordinates[0][0], coordinates[0][1]], 15, 45, 45);
+      flyTo(mapRef, [coordinates[0][0], coordinates[0][1]], 5, 45, 45);
     } else if (coordinates.length > 1) {
       // Calculate bounding box
       const lngs = coordinates.map((coord) => coord[0]);
@@ -61,7 +61,7 @@ export function center_in_bounds(
         {
           padding: 50,
           duration: 1000,
-          maxZoom: 18,
+          maxZoom: 8,
           pitch: 45,
           bearing: 45,
         }

@@ -37,6 +37,7 @@ def build_harness(workspace_dir: Path) -> HarnessSupervisor:
             keep_recent_turns=settings.intent_router_context_turns,
         ),
         conversation_token_budget=settings.conversation_token_budget,
+        conversation_tool_token_budget=settings.conversation_tool_token_budget,
         router_context_turns=settings.intent_router_context_turns,
         # Always-on event bus: zero cost when no subscribers (publish
         # iterates an empty list). The SSE endpoint reads this bus to

@@ -53,6 +53,18 @@ export {
 export { createFirstMatchIdentityResolver } from "./identity/chain";
 
 export {
+  createTrustedProxyIdentityResolver,
+  ProxyAssertionError,
+  type TrustedProxyHeaders,
+  type TrustedProxyIdentityOptions,
+} from "./identity/proxy";
+
+export {
+  createAssertedScopeAuthority,
+  createAssertedTenantAuthority,
+} from "./identity/asserted";
+
+export {
   createHttpScopeAuthority,
   type HttpScopeAuthorityOptions,
 } from "./identity/scope-http";

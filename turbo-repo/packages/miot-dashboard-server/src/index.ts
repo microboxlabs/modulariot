@@ -16,6 +16,7 @@ export {
   NO_CAPABILITIES,
   type DashboardCapabilities,
   type DashboardPrincipalKind,
+  type AssertedClaims,
   type DashboardPrincipal,
   type DashboardIdentity,
   type IdentityResolver,
@@ -34,12 +35,26 @@ export type {
 } from "./seams/store";
 
 // ---- Seam: credentials ----
-export type {
-  DataSourceKind,
-  DataSourceCredential,
-  DataSourceDescriptor,
-  CredentialsVault,
+export {
+  applyCredential,
+  isCredentialsStore,
+  previewOf,
+  SECRET_PROPERTY_NAMES,
+  type CredentialInput,
+  type CredentialKind,
+  type CredentialSummary,
+  type CredentialsStore,
+  type CredentialsVault,
+  type DataSourceCredential,
 } from "./seams/credentials";
+
+// ---- Seam: datasources ----
+export type {
+  DataSourceDescriptor,
+  DataSourceInput,
+  DataSourceKind,
+  DataSourceStore,
+} from "./seams/datasources";
 
 // ---- Seam: audit ----
 export {
@@ -94,6 +109,7 @@ export {
 // ---- Capability policies ----
 export {
   createAllowedGroupsPolicy,
+  configAllowsGroups,
   parseAllowedGroups,
   ALLOWED_GROUPS_FIELD,
 } from "./access/allowed-groups";

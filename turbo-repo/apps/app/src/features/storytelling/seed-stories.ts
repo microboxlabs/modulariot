@@ -36,8 +36,8 @@ export const BOARD_DECK: DeckContent = {
  * /pdf), so every previewer is reachable without needing a real
  * chat-generated artifact of each kind yet. */
 export const SEED_STORIES: readonly StoryItem[] = [
-  { id: "fleet-performance", title: "Fleet Performance Overview", createdAt: "2026-08-01", source: "seed", artifactType: "html" },
-  { id: "release-notes-demo", title: "Release Notes", createdAt: "2026-08-20", source: "seed", artifactType: "markdown" },
-  { id: "board-deck-demo", title: "Board Deck", createdAt: "2026-08-21", source: "seed", artifactType: "ppt", deck: BOARD_DECK },
-  { id: "audit-report-demo", title: "Audit Report", createdAt: "2026-08-22", source: "seed", artifactType: "pdf" },
+  { id: "fleet-performance", title: "Fleet Performance Overview", createdAt: "2026-08-01", createdBy: "Ana Fuentes", updatedAt: "2026-08-18", updatedBy: "Bruno Salinas", source: "seed", artifactType: "html" },
+  { id: "release-notes-demo", title: "Release Notes", createdAt: "2026-08-20", createdBy: "Carla Méndez", updatedAt: "2026-08-20", updatedBy: "Carla Méndez", source: "seed", artifactType: "markdown" },
+  { id: "board-deck-demo", title: "Board Deck", createdAt: "2026-08-21", createdBy: "Diego Rojas", updatedAt: "2026-08-27", updatedBy: "Elena Paredes", source: "seed", artifactType: "ppt", deck: BOARD_DECK },
+  { id: "audit-report-demo", title: "Audit Report", createdAt: "2026-08-22", createdBy: "Felipe Ortega", updatedAt: "2026-08-24", updatedBy: "Felipe Ortega", source: "seed", artifactType: "pdf" },
 ];

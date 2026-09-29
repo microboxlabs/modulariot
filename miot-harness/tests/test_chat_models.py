@@ -110,3 +110,21 @@ def test_response_text_extracts_text_from_thinking_blocks():
 
 def test_response_text_falls_back_for_non_message():
     assert response_text(123) == "123"
+
+
+def test_supports_effort_splits_model_generations():
+    from miot_harness.agents.chat_models import supports_effort
+
+    assert supports_effort("claude-opus-4-8")
+    assert supports_effort("claude-opus-4-7")
+    assert supports_effort("claude-sonnet-5")
+    assert not supports_effort("claude-sonnet-4-6")
+    assert not supports_effort("claude-haiku-4-5")
+    assert not supports_effort("gpt-4.1")
+
+
+def test_get_chat_model_passes_timeout_to_openai(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-test")
+    get_settings.cache_clear()
+    model = get_chat_model("gpt-4o", timeout=300)
+    assert model.request_timeout == 300

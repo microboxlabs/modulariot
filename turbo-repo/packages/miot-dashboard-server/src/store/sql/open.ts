@@ -38,6 +38,11 @@ export interface SqlStoreOptions {
 
 export interface OpenedStore {
   store: ServerDashboardStore;
+  /**
+   * The connection underneath, for putting something else on the same
+   * database. `close()` closes it, and anything built on it stops working.
+   */
+  driver: SqlDriver;
   /** Migration versions this call applied. Empty when already up to date. */
   applied: readonly number[];
   /** Delete unreferenced documents written before `olderThan`. */
@@ -114,6 +119,7 @@ export async function openSqlStore(
 
     return {
       store,
+      driver,
       applied,
       sweep(olderThan, dryRun = false) {
         return sweepOrphanDocuments({ metadata, documents, olderThan, dryRun });

@@ -1,13 +1,21 @@
 {
   "name": "@microboxlabs/miot-dashboard-server",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/microboxlabs/modulariot",
-    "directory": "packages/miot-dashboard-server"
+    "directory": "turbo-repo/packages/miot-dashboard-server"
   },
   "description": "Framework-agnostic backend services for MIOT embeddable dashboards: persistence, identity and tenancy, datasource proxying, embed tokens.",
+  "keywords": [
+    "dashboard",
+    "dashboards",
+    "multi-tenant",
+    "embeddable",
+    "jwt",
+    "self-hosted"
+  ],
   "type": "module",
   "engines": {
     "node": ">=20.19.0"
@@ -45,6 +53,14 @@
     "./store-cloud": {
       "types": "./dist/store-cloud.d.ts",
       "import": "./dist/store-cloud.js"
+    },
+    "./vault-sql": {
+      "types": "./dist/vault-sql.d.ts",
+      "import": "./dist/vault-sql.js"
+    },
+    "./vault-http": {
+      "types": "./dist/vault-http.d.ts",
+      "import": "./dist/vault-http.js"
     }
   },
   "bin": {
@@ -52,7 +68,6 @@
   },
   "files": [
     "dist",
-    "contract",
     "examples"
   ],
   "scripts": {
@@ -65,6 +80,9 @@
     "lint": "eslint .",
     "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
     "guard": "node scripts/guard-imports.mjs"
+  },
+  "dependencies": {
+    "@microboxlabs/miot-dashboard-contract": "^0.2.0"
   },
   "peerDependencies": {
     "jose": "^6.0.0",

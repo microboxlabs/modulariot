@@ -16,7 +16,18 @@ _Testing content for the storytelling Markdown previewer — not real release no
 
 ## Known issues
 
-> PPT and PDF previews are still placeholders — real rendering support is planned but not implemented yet.
+> Diagram theming follows the app on load; flipping light/dark while a story is open re-renders diagrams but not always instantly.
+
+## Example diagram
+
+```mermaid
+flowchart LR
+  A[Chat message] --> B{Modulith configured?}
+  B -- yes --> C[Stream from Harness]
+  B -- no --> D[Demo story]
+  C --> E[Render previewer]
+  D --> E
+```
 
 ## Example code block
 
@@ -32,8 +43,8 @@ export function greet(name: string): string {
 | --- | --- |
 | HTML previewer | ✅ Working |
 | Markdown previewer | ✅ Working |
-| PPT previewer | 🚧 Placeholder |
-| PDF previewer | 🚧 Placeholder |
+| PPT previewer | ✅ Working |
+| PDF previewer | ✅ Working |
 
 ---
 

@@ -1,0 +1,108 @@
+# Instalación autónoma
+
+El servidor es un único proceso de Node.js. Se instala desde npm, se ejecuta como contenedor o se despliega con Helm. Las tres formas leen la misma configuración por variables de entorno.
+
+## Requisitos
+
+| Componente | Versión |
+| --- | --- |
+| Node.js | 22.13 o superior. SQLite viene incluido en Node; con versiones anteriores solo está disponible el almacenamiento en memoria |
+| Docker | Cualquier versión reciente. La imagen es `ghcr.io/microboxlabs/miot-dashboard-server` |
+| Helm | 3 o superior. El chart es `microboxlabs/miot-dashboard-server` |
+
+## Primer arranque en su equipo
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true MIOT_DASHBOARD_SEED=example \
+MIOT_DASHBOARD_STORE=sqlite \
+MIOT_DASHBOARD_CREDENTIALS_KEY="$(openssl rand -base64 32)" \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+Arranca en `http://127.0.0.1:3070` con organizaciones, usuarios y tableros de ejemplo. Los datos quedan en `./data`.
+
+```bash
+curl -H 'x-dev-user: alice' \
+  http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards
+```
+
+Devuelve los tableros del ámbito `ops` de la organización `acme`, tal como los ve `alice`.
+
+`MIOT_DASHBOARD_INSECURE_AUTH` acepta la identidad que llega en la cabecera `x-dev-user` sin verificarla. Solo funciona escuchando en `localhost`; el servidor se niega a arrancar con esa opción si `HOST` apunta a otra dirección o si `NODE_ENV` es `production`.
+
+## Con Docker
+
+```bash
+docker run --rm -p 3070:3070 -v dashboards:/data \
+  -e MIOT_DASHBOARD_JWT_ISSUER=https://su-empresa.auth0.com/ \
+  -e MIOT_DASHBOARD_JWT_AUDIENCE=miot-dashboards \
+  -e MIOT_DASHBOARD_JWT_JWKS_URL=https://su-empresa.auth0.com/.well-known/jwks.json \
+  -e MIOT_DASHBOARD_JWT_USER_CLAIM=email \
+  -e MIOT_DASHBOARD_SEED=/data/seed.json \
+  -e MIOT_DASHBOARD_CREDENTIALS_KEY="$(openssl rand -base64 32)" \
+  ghcr.io/microboxlabs/miot-dashboard-server:latest
+```
+
+La imagen escucha en `0.0.0.0:3070`, guarda la base SQLite y los documentos en `/data` y corre con un usuario sin privilegios. Monte un volumen en `/data` o los tableros se pierden con el contenedor.
+
+`MIOT_DASHBOARD_SEED` apunta al archivo que dice quién pertenece a qué organización. Su formato está en [Usuarios y permisos](/es/operations/dashboard-server/identidad). Copie el archivo al volumen antes de arrancar.
+
+En producción fije una etiqueta `sha-<corto>` en lugar de `latest`: la etiqueta `latest` cambia con cada publicación, y un reinicio podría cambiar el código que escribe sobre sus tableros.
+
+## Con Helm
+
+```bash
+helm repo add microboxlabs https://microboxlabs.github.io/helm-charts
+helm repo update
+helm install dashboards microboxlabs/miot-dashboard-server \
+  --namespace dashboards --create-namespace \
+  --values values.yaml
+```
+
+Un `values.yaml` mínimo:
+
+```yaml
+image:
+  tag: sha-511527c
+auth:
+  jwt:
+    issuer: https://su-empresa.auth0.com/
+    audience: miot-dashboards
+    jwksUrl: https://su-empresa.auth0.com/.well-known/jwks.json
+    claims:
+      user: email
+persistence:
+  enabled: true
+  size: 1Gi
+docs: true
+extraEnvFrom:
+  - secretRef:
+      name: dashboards-credentials-key
+```
+
+El chart crea un `Deployment` con una réplica, un volumen `ReadWriteOnce` en `/data` y sondas de vida y disponibilidad. El secreto `dashboards-credentials-key` lleva la variable `MIOT_DASHBOARD_CREDENTIALS_KEY`; créelo antes de instalar.
+
+Una réplica es el máximo con SQLite, porque dos procesos no pueden escribir el mismo archivo. Para escalar, cambie primero a PostgreSQL con `store.kind: postgres`.
+
+Para exponerlo fuera del clúster active `ingress.enabled` y configure `ingress.hosts`. Sin ingress, solo lo alcanzan otros servicios del clúster.
+
+## Comprobar que responde
+
+| Ruta | Responde | Uso |
+| --- | --- | --- |
+| `/livez` | `{"status":"ok"}` | Sonda de vida |
+| `/readyz` | `{"status":"ready"}` | Sonda de disponibilidad |
+| `/docs` | Swagger UI | Probar la API desde el navegador |
+| `/openapi.yaml` | El contrato | Generar clientes |
+
+Ninguna sonda consulta la base de datos. El servidor la prueba al arrancar: ejecuta las migraciones antes de abrir el puerto, y si no puede conectarse termina con un error en lugar de quedar escuchando.
+
+Al arrancar escribe tres líneas que dicen cómo quedó configurado:
+
+```
+{"msg":"identity","auth":"RS256 bearer tokens from https://su-empresa.auth0.com/ ..."}
+{"msg":"tenants","entitlement":"the seed file (2 tenants)"}
+{"msg":"scopes","membership":"the seed file (2 tenants)"}
+```
+
+Si la segunda o la tercera dicen `0 tenants`, ninguna petición pasará: el servidor no sabe quién pertenece a qué, y responde `403` a todo.

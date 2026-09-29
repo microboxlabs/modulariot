@@ -1,0 +1,56 @@
+# API
+
+Toda ruta nombra la organización y el ámbito, y el servidor comprueba ambos antes de responder. El contrato completo está en `/openapi.yaml` y se puede probar en `/docs` mientras `MIOT_DASHBOARD_DOCS` esté activado.
+
+## Rutas
+
+| Método y ruta | Hace |
+| --- | --- |
+| `GET /tenants/{t}/scopes/{s}/dashboards` | Lista los tableros que la persona puede ver |
+| `GET /tenants/{t}/scopes/{s}/dashboards/{slug}` | Devuelve un tablero con su revisión |
+| `PUT /tenants/{t}/scopes/{s}/dashboards/{slug}` | Crea o reemplaza un tablero |
+| `DELETE /tenants/{t}/scopes/{s}/dashboards/{slug}` | Borra un tablero |
+| `GET …/dashboards/{slug}/capabilities` | Qué puede hacer la persona con ese tablero |
+| `GET`, `PUT …/dashboards/{slug}/permissions` | Roles adicionales otorgados por ese tablero |
+| `GET`, `POST …/datasources` | Fuentes de datos de la organización |
+| `GET`, `PUT`, `DELETE …/datasources/{id}` | Una fuente de datos |
+| `POST …/datasources/test`, `POST …/datasources/{id}/test` | Prueba de conexión |
+| `GET …/credentials`, `GET`, `PUT …/credentials/{ref}` | Credenciales, siempre como resumen |
+
+## Guardar un tablero
+
+Cada tablero tiene una revisión entera. Al guardar, envíe en `If-Match` la revisión que leyó; si alguien guardó entre medias, el servidor responde `409` y la interfaz vuelve a leer antes de intentarlo de nuevo.
+
+```bash
+curl -X PUT http://127.0.0.1:3070/tenants/acme/scopes/operaciones/dashboards/flota \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'If-Match: 3' \
+  -H 'Content-Type: application/json' \
+  -d '{"version":2,"name":"Flota","widgets":[]}'
+```
+
+El documento se valida contra el contrato antes de guardarse. Una `version` distinta de `2` o una estructura que no es un tablero se rechazan con `400` diciendo qué campo falla. Los campos que el contrato no conoce se conservan, así que un documento escrito por una interfaz más nueva pasa intacto por un servidor más antiguo.
+
+## Errores
+
+Todas las respuestas de error tienen la misma forma:
+
+```json
+{ "error": "…", "status": 403, "code": "FORBIDDEN", "reason": "TENANT_SCOPE" }
+```
+
+| Código | Cuándo |
+| --- | --- |
+| `401` | Sin credencial, o con una que no se pudo verificar |
+| `403` `TENANT_SCOPE` | La persona no participa en la organización o el ámbito que nombra la URL |
+| `403` `CAPABILITY` | Participa, pero su rol no permite la acción |
+| `404` | El tablero o la fuente no existe, o la ruta no está montada en esta instalación |
+| `409` | La revisión enviada en `If-Match` ya no es la actual |
+| `400` | El cuerpo no cumple el contrato; el mensaje dice dónde |
+| `500` | Un servicio del que depende el servidor no respondió |
+
+Los mensajes de las excepciones internas nunca llegan al cliente.
+
+## Renderizar los tableros
+
+`@microboxlabs/miot-dashboard-ui` es el componente de React que dibuja y edita los tableros contra esta API. Se le indica la URL base del servidor y cómo obtener el token; el resto del vocabulario lo comparten a través de `@microboxlabs/miot-dashboard-contract`.

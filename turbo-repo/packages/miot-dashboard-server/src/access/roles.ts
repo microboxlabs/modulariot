@@ -1,59 +1,25 @@
 /**
- * Role vocabulary and the default role → capabilities mapping.
+ * The default role → capabilities mapping. A host that wants different
+ * semantics supplies its own `CapabilityPolicy`.
  *
- * Roles are what hosts store (a permission assignment names a role);
- * capabilities are what the UI package consumes (Seam F). This module is the
- * one place the two vocabularies meet, so a host that wants different
- * semantics overrides the `CapabilityPolicy` rather than patching call sites.
- *
- * The vocabulary is shared verbatim with `@microboxlabs/miot-dashboard-ui`
- * (`types/roles.ts`) and the wire contract's `PermissionAssignments`.
+ * Both vocabularies live in the contract and are re-exported here so callers
+ * keep one import.
  */
 
-import type { DashboardCapabilities } from "../seams/identity";
+import {
+  type DashboardCapabilities,
+  type DashboardRole,
+  roleAtLeast,
+} from "@microboxlabs/miot-dashboard-contract/roles";
 
-export const DASHBOARD_ROLES = [
-  "Consumer",
-  "Contributor",
-  "Editor",
-  "Coordinator",
-] as const;
-
-export type DashboardRole = (typeof DASHBOARD_ROLES)[number];
-
-export function isDashboardRole(value: unknown): value is DashboardRole {
-  return (
-    typeof value === "string" &&
-    (DASHBOARD_ROLES as readonly string[]).includes(value)
-  );
-}
-
-/** Strict ordering; a higher role has every capability of the ones below it. */
-const RANK: Readonly<Record<DashboardRole, number>> = Object.freeze({
-  Consumer: 0,
-  Contributor: 1,
-  Editor: 2,
-  Coordinator: 3,
-});
-
-/** True when `role` grants at least what `floor` does. */
-export function roleAtLeast(
-  role: DashboardRole,
-  floor: DashboardRole,
-): boolean {
-  return RANK[role] >= RANK[floor];
-}
-
-/** The strongest role in the list, or null for an empty list. */
-export function highestRole(
-  roles: Iterable<DashboardRole>,
-): DashboardRole | null {
-  let best: DashboardRole | null = null;
-  for (const role of roles) {
-    if (best === null || RANK[role] > RANK[best]) best = role;
-  }
-  return best;
-}
+export {
+  DASHBOARD_ROLES,
+  type DashboardCapabilities,
+  type DashboardRole,
+  highestRole,
+  isDashboardRole,
+  roleAtLeast,
+} from "@microboxlabs/miot-dashboard-contract/roles";
 
 /** Everything allowed. The ceiling a host grants a fully trusted user. */
 export const FULL_CAPABILITIES: Readonly<DashboardCapabilities> = Object.freeze(

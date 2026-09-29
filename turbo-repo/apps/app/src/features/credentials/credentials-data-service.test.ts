@@ -121,6 +121,49 @@ describe("credentials data service", () => {
     });
   });
 
+  it("sends a service account's private key as the secret, never a client secret", async () => {
+    const fetchMock = stubFetch({ body: apiCredential() });
+
+    await createCredential(ORG, "GOOGLE_SERVICE_ACCOUNT", {
+      name: "BigQuery reader",
+      environment: "QA",
+      projectId: " my-project ",
+      clientEmail: "reader@my-project.iam.gserviceaccount.com",
+      privateKey:
+        "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
+      scope: "",
+    });
+
+    expect(bodyOf(fetchMock)).toEqual({
+      displayName: "BigQuery reader",
+      credentialType: "GOOGLE_SERVICE_ACCOUNT",
+      environment: "QA",
+      publicConfig: {
+        clientEmail: "reader@my-project.iam.gserviceaccount.com",
+        projectId: "my-project",
+      },
+      secretConfig: {
+        privateKey:
+          "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----",
+      },
+    });
+  });
+
+  it("keeps the stored key when a service account is edited without one", async () => {
+    const fetchMock = stubFetch({ body: apiCredential() });
+
+    await updateCredential(ORG, "cred-1", {
+      name: "BigQuery reader",
+      environment: "QA",
+      projectId: "",
+      clientEmail: "reader@my-project.iam.gserviceaccount.com",
+      privateKey: "",
+      scope: "",
+    });
+
+    expect(bodyOf(fetchMock)).not.toHaveProperty("secretConfig");
+  });
+
   // A blank override would otherwise replace the endpoint derived from the directory id.
   it("omits an empty token URL override", async () => {
     const fetchMock = stubFetch({ body: apiCredential() });

@@ -107,14 +107,6 @@ const DEFAULT_NEGATIVE_CACHE_SECONDS = 30;
 const DEFAULT_MAX_ENTRIES = 1000;
 const DEFAULT_TIMEOUT_MS = 5000;
 
-/** Base64 of the UTF-8 bytes. `btoa` alone throws above U+00FF. */
-function base64(value: string): string {
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
 /**
  * The cache key: a digest, never the ticket.
  *
@@ -243,7 +235,7 @@ export function createTicketIdentityResolver(
       const url = new URL(
         fillTemplate(options.url, {
           ticket,
-          ticketBase64: base64(ticket),
+          ticketBase64: Buffer.from(ticket, "utf8").toString("base64"),
         }),
       );
       if (options.present.kind === "query") {
@@ -259,7 +251,12 @@ export function createTicketIdentityResolver(
             ? {
                 [options.present.name]: fillHeaderTemplate(
                   options.present.value,
-                  { ticket, ticketBase64: base64(ticket) },
+                  {
+                    ticket,
+                    ticketBase64: Buffer.from(ticket, "utf8").toString(
+                      "base64",
+                    ),
+                  },
                 ),
               }
             : {}),

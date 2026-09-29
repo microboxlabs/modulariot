@@ -253,4 +253,25 @@ class DashboardProxyResourceTest {
         assertThat(sent.getHeader("Authorization"), containsString("Bearer "));
         assertThat(sent.getHeader("X-Dev-User"), is(nullValue()));
     }
+
+    @Test
+    void sendsNoAssertionWhileNoProxyKeyIsConfigured() {
+        given().header("Authorization", "Bearer " + memberToken())
+                .when()
+                .get("/api/v1/orgs/" + SITE_ORG + "/dashboards")
+                .then()
+                .statusCode(200);
+
+        // This profile sets no key, so the upstream resolves membership
+        // itself. Sending a role would change how it authorizes with nothing
+        // configured to ask for that.
+        var sent = DashboardWireMock.server()
+                .findAll(WireMock.getRequestedFor(WireMock.urlEqualTo(siteScopePath(""))))
+                .get(0);
+        assertThat(sent.getHeader(DashboardClient.PROXY_KEY_HEADER), is(nullValue()));
+        assertThat(sent.getHeader(DashboardClient.ASSERTED_USER_HEADER), is(nullValue()));
+        assertThat(sent.getHeader(DashboardClient.ASSERTED_TENANT_HEADER), is(nullValue()));
+        assertThat(sent.getHeader(DashboardClient.ASSERTED_SCOPE_HEADER), is(nullValue()));
+        assertThat(sent.getHeader(DashboardClient.ASSERTED_ROLE_HEADER), is(nullValue()));
+    }
 }

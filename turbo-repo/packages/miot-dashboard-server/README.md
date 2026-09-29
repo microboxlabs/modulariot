@@ -74,28 +74,33 @@ MIOT_DASHBOARD_SEED=example \
   npx @microboxlabs/miot-dashboard-server
 ```
 
-| Variable                               | Default                | Purpose                                                        |
-| -------------------------------------- | ---------------------- | -------------------------------------------------------------- |
-| `PORT`                                 | `3070`                 | Port to listen on                                              |
-| `HOST`                                 | `127.0.0.1`            | Address to bind                                                |
-| `MIOT_DASHBOARD_BASE_PATH`             | (empty)                | URL prefix for API routes                                      |
-| `MIOT_DASHBOARD_SEED`                  | —                      | Path to a seed JSON file, or `example` for bundled sample data |
-| `MIOT_DASHBOARD_INSECURE_AUTH`         | off                    | Local dev only: trust identity headers without verification    |
-| `MIOT_DASHBOARD_STORE`                 | `memory`               | Where dashboards are saved: `memory`, `sqlite` or `postgres`   |
-| `MIOT_DASHBOARD_SQLITE_PATH`           | `./data/dashboards.db` | Database file when store is `sqlite`                           |
-| `MIOT_DASHBOARD_POSTGRES_URL`          | —                      | Connection string when store is `postgres`; no default         |
-| `MIOT_DASHBOARD_DOCUMENTS`             | `inline`               | Where config bytes go: `inline`, `fs`, `s3` or `gcs`           |
-| `MIOT_DASHBOARD_DOCUMENTS_PATH`        | `./data/documents`     | Directory when documents is `fs`                               |
-| `MIOT_DASHBOARD_DOCUMENTS_BUCKET`      | —                      | Required bucket for `s3` or `gcs`                              |
-| `MIOT_DASHBOARD_DOCUMENTS_PREFIX`      | `dashboards/`          | Dedicated object prefix for `s3` or `gcs`                      |
-| `MIOT_DASHBOARD_S3_REGION`             | SDK default            | AWS region for `s3`                                            |
-| `MIOT_DASHBOARD_CORS_ORIGINS`          | off                    | Comma-separated exact HTTP(S) origins                          |
-| `MIOT_DASHBOARD_CORS_CREDENTIALS`      | false                  | Permit browser cookies/HTTP authentication for allowed origins |
-| `MIOT_DASHBOARD_CORS_HEADERS`          | —                      | Extra permitted request headers, e.g. `x-ticket`               |
-| `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600`                 | Seconds between orphan cleanups; `0` to disable, max 2147483   |
-| `MIOT_DASHBOARD_ORPHAN_MIN_AGE`        | `86400`                | Minimum age in seconds before an orphan is deleted; at least 1 |
-| `MIOT_DASHBOARD_DOCS`                  | on                     | Serve OpenAPI at `/openapi.yaml` and UI at `/docs`             |
-| `MIOT_DASHBOARD_SCOPES_URL`            | —                      | Host URL for scope membership; omit to use the seed file       |
+| Variable                               | Default                | Purpose                                                          |
+| -------------------------------------- | ---------------------- | ---------------------------------------------------------------- |
+| `PORT`                                 | `3070`                 | Port to listen on                                                |
+| `HOST`                                 | `127.0.0.1`            | Address to bind                                                  |
+| `MIOT_DASHBOARD_BASE_PATH`             | (empty)                | URL prefix for API routes                                        |
+| `MIOT_DASHBOARD_SEED`                  | —                      | Path to a seed JSON file, or `example` for bundled sample data   |
+| `MIOT_DASHBOARD_INSECURE_AUTH`         | off                    | Local dev only: trust identity headers without verification      |
+| `MIOT_DASHBOARD_STORE`                 | `memory`               | Where dashboards are saved: `memory`, `sqlite` or `postgres`     |
+| `MIOT_DASHBOARD_SQLITE_PATH`           | `./data/dashboards.db` | Database file when store is `sqlite`                             |
+| `MIOT_DASHBOARD_POSTGRES_URL`          | —                      | Connection string when store is `postgres`; no default           |
+| `MIOT_DASHBOARD_CREDENTIALS_KEY`       | off                    | Encrypts stored credentials; 32+ chars, needs a database store   |
+| `MIOT_DASHBOARD_CREDENTIALS_URL`       | off                    | Ask the host instead; `{tenantId}` and `{credentialRef}` fill in |
+| `MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP` | false                 | Accept a plain `http://` host URL, for a private network         |
+| `MIOT_DASHBOARD_CREDENTIALS_TIMEOUT`   | `5000`                 | Milliseconds to wait for the host                                |
+| `MIOT_DASHBOARD_CREDENTIALS_CACHE`     | `60`                   | Seconds applied auth is reused; 300 at most                      |
+| `MIOT_DASHBOARD_DOCUMENTS`             | `inline`               | Where config bytes go: `inline`, `fs`, `s3` or `gcs`             |
+| `MIOT_DASHBOARD_DOCUMENTS_PATH`        | `./data/documents`     | Directory when documents is `fs`                                 |
+| `MIOT_DASHBOARD_DOCUMENTS_BUCKET`      | —                      | Required bucket for `s3` or `gcs`                                |
+| `MIOT_DASHBOARD_DOCUMENTS_PREFIX`      | `dashboards/`          | Dedicated object prefix for `s3` or `gcs`                        |
+| `MIOT_DASHBOARD_S3_REGION`             | SDK default            | AWS region for `s3`                                              |
+| `MIOT_DASHBOARD_CORS_ORIGINS`          | off                    | Comma-separated exact HTTP(S) origins                            |
+| `MIOT_DASHBOARD_CORS_CREDENTIALS`      | false                  | Permit browser cookies/HTTP authentication for allowed origins   |
+| `MIOT_DASHBOARD_CORS_HEADERS`          | —                      | Extra permitted request headers, e.g. `x-ticket`                 |
+| `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600`                 | Seconds between orphan cleanups; `0` to disable, max 2147483     |
+| `MIOT_DASHBOARD_ORPHAN_MIN_AGE`        | `86400`                | Minimum age in seconds before an orphan is deleted; at least 1   |
+| `MIOT_DASHBOARD_DOCS`                  | on                     | Serve OpenAPI at `/openapi.yaml` and UI at `/docs`               |
+| `MIOT_DASHBOARD_SCOPES_URL`            | —                      | Host URL for scope membership; omit to use the seed file         |
 
 JWT, ticket, and scope auth variables are listed under
 [Authenticating callers](#authenticating-callers) and
@@ -122,6 +127,22 @@ opens, so a server that cannot reach its database exits rather than listening.
 ```
 Failed to start: error: database "no_such_db" does not exist
 ```
+
+### What a save has to look like
+
+A `PUT` is checked against
+[`@microboxlabs/miot-dashboard-contract`](../miot-dashboard-contract) before it
+reaches the store. A document that does not match is refused with `400` naming
+what is wrong and where. This cannot be turned off.
+
+Two things are refused: a `version` other than `2`, and a structure that is
+not the document at all. Unknown keys pass through at every level, so a
+document written by a newer version of the UI round trips through an older
+server with its extra fields intact.
+
+A wrong version is refused, not converted — the same choice `importDashboards`
+makes. Guessing forward drops what the newer version added, and the next save
+writes the loss back.
 
 ### Storing dashboards
 
@@ -175,6 +196,81 @@ must agree on where config bodies live. If an idle connection drops, the pool
 discards it and reconnects on demand; the standalone server logs a warning.
 Library callers can receive these errors through `onPoolError` on
 `openPostgresStore` or `createPostgresDriver`.
+
+#### Storing credentials in this server
+
+Set `MIOT_DASHBOARD_CREDENTIALS_KEY` and this server keeps datasource
+credentials in its own database, encrypted with that key. Leave it unset and
+it stores none.
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true MIOT_DASHBOARD_SEED=example \
+MIOT_DASHBOARD_STORE=sqlite \
+MIOT_DASHBOARD_CREDENTIALS_KEY="$(openssl rand -base64 32)" \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+Starts a local server with the credential routes on. Swap the first line for
+a real identity provider to run it anywhere else.
+
+The key has to be at least 32 characters and the store has to be `sqlite` or
+`postgres`. The server refuses to start otherwise. Lose the key and every
+stored credential is unreadable. Change it and they have to be re-encrypted.
+No route answers with a stored secret, only with a summary.
+
+#### Leaving credentials with the host
+
+Where another system already owns credentials, set
+`MIOT_DASHBOARD_CREDENTIALS_URL` instead of the key. This server then asks
+that endpoint what to send and writes no credential of its own.
+
+```
+MIOT_DASHBOARD_CREDENTIALS_URL=https://host.internal/credentials/{tenantId}/{credentialRef}
+MIOT_DASHBOARD_PROXY_KEY=<the key the host checks>
+```
+
+Both placeholders are required and each has to change the address, or every
+caller would read one credential. The server refuses such a URL at startup.
+The URL has to be https. Set `MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP=true`
+for a host on the same private network, such as a cluster service; anyone
+on that network path can then read or forge the answers.
+
+| The endpoint answers                                                 | This server                     |
+| -------------------------------------------------------------------- | ------------------------------- |
+| `{"kind":"HTTP_AUTH","headers":{…},"queryParams":{…},"expiresAt":…}` | sends those with the query      |
+| `{"kind":"NONE"}`                                                    | queries without a credential    |
+| `404`                                                                | refuses the query               |
+| anything else, `401` and `403` included                              | throws: its own key was refused |
+
+A service account answer is refused, because its private key is the secret.
+Run the grant at the host and answer with the header it produces.
+
+`MIOT_DASHBOARD_PROXY_KEY` is required. It is the same key the host checks on
+requests going the other way, and it cannot be combined with
+`MIOT_DASHBOARD_INSECURE_AUTH`, so this needs a real identity provider.
+
+An answer is reused for `MIOT_DASHBOARD_CREDENTIALS_CACHE` seconds, or until
+the `expiresAt` the host states, whichever is sooner. A credential revoked at
+the host keeps working until then.
+
+Set the URL or the key, never both. Under the URL the credential routes
+answer 404: credentials are administered where they live.
+
+#### Testing a datasource
+
+`POST …/datasources/{id}/test` sends one request to the target with the
+credential the datasource names and reports the outcome; `…/datasources/test`
+does the same for values not stored yet.
+
+| Type        | Target              | Probe                                         |
+| ----------- | ------------------- | --------------------------------------------- |
+| `POSTGREST` | the base URL, https | `GET` on the URL                              |
+| `BIGQUERY`  | `project.dataset`   | `GET` on the dataset through the BigQuery API |
+
+A `SERVICE_ACCOUNT` credential is exchanged for a Google access token first,
+signed with its private key; no Google SDK is needed. The target may then be
+the dataset alone. A `BEARER` token is sent as it is, and the target has to
+name the project.
 
 To run the contract suite against a real server, point
 `MIOT_DASHBOARD_TEST_POSTGRES_URL` at a **throwaway** database — the suite
@@ -404,10 +500,16 @@ host `401` means this server's credential failed — not "not a member".
 
 ### Try the API
 
-| Path            | Is                                                            |
-| --------------- | ------------------------------------------------------------- |
-| `/openapi.yaml` | OpenAPI spec                                                  |
-| `/docs`         | Swagger UI — authorize with dev user/tenant headers to try it |
+| Path                            | Is                                                            |
+| ------------------------------- | ------------------------------------------------------------- |
+| `/openapi.yaml`                 | OpenAPI spec                                                  |
+| `/dashboard-config.schema.json` | The dashboard document schema the spec refers to              |
+| `/docs`                         | Swagger UI — authorize with dev user/tenant headers to try it |
+
+Both documents come from
+[`@microboxlabs/miot-dashboard-contract`](../miot-dashboard-contract), not
+from this package, and are served as siblings because the spec refers to the
+schema by a bare filename.
 
 For automated coverage, `rest-api/` is a Bruno collection (auth and tenant
 isolation failures):
@@ -498,7 +600,8 @@ One envelope, from every adapter:
 ```
 
 `reason` is present on `403` only. Foreign exceptions are reduced to a generic
-`500`; their messages never reach the wire. See `contract/openapi.yaml`.
+`500`; their messages never reach the wire. See the OpenAPI document in
+[`@microboxlabs/miot-dashboard-contract`](../miot-dashboard-contract).
 
 ## Mounting inside Next
 

@@ -1,0 +1,125 @@
+# Users and permissions
+
+Every request answers three questions before it touches a dashboard: who is calling, whether they may act in the organization the URL names, and what role they hold in the scope the URL names.
+
+## Vocabulary
+
+| Term | Is | In the URL |
+| --- | --- | --- |
+| Organization (*tenant*) | A customer or company. Its data never mixes with another's | `/tenants/{tenantId}` |
+| Scope | An area inside the organization: a team, a site, a location | `/scopes/{scopeId}` |
+| Role | What a person may do inside a scope | Not in the URL; resolved per request |
+| Dashboard permissions | Extra roles one dashboard grants to people or groups | Managed through the API |
+
+One person can belong to several organizations with a different role in each. Switching organization is a different URL, not a new token.
+
+## Who is calling: JWT
+
+The server accepts a JWT in the `Authorization: Bearer …` header. Configure the issuer, the audience, and exactly one key source:
+
+```bash
+MIOT_DASHBOARD_JWT_ISSUER=https://your-company.auth0.com/
+MIOT_DASHBOARD_JWT_AUDIENCE=miot-dashboards
+MIOT_DASHBOARD_JWT_JWKS_URL=https://your-company.auth0.com/.well-known/jwks.json
+MIOT_DASHBOARD_JWT_USER_CLAIM=email
+```
+
+| Variable | Effect |
+| --- | --- |
+| `MIOT_DASHBOARD_JWT_ISSUER` | Required. The `iss` the tokens carry |
+| `MIOT_DASHBOARD_JWT_AUDIENCE` | Required. One audience, or several separated by commas |
+| `MIOT_DASHBOARD_JWT_JWKS_URL` | Key source: fetched from the provider (RS256) |
+| `MIOT_DASHBOARD_JWT_PUBLIC_KEY` | Key source: a PEM public key (RS256) |
+| `MIOT_DASHBOARD_JWT_SECRET` | Key source: a shared secret of at least 32 bytes (HS256) |
+| `MIOT_DASHBOARD_JWT_USER_CLAIM` | Claim holding the user identifier. Default `sub` |
+| `MIOT_DASHBOARD_JWT_GROUPS_CLAIM` | Claim holding the user's groups. Optional |
+| `MIOT_DASHBOARD_JWT_NAME_CLAIM` | Claim holding a display name. Default `name` |
+| `MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE` | Seconds of clock drift allowed on `exp`. Default 30, at most 300 |
+
+The key source decides the algorithm. There is no way to accept RS256 and HS256 at once.
+
+The identifier taken from the token is the one that has to appear in the memberships. If your users are identified by email, set `MIOT_DASHBOARD_JWT_USER_CLAIM=email` and write emails in the membership file.
+
+### Tickets
+
+If your system issues opaque tickets instead of JWTs, the server can validate them with the issuer. It is configured with the `MIOT_DASHBOARD_TICKET_*` variables, starting with `MIOT_DASHBOARD_TICKET_HEADER`, `MIOT_DASHBOARD_TICKET_VALIDATE_URL` and `MIOT_DASHBOARD_TICKET_USER_PATH`. Both forms of identity can run together, because they read different headers. The full list is in the package README on npm.
+
+## Who belongs where
+
+There are two ways to say it. For an installation with a few dozen users the first is enough.
+
+### A membership file
+
+`MIOT_DASHBOARD_SEED` points at a JSON file. Its `memberships` part is organization → scope → user → role:
+
+```json
+{
+  "memberships": {
+    "acme": {
+      "operations": {
+        "ana@acme.example": "Coordinator",
+        "luis@acme.example": "Editor",
+        "sofia@acme.example": "Consumer"
+      },
+      "finance": {
+        "ana@acme.example": "Consumer"
+      }
+    }
+  }
+}
+```
+
+A person may act in an organization when they appear in any of its scopes. The file is read at startup; a change needs a restart.
+
+The file also takes a `dashboards` list of initial dashboards. It is for loading a new installation; dashboards whose identifier already exists are left alone.
+
+### A service that already knows
+
+If your company already has a directory, an ECM, or any service that answers "is this person a member of this group", the server can ask it on every request. A grant made there applies at once, with no restart and no token reissued.
+
+```bash
+MIOT_DASHBOARD_TENANTS_URL='https://directory.internal/people/{userId}/organizations/{tenantId}'
+MIOT_DASHBOARD_SCOPES_URL='https://directory.internal/people/{userId}/groups/{scopeId}'
+MIOT_DASHBOARD_SCOPES_ROLE_PATH=role
+MIOT_DASHBOARD_SCOPES_ROLE_MAP='admin=Coordinator,editor=Editor,reader=Consumer'
+MIOT_DASHBOARD_SCOPES_SERVICE_HEADER=authorization
+MIOT_DASHBOARD_SCOPES_SERVICE_VALUE="Basic $SERVICE_CREDENTIAL"
+```
+
+| Variable | Effect |
+| --- | --- |
+| `MIOT_DASHBOARD_TENANTS_URL` | Answers whether the person may act in the organization. A `GET` must contain `{userId}` and `{tenantId}` |
+| `MIOT_DASHBOARD_TENANTS_METHOD` | `GET` (default) or `POST`, which sends the question as JSON |
+| `MIOT_DASHBOARD_TENANTS_ENTITLED_PATH` | Dotted path to a boolean, for a service that answers 200 either way |
+| `MIOT_DASHBOARD_TENANTS_ABSENT_STATUS` | Statuses meaning "not a member". Default `404` |
+| `MIOT_DASHBOARD_TENANTS_SERVICE_HEADER` | Header carrying the server's own credential for asking about other people |
+| `MIOT_DASHBOARD_TENANTS_SERVICE_VALUE` | Its value |
+| `MIOT_DASHBOARD_TENANTS_CACHE` | Seconds a yes is reused. Default 60 |
+| `MIOT_DASHBOARD_TENANTS_NEGATIVE_CACHE` | Seconds a no is reused. Default 30 |
+| `MIOT_DASHBOARD_TENANTS_TIMEOUT` | Milliseconds to wait. Default 5000 |
+
+The `MIOT_DASHBOARD_SCOPES_*` variables are the same, plus two: `MIOT_DASHBOARD_SCOPES_ROLE_PATH`, the path to the role inside the answer, and `MIOT_DASHBOARD_SCOPES_ROLE_MAP`, the translation from your service's roles to the server's.
+
+The URLs must be `https`. A `401` from the service means the server's own credential failed, and the server answers `500`, not `403`: a directory outage must not look like a mass revocation.
+
+## Roles
+
+| Role | Can |
+| --- | --- |
+| `Consumer` | View |
+| `Contributor` | View, create dashboards in the scope, edit their own |
+| `Editor` | Edit and share any dashboard in the scope |
+| `Coordinator` | Everything, including delete and permissions |
+
+A dashboard can grant an extra role to specific people or groups through the API (`/permissions`). That role adds to what the person holds in the scope; it never takes away.
+
+## The order of checks
+
+| Step | On failure |
+| --- | --- |
+| Identity | `401` |
+| Organization membership | `403` with `reason: TENANT_SCOPE` |
+| Scope membership | `403` with `reason: TENANT_SCOPE` |
+| Capability for the action | `403` with `reason: CAPABILITY` |
+
+An organization the person does not belong to and one that does not exist answer alike. The URL cannot be used to discover which organizations exist.

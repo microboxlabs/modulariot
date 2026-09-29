@@ -10,6 +10,8 @@ export { createCompositeStore } from "./store/composite";
 export type { CompositeStoreOptions } from "./store/composite";
 
 export { createSqlMetadataStore } from "./store/sql/metadata";
+export { createSqlDataSourceStore } from "./store/sql/datasources";
+export type { SqlDataSourceStoreOptions } from "./store/sql/datasources";
 export { createSqlDocumentStore } from "./store/sql/documents";
 export type { SqlDocumentStoreOptions } from "./store/sql/documents";
 export { createFsDocumentStore } from "./store/fs-documents";

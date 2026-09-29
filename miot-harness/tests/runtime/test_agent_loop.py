@@ -1,7 +1,8 @@
+import json
 from typing import Any
 
 import pytest
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
 
 import miot_harness.runtime.agent_loop as agent_loop_mod
 from miot_harness.config import HarnessSettings
@@ -34,11 +35,33 @@ class ScriptedModel:
         self.calls.append(list(messages))
         return self.responses.pop(0)
 
+    async def astream(self, messages: Any, **kwargs: Any) -> Any:
+        """One chunk per scripted message, the way a real model streams a
+        turn: text as a chunk, tool calls as tool_call_chunks."""
+        msg = await self.ainvoke(messages)
+        yield AIMessageChunk(
+            content=msg.content,
+            tool_call_chunks=[
+                {
+                    "name": c["name"],
+                    "args": json.dumps(c["args"]),
+                    "id": c["id"],
+                    "index": i,
+                    "type": "tool_call_chunk",
+                }
+                for i, c in enumerate(msg.tool_calls)
+            ],
+        )
+
 
 def _evidence(tool: str = "fake_kpi_summary") -> DataEvidence:
     return DataEvidence(
-        step_id="s1", tool=tool, source="FakeSource", refreshed_at=None,
-        output={"rows": [{"k": 1}]}, sample_size=1,
+        step_id="s1",
+        tool=tool,
+        source="FakeSource",
+        refreshed_at=None,
+        output={"rows": [{"k": 1}]},
+        sample_size=1,
     )
 
 
@@ -52,8 +75,11 @@ def _settings() -> HarnessSettings:
 
 def _runner(model: ScriptedModel) -> AgentLoopRunner:
     return AgentLoopRunner(
-        model=model, registry=_registry(), settings=_settings(),
-        profile=FAKE_PROFILE, provenance_log=None,
+        model=model,
+        registry=_registry(),
+        settings=_settings(),
+        profile=FAKE_PROFILE,
+        provenance_log=None,
     )
 
 
@@ -96,8 +122,11 @@ def _skills_bundle() -> ContextSkillsBundle:
 
 def _skilled_runner(model: ScriptedModel) -> AgentLoopRunner:
     return AgentLoopRunner(
-        model=model, registry=_registry(), settings=_settings(),
-        profile=FAKE_PROFILE, provenance_log=None,
+        model=model,
+        registry=_registry(),
+        settings=_settings(),
+        profile=FAKE_PROFILE,
+        provenance_log=None,
         context_skills=_skills_bundle(),
     )
 
@@ -138,9 +167,7 @@ async def test_direct_answer_no_tools():
     assert delta["answer"] == "the answer"
     assert delta["evidence"] == []
     # tools bound once, sorted
-    assert [t["name"] for t in model.bound_tools] == sorted(
-        t["name"] for t in model.bound_tools
-    )
+    assert [t["name"] for t in model.bound_tools] == sorted(t["name"] for t in model.bound_tools)
 
 
 @pytest.mark.asyncio
@@ -259,9 +286,7 @@ async def test_load_skill_bound_and_indexed_only_with_bundle():
 
 @pytest.mark.asyncio
 async def test_load_skill_returns_body_without_evidence():
-    model = ScriptedModel(
-        [_load_skill_msg("pending-deliveries", "c1"), AIMessage(content="ok")]
-    )
+    model = ScriptedModel([_load_skill_msg("pending-deliveries", "c1"), AIMessage(content="ok")])
     events: list[Any] = []
     delta = await _skilled_runner(model).run(
         user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
@@ -280,9 +305,7 @@ async def test_load_skill_returns_body_without_evidence():
 
 @pytest.mark.asyncio
 async def test_load_skill_unknown_id_is_error_feedback():
-    model = ScriptedModel(
-        [_load_skill_msg("nope", "c1"), AIMessage(content="answered anyway")]
-    )
+    model = ScriptedModel([_load_skill_msg("nope", "c1"), AIMessage(content="answered anyway")])
     events: list[Any] = []
     delta = await _skilled_runner(model).run(
         user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
@@ -302,9 +325,7 @@ async def test_load_skill_refuses_skill_bound_to_another_connection():
     )
     runner = _skilled_runner(model)
     assert "other-conn-skill" not in runner.system_message.content[0]["text"]
-    await runner.run(
-        user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None
-    )
+    await runner.run(user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None)
     tm = model.calls[1][-1]
     assert tm.status == "error"
     assert _OTHER_CONN_BODY not in _text(tm)
@@ -345,3 +366,259 @@ async def test_events_emitted(monkeypatch):
     assert "agent.started" in types
     assert "agent.completed" in types
     assert "answer.completed" in types
+
+
+class ChunkedModel(ScriptedModel):
+    """Streams each scripted turn as the given chunks, the way the API splits
+    thinking, text and tool-call arguments across frames."""
+
+    def __init__(self, turns: list[list[AIMessageChunk]]) -> None:
+        super().__init__([])
+        self.turns = list(turns)
+
+    async def astream(self, messages: Any, **kwargs: Any) -> Any:
+        self.calls.append(list(messages))
+        for chunk in self.turns.pop(0):
+            yield chunk
+
+
+def _tc_chunk(index: int, *, name: str | None = None, args: str, call_id: str | None = None):
+    return AIMessageChunk(
+        content="",
+        tool_call_chunks=[
+            {"name": name, "args": args, "id": call_id, "index": index, "type": "tool_call_chunk"}
+        ],
+    )
+
+
+@pytest.mark.asyncio
+async def test_answer_is_streamed_and_narration_becomes_thinking(monkeypatch):
+    async def fake_invoke_step(step, **kwargs):
+        return {"evidence": [_evidence()]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    events: list[Any] = []
+    first = AIMessage(
+        content="Looking that up.",
+        tool_calls=[{"name": "fake_kpi_summary", "args": {}, "id": "c1", "type": "tool_call"}],
+    )
+    model = ScriptedModel([first, AIMessage(content="the answer")])
+    delta = await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    assert delta["answer"] == "the answer"
+    answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
+    assert answer_deltas == ["the answer"]
+    thinking = [e.data["delta"] for e in events if e.type == "thinking.delta"]
+    assert thinking == ["Looking that up."]
+    # The transcript carries the aggregated turn with its tool call.
+    second_call = model.calls[1]
+    assert second_call[-2].tool_calls[0]["name"] == "fake_kpi_summary"
+
+
+@pytest.mark.asyncio
+async def test_tool_result_excerpt_keeps_counts_and_names_the_cut(monkeypatch):
+    rows = [{"name": f"fn_{i}", "summary": "x" * 80} for i in range(50)]
+
+    async def fake_invoke_step(step, **kwargs):
+        ev = _evidence()
+        ev = ev.model_copy(update={"output": {"rows": rows, "total": 58}, "sample_size": 50})
+        return {"evidence": [ev]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    model = ScriptedModel([_tool_call_msg(), AIMessage(content="ok")])
+    await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None
+    )
+    tool_msg = next(m for m in model.calls[1] if isinstance(m, ToolMessage))
+    payload = json.loads(_text(tool_msg))
+    assert payload["rows_returned"] == 50
+    assert payload["output"]["total"] == 58
+    assert len(payload["output"]["rows"]) == 5
+    assert payload["excerpt"] == "first 5 of 50 rows"
+
+
+@pytest.mark.asyncio
+async def test_multi_chunk_turn_aggregates_thinking_text_and_split_tool_args(monkeypatch):
+    seen: list[Any] = []
+
+    async def fake_invoke_step(step, **kwargs):
+        seen.append(step)
+        return {"evidence": [_evidence()]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    first_turn = [
+        AIMessageChunk(content=[{"type": "thinking", "thinking": "Need the ", "index": 0}]),
+        AIMessageChunk(content=[{"type": "thinking", "thinking": "summary.", "index": 0}]),
+        AIMessageChunk(content=[{"type": "text", "text": "Looking ", "index": 1}]),
+        AIMessageChunk(content=[{"type": "text", "text": "it up.", "index": 1}]),
+        _tc_chunk(2, name="fake_kpi_summary", args="", call_id="c1"),
+        _tc_chunk(2, args='{"per'),
+        _tc_chunk(2, args='iod": "week"}'),
+    ]
+    second_turn = [AIMessageChunk(content="the "), AIMessageChunk(content="answer")]
+    model = ChunkedModel([first_turn, second_turn])
+    events: list[Any] = []
+    delta = await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    assert delta["answer"] == "the answer"
+    # Split arguments were merged before the tool ran.
+    assert seen[0].args == {"period": "week"}
+    thinking = [e.data["delta"] for e in events if e.type == "thinking.delta"]
+    assert thinking == ["Need the ", "summary.", "Looking it up."]
+    completed = [e for e in events if e.type == "thinking.completed"]
+    assert len(completed) == 1 and completed[0].data["length"] == len("Need the summary.") + len(
+        "Looking it up."
+    )
+    # Narration was never emitted as answer text; the answer replays its chunks.
+    answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
+    assert answer_deltas == ["the ", "answer"]
+
+
+@pytest.mark.asyncio
+async def test_tool_result_never_exceeds_the_cap_and_stays_json(monkeypatch):
+    rows = [{"name": f"fn_{i}", "body": "x" * 900} for i in range(50)]
+
+    async def fake_invoke_step(step, **kwargs):
+        ev = _evidence()
+        ev = ev.model_copy(update={"output": {"rows": rows, "total": 58}, "sample_size": 50})
+        return {"evidence": [ev]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    for cap in (6000, 1200, 500, 300, 200):
+        model = ScriptedModel([_tool_call_msg(), AIMessage(content="ok")])
+        runner = AgentLoopRunner(
+            model=model,
+            registry=_registry(),
+            settings=HarnessSettings(
+                agents_agentic_max_turns=3, agents_agent_loop_tool_result_max_chars=cap
+            ),
+            profile=FAKE_PROFILE,
+            provenance_log=None,
+        )
+        await runner.run(user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None)
+        text = _text(next(m for m in model.calls[1] if isinstance(m, ToolMessage)))
+        assert len(text) <= cap, cap
+        payload = json.loads(text)
+        assert payload["rows_returned"] == 50
+        assert payload["total"] == 58, cap
+        assert "excerpt" in payload
+    # A char-cut excerpt travels as a string, so the message parses.
+    assert isinstance(payload["output"], (str, type(None)))
+
+
+@pytest.mark.asyncio
+async def test_long_answer_streams_while_generating_and_short_narration_does_not(monkeypatch):
+    async def fake_invoke_step(step, **kwargs):
+        return {"evidence": [_evidence()]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    long_text = ["word " * 30] * 4  # 600 chars, past the hold
+    turns = [
+        [
+            AIMessageChunk(content="Short note."),
+            _tc_chunk(1, name="fake_kpi_summary", args="{}", call_id="c1"),
+        ],
+        [AIMessageChunk(content=part) for part in long_text],
+    ]
+    model = ChunkedModel(turns)
+    events: list[Any] = []
+    await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
+    assert answer_deltas == long_text
+    # Past the hold, deltas are emitted as they arrive: every answer delta
+    # precedes the turn's `agent.completed`.
+    order = [e.type for e in events]
+    last_answer = len(order) - 1 - order[::-1].index("answer.delta")
+    assert last_answer < len(order) - 1 - order[::-1].index("agent.completed")
+    assert [e.data["delta"] for e in events if e.type == "thinking.delta"] == ["Short note."]
+    completed = [e for e in events if e.type == "thinking.completed"]
+    assert len(completed) == 1 and completed[0].data["tokens"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_text_past_the_hold_is_not_replayed_when_a_tool_call_follows(monkeypatch):
+    async def fake_invoke_step(step, **kwargs):
+        return {"evidence": [_evidence()]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    long_text = ["word " * 30] * 4  # 600 chars, past the hold
+    turns = [
+        [
+            *(AIMessageChunk(content=part) for part in long_text),
+            _tc_chunk(1, name="fake_kpi_summary", args="{}", call_id="c1"),
+        ],
+        [AIMessageChunk(content="done")],
+    ]
+    model = ChunkedModel(turns)
+    events: list[Any] = []
+    delta = await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    assert delta["answer"] == "done"
+    # The streamed text went out once, as answer deltas, and the late tool
+    # call did not replay it as thinking.
+    answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
+    assert answer_deltas == [*long_text, "done"]
+    assert [e for e in events if e.type == "thinking.delta"] == []
+    assert [e for e in events if e.type == "thinking.completed"] == []
+
+
+@pytest.mark.asyncio
+async def test_tool_capped_rows_are_reported_as_an_excerpt_with_the_exact_total(monkeypatch):
+    # Nexo table tools keep five rows and report `truncated` and `total_count`.
+    async def fake_invoke_step(step, **kwargs):
+        ev = _evidence()
+        ev = ev.model_copy(
+            update={
+                "output": {
+                    "rows": [{"k": i} for i in range(5)],
+                    "total_count": 58,
+                    "truncated": True,
+                },
+                "sample_size": 5,
+            }
+        )
+        return {"evidence": [ev]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    model = ScriptedModel([_tool_call_msg(), AIMessage(content="ok")])
+    await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=lambda e: None
+    )
+    payload = json.loads(_text(next(m for m in model.calls[1] if isinstance(m, ToolMessage))))
+    assert payload["rows_returned"] == 5
+    assert payload["total"] == 58
+    assert payload["excerpt"] == "first 5 of 58 rows"
+    assert len(payload["output"]["rows"]) == 5
+
+
+@pytest.mark.asyncio
+async def test_text_sharing_a_frame_with_a_tool_call_chunk_still_streams(monkeypatch):
+    async def fake_invoke_step(step, **kwargs):
+        return {"evidence": [_evidence()]}
+
+    monkeypatch.setattr(agent_loop_mod, "invoke_step", fake_invoke_step)
+    long_text = ["word " * 30] * 4  # 600 chars, past the hold
+    mixed = AIMessageChunk(
+        content=[{"type": "text", "text": "tail.", "index": 0}],
+        tool_call_chunks=[
+            {"name": "fake_kpi_summary", "args": "{}", "id": "c1", "index": 1,
+             "type": "tool_call_chunk"}
+        ],
+    )
+    turns = [
+        [*(AIMessageChunk(content=part) for part in long_text), mixed],
+        [AIMessageChunk(content="done")],
+    ]
+    model = ChunkedModel(turns)
+    events: list[Any] = []
+    await _runner(model).run(
+        user_message="q", ctx=_ctx(), prior_messages=[], progress=events.append
+    )
+    answer_deltas = [e.data["delta"] for e in events if e.type == "answer.delta"]
+    assert answer_deltas == [*long_text, "tail.", "done"]
+    assert [e for e in events if e.type == "thinking.delta"] == []

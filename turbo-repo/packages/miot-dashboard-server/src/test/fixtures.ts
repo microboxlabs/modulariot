@@ -214,3 +214,16 @@ export function harness(
     audit,
   };
 }
+
+/** A document the contract accepts, for tests that are about something else. */
+export function sampleConfig(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    version: 2,
+    name: "Fleet",
+    widgets: [],
+    preferences: { editMode: false },
+    ...overrides,
+  };
+}

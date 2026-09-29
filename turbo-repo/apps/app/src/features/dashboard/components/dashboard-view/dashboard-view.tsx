@@ -143,11 +143,12 @@ export function DashboardView() {
     [widgets]
   );
 
-  // Grow-columns sizing: wide screens expose extra columns in edit mode; view
-  // mode fills the width (scaled, clamped). See utils/grid-sizing.ts.
+  // Grid sizing: fills the width (scaled, clamped), identically in edit and
+  // view mode so the board looks the same regardless of mode. See
+  // utils/grid-sizing.ts.
   const { cols, designWidth, scale, offsetLeft } = useMemo(
-    () => computeGridSizing({ containerWidth, usedCols, editMode }),
-    [containerWidth, usedCols, editMode]
+    () => computeGridSizing({ containerWidth, usedCols }),
+    [containerWidth, usedCols]
   );
 
   // Keeps drag/resize math correct under the CSS transform.
@@ -242,25 +243,30 @@ export function DashboardView() {
         isDraggable: editMode,
         isResizable: editMode,
         minW: widget.layout?.minW ?? fallbackMinW,
-        // Allow resizing up to the currently-available columns so widgets can
-        // be dragged into the surplus columns that appear on wide screens.
         // Positions are stored in absolute column units that may exceed the
-        // base 24. Accepted trade-off: editing the same dashboard on a
-        // narrower screen can make react-grid-layout reflow such widgets back
-        // inside the visible columns and persist that (view mode never
-        // persists reflows — see the editMode guard in handleLayoutChange).
+        // currently-visible `cols`; fitLayoutToCols (below) clamps them into
+        // view for both modes so edit and view render identically.
         maxW: widget.layout?.maxW ?? cols,
         minH: widget.layout?.minH ?? fallbackMinH,
         maxH: widget.layout?.maxH ?? Infinity,
       };
     });
-    // In view mode, fit over-wide widgets into the columns that fit the screen
-    // (clamp + re-pack) so a widened board doesn't shrink the whole view on a
-    // smaller screen. Display-only — never persisted (handleLayoutChange returns
-    // early when not in edit mode).
-    return editMode ? items : fitLayoutToCols(items, cols);
+    // Fit over-wide widgets into the columns that fit the screen (clamp +
+    // re-pack) in both modes, so a widened board doesn't shrink the whole
+    // view on a smaller screen and edit mode matches view mode. Display-only
+    // — never persisted directly; handleLayoutChange only persists positions
+    // the user actually drags/resizes to while in edit mode.
+    return fitLayoutToCols(items, cols);
   }, [widgets, editMode, cols]);
 
+  // Persist only on drag/resize *stop*, not onLayoutChange: react-grid-layout
+  // also fires onLayoutChange from prop-driven re-syncs (e.g. a cols change on
+  // window resize, or mount) with no user interaction involved. Since the
+  // `layout` prop is now the fitted/clamped view in both modes, using
+  // onLayoutChange here would silently persist that clamped layout over the
+  // stored positions any time the viewport changes. onDragStop/onResizeStop
+  // only fire from an actual completed pointer drag/resize (see the
+  // container dashlet's nested grid for the same pattern).
   const handleLayoutChange = useCallback(
     (newLayout: Layout) => {
       if (!editMode) return;
@@ -390,18 +396,29 @@ export function DashboardView() {
                     const colP = colW + 16;
                     const rowH = 55;
                     const rowP = 71;
-                    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${colP}' height='${rowP}'><rect x='0' y='0' width='${colW}' height='${rowH}' rx='6' fill='rgba(55,65,81,0.25)'/></svg>`;
+                    const makeSvg = (fill: string) =>
+                      `<svg xmlns='http://www.w3.org/2000/svg' width='${colP}' height='${rowP}'><rect x='0' y='0' width='${colW}' height='${rowH}' rx='6' fill='${fill}'/></svg>`;
+                    const lightSvg = makeSvg("rgba(0,0,0,0.06)");
+                    const darkSvg = makeSvg("rgba(55,65,81,0.25)");
+                    const bgStyle = (svg: string) => ({
+                      backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
+                      backgroundSize: `${colP}px ${rowP}px`,
+                      backgroundRepeat: "repeat",
+                      zIndex: 0,
+                    });
                     return (
-                      <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-0"
-                        style={{
-                          backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
-                          backgroundSize: `${colP}px ${rowP}px`,
-                          backgroundRepeat: "repeat",
-                          zIndex: 0,
-                        }}
-                      />
+                      <>
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 dark:hidden"
+                          style={bgStyle(lightSvg)}
+                        />
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 hidden dark:block"
+                          style={bgStyle(darkSvg)}
+                        />
+                      </>
                     );
                   })()}
                 <GridLayout
@@ -425,7 +442,8 @@ export function DashboardView() {
                     handles: ["se"],
                   }}
                   compactor={verticalCompactor}
-                  onLayoutChange={handleLayoutChange}
+                  onDragStop={(layout) => handleLayoutChange(layout)}
+                  onResizeStop={(layout) => handleLayoutChange(layout)}
                   autoSize={true}
                 >
                   {widgets.map((widget) => (

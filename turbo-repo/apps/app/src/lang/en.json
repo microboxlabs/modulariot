@@ -3103,6 +3103,7 @@
       "selectBorderColor": "Select border color",
       "selectColor": "Select color",
       "visualization": "Visualization",
+      "requiresMigration": "requires migration",
       "dataProvider": "Data Provider",
       "widgetAnchor": "Anchor",
       "descriptor": "Descriptor",

@@ -62,4 +62,15 @@ describe("host dashboard data boundary", () => {
     );
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
+  it("preserves the legacy page's direct URL behavior", async () => {
+    state.hosted = false;
+    fetcher.mockResolvedValue(Response.json([{ name: "Direct" }]));
+    const { result } = renderHook(() =>
+      useDynamicRows("dynamic", "/legacy-api")
+    );
+    await waitFor(() =>
+      expect(result.current.rows).toEqual([{ name: "Direct" }])
+    );
+    expect(fetcher).toHaveBeenCalledExactlyOnceWith("/legacy-api");
+  });
 });

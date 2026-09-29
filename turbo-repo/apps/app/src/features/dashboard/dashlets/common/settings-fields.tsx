@@ -212,10 +212,9 @@ export function SettingsSelectField({
   onChange,
   options,
 }: Readonly<SettingsSelectFieldProps>) {
-  const { hostAccess } = useOptionalDashboard();
-  const available = hostAccess
-    ? options.filter((option) => !["pgrest", "dynamic"].includes(option.value))
-    : options;
+  const { hostAccess, dictionary } = useOptionalDashboard();
+  const unsupported = (mode: string) => Boolean(hostAccess) && ["pgrest", "dynamic"].includes(mode);
+  const available = options.filter((option) => option.value === value || !unsupported(option.value));
 
   return (
     <div className="w-full">
@@ -233,8 +232,8 @@ export function SettingsSelectField({
         className="[&>select]:cursor-pointer"
       >
         {available.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
+          <option key={opt.value} value={opt.value} disabled={unsupported(opt.value)}>
+            {opt.label}{unsupported(opt.value) ? ` (${trDynamic("dashboard.requiresMigration", dictionary)})` : ""}
           </option>
         ))}
       </Select>

@@ -14,7 +14,16 @@ We follow semantic versioning: `MAJOR.MINOR.PATCH`
 
 Features and improvements in development:
 
-- Dashboard contract: bounded connection-backed query definitions for the independent server (execution adapter in development).
+### Dashboard packages v0.3.0 — Portable query execution (2026-09-29)
+
+Release preparation for `@microboxlabs/miot-dashboard-server` and `@microboxlabs/miot-dashboard-contract` v0.3.0. Publication follows the scoped release tags; dev migration acceptance remains open.
+
+- The contract adds bounded connection-backed query definitions and named filter bindings while retaining version-2 document compatibility.
+- The server exports TypeScript BigQuery and read-only HTTP executors under `/queries`, with tenant checks, deadlines, cancellation, cost and response limits.
+- Embedded hosts supply a trusted resolver. The standalone image includes an operator module for ModularIoT's private catalog; Java and Alfresco are not query execution requirements.
+- Upgrade both packages together. Existing standalone deployments must explicitly configure an operations module to enable portable saved queries.
+
+See the [query guide](/en/operations/dashboard-server/queries) and [acceptance roadmap](/en/operations/dashboard-server/roadmap).
 
 - JavaScript, Python, and Java SDKs
 - Advanced symptom patterns

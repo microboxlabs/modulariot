@@ -14,7 +14,16 @@ We follow semantic versioning: `MAJOR.MINOR.PATCH`
 
 Features and improvements in development:
 
-- Contrato de dashboards: consultas basadas en conexiones con límites de tamaño para el servidor independiente (adaptador de ejecución en desarrollo).
+### Paquetes de dashboards v0.3.0 — Ejecución portable (2026-09-29)
+
+Preparación de `@microboxlabs/miot-dashboard-server` y `@microboxlabs/miot-dashboard-contract` v0.3.0. La publicación sigue a las etiquetas de entrega; la aceptación de la migración en dev sigue pendiente.
+
+- El contrato incorpora consultas basadas en conexiones con límites y filtros identificados por nombre, manteniendo compatibilidad con documentos de versión 2.
+- El servidor exporta ejecutores TypeScript para BigQuery y HTTP de solo lectura en `/queries`, con aislamiento de tenant, plazos, cancelación y límites de costo y respuesta.
+- Los hosts embebidos aportan un adaptador confiable. La imagen standalone incluye un módulo para el catálogo privado de ModularIoT; ejecutar consultas no requiere Java ni Alfresco.
+- Actualizar ambos paquetes juntos. Los despliegues standalone existentes deben configurar explícitamente un módulo de operaciones para habilitar consultas guardadas portables.
+
+Consultar la [guía de consultas](/es/operations/dashboard-server/queries) y la [hoja de ruta de aceptación](/es/operations/dashboard-server/roadmap).
 
 - JavaScript, Python, and Java SDKs
 - Advanced symptom patterns

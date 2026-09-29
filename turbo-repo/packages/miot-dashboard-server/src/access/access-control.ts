@@ -37,6 +37,7 @@ import type {
 } from "../seams/identity";
 import type {
   DashboardRecord,
+  DashboardSummary,
   PermissionAssignment,
   ServerDashboardRef,
   ServerDashboardStore,
@@ -100,6 +101,11 @@ export interface AccessControlOptions<TRequest> {
 export interface AccessControl<TRequest> {
   /** Authorize one action against one target, or throw a `DashboardServerError`. */
   authorize(request: TRequest, target: AccessTarget): Promise<AccessDecision>;
+  /** List only existing dashboards visible to the caller's dashboard policy. */
+  list(
+    request: TRequest,
+    target: { tenantId: string; scopeId: string },
+  ): Promise<DashboardSummary[]>;
   /**
    * The caller's effective capabilities on one dashboard — the server half
    * of the UI package's Seam F. Throws 403 when the caller cannot see the
@@ -350,6 +356,64 @@ export function createAccessControl<TRequest>(
     return decision;
   }
 
+  function loadUserDashboard(
+    identity: DashboardIdentity,
+    slugTarget: AccessTarget & { slug: string },
+    scopeRole: DashboardRole,
+  ): Promise<DashboardAccess | null> {
+    return loadDashboard(
+      identity,
+      slugTarget,
+      scopeRole,
+      (dashboardRecord, assignments) =>
+        Promise.resolve(
+          policy.resolve({
+            identity,
+            ref: {
+              tenantId: identity.tenantId,
+              scopeId: slugTarget.scopeId,
+              slug: slugTarget.slug,
+            },
+            scopeRole,
+            assignments,
+            record: dashboardRecord,
+          }),
+        ),
+    );
+  }
+
+  async function list(
+    request: TRequest,
+    target: { tenantId: string; scopeId: string },
+  ): Promise<DashboardSummary[]> {
+    const decision = await authorize(request, {
+      ...target,
+      action: "dashboard.list",
+    });
+    const summaries = await store.list(
+      decision.identity.tenantId,
+      target.scopeId,
+    );
+    const visible: DashboardSummary[] = [];
+    // Bound policy/store work without re-verifying the credential for each item.
+    for (let offset = 0; offset < summaries.length; offset += 4) {
+      const batch = summaries.slice(offset, offset + 4);
+      const access = await Promise.all(
+        batch.map((summary) =>
+          loadUserDashboard(
+            decision.identity,
+            { ...target, slug: summary.slug, action: "dashboard.load" },
+            decision.scopeRole,
+          ),
+        ),
+      );
+      batch.forEach((summary, index) => {
+        if (access[index]?.record) visible.push(summary);
+      });
+    }
+    return visible;
+  }
+
   async function authorizeUser(
     identity: DashboardIdentity,
     target: AccessTarget,
@@ -393,25 +457,7 @@ export function createAccessControl<TRequest>(
     }
 
     const slugTarget = { ...target, slug: target.slug };
-    const dashboard = await loadDashboard(
-      identity,
-      slugTarget,
-      scopeRole,
-      (dashboardRecord, assignments) =>
-        Promise.resolve(
-          policy.resolve({
-            identity,
-            ref: {
-              tenantId: identity.tenantId,
-              scopeId: target.scopeId,
-              slug: slugTarget.slug,
-            },
-            scopeRole,
-            assignments,
-            record: dashboardRecord,
-          }),
-        ),
-    );
+    const dashboard = await loadUserDashboard(identity, slugTarget, scopeRole);
     if (dashboard === null) {
       return deny(
         identity,
@@ -484,5 +530,5 @@ export function createAccessControl<TRequest>(
     return decision.dashboard.capabilities;
   }
 
-  return { authorize, capabilities };
+  return { authorize, capabilities, list };
 }

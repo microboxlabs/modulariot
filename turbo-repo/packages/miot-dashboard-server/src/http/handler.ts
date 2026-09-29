@@ -180,15 +180,10 @@ export function createDashboardHandler(
     async dashboards(request, match) {
       const method = request.method.toUpperCase();
       if (method !== "GET") return methodNotAllowed();
-      const decision = await access.authorize(request, {
+      const data = await access.list(request, {
         tenantId: match.tenantId,
         scopeId: match.scopeId,
-        action: "dashboard.list",
       });
-      const data = await options.store.list(
-        decision.identity.tenantId,
-        match.scopeId,
-      );
       return jsonResponse({ data });
     },
 

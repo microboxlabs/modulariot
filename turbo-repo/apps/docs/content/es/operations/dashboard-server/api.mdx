@@ -82,3 +82,6 @@ Tanto `createDashboardHandler` como el servidor independiente aplican `maxBodyBy
 ## Consultas guardadas
 
 Envía `{ "filters": { ... } }` para ejecutar una consulta guardada. El cliente del navegador, vinculado a la organización, ofrece `query(slug, queryId, filters, signal)` y valida las filas recibidas. No envía credenciales ni SQL y propaga la cancelación a través del proxy de la aplicación.
+
+
+Los listados aplican la política de visibilidad de cada dashboard antes de devolver nombres. Se omiten los dashboards denegados o eliminados durante la lectura. Los errores de política o almacenamiento hacen fallar la solicitud, sin devolver metadatos sin filtrar. La política de roles permite lectura a los miembros del ámbito; los hosts que usan `allowedGroups` deben configurar `createAllowedGroupsPolicy()`.

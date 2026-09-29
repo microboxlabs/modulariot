@@ -12,12 +12,12 @@
  * history here — the trailing column is just a last-call-time + accepted/
  * denied tally, not a log.
  *
- * Adding a contact appends a real entry to that same dedicated store; its
- * typed name IS the person's name (not a role placeholder like the seeded
- * options), and it carries its own real phone number plus which calling
- * channels it's actually reachable on — see `contact-details.ts`. A seeded
- * option has no entry there at all, which is how a row tells the two kinds
- * of contact apart.
+ * Adding a contact happens inline (`new-number-panel.tsx`): phone number,
+ * then name, then "Solo llamar" (a real entry in that same dedicated store
+ * with its own phone — see `contact-details.ts` — so the call shows up in
+ * "Ya llamados") or "Llamar y guardar en la libreta" (also saved to the
+ * contact book, and the list entry stays linked to it). A seeded option has
+ * no details entry at all, which is how a row tells the two kinds apart.
  */
 
 import { useEffect, useState } from "react";
@@ -25,7 +25,11 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { tr } from "@/features/i18n/tr.service";
 import type { SelectableOption } from "@/features/settings-admin/selectables/types";
-import { BentoGrid, PlainSection, GeneralInfoGrid } from "../prototype-form-kit";
+import {
+  BentoGrid,
+  PlainSection,
+  GeneralInfoGrid,
+} from "../prototype-form-kit";
 import { formatChileanPhone } from "./format-chilean-phone";
 import { mockNameForId, mockCallStatsForId } from "./mock-contact-data";
 import { useContactDetails, type ContactDetails } from "./contact-details";
@@ -34,13 +38,16 @@ import ContactRow from "./contact-row";
 import { isMockDataEnabled } from "../prototype-api-guard";
 import type { CallMethod } from "./call-method";
 import {
+  makeContactId,
   useContactBook,
   type BookContact,
 } from "@/features/settings-admin/contact-book/store";
-import ContactEditorModal from "@/features/settings-admin/contact-book/contact-editor-modal";
-import { HiOutlineSearch } from "react-icons/hi";
-import { MdAddIcCall } from "react-icons/md";
-import { CALL_METHOD_LABEL_KEYS } from "./call-method";
+import { HiOutlineSearch, HiPlus } from "react-icons/hi";
+import NewNumberPanel, {
+  draftFromQuery,
+  type NewNumberAction,
+  type NewNumberDraft,
+} from "./new-number-panel";
 
 /** Deterministic mock number so a contact's phone stays stable across renders
  *  — there's no real phonebook backing these prototype "other" contacts.
@@ -48,7 +55,8 @@ import { CALL_METHOD_LABEL_KEYS } from "./call-method";
 function mockPhoneForId(id: string): string {
   if (!isMockDataEnabled()) return "";
   let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < id.length; i++)
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
   const digits = ((hash % 90000000) + 10000000).toString();
   return `+56 9 ${digits.slice(0, 4)} ${digits.slice(4, 8)}`;
 }
@@ -91,7 +99,10 @@ export default function CallCenterMenu({
   }, []);
 
   const [search, setSearch] = useState("");
-  const [addModalOpen, setAddModalOpen] = useState(false);
+  // Starting values of the inline "new number" form while it's open (null =
+  // closed): pre-filled from the search's "Agregar «…»" button.
+  const [addDraft, setAddDraft] = useState<NewNumberDraft | null>(null);
+  const addOpen = addDraft !== null;
 
   const generalInfo = (
     <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
@@ -139,7 +150,8 @@ export default function CallCenterMenu({
     const phone = formatChileanPhone(
       custom?.phone ??
         (isDriver
-          ? (treatmentData?.trip_info?.driver_contact ?? mockPhoneForId(option.id))
+          ? (treatmentData?.trip_info?.driver_contact ??
+            mockPhoneForId(option.id))
           : mockPhoneForId(option.id))
     );
     return { custom, personName, roleLabel, phone };
@@ -167,14 +179,17 @@ export default function CallCenterMenu({
     ? visibleOptions
         .filter((o) => recentCallTimes[o.id] && optionMatches(o))
         .sort(
-          (a, b) => recentCallTimes[a.id].getTime() - recentCallTimes[b.id].getTime()
+          (a, b) =>
+            recentCallTimes[a.id].getTime() - recentCallTimes[b.id].getTime()
         )
     : [];
 
   // Contact-book people NOT on this list — only surfaced while searching, and
   // callable directly (no link is created; they just get called).
   const linkedBookIds = new Set(
-    options.map((o) => details[o.id]?.bookId).filter((id): id is string => Boolean(id))
+    options
+      .map((o) => details[o.id]?.bookId)
+      .filter((id): id is string => Boolean(id))
   );
   const bookOnly = query
     ? book.filter(
@@ -182,26 +197,42 @@ export default function CallCenterMenu({
       )
     : [];
 
-  // Every role already in use, seeded or custom — searched as the operator
-  // types in the add-contact modal.
-  const knownRoles = Array.from(
-    new Set([
-      ...visibleOptions
-        .map((o) => {
-          const { name, custom } = effectiveContact(o);
-          return custom?.role ?? (custom ? undefined : name);
-        })
-        .filter((r): r is string => Boolean(r)),
-      ...book.map((c) => c.role).filter(Boolean),
-    ])
-  );
-
-  // "Agregar contacto": same modal as Settings › Libreta de contactos — the
-  // person goes into the book and onto this list (linked).
-  const handleAddContact = (contact: BookContact) => {
-    saveBookContact(contact);
-    const optionId = addContact(contact.name);
-    setDetails(optionId, { bookId: contact.id });
+  // Inline "Agregar contacto": the new number joins this list and gets called
+  // right away; "callAndSave" also puts the person in the contact book (the
+  // list entry then stays linked to it, like any book contact picked here).
+  const handleNewNumber = (
+    { phone, name }: NewNumberDraft,
+    action: NewNumberAction
+  ) => {
+    const number = phone.trim();
+    const shownPhone = formatChileanPhone(number);
+    const personName = name.trim() || shownPhone;
+    const optionId = addContact(personName);
+    let methods: CallMethod[] | undefined;
+    if (action === "callAndSave") {
+      methods = ["phone", "whatsapp"];
+      const contact: BookContact = {
+        id: makeContactId(),
+        name: personName,
+        phone: number,
+        role: "",
+        methods,
+        channels: { phone: number, whatsapp: number },
+      };
+      saveBookContact(contact);
+      setDetails(optionId, { bookId: contact.id });
+    } else {
+      setDetails(optionId, { phone: number });
+    }
+    setAddDraft(null);
+    setSearch("");
+    onCall(
+      { id: optionId, name: personName, description: "" },
+      shownPhone,
+      personName,
+      "",
+      methods
+    );
   };
 
   const renderContactOption = (option: SelectableOption) => {
@@ -225,7 +256,9 @@ export default function CallCenterMenu({
         recentlyCalled={!!recentCallAt}
         justCalledLabel={t("call_center_just_called")}
         ariaLabel={`${t("call_center_call_button")} ${personName}`}
-        onClick={() => onCall(option, phone, personName, roleLabel, custom?.methods)}
+        onClick={() =>
+          onCall(option, phone, personName, roleLabel, custom?.methods)
+        }
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
@@ -239,7 +272,11 @@ export default function CallCenterMenu({
   const renderBookContact = (c: BookContact) => {
     const phone = formatChileanPhone(c.phone);
     const methods = c.methods.length > 0 ? c.methods : undefined;
-    const option: SelectableOption = { id: c.id, name: c.name, description: "" };
+    const option: SelectableOption = {
+      id: c.id,
+      name: c.name,
+      description: "",
+    };
     return (
       <ContactRow
         key={c.id}
@@ -260,7 +297,9 @@ export default function CallCenterMenu({
 
   return (
     <BentoGrid>
-      <PlainSection title={t("proto_section_general")}>{generalInfo}</PlainSection>
+      <PlainSection title={t("proto_section_general")}>
+        {generalInfo}
+      </PlainSection>
 
       {/* Same colors as the form kit's usual card — just with three explicit
           background tiers layered on top (card / header / row), since every
@@ -272,27 +311,30 @@ export default function CallCenterMenu({
             {t("proto_section_who")}
           </h3>
         </div>
-        <div className="flex shrink-0 items-stretch gap-1 border-b border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-800/60">
-          <div className="relative min-w-0 flex-1">
-            <HiOutlineSearch className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
-            <input
-              className="w-full rounded-md border border-gray-300 bg-white py-1.5 pl-8 pr-2.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-              placeholder={t("call_center_contact_search_placeholder")}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+        {!addOpen && (
+          <div className="flex shrink-0 items-stretch gap-1 border-b border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-800/60">
+            <div className="relative min-w-0 flex-1">
+              <HiOutlineSearch className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
+              <input
+                className="w-full rounded-md border border-gray-300 bg-white py-1.5 pl-8 pr-2.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                placeholder={t("call_center_contact_search_placeholder")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setAddModalOpen(true)}
-            title={t("call_center_add_contact")}
-            aria-label={t("call_center_add_contact")}
-            className="flex w-8 shrink-0 items-center justify-center rounded-md bg-blue-600 text-white transition-colors hover:bg-blue-700"
-          >
-            <MdAddIcCall className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        )}
+        {addDraft && (
+          <NewNumberPanel
+            dict={dict}
+            initial={addDraft}
+            onSubmit={handleNewNumber}
+            onCancel={() => setAddDraft(null)}
+          />
+        )}
+        <div
+          className={`min-h-0 flex-1 flex-col overflow-y-auto ${addOpen ? "hidden" : "flex"}`}
+        >
           {visibleOptions.length === 0 && !query && (
             <p className="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400">
               {t("proto_selectable_unassigned")}
@@ -326,49 +368,23 @@ export default function CallCenterMenu({
                 {t("call_center_contact_none")}
               </p>
             )}
+
+          {query && (
+            <button
+              type="button"
+              onClick={() => setAddDraft(draftFromQuery(search))}
+              className="flex shrink-0 items-center gap-1.5 border-b border-gray-200 bg-white px-3 py-2.5 text-left text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-blue-500/10"
+            >
+              <HiPlus className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">
+                {tr("symptoms.call_center_add_query", dict, {
+                  query: search.trim(),
+                })}
+              </span>
+            </button>
+          )}
         </div>
-
       </section>
-
-      <ContactEditorModal
-        show={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
-        editing={null}
-        onSave={handleAddContact}
-        knownRoles={knownRoles}
-        labels={{
-          newTitle: t("call_center_contact_new"),
-          editTitle: t("call_center_contact_new"),
-          cancel: t("call_center_contact_cancel"),
-          save: t("call_center_add_contact_confirm"),
-          form: {
-            name: t("call_center_add_contact_name"),
-            role: t("call_center_add_contact_role_placeholder"),
-            channelsTitle: t("call_center_ch_channels_title"),
-            unfinishedHint: t("call_center_ch_unfinished_hint"),
-            states: {
-              off: t("call_center_ch_state_off"),
-              active: t("call_center_ch_state_active"),
-              configured: t("call_center_ch_state_configured"),
-            },
-            actions: {
-              useSamePhone: t("call_center_ch_action_use_same_phone"),
-            },
-            methodLabels: {
-              phone: t(CALL_METHOD_LABEL_KEYS.phone),
-              whatsapp: t(CALL_METHOD_LABEL_KEYS.whatsapp),
-              meet: t(CALL_METHOD_LABEL_KEYS.meet),
-              teams: t(CALL_METHOD_LABEL_KEYS.teams),
-            },
-            fieldLabels: {
-              phone: t("call_center_ch_field_phone"),
-              whatsapp: t("call_center_ch_field_whatsapp"),
-              meet: t("call_center_ch_field_meet"),
-              teams: t("call_center_ch_field_teams"),
-            },
-          },
-        }}
-      />
     </BentoGrid>
   );
 }

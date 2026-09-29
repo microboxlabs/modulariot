@@ -137,7 +137,7 @@ const STATUS_TEXT_TONES: Record<ChannelStatus, string> = {
 /** One channel: an on/off switch that reveals the setup field. Switching on
  *  expands the box; a valid address is what makes it "Configurado". Switching
  *  off collapses it and clears what was typed. */
-function ChannelBox({
+export function ChannelBox({
   method,
   state,
   onChange,

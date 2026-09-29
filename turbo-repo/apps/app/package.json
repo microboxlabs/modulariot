@@ -83,6 +83,7 @@
     "react-icons": "^5.5.0",
     "react-map-gl": "^7.1.8",
     "react-markdown": "^10.1.0",
+    "react-phone-number-input": "^3.4.18",
     "react-sortablejs": "^6.1.4",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",

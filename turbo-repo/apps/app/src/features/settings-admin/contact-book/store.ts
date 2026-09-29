@@ -23,6 +23,19 @@ export interface BookContact {
    *  (a number for phone/WhatsApp, an account email for Teams/Meet). Absent on
    *  contacts saved before channels existed. */
   channels?: Partial<Record<CallMethod, string>>;
+  /** Person data set by the stepped Settings form (absent on contacts saved
+   *  before it existed). The table falls back to `role` when `description`
+   *  is empty. */
+  description?: string;
+  /** Chilean RUT as typed; unique across the book (compared normalized). */
+  rut?: string;
+  company?: string;
+  position?: string;
+  /** Id of the organization member this contact was created from, if any. */
+  orgMemberId?: string;
+  /** Ids of the badges ("descriptors") describing the contact, from
+   *  `taxonomy-store.ts` — e.g. [transportista] [mintral] [santiago]. */
+  badgeIds?: string[];
 }
 
 const STORAGE_KEY = "miot.prototype.contact-book.v1";
@@ -81,11 +94,18 @@ export function useContactBook() {
     setContacts(next);
   }, []);
 
+  /** Appends several new contacts in one write (used by the CSV import). */
+  const addMany = useCallback((added: BookContact[]) => {
+    const next = [...read(), ...added];
+    write(next);
+    setContacts(next);
+  }, []);
+
   const remove = useCallback((id: string) => {
     const next = read().filter((c) => c.id !== id);
     write(next);
     setContacts(next);
   }, []);
 
-  return { contacts, hydrated, save, remove };
+  return { contacts, hydrated, save, addMany, remove };
 }

@@ -84,7 +84,6 @@ class DashboardOperationsHttpTest {
         @Override public Map<String, String> getConfigOverrides() {
             Map<String, String> config = super.getConfigOverrides();
             config.put("miot.dashboards.proxy-key", KEY);
-            config.put("quarkus.flyway.locations", "db/migration/core,db/migration/integrations");
             config.put("quarkus.http.auth.permission.dashboard-operations.paths", PATH);
             config.put("quarkus.http.auth.permission.dashboard-operations.policy", "permit");
             return config;

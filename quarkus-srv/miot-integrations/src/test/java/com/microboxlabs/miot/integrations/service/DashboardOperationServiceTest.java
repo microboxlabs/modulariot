@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
@@ -14,6 +16,12 @@ import com.microboxlabs.miot.integrations.persistence.IntegrationOperationReposi
 import java.net.URI;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class DashboardOperationServiceTest {
     private static DashboardOperationService.Request request(int rows, int bytes) {
@@ -100,6 +108,54 @@ class DashboardOperationServiceTest {
         }
         fixture.invoker.fail = false;
         assertEquals(1, fixture.service.execute("ACME", request(10, 1000)).path("rows").size());
+    }
+
+    @Test
+    void boundsConcurrentInvocationsAndRestoresCapacityWhenOneFinishes() throws Exception {
+        var invoker = new BlockingInvoker();
+        var service = new DashboardOperationService(new IntegrationConnectionResolver(new Connections(), null, null),
+                new Operations(), invoker);
+        var request = request(10, 1000);
+        var pool = Executors.newFixedThreadPool(8);
+        try {
+            var completed = new ExecutorCompletionService<>(pool);
+            for (int i = 0; i < 8; i++) completed.submit(() -> service.execute("ACME", request));
+            assertTrue(invoker.entered.await(2, TimeUnit.SECONDS));
+            assertThrows(OperationInvocationException.class, () -> service.execute("ACME", request));
+            assertEquals(8, invoker.count.get());
+            invoker.release.release();
+            var first = completed.poll(2, TimeUnit.SECONDS);
+            assertNotNull(first);
+            first.get();
+            invoker.block = false;
+            service.execute("ACME", request);
+            assertEquals(9, invoker.count.get());
+        } finally {
+            invoker.release.release(8);
+            pool.shutdown();
+            assertTrue(pool.awaitTermination(2, TimeUnit.SECONDS));
+        }
+    }
+
+    private static class BlockingInvoker extends Invoker {
+        final CountDownLatch entered = new CountDownLatch(8);
+        final Semaphore release = new Semaphore(0);
+        final AtomicInteger count = new AtomicInteger();
+        volatile boolean block = true;
+        @Override OperationInvocationResult executeBounded(ResolvedConnection connection, IntegrationOperation operation,
+                Map<String, String> parameters, int bytes) {
+            count.incrementAndGet();
+            entered.countDown();
+            if (block) {
+                try {
+                    if (!release.tryAcquire(5, TimeUnit.SECONDS)) throw new IllegalStateException("Test release timed out");
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("Test interrupted", e);
+                }
+            }
+            return response;
+        }
     }
 
     private static OperationInvocationException refused(Fixture fixture, String tenant, DashboardOperationService.Request request) {

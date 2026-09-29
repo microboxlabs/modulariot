@@ -96,3 +96,5 @@ Dashboard lists apply the configured per-dashboard visibility policy before retu
 ## Import validation
 
 `importDashboards` defaults to a dry run. Both dry and apply runs validate the document version and shared contract before accessing the store. Malformed preferences, widgets, or saved queries are reported in `refused` with field paths; no document is written. Extension fields are preserved. A valid document still needs live datasource, filter and permission acceptance before replacing its legacy dashboard.
+
+`migratePlannerQueries(config, mappings)` prepares planner requests for import using an explicit connection, operation and parameter map for every request. It preserves IDs, variable names, widgets and filters, removes legacy request definitions, and refuses partial or ambiguous mappings and existing saved queries. It performs no writes or network calls. Review parameter defaults, tenant isolation and any direct-datasource widgets separately; conversion does not establish live compatibility.

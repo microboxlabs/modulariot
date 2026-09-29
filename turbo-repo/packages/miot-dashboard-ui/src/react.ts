@@ -31,3 +31,11 @@ export {
   type DashboardQueryClient,
 } from "./react/use-saved-query-results";
 export { usePollingInterval } from "./react/use-polling-interval";
+export {
+  WidgetRenderer,
+  type WidgetRendererProps,
+  type WidgetComponentProps,
+  type WidgetFrameProps,
+  type RenderableWidget,
+  type WidgetAction,
+} from "./react/widget-renderer";

@@ -170,9 +170,14 @@ export default function MapVisualizationTrip({
     }
   }, [selectedTreatmentIndex]);
 
+  // Set when a positions load moves displayPosition, so follow mode does not
+  // interrupt the fit-to-bounds that runs for the new positions.
+  const skipNextFollow = useRef(false);
+
   // Add effect to update displayPosition when positions change
   useEffect(() => {
     if (positions?.length) {
+      skipNextFollow.current = displayPosition !== positions.length - 1;
       setDisplayPosition(positions.length - 1);
     }
   }, [positions?.length]);
@@ -181,20 +186,18 @@ export default function MapVisualizationTrip({
   const [showGeofences, setShowGeofences] = useState(true);
   const [showPulse, setShowPulse] = useState(true);
 
-  // Follow mode: while the camera toggle is on, keep the vehicle centered as
-  // the timeline moves, without touching the zoom the user has chosen.
-  const followPosition = (index: number) => {
-    const position = positions?.[index];
+  // Follow mode: while the camera toggle is on, keep the vehicle centered
+  // whenever its displayed position changes, without changing the zoom.
+  useEffect(() => {
+    if (skipNextFollow.current) {
+      skipNextFollow.current = false;
+      return;
+    }
+    const position = positions?.[displayPosition];
     if (!camera_movement || !position || !mapRef.current) return;
     panTo(mapRef.current, [position.longitude, position.latitude]);
-  };
-
-  // Snap to the current vehicle position when follow mode is switched on.
-  useEffect(() => {
-    if (camera_movement) followPosition(displayPosition);
-    // Only on toggle — timeline moves are followed from the slider handler.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [camera_movement]);
+  }, [camera_movement, displayPosition]);
 
   useEffect(() => {
     if (mapRef.current) {
@@ -536,7 +539,6 @@ export default function MapVisualizationTrip({
               positions={positions ?? []}
               displayPosition={displayPosition}
               setDisplayPosition={setDisplayPosition}
-              onZoom={(e) => followPosition(Number(e.target.value))}
             />
           }
         />

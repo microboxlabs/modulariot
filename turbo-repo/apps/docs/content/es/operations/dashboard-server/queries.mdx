@@ -156,7 +156,7 @@ dashboard. Este ejecutor no registra las filas en logs.
 
 El export npm `@microboxlabs/miot-dashboard-server/queries` ofrece `createBigQueryOperationExecutor`. Proporciona un callback confiable `resolve(request)` que valide la conexión/plantilla activa del tenant, imponga sus predicados y devuelva `{ plan, parameters, accessToken }` o `null`. El plan contiene `projectId`, `location`, `sql` definido por el operador, `maximumBytesBilled` y un mapa cerrado `parameterTypes`. Respeta la señal de cancelación al resolver catálogo y credenciales.
 
-La ejecución llama directamente a Google sin Quarkus ni Alfresco. TypeScript aplica dry run de SELECT, límites de facturación del host y la plantilla, plazos, cancelación y resultados planos completos y acotados. El límite de facturación predeterminado es 1 GB. Utilice `MIOT_DASHBOARD_OPERATIONS_MODULE` para cargar una fábrica instalada por el operador en el CLI independiente (ver [configuración](./configuracion)). El resolver optativo de ModularIoT se describe abajo; la aceptación del cliente portable y del despliegue sigue pendiente; la ejecución HTTP existente continúa disponible durante la migración.
+La ejecución llama directamente a Google sin Quarkus ni Alfresco. TypeScript aplica dry run de SELECT, límites de facturación del host y la plantilla, plazos, cancelación y resultados planos completos y acotados. El límite de facturación predeterminado es 1 GB. Utilice `MIOT_DASHBOARD_OPERATIONS_MODULE` para cargar una fábrica instalada por el operador en el CLI independiente (ver [configuración](./configuracion)). El resolver optativo de ModularIoT se describe abajo; la conexión del cliente portable y el recorrido de facturación en dev están validados (ver la [hoja de ruta](./roadmap)). La ejecución HTTP existente continúa disponible durante la migración.
 
 ## Resolución de planes en ModularIoT
 
@@ -174,7 +174,7 @@ El plan resuelto contiene `readOnly: true`, `url` sin query ni fragmento, `param
 
 El proveedor solo ejecuta GET y solicita `Prefer: count=exact`. Rechaza redirecciones, HTTP 206, `Content-Range` incompleto o desconocido, objetos anidados en filas y respuestas excesivas. Los máximos son 20 segundos, ocho llamadas simultáneas, 5.000 filas y 2 MiB. El host debe respetar la cancelación al resolver y elegir credenciales/funciones de solo lectura. Los orígenes permitidos son servicios confiables, no un firewall DNS: aplique también políticas de egreso. HTTP privado requiere `allowHttp: true`; loopback está disponible para validación local.
 
-Se utiliza mediante `queries: { operations: executor }` o el módulo standalone, como el proveedor BigQuery. El resolver optativo de ModularIoT se describe arriba; la conexión del cliente portable y la migración de telemetría real siguen pendientes.
+Se utiliza mediante `queries: { operations: executor }` o el módulo standalone, como el proveedor BigQuery. El resolver optativo de ModularIoT se describe arriba; la conexión del cliente portable está implementada; la migración de telemetría real sigue como requisito de aceptación (ver la [hoja de ruta](./roadmap)).
 
 ## Conectar proveedores portables al catálogo del host
 

@@ -7,6 +7,7 @@ import { DEFAULT_STORAGE } from "../types/dashboard.types";
 
 const state = vi.hoisted(() => ({
   canEdit: false,
+  orgRole: undefined as string | undefined,
   missing: false,
   push: vi.fn(),
 }));
@@ -17,7 +18,7 @@ vi.mock(
     useOrgScopes: () => ({
       activeOrg: {
         slug: "acme",
-        role: state.canEdit ? "SITE_MANAGER" : "SITE_CONSUMER",
+        role: state.orgRole ?? (state.canEdit ? "SITE_MANAGER" : "SITE_CONSUMER"),
       },
       isLoading: false,
       error: null,
@@ -53,6 +54,7 @@ const dictionary = {
 const fetcher = vi.fn<typeof fetch>();
 beforeEach(() => {
   state.canEdit = false;
+  state.orgRole = undefined;
   state.missing = false;
   state.push.mockReset();
   fetcher.mockReset();
@@ -89,6 +91,18 @@ function show(slug?: string) {
 }
 
 describe("parallel dashboard pages", () => {
+  it("allows an organization owner to create without a legacy site role", async () => {
+    state.orgRole = "OWNER";
+    show();
+    await screen.findByRole("link", { name: "Fleet" });
+    expect(screen.getByRole("button", { name: "Create dashboard" })).toBeEnabled();
+  });
+  it.each(["MEMBER", "unknown"])("does not offer creation for %s", async (role) => {
+    state.orgRole = role;
+    show();
+    await screen.findByRole("link", { name: "Fleet" });
+    expect(screen.queryByRole("button", { name: "Create dashboard" })).not.toBeInTheDocument();
+  });
   it("lists the active organization's dashboards without a legacy site", async () => {
     show();
     expect(await screen.findByRole("link", { name: "Fleet" })).toHaveAttribute(

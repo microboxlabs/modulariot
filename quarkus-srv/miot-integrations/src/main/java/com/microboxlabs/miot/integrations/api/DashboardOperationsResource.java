@@ -2,6 +2,9 @@ package com.microboxlabs.miot.integrations.api;
 
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.integrations.service.DashboardOperationService;
+import com.microboxlabs.miot.integrations.service.DashboardOperationResolver;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.function.BiFunction;
 import com.microboxlabs.miot.integrations.service.OperationInvocationException;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.hibernate.reactive.panache.Panache;
@@ -27,17 +30,36 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 public class DashboardOperationsResource {
     private final DashboardOperationService service;
     private final Optional<String> proxyKey;
+    private final DashboardOperationResolver resolver;
+    private final boolean resolutionEnabled;
 
     @Inject
-    public DashboardOperationsResource(DashboardOperationService service,
+    public DashboardOperationsResource(DashboardOperationService service, DashboardOperationResolver resolver,
+            @ConfigProperty(name = "miot.dashboards.plan-resolution.enabled", defaultValue = "false") boolean resolutionEnabled,
             @ConfigProperty(name = "miot.dashboards.proxy-key") Optional<String> proxyKey) {
         this.service = service;
+        this.resolver = resolver;
+        this.resolutionEnabled = resolutionEnabled;
         this.proxyKey = proxyKey;
     }
 
     @POST
     public Uni<Response> execute(@HeaderParam("x-miot-proxy-key") String presentedKey,
             DashboardOperationService.Request request) {
+        return dispatch(presentedKey, request, service::execute);
+    }
+
+    /** Returns sensitive execution material only to the trusted dashboard service. */
+    @POST
+    @Path("/resolve")
+    public Uni<Response> resolve(@HeaderParam("x-miot-proxy-key") String presentedKey,
+            DashboardOperationService.Request request) {
+        if (!resolutionEnabled) return reply(503, "Dashboard plan resolution is not configured");
+        return dispatch(presentedKey, request, resolver::resolve);
+    }
+
+    private Uni<Response> dispatch(String presentedKey, DashboardOperationService.Request request,
+            BiFunction<String, DashboardOperationService.Request, ObjectNode> action) {
         String configured = proxyKey.orElse("");
         if (configured.isBlank() || configured.length() < 32) return reply(503, "Dashboard operations are not configured");
         if (!DashboardCredentialsResource.keyAccepted(configured, presentedKey)) return reply(401, "Unauthorized");
@@ -48,7 +70,7 @@ public class DashboardOperationsResource {
         }
         return tenantCodeFor(request.tenantId())
                 .flatMap(tenant -> tenant.isEmpty() ? reply(404, "Organization not found")
-                        : Uni.createFrom().item(() -> noStore(Response.ok(service.execute(tenant.get(), request))))
+                        : Uni.createFrom().item(() -> noStore(Response.ok(action.apply(tenant.get(), request))))
                                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool()))
                 .onFailure().recoverWithItem(() -> error(502, "Dashboard operation could not be completed"));
     }

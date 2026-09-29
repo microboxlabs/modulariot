@@ -156,7 +156,15 @@ consumption. No query results are logged by this executor.
 
 The npm `@microboxlabs/miot-dashboard-server/queries` export provides `createBigQueryOperationExecutor`. Supply a trusted `resolve(request)` callback that checks the active tenant-owned connection/template, applies tenant predicates, and returns `{ plan, parameters, accessToken }` or `null`. The plan contains `projectId`, `location`, operator-owned `sql`, `maximumBytesBilled`, and a closed `parameterTypes` map. Honor the request signal during catalog and credential resolution.
 
-Execution calls Google directly without Quarkus or Alfresco. SELECT dry-run validation, host/template billing limits, deadlines, cancellation and bounded complete flat results are enforced in TypeScript. The default host billing cap is 1 GB. Use `MIOT_DASHBOARD_OPERATIONS_MODULE` to load an operator-installed factory in the standalone CLI (see [configuration](./configuration)). The ModularIoT catalog resolver remains an open roadmap item; the existing HTTP execution path remains available during migration.
+Execution calls Google directly without Quarkus or Alfresco. SELECT dry-run validation, host/template billing limits, deadlines, cancellation and bounded complete flat results are enforced in TypeScript. The default host billing cap is 1 GB. Use `MIOT_DASHBOARD_OPERATIONS_MODULE` to load an operator-installed factory in the standalone CLI (see [configuration](./configuration)). The opt-in ModularIoT resolver is described below; portable client and deployment acceptance remain open; the existing HTTP execution path remains available during migration.
+
+## ModularIoT plan resolution
+
+For portable execution, the host exposes `POST /internal/dashboard-operations/resolve` behind the existing dashboard service key. It accepts the same authorized identity, dashboard reference, connection/operation identifiers, parameters and limits as the execution bridge, but returns `{ kind, operation }` for `BIGQUERY` or `HTTP_GET` without running the data query. Enable it explicitly with `miot.dashboards.plan-resolution.enabled=true`; it is disabled by default.
+
+Resolution reuses active tenant connection lookup, the operation's closed request schema and `x-dashboard` read-only/tenant policy. BigQuery returns a checked plan and a resolved OAuth access token, never the service-account private key. HTTP returns the validated URL, encoded-value inputs and permitted credential headers; query-string credentials and non-HTTPS destinations are refused. The TypeScript provider must additionally enforce its own origin allowlist and execution limits.
+
+This is a sensitive service-to-service response, always `Cache-Control: no-store`. Keep the endpoint on the private service network, protect the shared key, and never forward its response to the browser or logs. The dashboard service must authorize the user and dashboard before requesting a plan. ModularIoT owns catalog resolution; the npm library remains independent and other hosts provide their own resolver. The portable client adapter and deployment wiring must be configured before switching away from remote execution.
 
 ## Portable HTTP/PostgREST provider
 
@@ -166,4 +174,5 @@ The resolved plan contains `readOnly: true`, `url` (no query or fragment), close
 
 The provider performs GET only and requests `Prefer: count=exact`. It rejects redirects, HTTP 206, incomplete or unknown `Content-Range`, nested row objects and oversized responses. Limits are at most 20 seconds, eight concurrent calls, 5,000 rows and 2 MiB. Hosts must honor the resolver's cancellation signal and choose read-only credentials/functions. Exact allowed origins are trusted services, not a DNS firewall: apply deployment egress policy as well. Private HTTP requires explicit `allowHttp: true`; loopback is available for local validation.
 
-Use it through the same `queries: { operations: executor }` seam or standalone operation module as the BigQuery provider. The ModularIoT catalog adapter and real telemetry migration remain separate acceptance gates.
+Use it through the same `queries: { operations: executor }` seam or standalone operation module as the BigQuery provider. The opt-in ModularIoT resolver is described above; portable client wiring and real telemetry migration remain separate acceptance gates.
+

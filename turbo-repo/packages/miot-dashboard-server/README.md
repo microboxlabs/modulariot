@@ -808,7 +808,7 @@ Import `createBigQueryOperationExecutor` from `@microboxlabs/miot-dashboard-serv
 
 The TypeScript executor calls Google directly without Java, Quarkus, Alfresco or the Google SDK. It requires a SELECT dry run, enforces the template billing cap below the host ceiling (default 1 GB), and limits execution to 20 seconds and eight concurrent operations. Results are bounded to 5,000 rows and 2 MiB at most; nested, repeated and paginated results are rejected. Cancellation is best effort, with a Google job deadline as an additional bound.
 
-The standalone CLI can load this executor through the operator module described above. The ModularIoT catalog resolver remains separate integration work. The existing HTTP executor remains available during migration.
+The standalone CLI can load this executor through the operator module described above. ModularIoT exposes opt-in private plan resolution at `/internal/dashboard-operations/resolve`; client and deployment integration still require acceptance. The existing HTTP executor remains available during migration.
 
 ### Atomic import rollback
 

@@ -4,14 +4,14 @@ El objetivo de entrega es una biblioteca npm segura y portable que también func
 
 ## Obligatorio: ejecución portable de consultas en TypeScript
 
-Es un requisito de aceptación de la entrega, no una mejora opcional. La integración actual delega la ejecución en Quarkus; valida ese recorrido, pero **no** cumple la portabilidad.
+Es un requisito de aceptación de la entrega, no una mejora opcional. La integración de ModularIoT actualmente delega la ejecución en Quarkus. El proveedor BigQuery portable en TypeScript ya está implementado y validado de forma independiente; aún falta conectarlo al catálogo de ModularIoT.
 
-- [ ] Implementar ejecución de BigQuery en TypeScript dentro del paquete: parámetros tipados, dry run que acepte solo SELECT, límites de lectura y facturación, plazos, cancelación y límites de filas y bytes.
+- [x] Implementar ejecución de BigQuery en TypeScript dentro del paquete: parámetros tipados, dry run que acepte solo SELECT, límites de lectura y facturación, plazos, cancelación y límites de filas y bytes.
 - [ ] Implementar operaciones HTTP/PostgREST portables de solo lectura, con validación de destinos, parámetros de tenant impuestos por el servidor, esquemas cerrados y respuestas limitadas.
 - [ ] Separar ejecución y resolución del catálogo. Un adaptador confiable resuelve la conexión/plantilla activa y autorizada y su credencial bajo el tenant verificado; los dashboards contienen referencias y filtros declarados, nunca credenciales ni SQL/URLs arbitrarios.
 - [ ] Integrar las conexiones/plantillas/credenciales existentes de ModularIoT mediante ese adaptador, sin duplicar el catálogo de datasources. Mantener la ejecución remota en Java como opción durante la migración.
-- [ ] Conectar el ejecutor portable a la configuración standalone y documentar sus exports npm para hosts embebidos.
-- [ ] Ejecutar el paquete npm compilado localmente contra la base real de facturación **sin ningún proceso Quarkus ni endpoint de ejecución Java**, tanto embebido como standalone. Las pruebas unitarias no cierran este punto.
+- [x] Conectar el ejecutor portable a la configuración standalone y documentar sus exports npm para hosts embebidos.
+- [x] Ejecutar el paquete npm compilado localmente contra la base real de facturación **sin ningún proceso Quarkus ni endpoint de ejecución Java**, tanto embebido como standalone. Las pruebas unitarias no cierran este punto.
 
 ## Migración paralela y aceptación del producto
 
@@ -25,4 +25,4 @@ Es un requisito de aceptación de la entrega, no una mejora opcional. La integra
 
 ## Evidencia y límites actuales
 
-El servidor compilado consultó BigQuery real mediante el catálogo y ejecutor Java de ModularIoT. La suite del producto pasó 2.002 pruebas, con una omitida, tras los cambios del espacio paralelo. Esto no demuestra ejecución sin Java ni aceptación completa de la migración en navegador. Los widgets legados especializados requieren validación individual.
+La validación local del paquete compilado obtuvo 13 filas reales de facturación tanto mediante el listener Node embebido como mediante el CLI independiente, usando el proveedor TypeScript sin servicio de ejecución Java. Ambos recorridos verificaron JWT y rechazaron solicitudes sin autenticación con 401. El CLI usó un módulo instalado por el operador y un adaptador de catálogo de prueba autorizado; esto no acredita la integración con el catálogo de ModularIoT. La suite del producto pasó 2.002 pruebas, con una omitida, tras los cambios del espacio paralelo. La suite combinada del servidor pasó 1.107 pruebas con una omitida, incluidas pruebas reales de inicio y recuperación en PostgreSQL local. La aceptación de la migración en navegador sigue pendiente. Los widgets legados especializados requieren validación individual.

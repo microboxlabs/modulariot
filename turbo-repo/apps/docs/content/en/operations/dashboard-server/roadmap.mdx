@@ -4,14 +4,14 @@ The completion target is a secure, portable npm library that also runs as a stan
 
 ## Mandatory: portable TypeScript query execution
 
-This is a release acceptance requirement, not an optional follow-up. The current ModularIoT query path delegates execution to Quarkus; that validates the integration but does **not** satisfy portability.
+This is a release acceptance requirement, not an optional follow-up. The ModularIoT integration currently delegates execution to Quarkus. A portable TypeScript BigQuery provider is now implemented and validated independently; connecting it to the ModularIoT catalog remains required.
 
-- [ ] Implement TypeScript BigQuery execution in the dashboard server package, including typed parameters, SELECT-only dry runs, scan and billing limits, deadlines, cancellation, and bounded result rows and bytes.
+- [x] Implement TypeScript BigQuery execution in the dashboard server package, including typed parameters, SELECT-only dry runs, scan and billing limits, deadlines, cancellation, and bounded result rows and bytes.
 - [ ] Implement portable read-only HTTP/PostgREST operation execution with destination validation, tenant parameter enforcement, closed parameter schemas, and response limits.
 - [ ] Separate query execution from catalog resolution. A trusted host adapter resolves an authorized, active connection/template and server-side credential under the verified tenant; dashboard documents hold references and declared filter bindings, never credentials or arbitrary SQL/URLs.
 - [ ] Integrate ModularIoT's existing connections/templates/credentials through that resolver. Do not introduce another ModularIoT datasource catalog. Keep remote Java execution optional during migration.
-- [ ] Wire the portable executor into standalone configuration and expose documented npm exports for embedded hosts.
-- [ ] Run the built npm package locally against the real billing database **with no Quarkus process or execution endpoint**, and validate it through an embedded host as well as the standalone server. Unit tests alone do not close this item.
+- [x] Wire the portable executor into standalone configuration and expose documented npm exports for embedded hosts.
+- [x] Run the built npm package locally against the real billing database **with no Quarkus process or execution endpoint**, and validate it through an embedded host as well as the standalone server. Unit tests alone do not close this item.
 
 ## Parallel migration and product acceptance
 
@@ -25,4 +25,4 @@ This is a release acceptance requirement, not an optional follow-up. The current
 
 ## Evidence and current limits
 
-The built server has queried live BigQuery through the ModularIoT Java catalog/execution path. The product application suite passed 2,002 tests with one skipped after the parallel workspace changes. These results do not establish Java-free execution or complete browser migration acceptance. Specialized legacy widgets require individual compatibility validation.
+Local validation of the built package returned 13 live billing rows through both the embedded Node listener and standalone CLI using the TypeScript provider, with no Java execution service. Both paths verified JWTs and rejected unauthenticated requests with 401. The standalone test used an operator-installed module and an authorized fixture catalog resolver; it does not establish the ModularIoT catalog integration. The product application suite passed 2,002 tests with one skipped after the parallel workspace changes. The combined server suite passed 1,107 tests with one skipped, including real local PostgreSQL startup/recovery tests. Browser migration acceptance is still open. Specialized legacy widgets require individual compatibility validation.

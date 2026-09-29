@@ -65,6 +65,7 @@ jobs:
             apps:
               - 'turbo-repo/apps/**'
               - 'turbo-repo/packages/ui/**'
+              - 'turbo-repo/packages/miot-dashboard-ui/**'
               - 'turbo-repo/packages/db/**'
               - 'turbo-repo/packages/typescript-config/**'
               - 'turbo-repo/packages/eslint-config/**'
@@ -155,6 +156,10 @@ jobs:
       - name: Check the dashboard contract has not drifted
         run: npx vitest run
         working-directory: turbo-repo/packages/miot-dashboard-contract
+
+      - name: Test the dashboard UI package
+        run: npm test --workspace=@microboxlabs/miot-dashboard-ui
+        working-directory: turbo-repo
 
   dashboard-server-test:
     name: Dashboard Server Tests

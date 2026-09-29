@@ -127,3 +127,11 @@ keep their required/default behavior. The host operation schema must allow the
 parameter to be absent; tenant predicates remain host-controlled. Upgrade both
 contract and server to a release containing this option before using it; 0.3.0
 does not implement omission.
+
+## Scope creation eligibility (v0.5.0)
+
+The OpenAPI contract includes `GET /tenants/{tenantId}/scopes/{scopeId}/capabilities`,
+which returns `{ canCreate: boolean }` for an authenticated scope member.
+It describes scope-role and credential eligibility, not authorization for a
+particular document. Saving still applies document policy and validation.
+Embed tokens cannot call this endpoint. Use server v0.5.0 or later to serve it.

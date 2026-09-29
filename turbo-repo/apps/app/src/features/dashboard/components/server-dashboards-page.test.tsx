@@ -6,11 +6,19 @@ import { ServerDashboardsPage } from "./server-dashboards-page";
 import { DEFAULT_STORAGE } from "../types/dashboard.types";
 
 const state = vi.hoisted(() => ({
+  userId: "test-user",
+  authenticated: true,
   canEdit: false,
   orgRole: undefined as string | undefined,
   scopeFailure: false,
   missing: false,
   push: vi.fn(),
+}));
+vi.mock("next-auth/react", () => ({
+  useSession: () => ({
+    status: state.authenticated ? "authenticated" : "unauthenticated",
+    data: { user: { id: state.userId } },
+  }),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: state.push }) }));
 vi.mock(
@@ -19,7 +27,8 @@ vi.mock(
     useOrgScopes: () => ({
       activeOrg: {
         slug: "acme",
-        role: state.orgRole ?? (state.canEdit ? "SITE_MANAGER" : "SITE_CONSUMER"),
+        role:
+          state.orgRole ?? (state.canEdit ? "SITE_MANAGER" : "SITE_CONSUMER"),
       },
       isLoading: false,
       error: null,
@@ -56,6 +65,8 @@ const dictionary = {
 };
 const fetcher = vi.fn<typeof fetch>();
 beforeEach(() => {
+  state.userId = "test-user";
+  state.authenticated = true;
   state.canEdit = false;
   state.orgRole = undefined;
   state.missing = false;
@@ -99,29 +110,69 @@ function show(slug?: string) {
 }
 
 describe("parallel dashboard pages", () => {
-  it.each(["OWNER", "MEMBER"])("uses server permission to offer creation for %s", async (role) => {
-    state.orgRole = role;
-    state.canEdit = true;
-    show();
+  it("discards cached lists when the authenticated identity changes", async () => {
+    const page = render(
+      <ServerDashboardsPage dictionary={dictionary} lang="en" />
+    );
     await screen.findByRole("link", { name: "Fleet" });
-    expect(await screen.findByRole("button", { name: "Create dashboard" })).toBeEnabled();
+    state.userId = "another-user";
+    fetcher.mockImplementation(async (input) =>
+      String(input).includes("/dashboard-capabilities")
+        ? Response.json({ canCreate: false })
+        : Response.json({ data: [{ slug: "other", name: "Other account" }] })
+    );
+    page.rerender(<ServerDashboardsPage dictionary={dictionary} lang="en" />);
+    expect(
+      screen.queryByRole("link", { name: "Fleet" })
+    ).not.toBeInTheDocument();
+    await screen.findByRole("link", { name: "Other account" });
+    state.authenticated = false;
+    page.rerender(<ServerDashboardsPage dictionary={dictionary} lang="en" />);
+    expect(
+      screen.queryByRole("link", { name: "Other account" })
+    ).not.toBeInTheDocument();
   });
-  it.each(["OWNER", "MEMBER", "unknown"])("respects server creation denial for %s", async (role) => {
-    state.orgRole = role;
-    show();
-    await screen.findByRole("link", { name: "Fleet" });
-    expect(screen.queryByRole("button", { name: "Create dashboard" })).not.toBeInTheDocument();
-  });
+
+  it.each(["OWNER", "MEMBER"])(
+    "uses server permission to offer creation for %s",
+    async (role) => {
+      state.orgRole = role;
+      state.canEdit = true;
+      show();
+      await screen.findByRole("link", { name: "Fleet" });
+      expect(
+        await screen.findByRole("button", { name: "Create dashboard" })
+      ).toBeEnabled();
+    }
+  );
+  it.each(["OWNER", "MEMBER", "unknown"])(
+    "respects server creation denial for %s",
+    async (role) => {
+      state.orgRole = role;
+      show();
+      await screen.findByRole("link", { name: "Fleet" });
+      expect(
+        screen.queryByRole("button", { name: "Create dashboard" })
+      ).not.toBeInTheDocument();
+    }
+  );
   it("lets an authorized MEMBER create with a zero-revision precondition", async () => {
     state.orgRole = "MEMBER";
     state.canEdit = true;
     show();
-    const createButton = await screen.findByRole("button", { name: "Create dashboard" });
-    fireEvent.change(screen.getByRole("textbox", { name: "Dashboard identifier" }), {
-      target: { value: "demo-validation" },
+    const createButton = await screen.findByRole("button", {
+      name: "Create dashboard",
     });
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "Dashboard identifier" }),
+      {
+        target: { value: "demo-validation" },
+      }
+    );
     fireEvent.click(createButton);
-    await waitFor(() => expect(state.push).toHaveBeenCalledWith("/en/dashboards/demo-validation"));
+    await waitFor(() =>
+      expect(state.push).toHaveBeenCalledWith("/en/dashboards/demo-validation")
+    );
     const write = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
     expect(write?.[0]).toBe("/app/api/dashboards/demo-validation?org=acme");
     expect(write?.[1]?.headers).toMatchObject({ "if-match": '\"0\"' });
@@ -130,9 +181,15 @@ describe("parallel dashboard pages", () => {
     state.orgRole = "OWNER";
     state.scopeFailure = true;
     show();
-    expect(await screen.findByRole("alert")).toHaveTextContent("Dashboard unavailable");
-    expect(screen.queryByRole("button", { name: "Create dashboard" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("link", { name: "Fleet" })).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Dashboard unavailable"
+    );
+    expect(
+      screen.queryByRole("button", { name: "Create dashboard" })
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("link", { name: "Fleet" })
+    ).toBeInTheDocument();
   });
   it("lists the active organization's dashboards without a legacy site", async () => {
     show();

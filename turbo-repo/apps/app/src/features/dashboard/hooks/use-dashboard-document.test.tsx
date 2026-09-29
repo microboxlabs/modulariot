@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { SWRConfig } from "swr";
-import type { PropsWithChildren } from "react";
+import { StrictMode, type PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { makeDashboardStorage } from "../test-fixtures";
 import { useDashboardDocument } from "./use-dashboard-document";
@@ -17,7 +17,9 @@ function setup(canEdit = true) {
   const cache = new Map();
   const value = { provider: () => cache, dedupingInterval: 0 };
   const wrapper = ({ children }: Readonly<PropsWithChildren>) => (
-    <SWRConfig value={value}>{children}</SWRConfig>
+    <StrictMode>
+      <SWRConfig value={value}>{children}</SWRConfig>
+    </StrictMode>
   );
   const fetcher = vi.fn<typeof fetch>().mockImplementation(async (input) => {
     const url = String(input);
@@ -26,13 +28,29 @@ function setup(canEdit = true) {
       : Response.json({ data: empty }, { headers: { ETag: '"7"' } });
   });
   const hook = renderHook(
-    ({ org }) => useDashboardDocument(org, "fleet", empty, fetcher),
-    { wrapper, initialProps: { org: "one" } }
+    ({ org, sessionKey }) =>
+      useDashboardDocument(org, "fleet", empty, sessionKey, fetcher),
+    { wrapper, initialProps: { org: "one", sessionKey: "session-1" } }
   );
   return { ...hook, fetcher };
 }
 
 describe("server dashboard document", () => {
+  it("resets drafts for a new authentication generation at the same resource", async () => {
+    const { result, rerender, unmount } = setup();
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+    act(() =>
+      result.current.onChange({ ...empty, name: "Old identity draft" })
+    );
+    const previousKey = result.current.editorKey;
+    rerender({ org: "one", sessionKey: "session-2" });
+    expect(result.current.config.name).toBe(empty.name);
+    await waitFor(() => expect(result.current.isLoaded).toBe(true));
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.editorKey).not.toBe(previousKey);
+    unmount();
+  });
+
   it("refuses Consumer edits and writes", async () => {
     const { result, fetcher } = setup(false);
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
@@ -125,10 +143,14 @@ describe("server dashboard document", () => {
     act(() => {
       pending = result.current.save();
     });
-    rerender({ org: "two" });
+    rerender({ org: "two", sessionKey: "session-1" });
     await waitFor(() => expect(result.current.isLoaded).toBe(true));
-    expect(result.current.busy).toBe(true);
-    expect(result.current.readOnly).toBe(true);
+    expect(result.current.busy).toBe(false);
+    expect(result.current.readOnly).toBe(false);
+    const oldWrite = fetcher.mock.calls.find(
+      ([, init]) => init?.method === "PUT"
+    );
+    expect(oldWrite?.[1]?.signal?.aborted).toBe(true);
     await act(async () => {
       release(
         Response.json(

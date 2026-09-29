@@ -350,11 +350,12 @@ const HarnessChatPanel: FC<{
   return (
     <div
       className={twMerge(
-        "relative mt-16 mb-12 hidden shrink-0 overflow-hidden border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 lg:flex",
-        isOpen ? "opacity-100" : "w-0 opacity-0",
+        "relative mt-16 mb-12 hidden shrink-0 overflow-hidden border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 lg:flex",
+        isOpen ? "border-l opacity-100" : "w-0 opacity-0",
         isDragging ? "transition-opacity duration-300 ease-in-out" : "transition-[width,opacity] duration-300 ease-in-out"
       )}
       style={isOpen ? { width } : undefined}
+      inert={!isOpen}
     >
       {isOpen && (
         <PanelResizeHandle label={tr("harnessChat.ui.resizePanel")} resizable={resizable} />

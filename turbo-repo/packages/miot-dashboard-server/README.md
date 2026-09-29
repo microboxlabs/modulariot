@@ -89,6 +89,9 @@ MIOT_DASHBOARD_SEED=example \
 | `MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP` | false                 | Accept a plain `http://` host URL, for a private network         |
 | `MIOT_DASHBOARD_CREDENTIALS_TIMEOUT`   | `5000`                 | Milliseconds to wait for the host                                |
 | `MIOT_DASHBOARD_CREDENTIALS_CACHE`     | `60`                   | Seconds applied auth is reused; 300 at most                      |
+| `MIOT_DASHBOARD_OPERATIONS_URL` | off | Fixed saved-operation host endpoint; requires `MIOT_DASHBOARD_PROXY_KEY` |
+| `MIOT_DASHBOARD_OPERATIONS_ALLOW_HTTP` | `false` | Explicitly trust a private HTTP host endpoint |
+| `MIOT_DASHBOARD_OPERATIONS_TIMEOUT` | `20000` | Host request deadline in milliseconds; 1–20000 |
 | `MIOT_DASHBOARD_DOCUMENTS`             | `inline`               | Where config bytes go: `inline`, `fs`, `s3` or `gcs`             |
 | `MIOT_DASHBOARD_DOCUMENTS_PATH`        | `./data/documents`     | Directory when documents is `fs`                                 |
 | `MIOT_DASHBOARD_DOCUMENTS_BUCKET`      | —                      | Required bucket for `s3` or `gcs`                                |

@@ -78,3 +78,7 @@ The `MIOT_DASHBOARD_JWT_*`, `MIOT_DASHBOARD_TICKET_*`, `MIOT_DASHBOARD_TENANTS_*
 | `MIOT_DASHBOARD_INSECURE_AUTH` | Takes the identity from the `x-dev-user` and `x-dev-groups` headers without verifying it |
 
 Only works when listening on `localhost`. The server refuses to start with it when `HOST` is another address, when `NODE_ENV` is `production`, or when JWT or ticket variables are also set.
+
+## Saved connection operations
+
+Configure `MIOT_DASHBOARD_OPERATIONS_URL` to enable saved-query execution in the standalone pod. It delegates to the host connection catalog using `MIOT_DASHBOARD_PROXY_KEY`; no credentials catalog is needed in this server. Queries remain disabled when the URL is absent. The endpoint must use HTTPS (loopback is allowed for local validation). Set `MIOT_DASHBOARD_OPERATIONS_ALLOW_HTTP=true` only for a trusted private-network host. `MIOT_DASHBOARD_OPERATIONS_TIMEOUT` sets a deadline of 1–20000 milliseconds, default 20000. Authentication must verify identities; insecure header authentication cannot be combined with the proxy key.

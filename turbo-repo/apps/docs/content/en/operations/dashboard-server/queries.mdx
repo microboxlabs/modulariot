@@ -35,6 +35,46 @@ Timeouts cancel the adapter's signal. The standalone HTTP server also cancels it
 
 Timeouts cancel the adapter's signal. An adapter that ignores cancellation keeps its concurrency slot until it settles, preventing repeated timeouts from creating unlimited background work. Upstream failures and invalid results become a generic `UPSTREAM_ERROR`. These instance limits complement host authentication, request-body limits and deployment rate limits; they do not replace them.
 
+## ModularIoT operation policy
+
+The integrations module provides `DashboardOperationPolicy.prepare` for host
+adapters. Resolve an **ACTIVE connection owned by the authorized tenant** first.
+The helper validates its stored operation and binds the host's tenant code; it
+does not perform that connection authorization or execute a network request.
+
+Operations opt in through `requestSchema["x-dashboard"]`:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "days": { "type": "integer", "minimum": 1, "maximum": 30 },
+    "tenant": { "type": "string" }
+  },
+  "required": ["days", "tenant"],
+  "additionalProperties": false,
+  "x-dashboard": {
+    "readOnly": true,
+    "kind": "HTTP_GET",
+    "tenantParameter": "tenant"
+  }
+}
+```
+
+`HTTP_GET` requires a stored GET operation; `BIGQUERY` requires POST and a
+BigQuery-specific executor. A caller cannot supply `tenantParameter`, even with
+the correct value. The host inserts it before schema validation. If credentials
+already isolate the upstream account, an administrator may instead set
+`credentialScoped: true` and omit `tenantParameter`. Declaring read-only access
+is the connection administrator's responsibility; HTTP GET alone does not prove
+an upstream operation is harmless.
+
+Schemas must describe a closed object (`additionalProperties: false`). Draft
+2020-12 is supported without remote/local references or regex rules. Schema
+size, depth and node count are bounded; compiled validators use a bounded cache.
+Parameters allow JSON scalars and flat scalar arrays, with the same value limits
+as the dashboard contract and a 256 KiB host parameter envelope.
+
 ## Host execution over HTTP
 
 A standalone pod can reuse the host's connection catalog with
@@ -58,3 +98,28 @@ Redirects are refused. The default HTTP deadline is 20 seconds; configure
 request. The adapter bounds received bytes before parsing, validates row
 values, discards extra response metadata, and returns a generic error on any
 host failure. The host still owns upstream cancellation and cost controls.
+
+## ModularIoT host endpoint
+
+The integrations module accepts `POST /internal/dashboard-operations` using the
+HTTP adapter envelope above. Configure the same `miot.dashboards.proxy-key` on
+both sides (at least 32 characters). Keep this service endpoint on the private
+network. It trusts the authenticated dashboard service to authorize the user,
+scope and dashboard; it resolves the organization slug to its tenant code and
+checks the connection and operation itself.
+
+The initial executor supports `HTTP_GET` operations returning a JSON array of
+rows. It requires an ACTIVE tenant-owned connection and the opt-in policy above,
+then executes the exact operation snapshot that was validated. Named parameters
+are URL-encoded; scalar strings are sent literally and other values as JSON.
+Stored URLs may not contain query strings or fragments, and parameters cannot
+overwrite credential query parameters. Public-URL checks and credential
+resolution reuse the integration invoker. BIGQUERY operations require the
+separate BigQuery executor and are refused by this HTTP-only implementation.
+
+The host permits at most eight concurrent executions, 5,000 rows and 2 MiB of
+result JSON, and honors smaller requested limits. Invalid provider responses
+and internal failures return a generic error without provider data. Every
+endpoint response includes `Cache-Control: no-store`.
+
+The ingress authenticates before body buffering or JSON decoding and limits requests to 512 KiB, including chunked bodies. Framework-generated errors also carry the no-store header.

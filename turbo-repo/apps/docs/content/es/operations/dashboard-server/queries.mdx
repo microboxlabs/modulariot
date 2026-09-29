@@ -35,6 +35,45 @@ Un timeout cancela la señal del adaptador. El servidor HTTP independiente tambi
 
 Un timeout cancela la señal del adaptador. Si el adaptador ignora la cancelación, mantiene su cupo hasta terminar, evitando trabajo ilimitado en segundo plano. Los fallos y resultados inválidos se convierten en `UPSTREAM_ERROR`. Estos límites complementan la autenticación, el tamaño máximo del cuerpo HTTP y los límites de solicitudes del despliegue.
 
+## Política de operaciones de ModularIoT
+
+El módulo de integraciones ofrece `DashboardOperationPolicy.prepare` para los
+adaptadores del host. Primero resuelve una **conexión ACTIVE del tenant
+autorizado**. El helper valida la operación guardada e incorpora el código del
+tenant del host; no autoriza la conexión ni ejecuta solicitudes de red.
+
+Las operaciones se habilitan mediante `requestSchema["x-dashboard"]`:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "days": { "type": "integer", "minimum": 1, "maximum": 30 },
+    "tenant": { "type": "string" }
+  },
+  "required": ["days", "tenant"],
+  "additionalProperties": false,
+  "x-dashboard": {
+    "readOnly": true,
+    "kind": "HTTP_GET",
+    "tenantParameter": "tenant"
+  }
+}
+```
+
+`HTTP_GET` exige una operación GET; `BIGQUERY` exige POST y un ejecutor específico
+de BigQuery. El cliente no puede enviar `tenantParameter`, aunque su valor sea
+correcto. El host lo agrega antes de validar el esquema. Si las credenciales ya
+aíslan la cuenta de origen, un administrador puede declarar
+`credentialScoped: true` y omitir `tenantParameter`. El administrador debe
+verificar que la operación sea de solo lectura; usar GET no lo garantiza.
+
+El esquema debe describir un objeto cerrado (`additionalProperties: false`).
+Se admite Draft 2020-12 sin referencias locales/remotas ni reglas regex. Se
+limitan tamaño, profundidad y cantidad de nodos; los validadores compilados usan
+una caché acotada. Los parámetros admiten escalares JSON y arreglos planos con
+los mismos límites de valores del contrato y un máximo de 256 KiB en el host.
+
 ## Ejecución HTTP en el host
 
 Un pod independiente puede reutilizar el catálogo de conexiones del host con
@@ -59,3 +98,28 @@ la solicitud HTTP. El adaptador limita los bytes recibidos antes de parsearlos,
 valida los valores de las filas, descarta metadatos adicionales y devuelve un
 error genérico ante fallos del host. El host sigue siendo responsable de la
 cancelación y del control de costos del origen.
+
+## Endpoint de ejecución de ModularIoT
+
+El módulo de integraciones acepta `POST /internal/dashboard-operations` con el
+cuerpo del adaptador HTTP descrito arriba. Configure la misma clave
+`miot.dashboards.proxy-key` en ambos servicios (al menos 32 caracteres) y mantenga
+este endpoint en la red privada. Confía en que el servidor autenticado de
+dashboards autorice al usuario, ámbito y dashboard; convierte el slug de la
+organización a su código de tenant y verifica la conexión y operación.
+
+El ejecutor inicial admite operaciones `HTTP_GET` que devuelven un arreglo JSON
+de filas. Exige una conexión ACTIVE del tenant y la política explícita anterior,
+y ejecuta exactamente la operación que validó. Codifica los parámetros en la URL;
+las cadenas se envían literalmente y los demás valores como JSON. Las URL guardadas
+no pueden incluir query strings ni fragmentos, y los parámetros no pueden reemplazar
+los de las credenciales. Reutiliza la validación de URL públicas y las credenciales
+del invocador de integraciones. Las operaciones BIGQUERY necesitan un ejecutor
+específico y esta implementación HTTP las rechaza.
+
+El host permite hasta ocho ejecuciones simultáneas, 5.000 filas y 2 MiB de JSON,
+y respeta límites solicitados menores. Los errores internos y respuestas inválidas
+del proveedor producen un error genérico sin datos privados. Todas las respuestas
+incluyen `Cache-Control: no-store`.
+
+El ingreso autentica antes de almacenar el cuerpo o decodificar JSON y limita las solicitudes a 512 KiB, incluidos los cuerpos fragmentados. Los errores generados por el framework también incluyen la cabecera no-store.

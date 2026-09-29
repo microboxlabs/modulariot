@@ -252,6 +252,7 @@ function ServerDashboardEditor({
         </p>
       )}
       <DashboardQuerySession
+        sessionKey={sessionKey}
         client={document.client}
         slug={slug}
         queries={document.config.queries ?? EMPTY_QUERIES}

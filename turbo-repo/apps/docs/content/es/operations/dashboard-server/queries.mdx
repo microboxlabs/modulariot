@@ -172,7 +172,7 @@ Se utiliza mediante `queries: { operations: executor }` o el módulo standalone,
 
 El export npm `createRemotePlanOperationExecutor` consulta un endpoint privado de resolución de planes y después ejecuta BigQuery o HTTP GET en el proceso Node del dashboard. No delega la ejecución de consultas al endpoint. Resolución y ejecución comparten un máximo de 20 segundos y ocho llamadas simultáneas; solicitudes y respuestas de planes se limitan a 512 KiB. Solo se devuelven filas de datos finales.
 
-Para el pod independiente, instale un módulo del operador y seleccione su ruta absoluta con `MIOT_DASHBOARD_OPERATIONS_MODULE`:
+En la imagen oficial, monte el módulo del operador en modo solo lectura dentro de `/app` (por ejemplo `/app/operations.mjs`) y seleccione esa ruta con `MIOT_DASHBOARD_OPERATIONS_MODULE`. La imagen conserva los exports del paquete para usar el import npm desde módulos dentro de `/app`:
 
 ```js
 import { createRemotePlanOperationExecutor } from '@microboxlabs/miot-dashboard-server/queries';

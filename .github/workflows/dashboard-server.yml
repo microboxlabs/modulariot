@@ -94,7 +94,8 @@ jobs:
               dependencies[name] = range;
             }
             require("fs").writeFileSync(out, JSON.stringify({
-              name: "miot-dashboard-server-runtime",
+              name: pkg.name,
+              exports: pkg.exports,
               private: true,
               version: pkg.version,
               type: "module",

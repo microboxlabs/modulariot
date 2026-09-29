@@ -172,7 +172,7 @@ Use it through the same `queries: { operations: executor }` seam or standalone o
 
 The `createRemotePlanOperationExecutor` npm export calls a private plan-resolution endpoint and then executes BigQuery or HTTP GET in the dashboard Node process. It never delegates query execution to that endpoint. Resolution and execution share a maximum 20-second deadline and eight-call limit; plan requests and responses are bounded to 512 KiB. Only final data rows are returned.
 
-For a standalone pod, install an operator-owned module like this and select its absolute path with `MIOT_DASHBOARD_OPERATIONS_MODULE`:
+For the official standalone image, mount an operator-owned module read-only under `/app` (for example `/app/operations.mjs`) and select that absolute path with `MIOT_DASHBOARD_OPERATIONS_MODULE`. The image preserves the package exports so modules within `/app` can use the npm import below:
 
 ```js
 import { createRemotePlanOperationExecutor } from '@microboxlabs/miot-dashboard-server/queries';

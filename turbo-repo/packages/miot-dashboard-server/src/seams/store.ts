@@ -76,6 +76,11 @@ export interface ServerDashboardStore {
   ): Promise<DashboardRecord>;
   list(tenantId: string, scopeId: string): Promise<DashboardSummary[]>;
   remove(ref: ServerDashboardRef): Promise<void>;
+  /** Atomically remove only the exact revision. False means changed or absent. */
+  removeIfRevision?(
+    ref: ServerDashboardRef,
+    revision: number,
+  ): Promise<boolean>;
 
   /**
    * The assignments that apply to this dashboard, as the host resolves them.

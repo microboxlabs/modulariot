@@ -162,6 +162,32 @@ export function createSqlMetadataStore(
     return first(rows);
   }
 
+  async function remove(ref: ServerDashboardRef, revision?: number) {
+    return driver.transaction(async () => {
+      const p = placeholders(driver.dialect);
+      const values = refValues(ref);
+      const predicate =
+        revision === undefined
+          ? ""
+          : ` AND revision = ${driver.dialect.placeholder(4)}`;
+      if (revision !== undefined) values.push(revision);
+      const rows = await driver.all<RawRow>(
+        `DELETE FROM dashboards
+            WHERE tenant_id = ${p()} AND scope_id = ${p()} AND slug = ${p()}${predicate}
+          RETURNING ${COLUMNS}`,
+        values,
+      );
+      if (revision !== undefined && rows.length === 0) return null;
+      const q = placeholders(driver.dialect);
+      await driver.all(
+        `DELETE FROM dashboard_permissions
+            WHERE tenant_id = ${q()} AND scope_id = ${q()} AND slug = ${q()}`,
+        refValues(ref),
+      );
+      return first(rows);
+    });
+  }
+
   return {
     // Wrapped rather than passed through, so `lock` stays internal: it is not
     // part of the seam, and a caller of a method called `read` should not be
@@ -212,24 +238,8 @@ export function createSqlMetadataStore(
       }
     },
 
-    async remove(ref) {
-      return driver.transaction(async () => {
-        const p = placeholders(driver.dialect);
-        const rows = await driver.all<RawRow>(
-          `DELETE FROM dashboards
-            WHERE tenant_id = ${p()} AND scope_id = ${p()} AND slug = ${p()}
-          RETURNING ${COLUMNS}`,
-          refValues(ref),
-        );
-        const q = placeholders(driver.dialect);
-        await driver.all(
-          `DELETE FROM dashboard_permissions
-            WHERE tenant_id = ${q()} AND scope_id = ${q()} AND slug = ${q()}`,
-          refValues(ref),
-        );
-        return first(rows);
-      });
-    },
+    remove: (ref) => remove(ref),
+    removeIfRevision: (ref, revision) => remove(ref, revision),
 
     async getPermissions(ref) {
       const p = placeholders(driver.dialect);

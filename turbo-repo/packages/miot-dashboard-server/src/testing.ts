@@ -187,6 +187,14 @@ export function createMemoryStore(
       return Promise.resolve();
     },
 
+    removeIfRevision(ref, revision) {
+      if (entries.get(key(ref))?.record.revision !== revision)
+        return Promise.resolve(false);
+      entries.delete(key(ref));
+      permissions.delete(key(ref));
+      return Promise.resolve(true);
+    },
+
     getPermissions(ref) {
       return Promise.resolve([...(permissions.get(key(ref)) ?? [])]);
     },

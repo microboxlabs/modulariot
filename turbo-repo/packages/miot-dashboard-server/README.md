@@ -794,3 +794,6 @@ cancellation, and bounds response bytes before parsing. The host owns the
 connection/template/credential catalog and enforces read-only operations, tenant
 predicates and query costs. See the query integration guide above for the wire
 shape and private-network deployment options.
+
+
+Import rollback uses the optional store `removeIfRevision(ref, revision)` operation to atomically delete only the revision created by that import. SQL and memory stores support it, including revisions after deletion/recreation. Custom stores without atomic deletion retain the record and report the assignment failure for operator repair; the importer never falls back to an unsafe read-then-delete sequence.

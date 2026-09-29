@@ -62,6 +62,10 @@ jobs:
         run: npx turbo run build --filter=@microboxlabs/miot-dashboard-server
         working-directory: turbo-repo
 
+      - name: Verify standalone group restrictions
+        run: node --test scripts/cli-groups.test.mjs
+        working-directory: turbo-repo/packages/miot-dashboard-server
+
       - name: Prepare Docker context
         run: |
           set -euo pipefail

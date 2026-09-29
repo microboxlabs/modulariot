@@ -860,3 +860,19 @@ keep their required/default behavior. The host operation schema must allow the
 parameter to be absent; tenant predicates remain host-controlled. Upgrade both
 contract and server to a release containing this option before using it; 0.3.0
 does not implement omission.
+
+### Standalone group restrictions
+
+The standalone CLI applies `createAllowedGroupsPolicy()` before the role policy.
+A dashboard with nonempty `allowedGroups` is hidden from lists and denied for
+reads, writes and saved queries unless the verified identity holds a matching
+group. Missing group claims deny restricted documents; they do not open access.
+Unrestricted dashboards keep their role-based behavior.
+
+Configure `MIOT_DASHBOARD_JWT_GROUPS_CLAIM` to an issuer-controlled array of group
+identifiers. Use globally unique or tenant-qualified identifiers and map legacy
+groups to the new authority before migration. Proxy role assertions alone do not
+grant group membership. This requires no Alfresco runtime. Embedded hosts retain
+control of their policy and should pass `createAllowedGroupsPolicy()` when
+importing documents with this restriction. Existing standalone deployments that
+relied on ignored restrictions must configure trusted claims before upgrading.

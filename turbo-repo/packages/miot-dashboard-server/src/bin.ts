@@ -15,6 +15,7 @@
  */
 
 import { loadConfiguredOperations } from "./server/operations-module";
+import { createAllowedGroupsPolicy } from "./access/allowed-groups";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -314,6 +315,7 @@ async function main(): Promise<void> {
   log({ level: "info", msg: "datasources", state: data.describe });
 
   const running = await serve({
+    policy: createAllowedGroupsPolicy(),
     identity: auth.identity,
     tenants: tenants.tenants,
     scopes: scopes.scopes,

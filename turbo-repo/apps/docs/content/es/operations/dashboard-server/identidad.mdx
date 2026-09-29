@@ -123,3 +123,9 @@ Un tablero puede otorgar un rol adicional a personas o grupos concretos por API 
 | Capacidad para la acción | `403` con `reason: CAPABILITY` |
 
 Una organización en la que la persona no participa y una que no existe responden igual. Así la URL no sirve para descubrir qué organizaciones hay.
+
+## Grupos restringidos de dashboards
+
+El CLI independiente aplica `allowedGroups` cuando la lista no está vacía, antes de calcular las capacidades del rol. Si los grupos verificados faltan o no coinciden, el dashboard se oculta del listado y se deniegan lecturas, escrituras y consultas guardadas. Los dashboards sin restricciones conservan su comportamiento por rol.
+
+Configure `MIOT_DASHBOARD_JWT_GROUPS_CLAIM` con un claim confiable del emisor que contenga identificadores de grupos. Use IDs globalmente únicos o calificados por tenant y mapee explícitamente los grupos anteriores antes de migrar. Las afirmaciones de rol del proxy no otorgan membresía de grupo. No se requiere Alfresco en tiempo de ejecución. Los hosts embebidos deben configurar `createAllowedGroupsPolicy()` al importar estas restricciones. Este cambio restringe el acceso standalone: configure los claims antes de actualizar despliegues que antes ignoraban `allowedGroups`.

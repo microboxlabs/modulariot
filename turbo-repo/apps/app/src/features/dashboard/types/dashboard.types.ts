@@ -126,7 +126,10 @@ export interface DashboardFilterParam {
   label: string;
   /** Filter type */
   type: "text" | "date_range" | "select";
-  /** When true, setting this filter clears all other filters */
+  /**
+   * Setting a nonempty value clears this definition's other keys (date-range
+   * from/to). Unrelated filter definitions are preserved.
+   */
   unique?: boolean;
   /** Predefined options (only for type "select") */
   options?: DashboardFilterOption[];

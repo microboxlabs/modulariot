@@ -90,3 +90,5 @@ Open **Dashboards** in the application navigation (`/app/{lang}/dashboards`). Th
 Editors save explicitly. A revision conflict retains local changes and requires an explicit reload; it never overwrites the newer document automatically. Consumers can view and query but cannot edit or delete. Stored query definitions bind widgets to operations in the existing connection catalog. The browser sends filter values, never credentials or SQL.
 
 Enable the server's operation executor and configure the private host endpoint before validating data. Migrate each legacy widget's data binding to a saved query and compare its results before retiring its old dashboard. Specialized domain widgets still require their own compatibility validation.
+
+Dashboard lists apply the configured per-dashboard visibility policy before returning names. Denied or concurrently deleted dashboards are omitted. Policy and storage errors fail the request instead of returning unfiltered metadata. The built-in role policy grants scope members read access; hosts that use `allowedGroups` must configure `createAllowedGroupsPolicy()`.

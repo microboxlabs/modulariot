@@ -35,6 +35,7 @@ import { MapRef } from "react-map-gl";
 import {
   center_in_bounds,
   flyTo,
+  panTo,
 } from "@/features/map-visualization/map-view-utils";
 import { haversineKm, type LngLat } from "@/features/calendar/utils/distance";
 import {
@@ -169,9 +170,14 @@ export default function MapVisualizationTrip({
     }
   }, [selectedTreatmentIndex]);
 
+  // Set when a positions load moves displayPosition, so follow mode does not
+  // interrupt the fit-to-bounds that runs for the new positions.
+  const skipNextFollow = useRef(false);
+
   // Add effect to update displayPosition when positions change
   useEffect(() => {
     if (positions?.length) {
+      skipNextFollow.current = displayPosition !== positions.length - 1;
       setDisplayPosition(positions.length - 1);
     }
   }, [positions?.length]);
@@ -179,6 +185,19 @@ export default function MapVisualizationTrip({
   const [showStops, setShowStops] = useState(true);
   const [showGeofences, setShowGeofences] = useState(true);
   const [showPulse, setShowPulse] = useState(true);
+
+  // Follow mode: while the camera toggle is on, keep the vehicle centered
+  // whenever its displayed position changes, without changing the zoom.
+  useEffect(() => {
+    if (skipNextFollow.current) {
+      skipNextFollow.current = false;
+      return;
+    }
+    const position = positions?.[displayPosition];
+    if (!camera_movement || !position || !mapRef.current) return;
+    panTo(mapRef.current, [position.longitude, position.latitude]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camera_movement, displayPosition]);
 
   useEffect(() => {
     if (mapRef.current) {
@@ -374,10 +393,9 @@ export default function MapVisualizationTrip({
               info.object?.properties.id ? [info.object?.properties.id] : []
             );
             if (camera_movement && mapRef.current) {
-              flyTo(
+              panTo(
                 mapRef.current,
-                info.object?.geometry.coordinates ?? [0, 0],
-                15
+                info.object?.geometry.coordinates ?? [0, 0]
               );
             }
             if (setSelectedTreatment && setSelectedTreatmentIndex) {
@@ -409,7 +427,7 @@ export default function MapVisualizationTrip({
           data: processedGeofence,
           onClick: (info: any) => {
             if (camera_movement && mapRef.current) {
-              flyTo(mapRef.current, info.object?.coordinates ?? [0, 0], 15);
+              panTo(mapRef.current, info.object?.coordinates ?? [0, 0]);
             }
             return true;
           },
@@ -449,11 +467,10 @@ export default function MapVisualizationTrip({
 
             setHoverInfo(formattedInfo as any);
             if (camera_movement && mapRef.current) {
-              flyTo(
-                mapRef.current,
-                [info.object?.longitude ?? 0, info.object?.latitude ?? 0],
-                15
-              );
+              panTo(mapRef.current, [
+                info.object?.longitude ?? 0,
+                info.object?.latitude ?? 0,
+              ]);
             }
           },
           updateTriggers: {
@@ -522,18 +539,6 @@ export default function MapVisualizationTrip({
               positions={positions ?? []}
               displayPosition={displayPosition}
               setDisplayPosition={setDisplayPosition}
-              onZoom={(e) => {
-                if (positions && mapRef.current) {
-                  flyTo(
-                    mapRef.current,
-                    [
-                      positions[Number(e.target.value)]?.longitude ?? 0,
-                      positions[Number(e.target.value)]?.latitude ?? 0,
-                    ],
-                    15
-                  );
-                }
-              }}
             />
           }
         />

@@ -267,3 +267,38 @@ Treat result objects as immutable and pass an updated value when results change.
 an isolated empty fallback when none is mounted. Neither provider fetches data,
 imports legacy executors or shares results between dashboards. Remount host
 providers on identity or resource changes and cancel their outstanding requests.
+
+## Saved-query results and refresh
+
+`useSavedQueryResults(options)` executes saved server queries and returns a value
+for `PlannerResultsProvider`. Required options are `client`, `sessionKey`, `slug`,
+`queries`, `filters`, `refreshIntervalMs`, `paused`, and `errorMessage`.
+
+- `client` implements `DashboardQueryClient`: `key(slug)` identifies the scoped
+  resource, and `query(slug, queryId, filters, signal)` returns contract query rows.
+  The package HTTP client implements this interface. Custom transports must enforce
+  authentication, server authorization and response validation themselves.
+- `sessionKey` is a non-secret authentication generation identifier. Change it on
+  logout/login or identity changes, even when server and resource URLs stay the same.
+- Only filters declared by each saved query are forwarded. Connection credentials,
+  SQL execution and access checks remain on the dashboard server.
+- At most four queries run concurrently per mounted hook, across request generations.
+  A cancelled transport retains its slot until its promise settles; custom transports
+  must honor cancellation to avoid delaying the replacement session. Duplicate query IDs or variable
+  names produce the host's generic `errorMessage` without executing requests.
+- Resource, session, client, query or declared-filter changes abort obsolete work.
+  Old results are hidden immediately, and late responses are ignored. Unmounting
+  aborts active requests and prevents queued work from starting.
+- Rows normalize contract scalar/array values to strings for existing planner
+  widgets. Null becomes an empty string; arrays become JSON. Schemas derive from
+  returned columns, falling back to each query's declared schema for empty results.
+
+A positive finite `refreshIntervalMs` enables polling. Polls retain displayed rows
+while refreshing and skip ticks while requests are in flight. `paused` disables
+periodic refresh; it does not disable initial loads or query/filter changes.
+Hidden tabs pause polling and refresh when visible again. Failures expose only
+`errorMessage`, which the host should translate and keep free of upstream details.
+
+`usePollingInterval(callback, intervalMs)` is also exported. It invokes the latest
+callback, pauses while hidden, and removes timers/listeners on cleanup. Zero,
+negative, nonfinite and overflowing intervals (above 2,147,483,647 ms) disable polling.

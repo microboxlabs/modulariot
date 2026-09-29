@@ -11,15 +11,13 @@ import { usePlannerContext } from "./planner-context";
 
 const state = vi.hoisted(() => ({
   filters: {} as Record<string, string>,
-  poll: () => {},
-}));
-vi.mock("../hooks/use-polling-interval", () => ({
-  usePollingInterval: (callback: () => void) => {
-    state.poll = callback;
-  },
+  refreshInterval: 0,
 }));
 vi.mock("./dashboard-context", () => ({
-  useDashboard: () => ({ refreshInterval: 0, editMode: false }),
+  useDashboard: () => ({
+    refreshInterval: state.refreshInterval,
+    editMode: false,
+  }),
 }));
 vi.mock("./dashboard-filters-context", () => ({
   useDashboardFilters: () => ({ activeFilters: state.filters }),
@@ -36,6 +34,7 @@ const query: DashboardQueryDefinition = {
 };
 beforeEach(() => {
   state.filters = {};
+  state.refreshInterval = 0;
 });
 function setup(queries = [query]) {
   const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
@@ -46,6 +45,7 @@ function setup(queries = [query]) {
   const client = createDashboardServerClient("one", fetcher);
   const wrapper = ({ children }: Readonly<PropsWithChildren>) => (
     <DashboardQuerySession
+      sessionKey="test-session"
       client={client}
       slug="fleet"
       queries={queries}
@@ -165,24 +165,38 @@ it("rejects ambiguous variable bindings before executing any query", async () =>
 });
 
 it("preserves displayed rows while polling the same query", async () => {
-  const { fetcher, wrapper } = setup();
-  const { result } = renderHook(usePlannerContext, { wrapper });
-  await waitFor(() =>
-    expect(result.current.results.get("billing")?.loading).toBe(false)
-  );
-  const previous = result.current.results.get("billing");
-  let release!: (response: Response) => void;
-  fetcher.mockImplementationOnce(
-    () =>
-      new Promise((resolve) => {
-        release = resolve;
-      })
-  );
-  act(() => state.poll());
-  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
-  expect(result.current.results.get("billing")).toBe(previous);
-  await act(async () => {
-    release(Response.json({ data: { rows: [{ cost: 4 }] } }));
-  });
-  expect(result.current.results.get("billing")?.rows).toEqual([{ cost: "4" }]);
+  vi.useFakeTimers();
+  const hidden = vi.spyOn(document, "hidden", "get").mockReturnValue(false);
+  try {
+    state.refreshInterval = 1;
+    const { fetcher, wrapper } = setup();
+    const { result, unmount } = renderHook(usePlannerContext, { wrapper });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    const previous = result.current.results.get("billing");
+    expect(previous?.loading).toBe(false);
+    let release!: (response: Response) => void;
+    fetcher.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(result.current.results.get("billing")).toBe(previous);
+    await act(async () => {
+      release(Response.json({ data: { rows: [{ cost: 4 }] } }));
+    });
+    expect(result.current.results.get("billing")?.rows).toEqual([
+      { cost: "4" },
+    ]);
+    unmount();
+  } finally {
+    hidden.mockRestore();
+    vi.useRealTimers();
+  }
 });

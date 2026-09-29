@@ -24,3 +24,10 @@ export {
   type PlannerContextValue,
   type PlannerQueryResult,
 } from "./react/planner-results";
+
+export {
+  useSavedQueryResults,
+  type SavedQueryOptions,
+  type DashboardQueryClient,
+} from "./react/use-saved-query-results";
+export { usePollingInterval } from "./react/use-polling-interval";

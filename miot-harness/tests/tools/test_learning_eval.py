@@ -52,7 +52,9 @@ async def _runner(
     return HarnessRunRecord(run_id=run_id_override or "r", status="completed", answer=answer)
 
 
-async def _judge(question: str, expectation: str, answer: str) -> tuple[float | None, str]:
+async def _judge(
+    question: str, expectation: str, answer: str, model: str | None
+) -> tuple[float | None, str]:
     return (5.0, "right") if answer == "live_trip" else (0.0, "wrong")
 
 
@@ -151,3 +153,96 @@ async def test_too_many_cases_are_refused_not_dropped(tmp_path: Path) -> None:
     tool, ctx = _tool(tmp_path, []), _ctx()
     with pytest.raises(ValueError, match="at most 50 cases"):
         await tool.call(ctx, value, lambda e: None)
+
+
+def _session_tool(tmp_path: Path, requests: list[UserRequest]) -> Any:
+    """Answers `live_trip` only when the run sees the `cargado` rule saying so."""
+
+    async def runner(request: UserRequest, **kw: Any) -> HarnessRunRecord:
+        requests.append(request)
+        overlay = {c.id: c for c in request.to_context().knowledge_overlay}
+        stored = _store(tmp_path).read("rule", "cargado")["content"]
+        rule = overlay["cargado"].content if "cargado" in overlay else stored
+        answer = "live_trip" if "live_trip" in rule else "unknown"
+        return HarnessRunRecord(
+            run_id=kw.get("run_id_override") or "r", status="completed", answer=answer
+        )
+
+    engine = EvaluationEngine(
+        runner=runner, judge=_judge, results_dir=lambda t: tmp_path / "results" / t
+    )
+    return run_learning_eval_tool(lambda: engine, lambda tenant: _store(tmp_path), max_cases=5)
+
+
+@pytest.mark.asyncio
+async def test_without_changes_compares_before_and_after_this_sessions_changes(
+    tmp_path: Path,
+) -> None:
+    store = _store(tmp_path)
+    earlier = {"conversation_id": "conv-0"}
+    session = {"conversation_id": "conv-1"}
+    store.put("rule", "cargado", title="Cargado", content="Loaded = any trip.", provenance=earlier)
+    store.put(
+        "rule", "cargado", title="Cargado", content="Loaded = live_trip rows.", provenance=session
+    )
+    store.put(
+        "rule", "nuevo", title="Nuevo", content="Created in this session.", provenance=session
+    )
+    _save_case(store, "mine", "How many trips were loaded today?", "conv-1")
+    requests: list[UserRequest] = []
+
+    out = await _session_tool(tmp_path, requests).call(
+        _ctx(), RunLearningEvalInput(), lambda e: None
+    )
+
+    baseline = next(r for r in requests if "baseline" in r.thread_id)
+    candidate = next(r for r in requests if "candidate" in r.thread_id)
+    undo = {c.id: c for c in baseline.to_context().knowledge_overlay}
+    assert set(undo) == {"cargado", "nuevo"}
+    assert (undo["cargado"].op, undo["cargado"].content) == ("upsert", "Loaded = any trip.")
+    assert undo["nuevo"].op == "delete"
+    assert candidate.to_context().knowledge_overlay == ()
+    assert out.summary is not None
+    assert (out.summary["baseline_avg"], out.summary["candidate_avg"]) == (0.0, 5.0)
+    assert out.summary["compared"] is True
+    assert out.summary["improved"] == 1
+
+
+@pytest.mark.asyncio
+async def test_explicit_changes_skip_the_session_baseline(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.put(
+        "rule", "cargado", content="Loaded = any trip.", provenance={"conversation_id": "conv-1"}
+    )
+    _save_case(store, "mine", "Question", "conv-1")
+    change = KnowledgeChange(layer="rule", id="cargado", content="Loaded = live_trip rows.")
+    requests: list[UserRequest] = []
+
+    out = await _session_tool(tmp_path, requests).call(
+        _ctx(), RunLearningEvalInput(changes=[change]), lambda e: None
+    )
+
+    baseline = next(r for r in requests if "baseline" in r.thread_id)
+    assert baseline.to_context().knowledge_overlay == ()
+    assert out.summary is not None
+    assert (out.summary["baseline_avg"], out.summary["candidate_avg"]) == (0.0, 5.0)
+
+
+@pytest.mark.asyncio
+async def test_no_session_changes_runs_once_and_says_so(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.put(
+        "rule", "cargado", content="Loaded = live_trip rows.", provenance={"conversation_id": "c0"}
+    )
+    _save_case(store, "mine", "Question", "conv-1")
+    requests: list[UserRequest] = []
+
+    out = await _session_tool(tmp_path, requests).call(
+        _ctx(), RunLearningEvalInput(), lambda e: None
+    )
+
+    assert len(requests) == 1
+    assert out.summary is not None
+    assert out.summary["compared"] is False
+    assert "no before/after" in out.summary["note"]
+    assert "no before/after" in out.message

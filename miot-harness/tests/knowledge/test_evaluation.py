@@ -92,7 +92,9 @@ class FakeRunner:
             self.active -= 1
 
 
-async def fake_judge(question: str, expectation: str, answer: str) -> tuple[float | None, str]:
+async def fake_judge(
+    question: str, expectation: str, answer: str, model: str | None
+) -> tuple[float | None, str]:
     return (5.0, "mentions live_trip") if "live_trip" in answer else (1.0, "no data")
 
 
@@ -262,7 +264,12 @@ async def test_wait_returns_a_running_evaluation_after_its_timeout(tmp_path: Pat
 
 @pytest.mark.asyncio
 async def test_a_judge_error_leaves_the_answer_unscored(tmp_path: Path) -> None:
-    async def broken(question: str, expectation: str, answer: str) -> tuple[float | None, str]:
+    tried: list[str | None] = []
+
+    async def broken(
+        question: str, expectation: str, answer: str, model: str | None
+    ) -> tuple[float | None, str]:
+        tried.append(model)
         raise RuntimeError("model down")
 
     engine = _engine(tmp_path, FakeRunner(), judge=broken)
@@ -270,6 +277,66 @@ async def test_a_judge_error_leaves_the_answer_unscored(tmp_path: Path) -> None:
     run = doc["results"][0]["candidate"]
     assert (run["score"], run["reason"]) == (None, "judge failed: model down")
     assert doc["status"] == "done"
+    # The judge and the run share one model, so it is tried once.
+    assert tried == ["default-model"]
+
+
+@pytest.mark.asyncio
+async def test_the_judge_defaults_to_the_evaluation_model(tmp_path: Path) -> None:
+    used: list[str | None] = []
+
+    async def judge(
+        question: str, expectation: str, answer: str, model: str | None
+    ) -> tuple[float | None, str]:
+        used.append(model)
+        return 4.0, "ok"
+
+    engine = _engine(tmp_path, FakeRunner(), judge=judge)
+    doc = await _finish(
+        engine, "t1", engine.start("t1", EvaluationRequest(model="m1", cases=_cases(1)))
+    )
+    assert used == ["m1"]
+    assert doc["judge_model"] == "m1"
+    assert doc["results"][0]["candidate"]["judge_model"] == "m1"
+
+
+@pytest.mark.asyncio
+async def test_a_failing_judge_model_falls_back_to_the_run_model(tmp_path: Path) -> None:
+    used: list[str | None] = []
+
+    async def judge(
+        question: str, expectation: str, answer: str, model: str | None
+    ) -> tuple[float | None, str]:
+        used.append(model)
+        if model == "judge-x":
+            raise RuntimeError("credit balance is too low")
+        return 3.0, "partly"
+
+    engine = _engine(tmp_path, FakeRunner(), judge=judge, judge_model="judge-x")
+    doc = await _finish(
+        engine, "t1", engine.start("t1", EvaluationRequest(model="m1", cases=_cases(1)))
+    )
+    run = doc["results"][0]["candidate"]
+    assert used == ["judge-x", "m1"]
+    assert (run["score"], run["reason"], run["judge_model"]) == (3.0, "partly", "m1")
+    assert doc["judge_model"] == "judge-x"
+
+
+@pytest.mark.asyncio
+async def test_baseline_changes_overlay_only_the_baseline(tmp_path: Path) -> None:
+    undo = KnowledgeChange(layer="rule", id="cargado", op="delete")
+    runner = FakeRunner()
+    engine = _engine(tmp_path, runner)
+    doc = await _finish(
+        engine,
+        "t1",
+        engine.start("t1", EvaluationRequest(cases=_cases(1), baseline_changes=[undo])),
+    )
+    baseline, candidate = sorted(runner.requests, key=lambda r: "candidate" in r.thread_id)
+    assert baseline.to_context().knowledge_overlay == (undo,)
+    assert candidate.to_context().knowledge_overlay == ()
+    assert doc["progress"] == {"done": 2, "total": 2}
+    assert doc["baseline_changes"] == [undo.model_dump()]
 
 
 @pytest.mark.parametrize(
@@ -303,9 +370,16 @@ async def test_build_judge_scores_through_the_model() -> None:
             prompts.append(messages[1].content)
             return AIMessage(content='{"score": 5, "reason": "exact"}')
 
-    judge = build_judge(lambda: Model())  # type: ignore[arg-type, return-value]
-    assert await judge("How many?", "12", "There are 12.") == (5.0, "exact")
+    names: list[str | None] = []
+
+    def model_for(name: str | None) -> Any:
+        names.append(name)
+        return Model()
+
+    judge = build_judge(model_for)
+    assert await judge("How many?", "12", "There are 12.", "m1") == (5.0, "exact")
     assert "Expectation:\n12" in prompts[0]
+    assert names == ["m1"]
 
 
 def test_answer_text_reads_blocks_and_plain_text() -> None:

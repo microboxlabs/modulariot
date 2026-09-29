@@ -7,8 +7,10 @@ from pydantic import ValidationError
 
 from miot_harness.config import (
     HarnessSettings,
+    ModelNotConfiguredError,
     get_settings,
     load_dotenv_into_environ,
+    required_model,
 )
 
 
@@ -32,7 +34,7 @@ def test_default_datasource_and_agents_settings():
     assert settings.agents_agent_loop_max_turns == 12
     assert settings.agents_agent_loop_effort == "high"
     assert settings.agents_agent_loop_thinking_budget == 4096
-    assert settings.agents_summarizer_model == "claude-haiku-4-5"
+    assert settings.agents_summarizer_model is None
     assert settings.conversation_keep_recent_turns == 2
 
 
@@ -295,10 +297,14 @@ def test_load_dotenv_multi_file_later_wins(tmp_path, monkeypatch):
     assert os.environ["MIOT_HARNESS_B_T"] == "base"
 
 
-def test_agent_loop_settings_defaults(monkeypatch):
+def test_no_model_has_a_built_in_default():
     s = HarnessSettings()
-    assert s.agents_agent_loop_model == "claude-sonnet-4-6"
-    assert s.agents_advisor_model == "claude-opus-4-8"
+    assert s.agents_agent_loop_model is None
+    assert s.agents_advisor_model is None
+    assert s.agents_workhorse_model is None
+    assert s.agents_summarizer_model is None
+    assert s.knowledge_distiller_model is None
+    assert s.web_search_model is None
     assert s.agents_agent_loop_tool_result_max_chars == 6000
 
 
@@ -328,7 +334,7 @@ def test_knowledge_distiller_defaults_are_off():
     settings = HarnessSettings()
     assert settings.knowledge_distiller_enabled is False
     assert settings.knowledge_auto_promote_enabled is False
-    assert settings.knowledge_distiller_model == "claude-sonnet-4-6"
+    assert settings.knowledge_distiller_model is None
     assert settings.knowledge_card_decay_days == 90
     assert settings.knowledge_auto_promote_min_confidence == 0.9
 
@@ -347,3 +353,10 @@ def test_knowledge_decay_days_rejects_non_positive(monkeypatch):
     monkeypatch.setenv("MIOT_HARNESS_KNOWLEDGE_CARD_DECAY_DAYS", "0")
     with pytest.raises(ValidationError):
         HarnessSettings()
+
+
+def test_required_model_names_the_env_var_when_unset():
+    assert required_model("claude-haiku-4-5", "MIOT_HARNESS_X_MODEL") == "claude-haiku-4-5"
+    for unset in (None, ""):
+        with pytest.raises(ModelNotConfiguredError, match="MIOT_HARNESS_X_MODEL"):
+            required_model(unset, "MIOT_HARNESS_X_MODEL")

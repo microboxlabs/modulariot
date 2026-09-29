@@ -122,6 +122,7 @@ def test_dev_mode_no_signing_key_accepts_body_tenant() -> None:
     """
     app = create_app()
     with TestClient(app) as client:
+        app.state.harness.agent_loop = None  # runs answer without a model
         resp = client.post(
             "/runs",
             json={
@@ -194,6 +195,7 @@ def test_signed_mode_accepts_valid_header_and_ignores_body_identity(
         "test-secret",
     )
     with TestClient(app) as client:
+        app.state.harness.agent_loop = None  # runs answer without a model
         resp = client.post(
             "/runs",
             json={

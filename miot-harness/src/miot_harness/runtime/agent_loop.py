@@ -53,7 +53,7 @@ from miot_harness.agents.chat_models import response_text
 from miot_harness.agents.context_windows import context_window
 from miot_harness.agents.model_providers import Provider, ProviderRegistry, is_anthropic
 from miot_harness.agents.native_tools import build_native_tools
-from miot_harness.config import HarnessSettings
+from miot_harness.config import HarnessSettings, ModelNotConfiguredError
 from miot_harness.context_skills.registry import ContextSkillsBundle
 from miot_harness.datasource.provider import DataSourceProfile
 from miot_harness.observability.provenance import ProvenanceEntry, ProvenanceLog
@@ -85,6 +85,11 @@ from miot_harness.utils.truncation import excerpt_for_prompt
 logger = logging.getLogger(__name__)
 
 _EPHEMERAL_CACHE = {"type": "ephemeral"}
+NO_DEFAULT_MODEL = (
+    "no conversation model: the run names none and no default is configured; "
+    "set MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL or mark a default model in the "
+    "platform model providers"
+)
 
 _LOAD_SKILL_TOOL = "load_skill"
 
@@ -1318,7 +1323,7 @@ class AgentLoopRunners:
     def __init__(
         self,
         *,
-        default_model: str,
+        default_model: str | None,
         models: tuple[str, ...] | list[str],
         build_model: Callable[..., BaseChatModel],
         registry: ToolRegistry,
@@ -1346,7 +1351,7 @@ class AgentLoopRunners:
         self._runners: dict[str, AgentLoopRunner] = {}
 
     @property
-    def default_model(self) -> str:
+    def default_model(self) -> str | None:
         """The platform owner's default model when set, else the configured one."""
         chosen = self._providers().default_model() if self._providers else None
         return chosen or self._configured_default
@@ -1354,7 +1359,8 @@ class AgentLoopRunners:
     @property
     def models(self) -> tuple[str, ...]:
         offered = self._providers().offered() if self._providers else []
-        return tuple(dict.fromkeys([self.default_model, *self._configured, *offered]))
+        default = [self.default_model] if self.default_model else []
+        return tuple(dict.fromkeys([*default, *self._configured, *offered]))
 
     def allowed(self, model: str | None) -> bool:
         return model is None or model in self.models
@@ -1365,6 +1371,8 @@ class AgentLoopRunners:
         """A trainer's runner offers the trainer tools too, so it has its own
         cached prefix."""
         name = self.default_model if model is None else model
+        if name is None:
+            raise ModelNotConfiguredError(NO_DEFAULT_MODEL)
         if name not in self.models:
             raise ValueError(f"model {name!r} is not in the agent loop allowlist")
         if self._providers is not None:

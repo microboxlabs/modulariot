@@ -37,7 +37,15 @@ def _ctx(run_id: str = "run_1") -> HarnessContext:
     return HarnessContext(thread_id="t", tenant_id="acme", user_id="u1", run_id=run_id)
 
 
+_SEARCH_MODELS = {
+    "llmgateway": "llmgateway:gpt-5.6-luna",
+    "anthropic": "anthropic:claude-haiku-4-5",
+    "openai": "openai:gpt-5-mini",
+}
+
+
 def _searcher(names: tuple[str, ...], handler, **settings: Any) -> WebSearcher:
+    settings.setdefault("web_search_model", _SEARCH_MODELS.get(names[-1]))
     return WebSearcher(
         providers=lambda: _registry(*names),
         settings=HarnessSettings(**settings),
@@ -45,18 +53,18 @@ def _searcher(names: tuple[str, ...], handler, **settings: Any) -> WebSearcher:
     )
 
 
-def test_the_first_configured_provider_that_searches_is_used() -> None:
-    settings = HarnessSettings()
-    assert pick_route(_registry("deepseek"), settings) is None
-    assert pick_route(_registry("openai", "anthropic"), settings).name == (
-        "anthropic:claude-haiku-4-5"
-    )
-    assert pick_route(_registry("openai", "anthropic", "llmgateway"), settings).name == (
-        "llmgateway:gpt-5.6-luna"
-    )
+def test_the_route_is_the_configured_model_and_nothing_else() -> None:
     chosen = HarnessSettings(web_search_model="openai:gpt-5-nano")
     assert pick_route(_registry("llmgateway", "openai"), chosen).name == "openai:gpt-5-nano"
-    assert pick_route(_registry("llmgateway"), chosen) is None
+    with pytest.raises(WebSearchError, match="openai provider is not configured"):
+        pick_route(_registry("llmgateway", "anthropic"), chosen)
+    with pytest.raises(WebSearchError, match="needs an llmgateway, anthropic or openai model"):
+        pick_route(
+            _registry("deepseek"), HarnessSettings(web_search_model="deepseek:deepseek-chat")
+        )
+    for unset in (HarnessSettings(), HarnessSettings(web_search_model="")):
+        with pytest.raises(WebSearchError, match="set MIOT_HARNESS_WEB_SEARCH_MODEL"):
+            pick_route(_registry("llmgateway", "anthropic", "openai"), unset)
 
 
 @pytest.mark.asyncio
@@ -219,15 +227,18 @@ async def test_a_provider_error_and_the_run_limit_are_errors() -> None:
     await searcher.search(_ctx("run_b"), "q", lambda _e: None)
 
 
-def test_the_tool_is_offered_only_when_a_provider_can_search() -> None:
+@pytest.mark.asyncio
+async def test_without_a_search_model_the_tool_answers_with_an_error() -> None:
     def never(request: httpx.Request) -> httpx.Response:
         raise AssertionError("no call expected")
 
-    for names, offered in ((("deepseek",), False), (("deepseek", "anthropic"), True)):
-        registry = ToolRegistry()
-        registry.register(web_search_tool(_searcher(names, never)))
-        tools = {t["name"] for t in build_native_tools(registry, profile=FAKE_PROFILE)}
-        assert ("web_search" in tools) is offered
+    searcher = _searcher(("anthropic", "openai"), never, web_search_model=None)
+    registry = ToolRegistry()
+    registry.register(web_search_tool(searcher))
+    tools = {t["name"] for t in build_native_tools(registry, profile=FAKE_PROFILE)}
+    assert "web_search" in tools
+    with pytest.raises(WebSearchError, match="set MIOT_HARNESS_WEB_SEARCH_MODEL"):
+        await searcher.search(_ctx(), "q", lambda _e: None)
 
 
 @pytest.mark.asyncio

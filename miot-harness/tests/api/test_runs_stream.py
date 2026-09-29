@@ -82,6 +82,7 @@ def test_post_runs_unchanged_returns_harness_run_record() -> None:
 
     app = create_app()
     with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
+        app.state.harness.agent_loop = None  # runs answer without a model
         resp = client.post("/runs", json={"message": "hi"})
     assert resp.status_code == 200
     body = resp.json()
@@ -99,6 +100,7 @@ def test_stream_replays_completed_run() -> None:
 
     app = create_app()
     with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
+        app.state.harness.agent_loop = None  # runs answer without a model
         post = client.post("/runs", json={"message": "hi"})
         run_id = post.json()["run_id"]
 

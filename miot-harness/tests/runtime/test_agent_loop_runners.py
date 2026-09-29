@@ -7,7 +7,8 @@ from typing import Any
 import pytest
 from langchain_core.messages import AIMessage
 
-from miot_harness.config import HarnessSettings
+from miot_harness.agents.model_providers import ModelSpec, Provider, ProviderRegistry
+from miot_harness.config import HarnessSettings, ModelNotConfiguredError
 from miot_harness.runtime.agent_loop import AgentLoopRunners
 from miot_harness.runtime.context import UserRequest
 from tests.fixtures.fake_provider import FAKE_PROFILE
@@ -55,6 +56,46 @@ async def test_run_dispatches_on_the_context_model_and_builds_once() -> None:
 def test_unknown_model_is_refused_even_by_a_direct_caller() -> None:
     with pytest.raises(ValueError, match="allowlist"):
         _runners([]).runner_for("claude-haiku-4-5")
+
+
+def test_without_a_default_a_run_that_names_no_model_fails() -> None:
+    runners = AgentLoopRunners(
+        default_model=None,
+        models=["claude-sonnet-4-6"],
+        build_model=lambda name: ScriptedModel([AIMessage(content=name)]),
+        registry=_registry(),
+        settings=HarnessSettings(agents_agent_loop_max_turns=3),
+        profile=FAKE_PROFILE,
+    )
+    assert runners.default_model is None
+    assert runners.models == ("claude-sonnet-4-6",)
+    with pytest.raises(ModelNotConfiguredError, match="MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL"):
+        runners.runner_for(None)
+    assert runners.runner_for("claude-sonnet-4-6") is not None
+
+
+def test_the_platform_default_model_serves_runs_that_name_none() -> None:
+    offered = ProviderRegistry(
+        [
+            Provider(
+                "deepseek",
+                "openai_compatible",
+                "sk-x",
+                models=(ModelSpec("deepseek-chat", default=True),),
+            )
+        ]
+    )
+    runners = AgentLoopRunners(
+        default_model=None,
+        models=[],
+        build_model=lambda name: ScriptedModel([AIMessage(content=name)]),
+        registry=_registry(),
+        settings=HarnessSettings(agents_agent_loop_max_turns=3),
+        profile=FAKE_PROFILE,
+        providers=lambda: offered,
+    )
+    assert runners.default_model == "deepseek:deepseek-chat"
+    assert runners.runner_for(None) is runners.runner_for("deepseek:deepseek-chat")
 
 
 def test_empty_model_name_is_refused_not_defaulted() -> None:

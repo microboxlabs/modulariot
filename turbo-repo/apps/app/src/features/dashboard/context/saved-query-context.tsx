@@ -79,10 +79,34 @@ function QueryResults({
   useEffect(() => {
     const controller = new AbortController();
     running.current = true;
-    const pending = new Map<string, PlannerQueryResult>();
-    for (const query of queries)
-      pending.set(query.variableName, { rows: [], loading: true, error: null });
-    setState({ key: requestKey, results: pending });
+    if (
+      new Set(queries.map((query) => query.variableName)).size !==
+        queries.length ||
+      new Set(queries.map((query) => query.id)).size !== queries.length
+    ) {
+      running.current = false;
+      setState({
+        key: requestKey,
+        results: new Map(
+          queries.map((query) => [
+            query.variableName,
+            { rows: [], loading: false, error: errorMessage },
+          ])
+        ),
+      });
+      return () => controller.abort();
+    }
+    setState((previous) => {
+      if (previous?.key === requestKey) return previous;
+      const results = new Map<string, PlannerQueryResult>();
+      for (const query of queries)
+        results.set(query.variableName, {
+          rows: [],
+          loading: true,
+          error: null,
+        });
+      return { key: requestKey, results };
+    });
     let next = 0;
     async function worker() {
       while (next < queries.length && !controller.signal.aborted) {

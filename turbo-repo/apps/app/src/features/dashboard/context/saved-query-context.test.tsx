@@ -9,7 +9,15 @@ import {
 } from "./saved-query-context";
 import { usePlannerContext } from "./planner-context";
 
-const state = vi.hoisted(() => ({ filters: {} as Record<string, string> }));
+const state = vi.hoisted(() => ({
+  filters: {} as Record<string, string>,
+  poll: () => {},
+}));
+vi.mock("../hooks/use-polling-interval", () => ({
+  usePollingInterval: (callback: () => void) => {
+    state.poll = callback;
+  },
+}));
 vi.mock("./dashboard-context", () => ({
   useDashboard: () => ({ refreshInterval: 0, editMode: false }),
 }));
@@ -30,13 +38,11 @@ beforeEach(() => {
   state.filters = {};
 });
 function setup(queries = [query]) {
-  const fetcher = vi
-    .fn<typeof fetch>()
-    .mockResolvedValue(
-      Response.json({
-        data: { rows: [{ cost: 3, empty: null, values: [1, "x"] }] },
-      })
-    );
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+    Response.json({
+      data: { rows: [{ cost: 3, empty: null, values: [1, "x"] }] },
+    })
+  );
   const client = createDashboardServerClient("one", fetcher);
   const wrapper = ({ children }: Readonly<PropsWithChildren>) => (
     <DashboardQuerySession
@@ -66,7 +72,7 @@ describe("saved query widget provider", () => {
     );
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher.mock.calls[0]?.[0]).toBe(
-      "/api/dashboards/fleet/queries/costs?org=one"
+      "/app/api/dashboards/fleet/queries/costs?org=one"
     );
     expect(fetcher.mock.calls[0]?.[1]?.body).toBe(
       JSON.stringify({ filters: { days: "30" } })
@@ -145,4 +151,38 @@ describe("saved query widget provider", () => {
     );
     expect(result.current.results.get("billing")?.rows).toEqual([]);
   });
+});
+
+it("rejects ambiguous variable bindings before executing any query", async () => {
+  const { fetcher, wrapper } = setup([query, { ...query, id: "other" }]);
+  const { result } = renderHook(usePlannerContext, { wrapper });
+  await waitFor(() =>
+    expect(result.current.results.get("billing")?.error).toBe(
+      "Translated error"
+    )
+  );
+  expect(fetcher).not.toHaveBeenCalled();
+});
+
+it("preserves displayed rows while polling the same query", async () => {
+  const { fetcher, wrapper } = setup();
+  const { result } = renderHook(usePlannerContext, { wrapper });
+  await waitFor(() =>
+    expect(result.current.results.get("billing")?.loading).toBe(false)
+  );
+  const previous = result.current.results.get("billing");
+  let release!: (response: Response) => void;
+  fetcher.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      })
+  );
+  act(() => state.poll());
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+  expect(result.current.results.get("billing")).toBe(previous);
+  await act(async () => {
+    release(Response.json({ data: { rows: [{ cost: 4 }] } }));
+  });
+  expect(result.current.results.get("billing")?.rows).toEqual([{ cost: "4" }]);
 });

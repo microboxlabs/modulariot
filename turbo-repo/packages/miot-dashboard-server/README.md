@@ -615,6 +615,11 @@ Dashboard lists apply the same per-dashboard visibility policy as loads. Hidden 
 Override with a custom `CapabilityPolicy` if your role model differs. A policy
 can only restrict, never grant more than the identity allows.
 
+Creating a dashboard requires Contributor-or-higher scope membership and
+`canEdit` from both the document policy and the identity. The default policy
+treats a new document as owned by its prospective creator, so Contributors can
+create without bypassing custom policy or credential restrictions.
+
 ### Errors
 
 One envelope, from every adapter:

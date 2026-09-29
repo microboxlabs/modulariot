@@ -198,7 +198,7 @@ function dashboardActionAllowed(
   scopeRole: DashboardRole,
 ): boolean {
   if (action === "dashboard.save" && access.record === null) {
-    return roleAtLeast(scopeRole, "Contributor");
+    return roleAtLeast(scopeRole, "Contributor") && access.capabilities.canEdit;
   }
   const { capability } = ACTION_RULES[action];
   return capability === null || access.capabilities[capability];

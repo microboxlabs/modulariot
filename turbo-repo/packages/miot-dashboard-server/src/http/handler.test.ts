@@ -25,7 +25,7 @@ import { sampleConfig } from "../test/fixtures";
 
 const MEMBERSHIPS: Memberships = {
   acme: {
-    ops: { alice: "Coordinator", con: "Consumer", carl: "Contributor" },
+    ops: { alice: "Coordinator", con: "Consumer", carl: "Contributor", capped: "Coordinator" },
     // Dana is in both tenants on one credential, with a different role in
     // each. Her own scope, so her writes do not move what other tests read.
     reports: { dana: "Coordinator" },
@@ -61,6 +61,7 @@ interface Mode {
 }
 
 function buildOptions() {
+  const identity = createInsecureHeaderIdentityResolver();
   const store = createMemoryStore({
     seed: seedFor(),
     now: () => new Date("2026-01-01T00:00:00.000Z"),
@@ -68,7 +69,14 @@ function buildOptions() {
   return {
     store,
     options: {
-      identity: createInsecureHeaderIdentityResolver(),
+      identity: {
+        async resolve(request: Request) {
+          const principal = await identity.resolve(request);
+          return principal?.userId === "capped"
+            ? { ...principal, capabilities: { ...principal.capabilities, canEdit: false } }
+            : principal;
+        },
+      },
       tenants: createMemoryTenantAuthority(MEMBERSHIPS),
       scopes: createMemoryScopeAuthority(MEMBERSHIPS),
       store,
@@ -371,6 +379,18 @@ describe.each([
     await expect(response.json()).resolves.toMatchObject({
       reason: "CAPABILITY",
     });
+  });
+
+  it("denies creation with a read-only credential without writing the store", async () => {
+    const slug = "capped-create";
+    const response = await mode().fetch(
+      `/tenants/acme/scopes/ops/dashboards/${slug}`,
+      withBody(asUser("capped"), "PUT", sampleConfig()),
+    );
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ reason: "CAPABILITY" });
+    await expect(mode().store.load({ tenantId: "acme", scopeId: "ops", slug }))
+      .resolves.toBeNull();
   });
 
   it("saves, bumps the revision, and reports a stale write as 409", async () => {

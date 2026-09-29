@@ -226,7 +226,7 @@ describe("usePlannerContext", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => {
       renderHook(() => usePlannerContext());
-    }).toThrow("usePlannerContext must be used within a PlannerProvider");
+    }).toThrow("usePlannerContext must be used within a PlannerResultsProvider");
     spy.mockRestore();
   });
 });

@@ -403,8 +403,9 @@ def ws_write_tool(store_for: StoreFor) -> HarnessTool[Any, WsChangeOutput]:
             "Create or replace a workspace file with `content` (the whole file, "
             "frontmatter included). The trainer approves the diff first. A skill is "
             "skills/<id>/SKILL.md with frontmatter `name` and `description`; a rule is "
-            "rules/<id>.md with frontmatter `title`; an eval is evals/<id>.yaml with "
-            "`question`, `expectation` and optional `expect_skill` / `expect_no_skill`. "
+            "rules/<id>.md with frontmatter `title`; an eval is evals/<id>.yaml, one "
+            "YAML mapping with top-level `question`, `expectation` (text, not a nested "
+            "case) and optional `expect_skill`, `expect_no_skill`, `checks`. "
             "Ids are lowercase slugs."
         ),
     )

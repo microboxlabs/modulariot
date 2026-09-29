@@ -45,7 +45,8 @@ class RunLearningEvalInput(BaseModel):
         max_length=MAX_OVERLAY_CHANGES,
         description=(
             "Knowledge changes to test, not saved: each case is answered without "
-            "and with them. Omit to score the current knowledge once."
+            "and with them. Omit to compare the knowledge before and after the "
+            "changes already saved in this conversation."
         ),
     )
 
@@ -110,7 +111,13 @@ def _case_line(result: dict[str, Any]) -> dict[str, Any]:
     return line
 
 
-def _message(doc: dict[str, Any]) -> str:
+_SINGLE_RUN = (
+    "No knowledge changes were saved in this conversation and none were passed, so "
+    "each case was answered once with the current knowledge: there is no before/after."
+)
+
+
+def _message(doc: dict[str, Any], compared: bool) -> str:
     if doc["status"] == "running":
         return (
             "The evaluation is still running; the card shows it when it ends. "
@@ -118,7 +125,26 @@ def _message(doc: dict[str, Any]) -> str:
         )
     if doc["status"] == "failed":
         return f"The evaluation failed: {doc.get('error') or 'unknown error'}"
+    if not compared:
+        return f"The evaluation ended. {_SINGLE_RUN} Sum up the scores."
     return "The evaluation ended. Sum up what improved or regressed, and why."
+
+
+def _sides(
+    store: KnowledgeStore, value: RunLearningEvalInput, ctx: HarnessContext
+) -> tuple[list[KnowledgeChange], list[KnowledgeChange]]:
+    """(baseline overlay, candidate overlay). Without `changes`, the candidate
+    is the current knowledge and the baseline undoes this conversation's
+    saved changes."""
+    if value.changes is not None:
+        return [], list(value.changes)
+    undo = store.conversation_undo(ctx.conversation_id or ctx.thread_id)
+    if len(undo) > MAX_OVERLAY_CHANGES:
+        raise ValueError(
+            f"this conversation changed {len(undo)} items; at most {MAX_OVERLAY_CHANGES} "
+            "can be compared at once. Pass `changes` to test a subset."
+        )
+    return undo, []
 
 
 def run_learning_eval_tool(
@@ -138,8 +164,10 @@ def run_learning_eval_tool(
     async def call(
         ctx: HarnessContext, value: RunLearningEvalInput, progress: Progress
     ) -> RunLearningEvalOutput:
+        store = store_for(ctx.tenant_id)
         try:
-            cases = resolve_cases(store_for(ctx.tenant_id), value, ctx, max_cases)
+            cases = resolve_cases(store, value, ctx, max_cases)
+            baseline, candidate = _sides(store, value, ctx)
         except KnowledgeError as exc:
             raise ValueError(exc.detail) from exc
         if not cases:
@@ -147,7 +175,9 @@ def run_learning_eval_tool(
         runner = engine()
         evaluation_id = runner.start(
             ctx.tenant_id,
-            EvaluationRequest(model=ctx.model, cases=cases, changes=value.changes or []),
+            EvaluationRequest(
+                model=ctx.model, cases=cases, changes=candidate, baseline_changes=baseline
+            ),
             started_by=ctx.user_id,
             caller_token=ctx.caller_token,
             organization=ctx.organization,
@@ -177,14 +207,20 @@ def run_learning_eval_tool(
             seen["index"] += 1
 
         doc = await runner.wait(ctx.tenant_id, evaluation_id, wait_seconds, on_progress)
+        compared = bool(baseline or candidate)
+        summary = doc.get("summary")
+        if summary is not None:
+            summary = {**summary, "compared": compared}
+            if not compared:
+                summary["note"] = _SINGLE_RUN
         return RunLearningEvalOutput(
             evaluation_id=evaluation_id,
             status=doc["status"],
             model=doc.get("model"),
             progress=doc["progress"],
-            summary=doc.get("summary"),
+            summary=summary,
             cases=[_case_line(r) for r in doc["results"]],
-            message=_message(doc),
+            message=_message(doc, compared),
         )
 
     return HarnessTool(
@@ -192,8 +228,10 @@ def run_learning_eval_tool(
         description=(
             "Test knowledge changes: ask eval cases on the current model without and "
             "with `changes` (each in a fresh run), score each answer 0-5 against its "
-            "expectation, and return the before/after summary. With no cases or ids, "
-            "uses the eval cases saved in this conversation, else the saved ones."
+            "expectation, and return the before/after summary. Without `changes`, "
+            "compares the knowledge before this conversation's saved changes with the "
+            "current knowledge. With no cases or ids, uses the eval cases saved in "
+            "this conversation, else the saved ones."
         ),
         input_model=RunLearningEvalInput,
         output_model=RunLearningEvalOutput,

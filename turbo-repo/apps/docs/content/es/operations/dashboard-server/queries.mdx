@@ -17,7 +17,7 @@ Una consulta guardada identifica una conexión y operación del host mediante `c
 
 ## Integración de la biblioteca
 
-`createDashboardQueryService` recibe los adaptadores de identidad, tenant, ámbito, almacenamiento y políticas del control de acceso, además de un `DashboardOperationExecutor`. El host llama a `service.execute(request, ref, queryId, filters, signal)`. En un host HTTP, pasa una función asíncrona como `filters` para leer el cuerpo después de autorizar. Este servicio programático no registra una ruta HTTP automáticamente.
+`createDashboardQueryService` recibe los adaptadores de identidad, tenant, ámbito, almacenamiento y políticas del control de acceso, además de un `DashboardOperationExecutor`. El host llama a `service.execute(request, ref, queryId, filters, signal)`. En un host HTTP, pasa una función asíncrona como `filters` para leer el cuerpo después de autorizar. Configura `queries: { operations: executor }` en `createDashboardHandler` o `serve` para habilitar `POST /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/queries/{queryId}`. El cuerpo JSON es `{ "filters": {} }` y la respuesta es `{ "data": { "rows": [] } }`. Sin ejecutor, la ruta responde 404. Autoriza antes de leer el cuerpo y aplica el límite de bytes configurado.
 
 La autorización ocurre antes de cargar o ejecutar una consulta. Un Consumer puede consultar un dashboard al que tiene acceso; las identidades embed siguen limitadas a su dashboard exacto. Se rechazan IDs desconocidos, definiciones ambiguas, valores inválidos y filtros no declarados. Las decisiones de acceso usan el evento `dashboard.query`, sin incluir valores de filtros ni filas.
 
@@ -31,32 +31,10 @@ Limita las lecturas de respuestas antes de cargarlas en memoria. Respeta la señ
 
 Por defecto: 8 operaciones simultáneas por instancia, 20 segundos, 5.000 filas y 2 MiB de JSON UTF-8. Cada fila admite hasta 100 campos. Los valores siguen los límites del contrato; se admiten hasta 32 filtros y 100 parámetros por definición. Configura `maxConcurrent`, `timeoutMs`, `maxRows` y `maxBytes` al crear el servicio.
 
+Un timeout cancela la señal del adaptador. El servidor HTTP independiente también la cancela cuando el cliente se desconecta antes de completar la respuesta. Si el adaptador ignora la cancelación, mantiene su cupo hasta terminar, evitando trabajo ilimitado en segundo plano. Los fallos y resultados inválidos se convierten en `UPSTREAM_ERROR`. Estos límites complementan la autenticación, el tamaño máximo del cuerpo HTTP y los límites de solicitudes del despliegue.
+
 Un timeout cancela la señal del adaptador. Si el adaptador ignora la cancelación, mantiene su cupo hasta terminar, evitando trabajo ilimitado en segundo plano. Los fallos y resultados inválidos se convierten en `UPSTREAM_ERROR`. Estos límites complementan la autenticación, el tamaño máximo del cuerpo HTTP y los límites de solicitudes del despliegue.
 
-## Ejecución HTTP en el host
-
-Un pod independiente puede reutilizar el catálogo de conexiones del host con
-`createHttpDashboardOperationExecutor({ url, proxyKey })`. Entrega ese ejecutor
-como `operations` al crear el servicio de consultas. La URL es un endpoint fijo
-configurado por el operador; los valores del dashboard no pueden cambiar el
-destino. Se exige HTTPS salvo para desarrollo en loopback. Usa `allowHttp: true`
-solo en un despliegue explícitamente confiable dentro de una red privada.
-
-El adaptador envía un `POST` JSON autenticado mediante `x-miot-proxy-key` (al
-menos 32 caracteres). El cuerpo contiene `tenantId`, `scopeId`, `dashboardSlug`,
-`userId`, `connectionId`, `operationId`, `parameters` y
-`limits: { maxRows, maxBytes }`. No envía tokens de usuario ni credenciales del
-origen. El host debe autenticar la clave de servicio, resolver la conexión dentro
-del tenant, aplicar las políticas de solo lectura y parámetros de la operación
-guardada, y responder `{ "rows": [...] }`. No debe publicar este endpoint sin
-autenticación. Puede aplicar límites más estrictos que los solicitados.
-
-Se rechazan las redirecciones. El plazo HTTP predeterminado es de 20 segundos;
-usa `requestTimeoutMs` para reducirlo. La cancelación del cliente se propaga a
-la solicitud HTTP. El adaptador limita los bytes recibidos antes de parsearlos,
-valida los valores de las filas, descarta metadatos adicionales y devuelve un
-error genérico ante fallos del host. El host sigue siendo responsable de la
-cancelación y del control de costos del origen.
 ## Política de operaciones de ModularIoT
 
 El módulo de integraciones ofrece `DashboardOperationPolicy.prepare` para los
@@ -95,6 +73,31 @@ Se admite Draft 2020-12 sin referencias locales/remotas ni reglas regex. Se
 limitan tamaño, profundidad y cantidad de nodos; los validadores compilados usan
 una caché acotada. Los parámetros admiten escalares JSON y arreglos planos con
 los mismos límites de valores del contrato y un máximo de 256 KiB en el host.
+
+## Ejecución HTTP en el host
+
+Un pod independiente puede reutilizar el catálogo de conexiones del host con
+`createHttpDashboardOperationExecutor({ url, proxyKey })`. Entrega ese ejecutor
+como `operations` al crear el servicio de consultas. La URL es un endpoint fijo
+configurado por el operador; los valores del dashboard no pueden cambiar el
+destino. Se exige HTTPS salvo para desarrollo en loopback. Usa `allowHttp: true`
+solo en un despliegue explícitamente confiable dentro de una red privada.
+
+El adaptador envía un `POST` JSON autenticado mediante `x-miot-proxy-key` (al
+menos 32 caracteres). El cuerpo contiene `tenantId`, `scopeId`, `dashboardSlug`,
+`userId`, `connectionId`, `operationId`, `parameters` y
+`limits: { maxRows, maxBytes }`. No envía tokens de usuario ni credenciales del
+origen. El host debe autenticar la clave de servicio, resolver la conexión dentro
+del tenant, aplicar las políticas de solo lectura y parámetros de la operación
+guardada, y responder `{ "rows": [...] }`. No debe publicar este endpoint sin
+autenticación. Puede aplicar límites más estrictos que los solicitados.
+
+Se rechazan las redirecciones. El plazo HTTP predeterminado es de 20 segundos;
+usa `requestTimeoutMs` para reducirlo. La cancelación del cliente se propaga a
+la solicitud HTTP. El adaptador limita los bytes recibidos antes de parsearlos,
+valida los valores de las filas, descarta metadatos adicionales y devuelve un
+error genérico ante fallos del host. El host sigue siendo responsable de la
+cancelación y del control de costos del origen.
 
 ## Endpoint de ejecución de ModularIoT
 

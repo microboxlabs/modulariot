@@ -82,3 +82,11 @@ Tanto `createDashboardHandler` como el servidor independiente aplican `maxBodyBy
 ## Consultas guardadas
 
 Envía `{ "filters": { ... } }` para ejecutar una consulta guardada. El cliente del navegador, vinculado a la organización, ofrece `query(slug, queryId, filters, signal)` y valida las filas recibidas. No envía credenciales ni SQL y propaga la cancelación a través del proxy de la aplicación.
+
+## Espacio paralelo en la aplicación
+
+Abra **Dashboards** en la navegación (`/app/{lang}/dashboards`). Este espacio lista los dashboards del servidor para la organización activa. Los dashboards existentes de `/home` siguen disponibles durante la migración. No necesita consultar sitios heredados para cargar estos documentos.
+
+Los editores guardan explícitamente. Un conflicto de revisión conserva los cambios locales y exige una recarga explícita; nunca sobrescribe automáticamente la versión más reciente. Los consumidores pueden ver y consultar, pero no editar ni eliminar. Las consultas guardadas vinculan widgets con operaciones del catálogo de conexiones existente. El navegador envía filtros, nunca credenciales ni SQL.
+
+Habilite el ejecutor de operaciones y configure el endpoint privado del host antes de validar datos. Migre los vínculos de datos de cada widget a consultas guardadas y compare los resultados antes de retirar el dashboard anterior. Los widgets específicos del dominio todavía requieren su propia validación de compatibilidad.

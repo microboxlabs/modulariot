@@ -82,3 +82,11 @@ Both `createDashboardHandler` and the standalone server enforce `maxBodyBytes` (
 ## Saved queries
 
 Send `{ "filters": { ... } }` to execute a saved query. The organization-bound browser client exposes `query(slug, queryId, filters, signal)` and validates returned rows. It sends no credentials or raw SQL, and propagates cancellation through the application proxy.
+
+## Parallel application workspace
+
+Open **Dashboards** in the application navigation (`/app/{lang}/dashboards`). This workspace lists the active organization's server-backed dashboards. Existing `/home` dashboards remain available during migration. No legacy site lookup is needed to load these documents.
+
+Editors save explicitly. A revision conflict retains local changes and requires an explicit reload; it never overwrites the newer document automatically. Consumers can view and query but cannot edit or delete. Stored query definitions bind widgets to operations in the existing connection catalog. The browser sends filter values, never credentials or SQL.
+
+Enable the server's operation executor and configure the private host endpoint before validating data. Migrate each legacy widget's data binding to a saved query and compare its results before retiring its old dashboard. Specialized domain widgets still require their own compatibility validation.

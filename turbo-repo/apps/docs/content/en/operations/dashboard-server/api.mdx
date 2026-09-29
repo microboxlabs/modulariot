@@ -67,6 +67,7 @@ The application exposes `/api/dashboards` through its server-side session and th
 | GET, PUT, DELETE | `/api/dashboards/{dashboard}` | Load, save, delete |
 | GET | `/api/dashboards/{dashboard}/capabilities` | Read allowed actions |
 | GET, PUT | `/api/dashboards/{dashboard}/permissions` | Read or replace role assignments |
+| POST | `/api/dashboards/{dashboard}/queries/{query}` | Execute a saved query |
 
 Keep the `ETag` from a load and send it as `If-Match` when saving. A `409` preserves the newer server version; retain the user's edits and resolve the conflict before retrying. The browser never needs the session's raw JWT.
 
@@ -77,3 +78,5 @@ Pass `?org={activeOrgSlug}` on requests and include the organization in client c
 ## Request size
 
 Both `createDashboardHandler` and the standalone server enforce `maxBodyBytes` (1 MiB by default). The embedded handler authorizes before reading JSON and counts received bytes, including chunked requests; an oversized body returns `413`. Configure the host’s request deadline and connection limits as well.
+
+Send `{ "filters": { ... } }` to execute a saved query. The organization-bound browser client exposes `query(slug, queryId, filters, signal)` and validates returned rows. It sends no credential or raw SQL, and propagates cancellation through the application proxy.

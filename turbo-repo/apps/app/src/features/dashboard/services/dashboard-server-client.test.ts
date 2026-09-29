@@ -143,3 +143,35 @@ describe("dashboard server browser client", () => {
     expect(fetcher.mock.calls[0]?.[1]?.signal).toBe(controller.signal);
   });
 });
+
+it("executes a saved query with filters and an abort signal", async () => {
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(response({ rows: [{ cost: 3, service: "storage" }] }));
+  const client = createDashboardServerClient("acme", fetcher);
+  const controller = new AbortController();
+  expect(
+    await client.query(
+      "fleet",
+      "costs & usage",
+      { days: 30 },
+      controller.signal
+    )
+  ).toEqual([{ cost: 3, service: "storage" }]);
+  expect(fetcher).toHaveBeenCalledWith(
+    "/api/dashboards/fleet/queries/costs%20%26%20usage?org=acme",
+    expect.objectContaining({
+      method: "POST",
+      body: JSON.stringify({ filters: { days: 30 } }),
+      signal: controller.signal,
+    })
+  );
+});
+it("refuses malformed query rows", async () => {
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(response({ rows: [{ nested: { private: true } }] }));
+  await expect(
+    createDashboardServerClient("acme", fetcher).query("fleet", "costs")
+  ).rejects.toMatchObject({ status: 502 });
+});

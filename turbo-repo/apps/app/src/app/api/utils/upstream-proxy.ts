@@ -14,6 +14,7 @@ export async function proxyToUpstream(
     body?: unknown;
     /** Dashboard revision precondition; never accepts arbitrary auth headers. */
     ifMatch?: string;
+    signal?: AbortSignal;
   },
   options?: {
     /** Message used when the upstream fetch throws (network/timeout). */
@@ -35,7 +36,9 @@ export async function proxyToUpstream(
       method,
       headers: requestHeaders,
       body,
-      signal: AbortSignal.timeout(15_000),
+      signal: init?.signal
+        ? AbortSignal.any([init.signal, AbortSignal.timeout(15_000)])
+        : AbortSignal.timeout(15_000),
     });
   } catch (err) {
     return NextResponse.json(

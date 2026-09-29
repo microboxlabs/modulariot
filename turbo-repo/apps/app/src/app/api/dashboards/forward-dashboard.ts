@@ -5,14 +5,14 @@ import { forwardToQuarkus } from "@/app/api/utils/quarkus-proxy";
 import { orgPath } from "@/app/api/utils/org-proxy";
 
 export type DashboardRouteContext = {
-  params: Promise<{ dashboard: string }>;
+  params: Promise<{ dashboard: string; query?: string }>;
 };
 
 /** Active-org selection and session authentication stay on the server. */
 export async function forwardDashboard(
   request: Request,
   context?: DashboardRouteContext,
-  action?: "capabilities" | "permissions"
+  action?: "capabilities" | "permissions" | "query"
 ) {
   const tenant = await resolveTenantScope();
   if (!tenant.resolved) return tenant.response;
@@ -39,9 +39,21 @@ export async function forwardDashboard(
     }
     segments.push(dashboard);
   }
-  if (action) segments.push(action);
+  if (action === "query") {
+    const query = (await context?.params)?.query;
+    if (
+      !query ||
+      query.split("/").some((part) => part === "." || part === "..")
+    ) {
+      return NextResponse.json(
+        { error: "Invalid query identifier" },
+        { status: 400 }
+      );
+    }
+    segments.push("queries", query);
+  } else if (action) segments.push(action);
   let body: unknown;
-  if (request.method === "PUT") {
+  if (request.method === "PUT" || request.method === "POST") {
     try {
       body = await request.json();
     } catch {
@@ -53,6 +65,7 @@ export async function forwardDashboard(
   }
   return forwardToQuarkus(orgPath(tenant.scope.activeOrg.slug, segments), {
     method: request.method,
+    ...(action === "query" ? { signal: request.signal } : {}),
     body,
     ifMatch: request.headers.get("if-match") ?? undefined,
   });

@@ -11,6 +11,7 @@ vi.mock("@/app/api/utils/quarkus-proxy", () => ({
   forwardToQuarkus: forwardMock,
 }));
 
+import { POST as query } from "./[dashboard]/queries/[query]/route";
 import { GET as list } from "./route";
 import { GET as get, PUT as save, DELETE as remove } from "./[dashboard]/route";
 import { GET as capabilities } from "./[dashboard]/capabilities/route";
@@ -113,6 +114,44 @@ describe("new dashboard product routes", () => {
         {
           params: Promise.resolve({ dashboard }),
         }
+      );
+      expect(response.status).toBe(400);
+      expect(forwardMock).not.toHaveBeenCalled();
+    }
+  );
+});
+
+describe("saved dashboard query route", () => {
+  it("forwards only the selected organization and propagates cancellation", async () => {
+    const request = new Request(
+      "https://app.test/api/dashboards/fleet/queries/costs?org=acme%20org",
+      {
+        method: "POST",
+        body: JSON.stringify({ filters: { days: 30 } }),
+      }
+    );
+    await query(request, {
+      params: Promise.resolve({ dashboard: "fleet", query: "costs" }),
+    });
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/dashboards/fleet/queries/costs",
+      {
+        method: "POST",
+        body: { filters: { days: 30 } },
+        signal: request.signal,
+        ifMatch: undefined,
+      }
+    );
+  });
+  it.each([".", "..", "a/../b", ""])(
+    "refuses unsafe query id %s",
+    async (queryId) => {
+      const response = await query(
+        new Request("https://app.test/api/dashboards/fleet/queries/costs", {
+          method: "POST",
+          body: "{}",
+        }),
+        { params: Promise.resolve({ dashboard: "fleet", query: queryId }) }
       );
       expect(response.status).toBe(400);
       expect(forwardMock).not.toHaveBeenCalled();

@@ -1,7 +1,8 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useUndoRedo } from "./use-undo-redo";
-import { makeDashboardStorage } from "../test-fixtures";
+import { makeDashboardStorage } from "./test-fixtures";
 
 describe("useUndoRedo", () => {
   const stateA = makeDashboardStorage({ name: "State A" });
@@ -184,7 +185,7 @@ describe("useUndoRedo", () => {
       expect(current).toBe(stateA);
       act(() => result.current.redo());
       expect(current).toBe(stateC);
-    }
+    },
   );
 
   it("records edits immediately after redo", () => {

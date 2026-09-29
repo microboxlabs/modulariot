@@ -13,15 +13,24 @@ const ALLOWED = new Set([
 
 /** Portable package imports cannot pull in a framework, server or host application. */
 export function importProblems(source, file, root = SOURCE) {
+  const origin = relative(root, file);
+  const isCore = origin === "core.ts" || origin.startsWith("core/");
+  const isReact = origin === "react.ts" || origin.startsWith("react/");
   return ts
     .preProcessFile(source, true, true)
     .importedFiles.map(({ fileName }) => fileName)
     .filter((specifier) => {
+      if (specifier === "react" && isReact) return false;
       if (ALLOWED.has(specifier)) return false;
       if (!specifier.startsWith("./") && !specifier.startsWith("../"))
         return true;
-      const target = relative(root, resolve(dirname(file), specifier));
-      return target === ".." || target.startsWith("../");
+      const target = relative(root, resolve(dirname(file), specifier)).replace(
+        /\.[cm]?[jt]sx?$/,
+        "",
+      );
+      if (target === ".." || target.startsWith("../")) return true;
+      if (isCore) return target !== "core" && !target.startsWith("core/");
+      return !isReact && (target === "react" || target.startsWith("react/"));
     });
 }
 

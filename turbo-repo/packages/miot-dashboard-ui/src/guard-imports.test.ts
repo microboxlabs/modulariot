@@ -28,3 +28,45 @@ describe("pure UI import boundary", () => {
     ).toEqual([]);
   });
 });
+
+describe("React entry boundary", () => {
+  it("allows React only inside the opt-in React entry", () => {
+    expect(
+      importProblems(
+        'import { useState } from "react";',
+        "/package/src/react/use-state.ts",
+        "/package/src",
+      ),
+    ).toEqual([]);
+    expect(
+      importProblems(
+        'import { useState } from "react";',
+        "/package/src/client.ts",
+        "/package/src",
+      ),
+    ).toHaveLength(1);
+  });
+  it("rejects indirect framework imports from pure or browser entries", () => {
+    expect(
+      importProblems(
+        'export * from "../react/use-state";',
+        "/package/src/core/util.ts",
+        "/package/src",
+      ),
+    ).toHaveLength(1);
+    expect(
+      importProblems(
+        'export * from "./react.js";',
+        "/package/src/client.ts",
+        "/package/src",
+      ),
+    ).toHaveLength(1);
+    expect(
+      importProblems(
+        'export * from "../client";',
+        "/package/src/core/util.ts",
+        "/package/src",
+      ),
+    ).toHaveLength(1);
+  });
+});

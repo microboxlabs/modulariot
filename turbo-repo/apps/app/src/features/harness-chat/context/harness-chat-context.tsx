@@ -48,7 +48,7 @@ const HarnessChatContext = createContext<HarnessChatContextProps | null>(
 );
 
 export function HarnessChatProvider({ children }: Readonly<PropsWithChildren>) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
   const [pendingThreadId, setPendingThreadId] = useState<string | null>(null);

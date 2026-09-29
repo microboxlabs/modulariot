@@ -1,0 +1,21 @@
+/** Session credentials must never reach log destinations, including debug logs. */
+export const SENSITIVE_LOG_PATHS = [
+  "req.headers.authorization",
+  "req.headers.cookie",
+  "req.body.password",
+  "req.body.token",
+  'res.headers["set-cookie"]',
+  "password",
+  "token",
+  "authorization",
+  "secret",
+  "key",
+  "rawJWT",
+  "*.rawJWT",
+  "access_token",
+  "*.access_token",
+  "refresh_token",
+  "*.refresh_token",
+  "id_token",
+  "*.id_token",
+];

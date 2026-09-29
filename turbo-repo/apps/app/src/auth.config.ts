@@ -196,7 +196,7 @@ export const authConfig: NextAuthConfig = {
           hasUser: !!user,
           tokenSub: token.sub,
           expiresAt: token?.expiresAt,
-          rawJWT: token?.rawJWT,
+          hasRawJWT: !!token?.rawJWT,
         }, "JWT callback triggered");
 
         // When user signs in with Auth0 (Google, GitHub, Microsoft, or Auth0 credentials)

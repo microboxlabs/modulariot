@@ -4,9 +4,14 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 const SOURCE = fileURLToPath(new URL("../src", import.meta.url));
-const ALLOWED = new Set(["@microboxlabs/miot-dashboard-contract/document"]);
+const ALLOWED = new Set([
+  "@microboxlabs/miot-dashboard-contract/document",
+  "@microboxlabs/miot-dashboard-contract/schema",
+  "@microboxlabs/miot-dashboard-contract/roles",
+  "zod",
+]);
 
-/** Pure entry imports cannot pull in a framework, server or host application. */
+/** Portable package imports cannot pull in a framework, server or host application. */
 export function importProblems(source, file, root = SOURCE) {
   return ts
     .preProcessFile(source, true, true)

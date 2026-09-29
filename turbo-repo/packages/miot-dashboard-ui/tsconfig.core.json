@@ -1,5 +1,8 @@
 {
   "extends": "./tsconfig.json",
   "include": ["src/core.ts", "src/core/**/*.ts"],
-  "exclude": ["**/*.test.ts"]
+  "exclude": ["**/*.test.ts"],
+  "compilerOptions": {
+    "lib": ["es2022"]
+  }
 }

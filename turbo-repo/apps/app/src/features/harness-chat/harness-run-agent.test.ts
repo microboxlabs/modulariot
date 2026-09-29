@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RunAgentInput } from "@ag-ui/client";
-import { trimRunInput } from "./harness-run-agent";
+import {
+  HarnessRunAgent,
+  trimRunInput,
+  withEffort,
+  withModel,
+} from "./harness-run-agent";
+import { STREAM_IDLE_MS } from "./stream-watchdog";
 
 function input(messages: RunAgentInput["messages"]): RunAgentInput {
   return {
@@ -29,7 +35,8 @@ describe("trimRunInput", () => {
     expect(trimmed.messages.map((m) => m.id)).toEqual(["u1", "a1", "u2"]);
   });
 
-  it("sends only the text of a message that carried an attachment", () => {
+  it("marks the files of an earlier message and keeps the ones being sent", () => {
+    const pdf = "A".repeat(50_000);
     const trimmed = trimRunInput(
       input([
         {
@@ -40,14 +47,45 @@ describe("trimRunInput", () => {
             {
               type: "binary",
               mimeType: "application/pdf",
-              data: `data:application/pdf;base64,${"A".repeat(50_000)}`,
+              data: `data:application/pdf;base64,${pdf}`,
+              filename: "report.pdf",
+            },
+          ],
+        },
+        { id: "a1", role: "assistant", content: "a report" },
+        {
+          id: "u2",
+          role: "user",
+          content: [
+            { type: "text", text: "and this?" },
+            { type: "text", text: "<attachment name=notes.txt>\nhi\n</attachment>" },
+            {
+              type: "image",
+              source: { type: "data", value: "iVBO", mimeType: "image/png" },
+              metadata: { filename: "chart.png" },
             },
           ],
         },
       ])
     );
 
-    expect(trimmed.messages[0].content).toBe("look at this");
+    expect(trimmed.messages[0].content).toBe("[pdf: report.pdf]\nlook at this");
+    expect(trimmed.messages[2].content).toEqual([
+      { type: "text", text: "and this?\n<attachment name=notes.txt>\nhi\n</attachment>" },
+      {
+        type: "image",
+        source: { type: "data", value: "iVBO", mimeType: "image/png" },
+        metadata: { filename: "chart.png" },
+      },
+    ]);
+  });
+
+  it("sends a last message with no files as its text", () => {
+    const trimmed = trimRunInput(
+      input([{ id: "u1", role: "user", content: [{ type: "text", text: "hola" }] }])
+    );
+
+    expect(trimmed.messages[0].content).toBe("hola");
   });
 
   it("keeps the tool exchange that steers a run", () => {
@@ -70,7 +108,11 @@ describe("trimRunInput", () => {
       ])
     );
 
-    expect(trimmed.messages.map((m) => m.role)).toEqual(["user", "assistant", "tool"]);
+    expect(trimmed.messages.map((m) => m.role)).toEqual([
+      "user",
+      "assistant",
+      "tool",
+    ]);
   });
 
   it("keeps only the recent part of a long transcript", () => {
@@ -84,5 +126,211 @@ describe("trimRunInput", () => {
 
     expect(trimmed.messages).toHaveLength(60);
     expect(trimmed.messages.at(-1)?.id).toBe("a99");
+  });
+});
+
+describe("withModel", () => {
+  it("puts the picked model in state next to the conversation fields", () => {
+    const base = { ...input([]), state: { harnessConversationId: "t1" } };
+    expect(withModel(base, "claude-sonnet-4-6").state).toEqual({
+      harnessConversationId: "t1",
+      harnessModel: "claude-sonnet-4-6",
+    });
+  });
+
+  it("leaves the input alone when no model is picked", () => {
+    const base = input([]);
+    expect(withModel(base, null)).toBe(base);
+  });
+
+  it("drops a previously picked model when the default is chosen again", () => {
+    const base = {
+      ...input([]),
+      state: { harnessConversationId: "t1", harnessModel: "claude-sonnet-4-6" },
+    };
+    expect(withModel(base, null).state).toEqual({
+      harnessConversationId: "t1",
+    });
+  });
+});
+
+describe("withEffort", () => {
+  it("puts the picked effort in state next to the model", () => {
+    const base = withModel(
+      { ...input([]), state: { harnessConversationId: "t1" } },
+      "m"
+    );
+    expect(withEffort(base, "max").state).toEqual({
+      harnessConversationId: "t1",
+      harnessModel: "m",
+      harnessEffort: "max",
+    });
+  });
+
+  it("drops the effort when the default is chosen again", () => {
+    const base = { ...input([]), state: { harnessEffort: "low" } };
+    expect(withEffort(base, null).state).toEqual({});
+    expect(withEffort(input([]), null)).toEqual(input([]));
+  });
+});
+
+function sseBody(events: Record<string, unknown>[]): Response {
+  const body = events.map((e) => `data: ${JSON.stringify(e)}\n\n`).join("");
+  return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+}
+
+const MARKER_KEY = "harness-chat.active-run.t1";
+
+describe("HarnessRunAgent run tracking", () => {
+  beforeEach(() => window.localStorage.clear());
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("remembers the harness run while it runs and forgets it once it is over", async () => {
+    const seen: (string | null)[] = [];
+    const fetch = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(async () =>
+      sseBody([
+        { type: "RUN_STARTED", runId: "r1", threadId: "t1" },
+        { type: "CUSTOM", name: "harness_run", value: { runId: "run_a", status: "running" } },
+        { type: "CUSTOM", name: "probe", value: null },
+        { type: "CUSTOM", name: "harness_run", value: { runId: "run_a", status: "finished" } },
+        { type: "RUN_FINISHED", runId: "r1", threadId: "t1" },
+      ])
+    );
+    const agent = new HarnessRunAgent({ url: "/api/harness/chat/stream", threadId: "t1", fetch });
+    agent.subscribe({
+      onCustomEvent: ({ event }) => {
+        if (event.name === "probe") seen.push(window.localStorage.getItem(MARKER_KEY));
+      },
+    });
+
+    await agent.runAgent({ runId: "r1" });
+
+    expect(fetch.mock.calls[0][1].method).toBe("POST");
+    expect(seen).toEqual(["run_a"]);
+    expect(agent.harnessRunId).toBe("run_a");
+    expect(window.localStorage.getItem(MARKER_KEY)).toBeNull();
+  });
+
+  it("re-attaches to a harness run instead of starting one", async () => {
+    const fetch = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(async () =>
+      sseBody([
+        { type: "RUN_STARTED", runId: "r2", threadId: "t1" },
+        { type: "RUN_FINISHED", runId: "r2", threadId: "t1" },
+      ])
+    );
+    const agent = new HarnessRunAgent({ url: "/api/harness/chat/stream", threadId: "t1", fetch });
+    agent.resumeRunId = "run_a";
+
+    await agent.runAgent({ runId: "r2" });
+
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("/api/harness/chat/runs/run_a/stream?threadId=t1&runId=r2");
+    expect(init.method).toBe("GET");
+    expect(agent.resumeRunId).toBeNull();
+    expect(agent.harnessRunId).toBe("run_a");
+  });
+
+  it("cancels the harness run on Stop and forgets it", async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetch);
+    window.localStorage.setItem(MARKER_KEY, "run_a");
+    const agent = new HarnessRunAgent({ url: "/api/harness/chat/stream", threadId: "t1" });
+    agent.harnessRunId = "run_a";
+
+    agent.cancelHarnessRun();
+
+    expect(fetch).toHaveBeenCalledWith("/api/harness/chat/runs/run_a/cancel", { method: "POST" });
+    expect(window.localStorage.getItem(MARKER_KEY)).toBeNull();
+  });
+
+  it("counts the run's time from when the harness started it", async () => {
+    const fetch = vi.fn(async () =>
+      sseBody([
+        { type: "RUN_STARTED", runId: "r1", threadId: "t1" },
+        {
+          type: "CUSTOM",
+          name: "harness_run",
+          value: { runId: "run_a", status: "running", startedAt: "2026-09-28T09:00:00Z" },
+        },
+        { type: "RUN_FINISHED", runId: "r1", threadId: "t1" },
+      ])
+    );
+    const agent = new HarnessRunAgent({ url: "/api/harness/chat/stream", threadId: "t1", fetch });
+    const ticks = vi.fn();
+    agent.subscribeClock(ticks);
+
+    await agent.runAgent({ runId: "r1" });
+
+    expect(agent.runStartedAt).toBe(Date.parse("2026-09-28T09:00:00Z"));
+    expect(ticks).toHaveBeenCalled();
+  });
+});
+
+/** A relay that sends the run's first events, then goes silent without
+ * closing, like a connection that died behind a proxy. */
+function silentStream(): Response {
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const event of [
+        { type: "RUN_STARTED", runId: "r1", threadId: "t1" },
+        { type: "CUSTOM", name: "harness_run", value: { runId: "run_a", status: "running" } },
+      ]) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      }
+    },
+  });
+  return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+}
+
+describe("HarnessRunAgent on a silent stream", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  async function runUntilSilent(
+    status: Response,
+    onReattach?: (runId: string) => void
+  ): Promise<string | undefined> {
+    vi.stubGlobal("fetch", vi.fn(async () => status));
+    const agent = new HarnessRunAgent({
+      url: "/api/harness/chat/stream",
+      threadId: "t1",
+      fetch: async () => silentStream(),
+    });
+    agent.onReattach = onReattach ?? null;
+    let error: string | undefined;
+    agent.subscribe({
+      onRunErrorEvent: ({ event }) => {
+        error = event.message;
+      },
+    });
+    const running = agent.runAgent({ runId: "r1" }).catch(() => undefined);
+    await vi.advanceTimersByTimeAsync(STREAM_IDLE_MS);
+    await running;
+    return error;
+  }
+
+  it("ends the run as interrupted when the harness lost it", async () => {
+    const error = await runUntilSilent(new Response(null, { status: 404 }));
+
+    expect(fetch).toHaveBeenCalledWith("/api/harness/chat/runs/run_a", expect.anything());
+    expect(error).toBe("interrupted");
+    expect(window.localStorage.getItem(MARKER_KEY)).toBeNull();
+  });
+
+  it("asks to re-attach when the run may still have an answer", async () => {
+    const reattach = vi.fn();
+
+    const error = await runUntilSilent(Response.json({ status: "running" }), reattach);
+
+    expect(error).toBe("stream_lost");
+    expect(reattach).toHaveBeenCalledWith("run_a");
+    expect(window.localStorage.getItem(MARKER_KEY)).toBe("run_a");
   });
 });

@@ -2,9 +2,12 @@ import type { ClientContext } from "../client.js";
 import { MiotHarnessApiError } from "../errors.js";
 import { parseSSE } from "../sse.js";
 import type {
+  ApprovalDecision,
   ErrorResponse,
   HarnessEvent,
   HarnessRunRecord,
+  ListRunsQuery,
+  RunSummary,
   UserRequest,
 } from "../types.js";
 
@@ -19,6 +22,25 @@ export function createRunsApi(ctx: ClientContext) {
       return ctx.fetcher("POST", `${BASE}:start`, {
         body,
         headers: { Accept: "application/json" },
+        signal: opts?.signal,
+      });
+    },
+
+    /** The caller's runs: running ones first, then the rest newest first. */
+    list(
+      query?: ListRunsQuery,
+      opts?: { signal?: AbortSignal },
+    ): Promise<RunSummary[]> {
+      const status = Array.isArray(query?.status)
+        ? query.status.join(",")
+        : query?.status;
+      return ctx.fetcher("GET", BASE, {
+        headers: { Accept: "application/json" },
+        query: {
+          conversation_id: query?.conversation_id,
+          status: status || undefined,
+          limit: query?.limit,
+        },
         signal: opts?.signal,
       });
     },
@@ -38,6 +60,21 @@ export function createRunsApi(ctx: ClientContext) {
       return ctx.fetcher("POST", `${BASE}/${encodeURIComponent(id)}/cancel`, {
         signal: opts?.signal,
       });
+    },
+
+    /** Approves or rejects a call the run is waiting on (204). A 404 means
+     * the approval is no longer pending. */
+    resolveApproval(
+      id: string,
+      approvalId: string,
+      body: ApprovalDecision,
+      opts?: { signal?: AbortSignal },
+    ): Promise<void> {
+      return ctx.fetcher(
+        "POST",
+        `${BASE}/${encodeURIComponent(id)}/approvals/${encodeURIComponent(approvalId)}`,
+        { body, signal: opts?.signal },
+      );
     },
 
     async *stream(
@@ -68,7 +105,12 @@ export function createRunsApi(ctx: ClientContext) {
         );
       }
       if (response.body == null) {
-        throw new MiotHarnessApiError("no_body", id, undefined, response.status);
+        throw new MiotHarnessApiError(
+          "no_body",
+          id,
+          undefined,
+          response.status,
+        );
       }
 
       for await (const frame of parseSSE(response.body)) {
@@ -83,11 +125,7 @@ export function createRunsApi(ctx: ClientContext) {
             if (typeof parsed.error === "string") code = parsed.error;
             if (typeof parsed.run_id === "string") frameRunId = parsed.run_id;
           } catch {
-            throw new MiotHarnessApiError(
-              "unparseable_error",
-              id,
-              frame.data,
-            );
+            throw new MiotHarnessApiError("unparseable_error", id, frame.data);
           }
           throw new MiotHarnessApiError(code, frameRunId);
         }

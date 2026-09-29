@@ -1,10 +1,13 @@
-import type { ConversationTurn } from "@microboxlabs/miot-harness-client";
+import type { Attachment, ConversationTurn, RunEffort } from "@microboxlabs/miot-harness-client";
+import { attachmentMarker, attachmentOfPart } from "@/features/harness-chat/attachment-parts";
 
 export type AgUiMessage = {
   id: string;
   role: "developer" | "system" | "assistant" | "user" | "tool" | "activity" | "reasoning";
   content?: unknown;
   toolCallId?: string;
+  /** On assistant messages: the tool calls it made, as the runtime echoes them. */
+  toolCalls?: unknown;
 };
 
 export type RunAgentInputBody = {
@@ -15,6 +18,12 @@ export type RunAgentInputBody = {
     /** The harness's compacted memory of this thread, stored with it and
      * handed back so a restarted harness recovers it — see `conversationOf`. */
     harnessConversationSummary?: unknown;
+    /** The conversation model the panel picked; omitted for the default. */
+    harnessModel?: unknown;
+    /** The reasoning effort the panel picked; omitted for the default. */
+    harnessEffort?: unknown;
+    /** "true" when the run belongs to a trainer's learning session. */
+    harnessLearning?: unknown;
   } | null;
   messages?: AgUiMessage[];
 };
@@ -63,10 +72,34 @@ export function conversationOf(
   };
 }
 
+/** The model the panel asked for, or null for the harness default. */
+export function modelOf(body: RunAgentInputBody): string | null {
+  return text(body.state?.harnessModel) ?? null;
+}
+
+const RUN_EFFORTS: readonly RunEffort[] = ["low", "medium", "high", "max"];
+
+/** The reasoning effort the panel asked for, or null for the harness default. */
+export function effortOf(body: RunAgentInputBody): RunEffort | null {
+  const effort = body.state?.harnessEffort;
+  return RUN_EFFORTS.find((level) => level === effort) ?? null;
+}
+
+export function isLearningRun(body: RunAgentInputBody): boolean {
+  return body.state?.harnessLearning === "true";
+}
+
+/** Stands in for the answer a failed run never produced. */
+export const NO_ANSWER = "(No answer: this run did not finish.)";
+
 /**
  * Pairs each user message with the answer that followed it, up to but not
  * including the message this run is for. Only text carries over: the
  * harness's memory is a list of {user_message, assistant_answer} strings.
+ *
+ * A question that got no answer (its run failed) is kept with `NO_ANSWER`,
+ * so a follow-up like "¿me respondes?" reaches the model with the question
+ * it refers to.
  */
 export function priorTurns(messages: AgUiMessage[]): ConversationTurn[] {
   const current = messages.findLastIndex((m) => m.role === "user");
@@ -75,21 +108,25 @@ export function priorTurns(messages: AgUiMessage[]): ConversationTurn[] {
   for (const message of messages.slice(0, Math.max(current, 0))) {
     const body = messageText(message);
     if (message.role === "user") {
-      // Two questions in a row (the first got no answer): the later one is
-      // the question the assistant actually replied to.
+      if (pendingUser && body) turns.push({ user_message: pendingUser, assistant_answer: NO_ANSWER });
       pendingUser = body || pendingUser;
     } else if (message.role === "assistant" && pendingUser && body) {
       turns.push({ user_message: pendingUser, assistant_answer: body });
       pendingUser = null;
     }
   }
+  if (pendingUser) turns.push({ user_message: pendingUser, assistant_answer: NO_ANSWER });
   return turns.slice(-MAX_REPLAY_TURNS);
 }
 
 function messageText(message: AgUiMessage): string {
   if (typeof message.content === "string") return message.content.trim();
   if (!Array.isArray(message.content)) return "";
-  return message.content
+  const markers = message.content.flatMap((part) => {
+    const file = attachmentOfPart(part);
+    return file ? [attachmentMarker(file)] : [];
+  });
+  const body = message.content
     .filter(
       (part): part is { type: "text"; text: string } =>
         typeof part === "object" &&
@@ -97,9 +134,19 @@ function messageText(message: AgUiMessage): string {
         (part as { type?: unknown }).type === "text" &&
         typeof (part as { text?: unknown }).text === "string"
     )
-    .map((part) => part.text)
-    .join("\n")
-    .trim();
+    .map((part) => part.text);
+  return [...markers, ...body].join("\n").trim();
+}
+
+/** The files on the message this run is for, to hand to the harness. The
+ * harness validates their type, size and number. */
+export function lastUserAttachments(messages: AgUiMessage[]): Attachment[] {
+  const last = messages.findLast((m) => m.role === "user");
+  if (!last || !Array.isArray(last.content)) return [];
+  return last.content.flatMap((part) => {
+    const file = attachmentOfPart(part);
+    return file ? [file] : [];
+  });
 }
 
 function text(value: unknown): string | null {

@@ -14,30 +14,35 @@ BOTH `settings.generic_query_enabled` is true AND the connection declares
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
+from functools import partial
 from pathlib import Path
 
 import asyncpg
 
 from miot_harness.config import HarnessSettings
 from miot_harness.connections.models import Connection
+from miot_harness.datasource.knowledge.learned import approved_cards, with_overlay
 from miot_harness.datasource.knowledge.loader import (
+    connection_cards_dir,
     detect_packs,
-    load_connection_cards,
     load_packs,
     probe_version,
 )
 from miot_harness.datasource.knowledge.models import DetectedPack, KnowledgeCard
-from miot_harness.datasource.pool import create_pg_pool
+from miot_harness.datasource.pool import ENVELOPES, create_pg_pool
 from miot_harness.datasource.provider import (
     BootResult,
     DataSourceProfile,
     DataSourceProvider,
 )
-from miot_harness.datasource.safe_query import DEFAULT_STATEMENT_TIMEOUT_MS
+from miot_harness.datasource.routine_introspect import introspect_routines
+from miot_harness.datasource.safe_query import DEFAULT_STATEMENT_TIMEOUT_MS, fetch_readonly
 from miot_harness.datasource.safe_sql import HARD_LIMIT_CAP
 from miot_harness.datasource.schema_introspect import SchemaSummary, introspect_schema
 from miot_harness.datasource.sql_policy import SchemaAllowlistPolicy
 from miot_harness.integrations.generic_pg.primitive_tools import build_generic_tools
+from miot_harness.runtime.context import HarnessContext
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -52,17 +57,11 @@ _GENERIC_DEFAULT_PROFILE = DataSourceProfile(
     source_label="generic (pg)",
     tool_prefix="generic_",
     primer="",
-    router_keywords=frozenset(),
     tenant_lock=None,
-    tenant_refusal_template=(
-        "{display_name} is {lock}-only. I can't answer for other tenants."
-    ),
+    tenant_refusal_template=("{display_name} is {lock}-only. I can't answer for other tenants."),
     freshness_warn_minutes=0,
     freshness_refuse_minutes=0,
     has_freshness_model=False,
-    # generic_pg only ever exposes composable SQL primitives — no curated
-    # catalog — so its data questions are always agentic, never canned.
-    has_curated_catalog=False,
 )
 
 
@@ -84,6 +83,53 @@ def _resolve_tenant_lock(opts: dict[str, object]) -> str | None:
         return None
     lock = str(opts.get("tenant_lock") or "").strip()
     return lock or None
+
+
+async def workflow_schema(
+    pool: object, summary: SchemaSummary | None, statement_timeout_ms: int
+) -> str | None:
+    """The schema holding the BPMN engine's process definitions, if visible.
+
+    `summary.tables` is capped, so a table past the cap is looked up directly.
+    """
+    if summary is None or "act_re_procdef" not in summary.all_table_names:
+        return None
+    for table in summary.tables:
+        if table.name == "act_re_procdef":
+            return table.schema
+    if len(summary.schemas) == 1:
+        return summary.schemas[0]
+    try:
+        rows = await fetch_readonly(
+            pool,
+            "SELECT table_schema FROM information_schema.tables "
+            "WHERE table_name = 'act_re_procdef' AND table_schema = ANY($1::text[]) "
+            "ORDER BY table_schema LIMIT 1",
+            list(summary.schemas),
+            statement_timeout_ms=statement_timeout_ms,
+        )
+    except Exception as exc:  # noqa: BLE001 — the workflow tool is optional
+        logger.warning("generic_pg %s: workflow schema lookup failed (%s)", summary.connection, exc)
+        return None
+    return str(rows[0]["table_schema"]) if rows else None
+
+
+def _run_cards(
+    cards_dir: Path, connection: str, ctx: HarnessContext
+) -> tuple[KnowledgeCard, ...]:
+    """The approved authored cards a run sees: with its knowledge overlay."""
+    return with_overlay(approved_cards(cards_dir), connection, ctx.knowledge_overlay)
+
+
+def _workspace_dir(connection: Connection) -> Path | None:
+    """Where the agent keeps notes and saved analyses: next to the connection file.
+
+    Synthesized and legacy connections have no file, so they get no workspace.
+    """
+    source_path = connection.source_path
+    if not source_path or source_path.startswith("<"):
+        return None
+    return Path(source_path).parent
 
 
 class GenericPgProvider(DataSourceProvider):
@@ -142,6 +188,12 @@ class GenericPgProvider(DataSourceProvider):
             explain_cost_threshold = float(
                 opts.get("explain_cost_threshold", _DEFAULT_EXPLAIN_COST_THRESHOLD)
             )
+            envelope = str(opts.get("envelope", "transaction"))
+            if envelope not in ENVELOPES:
+                raise ValueError(f"envelope must be one of {ENVELOPES}")
+            call_security_definer = opts.get("call_security_definer", False)
+            if not isinstance(call_security_definer, bool):
+                raise ValueError("call_security_definer must be true or false")
         except (TypeError, ValueError) as exc:
             return BootResult(
                 enabled=False, registered=(), reason=f"connection {name!r}: invalid option ({exc})"
@@ -151,12 +203,14 @@ class GenericPgProvider(DataSourceProvider):
                 enabled=False,
                 registered=(),
                 reason=(
-                    f"connection {name!r}: no schemas "
-                    "(set options.schemas or options.search_path)"
+                    f"connection {name!r}: no schemas (set options.schemas or options.search_path)"
                 ),
             )
 
         tenant_lock = _resolve_tenant_lock(opts)
+        if tenant_lock is None and connection.scope == "tenant" and connection.tenant_id:
+            # A connection file under tenants/<id>/ serves that tenant only.
+            tenant_lock = connection.tenant_id
         source_label = str(opts.get("source_label") or name)
         tool_prefix = f"{name}_"
         policy = SchemaAllowlistPolicy(schemas)
@@ -166,7 +220,6 @@ class GenericPgProvider(DataSourceProvider):
             source_label=source_label,
             tool_prefix=tool_prefix,
             primer=connection.primer,
-            router_keywords=frozenset(),
             tenant_lock=tenant_lock,
             tenant_refusal_template=(
                 "{display_name} is {lock}-only. I can't answer for other tenants."
@@ -174,19 +227,17 @@ class GenericPgProvider(DataSourceProvider):
             freshness_warn_minutes=0,
             freshness_refuse_minutes=0,
             has_freshness_model=False,
-            # Primitives-only connection: no curated catalog, so its data
-            # questions route agentic (never to the canned filter_expert seat).
-            has_curated_catalog=False,
         )
 
-        application_name = (
-            str(opts["application_name"]) if opts.get("application_name") else None
-        )
+        application_name = str(opts["application_name"]) if opts.get("application_name") else None
         schema_summary = None
         detected: tuple[DetectedPack, ...] = ()
         try:
             self._pool = await create_pg_pool(
-                connection.dsn, application_name=application_name
+                connection.dsn,
+                application_name=application_name,
+                envelope=envelope,
+                statement_timeout_ms=statement_timeout_ms,
             )
             # Introspect first (best-effort): the schema index AND knowledge-pack
             # fingerprinting both need the table set. A failure here must not
@@ -208,6 +259,21 @@ class GenericPgProvider(DataSourceProvider):
                         exc,
                         exc_info=True,  # keep the traceback for catalog/permission diag
                     )
+                if schema_summary is not None:
+                    try:
+                        catalog = await introspect_routines(
+                            pool=self._pool,
+                            policy=policy,
+                            limit=1,
+                            statement_timeout_ms=statement_timeout_ms,
+                        )
+                        schema_summary = replace(schema_summary, routine_count=catalog.total)
+                    except Exception as exc:  # noqa: BLE001 — count is best-effort
+                        logger.error(
+                            "generic_pg %s: routine survey failed (%s); continuing",
+                            name,
+                            exc,
+                        )
             # Detect knowledge packs (best-effort) from the full table set.
             knowledge_cards: list[KnowledgeCard] = []
             if schema_summary is not None and settings.generic_knowledge_packs_enabled:
@@ -227,12 +293,13 @@ class GenericPgProvider(DataSourceProvider):
                         exc_info=True,  # keep the traceback for catalog/permission diag
                     )
 
-            # Connection-scoped AUTHORED cards (continual-learning write target):
-            # loaded independently of pack fingerprinting and appended AFTER pack
-            # cards so an authored card overrides a pack card of the same id
-            # (build_generic_tools' cards_by_id is last-wins).
-            if settings.generic_connection_cards_enabled:
-                knowledge_cards += self._load_connection_cards(connection)
+            # Connection-scoped AUTHORED cards are read from disk on each tool
+            # call (not here), so a card approved after boot needs no restart.
+            cards_dir = (
+                connection_cards_dir(connection)
+                if settings.generic_connection_cards_enabled
+                else None
+            )
 
             tools = build_generic_tools(
                 pool=self._pool,
@@ -244,6 +311,16 @@ class GenericPgProvider(DataSourceProvider):
                 explain_cost_threshold=explain_cost_threshold,
                 statement_timeout_ms=statement_timeout_ms,
                 knowledge_cards=knowledge_cards,
+                authored_cards=(
+                    partial(_run_cards, cards_dir, connection.name)
+                    if cards_dir is not None
+                    else None
+                ),
+                call_security_definer=call_security_definer,
+                workspace_dir=_workspace_dir(connection),
+                workflow_schema=await workflow_schema(
+                    self._pool, schema_summary, statement_timeout_ms
+                ),
             )
             registered: list[str] = []
             for tool in tools:
@@ -252,9 +329,7 @@ class GenericPgProvider(DataSourceProvider):
         except Exception as exc:  # noqa: BLE001 — boot must not die (base-class contract)
             logger.critical("generic_pg %s: boot failed (%s)", name, exc)
             await self.close()
-            return BootResult(
-                enabled=False, registered=(), reason=f"boot failed: {exc}"
-            )
+            return BootResult(enabled=False, registered=(), reason=f"boot failed: {exc}")
 
         return BootResult(
             enabled=True,
@@ -287,27 +362,9 @@ class GenericPgProvider(DataSourceProvider):
                         statement_timeout_ms=statement_timeout_ms,
                     )
                 except Exception as exc:  # noqa: BLE001 — probe is best-effort
-                    logger.warning(
-                        "knowledge pack %s: version probe failed (%s)", pack.id, exc
-                    )
+                    logger.warning("knowledge pack %s: version probe failed (%s)", pack.id, exc)
             out.append(DetectedPack(pack=pack, version=version))
         return tuple(out)
-
-    def _load_connection_cards(self, connection: Connection) -> list[KnowledgeCard]:
-        """Load `<connection dir>/knowledge/*.md` authored cards (the
-        continual-learning write target). Best-effort: a synthesized/legacy
-        connection has no on-disk dir; a missing dir or a bad card yields no
-        cards, never an exception (mirrors pack detection)."""
-        source_path = connection.source_path
-        # Synthesized ("<synthesized>") / legacy-env ("<legacy-env>") connections
-        # have no authored file on disk, hence no sibling knowledge dir.
-        if not source_path or source_path.startswith("<"):
-            return []
-        cards_dir = Path(source_path).parent / "knowledge"
-        result = load_connection_cards(cards_dir)
-        for diag in result.diagnostics:
-            logger.warning("generic_pg %s: connection card: %s", connection.name, diag)
-        return list(result.cards)
 
     async def close(self) -> None:
         if self._pool is not None:

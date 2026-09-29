@@ -21,10 +21,11 @@ import {
   type SeedDashboard,
 } from "../testing";
 import type { ServerDashboardStore } from "../seams/store";
+import { sampleConfig } from "../test/fixtures";
 
 const MEMBERSHIPS: Memberships = {
   acme: {
-    ops: { alice: "Coordinator", con: "Consumer", carl: "Contributor" },
+    ops: { alice: "Coordinator", con: "Consumer", carl: "Contributor", capped: "Coordinator" },
     // Dana is in both tenants on one credential, with a different role in
     // each. Her own scope, so her writes do not move what other tests read.
     reports: { dana: "Coordinator" },
@@ -39,7 +40,7 @@ const seedFor = (): SeedDashboard[] => [
   {
     ref: { tenantId: "acme", scopeId: "ops", slug: "fleet" },
     record: {
-      config: { version: 2, name: "Fleet", title: "acme fleet" },
+      config: sampleConfig({ title: "acme fleet" }),
       createdBy: "carl",
     },
   },
@@ -47,7 +48,7 @@ const seedFor = (): SeedDashboard[] => [
     // Same scope and slug in another tenant: if isolation leaks anywhere, this
     // is the pair that reveals it.
     ref: { tenantId: "globex", scopeId: "ops", slug: "fleet" },
-    record: { config: { version: 2, name: "Fleet", title: "globex fleet" } },
+    record: { config: sampleConfig({ title: "globex fleet" }) },
   },
 ];
 
@@ -60,6 +61,7 @@ interface Mode {
 }
 
 function buildOptions() {
+  const identity = createInsecureHeaderIdentityResolver();
   const store = createMemoryStore({
     seed: seedFor(),
     now: () => new Date("2026-01-01T00:00:00.000Z"),
@@ -67,7 +69,14 @@ function buildOptions() {
   return {
     store,
     options: {
-      identity: createInsecureHeaderIdentityResolver(),
+      identity: {
+        async resolve(request: Request) {
+          const principal = await identity.resolve(request);
+          return principal?.userId === "capped"
+            ? { ...principal, capabilities: { ...principal.capabilities, canEdit: false } }
+            : principal;
+        },
+      },
       tenants: createMemoryTenantAuthority(MEMBERSHIPS),
       scopes: createMemoryScopeAuthority(MEMBERSHIPS),
       store,
@@ -204,7 +213,7 @@ describe.each([
       const response = await mode().fetch(
         "/tenants/acme/scopes/ops/dashboards/fleet",
         {
-          ...withBody(asUser("alice"), "PUT", { version: 2 }),
+          ...withBody(asUser("alice"), "PUT", sampleConfig()),
           headers: {
             ...(asUser("alice").headers as Record<string, string>),
             "content-type": "application/json",
@@ -261,11 +270,11 @@ describe.each([
     // Coordinator in acme, Consumer in globex. Same credential, same action.
     const mine = await mode().fetch(
       "/tenants/acme/scopes/reports/dashboards/q1",
-      withBody(asUser("dana"), "PUT", { version: 2, name: "made" }),
+      withBody(asUser("dana"), "PUT", sampleConfig({ name: "made" })),
     );
     const theirs = await mode().fetch(
       "/tenants/globex/scopes/reports/dashboards/q1",
-      withBody(asUser("dana"), "PUT", { version: 2, name: "made" }),
+      withBody(asUser("dana"), "PUT", sampleConfig({ name: "made" })),
     );
     expect([mine.status, theirs.status]).toEqual([200, 403]);
   });
@@ -314,10 +323,10 @@ describe.each([
       asUser("bob"),
     );
     await expect(acme.json()).resolves.toEqual({
-      data: { version: 2, name: "Fleet", title: "acme fleet" },
+      data: sampleConfig({ title: "acme fleet" }),
     });
     await expect(globex.json()).resolves.toEqual({
-      data: { version: 2, name: "Fleet", title: "globex fleet" },
+      data: sampleConfig({ title: "globex fleet" }),
     });
   });
 
@@ -330,6 +339,26 @@ describe.each([
     await expect(response.json()).resolves.toEqual({
       data: [{ slug: "fleet", name: "Fleet" }],
     });
+  });
+
+  it.each([
+    ["alice", true], ["carl", true], ["con", false], ["capped", false],
+  ])("reports scope creation eligibility for %s without loading documents", async (who, canCreate) => {
+    const load = vi.spyOn(mode().store, "load");
+    const response = await mode().fetch("/tenants/acme/scopes/ops/capabilities", asUser(who));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    await expect(response.json()).resolves.toEqual({ canCreate });
+    expect(load).not.toHaveBeenCalled();
+    load.mockRestore();
+  });
+
+  it("protects scope capabilities with identity and tenant/scope membership", async () => {
+    const path = "/tenants/acme/scopes/ops/capabilities";
+    expect((await mode().fetch(path)).status).toBe(401);
+    expect((await mode().fetch(path, asUser("bob"))).status).toBe(403);
+    expect((await mode().fetch("/tenants/acme/scopes/unknown/capabilities", asUser("alice"))).status).toBe(403);
+    expect((await mode().fetch(path, { ...asUser("alice"), method: "PUT" })).status).toBe(404);
   });
 
   it("returns effective capabilities, and 404 for a dashboard that is not there", async () => {
@@ -364,7 +393,7 @@ describe.each([
   it("denies a Consumer's write with reason CAPABILITY", async () => {
     const response = await mode().fetch(
       "/tenants/acme/scopes/ops/dashboards/fleet",
-      withBody(asUser("con"), "PUT", { version: 2 }),
+      withBody(asUser("con"), "PUT", sampleConfig()),
     );
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
@@ -372,10 +401,22 @@ describe.each([
     });
   });
 
+  it("denies creation with a read-only credential without writing the store", async () => {
+    const slug = "capped-create";
+    const response = await mode().fetch(
+      `/tenants/acme/scopes/ops/dashboards/${slug}`,
+      withBody(asUser("capped"), "PUT", sampleConfig()),
+    );
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ reason: "CAPABILITY" });
+    await expect(mode().store.load({ tenantId: "acme", scopeId: "ops", slug }))
+      .resolves.toBeNull();
+  });
+
   it("saves, bumps the revision, and reports a stale write as 409", async () => {
     const created = await mode().fetch(
       "/tenants/acme/scopes/ops/dashboards/newboard",
-      withBody(asUser("alice"), "PUT", { version: 2, title: "first" }),
+      withBody(asUser("alice"), "PUT", sampleConfig({ title: "first" })),
     );
     expect(created.status).toBe(200);
     const body = (await created.json()) as { data: { revision: number } };
@@ -384,7 +425,7 @@ describe.each([
     const stale = await mode().fetch(
       "/tenants/acme/scopes/ops/dashboards/newboard",
       {
-        ...withBody(asUser("alice"), "PUT", { version: 2 }),
+        ...withBody(asUser("alice"), "PUT", sampleConfig()),
         headers: {
           "x-dev-user": "alice",
           "content-type": "application/json",
@@ -394,6 +435,41 @@ describe.each([
     );
     expect(stale.status).toBe(409);
     await expect(stale.json()).resolves.toMatchObject({ code: "CONFLICT" });
+  });
+
+  it("round-trips the loaded ETag and refuses a concurrent overwrite", async () => {
+    const path = "/tenants/acme/scopes/ops/dashboards/revision-roundtrip";
+    const empty = await mode().fetch(path, asUser("alice"));
+    expect(empty.headers.get("etag")).toBe('"0"');
+    await expect(empty.json()).resolves.toEqual({ data: null });
+
+    const save = (etag: string, name: string) =>
+      mode().fetch(path, {
+        ...withBody(asUser("alice"), "PUT", sampleConfig({ name })),
+        headers: {
+          "x-dev-user": "alice",
+          "content-type": "application/json",
+          "if-match": etag,
+        },
+      });
+    const created = await save(empty.headers.get("etag")!, "First");
+    expect(created.status).toBe(200);
+    expect(created.headers.get("etag")).toBe('"1"');
+
+    const loaded = await mode().fetch(path, asUser("alice"));
+    expect(loaded.headers.get("etag")).toBe(created.headers.get("etag"));
+    const updated = await save(loaded.headers.get("etag")!, "Second");
+    expect(updated.status).toBe(200);
+    expect(updated.headers.get("etag")).toBe('"2"');
+    expect((await save(loaded.headers.get("etag")!, "Stale")).status).toBe(409);
+
+    const retained = await mode().fetch(path, asUser("alice"));
+    await expect(retained.json()).resolves.toMatchObject({
+      data: { name: "Second" },
+    });
+    const foreign = await mode().fetch(path, asUser("bob"));
+    expect(foreign.status).toBe(403);
+    expect(foreign.headers.get("etag")).toBeNull();
   });
 
   it("rejects a malformed body and a malformed If-Match as 400", async () => {
@@ -413,7 +489,7 @@ describe.each([
     const badMatch = await mode().fetch(
       "/tenants/acme/scopes/ops/dashboards/fleet",
       {
-        ...withBody(asUser("alice"), "PUT", { version: 2 }),
+        ...withBody(asUser("alice"), "PUT", sampleConfig()),
         headers: {
           "x-dev-user": "alice",
           "content-type": "application/json",
@@ -462,7 +538,7 @@ describe.each([
   it("deletes, then reports the dashboard as gone", async () => {
     await mode().fetch(
       "/tenants/acme/scopes/ops/dashboards/doomed",
-      withBody(asUser("alice"), "PUT", { version: 2 }),
+      withBody(asUser("alice"), "PUT", sampleConfig()),
     );
     const deleted = await mode().fetch(
       "/tenants/acme/scopes/ops/dashboards/doomed",
@@ -502,6 +578,69 @@ describe.each([
       method: "PATCH",
     });
     expect(response.status).toBe(404);
+  });
+
+  describe("a save is checked against the contract", () => {
+    it.each([
+      ["a version nobody can read", { ...sampleConfig(), version: 3 }],
+      ["a legacy version", { ...sampleConfig(), version: 1 }],
+      ["a missing name", { version: 2, widgets: [], preferences: {} }],
+      ["widgets that are not a list", { ...sampleConfig(), widgets: {} }],
+      ["not a document at all", "a dashboard, honest"],
+    ])("refuses %s", async (_label, config) => {
+      const response = await mode().fetch(
+        "/tenants/acme/scopes/ops/dashboards/checked",
+        withBody(asUser("alice"), "PUT", config),
+      );
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        status: 400,
+        code: "BAD_REQUEST",
+      });
+    });
+
+    it("says what is wrong, and where", async () => {
+      const response = await mode().fetch(
+        "/tenants/acme/scopes/ops/dashboards/checked",
+        withBody(
+          asUser("alice"),
+          "PUT",
+          sampleConfig({ widgets: [{ id: 7 }] }),
+        ),
+      );
+      const body = (await response.json()) as { error: string };
+      expect(body.error).toContain("widgets.0");
+    });
+
+    // Validating before authorizing would describe the document shape to a
+    // caller with no standing to ask.
+    it("refuses a caller without standing before it looks at the body", async () => {
+      const response = await mode().fetch(
+        "/tenants/globex/scopes/ops/dashboards/checked",
+        withBody(asUser("alice"), "PUT", { nonsense: true }),
+      );
+      expect(response.status).toBe(403);
+    });
+
+    it("keeps fields it does not know about", async () => {
+      const saved = await mode().fetch(
+        "/tenants/acme/scopes/ops/dashboards/forward",
+        withBody(
+          asUser("alice"),
+          "PUT",
+          sampleConfig({ annotations: [{ note: "from later" }] }),
+        ),
+      );
+      expect(saved.status).toBe(200);
+
+      const read = await mode().fetch(
+        "/tenants/acme/scopes/ops/dashboards/forward",
+        asUser("alice"),
+      );
+      await expect(read.json()).resolves.toMatchObject({
+        data: { annotations: [{ note: "from later" }] },
+      });
+    });
   });
 });
 
@@ -736,4 +875,41 @@ describe("onError", () => {
     expect(response.status).toBe(403);
     expect(seen).toEqual([]);
   });
+});
+
+describe("embedded handler body limits", () => {
+  it("authorizes before reading and refuses oversized authorized writes", async () => {
+    const { options, store } = buildOptions();
+    const handler = createDashboardHandler({ ...options, maxBodyBytes: 10 });
+    const url =
+      "https://dashboard.test/tenants/acme/scopes/ops/dashboards/fleet";
+    const body = JSON.stringify(sampleConfig());
+    expect(
+      (await handler(new Request(url, { method: "PUT", body }))).status,
+    ).toBe(401);
+    expect(
+      (
+        await handler(
+          new Request(url, {
+            method: "PUT",
+            body,
+            headers: { "x-dev-user": "alice" },
+          }),
+        )
+      ).status,
+    ).toBe(413);
+    expect(
+      (await store.load({ tenantId: "acme", scopeId: "ops", slug: "fleet" }))
+        ?.revision,
+    ).toBe(1);
+  });
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 1.5])(
+    "refuses invalid maxBodyBytes %s",
+    (maxBodyBytes) => {
+      expect(() =>
+        createDashboardHandler({ ...buildOptions().options, maxBodyBytes }),
+      ).toThrow(TypeError);
+    },
+  );
 });

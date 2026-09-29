@@ -9,12 +9,17 @@ import { RunCancelProvider } from "./context/run-cancel-context";
 import { useHarnessChatTr } from "./context/harness-chat-i18n-context";
 import type { HarnessSkill } from "./harness-chat-types";
 import { useHarnessReadOnly } from "./context/harness-read-only-context";
+import { useHarnessFork } from "./context/harness-fork-context";
 
-export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
+export const Thread: FC<{ skills: HarnessSkill[]; onStop?: () => void }> = ({
+  skills,
+  onStop,
+}) => {
   const tr = useHarnessChatTr();
   const readOnly = useHarnessReadOnly();
+  const fork = useHarnessFork();
   return (
-    <RunCancelProvider>
+    <RunCancelProvider onCancel={onStop}>
       <ComposerPrimitive.AttachmentDropzone className="group relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="pointer-events-none absolute inset-2 z-20 hidden flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-gray-400 bg-white/90 text-xs font-medium text-gray-600 group-data-[dragging=true]:flex dark:border-gray-500 dark:bg-gray-800/90 dark:text-gray-300">
           <LuPaperclip className="h-5 w-5" />
@@ -22,7 +27,12 @@ export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
         </div>
 
         <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-900">
-          <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
+          {/* overflow-x-hidden: without it a too-wide table in a reply (see
+              MarkdownContent's `table` override) would widen this axis too —
+              overflow-x otherwise computes to "auto" alongside overflow-y —
+              and drag the whole thread into a sideways scroll instead of
+              scrolling on its own. */}
+          <ThreadPrimitive.Viewport className="flex min-h-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto px-3 py-3">
             <AuiIf condition={(s) => s.thread.isEmpty}>
               <ThreadEmpty />
             </AuiIf>
@@ -36,9 +46,18 @@ export const Thread: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
           </ThreadPrimitive.Viewport>
 
           {readOnly ? (
-            <p className="shrink-0 border-t border-gray-200 px-3 py-2 text-center text-[11px] text-gray-400 dark:border-gray-700">
-              {tr("harnessChat.ui.thread.readOnly")}
-            </p>
+            <div className="shrink-0 border-t border-gray-200 px-3 py-2 text-center text-[11px] text-gray-400 dark:border-gray-700">
+              <p>{tr("harnessChat.ui.thread.readOnly")}</p>
+              {fork && (
+                <button
+                  type="button"
+                  onClick={() => fork()}
+                  className="mt-1 font-medium text-blue-600 hover:underline dark:text-blue-400"
+                >
+                  {tr("harnessChat.ui.thread.forkToContinue")}
+                </button>
+              )}
+            </div>
           ) : (
             <Composer skills={skills} />
           )}

@@ -6,34 +6,47 @@ from pydantic import BaseModel, Field
 
 HarnessEventType = Literal[
     "run.started",
-    "route.selected",
     "tool.started",
     "tool.completed",
     "tool.failed",
     "approval.requested",
+    # The user approved or rejected a requested call; `data` holds
+    # {approval_id, tool, decision, comment?, resolved_by?}.
+    "approval.resolved",
     "approval.auto",
     "steering.mode_denied",
-    "artifact.created",
-    "plan.created",
-    # Deprecated: superseded by agent.started / agent.completed. Kept in
-    # the union for back-compat with persisted run records and older
-    # SSE consumers; no new code emits this.
-    "agent.turn",
     "agent.started",
     "agent.completed",
     "thinking.delta",
     "thinking.completed",
     "usage.recorded",
+    # How full the conversation model's context window is after a turn.
+    "context.usage",
     "freshness.warning",
-    "verification.completed",
-    # Ground-or-flag: the synthesizer answered using a business term with no
-    # authoritative definition (knowledge card) and is declaring its assumption.
-    # Carries the assumption record in `data`. See the semantic-layer design.
+    # The answer used a business term with no knowledge card; `data` carries
+    # the assumption the model declared.
     "grounding.gap",
+    # The advisor answered a consult; a workhorse finished a delegated brief.
+    "advisor.consulted",
+    "delegate.completed",
+    # A tool produced a chart, table or KPI for the user; `data.widget` holds
+    # the spec and the rows, which the model never sees in full.
+    "widget.created",
+    # A tool made a document for the user (a process diagram); `data` holds
+    # {id, kind: svg|mermaid, title, content}.
+    "artifact.created",
+    # A dashboard the user can create from widgets of the thread; `data` holds
+    # {id, title, description, widgets: [widget ids]}. The app saves it.
+    "dashboard.draft",
     "answer.delta",
     "answer.completed",
     "run.completed",
     "run.failed",
+    # No longer emitted. Kept so run records saved by older versions load.
+    "route.selected",
+    "plan.created",
+    "agent.turn",
+    "verification.completed",
 ]
 
 

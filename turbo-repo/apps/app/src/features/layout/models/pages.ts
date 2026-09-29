@@ -15,6 +15,7 @@ import pagesConfig from "./pages-config.json";
 
 const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   home: HomeIcon,
+  dashboardServer: HomeIcon,
   calendar: CalendarIcon,
   kanban: ClipboardIcon,
   tasks: FaBookIcon,
@@ -37,11 +38,13 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
 export const DEV_PAGE_LABEL = "dev";
 
 /**
- * Storytelling is still testing-only content (see storytelling-store.ts,
- * the `testing/` fixtures) — hidden unless ENABLE_STORYTELLING is
- * switched on, same mechanism as DEV_PAGE_LABEL above.
+ * Storytelling is hidden unless ENABLE_STORYTELLING is switched on, same
+ * mechanism as DEV_PAGE_LABEL above.
  */
 export const STORYTELLING_PAGE_LABEL = "storytelling";
+
+/** The server-backed dashboard workspace, hidden unless ENABLE_DASHBOARD_SERVER is "true". */
+export const DASHBOARD_SERVER_PAGE_LABEL = "dashboardServer";
 
 // cpd-off — sidebar configuration data, structural repetition is intentional
 /**
@@ -59,8 +62,10 @@ export const pages: SidebarItem[] = pagesConfig.map((p) => ({
 // cpd-on
 
 /**
- * `pages` minus the Dev section unless dev tools are enabled, and minus
- * Storytelling unless storytelling testing is enabled.
+ * `pages` minus the Dev section unless dev tools are enabled, minus
+ * Storytelling unless storytelling testing is enabled, and minus the
+ * dashboard workspace unless `ENABLE_DASHBOARD_SERVER` is on. That last flag
+ * is server-only and reaches the client as a prop from SecuredLayout.
  *
  * Both flags arrive as arguments rather than being read here because they
  * come from the runtime config (`ENABLE_DEV_TOOLS` / `ENABLE_STORYTELLING`,
@@ -70,16 +75,22 @@ export const pages: SidebarItem[] = pagesConfig.map((p) => ({
  * deploy. Module scope can't await that fetch, so the filter moved out to
  * the consumers — see `useVisiblePages`.
  */
-export function visiblePages(devToolsEnabled: boolean, storytellingEnabled: boolean): SidebarItem[] {
+export function visiblePages(
+  devToolsEnabled: boolean,
+  storytellingEnabled: boolean,
+  dashboardServerEnabled: boolean
+): SidebarItem[] {
   return pages.filter((p) => {
     if (p.label === DEV_PAGE_LABEL) return devToolsEnabled;
     if (p.label === STORYTELLING_PAGE_LABEL) return storytellingEnabled;
+    if (p.label === DASHBOARD_SERVER_PAGE_LABEL) return dashboardServerEnabled;
     return true;
   });
 }
 
 const HARNESS_SETTINGS_HREF = "/users/settings/harness";
 const PLATFORM_SETTINGS_HREF = "/users/settings/platform";
+export const HARNESS_LEARNING_HREF = "/harness/learning";
 
 /** Which flag decides whether a gated Settings entry is offered. */
 export interface SettingsGates {
@@ -87,6 +98,8 @@ export interface SettingsGates {
   readonly harness: boolean;
   /** Whether the signed-in user holds `PLATFORM_OWNER`. */
   readonly platformOwner: boolean;
+  /** Whether the signed-in user may train the assistant (`HARNESS_TRAINER`). */
+  readonly trainer: boolean;
 }
 
 /**
@@ -100,12 +113,13 @@ export function filterSettings(
   input: SidebarItem[],
   gates: SettingsGates
 ): SidebarItem[] {
-  if (gates.harness && gates.platformOwner) return input;
+  if (gates.harness && gates.platformOwner && gates.trainer) return input;
 
   return input.map((page) => ({
     ...page,
     items: (page.items ?? []).filter((item) => {
       if (!gates.harness && item.href === HARNESS_SETTINGS_HREF) return false;
+      if (!gates.trainer && item.href === HARNESS_LEARNING_HREF) return false;
       return gates.platformOwner || item.href !== PLATFORM_SETTINGS_HREF;
     }),
   }));

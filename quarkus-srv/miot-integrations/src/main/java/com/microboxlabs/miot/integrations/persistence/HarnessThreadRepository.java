@@ -37,7 +37,11 @@ public class HarnessThreadRepository {
     private static final String CREATED_AT = "created_at";
 
     private static final String THREAD_COLUMNS =
-            "id, tenant_code, owner_id, title, summary, expires_at, last_message_at, created_at, updated_at";
+            "id, tenant_code, owner_id, title, summary, model, expires_at, last_message_at, created_at, updated_at,"
+            + " title_edited, kind";
+
+    /** A null kind lists every kind. */
+    private static final String KIND_FILTER = "($4::varchar IS NULL OR kind = $4::varchar)";
 
     /** A thread is visible while it is neither soft-deleted nor past its expiry. */
     private static final String LIVE = "deleted_at IS NULL AND (expires_at IS NULL OR expires_at > now())";
@@ -51,10 +55,12 @@ public class HarnessThreadRepository {
     // with it when the purge runs.
     private static final String UPSERT_THREAD = """
             INSERT INTO miot_integrations.harness_thread (
-                id, tenant_code, owner_id, title, expires_at, last_message_at
-            ) VALUES ($1, $2, $3, $4, $5, now())
+                id, tenant_code, owner_id, title, expires_at, kind, last_message_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, now())
             ON CONFLICT (id) DO UPDATE
-                SET title = COALESCE(EXCLUDED.title, miot_integrations.harness_thread.title),
+                SET title = CASE WHEN miot_integrations.harness_thread.title_edited
+                                 THEN miot_integrations.harness_thread.title
+                                 ELSE COALESCE(EXCLUDED.title, miot_integrations.harness_thread.title) END,
                     expires_at = COALESCE(EXCLUDED.expires_at, miot_integrations.harness_thread.expires_at),
                     updated_at = now()
                 WHERE miot_integrations.harness_thread.tenant_code = EXCLUDED.tenant_code
@@ -67,17 +73,18 @@ public class HarnessThreadRepository {
     private static final String LIST_OWNED = """
             SELECT %s
             FROM miot_integrations.harness_thread
-            WHERE tenant_code = $1 AND owner_id = $2 AND %s
+            WHERE tenant_code = $1 AND owner_id = $2 AND %s AND %s
             ORDER BY last_message_at DESC
-            LIMIT $3""".formatted(THREAD_COLUMNS, LIVE);
+            LIMIT $3""".formatted(THREAD_COLUMNS, LIVE, KIND_FILTER);
 
     private static final String LIST_SHARED_WITH = """
-            SELECT t.id, t.tenant_code, t.owner_id, t.title, t.summary, t.expires_at,
-                   t.last_message_at, t.created_at, t.updated_at
+            SELECT t.id, t.tenant_code, t.owner_id, t.title, t.summary, t.model, t.expires_at,
+                   t.last_message_at, t.created_at, t.updated_at, t.title_edited, t.kind
             FROM miot_integrations.harness_thread t
             JOIN miot_integrations.harness_thread_share s ON s.thread_id = t.id
             WHERE t.tenant_code = $1 AND s.principal = $2
               AND t.deleted_at IS NULL AND (t.expires_at IS NULL OR t.expires_at > now())
+              AND ($4::varchar IS NULL OR t.kind = $4::varchar)
             ORDER BY t.last_message_at DESC
             LIMIT $3""";
 
@@ -88,12 +95,35 @@ public class HarnessThreadRepository {
 
     private static final String UPDATE_THREAD = """
             UPDATE miot_integrations.harness_thread
-            SET title = COALESCE($3, title),
+            SET title = CASE WHEN $3 IS NULL OR ($8 AND title_edited) THEN title ELSE $3 END,
+                title_edited = title_edited OR ($3 IS NOT NULL AND NOT $8),
                 expires_at = CASE WHEN $5 THEN NULL ELSE COALESCE($4, expires_at) END,
                 summary = COALESCE($6, summary),
+                model = COALESCE($7, model),
                 updated_at = now()
             WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL
             RETURNING %s""".formatted(THREAD_COLUMNS);
+
+    // One statement, so a fork never exists without its messages. The copy
+    // reads the new id from `created`, so it runs after the parent row; it
+    // keeps the source's append order, which is what the new thread replays.
+    private static final String FORK_THREAD = """
+            WITH created AS (
+                INSERT INTO miot_integrations.harness_thread (
+                    id, tenant_code, owner_id, title, title_edited, summary, model, kind, last_message_at
+                ) VALUES ($1, $2, $3, $4, true, $5, $6, $9, now())
+                RETURNING %s
+            ), copied AS (
+                INSERT INTO miot_integrations.harness_thread_message (
+                    thread_id, id, parent_id, format, payload
+                )
+                SELECT c.id, m.id, m.parent_id, m.format, m.payload
+                FROM created c
+                CROSS JOIN miot_integrations.harness_thread_message m
+                WHERE m.thread_id = $7 AND m.id = ANY($8)
+                ORDER BY m.seq
+            )
+            SELECT %s FROM created""".formatted(THREAD_COLUMNS, THREAD_COLUMNS);
 
     // Soft delete: the row stays until the purge job collects it, so a delete
     // racing an in-flight run cannot orphan that run's message writes.
@@ -200,39 +230,71 @@ public class HarnessThreadRepository {
                 .addString(thread.tenantCode())
                 .addString(thread.ownerId())
                 .addString(thread.title())
-                .addValue(thread.expiresAt());
+                .addValue(thread.expiresAt())
+                .addString(thread.kind());
         return firstThread(execute(UPSERT_THREAD, params));
     }
 
-    public List<HarnessThread> listOwned(String tenantCode, String ownerId, int limit) {
-        return threads(execute(LIST_OWNED, Tuple.of(tenantCode, ownerId, limit)));
+    /** {@code kind} null lists threads of every kind. */
+    public List<HarnessThread> listOwned(String tenantCode, String ownerId, String kind, int limit) {
+        return threads(execute(LIST_OWNED, listParams(tenantCode, ownerId, kind, limit)));
     }
 
-    public List<HarnessThread> listSharedWith(String tenantCode, String principal, int limit) {
-        return threads(execute(LIST_SHARED_WITH, Tuple.of(tenantCode, principal, limit)));
+    public List<HarnessThread> listSharedWith(String tenantCode, String principal, String kind, int limit) {
+        return threads(execute(LIST_SHARED_WITH, listParams(tenantCode, principal, kind, limit)));
+    }
+
+    private static Tuple listParams(String tenantCode, String principal, String kind, int limit) {
+        return Tuple.tuple()
+                .addString(tenantCode)
+                .addString(principal)
+                .addInteger(limit)
+                .addString(kind);
     }
 
     public HarnessThread find(String threadId, String tenantCode) {
         return firstThread(execute(FIND_THREAD, Tuple.of(UUID.fromString(threadId), tenantCode)));
     }
 
-    /** Applies a partial update. Returns null when the caller does not own the
-     * thread, since the owner guard lives in the WHERE clause. */
-    public HarnessThread update(
-            String threadId,
-            String ownerId,
+    /** A partial update: null fields are left alone. {@code autoTitle} marks a
+     * generated title, which never replaces one the person chose. */
+    public record Changes(
             String title,
             OffsetDateTime expiresAt,
             boolean clearExpiry,
-            String summary) {
+            String summary,
+            String model,
+            boolean autoTitle) {
+    }
+
+    /** Applies a partial update. Returns null when the caller does not own the
+     * thread, since the owner guard lives in the WHERE clause. */
+    public HarnessThread update(String threadId, String ownerId, Changes changes) {
         Tuple params = Tuple.tuple()
                 .addUUID(UUID.fromString(threadId))
                 .addString(ownerId)
-                .addString(title)
-                .addValue(expiresAt)
-                .addBoolean(clearExpiry)
-                .addString(summary);
+                .addString(changes.title())
+                .addValue(changes.expiresAt())
+                .addBoolean(changes.clearExpiry())
+                .addString(changes.summary())
+                .addString(changes.model())
+                .addBoolean(changes.autoTitle());
         return firstThread(execute(UPDATE_THREAD, params));
+    }
+
+    /** Creates {@code fork} with copies of the named messages of {@code sourceThreadId}. */
+    public HarnessThread fork(HarnessThread fork, String sourceThreadId, List<String> messageIds) {
+        Tuple params = Tuple.tuple()
+                .addUUID(UUID.fromString(fork.id()))
+                .addString(fork.tenantCode())
+                .addString(fork.ownerId())
+                .addString(fork.title())
+                .addString(fork.summary())
+                .addString(fork.model())
+                .addUUID(UUID.fromString(sourceThreadId))
+                .addArrayOfString(messageIds.toArray(String[]::new))
+                .addString(fork.kind());
+        return firstThread(execute(FORK_THREAD, params));
     }
 
     /** @return true when a row was actually marked deleted. */
@@ -348,10 +410,13 @@ public class HarnessThreadRepository {
                 row.getString("owner_id"),
                 row.getString("title"),
                 row.getString("summary"),
+                row.getString("model"),
                 row.getOffsetDateTime("expires_at"),
                 row.getOffsetDateTime("last_message_at"),
                 row.getOffsetDateTime(CREATED_AT),
-                row.getOffsetDateTime("updated_at"));
+                row.getOffsetDateTime("updated_at"),
+                Boolean.TRUE.equals(row.getBoolean("title_edited")),
+                row.getString("kind"));
     }
 
     private HarnessThreadMessage mapMessage(Row row) {

@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  configAllowsGroups,
   createAllowedGroupsPolicy,
   parseAllowedGroups,
 } from "./allowed-groups";
@@ -65,6 +66,41 @@ describe("parseAllowedGroups", () => {
       expect(parseAllowedGroups(value)).toEqual({ valid: false });
     },
   );
+});
+
+describe("configAllowsGroups", () => {
+  // The predicate the policy is built from, and the one a host calls when it
+  // has no capability context to build — so it is covered on its own rather
+  // than only through the policy.
+  it("allows a config that names no audience", () => {
+    expect(configAllowsGroups({ version: 2 }, [])).toBe(true);
+    expect(configAllowsGroups({ allowedGroups: null }, [])).toBe(true);
+    expect(configAllowsGroups({ allowedGroups: [] }, [])).toBe(true);
+  });
+
+  it("allows a caller holding one of the named groups", () => {
+    expect(configAllowsGroups({ allowedGroups: ["a", "b"] }, ["c", "b"])).toBe(
+      true,
+    );
+  });
+
+  it("refuses a caller holding none of them", () => {
+    expect(configAllowsGroups({ allowedGroups: ["a"] }, ["c"])).toBe(false);
+    expect(configAllowsGroups({ allowedGroups: ["a"] }, [])).toBe(false);
+  });
+
+  it("refuses a malformed audience rather than reading it as open", () => {
+    for (const bad of ["everyone", 1, { a: 1 }, ["ok", 2], [null]]) {
+      expect(configAllowsGroups({ allowedGroups: bad }, ["ok"])).toBe(false);
+    }
+  });
+
+  it("allows a config that is not an object at all", () => {
+    // Nothing there names an audience, so there is no restriction to enforce.
+    for (const config of [null, undefined, "text", 42, []]) {
+      expect(configAllowsGroups(config, [])).toBe(true);
+    }
+  });
 });
 
 describe("createAllowedGroupsPolicy", () => {

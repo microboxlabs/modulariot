@@ -1,58 +1,132 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import {
+  Children,
+  forwardRef,
+  isValidElement,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+import type { Components } from "react-markdown";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { focusSearchMatch, searchInDom } from "../../../dom-search";
 import type { SearchableHandle } from "../searchable";
+import { MermaidDiagram } from "./mermaid-diagram";
 
-const base_path = process.env.NEXT_PUBLIC_BASE_PATH;
-export const MARKDOWN_PREVIEW_URL = `${base_path ?? ""}/api/storytelling/markdown-preview`;
-export const MARKDOWN_DOWNLOAD_FILENAME = "story.md";
+/** Flatten a React child tree to its plain text — rehype-highlight may have
+ * split the code into <span> token nodes by the time `pre` sees it, so a
+ * plain String() would stringify element objects. */
+function textOf(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (isValidElement<{ children?: ReactNode }>(node)) return textOf(node.props.children);
+  return "";
+}
+
+/** Pull the fenced-block language + source out of a <pre>'s lone <code>
+ * child, the shape react-markdown hands `pre` for ``` fences. */
+function fencedCode(children: ReactNode): { lang: string; source: string } | null {
+  const child = Children.toArray(children).find((c) => isValidElement(c));
+  if (!isValidElement<{ className?: string; children?: ReactNode }>(child)) return null;
+  const match = /language-(\w+)/.exec(child.props.className ?? "");
+  if (!match) return null;
+  return { lang: match[1], source: textOf(child.props.children) };
+}
+
+/** `pre` override for MarkdownContent: a ```mermaid fence becomes a rendered
+ * diagram; every other fence keeps the default code-block chrome. */
+export const MERMAID_COMPONENTS: Components = {
+  pre({ children }) {
+    const fence = fencedCode(children);
+    if (fence?.lang === "mermaid") return <MermaidDiagram code={fence.source} />;
+    return (
+      <pre className="overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+        {children}
+      </pre>
+    );
+  },
+};
 
 interface MarkdownPreviewerProps {
+  readonly content: string;
   readonly dict: I18nRecord;
   /** Lets the header know when the search box can accept input. */
   readonly onReadyChange?: (ready: boolean) => void;
 }
 
-/** Fetches the artifact's raw Markdown and renders it with the same
+interface TocEntry {
+  readonly level: number;
+  readonly text: string;
+}
+
+/** Renders the story's Markdown with the same
  * MarkdownContent component the rest of the app already uses (dashboard
  * dashlets, settings fields) — not a separate renderer for this one case.
+ * A side rail lists the document's headings (styled like the PDF
+ * previewer's "Sections" tab — previewers/pdf/pdf-previewer.tsx) for
+ * quick navigation; it's built from the actual rendered heading elements
+ * rather than re-parsing the Markdown, so nesting inside blockquotes/lists
+ * is covered for free and there's no risk of the two disagreeing.
  * Searchable: renders in our own document (unlike HtmlPreviewer's iframe),
  * so find-in-page just scopes dom-search.ts to this component's own
  * container instead of a foreign document. */
 export const MarkdownPreviewer = forwardRef<SearchableHandle, MarkdownPreviewerProps>(
-  function MarkdownPreviewer({ dict, onReadyChange }, ref) {
-    const [content, setContent] = useState<string | null>(null);
-    const [failed, setFailed] = useState(false);
+  function MarkdownPreviewer({ content, dict, onReadyChange }, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
     const matchStateRef = useRef({ count: 0, current: -1 });
 
-    useEffect(() => {
-      let cancelled = false;
-      fetch(MARKDOWN_PREVIEW_URL)
-        .then((res) => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.text();
-        })
-        .then((text) => {
-          if (!cancelled) setContent(text);
-        })
-        .catch(() => {
-          if (!cancelled) setFailed(true);
-        });
-      return () => {
-        cancelled = true;
-      };
-    }, []);
+    const [toc, setToc] = useState<TocEntry[]>([]);
+    const headingElsRef = useRef<HTMLElement[]>([]);
+    const [activeHeading, setActiveHeading] = useState(0);
 
     useEffect(() => {
-      // Ready as soon as loading settles either way — a failed load still
-      // means there's nothing left to wait on.
-      if (content !== null || failed) onReadyChange?.(true);
-    }, [content, failed, onReadyChange]);
+      onReadyChange?.(true);
+    }, [onReadyChange]);
+
+    // Build the outline from the headings MarkdownContent actually rendered
+    // (once, right after they land in the DOM), then track which one the
+    // reader has scrolled to — same "topmost visible entry wins" idea as a
+    // scrollspy, so the highlight doesn't chase whichever heading happens to
+    // cover the most pixels.
+    useEffect(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const headings = Array.from(
+        container.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6")
+      );
+      headingElsRef.current = headings;
+      setToc(
+        headings.map((el) => ({
+          level: Number(el.tagName[1]),
+          text: el.textContent?.trim() ?? "",
+        }))
+      );
+      if (headings.length === 0) return;
+
+      const visible = new Map<number, boolean>();
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            const idx = headings.indexOf(entry.target as HTMLElement);
+            if (idx !== -1) visible.set(idx, entry.isIntersecting);
+          }
+          const visibleIndexes = [...visible.entries()]
+            .filter(([, isVisible]) => isVisible)
+            .map(([idx]) => idx);
+          if (visibleIndexes.length > 0) setActiveHeading(Math.min(...visibleIndexes));
+        },
+        { root: container, threshold: 0 }
+      );
+      for (const el of headings) io.observe(el);
+      return () => io.disconnect();
+    }, [content]);
 
     useImperativeHandle(
       ref,
@@ -79,28 +153,48 @@ export const MarkdownPreviewer = forwardRef<SearchableHandle, MarkdownPreviewerP
       []
     );
 
-    if (failed) {
-      return (
-        <div className="flex h-full w-full items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-          {tr("detail.markdown.error", dict)}
-        </div>
-      );
-    }
-
-    if (content === null) {
-      return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-white dark:bg-gray-900">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500 dark:border-gray-700 dark:border-t-gray-400" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">{tr("detail.loading", dict)}</p>
-        </div>
-      );
-    }
-
     return (
-      <div ref={containerRef} className="h-full w-full overflow-y-auto bg-white dark:bg-gray-900">
-        <MarkdownContent variant="document" className="mx-auto max-w-4xl px-6 py-10">
-          {content}
-        </MarkdownContent>
+      <div className="flex h-full w-full min-h-0 flex-1">
+        {toc.length > 0 && (
+          <div className="flex w-48 shrink-0 flex-col border-r border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-950">
+            <div className="border-b border-gray-200 px-3 py-2 text-xs font-semibold text-gray-500 dark:border-gray-700 dark:text-gray-400">
+              {tr("detail.markdown.outline", dict)}
+            </div>
+            <ul className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
+              {toc.map((entry, i) => (
+                <li key={`${entry.level}-${entry.text}-${i}`}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      headingElsRef.current[i]?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      })
+                    }
+                    style={{ paddingLeft: `${0.5 + (entry.level - 1) * 0.75}rem` }}
+                    className={`block w-full truncate rounded-md py-1.5 pr-2 text-left text-xs transition-colors ${
+                      i === activeHeading
+                        ? "bg-blue-50 font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
+                        : "text-gray-600 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-800"
+                    }`}
+                    title={entry.text}
+                  >
+                    {entry.text}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div
+          ref={containerRef}
+          className="h-full min-h-0 flex-1 overflow-y-auto bg-white dark:bg-gray-900"
+        >
+          <MarkdownContent variant="document" className="mx-auto max-w-4xl px-6 py-10" components={MERMAID_COMPONENTS}>
+            {content}
+          </MarkdownContent>
+        </div>
       </div>
     );
   }

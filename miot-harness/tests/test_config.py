@@ -7,8 +7,10 @@ from pydantic import ValidationError
 
 from miot_harness.config import (
     HarnessSettings,
+    ModelNotConfiguredError,
     get_settings,
     load_dotenv_into_environ,
+    required_model,
 )
 
 
@@ -29,14 +31,11 @@ def test_default_datasource_and_agents_settings():
     assert settings.datasource_tenant_lock is None
     assert settings.datasource_freshness_warn_minutes is None
     assert settings.datasource_freshness_refuse_minutes is None
-    assert settings.agents_max_turns == 8
-    assert settings.agents_critic_enabled is False
-    assert settings.agents_supervisor_mode == "rule"
-    assert settings.agents_filter_expert_model == "claude-haiku-4-5"
-    assert settings.agents_analyst_model == "claude-sonnet-4-6"
-    assert settings.agents_synthesizer_model == "claude-sonnet-4-6"
-    assert settings.agents_critic_model == "claude-sonnet-4-6"
-    assert settings.agents_summarizer_model == "claude-haiku-4-5"
+    assert settings.agents_agent_loop_max_turns == 12
+    assert settings.agents_agent_loop_effort == "high"
+    assert settings.agents_agent_loop_thinking_budget == 4096
+    assert settings.agents_summarizer_model is None
+    assert settings.conversation_keep_recent_turns == 2
 
 
 def test_datasource_and_agents_settings_from_env(monkeypatch):
@@ -46,10 +45,8 @@ def test_datasource_and_agents_settings_from_env(monkeypatch):
     monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_TENANT_LOCK", "orion")
     monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_FRESHNESS_WARN_MINUTES", "15")
     monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_FRESHNESS_REFUSE_MINUTES", "60")
-    monkeypatch.setenv("MIOT_HARNESS_AGENTS_MAX_TURNS", "12")
-    monkeypatch.setenv("MIOT_HARNESS_AGENTS_CRITIC_ENABLED", "true")
-    monkeypatch.setenv("MIOT_HARNESS_AGENTS_FILTER_EXPERT_MODEL", "claude-haiku-4-5")
-    monkeypatch.setenv("MIOT_HARNESS_AGENTS_ANALYST_MODEL", "gpt-4o")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_MAX_TURNS", "20")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_EFFORT", "max")
 
     settings = HarnessSettings()
 
@@ -57,20 +54,21 @@ def test_datasource_and_agents_settings_from_env(monkeypatch):
     assert settings.datasource_tenant_lock == "orion"
     assert settings.datasource_freshness_warn_minutes == 15
     assert settings.datasource_freshness_refuse_minutes == 60
-    assert settings.agents_max_turns == 12
-    assert settings.agents_critic_enabled is True
-    assert settings.agents_filter_expert_model == "claude-haiku-4-5"
-    assert settings.agents_analyst_model == "gpt-4o"
+    assert settings.agents_agent_loop_max_turns == 20
+    assert settings.agents_agent_loop_effort == "max"
 
 
-def test_datasource_and_agents_settings_env_names(monkeypatch) -> None:
-    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_KIND", "nexo")
-    monkeypatch.setenv("MIOT_HARNESS_DATASOURCE_DSN", "postgresql://u:p@h:5432/db")
-    monkeypatch.setenv("MIOT_HARNESS_AGENTS_MAX_TURNS", "5")
+def test_older_env_names_still_set_the_loop(monkeypatch) -> None:
+    """Deploy values written for the planner seats keep working."""
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENTIC_MAX_TURNS", "5")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_PLANNER_EFFORT", "low")
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_SYNTHESIZER_THINKING_BUDGET", "0")
+    monkeypatch.setenv("MIOT_HARNESS_INTENT_ROUTER_CONTEXT_TURNS", "4")
     s = HarnessSettings()
-    assert s.datasource_kind == "nexo"
-    assert s.datasource_dsn == "postgresql://u:p@h:5432/db"
-    assert s.agents_max_turns == 5
+    assert s.agents_agent_loop_max_turns == 5
+    assert s.agents_agent_loop_effort == "low"
+    assert s.agents_agent_loop_thinking_budget == 0
+    assert s.conversation_keep_recent_turns == 4
     assert not hasattr(s, "nexo_dsn")  # clean break — old name is gone
 
 
@@ -93,10 +91,14 @@ def test_provider_api_keys_read_from_env(monkeypatch):
     assert settings.openai_api_key == "sk-openai-test"
 
 
-def test_supervisor_mode_validates_literal(monkeypatch):
+def test_settings_of_removed_seats_are_ignored(monkeypatch):
+    """Old deploy values name seats that no longer exist; boot must not fail."""
     monkeypatch.setenv("MIOT_HARNESS_AGENTS_SUPERVISOR_MODE", "bogus")
-    with pytest.raises(ValidationError):
-        HarnessSettings()
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_ENABLED", "false")
+    monkeypatch.setenv("MIOT_HARNESS_INTENT_ROUTER_MODEL", "claude-haiku-4-5")
+    s = HarnessSettings()
+    assert not hasattr(s, "agents_supervisor_mode")
+    assert not hasattr(s, "agents_agent_loop_enabled")
 
 
 def test_otel_settings_have_safe_defaults():
@@ -151,15 +153,23 @@ def test_langfuse_host_read_from_env(monkeypatch):
     assert settings.langfuse_host == "https://langfuse.internal.modulariot.dev"
 
 
-def test_conversation_token_budget_default_is_24k():
-    settings = HarnessSettings()
-    assert settings.conversation_token_budget == 24_000
+def test_conversation_keep_recent_turns_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_CONVERSATION_KEEP_RECENT_TURNS", "3")
+    assert HarnessSettings().conversation_keep_recent_turns == 3
 
 
-def test_conversation_token_budget_read_from_env(monkeypatch):
-    monkeypatch.setenv("MIOT_HARNESS_CONVERSATION_TOKEN_BUDGET", "8000")
+
+
+
+def test_conversation_tool_token_budget_default_is_48k():
     settings = HarnessSettings()
-    assert settings.conversation_token_budget == 8_000
+    assert settings.conversation_tool_token_budget == 48_000
+
+
+def test_conversation_tool_token_budget_read_from_env(monkeypatch):
+    monkeypatch.setenv("MIOT_HARNESS_CONVERSATION_TOOL_TOKEN_BUDGET", "12000")
+    settings = HarnessSettings()
+    assert settings.conversation_tool_token_budget == 12_000
 
 
 def test_fs_settings_defaults():
@@ -287,20 +297,20 @@ def test_load_dotenv_multi_file_later_wins(tmp_path, monkeypatch):
     assert os.environ["MIOT_HARNESS_B_T"] == "base"
 
 
-def test_agent_loop_settings_defaults(monkeypatch):
-    monkeypatch.delenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_ENABLED", raising=False)
-    from miot_harness.config import HarnessSettings
-
+def test_no_model_has_a_built_in_default():
     s = HarnessSettings()
-    assert s.agents_agent_loop_enabled is False
+    assert s.agents_agent_loop_model is None
+    assert s.agents_advisor_model is None
+    assert s.agents_workhorse_model is None
+    assert s.agents_summarizer_model is None
+    assert s.knowledge_distiller_model is None
+    assert s.web_search_model is None
     assert s.agents_agent_loop_tool_result_max_chars == 6000
 
 
 def test_agent_loop_settings_env_override(monkeypatch):
-    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_ENABLED", "true")
-    from miot_harness.config import HarnessSettings
-
-    assert HarnessSettings().agents_agent_loop_enabled is True
+    monkeypatch.setenv("MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL", "claude-opus-4-8")
+    assert HarnessSettings().agents_agent_loop_model == "claude-opus-4-8"
 
 
 def test_agent_loop_llm_timeout_default(monkeypatch):
@@ -324,7 +334,7 @@ def test_knowledge_distiller_defaults_are_off():
     settings = HarnessSettings()
     assert settings.knowledge_distiller_enabled is False
     assert settings.knowledge_auto_promote_enabled is False
-    assert settings.knowledge_distiller_model == "claude-sonnet-4-6"
+    assert settings.knowledge_distiller_model is None
     assert settings.knowledge_card_decay_days == 90
     assert settings.knowledge_auto_promote_min_confidence == 0.9
 
@@ -343,3 +353,10 @@ def test_knowledge_decay_days_rejects_non_positive(monkeypatch):
     monkeypatch.setenv("MIOT_HARNESS_KNOWLEDGE_CARD_DECAY_DAYS", "0")
     with pytest.raises(ValidationError):
         HarnessSettings()
+
+
+def test_required_model_names_the_env_var_when_unset():
+    assert required_model("claude-haiku-4-5", "MIOT_HARNESS_X_MODEL") == "claude-haiku-4-5"
+    for unset in (None, ""):
+        with pytest.raises(ModelNotConfiguredError, match="MIOT_HARNESS_X_MODEL"):
+            required_model(unset, "MIOT_HARNESS_X_MODEL")

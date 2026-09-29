@@ -14,7 +14,7 @@ function mkConfig(): ResolvedConfig {
     token: null,
     tenantId: "demo-tenant",
     userId: "demo-user",
-    mode: "auto",
+    model: null,
     profileName: "test",
     theme: null,
     debug: false,

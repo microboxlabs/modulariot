@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -5,23 +6,23 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from miot_harness.knowledge.changes import MAX_OVERLAY_CHANGES, RUN_LAYERS, KnowledgeChange
 from miot_harness.runtime.approvals import ApprovalRegistry
+from miot_harness.runtime.attachments import MAX_ATTACHMENTS, Attachment
+from miot_harness.runtime.commands import command_names
 from miot_harness.runtime.permissions import (
     PermissionMode,
     PermissionPolicy,
     PermissionRule,
 )
 
-# The four explicit dispatch surfaces a caller can request. "auto" is the
-# default (LLM intent router decides). The other three bypass the router
-# and dispatch directly — useful for evals, cost-sensitive callers, and
-# operator debugging.
-RunMode = Literal["auto", "canned", "meta", "agentic"]
-
 # The output format for the run's `answer` string. The JSON response envelope
 # never changes; only the encoding of `answer` does. "markdown" is canonical
 # (what the agents emit) and the default when a caller omits the field.
 AnswerFormat = Literal["markdown", "plain", "html", "xml", "yaml", "json"]
+
+# Reasoning effort a caller may pick for one run.
+RunEffort = Literal["low", "medium", "high", "max"]
 
 # A leading "/slug" in a request message selects a skill (e.g.
 # "/fleet-report how is the fleet?"). The slug must be followed by whitespace
@@ -40,9 +41,11 @@ class HarnessContext(BaseModel):
     user_id: str
     route_context: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    # Phase E (plan 13): the mode the caller requested. Set from
-    # `UserRequest.mode` so per-mode cost can split in Langfuse panels.
-    mode: RunMode = "auto"
+    # The conversation model the caller chose for the agent loop, or None for
+    # the deployment default. Validated against the allowlist at the API.
+    model: str | None = None
+    # Reasoning effort the caller chose for this run, or None for the default.
+    effort: RunEffort | None = None
     # The caller-requested output format for the final answer string. Read by
     # HarnessSupervisor._finalize_answer to render record.answer before save.
     answer_format: AnswerFormat = "markdown"
@@ -63,6 +66,35 @@ class HarnessContext(BaseModel):
     # approval_registry, it is excluded from model_dump (PermissionPolicy
     # is serializable, but it is run-control state, not run output).
     permission_policy: PermissionPolicy | None = Field(default=None, exclude=True)
+    # Who started the run, as the backend proxy told us: the caller's bearer
+    # token and the slug of the organization the run is for. MCP skills call
+    # back into the backend with them, so the backend applies that user's
+    # permissions. Set by the API from request headers, never from the body;
+    # excluded from dumps and repr so the token never lands in a record or log.
+    caller_token: str | None = Field(default=None, exclude=True, repr=False)
+    organization: str | None = Field(default=None, exclude=True)
+    # Files attached to this run's message. Excluded from dumps and repr so
+    # the bytes never land in a record or log.
+    attachments: list[Attachment] = Field(default_factory=list, exclude=True, repr=False)
+    # Why this tenant may not read the datasource, or None when it may. The
+    # model still answers; the datasource tools return this instead.
+    data_refusal: str | None = Field(default=None, exclude=True)
+    # The caller may teach the agent facts (the organization's trainer
+    # permission, as the backend proxy decided it).
+    trainer: bool = Field(default=False, exclude=True)
+    # Knowledge changes this run sees in place of the stored ones, and no other
+    # run does. Only a trainer's run or an evaluation carries them.
+    knowledge_overlay: tuple[KnowledgeChange, ...] = Field(default=(), exclude=True)
+
+    def scope_key(self) -> str:
+        """Key for state kept per conversation (scratchpad, task list).
+
+        The tenant, the user and the conversation (the thread when there is
+        none), JSON-encoded so no value can shift into its neighbor: joined
+        with "/", tenant "a/b" and user "c" would share a key with tenant "a"
+        and user "b/c".
+        """
+        return json.dumps([self.tenant_id, self.user_id, self.conversation_id or self.thread_id])
 
 
 # Bounds on a replayed transcript, enforced where the body is parsed rather
@@ -84,6 +116,9 @@ class ConversationTurnInput(BaseModel):
 
 class UserRequest(BaseModel):
     message: str
+    attachments: list[Attachment] = Field(
+        default_factory=list, max_length=MAX_ATTACHMENTS, repr=False
+    )
     thread_id: str = "demo-thread"
     # Issue #522 R6: `tenant_id` and `user_id` are deprecated body
     # fields. In production the tenant is set in `api.server` from the
@@ -105,7 +140,14 @@ class UserRequest(BaseModel):
         json_schema_extra={"deprecated": True},
     )
     route_context: dict[str, Any] = Field(default_factory=dict)
-    mode: RunMode = "auto"
+    # Accepted from older clients and ignored: every run goes to the one
+    # agent loop. Remove once no client sends it.
+    mode: str | None = Field(default=None, json_schema_extra={"deprecated": True})
+    # Conversation model for the agent loop; one of GET /models, or omitted
+    # for the default.
+    model: str | None = Field(default=None, max_length=80)
+    # Reasoning effort for this run; omitted for the deployment default.
+    effort: RunEffort | None = None
     conversation_id: str | None = None
     # Prior turns of `conversation_id`, replayed by the caller when the
     # harness has never seen that id — after a restart, or when a user
@@ -140,6 +182,21 @@ class UserRequest(BaseModel):
     rules: list[PermissionRule] = Field(default_factory=list)
     # Output format for the response `answer` string (default markdown).
     answer_format: AnswerFormat = "markdown"
+    # Whether the caller holds the organization's trainer permission. The
+    # backend proxy sets it on every run, overwriting what the client sent.
+    trainer: bool = False
+    # Knowledge changes to preview in this run only (see HarnessContext).
+    # Ignored unless `trainer` is set or code calls `allow_overlay()`.
+    knowledge_overlay: list[KnowledgeChange] = Field(
+        default_factory=list, max_length=MAX_OVERLAY_CHANGES
+    )
+    _overlay_allowed: bool = False
+
+    def allow_overlay(self) -> "UserRequest":
+        """Honor `knowledge_overlay` on a run that is not a trainer's (the
+        evaluation engine). Not reachable from a request body."""
+        self._overlay_allowed = True
+        return self
 
     @field_validator("tenant_id")
     @classmethod
@@ -154,10 +211,13 @@ class UserRequest(BaseModel):
 
         An explicit `skill_id` always wins (message left untouched). Unknown
         slugs resolve to no skill downstream and the run proceeds normally.
+        A harness command (`/compact`, `/context`) stays in the message, so a
+        skill cannot share its name.
         """
         if not self.skill_id:
             match = _SKILL_SLUG_RE.match(self.message)
-            if match is not None:
+            commands = command_names(trainer=self.trainer)
+            if match is not None and match.group("slug") not in commands:
                 self.skill_id = match.group("slug")
                 self.message = match.group("rest") or ""
         return self
@@ -190,9 +250,17 @@ class UserRequest(BaseModel):
             tenant_id=tenant_id,
             user_id=self.user_id,
             route_context=self.route_context,
-            mode=self.mode,
+            model=self.model,
+            effort=self.effort,
             conversation_id=self.conversation_id,
             debug=self.debug,
             answer_format=self.answer_format,
             permission_policy=policy,
+            attachments=self.attachments,
+            trainer=self.trainer,
+            knowledge_overlay=(
+                tuple(c for c in self.knowledge_overlay if c.layer in RUN_LAYERS)
+                if self.trainer or self._overlay_allowed
+                else ()
+            ),
         )

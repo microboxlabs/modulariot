@@ -1,5 +1,3 @@
-export type RunMode = "auto" | "canned" | "meta" | "agentic";
-
 /**
  * One prior exchange replayed into a conversation the caller owns. The harness
  * keeps conversations in memory, so a caller holding a transcript the harness
@@ -11,13 +9,24 @@ export interface ConversationTurn {
   assistant_answer: string;
 }
 
+/**
+ * A file attached to the message. The harness accepts up to 5, each at most
+ * 5 MB: PNG, JPEG, WebP or GIF images, PDFs, JSON and `text/*` files.
+ */
+export interface Attachment {
+  mime: string;
+  name?: string;
+  /** The file's bytes, base64-encoded, without a `data:` prefix. */
+  data: string;
+}
+
 export interface UserRequest {
   message: string;
+  attachments?: Attachment[];
   thread_id?: string;
   tenant_id?: string;
   user_id?: string;
   route_context?: Record<string, unknown>;
-  mode?: RunMode;
   conversation_id?: string | null;
   /** Seeds `conversation_id` when the harness does not know it. Ignored for a
    * conversation it already holds. */
@@ -28,6 +37,28 @@ export interface UserRequest {
   answer_format?: string;
   skill_id?: string;
   debug?: boolean;
+  /** Conversation model for the agent loop; one of `models.list()`. Omit
+   * for the harness default. */
+  model?: string;
+  /** Reasoning effort for this run. Omit for the harness default. */
+  effort?: RunEffort;
+}
+
+export type RunEffort = "low" | "medium" | "high" | "max";
+
+/** GET /models: the models a run may name in `model`. */
+export interface ModelsInfo {
+  default: string | null;
+  models: string[];
+}
+
+export interface ThreadTitleRequest {
+  message: string;
+  answer: string;
+}
+
+export interface ThreadTitle {
+  title: string;
 }
 
 /**
@@ -40,43 +71,75 @@ export interface UserRequest {
  */
 export const HARNESS_EVENT_TYPES = [
   "run.started",
-  "route.selected",
   "tool.started",
   "tool.completed",
   "tool.failed",
   "approval.requested",
+  "approval.resolved",
   "approval.auto",
   "steering.mode_denied",
-  "artifact.created",
-  "plan.created",
-  /** @deprecated superseded by agent.started / agent.completed. */
-  "agent.turn",
   "agent.started",
   "agent.completed",
   "thinking.delta",
   "thinking.completed",
   "usage.recorded",
+  "context.usage",
   "freshness.warning",
-  "verification.completed",
   "grounding.gap",
   "answer.delta",
+  "advisor.consulted",
+  "delegate.completed",
+  "widget.created",
+  "artifact.created",
+  "dashboard.draft",
   "answer.completed",
   "run.completed",
   "run.failed",
+  // No longer emitted; kept so run records saved by older versions type-check.
+  /** @deprecated no longer emitted. */
+  "route.selected",
+  /** @deprecated no longer emitted. */
+  "plan.created",
+  /** @deprecated no longer emitted. */
+  "agent.turn",
+  /** @deprecated no longer emitted. */
+  "verification.completed",
 ] as const;
 
 export type HarnessEventType = (typeof HARNESS_EVENT_TYPES)[number];
 
+/** `artifact.created`: a document a tool made for the user, e.g. a process diagram. */
+export interface ArtifactCreatedData {
+  id: string;
+  kind: "svg" | "mermaid" | "markdown" | "html";
+  title: string;
+  /** SVG markup (plain shapes and text, no scripts or links), Mermaid or
+   * Markdown source, or an HTML page to show in a sandboxed frame. */
+  content: string;
+  source?: string;
+}
+
+/** `dashboard.draft`: a dashboard the user can create from widgets of the thread. */
+export interface DashboardDraftData {
+  id: string;
+  title: string;
+  description: string;
+  /** Ids of `widget.created` widgets, in display order. */
+  widgets: string[];
+}
+
 export interface AgentStartedData {
   agent: string;
-  graph: "nexo" | "agentic";
+  graph: string;
   turn: number;
 }
 
 export interface AgentCompletedData {
   agent: string;
-  graph: "nexo" | "agentic" | "meta";
+  graph: string;
   duration_ms: number;
+  /** Time to the model's first streamed chunk; null when none arrived. */
+  first_token_ms?: number | null;
   exit_reason: "ok" | "failure" | "next_action";
   error?: string;
 }
@@ -111,13 +174,13 @@ export interface ToolCompletedData {
 }
 
 export interface ThinkingDeltaData {
-  agent: "synthesizer";
+  agent: string;
   delta: string;
   index: number;
 }
 
 export interface ThinkingCompletedData {
-  agent: "synthesizer";
+  agent: string;
   tokens: number;
   length: number;
 }
@@ -153,7 +216,7 @@ export interface HarnessEvent {
 }
 
 /**
- * A ground-or-flag assumption: the synthesizer answered using a business term
+ * A ground-or-flag assumption: the model answered using a business term
  * it could not ground in an authoritative knowledge card, and is declaring the
  * interpretation it assumed (semantic-layer continual learning). Mirrors the
  * Python record persisted on the run.
@@ -171,6 +234,22 @@ export interface HarnessAssumption {
   connection?: string;
 }
 
+/** Tokens in the model's context window. `used` is the provider's count
+ * when it reports one; the breakdown is approximate. */
+export interface HarnessContextUsage {
+  model: string;
+  window: number;
+  used: number;
+  ratio: number;
+  breakdown: {
+    system: number;
+    tools: number;
+    history: number;
+    message: number;
+    run: number;
+  };
+}
+
 export interface HarnessRunRecord {
   run_id: string;
   status: string;
@@ -181,11 +260,68 @@ export interface HarnessRunRecord {
   /** The conversation's compacted summary as of the end of this run. Optional
    * for harness versions predating compaction. */
   conversation_summary?: string | null;
+  /** How full the conversation model's context window was after the run's
+   * last model turn. Optional for harness versions predating it. */
+  context?: HarnessContextUsage | null;
   /**
-   * Ground-or-flag assumptions declared by the synthesizer. Optional for
+   * Ground-or-flag assumptions the model declared. Optional for
    * back-compat with harness versions / persisted records predating the field.
    */
   assumptions?: HarnessAssumption[];
+  /** The model and skill the run was asked for. Optional for older records. */
+  model?: string | null;
+  skill_id?: string | null;
+}
+
+/** `interrupted`: saved mid-run by a harness process that is gone. */
+export type RunSummaryStatus =
+  | "running"
+  | "completed"
+  | "failed"
+  | "interrupted";
+
+/** One run as `GET /runs` lists it. Mirrors the Python `RunSummary` in
+ * `miot-harness/src/miot_harness/runtime/run_store.py`. */
+export interface RunSummary {
+  run_id: string;
+  conversation_id: string | null;
+  tenant_id: string | null;
+  user_id: string | null;
+  status: RunSummaryStatus | (string & {});
+  started_at: string | null;
+  finished_at: string | null;
+  model: string | null;
+  skill_id: string | null;
+  /** The last tool the run started. */
+  last_step: { label: string; tool: string | null } | null;
+  /** `input_tokens` excludes the prompt read from or written to the cache. */
+  usage: {
+    calls: number;
+    input_tokens: number;
+    output_tokens: number;
+    cache_read_input_tokens?: number;
+    cache_creation_input_tokens?: number;
+  };
+  /** Briefs handed to a workhorse by `delegate`, in order. */
+  delegates: Array<{ brief: string; status: string }>;
+  /** A call the running run waits for the user to approve. Absent from
+   * harness versions that predate it. */
+  pending_approval?: { approval_id: string; tool: string | null } | null;
+}
+
+/** Body of `POST /runs/{id}/approvals/{approval_id}`. */
+export interface ApprovalDecision {
+  decision: "approve" | "deny";
+  /** Why the call was rejected; the model reads it. */
+  comment?: string;
+}
+
+export interface ListRunsQuery {
+  conversation_id?: string;
+  /** One status or several, sent comma-separated. */
+  status?: RunSummaryStatus | RunSummaryStatus[];
+  /** 1–100; the server defaults to 20. */
+  limit?: number;
 }
 
 /**

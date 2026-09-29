@@ -5,8 +5,7 @@ At boot we probe every zero-required-arg `fn_dx_*` function with
 and classify its snapshot state. The result feeds:
 
 - `/health` — ops can see which snapshots are stale before users do;
-- the meta-agent catalog — "¿qué funciones tienen datos frescos?" is
-  answerable without running a single data query.
+- the provider's catalog entries, which carry a freshness suffix.
 
 Survey failures never disable the integration: an unprobeable function
 is reported as status="error" and everything else proceeds.

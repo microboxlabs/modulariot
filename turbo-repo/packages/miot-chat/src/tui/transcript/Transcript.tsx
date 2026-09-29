@@ -29,7 +29,6 @@ function isTerminalItem(
       return item.status !== "running";
     case "thinking":
       return item.status !== "streaming";
-    case "route":
     case "agent":
     case "plan":
     case "freshness":
@@ -70,8 +69,8 @@ export function Transcript(props: TranscriptProps): React.ReactElement {
   const splitPoint = firstLive === -1 ? props.items.length : firstLive;
   const committed = props.items.slice(0, splitPoint);
   const live = props.items.slice(splitPoint);
-  // When a run is in flight, the most recent "chain" item (route /
-  // plan / agent / artifact / freshness) in the live tail gets a
+  // When a run is in flight, the most recent "chain" item (plan /
+  // agent / artifact / freshness) in the live tail gets a
   // spinner instead of the static "·" prefix to signal "this is the
   // step the harness is working on right now".
   const activeChainIdx = props.isStreaming
@@ -103,7 +102,6 @@ function findActiveChainIndex(items: TranscriptItem[]): number {
     const item = items[i];
     if (!item) continue;
     if (
-      item.kind === "route" ||
       item.kind === "plan" ||
       item.kind === "agent" ||
       item.kind === "artifact" ||
@@ -131,12 +129,6 @@ function TranscriptItemView(props: {
       return <AssistantTurn item={item} />;
     case "tool":
       return <ToolCall item={item} />;
-    case "route":
-      return (
-        <ChainRow prefix="route:" isActive={isActive}>
-          {item.route}
-        </ChainRow>
-      );
     case "agent":
       return (
         <ChainRow prefix="agent:" isActive={isActive}>

@@ -2,10 +2,10 @@
 
 Framework-agnostic backend services for MIOT embeddable dashboards.
 
-`@microboxlabs/miot-dashboard-ui` renders dashboards and does not know about
-tenants. This package handles that instead: saving data, verifying users,
-keeping tenants separate, and securing datasource credentials and embed
-tokens — all on the server, in one place.
+The browser UI currently ships inside ModularIoT; a separate
+`@microboxlabs/miot-dashboard-ui` package is planned. This server package saves
+data, verifies users, keeps tenants separate, and secures datasource credentials
+and embed tokens. Other frontends can use its shared HTTP contract.
 
 A host plugs it in by implementing a few interfaces. The host's framework,
 identity provider, and database stay outside this package.
@@ -74,28 +74,36 @@ MIOT_DASHBOARD_SEED=example \
   npx @microboxlabs/miot-dashboard-server
 ```
 
-| Variable                               | Default                | Purpose                                                        |
-| -------------------------------------- | ---------------------- | -------------------------------------------------------------- |
-| `PORT`                                 | `3070`                 | Port to listen on                                              |
-| `HOST`                                 | `127.0.0.1`            | Address to bind                                                |
-| `MIOT_DASHBOARD_BASE_PATH`             | (empty)                | URL prefix for API routes                                      |
-| `MIOT_DASHBOARD_SEED`                  | —                      | Path to a seed JSON file, or `example` for bundled sample data |
-| `MIOT_DASHBOARD_INSECURE_AUTH`         | off                    | Local dev only: trust identity headers without verification    |
-| `MIOT_DASHBOARD_STORE`                 | `memory`               | Where dashboards are saved: `memory`, `sqlite` or `postgres`   |
-| `MIOT_DASHBOARD_SQLITE_PATH`           | `./data/dashboards.db` | Database file when store is `sqlite`                           |
-| `MIOT_DASHBOARD_POSTGRES_URL`          | —                      | Connection string when store is `postgres`; no default         |
-| `MIOT_DASHBOARD_DOCUMENTS`             | `inline`               | Where config bytes go: `inline`, `fs`, `s3` or `gcs`           |
-| `MIOT_DASHBOARD_DOCUMENTS_PATH`        | `./data/documents`     | Directory when documents is `fs`                               |
-| `MIOT_DASHBOARD_DOCUMENTS_BUCKET`      | —                      | Required bucket for `s3` or `gcs`                              |
-| `MIOT_DASHBOARD_DOCUMENTS_PREFIX`      | `dashboards/`          | Dedicated object prefix for `s3` or `gcs`                      |
-| `MIOT_DASHBOARD_S3_REGION`             | SDK default            | AWS region for `s3`                                            |
-| `MIOT_DASHBOARD_CORS_ORIGINS`          | off                    | Comma-separated exact HTTP(S) origins                          |
-| `MIOT_DASHBOARD_CORS_CREDENTIALS`      | false                  | Permit browser cookies/HTTP authentication for allowed origins |
-| `MIOT_DASHBOARD_CORS_HEADERS`          | —                      | Extra permitted request headers, e.g. `x-ticket`               |
-| `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600`                 | Seconds between orphan cleanups; `0` to disable, max 2147483   |
-| `MIOT_DASHBOARD_ORPHAN_MIN_AGE`        | `86400`                | Minimum age in seconds before an orphan is deleted; at least 1 |
-| `MIOT_DASHBOARD_DOCS`                  | on                     | Serve OpenAPI at `/openapi.yaml` and UI at `/docs`             |
-| `MIOT_DASHBOARD_SCOPES_URL`            | —                      | Host URL for scope membership; omit to use the seed file       |
+| Variable                               | Default                | Purpose                                                          |
+| -------------------------------------- | ---------------------- | ---------------------------------------------------------------- |
+| `PORT`                                 | `3070`                 | Port to listen on                                                |
+| `HOST`                                 | `127.0.0.1`            | Address to bind                                                  |
+| `MIOT_DASHBOARD_BASE_PATH`             | (empty)                | URL prefix for API routes                                        |
+| `MIOT_DASHBOARD_SEED`                  | —                      | Path to a seed JSON file, or `example` for bundled sample data   |
+| `MIOT_DASHBOARD_INSECURE_AUTH`         | off                    | Local dev only: trust identity headers without verification      |
+| `MIOT_DASHBOARD_STORE`                 | `memory`               | Where dashboards are saved: `memory`, `sqlite` or `postgres`     |
+| `MIOT_DASHBOARD_SQLITE_PATH`           | `./data/dashboards.db` | Database file when store is `sqlite`                             |
+| `MIOT_DASHBOARD_POSTGRES_URL`          | —                      | Connection string when store is `postgres`; no default           |
+| `MIOT_DASHBOARD_CREDENTIALS_KEY`       | off                    | Encrypts stored credentials; 32+ chars, needs a database store   |
+| `MIOT_DASHBOARD_CREDENTIALS_URL`       | off                    | Ask the host instead; `{tenantId}` and `{credentialRef}` fill in |
+| `MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP` | false                 | Accept a plain `http://` host URL, for a private network         |
+| `MIOT_DASHBOARD_CREDENTIALS_TIMEOUT`   | `5000`                 | Milliseconds to wait for the host                                |
+| `MIOT_DASHBOARD_CREDENTIALS_CACHE`     | `60`                   | Seconds applied auth is reused; 300 at most                      |
+| `MIOT_DASHBOARD_OPERATIONS_URL` | off | Fixed saved-operation host endpoint; requires `MIOT_DASHBOARD_PROXY_KEY` |
+| `MIOT_DASHBOARD_OPERATIONS_ALLOW_HTTP` | `false` | Explicitly trust a private HTTP host endpoint |
+| `MIOT_DASHBOARD_OPERATIONS_TIMEOUT` | `20000` | Host request deadline in milliseconds; 1–20000 |
+| `MIOT_DASHBOARD_DOCUMENTS`             | `inline`               | Where config bytes go: `inline`, `fs`, `s3` or `gcs`             |
+| `MIOT_DASHBOARD_DOCUMENTS_PATH`        | `./data/documents`     | Directory when documents is `fs`                                 |
+| `MIOT_DASHBOARD_DOCUMENTS_BUCKET`      | —                      | Required bucket for `s3` or `gcs`                                |
+| `MIOT_DASHBOARD_DOCUMENTS_PREFIX`      | `dashboards/`          | Dedicated object prefix for `s3` or `gcs`                        |
+| `MIOT_DASHBOARD_S3_REGION`             | SDK default            | AWS region for `s3`                                              |
+| `MIOT_DASHBOARD_CORS_ORIGINS`          | off                    | Comma-separated exact HTTP(S) origins                            |
+| `MIOT_DASHBOARD_CORS_CREDENTIALS`      | false                  | Permit browser cookies/HTTP authentication for allowed origins   |
+| `MIOT_DASHBOARD_CORS_HEADERS`          | —                      | Extra permitted request headers, e.g. `x-ticket`                 |
+| `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600`                 | Seconds between orphan cleanups; `0` to disable, max 2147483     |
+| `MIOT_DASHBOARD_ORPHAN_MIN_AGE`        | `86400`                | Minimum age in seconds before an orphan is deleted; at least 1   |
+| `MIOT_DASHBOARD_DOCS`                  | on                     | Serve OpenAPI at `/openapi.yaml` and UI at `/docs`               |
+| `MIOT_DASHBOARD_SCOPES_URL`            | —                      | Host URL for scope membership; omit to use the seed file         |
 
 JWT, ticket, and scope auth variables are listed under
 [Authenticating callers](#authenticating-callers) and
@@ -122,6 +130,22 @@ opens, so a server that cannot reach its database exits rather than listening.
 ```
 Failed to start: error: database "no_such_db" does not exist
 ```
+
+### What a save has to look like
+
+A `PUT` is checked against
+[`@microboxlabs/miot-dashboard-contract`](../miot-dashboard-contract) before it
+reaches the store. A document that does not match is refused with `400` naming
+what is wrong and where. This cannot be turned off.
+
+Two things are refused: a `version` other than `2`, and a structure that is
+not the document at all. Unknown keys pass through at every level, so a
+document written by a newer version of the UI round trips through an older
+server with its extra fields intact.
+
+A wrong version is refused, not converted — the same choice `importDashboards`
+makes. Guessing forward drops what the newer version added, and the next save
+writes the loss back.
 
 ### Storing dashboards
 
@@ -176,11 +200,105 @@ discards it and reconnects on demand; the standalone server logs a warning.
 Library callers can receive these errors through `onPoolError` on
 `openPostgresStore` or `createPostgresDriver`.
 
+#### Storing credentials in this server
+
+Set `MIOT_DASHBOARD_CREDENTIALS_KEY` and this server keeps datasource
+credentials in its own database, encrypted with that key. Leave it unset and
+it stores none.
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true MIOT_DASHBOARD_SEED=example \
+MIOT_DASHBOARD_STORE=sqlite \
+MIOT_DASHBOARD_CREDENTIALS_KEY="$(openssl rand -base64 32)" \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+Starts a local server with the credential routes on. Swap the first line for
+a real identity provider to run it anywhere else.
+
+The key has to be at least 32 characters and the store has to be `sqlite` or
+`postgres`. The server refuses to start otherwise. Lose the key and every
+stored credential is unreadable. Change it and they have to be re-encrypted.
+No route answers with a stored secret, only with a summary.
+
+#### Leaving credentials with the host
+
+Where another system already owns credentials, set
+`MIOT_DASHBOARD_CREDENTIALS_URL` instead of the key. This server then asks
+that endpoint what to send and writes no credential of its own.
+
+```
+MIOT_DASHBOARD_CREDENTIALS_URL=https://host.internal/credentials/{tenantId}/{credentialRef}
+MIOT_DASHBOARD_PROXY_KEY=<the key the host checks>
+```
+
+Both placeholders are required and each has to change the address, or every
+caller would read one credential. The server refuses such a URL at startup.
+The URL has to be https. Set `MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP=true`
+for a host on the same private network, such as a cluster service; anyone
+on that network path can then read or forge the answers.
+
+| The endpoint answers                                                 | This server                     |
+| -------------------------------------------------------------------- | ------------------------------- |
+| `{"kind":"HTTP_AUTH","headers":{…},"queryParams":{…},"expiresAt":…}` | sends those with the query      |
+| `{"kind":"NONE"}`                                                    | queries without a credential    |
+| `404`                                                                | refuses the query               |
+| anything else, `401` and `403` included                              | throws: its own key was refused |
+
+A service account answer is refused, because its private key is the secret.
+Run the grant at the host and answer with the header it produces.
+
+`MIOT_DASHBOARD_PROXY_KEY` is required. It is the same key the host checks on
+requests going the other way, and it cannot be combined with
+`MIOT_DASHBOARD_INSECURE_AUTH`, so this needs a real identity provider.
+
+An answer is reused for `MIOT_DASHBOARD_CREDENTIALS_CACHE` seconds, or until
+the `expiresAt` the host states, whichever is sooner. A credential revoked at
+the host keeps working until then.
+
+Set the URL or the key, never both. Under the URL the credential routes
+answer 404: credentials are administered where they live.
+
+#### Testing a datasource
+
+`POST …/datasources/{id}/test` sends one request to the target with the
+credential the datasource names and reports the outcome; `…/datasources/test`
+does the same for values not stored yet.
+
+| Type        | Target              | Probe                                         |
+| ----------- | ------------------- | --------------------------------------------- |
+| `POSTGREST` | the base URL, https | `GET` on the URL                              |
+| `BIGQUERY`  | `project.dataset`   | `GET` on the dataset through the BigQuery API |
+
+A `SERVICE_ACCOUNT` credential is exchanged for a Google access token first,
+signed with its private key; no Google SDK is needed. The target may then be
+the dataset alone. A `BEARER` token is sent as it is, and the target has to
+name the project.
+
+### Concurrent editing
+
+Loading a dashboard returns its revision in `ETag`, for example `"3"`.
+Send that value unchanged in `If-Match` when saving. A successful save returns
+the new `ETag` as well as `data.revision`. An empty dashboard address returns
+`data: null` and `ETag: "0"`; use that precondition to create without replacing
+a dashboard another editor just created. Unauthorized responses disclose no
+revision. Config response bodies are unchanged.
+
+A stale revision returns `409`. Preserve the person's edits and compare them
+with the latest document before retrying; automatically replacing the revision
+would discard someone else's work. Omitting `If-Match` remains an unconditional
+write for compatibility. Cross-origin clients can read `ETag` when CORS is enabled.
+
 To run the contract suite against a real server, point
 `MIOT_DASHBOARD_TEST_POSTGRES_URL` at a **throwaway** database — the suite
 empties it between tests — and install `pg`. The PostgreSQL-specific tests
 also exercise concurrent startup and recovery after an idle connection is
 terminated, using temporary schemas in that database.
+
+The `Dashboard Server Tests` CI job runs the full package suite on Node.js 24,
+including HTTP listener tests, SQLite storage, and a disposable PostgreSQL 17
+service. It installs the optional PostgreSQL driver outside the workspace so
+testing that backend does not add a runtime dependency for other deployments.
 
 Config bytes are stored separately from metadata (rows and permissions):
 
@@ -404,10 +522,16 @@ host `401` means this server's credential failed — not "not a member".
 
 ### Try the API
 
-| Path            | Is                                                            |
-| --------------- | ------------------------------------------------------------- |
-| `/openapi.yaml` | OpenAPI spec                                                  |
-| `/docs`         | Swagger UI — authorize with dev user/tenant headers to try it |
+| Path                            | Is                                                            |
+| ------------------------------- | ------------------------------------------------------------- |
+| `/openapi.yaml`                 | OpenAPI spec                                                  |
+| `/dashboard-config.schema.json` | The dashboard document schema the spec refers to              |
+| `/docs`                         | Swagger UI — authorize with dev user/tenant headers to try it |
+
+Both documents come from
+[`@microboxlabs/miot-dashboard-contract`](../miot-dashboard-contract), not
+from this package, and are served as siblings because the spec refers to the
+schema by a bare filename.
 
 For automated coverage, `rest-api/` is a Bruno collection (auth and tenant
 isolation failures):
@@ -477,6 +601,17 @@ Denials are audited. Embed tokens are read-only and locked to one dashboard
 `access.capabilities(request, { tenantId, scopeId, slug })` tells an embed host
 what the caller can do.
 
+`access.scopeCapabilities(request, { tenantId, scopeId })` returns
+`{ canCreate: boolean }` for a dashboard list or empty workspace. Its HTTP route
+is `GET /tenants/{tenantId}/scopes/{scopeId}/capabilities` (introduced in
+v0.5.0). It authenticates the caller, checks tenant and scope membership, and
+requires Contributor-or-higher standing plus the identity's `canEdit` ceiling
+for `canCreate: true`. It does not read the dashboard store or evaluate a
+per-document policy. Saving still validates the document and applies that
+policy, so eligibility does not guarantee a particular document can be saved.
+Embed tokens cannot use this endpoint. HTTP responses use `Cache-Control:
+no-store`; hosts should also keep any UI state separated by identity and scope.
+
 ### Roles
 
 | Role          | Can do                                        |
@@ -486,8 +621,15 @@ what the caller can do.
 | `Editor`      | Edit, share                                   |
 | `Coordinator` | Full access, including delete and permissions |
 
+Dashboard lists apply the same per-dashboard visibility policy as loads. Hidden or concurrently deleted dashboards are omitted; policy or storage failures fail the request. Identity and scope membership are resolved once, with at most four dashboard policy checks in flight.
+
 Override with a custom `CapabilityPolicy` if your role model differs. A policy
 can only restrict, never grant more than the identity allows.
+
+Creating a dashboard requires Contributor-or-higher scope membership and
+`canEdit` from both the document policy and the identity. The default policy
+treats a new document as owned by its prospective creator, so Contributors can
+create without bypassing custom policy or credential restrictions.
 
 ### Errors
 
@@ -498,7 +640,8 @@ One envelope, from every adapter:
 ```
 
 `reason` is present on `403` only. Foreign exceptions are reduced to a generic
-`500`; their messages never reach the wire. See `contract/openapi.yaml`.
+`500`; their messages never reach the wire. See the OpenAPI document in
+[`@microboxlabs/miot-dashboard-contract`](../miot-dashboard-contract).
 
 ## Mounting inside Next
 
@@ -593,9 +736,33 @@ records it on the first write only, and the capability policy reads it to
 decide whether a Contributor may edit their own dashboard. Permission
 assignments are carried verbatim, and only after the config was written.
 
+Both dry runs and apply runs validate current-version documents against the shared
+contract before accessing the store. Invalid preferences, widgets, or saved queries
+are reported in `refused` with field paths; extension fields are preserved. A dry
+run validates documents, not datasource reachability or query authorization.
+
 There is no conversion from an older version, and the refusal says so by name
 rather than guessing. If a real older config turns up, the dry run is what
 finds it — and the conversion should be written against that example.
+
+### Convert planner requests to saved queries
+
+`migratePlannerQueries(config, mappings)` prepares a new document without network
+calls or store writes. Supply exactly one `PlannerQueryMapping` per legacy request:
+`plannerId`, `connectionId`, `operationId`, and explicit `parameters` using the
+contract's literal/filter bindings. Verify those operations and parameter types in
+the authorized host catalog first. Tenant predicates belong to the host plan.
+
+The result is `{ ok: true, config }` or `{ ok: false, problems }`. A successful
+conversion removes `requestPlanner`, retains request IDs, variable names and known
+columns, and preserves widgets, filters, permissions metadata and document extension
+fields. The source is untouched. Duplicate identifiers, incomplete mappings,
+existing saved queries and invalid output contracts are refused.
+
+This helper does not interpret legacy templates, infer filter defaults, rewrite
+widget settings or certify their compatibility. Review nested and direct-datasource
+widgets separately. Pass the prepared document to an import dry run, then compare
+live data, filters and permissions before applying a parallel migration.
 
 ## Boundaries (enforced by `npm run guard`, part of `check-types`)
 
@@ -611,3 +778,119 @@ finds it — and the conversion should be written against that example.
   and emits `from "sqlite"`, which fails to resolve. The guard rejects the
   static form because the tests import the TypeScript source and do not detect
   it.
+
+### Revision history across deletion
+
+Schema migration 5 backfills persistent revision counters. Deleting a dashboard
+removes its document and permissions but retains its tenant/scope/slug counter.
+Recreating that address gets a higher revision, so an old editor cannot overwrite
+the replacement. Keep `dashboard_revisions` when cleaning deleted documents.
+Custom store adapters must also never reuse successful revisions.
+
+Back up the database and stop writers while upgrading from a version before this
+migration. Do not run old and new server versions against the same database: old
+versions do not maintain these counters. For rollback, restore the matching backup.
+
+## Test coverage
+
+Run `npm run test:coverage` in this package to generate `coverage/lcov.info`
+and a coverage summary. The SonarCloud workflow runs both dashboard packages
+and imports these reports; LCOV paths are relative to the `turbo-repo` root.
+
+## Saved connection queries
+
+`createDashboardQueryService({ identity, tenants, scopes, store, operations })`
+authorizes a dashboard read before resolving a saved query and binding its named
+filters. Call `execute(request, ref, queryId, filters, signal)`; the host-owned
+`DashboardOperationExecutor` receives the authorized identity and stored operation.
+The service has no framework or Alfresco dependency. Configure
+`queries: { operations: executor }` on `createDashboardHandler` or `serve` to
+enable `POST /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/queries/{queryId}`.
+Send `{ "filters": {} }`; the response is `{ "data": { "rows": [] } }`.
+The route is disabled (404) unless an executor is configured.
+
+The host must enforce active/read-only operations, tenant predicates, parameter
+schemas, server-side credentials, bounded upstream reads and datasource cost limits.
+Editors' literal bindings are not trusted tenant predicates. Defaults: 8 concurrent
+operations, 20 seconds, 5,000 rows and 2 MiB JSON. Cancellation-ignoring adapters
+retain their slot until they settle. See the
+[query integration guide](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/apps/docs/content/en/operations/dashboard-server/queries.mdx)
+for the contract and configurable limits.
+
+## Embedded request limits
+
+`createDashboardHandler({ ...adapters, maxBodyBytes: 1024 * 1024 })` enforces
+the same default 1 MiB JSON body limit as the standalone Node adapter. It
+authorizes before consuming the body and counts received bytes rather than
+trusting `Content-Length`; oversized requests return 413. The host still owns
+request deadlines and connection limits.
+
+### Remote host operation adapter
+
+`createHttpDashboardOperationExecutor({ url, proxyKey })` implements the query
+executor seam over authenticated HTTP. It calls one fixed host endpoint, sends
+only authorized context and saved bindings, refuses redirects, propagates
+cancellation, and bounds response bytes before parsing. The host owns the
+connection/template/credential catalog and enforces read-only operations, tenant
+predicates and query costs. See the query integration guide above for the wire
+shape and private-network deployment options.
+
+
+### Standalone operation module
+
+Set `MIOT_DASHBOARD_OPERATIONS_MODULE=/opt/dashboard/operations.mjs` to load operator-owned JavaScript at startup. The file exports an async or synchronous `createDashboardOperations()` returning a `DashboardOperationExecutor`; it can assemble portable providers and the host catalog/credential resolver. This is mutually exclusive with `MIOT_DASHBOARD_OPERATIONS_URL` and does not itself require a proxy key. Identity and tenancy checks still run before queries.
+
+Modules are trusted code with server privileges: install them through deployment review, mount them read-only, and never accept their path from users or remote URLs. Module initialization failures stop startup without forwarding potentially sensitive module diagnostics.
+
+### Portable BigQuery execution
+
+Import `createBigQueryOperationExecutor` from `@microboxlabs/miot-dashboard-server/queries` and pass it to the handler or `serve()` as `queries: { operations: executor }`. Its trusted `resolve(request)` callback returns an authorized operator-owned `plan`, bound `parameters` (including enforced tenant predicates), and a short-lived `accessToken`, or `null` to deny. Resolve active connection/template records and credentials under `request.identity.tenantId`, and honor `request.signal`. Never populate the plan from viewer-supplied SQL or URLs.
+
+The TypeScript executor calls Google directly without Java, Quarkus, Alfresco or the Google SDK. It requires a SELECT dry run, enforces the template billing cap below the host ceiling (default 1 GB), and limits execution to 20 seconds and eight concurrent operations. Results are bounded to 5,000 rows and 2 MiB at most; nested, repeated and paginated results are rejected. Cancellation is best effort, with a Google job deadline as an additional bound.
+
+The standalone CLI can load this executor through the operator module described above. ModularIoT exposes opt-in private plan resolution at `/internal/dashboard-operations/resolve`; client and deployment integration still require acceptance. The existing HTTP executor remains available during migration.
+
+### Atomic import rollback
+
+Import rollback uses the optional store `removeIfRevision(ref, revision)` operation to atomically delete only the revision created by that import. SQL and memory stores support it, including revisions after deletion/recreation. Custom stores without atomic deletion retain the record and report the assignment failure for operator repair; the importer never falls back to an unsafe read-then-delete sequence.
+
+### Portable HTTP/PostgREST queries
+
+`createHttpGetOperationExecutor` from the `/queries` export executes authorized GET templates directly. Configure exact operator-owned `allowedOrigins` and a trusted `resolve(request)` that checks active tenant connection/template ownership and resolves credentials server-side. The resolved plan requires `readOnly: true`, a URL without query parameters, closed scalar `parameterTypes` and matching `parameters`, and either a server-resolved tenant parameter/value or explicit `credentialScoped: true`. Tenant parameters cannot be supplied in the bound inputs. This is an execution provider, not another datasource catalog.
+
+Only authorization/API-key headers are accepted. Redirects, partial responses, invalid rows and reported incomplete PostgREST ranges fail closed. The provider requests exact PostgREST counts and enforces a 20-second maximum deadline, eight concurrent calls, 5,000 rows and 2 MiB. Hosts must honor cancellation during resolution, enforce connection access and use read-only upstream credentials/functions. Approved services are trusted network destinations; constrain their egress with deployment network policy. Private HTTP requires `allowHttp: true` (loopback is allowed for local validation). The same executor works inside an embedded host or a standalone operator module.
+
+### Resolve remotely, execute locally
+
+`createRemotePlanOperationExecutor` from `/queries` connects the portable providers to a private host plan endpoint. Set `url` to ModularIoT's `/internal/dashboard-operations/resolve`, provide the server-only `proxyKey`, and list approved HTTP data services in `allowedDataOrigins` (empty for BigQuery-only hosts). Use `allowHttp` only for the private catalog transport and `allowDataHttp` separately for trusted HTTP data services. The factory validates configuration, bounds plan requests/responses to 512 KiB and shares a 20-second total deadline and eight-call limit across resolution and execution. Only final data rows leave the executor; plans, SQL and credentials never become API responses or diagnostics.
+
+Return this executor from a standalone `createDashboardOperations()` module or inject it into an embedded handler. Enable plan resolution on ModularIoT before changing the module. Other hosts can implement the same private plan contract, or directly inject a local resolver into either portable provider; no Java runtime is required by the library.
+
+### Optional query filters
+
+Filter bindings may set `omitWhenEmpty: true` to omit a parameter whose resolved
+value is missing or an empty string. A missing filter first uses `defaultValue`,
+when present; an explicit empty string does not use the default. Null, false, zero,
+empty arrays, whitespace and operator strings are preserved. Existing bindings
+keep their required/default behavior. The host operation schema must allow the
+parameter to be absent; tenant predicates remain host-controlled. Upgrade both
+contract and server to a release containing this option before using it; 0.3.0
+does not implement omission.
+
+### Standalone group restrictions
+
+The standalone CLI applies `createAllowedGroupsPolicy()` before the role policy.
+A dashboard with nonempty `allowedGroups` is hidden from lists and denied for
+reads, writes and saved queries unless the verified identity holds a matching
+group. Missing group claims deny restricted documents; they do not open access.
+Unrestricted dashboards keep their role-based behavior.
+
+Configure `MIOT_DASHBOARD_JWT_GROUPS_CLAIM` to an issuer-controlled array of group
+identifiers. Use globally unique or tenant-qualified identifiers and map legacy
+groups to the new authority before migration. Proxy role assertions alone do not
+grant group membership. This requires no Alfresco runtime. Embedded hosts retain
+control of their policy and should pass `createAllowedGroupsPolicy()` when
+importing documents with this restriction. Existing standalone deployments that
+relied on ignored restrictions must configure trusted claims before upgrading.
+
+For ticket authentication, set `MIOT_DASHBOARD_TICKET_GROUPS_PATH` to the group-array path in the trusted ticket-validation response. JWT group-claim settings do not configure ticket identities. Without the appropriate group source, restricted dashboards remain denied.

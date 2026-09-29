@@ -21,6 +21,44 @@ Features and improvements in development:
 
 ## Lanzamientos Recientes
 
+### Paquetes de dashboards v0.5.0 — Permisos de creación (2026-09-29)
+
+[Contrato](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract) y [servidor](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) compatibles v0.5.0 publicados:
+
+- Nuevo endpoint de capacidades del ámbito y método embebido para consultar si se puede iniciar la creación sin leer documentos. Los tokens de embed no pueden usarlo.
+- Al crear un dashboard se aplican tanto el límite de edición de la credencial como la política del documento. Contributor conserva la creación con la política predeterminada.
+- El servidor requiere el contrato `^0.5.0` para mantener el OpenAPI instalado alineado con el runtime.
+
+Una instalación nueva desde npm validó las 11 exportaciones y los permisos del servidor independiente con SQLite/JWT. Despliegue primero el servidor, después el proxy del host y finalmente el espacio de trabajo. La publicación no completa la aceptación de Consumer en navegador ni la migración de telemetría.
+
+### Paquetes de dashboards v0.4.0 — Herramientas de migración (2026-09-29)
+
+Contrato y servidor compatibles v0.4.0 publicados:
+
+- Validar documentos importados con el contrato compartido antes de acceder al almacén, incluso en simulaciones.
+- Convertir solicitudes del planner mediante mapas explícitos de conexión/operación, conservando vínculos de widgets y configuración.
+- Usar `omitWhenEmpty` para argumentos de filtros opcionales, conservando el comportamiento anterior y el control de tenant del host.
+- El servidor standalone aplica `allowedGroups`; configure grupos confiables por JWT o ticket antes de actualizar dashboards restringidos.
+
+Actualizar ambos paquetes juntos. Estas herramientas no sustituyen la aceptación de datos, filtros y permisos reales.
+
+[server v0.4.0](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server/v/0.4.0) | [contract v0.4.0](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract/v/0.4.0)
+
+---
+
+### Paquetes de dashboards v0.3.0 — Ejecución portable (2026-09-29)
+
+Publicados `@microboxlabs/miot-dashboard-server` y `@microboxlabs/miot-dashboard-contract` v0.3.0. Ambos paquetes están disponibles en npm; la aceptación de la migración en dev sigue pendiente.
+
+- El contrato incorpora consultas basadas en conexiones con límites y filtros identificados por nombre, manteniendo compatibilidad con documentos de versión 2.
+- El servidor exporta ejecutores TypeScript para BigQuery y HTTP de solo lectura en `/queries`, con aislamiento de tenant, plazos, cancelación y límites de costo y respuesta.
+- Los hosts embebidos aportan un adaptador confiable. La imagen standalone incluye un módulo para el catálogo privado de ModularIoT; ejecutar consultas no requiere Java ni Alfresco.
+- Actualizar ambos paquetes juntos. Los despliegues standalone existentes deben configurar explícitamente un módulo de operaciones para habilitar consultas guardadas portables.
+
+Consultar la [guía de consultas](/es/operations/dashboard-server/queries) y la [hoja de ruta de aceptación](/es/operations/dashboard-server/roadmap).
+
+---
+
 ### `miot-calendar-client` v0.8.0 — Bloqueos de ventanas horarias (2026-05-02)
 
 **`@microboxlabs/miot-calendar-client`** — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)

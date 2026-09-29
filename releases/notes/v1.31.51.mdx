@@ -1,0 +1,69 @@
+# 🔔 Release Notes v1.31.51 — ModularIoT
+
+### Fecha: 20/09/2026
+
+**Objetivo**: Esta entrega corrige incidencias de calendario, dashboard y parsing de respuestas del harness, y refuerza la continuidad de conversaciones y la experiencia de artefactos y revisión de PRs. Además, consolida la integración con SonarCloud y la trazabilidad del stack con la versión 0.5.52.
+
+## 🚀 Evolutivos
+
+- **📍 Propiedad del hilo por asiento** *(Integración OSS — MIOT-0.5.52)*
+  - **Punto clave**: Las conversaciones ahora mantienen un asiento propietario para conservar el historial de herramientas y evitar que la siguiente vuelta pierda contexto cuando el hilo cambia de asiento.
+  - **Detalle técnico**: El flujo de agente repone las llamadas y resultados del turno previo, mientras las historias y los asientos no vinculados al bloqueo permanecen excluidos.
+
+- **📍 Revisión de PRs con validación cruzada** *(Integración OSS — MIOT-0.5.52)*
+  - **Punto clave**: Se consolida el flujo de `pr-certify` para guiar pull requests hasta que quedan en estado listo para merge con Copilot, CodeRabbit y SonarCloud.
+  - **Detalle técnico**: La automatización se conecta con los revisores y bloquea el merge hasta que el SHA actual esté limpio para todos los controles.
+
+- **📍 Mejoras del visor de artefactos** *(Integración OSS — MIOT-0.5.52)*
+  - **Punto clave**: La vista de artefactos incorpora iteraciones, filtros y visor PDF para una navegación más completa y operativa.
+  - **Detalle técnico**: La experiencia se refuerza con historial de versiones y nuevas opciones de exploración, manteniendo la implementación frontend con almacenamiento local como representación fiel del flujo final.
+
+## 🔧 Integraciones
+
+- **🔌 SonarCloud para el harness** *(Integración OSS — MIOT-0.5.52)*
+  - **Alcance**: Se añade un proyecto dedicado de SonarCloud para el AI harness y un job de análisis en CI disparado por cambios bajo `miot-harness/**`, en paralelo con lint y tests.
+
+## 🐛 Correcciones
+
+- **🐛 Selección de franja horaria del ETD en la zona correcta** *(Integración OSS — MIOT-0.5.52)*
+  - **Impacto**: El auto-pick del ETD podía calcular la franja usando la zona del runtime y no la del calendario, llevando a reservas en la franja equivocada y horas más tarde de lo real.
+  - **Solución**: La resolución del slot ahora usa el reloj del calendario a través de `calendarClock(calendarId)`, de forma consistente con la lógica de selección cuando hay ETD.
+
+- **🐛 Ajustes de tamaño y superposición en el dashboard** *(Integración OSS — MIOT-0.5.52)*
+  - **Impacto**: El mapa y los elementos del dashboard podían verse desalineados o con problemas de capas, afectando la legibilidad y la composición visual.
+  - **Solución**: Se corrigen los problemas de z-index y sizing para mantener la disposición del panel estable.
+
+- **🐛 Recuperación de bloques JSON válidos en respuestas del harness** *(Integración OSS — MIOT-0.5.52)*
+  - **Impacto**: Cuando el modelo narraba antes del bloque JSON, el parseo fallaba y el sistema lo convertía en un bloque markdown incorrecto.
+  - **Solución**: Se rescata el array final válido en lugar de caer en un markdown crudo, mejorando la robustez de la extracción.
+
+- **🐛 Mapa en visualización GPS del bento box** *(Integración OSS — MIOT-0.5.52)*
+  - **Impacto**: La vista de GPS usaba un mapa no consistente con el sistema definido, afectando la coherencia visual y funcional.
+  - **Solución**: Se reemplaza por el mapa definido por el sistema, ajustando la representación en la caja Bento.
+
+## 📊 Beneficios
+
+- Mejora la precisión de las reservas y la planificación del ETD en la zona horaria real del calendario.
+- Estabiliza el dashboard con mapas y capas visuales más consistentes y menos propensos a solapamientos.
+- Hace que el harness sea más robusto ante respuestas con narración previa a bloques JSON válidos.
+- Reduce errores de continuidad de contexto cuando una conversación cambia de asiento durante una sesión.
+- Aumenta la productividad de revisión y calidad con automatización de cumplimiento para PRs.
+- Mejora la experiencia de artefactos con filtros, historial y vista PDF más completa.
+- Refuerza la calidad operativa con integración de SonarCloud para el proyecto del harness.
+
+## 🧾 Versiones del stack
+
+- `miot-stack@v0.5.52`
+- `app@v0.5.52` (cambios: sí)
+- `docs@v0.5.52` (cambios: sí)
+- `web@v0.5.52` (cambios: sí)
+- `modulith@v0.5.31` (cambios: sí)
+- `harness@v0.1.9` (cambios: sí)
+
+Las imágenes desplegadas exactas y sus digests están disponibles en el diálogo de información de build de la aplicación y en el asset de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión refuerza la estabilidad del producto en puntos críticos de operación: reservas horarias, experiencia visual del dashboard y parsing de respuestas del harness. Los cambios priorizan la precisión de la ejecución y la consistencia del contexto, reduciendo errores visibles para usuarios y equipos de operaciones.
+
+El conjunto también mejora la calidad de entrega en la capa de integración y revisión, con SonarCloud para el harness y automatización de PRs que conecta los principales controles de calidad. El resultado es una edición más robusta, más predecible y más preparada para mantener un flujo de trabajo industrial y de IA con mayor fiabilidad.

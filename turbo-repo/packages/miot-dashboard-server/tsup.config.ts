@@ -18,10 +18,13 @@ export default defineConfig({
   // dist/ rather than mirroring a subdirectory into the published paths.
   entry: [
     "src/index.ts",
+    "src/queries.ts",
     "src/http.ts",
     "src/identity.ts",
     "src/store-sql.ts",
     "src/store-cloud.ts",
+    "src/vault-sql.ts",
+    "src/vault-http.ts",
     "src/testing.ts",
     "src/server.ts",
     "src/next.ts",

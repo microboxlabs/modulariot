@@ -1,0 +1,215 @@
+{
+  "stack_version": "0.5.52",
+  "stack_tag": "miot-stack@v0.5.52",
+  "milestone": "MIOT-0.5.52",
+  "pull_requests": [
+    {
+      "number": 1158,
+      "title": "Based/enhancing artifact view",
+      "source_issues": [
+        {
+          "number": 1160,
+          "title": "Enhance artifact view with iterations, filters, and PDF viewer"
+        },
+        {
+          "number": 1159,
+          "title": "feat(storytelling): enhance artifact view — custom PDF viewer, sharing, filters, and version history"
+        }
+      ]
+    },
+    {
+      "number": 1271,
+      "title": "feat(skills): pr-certify — drive a PR to merge-ready across Copilot, CodeRabbit and SonarCloud",
+      "source_issues": [
+        {
+          "number": 1272,
+          "title": "pr-certify: drive PRs to merge-ready across Copilot, CodeRabbit and SonarCloud"
+        }
+      ]
+    },
+    {
+      "number": 1277,
+      "title": "Fixed map issues in bento box",
+      "source_issues": [
+        {
+          "number": 1278,
+          "title": "Fix map issues in bento box GPS visualization"
+        }
+      ]
+    },
+    {
+      "number": 1289,
+      "title": "feat(harness): one seat owns the conversation, with its tool history",
+      "source_issues": [
+        {
+          "number": 1290,
+          "title": "One seat owns the conversation, with its tool history"
+        }
+      ]
+    },
+    {
+      "number": 1291,
+      "title": "ci(harness): add a dedicated SonarCloud project",
+      "source_issues": [
+        {
+          "number": 1292,
+          "title": "Add dedicated SonarCloud project for the harness"
+        }
+      ]
+    },
+    {
+      "number": 1293,
+      "title": "fix(harness): keep a good answer the model narrated its way into",
+      "source_issues": [
+        {
+          "number": 1294,
+          "title": "Keep a good answer the model narrated its way into"
+        }
+      ]
+    },
+    {
+      "number": 1295,
+      "title": "Fix in sizing and map z index on dashboard",
+      "source_issues": [
+        {
+          "number": 1296,
+          "title": "Fix sizing and map z-index on dashboard"
+        }
+      ]
+    },
+    {
+      "number": 1297,
+      "title": "fix(calendar): pick the ETD slot on the calendar's clock, not the pod's",
+      "source_issues": [
+        {
+          "number": 1298,
+          "title": "Pick the ETD slot on the calendar's clock, not the pod's"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".agents/skills/pr-certify/.gitignore",
+    ".agents/skills/pr-certify/SKILL.md",
+    ".agents/skills/pr-certify/bin/prcert",
+    ".agents/skills/pr-certify/hooks/_cmd.py",
+    ".agents/skills/pr-certify/hooks/pr-gate.py",
+    ".agents/skills/pr-certify/hooks/pr-nudge.py",
+    ".agents/skills/pr-certify/hooks/test_cmd.py",
+    ".agents/skills/pr-certify/reference.md",
+    ".github/workflows/harness.yaml",
+    "miot-harness/.gitignore",
+    "miot-harness/evals/deploy/B-checklist.md",
+    "miot-harness/sonar-project.properties",
+    "miot-harness/src/miot_harness/config.py",
+    "miot-harness/src/miot_harness/runtime/agent_loop.py",
+    "miot-harness/src/miot_harness/runtime/agent_prompt.py",
+    "miot-harness/src/miot_harness/runtime/answer_blocks.py",
+    "miot-harness/src/miot_harness/runtime/conversation.py",
+    "miot-harness/src/miot_harness/runtime/factory.py",
+    "miot-harness/src/miot_harness/runtime/supervisor.py",
+    "miot-harness/tests/runtime/test_agent_loop_transcript.py",
+    "miot-harness/tests/runtime/test_agent_prompt.py",
+    "miot-harness/tests/runtime/test_answer_blocks_salvage.py",
+    "miot-harness/tests/runtime/test_conversation_compaction_replay.py",
+    "miot-harness/tests/runtime/test_conversation_eviction.py",
+    "miot-harness/tests/runtime/test_conversation_store_bounds.py",
+    "miot-harness/tests/runtime/test_conversation_tool_call_cost.py",
+    "miot-harness/tests/runtime/test_conversation_tool_transcript.py",
+    "miot-harness/tests/runtime/test_supervisor_evicted_recovery.py",
+    "miot-harness/tests/runtime/test_supervisor_loop_guards.py",
+    "miot-harness/tests/runtime/test_supervisor_replay_transcripts.py",
+    "miot-harness/tests/runtime/test_supervisor_thread_owner.py",
+    "miot-harness/tests/test_config.py",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncExecutor.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/calendar/CalendarSyncExecutorTest.java",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/public/pdf.worker.min.mjs",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/storytelling/[id]/versions/page.tsx",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/decide-harness-path.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/route.ts",
+    "turbo-repo/apps/app/src/app/globals.css",
+    "turbo-repo/apps/app/src/features/common/components/absolute-modal/absolute-modal.tsx",
+    "turbo-repo/apps/app/src/features/common/utils/markdown-components.test.tsx",
+    "turbo-repo/apps/app/src/features/common/utils/markdown-components.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/select-filter-badge.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-view/dashboard-view.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/widget-renderer/widget-renderer.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/utils/fit-layout-to-cols.ts",
+    "turbo-repo/apps/app/src/features/dashboard/utils/grid-sizing.test.ts",
+    "turbo-repo/apps/app/src/features/dashboard/utils/grid-sizing.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/components/thread-messages.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/create-story-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/thread.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/navegation_params.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-results.tsx",
+    "turbo-repo/apps/app/src/features/map-visualization/map-view-utils.tsx",
+    "turbo-repo/apps/app/src/features/map-visualization/map-visualization.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/client-notification.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/general-slider.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/markdown/markdown-previewer.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/markdown/mermaid-diagram.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/pdf/pdf-previewer.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/searchable.ts",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/use-container-width.ts",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-card.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-detail-page.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-details-modal.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-grid.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-share-modal.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-share-panel.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-version-badge.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-version-delete-dialog.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-versions-page.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/storytelling-page-content.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/dom-search.ts",
+    "turbo-repo/apps/app/src/features/storytelling/people.ts",
+    "turbo-repo/apps/app/src/features/storytelling/seed-stories.ts",
+    "turbo-repo/apps/app/src/features/storytelling/story-share-store.ts",
+    "turbo-repo/apps/app/src/features/storytelling/story-versions-store.ts",
+    "turbo-repo/apps/app/src/features/storytelling/story-versions.test.ts",
+    "turbo-repo/apps/app/src/features/storytelling/story-versions.ts",
+    "turbo-repo/apps/app/src/features/storytelling/storytelling-store.ts",
+    "turbo-repo/apps/app/src/features/storytelling/storytelling.types.ts",
+    "turbo-repo/apps/app/src/features/storytelling/testing/release-notes-demo.md",
+    "turbo-repo/apps/app/src/features/task-forms/components/gps-validation-modal/gps-validation-modal.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/gps-validation-modal/gps-validation-modal.types.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/gps-validation-modal/map.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/app/src/proxy.ts",
+    "turbo-repo/package-lock.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.52",
+      "tag": "app@v0.5.52"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.50",
+      "version": "0.5.52",
+      "tag": "docs@v0.5.52"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.50",
+      "version": "0.5.52",
+      "tag": "web@v0.5.52"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.30",
+      "version": "0.5.31",
+      "tag": "modulith@v0.5.31"
+    },
+    "harness": {
+      "changed": true,
+      "changed_since": "harness@v0.1.8",
+      "version": "0.1.9",
+      "tag": "harness@v0.1.9"
+    }
+  }
+}

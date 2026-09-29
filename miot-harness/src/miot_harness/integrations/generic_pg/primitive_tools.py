@@ -3,17 +3,25 @@
 Mirrors `integrations/nexo/primitive_tools.py` but backend-agnostic: the tools
 are named by the connection's prefix (e.g. ``acs_select``) and run through the
 shared `datasource/safe_query.py` primitives with a `TableAccessPolicy` and the
-read-only execution envelope. Registered with ``kind="primitive"`` so the canned
-filter_expert never surfaces them — they are the agentic executor surface.
+read-only execution envelope. Registered with ``kind="primitive"``, so the
+model is given them.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from miot_harness.datasource.knowledge.models import KnowledgeCard
+from miot_harness.datasource.profile import safe_profile
+from miot_harness.datasource.routine_call import safe_call_routine
+from miot_harness.datasource.routine_introspect import (
+    fetch_definition,
+    introspect_routines,
+)
 from miot_harness.datasource.safe_query import (
     safe_describe,
     safe_explain,
@@ -21,9 +29,16 @@ from miot_harness.datasource.safe_query import (
     safe_list_tables,
     safe_run_select,
     safe_select,
+    safe_table_comment,
 )
 from miot_harness.datasource.schema_introspect import introspect_foreign_keys
 from miot_harness.datasource.sql_policy import TableAccessPolicy
+from miot_harness.integrations.generic_pg.workflow_tool import build_workflow_tool
+from miot_harness.integrations.generic_pg.workspace_tools import (
+    ToolEnv,
+    build_show_tool,
+    build_workspace_tools,
+)
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionResult
 from miot_harness.runtime.tool import HarnessTool, Progress
@@ -35,6 +50,22 @@ class _ListTablesInput(BaseModel):
 
 class _DescribeInput(BaseModel):
     table: str = Field(description="Schema-qualified table, e.g. acs.act_ru_task")
+
+
+class _ProfileInput(BaseModel):
+    table: str = Field(description="Schema-qualified table, e.g. ops.orders")
+    columns: list[str] | None = Field(
+        default=None, description="Columns to profile; omit for all (up to 40)"
+    )
+
+
+class _ProfileOutput(BaseModel):
+    table: str = ""
+    est_rows: int | None = None
+    sampled_rows: int = 0
+    sample: str = ""
+    columns: list[dict[str, Any]] = Field(default_factory=list)
+    source: str = ""
 
 
 class _SelectInput(BaseModel):
@@ -76,6 +107,7 @@ class _RowsOutput(BaseModel):
 
 
 class _DescribeOutput(BaseModel):
+    comment: str | None = None
     columns: list[dict[str, Any]] = Field(default_factory=list)
     foreign_keys: list[dict[str, Any]] = Field(default_factory=list)
     source: str = ""
@@ -85,6 +117,56 @@ class _ExplainOutput(BaseModel):
     total_cost: float = 0.0
     node_type: str | None = None
     plan: dict[str, Any] = Field(default_factory=dict)
+    source: str = ""
+
+
+class _FunctionsInput(BaseModel):
+    pattern: str | None = Field(
+        default=None,
+        description=(
+            "Case-insensitive substring of the function name or its description, "
+            "e.g. symptom or fn_dx. A pattern containing % is applied as ILIKE, "
+            "where _ matches one character"
+        ),
+    )
+    limit: int = 50
+
+
+class _FunctionsOutput(BaseModel):
+    # `rows` so the evidence builder counts them; `total` is the match count
+    # before the limit, which the row cap on traces never removes.
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    total: int = 0
+    source: str = ""
+
+
+class _DefinitionInput(BaseModel):
+    name: str = Field(
+        description=(
+            "View or function name, e.g. v_trips or public.v_trips; an unqualified "
+            "name is looked up in every allowed schema"
+        )
+    )
+
+
+class _CallInput(BaseModel):
+    name: str = Field(
+        description=(
+            "Function name, e.g. api_modular_symptoms_dashboard or "
+            "public.api_modular_symptoms_dashboard"
+        )
+    )
+    args: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            'IN arguments by name, e.g. {"p_client_id": "abc"}; arguments '
+            "with defaults may be omitted. Values are cast to the declared types."
+        ),
+    )
+
+
+class _DefinitionOutput(BaseModel):
+    rows: list[dict[str, Any]] = Field(default_factory=list)
     source: str = ""
 
 
@@ -103,6 +185,25 @@ class _KnowledgeOutput(BaseModel):
     source: str = ""
 
 
+def _knowledge_description(pack_cards: list[KnowledgeCard], *, authored: bool) -> str:
+    # Static on purpose: tool descriptions are part of the cached prompt
+    # prefix, so authored card titles are listed by the call, not here.
+    description = (
+        "Open a knowledge card for this connection (call with a card id; empty lists them). "
+    )
+    if pack_cards:
+        titles = "; ".join(f"{c.id}: {c.title}" for c in pack_cards)
+        description += f"Product cards: {titles}. "
+    if authored:
+        description += "Also holds facts taught by this organization's trainers. "
+    return description + "Read the relevant card before writing non-obvious queries."
+
+
+def _first_line(text: str, limit: int = 160) -> str:
+    line = text.strip().splitlines()[0].strip() if text.strip() else ""
+    return line if len(line) <= limit else line[: limit - 1] + "…"
+
+
 def build_generic_tools(
     *,
     pool: Any,
@@ -114,15 +215,25 @@ def build_generic_tools(
     explain_cost_threshold: float,
     statement_timeout_ms: int,
     knowledge_cards: list[KnowledgeCard] | None = None,
+    authored_cards: Callable[[HarnessContext], Sequence[KnowledgeCard]] | None = None,
+    call_security_definer: bool = False,
+    workspace_dir: Path | None = None,
+    workflow_schema: str | None = None,
 ) -> list[HarnessTool[Any, Any]]:
     """Build the generic safe-query primitives as registrable HarnessTools.
 
-    When `knowledge_cards` is non-empty (a knowledge pack matched the schema), a
-    `<prefix>knowledge` tool is added so the agent can open card bodies on demand.
+    When `knowledge_cards` is non-empty (a knowledge pack matched the schema) or
+    `authored_cards` is given, a `<prefix>knowledge` tool is added so the agent
+    can open card bodies on demand. `authored_cards` is called on every tool
+    call, so a card written after boot is served without a restart; an authored
+    card overrides a pack card of the same id.
+    `workflow_schema` names the schema holding BPMN engine tables; when set, a
+    `<prefix>workflow` tool is added.
     """
     cards_by_id = {c.id: c for c in (knowledge_cards or [])}
 
-    async def check_permission(
+    # HarnessTool.check_permission must return an awaitable.
+    async def check_permission(  # NOSONAR
         ctx: HarnessContext, _input: BaseModel
     ) -> PermissionResult:
         if tenant_lock is not None and ctx.tenant_id != tenant_lock:
@@ -161,7 +272,14 @@ def build_generic_tools(
         # Only surface FKs whose referenced table is itself within the
         # allowlist — don't leak table/schema names the agent can't query
         # (e.g. an FK into public.*).
+        comment = await safe_table_comment(
+            pool=pool,
+            policy=policy,
+            table=parsed.table,
+            statement_timeout_ms=statement_timeout_ms,
+        )
         return _DescribeOutput(
+            comment=comment,
             columns=columns,
             foreign_keys=[
                 {
@@ -173,6 +291,18 @@ def build_generic_tools(
             ],
             source=source_label,
         )
+
+    async def call_profile(
+        ctx: HarnessContext, parsed: _ProfileInput, progress: Progress
+    ) -> _ProfileOutput:
+        result = await safe_profile(
+            pool=pool,
+            policy=policy,
+            table=parsed.table,
+            columns=parsed.columns,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        return _ProfileOutput(**result, source=source_label)
 
     async def call_select(
         ctx: HarnessContext, parsed: _SelectInput, progress: Progress
@@ -190,9 +320,7 @@ def build_generic_tools(
         )
         return _RowsOutput(rows=run.rows, source=source_label, executed_sql=run.sql)
 
-    async def call_grep(
-        ctx: HarnessContext, parsed: _GrepInput, progress: Progress
-    ) -> _RowsOutput:
+    async def call_grep(ctx: HarnessContext, parsed: _GrepInput, progress: Progress) -> _RowsOutput:
         run = await safe_grep(
             pool=pool,
             policy=policy,
@@ -235,16 +363,90 @@ def build_generic_tools(
             source=source_label,
         )
 
+    async def call_functions(
+        ctx: HarnessContext, parsed: _FunctionsInput, progress: Progress
+    ) -> _FunctionsOutput:
+        catalog = await introspect_routines(
+            pool=pool,
+            policy=policy,
+            pattern=parsed.pattern,
+            limit=max(0, min(parsed.limit, max_rows)),
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        # One compact row per routine: the description's first line only, so
+        # fifty rows fit the trace budget. The full text comes with definition.
+        return _FunctionsOutput(
+            rows=[
+                {
+                    "name": r.qualified,
+                    "args": r.args,
+                    "returns": r.returns,
+                    "kind": r.kind,
+                    "volatility": r.volatility,
+                    "language": r.language,
+                    "summary": _first_line(r.description.title or r.description.body),
+                    "meta": r.description.meta,
+                }
+                for r in catalog.routines
+            ],
+            total=catalog.total,
+            source=source_label,
+        )
+
+    async def call_definition(
+        ctx: HarnessContext, parsed: _DefinitionInput, progress: Progress
+    ) -> _DefinitionOutput:
+        defs = await fetch_definition(
+            pool=pool,
+            policy=policy,
+            name=parsed.name,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        return _DefinitionOutput(
+            rows=[
+                {
+                    "name": d.qualified,
+                    "kind": d.kind,
+                    "definition": d.definition,
+                    "description": d.description,
+                    "truncated": d.truncated,
+                }
+                for d in defs
+            ],
+            source=source_label,
+        )
+
+    async def call_routine(
+        ctx: HarnessContext, parsed: _CallInput, progress: Progress
+    ) -> _RowsOutput:
+        run = await safe_call_routine(
+            pool=pool,
+            policy=policy,
+            name=parsed.name,
+            args=parsed.args,
+            max_rows=max_rows,
+            cost_threshold=explain_cost_threshold,
+            allow_security_definer=call_security_definer,
+            statement_timeout_ms=statement_timeout_ms,
+        )
+        return _RowsOutput(rows=run.rows, source=source_label, executed_sql=run.sql)
+
     async def call_knowledge(
         ctx: HarnessContext, parsed: _KnowledgeInput, progress: Progress
     ) -> _KnowledgeOutput:
-        available = [{"card": c.id, "title": c.title} for c in cards_by_id.values()]
-        card = cards_by_id.get(parsed.card)
+        cards = dict(cards_by_id)
+        if authored_cards is not None:
+            cards.update((c.id, c) for c in authored_cards(ctx))
+        available = [{"card": c.id, "title": c.title} for c in cards.values()]
+        card = cards.get(parsed.card)
         if card is None:
             return _KnowledgeOutput(available=available, source=source_label)
         return _KnowledgeOutput(
-            card=card.id, title=card.title, body=card.body,
-            available=available, source=source_label,
+            card=card.id,
+            title=card.title,
+            body=card.body,
+            available=available,
+            source=source_label,
         )
 
     common: dict[str, Any] = {
@@ -259,8 +461,8 @@ def build_generic_tools(
         HarnessTool(
             name=f"{tool_prefix}list_tables",
             description=(
-                f"List tables/views {scope}. Use first to discover what exists "
-                "before describe/select (this connection has no curated catalog)."
+                f"List tables/views {scope} with estimated row counts and their "
+                "comments. Call once at the start: it is the whole catalog."
             ),
             input_model=_ListTablesInput,
             output_model=_RowsOutput,
@@ -270,13 +472,29 @@ def build_generic_tools(
         HarnessTool(
             name=f"{tool_prefix}describe",
             description=(
-                f"Columns + types AND foreign-key relationships of a "
-                f"schema-qualified table {scope}. Use to discover a table's shape "
-                "and how it joins to others before select."
+                f"Columns + types, column and table comments, AND foreign-key "
+                f"relationships of a schema-qualified table {scope}. Use to discover "
+                "a table's shape and how it joins to others."
             ),
             input_model=_DescribeInput,
             output_model=_DescribeOutput,
             call=call_describe,
+            **common,
+        ),
+        HarnessTool(
+            name=f"{tool_prefix}profile",
+            description=(
+                f"Profile a schema-qualified table {scope} on a bounded sample: per "
+                "column the comment, null %, distinct count, min/max for numbers and "
+                "dates, the most common values (text columns, and any column with "
+                "few distinct values), and for JSON columns the keys it carries "
+                "with an example. "
+                "Use it on the tables a question needs before writing the query: "
+                "it shows what values mean and which rows repeat."
+            ),
+            input_model=_ProfileInput,
+            output_model=_ProfileOutput,
+            call=call_profile,
             **common,
         ),
         HarnessTool(
@@ -329,16 +547,75 @@ def build_generic_tools(
             call=call_explain,
             **common,
         ),
+        HarnessTool(
+            name=f"{tool_prefix}functions",
+            description=(
+                f"List the SQL functions and procedures this connection can execute "
+                f"{scope}, with arguments, return type, volatility and the analyst's "
+                "notes (`@meta`: source_tables, multitenancy, side_effects). "
+                "Optional ILIKE pattern on name or description. `total` is the "
+                "match count; rows carry a one-line summary (definition has the "
+                "full text). Read these before writing a query someone may "
+                "already have written. With no pattern, total=0 means the "
+                "connection has none, so do not retry with patterns; with a "
+                "pattern it only means nothing matched."
+            ),
+            input_model=_FunctionsInput,
+            output_model=_FunctionsOutput,
+            call=call_functions,
+            **common,
+        ),
+        HarnessTool(
+            name=f"{tool_prefix}definition",
+            description=(
+                f"Source of a view or function {scope}: the SQL body, so you can "
+                "see how tables are joined and filtered. Overloads return one "
+                "entry each; a plain table returns nothing (use describe)."
+            ),
+            input_model=_DefinitionInput,
+            output_model=_DefinitionOutput,
+            call=call_definition,
+            **common,
+        ),
+        HarnessTool(
+            name=f"{tool_prefix}call",
+            description=(
+                f"Run one of the connection's SQL functions {scope} with named "
+                "arguments and return its rows: `SELECT * FROM fn(p_a => …)` "
+                "inside the read-only envelope (a function that writes fails), "
+                "with the row cap, statement timeout and EXPLAIN cost gate of "
+                "query. Procedures, SECURITY DEFINER functions and functions "
+                "whose `@meta` declares side effects are refused. Use functions "
+                "to find the name and arguments first."
+            ),
+            input_model=_CallInput,
+            output_model=_RowsOutput,
+            call=call_routine,
+            **common,
+        ),
     ]
-    if cards_by_id:
-        titles = "; ".join(f"{c.id}: {c.title}" for c in cards_by_id.values())
+    env = ToolEnv(
+        pool=pool,
+        policy=policy,
+        tool_prefix=tool_prefix,
+        source_label=source_label,
+        scope=scope,
+        max_rows=max_rows,
+        explain_cost_threshold=explain_cost_threshold,
+        statement_timeout_ms=statement_timeout_ms,
+        common=common,
+        workspace_dir=workspace_dir,
+    )
+    tools.insert(3, build_show_tool(env))
+    tools.extend(build_workspace_tools(env))
+    if workflow_schema is not None:
+        tools.append(build_workflow_tool(env, workflow_schema))
+    if cards_by_id or authored_cards is not None:
         tools.append(
             HarnessTool(
                 name=f"{tool_prefix}knowledge",
-                description=(
-                    "Open a curated knowledge card for this connection's product "
-                    f"(call with a card id; empty lists them). Cards: {titles}. "
-                    "Read the relevant card before writing non-obvious queries."
+                description=_knowledge_description(
+                    list(cards_by_id.values()), authored=authored_cards is not None
                 ),
                 input_model=_KnowledgeInput,
                 output_model=_KnowledgeOutput,

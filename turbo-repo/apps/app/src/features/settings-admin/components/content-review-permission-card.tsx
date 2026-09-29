@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { HiSearch, HiShieldCheck, HiUserCircle } from "react-icons/hi";
+import { useState } from "react";
+import { HiShieldCheck, HiUserCircle } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useContentReviewPermission } from "../hooks/use-content-review-permission";
 import { useOrganizationOwnerRole } from "../hooks/use-organization-owner-role";
+import { usePermissionAssignmentForm } from "../hooks/use-permission-assignment-form";
 import type { OrgMember } from "../types";
+import {
+  EnabledSwitchRow,
+  MemberSearchInput,
+  SaveFooter,
+  UnavailableAssigneeRow,
+} from "./permission-card-parts";
 
 interface ContentReviewPermissionCardProps {
   readonly orgSlug: string;
@@ -33,40 +40,20 @@ export default function ContentReviewPermissionCard({
     error: ownerRoleError,
     save: saveOwnerRole,
   } = useOrganizationOwnerRole(orgSlug);
-  const [enabled, setEnabled] = useState(false);
-  const [assigneeIds, setAssigneeIds] = useState<Set<string>>(new Set());
-  const [saveError, setSaveError] = useState(false);
   const [roleSaveError, setRoleSaveError] = useState(false);
-  const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    if (!permission) return;
-    setEnabled(permission.enabled);
-    setAssigneeIds(new Set(permission.assigneeIds));
-  }, [permission]);
-
-  const toggleAssignee = (personId: string) => {
-    setAssigneeIds((current) => {
-      const next = new Set(current);
-      if (next.has(personId)) next.delete(personId);
-      else next.add(personId);
-      return next;
-    });
-  };
-
-  const handleSave = async () => {
-    setSaveError(false);
-    try {
-      await save({
-        enabled,
-        assigneeIds: [...assigneeIds].sort((left, right) =>
-          left.localeCompare(right)
-        ),
-      });
-    } catch {
-      setSaveError(true);
-    }
-  };
+  const {
+    enabled,
+    setEnabled,
+    assigneeIds,
+    toggleAssignee,
+    query,
+    setQuery,
+    visibleMembers,
+    unavailableAssigneeIds,
+    hasChanges,
+    saveError,
+    handleSave,
+  } = usePermissionAssignmentForm(permission, members, save);
 
   const handleRoleChange = async (personId: string, role: string) => {
     if (!ownerRole) return;
@@ -89,28 +76,8 @@ export default function ContentReviewPermissionCard({
   const busy = isLoading || membersLoading || ownerRoleLoading;
   const loadError = error || membersError || ownerRoleError;
   const ownerIds = new Set(ownerRole?.assigneeIds ?? []);
-  const memberIds = new Set(members.map((member) => member.id));
-  const unavailableAssigneeIds = [...assigneeIds]
-    .filter((personId) => !memberIds.has(personId))
-    .sort((left, right) => left.localeCompare(right));
   const hasAssigneesToRender =
     members.length > 0 || unavailableAssigneeIds.length > 0;
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  const visibleMembers = useMemo(
-    () =>
-      members.filter((member) => {
-        if (!normalizedQuery) return true;
-        return [member.displayName, member.email].some((value) =>
-          value?.toLocaleLowerCase().includes(normalizedQuery)
-        );
-      }),
-    [members, normalizedQuery]
-  );
-  const hasChanges =
-    permission != null &&
-    (enabled !== permission.enabled ||
-      assigneeIds.size !== permission.assigneeIds.length ||
-      permission.assigneeIds.some((personId) => !assigneeIds.has(personId)));
 
   return (
     <section className="shrink-0 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
@@ -146,34 +113,13 @@ export default function ContentReviewPermissionCard({
         )}
         {!busy && !loadError && (
           <>
-            <div className="flex items-center justify-between gap-4 border-b border-gray-200 px-4 py-4 dark:border-gray-700">
-              <div className="min-w-0">
-                <span
-                  id="content-review-enabled-label"
-                  className="block text-sm font-medium text-gray-900 dark:text-white"
-                >
-                  {tr("enabledLabel", permissionDict)}
-                </span>
-                <span
-                  id="content-review-enabled-help"
-                  className="block text-xs text-gray-500 dark:text-gray-400"
-                >
-                  {tr("enabledHelp", permissionDict)}
-                </span>
-              </div>
-              <label className="relative inline-flex shrink-0 cursor-pointer items-center">
-                <input
-                  type="checkbox"
-                  role="switch"
-                  checked={enabled}
-                  onChange={(event) => setEnabled(event.target.checked)}
-                  aria-labelledby="content-review-enabled-label"
-                  aria-describedby="content-review-enabled-help"
-                  className="peer sr-only"
-                />
-                <span className="h-6 w-11 rounded-full bg-gray-200 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-transform after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-full peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-2 dark:bg-gray-600 dark:after:border-gray-500" />
-              </label>
-            </div>
+            <EnabledSwitchRow
+              idPrefix="content-review"
+              label={tr("enabledLabel", permissionDict)}
+              help={tr("enabledHelp", permissionDict)}
+              checked={enabled}
+              onChange={setEnabled}
+            />
 
             <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -187,19 +133,12 @@ export default function ContentReviewPermissionCard({
                     })}
                   </p>
                 </div>
-                <label className="relative block sm:w-72">
-                  <span className="sr-only">
-                    {tr("searchLabel", permissionDict)}
-                  </span>
-                  <HiSearch className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder={tr("searchPlaceholder", permissionDict)}
-                    className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
-                  />
-                </label>
+                <MemberSearchInput
+                  label={tr("searchLabel", permissionDict)}
+                  placeholder={tr("searchPlaceholder", permissionDict)}
+                  value={query}
+                  onChange={setQuery}
+                />
               </div>
             </div>
 
@@ -284,58 +223,30 @@ export default function ContentReviewPermissionCard({
                     </p>
                   )}
                   {unavailableAssigneeIds.map((personId) => (
-                    <div
+                    <UnavailableAssigneeRow
                       key={personId}
-                      className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 last:border-b-0 dark:border-amber-800 dark:bg-amber-900/20"
-                    >
-                      <input
-                        type="checkbox"
-                        checked
-                        onChange={() => toggleAssignee(personId)}
-                        aria-label={`${personId}: ${tr(
-                          "unavailableMember",
-                          permissionDict
-                        )}`}
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600"
-                      />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm text-gray-900 dark:text-white">
-                          {personId}
-                        </span>
-                        <span className="block text-xs text-amber-700 dark:text-amber-300">
-                          {tr("unavailableMember", permissionDict)}
-                        </span>
-                      </span>
-                    </div>
+                      personId={personId}
+                      label={tr("unavailableMember", permissionDict)}
+                      onToggle={toggleAssignee}
+                    />
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-gray-200 px-4 py-3 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                {saveError && (
-                  <p className="text-sm text-red-600 dark:text-red-400">
-                    {tr("saveError", permissionDict)}
-                  </p>
-                )}
-                {roleSaveError && (
-                  <p className="text-sm text-red-600 dark:text-red-400">
-                    {tr("roleSaveError", permissionDict)}
-                  </p>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaving || !hasChanges}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isSaving
+            <SaveFooter
+              errors={[
+                saveError && tr("saveError", permissionDict),
+                roleSaveError && tr("roleSaveError", permissionDict),
+              ]}
+              disabled={isSaving || !hasChanges}
+              onSave={handleSave}
+              label={
+                isSaving
                   ? tr("saving", permissionDict)
-                  : tr("save", permissionDict)}
-              </button>
-            </div>
+                  : tr("save", permissionDict)
+              }
+            />
           </>
         )}
       </div>

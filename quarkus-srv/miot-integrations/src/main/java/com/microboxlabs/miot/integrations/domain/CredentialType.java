@@ -18,7 +18,8 @@ public enum CredentialType {
     OAUTH2_CLIENT_CREDENTIALS(AuthType.OAUTH2_CLIENT_CREDENTIALS),
     API_KEY(AuthType.API_KEY_HEADER),
     BEARER_TOKEN(AuthType.BEARER_TOKEN),
-    BASIC_AUTH(AuthType.BASIC);
+    BASIC_AUTH(AuthType.BASIC),
+    GOOGLE_SERVICE_ACCOUNT(AuthType.GOOGLE_SERVICE_ACCOUNT);
 
     private final AuthType defaultAuthType;
 
@@ -48,6 +49,7 @@ public enum CredentialType {
         }
         return switch (authType) {
             case OAUTH2_CLIENT_CREDENTIALS -> OAUTH2_CLIENT_CREDENTIALS;
+            case GOOGLE_SERVICE_ACCOUNT -> GOOGLE_SERVICE_ACCOUNT;
             case BASIC -> BASIC_AUTH;
             case API_KEY_HEADER, API_KEY_QUERY -> API_KEY;
             default -> BEARER_TOKEN;

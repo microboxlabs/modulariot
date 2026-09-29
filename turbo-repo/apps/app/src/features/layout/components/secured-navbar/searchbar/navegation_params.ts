@@ -1,5 +1,6 @@
 "use client";
 
+import { STORY_KINDS } from "@/features/storytelling/storytelling.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
@@ -118,7 +119,20 @@ const collaborators_management_params: ParamType[] = [
   setParam("rut", "text"),
 ];
 
-const storytelling_params: ParamType[] = [setParam("name", "text")];
+function storytelling_params(storyDict: I18nRecord): ParamType[] {
+  return [
+    setParam("name", "text"),
+    setParam(
+      "artifactType",
+      "selector",
+      STORY_KINDS.map((kind) => ({
+        value: kind,
+        label: trDynamic(`kind.${kind}`, storyDict),
+      }))
+    ),
+    setParam("createdAt", "date_range"),
+  ];
+}
 
 const symptoms_params: ParamType[] = [
   setParam("asset_id", "text"),
@@ -147,6 +161,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
   const kanban = kanban_params(searchbarDict);
   const fleet = fleet_params(searchbarDict);
   const calendar = calendar_params(searchbarDict);
+  const storytelling = storytelling_params(dict.storytelling as I18nRecord);
 
   return {
     finished: getParamsFixed(kanban, dict),
@@ -171,7 +186,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
       dict,
       true
     ),
-    storytelling: getParamsFixed(storytelling_params, dict),
+    storytelling: getParamsFixed(storytelling, dict),
   };
 }
 

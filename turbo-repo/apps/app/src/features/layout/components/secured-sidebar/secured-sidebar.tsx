@@ -7,15 +7,18 @@ import { SidebarNavigationProvider } from "../../context/sidebar-navigation-cont
 
 interface SecuredSidebarProps extends PropsWithI18nDict {
   readonly isHarnessSettingsEnabled: boolean;
+  readonly isDashboardServerEnabled: boolean;
 }
 
 export function SecuredSidebar({
   dict,
   isHarnessSettingsEnabled,
+  isDashboardServerEnabled,
 }: Readonly<SecuredSidebarProps>) {
   return (
     <SidebarNavigationProvider
       isHarnessSettingsEnabled={isHarnessSettingsEnabled}
+      isDashboardServerEnabled={isDashboardServerEnabled}
     >
       <div className="lg:hidden">
         <MobileSidebar dict={dict} />

@@ -14,6 +14,8 @@
  * emits it as `dist/bin.js`, matching the path `package.json` publishes.
  */
 
+import { loadConfiguredOperations } from "./server/operations-module";
+import { createAllowedGroupsPolicy } from "./access/allowed-groups";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +29,7 @@ import {
   readServerConfig,
   type ServerConfig,
 } from "./server/config";
+import { openDataSources } from "./server/open-datasources";
 import { createRefusalLog } from "./server/refusal-log";
 import { startSweepSchedule } from "./server/sweep-schedule";
 import { seedDashboards } from "./server/seed";
@@ -35,6 +38,7 @@ import type { ServerDashboardStore } from "./seams/store";
 import { buildDocumentStore } from "./server/documents";
 import { openPostgresStore } from "./store/postgres";
 import { openSqliteStore } from "./store/sqlite";
+import type { SqlDriver } from "./store/sql/driver";
 import type { SweepResult } from "./store/sweep";
 import {
   createMemoryStore,
@@ -116,7 +120,20 @@ function readSeed(seed: string | undefined): SeedFile {
       `MIOT_DASHBOARD_SEED at "${path}": "dashboards" must be an array`,
     );
   }
-  for (const [index, entry] of (dashboards ?? []).entries()) {
+  validateSeedReferences(dashboards ?? [], path);
+
+  return {
+    ...(memberships === undefined
+      ? {}
+      : { memberships: memberships as Memberships }),
+    ...(dashboards === undefined
+      ? {}
+      : { dashboards: dashboards as SeedDashboard[] }),
+  };
+}
+
+function validateSeedReferences(dashboards: unknown[], path: string): void {
+  for (const [index, entry] of dashboards.entries()) {
     if (!isRecord(entry) || !isRecord(entry.ref)) {
       throw new ConfigError(
         `MIOT_DASHBOARD_SEED at "${path}": "dashboards[${index}]" must be an object with a "ref"`,
@@ -133,15 +150,6 @@ function readSeed(seed: string | undefined): SeedFile {
       );
     }
   }
-
-  return {
-    ...(memberships === undefined
-      ? {}
-      : { memberships: memberships as Memberships }),
-    ...(dashboards === undefined
-      ? {}
-      : { dashboards: dashboards as SeedDashboard[] }),
-  };
 }
 
 interface AssembledStore {
@@ -150,6 +158,11 @@ interface AssembledStore {
   describe: string;
   /** Absent when the store has no documents to sweep. */
   sweep?: (olderThan: Date) => Promise<SweepResult>;
+  /**
+   * The connection underneath, for the datasource store and the credentials
+   * plugin. Absent for the memory store, which has none.
+   */
+  driver?: SqlDriver;
 }
 
 /** Build the store named by the configuration. */
@@ -210,6 +223,7 @@ async function openStore(
       : `sqlite at ${config.sqlitePath}`;
   return {
     store: opened.store,
+    driver: opened.driver,
     close: opened.close,
     describe: `${where}, ${documents}`,
     sweep: opened.sweep,
@@ -232,6 +246,7 @@ const log = (line: Record<string, unknown>) => {
 
 async function main(): Promise<void> {
   const config = readServerConfig(process.env);
+  const operations = await loadConfiguredOperations(config);
   const seed = readSeed(config.seedPath);
   const memberships = seed.memberships ?? {};
 
@@ -240,12 +255,23 @@ async function main(): Promise<void> {
   // anonymous caller controls how much this process logs.
   const onReject = createRefusalLog({ write: log });
 
-  const auth = await buildIdentityResolver(config.auth, { onReject });
+  const proxy =
+    config.proxyKey === undefined ? {} : { proxyKey: config.proxyKey };
+
+  const auth = await buildIdentityResolver(config.auth, {
+    onReject,
+    ...proxy,
+  });
   const tenants = buildTenantAuthority(config.tenants, {
     memberships,
     onReject,
+    ...proxy,
   });
-  const scopes = buildScopeAuthority(config.scopes, { memberships, onReject });
+  const scopes = buildScopeAuthority(config.scopes, {
+    memberships,
+    onReject,
+    ...proxy,
+  });
 
   if (config.auth.kind === "insecure") {
     process.stderr.write(
@@ -255,7 +281,10 @@ async function main(): Promise<void> {
   }
   if (
     (config.scopes.kind === "seed" || config.tenants.kind === "seed") &&
-    Object.keys(memberships).length === 0
+    Object.keys(memberships).length === 0 &&
+    // With a proxy key configured, an assertion answers both authorities and
+    // the empty seed is only the fallback for requests that arrive directly.
+    config.proxyKey === undefined
   ) {
     // Both authorities deny by default, so with no memberships every request
     // is a 403 and the server looks broken rather than misconfigured.
@@ -278,21 +307,28 @@ async function main(): Promise<void> {
           minAgeSeconds: config.orphanMinAgeSeconds,
           log,
         });
+  const data = await openDataSources(config, assembled.driver);
+
   log({ level: "info", msg: "identity", auth: auth.describe });
   log({ level: "info", msg: "tenants", entitlement: tenants.describe });
   log({ level: "info", msg: "scopes", membership: scopes.describe });
+  log({ level: "info", msg: "datasources", state: data.describe });
 
   const running = await serve({
+    policy: createAllowedGroupsPolicy(),
     identity: auth.identity,
     tenants: tenants.tenants,
     scopes: scopes.scopes,
     store: assembled.store,
+    ...(operations ? { queries: { operations } } : {}),
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,
     docs: config.docs,
     ...(config.cors ? { cors: config.cors } : {}),
     ...(config.basePath ? { basePath: config.basePath } : {}),
+    ...(data.dataSources ? { dataSources: data.dataSources } : {}),
+    ...(data.credentials ? { credentials: data.credentials } : {}),
   });
 
   const shutdown = (signal: string) => {
@@ -311,7 +347,9 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error) {
   if (error instanceof ConfigError) {
     process.stderr.write(`Configuration error: ${error.message}\n`);
     process.exit(2);
@@ -320,4 +358,4 @@ main().catch((error: unknown) => {
     `Failed to start: ${error instanceof Error ? error.stack : String(error)}\n`,
   );
   process.exit(1);
-});
+}

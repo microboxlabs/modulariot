@@ -25,6 +25,7 @@
  * is the operation's own event.
  */
 
+import { dashboardDisplayName } from "../store/display-name";
 import type { AuditAction, AuditSink } from "../seams/audit";
 import { noopAuditSink } from "../seams/audit";
 import type {
@@ -37,6 +38,7 @@ import type {
 } from "../seams/identity";
 import type {
   DashboardRecord,
+  DashboardSummary,
   PermissionAssignment,
   ServerDashboardRef,
   ServerDashboardStore,
@@ -100,6 +102,16 @@ export interface AccessControlOptions<TRequest> {
 export interface AccessControl<TRequest> {
   /** Authorize one action against one target, or throw a `DashboardServerError`. */
   authorize(request: TRequest, target: AccessTarget): Promise<AccessDecision>;
+  /** Scope eligibility; saving still applies the document's policy and validation. */
+  scopeCapabilities(
+    request: TRequest,
+    target: { tenantId: string; scopeId: string },
+  ): Promise<{ canCreate: boolean }>;
+  /** List only existing dashboards visible to the caller's dashboard policy. */
+  list(
+    request: TRequest,
+    target: { tenantId: string; scopeId: string },
+  ): Promise<DashboardSummary[]>;
   /**
    * The caller's effective capabilities on one dashboard — the server half
    * of the UI package's Seam F. Throws 403 when the caller cannot see the
@@ -142,6 +154,7 @@ type ActionRule =
 const ACTION_RULES: Readonly<Record<DashboardAction, ActionRule>> = {
   "dashboard.list": { level: "scope", floor: "Consumer", capability: null },
   "dashboard.load": { level: "dashboard", capability: null },
+  "dashboard.query": { level: "dashboard", capability: null },
   "dashboard.save": { level: "dashboard", capability: "canEdit" },
   "dashboard.delete": { level: "dashboard", capability: "canDelete" },
   "dashboard.permissions.read": {
@@ -172,6 +185,7 @@ const ACTION_RULES: Readonly<Record<DashboardAction, ActionRule>> = {
  */
 const EMBED_ACTIONS: ReadonlySet<DashboardAction> = new Set<DashboardAction>([
   "dashboard.load",
+  "dashboard.query",
   "datasource.query",
 ]);
 
@@ -180,8 +194,8 @@ const EMBED_ACTIONS: ReadonlySet<DashboardAction> = new Set<DashboardAction>([
  * already intersected with the caller's ceiling, so no further narrowing is
  * needed here.
  *
- * Creating a dashboard is the one case decided by scope standing instead:
- * a dashboard that does not exist yet has no capabilities to consult.
+ * Creating a dashboard additionally requires Contributor scope standing, even
+ * if a host policy grants editing capabilities to a lower role.
  */
 function dashboardActionAllowed(
   action: DashboardAction,
@@ -189,10 +203,14 @@ function dashboardActionAllowed(
   scopeRole: DashboardRole,
 ): boolean {
   if (action === "dashboard.save" && access.record === null) {
-    return roleAtLeast(scopeRole, "Contributor");
+    return roleAtLeast(scopeRole, "Contributor") && access.capabilities.canEdit;
   }
   const { capability } = ACTION_RULES[action];
   return capability === null || access.capabilities[capability];
+}
+
+function canCreateInScope(identity: DashboardIdentity, role: DashboardRole): boolean {
+  return roleAtLeast(role, "Contributor") && identity.capabilities.canEdit;
 }
 
 /**
@@ -247,7 +265,17 @@ export function createAccessControl<TRequest>(
         action: target.action,
         outcome,
         target: targetLabel(target),
-        ...(detail ? { detail } : {}),
+        // Recorded on every event rather than at each call site: a reader
+        // asking "was this role verified here or handed to us" should not
+        // have to know which code path produced the line.
+        ...(detail || principal?.asserted
+          ? {
+              detail: {
+                ...detail,
+                ...(principal?.asserted ? { asserted: true } : {}),
+              },
+            }
+          : {}),
       });
     } catch (error) {
       onAuditError?.(error);
@@ -338,6 +366,69 @@ export function createAccessControl<TRequest>(
     return decision;
   }
 
+  function loadUserDashboard(
+    identity: DashboardIdentity,
+    slugTarget: AccessTarget & { slug: string },
+    scopeRole: DashboardRole,
+  ): Promise<DashboardAccess | null> {
+    return loadDashboard(
+      identity,
+      slugTarget,
+      scopeRole,
+      (dashboardRecord, assignments) =>
+        Promise.resolve(
+          policy.resolve({
+            identity,
+            ref: {
+              tenantId: identity.tenantId,
+              scopeId: slugTarget.scopeId,
+              slug: slugTarget.slug,
+            },
+            scopeRole,
+            assignments,
+            record: dashboardRecord,
+          }),
+        ),
+    );
+  }
+
+  async function list(
+    request: TRequest,
+    target: { tenantId: string; scopeId: string },
+  ): Promise<DashboardSummary[]> {
+    const decision = await authorize(request, {
+      ...target,
+      action: "dashboard.list",
+    });
+    const summaries = await store.list(
+      decision.identity.tenantId,
+      target.scopeId,
+    );
+    const visible: DashboardSummary[] = [];
+    // Bound policy/store work without re-verifying the credential for each item.
+    for (let offset = 0; offset < summaries.length; offset += 4) {
+      const batch = summaries.slice(offset, offset + 4);
+      const access = await Promise.all(
+        batch.map((summary) =>
+          loadUserDashboard(
+            decision.identity,
+            { ...target, slug: summary.slug, action: "dashboard.load" },
+            decision.scopeRole,
+          ),
+        ),
+      );
+      batch.forEach((summary, index) => {
+        const record = access[index]?.record;
+        if (record)
+          visible.push({
+            slug: summary.slug,
+            name: dashboardDisplayName(record.config, summary.slug),
+          });
+      });
+    }
+    return visible;
+  }
+
   async function authorizeUser(
     identity: DashboardIdentity,
     target: AccessTarget,
@@ -381,25 +472,7 @@ export function createAccessControl<TRequest>(
     }
 
     const slugTarget = { ...target, slug: target.slug };
-    const dashboard = await loadDashboard(
-      identity,
-      slugTarget,
-      scopeRole,
-      (dashboardRecord, assignments) =>
-        Promise.resolve(
-          policy.resolve({
-            identity,
-            ref: {
-              tenantId: identity.tenantId,
-              scopeId: target.scopeId,
-              slug: slugTarget.slug,
-            },
-            scopeRole,
-            assignments,
-            record: dashboardRecord,
-          }),
-        ),
-    );
+    const dashboard = await loadUserDashboard(identity, slugTarget, scopeRole);
     if (dashboard === null) {
       return deny(
         identity,
@@ -466,11 +539,23 @@ export function createAccessControl<TRequest>(
       ...target,
       action: "dashboard.load",
     });
-    if (!decision.dashboard || decision.dashboard.record === null) {
+    if (decision.dashboard?.record == null) {
       throw DashboardServerError.notFound("Dashboard not found");
     }
     return decision.dashboard.capabilities;
   }
 
-  return { authorize, capabilities };
+  async function scopeCapabilities(
+    request: TRequest,
+    target: { tenantId: string; scopeId: string },
+  ): Promise<{ canCreate: boolean }> {
+    const decision = await authorize(request, {
+      tenantId: target.tenantId,
+      scopeId: target.scopeId,
+      action: "dashboard.list",
+    });
+    return { canCreate: canCreateInScope(decision.identity, decision.scopeRole) };
+  }
+
+  return { authorize, capabilities, scopeCapabilities, list };
 }

@@ -30,12 +30,27 @@ export function applyHarnessEvent(
     case "run.started":
       return { ...slice, currentRunId: runId };
 
+    case "approval.resolved": {
+      // Decided here or by another client: the modal no longer applies.
+      const approvalId = event.data.approval_id;
+      return {
+        ...slice,
+        pendingApprovals: slice.pendingApprovals.filter(
+          (p) => p.data.approval_id !== approvalId,
+        ),
+      };
+    }
+
     case "approval.auto":
     case "steering.mode_denied":
     case "grounding.gap":
+    case "context.usage":
+    case "dashboard.draft":
       // Status-only markers (an approval auto-resolved; a steering mode was
       // denied; a ground-or-flag assumption was declared — it also rides the
-      // final answer, so nothing to render mid-stream). The session reducer /
+      // final answer, so nothing to render mid-stream; a context window
+      // report, which rides the run record too; a dashboard draft, which only
+      // the web app can save). The session reducer /
       // footer surfaces these; the transcript projector leaves the slice
       // unchanged, like run.completed below. Keeps this switch exhaustive over
       // HarnessEventType.
@@ -90,20 +105,6 @@ export function applyHarnessEvent(
       };
     }
 
-    case "route.selected": {
-      const route =
-        typeof event.data.route === "string" && event.data.route.length > 0
-          ? event.data.route
-          : event.message;
-      if (!route) return slice;
-      return appendItem(slice, {
-        kind: "route",
-        id: ctx.uuid(),
-        route,
-        ts: ctx.now(),
-      });
-    }
-
     case "agent.turn":
     case "agent.started": {
       // agent.turn is deprecated; agent.started replaces it. Both
@@ -125,6 +126,29 @@ export function applyHarnessEvent(
       });
     }
 
+    case "widget.created": {
+      // The web chat renders the widget; the terminal notes that one exists.
+      const widget = (event.data.widget ?? {}) as {
+        title?: unknown;
+        rows?: unknown;
+      };
+      const title = typeof widget.title === "string" ? widget.title : "widget";
+      const rows = Array.isArray(widget.rows) ? widget.rows.length : 0;
+      return appendItem(slice, {
+        kind: "system",
+        id: ctx.uuid(),
+        text: `widget: ${title} (${rows} rows)`,
+        ts: ctx.now(),
+      });
+    }
+
+    case "advisor.consulted":
+    case "delegate.completed":
+      // Seat events from the agent loop. The web narrator renders them inline
+      // (`seatNarration`); the TUI treats them as internal node boundaries and
+      // keeps the transcript to one row per agent, like agent.completed below.
+      return slice;
+
     case "agent.completed":
       // The agent.started row already carries the agent boundary; the
       // duration is surfaced inline by the REPL renderer. Skipping the
@@ -132,11 +156,10 @@ export function applyHarnessEvent(
       // node, not two).
       return slice;
 
+    case "route.selected":
     case "verification.completed":
-      // Internal pipeline telemetry (the Phase 3 verify gate's "did we answer
-      // it?" verdict). Like agent.completed, it marks an internal node boundary
-      // and is intentionally not surfaced as a transcript row; the REPL
-      // renderer can show it inline. Keeps this switch exhaustive.
+      // No longer emitted by the harness; kept so old event records
+      // still project without a row.
       return slice;
 
     case "thinking.delta": {
@@ -144,7 +167,9 @@ export function applyHarnessEvent(
         typeof event.data.delta === "string" ? event.data.delta : "";
       if (!delta) return slice;
       const agent =
-        typeof event.data.agent === "string" ? event.data.agent : "synthesizer";
+        typeof event.data.agent === "string" && event.data.agent.length > 0
+          ? event.data.agent
+          : undefined;
       const existingId = slice.currentThinkingItemId;
       if (existingId) {
         return {
@@ -160,7 +185,7 @@ export function applyHarnessEvent(
       const item: TranscriptItem = {
         kind: "thinking",
         id,
-        agent,
+        ...(agent !== undefined ? { agent } : {}),
         text: delta,
         status: "streaming",
         ts: ctx.now(),
@@ -234,14 +259,19 @@ export function applyHarnessEvent(
       });
 
     case "artifact.created": {
-      const artifactKind =
+      // The web chat draws the diagram; the terminal notes that one exists.
+      const kind =
         typeof event.data.kind === "string" && event.data.kind.length > 0
           ? event.data.kind
           : "artifact";
+      const title =
+        typeof event.data.title === "string" && event.data.title.length > 0
+          ? event.data.title
+          : kind;
       return appendItem(slice, {
-        kind: "artifact",
+        kind: "system",
         id: ctx.uuid(),
-        artifactKind,
+        text: `artifact: ${title} (${kind})`,
         ts: ctx.now(),
       });
     }
@@ -407,8 +437,7 @@ function flipOrAppendTool(
       item.status === "running" &&
       item.name === name
     ) {
-      const message =
-        event.message.length > 0 ? event.message : item.message;
+      const message = event.message.length > 0 ? event.message : item.message;
       const updated: TranscriptItem = { ...item, status, message };
       const next = slice.transcript.slice();
       next[i] = updated;

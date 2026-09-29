@@ -3,10 +3,7 @@
 This text is the prompt-cache prefix (together with the tool list), so it
 must be a pure function of the datasource profile: no clock, no per-request
 tenant, no uuids, no counters. Dynamic per-run context never goes here —
-it rides in the user turn (see agent_loop._compose_human).
-
-The rules merge the two seats the loop replaces: the agentic planner's
-investigation-rigor rules and the synthesizer's answer rules.
+it rides in the user turn (see agent_loop._lead_with_reminders).
 
 Skills are progressive disclosure over the same prefix contract: only the
 one-line index (trigger text) lives here; full playbook bodies arrive
@@ -34,7 +31,22 @@ Investigation rules:
   primitives are a fallback for questions the curated catalog cannot answer.
 - Never repeat a tool call you already made with identical arguments.
 - Read any knowledge card at most once, then ACT on what it says.
-{skills_block}
+{skills_block}{seats_block}
+Turns that need no tool — you own the whole conversation, not only its data
+questions:
+- Greeting or small talk: reply in one or two sentences and say what you can
+  answer about {display_name}.
+- A question about this conversation ("what did you query?", "did you ask the
+  GPS database?", "summarize what we discussed"): answer from the transcript
+  above, and do not call a tool to find out what you already did. Where the
+  transcript shows the tool call behind a number, name the connection and the
+  query you ran. Where it shows the answer but not the call — an earlier turn
+  this process no longer holds in full — say the number came from an earlier
+  turn whose query is not in view, and offer to re-run it. Either way it is
+  your own earlier work, so never say you invented it.
+- A question about data you have no connection for: say which source would
+  hold it and that you cannot reach it.
+
 Rigor — do not answer from incomplete or fuzzy evidence:
 - A grep / ILIKE result is a FUZZY sample, never an authoritative count or
   list. Do not report a total or enumerate items from a grep — run a precise
@@ -47,6 +59,10 @@ Rigor — do not answer from incomplete or fuzzy evidence:
   node properties), run the join/pivot query that returns the actual
   attributes (codes, names, references) before answering.
 - Never state a number or list you have not obtained from a real tool result.
+- A tool result is a JSON envelope. `output` is a display excerpt of at most
+  5 rows; `rows_returned` and `total` are exact counts. An `excerpt` note
+  ("first 5 of 58 rows", "cut at N chars") is display truncation, not a gap:
+  answer from `total` and do not re-run the query to see more rows.
 - Do not answer while a query you already identified as needed is still
   unrun, and do not defer it ("I can run it if you want") — run it now.
 
@@ -59,9 +75,9 @@ Answer rules (write in the same language as the question; be concise,
 - If a tool result is marked stale (`is_stale` / `freshness_status`), caveat
   the answer and cite its `refreshed_at` timestamp.
 - Do not mention the internal pipeline or raw tool names in the answer.
-- Prior assistant turns in this conversation were produced by real curated
-  tools. Treat their numbers, tables, and claims as authoritative evidence —
-  do NOT claim you fabricated them.
+- Numbers and tables in your prior turns are your own earlier work, not
+  something you made up. Cite the tool result behind one when the transcript
+  carries it; say it came from an earlier turn when it does not.
 """
 
 
@@ -81,7 +97,7 @@ def render_skills_index(
 
     Resolved against `profile.tenant_lock` (an open profile sees only
     global skills) and filtered to this profile's connection — the same
-    scoping as the legacy planner catalog, and the same the loop re-applies
+    scoping the loop re-applies
     when a `load_skill` call arrives — so the text is a pure function of
     (profile, bundle) and the cache prefix stays byte-stable. Returns ""
     when nothing is eligible; the skills block is omitted entirely then.
@@ -90,7 +106,7 @@ def render_skills_index(
         return ""
     lines: list[str] = []
     for loaded in bundle.playbooks_for(
-        profile.tenant_lock or "", connection=profile.name
+        profile.tenant_lock or "", connection=profile.name, learned=False
     ):
         skill = loaded.skill
         assert isinstance(skill, PlaybookSkill)  # playbooks_for guarantees
@@ -106,7 +122,7 @@ def render_skills_index(
 
 
 def build_agent_system_prompt(
-    profile: DataSourceProfile, *, skills_index: str = ""
+    profile: DataSourceProfile, *, skills_index: str = "", seats_block: str = ""
 ) -> str:
     skills_block = (
         _SKILLS_BLOCK_TEMPLATE.format(index=skills_index) if skills_index else ""
@@ -117,6 +133,7 @@ def build_agent_system_prompt(
         primer=profile.primer,
         tool_prefix=profile.tool_prefix,
         skills_block=skills_block,
+        seats_block=seats_block,
     )
 
 

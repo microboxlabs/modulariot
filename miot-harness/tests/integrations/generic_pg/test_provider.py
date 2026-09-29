@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from miot_harness.config import HarnessSettings
 from miot_harness.connections.models import Connection
+from miot_harness.datasource.knowledge.writer import (
+    ConnectionCardWrite,
+    delete_connection_card,
+    write_connection_card,
+)
 from miot_harness.integrations.generic_pg.provider import GenericPgProvider
+from miot_harness.knowledge.changes import KnowledgeChange
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.tools.registry import ToolRegistry
 from tests.fixtures.recording_pool import RecordingPool
@@ -136,6 +143,9 @@ async def test_boot_registers_generic_tools(monkeypatch: pytest.MonkeyPatch) -> 
         "acs_query",
         "acs_grep",
         "acs_explain",
+        "acs_functions",
+        "acs_definition",
+        "acs_call",
     ):
         assert name in registry.names()
         assert registry.get(name).kind == "primitive"
@@ -180,6 +190,34 @@ async def test_tenant_lock_denies_other_tenant(
         registry,
         _enabled(),
         _conn(options={"search_path": "acs", "tenant_lock": "acme"}),
+    )
+    tool = registry.get("acs_select")
+    from miot_harness.runtime.permissions import PermissionDecision
+
+    def _ctx(tenant: str) -> HarnessContext:
+        return HarnessContext(thread_id="t", tenant_id=tenant, user_id="u")
+
+    deny = await tool.check_permission(_ctx("other"), tool.input_model(table="acs.x"))
+    allow = await tool.check_permission(_ctx("acme"), tool.input_model(table="acs.x"))
+    assert deny.decision == PermissionDecision.DENY
+    assert allow.decision == PermissionDecision.ALLOW
+
+
+@pytest.mark.asyncio
+async def test_a_tenant_scoped_connection_serves_only_its_tenant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_pool = MagicMock()
+    fake_pool.close = AsyncMock()
+    monkeypatch.setattr(
+        "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+        AsyncMock(return_value=fake_pool),
+    )
+    registry = ToolRegistry()
+    await GenericPgProvider().boot(
+        registry,
+        _enabled(),
+        _conn(options={"search_path": "acs"}, scope="tenant", tenant_id="acme"),
     )
     tool = registry.get("acs_select")
     from miot_harness.runtime.permissions import PermissionDecision
@@ -356,3 +394,69 @@ async def test_describe_filters_fk_references_outside_allowlist(
     )
     refs = [fk["references"] for fk in out.foreign_keys]
     assert refs == ["acs.act_ru_execution.id_"]  # public.users.id filtered out
+
+
+@pytest.mark.asyncio
+async def test_authored_cards_are_read_per_call_without_restart(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    pool = RecordingPool(responder=_responder)
+    monkeypatch.setattr(
+        "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+        AsyncMock(return_value=pool),
+    )
+    conn_md = tmp_path / "connection.md"
+    conn_md.write_text("---\nname: acs\n---\n", encoding="utf-8")
+    registry = ToolRegistry()
+    await GenericPgProvider().boot(registry, _enabled(), _conn(source_path=str(conn_md)))
+    # No pack and no card at boot: the tool is still there for the first card.
+    assert "acs_knowledge" in registry.names()
+    tool = registry.get("acs_knowledge")
+    ctx = HarnessContext(thread_id="t", tenant_id="demo", user_id="u")
+    assert (await tool.invoke(ctx, {"card": ""}, lambda _e: None)).available == []
+
+    cards_dir = tmp_path / "knowledge"
+    write_connection_card(
+        cards_dir, ConnectionCardWrite(term="current process", body="Only v2 is current.")
+    )
+    out = await tool.invoke(ctx, {"card": "current-process"}, lambda _e: None)
+    assert out.body == "Only v2 is current."
+
+    assert delete_connection_card(cards_dir, "current-process")
+    out = await tool.invoke(ctx, {"card": "current-process"}, lambda _e: None)
+    assert out.body == ""
+    assert out.available == []
+
+
+@pytest.mark.asyncio
+async def test_knowledge_tool_applies_the_runs_fact_overlay(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    pool = RecordingPool(responder=_responder)
+    monkeypatch.setattr(
+        "miot_harness.integrations.generic_pg.provider.create_pg_pool",
+        AsyncMock(return_value=pool),
+    )
+    conn_md = tmp_path / "connection.md"
+    conn_md.write_text("---\nname: acs\n---\n", encoding="utf-8")
+    registry = ToolRegistry()
+    await GenericPgProvider().boot(registry, _enabled(), _conn(source_path=str(conn_md)))
+    write_connection_card(
+        tmp_path / "knowledge", ConnectionCardWrite(term="stored", body="Stored meaning.")
+    )
+    tool = registry.get("acs_knowledge")
+    overlay = (
+        KnowledgeChange(layer="fact", id="draft", target="acs", title="Draft", content="New."),
+        KnowledgeChange(layer="fact", id="stored", target="acs", op="delete"),
+    )
+    previewing = HarnessContext(
+        thread_id="t", tenant_id="demo", user_id="u", knowledge_overlay=overlay
+    )
+    out = await tool.invoke(previewing, {"card": "draft"}, lambda _e: None)
+    assert out.body == "New."
+    assert [a["card"] for a in out.available] == ["draft"]
+
+    plain = HarnessContext(thread_id="t", tenant_id="demo", user_id="u")
+    out = await tool.invoke(plain, {"card": "draft"}, lambda _e: None)
+    assert out.body == ""
+    assert [a["card"] for a in out.available] == ["stored"]

@@ -20,12 +20,41 @@
  */
 
 import {
+  createDashboardQueryService,
+  type DashboardQueryOptions,
+} from "../queries/service";
+import { DEFAULT_MAX_BODY_BYTES, readJsonBody } from "./read-json";
+import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
+import {
   createAccessControl,
   type AccessControlOptions,
 } from "../access/access-control";
 import { DashboardServerError, isDashboardServerError } from "../access/errors";
 import { isDashboardRole } from "../access/roles";
+import {
+  applyCredential,
+  isCredentialsStore,
+  type CredentialInput,
+  type CredentialsVault,
+  type DataSourceCredential,
+} from "../seams/credentials";
+import type {
+  DataSourceDescriptor,
+  DataSourceInput,
+  DataSourceStore,
+} from "../seams/datasources";
 import type { PermissionAssignment } from "../seams/store";
+import {
+  parseCredentialInput,
+  parseDataSourceInput,
+  parseDataSourceTestInput,
+} from "./parse-datasource";
+import {
+  testDataSourceConnection,
+  untested,
+  type ConnectionTestResult,
+  type TestConnectionOptions,
+} from "./test-connection";
 import { errorResponse, jsonResponse, noContentResponse } from "./responses";
 import { matchRoute, type RouteMatch } from "./routes";
 import { withCors, type CorsOptions } from "./cors";
@@ -37,6 +66,22 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    */
   basePath?: string;
   cors?: CorsOptions;
+  /** Maximum JSON body bytes in embedded and standalone handlers; default 1 MiB. */
+  maxBodyBytes?: number;
+  /** Omit to disable saved-query execution (404). */
+  queries?: Pick<
+    DashboardQueryOptions<Request>,
+    "operations" | "timeoutMs" | "maxConcurrent" | "maxRows" | "maxBytes"
+  >;
+  /** Omit it and the datasource routes answer 404. */
+  dataSources?: DataSourceStore;
+  /**
+   * The credential routes are served only when this vault can be written to
+   * (see `isCredentialsStore`). A read-only one answers 404.
+   */
+  credentials?: CredentialsVault;
+  /** Clock, fetch and timeout for the connection test. For tests. */
+  testConnection?: TestConnectionOptions;
   /**
    * Called with what this handler did not choose: anything thrown that is not
    * a `DashboardServerError`, and so became a bare 500. A 404, a 403 or a 409
@@ -67,7 +112,16 @@ export type DashboardHandler = (request: Request) => Promise<Response>;
 export function createDashboardHandler(
   options: DashboardHandlerOptions,
 ): DashboardHandler {
+  const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+  if (!Number.isSafeInteger(maxBodyBytes) || maxBodyBytes < 1) {
+    throw new TypeError("maxBodyBytes must be a positive safe integer");
+  }
+  const readBody = (request: Request) => readJsonBody(request, maxBodyBytes);
   const access = createAccessControl<Request>(options);
+  const queries =
+    options.queries === undefined
+      ? null
+      : createDashboardQueryService({ ...options, ...options.queries });
 
   /**
    * The hook belongs to the host, so it is not trusted to return. A logger
@@ -82,131 +136,360 @@ export function createDashboardHandler(
     }
   };
   const basePath = normalizeBasePath(options.basePath);
+  const testOptions = options.testConnection ?? {};
 
-  async function dispatch(
-    request: Request,
-    match: RouteMatch,
-  ): Promise<Response> {
-    const method = request.method.toUpperCase();
+  /**
+   * One connection test, with the credential sent inline or the one the
+   * datasource names.
+   *
+   * A named credential that resolves to nothing is a failed test, not an
+   * anonymous probe: a target that allows anonymous reads would otherwise
+   * answer, and the operator would be told a broken datasource works.
+   */
+  async function runTest(
+    tenantId: string,
+    datasource: DataSourceDescriptor | DataSourceInput,
+    inline?: CredentialInput,
+  ): Promise<ConnectionTestResult> {
+    let credential: DataSourceCredential | null = null;
 
-    switch (match.route) {
-      case "dashboards": {
-        if (method !== "GET") return methodNotAllowed();
+    if (inline !== undefined) {
+      credential = applyCredential(inline);
+    } else if (datasource.credentialRef !== undefined) {
+      const ref = datasource.credentialRef;
+      credential =
+        options.credentials === undefined
+          ? null
+          : await options.credentials.resolve(tenantId, ref);
+      if (credential === null) {
+        return untested(
+          `The credential "${ref}" could not be resolved`,
+          testOptions,
+        );
+      }
+    }
+
+    return testDataSourceConnection(datasource, credential, testOptions);
+  }
+
+  // Build once. Each route keeps its authorization before parsing and storage.
+  const routes: Record<
+    RouteMatch["route"],
+    (request: Request, match: RouteMatch) => Promise<Response>
+  > = {
+    async dashboards(request, match) {
+      const method = request.method.toUpperCase();
+      if (method !== "GET") return methodNotAllowed();
+      const data = await access.list(request, {
+        tenantId: match.tenantId,
+        scopeId: match.scopeId,
+      });
+      return jsonResponse({ data });
+    },
+
+    async dashboard(request, match) {
+      const method = request.method.toUpperCase();
+      const slug = requireSlug(match);
+      if (method === "GET") {
         const decision = await access.authorize(request, {
           tenantId: match.tenantId,
           scopeId: match.scopeId,
-          action: "dashboard.list",
+          slug,
+          action: "dashboard.load",
         });
-        const data = await options.store.list(
+        // authorize already loaded it; a second store round trip would be
+        // both wasteful and a chance for the two reads to disagree.
+        const record = decision.dashboard?.record ?? null;
+        const response = jsonResponse({ data: record?.config ?? null });
+        response.headers.set("ETag", `"${record?.revision ?? 0}"`);
+        return response;
+      }
+      if (method === "PUT") {
+        // Authorize before parsing: an unauthorized caller learns nothing
+        // about the request schema, and does no parsing work for us.
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          slug,
+          action: "dashboard.save",
+        });
+        const config = await readBody(request);
+        requireValidConfig(config);
+        const expectedRevision = readExpectedRevision(request);
+        const saved = await options.store.save(
+          refOf(decision.identity.tenantId, match.scopeId, slug),
+          config,
+          {
+            updatedBy: decision.identity.userId,
+            ...(expectedRevision === undefined ? {} : { expectedRevision }),
+          },
+        );
+        const response = jsonResponse(
+          { data: { revision: saved.revision, updatedAt: saved.updatedAt } },
+          200,
+        );
+        response.headers.set("ETag", `"${saved.revision}"`);
+        return response;
+      }
+      if (method === "DELETE") {
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          slug,
+          action: "dashboard.delete",
+        });
+        if (decision.dashboard?.record == null) {
+          throw DashboardServerError.notFound("Dashboard not found");
+        }
+        await options.store.remove(
+          refOf(decision.identity.tenantId, match.scopeId, slug),
+        );
+        return noContentResponse();
+      }
+      return methodNotAllowed();
+    },
+
+    async query(request, match) {
+      if (request.method !== "POST") return methodNotAllowed();
+      if (queries === null)
+        throw DashboardServerError.notFound(
+          "Query execution is not configured",
+        );
+      const data = await queries.execute(
+        request,
+        refOf(match.tenantId, match.scopeId, requireSlug(match)),
+        requireId(match),
+        async () => queryFilters(await readBody(request)),
+        request.signal,
+      );
+      return jsonResponse({ data });
+    },
+
+    async scopeCapabilities(request, match) {
+      if (request.method.toUpperCase() !== "GET") return methodNotAllowed();
+      return jsonResponse(await access.scopeCapabilities(request, {
+        tenantId: match.tenantId, scopeId: match.scopeId,
+      }));
+    },
+
+    async capabilities(request, match) {
+      const method = request.method.toUpperCase();
+      if (method !== "GET") return methodNotAllowed();
+      const capabilities = await access.capabilities(request, {
+        tenantId: match.tenantId,
+        scopeId: match.scopeId,
+        slug: requireSlug(match),
+      });
+      return jsonResponse(capabilities);
+    },
+
+    async permissions(request, match) {
+      const method = request.method.toUpperCase();
+      const slug = requireSlug(match);
+      if (method === "GET") {
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          slug,
+          action: "dashboard.permissions.read",
+        });
+        return jsonResponse({
+          assignments: decision.dashboard?.assignments ?? [],
+        });
+      }
+      if (method === "PUT") {
+        // Authorize before parsing, as above. This route leaked more than
+        // the other: `parseAssignments` names the offending field and lists
+        // the valid roles, so an unauthenticated caller could read the
+        // permission vocabulary straight out of the 400s.
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          slug,
+          action: "dashboard.permissions.write",
+        });
+        const assignments = parseAssignments(await readBody(request));
+        await options.store.setPermissions(
+          refOf(decision.identity.tenantId, match.scopeId, slug),
+          assignments,
+        );
+        return noContentResponse();
+      }
+      return methodNotAllowed();
+    },
+
+    async datasources(request, match) {
+      const method = request.method.toUpperCase();
+      const store = requireDataSources(options.dataSources);
+      if (method === "GET") {
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.list",
+        });
+        const data = await store.list(decision.identity.tenantId);
+        return jsonResponse({ data });
+      }
+      if (method === "POST") {
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.write",
+        });
+        const input = parseDataSourceInput(await readBody(request));
+        const id = crypto.randomUUID();
+        const data = await store.put(decision.identity.tenantId, id, input);
+        return jsonResponse({ data }, 201);
+      }
+      return methodNotAllowed();
+    },
+
+    async datasourcesTest(request, match) {
+      const method = request.method.toUpperCase();
+      // No store: these values have not been saved yet.
+      if (method !== "POST") return methodNotAllowed();
+      const decision = await access.authorize(request, {
+        tenantId: match.tenantId,
+        scopeId: match.scopeId,
+        action: "datasource.write",
+      });
+      const input = parseDataSourceTestInput(await readBody(request));
+      if (
+        input.credential !== undefined &&
+        input.datasource.credentialRef !== undefined
+      ) {
+        throw DashboardServerError.badRequest(
+          'Send "credential" or a "credentialRef" on the datasource, not ' +
+            "both. They can name different secrets, and the test would " +
+            "then answer about one of them without saying which.",
+        );
+      }
+      return jsonResponse({
+        data: await runTest(
           decision.identity.tenantId,
-          match.scopeId,
+          input.datasource,
+          input.credential,
+        ),
+      });
+    },
+
+    async datasourceTest(request, match) {
+      const method = request.method.toUpperCase();
+      const store = requireDataSources(options.dataSources);
+      const id = requireId(match);
+      if (method !== "POST") return methodNotAllowed();
+      const decision = await access.authorize(request, {
+        tenantId: match.tenantId,
+        scopeId: match.scopeId,
+        action: "datasource.write",
+      });
+      const descriptor = await store.get(decision.identity.tenantId, id);
+      if (descriptor === null) {
+        throw DashboardServerError.notFound("Datasource not found");
+      }
+      return jsonResponse({
+        data: await runTest(decision.identity.tenantId, descriptor),
+      });
+    },
+
+    async datasource(request, match) {
+      const method = request.method.toUpperCase();
+      const store = requireDataSources(options.dataSources);
+      const id = requireId(match);
+      if (method === "GET") {
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.list",
+        });
+        const data = await store.get(decision.identity.tenantId, id);
+        if (data === null) {
+          throw DashboardServerError.notFound("Datasource not found");
+        }
+        return jsonResponse({ data });
+      }
+      if (method === "PUT") {
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.write",
+        });
+        const input = parseDataSourceInput(await readBody(request));
+        const data = await store.put(decision.identity.tenantId, id, input);
+        return jsonResponse({ data });
+      }
+      if (method === "DELETE") {
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.write",
+        });
+        await store.remove(decision.identity.tenantId, id);
+        return noContentResponse();
+      }
+      return methodNotAllowed();
+    },
+
+    async credentials(request, match) {
+      const method = request.method.toUpperCase();
+      const vault = requireCredentialsStore(options.credentials);
+      if (method !== "GET") return methodNotAllowed();
+      const decision = await access.authorize(request, {
+        tenantId: match.tenantId,
+        scopeId: match.scopeId,
+        action: "datasource.list",
+      });
+      const data = await vault.listCredentials(decision.identity.tenantId);
+      return jsonResponse({ data });
+    },
+
+    async credential(request, match) {
+      const method = request.method.toUpperCase();
+      const vault = requireCredentialsStore(options.credentials);
+      const ref = requireId(match);
+      if (method === "GET") {
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.list",
+        });
+        const data = await vault.describeCredential(
+          decision.identity.tenantId,
+          ref,
+        );
+        if (data === null) {
+          throw DashboardServerError.notFound("Credential not found");
+        }
+        return jsonResponse({ data });
+      }
+      if (method === "PUT") {
+        const decision = await access.authorize(request, {
+          tenantId: match.tenantId,
+          scopeId: match.scopeId,
+          action: "datasource.write",
+        });
+        const input = parseCredentialInput(await readBody(request));
+        // The response is the summary. Echoing the input back would put
+        // the secret in a response body.
+        const data = await vault.putCredential(
+          decision.identity.tenantId,
+          ref,
+          input,
         );
         return jsonResponse({ data });
       }
-
-      case "dashboard": {
-        const slug = requireSlug(match);
-        if (method === "GET") {
-          const decision = await access.authorize(request, {
-            tenantId: match.tenantId,
-            scopeId: match.scopeId,
-            slug,
-            action: "dashboard.load",
-          });
-          // authorize already loaded it; a second store round trip would be
-          // both wasteful and a chance for the two reads to disagree.
-          const record = decision.dashboard?.record ?? null;
-          return jsonResponse({ data: record?.config ?? null });
-        }
-        if (method === "PUT") {
-          // Authorize first. Parsing before this told an unauthenticated
-          // caller whether their JSON was well-formed — a free description of
-          // the request schema, and parsing work done for someone with no
-          // standing to ask for it.
-          const decision = await access.authorize(request, {
-            tenantId: match.tenantId,
-            scopeId: match.scopeId,
-            slug,
-            action: "dashboard.save",
-          });
-          const config = await readJsonBody(request);
-          const expectedRevision = readExpectedRevision(request);
-          const saved = await options.store.save(
-            refOf(decision.identity.tenantId, match.scopeId, slug),
-            config,
-            {
-              updatedBy: decision.identity.userId,
-              ...(expectedRevision === undefined ? {} : { expectedRevision }),
-            },
-          );
-          return jsonResponse(
-            { data: { revision: saved.revision, updatedAt: saved.updatedAt } },
-            200,
-          );
-        }
-        if (method === "DELETE") {
-          const decision = await access.authorize(request, {
-            tenantId: match.tenantId,
-            scopeId: match.scopeId,
-            slug,
-            action: "dashboard.delete",
-          });
-          if (decision.dashboard?.record == null) {
-            throw DashboardServerError.notFound("Dashboard not found");
-          }
-          await options.store.remove(
-            refOf(decision.identity.tenantId, match.scopeId, slug),
-          );
-          return noContentResponse();
-        }
-        return methodNotAllowed();
-      }
-
-      case "capabilities": {
-        if (method !== "GET") return methodNotAllowed();
-        const capabilities = await access.capabilities(request, {
+      if (method === "DELETE") {
+        const decision = await access.authorize(request, {
           tenantId: match.tenantId,
           scopeId: match.scopeId,
-          slug: requireSlug(match),
+          action: "datasource.write",
         });
-        return jsonResponse(capabilities);
+        await vault.removeCredential(decision.identity.tenantId, ref);
+        return noContentResponse();
       }
-
-      case "permissions": {
-        const slug = requireSlug(match);
-        if (method === "GET") {
-          const decision = await access.authorize(request, {
-            tenantId: match.tenantId,
-            scopeId: match.scopeId,
-            slug,
-            action: "dashboard.permissions.read",
-          });
-          return jsonResponse({
-            assignments: decision.dashboard?.assignments ?? [],
-          });
-        }
-        if (method === "PUT") {
-          // Authorize before parsing, as above. This route leaked more than
-          // the other: `parseAssignments` names the offending field and lists
-          // the valid roles, so an unauthenticated caller could read the
-          // permission vocabulary straight out of the 400s.
-          const decision = await access.authorize(request, {
-            tenantId: match.tenantId,
-            scopeId: match.scopeId,
-            slug,
-            action: "dashboard.permissions.write",
-          });
-          const assignments = parseAssignments(await readJsonBody(request));
-          await options.store.setPermissions(
-            refOf(decision.identity.tenantId, match.scopeId, slug),
-            assignments,
-          );
-          return noContentResponse();
-        }
-        return methodNotAllowed();
-      }
-    }
-  }
+      return methodNotAllowed();
+    },
+  };
 
   const handle = async function handle(request: Request): Promise<Response> {
     try {
@@ -215,7 +498,7 @@ export function createDashboardHandler(
       if (routable === null) return errorResponse(notFound());
       const match = matchRoute(routable);
       if (match === null) return errorResponse(notFound());
-      return await dispatch(request, match);
+      return await routes[match.route](request, match);
     } catch (error) {
       // A DashboardServerError is an answer this code chose — a 404, a 403, a
       // 409 — and says so on the wire. Anything else reached here by
@@ -251,6 +534,33 @@ function requireSlug(match: RouteMatch): string {
   return match.slug;
 }
 
+function requireId(match: RouteMatch): string {
+  if (match.id === undefined) {
+    throw DashboardServerError.badRequest("Missing identifier");
+  }
+  return match.id;
+}
+
+/**
+ * 404, not 501. A status code must not tell an unauthenticated caller which
+ * stores this deployment has configured.
+ */
+function requireDataSources(
+  store: DataSourceStore | undefined,
+): DataSourceStore {
+  if (store === undefined) throw notFound();
+  return store;
+}
+
+/**
+ * The credential routes need a vault that can be written to. A read-only one
+ * is answered the same way as none at all.
+ */
+function requireCredentialsStore(vault: CredentialsVault | undefined) {
+  if (vault === undefined || !isCredentialsStore(vault)) throw notFound();
+  return vault;
+}
+
 /**
  * The pathname of a request URL, without throwing on a relative one.
  *
@@ -267,7 +577,7 @@ export function pathnameOf(url: string): string {
   }
 }
 
-const SLASH = "/".charCodeAt(0);
+const SLASH = "/";
 
 /**
  * Trim trailing slashes and guarantee a leading one.
@@ -288,10 +598,10 @@ const SLASH = "/".charCodeAt(0);
 export function normalizeBasePath(basePath: string | undefined): string {
   if (!basePath) return "";
   let end = basePath.length;
-  while (end > 0 && basePath.charCodeAt(end - 1) === SLASH) end--;
+  while (end > 0 && basePath[end - 1] === SLASH) end--;
   const trimmed = basePath.slice(0, end);
   if (trimmed.length === 0) return "";
-  return trimmed.charCodeAt(0) === SLASH ? trimmed : `/${trimmed}`;
+  return trimmed.startsWith(SLASH) ? trimmed : `/${trimmed}`;
 }
 
 /** Returns the remaining path, or null when the prefix does not match. */
@@ -304,12 +614,18 @@ function stripBasePath(pathname: string, basePath: string): string | null {
   return null;
 }
 
-async function readJsonBody(request: Request): Promise<unknown> {
-  try {
-    return (await request.json()) as unknown;
-  } catch {
-    throw DashboardServerError.badRequest("Request body must be valid JSON");
-  }
+/** How many faults a refusal names before it just counts the rest. */
+const MAX_REPORTED_PROBLEMS = 5;
+
+function requireValidConfig(config: unknown): void {
+  const result = validateDashboardConfig(config);
+  if (result.valid) return;
+  const shown = result.problems.slice(0, MAX_REPORTED_PROBLEMS);
+  const remaining = result.problems.length - shown.length;
+  const tail = remaining > 0 ? `, and ${remaining} more` : "";
+  throw DashboardServerError.badRequest(
+    `Dashboard config does not match the contract: ${shown.join("; ")}${tail}`,
+  );
 }
 
 /**
@@ -321,7 +637,7 @@ async function readJsonBody(request: Request): Promise<unknown> {
 function readExpectedRevision(request: Request): number | undefined {
   const header = request.headers.get("if-match");
   if (header === null) return undefined;
-  const token = header.replace(/^W\/|"/g, "").trim();
+  const token = header.replace(/^W\//, "").replaceAll('"', "").trim();
   // `Number("")` is 0, so an empty or quote-only If-Match used to arrive as
   // "expect revision 0" — which the store reads as "expect this dashboard not
   // to exist" and answers 409 for a perfectly good save. An absent precondition
@@ -367,4 +683,20 @@ function parseAssignments(body: unknown): PermissionAssignment[] {
     }
     return { authorityId, role };
   });
+}
+
+function queryFilters(body: unknown): unknown {
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    Array.isArray(body) ||
+    Object.keys(body).some((key) => key !== "filters")
+  ) {
+    throw DashboardServerError.badRequest(
+      "Body must contain only dashboard filters",
+    );
+  }
+  return Object.hasOwn(body, "filters")
+    ? (body as { filters: unknown }).filters
+    : {};
 }

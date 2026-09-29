@@ -59,6 +59,52 @@ async function assemble(): Promise<{
   return { driver, store };
 }
 
+it("backfills existing revisions and preserves counters across restart", async () => {
+  const path = join(temporaryDirectory(), "upgrade.sqlite");
+  const driver = createSqliteDriver({ path });
+  await runMigrations(driver, {
+    migrations: MIGRATIONS.filter((migration) => migration.version < 5),
+  });
+  await driver.all(
+    `INSERT INTO dashboards (tenant_id, scope_id, slug, name, revision, document_key, updated_at, updated_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      ref.tenantId,
+      ref.scopeId,
+      ref.slug,
+      "Fleet",
+      17,
+      "old-doc",
+      "2026-09-28",
+      "first",
+    ],
+  );
+  await runMigrations(driver);
+  await createSqlMetadataStore(driver).remove(ref);
+  await driver.close();
+  const opened = await openSqliteStore({ path });
+  try {
+    const created = await opened.store.save(ref, config, {
+      updatedBy: "new",
+      expectedRevision: 0,
+    });
+    expect(created.revision).toBe(18);
+    await expect(
+      opened.store.save(ref, config, {
+        updatedBy: "first",
+        expectedRevision: 17,
+      }),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    const next = await opened.store.save(ref, config, {
+      updatedBy: "new",
+      expectedRevision: 18,
+    });
+    expect(next.revision).toBe(19);
+  } finally {
+    await opened.close();
+  }
+});
+
 const documentCount = async (driver: SqlDriver): Promise<number> => {
   const rows = await driver.all<{ n: number }>(
     "SELECT COUNT(*) AS n FROM dashboard_documents",
@@ -101,10 +147,26 @@ describe("migrations", () => {
     await expect(opened.store.list("acme", "ops")).rejects.toThrow();
   });
 
+  it("still takes a bare clock, the signature 0.1.0 published", async () => {
+    const driver = createSqliteDriver({ path: SQLITE_MEMORY });
+
+    await runMigrations(driver, () => new Date(0));
+
+    const [row] = await driver.all<{ applied_at: string }>(
+      "SELECT applied_at FROM schema_migrations LIMIT 1",
+    );
+    expect(row?.applied_at).toBe(new Date(0).toISOString());
+  });
+
   it("creates the directory rather than failing on a missing one", async () => {
     const path = join(temporaryDirectory(), "nested", "deeper", "dash.db");
     const opened = await openSqliteStore({ path });
-    await opened.close();
+    try {
+      expect(existsSync(path)).toBe(true);
+      expect(await opened.store.list("acme", "ops")).toEqual([]);
+    } finally {
+      await opened.close();
+    }
   });
 });
 
@@ -545,7 +607,12 @@ describe("a database from version 1", () => {
 
     const opened = await openSqliteStore({ path });
     try {
-      expect(opened.applied).toEqual([2, 3]);
+      // Derived, not listed, so adding a migration does not fail this.
+      expect(opened.applied).toEqual(
+        MIGRATIONS.filter((migration) => migration.version > 1).map(
+          (migration) => migration.version,
+        ),
+      );
       const result = await opened.sweep(new Date());
       expect(result.deleted).toEqual([]);
       expect(result.unknownAge).toBe(1);
@@ -615,4 +682,33 @@ describe("the document backend recorded in the database", () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+});
+
+it("atomically deletes only matching revisions and retains newer permissions", async () => {
+  const { driver, store } = await assemble();
+  try {
+    const first = await store.save(ref, config, { updatedBy: "creator" });
+    const edited = await store.save(
+      ref,
+      { ...config, name: "Edited" },
+      { updatedBy: "editor", expectedRevision: first.revision },
+    );
+    await store.setPermissions(ref, [
+      { authorityId: "viewer", role: "Consumer" },
+    ]);
+    expect(await store.removeIfRevision!(ref, first.revision)).toBe(false);
+    expect((await store.load(ref))?.revision).toBe(edited.revision);
+    expect(await store.getPermissions(ref)).toHaveLength(1);
+    expect(await store.removeIfRevision!(ref, edited.revision)).toBe(true);
+    expect(await store.load(ref)).toBeNull();
+    expect(await store.getPermissions(ref)).toEqual([]);
+    const recreated = await store.save(ref, config, {
+      updatedBy: "creator",
+      expectedRevision: 0,
+    });
+    expect(await store.removeIfRevision!(ref, edited.revision)).toBe(false);
+    expect((await store.load(ref))?.revision).toBe(recreated.revision);
+  } finally {
+    await driver.close();
+  }
 });

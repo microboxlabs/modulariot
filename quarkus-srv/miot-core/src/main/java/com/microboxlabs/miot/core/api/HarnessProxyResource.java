@@ -1,7 +1,11 @@
 package com.microboxlabs.miot.core.api;
 
+import com.microboxlabs.miot.core.api.dto.AuthorizationDecisionDto;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.harness.HarnessPlanGate;
+import com.microboxlabs.miot.core.permission.OrganizationPermissionDefinition;
+import com.microboxlabs.miot.core.permission.OrganizationPermissionService;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.core.http.RequestOptions;
@@ -11,17 +15,24 @@ import io.vertx.mutiny.core.http.HttpClient;
 import io.vertx.mutiny.core.http.HttpServerResponse;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -51,25 +62,46 @@ public class HarnessProxyResource {
     private final HarnessClient harness;
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
+    private final HarnessPlanGate planGate;
+    private final OrganizationPermissionService permissions;
     private final HttpClient httpClient;
     private final String harnessBaseUrl;
+    private final HarnessLearningProxy learning;
+
+    public HarnessProxyResource(HarnessClient harness,
+                                TenantContext tenantContext,
+                                OrganizationContext organizationContext,
+                                HarnessPlanGate planGate,
+                                OrganizationPermissionService permissions,
+                                Vertx vertx,
+                                String harnessBaseUrl) {
+        this(harness, tenantContext, organizationContext, planGate, permissions, vertx,
+                harnessBaseUrl, Duration.ofSeconds(30));
+    }
 
     @Inject
     public HarnessProxyResource(@RestClient HarnessClient harness,
                                 TenantContext tenantContext,
                                 OrganizationContext organizationContext,
+                                HarnessPlanGate planGate,
+                                OrganizationPermissionService permissions,
                                 Vertx vertx,
                                 @ConfigProperty(name = "miot.harness.base-url")
-                                String harnessBaseUrl) {
+                                String harnessBaseUrl,
+                                @ConfigProperty(name = "miot.harness.learning.timeout", defaultValue = "30s")
+                                Duration learningTimeout) {
         this.harness = harness;
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
+        this.planGate = planGate;
+        this.permissions = permissions;
         // Dedicated streaming client for the SSE relay: the JSON rest-client
         // buffers full responses, which never completes for an open event
         // stream. A raw Vert.x client lets us pipe harness frames straight
         // through (id:/event:/data: preserved) without SSE re-encoding.
         this.httpClient = vertx.createHttpClient();
         this.harnessBaseUrl = stripTrailingSlash(harnessBaseUrl);
+        this.learning = new HarnessLearningProxy(httpClient, this.harnessBaseUrl, learningTimeout);
     }
 
     private static String stripTrailingSlash(String url) {
@@ -81,7 +113,7 @@ public class HarnessProxyResource {
     public Uni<Response> createRun(@PathParam("slug") String slug,
                                    @HeaderParam("Authorization") String authorization,
                                    Map<String, Object> body) {
-        return forward(authorization, body, harness::createRun);
+        return forward(slug, authorization, body, harness::createRun);
     }
 
     // Quarkus REST Reactive does not register a literal ':' in @Path values,
@@ -93,7 +125,26 @@ public class HarnessProxyResource {
                                   @PathParam("startAction") String startAction,
                                   @HeaderParam("Authorization") String authorization,
                                   Map<String, Object> body) {
-        return forward(authorization, body, harness::startRun);
+        return forward(slug, authorization, body, harness::startRun);
+    }
+
+    /**
+     * The caller's running and recent runs — the chat's activity panel. The
+     * harness scopes the list to the forwarded tenant and user email; a
+     * {@code user_id} query param from the caller is not forwarded.
+     */
+    @GET
+    @Path("/runs")
+    public Uni<Response> listRuns(@PathParam("slug") String slug,
+                                  @QueryParam("conversation_id") String conversationId,
+                                  @QueryParam("status") String status,
+                                  @QueryParam("limit") Integer limit,
+                                  @HeaderParam("Authorization") String authorization) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return passThrough(harness.listRuns(conversationId, status, limit,
+                authorization, tenantClientId, userEmail, authMode));
     }
 
     @GET
@@ -126,6 +177,25 @@ public class HarnessProxyResource {
     }
 
     /**
+     * Approves or rejects a call a run is waiting on — the chat's approval
+     * card. The harness answers 204, or 404 when the approval is no longer
+     * pending or belongs to another tenant's run.
+     */
+    @POST
+    @Path("/runs/{runId}/approvals/{approvalId}")
+    public Uni<Response> resolveApproval(@PathParam("slug") String slug,
+                                         @PathParam("runId") String runId,
+                                         @PathParam("approvalId") String approvalId,
+                                         @HeaderParam("Authorization") String authorization,
+                                         Map<String, Object> body) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return passThrough(harness.resolveApproval(
+                runId, approvalId, authorization, tenantClientId, userEmail, authMode, body));
+    }
+
+    /**
      * Lists the skills the harness can run — the data behind the chat
      * {@code /skills} picker and {@code miot harness skills}. Sits behind
      * the same auth + org-membership chain as the run routes, and forwards
@@ -145,12 +215,32 @@ public class HarnessProxyResource {
     }
 
     /**
+     * Lists the conversation models a run may name in {@code model} — the data
+     * behind the chat model picker. Same auth + org-membership chain as the run
+     * routes.
+     */
+    @GET
+    @Path("/models")
+    public Uni<Response> listModels(@PathParam("slug") String slug,
+                                    @HeaderParam("Authorization") String authorization) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        if (!planGate.changesModels()) {
+            return passThrough(harness.listModels(authorization, tenantClientId, userEmail, authMode));
+        }
+        String organization = organizationContext.getOrganizationId();
+        return passThrough(harness.listModelsJson(authorization, tenantClientId, userEmail, authMode)
+                .flatMap(models -> planGate.models(organization, models))
+                .map(models -> Response.ok(models).build()));
+    }
+
+    /**
      * Writes a human-approved business fact to the harness as a connection-scoped
      * knowledge card — the APPLY seam of the semantic-layer learning loop, fired by
-     * the app after a reviewer approves a staged candidate. Same auth + membership
-     * chain as the run routes; the harness resolves the tenant from the forwarded
-     * {@code X-Miot-Tenant-Client-Id} header and only lets the connection's owning
-     * tenant attach a card.
+     * the app after a trainer approves a staged candidate. The harness resolves the
+     * tenant from the forwarded {@code X-Miot-Tenant-Client-Id} header and only lets
+     * the connection's owning tenant attach a card.
      */
     @POST
     @Path("/connections/{connection}/knowledge")
@@ -161,8 +251,140 @@ public class HarnessProxyResource {
         String tenantClientId = tenantContext.getClientId();
         String userEmail = organizationContext.getUserEmail();
         String authMode = userEmail != null ? "web" : "m2m";
-        return passThrough(harness.writeConnectionKnowledge(
+        return asTrainer(slug, () -> harness.writeConnectionKnowledge(
                 connection, authorization, tenantClientId, userEmail, authMode, body));
+    }
+
+    @GET
+    @Path("/knowledge/connections")
+    public Uni<Response> listKnowledgeConnections(@PathParam("slug") String slug,
+                                                  @HeaderParam("Authorization") String authorization) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return asTrainer(slug, () -> harness.listKnowledgeConnections(
+                authorization, tenantClientId, userEmail, authMode));
+    }
+
+    @GET
+    @Path("/connections/{connection}/knowledge")
+    public Uni<Response> listConnectionKnowledge(@PathParam("slug") String slug,
+                                                 @PathParam("connection") String connection,
+                                                 @HeaderParam("Authorization") String authorization) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return asTrainer(slug, () -> harness.listConnectionKnowledge(
+                connection, authorization, tenantClientId, userEmail, authMode));
+    }
+
+    @DELETE
+    @Path("/connections/{connection}/knowledge/{cardId}")
+    public Uni<Response> deleteConnectionKnowledge(@PathParam("slug") String slug,
+                                                   @PathParam("connection") String connection,
+                                                   @PathParam("cardId") String cardId,
+                                                   @HeaderParam("Authorization") String authorization) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return asTrainer(slug, () -> harness.deleteConnectionKnowledge(
+                connection, cardId, authorization, tenantClientId, userEmail, authMode));
+    }
+
+    /**
+     * The trainer's view of the harness's editable knowledge: layers, items,
+     * versions, writes, deletes and reverts. The organization's tenant is set
+     * here, whatever the caller sent.
+     */
+    @GET
+    @Path("/knowledge/{path:.+}")
+    public Uni<Response> getKnowledge(@PathParam("slug") String slug,
+                                      @PathParam("path") String path,
+                                      @HeaderParam("Authorization") String authorization,
+                                      @Context UriInfo uriInfo) {
+        return toLearning(slug, HttpMethod.GET, HarnessLearningProxy.KNOWLEDGE, path, uriInfo,
+                authorization, null);
+    }
+
+    @PUT
+    @Path("/knowledge/{path:.+}")
+    public Uni<Response> putKnowledge(@PathParam("slug") String slug,
+                                      @PathParam("path") String path,
+                                      @HeaderParam("Authorization") String authorization,
+                                      @Context UriInfo uriInfo,
+                                      String body) {
+        return toLearning(slug, HttpMethod.PUT, HarnessLearningProxy.KNOWLEDGE, path, uriInfo,
+                authorization, body);
+    }
+
+    @POST
+    @Path("/knowledge/{path:.+}")
+    public Uni<Response> postKnowledge(@PathParam("slug") String slug,
+                                       @PathParam("path") String path,
+                                       @HeaderParam("Authorization") String authorization,
+                                       @Context UriInfo uriInfo,
+                                       String body) {
+        return toLearning(slug, HttpMethod.POST, HarnessLearningProxy.KNOWLEDGE, path, uriInfo,
+                authorization, body);
+    }
+
+    @DELETE
+    @Path("/knowledge/{path:.+}")
+    public Uni<Response> deleteKnowledge(@PathParam("slug") String slug,
+                                         @PathParam("path") String path,
+                                         @HeaderParam("Authorization") String authorization,
+                                         @Context UriInfo uriInfo) {
+        return toLearning(slug, HttpMethod.DELETE, HarnessLearningProxy.KNOWLEDGE, path, uriInfo,
+                authorization, null);
+    }
+
+    /** Before/after evaluations of knowledge changes. */
+    @GET
+    @Path("/learning/{path:.+}")
+    public Uni<Response> getLearning(@PathParam("slug") String slug,
+                                     @PathParam("path") String path,
+                                     @HeaderParam("Authorization") String authorization,
+                                     @Context UriInfo uriInfo) {
+        return toLearning(slug, HttpMethod.GET, HarnessLearningProxy.LEARNING, path, uriInfo,
+                authorization, null);
+    }
+
+    @POST
+    @Path("/learning/{path:.+}")
+    public Uni<Response> postLearning(@PathParam("slug") String slug,
+                                      @PathParam("path") String path,
+                                      @HeaderParam("Authorization") String authorization,
+                                      @Context UriInfo uriInfo,
+                                      String body) {
+        return toLearning(slug, HttpMethod.POST, HarnessLearningProxy.LEARNING, path, uriInfo,
+                authorization, body);
+    }
+
+    private Uni<Response> toLearning(String slug, HttpMethod method, String area, String path,
+                                     UriInfo uriInfo, String authorization, String body) {
+        String userEmail = organizationContext.getUserEmail();
+        var caller = new HarnessLearningProxy.Caller(authorization, tenantContext.getClientId(),
+                userEmail, userEmail != null ? "web" : "m2m");
+        return permissions.requirePermission(slug, OrganizationPermissionDefinition.HARNESS_TRAINER)
+                .flatMap(ignored -> learning.forward(method, area, path,
+                        uriInfo == null ? null : uriInfo.getQueryParameters(), body, caller));
+    }
+
+    private Uni<Response> asTrainer(String slug, Supplier<Uni<Response>> call) {
+        return permissions.requirePermission(slug, OrganizationPermissionDefinition.HARNESS_TRAINER)
+                .flatMap(ignored -> passThrough(call.get()));
+    }
+
+    /** A short title for a chat thread, generated by the harness from its first exchange. */
+    @POST
+    @Path("/titles")
+    public Uni<Response> createTitle(@PathParam("slug") String slug,
+                                     @HeaderParam("Authorization") String authorization,
+                                     Map<String, Object> body) {
+        String tenantClientId = tenantContext.getClientId();
+        String userEmail = organizationContext.getUserEmail();
+        String authMode = userEmail != null ? "web" : "m2m";
+        return passThrough(harness.createTitle(authorization, tenantClientId, userEmail, authMode, body));
     }
 
     /**
@@ -228,7 +450,8 @@ public class HarnessProxyResource {
                 });
     }
 
-    private Uni<Response> forward(String authorization,
+    private Uni<Response> forward(String slug,
+                                  String authorization,
                                   Map<String, Object> body,
                                   HarnessCall call) {
         String tenantClientId = tenantContext.getClientId();
@@ -236,7 +459,49 @@ public class HarnessProxyResource {
         // Web tokens carry an email claim; M2M tokens don't. Flagging
         // the mode explicitly spares the harness from re-deriving it.
         String authMode = userEmail != null ? "web" : "m2m";
-        return passThrough(call.apply(authorization, tenantClientId, userEmail, authMode, body));
+        String organization = organizationContext.getOrganizationId();
+        Object named = body == null ? null : body.get("model");
+        Uni<String> model = named instanceof String name
+                ? Uni.createFrom().item(name)
+                : planGate.defaultModel(organization);
+        return model.flatMap(resolved -> planGate.checkRun(organization, userEmail, resolved)
+                .flatMap(refusal -> refusal != null
+                        ? Uni.createFrom().item(refused(refusal))
+                        : isTrainer(slug).flatMap(trainer -> passThrough(call.apply(
+                                authorization, tenantClientId, userEmail, authMode, organization,
+                                runBody(body, named, resolved, trainer))))));
+    }
+
+    /**
+     * Whether the caller may teach the harness facts. A failed lookup counts as
+     * no, so it never blocks the run.
+     */
+    private Uni<Boolean> isTrainer(String slug) {
+        return permissions.checkCurrentUser(
+                        slug, OrganizationPermissionDefinition.HARNESS_TRAINER.permissionCode())
+                .map(AuthorizationDecisionDto::allowed)
+                .onFailure().recoverWithItem(false);
+    }
+
+    /**
+     * The body sent to the harness: the gate's default model filled in when the
+     * request named none, and {@code trainer} set here whatever the caller sent.
+     */
+    private static Map<String, Object> runBody(
+            Map<String, Object> body, Object named, String resolved, boolean trainer) {
+        Map<String, Object> out = body == null ? new HashMap<>() : new HashMap<>(body);
+        if (named == null && resolved != null) {
+            out.put("model", resolved);
+        }
+        out.put("trainer", trainer);
+        return out;
+    }
+
+    private static Response refused(HarnessPlanGate.Refusal refusal) {
+        return Response.status(refusal.status())
+                .type(MediaType.APPLICATION_JSON)
+                .entity(Map.of("error", refusal.code(), "message", refusal.message()))
+                .build();
     }
 
     /**
@@ -265,6 +530,7 @@ public class HarnessProxyResource {
                             String tenantClientId,
                             String userEmail,
                             String authMode,
+                            String organization,
                             Map<String, Object> body);
     }
 }

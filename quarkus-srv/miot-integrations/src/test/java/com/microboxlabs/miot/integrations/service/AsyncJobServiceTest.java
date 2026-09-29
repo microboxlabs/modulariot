@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.integrations.domain.AsyncJob;
+import com.microboxlabs.miot.integrations.domain.JobLedgerFacets;
+import com.microboxlabs.miot.integrations.domain.JobQuery;
 import com.microboxlabs.miot.integrations.domain.JobState;
 import com.microboxlabs.miot.integrations.dto.AsyncJobSpec;
 import com.microboxlabs.miot.integrations.dto.ClaimJobsRequest;
@@ -252,20 +254,50 @@ class AsyncJobServiceTest {
     }
 
     @Test
-    void countsZeroFillsEveryState() {
+    void facetsZeroFillEveryStateAndKeepLedgerOptions() {
         var repo = new FakeRepository(null) {
             @Override
-            public Map<String, Integer> countByState(String tenantCode) {
-                return Map.of("FAILED", 2);
+            public JobLedgerFacets facets(String tenantCode) {
+                return new JobLedgerFacets(Map.of("FAILED", 2), List.of("calendar_sync"), List.of("ecm"));
             }
         };
         var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
 
-        Map<String, Integer> counts = service.counts("t");
+        JobLedgerFacets facets = service.facets("t");
 
-        assertEquals(2, counts.get("FAILED"));
-        assertEquals(0, counts.get("PENDING"));
-        assertEquals(JobState.values().length, counts.size());
+        assertEquals(2, facets.counts().get("FAILED"));
+        assertEquals(0, facets.counts().get("PENDING"));
+        assertEquals(JobState.values().length, facets.counts().size());
+        assertEquals(List.of("calendar_sync"), facets.jobTypes());
+        assertEquals(List.of("ecm"), facets.executors());
+    }
+
+    @Test
+    void listRejectsAnUnusableWindowAndAnUnknownState() {
+        var service = new AsyncJobService(new FakeRepository(null), noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
+
+        JobQuery emptyPage = new JobQuery(null, null, null, null, null, null, 0, 0);
+        JobQuery negativeOffset = new JobQuery(null, null, null, null, null, null, 50, -1);
+        JobQuery unknownState = new JobQuery("BOGUS", null, null, null, null, null, 50, 0);
+
+        assertThrows(IllegalArgumentException.class, () -> service.list("t", emptyPage));
+        assertThrows(IllegalArgumentException.class, () -> service.list("t", negativeOffset));
+        assertThrows(IllegalArgumentException.class, () -> service.list("t", unknownState));
+    }
+
+    @Test
+    void searchNeedleIsTrimmedAndStrippedOfLikeWildcards() {
+        var repo = new FakeRepository(null);
+        var service = new AsyncJobService(repo, noEvents(), noParked(), BASE_SECONDS, MAX_SECONDS);
+
+        service.list("t", new JobQuery(null, null, null, null, null, "  100%_off  ", 50, 0));
+
+        assertEquals("100\\%\\_off", repo.listedQuery.search());
+        assertEquals(50, repo.listedQuery.limit());
+
+        service.list("t", new JobQuery(null, null, null, null, null, "   ", 50, 0));
+
+        assertNull(repo.listedQuery.search());
     }
 
     @Test
@@ -396,6 +428,7 @@ class AsyncJobServiceTest {
         Map<String, Object> reportedEntry;
         String claimedTenant;
         boolean reportStale;
+        JobQuery listedQuery;
 
         FakeRepository(AsyncJob existing) {
             super(null);
@@ -434,6 +467,12 @@ class AsyncJobServiceTest {
         @Override
         public AsyncJob retry(String jobId, Map<String, Object> attemptEntry) {
             return existing;
+        }
+
+        @Override
+        public List<AsyncJob> list(String tenantCode, JobQuery query) {
+            this.listedQuery = query;
+            return List.of();
         }
     }
 }

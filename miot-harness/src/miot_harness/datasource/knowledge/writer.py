@@ -2,10 +2,11 @@
 
 When a human approves a learned business fact, the harness persists it as a
 connection-scoped authored card in `<connection dir>/knowledge/<id>.md` — the
-same directory + frontmatter format that `load_connection_cards` reads back, so
-the very NEXT run grounds on it. This module is the inverse of
-`_parse_connection_card` and the ONLY place that renders that file, so the two
-stay in lock-step (a round-trip test pins them together).
+same directory + frontmatter format that `load_connection_cards` reads back.
+Cards are read per run and per tool call, so the next run grounds on it. This
+module is the inverse of `_parse_connection_card` and the ONLY place that
+renders that file, so the two stay in lock-step (a round-trip test pins them
+together).
 
 Secret-safe by construction: a card records the MEANING of a business term
 (e.g. which `task_def_key`s count as "entregas"), never row-level secret
@@ -13,12 +14,14 @@ values — the invariant the human gate enforces upstream.
 
 Versioned for rollback: overwriting a card first snapshots the prior version
 into a sibling `.history/<id>/NNNN.md` stack, so a bad promotion is reverted in
-one step (`revert_connection_card`). History lives under a dot-dir, so the
+one step (`revert_connection_card`). Deleting a card snapshots it the same way,
+so a delete is revertible too. History lives under a dot-dir, so the
 loader's `*.md` glob never serves a superseded version as knowledge.
 """
 
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -131,8 +134,33 @@ def render_connection_card(card: ConnectionCardWrite) -> str:
     return f"---\n{fm}---\n\n{body}\n"
 
 
+def _inside(cards_dir: Path, *parts: str) -> Path:
+    """`cards_dir/<parts>`, refused if it resolves outside `cards_dir`. Stems
+    are already slugged; this keeps the containment check next to the I/O."""
+    root = os.path.realpath(cards_dir)
+    path = os.path.realpath(os.path.join(root, *parts))
+    if not path.startswith(root + os.sep):
+        raise ValueError(f"card path escapes {cards_dir}")
+    return Path(path)
+
+
+def _card_path(cards_dir: Path, stem: str) -> Path:
+    return _inside(cards_dir, f"{stem}.md")
+
+
 def _history_dir(cards_dir: Path, stem: str) -> Path:
-    return cards_dir / _HISTORY_DIR / stem
+    return _inside(cards_dir, _HISTORY_DIR, stem)
+
+
+def _stored_stem(cards_dir: Path, card_id: str) -> str | None:
+    """The stored name (live card or its history) matching `card_id`, taken
+    from the directory listing rather than from the caller's input."""
+    stem = slug_card_id(card_id)
+    names = [p.stem for p in cards_dir.glob("*.md")]
+    history = cards_dir / _HISTORY_DIR
+    if history.is_dir():
+        names += [p.name for p in history.iterdir() if p.is_dir()]
+    return next((name for name in names if name == stem), None)
 
 
 def _history_versions(history_dir: Path) -> list[Path]:
@@ -143,11 +171,15 @@ def _history_versions(history_dir: Path) -> list[Path]:
     return sorted(history_dir.glob("[0-9]" * 4 + ".md"))
 
 
-def _snapshot(history_dir: Path, content: str) -> Path:
+def _next_version(history_dir: Path) -> Path:
     history_dir.mkdir(parents=True, exist_ok=True)
     existing = _history_versions(history_dir)
     next_num = int(existing[-1].stem) + 1 if existing else 1
-    path = history_dir / f"{next_num:04d}.md"
+    return history_dir / f"{next_num:04d}.md"
+
+
+def _snapshot(history_dir: Path, content: str) -> Path:
+    path = _next_version(history_dir)
     path.write_text(content, encoding="utf-8")
     return path
 
@@ -164,7 +196,7 @@ def write_connection_card(cards_dir: Path, card: ConnectionCardWrite) -> Path:
         raise ValueError(f"cannot derive a card filename from term {card.term!r}")
     content = render_connection_card(card)  # validates term/body before any I/O
     cards_dir.mkdir(parents=True, exist_ok=True)
-    path = cards_dir / f"{stem}.md"
+    path = _card_path(cards_dir, stem)
     if path.exists():
         prior = path.read_text(encoding="utf-8")
         if prior != content:
@@ -178,14 +210,28 @@ def revert_connection_card(cards_dir: Path, card_id: str) -> Path | None:
     the live file and pop it off the history stack, so a bad promotion is undone
     in a single call (a second call steps back another version). Returns the live
     card path, or None when there is no prior version to restore."""
-    stem = slug_card_id(card_id)
-    if not stem:
+    if not slug_card_id(card_id):
         raise ValueError(f"cannot derive a card id from {card_id!r}")
+    stem = _stored_stem(cards_dir, card_id)
+    if stem is None:
+        return None
     versions = _history_versions(_history_dir(cards_dir, stem))
     if not versions:
         return None
-    latest = versions[-1]
-    path = cards_dir / f"{stem}.md"
-    path.write_text(latest.read_text(encoding="utf-8"), encoding="utf-8")
-    latest.unlink()
+    path = _card_path(cards_dir, stem)
+    os.replace(versions[-1], path)
+    os.utime(path)  # a restored card counts as changed now (mtime cache, updated_at)
     return path
+
+
+def delete_connection_card(cards_dir: Path, card_id: str) -> bool:
+    """Remove a live card, keeping its current version on the history stack so
+    `revert_connection_card` can restore it. False when there is no such card."""
+    stem = _stored_stem(cards_dir, card_id)
+    if stem is None:
+        return False
+    path = _card_path(cards_dir, stem)
+    if not path.is_file():
+        return False
+    os.replace(path, _next_version(_history_dir(cards_dir, stem)))
+    return True

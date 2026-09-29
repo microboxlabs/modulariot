@@ -9,7 +9,6 @@ export type TaskFormProps = {
   task: TaskResponse;
   lang: string;
   msg?: I18nDictionary;
-  ticket?: string;
   user?: string;
   userGroups: string[];
 };

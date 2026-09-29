@@ -1,3 +1,4 @@
+import type { DashboardQueryDefinition } from "@microboxlabs/miot-dashboard-contract/document";
 /**
  * Dashboard Widget Type Definitions
  *
@@ -153,6 +154,8 @@ export interface DashboardFilterParam {
 
 /** Versioned storage schema for dashboard config (supports migrations) */
 export interface DashboardStorageSchema {
+  /** Saved connection operations executed by the dashboard server. */
+  queries?: DashboardQueryDefinition[];
   /** Schema version for migrations */
   version: 2;
   /** Dashboard display name */
@@ -173,21 +176,6 @@ export interface DashboardStorageSchema {
    *  at least one listed group (in addition to GROUP_DASHBOARD) to view this
    *  dashboard. When empty/undefined, any GROUP_DASHBOARD user can access. */
   allowedGroups?: string[];
-}
-
-/**
- * Parse an unknown allowedGroups value into a validated result.
- * - `{ valid: true, groups: string[] }` when value is a proper string array (may be empty)
- * - `{ valid: true, groups: undefined }` when value is absent (undefined/null)
- * - `{ valid: false }` when value is present but malformed
- */
-export function parseAllowedGroups(
-  value: unknown
-): { valid: true; groups: string[] | undefined } | { valid: false } {
-  if (value === undefined || value === null) return { valid: true, groups: undefined };
-  if (!Array.isArray(value)) return { valid: false };
-  if (!value.every((g): g is string => typeof g === "string")) return { valid: false };
-  return { valid: true, groups: value };
 }
 
 /** Default storage state */

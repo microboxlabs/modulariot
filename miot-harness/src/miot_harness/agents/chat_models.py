@@ -1,21 +1,30 @@
 """Multi-provider chat model factory.
 
-Dispatches model name → BaseChatModel:
-  - claude-* → langchain_anthropic.ChatAnthropic
-  - gpt-*    → langchain_openai.ChatOpenAI
-
-Provider API keys are read from HarnessSettings (which honors the
-plain ANTHROPIC_API_KEY / OPENAI_API_KEY env vars).
+A model name resolves to a provider (see `model_providers`):
+  - Anthropic models → langchain_anthropic.ChatAnthropic
+  - OpenAI → langchain_openai.ChatOpenAI
+  - every other provider → langchain_deepseek.ChatDeepSeek on the provider's
+    base URL (OpenRouter, gateways, DeepSeek, Qwen, Kimi, GLM), which keeps the
+    streamed `reasoning_content` that ChatOpenAI drops
 """
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal
 
 from langchain_core.language_models import BaseChatModel
 from pydantic import SecretStr
 
+from miot_harness.agents.model_providers import (
+    Provider,
+    ProviderRegistry,
+    is_anthropic,
+    registry_from_settings,
+    split_model,
+)
 from miot_harness.config import get_settings
+from miot_harness.runtime.context import RunEffort
 
 
 def response_text(response: Any) -> str:
@@ -26,7 +35,7 @@ def response_text(response: Any) -> str:
     ``thinking`` block plus a ``text`` block — not a plain string. A naive
     ``str(content)`` then yields a Python-repr of the list (not the model's
     text), which silently breaks any caller that JSON-parses the answer (e.g.
-    the agentic planner / verifier). This concatenates the ``text`` blocks and
+    the advisor seat). This concatenates the ``text`` blocks and
     drops thinking, handling the plain-string case too.
     """
     content = getattr(response, "content", response)
@@ -43,11 +52,20 @@ def response_text(response: Any) -> str:
         return "".join(parts)
     return str(content)
 
+
 # Anthropic `output_config.effort` levels (Opus 4.7+). "high" is the model's
 # natural default (a no-op); "xhigh"/"max" actually deepen reasoning at a
 # latency/cost premium. See ChatAnthropic.effort.
 Effort = Literal["low", "medium", "high", "xhigh", "max"]
 _EFFORT_LEVELS: frozenset[str] = frozenset(("low", "medium", "high", "xhigh", "max"))
+
+# Models on the Opus 4.7+ adaptive-thinking path (`effort`). Everything else on
+# `claude-*` takes the pre-4.7 `thinking_budget_tokens` path.
+_EFFORT_MODELS_RE = re.compile(r"^claude-(opus-4-(7|8|9)|(opus|sonnet|haiku|fable|mythos)-[5-9])")
+
+
+def supports_effort(name: str) -> bool:
+    return _EFFORT_MODELS_RE.match(name) is not None
 
 
 def get_chat_model(
@@ -55,6 +73,7 @@ def get_chat_model(
     *,
     thinking_budget_tokens: int | None = None,
     effort: Effort | None = None,
+    reasoning_effort: str | None = None,
     timeout: int | None = None,
 ) -> BaseChatModel:
     """Multi-provider chat-model factory.
@@ -73,16 +92,14 @@ def get_chat_model(
       against it, so we leave it at the model's full output budget.
 
     Passing both raises (they target different model generations). Non-Claude
-    providers ignore both params.
+    providers ignore both params; `reasoning_effort` is their knob instead.
     """
 
-    settings = get_settings()
+    provider, model_id = provider_registry().resolve(name)
 
-    if name.startswith("claude-"):
+    if provider.kind == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        if not settings.anthropic_api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY is not set; cannot construct Claude chat model")
         budget_on = thinking_budget_tokens is not None and thinking_budget_tokens > 0
         if effort is not None and budget_on:
             raise ValueError(
@@ -95,16 +112,18 @@ def get_chat_model(
                 f"expected one of {sorted(_EFFORT_LEVELS)}"
             )
         kwargs: dict[str, object] = {
-            "model_name": name,
-            "api_key": SecretStr(settings.anthropic_api_key),
+            "model_name": model_id,
+            "api_key": SecretStr(provider.api_key),
             # 60s suits single-shot seats; the agent loop passes a longer
             # budget because an adaptive-thinking turn that plans several
             # tool calls can legitimately exceed a minute.
             "timeout": timeout if timeout is not None else 60,
             "stop": None,
+            "metadata": _billing_metadata(provider.name, model_id),
         }
         if effort is not None:
-            kwargs["thinking"] = {"type": "adaptive"}
+            # Opus 4.7+ omits thinking text unless asked for a summary.
+            kwargs["thinking"] = {"type": "adaptive", "display": "summarized"}
             kwargs["effort"] = effort
         elif thinking_budget_tokens is not None and thinking_budget_tokens > 0:
             kwargs["thinking"] = {
@@ -117,13 +136,99 @@ def get_chat_model(
             kwargs["max_tokens"] = thinking_budget_tokens + 4096
         return ChatAnthropic(**kwargs)  # type: ignore[arg-type]
 
-    if name.startswith("gpt-") or name.startswith("o1-") or name.startswith("o3-"):
+    # Thinking and effort are Anthropic controls; the others ignore them.
+    return _openai_compatible_model(
+        provider, model_id, reasoning_effort, timeout if timeout is not None else 60
+    )
+
+
+def _openai_compatible_model(
+    provider: Provider, model_id: str, reasoning_effort: str | None, timeout: int
+) -> BaseChatModel:
+    common: dict[str, Any] = {
+        "model": model_id,
+        "reasoning_effort": reasoning_effort,
+        "api_key": SecretStr(provider.api_key),
+        "timeout": timeout,
+        # Token counts on streamed turns, for usage and billing.
+        "stream_usage": True,
+        "metadata": _billing_metadata(provider.name, model_id),
+    }
+    if provider.name == "openai":
         from langchain_openai import ChatOpenAI
 
-        if not settings.openai_api_key:
-            raise RuntimeError("OPENAI_API_KEY is not set; cannot construct OpenAI chat model")
-        return ChatOpenAI(model=name, api_key=SecretStr(settings.openai_api_key))
+        return ChatOpenAI(base_url=provider.base_url, **common)
 
-    raise ValueError(
-        f"Unsupported chat model name: {name!r}. Expected a claude-* / gpt-* / o1-* / o3-* prefix."
+    from langchain_deepseek import ChatDeepSeek
+
+    if provider.base_url:
+        common["api_base"] = provider.base_url
+    return ChatDeepSeek(**common)
+
+
+def _billing_metadata(provider: str, model_id: str) -> dict[str, Any]:
+    """Read by the telemetry callback, so usage is charged to the right provider."""
+    return {"miot_provider": provider, "miot_model": model_id}
+
+
+_registry: ProviderRegistry | None = None
+
+
+def provider_registry() -> ProviderRegistry:
+    """The providers models resolve against: set by `set_provider_registry`,
+    else built from the environment."""
+    if _registry is not None:
+        return _registry
+    settings = get_settings()
+    return registry_from_settings(
+        anthropic_api_key=settings.anthropic_api_key,
+        openai_api_key=settings.openai_api_key,
+        providers_json=settings.model_providers,
     )
+
+
+def set_provider_registry(registry: ProviderRegistry | None) -> None:
+    """Replace the providers models resolve against; None returns to the env."""
+    global _registry
+    _registry = registry
+
+
+# Thinking budget per run effort on the pre-4.7 `claude-*` models.
+_RUN_EFFORT_BUDGETS: dict[str, int] = {"low": 1024, "medium": 2048, "high": 4096, "max": 16384}
+# OpenAI reasoning models take low/medium/high; `max` maps to the top.
+_OPENAI_REASONING_RE = re.compile(r"^(o\d|gpt-5)")
+_OPENAI_REASONING_EFFORT: dict[str, str] = {
+    "low": "low",
+    "medium": "medium",
+    "high": "high",
+    "max": "high",
+}
+
+
+def loop_model_kwargs(
+    name: str,
+    *,
+    default_effort: Effort | None,
+    default_thinking_budget: int,
+    run_effort: RunEffort | None = None,
+) -> dict[str, Any]:
+    """Reasoning kwargs for `get_chat_model` on the agent loop.
+
+    Without a run effort this is the deployment default. With one, it maps
+    to the provider's knob: `effort` on the adaptive-thinking Claude models, a
+    thinking budget on older Claude models, `reasoning_effort` on OpenAI
+    reasoning models, and nothing where the model has no such control.
+    """
+    try:
+        _, model_id = split_model(name)
+    except ValueError:
+        model_id = name
+    if not is_anthropic(name):
+        if run_effort is None or not _OPENAI_REASONING_RE.match(model_id.rsplit("/", 1)[-1]):
+            return {}
+        return {"reasoning_effort": _OPENAI_REASONING_EFFORT[run_effort]}
+    if supports_effort(model_id):
+        return {"effort": run_effort or default_effort}
+    if run_effort is None:
+        return {"thinking_budget_tokens": default_thinking_budget}
+    return {"thinking_budget_tokens": _RUN_EFFORT_BUDGETS[run_effort]}

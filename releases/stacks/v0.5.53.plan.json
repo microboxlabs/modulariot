@@ -1,0 +1,434 @@
+{
+  "stack_version": "0.5.53",
+  "stack_tag": "miot-stack@v0.5.53",
+  "milestone": "MIOT-0.5.53",
+  "pull_requests": [
+    {
+      "number": 1202,
+      "title": "ci(cal-ui): publish @microboxlabs/miot-calendar-ui on a tag",
+      "source_issues": [
+        {
+          "number": 1258,
+          "title": "ci: publish @microboxlabs/miot-calendar-ui on tag"
+        }
+      ]
+    },
+    {
+      "number": 1302,
+      "title": "feat(dash-server): publish to npm, and prove the tarball before it goes",
+      "source_issues": [
+        {
+          "number": 1303,
+          "title": "Publish miot-dashboard-server to npm with pre-publish tarball checks"
+        }
+      ]
+    },
+    {
+      "number": 1306,
+      "title": "feat(dash-contract): the contract gets its own package",
+      "source_issues": [
+        {
+          "number": 1308,
+          "title": "feat(dash-contract): the contract gets its own package"
+        }
+      ]
+    },
+    {
+      "number": 1307,
+      "title": "ci: a release workflow for the dashboard contract",
+      "source_issues": [
+        {
+          "number": 1310,
+          "title": "Release workflow for the dashboard contract"
+        }
+      ]
+    },
+    {
+      "number": 1309,
+      "title": "build(dash-server): the image installs its runtime packages instead of copying them",
+      "source_issues": [
+        {
+          "number": 1312,
+          "title": "build(dash-server): image installs runtime packages instead of copying them"
+        }
+      ]
+    },
+    {
+      "number": 1311,
+      "title": "feat(dash-server): take the vocabulary from the contract, and check saves against it",
+      "source_issues": [
+        {
+          "number": 1313,
+          "title": "feat(dash-server): take vocabulary from contract and validate saves against it"
+        }
+      ]
+    },
+    {
+      "number": 1314,
+      "title": "ci: publish both dashboard packages over OIDC",
+      "source_issues": [
+        {
+          "number": 1315,
+          "title": "Publish both dashboard packages over OIDC"
+        }
+      ]
+    },
+    {
+      "number": 1317,
+      "title": "feat(dashboard-server): accept a tenant and role asserted by a trusted proxy",
+      "source_issues": [
+        {
+          "number": 1320,
+          "title": "Dashboard server: accept a tenant and role asserted by a trusted proxy"
+        }
+      ]
+    },
+    {
+      "number": 1318,
+      "title": "feat(miot-core): assert the resolved dashboard role to the upstream",
+      "source_issues": [
+        {
+          "number": 1319,
+          "title": "Assert the resolved dashboard role to the upstream"
+        }
+      ]
+    },
+    {
+      "number": 1322,
+      "title": "feat(dashboard-server): resolve credentials as applied auth (P3 1/7)",
+      "source_issues": [
+        {
+          "number": 1329,
+          "title": "feat(dashboard-server): resolve credentials as applied auth (P3 1/7)"
+        }
+      ]
+    },
+    {
+      "number": 1323,
+      "title": "feat(dashboard-server): store datasources in SQL (P3 2/7)",
+      "source_issues": [
+        {
+          "number": 1331,
+          "title": "feat(dashboard-server): store datasources in SQL (P3 2/7)"
+        }
+      ]
+    },
+    {
+      "number": 1324,
+      "title": "feat(dashboard-server): add the vault-sql credentials plugin (P3 3/7)",
+      "source_issues": [
+        {
+          "number": 1333,
+          "title": "feat(dashboard-server): add the vault-sql credentials plugin (P3 3/7)"
+        }
+      ]
+    },
+    {
+      "number": 1325,
+      "title": "feat(dashboard-server): resolve credentials by asking the host (P3 4/7)",
+      "source_issues": [
+        {
+          "number": 1334,
+          "title": "feat(dashboard-server): resolve credentials by asking the host (P3 4/7)"
+        }
+      ]
+    },
+    {
+      "number": 1326,
+      "title": "feat(dashboard-server): serve datasources and credentials (P3 5/7)",
+      "source_issues": [
+        {
+          "number": 1336,
+          "title": "Serve datasources and credentials on dashboard-server (P3 5/7)"
+        }
+      ]
+    },
+    {
+      "number": 1327,
+      "title": "feat(dashboard-server): test a datasource connection (P3 6/7)",
+      "source_issues": [
+        {
+          "number": 1337,
+          "title": "Test a datasource connection (P3 6/7)"
+        }
+      ]
+    },
+    {
+      "number": 1328,
+      "title": "feat(dashboard-server): turn the datasource routes on from configuration (P3 7/7)",
+      "source_issues": [
+        {
+          "number": 1338,
+          "title": "Turn the datasource routes on from configuration (P3 7/7)"
+        }
+      ]
+    },
+    {
+      "number": 1339,
+      "title": "docs(dashboard-server): make the credentials example start",
+      "source_issues": [
+        {
+          "number": 1340,
+          "title": "Make the dashboard-server credentials example start"
+        }
+      ]
+    },
+    {
+      "number": 1341,
+      "title": "feat(dashboard-server): configure the callback vault from the environment",
+      "source_issues": [
+        {
+          "number": 1342,
+          "title": "Configure the dashboard-server callback vault from the environment"
+        }
+      ]
+    },
+    {
+      "number": 1343,
+      "title": "feat(integrations): answer the dashboard server's credential lookups",
+      "source_issues": [
+        {
+          "number": 1344,
+          "title": "Answer the dashboard server's credential lookups from miot-integrations"
+        }
+      ]
+    },
+    {
+      "number": 1345,
+      "title": "feat(dashboards): proxy the datasource routes and allow an in-cluster credential URL",
+      "source_issues": [
+        {
+          "number": 1346,
+          "title": "Proxy datasource routes and allow in-cluster credential URL for dashboards"
+        }
+      ]
+    },
+    {
+      "number": 1347,
+      "title": "docs: document the dashboard server for a standalone deployment",
+      "source_issues": [
+        {
+          "number": 1348,
+          "title": "Document the dashboard server for a standalone deployment"
+        }
+      ]
+    },
+    {
+      "number": 1349,
+      "title": "feat(dashboard-server): test a BigQuery datasource",
+      "source_issues": [
+        {
+          "number": 1350,
+          "title": "feat(dashboard-server): test a BigQuery datasource"
+        }
+      ]
+    },
+    {
+      "number": 1351,
+      "title": "feat(integrations): a Google service account as a credential",
+      "source_issues": [
+        {
+          "number": 1352,
+          "title": "Google service account as a credential for BigQuery datasources"
+        }
+      ]
+    },
+    {
+      "number": 1353,
+      "title": "chore(dashboard): release contract and server 0.2.0",
+      "source_issues": [
+        {
+          "number": 1354,
+          "title": "Release dashboard contract and server 0.2.0"
+        }
+      ]
+    },
+    {
+      "number": 1355,
+      "title": "fix(docs): serve the Pagefind index and tag Spanish pages as es",
+      "source_issues": [
+        {
+          "number": 1356,
+          "title": "Serve the Pagefind index and tag Spanish docs pages as es"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".agents/skills/tag-release/SKILL.md",
+    ".github/workflows/ci.yaml",
+    ".github/workflows/dashboard-server.yml",
+    ".github/workflows/publish-miot-calendar-ui.yaml",
+    ".github/workflows/publish-miot-dashboard-contract.yaml",
+    ".github/workflows/publish-miot-dashboard-server.yaml",
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardAssertion.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardClient.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardDataSourceClient.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardDataSourceProxyResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardProxyResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/DashboardProxySupport.java",
+    "quarkus-srv/miot-core/src/main/resources/application.properties",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/DashboardDataSourceProxyResourceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/DashboardProxyAssertionTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/DashboardProxyResourceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/DashboardRoleMappingTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/DashboardAssertionTestProfile.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/DashboardCredentialsResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/auth/CredentialAuthRegistry.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/auth/google/GoogleServiceAccountAuthProvider.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/auth/google/GoogleServiceAccountConfig.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/auth/google/GoogleServiceAccountConfigs.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/auth/google/GoogleServiceAccountStrategy.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/AuthType.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/CredentialType.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/AppliedAuthResponse.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/CredentialAuthResolver.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/CredentialProfileService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/GoogleServiceAccountCredentialTester.java",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.18__add_google_service_account_credential_type.sql",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/DashboardCredentialsResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/auth/google/GoogleServiceAccountStrategyTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/CredentialAuthResolverTest.java",
+    "turbo-repo/.prettierignore",
+    "turbo-repo/apps/app/public/credential-logos/google-cloud.svg",
+    "turbo-repo/apps/app/src/features/credentials/components/credentials-page-content.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/google-service-account-credential-modal.tsx",
+    "turbo-repo/apps/app/src/features/credentials/credential.types.ts",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.test.ts",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/docs/app/[lang]/layout.tsx",
+    "turbo-repo/apps/docs/content/en/operations/_meta.ts",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/_meta.ts",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/api.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/configuration.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/datasources.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/identity.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/index.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/installation.mdx",
+    "turbo-repo/apps/docs/content/es/operations/_meta.ts",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/_meta.ts",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/api.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/configuracion.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/fuentes-de-datos.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/identidad.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/index.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/instalacion.mdx",
+    "turbo-repo/docker/dashboard-server.Dockerfile",
+    "turbo-repo/docker/nextjs.standalone-docs.Dockerfile",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/packages/miot-dashboard-contract/.gitignore",
+    "turbo-repo/packages/miot-dashboard-contract/LICENSE",
+    "turbo-repo/packages/miot-dashboard-contract/README.md",
+    "turbo-repo/packages/miot-dashboard-contract/contract/dashboard-config.schema.json",
+    "turbo-repo/packages/miot-dashboard-contract/contract/openapi.yaml",
+    "turbo-repo/packages/miot-dashboard-contract/eslint.config.mjs",
+    "turbo-repo/packages/miot-dashboard-contract/package.json",
+    "turbo-repo/packages/miot-dashboard-contract/scripts/generate-json-schema.ts",
+    "turbo-repo/packages/miot-dashboard-contract/scripts/guard-imports.mjs",
+    "turbo-repo/packages/miot-dashboard-contract/src/document.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/errors.test.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/errors.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/guard-imports.test.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/openapi.test.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/roles.test.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/roles.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/schema.test.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/schema.ts",
+    "turbo-repo/packages/miot-dashboard-contract/tsconfig.json",
+    "turbo-repo/packages/miot-dashboard-contract/tsup.config.ts",
+    "turbo-repo/packages/miot-dashboard-server/README.md",
+    "turbo-repo/packages/miot-dashboard-server/contract/openapi.yaml",
+    "turbo-repo/packages/miot-dashboard-server/package.json",
+    "turbo-repo/packages/miot-dashboard-server/scripts/guard-imports.mjs",
+    "turbo-repo/packages/miot-dashboard-server/src/access/access-control.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/access/errors.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/access/roles.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/adapters/next/route.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/bin.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/cors.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/datasources.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/handler.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/handler.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/parse-datasource.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/routes.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/test-connection.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/test-connection.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/asserted.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/asserted.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/google-service-account.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/google-service-account.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/proxy.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/proxy.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/ticket.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/index.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/net/endpoint.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/net/endpoint.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/credentials.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/credentials.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/datasources.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/identity.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/auth.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/auth.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/config.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/docs.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/docs.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/open-datasources.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/open-datasources.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/persistence.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/proxy-assertion.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/serve.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store-sql.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/datasources.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/datasources.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/migrations.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sql/open.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sqlite.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/test/fixtures.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/testing.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/testing.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/vault-http.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/vault-sql.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/vault/cipher.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/vault/http.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/vault/http.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/vault/sql.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/vault/sql.ts",
+    "turbo-repo/packages/miot-dashboard-server/tsup.config.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.53",
+      "tag": "app@v0.5.53"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.52",
+      "version": "0.5.53",
+      "tag": "docs@v0.5.53"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.52",
+      "version": "0.5.53",
+      "tag": "web@v0.5.53"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.31",
+      "version": "0.5.32",
+      "tag": "modulith@v0.5.32"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.9",
+      "version": "0.1.9",
+      "tag": "harness@v0.1.9"
+    }
+  }
+}

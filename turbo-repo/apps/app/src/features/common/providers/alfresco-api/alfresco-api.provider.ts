@@ -1,5 +1,4 @@
 import {
-  AlfrescoApiClient,
   PersonEntry,
   NodeChildAssociationPaging,
   GroupPaging,
@@ -49,6 +48,7 @@ import {
   alfrescoNodeIdSchema,
   normalizeAlfrescoTaskId,
 } from "./alfresco-identifiers";
+import { sessionAuthHeader } from "@/features/auth/services/session-auth";
 
 function validateNodeId(nodeId: string): string {
   return alfrescoNodeIdSchema.parse(nodeId);
@@ -64,55 +64,27 @@ const alfrescoApiLogger = createManagedLogger(
  * Prepares authentication configuration for Alfresco API calls
  * @param baseUrl - The base URL for the API endpoint
  * @param session - The user session containing authentication data
- * @returns Object containing the modified URL and headers for authentication
+ * @returns The unchanged URL and the Bearer header for the session's id_token
  */
 export function prepareAlfrescoAuth(
   baseUrl: string,
   session?: Session
-  // contentType: string = "application/json",
 ): {
   url: string;
   headers: Record<string, string>;
 } {
-  let url = baseUrl;
-  const headers: Record<string, string> = {
-    // "Content-Type": contentType,
-  };
-  const user = session?.user;
-  if (session?.user?.rawJWT) {
-    headers["Authorization"] = `Bearer ${session.user.rawJWT}`;
-  } else if (session?.user?.ticket) {
-    const separator = baseUrl.includes("?") ? "&" : "?";
-    url = `${baseUrl}${separator}alf_ticket=${session.user.ticket}`;
-  }
+  const headers = sessionAuthHeader(session);
 
   alfrescoApiLogger.debug(
     {
-      user: user?.email,
+      user: session?.user?.email,
       baseUrl,
-      headers,
-      rawJWT: user?.rawJWT,
-      ticket: user?.ticket,
+      hasAuthorization: "Authorization" in headers,
     },
     "prepareAlfrescoAuth"
   );
 
-  return { url, headers };
-}
-
-export function prepareAlfrescoAuthWithAccessToken(session: Session): void {
-  const idToken = session.user?.rawJWT;
-  if (idToken) {
-    alfrescoApi = new AlfrescoApiClient(process.env.ECM_API_URL);
-  } else {
-    alfrescoApi.config.ticket = session.user?.ticket ?? "";
-  }
-}
-
-let alfrescoApi = new AlfrescoApiClient(process.env.ECM_API_URL);
-
-export function getAlfrescoApi(): AlfrescoApiClient {
-  return alfrescoApi;
+  return { url: baseUrl, headers };
 }
 
 export async function getUserProfile(

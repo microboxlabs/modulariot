@@ -1,11 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FC } from "react";
-import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
-import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { twMerge } from "tailwind-merge";
-import { LuArrowLeft, LuHistory, LuPlus, LuSparkles, LuX } from "react-icons/lu";
-import { createHarnessAttachmentAdapter } from "./harness-chat-attachments";
+import {
+  LuArrowLeft,
+  LuEllipsisVertical,
+  LuHistory,
+  LuLink,
+  LuPencil,
+  LuPlus,
+  LuSparkles,
+  LuX,
+} from "react-icons/lu";
+import { Dropdown, DropdownItem } from "flowbite-react";
+import { toast } from "sonner";
+import type { RunSummary } from "@microboxlabs/miot-harness-client";
+import { copyShareLink } from "@/features/share-links/share-links-api";
 import {
   useHarnessChatContext,
   type PendingHarnessConversation,
@@ -15,66 +25,29 @@ import {
   useHarnessChatTr,
 } from "./context/harness-chat-i18n-context";
 import { useResizablePanelWidth } from "./hooks/use-resizable-panel-width";
-import { buildHarnessToolkit, type HarnessExtension } from "./harness-extension";
+import { useSessionTitles } from "./hooks/use-session-titles";
+import type { HarnessExtension } from "./harness-extension";
 import { resolveDefaultHarnessExtensions } from "./extensions";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
+import { ActivityButton, ActivityList } from "./components/activity-panel";
+import { useHarnessActivity } from "./hooks/use-harness-activity";
 import { HistoryList } from "./components/history-list";
-import { InitialMessageSender } from "./components/initial-message-sender";
-import { InitialConversationSeeder } from "./components/initial-conversation-seeder";
-import { PendingAttachmentReceiver } from "./components/pending-attachment-receiver";
-import { SessionSummaryWatcher } from "./components/session-summary-watcher";
-import { SessionTitleWatcher } from "./components/session-title-watcher";
-import { HarnessReadOnlyProvider } from "./context/harness-read-only-context";
+import { PanelResizeHandle } from "./components/panel-resize-handle";
+import { SessionHost } from "./components/session-host";
+import { TitleInput } from "./components/title-input";
 import type { HarnessSkill, Session, View } from "./harness-chat-types";
-import { createHarnessHistoryAdapter } from "./harness-history-adapter";
-import { HarnessRunAgent } from "./harness-run-agent";
+import { readActiveRun } from "./harness-active-run";
 import {
-  createThread,
   deleteThread,
+  getThread,
+  forkThread,
   listThreads,
   revokeShare,
   shareThread,
-  type StoredThread,
 } from "./harness-thread-store";
+import { createSession, mergeStoredThreads, toSession } from "./harness-sessions";
 import { StandaloneDictionaryProvider } from "@/features/dashboard/context/standalone-dictionary-context";
 import type { I18nDictionary, I18nRecord } from "@/features/i18n/i18n.service.types";
-import { Thread } from "./thread";
-
-function createSession(
-  initialMessage: string | null = null,
-  initialConversation: PendingHarnessConversation | null = null,
-): Session {
-  return {
-    // A UUID, not any id: it is stored as the thread's primary key and sent to
-    // the harness as the conversation id.
-    id: crypto.randomUUID(),
-    createdAt: Date.now(),
-    title: null,
-    initialMessage,
-    initialConversation,
-    owned: true,
-    sharedWith: [],
-  };
-}
-
-/** Keeps whatever the panel already has — the fresh session it opened with,
- * and anything started since the fetch went out — and appends the rest. */
-function mergeStoredThreads(current: Session[], threads: StoredThread[]): Session[] {
-  const known = new Set(current.map((session) => session.id));
-  return [...current, ...threads.filter((t) => !known.has(t.id)).map(toSession)];
-}
-
-function toSession(thread: StoredThread): Session {
-  return {
-    id: thread.id,
-    createdAt: Date.parse(thread.lastMessageAt ?? thread.createdAt),
-    title: thread.title,
-    initialMessage: null,
-    initialConversation: null,
-    owned: thread.owned,
-    sharedWith: thread.sharedWith ?? [],
-  };
-}
 
 const headerButtonClass =
   "flex h-6 w-6 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100";
@@ -118,7 +91,7 @@ const HarnessChatPanel: FC<{
   const tr = useHarnessChatTr();
   const runtimeConfig = useRuntimeConfig();
   // An explicit `extensions` prop wins; otherwise resolve the default set
-  // against runtime config so `create_story` isn't registered (and offered
+  // against runtime config so storytelling-only cards aren't registered (and offered
   // to the harness) while ENABLE_STORYTELLING is off. `null` config (still
   // loading) is treated as off, same as use-visible-pages.
   const resolvedExtensions = useMemo(
@@ -138,9 +111,11 @@ const HarnessChatPanel: FC<{
     clearPendingConversation,
     pendingAttachment,
     clearPendingAttachment,
+    pendingThreadId,
+    clearPendingThreadId,
   } = useHarnessChatContext();
-  const { width, isDragging, startDrag, toggleMinMax, onHandleKeyDown, bounds } =
-    useResizablePanelWidth();
+  const resizable = useResizablePanelWidth();
+  const { width, isDragging } = resizable;
   const [sessions, setSessions] = useState<Session[]>(() => [createSession()]);
   const [activeId, setActiveId] = useState(() => sessions[0].id);
   const [view, setView] = useState<View>("chat");
@@ -151,9 +126,19 @@ const HarnessChatPanel: FC<{
   // fetch the whole history on boot; keeping the opened ones mounted is what
   // lets a run finish while the user reads another chat.
   const [mountedIds, setMountedIds] = useState<Set<string>>(() => new Set([activeId]));
-  // Titles already written upstream. The watcher fires on every message
-  // change; without this every one of them would be a PATCH.
-  const persistedTitles = useRef(new Map<string, string>());
+  const [renamingHeader, setRenamingHeader] = useState(false);
+  const sessionsRef = useRef(sessions);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
+  const openingSessionId = useRef(activeId);
+  const {
+    markTitled,
+    forget,
+    updateSessionTitle,
+    autoTitleSession,
+    renameSession,
+  } = useSessionTitles({ sessionsRef, setSessions });
 
   const mount = useCallback((id: string) => {
     setMountedIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
@@ -167,7 +152,7 @@ const HarnessChatPanel: FC<{
   const loadHistory = useCallback((signal?: AbortSignal) => {
     setIsLoadingHistory(true);
     setHistoryFailed(false);
-    return listThreads(signal)
+    return listThreads(signal, "chat")
       .then((threads) => {
         if (signal?.aborted) return;
         // null is the store reporting a failure; [] is a user with no threads.
@@ -175,12 +160,21 @@ const HarnessChatPanel: FC<{
           setHistoryFailed(true);
           return;
         }
+        for (const thread of threads) {
+          if (thread.title) markTitled(thread.id);
+        }
         if (threads.length > 0) setSessions((prev) => mergeStoredThreads(prev, threads));
+        // A reload in the middle of a run reopens that chat, which then
+        // re-attaches to the run.
+        const running = threads.find((thread) => thread.owned && readActiveRun(thread.id));
+        if (!running) return;
+        mount(running.id);
+        setActiveId((current) => (current === openingSessionId.current ? running.id : current));
       })
       .finally(() => {
         if (!signal?.aborted) setIsLoadingHistory(false);
       });
-  }, []);
+  }, [mount, markTitled]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -235,27 +229,34 @@ const HarnessChatPanel: FC<{
     [mount],
   );
 
-  const updateSessionTitle = useCallback((id: string, title: string | null) => {
-    setSessions((prev) => {
-      const idx = prev.findIndex((s) => s.id === id);
-      if (idx === -1 || prev[idx].title === title) return prev;
-      const next = [...prev];
-      next[idx] = { ...next[idx], title };
-      return next;
-    });
-    // An upsert, so this doubles as "make sure the thread row exists" — the
-    // title arrives with the first user message, which may still be racing its
-    // own append.
-    if (title && persistedTitles.current.get(id) !== title) {
-      // Recorded up front so the watcher's next call does not re-send it, and
-      // dropped again if the write failed — otherwise one lost request leaves
-      // the thread permanently untitled while its messages save fine.
-      persistedTitles.current.set(id, title);
-      void createThread({ id, title }).then((saved) => {
-        if (!saved) persistedTitles.current.delete(id);
-      });
+  // "Open conversation" from elsewhere in the app (a story's source thread).
+  // A thread the panel has not listed yet is read on its own and added.
+  useEffect(() => {
+    if (!pendingThreadId) return;
+    clearPendingThreadId();
+    if (sessions.some((s) => s.id === pendingThreadId)) {
+      selectSession(pendingThreadId);
+      return;
     }
-  }, []);
+    void getThread(pendingThreadId).then((thread) => {
+      if (!thread) return;
+      setSessions((prev) => (prev.some((s) => s.id === thread.id) ? prev : [toSession(thread), ...prev]));
+      selectSession(thread.id);
+    });
+  }, [pendingThreadId, clearPendingThreadId, sessions, selectSession]);
+
+  const forkSession = useCallback(
+    async (id: string, atMessageId?: string) => {
+      const saved = await forkThread(id, atMessageId);
+      if (!saved) return;
+      markTitled(saved.id);
+      setSessions((prev) => [toSession(saved), ...prev]);
+      setActiveId(saved.id);
+      mount(saved.id);
+      setView("chat");
+    },
+    [mount, markTitled],
+  );
 
   const shareSession = useCallback(async (id: string, principal: string) => {
     if (!(await shareThread(id, principal))) return;
@@ -293,69 +294,95 @@ const HarnessChatPanel: FC<{
       }
       for (const session of sessions) {
         if (!idSet.has(session.id)) continue;
-        persistedTitles.current.delete(session.id);
+        forget(session.id);
         // Only the owner may delete upstream. A thread someone shared just
         // leaves this list until the next load; giving it back is the owner's
         // call, not the reader's.
         if (session.owned) void deleteThread(session.id);
       }
     },
-    [sessions, activeId, mount],
+    [sessions, activeId, mount, forget],
   );
 
-  const activeTitle =
-    sessions.find((s) => s.id === activeId)?.title ?? tr("harnessChat.ui.emptyChatTitle");
+  // Like Claude Code's or Codex's share links: one link any member of the
+  // organization can open, copied straight to the clipboard.
+  const copyThreadLink = useCallback(
+    (id: string) => {
+      copyShareLink("thread", id, locale).then(
+        () => toast.success(tr("harnessChat.ui.history.linkCopied")),
+        () => toast.error(tr("harnessChat.ui.history.linkFailed")),
+      );
+    },
+    [locale, tr],
+  );
+
+  const activeSession = sessions.find((s) => s.id === activeId);
+  // A thread is stored once it has a title, so only then is there anything to link to.
+  const canLinkActive = Boolean(activeSession?.owned && activeSession.title);
+  const activeTitle = activeSession?.title ?? tr("harnessChat.ui.emptyChatTitle");
+
+  const [activityOpen, setActivityOpen] = useState(false);
+
+  const titleOf = useCallback(
+    (conversationId: string | null) =>
+      sessions.find((s) => s.id === conversationId)?.title ?? null,
+    [sessions],
+  );
+  const openThread = useCallback(
+    (conversationId: string) => {
+      if (!sessions.some((s) => s.id === conversationId)) return;
+      selectSession(conversationId);
+      setActivityOpen(false);
+    },
+    [sessions, selectSession],
+  );
+
+  // Read by the finish notification, which fires from a poll, not a render.
+  const watching = useRef({ activeId, isOpen, view, titleOf, openThread, tr });
+  useEffect(() => {
+    watching.current = { activeId, isOpen, view, titleOf, openThread, tr };
+  });
+  const notifyFinished = useCallback((run: RunSummary) => {
+    const current = watching.current;
+    const onScreen =
+      current.isOpen && current.view === "chat" && run.conversation_id === current.activeId;
+    if (onScreen || !run.conversation_id) return;
+    const conversationId = run.conversation_id;
+    const title = current.titleOf(conversationId) ?? current.tr("harnessChat.ui.jobs.untitled");
+    const message =
+      run.status === "completed"
+        ? current.tr("harnessChat.ui.jobs.toastDone", { title })
+        : current.tr("harnessChat.ui.jobs.toastFailed", { title });
+    toast(message, {
+      action: {
+        label: current.tr("harnessChat.ui.jobs.toastOpen"),
+        onClick: () => watching.current.openThread(conversationId),
+      },
+    });
+  }, []);
+
+  const activity = useHarnessActivity({ panelOpen: activityOpen, onFinished: notifyFinished });
+  const activeRunning = activity.runs.some(
+    (run) => run.status === "running" && run.conversation_id === activeId,
+  );
+
+  const [pendingPrompt, setPendingPrompt] = useState<{ id: string; text: string } | null>(null);
+  const clearPendingPrompt = useCallback(() => setPendingPrompt(null), []);
+  const askSessionSummary = () =>
+    setPendingPrompt({ id: activeId, text: tr("harnessChat.ui.menu.sessionSummaryPrompt") });
 
   return (
     <div
       className={twMerge(
-        "relative mt-16 mb-12 hidden shrink-0 overflow-hidden border-l border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 lg:flex",
-        isOpen ? "opacity-100" : "w-0 opacity-0",
+        "relative mt-16 mb-12 hidden shrink-0 overflow-hidden border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 lg:flex",
+        isOpen ? "border-l opacity-100" : "w-0 opacity-0",
         isDragging ? "transition-opacity duration-300 ease-in-out" : "transition-[width,opacity] duration-300 ease-in-out"
       )}
       style={isOpen ? { width } : undefined}
+      inert={!isOpen}
     >
       {isOpen && (
-        // This is the WAI-ARIA window-splitter pattern: a *focusable*
-        // separator, which ARIA classes as a widget role — hence the
-        // tabIndex, the value attributes and the key handler below. Sonar's
-        // S6845/S6847 (and jsx-a11y, which they mirror) read `separator` off
-        // a static role map that has no way to know this one is focusable,
-        // so they see a non-interactive div carrying tabIndex and handlers.
-        // The NOSONAR markers are for those two false positives; removing
-        // them would mean giving up either the keyboard resize or the
-        // correct role.
-        <div /* NOSONAR */
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={tr("harnessChat.ui.resizePanel")}
-          // Dragging is pointer-only, so without this the panel is stuck at
-          // whatever width a keyboard user finds it at. Arrows nudge (Shift
-          // for a coarser step), Home/End snap to the bounds.
-          tabIndex={0 /* NOSONAR */}
-          aria-valuenow={Math.round(width)}
-          aria-valuemin={Math.round(bounds.min)}
-          aria-valuemax={Math.round(bounds.max)}
-          onKeyDown={onHandleKeyDown}
-          onPointerDown={startDrag}
-          onDoubleClick={toggleMinMax}
-          className={twMerge(
-            // Stays inside the panel's own bounds (not straddling the
-            // border) — the wrapper's overflow-hidden, needed for the
-            // open/close collapse animation, would clip anything hanging
-            // outside it.
-            "group absolute inset-y-0 left-0 z-20 flex w-2.5 cursor-col-resize touch-none select-none items-center justify-center"
-          )}
-        >
-          <div
-            className={twMerge(
-              "h-8 w-1 rounded-full transition-colors duration-150",
-              isDragging
-                ? "bg-gray-500 dark:bg-gray-300"
-                : "bg-gray-300 group-hover:bg-gray-400 group-focus-visible:bg-gray-500 dark:bg-gray-600 dark:group-hover:bg-gray-400 dark:group-focus-visible:bg-gray-300"
-            )}
-          />
-        </div>
+        <PanelResizeHandle label={tr("harnessChat.ui.resizePanel")} resizable={resizable} />
       )}
       <div className="flex w-full min-w-0 flex-col text-gray-700 antialiased dark:text-gray-300">
         <div className="h-15 flex shrink-0 items-center gap-1 border-b border-gray-200 px-3 text-xs font-medium text-gray-600 dark:border-gray-700 dark:text-gray-300">
@@ -374,9 +401,43 @@ const HarnessChatPanel: FC<{
           ) : (
             <>
               <LuSparkles className="h-3.5 w-3.5 shrink-0" />
-              <span className="flex-1 truncate" title={activeTitle}>
-                {activeTitle}
-              </span>
+              {renamingHeader && activeSession ? (
+                <TitleInput
+                  key={activeSession.id}
+                  initial={activeSession.title ?? ""}
+                  label={tr("harnessChat.ui.history.rename")}
+                  onSubmit={(title) => renameSession(activeSession.id, title)}
+                  onDone={() => setRenamingHeader(false)}
+                />
+              ) : (
+                <span className="group/title flex min-w-0 flex-1 items-center gap-1">
+                  <span className="truncate" title={activeTitle}>
+                    {activeTitle}
+                  </span>
+                  {activeSession?.owned && activeSession.title && (
+                    <button
+                      type="button"
+                      onClick={() => setRenamingHeader(true)}
+                      aria-label={tr("harnessChat.ui.history.rename")}
+                      title={tr("harnessChat.ui.history.rename")}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 focus-visible:opacity-100 group-hover/title:opacity-100 dark:hover:bg-gray-700 dark:hover:text-gray-100"
+                    >
+                      <LuPencil className="h-3 w-3" />
+                    </button>
+                  )}
+                </span>
+              )}
+              {canLinkActive && (
+                <button
+                  type="button"
+                  onClick={() => copyThreadLink(activeId)}
+                  aria-label={tr("harnessChat.ui.history.shareLink")}
+                  title={tr("harnessChat.ui.history.shareLink")}
+                  className={headerButtonClass}
+                >
+                  <LuLink className="h-3.5 w-3.5" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setView("history")}
@@ -387,6 +448,19 @@ const HarnessChatPanel: FC<{
               </button>
             </>
           )}
+          <ActivityButton
+            open={activityOpen}
+            onOpenChange={setActivityOpen}
+            runningCount={activity.runningCount}
+            className={headerButtonClass}
+          >
+            <ActivityList
+              runs={activity.runs}
+              failed={activity.failed}
+              titleOf={titleOf}
+              onOpen={openThread}
+            />
+          </ActivityButton>
           <button
             type="button"
             onClick={() => newChat()}
@@ -395,6 +469,28 @@ const HarnessChatPanel: FC<{
           >
             <LuPlus className="h-3.5 w-3.5" />
           </button>
+          <Dropdown
+            label=""
+            dismissOnClick
+            placement="bottom-end"
+            renderTrigger={() => (
+              <button
+                type="button"
+                aria-label={tr("harnessChat.ui.menu.open")}
+                className={headerButtonClass}
+              >
+                <LuEllipsisVertical className="h-3.5 w-3.5" />
+              </button>
+            )}
+          >
+            <DropdownItem
+              onClick={askSessionSummary}
+              disabled={view !== "chat" || !activeSession?.owned || activeRunning}
+              className="text-xs"
+            >
+              {tr("harnessChat.ui.menu.sessionSummary")}
+            </DropdownItem>
+          </Dropdown>
           <button
             type="button"
             onClick={close}
@@ -416,6 +512,9 @@ const HarnessChatPanel: FC<{
             onDelete={(ids) => deleteSessions(ids)}
             onShare={shareSession}
             onUnshare={unshareSession}
+            onRename={renameSession}
+            onFork={(id) => void forkSession(id)}
+            onCopyLink={copyThreadLink}
             locale={locale}
           />
         )}
@@ -431,9 +530,13 @@ const HarnessChatPanel: FC<{
               // Only the active session should receive it — every session's
               // SessionHost stays mounted (just hidden), so a session-agnostic
               // prop would add the same attachment to all of them at once.
-              pendingAttachmentLabel={session.id === activeId ? pendingAttachment : null}
+              pendingAttachment={session.id === activeId ? pendingAttachment : null}
               onAttachmentConsumed={clearPendingAttachment}
+              pendingPrompt={pendingPrompt?.id === session.id ? pendingPrompt.text : null}
+              onPromptSent={clearPendingPrompt}
               onTitleChange={updateSessionTitle}
+              onFirstExchange={autoTitleSession}
+              onFork={forkSession}
               readOnly={!session.owned}
               extensions={resolvedExtensions}
               skills={skills}
@@ -444,105 +547,3 @@ const HarnessChatPanel: FC<{
     </div>
   );
 }
-
-const SessionHost: FC<{
-  sessionId: string;
-  active: boolean;
-  shouldFocus: boolean;
-  initialMessage: string | null;
-  initialConversation: PendingHarnessConversation | null;
-  pendingAttachmentLabel: string | null;
-  onAttachmentConsumed: () => void;
-  onTitleChange: (id: string, title: string | null) => void;
-  readOnly: boolean;
-  extensions: HarnessExtension[];
-  skills: HarnessSkill[];
-}> = ({
-  sessionId,
-  active,
-  shouldFocus,
-  initialMessage,
-  initialConversation,
-  pendingAttachmentLabel,
-  onAttachmentConsumed,
-  onTitleChange,
-  readOnly,
-  extensions,
-  skills,
-}) => {
-  // One agent instance per session — its conversation state (threadId, the
-  // harness's round-tripped conversationId) shouldn't leak across concurrent
-  // chat sessions. The session id is handed over as the AG-UI threadId, which
-  // is what the chat route falls back to for the harness conversation id: the
-  // same value survives a reload, so a reopened thread continues its
-  // conversation instead of starting a new one. A spotlight "Take to chat"
-  // handoff instead seeds the specific conversation id its answer came from,
-  // so the user's next message continues that conversation server-side.
-  const agent = useMemo(
-    () =>
-      new HarnessRunAgent({
-        url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/chat/stream`,
-        threadId: sessionId,
-        ...(initialConversation?.conversationId && {
-          initialState: { harnessConversationId: initialConversation.conversationId },
-        }),
-      }),
-    // `initialConversation` is read once at session creation, same as sessionId.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sessionId],
-  );
-  const tr = useHarnessChatTr();
-  const attachmentAdapter = useMemo(() => createHarnessAttachmentAdapter(tr), [tr]);
-  const history = useMemo(() => createHarnessHistoryAdapter(sessionId), [sessionId]);
-  const runtime = useAgUiRuntime({
-    agent,
-    adapters: { attachments: attachmentAdapter, history },
-  });
-  const containerRef = useRef<HTMLDivElement>(null);
-  const toolkit = useMemo(() => buildHarnessToolkit(extensions), [extensions]);
-
-  // Panel just opened (button or ⌘/Ctrl+C) while this is the active session —
-  // send focus straight to the composer input. When it closes (or this stops
-  // being the active session) again, blur it back out — otherwise keystrokes
-  // typed elsewhere would silently land in the now-hidden textarea.
-  useEffect(() => {
-    const textarea = containerRef.current?.querySelector("textarea");
-    if (!textarea) return;
-    if (active && shouldFocus) {
-      textarea.focus();
-    } else if (document.activeElement === textarea) {
-      textarea.blur();
-    }
-  }, [active, shouldFocus]);
-
-  return (
-    <div
-      ref={containerRef}
-      data-session-active={active}
-      className={twMerge("flex min-h-0 flex-1 flex-col", !active && "hidden")}
-    >
-      <AssistantRuntimeProvider
-        runtime={runtime}
-        config={AuiConfig({ tools: Tools({ toolkit }) })}
-      >
-        <HarnessReadOnlyProvider readOnly={readOnly}>
-          {/* A shared thread is somebody else's conversation: it has a title
-              already, takes no pending message, and offers nothing that runs. */}
-          {!readOnly && (
-            <>
-              <SessionTitleWatcher sessionId={sessionId} onTitleChange={onTitleChange} />
-              <SessionSummaryWatcher sessionId={sessionId} />
-              <InitialMessageSender initialMessage={initialMessage} />
-              <InitialConversationSeeder conversation={initialConversation} />
-              <PendingAttachmentReceiver
-                label={pendingAttachmentLabel}
-                onConsumed={onAttachmentConsumed}
-              />
-            </>
-          )}
-          <Thread skills={skills} />
-        </HarnessReadOnlyProvider>
-      </AssistantRuntimeProvider>
-    </div>
-  );
-};

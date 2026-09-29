@@ -49,7 +49,7 @@ describe("<FooterLine />", () => {
           usageTotals: usage({
             inputTokens: 1234,
             outputTokens: 56,
-            lastAgent: "synthesizer",
+            lastAgent: "main",
           }),
         })}
       />,

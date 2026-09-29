@@ -6,6 +6,7 @@ import {
   visiblePages,
   DEV_PAGE_LABEL,
   STORYTELLING_PAGE_LABEL,
+  DASHBOARD_SERVER_PAGE_LABEL,
 } from "./pages";
 
 function settingsHrefs(input: ReturnType<typeof visiblePages>): string[] {
@@ -16,19 +17,36 @@ function settingsHrefs(input: ReturnType<typeof visiblePages>): string[] {
 describe("visiblePages", () => {
   it("hides the Dev section unless dev tools are on", () => {
     expect(
-      visiblePages(false, false).some((p) => p.label === DEV_PAGE_LABEL),
+      visiblePages(false, false, false).some((p) => p.label === DEV_PAGE_LABEL)
     ).toBe(false);
     expect(
-      visiblePages(true, false).some((p) => p.label === DEV_PAGE_LABEL),
+      visiblePages(true, false, false).some((p) => p.label === DEV_PAGE_LABEL)
     ).toBe(true);
   });
 
   it("hides Storytelling unless storytelling testing is on", () => {
     expect(
-      visiblePages(false, false).some((p) => p.label === STORYTELLING_PAGE_LABEL),
+      visiblePages(false, false, false).some(
+        (p) => p.label === STORYTELLING_PAGE_LABEL
+      )
     ).toBe(false);
     expect(
-      visiblePages(false, true).some((p) => p.label === STORYTELLING_PAGE_LABEL),
+      visiblePages(false, true, false).some(
+        (p) => p.label === STORYTELLING_PAGE_LABEL
+      )
+    ).toBe(true);
+  });
+
+  it("hides the dashboard workspace unless ENABLE_DASHBOARD_SERVER is on", () => {
+    expect(
+      visiblePages(false, false, false).some(
+        (p) => p.label === DASHBOARD_SERVER_PAGE_LABEL
+      )
+    ).toBe(false);
+    expect(
+      visiblePages(false, false, true).some(
+        (p) => p.label === DASHBOARD_SERVER_PAGE_LABEL
+      )
     ).toBe(true);
   });
 });
@@ -38,6 +56,7 @@ describe("filterSettings", () => {
     const filtered = filterSettings(pages, {
       harness: true,
       platformOwner: false,
+      trainer: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/platform");
@@ -48,6 +67,7 @@ describe("filterSettings", () => {
     const filtered = filterSettings(pages, {
       harness: false,
       platformOwner: true,
+      trainer: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/harness");
@@ -58,10 +78,12 @@ describe("filterSettings", () => {
     const filtered = filterSettings(pages, {
       harness: false,
       platformOwner: false,
+      trainer: false,
     });
 
     expect(settingsHrefs(filtered)).toEqual([
       "/users/settings/organizations",
+      "/users/settings/selectables",
       "/users/settings/data-sources",
       "/users/settings/credentials",
       "/users/settings/connections",
@@ -81,15 +103,27 @@ describe("filterSettings", () => {
     const filtered = filterSettings(pages, {
       harness: true,
       platformOwner: true,
+      trainer: true,
     });
 
     expect(settingsHrefs(filtered)).toEqual(settingsHrefs(pages));
+  });
+
+  it("offers the learning workspace to trainers only", () => {
+    const gates = { harness: true, platformOwner: true };
+    expect(
+      settingsHrefs(filterSettings(pages, { ...gates, trainer: true })),
+    ).toContain("/harness/learning");
+    expect(
+      settingsHrefs(filterSettings(pages, { ...gates, trainer: false })),
+    ).not.toContain("/harness/learning");
   });
 
   it("touches no page outside Settings", () => {
     const filtered = filterSettings(pages, {
       harness: false,
       platformOwner: false,
+      trainer: false,
     });
 
     expect(filtered.map((page) => page.label)).toEqual(

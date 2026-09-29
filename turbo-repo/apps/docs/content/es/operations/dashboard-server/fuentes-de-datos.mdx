@@ -1,0 +1,113 @@
+# Fuentes de datos y credenciales
+
+Un tablero muestra datos que viven en otro sistema. La fuente de datos dice dónde están; la credencial dice cómo entrar. El servidor guarda las dos por separado, y solo la primera sale alguna vez hacia un cliente.
+
+## El modelo
+
+| Registro | Contiene | Quién lo ve |
+| --- | --- | --- |
+| Fuente de datos | Nombre, tipo, dirección de destino y una referencia a su credencial | Cualquier miembro con permiso de lectura |
+| Credencial | El secreto, cifrado | Nadie. La API devuelve un resumen: tipo y últimos caracteres |
+
+La fuente de datos nombra su credencial con `credentialRef`, un identificador opaco. Ningún tablero, ninguna respuesta y ningún registro de actividad contienen el secreto.
+
+Una fuente de datos pertenece a la organización. Todos sus tableros pueden usarla; quién puede crearla o cambiarla lo decide el rol en el ámbito.
+
+| Tipo | Destino | Estado |
+| --- | --- | --- |
+| `POSTGREST` | La URL base de una API PostgREST, por `https` | Consulta y prueba de conexión |
+| `BIGQUERY` | Un conjunto de datos de BigQuery, como `proyecto.dataset` | Prueba de conexión con una cuenta de servicio o un token |
+
+## Dónde viven las credenciales
+
+| Modo | Variable | Efecto |
+| --- | --- | --- |
+| Autónomo | `MIOT_DASHBOARD_CREDENTIALS_KEY` | El servidor guarda las credenciales en su base de datos, cifradas con esa clave (AES-256-GCM) |
+| Integrado con ModularIoT | `MIOT_DASHBOARD_CREDENTIALS_URL` | El servidor no guarda ninguna; pide a ModularIoT qué cabecera enviar |
+
+Se configura una u otra, nunca ambas.
+
+En modo autónomo la clave debe tener al menos 32 caracteres y el almacenamiento debe ser `sqlite` o `postgres`. Guárdela como cualquier otro secreto: quien pierde la clave pierde todas las credenciales, y quien la cambia debe volver a cargarlas.
+
+```bash
+openssl rand -base64 32
+```
+
+Genera una clave adecuada.
+
+## Cargar una credencial
+
+Solo esta petición lleva un secreto. La respuesta es el resumen, nunca el valor.
+
+```bash
+curl -X PUT http://127.0.0.1:3070/tenants/acme/scopes/operaciones/credentials/flota-api \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"kind":"BEARER","token":"el-token-de-la-api"}'
+```
+
+| `kind` | Campos | Cómo se envía al destino |
+| --- | --- | --- |
+| `NONE` | ninguno | Sin credencial |
+| `BEARER` | `token` | `Authorization: Bearer …` |
+| `API_KEY_HEADER` | `header`, `value` | En la cabecera indicada |
+| `API_KEY_QUERY` | `param`, `value` | Como parámetro de la URL |
+| `BASIC` | `username`, `password` | `Authorization: Basic …` |
+| `SERVICE_ACCOUNT` | `projectId`, `clientEmail`, `privateKey` | Con el cliente del proveedor; para BigQuery |
+
+Un campo mal escrito se rechaza con `400` en lugar de guardar una credencial vacía.
+
+## Crear la fuente de datos
+
+```bash
+curl -X POST http://127.0.0.1:3070/tenants/acme/scopes/operaciones/datasources \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Flota",
+    "type": "POSTGREST",
+    "isActive": true,
+    "target": "https://datos.acme.example/api/v1/pgrest",
+    "credentialRef": "flota-api"
+  }'
+```
+
+Responde `201` con el registro y el identificador que el servidor le asignó. El destino de una fuente `POSTGREST` debe ser `https` y no puede llevar `usuario:clave@` en la URL.
+
+## Probar la conexión
+
+```bash
+curl -X POST http://127.0.0.1:3070/tenants/acme/scopes/operaciones/datasources/{id}/test \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+El servidor hace una petición al destino con la credencial y cuenta qué pasó:
+
+```json
+{
+  "data": {
+    "testable": true,
+    "success": true,
+    "status": 200,
+    "testedAt": "2026-09-21T03:00:00.000Z",
+    "message": "The target answered"
+  }
+}
+```
+
+| Resultado | Significa |
+| --- | --- |
+| `success: true` | El destino respondió con la credencial |
+| `success: false`, `status: 401` o `403` | El destino rechazó la credencial, o no hay ninguna configurada |
+| `success: false`, `status: 404` | El destino no existe, o la credencial no puede verlo |
+| `success: false` sin `status` | No se pudo alcanzar el destino, o no respondió a tiempo |
+
+Una fuente `BIGQUERY` se prueba leyendo el conjunto de datos por la API de BigQuery. Con una credencial `SERVICE_ACCOUNT`, el servidor firma la petición de token con la clave privada y obtiene un token de acceso de Google antes de la prueba; el destino puede ser solo el nombre del conjunto de datos, porque la cuenta de servicio ya nombra el proyecto. Con un token `BEARER`, el destino debe ser `proyecto.dataset`.
+
+También puede probar una configuración antes de guardarla, enviando el mismo cuerpo de la fuente a `/datasources/test`. Una redirección del destino cuenta como fallo: seguirla dejaría en manos del destino a dónde va la credencial.
+
+La respuesta nunca incluye el cuerpo que devolvió el destino, porque un destino puede devolver la credencial que recibió.
+
+## En modo integrado con ModularIoT
+
+Con `MIOT_DASHBOARD_CREDENTIALS_URL` configurada, las rutas `/credentials` responden `404`: las credenciales se administran en ModularIoT, en la pantalla de conexiones de cada organización, y `credentialRef` es el identificador de la credencial allí. El servidor pregunta por ella cuando la necesita, recibe solo la cabecera ya preparada y la reutiliza durante `MIOT_DASHBOARD_CREDENTIALS_CACHE` segundos.

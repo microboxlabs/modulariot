@@ -61,6 +61,11 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 WORKDIR /app
 
+# git for the source_* tools, which read shallow clones of configured repositories.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 # Bring only the built venv. The package itself was installed into
 # /app/.venv/lib/.../site-packages/miot_harness/ during builder's
 # `uv sync`, so no separate src/ copy is needed at runtime.

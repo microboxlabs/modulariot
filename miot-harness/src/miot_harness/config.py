@@ -7,10 +7,18 @@ from pathlib import Path
 from typing import Literal
 
 from dotenv import dotenv_values
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, BaseModel, Field, PositiveInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
+
+
+class SourceRepo(BaseModel):
+    """A git repository the source tools can read."""
+
+    name: str = Field(pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$")
+    url: str = Field(min_length=1)
+    ref: str = Field(default="trunk", pattern=r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$")
 
 
 class HarnessSettings(BaseSettings):
@@ -52,83 +60,107 @@ class HarnessSettings(BaseSettings):
     datasource_freshness_refuse_minutes: int | None = Field(default=None, ge=0)
     # Boot-time per-function freshness survey (Gap 2): probes every
     # zero-required-arg datasource function once and exposes the result
-    # in /health and the meta-agent catalog. Kill switch if boot latency
+    # in /health. Kill switch if boot latency
     # against the real DB becomes a problem.
     datasource_freshness_survey_enabled: bool = True
-    agents_max_turns: int = 8
-    # Agentic-mode turn cap. Looser than the canned cap (8) because
-    # exploration is the whole point of the agentic loop; each turn is
-    # one planner LLM call + at most one tool invocation.
-    agents_agentic_max_turns: int = Field(default=12, gt=0)
-    agents_critic_enabled: bool = False
-
-    # Phase 3 verify gate. When enabled, the agentic planner's decision to
-    # finish is intercepted by a verifier node (rule-based + a small LLM judge)
-    # that asks "do the EXECUTED results fulfil the request?"; on a gap it
-    # routes back to the planner to re-plan (bounded by max_replans). This makes
-    # completion structural — the planner can no longer satisfice (answer from a
-    # grep sample, or stop before running the join it already identified). When
-    # `agents_verifier_model` is unset, the gate degrades to rule-based checks
-    # only (no extra LLM call). Tests build the graph without a verifier model,
-    # so they exercise the rules-only path.
-    agents_agentic_verify_enabled: bool = True
-    agents_agentic_max_replans: int = Field(default=2, ge=0)
-    # Single-agent tool-calling loop (spec 2026-07-02). When enabled, the
-    # DATA_AGENTIC route runs one cached native tool-use loop instead of the
-    # planner/verifier/synthesizer/critic panel. Default off until golden
-    # evals show parity with the legacy agentic graph.
-    agents_agent_loop_enabled: bool = False
+    # Model calls the loop may make in one run before it must answer.
+    agents_agent_loop_max_turns: int = Field(
+        default=12,
+        gt=0,
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_AGENTS_AGENT_LOOP_MAX_TURNS",
+            "MIOT_HARNESS_AGENTS_AGENTIC_MAX_TURNS",
+            "agents_agent_loop_max_turns",
+        ),
+    )
+    # Reasoning for the conversation model: `effort` on the adaptive-thinking
+    # models (Opus 4.7+, Sonnet 4.6+), a thinking budget on the others.
+    # None turns effort off; a budget of 0 turns thinking off.
+    agents_agent_loop_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = Field(
+        default="high",
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_AGENTS_AGENT_LOOP_EFFORT",
+            "MIOT_HARNESS_AGENTS_PLANNER_EFFORT",
+            "agents_agent_loop_effort",
+        ),
+    )
+    agents_agent_loop_thinking_budget: int = Field(
+        default=4096,
+        ge=0,
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_AGENTS_AGENT_LOOP_THINKING_BUDGET",
+            "MIOT_HARNESS_AGENTS_SYNTHESIZER_THINKING_BUDGET",
+            "agents_agent_loop_thinking_budget",
+        ),
+    )
+    # The conversation model for runs that name none, when the platform
+    # providers mark no default. Unset: such runs fail.
+    agents_agent_loop_model: str | None = None
     # Per-tool-result cap on the JSON fed back to the model. Bounds context
     # growth (and cache-write size) when a tool returns a large row set.
-    agents_agent_loop_tool_result_max_chars: int = Field(default=6000, gt=0)
+    # Minimum holds the compact envelope the loop falls back to (tool name,
+    # row count, note), so a tool message is always valid JSON.
+    agents_agent_loop_tool_result_max_chars: int = Field(default=6000, ge=200)
+    # Read-only tool calls of one model turn that run at the same time; 1 runs
+    # them one after another. Calls that may ask for approval always do.
+    agents_agent_loop_tool_concurrency: int = Field(default=4, ge=1)
+    # Context window per conversation model, as a JSON object in the env
+    # (`{"deepseek:deepseek-chat": 128000}`). Claude models default to 200K,
+    # the rest to `agents_context_window_default`.
+    agents_context_windows: dict[str, PositiveInt] = Field(default_factory=dict)
+    agents_context_window_default: int = Field(default=128_000, gt=0)
+    # Past this share of the context window, a run cuts every tool result but
+    # the newest `agents_agent_loop_clear_keep_results` down to its header.
+    agents_agent_loop_clear_at_ratio: float = Field(default=0.5, gt=0, le=1)
+    agents_agent_loop_clear_keep_results: int = Field(default=3, ge=0)
     # LLM timeout for the agent loop (seconds). The loop's final turn writes
     # the full user-facing answer and adaptive-thinking turns can exceed the
     # current hard 60s default. 300s (5 minutes) suits multi-step planning.
     agents_agent_loop_llm_timeout_seconds: int = Field(default=300, gt=0)
-    # Small "did we answer it?" judge. Held separate from the synthesizer so it
-    # can stay cheap. Empty string disables the LLM judge (rules-only verify).
-    agents_verifier_model: str = "claude-haiku-4-5"
-
-    # Provenance log for agentic tool invocations (plan 13, E4). One JSONL
-    # line per executed step under `<dir>/YYYY-MM-DD.jsonl`; the weekly
-    # curation pass mines these for curated-function candidates.
+    # On SIGTERM, how long in-flight runs get to finish before they are
+    # interrupted. The pod's terminationGracePeriodSeconds must exceed it:
+    # 25 fits the default 30s grace period. Raise both together to let long
+    # runs finish across a deploy.
+    shutdown_drain_seconds: float = Field(default=25, ge=0)
+    # Conversation models a caller may pick for the agent loop
+    # (`UserRequest.model`), as a JSON list in the env. The loop model is
+    # always allowed and is the default. One runner, with its own prompt-cache
+    # prefix, is built per model on first use.
+    agents_agent_loop_models: list[str] = Field(default_factory=list)
+    # Seats the conversation model can call. Unset disables the seat; its
+    # tool then never appears in the prompt.
+    agents_advisor_model: str | None = None
+    agents_advisor_max_consults: int = Field(default=2, ge=0)
+    agents_workhorse_model: str | None = None
+    agents_workhorse_max_turns: int = Field(default=6, ge=1)
+    agents_workhorse_max_parallel: int = Field(default=3, ge=1)
+    # Provenance log for tool calls: one JSONL line per call under
+    # `<dir>/YYYY-MM-DD.jsonl`, mined for curated-function candidates.
     provenance_log_dir: Path = Path("evals/provenance")
     provenance_log_enabled: bool = True
 
-    # Phase E (plan 13): LLM intent router. Default model is Haiku tier
-    # for cost — the router is invoked on every "auto" request. Below
-    # the confidence threshold we fall back to the keyword router so
-    # we never silently misroute when the LLM is uncertain.
-    intent_router_model: str = "claude-haiku-4-5"
-    # Bounded to [0.0, 1.0]: the LLM router emits a probability in that
-    # range, so any threshold outside it either disables the LLM router
-    # entirely (>1) or disables the keyword fallback (<0). Either way
-    # produces silent misrouting, so reject at startup.
-    intent_router_confidence_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
-
-    # Phase E5 hydration cap. When a `/runs` request carries
-    # `conversation_id`, the supervisor reads prior turns from
-    # `ConversationStore` and trims them via `trim_messages(...,
-    # token_counter="approximate", strategy="last")` to fit this token
-    # budget. Sized against Haiku-4-5's 200K window (the smallest model
-    # we configure): 24K leaves 88% of the window for system prompt +
-    # evidence + tools + current question + response. Fits ~5–7 long
-    # Markdown synthesizer answers or ~30+ short turns. Turn-based
-    # capping was rejected because our synthesizer's long Markdown
-    # outputs (3–5K tokens each) blow a uniform turn count. Must be
-    # strictly positive; 0 or negative is meaningless as a budget.
-    conversation_token_budget: int = Field(default=24_000, gt=0)
+    # Token budget for the conversation history replayed to the model, tool
+    # calls and results included. Older turns are trimmed first.
+    conversation_tool_token_budget: int = Field(default=48_000, gt=0)
 
     # Turns a conversation may hold before its older part is folded into a
     # summary (`ConversationStore.summarize_if_needed`). The token budget
     # above bounds what reaches the model; this bounds what accumulates.
     conversation_summarize_at_turns: int = Field(default=10, gt=0)
+    # Compacts earlier too, once the full replay passes this share of
+    # `conversation_tool_token_budget`.
+    conversation_compact_at_ratio: float = Field(default=0.75, gt=0, le=1)
 
-    # Prior turns shown to the intent router alongside the message it
-    # classifies. A follow-up like "and last week?" or "y bueno" has no
-    # route of its own; the turn before it does. 0 restores bare routing.
-    # Compaction keeps this many turns verbatim so they are there to read.
-    intent_router_context_turns: int = Field(default=2, ge=0)
+    # Turns compaction keeps verbatim when it folds the rest into a summary.
+    conversation_keep_recent_turns: int = Field(
+        default=2,
+        ge=0,
+        validation_alias=AliasChoices(
+            "MIOT_HARNESS_CONVERSATION_KEEP_RECENT_TURNS",
+            "MIOT_HARNESS_INTENT_ROUTER_CONTEXT_TURNS",
+            "conversation_keep_recent_turns",
+        ),
+    )
 
     # Context & Skills subsystem (Phase 1: file-backed). Default dirs are
     # packaged in the image so it boots with zero mounted config; a K8s
@@ -137,6 +169,9 @@ class HarnessSettings(BaseSettings):
     # `get_settings()` stays side-effect-free.
     context_dir: Path = Path(__file__).parent / "context_skills" / "defaults" / "context"
     skills_dir: Path = Path(__file__).parent / "context_skills" / "defaults" / "skills"
+    # When the dirs above are not the packaged ones, copy newer packaged
+    # files into them at boot (context_skills/seed.py).
+    refresh_packaged_defaults: bool = True
     # Source-kind seam for the future API/DB-backed source (Phase 2).
     context_source_kind: str = "file"
     skills_source_kind: str = "file"
@@ -176,17 +211,37 @@ class HarnessSettings(BaseSettings):
     # Connection-scoped AUTHORED cards (semantic-layer continual learning): per
     # `pg` connection, markdown cards (one fact per file) under
     # `<connection dir>/knowledge/*.md` are merged into that connection's
-    # `<prefix>knowledge` tool, overriding a pack card of the same id. Loaded
-    # independently of pack fingerprinting (a learned business definition is not
-    # a product-schema fact); kill switch mirrors the packs flag.
+    # `<prefix>knowledge` tool, overriding a pack card of the same id, and
+    # rendered into each run's "Learned facts" block. Read from disk per run and
+    # per tool call, so a new card needs no restart. Loaded independently of
+    # pack fingerprinting; kill switch mirrors the packs flag.
     generic_connection_cards_enabled: bool = True
+    # Characters of full card bodies in the "Learned facts" block; cards past
+    # the budget are listed by title only.
+    learned_facts_char_budget: int = Field(default=6000, ge=0)
+    # Where the knowledge store keeps version history (`.history/`) and eval
+    # cases (`evals/`). None → the parent of `context_dir` (the directory
+    # holding context/, skills/ and connections/ on the harness volume).
+    knowledge_root: Path | None = None
+    # Before/after evaluations of knowledge changes (`POST /learning/evaluations`).
+    # Runs at once, across all evaluations; each run's time limit; the model
+    # that scores answers (None → the model the evaluation runs on); the skill
+    # each run uses, as the chat does; and how many stored cases the tool takes.
+    learning_eval_concurrency: int = Field(default=3, ge=1, le=16)
+    learning_eval_run_timeout_seconds: float = Field(default=300.0, gt=0)
+    learning_eval_judge_model: str | None = None
+    learning_eval_skill_id: str | None = "miot-analyst"
+    learning_eval_max_cases: int = Field(default=20, ge=1, le=50)
+    # How long `run_learning_eval` waits before returning a running evaluation.
+    learning_eval_tool_wait_seconds: float = Field(default=600.0, gt=0)
     # Background knowledge distiller (semantic-layer continual learning, R3): a
     # reflector that reads interaction episodes OFF the request hot path and
     # distills recurring ungrounded business terms into human-gated candidate
     # facts. OFF by default — turning the background pass on is an ops decision,
     # and it never auto-applies anything (see knowledge_auto_promote_enabled).
     knowledge_distiller_enabled: bool = False
-    knowledge_distiller_model: str = "claude-sonnet-4-6"
+    # Unset: the distill endpoint answers 503.
+    knowledge_distiller_model: str | None = None
     # Decay window: a promoted card whose `last_confirmed` is older than this
     # resurfaces for review instead of silently rotting (safety.is_stale).
     knowledge_card_decay_days: int = Field(default=90, ge=1)
@@ -218,6 +273,35 @@ class HarnessSettings(BaseSettings):
     fs_max_total_bytes: int = Field(default=1_048_576, gt=0)
     fs_max_files: int = Field(default=64, gt=0)
     fs_max_conversations: int = Field(default=512, gt=0)
+    # `web_fetch`: lets the model read public web pages. A fetched page can
+    # carry instructions that try to send tenant data out in a URL; the tool
+    # tells the model to treat pages as data and caps fetches per run.
+    web_fetch_enabled: bool = True
+    web_fetch_max_per_run: int = Field(default=20, ge=1)
+    # `source_list` / `source_search` / `source_read`: read-only access to
+    # git repositories, cloned shallow under `<workspace_dir>/sources/<name>`
+    # on first use and fetched again when older than `source_refresh_hours`.
+    source_enabled: bool = True
+    source_repos: list[SourceRepo] = Field(
+        default_factory=lambda: [
+            SourceRepo(
+                name="modulariot",
+                url="https://github.com/microboxlabs/modulariot.git",
+                ref="trunk",
+            )
+        ]
+    )
+    source_refresh_hours: float = Field(default=6.0, gt=0)
+    source_git_timeout_seconds: float = Field(default=180.0, gt=0)
+    # `web_search`: the conversation model's query goes to a model whose
+    # provider searches the web. `web_search_model` names that model as
+    # `llmgateway:<model>`, `anthropic:<model>` or `openai:<model>`; LLM
+    # Gateway searches only with models whose provider searches. Unset, or
+    # a provider that is not configured: the tool answers with an error.
+    web_search_enabled: bool = True
+    web_search_model: str | None = None
+    web_search_max_per_run: int = Field(default=5, ge=1)
+    web_search_timeout_seconds: float = Field(default=30.0, gt=0)
 
     # Operations / observability
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
@@ -235,40 +319,9 @@ class HarnessSettings(BaseSettings):
     # prod this becomes the deployed Langfuse URL.
     langfuse_host: str = "http://localhost:3000"
 
-    # Multi-agent model assignment (per plan 12 §"Cost-control rules")
-    agents_supervisor_mode: Literal["rule", "llm"] = "rule"
-    agents_filter_expert_model: str = "claude-haiku-4-5"
-    agents_analyst_model: str = "claude-sonnet-4-6"
-    agents_synthesizer_model: str = "claude-sonnet-4-6"
-    agents_critic_model: str = "claude-sonnet-4-6"
-    agents_summarizer_model: str = "claude-haiku-4-5"
-
-    # Agentic plan-mode planner seat (Phase 3). Held separate from the canned
-    # analyst so the cheap canned path can stay on Sonnet while the agentic
-    # planner runs on a stronger tier. Opus 4.8 removed the Sonnet-4.6
-    # hallucination we saw side-by-side with Claude Code ("53 servicios" from a
-    # fuzzy grep, never running the real query). `effort` is the Opus 4.7+
-    # `output_config.effort` knob ("high" == the model's default/no-op;
-    # "xhigh"/"max" deepen reasoning at a latency+cost premium). None disables
-    # the effort/adaptive-thinking path entirely (plain Opus call).
-    agents_planner_model: str = "claude-opus-4-8"
-    agents_planner_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = "high"
-
-    # Synthesizer streaming (plan: SSE rich events). When enabled, the
-    # synthesizer's LLM call runs as a streaming `astream_events` loop
-    # and emits `thinking.delta` / `thinking.completed` SSE events so
-    # CLI clients see Claude's reasoning unfold in real time. Set to
-    # False (or `MIOT_HARNESS_AGENTS_SYNTHESIZER_STREAM=0` at runtime)
-    # to fall back to the legacy `.ainvoke()` path with no thinking
-    # visibility — the production kill switch.
-    agents_synthesizer_stream: bool = True
-    # Extended-thinking budget for the synthesizer. 0 disables thinking
-    # (the model still streams text). 4096 is a moderate default;
-    # increase up to ~16K for harder reasoning, but note the latency
-    # cost (8–15s extra at Sonnet 4.6 typical speed). Anthropic
-    # constraint: max_tokens must exceed budget_tokens — the chat-model
-    # factory bumps max_tokens automatically.
-    agents_synthesizer_thinking_budget: int = Field(default=4096, ge=0)
+    # Folds long conversations into a summary (compaction) and titles threads.
+    # Unset: both fail.
+    agents_summarizer_model: str | None = None
 
     # Tenants permitted to request `debug=true` runs. Debug runs surface
     # full tool inputs and truncated tool outputs over SSE, which on a
@@ -343,6 +396,21 @@ class HarnessSettings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("OPENAI_API_KEY", "openai_api_key"),
     )
+    # More model providers, as a JSON list of
+    # {"provider", "api_key_env", "models", "base_url"?}. The key is read from
+    # the variable `api_key_env` names. See agents/model_providers.py.
+    model_providers: str = ""
+    # The modulith, where the platform owner sets the model providers, and
+    # the shared key its /internal endpoints expect. Both set: the providers
+    # load at boot and refresh on this interval, and each run's token usage
+    # is reported for charging.
+    modulith_url: str | None = None
+    provider_key: str | None = Field(default=None, repr=False)
+    model_providers_refresh_seconds: int = Field(default=60, gt=0)
+    # The web app's public base URL, basePath included (e.g.
+    # https://host/app). Share links in tool results are made absolute with
+    # it; unset, they stay app-relative.
+    app_public_url: str = ""
 
     # Auth0 / JWT verification (defense-in-depth in front of the
     # Quarkus proxy). Off by default so unit tests and local dev see
@@ -394,6 +462,17 @@ class HarnessSettings(BaseSettings):
                     "auth_enabled=True but the following settings are unset: "
                     + ", ".join(missing)
                 )
+
+
+class ModelNotConfiguredError(ValueError):
+    pass
+
+
+def required_model(name: str | None, env_var: str) -> str:
+    """`name`, or an error naming the env var that sets it."""
+    if not name:
+        raise ModelNotConfiguredError(f"no model configured: set {env_var}")
+    return name
 
 
 @lru_cache(maxsize=1)

@@ -72,6 +72,13 @@ export interface AsyncJob {
 
 export interface JobsOverview {
   readonly counts: Record<JobState, number>;
+  /**
+   * Distinct job types and executor lanes across the whole ledger — the filter
+   * dropdowns' options. Optional: a backend older than the paginated console
+   * omits them, and the page falls back to the types on screen.
+   */
+  readonly jobTypes?: string[];
+  readonly executors?: string[];
   readonly tenantId: string;
   readonly eventType: string;
   readonly liveEventsConfigured: boolean;
@@ -108,11 +115,21 @@ export interface JobEventPayload {
   readonly updatedAt: string | null;
 }
 
+/**
+ * Filters the backend applies to the whole ledger. Everything here is
+ * server-side on purpose: the console shows one page of what can be tens of
+ * thousands of jobs, so a filter that only sifted the loaded page would hide
+ * the very rows the operator is looking for.
+ */
 export interface JobListFilters {
   readonly state?: JobState;
   readonly jobType?: string;
   readonly chainKey?: string;
+  readonly executor?: string;
+  /** Free text: job-id prefix, or a substring of correlation/chain/type. */
+  readonly search?: string;
   readonly limit?: number;
+  readonly offset?: number;
 }
 
 /**

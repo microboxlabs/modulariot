@@ -1,3 +1,5 @@
+import { dashboardDisplayName } from "./display-name";
+export { dashboardDisplayName } from "./display-name";
 /**
  * Builds a `ServerDashboardStore` from a metadata store and a document store.
  *
@@ -50,19 +52,7 @@ function defaultDocumentKey(ref: ServerDashboardRef): string {
  * store. Escaping the dot as well leaves an alphabet with no path meaning.
  */
 function encodeKeySegment(value: string): string {
-  return encodeURIComponent(value).replace(/\./g, "%2E");
-}
-
-/**
- * Copied into the metadata row so `list` does not read one document per entry.
- * A config with no name is not an error; it lists under its slug.
- */
-export function dashboardDisplayName(config: unknown, slug: string): string {
-  if (typeof config === "object" && config !== null) {
-    const named: unknown = (config as { name?: unknown }).name;
-    if (typeof named === "string" && named.trim().length > 0) return named;
-  }
-  return slug;
+  return encodeURIComponent(value).replaceAll(".", "%2E");
 }
 
 function encode(config: unknown): Uint8Array {
@@ -216,6 +206,14 @@ export function createCompositeStore(
     async remove(ref: ServerDashboardRef): Promise<void> {
       const row = await metadata.remove(ref);
       if (row !== null) await forget(row.documentKey);
+    },
+
+    async removeIfRevision(ref, revision) {
+      if (!metadata.removeIfRevision) return false;
+      const row = await metadata.removeIfRevision(ref, revision);
+      if (row === null) return false;
+      await forget(row.documentKey);
+      return true;
     },
 
     getPermissions(ref: ServerDashboardRef) {

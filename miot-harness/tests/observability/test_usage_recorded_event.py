@@ -62,6 +62,7 @@ def test_callback_emits_usage_recorded_when_progress_wired(
     assert payload == {
         "agent": "filter_expert",
         "model": "claude-haiku-4-5",
+        "provider": "",
         "input_tokens": 192,
         "output_tokens": 80,
         "cache_read_input_tokens": 5,
@@ -69,6 +70,28 @@ def test_callback_emits_usage_recorded_when_progress_wired(
     }
     assert "cost_usd" not in payload
     assert usage_events[0].run_id == "run_abc"
+
+
+def test_the_model_metadata_names_the_provider_and_model_charged(
+    memory_exporter: InMemorySpanExporter,
+) -> None:
+    events: list[HarnessEvent] = []
+    cb = AgentTelemetryCallback(agent_name="agent_loop", run_id="run_abc", progress=events.append)
+    rid = uuid4()
+    serialized = {
+        "id": ["langchain", "chat_models", "openai", "ChatOpenAI"],
+        "kwargs": {"model_name": "deepseek-chat"},
+    }
+    cb.on_chat_model_start(
+        serialized,
+        [[HumanMessage(content="hi")]],
+        run_id=rid,
+        metadata={"miot_provider": "deepseek", "miot_model": "deepseek-chat"},
+    )
+    cb.on_llm_end(_llm_result(), run_id=rid)
+
+    (usage,) = [e.data for e in events if e.type == "usage.recorded"]
+    assert (usage["provider"], usage["model"]) == ("deepseek", "deepseek-chat")
 
 
 def test_callback_skips_usage_event_when_no_progress(

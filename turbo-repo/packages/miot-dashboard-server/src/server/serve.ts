@@ -8,8 +8,14 @@
  */
 
 import { createServer, type Server } from "node:http";
-import { createDashboardHandler, pathnameOf } from "../http/handler";
+import {
+  createDashboardHandler,
+  pathnameOf,
+  type DashboardHandlerOptions,
+} from "../http/handler";
 import type { AuditSink } from "../seams/audit";
+import type { CredentialsVault } from "../seams/credentials";
+import type { DataSourceStore } from "../seams/datasources";
 import type {
   IdentityResolver,
   ScopeAuthority,
@@ -25,7 +31,13 @@ export interface ServeOptions {
   tenants: TenantAuthority;
   scopes: ScopeAuthority;
   store: ServerDashboardStore;
+  /** Omit and the datasource routes answer 404. */
+  dataSources?: DataSourceStore;
+  /** Omit, or pass a read-only vault, and the credential routes answer 404. */
+  credentials?: CredentialsVault;
   audit?: AuditSink;
+  queries?: NonNullable<DashboardHandlerOptions["queries"]>;
+  policy?: NonNullable<DashboardHandlerOptions["policy"]>;
   basePath?: string;
   cors?: CorsOptions;
   port: number;
@@ -64,7 +76,8 @@ const defaultLog = (line: Record<string, unknown>) => {
  */
 function originFor(host: string, port: number): string {
   const bracketed = host.includes(":") && !host.startsWith("[");
-  return `http://${bracketed ? `[${host}]` : host}:${port}`;
+  const hostname = bracketed ? `[${host}]` : host;
+  return `http://${hostname}:${port}`;
 }
 
 /**
@@ -99,6 +112,11 @@ export function createRequestHandler(options: ServeOptions) {
     tenants: options.tenants,
     scopes: options.scopes,
     store: options.store,
+    ...(options.queries ? { queries: options.queries } : {}),
+    ...(options.policy ? { policy: options.policy } : {}),
+    ...(options.maxBodyBytes === undefined
+      ? {}
+      : { maxBodyBytes: options.maxBodyBytes }),
     // The 500 body says nothing on purpose, so without this a failing
     // database is a wall of INTERNAL_ERROR and an empty log.
     onError: (error, request) =>
@@ -112,6 +130,8 @@ export function createRequestHandler(options: ServeOptions) {
     ...(options.cors ? { cors: options.cors } : {}),
     ...(options.audit ? { audit: options.audit } : {}),
     ...(options.basePath ? { basePath: options.basePath } : {}),
+    ...(options.dataSources ? { dataSources: options.dataSources } : {}),
+    ...(options.credentials ? { credentials: options.credentials } : {}),
   });
 
   const docs =

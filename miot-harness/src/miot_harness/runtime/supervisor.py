@@ -1,54 +1,48 @@
-"""HarnessSupervisor — top-level run orchestrator.
+"""HarnessSupervisor: runs one user turn through the agent loop.
 
-Routes incoming requests via either:
-- the **LLM intent router** (`LLMIntentRouter`) when injected — the
-  Phase-E surface; or
-- the **keyword router** (`IntentRouter`) — the Plan 12 default and the
-  fallback for "auto" mode below the LLM's confidence threshold.
-
-Then dispatches to:
-- `data_graph` (DATA_QUERY, canned data path)
-- `agentic_graph` (DATA_AGENTIC, composable-primitive exploration)
-- `meta_agent_node` (DATA_META, schema/primer questions; no SQL)
-- `storytelling` module (STORYTELLING_RUN, mocked narrative path)
-- `direct_agent_node` (DIRECT / OTHER, small talk — the harness
-  composes the reply; the old "client renders" contract left
-  ``answer`` null and no client implemented it, see #628)
-
-`conversation_id` is hydrated/appended via `ConversationStore` so
-multi-turn chats accumulate context across `/runs` calls.
+Around the loop it resolves the permission policy, seeds and replays the
+conversation, adds the tenant's context and any invoked skill, stores the
+turn and compacts long conversations.
 """
 
 from __future__ import annotations
 
 import asyncio
-import inspect
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage
+from langchain_core.messages.utils import count_tokens_approximately
 
-from miot_harness.agents.direct_agent import (
-    FALLBACK_DIRECT_ANSWER,
-    direct_agent_node,
-)
-from miot_harness.agents.meta_agent import (
-    MetaAgentCatalogEntry,
-    meta_agent_node,
-)
-from miot_harness.agents.synthesizer import (
+from miot_harness.config import HarnessSettings, get_settings
+from miot_harness.context_skills.registry import ContextSkillsBundle
+from miot_harness.context_skills.skill_models import PlaybookSkill
+from miot_harness.datasource.knowledge.learned import LearnedFacts
+from miot_harness.datasource.provider import DataSourceProfile
+from miot_harness.knowledge.playbooks import trainer_playbook
+from miot_harness.knowledge.primer import PrimerUpdates
+from miot_harness.knowledge.store import KnowledgeError, KnowledgeStore, virtual_path
+from miot_harness.observability.spans import agent_span
+from miot_harness.runtime.answer_contract import (
     emit_grounding_gap,
     extract_assumptions,
     harden_answer,
 )
-from miot_harness.config import HarnessSettings, get_settings
-from miot_harness.context_skills.registry import ContextSkillsBundle
-from miot_harness.datasource.provider import DataSourceProfile
-from miot_harness.observability.spans import agent_span
 from miot_harness.runtime.answer_render import render_answer_with_format
 from miot_harness.runtime.approvals import ApprovalRegistry
+from miot_harness.runtime.attachments import with_markers
+from miot_harness.runtime.commands import (
+    PLAYBOOK_COMMANDS,
+    RUN_LEARNING_EVAL_TOOL,
+    Command,
+    learning_instruction,
+    parse_command,
+    render_context,
+    render_diff,
+    render_layers,
+)
 from miot_harness.runtime.context import (
     MAX_CONVERSATION_HISTORY_TURNS,
     HarnessContext,
@@ -58,23 +52,25 @@ from miot_harness.runtime.conversation import (
     ConversationHistory,
     ConversationStore,
     ConversationTurn,
+    history_tokens,
     to_messages,
 )
+from miot_harness.runtime.conversation_backend import (
+    ConversationBackend,
+    doc_to_history,
+    history_to_doc,
+)
 from miot_harness.runtime.conversation_policy import ConversationPolicyStore
-from miot_harness.runtime.data_graph import instrument_model
 from miot_harness.runtime.event_bus import RunEventBus
 from miot_harness.runtime.events import HarnessEvent
-from miot_harness.runtime.intent_router import LLMIntentRouter
-from miot_harness.runtime.mode_resolver import ModeAccessDenied, resolve_mode
 from miot_harness.runtime.permissions import (
     PermissionMode,
     PermissionPolicy,
     PermissionRule,
 )
 from miot_harness.runtime.policy import resolve_effective_mode
-from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 from miot_harness.runtime.run_store import HarnessRunRecord, JsonRunStore
-from miot_harness.storytelling.module import StorytellingModule
+from miot_harness.runtime.tenancy import data_refusal
 from miot_harness.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -85,6 +81,51 @@ logger = logging.getLogger(__name__)
 # still governs what actually reaches the model.
 _MAX_SEEDED_TURNS = MAX_CONVERSATION_HISTORY_TURNS
 
+# The answer when no conversation model could be built (no API key, or the
+# model failed to load at boot).
+_CONTEXT_KEYS = ("model", "window", "used", "ratio", "breakdown")
+
+NO_MODEL_ANSWER = (
+    "The assistant is not available: no conversation model is configured. "
+    "Ask an administrator to set one up."
+)
+
+
+def _with_canonical_answer(
+    messages: list[BaseMessage], answer: str
+) -> list[BaseMessage]:
+    """`messages` ending in the answer the user was shown.
+
+    The loop reports what the model wrote; the record carries what
+    `harden_answer` made of it. Storing the first would replay an answer the
+    user never saw, and for a repaired JSON-block response an invalid one.
+    """
+
+    if not messages or not answer:
+        return messages
+    last = messages[-1]
+    if isinstance(last, AIMessage) and not last.tool_calls:
+        return [*messages[:-1], AIMessage(content=answer)]
+    return [*messages, AIMessage(content=answer)]
+
+
+def _snapshot(history: ConversationHistory | None) -> ConversationHistory | None:
+    """A copy of `history` that later appends cannot change.
+
+    The store hands out the live object, and routing awaits before the turns
+    are read. A concurrent run in the same conversation finishing in that
+    window would otherwise land its turn in this request's prior context.
+    """
+
+    if history is None:
+        return None
+    return ConversationHistory(
+        conversation_id=history.conversation_id,
+        turns=list(history.turns),
+        summary=history.summary,
+    )
+
+
 _JSON_BLOCKS_INSTRUCTION = (
     "# Output format: JSON blocks\n\n"
     "Return ONLY a JSON array of typed blocks as your entire answer — no prose "
@@ -93,86 +134,81 @@ _JSON_BLOCKS_INSTRUCTION = (
     '- "markdown": value is a Markdown string.\n'
     '- "url": value is an object {"url": <string>, "name": <string>}.\n'
     "Emit multiple blocks to convey different parts of the answer.\n"
-    "This contract applies ONLY to the final user-facing answer; internal "
-    "protocol outputs (planner action objects, tool-call JSON, verdicts) "
-    "keep their own formats."
+    "Work out what to say before you start writing the answer, not in it: the "
+    "answer starts at the opening bracket.\n"
+    "This contract applies ONLY to the final user-facing answer; tool calls "
+    "keep their own format."
 )
 
 
 class HarnessSupervisor:
     def __init__(
         self,
-        router: IntentRouter,
         tools: ToolRegistry,
-        stories: StorytellingModule,
         run_store: JsonRunStore,
-        data_graph: Any | None = None,
         *,
-        llm_router: LLMIntentRouter | None = None,
-        agentic_graph: Any | None = None,
         agent_loop: Any | None = None,
-        meta_model: BaseChatModel | None = None,
-        meta_primer: str = "",
-        meta_catalog: list[MetaAgentCatalogEntry] | None = None,
         conversation_store: ConversationStore | None = None,
-        conversation_token_budget: int = 24_000,
+        conversation_tool_token_budget: int = 48_000,
         # Folds a conversation's older turns into its summary once the store's
         # turn cap is passed. None leaves histories to the token trim alone.
         conversation_summarizer: Callable[[ConversationHistory], Awaitable[str]] | None = None,
-        router_context_turns: int = 2,
-        # Empty default = no lock configured yet; the lifespan overwrites
-        # this from the active datasource profile at boot. An empty lock
-        # refuses gated (agentic/canned) modes until configured — secure by
-        # default rather than hardcoding any one datasource's tenant here.
+        # The primary connection's tenant lock, set by the lifespan at boot.
+        # Empty means the connection declares none.
         tenant_lock: str = "",
         event_bus: RunEventBus | None = None,
         checkpoint_every_n_events: int = 10,
         approval_registry: ApprovalRegistry | None = None,
         conversation_policy_store: ConversationPolicyStore | None = None,
     ) -> None:
-        self.router = router
         self.tools = tools
-        self.stories = stories
         self.run_store = run_store
-        self.data_graph = data_graph
-        self.llm_router = llm_router
-        self.agentic_graph = agentic_graph
-        # Single-agent loop (spec 2026-07-02). When set, DATA_AGENTIC runs
-        # this instead of agentic_graph. Both stay wire-able so the flag can
-        # flip per deployment while golden evals compare the two.
+        # `AgentLoopRunners`, set by the lifespan once a model is built.
         self.agent_loop = agent_loop
-        self.meta_model = meta_model
-        self.meta_primer = meta_primer
-        self.meta_catalog: list[MetaAgentCatalogEntry] = meta_catalog or []
         self.conversation_store = conversation_store
-        self.conversation_token_budget = conversation_token_budget
+        self.conversation_tool_token_budget = conversation_tool_token_budget
         self.conversation_summarizer = conversation_summarizer
-        self.router_context_turns = router_context_turns
+        # Saves each conversation after a run and loads one this process does
+        # not hold; set by the lifespan when the modulith is configured.
+        self.conversation_backend: ConversationBackend | None = None
+        # The save in flight per conversation, so saves land in order.
+        self._saves: dict[str, asyncio.Task[None]] = {}
         self.tenant_lock = tenant_lock
         self.event_bus = event_bus
         self.checkpoint_every_n_events = checkpoint_every_n_events
         self.approval_registry = approval_registry
         self.conversation_policy_store = conversation_policy_store
-        # Set by the lifespan after boot; None = legacy defaults.
+        # Set by the lifespan after boot.
         self.profile: DataSourceProfile | None = None
         # Set by the lifespan after the context/skills boot; None when the
-        # subsystem is disabled or failed to load. The global context
-        # block is already folded into `meta_primer` at boot — this bundle
-        # supplies the per-request tenant overlay and the queryable facts.
+        # subsystem is disabled or failed to load.
         self.context_skills: ContextSkillsBundle | None = None
-        # Set by the lifespan after boot to the primary connection's name (e.g.
-        # "acs"); None in legacy/dev. Stamped onto ground-or-flag assumptions so
-        # the review surface can stage a candidate against the right connection.
+        # Approved authored knowledge cards, rendered per run; set by the
+        # lifespan when a connection has an authored-cards dir.
+        self.learned_facts: LearnedFacts | None = None
+        # Edited descriptions of tenant-locked connections; set by the lifespan.
+        self.primer_updates: PrimerUpdates | None = None
+        # A tenant's editable knowledge, for `/layers` and `/diff`; set by the lifespan.
+        self.knowledge_store_for: Callable[[str], KnowledgeStore] | None = None
+        # The primary connection's name (e.g. "acs"), stamped onto assumptions
+        # so the review surface stages a candidate against the right connection.
         self.primary_connection_name: str | None = None
+        # Called with each finished run to charge its tokens; set by the
+        # lifespan when the modulith is configured.
+        self.usage_reporter: Callable[[HarnessRunRecord, HarnessContext], None] | None = None
+        # Records of runs still in flight, so a stream subscriber can replay
+        # events not yet checkpointed to the run store.
+        self._live_records: dict[str, HarnessRunRecord] = {}
 
     def _stamp_connection(
         self, assumptions: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
-        """Attach the run's connection to each declared assumption. The
-        synthesizer self-reports term/interpretation/predicate; the connection is
-        the harness's to assign (the LLM can't reliably know it) and defaults to
-        the primary connection this deployment serves. Never overwrites a
-        connection already present, and a no-op when none is configured."""
+        """Attach the run's connection to each declared assumption.
+
+        The model reports term, interpretation and predicate; the connection
+        is the primary one this deployment serves. An assumption that already
+        names a connection keeps it.
+        """
         conn = self.primary_connection_name
         if not conn:
             return list(assumptions)
@@ -183,30 +219,19 @@ class HarnessSupervisor:
             for a in assumptions
         ]
 
-    def _meta_primer_for(self, tenant_id: str) -> str:
-        """meta_primer (datasource primer + global context) plus this
-        tenant's overlay block, if any."""
-        if self.context_skills is None:
-            return self.meta_primer
-        tenant_block = self.context_skills.primer_for(tenant_id).tenant_block
-        if not tenant_block:
-            return self.meta_primer
-        return f"{self.meta_primer}\n\n# System context (tenant)\n{tenant_block}"
-
-    def _meta_catalog_for(self, tenant_id: str) -> list[MetaAgentCatalogEntry]:
-        """The datasource catalog plus this tenant's system facts and the
-        available-skills index."""
-        if self.context_skills is None:
-            return self.meta_catalog
-        return self.meta_catalog + self.context_skills.facts_for(tenant_id)
-
     async def run(
         self,
         request: UserRequest,
         *,
         run_id_override: str | None = None,
+        caller_token: str | None = None,
+        organization: str | None = None,
     ) -> HarnessRunRecord:
-        ctx = request.to_context()
+        """`caller_token` and `organization` come from the backend proxy's
+        headers, never the body; MCP skills call back as that caller."""
+        ctx = request.to_context().model_copy(
+            update={"caller_token": caller_token, "organization": organization}
+        )
         if run_id_override is not None:
             # The SSE endpoint pre-mints a run_id so it can return it
             # immediately and the caller can subscribe to
@@ -228,12 +253,20 @@ class HarnessSupervisor:
             conversation_id=request.conversation_id,
             tenant_id=ctx.tenant_id,
             user_id=ctx.user_id,
+            model=ctx.model or _model_name(getattr(self.agent_loop, "default_model", None)),
+            skill_id=request.skill_id,
         )
+        self._live_records[ctx.run_id] = record
 
         def progress(event: HarnessEvent) -> None:
             self._emit(record, event)
 
         progress(HarnessEvent(run_id=ctx.run_id, type="run.started", message="Run started"))
+        if self.event_bus is not None:
+            # Saved from the first event, so a restart before the first
+            # checkpoint still leaves a record the next process marks interrupted.
+            self.run_store.save(record)
+        prep_started = time.monotonic()
         if mode_denied:
             progress(
                 HarnessEvent(
@@ -244,91 +277,78 @@ class HarnessSupervisor:
                 )
             )
 
-        # Hydrate prior turns from `ConversationStore` before routing: the
-        # router reads the last of them, and a replayed transcript has to be
-        # seeded first for there to be any. Empty list when no store, no
-        # conversation_id, or no prior history.
-        prior_messages = self._hydrate_history(request, ctx)
-
-        # Route via the LLM router when injected; else fall back to the
-        # keyword router (Plan 12 default; the "auto" mode confidence
-        # fallback also lands here under the hood).
+        turn_messages: list[BaseMessage] | None = None
         try:
-            route = await self._resolve_route(request, ctx)
-        except ModeAccessDenied as exc:
-            record.answer = str(exc)
-            record.status = "completed"
-            progress(
-                HarnessEvent(
-                    run_id=ctx.run_id,
-                    type="answer.completed",
-                    message=f"Mode refused: {exc}",
-                    data={
-                        "mode": request.mode,
-                        "tenant_id": request.tenant_id,
-                        "reason": "mode_access_denied",
-                    },
+            # Seed a replayed transcript here and only here: a second call could
+            # reset a history a concurrent run has appended to meanwhile. Hold a
+            # snapshot, so a run in the same conversation finishing while this one
+            # awaits cannot slip its turn into this request's prior context.
+            await self._load_saved(request, ctx)
+            saved_loaded = time.monotonic()
+            history = _snapshot(self._seeded_history(request, ctx))
+
+            # `/compact`, `/context` and a trainer's `/layers` and `/diff` are
+            # answered here, without the agent loop, and their turns are not
+            # stored. A trainer's other commands run the loop on an instruction.
+            command = parse_command(request.message, trainer=ctx.trainer)
+            loop_request = request
+            learning: Command | None = None
+            if command is not None and not self._answered_here(command):
+                loop_request = request.model_copy(
+                    update={"message": learning_instruction(command)}
                 )
+                learning, command = command, None
+            prior_messages: list[BaseMessage] = []
+            if command is None:
+                ctx = ctx.model_copy(
+                    update={
+                        "data_refusal": data_refusal(
+                            ctx.tenant_id,
+                            settings=settings,
+                            profile=self.profile,
+                            connection_lock=self.tenant_lock or None,
+                        )
+                    }
+                )
+                prior_messages = self._project_history(history)
+                prior_messages = self._inject_tenant_context(ctx, prior_messages)
+                prior_messages = self._inject_learned_facts(ctx, prior_messages)
+                prior_messages = await self._inject_skill(request, ctx, prior_messages)
+                prior_messages = self._inject_playbook(learning, prior_messages)
+                prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
+            logger.info(
+                "Run %s: prepared in %.0f ms (saved conversation %.0f ms)",
+                ctx.run_id,
+                (time.monotonic() - prep_started) * 1000,
+                (saved_loaded - prep_started) * 1000,
             )
-            self._finalize_answer(record, ctx)
-            self.run_store.save(record)
-            self._close_bus(ctx.run_id)
-            return record
 
-        route = self._apply_catalog_route_override(route)
-
-        progress(
-            HarnessEvent(
-                run_id=ctx.run_id,
-                type="route.selected",
-                message=route.reason,
-                data={"route": route.route},
-            )
-        )
-
-        prior_messages = self._inject_skill(request, ctx, prior_messages)
-        prior_messages = self._inject_json_blocks_instruction(ctx, prior_messages)
-
-        try:
-            if route.route == HarnessRoute.DATA_QUERY:
-                await self._run_data_query(
-                    request, ctx, record, progress, route.route, prior_messages
-                )
-            elif route.route == HarnessRoute.DATA_META:
-                await self._run_data_meta(
-                    request, ctx, record, progress, route.route, prior_messages
-                )
-            elif route.route == HarnessRoute.DATA_AGENTIC:
-                await self._run_data_agentic(
-                    request, ctx, record, progress, route.route, prior_messages
-                )
-            elif route.route == HarnessRoute.STORYTELLING_RUN:
-                await self._run_storytelling(ctx, record, progress)
+            if command is not None:
+                await self._run_command(command, request, ctx, record, progress, history)
             else:
-                # DIRECT / OTHER (and any future unrouted kind): the
-                # harness composes the reply (#628). Leaving answer
-                # null here surfaced as "(no answer recorded)" in every
-                # client.
-                await self._run_direct(
-                    request, ctx, record, progress, route.route, prior_messages
+                turn_messages = await self._run_loop(
+                    loop_request, ctx, record, progress, prior_messages
                 )
-        except asyncio.CancelledError:
-            # POST /runs/{id}/cancel cancelled this task. Surface a
-            # terminal `run.failed` with `reason=cancelled` so SSE
-            # subscribers get an explicit terminator (not a silent close),
-            # persist the partial record, then re-raise so the asyncio
-            # task transitions to CANCELLED.
+        except asyncio.CancelledError as cancel:
+            # POST /runs/{id}/cancel cancelled this task, or shutdown
+            # interrupted it (`task.cancel("interrupted")`). Surface a
+            # terminal `run.failed` with the reason so SSE subscribers get
+            # an explicit terminator (not a silent close), persist the
+            # partial record, then re-raise so the asyncio task transitions
+            # to CANCELLED.
+            reason = "interrupted" if cancel.args == ("interrupted",) else "cancelled"
             record.status = "failed"
             progress(
                 HarnessEvent(
                     run_id=ctx.run_id,
                     type="run.failed",
-                    message="Run cancelled",
-                    data={"error": "cancelled", "reason": "cancelled"},
+                    message=f"Run {reason}",
+                    data={"error": reason, "reason": reason},
                 )
             )
             self._finalize_answer(record, ctx)
             self.run_store.save(record)
+            self._report_usage(record, ctx)
             self._close_bus(ctx.run_id)
             raise
         except Exception as exc:  # noqa: BLE001 — supervisor must not propagate
@@ -351,29 +371,265 @@ class HarnessSupervisor:
             )
             self._finalize_answer(record, ctx)
             self.run_store.save(record)
+            self._report_usage(record, ctx)
             self._close_bus(ctx.run_id)
             return record
 
         # Persist the turn so the next call in this conversation sees it.
         conversation_key = self._conversation_key(request, ctx)
-        if self.conversation_store is not None and conversation_key and record.answer:
+        if (
+            command is None
+            and self.conversation_store is not None
+            and conversation_key
+            and record.answer
+        ):
+            self._restore_evicted(conversation_key, history)
             self.conversation_store.append(
                 conversation_key,
                 ConversationTurn(
-                    user_message=request.message,
+                    user_message=with_markers(request.message, request.attachments),
                     assistant_answer=record.answer,
+                    messages=tuple(turn_messages or ()),
                 ),
             )
             await self._compact_history(conversation_key)
             history = self.conversation_store.get(conversation_key)
             record.conversation_summary = history.summary if history else None
 
+        self._save_later(request, ctx)
         record.status = "completed"
         progress(HarnessEvent(run_id=ctx.run_id, type="run.completed", message="Run completed"))
         self._finalize_answer(record, ctx)
         self.run_store.save(record)
+        self._report_usage(record, ctx)
         self._close_bus(ctx.run_id)
         return record
+
+    async def _run_command(
+        self,
+        command: Command,
+        request: UserRequest,
+        ctx: HarnessContext,
+        record: HarnessRunRecord,
+        progress: Any,
+        history: ConversationHistory | None,
+    ) -> None:
+        """Answer a command without the agent loop. Its turn is not stored."""
+        if command.name == "compact":
+            record.answer = await self._compact_now(request, ctx, focus=command.argument)
+        elif command.name in ("layers", "diff", "test"):
+            record.answer = self._learning_answer(command, request, ctx)
+        else:
+            report = self._context_report(ctx, history)
+            if report is None:
+                record.answer = "Context usage is not available: no conversation model is set up."
+            else:
+                record.answer = render_context(report)
+                record.artifacts.append({"type": "context", **report})
+        key = self._conversation_key(request, ctx)
+        stored = (
+            self.conversation_store.get(key)
+            if self.conversation_store is not None and key is not None
+            else None
+        )
+        record.conversation_summary = stored.summary if stored else None
+        progress(
+            HarnessEvent(
+                run_id=ctx.run_id,
+                type="answer.completed",
+                message=f"/{command.name} answered",
+                data={"length": len(record.answer), "command": command.name},
+            )
+        )
+
+    def _answered_here(self, command: Command) -> bool:
+        """`/test` is answered here only to say evaluations are unavailable."""
+        if command.name == "test":
+            return RUN_LEARNING_EVAL_TOOL not in self.tools.names()
+        return command.answered_here
+
+    def _learning_answer(
+        self, command: Command, request: UserRequest, ctx: HarnessContext
+    ) -> str:
+        if command.name == "test":
+            return "Evaluations are not available in this deployment yet."
+        if self.knowledge_store_for is None:
+            return "The knowledge workspace is not available in this deployment."
+        try:
+            store = self.knowledge_store_for(ctx.tenant_id)
+            if command.name == "layers":
+                layers = store.layers()
+                for layer in layers:
+                    for item in layer["items"]:
+                        item["path"] = virtual_path(layer["layer"], item["id"], item["target"])
+                return render_layers(layers)
+            conversation = request.conversation_id or ctx.thread_id
+            return render_diff(store.conversation_changes(conversation))
+        except KnowledgeError as exc:
+            return f"The knowledge workspace could not be read: {exc.detail}"
+
+    def _inject_playbook(
+        self, command: Command | None, prior_messages: list[BaseMessage]
+    ) -> list[BaseMessage]:
+        """A trainer playbook command's guidance, as an active skill."""
+        if command is None or command.name not in PLAYBOOK_COMMANDS:
+            return prior_messages
+        body = trainer_playbook(get_settings().skills_dir, command.name)
+        if body is None:
+            return prior_messages
+        guidance = SystemMessage(
+            content=(
+                f"# Active skill: {command.name}\n\n"
+                f"Follow this trainer playbook for this run:\n\n{body}"
+            )
+        )
+        return [guidance, *prior_messages]
+
+    async def _compact_now(self, request: UserRequest, ctx: HarnessContext, *, focus: str) -> str:
+        key = self._conversation_key(request, ctx)
+        if self.conversation_store is None or key is None:
+            return "There is no conversation to compact."
+        summarizer = self.conversation_summarizer
+        if summarizer is None:
+            return "Compaction is not available: no summarizer model is set up."
+        held = self.conversation_store.get(key)
+        if held is None or not held.turns:
+            return "Nothing to compact yet."
+        turns = len(held.turns)
+        before = history_tokens(held)
+
+        async def fold(history: ConversationHistory) -> str:
+            if focus:
+                return await summarizer(history, focus=focus)  # type: ignore[call-arg]
+            return await summarizer(history)
+
+        try:
+            done = await self.conversation_store.compact(key, summarizer=fold)
+        except Exception:  # noqa: BLE001 — the history is left as it was
+            logger.warning("/compact failed; keeping the full history", exc_info=True)
+            return "Compaction failed and the history is unchanged. Try again."
+        compacted = self.conversation_store.get(key)
+        if not done or compacted is None or not compacted.summary:
+            return "Nothing to compact yet."
+        after = history_tokens(compacted)
+        quoted = "\n".join(f"> {line}" for line in compacted.summary.splitlines())
+        return (
+            f"Compacted {turns} turns into a summary: history went from about "
+            f"{before:,} to {after:,} tokens.\n\n{quoted}"
+        )
+
+    def _context_report(
+        self, ctx: HarnessContext, history: ConversationHistory | None
+    ) -> dict[str, Any] | None:
+        """How the next request in this conversation would fill the window."""
+        runner_for = getattr(self.agent_loop, "runner_for", None)
+        if runner_for is None:
+            return None
+        try:
+            runner = runner_for(ctx.model, ctx.effort, ctx.trainer)
+        except ValueError:
+            return None
+        prefix = runner.prefix_tokens
+        projected = self._project_history(history)
+        summary = (
+            count_tokens_approximately(projected[:1])
+            if history is not None and history.summary and projected
+            else 0
+        )
+        total = count_tokens_approximately(projected) if projected else 0
+        parts = {
+            "system": prefix["system"],
+            "tools": prefix["tools"],
+            "summary": summary,
+            "history": total - summary,
+        }
+        used = sum(parts.values())
+        window = runner.context_window
+        settings = get_settings()
+        return {
+            "model": runner.model_name,
+            "window": window,
+            "used": used,
+            "ratio": round(used / window, 4),
+            "free": max(0, window - used),
+            "tool_count": len(runner.native_tools),
+            "turns": len(history.turns) if history is not None else 0,
+            "compact_at": int(
+                settings.conversation_tool_token_budget * settings.conversation_compact_at_ratio
+            ),
+            **parts,
+        }
+
+    async def _load_saved(self, request: UserRequest, ctx: HarnessContext) -> None:
+        """Load a conversation this process does not hold from the backend.
+
+        A restart or deploy empties the in-memory store; the saved copy has
+        every turn with its tool calls and results, which the caller's text
+        replay does not. A failed load leaves the replay to seed as before.
+        """
+        key = self._conversation_key(request, ctx)
+        store, backend = self.conversation_store, self.conversation_backend
+        if key is None or store is None or backend is None or store.get(key) is not None:
+            return
+        try:
+            doc = await backend.load(key, tenant_id=ctx.tenant_id)
+            loaded = doc_to_history(key, doc) if doc is not None else None
+        except Exception:  # noqa: BLE001 — memory upkeep must not fail the run
+            logger.warning("Could not load the saved conversation; using the replay", exc_info=True)
+            return
+        if loaded is not None and store.get(key) is None:
+            loaded.saved = True
+            store.seed(loaded)
+
+    def _save_later(self, request: UserRequest, ctx: HarnessContext) -> None:
+        """Save the conversation in the background, after any save still in
+        flight for it, so the answer is not held up and saves land in order."""
+        key = self._conversation_key(request, ctx)
+        store, backend = self.conversation_store, self.conversation_backend
+        if key is None or store is None or backend is None:
+            return
+        history = store.get(key)
+        if history is None:
+            return
+        history.saved = True
+        doc = history_to_doc(history)
+        default_model = getattr(self.agent_loop, "default_model", None)
+        meta = {
+            "tenantId": ctx.tenant_id,
+            "userId": ctx.user_id,
+            "conversationId": request.conversation_id,
+            "model": ctx.model or default_model,
+        }
+        previous = self._saves.get(key)
+
+        async def save() -> None:
+            if previous is not None:
+                await asyncio.gather(previous, return_exceptions=True)
+            try:
+                await backend.save(key, doc, meta=meta)
+            except Exception:  # noqa: BLE001 — memory upkeep must not fail the run
+                logger.warning("Could not save the conversation", exc_info=True)
+
+        task = asyncio.get_running_loop().create_task(save())
+        self._saves[key] = task
+
+        def forget(done: asyncio.Task[None]) -> None:
+            if self._saves.get(key) is done:
+                del self._saves[key]
+
+        task.add_done_callback(forget)
+
+    async def drain_saves(self) -> None:
+        """Wait for saves still in flight, for shutdown."""
+        await asyncio.gather(*self._saves.values(), return_exceptions=True)
+
+    def _report_usage(self, record: HarnessRunRecord, ctx: HarnessContext) -> None:
+        if self.usage_reporter is None:
+            return
+        try:
+            self.usage_reporter(record, ctx)
+        except Exception:  # noqa: BLE001 — charging must not fail the run
+            logger.exception("usage report for run %s could not be queued", record.run_id)
 
     def _finalize_answer(self, record: HarnessRunRecord, ctx: HarnessContext) -> None:
         """Render `record.answer` into the caller-requested format in place.
@@ -390,50 +646,11 @@ class HarnessSupervisor:
         record.answer = rendered
         record.answer_format = effective_fmt
 
-    async def _invoke_graph_emitting(
-        self, graph: Any, initial_state: dict[str, Any], record: HarnessRunRecord
-    ) -> dict[str, Any]:
-        """Run a compiled graph, landing its `_events` on the record AS each
-        node completes rather than after the whole run.
-
-        LangGraph's `astream(stream_mode="values")` yields the merged state
-        after every node; emitting the not-yet-seen tail of `_events` per
-        snapshot makes `GET /runs/{id}/stream` narrate the run live — the
-        point of the SSE endpoint. Before this, events were drained only
-        after `ainvoke` returned, so subscribers saw `route.selected` and
-        then one flush at run end (~40s of silence on agentic runs).
-
-        Falls back to `ainvoke` + post-hoc drain when the graph doesn't
-        implement `astream` as an async generator (unit-test doubles /
-        AsyncMock). Events are deduped by `event.id` so replace-vs-append
-        channel semantics can't double-emit.
-        """
-        final_state: dict[str, Any]
-        astream = getattr(graph, "astream", None)
-        if astream is None or not inspect.isasyncgenfunction(astream):
-            final_state = await graph.ainvoke(initial_state)
-            for evt in final_state.get("_events") or []:
-                self._emit(record, evt)
-            return final_state
-
-        emitted_ids: set[str] = set()
-        final_state = initial_state
-        async for state in astream(initial_state, stream_mode="values"):
-            final_state = state
-            for evt in final_state.get("_events") or []:
-                if evt.id not in emitted_ids:
-                    emitted_ids.add(evt.id)
-                    self._emit(record, evt)
-        return final_state
-
     def _emit(self, record: HarnessRunRecord, event: HarnessEvent) -> None:
         """Single funnel for landing a `HarnessEvent` on a run record.
 
-        Stamps a monotonic `seq` on the event the moment it lands. Graph-
-        emitted events arrive with the default `seq=0` (graphs don't know
-        record state); rewriting here keeps the supervisor as the single
-        source of truth for run-wide ordering — what the SSE stream's
-        `Last-Event-ID` replay leans on.
+        Stamps a monotonic `seq` on the event as it lands, which the SSE
+        stream's `Last-Event-ID` replay uses.
 
         When an `event_bus` is injected, the event is also published to
         every live subscriber for this run. The debounced run_store
@@ -442,6 +659,10 @@ class HarnessSupervisor:
 
         event.seq = len(record.events)
         record.events.append(event)
+        if event.type == "context.usage" and event.data.get("agent") == "agent_loop":
+            # Kept as each turn reports it, so a run that fails later still
+            # records how full the window was.
+            record.context = {k: v for k, v in event.data.items() if k in _CONTEXT_KEYS}
         if self.event_bus is not None:
             self.event_bus.publish(record.run_id, event)
             # Periodic mid-flight checkpoint so SSE reconnects find a
@@ -455,17 +676,99 @@ class HarnessSupervisor:
             ):
                 self.run_store.save(record)
 
+    def live_record(self, run_id: str) -> HarnessRunRecord | None:
+        """The in-memory record of a run still in flight in this process."""
+
+        return self._live_records.get(run_id)
+
+    def live_records(self) -> list[HarnessRunRecord]:
+        """Every run still in flight in this process."""
+
+        return list(self._live_records.values())
+
+    def forget_live(self, run_id: str) -> None:
+        self._live_records.pop(run_id, None)
+
     def _close_bus(self, run_id: str) -> None:
         """Tell the event bus this run is done. No-op when no bus is
         injected. Called at every terminal point in `run()` so SSE
-        subscribers' iterators always end — even on mode refusal and
-        graph exceptions.
+        subscribers' iterators always end, failures included.
         """
 
+        self.forget_live(run_id)
         if self.event_bus is not None:
             self.event_bus.close(run_id)
 
-    def _inject_skill(
+    def _inject_tenant_context(
+        self, ctx: HarnessContext, prior_messages: list[BaseMessage]
+    ) -> list[BaseMessage]:
+        """Prepend this tenant's context overlay, system facts, the rules and
+        procedures its trainers wrote, and its edited data source descriptions.
+
+        The loop's system prompt is the prompt-cache prefix, shared by every
+        tenant, so per-tenant context rides in the user turn instead, like
+        an invoked skill. Each part changes only when its files do (or the
+        run carries a knowledge overlay).
+        """
+
+        blocks: list[str] = []
+        overlay = ctx.knowledge_overlay
+        bundle = self.context_skills
+        if bundle is not None:
+            tenant_block = bundle.primer_for(ctx.tenant_id).tenant_block
+            if tenant_block:
+                blocks.append(f"# System context (tenant)\n{tenant_block}")
+            indexed = self._indexed_skills()
+            facts = [
+                f"- {entry.title}\n  {entry.body}"
+                for entry in bundle.facts_for(ctx.tenant_id)
+                if (entry.name, entry.body) not in indexed
+            ]
+            if facts:
+                blocks.append("# System facts (tenant)\n" + "\n".join(facts))
+            if bundle.overlays is not None:
+                blocks.append(bundle.overlays.rules_block(ctx.tenant_id, overlay))
+                blocks.append(bundle.overlays.skills_block(ctx.tenant_id, overlay))
+        if self.primer_updates is not None:
+            blocks.append(self.primer_updates.block(ctx.tenant_id, overlay))
+        blocks = [b for b in blocks if b]
+        if not blocks:
+            return prior_messages
+        return [SystemMessage(content="\n\n".join(blocks)), *prior_messages]
+
+    def _inject_learned_facts(
+        self, ctx: HarnessContext, prior_messages: list[BaseMessage]
+    ) -> list[BaseMessage]:
+        """Prepend the approved authored cards this tenant may use, and for a
+        trainer how to propose new ones. Like the tenant context, it rides in
+        the user turn, not the cached system prompt."""
+
+        if self.learned_facts is None:
+            return prior_messages
+        blocks = [self.learned_facts.render(ctx.tenant_id, ctx.knowledge_overlay)]
+        if ctx.trainer:
+            blocks.append(self.learned_facts.trainer_guidance(ctx.tenant_id))
+        text = "\n\n".join(b for b in blocks if b)
+        if not text:
+            return prior_messages
+        return [SystemMessage(content=text), *prior_messages]
+
+    def _indexed_skills(self) -> set[tuple[str, str]]:
+        """(fact name, body) of the skills the loop's system prompt already
+        lists (see `render_skills_index`), so the facts do not repeat them. A
+        tenant's own version of a skill has another body and stays."""
+
+        if self.context_skills is None or self.profile is None:
+            return set()
+        return {
+            (f"skill:{skill.id}", skill.when_to_use or skill.description or skill.name)
+            for loaded in self.context_skills.playbooks_for(
+                self.profile.tenant_lock or "", connection=self.profile.name, learned=False
+            )
+            if isinstance(skill := loaded.skill, PlaybookSkill)
+        }
+
+    async def _inject_skill(
         self,
         request: UserRequest,
         ctx: HarnessContext,
@@ -475,14 +778,12 @@ class HarnessSupervisor:
 
         When ``request.skill_id`` resolves to a skill the tenant can see,
         its SKILL.md body is injected as a ``SystemMessage`` at the front
-        of the conversation so every run path (direct/meta/data/agentic)
-        follows it — the invocation half of skills. Unknown or bodyless
-        ids are ignored and the run proceeds normally (never a hard fail).
+        of the conversation. Unknown or bodyless ids are ignored.
         """
         if not request.skill_id or self.context_skills is None:
             return prior_messages
-        activated = self.context_skills.activate_skill(
-            ctx.tenant_id, request.skill_id
+        activated = await self.context_skills.activate_skill_for_run(
+            ctx, request.skill_id
         )
         if activated is None:
             return prior_messages
@@ -494,9 +795,7 @@ class HarnessSupervisor:
                 f"instructions for this run:\n\n{body}\n\n"
                 "Scope note: these instructions — including any answer "
                 "format they specify — apply ONLY to the final user-facing "
-                "answer. Internal protocol outputs (planner action objects, "
-                "tool-call JSON, verdicts) keep their own formats exactly "
-                "as each seat's own instructions state."
+                "answer. Tool calls keep their own format."
             )
         )
         return [guidance, *prior_messages]
@@ -517,18 +816,6 @@ class HarnessSupervisor:
             return prior_messages
         return [SystemMessage(content=_JSON_BLOCKS_INSTRUCTION), *prior_messages]
 
-    def _recent_turns(self, request: UserRequest, ctx: HarnessContext) -> list[ConversationTurn]:
-        """The last few stored turns, for the router. Call after
-        `_hydrate_history`, which is what seeds a replayed conversation."""
-
-        key = self._conversation_key(request, ctx)
-        if self.conversation_store is None or key is None or self.router_context_turns <= 0:
-            return []
-        history = self.conversation_store.get(key)
-        if history is None:
-            return []
-        return history.turns[-self.router_context_turns :]
-
     async def _compact_history(self, key: str) -> None:
         """Fold older turns into the summary once the store's cap is passed.
 
@@ -543,8 +830,8 @@ class HarnessSupervisor:
             await self.conversation_store.summarize_if_needed(
                 key, summarizer=self.conversation_summarizer
             )
-        except Exception:  # noqa: BLE001 — memory upkeep must not fail the run
-            logger.warning("Conversation compaction failed; keeping the full history")
+        except Exception as exc:  # noqa: BLE001 — memory upkeep must not fail the run
+            logger.warning("Conversation compaction failed; keeping the full history: %s", exc)
 
     @staticmethod
     def _conversation_key(request: UserRequest, ctx: HarnessContext) -> str | None:
@@ -562,33 +849,73 @@ class HarnessSupervisor:
             return None
         return f"{ctx.tenant_id}/{ctx.user_id}/{request.conversation_id}"
 
-    def _hydrate_history(self, request: UserRequest, ctx: HarnessContext) -> list[BaseMessage]:
-        """Read prior turns from `ConversationStore` and trim them to fit the
-        `conversation_token_budget` (via `trim_messages`).
+    def _restore_evicted(
+        self, key: str, snapshot: ConversationHistory | None
+    ) -> None:
+        """Put back what the store dropped while the model was answering.
 
-        Returns an empty list when:
-        - no `conversation_store` injected (Plan 12 deploys),
-        - request has no `conversation_id`,
-        - the store has no prior history for that id and the caller replayed
-          none either (first turn of a chat).
+        The store can evict this conversation mid-run, and another run can
+        recreate the key with a turn of its own. Appending onto either an
+        empty history or that partial one loses every earlier turn and its
+        tool transcript. The snapshot this run read is the prior context its
+        turn belongs after, so it goes back in front.
 
-        This is the read-half of the `ConversationStore` contract — the
-        write-half (append after each run) already lives at the bottom of
-        `run()`. Together they make multi-turn chats actually accumulate
-        context across `/runs` calls. The token budget is the right knob
-        (not turn count) because our synthesizer's long Markdown answers
-        make per-turn cost wildly variable.
+        Nothing happens in the ordinary case: a history that still starts
+        with the snapshot's turns is the one this run read, grown by
+        concurrent appends, and re-seeding it would duplicate them.
+        """
+
+        if self.conversation_store is None or snapshot is None:
+            return
+        if not snapshot.turns and not snapshot.summary:
+            return
+        current = self.conversation_store.get(key)
+        if current is not None and (
+            list(current.turns[: len(snapshot.turns)]) == list(snapshot.turns)
+        ):
+            return
+        self.conversation_store.seed(
+            ConversationHistory(
+                conversation_id=key,
+                turns=[*snapshot.turns, *(current.turns if current else [])],
+                summary=(current.summary if current else None) or snapshot.summary,
+            )
+        )
+
+    def _seeded_history(
+        self, request: UserRequest, ctx: HarnessContext
+    ) -> ConversationHistory | None:
+        """The stored history for this conversation, seeding a replay first.
+
+        `run()` calls this exactly once, before routing, and passes what it
+        returns to `_project_history`. Do not call it a second time in a run:
+        a replay longer than `_MAX_SEEDED_TURNS` seeds only its tail, so the
+        next call sees fewer turns than the replay, seeds again, and the reset
+        drops any turn a concurrent run appended meanwhile.
         """
 
         key = self._conversation_key(request, ctx)
         if self.conversation_store is None or key is None:
-            return []
+            return None
         history = self.conversation_store.get(key)
         if self._needs_seeding(history, request):
             history = self._seed_history(request, key)
+        return history
+
+    def _project_history(
+        self, history: ConversationHistory | None
+    ) -> list[BaseMessage]:
+        """The seeded history as messages, trimmed to the token budget.
+
+        Each turn replays with its tool calls and results, so the model can
+        cite what it ran before. Empty when there is no history.
+        """
+
         if history is None:
             return []
-        return to_messages(history, max_tokens=self.conversation_token_budget)
+        return to_messages(
+            history, max_tokens=self.conversation_tool_token_budget, include_tool_calls=True
+        )
 
     @staticmethod
     def _needs_seeding(history: ConversationHistory | None, request: UserRequest) -> bool:
@@ -605,6 +932,8 @@ class HarnessSupervisor:
             return False
         if history is None:
             return True
+        if history.saved:
+            return False
         return history.summary is None and len(history.turns) < len(
             request.conversation_history
         )
@@ -630,13 +959,31 @@ class HarnessSupervisor:
             return None
         if not request.conversation_history and not request.conversation_summary:
             return None
+        # A replay carries text only. Any turn already held here with the same
+        # question and answer keeps the tool transcript it was stored with:
+        # the reset below would otherwise downgrade turns this replica ran
+        # itself, which is the memory loss the replay is meant to repair.
+        held = self.conversation_store.get(key)
+        # Kept in occurrence order: the same question answered the same way
+        # twice can have run different queries, and each replayed turn takes
+        # the transcript of the matching turn in the same position.
+        transcripts: dict[tuple[str, str], list[tuple[BaseMessage, ...]]] = {}
+        for stored in held.turns if held is not None else []:
+            transcripts.setdefault(
+                (stored.user_message, stored.assistant_answer), []
+            ).append(stored.messages)
         self.conversation_store.reset(key)
         for turn in request.conversation_history[-_MAX_SEEDED_TURNS:]:
+            replayed = parse_command(turn.user_message, trainer=request.trainer)
+            if replayed is not None and replayed.answered_here:
+                continue
+            matches = transcripts.get((turn.user_message, turn.assistant_answer))
             self.conversation_store.append(
                 key,
                 ConversationTurn(
                     user_message=turn.user_message,
                     assistant_answer=turn.assistant_answer,
+                    messages=matches.pop(0) if matches else (),
                 ),
             )
         history = self.conversation_store.get(key)
@@ -649,27 +996,15 @@ class HarnessSupervisor:
             history.summary = request.conversation_summary
         return history
 
-    def _root_span_kwargs(
-        self, ctx: HarnessContext, route: HarnessRoute | None
-    ) -> dict[str, Any]:
-        """Common kwargs for `agent_span("run", ...)` across all dispatch paths.
+    def _root_span_kwargs(self, ctx: HarnessContext) -> dict[str, Any]:
+        """Langfuse fields for the run's root span."""
 
-        Centralizes the Langfuse first-class field mapping (E10) so every
-        route's root span carries `user_id`, `session_id`, and `tags`
-        identically. `tags` includes the resolved route when known.
-
-        When a profile is set on the supervisor, ``span_prefix`` is taken
-        from ``profile.name``; otherwise it falls back to ``"datasource"``
-        as a neutral default.
-        """
-
-        tags: list[str] = [f"tenant:{ctx.tenant_id}", f"mode:{ctx.mode}"]
-        if route is not None:
-            tags.append(f"route:{route.value}")
+        tags: list[str] = [f"tenant:{ctx.tenant_id}"]
+        if ctx.model:
+            tags.append(f"model:{ctx.model}")
         return {
             "run_id": ctx.run_id,
             "tenant_id": ctx.tenant_id,
-            "mode": ctx.mode,
             "user_id": ctx.user_id,
             "session_id": ctx.conversation_id or ctx.thread_id,
             "tags": tags,
@@ -723,399 +1058,45 @@ class HarnessSupervisor:
             self.conversation_policy_store.set(policy_key, policy)
         return policy, denied
 
-    async def _resolve_route(self, request: UserRequest, ctx: HarnessContext) -> RouteResult:
-        """Use the LLM router when available; else the keyword router.
-
-        The LLM router has its own keyword-fallback for low-confidence,
-        so callers don't need to fall back explicitly.
-        """
-
-        if self.llm_router is not None:
-            return await resolve_mode(
-                request,
-                llm_router=self.llm_router,
-                tenant_lock=self.tenant_lock,
-                prior_turns=self._recent_turns(request, ctx),
-            )
-        # Plan 12 default: keyword router on the message; explicit modes
-        # are ignored because the keyword router doesn't know about them.
-        return self.router.route(request.message)
-
-    def _apply_catalog_route_override(self, route: RouteResult) -> RouteResult:
-        """Force DATA_QUERY → DATA_AGENTIC on primitives-only datasources.
-
-        The canned DATA_QUERY seat (`filter_expert`) picks ONE curated data
-        function. A datasource with no curated catalog (generic_pg: only
-        composable SQL primitives) has nothing for it to pick, so `filter_expert`
-        dead-ends — it emits an off-contract step and the run falls to the
-        onboarding fallback. Every data question on such a source is agentic
-        (composable-primitive) exploration. The intent router already drops
-        DATA_QUERY from its menu for these datasources; this is the deterministic
-        safety net that also catches an explicit `mode=canned` request and any
-        keyword-fallback DATA_QUERY the LLM prompt can't prevent.
-        """
-        if (
-            route.route == HarnessRoute.DATA_QUERY
-            and self.profile is not None
-            and not self.profile.has_curated_catalog
-        ):
-            return RouteResult(
-                route=HarnessRoute.DATA_AGENTIC,
-                reason=(
-                    f"{route.reason} → remapped to DATA_AGENTIC "
-                    f"({self.profile.name} has no curated catalog)"
-                ),
-            )
-        return route
-
-    async def _run_storytelling(
-        self,
-        ctx: HarnessContext,
-        record: HarnessRunRecord,
-        progress: Any,
-    ) -> None:
-        story = await self.stories.create_delivery_compliance_story(ctx, self.tools, progress)
-        record.artifacts.append(story.model_dump())
-        progress(
-            HarnessEvent(
-                run_id=ctx.run_id,
-                type="artifact.created",
-                message="Created delivery compliance story artifact",
-                data={"artifact_id": story.id},
-            )
-        )
-
-    async def _run_data_query(
+    async def _run_loop(
         self,
         request: UserRequest,
         ctx: HarnessContext,
         record: HarnessRunRecord,
         progress: Any,
-        route: HarnessRoute | None = None,
-        prior_messages: list[BaseMessage] | None = None,
-    ) -> None:
-        if self.data_graph is None:
-            display_name = (
-                self.profile.display_name if self.profile is not None else "Datasource"
-            )
-            answer = (
-                f"{display_name} integration is currently disabled "
-                "(no DB tunnel or boot failed). Try again once it's restored."
-            )
-            record.answer = answer
+        prior_messages: list[BaseMessage],
+    ) -> list[BaseMessage] | None:
+        """Run the agent loop; returns the turn transcript for the store."""
+        if self.agent_loop is None:
+            record.answer = NO_MODEL_ANSWER
             progress(
                 HarnessEvent(
                     run_id=ctx.run_id,
                     type="answer.completed",
-                    message="datasource integration disabled",
-                    data={"length": len(answer)},
-                )
-            )
-            return
-
-        initial_state: dict[str, Any] = {
-            "user_message": request.message,
-            "ctx": ctx,
-            "evidence": [],
-            "turn_count": 0,
-            "prior_messages": prior_messages or [],
-        }
-        with agent_span("run", **self._root_span_kwargs(ctx, route)):
-            # Streams the graph's _events channel onto the record per node
-            # (live SSE) instead of draining it after the run.
-            final_state = await self._invoke_graph_emitting(
-                self.data_graph, initial_state, record
-            )
-
-        graph_answer = final_state.get("answer")
-        if graph_answer:
-            record.answer = str(graph_answer)
-        else:
-            display_name = (
-                self.profile.display_name if self.profile is not None else "datasource"
-            )
-            record.answer = f"(no answer produced by {display_name} graph)"
-
-        # Persist DataPlan in artifacts (review item N12)
-        plan = final_state.get("plan")
-        if plan is not None and hasattr(plan, "model_dump"):
-            record.artifacts.append({"type": "data_plan", **plan.model_dump()})
-
-    async def _run_data_agentic(
-        self,
-        request: UserRequest,
-        ctx: HarnessContext,
-        record: HarnessRunRecord,
-        progress: Any,
-        route: HarnessRoute | None = None,
-        prior_messages: list[BaseMessage] | None = None,
-    ) -> None:
-        if self.agent_loop is not None:
-            with agent_span("run", **self._root_span_kwargs(ctx, route)):
-                delta = await self.agent_loop.run(
-                    user_message=request.message,
-                    ctx=ctx,
-                    prior_messages=prior_messages or [],
-                    progress=progress,
-                )
-            answer = delta.get("answer") or "(no answer produced by agent loop)"
-            record.answer = harden_answer(answer)
-            # Ground-or-flag: the loop path bypasses the synthesizer, so the
-            # assumption blocks must be surfaced here too — otherwise this
-            # route feeds nothing to the capture/distill loop.
-            assumptions = extract_assumptions(record.answer)
-            for assumption in assumptions:
-                emit_grounding_gap(progress, ctx.run_id, assumption)
-            record.assumptions = self._stamp_connection(assumptions)
-            return
-
-        if self.agentic_graph is None:
-            answer = (
-                "Agentic exploration is currently disabled "
-                "(no agentic_graph wired). Try again once it's restored."
-            )
-            record.answer = answer
-            progress(
-                HarnessEvent(
-                    run_id=ctx.run_id,
-                    type="answer.completed",
-                    message="Agentic graph not wired",
-                    data={"length": len(answer)},
-                )
-            )
-            return
-
-        initial_state: dict[str, Any] = {
-            "user_message": request.message,
-            "ctx": ctx,
-            "evidence": [],
-            "turn_count": 0,
-            "prior_messages": prior_messages or [],
-        }
-        with agent_span("run", **self._root_span_kwargs(ctx, route)):
-            # Streams the graph's _events channel onto the record per node
-            # (live SSE) instead of draining it after the run.
-            final_state = await self._invoke_graph_emitting(
-                self.agentic_graph, initial_state, record
-            )
-        record.answer = str(
-            final_state.get("answer") or "(no answer produced by agentic graph)"
-        )
-        # Ground-or-flag: carry the synthesizer's declared assumptions onto the
-        # persisted record (feeds the capture/distill loop; empty when grounded).
-        record.assumptions = self._stamp_connection(
-            list(final_state.get("assumptions") or [])
-        )
-
-    async def _run_data_meta(
-        self,
-        request: UserRequest,
-        ctx: HarnessContext,
-        record: HarnessRunRecord,
-        progress: Any,
-        route: HarnessRoute | None = None,
-        prior_messages: list[BaseMessage] | None = None,
-    ) -> None:
-        if self.meta_model is None:
-            answer = (
-                "Meta agent is currently disabled "
-                "(no meta_model wired). Try again once it's restored."
-            )
-            record.answer = answer
-            # Terminal event mirrors the disabled-datasource branch in
-            # _run_data_query: SSE subscribers need answer.completed, not
-            # a silent close.
-            progress(
-                HarnessEvent(
-                    run_id=ctx.run_id,
-                    type="answer.completed",
-                    message="meta agent disabled",
-                    data={"length": len(answer)},
-                )
-            )
-            return
-
-        from miot_harness.config import get_settings
-
-        settings = get_settings()
-        stream_enabled = settings.agents_synthesizer_stream
-        from time import monotonic
-
-        progress(
-            HarnessEvent(
-                run_id=ctx.run_id,
-                type="agent.started",
-                message="Entering meta_agent",
-                data={"agent": "meta_agent", "graph": "meta", "turn": 0},
-            )
-        )
-        start = monotonic()
-
-        # Wrap meta_model with the per-agent telemetry callback so the
-        # `anthropic.chat` observation Traceloop auto-emits carries the
-        # same `modular.{agent,tenant_id,mode}` + `langfuse.tags` attrs
-        # as the canned/agentic paths. Without this, meta-route inner
-        # LLM-call cost slips through tenant rollups at observation
-        # granularity (the root trace carries them, but the child
-        # observation doesn't). The progress sink wires `usage.recorded`
-        # too so SSE clients see token counts for the meta call.
-        _meta_span_prefix = self.profile.name if self.profile is not None else "datasource"
-        instrumented_meta_model = instrument_model(
-            self.meta_model, "meta_agent", ctx,
-            progress=progress, span_prefix=_meta_span_prefix,
-        )
-
-        try:
-            with agent_span("run", **self._root_span_kwargs(ctx, route)):
-                delta = await meta_agent_node(
-                    {"user_message": request.message},
-                    model=instrumented_meta_model,
-                    primer=self._meta_primer_for(ctx.tenant_id),
-                    catalog=self._meta_catalog_for(ctx.tenant_id),
-                    prior_messages=prior_messages or [],
-                    progress=progress if stream_enabled else None,
-                    stream=stream_enabled,
-                    run_id=ctx.run_id,
-                )
-            exit_reason = "ok"
-        except Exception:
-            progress(
-                HarnessEvent(
-                    run_id=ctx.run_id,
-                    type="agent.completed",
-                    message="Failed meta_agent",
-                    data={
-                        "agent": "meta_agent",
-                        "graph": "meta",
-                        "duration_ms": int((monotonic() - start) * 1000),
-                        "exit_reason": "failure",
-                    },
-                )
-            )
-            raise
-        progress(
-            HarnessEvent(
-                run_id=ctx.run_id,
-                type="agent.completed",
-                message="Completed meta_agent",
-                data={
-                    "agent": "meta_agent",
-                    "graph": "meta",
-                    "duration_ms": int((monotonic() - start) * 1000),
-                    "exit_reason": exit_reason,
-                },
-            )
-        )
-
-        record.answer = delta.get("answer") or "(no answer produced by meta agent)"
-        progress(
-            HarnessEvent(
-                run_id=ctx.run_id,
-                type="answer.completed",
-                message="Meta agent answered",
-                data={"length": len(record.answer or "")},
-            )
-        )
-
-    async def _run_direct(
-        self,
-        request: UserRequest,
-        ctx: HarnessContext,
-        record: HarnessRunRecord,
-        progress: Any,
-        route: HarnessRoute | None = None,
-        prior_messages: list[BaseMessage] | None = None,
-    ) -> None:
-        """Compose the DIRECT / OTHER reply harness-side (#628).
-
-        Reuses ``meta_model`` (same cheap tier) so no extra wiring or
-        env is needed; falls back to a canned bilingual greeting when
-        no model is wired so ``answer`` is never null.
-        """
-        if self.meta_model is None:
-            record.answer = FALLBACK_DIRECT_ANSWER
-            progress(
-                HarnessEvent(
-                    run_id=ctx.run_id,
-                    type="answer.completed",
-                    message="direct fallback (no model wired)",
+                    message="no model configured",
                     data={"length": len(record.answer)},
                 )
             )
-            return
-
-        from time import monotonic
-
-        from miot_harness.config import get_settings
-
-        settings = get_settings()
-        stream_enabled = settings.agents_synthesizer_stream
-
-        progress(
-            HarnessEvent(
-                run_id=ctx.run_id,
-                type="agent.started",
-                message="Entering direct_agent",
-                data={"agent": "direct_agent", "graph": "direct", "turn": 0},
+            return None
+        with agent_span("run", **self._root_span_kwargs(ctx)):
+            delta = await self.agent_loop.run(
+                user_message=request.message,
+                ctx=ctx,
+                prior_messages=prior_messages,
+                progress=progress,
             )
-        )
-        start = monotonic()
+        answer = delta.get("answer") or "(no answer produced by agent loop)"
+        record.answer = harden_answer(answer)
+        # Business terms the answer could not ground feed the review queue.
+        assumptions = extract_assumptions(record.answer)
+        for assumption in assumptions:
+            emit_grounding_gap(progress, ctx.run_id, assumption)
+        record.assumptions = self._stamp_connection(assumptions)
+        # `harden_answer` can rewrite what the loop wrote. The stored turn has
+        # to end in the answer the user was shown, or the next turn replays a
+        # different one.
+        return _with_canonical_answer(list(delta.get("messages") or []), record.answer)
 
-        # Same telemetry wrap as _run_data_meta: the per-agent span and
-        # `usage.recorded` events keep direct-route LLM cost visible in
-        # tenant rollups even though the call is tiny.
-        _span_prefix = self.profile.name if self.profile is not None else "datasource"
-        instrumented_model = instrument_model(
-            self.meta_model, "direct_agent", ctx,
-            progress=progress, span_prefix=_span_prefix,
-        )
 
-        try:
-            with agent_span("run", **self._root_span_kwargs(ctx, route)):
-                delta = await direct_agent_node(
-                    {"user_message": request.message},
-                    model=instrumented_model,
-                    prior_messages=prior_messages or [],
-                    progress=progress if stream_enabled else None,
-                    stream=stream_enabled,
-                    run_id=ctx.run_id,
-                )
-            exit_reason = "ok"
-        except Exception:
-            progress(
-                HarnessEvent(
-                    run_id=ctx.run_id,
-                    type="agent.completed",
-                    message="Failed direct_agent",
-                    data={
-                        "agent": "direct_agent",
-                        "graph": "direct",
-                        "duration_ms": int((monotonic() - start) * 1000),
-                        "exit_reason": "failure",
-                    },
-                )
-            )
-            raise
-        progress(
-            HarnessEvent(
-                run_id=ctx.run_id,
-                type="agent.completed",
-                message="Completed direct_agent",
-                data={
-                    "agent": "direct_agent",
-                    "graph": "direct",
-                    "duration_ms": int((monotonic() - start) * 1000),
-                    "exit_reason": exit_reason,
-                },
-            )
-        )
-
-        record.answer = delta.get("answer") or "(no answer produced by direct agent)"
-        progress(
-            HarnessEvent(
-                run_id=ctx.run_id,
-                type="answer.completed",
-                message="Direct agent answered",
-                data={"length": len(record.answer or "")},
-            )
-        )
+def _model_name(value: object) -> str | None:
+    return value if isinstance(value, str) else None

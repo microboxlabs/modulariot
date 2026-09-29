@@ -14,4 +14,6 @@ export type SecuredNavBarProps = {
   logoAlt?: string;
   /** Threaded down to SpotlightSearch so its results stay in sync with the sidebar's Harness settings gate. */
   isHarnessSettingsEnabled?: boolean;
+  /** Threaded down to SpotlightSearch so it hides the dashboard workspace when the sidebar does. */
+  isDashboardServerEnabled?: boolean;
 };

@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { sampleConfig } from "../../test/fixtures";
 import { createNextRouteHandlers } from "./route";
 import {
   createInsecureHeaderIdentityResolver,
@@ -25,7 +26,7 @@ const mount = (basePath?: string) =>
       seed: [
         {
           ref: { tenantId: "acme", scopeId: "ops", slug: "fleet" },
-          record: { config: { version: 2, name: "Fleet" } },
+          record: { config: sampleConfig() },
         },
       ],
     }),
@@ -55,7 +56,7 @@ describe("createNextRouteHandlers", () => {
     );
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      data: { version: 2, name: "Fleet" },
+      data: sampleConfig(),
     });
   });
 
@@ -65,7 +66,7 @@ describe("createNextRouteHandlers", () => {
       new Request(url("/tenants/acme/scopes/ops/dashboards/fleet"), {
         method: "PUT",
         headers: { ...asAna, "content-type": "application/json" },
-        body: JSON.stringify({ version: 2, name: "Renamed" }),
+        body: JSON.stringify(sampleConfig({ name: "Renamed" })),
       }),
     );
     expect(saved.status).toBe(200);
@@ -76,7 +77,7 @@ describe("createNextRouteHandlers", () => {
       }),
     );
     await expect(read.json()).resolves.toEqual({
-      data: { version: 2, name: "Renamed" },
+      data: sampleConfig({ name: "Renamed" }),
     });
   });
 

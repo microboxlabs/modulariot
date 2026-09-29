@@ -14,19 +14,32 @@ import {
   LuChevronDown,
   LuCopy,
   LuFileDown,
+  LuGitBranch,
+  LuPause,
   LuPencil,
   LuRotateCcw,
   LuSparkles,
   LuThumbsDown,
   LuThumbsUp,
 } from "react-icons/lu";
-import { useState, type FC } from "react";
+import { useEffect, useState, type FC } from "react";
 import { twMerge } from "tailwind-merge";
 import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import { useRunCancel } from "../context/run-cancel-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
+import { useHarnessFork } from "../context/harness-fork-context";
 import { useHarnessReadOnly } from "../context/harness-read-only-context";
+import { useMessageRunId } from "../context/harness-run-lookup-context";
+import { useRunStartedAt } from "../context/harness-session-context";
+import {
+  formatElapsed,
+  runElapsedSince,
+  splitNarration,
+  withoutStatusLines,
+} from "../run-progress";
+import { REQUEST_APPROVAL_TOOL } from "../extensions/request-approval-args";
 import { SentAttachment } from "./attachments";
+import { RunActivityRow } from "./run-activity";
 
 const actionButtonClass =
   "flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:pointer-events-none disabled:opacity-40 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-200";
@@ -107,10 +120,11 @@ const EditComposer: FC = () => {
 // Plain text replies stay bubble-width, but non-text parts (like an
 // ask-user-question card) render outside this cap, at the full row width —
 // see the flex-1 wrapper below. Rendered as real markdown (bold, links,
-// lists…) via the same MarkdownContent the spotlight search answer uses,
-// so a harness reply reads the same wherever it shows up.
+// lists, tables…) via the same MarkdownContent + "compact" variant the
+// spotlight search answer uses, so a harness reply reads the same wherever
+// it shows up.
 const AssistantText: FC<TextMessagePartProps> = ({ text }) => (
-  <div className="max-w-[90%] text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+  <div className="max-w-[95%] animate-harness-enter text-xs leading-relaxed text-gray-700 dark:text-gray-300">
     <MarkdownContent>{text}</MarkdownContent>
   </div>
 );
@@ -120,24 +134,30 @@ const AssistantText: FC<TextMessagePartProps> = ({ text }) => (
 // cursor — small and gray so it reads as distinct from the reply, and with
 // no height cap of its own so it just grows with the thread's own scroll
 // (ThreadPrimitive.Viewport) rather than clipping into its own scrollbox.
-// Only once the message settles does it collapse into a "Thought process"
-// toggle, peeking the same text back open in a small scrollable panel.
-//
-// Only the *last* message renders it — reasoning is per-message content in
-// assistant-ui's model, so every past reply still carries its own reasoning
-// part; without this gate every one of them would show its own text/toggle
-// as the conversation grows. Gating on `isLast` keeps exactly one, and it
-// naturally moves with whichever message is newest.
+// Once the message settles it collapses into a "Thought process" toggle,
+// peeking the same text back open in a small scrollable panel, with the run's
+// activity row under it. Every past reply keeps its own collapsed toggle.
 const AssistantReasoning: FC<ReasoningMessagePartProps> = ({ text, status }) => {
   const tr = useHarnessChatTr();
   const [expanded, setExpanded] = useState(false);
   const isLast = useAuiState((s) => s.message.isLast);
-  if (!isLast || !text.trim()) return null;
+  const live = useLiveRun();
+  const runId = useMessageRunId();
+  const statusLines = [
+    tr("harnessChat.stream.progress.connecting"),
+    tr("harnessChat.stream.progress.thinking"),
+  ];
+  if (!text.trim()) return null;
 
-  if (status?.type !== "complete") {
+  if (isLast && status?.type !== "complete") {
+    // While RunStatus shows the step in progress, only the finished ones stay here.
+    const shown = live
+      ? splitNarration(text, statusLines).earlier
+      : withoutStatusLines(text, statusLines);
+    if (!shown) return null;
     return (
       <div className="mb-1 max-w-[90%] whitespace-pre-wrap text-[10px] leading-snug text-gray-400 dark:text-gray-500">
-        {text}
+        {shown}
       </div>
     );
   }
@@ -157,9 +177,100 @@ const AssistantReasoning: FC<ReasoningMessagePartProps> = ({ text, status }) => 
       </button>
       {expanded && (
         <div className="max-h-48 overflow-y-auto overscroll-contain whitespace-pre-wrap rounded-md border border-gray-200 bg-white px-2 py-1.5 text-[10px] leading-snug text-gray-400 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-500">
-          {text}
+          {withoutStatusLines(text, statusLines)}
         </div>
       )}
+      {runId && <RunActivityRow runId={runId} />}
+    </div>
+  );
+};
+
+// A reply with no narration still gets its activity row, once it settled.
+const ActivityWithoutReasoning: FC = () => {
+  const runId = useMessageRunId();
+  const settled = useAuiState(
+    (s) =>
+      s.message.status?.type !== "running" &&
+      !s.message.parts.some((part) => part.type === "reasoning" && part.text.trim() !== "")
+  );
+  if (!runId || !settled) return null;
+  return <RunActivityRow runId={runId} />;
+};
+
+/** True while this is the newest message, its run is going and no answer
+ * text has arrived yet: from the moment of sending, before the first byte. */
+function useLiveRun(): boolean {
+  return useAuiState(
+    (s) =>
+      s.message.isLast &&
+      s.message.status?.type === "running" &&
+      !s.message.parts.some((part) => part.type === "text" && part.text.trim() !== "")
+  );
+}
+
+function useElapsedMs(since: Date | undefined, running: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!running) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [running]);
+  return since ? now - since.getTime() : 0;
+}
+
+// The step in progress, with a soft pulse, a shimmer and the time so far.
+const RunStatus: FC = () => {
+  const tr = useHarnessChatTr();
+  const live = useLiveRun();
+  const narration = useAuiState((s) =>
+    s.message.parts.map((part) => (part.type === "reasoning" ? part.text : "")).join("\n")
+  );
+  const createdAt = useAuiState((s) => s.message.createdAt);
+  // A reply rebuilt after a reload counts from where the harness started.
+  const runStartedAt = useRunStartedAt();
+  const elapsed = useElapsedMs(runElapsedSince(runStartedAt, createdAt), live);
+  const awaitingApproval = useAuiState((s) =>
+    s.message.parts.some(
+      (part) =>
+        part.type === "tool-call" &&
+        part.toolName === REQUEST_APPROVAL_TOOL &&
+        part.result === undefined
+    )
+  );
+  if (!live) return null;
+
+  if (awaitingApproval) {
+    return (
+      <div className="flex max-w-[90%] animate-harness-enter items-center gap-2 text-[11px] leading-snug">
+        <LuPause aria-hidden className="h-3 w-3 shrink-0 text-amber-500 dark:text-amber-400" />
+        <output className="min-w-0 truncate font-medium text-amber-600 dark:text-amber-400">
+          {tr("harnessChat.ui.thread.awaitingApproval")}
+        </output>
+        <time
+          title={tr("harnessChat.ui.thread.elapsed")}
+          className="shrink-0 text-[10px] tabular-nums text-gray-400 dark:text-gray-500"
+        >
+          {formatElapsed(elapsed)}
+        </time>
+      </div>
+    );
+  }
+
+  const step = splitNarration(narration).current ?? tr("harnessChat.ui.thread.working");
+  return (
+    <div className="flex max-w-[90%] animate-harness-enter items-center gap-2 text-[11px] leading-snug">
+      <span
+        aria-hidden
+        className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500 motion-safe:animate-pulse dark:bg-amber-400"
+      />
+      <output className="min-w-0 truncate animate-harness-shimmer">{step}</output>
+      <time
+        title={tr("harnessChat.ui.thread.elapsed")}
+        className="shrink-0 text-[10px] tabular-nums text-gray-400 dark:text-gray-500"
+      >
+        {formatElapsed(elapsed)}
+      </time>
     </div>
   );
 };
@@ -191,10 +302,20 @@ const FailedRunNotice: FC = () => {
   const readOnly = useHarnessReadOnly();
   const status = useAuiState((s) => s.message.status);
   if (status?.type !== "incomplete" || status.reason !== "error") return null;
+  // The harness lost the run (it restarted): nothing was wrong with the question.
+  const interrupted = status.error === "interrupted";
   return (
     <div className="flex max-w-[90%] flex-col gap-1">
-      <p className="text-xs text-amber-600 dark:text-amber-500">
-        {tr("harnessChat.ui.thread.runFailed")}
+      <p
+        className={
+          interrupted
+            ? "text-xs text-gray-500 dark:text-gray-400"
+            : "text-xs text-amber-600 dark:text-amber-500"
+        }
+      >
+        {interrupted
+          ? tr("harnessChat.ui.thread.runInterrupted")
+          : tr("harnessChat.ui.thread.runFailed")}
       </p>
       {!readOnly && (
         <ActionBarPrimitive.Reload className="w-fit text-xs font-medium text-blue-600 hover:underline dark:text-blue-400">
@@ -212,9 +333,11 @@ export const AssistantMessage: FC = () => (
         <BsStars className="h-3 w-3 text-white" />
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <ActivityWithoutReasoning />
         <MessagePrimitive.Parts
           components={{ Text: AssistantText, Reasoning: AssistantReasoning }}
         />
+        <RunStatus />
         <CancelledNotice />
         <FailedRunNotice />
       </div>
@@ -245,6 +368,32 @@ const AssistantActionBar: FC = () => {
     <ActionBarPrimitive.ExportMarkdown className={actionButtonClass}>
       <LuFileDown className="h-3 w-3" />
     </ActionBarPrimitive.ExportMarkdown>
+    <ForkFromHere />
   </ActionBarPrimitive.Root>
+  );
+};
+
+/** Starts a new thread holding this answer and everything above it. Offered on
+ * shared threads too: forking is how a reader continues someone else's chat. */
+const ForkFromHere: FC = () => {
+  const tr = useHarnessChatTr();
+  const fork = useHarnessFork();
+  const messageId = useAuiState((s) => s.message.id);
+  const settled = useAuiState(
+    (s) => s.message.status?.type === "complete" && !s.thread.isRunning,
+  );
+  if (!fork) return null;
+  const label = tr("harnessChat.ui.thread.forkFromHere");
+  return (
+    <button
+      type="button"
+      onClick={() => fork(messageId)}
+      disabled={!settled}
+      aria-label={label}
+      title={label}
+      className={actionButtonClass}
+    >
+      <LuGitBranch className="h-3 w-3" />
+    </button>
   );
 };

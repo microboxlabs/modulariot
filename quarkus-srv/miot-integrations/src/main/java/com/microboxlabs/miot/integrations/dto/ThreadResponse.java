@@ -13,11 +13,17 @@ public record ThreadResponse(
         String id,
         String title,
         String summary,
+        /** The conversation model the thread last ran on; null for the default. */
+        String model,
         String ownerId,
         boolean owned,
         OffsetDateTime expiresAt,
         OffsetDateTime lastMessageAt,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
-        List<String> sharedWith) {
+        List<String> sharedWith,
+        /** True once a person named the thread; the panel stops generating titles for it. */
+        boolean titleEdited,
+        /** {@code chat}, or {@code learning} for a trainer's session. */
+        String kind) {
 }

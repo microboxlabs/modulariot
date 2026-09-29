@@ -329,15 +329,25 @@ describe("transcript projector — tool name normalization", () => {
 });
 
 describe("transcript projector — labels with message fallback", () => {
-  it("route.selected emits nothing when neither data.route nor message is present", () => {
+  it("legacy route.selected and verification.completed add no row", () => {
     const ctx = mkCtx();
-    const next = applyHarnessEvent(
+    const route = applyHarnessEvent(
       emptySlice(),
-      evt("route.selected"),
+      evt("route.selected", {
+        message: "NEXO_QUERY",
+        data: { route: "NEXO_QUERY" },
+      }),
       "r1",
       ctx,
     );
-    expect(next).toEqual(emptySlice());
+    expect(route).toEqual(emptySlice());
+    const verification = applyHarnessEvent(
+      emptySlice(),
+      evt("verification.completed", { data: { verdict: "ok" } }),
+      "r1",
+      ctx,
+    );
+    expect(verification).toEqual(emptySlice());
   });
 
   it("agent.turn falls back to event.message", () => {
@@ -391,8 +401,8 @@ describe("transcript projector — labels with message fallback", () => {
       ctx,
     );
     expect(next.transcript[0]).toMatchObject({
-      kind: "artifact",
-      artifactKind: "artifact",
+      kind: "system",
+      text: "artifact: artifact (artifact)",
     });
   });
 });
@@ -421,6 +431,29 @@ describe("transcript projector — approvals", () => {
       message: "writes db",
     });
   });
+
+  it("approval.resolved drops the matching pending approval", () => {
+    const ctx = mkCtx();
+    const requested = applyHarnessEvent(
+      emptySlice(),
+      evt("approval.requested", {
+        id: "appr-1",
+        data: { approval_id: "aid_1" },
+      }),
+      "r1",
+      ctx,
+    );
+    const next = applyHarnessEvent(
+      requested,
+      evt("approval.resolved", {
+        id: "appr-2",
+        data: { approval_id: "aid_1", decision: "approve" },
+      }),
+      "r1",
+      ctx,
+    );
+    expect(next.pendingApprovals).toHaveLength(0);
+  });
 });
 
 describe("transcript projector — thinking + usage (plan: SSE rich events)", () => {
@@ -428,14 +461,14 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
     const ctx = mkCtx();
     const s1 = applyHarnessEvent(
       emptySlice(),
-      evt("thinking.delta", { data: { agent: "synthesizer", delta: "Step 1. " } }),
+      evt("thinking.delta", { data: { agent: "main", delta: "Step 1. " } }),
       "r1",
       ctx,
     );
     expect(s1.transcript).toHaveLength(1);
     expect(s1.transcript[0]).toMatchObject({
       kind: "thinking",
-      agent: "synthesizer",
+      agent: "main",
       text: "Step 1. ",
       status: "streaming",
     });
@@ -444,7 +477,7 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
 
     const s2 = applyHarnessEvent(
       s1,
-      evt("thinking.delta", { data: { agent: "synthesizer", delta: "Step 2." } }),
+      evt("thinking.delta", { data: { agent: "main", delta: "Step 2." } }),
       "r1",
       ctx,
     );
@@ -456,17 +489,32 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
     expect(s2.currentThinkingItemId).toBe(id);
   });
 
+  it("thinking.delta without data.agent leaves the item's agent unset", () => {
+    const ctx = mkCtx();
+    const s1 = applyHarnessEvent(
+      emptySlice(),
+      evt("thinking.delta", { data: { delta: "hmm" } }),
+      "r1",
+      ctx,
+    );
+    expect(s1.transcript[0]).toMatchObject({ kind: "thinking", text: "hmm" });
+    expect(s1.transcript[0]).not.toHaveProperty("agent");
+  });
+
   it("thinking.completed flips status to complete and clears the current id", () => {
     const ctx = mkCtx();
     const s1 = applyHarnessEvent(
       emptySlice(),
-      evt("thinking.delta", { data: { agent: "synthesizer", delta: "hi" } }),
+      evt("thinking.delta", { data: { agent: "main", delta: "hi" } }),
       "r1",
       ctx,
     );
     const s2 = applyHarnessEvent(s1, evt("thinking.completed"), "r1", ctx);
     expect(s2.currentThinkingItemId).toBeNull();
-    expect(s2.transcript[0]).toMatchObject({ kind: "thinking", status: "complete" });
+    expect(s2.transcript[0]).toMatchObject({
+      kind: "thinking",
+      status: "complete",
+    });
   });
 
   it("usage.recorded accumulates token totals across calls", () => {
@@ -498,7 +546,7 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
       s1,
       evt("usage.recorded", {
         data: {
-          agent: "synthesizer",
+          agent: "main",
           model: "claude-sonnet-4-6",
           input_tokens: 2000,
           output_tokens: 200,
@@ -511,7 +559,7 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
     );
     expect(s2.usageTotals.inputTokens).toBe(3000);
     expect(s2.usageTotals.outputTokens).toBe(300);
-    expect(s2.usageTotals.lastAgent).toBe("synthesizer");
+    expect(s2.usageTotals.lastAgent).toBe("main");
     // Dollar cost is never carried on the client-side usage totals.
     expect(s2.usageTotals).not.toHaveProperty("costUsd");
     expect(s2.usageTotals).not.toHaveProperty("lastCostUsd");
@@ -521,10 +569,39 @@ describe("transcript projector — thinking + usage (plan: SSE rich events)", ()
     const ctx = mkCtx();
     const next = applyHarnessEvent(
       emptySlice(),
-      evt("agent.completed", { data: { agent: "filter_expert", duration_ms: 100 } }),
+      evt("agent.completed", {
+        data: { agent: "filter_expert", duration_ms: 100 },
+      }),
       "r1",
       ctx,
     );
     expect(next.transcript).toHaveLength(0);
+  });
+
+  // The switch is exhaustive with no default, so a seat event missing a case
+  // makes applyHarnessEvent return undefined and the reducer crash on
+  // `slice.transcript`. Seed the slice so a dropped case cannot pass as a
+  // no-op: it would return undefined, not the slice.
+  it.each([
+    ["advisor.consulted", { signal: "green", note: "margin holds" }],
+    ["delegate.completed", { tools_run: ["gps_scan"] }],
+  ] as const)("%s leaves a seeded slice untouched", (type, data) => {
+    const seeded: TranscriptSlice = {
+      ...emptySlice(),
+      transcript: [
+        {
+          kind: "system",
+          id: "id-0",
+          text: "seed",
+          ts: "2026-01-01T00:00:00Z",
+        },
+      ],
+      currentRunId: "r1",
+    };
+
+    const next = applyHarnessEvent(seeded, evt(type, { data }), "r1", mkCtx());
+
+    expect(next).toBe(seeded);
+    expect(next.transcript).toHaveLength(1);
   });
 });

@@ -57,15 +57,32 @@ async function postJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export function fetchJobs(orgSlug: string, filters: JobListFilters = {}): Promise<AsyncJob[]> {
+/** Query string shared by the listing and its total, minus the window. */
+function filterParams(filters: JobListFilters): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.state) params.set("state", filters.state);
   if (filters.jobType) params.set("jobType", filters.jobType);
   if (filters.chainKey) params.set("chainKey", filters.chainKey);
+  if (filters.executor) params.set("executor", filters.executor);
+  if (filters.search) params.set("search", filters.search);
+  return params;
+}
+
+export function fetchJobs(orgSlug: string, filters: JobListFilters = {}): Promise<AsyncJob[]> {
+  const params = filterParams(filters);
   if (filters.limit) params.set("limit", String(filters.limit));
+  if (filters.offset) params.set("offset", String(filters.offset));
   const qs = params.toString();
   const suffix = qs ? `?${qs}` : "";
   return getJson<AsyncJob[]>(`${base(orgSlug)}${suffix}`);
+}
+
+/** How many jobs match `filters` ledger-wide — the page's "of N". */
+export async function fetchJobsCount(orgSlug: string, filters: JobListFilters = {}): Promise<number> {
+  const qs = filterParams(filters).toString();
+  const suffix = qs ? `?${qs}` : "";
+  const body = await getJson<{ total?: number }>(`${base(orgSlug)}/count${suffix}`);
+  return body.total ?? 0;
 }
 
 export function fetchJobsOverview(orgSlug: string): Promise<JobsOverview> {

@@ -139,6 +139,19 @@ _SAFE_FUNCTIONS: frozenset[str] = frozenset(
 )
 
 
+# The system catalog stays closed: it lists objects in every schema, past the
+# connection's policy. The connection's introspection tools answer the same
+# questions inside the policy, so a rejected catalog read points at them.
+_CATALOG_SCHEMAS = frozenset({"pg_catalog", "information_schema"})
+_CATALOG_FUNCTIONS = ("pg_get_", "obj_description", "col_description", "format_type")
+_CATALOG_HINT = (
+    ". The system catalog is not readable through SQL; use the connection's "
+    "`<connection>_list_tables` and `<connection>_describe` for tables and "
+    "columns, `<connection>_functions` for function names, arguments and return "
+    "types, and `<connection>_definition` for the body of a view or function"
+)
+
+
 def validate_select_sql(sql: str, *, table_policy: TableAccessPolicy) -> exp.Expression:
     """Parse SQL with sqlglot and raise on any safety violation.
 
@@ -195,10 +208,29 @@ def validate_select_sql(sql: str, *, table_policy: TableAccessPolicy) -> exp.Exp
         if not candidates:
             continue  # unresolvable name — nothing to match
         if not candidates & _SAFE_FUNCTIONS:
-            picked = next(iter(candidates))
+            picked = str(func.this).lower() if func.this else next(iter(candidates))
+            hint = _CATALOG_HINT if picked.startswith(_CATALOG_FUNCTIONS) else ""
             raise UnsupportedConstruct(
-                f"function {picked!r} is not in the safe-query allowlist"
+                f"function {picked!r} is not in the safe-query allowlist{hint}"
             )
+
+    # 3b. A schema-qualified call (`public.lower(x)`) names a user routine that
+    #     merely shares an allowlisted name; only pg_catalog may qualify one.
+    #     `OPERATOR(schema.op)` is the same trick for operators — refused.
+    for dot in ast.find_all(exp.Dot):
+        if isinstance(dot.expression, exp.Func):
+            qualifier = dot.this.sql(dialect="postgres").lower()
+            if qualifier != "pg_catalog":
+                raise UnsupportedConstruct(
+                    "schema-qualified function "
+                    f"{dot.sql(dialect='postgres')[:60]!r} is not allowed; "
+                    "only pg_catalog builtins may be called"
+                )
+    for op in ast.find_all(exp.Operator):
+        raise UnsupportedConstruct(
+            "OPERATOR() syntax is rejected by the safe-query gate "
+            f"(found at: {op.sql(dialect='postgres')[:60]!r})"
+        )
 
     # 4. Every table reference must be allowed by the policy. CTE aliases
     #    referenced in the outer SELECT show up as exp.Table too — collect their
@@ -223,9 +255,12 @@ def validate_select_sql(sql: str, *, table_policy: TableAccessPolicy) -> exp.Exp
         ):
             continue  # CTE alias reference — allowed
         if not table_policy.is_allowed(schema=schema_name, table=table_name):
+            catalog = schema_name.lower() in _CATALOG_SCHEMAS or (
+                not schema_name and table_name.lower().startswith("pg_")
+            )
             raise AllowlistViolation(
                 f"table {qualified!r} is outside the allowlist "
-                f"({table_policy.describe()})"
+                f"({table_policy.describe()})" + (_CATALOG_HINT if catalog else "")
             )
 
     return ast

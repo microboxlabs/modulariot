@@ -118,6 +118,14 @@ export interface CalendarHost<TRaw = unknown> {
    * (e.g. a terminal state read from the booking payload).
    */
   resolveWorkflowStage?: (item: TRaw) => string | undefined;
+  /**
+   * Resolve fields a planned item should take from the host's live index
+   * rather than from the booking payload it was loaded with. When set, the
+   * provider merges the returned partial over each planned item at render
+   * time, so a live-index refresh corrects them without refetching bookings.
+   * Return undefined (or an empty partial) to leave the item untouched.
+   */
+  resolveItemOverlay?: (item: TRaw) => Partial<TRaw> | undefined;
   /** Override the default sidebar card. */
   renderItemCard?: (item: CalendarItem) => ReactNode;
   /** Override the default grid chip. */

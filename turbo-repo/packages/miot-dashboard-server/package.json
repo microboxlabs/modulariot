@@ -1,13 +1,21 @@
 {
   "name": "@microboxlabs/miot-dashboard-server",
-  "version": "0.0.0",
+  "version": "0.5.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/microboxlabs/modulariot",
-    "directory": "packages/miot-dashboard-server"
+    "directory": "turbo-repo/packages/miot-dashboard-server"
   },
   "description": "Framework-agnostic backend services for MIOT embeddable dashboards: persistence, identity and tenancy, datasource proxying, embed tokens.",
+  "keywords": [
+    "dashboard",
+    "dashboards",
+    "multi-tenant",
+    "embeddable",
+    "jwt",
+    "self-hosted"
+  ],
   "type": "module",
   "engines": {
     "node": ">=20.19.0"
@@ -45,6 +53,18 @@
     "./store-cloud": {
       "types": "./dist/store-cloud.d.ts",
       "import": "./dist/store-cloud.js"
+    },
+    "./vault-sql": {
+      "types": "./dist/vault-sql.d.ts",
+      "import": "./dist/vault-sql.js"
+    },
+    "./vault-http": {
+      "types": "./dist/vault-http.d.ts",
+      "import": "./dist/vault-http.js"
+    },
+    "./queries": {
+      "types": "./dist/queries.d.ts",
+      "import": "./dist/queries.js"
     }
   },
   "bin": {
@@ -52,7 +72,6 @@
   },
   "files": [
     "dist",
-    "contract",
     "examples"
   ],
   "scripts": {
@@ -64,7 +83,11 @@
     "test:api": "npm --prefix rest-api run test:api",
     "lint": "eslint .",
     "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
-    "guard": "node scripts/guard-imports.mjs"
+    "guard": "node scripts/guard-imports.mjs",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@microboxlabs/miot-dashboard-contract": "^0.5.0"
   },
   "peerDependencies": {
     "jose": "^6.0.0",
@@ -94,6 +117,7 @@
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "@types/node": "^20.19.0",
+    "@vitest/coverage-v8": "^5.0.0",
     "jose": "^6.2.10",
     "swagger-ui-dist": "^5.32.14",
     "tsup": "^8.0.0",

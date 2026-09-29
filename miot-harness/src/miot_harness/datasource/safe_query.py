@@ -1,12 +1,14 @@
 """Generic, policy-driven safe-query primitives (Tier B / Layer 2).
 
 Backend-agnostic read-only primitives for ANY Postgres connection, parameterised
-by a `TableAccessPolicy`. The difference from the Nexo primitives is the
-execution envelope: every statement runs inside ``conn.transaction(readonly=True)``
-(``BEGIN READ ONLY`` — PgBouncer-safe) with ``SET LOCAL statement_timeout``, so
-the harness enforces read-only + a time budget IN-PROCESS without depending on a
-dedicated least-privilege DB role existing (that role is recommended prod
-hardening, layered on top — not a prerequisite).
+by a `TableAccessPolicy`. Two execution envelopes (see `datasource/pool.py`):
+
+- transaction (default): every statement runs inside
+  ``conn.transaction(readonly=True)`` with ``SET LOCAL statement_timeout`` —
+  PgBouncer-safe, read-only enforced in-process without a least-privilege role.
+- session: read-only and the timeout are connection startup settings on a
+  `SessionPool`; a call is one round trip. Requires a role whose grants enforce
+  read-only on their own.
 
 - ``safe_list_tables`` — tables in the policy's allowed schema(s) (introspection).
 - ``safe_describe``   — columns + types of a policy-allowed table.
@@ -18,6 +20,7 @@ hardening, layered on top — not a prerequisite).
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -75,28 +78,61 @@ async def fetch_readonly(
     *args: Any,
     statement_timeout_ms: int | None,
 ) -> list[Any]:
-    """Run a query inside a READ ONLY transaction with a statement timeout.
+    """Run a query in the read-only envelope with a statement timeout.
 
-    `BEGIN READ ONLY` is the hard backstop: even if the gate were bypassed, the
-    DB refuses writes. `SET LOCAL statement_timeout` bounds runtime. Both are
-    per-transaction (PgBouncer-safe), never startup parameters.
+    Transaction pools: `BEGIN READ ONLY` + `SET LOCAL statement_timeout`, so
+    even a bypassed gate cannot write. Session pools: both are connection
+    settings, one round trip; a call asking for a timeout other than the pinned
+    one takes the transaction path so the requested budget still applies.
     """
     async with pool.acquire() as conn:
+        if _session_envelope(pool, statement_timeout_ms):
+            return list(await conn.fetch(sql, *args))
         async with conn.transaction(readonly=True):
             if statement_timeout_ms:
-                await conn.execute(
-                    f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}"
-                )
+                await conn.execute(f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}")
             rows = await conn.fetch(sql, *args)
             return list(rows)
+
+
+async def run_readonly(
+    pool: Any,
+    fetch: Callable[[Any], Awaitable[list[Any]]],
+    *,
+    statement_timeout_ms: int | None = DEFAULT_STATEMENT_TIMEOUT_MS,
+) -> list[Any]:
+    """Run `fetch(conn)` inside the connection's read-only envelope.
+
+    Session envelope: the pool pins read-only and the timeout at connect, so
+    the fetch runs as-is. Transaction envelope: BEGIN READ ONLY plus
+    `SET LOCAL statement_timeout`.
+    """
+    async with pool.acquire() as conn:
+        if _session_envelope(pool, statement_timeout_ms):
+            return await fetch(conn)
+        async with conn.transaction(readonly=True):
+            if statement_timeout_ms:
+                await conn.execute(f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}")
+            return await fetch(conn)
+
+
+def record_to_dict(record: Any) -> dict[str, Any]:
+    return _record_to_dict(record)
+
+
+def _session_envelope(pool: Any, statement_timeout_ms: int | None) -> bool:
+    """True when the pool pins read-only + timeout as session settings AND the
+    call's timeout is the pinned one (or unspecified)."""
+    if not getattr(pool, "session_envelope", False):
+        return False
+    pinned = getattr(pool, "statement_timeout_ms", None)
+    return statement_timeout_ms is None or int(statement_timeout_ms) == pinned
 
 
 def _split_qualified(table: str) -> tuple[str, str]:
     parts = table.split(".")
     if len(parts) != 2 or not parts[0] or not parts[1]:
-        raise UnsupportedConstruct(
-            f"table {table!r} must be schema-qualified as 'schema.table'"
-        )
+        raise UnsupportedConstruct(f"table {table!r} must be schema-qualified as 'schema.table'")
     return parts[0], parts[1]
 
 
@@ -114,15 +150,24 @@ async def safe_list_tables(
             "this connection's policy does not enumerate schemas; cannot list tables"
         )
     sql = (
-        "SELECT table_schema, table_name, table_type "
-        "FROM information_schema.tables "
-        "WHERE table_schema = ANY($1::text[]) "
-        "ORDER BY table_schema, table_name"
+        "SELECT t.table_schema, t.table_name, t.table_type, "
+        "CASE WHEN c.reltuples >= 0 THEN c.reltuples::bigint END AS est_rows, "
+        "obj_description(c.oid, 'pg_class') AS comment "
+        "FROM information_schema.tables t "
+        "LEFT JOIN pg_namespace n ON n.nspname = t.table_schema "
+        "LEFT JOIN pg_class c ON c.relnamespace = n.oid AND c.relname = t.table_name "
+        "WHERE t.table_schema = ANY($1::text[]) "
+        "ORDER BY t.table_schema, t.table_name"
     )
     rows = await fetch_readonly(
         pool, sql, sorted(schemas), statement_timeout_ms=statement_timeout_ms
     )
-    return [dict(row) for row in rows]
+    return [_without_nulls(dict(row)) for row in rows]
+
+
+def _without_nulls(row: dict[str, Any]) -> dict[str, Any]:
+    """Drop empty catalog fields so the model is not sent `comment: null` per row."""
+    return {k: v for k, v in row.items() if v is not None}
 
 
 async def safe_describe(
@@ -140,13 +185,40 @@ async def safe_describe(
             f"describe target {table!r} is outside the allowlist ({policy.describe()})"
         )
     sql = (
-        "SELECT column_name, data_type FROM information_schema.columns "
-        "WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position"
+        "SELECT c.column_name, c.data_type, col_description(a.attrelid, a.attnum) AS comment "
+        "FROM information_schema.columns c "
+        "LEFT JOIN pg_namespace n ON n.nspname = c.table_schema "
+        "LEFT JOIN pg_class k ON k.relnamespace = n.oid AND k.relname = c.table_name "
+        "LEFT JOIN pg_attribute a ON a.attrelid = k.oid AND a.attname = c.column_name "
+        "WHERE c.table_schema = $1 AND c.table_name = $2 ORDER BY c.ordinal_position"
     )
+    rows = await fetch_readonly(pool, sql, schema, name, statement_timeout_ms=statement_timeout_ms)
+    return [_without_nulls(dict(row)) for row in rows]
+
+
+async def safe_table_comment(
+    *,
+    pool: Any,
+    policy: TableAccessPolicy,
+    table: str,
+    statement_timeout_ms: int | None = DEFAULT_STATEMENT_TIMEOUT_MS,
+) -> str | None:
+    """The table's COMMENT, when it has one."""
+    schema, name = _split_qualified(table)
+    if not policy.is_allowed(schema=schema, table=name):
+        raise AllowlistViolation(
+            f"describe target {table!r} is outside the allowlist ({policy.describe()})"
+        )
     rows = await fetch_readonly(
-        pool, sql, schema, name, statement_timeout_ms=statement_timeout_ms
+        pool,
+        "SELECT obj_description(c.oid, 'pg_class') AS comment FROM pg_class c "
+        "JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2",
+        schema,
+        name,
+        statement_timeout_ms=statement_timeout_ms,
     )
-    return [dict(row) for row in rows]
+    comment = rows[0].get("comment") if rows else None
+    return comment if isinstance(comment, str) and comment else None
 
 
 def _bounded(limit: int, max_rows: int) -> int:
@@ -180,9 +252,7 @@ async def safe_select(
 
     ast = validate_select_sql(sql, table_policy=policy)
     safe_sql = render_safe(ast)
-    rows = await fetch_readonly(
-        pool, safe_sql, statement_timeout_ms=statement_timeout_ms
-    )
+    rows = await fetch_readonly(pool, safe_sql, statement_timeout_ms=statement_timeout_ms)
     return QueryRun(rows=[dict(row) for row in rows], sql=safe_sql)
 
 
@@ -204,9 +274,7 @@ async def safe_grep(
     sql_for_gate = f"SELECT * FROM {table} WHERE {col} ILIKE $1 LIMIT {bounded_limit}"
     ast = validate_select_sql(sql_for_gate, table_policy=policy)
     safe_sql = render_safe(ast)
-    rows = await fetch_readonly(
-        pool, safe_sql, pattern, statement_timeout_ms=statement_timeout_ms
-    )
+    rows = await fetch_readonly(pool, safe_sql, pattern, statement_timeout_ms=statement_timeout_ms)
     return QueryRun(rows=[dict(row) for row in rows], sql=safe_sql)
 
 
@@ -292,22 +360,25 @@ async def safe_run_select(
     cap = max(1, min(int(max_rows), HARD_LIMIT_CAP))
     wrapped = f"SELECT * FROM ({inner}) AS _miot_q LIMIT {cap}"
 
-    async with pool.acquire() as conn:
-        async with conn.transaction(readonly=True):
-            if statement_timeout_ms:
-                await conn.execute(
-                    f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}"
+    async def _gated_fetch(conn: Any) -> list[Any]:
+        if cost_threshold is not None:
+            plan_rows = await conn.fetch(f"EXPLAIN (FORMAT JSON) {wrapped}")
+            total_cost = float(_plan_from_explain(plan_rows).get("Total Cost", 0.0))
+            if total_cost > cost_threshold:
+                raise CostGateViolation(
+                    f"plan total_cost={total_cost:.1f} exceeds threshold {cost_threshold:.1f}"
                 )
-            if cost_threshold is not None:
-                plan_rows = await conn.fetch(f"EXPLAIN (FORMAT JSON) {wrapped}")
-                total_cost = float(_plan_from_explain(plan_rows).get("Total Cost", 0.0))
-                if total_cost > cost_threshold:
-                    raise CostGateViolation(
-                        f"plan total_cost={total_cost:.1f} exceeds threshold "
-                        f"{cost_threshold:.1f}"
-                    )
-            rows = await conn.fetch(wrapped)
-            # SELECT * over a JOIN can yield duplicate column labels; dict(r)
-            # would silently keep only the last. Preserve every column by
-            # suffixing collisions (id_, id__2, …) so no data is lost.
-            return QueryRun(rows=[_record_to_dict(r) for r in rows], sql=wrapped)
+        return list(await conn.fetch(wrapped))
+
+    async with pool.acquire() as conn:
+        if _session_envelope(pool, statement_timeout_ms):
+            rows = await _gated_fetch(conn)
+        else:
+            async with conn.transaction(readonly=True):
+                if statement_timeout_ms:
+                    await conn.execute(f"SET LOCAL statement_timeout = {int(statement_timeout_ms)}")
+                rows = await _gated_fetch(conn)
+    # SELECT * over a JOIN can yield duplicate column labels; dict(r) would
+    # silently keep only the last. Preserve every column by suffixing
+    # collisions (id_, id__2, …) so no data is lost.
+    return QueryRun(rows=[_record_to_dict(r) for r in rows], sql=wrapped)

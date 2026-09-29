@@ -60,6 +60,19 @@ const SPECIFIER_RE =
 /** The one UI subpath a backend may import — React-free by construction. */
 const UI_SCHEMA_ENTRY = "@microboxlabs/miot-dashboard-ui/schema";
 
+/**
+ * The contract's declared entries. A deep import past them resolves in this
+ * workspace and fails on a consumer's `npm install`.
+ */
+const CONTRACT_ENTRIES = [
+  "@microboxlabs/miot-dashboard-contract/document",
+  "@microboxlabs/miot-dashboard-contract/schema",
+  "@microboxlabs/miot-dashboard-contract/roles",
+  "@microboxlabs/miot-dashboard-contract/errors",
+  "@microboxlabs/miot-dashboard-contract/openapi.yaml",
+  "@microboxlabs/miot-dashboard-contract/dashboard-config.schema.json",
+];
+
 /** Rules applied to the specifier of every import under src/ */
 const SPECIFIER_RULES = [
   {
@@ -75,7 +88,16 @@ const SPECIFIER_RULES = [
       s !== UI_SCHEMA_ENTRY,
     why: `UI package import other than "${UI_SCHEMA_ENTRY}" (every other entry is React / "use client")`,
   },
-  { test: (s) => /^@\/features\//.test(s), why: "app-internal import (@/features/*)" },
+  {
+    test: (s) =>
+      /^@microboxlabs\/miot-dashboard-contract(\/|$)/.test(s) &&
+      !CONTRACT_ENTRIES.includes(s),
+    why: `contract package import that is not one of its declared entries (${CONTRACT_ENTRIES.join(", ")})`,
+  },
+  {
+    test: (s) => /^@\/features\//.test(s),
+    why: "app-internal import (@/features/*)",
+  },
   {
     test: (s) => /^@modulariot\/app(\/|$)/.test(s),
     why: "app package import (@modulariot/app)",
@@ -179,7 +201,9 @@ for (const file of walk(SRC)) {
         // Report the match itself, not its first line: in a multi-line import
         // the first line is precisely the half that reads as innocent.
         const snippet = match[0].replace(/\s+/g, " ").trim();
-        violations.push(`src/${rel}:${lineOf(match.index)} — ${why}\n    ${snippet}`);
+        violations.push(
+          `src/${rel}:${lineOf(match.index)} — ${why}\n    ${snippet}`,
+        );
       }
     }
   }
@@ -197,7 +221,9 @@ for (const file of walk(SRC)) {
 }
 
 if (violations.length > 0) {
-  console.error(`guard-imports: ${violations.length} forbidden import(s) found:\n`);
+  console.error(
+    `guard-imports: ${violations.length} forbidden import(s) found:\n`,
+  );
   for (const v of violations) console.error(`  ${v}`);
   process.exit(1);
 }

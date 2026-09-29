@@ -6,6 +6,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "noUncheckedIndexedAccess": true,
+    "types": [],
     // No DOM and no Node: this package is imported by both, so anything it
     // reaches for has to exist in either. A platform global appearing here
     // would compile and then fail in half the places it ships to.

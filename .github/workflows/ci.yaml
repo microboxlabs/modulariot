@@ -65,6 +65,7 @@ jobs:
             apps:
               - 'turbo-repo/apps/**'
               - 'turbo-repo/packages/ui/**'
+              - 'turbo-repo/packages/miot-dashboard-ui/**'
               - 'turbo-repo/packages/db/**'
               - 'turbo-repo/packages/typescript-config/**'
               - 'turbo-repo/packages/eslint-config/**'

@@ -615,6 +615,10 @@ Dashboard lists apply the same per-dashboard visibility policy as loads. Hidden 
 Override with a custom `CapabilityPolicy` if your role model differs. A policy
 can only restrict, never grant more than the identity allows.
 
+Creating a dashboard requires both Contributor-or-higher scope membership and
+the identity's `canEdit` permission. A credential restricted to read-only access
+cannot create a dashboard even when its user has an editing role in the scope.
+
 ### Errors
 
 One envelope, from every adapter:

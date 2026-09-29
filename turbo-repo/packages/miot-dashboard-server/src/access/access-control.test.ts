@@ -457,6 +457,27 @@ describe("capabilities by role", () => {
     expect(error.reason).toBe("CAPABILITY");
   });
 
+  it.each(["alice", "eve", "carl"])(
+    "a read-only credential cannot create a dashboard as %s",
+    async (userId) => {
+      const h = harness({ memberships, seed });
+      const target = { scopeId: "ops", slug: "new-dashboard", action: "dashboard.save" as const };
+      const error = await expectError(h.control.authorize(
+        user(userId, "acme", {
+          capabilities: { ...FULL_CAPABILITIES, canEdit: false },
+        }),
+        target,
+      ));
+      expect(error.status).toBe(403);
+      expect(error.reason).toBe("CAPABILITY");
+      expect(h.audit.events.at(-1)).toMatchObject({
+        action: "dashboard.save", outcome: "denied",
+      });
+      await expect(h.control.authorize(user(userId, "acme"), target))
+        .resolves.toMatchObject({ dashboard: { record: null } });
+    },
+  );
+
   it("a custom policy returning null denies a scope member", async () => {
     const h = harness({
       memberships,

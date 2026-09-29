@@ -196,9 +196,12 @@ function dashboardActionAllowed(
   action: DashboardAction,
   access: DashboardAccess,
   scopeRole: DashboardRole,
+  identity: DashboardIdentity,
 ): boolean {
   if (action === "dashboard.save" && access.record === null) {
-    return roleAtLeast(scopeRole, "Contributor");
+    // A new dashboard has no owner yet, so the Contributor's per-document
+    // canEdit flag is false. Use scope standing, but retain the token ceiling.
+    return roleAtLeast(scopeRole, "Contributor") && identity.capabilities.canEdit;
   }
   const { capability } = ACTION_RULES[action];
   return capability === null || access.capabilities[capability];
@@ -472,7 +475,7 @@ export function createAccessControl<TRequest>(
         "You do not have access to this dashboard",
       );
     }
-    if (!dashboardActionAllowed(target.action, dashboard, scopeRole)) {
+    if (!dashboardActionAllowed(target.action, dashboard, scopeRole, identity)) {
       return deny(
         identity,
         target,

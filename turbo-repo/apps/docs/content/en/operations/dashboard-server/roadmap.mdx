@@ -52,3 +52,11 @@ The Demo organization is registered separately, with dashboard access enabled an
 The Editor created a Demo dashboard through the browser, renamed it and saved a static text widget. Both persisted after full reloads; the document API returned revision `"3"`. An attempted deletion returned 403 and the document remained readable, consistent with `canDelete: false`. This validates Editor creation/editing and its deletion restriction, not Consumer behavior.
 
 Consumer browser acceptance remains open: the supplied account is an Editor, and its membership was not changed. Telemetry migration still requires the verified upstream data-scope mapping described above. The UI remains part of the ModularIoT application; extracting a separate UI package is future work.
+
+## Independent GKE deployment — 2026-09-29
+
+The [Dox standalone kit](https://github.com/microboxlabs/dox-miot-dashboard-standalone/blob/trunk/docs/validation/gke-idauto.md) was deployed in the dedicated `dox-dashboard-validation` namespace of `gke_portadox_us-central1_autopilot-idauto`. Server 0.5.0 runs with a persistent SQLite volume, RS256 verification and local Coordinator/Consumer memberships. It has no Alfresco, Java or ModularIoT backend dependency. The service is internal-only, with no public ingress.
+
+With the user's authorization, an operator-owned connection/template resolver queries the Streamhub billing dataset through the published TypeScript BigQuery provider. The standalone Consumer received 13 real cost rows. The template fixes the project, dataset and SQL, accepts no input parameters and enforces a 1 GB billing limit; its service-account key is mounted from a Secret. Anonymous queries returned 401, foreign-tenant requests returned 403 and undeclared SQL filters returned 400.
+
+Fifteen live permission checks passed, including rejected Consumer creation, editing, deletion and credential writes. After restarting the pod, fourteen permission/persistence checks passed with the original document revision retained. These are signed synthetic identities with no legacy site roles. This establishes standalone HTTP authorization and execution; product-browser acceptance, Dox production-login integration and telemetry migration remain unverified. No visual dashboard UI is included in this deployment.

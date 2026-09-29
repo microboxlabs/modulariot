@@ -23,7 +23,10 @@ from miot_harness.agents.chat_models import (
     provider_registry,
     set_provider_registry,
 )
-from miot_harness.agents.conversation_summarizer import build_conversation_summarizer
+from miot_harness.agents.conversation_summarizer import (
+    ConversationSummarizer,
+    build_conversation_summarizer,
+)
 from miot_harness.agents.model_providers import (
     fetch_modulith_registry,
     is_anthropic,
@@ -76,6 +79,7 @@ from miot_harness.observability.provenance import ProvenanceLog
 from miot_harness.runtime.agent_loop import NO_DEFAULT_MODEL, AgentLoopRunner, AgentLoopRunners
 from miot_harness.runtime.agent_seats import AdvisorSeat, LoopSeats, WorkhorseSeat
 from miot_harness.runtime.context import UserRequest
+from miot_harness.runtime.conversation import ConversationHistory
 from miot_harness.runtime.conversation_backend import ModulithConversationBackend
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.factory import build_harness
@@ -208,15 +212,10 @@ def _make_lifespan(
         # accumulate on the direct and disabled paths too. Without a model
         # the history just keeps growing.
         try:
-            harness.conversation_summarizer = build_conversation_summarizer(
-                get_chat_model(_summarizer_model(settings))
-            )
+            harness.conversation_summarizer = _conversation_summarizer(_summarizer_model(settings))
         except ModelNotConfiguredError as exc:
             harness.conversation_summarizer = None
             logger.error("Conversation compaction and thread titles disabled: %s", exc)
-        except Exception as exc:  # noqa: BLE001
-            harness.conversation_summarizer = None
-            logger.warning("Conversation compaction disabled: %s", exc)
         app.state.in_flight = {}
         interrupted = harness.run_store.mark_interrupted()
         if interrupted:
@@ -1616,6 +1615,16 @@ def knowledge_store_factory(
 
 def _summarizer_model(settings: HarnessSettings) -> str:
     return required_model(settings.agents_summarizer_model, "MIOT_HARNESS_AGENTS_SUMMARIZER_MODEL")
+
+
+def _conversation_summarizer(model_name: str) -> ConversationSummarizer:
+    """Builds the model on each compaction: its provider may come from the
+    modulith, which loads after boot and refreshes."""
+
+    async def compact(history: ConversationHistory, *, focus: str | None = None) -> str:
+        return await build_conversation_summarizer(get_chat_model(model_name))(history, focus=focus)
+
+    return compact
 
 
 def _default_model(harness: HarnessSupervisor) -> str | None:

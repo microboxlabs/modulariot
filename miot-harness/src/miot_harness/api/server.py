@@ -609,6 +609,11 @@ def _make_lifespan(
                 pick_route(provider_registry(), settings)
             except WebSearchError as exc:
                 logger.error("Web search: %s", exc)
+        if settings.knowledge_distiller_enabled and not settings.knowledge_distiller_model:
+            logger.error(
+                "Knowledge distiller: no model configured: "
+                "set MIOT_HARNESS_KNOWLEDGE_DISTILLER_MODEL"
+            )
 
         try:
             yield

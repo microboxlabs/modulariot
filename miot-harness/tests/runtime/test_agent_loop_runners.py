@@ -74,6 +74,21 @@ def test_without_a_default_a_run_that_names_no_model_fails() -> None:
     assert runners.runner_for("claude-sonnet-4-6") is not None
 
 
+def test_an_empty_configured_default_counts_as_unset() -> None:
+    runners = AgentLoopRunners(
+        default_model="",
+        models=[],
+        build_model=lambda name: ScriptedModel([AIMessage(content=name)]),
+        registry=_registry(),
+        settings=HarnessSettings(agents_agent_loop_max_turns=3),
+        profile=FAKE_PROFILE,
+    )
+    assert runners.default_model is None
+    assert runners.models == ()
+    with pytest.raises(ModelNotConfiguredError, match="MIOT_HARNESS_AGENTS_AGENT_LOOP_MODEL"):
+        runners.runner_for(None)
+
+
 def test_the_platform_default_model_serves_runs_that_name_none() -> None:
     offered = ProviderRegistry(
         [

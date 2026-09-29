@@ -39,6 +39,16 @@ def test_boot_logs_an_error_for_each_model_that_is_not_set(
     assert "MIOT_HARNESS_WEB_SEARCH_MODEL" in errors
 
 
+def test_boot_logs_an_error_when_the_distiller_is_on_without_a_model(
+    caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MIOT_HARNESS_KNOWLEDGE_DISTILLER_ENABLED", "true")
+    get_settings.cache_clear()
+    with caplog.at_level(logging.INFO), TestClient(create_app()):
+        pass
+    assert "MIOT_HARNESS_KNOWLEDGE_DISTILLER_MODEL" in _errors(caplog)
+
+
 def test_a_run_without_a_model_fails_and_says_which_setting_is_missing() -> None:
     with TestClient(create_app(), headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as client:
         resp = client.post("/runs", json={"message": "hi"})

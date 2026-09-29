@@ -1354,7 +1354,7 @@ class AgentLoopRunners:
     def default_model(self) -> str | None:
         """The platform owner's default model when set, else the configured one."""
         chosen = self._providers().default_model() if self._providers else None
-        return chosen or self._configured_default
+        return chosen or self._configured_default or None
 
     @property
     def models(self) -> tuple[str, ...]:

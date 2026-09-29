@@ -1,5 +1,6 @@
 "use client";
 
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { useMemo, useState } from "react";
 import {
   Label,
@@ -211,6 +212,11 @@ export function SettingsSelectField({
   onChange,
   options,
 }: Readonly<SettingsSelectFieldProps>) {
+  const { hostAccess } = useOptionalDashboard();
+  const available = hostAccess
+    ? options.filter((option) => !["pgrest", "dynamic"].includes(option.value))
+    : options;
+
   return (
     <div className="w-full">
       <Label
@@ -226,7 +232,7 @@ export function SettingsSelectField({
         sizing="sm"
         className="[&>select]:cursor-pointer"
       >
-        {options.map((opt) => (
+        {available.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
           </option>

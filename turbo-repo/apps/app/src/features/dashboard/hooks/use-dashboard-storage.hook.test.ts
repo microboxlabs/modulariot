@@ -356,3 +356,61 @@ describe("useDashboardStorage", () => {
     });
   });
 });
+
+describe("host-controlled storage", () => {
+  it("routes edits only to the host and never flushes a legacy write", () => {
+    const onChange=vi.fn();
+    const config=makeDashboardStorage({name:"Host dashboard"});
+    const controller={config,isLoaded:true,readOnly:false,onChange};
+    const {result,unmount}=renderHook(() => useDashboardStorage("host",null,"legacy-site",controller));
+    expect(result.current.dashboardName).toBe("Host dashboard");
+    act(() => result.current.setDashboardName("Edited"));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({name:"Edited",preferences:expect.objectContaining({editMode:false})}));
+    expect(mockMutate).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(10000));
+    unmount();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it("uses host loading state and refuses mutations while read-only", () => {
+    const onChange=vi.fn();
+    const controller={config:makeDashboardStorage(),isLoaded:false,readOnly:true,onChange};
+    const {result}=renderHook(() => useDashboardStorage("host",null,null,controller));
+    expect(result.current.isLoaded).toBe(false);
+    act(() => result.current.setDashboardName("Rejected"));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+it("read-only operations preserve undo history and refuse imports", () => {
+  const onChange = vi.fn();
+  const config = makeDashboardStorage();
+  const { result, rerender } = renderHook(
+    ({ readOnly }) =>
+      useDashboardStorage("host", null, null, {
+        config,
+        isLoaded: true,
+        readOnly,
+        onChange,
+      }),
+    { initialProps: { readOnly: false } },
+  );
+  act(() => result.current.setDashboardName("Edited"));
+  expect(result.current.canUndo()).toBe(true);
+  onChange.mockClear();
+  rerender({ readOnly: true });
+  act(() => {
+    result.current.setDashboardName("Rejected");
+    result.current.undo();
+    result.current.redo();
+  });
+  expect(result.current.importDashboard(JSON.stringify(config)).success).toBe(
+    false,
+  );
+  expect(result.current.canUndo()).toBe(false);
+  expect(onChange).not.toHaveBeenCalled();
+  rerender({ readOnly: false });
+  expect(result.current.canUndo()).toBe(true);
+  act(() => result.current.undo());
+  expect(onChange).toHaveBeenCalledTimes(1);
+  expect(result.current.canUndo()).toBe(false);
+});

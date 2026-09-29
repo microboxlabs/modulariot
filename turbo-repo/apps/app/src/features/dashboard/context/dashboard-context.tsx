@@ -7,9 +7,10 @@ import {
   useEffect,
   useMemo,
   type PropsWithChildren,
+  type ComponentType,
 } from "react";
 import { mutate as mutateGlobal } from "swr";
-import { useDashboardStorage } from "../hooks/use-dashboard-storage";
+import { useDashboardStorage, type DashboardStorageController } from "../hooks/use-dashboard-storage";
 import {
   type Widget,
   type GridLayoutItem,
@@ -40,6 +41,8 @@ interface DashboardContextValue {
   dictionary: I18nRecord;
   /** Alfresco site short name (when available) */
   siteId?: string | null;
+  /** Capabilities supplied by controlled storage; no legacy site lookup. */
+  hostAccess?: { canEdit: boolean; canManagePermissions: boolean };
   /** Dashboard filter bar configuration */
   filters: DashboardFilterParam[];
   /** Update dashboard filter configuration */
@@ -123,6 +126,10 @@ interface DashboardProviderProps extends PropsWithChildren {
   defaultConfig?: DashboardStorageSchema | null;
   /** Optional Alfresco site short name. When provided, configs are fetched from and persisted to Alfresco. */
   siteId?: string | null;
+  /** Controlled host storage; disables legacy fetching and persistence. */
+  storage?: DashboardStorageController;
+  /** Host data provider mounted inside dashboard/filter contexts. */
+  dataProvider?: ComponentType<PropsWithChildren>;
 }
 
 export function DashboardProvider({
@@ -130,8 +137,11 @@ export function DashboardProvider({
   dictionary,
   slug,
   defaultConfig,
-  siteId,
+  siteId: legacySiteId,
+  storage,
+  dataProvider: DataProvider = PlannerProvider,
 }: Readonly<DashboardProviderProps>) {
+  const siteId = storage ? null : legacySiteId;
   const {
     widgets,
     filters,
@@ -165,7 +175,7 @@ export function DashboardProvider({
     redo,
     canUndo,
     canRedo,
-  } = useDashboardStorage(slug, defaultConfig, siteId);
+  } = useDashboardStorage(slug, defaultConfig, siteId, storage);
 
   const isKiosk = useKioskMode();
 
@@ -392,6 +402,10 @@ export function DashboardProvider({
     [setOrderStorage]
   );
 
+  const hasStorage = Boolean(storage);
+  const storageLoaded = storage?.isLoaded ?? false;
+  const storageReadOnly = storage?.readOnly ?? false;
+
   const value: DashboardContextValue = useMemo(
     () => ({
       widgets,
@@ -400,6 +414,12 @@ export function DashboardProvider({
       isLoaded,
       dictionary,
       siteId,
+      hostAccess: hasStorage
+        ? {
+            canEdit: storageLoaded && !storageReadOnly,
+            canManagePermissions: false,
+          }
+        : undefined,
       filters,
       setFilters,
       refreshInterval: effectiveRefreshInterval,
@@ -438,6 +458,9 @@ export function DashboardProvider({
       isLoaded,
       dictionary,
       siteId,
+      hasStorage,
+      storageLoaded,
+      storageReadOnly,
       filters,
       setFilters,
       effectiveRefreshInterval,
@@ -474,7 +497,7 @@ export function DashboardProvider({
   return (
     <DashboardContext.Provider value={value}>
       <DashboardFiltersProvider>
-        <PlannerProvider>{children}</PlannerProvider>
+        <DataProvider>{children}</DataProvider>
       </DashboardFiltersProvider>
     </DashboardContext.Provider>
   );

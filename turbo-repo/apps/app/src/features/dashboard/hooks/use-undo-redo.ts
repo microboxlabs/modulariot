@@ -21,7 +21,8 @@ const BATCH_WINDOW_MS = 500;
  */
 export function useUndoRedo(
   getCurrentConfig: () => DashboardStorageSchema,
-  saveData: (data: DashboardStorageSchema) => void
+  saveData: (data: DashboardStorageSchema) => void,
+  readOnly = false
 ) {
   const undoStackRef = useRef<DashboardStorageSchema[]>([]);
   const redoStackRef = useRef<DashboardStorageSchema[]>([]);
@@ -63,40 +64,50 @@ export function useUndoRedo(
   /** Wrapped saveData that records history */
   const saveDataWithHistory = useCallback(
     (data: DashboardStorageSchema) => {
+      if (readOnly) return;
       pushSnapshot();
       saveData(data);
     },
-    [pushSnapshot, saveData]
+    [pushSnapshot, saveData, readOnly]
   );
 
   const undo = useCallback(() => {
+    if (readOnly) return;
     const stack = undoStackRef.current;
     if (stack.length === 0) return;
     const previous = stack.pop()!;
     redoStackRef.current.push(getCurrentConfig());
     lastUndoRedoTimeRef.current = Date.now();
     saveData(previous);
-  }, [getCurrentConfig, saveData]);
+  }, [getCurrentConfig, saveData, readOnly]);
 
   const redo = useCallback(() => {
+    if (readOnly) return;
     const stack = redoStackRef.current;
     if (stack.length === 0) return;
     const next = stack.pop()!;
     undoStackRef.current.push(getCurrentConfig());
     lastUndoRedoTimeRef.current = Date.now();
     saveData(next);
-  }, [getCurrentConfig, saveData]);
+  }, [getCurrentConfig, saveData, readOnly]);
 
-  const canUndo = useCallback(() => undoStackRef.current.length > 0, []);
-  const canRedo = useCallback(() => redoStackRef.current.length > 0, []);
+  const canUndo = useCallback(
+    () => !readOnly && undoStackRef.current.length > 0,
+    [readOnly]
+  );
+  const canRedo = useCallback(
+    () => !readOnly && redoStackRef.current.length > 0,
+    [readOnly]
+  );
 
   /** Clear all history (e.g. on import) */
   const clearHistory = useCallback(() => {
+    if (readOnly) return;
     undoStackRef.current = [];
     redoStackRef.current = [];
     lastPushTimeRef.current = 0;
     lastUndoRedoTimeRef.current = 0;
-  }, []);
+  }, [readOnly]);
 
   return {
     saveDataWithHistory,

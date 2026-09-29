@@ -380,3 +380,37 @@ describe("host-controlled storage", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+it("read-only operations preserve undo history and refuse imports", () => {
+  const onChange = vi.fn();
+  const config = makeDashboardStorage();
+  const { result, rerender } = renderHook(
+    ({ readOnly }) =>
+      useDashboardStorage("host", null, null, {
+        config,
+        isLoaded: true,
+        readOnly,
+        onChange,
+      }),
+    { initialProps: { readOnly: false } },
+  );
+  act(() => result.current.setDashboardName("Edited"));
+  expect(result.current.canUndo()).toBe(true);
+  onChange.mockClear();
+  rerender({ readOnly: true });
+  act(() => {
+    result.current.setDashboardName("Rejected");
+    result.current.undo();
+    result.current.redo();
+  });
+  expect(result.current.importDashboard(JSON.stringify(config)).success).toBe(
+    false,
+  );
+  expect(result.current.canUndo()).toBe(false);
+  expect(onChange).not.toHaveBeenCalled();
+  rerender({ readOnly: false });
+  expect(result.current.canUndo()).toBe(true);
+  act(() => result.current.undo());
+  expect(onChange).toHaveBeenCalledTimes(1);
+  expect(result.current.canUndo()).toBe(false);
+});

@@ -41,6 +41,8 @@ interface DashboardContextValue {
   dictionary: I18nRecord;
   /** Alfresco site short name (when available) */
   siteId?: string | null;
+  /** Capabilities supplied by controlled storage; no legacy site lookup. */
+  hostAccess?: { canEdit: boolean; canManagePermissions: boolean };
   /** Dashboard filter bar configuration */
   filters: DashboardFilterParam[];
   /** Update dashboard filter configuration */
@@ -408,6 +410,12 @@ export function DashboardProvider({
       isLoaded,
       dictionary,
       siteId,
+      hostAccess: storage
+        ? {
+            canEdit: storage.isLoaded && !storage.readOnly,
+            canManagePermissions: false,
+          }
+        : undefined,
       filters,
       setFilters,
       refreshInterval: effectiveRefreshInterval,
@@ -446,6 +454,7 @@ export function DashboardProvider({
       isLoaded,
       dictionary,
       siteId,
+      storage,
       filters,
       setFilters,
       effectiveRefreshInterval,

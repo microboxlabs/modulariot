@@ -14,6 +14,7 @@
  * emits it as `dist/bin.js`, matching the path `package.json` publishes.
  */
 
+import { createHttpDashboardOperationExecutor } from "./queries/http-operations";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -316,6 +317,13 @@ async function main(): Promise<void> {
     tenants: tenants.tenants,
     scopes: scopes.scopes,
     store: assembled.store,
+    ...(config.operations
+      ? {
+          queries: {
+            operations: createHttpDashboardOperationExecutor(config.operations),
+          },
+        }
+      : {}),
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,

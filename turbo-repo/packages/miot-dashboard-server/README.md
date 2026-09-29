@@ -603,8 +603,8 @@ what the caller can do.
 
 `access.scopeCapabilities(request, { tenantId, scopeId })` returns
 `{ canCreate: boolean }` for a dashboard list or empty workspace. Its HTTP route
-is `GET /tenants/{tenantId}/scopes/{scopeId}/capabilities` (introduced after
-v0.4.0). It authenticates the caller, checks tenant and scope membership, and
+is `GET /tenants/{tenantId}/scopes/{scopeId}/capabilities` (introduced in
+v0.5.0). It authenticates the caller, checks tenant and scope membership, and
 requires Contributor-or-higher standing plus the identity's `canEdit` ceiling
 for `canCreate: true`. It does not read the dashboard store or evaluate a
 per-document policy. Saving still validates the document and applies that

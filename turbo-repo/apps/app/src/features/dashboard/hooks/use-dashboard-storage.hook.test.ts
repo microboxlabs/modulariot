@@ -414,3 +414,14 @@ it("read-only operations preserve undo history and refuse imports", () => {
   expect(onChange).toHaveBeenCalledTimes(1);
   expect(result.current.canUndo()).toBe(false);
 });
+
+it("preserves saved connection queries when importing a host document", () => {
+  const onChange = vi.fn();
+  const config = makeDashboardStorage();
+  const queries = [{ id: "costs", variableName: "billing", connectionId: "connection", operationId: "operation", parameters: {} }];
+  const { result } = renderHook(() => useDashboardStorage("host", null, null, { config, isLoaded: true, readOnly: false, onChange }));
+  act(() => {
+    expect(result.current.importDashboard(JSON.stringify({ ...config, queries })).success).toBe(true);
+  });
+  expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ queries }));
+});

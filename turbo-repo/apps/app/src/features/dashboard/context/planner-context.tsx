@@ -42,6 +42,12 @@ const EMPTY_RESULT: PlannerQueryResult = { rows: [], loading: false, error: null
 
 const PlannerContext = createContext<PlannerContextValue | null>(null);
 
+/** Renderer bridge for host-owned data sources; never performs legacy requests. */
+export function PlannerResultsProvider({ value, children }: Readonly<PropsWithChildren<{ value: PlannerContextValue }>>) {
+  return <PlannerContext.Provider value={value}>{children}</PlannerContext.Provider>;
+}
+
+
 // ============================================================================
 // Provider
 // ============================================================================

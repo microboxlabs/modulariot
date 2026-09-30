@@ -144,20 +144,20 @@ class SymptomCatalogServiceTest {
         UUID id = speeding();
 
         assertThrows(NoSuchElementException.class, () -> service.get("tenant-b", id));
-        assertThrows(NoSuchElementException.class,
-                () -> service.saveDraft("tenant-b", OWNER, id, Specs.speeding()));
+        SymptomSpec spec = Specs.speeding();
+        assertThrows(NoSuchElementException.class, () -> service.saveDraft("tenant-b", OWNER, id, spec));
         assertTrue(service.list("tenant-b").isEmpty());
     }
 
     @Test
     void creatingNeedsAValidKeyAndAKnownSource() {
-        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER,
-                new CreateRequest("Bad Key", "x", null, null, null, "gps_signal", null, null)));
-        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER,
-                new CreateRequest("ok-key", "x", null, null, null, "nope", null, null)));
+        CreateRequest badKey = new CreateRequest("Bad Key", "x", null, null, null, "gps_signal", null, null);
+        CreateRequest unknownSource = new CreateRequest("ok-key", "x", null, null, null, "nope", null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER, badKey));
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER, unknownSource));
         speeding();
         assertThrows(IllegalStateException.class, this::speeding);
-        assertEquals(List.of("symptom.created"), audit.list(TENANT, "symptom", null, null, null, 10).stream()
+        assertEquals(List.of("symptom.created"), audit.list(TENANT, "symptom", null, null, null, null, 10).stream()
                 .map(e -> e.action()).toList());
     }
 
@@ -169,11 +169,30 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
+    void theResponseOfALiveCaseComesFromTheVersionInForce() {
+        UUID id = speeding();
+        assertThrows(NoSuchElementException.class, () -> service.responseFor(TENANT, "speed", 4), "off: nothing");
+
+        service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.ACTIVE);
+
+        var response = service.responseFor(TENANT, "SPEED", 4);
+        assertEquals("1.0.0", response.version());
+        assertEquals(2, response.level().response().slaMinutes());
+        assertThrows(NoSuchElementException.class, () -> service.responseFor(TENANT, "other", 4));
+        assertThrows(NoSuchElementException.class, () -> service.responseFor(TENANT, "speed", 5), "no such level");
+
+        UUID copy = service.fork(TENANT, OWNER, id, "1.0.0", "speeding-copy", "Copia").definition().id();
+        service.publish(TENANT, OWNER, copy, "Copia en prueba", null, SymptomState.TEST);
+        assertEquals(id, service.responseFor(TENANT, "speed", 4).definitionId(), "the active one wins over a test copy");
+        assertThrows(NoSuchElementException.class, () -> service.responseFor("tenant-b", "speed", 4));
+    }
+
+    @Test
     void draftSavesAreAudited() {
         UUID id = speeding();
 
         service.saveDraft(TENANT, OWNER, id, Specs.speeding());
 
-        assertEquals("symptom.draft_saved", audit.list(TENANT, "symptom", null, null, null, 10).get(0).action());
+        assertEquals("symptom.draft_saved", audit.list(TENANT, "symptom", null, null, null, null, 10).get(0).action());
     }
 }

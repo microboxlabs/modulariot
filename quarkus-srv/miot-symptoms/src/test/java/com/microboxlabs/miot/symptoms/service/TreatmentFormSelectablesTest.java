@@ -34,7 +34,7 @@ class TreatmentFormSelectablesTest {
         new SelectableAudit(audit).onChanged(new SelectableChanged(
                 TENANT, "owner@example.com", "selectable.deleted", "call_tags", Map.of()));
 
-        assertEquals(List.of("selectable.deleted"), audit.list(TENANT, "selectable", "call_tags", null, null, 10)
+        assertEquals(List.of("selectable.deleted"), audit.list(TENANT, "selectable", "call_tags", null, null, null, 10)
                 .stream().map(AuditEvent::action).toList());
     }
 }

@@ -16,6 +16,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -32,6 +34,7 @@ import java.util.regex.Pattern;
 public class SymptomCatalogService {
 
     static final String ENTITY = "symptom";
+    private static final String VERSION_NOT_FOUND = "version not found: ";
     private static final Pattern KEY = Pattern.compile("^[a-z0-9][a-z0-9_-]{1,94}$");
 
     private final SymptomCatalogStore store;
@@ -160,7 +163,8 @@ public class SymptomCatalogService {
             throw new IllegalStateException("there is no draft to publish");
         }
         PublishPlan plan = plan(tenantCode, detail, detail.draft().spec());
-        return publish(tenantCode, actor, detail, detail.draft(), plan, reason, requested, state, null);
+        return publish(tenantCode, actor, detail, detail.draft(), plan,
+                new Release(reason, requested, state, null));
     }
 
     /** Publishes an old version's spec as a new version. History is never rewritten. */
@@ -168,14 +172,15 @@ public class SymptomCatalogService {
         SymptomDetail detail = get(tenantCode, id);
         SymptomVersion old = store.findVersion(tenantCode, id, version)
                 .filter(v -> v.status() == VersionStatus.PUBLISHED)
-                .orElseThrow(() -> new NoSuchElementException("version not found: " + version));
+                .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + version));
         if (version.equals(detail.definition().currentVersion())) {
             throw new IllegalStateException(version + " is already the version in force");
         }
         SymptomVersion copy = SymptomVersion.draft(id, tenantCode, old.spec(), actor, now());
         PublishPlan plan = plan(tenantCode, detail, old.spec());
         String why = reason == null || reason.isBlank() ? "Volver a " + version : reason;
-        return publish(tenantCode, actor, detail, copy, plan, why, null, detail.definition().state(), version);
+        return publish(tenantCode, actor, detail, copy, plan,
+                new Release(why, null, detail.definition().state(), version));
     }
 
     /** Creates a new symptom from one version of this one. It starts off, with that spec as its draft. */
@@ -184,7 +189,7 @@ public class SymptomCatalogService {
         String v = version == null ? from.currentVersion() : version;
         SymptomVersion source = v == null ? store.findDraft(tenantCode, id).orElseThrow()
                 : store.findVersion(tenantCode, id, v)
-                        .orElseThrow(() -> new NoSuchElementException("version not found: " + v));
+                        .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + v));
         SymptomDetail created = create(tenantCode, actor, new CreateRequest(key, name, from.family(), from.icon(),
                 from.description(), from.sourceKey(), null, source.spec()), source.id());
         audit.log(tenantCode, actor, "symptom.forked", ENTITY, created.definition().id().toString(), null,
@@ -207,18 +212,58 @@ public class SymptomCatalogService {
         return saved;
     }
 
+    /** What the tower does at one level of a symptom in force: the version and the level's rule and response. */
+    public record LevelResponse(UUID definitionId, String name, String version, SymptomState state,
+            SymptomSpec.Level level) {
+    }
+
+    /**
+     * The response for a live case, found by the name the engine gives the
+     * symptom (matched against the icon key or the name, ignoring case).
+     * Only symptoms that are on and published count.
+     */
+    public LevelResponse responseFor(String tenantCode, String symptomName, int icu) {
+        if (symptomName == null || symptomName.isBlank()) {
+            throw new IllegalArgumentException("symptom is required");
+        }
+        String wanted = symptomName.trim();
+        // Names and icons are not unique (a duplicate keeps its source's icon), so the pick is fixed:
+        // ACTIVE before TEST, then the most recently changed.
+        SymptomDefinition d = store.listDefinitions(tenantCode).stream()
+                .filter(x -> x.state() != SymptomState.OFF && x.currentVersion() != null)
+                .filter(x -> wanted.equalsIgnoreCase(x.icon()) || wanted.equalsIgnoreCase(x.name()))
+                .min(Comparator.comparing((SymptomDefinition x) -> x.state() == SymptomState.ACTIVE ? 0 : 1)
+                        .thenComparing(SymptomDefinition::updatedAt, Comparator.reverseOrder()))
+                .orElseThrow(() -> new NoSuchElementException("no symptom in force for " + wanted));
+        SymptomVersion v = store.findVersion(tenantCode, d.id(), d.currentVersion())
+                .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + d.currentVersion()));
+        SymptomSpec.Level level = Optional.ofNullable(v.spec().levels()).orElse(List.of()).stream()
+                .filter(l -> l.icu() == icu && l.applies())
+                .findFirst()
+                .orElseThrow(() -> new NoSuchElementException("level " + icu + " does not apply"));
+        return new LevelResponse(d.id(), d.name(), d.currentVersion(), d.state(), level);
+    }
+
     /** Differences between two published versions, oldest first. */
     public List<Change> compare(String tenantCode, UUID id, String from, String to) {
         require(tenantCode, id);
         SymptomVersion a = store.findVersion(tenantCode, id, from)
-                .orElseThrow(() -> new NoSuchElementException("version not found: " + from));
+                .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + from));
         SymptomVersion b = store.findVersion(tenantCode, id, to)
-                .orElseThrow(() -> new NoSuchElementException("version not found: " + to));
+                .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + to));
         return SpecDiff.changes(a.spec(), b.spec());
     }
 
+    /** What the caller asks of a publication; {@code rolledBackFrom} is set on a rollback. */
+    private record Release(String reason, VersionBump requested, SymptomState state, String rolledBackFrom) {
+    }
+
     private SymptomVersion publish(String tenantCode, String actor, SymptomDetail detail, SymptomVersion version,
-            PublishPlan plan, String reason, VersionBump requested, SymptomState state, String rolledBackFrom) {
+            PublishPlan plan, Release release) {
+        String reason = release.reason();
+        VersionBump requested = release.requested();
+        SymptomState state = release.state();
+        String rolledBackFrom = release.rolledBackFrom();
         if (reason == null || reason.isBlank()) {
             throw new IllegalArgumentException("reason is required");
         }

@@ -1910,7 +1910,6 @@
         "harness": "Harness",
         "platform": "Plataforma",
         "selectables": "Seleccionables",
-        "symptomRules": "Reglas de síntomas",
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas"
       },
@@ -2040,7 +2039,6 @@
         "dataSources": "Fuentes de Datos",
         "credentials": "Credenciales",
         "selectables": "Seleccionables",
-        "symptomRules": "Reglas de síntomas",
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas"
       },
@@ -3089,7 +3087,6 @@
         "selectables": "Seleccionables",
         "harnessLearning": "Aprendizaje del asistente",
         "dashboardServer": "Dashboards",
-        "symptomRules": "Reglas de síntomas",
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas"
       }
@@ -4290,7 +4287,6 @@
       "Fatigue And Drowsiness": "Fatiga y Somnolencia",
       "Fatigue And Drowsiness Sensor": "Sensor de Fatiga y Somnolencia"
     },
-    "prototipe-map-view": "Vista de mapa (prototipo)",
     "treatment_group_label": "Tratamiento",
     "treatment_in_progress": "En curso",
     "treatment_note": "Nota",

@@ -121,7 +121,8 @@ export function splitCsv(text: string): string[][] {
   let row: string[] = [];
   let cell = "";
 
-  for (let i = 0; i < clean.length; i++) {
+  let i = 0;
+  while (i < clean.length) {
     const ch = clean[i];
     if (ch === '"') {
       const quoted = readQuoted(clean, i + 1);
@@ -139,6 +140,7 @@ export function splitCsv(text: string): string[][] {
     } else {
       cell += ch;
     }
+    i++;
   }
   if (cell !== "" || row.length > 0) {
     row.push(cell);

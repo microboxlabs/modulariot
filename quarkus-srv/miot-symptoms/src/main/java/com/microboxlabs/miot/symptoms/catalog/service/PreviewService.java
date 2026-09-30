@@ -10,7 +10,6 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,11 +70,7 @@ public class PreviewService {
                 levels.put(l.icu(), RuleLanguage.prepare(levelSchema, l.when()));
             }
         }
-        List<SamplePreview> out = new ArrayList<>();
-        for (Map<String, Object> sample : source.samples()) {
-            out.add(runOne(sample, activation, measure, levels));
-        }
-        return out;
+        return source.samples().stream().map(sample -> runOne(sample, activation, measure, levels)).toList();
     }
 
     private static SamplePreview runOne(Map<String, Object> sample, PreparedRule activation, PreparedRule measure,
@@ -84,9 +79,10 @@ public class PreviewService {
         if (!active.ok()) {
             return failed(sample, null, active.error());
         }
-        if (!(active.value() instanceof Boolean activates)) {
+        if (!(active.value() instanceof Boolean condition)) {
             return failed(sample, null, NOT_A_CONDITION);
         }
+        boolean activates = condition;
         Double value = null;
         if (measure != null) {
             RuleResult m = measure.run(sample);
@@ -101,6 +97,12 @@ public class PreviewService {
         if (!activates) {
             return new SamplePreview(sample, false, value, null, null);
         }
+        return reachLevel(sample, value, levels);
+    }
+
+    /** Runs the levels on an active sample; the last one that holds is the level reached. */
+    private static SamplePreview reachLevel(Map<String, Object> sample, Double value,
+            Map<Integer, PreparedRule> levels) {
         Map<String, Object> vars = new LinkedHashMap<>(sample);
         vars.put("medida", value == null ? 0.0 : value);
         vars.put("sostenido_s", sample.get(HELD) instanceof Number n ? n.doubleValue() : 0.0);

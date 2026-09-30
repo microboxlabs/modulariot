@@ -18,13 +18,13 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /** {@link SymptomCatalogStore} on the modulith database, schema {@code miot_symptoms}. */
 @ApplicationScoped
@@ -39,8 +39,8 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
     private static final String SELECT_DEFINITIONS = "SELECT " + DEFINITION_COLUMNS
             + " FROM miot_symptoms.symptom_definition WHERE tenant_code = $1 ";
 
-    private static final String INSERT_DEFINITION = """
-            INSERT INTO miot_symptoms.symptom_definition (""" + DEFINITION_COLUMNS + """
+    private static final String INSERT_DEFINITION = "INSERT INTO miot_symptoms.symptom_definition ("
+            + DEFINITION_COLUMNS + """
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
             RETURNING\s""" + DEFINITION_COLUMNS;
 
@@ -75,8 +75,8 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
             DELETE FROM miot_symptoms.symptom_version
             WHERE tenant_code = $1 AND definition_id = $2 AND status = 'DRAFT'""";
 
-    private static final String UPSERT_PUBLISHED = """
-            INSERT INTO miot_symptoms.symptom_version (""" + VERSION_COLUMNS + """
+    private static final String UPSERT_PUBLISHED = "INSERT INTO miot_symptoms.symptom_version ("
+            + VERSION_COLUMNS + """
             ) VALUES ($1, $2, $3, $4, 'PUBLISHED', $5::jsonb, $6, $7, $8, $9, $10, $11, $12)
             ON CONFLICT (id) DO UPDATE SET
                 version = EXCLUDED.version, status = 'PUBLISHED', spec = EXCLUDED.spec, bump = EXCLUDED.bump,
@@ -163,11 +163,9 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
 
     @Override
     public Set<UUID> definitionsWithDraft(String tenantCode) {
-        Set<UUID> ids = new HashSet<>();
-        for (Row r : query(pool.get(), DRAFT_IDS, Tuple.of(tenantCode))) {
-            ids.add(r.getUUID("definition_id"));
-        }
-        return ids;
+        return query(pool.get(), DRAFT_IDS, Tuple.of(tenantCode)).stream()
+                .map(r -> r.getUUID("definition_id"))
+                .collect(Collectors.toSet());
     }
 
     @Override
@@ -223,17 +221,13 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
     }
 
     private static List<SymptomDefinition> definitions(RowSet<Row> rows) {
-        List<SymptomDefinition> out = new ArrayList<>();
-        for (Row r : rows) {
-            out.add(new SymptomDefinition(
-                    r.getUUID("id"), r.getString("tenant_code"), r.getString("symptom_key"), r.getString("name"),
-                    r.getString("family"), r.getString("icon"), r.getString("description"),
-                    r.getString("source_key"), r.getInteger("engine_rule_id"), r.getString("template_key"),
-                    r.getUUID("forked_from_version_id"), SymptomState.valueOf(r.getString("state")),
-                    r.getString("current_version"), r.getString("created_by"), PgJson.time(r, "created_at"),
-                    r.getString("updated_by"), PgJson.time(r, "updated_at")));
-        }
-        return out;
+        return rows.stream().map(r -> new SymptomDefinition(
+                r.getUUID("id"), r.getString("tenant_code"), r.getString("symptom_key"), r.getString("name"),
+                r.getString("family"), r.getString("icon"), r.getString("description"),
+                r.getString("source_key"), r.getInteger("engine_rule_id"), r.getString("template_key"),
+                r.getUUID("forked_from_version_id"), SymptomState.valueOf(r.getString("state")),
+                r.getString("current_version"), r.getString("created_by"), PgJson.time(r, "created_at"),
+                r.getString("updated_by"), PgJson.time(r, "updated_at"))).toList();
     }
 
     private static List<SymptomVersion> versions(RowSet<Row> rows) {

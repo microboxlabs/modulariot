@@ -8,6 +8,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.service.EngineImportService;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
+import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
@@ -19,6 +20,7 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
@@ -54,6 +56,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     private final SymptomCatalogService catalog;
     private final PreviewService previews;
     private final EngineImportService importer;
+    private final RuleDescriptionService descriptions;
 
     /** Publishes the draft. {@code bump} may raise the computed bump; {@code state} defaults to TEST. */
     public record PublishRequest(String reason, VersionBump bump, SymptomState state) {
@@ -68,6 +71,13 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public record StateRequest(SymptomState state) {
     }
 
+    /**
+     * One rule to describe. {@code section}: activation, measure, levels.1-4, lifecycle.open, lifecycle.close,
+     * or a whole section: levels (the measure and one line per level) or lifecycle ("abre: ...\ncierra: ...").
+     */
+    public record DescribeRequest(String section, String rule, String sourceKey, String locale) {
+    }
+
     @Inject
     public OrgSymptomDefinitionsResource(
             TenantContext tenantContext,
@@ -76,11 +86,31 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             SecurityIdentity identity,
             SymptomCatalogService catalog,
             PreviewService previews,
-            EngineImportService importer) {
+            EngineImportService importer,
+            RuleDescriptionService descriptions) {
         super(tenantContext, organizationContext, roleService, identity);
         this.catalog = catalog;
         this.previews = previews;
         this.importer = importer;
+        this.descriptions = descriptions;
+    }
+
+    @POST
+    @Path("/describe")
+    @Operation(operationId = "describeSymptomRule",
+            summary = "A short plain-language description of one rule, as HTML limited to b, i and mark."
+                    + " Written once per rule text and cached; 503 when the Harness is not available")
+    public Uni<Response> describe(@PathParam(ORG) String organizationId,
+            @HeaderParam("Authorization") String authorization, DescribeRequest body) {
+        String tenant = tenantCode(organizationId);
+        RuleDescriptionService.Caller caller = harnessCaller(authorization);
+        return memberWork(() -> {
+            if (body == null) {
+                throw new IllegalArgumentException("section, rule and sourceKey are required");
+            }
+            return Response.ok(descriptions.describe(tenant, body.section(), body.rule(), body.sourceKey(),
+                    body.locale(), caller)).build();
+        });
     }
 
     @POST
@@ -107,6 +137,16 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
         String actor = actor();
         return ownerWork(organizationId, () -> Response.status(Response.Status.CREATED)
                 .entity(catalog.create(tenant, actor, body)).build());
+    }
+
+    @GET
+    @Path("/response")
+    @Operation(operationId = "getSymptomLevelResponse",
+            summary = "The steps, SLA and notices of a symptom in force at one ICU level, by the engine's symptom name")
+    public Uni<Response> levelResponse(@PathParam(ORG) String organizationId, @QueryParam("symptom") String symptom,
+            @QueryParam("icu") int icu) {
+        String tenant = tenantCode(organizationId);
+        return memberWork(() -> Response.ok(catalog.responseFor(tenant, symptom, icu)).build());
     }
 
     @GET

@@ -95,11 +95,9 @@ public class GpsSymptomEngine implements SymptomEngine {
 
     @Override
     public List<LevelCount> levelCounts(String tenantCode, OffsetDateTime from, OffsetDateTime to) {
-        List<LevelCount> out = new ArrayList<>();
-        for (Row r : query(tenantCode, LEVEL_COUNTS, from, to)) {
-            out.add(new LevelCount(r.getString("symptom_name"), r.getInteger("icu_code"), r.getLong("cases")));
-        }
-        return out;
+        return query(tenantCode, LEVEL_COUNTS, from, to).stream()
+                .map(r -> new LevelCount(r.getString("symptom_name"), r.getInteger("icu_code"), r.getLong("cases")))
+                .toList();
     }
 
     @Override

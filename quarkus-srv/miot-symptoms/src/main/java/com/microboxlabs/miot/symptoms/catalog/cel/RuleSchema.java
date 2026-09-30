@@ -21,15 +21,17 @@ public record RuleSchema(String root, Map<String, String> fields, Map<String, St
         extras = Map.copyOf(extras);
     }
 
+    private static final String NUMBER = "number";
+
     /** The variables a level condition adds to the source: the measure and how long it has held. */
-    public static final Map<String, String> LEVEL_VARIABLES = Map.of("medida", "number", "sostenido_s", "number");
+    public static final Map<String, String> LEVEL_VARIABLES = Map.of("medida", NUMBER, "sostenido_s", NUMBER);
 
     /** The case a lifecycle rule reads. */
     public static final RuleSchema CASE = new RuleSchema("caso", Map.of(
-            "caso.condicion_s", "number",
-            "caso.normal_s", "number",
-            "caso.edad_h", "number",
-            "caso.nivel", "number",
+            "caso.condicion_s", NUMBER,
+            "caso.normal_s", NUMBER,
+            "caso.edad_h", NUMBER,
+            "caso.nivel", NUMBER,
             "caso.cerrado_por_operador", "bool"), Map.of());
 
     public static RuleSchema of(DataSource source) {

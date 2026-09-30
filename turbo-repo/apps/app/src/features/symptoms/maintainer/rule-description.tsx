@@ -98,6 +98,9 @@ export default function RuleDescription({
       setHtml(null);
       return;
     }
+    // The old text describes the old rule; show "writing" until the new one arrives.
+    setHtml(null);
+    setFailed(false);
     let cancelled = false;
     const timer = setTimeout(() => {
       describeRule({ section, rule, sourceKey, locale: "es-CL" })

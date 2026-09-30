@@ -111,6 +111,40 @@ function initialNotaLlamada(
     : "";
 }
 
+/** The `driver_response` and `description` saved with the call treatment. */
+function callTreatmentTexts({
+  targetLabel,
+  targetPhone,
+  esConductor,
+  resultadoLabel,
+  notaLlamada,
+  callDurationSeconds,
+}: Readonly<{
+  targetLabel: string;
+  targetPhone: string;
+  esConductor: boolean;
+  resultadoLabel: string;
+  notaLlamada: string;
+  callDurationSeconds: number | null;
+}>): { driver_response: string; description: string } {
+  const telTxt = targetPhone ? ` · Tel: ${targetPhone}` : "";
+  const escalamientoTxt = esConductor
+    ? ""
+    : ` · Escalamiento propuesto por el operador${telTxt}`;
+  return {
+    driver_response:
+      (resultadoLabel || "") +
+      (notaLlamada.trim() ? ` · ${notaLlamada.trim()}` : ""),
+    description:
+      `Llamado a: ${targetLabel}` +
+      escalamientoTxt +
+      (resultadoLabel ? ` · Resultado: ${resultadoLabel}` : "") +
+      (callDurationSeconds !== null
+        ? ` · Duración: ${formatCallDuration(callDurationSeconds)}`
+        : ""),
+  };
+}
+
 /**
  * PROTOTYPE — variant of
  * `blurrable-stepped-menu/menus/call-driver/call-driver.tsx`. Same state and
@@ -274,23 +308,17 @@ export default function PrototypeCallDriver({
   // Shared by both "Finalizar Tratamiento" and "Guardar y hacer otra
   // llamada" — the only difference between them is what happens after the
   // request resolves (leave the panel vs. go back to "who to call").
-  const telTxt = targetPhone ? ` · Tel: ${targetPhone}` : "";
-  const escalamientoTxt = esConductor
-    ? ""
-    : ` · Escalamiento propuesto por el operador${telTxt}`;
   const saveTreatment = () =>
     guardedRequestTreatment({
       ...treatmentRequest,
-      driver_response:
-        (resultadoLabel || "") +
-        (notaLlamada.trim() ? ` · ${notaLlamada.trim()}` : ""),
-      description:
-        `Llamado a: ${targetLabel}` +
-        escalamientoTxt +
-        (resultadoLabel ? ` · Resultado: ${resultadoLabel}` : "") +
-        (callDurationSeconds !== null
-          ? ` · Duración: ${formatCallDuration(callDurationSeconds)}`
-          : ""),
+      ...callTreatmentTexts({
+        targetLabel,
+        targetPhone,
+        esConductor,
+        resultadoLabel,
+        notaLlamada,
+        callDurationSeconds,
+      }),
     });
 
   const skipSave = saved;

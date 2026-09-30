@@ -902,3 +902,24 @@ focuses the first link, Escape restores trigger focus, and outside focus/pointer
 or scroll/resize dismisses the panel. Native links retain normal browser keyboard
 navigation; this is a nonmodal dialog, not an ARIA menu with custom arrow-key
 navigation. Trigger/link clicks do not invoke an enclosing row click handler.
+
+### Presentational data table
+
+`DataTable` from `./react` renders authorized string-valued `rows` and structural
+`columns` (`key`, `label`, `type`, optional `sticky`, cell color rules and
+`decorator`). Supply `label`, `emptyLabel`, `loadingLabel`, `actionsLabel` and
+`resolveValue(key, row, index, count)`. Optional `resolveLabel` and `resolveType`
+connect the shared column template engine. Import `./styles.css`.
+
+`loading` and `errorLabel` hide result rows. `showColumnDividers` defaults to true.
+Contiguous sticky groups at either edge remain pinned; left takes precedence if
+all columns are sticky. Header resizing/content changes recompute offsets. An
+optional action column remains pinned at the right edge.
+
+Hosts can compose `renderHeader(column, label)` with filter popovers/descriptions,
+`renderActions(row, index)` with the safe action dropdown, and `rowColor(row,
+index)` with the legacy named row colors. Callbacks return host UI; the table
+never executes SQL, resolves authentication, or renders raw HTML. The Next.js
+`data_table` widget now uses this renderer. The resizable `data_table_v2` and its
+row gestures remain separate migration work; this entry is not a standalone
+saved-query widget registry.

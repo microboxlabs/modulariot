@@ -14,7 +14,8 @@ import type {
   FilterItemConfig,
   FilterConfig,
 } from "@/features/dashboard/dashlets/common/filter-types";
-import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
+import { DataTable } from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { FilterPillRow } from "@/features/dashboard/dashlets/common/filter-pill-row";
 import { SortPillRow } from "@/features/dashboard/dashlets/common/sort-pill-row";
@@ -55,10 +56,7 @@ import type {
   PgrestHttpMethod,
 } from "@/features/dashboard/dashlets/common/pgrest-types";
 import type { ColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-types";
-import {
-  findMatchingColor,
-  getRowColorClasses,
-} from "@/features/dashboard/dashlets/common/color-rule-engine";
+import { findMatchingColor } from "@/features/dashboard/dashlets/common/color-rule-engine";
 import { normalizeColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-helpers";
 import type { ActionsConfig } from "@/features/dashboard/dashlets/common/action-types";
 import {
@@ -71,150 +69,6 @@ import {
   DashletTitleBar,
   buildTitleBarData,
 } from "@/features/dashboard/dashlets/common/dashlet-title-bar";
-
-// ============================================================================
-// Sticky column helpers
-// ============================================================================
-
-function measureLeftOffsets(
-  columns: TableColumn[],
-  cells: HTMLCollection
-): Record<number, number> {
-  const offsets: Record<number, number> = {};
-  let left = 0;
-  for (let i = 0; i < columns.length; i++) {
-    if (!columns[i].sticky) break;
-    offsets[i] = left;
-    const cell = cells[i] as HTMLElement | undefined;
-    if (cell) left += cell.offsetWidth;
-  }
-  return offsets;
-}
-
-function measureRightOffsets(
-  columns: TableColumn[],
-  cells: HTMLCollection,
-  leftOff: Record<number, number>,
-  actionsWidth: number
-): Record<number, number> {
-  const offsets: Record<number, number> = {};
-  let right = actionsWidth;
-  for (let i = columns.length - 1; i >= 0; i--) {
-    if (!columns[i].sticky) break;
-    if (leftOff[i] !== undefined) break;
-    offsets[i] = right;
-    const cell = cells[i] as HTMLElement | undefined;
-    if (cell) right += cell.offsetWidth;
-  }
-  return offsets;
-}
-
-function buildStickyThClass(
-  colIdx: number,
-  lastStickyIdx: number,
-  firstStickyRightIdx: number
-): string {
-  const base =
-    "sticky top-0 whitespace-nowrap bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-700 dark:text-gray-400";
-  if (colIdx <= lastStickyIdx) {
-    const shadow =
-      colIdx === lastStickyIdx
-        ? " shadow-[inset_-1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_-1px_0_0_theme(colors.gray.600)]"
-        : "";
-    return `${base} left-0 z-30${shadow}`;
-  }
-  if (firstStickyRightIdx >= 0 && colIdx >= firstStickyRightIdx) {
-    const shadow =
-      colIdx === firstStickyRightIdx
-        ? " shadow-[inset_1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_1px_0_0_theme(colors.gray.600)]"
-        : "";
-    return `${base} right-0 z-30${shadow}`;
-  }
-  return base;
-}
-
-// Sticky cells need a fully opaque background so scrolled content doesn't
-// bleed through. Light-mode tint classes are solid; dark-mode always uses
-// bg-gray-800 instead of the transparent /20 variant used on the <tr>.
-function stickyBgForColor(rowColor: string | null): string {
-  switch (rowColor) {
-    case "red":
-      return "bg-red-50 dark:bg-gray-800";
-    case "yellow":
-      return "bg-yellow-50 dark:bg-gray-800";
-    case "green":
-      return "bg-green-50 dark:bg-gray-800";
-    case "blue":
-      return "bg-blue-50 dark:bg-gray-800";
-    case "orange":
-      return "bg-orange-50 dark:bg-gray-800";
-    case "purple":
-      return "bg-purple-50 dark:bg-gray-800";
-    case "gray":
-      return "bg-gray-100 dark:bg-gray-800";
-    default:
-      return "bg-white dark:bg-gray-800";
-  }
-}
-
-function buildStickyTdClass(
-  colIdx: number,
-  lastStickyIdx: number,
-  firstStickyRightIdx: number,
-  showColumnDividers: boolean,
-  columnsLength: number,
-  rowColor: string | null
-): string {
-  const divider =
-    showColumnDividers && colIdx < columnsLength - 1
-      ? " relative after:absolute after:right-0 after:top-3 after:bottom-3 after:w-px after:bg-gray-200/30 dark:after:bg-gray-600/25"
-      : "";
-  const rowBorder = "border-t border-gray-200 dark:border-gray-600";
-  const base = `${rowBorder} px-4 py-4 text-gray-700 dark:text-gray-300${divider}`;
-  if (colIdx <= lastStickyIdx) {
-    const shadow =
-      colIdx === lastStickyIdx
-        ? " shadow-[inset_-1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_-1px_0_0_theme(colors.gray.600)]"
-        : "";
-    return `${base} sticky left-0 z-10 ${stickyBgForColor(rowColor)}${shadow}`;
-  }
-  if (firstStickyRightIdx >= 0 && colIdx >= firstStickyRightIdx) {
-    const shadow =
-      colIdx === firstStickyRightIdx
-        ? " shadow-[inset_1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_1px_0_0_theme(colors.gray.600)]"
-        : "";
-    return `${base} sticky right-0 z-10 ${stickyBgForColor(rowColor)}${shadow}`;
-  }
-  return base;
-}
-
-function buildStickyStyle(
-  colIdx: number,
-  leftOffsets: Record<number, number>,
-  rightOffsets: Record<number, number>,
-  lastStickyIdx: number,
-  firstStickyRightIdx: number
-): React.CSSProperties | undefined {
-  if (colIdx <= lastStickyIdx && leftOffsets[colIdx] !== undefined) {
-    const style: React.CSSProperties = { left: leftOffsets[colIdx] };
-    if (colIdx < lastStickyIdx) {
-      style.paddingRight = "calc(1rem + 0.1px)";
-    }
-    return style;
-  }
-  if (
-    firstStickyRightIdx >= 0 &&
-    colIdx >= firstStickyRightIdx &&
-    rightOffsets[colIdx] !== undefined
-  ) {
-    const style: React.CSSProperties = { right: rightOffsets[colIdx] };
-    if (colIdx > firstStickyRightIdx) {
-      style.paddingLeft = "calc(1rem + 0.1px)";
-    }
-    return style;
-  }
-  return undefined;
-}
 
 // ============================================================================
 // Config & Defaults
@@ -572,79 +426,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dictionary,
   });
 
-  // ── Sticky column left offsets ──────────────────────────────────────────────
-  const headerRowRef = useRef<HTMLTableRowElement>(null);
-  const [stickyLeftOffsets, setStickyLeftOffsets] = useState<
-    Record<number, number>
-  >({});
-  const [stickyRightOffsets, setStickyRightOffsets] = useState<
-    Record<number, number>
-  >({});
-
-  const measureStickyOffsets = useCallback(() => {
-    const row = headerRowRef.current;
-    if (!row) return;
-    const cells = row.children;
-
-    const leftOff = measureLeftOffsets(columns, cells);
-    setStickyLeftOffsets(leftOff);
-
-    // Measure actions column width (last child if actions exist)
-    let actionsWidth = 0;
-    if (hasActions && cells.length > columns.length) {
-      const actionsCell = cells[cells.length - 1] as HTMLElement | undefined;
-      if (actionsCell) actionsWidth = actionsCell.offsetWidth;
-    }
-
-    setStickyRightOffsets(
-      measureRightOffsets(columns, cells, leftOff, actionsWidth)
-    );
-  }, [columns, hasActions]);
-
-  useEffect(() => {
-    measureStickyOffsets();
-
-    const row = headerRowRef.current;
-
-    // Re-measure on window resize
-    window.addEventListener("resize", measureStickyOffsets);
-
-    // Re-measure when header row cells change size (e.g. content reflow)
-    let observer: ResizeObserver | undefined;
-    if (row) {
-      observer = new ResizeObserver(measureStickyOffsets);
-      observer.observe(row);
-    }
-
-    // Re-measure after fonts finish loading (can shift column widths)
-    document.fonts?.ready.then(measureStickyOffsets);
-
-    return () => {
-      window.removeEventListener("resize", measureStickyOffsets);
-      observer?.disconnect();
-    };
-  }, [measureStickyOffsets, displayRows]);
-
-  const lastStickyIdx = useMemo(() => {
-    let last = -1;
-    for (let i = 0; i < columns.length; i++) {
-      if (!columns[i].sticky) break;
-      last = i;
-    }
-    return last;
-  }, [columns]);
-
-  const firstStickyRightIdx = useMemo(() => {
-    let first = -1;
-    for (let i = columns.length - 1; i >= 0; i--) {
-      if (!columns[i].sticky) break;
-      // Don't double-count left-sticky columns
-      if (i <= lastStickyIdx) break;
-      first = i;
-    }
-    return first;
-  }, [columns, lastStickyIdx]);
-
   // ── Render ──────────────────────────────────────────────────────────────────
   const allLabel = tr("common.all", dictionary);
 
@@ -682,7 +463,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       {/* Sort card */}
       {sort.enabled && (
         <SortPillRow
-          directionLabels={{ asc: tr("dashboard.portableWidgets.ascending", dictionary), desc: tr("dashboard.portableWidgets.descending", dictionary) }}
+          directionLabels={{
+            asc: tr("dashboard.portableWidgets.ascending", dictionary),
+            desc: tr("dashboard.portableWidgets.descending", dictionary),
+          }}
           label={tr("dashboard.settings.sortBy", dictionary)}
           columns={validSortColumns}
           sortKey={sortKey}
@@ -704,169 +488,72 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         />
       )}
 
-      {/* Table card */}
-      <div className="flex-1 overflow-auto overscroll-none rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-        {loading && (
-          <div className="flex h-20 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-            Loading...
+      <DataTable
+        columns={columns}
+        rows={displayRows}
+        label={title}
+        loading={loading}
+        loadingLabel={tr("dashboard.settings.tableLoading", dictionary)}
+        errorLabel={
+          fetchError
+            ? tr("dashboard.settings.tableError", dictionary, { fetchError })
+            : undefined
+        }
+        emptyLabel={tr("dashboard.settings.tableNoData", dictionary)}
+        actionsLabel={tr("dashboard.settings.actions", dictionary)}
+        showColumnDividers={showColumnDividers ?? true}
+        resolveValue={resolveValue}
+        resolveLabel={resolveLabel}
+        resolveType={resolveType}
+        rowColor={(row, index) =>
+          safeRowColorRules.enabled
+            ? findMatchingColor(
+                safeRowColorRules.rules,
+                row,
+                resolveValue,
+                index,
+                displayRows.length
+              )
+            : null
+        }
+        renderHeader={(column, label) => (
+          <div className="flex items-center gap-1">
+            {column.descriptionEnabled && column.description ? (
+              <MarkdownTooltip description={column.description}>
+                <span className="cursor-help border-b border-dashed border-gray-400 dark:border-gray-500">
+                  {label}
+                </span>
+              </MarkdownTooltip>
+            ) : (
+              <span>{label}</span>
+            )}
+            <ColumnFilterPopover
+              columnKey={column.key}
+              columnLabel={label}
+              dataType={resolvedDataTypes[column.key] ?? "text"}
+              currentFilter={columnFilters[column.key]}
+              enumValues={enumValues[column.key] ?? []}
+              onFilterChange={setColumnFilter}
+            />
           </div>
         )}
-        {fetchError && (
-          <div className="flex h-20 items-center justify-center text-sm text-red-500 dark:text-red-400">
-            Error: {fetchError}
-          </div>
-        )}
-        {!loading && !fetchError && (
-          <table className="w-full border-separate border-spacing-0 text-sm">
-            <thead className="sticky top-0 z-20">
-              <tr ref={headerRowRef} className="bg-gray-50 dark:bg-gray-700">
-                {columns.map((col, colIdx) => (
-                  <th
-                    key={col.key}
-                    className={buildStickyThClass(
-                      colIdx,
-                      lastStickyIdx,
-                      firstStickyRightIdx
-                    )}
-                    style={buildStickyStyle(
-                      colIdx,
-                      stickyLeftOffsets,
-                      stickyRightOffsets,
-                      lastStickyIdx,
-                      firstStickyRightIdx
-                    )}
-                  >
-                    <div className="flex items-center gap-1">
-                      {col.descriptionEnabled && col.description ? (
-                        <MarkdownTooltip description={col.description}>
-                          <span className="cursor-help border-b border-dashed border-gray-400 dark:border-gray-500">
-                            {resolveLabel(col.key)}
-                          </span>
-                        </MarkdownTooltip>
-                      ) : (
-                        <span>{resolveLabel(col.key)}</span>
-                      )}
-                      <ColumnFilterPopover
-                        columnKey={col.key}
-                        columnLabel={resolveLabel(col.key)}
-                        dataType={resolvedDataTypes[col.key] ?? "text"}
-                        currentFilter={columnFilters[col.key]}
-                        enumValues={enumValues[col.key] ?? []}
-                        onFilterChange={setColumnFilter}
-                      />
-                    </div>
-                  </th>
-                ))}
-                {hasActions && (
-                  <th
-                    className={`sticky right-0 z-30 w-10 bg-gray-50 px-2 py-3 dark:bg-gray-700 ${firstStickyRightIdx < 0 ? "border-l border-gray-200 dark:border-gray-600" : ""}`}
-                  >
-                    <span className="sr-only">
-                      {tr("dashboard.settings.actions", dictionary)}
-                    </span>
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {displayRows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={(columns.length || 1) + (hasActions ? 1 : 0)}
-                    className="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-500"
-                  >
-                    No data
-                  </td>
-                </tr>
-              ) : (
-                displayRows.map((row, rowIdx) => {
-                  const rowColor = safeRowColorRules.enabled
-                    ? findMatchingColor(
-                        safeRowColorRules.rules,
-                        row,
-                        resolveValue,
-                        rowIdx,
-                        displayRows.length
-                      )
-                    : null;
-                  const rowBgClass = rowColor
-                    ? getRowColorClasses(rowColor)
-                    : "bg-white dark:bg-gray-800";
-                  const trClass = rowBgClass;
-
-                  return (
-                    <tr key={row.id ?? row._id ?? rowIdx} className={trClass}>
-                      {columns.map((col, colIdx) => (
-                        <td
-                          key={col.key}
-                          className={buildStickyTdClass(
-                            colIdx,
-                            lastStickyIdx,
-                            firstStickyRightIdx,
-                            showColumnDividers ?? true,
-                            columns.length,
-                            rowColor
-                          )}
-                          style={buildStickyStyle(
-                            colIdx,
-                            stickyLeftOffsets,
-                            stickyRightOffsets,
-                            lastStickyIdx,
-                            firstStickyRightIdx
-                          )}
-                        >
-                          {renderCell(
-                            resolveValue(
-                              col.key,
-                              row,
-                              rowIdx,
-                              displayRows.length
-                            ),
-                            resolveType(
-                              col.key,
-                              row,
-                              rowIdx,
-                              displayRows.length
-                            ),
-                            col.colorRulesEnabled ? col.colorMap : undefined
-                          )}
-                        </td>
-                      ))}
-                      {hasActions && (
-                        <td
-                          className={`sticky right-0 border-t border-gray-200 px-2 py-4 dark:border-gray-600 ${firstStickyRightIdx < 0 ? "border-l" : ""} ${stickyBgForColor(rowColor)}`}
-                        >
-                          <ActionDropdown
-                            items={safeActions.items
-                              .map((action) => {
-                                const ctx = { ...row, row };
-                                const href = resolveHandlebarsField(
-                                  action.link,
-                                  ctx
-                                );
-                                return isSafeActionUrl(href)
-                                  ? { action, href }
-                                  : null;
-                              })
-                              .filter(
-                                (item): item is NonNullable<typeof item> =>
-                                  item !== null
-                              )}
-                            ariaLabel={tr(
-                              "dashboard.settings.moreActions",
-                              dictionary
-                            )}
-                          />
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
+        renderActions={
+          hasActions
+            ? (row) => (
+                <ActionDropdown
+                  ariaLabel={tr("dashboard.settings.moreActions", dictionary)}
+                  items={safeActions.items.flatMap((action) => {
+                    const href = resolveHandlebarsField(action.link, {
+                      ...row,
+                      row,
+                    });
+                    return isSafeActionUrl(href) ? [{ action, href }] : [];
+                  })}
+                />
+              )
+            : undefined
+        }
+      />
     </div>
   );
 }

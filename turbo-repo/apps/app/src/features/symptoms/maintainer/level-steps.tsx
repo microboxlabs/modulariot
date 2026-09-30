@@ -138,7 +138,7 @@ export default function LevelSteps({
                       })
                     }
                   />
-                  min
+                  <span>min</span>
                 </label>
                 {!readOnly && (
                   <span className="flex items-center gap-1 text-gray-400">

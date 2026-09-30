@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { twMerge } from "tailwind-merge";
-import { Button } from "flowbite-react";
+import { InfoCard } from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+import { tr } from "@/features/i18n/tr.service";
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import {
   HiChartBar,
   HiCurrencyDollar,
@@ -175,6 +177,7 @@ export function Dashlet({
   children,
 }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
+  const { dictionary } = useOptionalDashboard();
   const {
     title = defaultConfig.title,
     icon = defaultConfig.icon,
@@ -244,103 +247,29 @@ export function Dashlet({
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
 
-  const IconComponent = ICONS[icon] || ICONS.chart;
+  const IconComponent = Object.hasOwn(ICONS, icon) ? ICONS[icon] : ICONS.chart;
   const hasChildren = widget.children && widget.children.length > 0;
 
-  const handleViewMore = () => {
-    if (compiledViewMoreUrl) {
-      try {
-        const url = new URL(compiledViewMoreUrl, globalThis.location.href);
-        if (url.protocol === "http:" || url.protocol === "https:") {
-          if (config.openInSameTab) {
-            globalThis.location.href = url.href;
-          } else {
-            globalThis.open(
-              compiledViewMoreUrl,
-              "_blank",
-              "noopener,noreferrer"
-            );
-          }
-        }
-      } catch {
-        // Invalid URL, do nothing
-      }
-    }
-  };
-
-  const handleAddChild = () => {
-    onAddChild?.("info_card");
-  };
-
   return (
-    <div className="flex h-full flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-      {/* Header: Title + Icon */}
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3 dark:border-gray-700">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-          {compiledTitle}
-        </h3>
-        <span
-          style={effectiveIconColor ? { color: effectiveIconColor } : undefined}
-        >
-          <IconComponent
-            className={twMerge(
-              "h-5 w-5",
-              effectiveIconColor ? "" : "text-gray-500 dark:text-gray-400"
-            )}
-          />
-        </span>
-      </div>
-
-      {/* Body: Value + Descriptor + Children */}
-      <div className="flex flex-1 flex-col justify-center px-4 py-4">
-        <p
-          className="text-3xl font-bold text-gray-900 dark:text-white"
-          style={
-            effectiveValueColor ? { color: effectiveValueColor } : undefined
-          }
-        >
-          {compiledValue}
-        </p>
-        <p
-          className="mt-1 text-sm text-gray-500 dark:text-gray-400"
-          style={descriptorColor ? { color: descriptorColor } : undefined}
-        >
-          {compiledDescriptor}
-        </p>
-
-        {/* Children: Inline nested dashlets */}
-        {hasChildren && (
-          <div className="mt-3 flex flex-col gap-2">{children}</div>
-        )}
-
-        {/* Add child button in edit mode */}
-        {editMode && !hasChildren && (
-          <button
-            type="button"
-            onClick={handleAddChild}
-            className="no-drag mt-3 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 p-2 text-sm text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-600 dark:border-gray-600 dark:hover:border-gray-500"
-          >
-            <span>+ Add detail</span>
-          </button>
-        )}
-      </div>
-
-      {/* Footer: AI placeholder + View more button */}
-      <div className="flex items-center justify-between gap-4 border-t border-gray-100 px-4 py-3 dark:border-gray-700">
-        <p className="text-xs italic text-gray-400 dark:text-gray-500">
-          {compiledAiPlaceholder}
-        </p>
-        {compiledViewMoreUrl && (
-          <Button
-            color="alternative"
-            size="xs"
-            onClick={handleViewMore}
-            className="no-drag shrink-0"
-          >
-            {compiledViewMoreLabel?.trim() || defaultConfig.viewMoreLabel}
-          </Button>
-        )}
-      </div>
-    </div>
+    <InfoCard
+      title={compiledTitle}
+      value={compiledValue}
+      descriptor={compiledDescriptor}
+      footer={compiledAiPlaceholder}
+      icon={<IconComponent />}
+      iconStyle={{ color: effectiveIconColor }}
+      valueStyle={{ color: effectiveValueColor }}
+      descriptorStyle={{ color: descriptorColor || undefined }}
+      editMode={editMode}
+      onAddDetail={onAddChild ? () => onAddChild("info_card") : undefined}
+      addDetailLabel={tr("dashboard.settings.addDetail", dictionary)}
+      viewMoreUrl={compiledViewMoreUrl}
+      viewMoreLabel={
+        compiledViewMoreLabel?.trim() || defaultConfig.viewMoreLabel
+      }
+      openInSameTab={config.openInSameTab}
+    >
+      {hasChildren ? children : undefined}
+    </InfoCard>
   );
 }

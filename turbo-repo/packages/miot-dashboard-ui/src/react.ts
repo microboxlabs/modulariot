@@ -119,3 +119,5 @@ export { createDetailedStatRegistry, type DetailedStatRegistryOptions } from "./
 export { SparklineStat, type SparklineStatProps } from "./react/sparkline-stat";
 
 export { createSparklineStatRegistry, type SparklineStatRegistryOptions } from "./react/sparkline-stat-registry";
+
+export { InfoCard, type InfoCardProps } from "./react/info-card";

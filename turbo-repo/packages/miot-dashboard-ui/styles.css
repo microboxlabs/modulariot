@@ -625,3 +625,19 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 /* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
 :where(.dark,[data-miot-theme="dark"]) .miot-sparkline-stat { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
 :where(.dark,[data-miot-theme="dark"]) .miot-sparkline-stat p { color:var(--miot-card-muted,#9ca3af); }
+
+.miot-info-card { box-sizing:border-box; height:100%; display:flex; flex-direction:column; border:1px solid var(--miot-card-border,#e5e7eb); border-radius:.5rem; background:var(--miot-card-background,#fff); color:var(--miot-card-text,#111827); overflow-wrap:anywhere; }
+.miot-info-card header { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.75rem 1rem; border-bottom:1px solid var(--miot-card-border,#e5e7eb); }
+.miot-info-card h3 { margin:0; font-size:1rem; font-weight:600; }
+.miot-info-card header > span { display:flex; color:var(--miot-card-muted,#6b7280); }
+.miot-info-card header svg { width:1.25rem; height:1.25rem; }
+.miot-info-card__body { flex:1; display:flex; flex-direction:column; justify-content:center; padding:1rem; }
+.miot-info-card__body > strong { font-size:1.875rem; }
+.miot-info-card__body > p { margin:.25rem 0 0; font-size:.875rem; color:var(--miot-card-muted,#6b7280); }
+.miot-info-card__details { margin-top:.75rem; display:flex; flex-direction:column; gap:.5rem; }
+.miot-info-card__add { margin-top:.75rem; padding:.5rem; border:2px dashed var(--miot-card-border,#d1d5db); border-radius:.5rem; background:transparent; color:var(--miot-card-muted,#6b7280); cursor:pointer; font:inherit; font-size:.875rem; }
+.miot-info-card footer { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.75rem 1rem; border-top:1px solid var(--miot-card-border,#e5e7eb); }
+.miot-info-card footer p { margin:0; font-size:.75rem; font-style:italic; color:var(--miot-card-muted,#6b7280); }
+.miot-info-card footer a { flex-shrink:0; padding:.5rem .75rem; border:1px solid var(--miot-card-border,#d1d5db); border-radius:.5rem; color:inherit; text-decoration:none; font-size:.75rem; }
+.miot-info-card a:focus-visible,.miot-info-card button:focus-visible { outline:2px solid var(--miot-focus-color,#2563eb); outline-offset:2px; }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card { --miot-card-background:#1f2937; --miot-card-border:#374151; --miot-card-text:#fff; --miot-card-muted:#9ca3af; }

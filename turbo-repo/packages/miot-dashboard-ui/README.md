@@ -1337,3 +1337,17 @@ current scalar value. Title/value/unit and threshold fields resolve through the
 same template engine. Text thresholds use the portable validated palette.
 Loading/errors remove stale trends; legacy direct queries show the migration
 label. Hosts should label configured sample series accurately.
+
+### Information card
+
+`InfoCard` from `./react` renders literal `title`, `value`, `descriptor` and
+`footer` strings, optional host `icon`, and nested `children`. Optional trusted
+`iconStyle`, `valueStyle` and `descriptorStyle` customize its scoped light/dark
+presentation. It has no icon, router or application component dependency.
+
+Supply translated `addDetailLabel` and `viewMoreLabel`. The add-detail button
+requires `editMode`, `onAddDetail` and no child content. The host must derive edit
+mode from authorization. Optional `viewMoreUrl` accepts relative or HTTP(S)
+links only; unsafe schemes are omitted. Links open in a protected new tab unless
+`openInSameTab` is true. Next.js retains hybrid data-provider templates, rules,
+icons and nested widget ownership while consuming this renderer.

@@ -853,3 +853,17 @@ The host owns popover positioning and focus management. Inputs synchronize draft
 text, numeric and date values when `currentFilter` changes, cancelling pending
 emissions. Enum and boolean selections follow `currentFilter`. Radio names and
 date label IDs are unique across instances.
+
+### Anchored column filter popover
+
+`ColumnFilterPopover` from `./react` wraps `ColumnFilterInput` with a native
+nonmodal dialog and an accessible filter trigger. It accepts the same filter
+and labels props, plus `title`, `clearLabel`, optional `theme` (`light`/`dark`)
+and `portalContainer` (defaults to the trigger document's body). Import
+`./styles.css`. It inherits the closest host theme when no explicit theme is set.
+
+Opening focuses the first input; Escape and clearing restore trigger focus.
+Outside pointer interaction or moving keyboard focus outside closes the editor
+without stealing focus. Closing cancels pending debounced changes. The panel
+repositions on resize/scroll and bounds itself to the viewport. The portal
+container lets hosts retain their chosen DOM styling boundary.

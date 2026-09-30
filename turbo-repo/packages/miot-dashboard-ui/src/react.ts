@@ -79,3 +79,5 @@ export { useColumnFilters, type UseColumnFiltersResult } from "./react/use-colum
 export { ColumnFilterToolbar, type ColumnFilterToolbarProps } from "./react/column-filter-toolbar";
 
 export { ColumnFilterInput, type ColumnFilterInputProps, type ColumnFilterInputLabels } from "./react/column-filter-input";
+
+export { ColumnFilterPopover, type ColumnFilterPopoverProps } from "./react/column-filter-popover";

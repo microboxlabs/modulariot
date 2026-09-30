@@ -12,7 +12,7 @@ import com.microboxlabs.miot.symptoms.dto.ContactImportResult;
 import com.microboxlabs.miot.symptoms.dto.ContactImportResult.Status;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactView;
-import com.microboxlabs.miot.symptoms.store.ContactStore.DuplicateNationalIdException;
+import com.microboxlabs.miot.symptoms.store.DuplicateNationalIdException;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryContactStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryTreatmentStore;
@@ -97,10 +97,12 @@ class ContactServiceTest {
         ContactView second = service.create(TENANT, "o", book("Persona Dos", "22.222.222-2"));
         ContactRequest clash = new ContactRequest(null, null, null, null, null, null, "11111111-1", null, null, null,
                 null, null, null, null);
-        assertThrows(DuplicateNationalIdException.class, () -> service.update(TENANT, "o", second.id(), clash));
+        String secondId = second.id();
+        assertThrows(DuplicateNationalIdException.class, () -> service.update(TENANT, "o", secondId, clash));
         assertEquals("111111111", service.create("tenant-b", "o", book("Persona Uno", "111111111")).nationalId(),
                 "another organization may have the same person");
-        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", book("Mal", "11.111.111-2")));
+        ContactRequest badRut = book("Mal", "11.111.111-2");
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, "o", badRut));
     }
 
     @Test

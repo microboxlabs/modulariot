@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -133,7 +134,7 @@ class PgTreatmentStoresTest {
         assertTrue(first.created());
         assertFalse(second.created(), "the conflict path says it created nothing");
         assertEquals(first.treatment().id(), second.treatment().id());
-        assertFalse(first.treatment().id().equals(other.id()));
+        assertNotEquals(first.treatment().id(), other.id());
         assertEquals(2, treatments.listBySymptom(tenant, 8L).size());
     }
 
@@ -162,7 +163,8 @@ class PgTreatmentStoresTest {
         treatments.addAction(note(tenant, t.id(), null));
         treatments.transition(tenant, t.id(), TreatmentStatus.CLOSED, ACTOR, "resolved", null);
 
-        assertThrows(IllegalStateException.class, () -> treatments.addAction(note(tenant, t.id(), null)));
+        TreatmentAction onClosed = note(tenant, t.id(), null);
+        assertThrows(IllegalStateException.class, () -> treatments.addAction(onClosed));
         assertEquals(1, treatments.listActions(tenant, List.of(t.id())).size());
     }
 
@@ -191,9 +193,10 @@ class PgTreatmentStoresTest {
         assertTrue(treatments.listActions("other-tenant", List.of(a.id())).isEmpty());
         assertTrue(treatments.listActions(tenant, List.of()).isEmpty());
 
-        assertThrows(IllegalStateException.class,
-                () -> treatments.addAction(note(tenant, UUID.randomUUID().toString(), null)));
-        assertThrows(IllegalStateException.class, () -> treatments.addAction(note("other-tenant", a.id(), null)));
+        TreatmentAction unknown = note(tenant, UUID.randomUUID().toString(), null);
+        TreatmentAction foreign = note("other-tenant", a.id(), null);
+        assertThrows(IllegalStateException.class, () -> treatments.addAction(unknown));
+        assertThrows(IllegalStateException.class, () -> treatments.addAction(foreign));
     }
 
     @Test
@@ -238,8 +241,8 @@ class PgTreatmentStoresTest {
         assertEquals(new ContactCallStats(camila.id(), base.plusMinutes(2), 1, 1), stats.get(camila.id()));
         assertEquals(new ContactCallStats(ignacio.id(), base, 0, 1), stats.get(ignacio.id()));
         assertTrue(treatments.contactStats("other-tenant").isEmpty());
-        assertThrows(IllegalArgumentException.class,
-                () -> treatments.addAction(call(tenant, t.id(), "not-a-uuid", true, base)));
+        TreatmentAction badContact = call(tenant, t.id(), "not-a-uuid", true, base);
+        assertThrows(IllegalArgumentException.class, () -> treatments.addAction(badContact));
     }
 
     @Test
@@ -293,8 +296,8 @@ class PgTreatmentStoresTest {
         assertEquals(saved.id(), contacts.findByNationalId(tenant, "111111111").orElseThrow().id());
         assertTrue(contacts.findByNationalId("other-tenant", "111111111").isEmpty());
 
-        assertThrows(ContactStore.DuplicateNationalIdException.class,
-                () -> contacts.insert(bookContact(tenant, "Persona Dos", "111111111", ContactChannels.NONE)));
+        Contact sameId = bookContact(tenant, "Persona Dos", "111111111", ContactChannels.NONE);
+        assertThrows(DuplicateNationalIdException.class, () -> contacts.insert(sameId));
         Contact other = contacts.insert(bookContact(tenant, "Persona Dos", "222222222", ContactChannels.NONE));
         Contact otherTenant = contacts.insert(bookContact("tenant-" + UUID.randomUUID(), "Persona Uno", "111111111",
                 ContactChannels.NONE));
@@ -302,7 +305,7 @@ class PgTreatmentStoresTest {
 
         Contact clash = new Contact(other.id(), tenant, other.name(), null, null, List.of(), true, null, ACTOR, null,
                 null, "111111111", "RUT", null, null, ContactChannels.NONE, List.of(), null, false);
-        assertThrows(ContactStore.DuplicateNationalIdException.class, () -> contacts.update(clash));
+        assertThrows(DuplicateNationalIdException.class, () -> contacts.update(clash));
 
         Contact completed = contacts.update(new Contact(saved.id(), tenant, "Persona Uno", null, null, List.of(), true,
                 null, ACTOR, null, null, null, "RUT", null, null, ContactChannels.NONE, List.of(), null, false))

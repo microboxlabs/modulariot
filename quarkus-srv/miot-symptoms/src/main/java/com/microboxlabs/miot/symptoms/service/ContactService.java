@@ -9,7 +9,7 @@ import com.microboxlabs.miot.symptoms.dto.ContactImportResult.Status;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactView;
 import com.microboxlabs.miot.symptoms.store.ContactStore;
-import com.microboxlabs.miot.symptoms.store.ContactStore.DuplicateNationalIdException;
+import com.microboxlabs.miot.symptoms.store.DuplicateNationalIdException;
 import com.microboxlabs.miot.symptoms.store.TreatmentStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -130,31 +130,7 @@ public class ContactService {
         if (name.isBlank()) {
             throw new IllegalArgumentException("name must not be blank");
         }
-        String idType = req.nationalIdType() == null ? current.nationalIdType() : idType(req.nationalIdType());
-        String nationalId = req.nationalId() == null && req.nationalIdType() == null
-                ? current.nationalId()
-                : nationalId(req.nationalId() == null ? current.nationalId() : req.nationalId(), idType);
-        ContactChannels channels = req.channels() == null ? current.channels() : channels(req.channels());
-        String phone = req.phone() == null
-                ? (req.channels() == null ? current.phone() : phoneFrom(channels))
-                : normalizePhone(req.phone());
-        List<CallMethod> methods = req.methods() == null
-                ? (req.channels() == null ? current.methods() : methodsFrom(channels))
-                : req.methods();
-        Contact next = new Contact(
-                current.id(), tenantCode, name,
-                req.role() == null ? current.role() : trimOrNull(req.role()),
-                phone, methods,
-                req.active() == null ? current.active() : req.active(),
-                req.notes() == null ? current.notes() : trimOrNull(req.notes()),
-                current.createdBy(), current.createdAt(), null,
-                nationalId, idType,
-                req.company() == null ? current.company() : trimOrNull(req.company()),
-                req.position() == null ? current.position() : trimOrNull(req.position()),
-                channels,
-                req.tags() == null ? current.tags() : tags(req.tags()),
-                req.memberUserId() == null ? current.memberUserId() : trimOrNull(req.memberUserId()),
-                req.provisional() == null ? current.provisional() : req.provisional());
+        Contact next = merge(current, name, req);
         requireFreeNationalId(next);
         Contact updated = contacts.update(next).orElseThrow(() -> new NoSuchElementException(CONTACT_NOT_FOUND));
         audit.log(tenantCode, actor, "contact.updated", ENTITY, updated.id(), null,
@@ -168,6 +144,52 @@ public class ContactService {
             audit.log(tenantCode, actor, "contact.deleted", ENTITY, id, null, Map.of());
         }
         return deleted;
+    }
+
+    /** The current contact with every field the request sends. */
+    private static Contact merge(Contact current, String name, ContactRequest req) {
+        String idType = patch(req.nationalIdType(), current.nationalIdType(), ContactService::idType);
+        ContactChannels channels = patch(req.channels(), current.channels(), ContactService::channels);
+        return new Contact(
+                current.id(), current.tenantCode(), name,
+                patch(req.role(), current.role(), ContactService::trimOrNull),
+                mergedPhone(current, req, channels), mergedMethods(current, req, channels),
+                patch(req.active(), current.active(), Function.identity()),
+                patch(req.notes(), current.notes(), ContactService::trimOrNull),
+                current.createdBy(), current.createdAt(), null,
+                mergedNationalId(current, req, idType), idType,
+                patch(req.company(), current.company(), ContactService::trimOrNull),
+                patch(req.position(), current.position(), ContactService::trimOrNull),
+                channels,
+                patch(req.tags(), current.tags(), ContactService::tags),
+                patch(req.memberUserId(), current.memberUserId(), ContactService::trimOrNull),
+                patch(req.provisional(), current.provisional(), Function.identity()));
+    }
+
+    /** A field the request leaves out keeps its current value. */
+    private static <T, R> R patch(T sent, R current, Function<T, R> read) {
+        return sent == null ? current : read.apply(sent);
+    }
+
+    private static String mergedNationalId(Contact current, ContactRequest req, String idType) {
+        if (req.nationalId() == null && req.nationalIdType() == null) {
+            return current.nationalId();
+        }
+        return nationalId(patch(req.nationalId(), current.nationalId(), Function.identity()), idType);
+    }
+
+    private static String mergedPhone(Contact current, ContactRequest req, ContactChannels channels) {
+        if (req.phone() != null) {
+            return normalizePhone(req.phone());
+        }
+        return req.channels() == null ? current.phone() : phoneFrom(channels);
+    }
+
+    private static List<CallMethod> mergedMethods(Contact current, ContactRequest req, ContactChannels channels) {
+        if (req.methods() != null) {
+            return req.methods();
+        }
+        return req.channels() == null ? current.methods() : methodsFrom(channels);
     }
 
     private Contact newContact(String tenantCode, String actor, ContactRequest req) {

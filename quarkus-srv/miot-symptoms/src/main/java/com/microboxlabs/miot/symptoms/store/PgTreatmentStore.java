@@ -24,7 +24,6 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,8 +50,7 @@ public class PgTreatmentStore implements TreatmentStore {
 
     // A second OPEN episode for the same operator and symptom hits idx_treatment_one_open;
     // insert() then returns the one already open.
-    private static final String INSERT_TREATMENT = """
-            INSERT INTO miot_symptoms.treatment (""" + TREATMENT_COLUMNS + """
+    private static final String INSERT_TREATMENT = "INSERT INTO miot_symptoms.treatment (" + TREATMENT_COLUMNS + """
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT (tenant_code, symptom_id, opened_by) WHERE status = 'OPEN' DO NOTHING
             RETURNING\s""" + TREATMENT_COLUMNS;
@@ -80,8 +78,8 @@ public class PgTreatmentStore implements TreatmentStore {
             SELECT COALESCE(MAX(seq), 0) + 1 AS next_seq
             FROM miot_symptoms.treatment_action WHERE treatment_id = $1""";
 
-    private static final String INSERT_ACTION = """
-            INSERT INTO miot_symptoms.treatment_action (""" + ACTION_COLUMNS + """
+    private static final String INSERT_ACTION = "INSERT INTO miot_symptoms.treatment_action (" + ACTION_COLUMNS
+            + """
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb,
                 $18::jsonb, $19, $20)
             RETURNING\s""" + ACTION_COLUMNS;
@@ -207,12 +205,10 @@ public class PgTreatmentStore implements TreatmentStore {
 
     @Override
     public List<ContactCallStats> contactStats(String tenantCode) {
-        List<ContactCallStats> out = new ArrayList<>();
-        for (Row r : query(pool.get(), CONTACT_STATS, Tuple.of(tenantCode))) {
-            out.add(new ContactCallStats(text(r.getUUID("contact_id")), PgJson.time(r, "last_called_at"),
-                    r.getLong("answered"), r.getLong("missed")));
-        }
-        return out;
+        return query(pool.get(), CONTACT_STATS, Tuple.of(tenantCode)).stream()
+                .map(r -> new ContactCallStats(text(r.getUUID("contact_id")), PgJson.time(r, "last_called_at"),
+                        r.getLong("answered"), r.getLong("missed")))
+                .toList();
     }
 
     private static Tuple actionParams(
@@ -230,32 +226,32 @@ public class PgTreatmentStore implements TreatmentStore {
     }
 
     private static List<Treatment> treatments(RowSet<Row> rows) {
-        List<Treatment> out = new ArrayList<>();
-        for (Row r : rows) {
-            out.add(new Treatment(
-                    text(r.getUUID("id")), r.getString("tenant_code"), r.getLong("symptom_id"),
-                    r.getString("asset_id"), r.getString("trip_id"), TreatmentType.valueOf(r.getString("type")),
-                    TreatmentStatus.valueOf(r.getString("status")), r.getString("opened_by"),
-                    PgJson.time(r, "opened_at"), r.getString("closed_by"), PgJson.time(r, "closed_at"),
-                    r.getString("resolution"), r.getString("note"), PgJson.time(r, "updated_at")));
-        }
-        return out;
+        return rows.stream().map(PgTreatmentStore::treatment).toList();
+    }
+
+    private static Treatment treatment(Row r) {
+        return new Treatment(
+                text(r.getUUID("id")), r.getString("tenant_code"), r.getLong("symptom_id"),
+                r.getString("asset_id"), r.getString("trip_id"), TreatmentType.valueOf(r.getString("type")),
+                TreatmentStatus.valueOf(r.getString("status")), r.getString("opened_by"),
+                PgJson.time(r, "opened_at"), r.getString("closed_by"), PgJson.time(r, "closed_at"),
+                r.getString("resolution"), r.getString("note"), PgJson.time(r, "updated_at"));
     }
 
     private static List<TreatmentAction> actions(RowSet<Row> rows) {
-        List<TreatmentAction> out = new ArrayList<>();
-        for (Row r : rows) {
-            String method = r.getString("method");
-            out.add(new TreatmentAction(
-                    text(r.getUUID("id")), text(r.getUUID("treatment_id")), r.getString("tenant_code"),
-                    r.getInteger("seq"), ActionKind.valueOf(r.getString("kind")), text(r.getUUID("contact_id")),
-                    r.getString("contact_name"), r.getString("contact_role"), r.getString("contact_phone"),
-                    method == null ? null : CallMethod.valueOf(method), r.getString("outcome_key"),
-                    r.getString("outcome_label"), r.getBoolean("answered"), r.getInteger("duration_seconds"),
-                    r.getString("message"), r.getString("note"), PgJson.read(r, "tags", TAGS),
-                    PgJson.read(r, "details", DETAILS), r.getString("performed_by"),
-                    PgJson.time(r, "performed_at")));
-        }
-        return out;
+        return rows.stream().map(PgTreatmentStore::action).toList();
+    }
+
+    private static TreatmentAction action(Row r) {
+        String method = r.getString("method");
+        return new TreatmentAction(
+                text(r.getUUID("id")), text(r.getUUID("treatment_id")), r.getString("tenant_code"),
+                r.getInteger("seq"), ActionKind.valueOf(r.getString("kind")), text(r.getUUID("contact_id")),
+                r.getString("contact_name"), r.getString("contact_role"), r.getString("contact_phone"),
+                method == null ? null : CallMethod.valueOf(method), r.getString("outcome_key"),
+                r.getString("outcome_label"), r.getBoolean("answered"), r.getInteger("duration_seconds"),
+                r.getString("message"), r.getString("note"), PgJson.read(r, "tags", TAGS),
+                PgJson.read(r, "details", DETAILS), r.getString("performed_by"),
+                PgJson.time(r, "performed_at"));
     }
 }

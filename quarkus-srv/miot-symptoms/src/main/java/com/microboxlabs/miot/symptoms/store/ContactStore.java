@@ -24,12 +24,4 @@ public interface ContactStore {
     boolean delete(String tenantCode, String id);
 
     boolean isEmpty(String tenantCode);
-
-    /** Another contact of the tenant already has this national id. */
-    class DuplicateNationalIdException extends IllegalStateException {
-
-        public DuplicateNationalIdException(String nationalId) {
-            super("a contact with national id " + nationalId + " already exists");
-        }
-    }
 }

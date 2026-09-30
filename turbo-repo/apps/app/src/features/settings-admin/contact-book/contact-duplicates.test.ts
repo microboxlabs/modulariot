@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   checkRut,
+  displayRut,
   normalizeRut,
 } from "./contact-duplicates";
 import type { BookContact } from "./store";
@@ -14,6 +15,16 @@ const contacts: BookContact[] = [
 describe("normalizeRut", () => {
   it("strips dots, dashes and spaces and upper-cases the DV", () => {
     expect(normalizeRut(" 12.345.678-k ")).toBe("12345678K");
+  });
+});
+
+describe("displayRut", () => {
+  it("adds dots every three digits and the dash before the DV", () => {
+    expect(displayRut("111111111")).toBe("11.111.111-1");
+    expect(displayRut("1234567K")).toBe("1.234.567-K");
+    expect(displayRut("123-4")).toBe("123-4");
+    expect(displayRut("5")).toBe("5");
+    expect(displayRut("ABCDEFG")).toBe("ABCDEF-G");
   });
 });
 

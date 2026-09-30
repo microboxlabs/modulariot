@@ -16,8 +16,17 @@ export function normalizeRut(rut: string): string {
 export function displayRut(rut: string): string {
   const normalized = normalizeRut(rut);
   if (normalized.length < 2) return normalized;
-  const body = normalized.slice(0, -1).replaceAll(/\B(?=(\d{3})+(?!\d))/g, ".");
-  return `${body}-${normalized.slice(-1)}`;
+  return `${groupThousands(normalized.slice(0, -1))}-${normalized.slice(-1)}`;
+}
+
+/** "11111111" → "11.111.111". */
+function groupThousands(digits: string): string {
+  if (!/^\d+$/.test(digits)) return digits;
+  const groups: string[] = [];
+  for (let end = digits.length; end > 0; end -= 3) {
+    groups.unshift(digits.slice(Math.max(0, end - 3), end));
+  }
+  return groups.join(".");
 }
 
 export type RutProblem = "invalid" | "duplicate";

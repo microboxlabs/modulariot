@@ -16,7 +16,6 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,11 +32,10 @@ public class PgAuditStore implements AuditStore {
     private static final TypeReference<Map<String, Object>> DETAILS = new TypeReference<>() {
     };
 
-    private static final String COLUMNS = """
-            id, tenant_code, actor, action, entity_type, entity_id, symptom_id, details, created_at""";
+    private static final String COLUMNS =
+            "id, tenant_code, actor, action, entity_type, entity_id, symptom_id, details, created_at";
 
-    private static final String INSERT = """
-            INSERT INTO miot_symptoms.audit_event (""" + COLUMNS + """
+    private static final String INSERT = "INSERT INTO miot_symptoms.audit_event (" + COLUMNS + """
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
             RETURNING\s""" + COLUMNS;
 
@@ -66,7 +64,7 @@ public class PgAuditStore implements AuditStore {
     public List<AuditEvent> list(
             String tenantCode, String entityType, String entityId, Long symptomId, OffsetDateTime before,
             String beforeId, int limit) {
-        int capped = Math.min(Math.max(limit, 0), MAX_LIMIT);
+        int capped = Math.clamp(limit, 0, MAX_LIMIT);
         StringBuilder sql = new StringBuilder("SELECT ").append(COLUMNS)
                 .append(" FROM miot_symptoms.audit_event WHERE tenant_code = $1");
         Tuple params = Tuple.of(tenantCode);
@@ -98,13 +96,13 @@ public class PgAuditStore implements AuditStore {
     }
 
     private static List<AuditEvent> events(RowSet<Row> rows) {
-        List<AuditEvent> out = new ArrayList<>();
-        for (Row r : rows) {
-            out.add(new AuditEvent(
-                    text(r.getUUID("id")), r.getString("tenant_code"), r.getString("actor"), r.getString("action"),
-                    r.getString("entity_type"), r.getString("entity_id"), r.getLong("symptom_id"),
-                    PgJson.read(r, "details", DETAILS), PgJson.time(r, "created_at")));
-        }
-        return out;
+        return rows.stream().map(PgAuditStore::event).toList();
+    }
+
+    private static AuditEvent event(Row r) {
+        return new AuditEvent(
+                text(r.getUUID("id")), r.getString("tenant_code"), r.getString("actor"), r.getString("action"),
+                r.getString("entity_type"), r.getString("entity_id"), r.getLong("symptom_id"),
+                PgJson.read(r, "details", DETAILS), PgJson.time(r, "created_at"));
     }
 }

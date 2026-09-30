@@ -4429,7 +4429,11 @@
       "dueIn": "Current step: {time} left",
       "skip": "Skip step",
       "skipReason": "Why it is skipped",
-      "skipConfirm": "Skip"
+      "skipConfirm": "Skip",
+      "channelCall": "Call",
+      "channelWhatsapp": "WhatsApp",
+      "channelTeams": "Teams",
+      "channelEmail": "Email"
     }
   },
   "geographic_view": {

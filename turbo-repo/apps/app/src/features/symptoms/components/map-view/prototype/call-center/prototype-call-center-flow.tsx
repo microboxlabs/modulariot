@@ -195,15 +195,15 @@ export default function PrototypeCallCenterFlow({
   return (
     <>
       {step === "contacts" && (
-        <EscalationLadderCard dict={dict} treatmentData={treatmentData} />
-      )}
-      {step === "contacts" && (
-        <CallCenterMenu
-          dict={dict}
-          treatmentData={treatmentData}
-          onCall={handleCall}
-          recentCallTimes={recentCallTimes}
-        />
+        <div className="flex min-h-0 w-full flex-1 flex-col">
+          <EscalationLadderCard dict={dict} treatmentData={treatmentData} />
+          <CallCenterMenu
+            dict={dict}
+            treatmentData={treatmentData}
+            onCall={handleCall}
+            recentCallTimes={recentCallTimes}
+          />
+        </div>
       )}
 
       {step === "dialing" && (

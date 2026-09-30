@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { HiChevronRight } from "react-icons/hi";
 import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   useLevelResponse,
   type Step,
@@ -35,6 +35,18 @@ export function stepAt(steps: Step[], elapsedSeconds: number): number {
     if (elapsedSeconds < end) return i;
   }
   return steps.length - 1;
+}
+
+const CHANNEL_KEYS: Record<string, string> = {
+  call: "channelCall",
+  whatsapp: "channelWhatsapp",
+  teams: "channelTeams",
+  email: "channelEmail",
+};
+
+function channelLabel(channel: string | null, d: I18nRecord) {
+  const key = channel ? CHANNEL_KEYS[channel] : undefined;
+  return key ? trDynamic(key, d) : (channel ?? "");
 }
 
 function clock(seconds: number) {
@@ -87,7 +99,7 @@ export default function EscalationLadderCard({
 
   return (
     <section
-      className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20"
+      className="mx-3 mb-2 mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20"
       aria-live="polite"
     >
       <div className="flex items-center gap-2 text-xs text-blue-900 dark:text-blue-200">
@@ -114,7 +126,7 @@ export default function EscalationLadderCard({
             <li key={key} className={`flex items-center gap-2 text-sm ${tone}`}>
               <span className="w-4 text-xs">{i + 1}.</span>
               <span className="flex-1">{s.role || tr("anyone", d)}</span>
-              <span className="text-xs">{s.channel}</span>
+              <span className="text-xs">{channelLabel(s.channel, d)}</span>
               <span className="w-12 text-right text-xs">
                 {s.budgetMinutes ?? "—"} min
               </span>

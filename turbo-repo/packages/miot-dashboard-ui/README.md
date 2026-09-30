@@ -1648,3 +1648,14 @@ at 256. Loading or failed results clear prior options, including stale rows from
 a revoked query. Missing named results stay empty; incomplete legacy references
 retain the static fallback. Next.js consumes this same hook. The host must still
 provide authorized, session-isolated results and accessible loading/error labels.
+
+To author dynamic options, pass `sources: { queries, labels }` to
+`DashboardFilterEditor`. `queries` uses `QueryBindingOption` (ID, variable name,
+optional column schema); labels name the source/static choice, columns,
+unavailable source, value/label fields and single-selection checkbox. Only listed
+variables can be selected or applied. Choosing a query clears static options and
+requires a value field; an omitted label field uses the value. Known columns are
+suggested, while direct field-name entry supports a schema not yet fetched.
+Changing filter type clears its dynamic source. The host must pass current saved
+query metadata and persist the document; the editor performs no discovery or
+query execution. `FilterOptionSource` is also exported for custom settings forms.

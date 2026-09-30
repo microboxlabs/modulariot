@@ -132,3 +132,65 @@ it("preserves document fields and supports undo while rejecting invalid and deni
   });
   expect(view.result.current.config).toEqual(initial);
 });
+
+it("authors a named query source and refuses stale discovery before applying", () => {
+  const sources = {
+    queries: [{ id: "costs", variableName: "billing", schema: ["service"] }],
+    labels: {
+      source: "Source",
+      static: "Static options",
+      columns: "Columns",
+      unavailable: "Unavailable source",
+      valueField: "Value column",
+      labelField: "Label column",
+      single: "Single selection",
+    },
+  };
+  const onApply = vi.fn(() => true);
+  const value = [
+    {
+      key: "service",
+      label: "Service",
+      type: "select" as const,
+      options: [{ label: "Old", value: "old" }],
+    },
+  ];
+  const view = render(
+    <DashboardFilterEditor
+      value={value}
+      labels={labels}
+      sources={sources}
+      onApply={onApply}
+      editable
+    />,
+  );
+  fireEvent.change(screen.getByLabelText("Source"), {
+    target: { value: "billing" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(onApply).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText("Value column"), {
+    target: { value: "service" },
+  });
+  fireEvent.click(screen.getByLabelText("Single selection"));
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(onApply).toHaveBeenCalledWith([
+    expect.objectContaining({
+      single: true,
+      optionsSource: { variableName: "billing", valueField: "service" },
+    }),
+  ]);
+  expect(screen.queryByLabelText("Option value")).toBeNull();
+  view.rerender(
+    <DashboardFilterEditor
+      value={value}
+      labels={labels}
+      sources={{ ...sources, queries: [] }}
+      onApply={onApply}
+      editable
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+  expect(onApply).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("alert").textContent).toBe("Unavailable source");
+});

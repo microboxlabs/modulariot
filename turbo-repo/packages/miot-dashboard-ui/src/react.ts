@@ -150,3 +150,5 @@ export { DashboardGeneralSettings, type DashboardGeneralSettingsProps, type Dash
 export { DashboardFilterEditor, type DashboardFilterEditorProps, type DashboardFilterEditorLabels } from "./react/dashboard-filter-editor";
 
 export { useFilterOptions, type ResolvedFilterOptions } from "./react/use-filter-options";
+
+export { FilterOptionSource, type FilterOptionSourceProps, type FilterSourceConfiguration } from "./react/filter-option-source";

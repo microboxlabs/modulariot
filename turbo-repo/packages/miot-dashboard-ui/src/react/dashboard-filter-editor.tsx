@@ -4,6 +4,10 @@ import type {
   DashboardFilterParam,
   DashboardFilterOption,
 } from "@microboxlabs/miot-dashboard-contract/document";
+import {
+  FilterOptionSource,
+  type FilterSourceConfiguration,
+} from "./filter-option-source";
 import { filterDefinitionsSchema } from "./filter-definitions-value";
 export interface DashboardFilterEditorLabels {
   key: string;
@@ -26,6 +30,7 @@ export interface DashboardFilterEditorProps {
   /** Remount with a new key when switching document, session or replacing its draft. */
   readonly value: readonly DashboardFilterParam[];
   readonly editable?: boolean;
+  readonly sources?: FilterSourceConfiguration;
   readonly labels: DashboardFilterEditorLabels;
   readonly onApply: (value: DashboardFilterParam[]) => boolean;
 }
@@ -85,11 +90,13 @@ function FilterFields({
   labels,
   onChange,
   onRemove,
+  sources,
 }: Readonly<{
   value: DashboardFilterParam;
   labels: DashboardFilterEditorLabels;
   onChange: (value: DashboardFilterParam) => void;
   onRemove: () => void;
+  sources?: FilterSourceConfiguration;
 }>) {
   const id = useId();
   return (
@@ -115,7 +122,7 @@ function FilterFields({
         onChange={(event) => {
           const type = event.target.value;
           if (type === "text" || type === "date_range" || type === "select")
-            onChange({ ...value, type });
+            onChange({ ...value, type, optionsSource: undefined });
         }}
       >
         {(["text", "date_range", "select"] as const).map((type) => (
@@ -134,7 +141,32 @@ function FilterFields({
         />
         {labels.unique}
       </label>
-      {value.type === "select" && (
+      {value.type === "select" && sources && (
+        <>
+          <FilterOptionSource
+            {...sources}
+            value={value.optionsSource}
+            onChange={(optionsSource) =>
+              onChange({
+                ...value,
+                optionsSource,
+                options: optionsSource ? undefined : value.options,
+              })
+            }
+          />
+          <label>
+            <input
+              type="checkbox"
+              checked={value.single ?? false}
+              onChange={(event) =>
+                onChange({ ...value, single: event.target.checked })
+              }
+            />
+            {sources.labels.single}
+          </label>
+        </>
+      )}
+      {value.type === "select" && !value.optionsSource && (
         <Options
           options={value.options ?? []}
           labels={labels}
@@ -147,12 +179,13 @@ function FilterFields({
     </fieldset>
   );
 }
-/** Edits filter definitions and static options. Dynamic option providers remain host-owned. */
+/** Edits filters and references to host-approved named results without executing queries. */
 export function DashboardFilterEditor({
   value,
   editable = false,
   labels,
   onApply,
+  sources,
 }: DashboardFilterEditorProps) {
   const id = useId();
   const [draft, setDraft] = useState<readonly DashboardFilterParam[]>(value);
@@ -162,6 +195,20 @@ export function DashboardFilterEditor({
     const parsed = filterDefinitionsSchema.safeParse(draft);
     if (!parsed.success) {
       setError(labels.invalid);
+      return;
+    }
+    if (
+      sources &&
+      parsed.data.some(
+        (filter) =>
+          filter.optionsSource &&
+          !sources.queries.some(
+            (query) =>
+              query.variableName === filter.optionsSource?.variableName,
+          ),
+      )
+    ) {
+      setError(sources.labels.unavailable);
       return;
     }
     setError(onApply(parsed.data) ? undefined : labels.rejected);
@@ -186,6 +233,7 @@ export function DashboardFilterEditor({
             key={`${id}-${index}`}
             value={filter}
             labels={labels}
+            sources={sources}
             onChange={(next) => change(index, next)}
             onRemove={() => remove(index)}
           />

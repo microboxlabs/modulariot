@@ -17,6 +17,14 @@ export const filterDefinitionsSchema = dashboardFilterParamSchema
     key,
     label: z.string().trim().min(1).max(256),
     options: z.array(option).max(500).optional(),
+    optionsSource: z
+      .object({
+        variableName: z.string().trim().min(1).max(128),
+        valueField: z.string().trim().min(1).max(128),
+        labelField: z.string().trim().min(1).max(128).optional(),
+      })
+      .passthrough()
+      .optional(),
   })
   .array()
   .max(100)

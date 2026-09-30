@@ -6,6 +6,7 @@
 
 ## Choose an integration
 
+- Shared chart palettes preserve existing chart colors and isolate each dashboard’s color array; chart rendering remains host-owned.
 - **React and Next.js:** use the React entry for rendering, document state, filters and saved-query providers. Keep session and server credentials in the host's backend.
 - **Plain HTML or another framework:** use the self-contained browser runtime with `mountDashboard`. Update the instance when host state changes and destroy it when its container is removed.
 - **Web Components and LiveView:** explicitly register the custom element and pass configuration through its JavaScript property. Keep the mount container outside host DOM patching and clean it up in the host lifecycle.

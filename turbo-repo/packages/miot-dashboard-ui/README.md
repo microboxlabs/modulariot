@@ -1365,3 +1365,14 @@ manual colors remain restricted to React color style properties. Nested widgets
 use the host registry, with add-detail actions gated by WidgetRenderer editing
 capabilities. Loading/errors remove stale content and links. Direct legacy
 queries show the migration label. No AI generation is performed for footer text.
+
+
+### Chart color palettes
+
+The React-free `./core` entry exports `ChartColorPalette`, the frozen
+`CHART_COLOR_PALETTES` catalog and `getChartColors(palette, customColors?)`.
+Palette names are `default`, `cool`, `warm`, `monochrome`, `pastel`, `vivid`
+and `custom`. The function returns a fresh array; changing it never changes
+another dashboard or the host's custom color array. Empty custom palettes and
+unrecognized stored names fall back to the default palette. Both Next.js chart
+families consume these helpers. This export provides colors, not a chart renderer.

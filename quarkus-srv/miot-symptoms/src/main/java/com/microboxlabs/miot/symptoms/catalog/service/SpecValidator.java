@@ -45,6 +45,10 @@ public final class SpecValidator {
     /** All findings for one spec. */
     public record Report(List<Finding> findings) {
 
+        public Report {
+            findings = findings == null ? List.of() : List.copyOf(findings);
+        }
+
         @JsonProperty
         public boolean publishable() {
             return findings.stream().noneMatch(f -> f.severity() == Severity.ERROR);

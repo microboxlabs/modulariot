@@ -3118,6 +3118,16 @@
     "organizationLogoAlt": "Organization logo"
   },
   "dashboard": {
+    "portableWidgets": {
+      "loading": "Loading widget…",
+      "error": "Widget data is unavailable.",
+      "unsupported": "Migrate this widget to a saved query.",
+      "unknown": "Unavailable widget",
+      "text": "Add your text or quote here…",
+      "progress": "Progress",
+      "storage": "Storage Used",
+      "unit": "GB"
+    },
     "textCard": {
       "appearance": "Text appearance",
       "text": "Text",

@@ -1441,4 +1441,20 @@ The optional `host` contains `formatDateLabel(value): string` and
 the host explicitly formats them; there is no implicit locale or time zone.
 Next.js supplies its existing es-CL/America/Santiago formatter and saved color-rule
 evaluator. Pass a translated `noDataLabel` and the measured width for label rotation.
-The mixed-series `chart_v2` builder is not yet part of this export.
+The mixed-series `chart_v2` builder is described below.
+
+
+### Mixed chart options
+
+`buildMixedChartOption(config, rows, darkMode?, noDataLabel?, containerWidth?, host?)`
+from `./charts` accepts `MixedChartOptions` and `ChartRepresentation[]`. It supports
+cartesian combinations of line, bar and scatter with per-series smoothing, stacking,
+bar labels, colors and left/right Y-axis selection. `ChartFamily` is `cartesian`,
+`pie` or `gauge`; pie/gauge share the original builder's behavior.
+
+Custom colors take precedence over representation colors, then the selected palette.
+Point color rules are supplied through `host.colorForValue`. Scatter uses category
+indices and disables horizontal layout, matching the existing `chart_v2` widget.
+The same explicit date formatter and plain-text tooltip contract apply. Both Next.js
+chart families now consume public option builders; query/planner integration and
+engine lifecycle remain with their host adapters.

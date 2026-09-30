@@ -1292,3 +1292,19 @@ without `#`; invalid colors use the theme defaults. The scoped stylesheet
 supports light/dark hosts without a chart or icon dependency. Next.js consumes
 this component while retaining its current query resolution and field-comparison
 color rules. This presentation component does not fetch data or calculate trends.
+
+`createDetailedStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_detailed` for static JSON and named planner results. Required
+options: `defaultTitle`, `defaultUnit`, `progressLabel`, `previousLabel`,
+`progressSummary(percent)`, `loadingLabel`, `errorLabel`, `unsupportedDataLabel`.
+Optional `formatValue(number, unit)`, `formatChange(percent, positive)` and
+`templateEngine` customize display and helpers.
+
+The registry resolves title, description, value, previousValue, target and unit
+against the first planner row or static data. Non-finite amounts become zero;
+a zero previous value gives zero percent change and a nonpositive target gives
+zero progress. Color rules target text, bar or badge and support static values
+or `compareMode: "field"` with `previousValue` (default) or `target`. Invalid
+comparison definitions are skipped. Loading/errors clear stale amounts; legacy
+direct queries show the migration label. Default number formatting uses the
+host locale and places the unit first; supply formatters for another convention.

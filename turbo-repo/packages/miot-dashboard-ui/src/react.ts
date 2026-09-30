@@ -113,3 +113,5 @@ export { ExpandableStat, type ExpandableStatProps } from "./react/expandable-sta
 export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from "./react/expandable-stat-registry";
 
 export { DetailedStat, type DetailedStatProps } from "./react/detailed-stat";
+
+export { createDetailedStatRegistry, type DetailedStatRegistryOptions } from "./react/detailed-stat-registry";

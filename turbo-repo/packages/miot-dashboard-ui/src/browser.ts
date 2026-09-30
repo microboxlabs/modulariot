@@ -21,3 +21,5 @@ export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "
 export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./embed";
 
 export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from "./embed";
+
+export { createDetailedStatRegistry, type DetailedStatRegistryOptions } from "./embed";

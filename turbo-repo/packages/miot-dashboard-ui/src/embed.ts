@@ -24,3 +24,5 @@ export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "
 export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./react/stacked-stat-registry";
 
 export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from "./react/expandable-stat-registry";
+
+export { createDetailedStatRegistry, type DetailedStatRegistryOptions } from "./react/detailed-stat-registry";

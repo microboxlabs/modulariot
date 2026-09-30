@@ -15,3 +15,5 @@ export { createDataTableRegistry, createDataListRegistry, createResizableDataTab
 export { createStatusStatRegistry, type StatusStatRegistryOptions } from "./embed";
 
 export { createIconStatRegistry, type IconStatRegistryOptions } from "./embed";
+
+export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "./embed";

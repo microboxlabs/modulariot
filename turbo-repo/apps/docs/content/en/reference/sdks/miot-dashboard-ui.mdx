@@ -78,6 +78,8 @@ The portable icon registry binds templates to static or saved-query values, appl
 
 The shared sensitive statistic masks values until reveal and resets disclosure when its data or identity changes. Hosts supply translated controls; masking is visual privacy and does not replace server authorization.
 
+The portable sensitive registry resolves static or saved-query templates, formats values by locale and applies text thresholds after reveal. Loading and failure clear disclosure; restored data starts masked again.
+
 ## Security boundary
 
 The server enforces tenant, scope and document permissions. Never put signing keys, database credentials or service-account keys in browser configuration. The example proxy allows only its configured read operations; it is a private demo access gate, not production SSO.

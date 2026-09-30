@@ -1183,3 +1183,35 @@ This is visual privacy, not authorization or encryption: the host already has
 the value in memory. Enforce permissions on the server before sending data.
 Next.js retains its data, formatting and threshold providers and supplies
 translated reveal labels through this shared renderer.
+
+`createSensitiveStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_sensitive` with static JSON and named planner results. It resolves
+`title`, `value`, `unit` and the enabled threshold field through Handlebars.
+`isSensitive` defaults to true. Loading and errors unmount the card and clear
+its disclosure state; data is masked again on recovery. Switch host identity
+using the mount `instanceKey` or unmount before changing authorization context.
+
+```ts
+interface SensitiveStatRegistryOptions {
+  defaultTitle: string;
+  defaultUnit: string;
+  showLabel: string;
+  hideLabel: string;
+  hint?: string;
+  loadingLabel: string;
+  errorLabel: string;
+  unsupportedDataLabel: string;
+  locale?: string;
+  formatValue?: (value: string, unit: string) => string;
+  templateEngine?: ReturnType<typeof createTemplateEngine>;
+}
+```
+
+Default formatting prefixes the unit and formats finite numbers to two decimal
+places using `locale`; other values stay literal. Override `formatValue` for
+host-specific unit placement. Thresholds require `enabled: true` and a nonempty
+`field`; the first matching rule in saved order supplies the revealed text
+color when `applyTo` includes `text` (the default target). The portable scalar
+palette supports red, yellow, green, blue, orange, purple and gray plus validated
+hex colors. No threshold color is exposed on the masked value. Legacy query
+bindings require migration to saved queries.

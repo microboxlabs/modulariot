@@ -18,3 +18,5 @@ export { createDataTableRegistry, createDataListRegistry, createResizableDataTab
 export { createStatusStatRegistry, type StatusStatRegistryOptions } from "./react/status-stat-registry";
 
 export { createIconStatRegistry, type IconStatRegistryOptions } from "./react/icon-stat-registry";
+
+export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "./react/sensitive-stat-registry";

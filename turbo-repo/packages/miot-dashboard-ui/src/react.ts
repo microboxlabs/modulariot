@@ -103,3 +103,5 @@ export { IconStat, type IconStatProps } from "./react/icon-stat";
 
 export { createIconStatRegistry, type IconStatRegistryOptions } from "./react/icon-stat-registry";
 export { SensitiveStat, type SensitiveStatProps } from "./react/sensitive-stat";
+
+export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "./react/sensitive-stat-registry";

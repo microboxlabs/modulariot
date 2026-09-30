@@ -5,6 +5,7 @@ import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.Expect;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.PreparedRule;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleSchema;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
@@ -15,8 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.TreeSet;
 
 /**
  * Checks a spec before it is published. Errors block publishing; warnings
@@ -24,11 +24,8 @@ import java.util.regex.Pattern;
  */
 public final class SpecValidator {
 
-    /** Measures and hold times the level thresholds are tried on to find overlaps. */
-    private static final double MEASURE_STEP = 0.5;
-    private static final double MEASURE_MAX = 300;
-    private static final double[] HELD_SECONDS = {0, 30, 60, 120, 300, 900, 3600};
-    private static final Pattern FIELD_PATH = Pattern.compile("[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)+");
+    /** Distance from each threshold at which overlaps are tried, on both sides. */
+    private static final double NEAR = 0.01;
 
     /** Severity of a finding. */
     public enum Severity {
@@ -120,13 +117,18 @@ public final class SpecValidator {
         }
     }
 
-    /** Two levels true for the same measure and hold time. Tried on a grid, so it finds real overlaps only. */
+    /**
+     * Two levels true for the same measure and hold time. Thresholds are
+     * comparisons, so trying each number in the rules, just below and just
+     * above it, plus zero and past the largest, finds every overlap.
+     */
     private static void overlaps(List<Finding> out, RuleSchema schema, List<Level> levels) {
         Map<Level, PreparedRule> rules = new LinkedHashMap<>();
         levels.forEach(l -> rules.put(l, RuleLanguage.prepare(schema, l.when())));
+        List<Double> points = testPoints(levels);
         Set<String> reported = new HashSet<>();
-        for (double held : HELD_SECONDS) {
-            for (double measure = 0; measure <= MEASURE_MAX; measure += MEASURE_STEP) {
+        for (double held : points) {
+            for (double measure : points) {
                 Map<String, Object> vars = Map.of("medida", measure, "sostenido_s", held);
                 List<Level> hits = levels.stream()
                         .filter(l -> Boolean.TRUE.equals(rules.get(l).run(vars).value()))
@@ -134,6 +136,20 @@ public final class SpecValidator {
                 reportOverlaps(out, reported, hits, measure, held);
             }
         }
+    }
+
+    static List<Double> testPoints(List<Level> levels) {
+        TreeSet<Double> points = new TreeSet<>();
+        points.add(0.0);
+        for (Level l : levels) {
+            for (double n : RuleText.numbers(l.when())) {
+                points.add(n - NEAR);
+                points.add(n);
+                points.add(n + NEAR);
+            }
+        }
+        points.add(points.last() + 1);
+        return List.copyOf(points);
     }
 
     private static void reportOverlaps(List<Finding> out, Set<String> reported, List<Level> hits, double measure,
@@ -199,13 +215,22 @@ public final class SpecValidator {
                 unsupported.add(f.path());
             }
         }
-        String text = spec.activation() + " " + (spec.measure() == null ? "" : spec.measure().expression());
-        Matcher m = FIELD_PATH.matcher(text);
+        List<String> rules = new ArrayList<>();
+        rules.add(spec.activation());
+        if (spec.measure() != null) {
+            rules.add(spec.measure().expression());
+        }
+        if (spec.levels() != null) {
+            spec.levels().stream().filter(Level::applies).forEach(l -> rules.add(l.when()));
+        }
         Set<String> reported = new HashSet<>();
-        while (m.find()) {
-            if (unsupported.contains(m.group()) && reported.add(m.group())) {
-                out.add(new Finding("engine", Severity.WARNING,
-                        "El motor aún no evalúa «" + m.group() + "»: solo se puede publicar En prueba.", m.start()));
+        for (String rule : rules) {
+            for (String path : RuleText.fieldPaths(rule)) {
+                if (unsupported.contains(path) && reported.add(path)) {
+                    out.add(new Finding("engine", Severity.WARNING,
+                            "El motor aún no evalúa «" + path + "»: solo se puede publicar En prueba.",
+                            rule.indexOf(path)));
+                }
             }
         }
     }

@@ -164,3 +164,5 @@ Pass saved-query metadata through the filter editor's `sources` option to config
 In hosted settings, select filters can now use current saved queries as their option source. Choose the result variable, value column and optional label column, apply the filter draft, then save the dashboard. Single selection is available for operations that accept one value. No legacy planner or datasource discovery is invoked by this authoring path.
 
 `DashboardTransfer` offers bounded file/text import and explicit export actions. Connect imports to the shared state controller with `{ undoable: true }` to validate the document and preserve the preceding draft. Importing does not save to the server; hosts retain authorization and revision handling.
+
+Hosted settings include JSON download and bounded file/text import. Replacing the draft is undoable and does not save automatically. Connection IDs and widget plugins must be supported by the destination; the normal server save still checks permissions and document revision.

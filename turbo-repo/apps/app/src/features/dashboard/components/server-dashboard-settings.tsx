@@ -4,6 +4,7 @@ import { Button } from "flowbite-react";
 import {
   DashboardGeneralSettings,
   DashboardFilterEditor,
+  DashboardTransfer,
 } from "@microboxlabs/miot-dashboard-ui/react";
 import { useDashboard } from "../context/dashboard-context";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -21,6 +22,8 @@ export function ServerDashboardSettings({
     filters,
     setFilterDefinitions,
     queries,
+    downloadDashboard,
+    importDashboard,
   } = useDashboard();
   const t = (key: string) => tr(`dashboard.server.settings.${key}`, dictionary);
   if (!editable) return null;
@@ -57,6 +60,8 @@ export function ServerDashboardSettings({
           <DashboardFilterEditor
             sources={{
               queries,
+              downloadDashboard,
+              importDashboard,
               labels: {
                 source: t("filters.source"),
                 static: t("filters.static"),
@@ -90,6 +95,22 @@ export function ServerDashboardSettings({
                 date_range: t("filters.dateRange"),
                 select: t("filters.select"),
               },
+            }}
+          />
+          <h3>{t("transfer.title")}</h3>
+          <DashboardTransfer
+            editable={editable}
+            onExport={downloadDashboard}
+            onImport={(json) => importDashboard(json, { undoable: true })}
+            labels={{
+              export: t("transfer.export"),
+              file: t("transfer.file"),
+              json: t("transfer.json"),
+              replace: t("transfer.replace"),
+              hint: t("transfer.hint"),
+              tooLarge: t("transfer.tooLarge"),
+              invalid: t("transfer.invalid"),
+              success: t("transfer.success"),
             }}
           />
           <Button

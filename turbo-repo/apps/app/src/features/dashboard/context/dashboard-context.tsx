@@ -102,7 +102,7 @@ interface DashboardContextValue {
 
   // Import/Export
   exportDashboard: () => string;
-  importDashboard: (jsonString: string) => { success: boolean; error?: string };
+  importDashboard: (jsonString: string, options?: {undoable?:boolean}) => { success: boolean; error?: string };
   downloadDashboard: () => void;
 
   // Request Planner

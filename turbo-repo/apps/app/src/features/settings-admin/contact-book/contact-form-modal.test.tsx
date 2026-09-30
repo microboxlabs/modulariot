@@ -7,13 +7,13 @@ import ContactFormModal from "./contact-form-modal";
 import type { BookContact } from "./store";
 
 vi.mock("@/features/layout/components/secured-navbar/org-switcher/use-org-scopes", () => ({
-  useOrgScopes: () => ({ activeOrg: { slug: "mintral", displayName: "Mintral" } }),
+  useOrgScopes: () => ({ activeOrg: { slug: "norte", displayName: "Norte" } }),
 }));
 vi.mock("../hooks/use-org-members", () => ({
   useOrgMembers: () => ({
     members: [
-      { id: "m1", email: "ana@mintral.cl", firstName: "Ana", lastName: "Soto", displayName: "Ana Soto" },
-      { id: "m2", email: "rodrigo@mintral.cl", firstName: "Rodrigo", lastName: "Seguel", displayName: "Rodrigo Seguel" },
+      { id: "m1", email: "ana@example.com", firstName: "Ana", lastName: "Soto", displayName: "Ana Soto" },
+      { id: "m2", email: "persona@example.com", firstName: "Persona", lastName: "Ejemplo", displayName: "Persona Ejemplo" },
     ],
     isLoading: false,
     error: null,
@@ -43,11 +43,11 @@ describe("ContactFormModal — persona", () => {
     expect(screen.getByRole("button", { name: /Ana Soto/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Guardar" })).toBeDisabled();
 
-    await user.type(screen.getByPlaceholderText("Buscar por nombre o correo…"), "rodri");
+    await user.type(screen.getByPlaceholderText("Buscar por nombre o correo…"), "perso");
     expect(screen.queryByRole("button", { name: /Ana Soto/ })).toBeNull();
-    await user.click(screen.getByRole("button", { name: /Rodrigo Seguel/ }));
+    await user.click(screen.getByRole("button", { name: /Persona Ejemplo/ }));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
-    expect(saved(onSave)).toMatchObject({ name: "Rodrigo Seguel", orgMemberId: "m2" });
+    expect(saved(onSave)).toMatchObject({ name: "Persona Ejemplo", orgMemberId: "m2" });
   });
 
   it("switches to an outside contact with full name and RUT", async () => {
@@ -66,6 +66,68 @@ describe("ContactFormModal — persona", () => {
   });
 });
 
+describe("ContactFormModal — saving", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it("closes once saved, completes a provisional contact and stays open when the save fails", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const onSave = vi.fn().mockRejectedValueOnce(new Error("409")).mockResolvedValueOnce(undefined);
+    const provisional: BookContact = {
+      id: "p",
+      name: "Rápido",
+      phone: "+56900000001",
+      role: "",
+      methods: ["phone"],
+      channels: { phone: "+56900000001" },
+      provisional: true,
+    };
+    render(<ContactFormModal show onClose={onClose} editing={provisional} onSave={onSave} dict={dict} />);
+
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(onClose).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[1]?.[0]).toMatchObject({ id: "p", provisional: false });
+  });
+
+  it("tells the caller when a badge in use is renamed or deleted", async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      BADGES_KEY,
+      JSON.stringify([
+        { id: "b1", name: "santiago" },
+        { id: "b2", name: "valpo" },
+      ])
+    );
+    const onRenameTag = vi.fn();
+    const onDeleteTag = vi.fn();
+    render(
+      <ContactFormModal
+        show
+        onClose={vi.fn()}
+        editing={null}
+        onSave={vi.fn()}
+        onRenameTag={onRenameTag}
+        onDeleteTag={onDeleteTag}
+        dict={dict}
+      />
+    );
+    const input = screen.getByPlaceholderText(/Busca o crea una etiqueta/);
+    await user.type(input, "santiago");
+    await user.click(await screen.findByRole("button", { name: "Renombrar santiago" }));
+    const editor = screen.getByLabelText("Renombrar");
+    await user.clear(editor);
+    await user.type(editor, "Santiago Centro{Enter}");
+    await user.clear(input);
+    await user.type(input, "valpo");
+    await user.click(screen.getByRole("button", { name: "Eliminar valpo" }));
+
+    expect(onRenameTag).toHaveBeenCalledWith("santiago", "Santiago Centro");
+    expect(onDeleteTag).toHaveBeenCalledWith("valpo");
+  });
+});
+
 describe("ContactFormModal — badges", () => {
   beforeEach(() => window.localStorage.clear());
 
@@ -75,16 +137,16 @@ describe("ContactFormModal — badges", () => {
 
   it("creates badges, reuses existing ones and saves them as descriptors", async () => {
     const user = userEvent.setup();
-    window.localStorage.setItem(BADGES_KEY, JSON.stringify([{ id: "b1", name: "Mintral" }]));
+    window.localStorage.setItem(BADGES_KEY, JSON.stringify([{ id: "b1", name: "Norte" }]));
     const onSave = renderForm();
     await pickAna(user);
     const input = screen.getByPlaceholderText(/Busca o crea una etiqueta/);
     await user.type(input, "transportista{Enter}");
-    await user.type(input, "mintral{Enter}");
+    await user.type(input, "norte{Enter}");
     await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     const badges = JSON.parse(window.localStorage.getItem(BADGES_KEY) ?? "[]");
-    expect(badges.map((b: { name: string }) => b.name)).toEqual(["Mintral", "transportista"]);
+    expect(badges.map((b: { name: string }) => b.name)).toEqual(["Norte", "transportista"]);
     expect(saved(onSave).badgeIds).toEqual([badges[1].id, "b1"]);
   });
 
@@ -208,7 +270,7 @@ describe("ContactFormModal — contact channels", () => {
       methods: ["phone"],
       channels: { phone: "+56912345678" },
       rut: "12.345.678-5",
-      company: "Mintral",
+      company: "Norte",
       position: "Supervisor",
       description: "Del CSV",
     };
@@ -218,7 +280,7 @@ describe("ContactFormModal — contact channels", () => {
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(saved(onSave)).toMatchObject({
       id: "i",
-      company: "Mintral",
+      company: "Norte",
       position: "Supervisor",
       description: "Del CSV",
       role: "Supervisor",

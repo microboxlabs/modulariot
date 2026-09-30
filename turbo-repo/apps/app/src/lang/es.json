@@ -2466,7 +2466,13 @@
         "badgesInputPlaceholder": "Busca o crea una etiqueta (ej. transportista)",
         "badgesCreate": "Crear \"{name}\"",
         "channelInactive": "Sin configurar",
-        "channelActive": "Activado"
+        "channelActive": "Activado",
+        "loadError": "No se pudo cargar la libreta de contactos.",
+        "saveError": "No se pudo guardar el contacto.",
+        "duplicateRut": "Ya existe un contacto con ese RUT.",
+        "removeError": "No se pudo eliminar el contacto. Solo un propietario de la organización puede eliminar contactos.",
+        "importNotAll": "{count} filas no se importaron (RUT ya registrado o datos inválidos).",
+        "importError": "No se pudieron importar los contactos."
       },
       "symptomCatalog": {
         "title": "Síntomas",

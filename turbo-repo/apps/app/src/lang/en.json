@@ -2466,7 +2466,13 @@
         "badgesInputPlaceholder": "Search or create a tag (e.g. carrier)",
         "badgesCreate": "Create \"{name}\"",
         "channelInactive": "Not set up",
-        "channelActive": "Enabled"
+        "channelActive": "Enabled",
+        "loadError": "The contact book couldn't be loaded.",
+        "saveError": "The contact couldn't be saved.",
+        "duplicateRut": "A contact with this RUT already exists.",
+        "removeError": "The contact couldn't be deleted. Only an organization owner can delete contacts.",
+        "importNotAll": "{count} rows weren't imported (RUT already registered or invalid data).",
+        "importError": "The contacts couldn't be imported."
       },
       "symptomCatalog": {
         "title": "Symptoms",

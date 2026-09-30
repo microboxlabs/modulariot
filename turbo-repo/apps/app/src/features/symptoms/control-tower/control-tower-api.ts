@@ -52,6 +52,14 @@ export interface TowerTreatment {
   actions: TowerAction[];
 }
 
+/** Address per channel: numbers for phone and WhatsApp, account emails for Meet and Teams. */
+export interface TowerContactChannels {
+  phone?: string;
+  whatsapp?: string;
+  meet?: string;
+  teams?: string;
+}
+
 export interface TowerContact {
   id: string;
   name: string;
@@ -60,9 +68,50 @@ export interface TowerContact {
   methods: TowerCallMethod[];
   active: boolean;
   notes: string | null;
+  /** Stored without dots or dashes, upper case. Unique in the organization. */
+  nationalId: string | null;
+  nationalIdType: string | null;
+  company: string | null;
+  position: string | null;
+  channels: TowerContactChannels | null;
+  tags: string[] | null;
+  memberUserId: string | null;
+  provisional: boolean;
   lastCalledAt: string | null;
   answered: number;
   missed: number;
+}
+
+/** Create or update body. On update, a field left out keeps its value and "" clears it. */
+export interface TowerContactBody {
+  name?: string;
+  role?: string;
+  phone?: string;
+  methods?: TowerCallMethod[];
+  active?: boolean;
+  notes?: string;
+  nationalId?: string;
+  nationalIdType?: string;
+  company?: string;
+  position?: string;
+  channels?: TowerContactChannels;
+  tags?: string[];
+  memberUserId?: string;
+  provisional?: boolean;
+}
+
+export interface TowerContactImportRow {
+  index: number;
+  status: "created" | "skipped" | "error";
+  reason: string | null;
+  contact: TowerContact | null;
+}
+
+export interface TowerContactImportResult {
+  created: number;
+  skipped: number;
+  errors: number;
+  rows: TowerContactImportRow[];
 }
 
 export type AddActionBody = Partial<Omit<TowerAction, "id" | "treatmentId" | "seq" | "performedBy" | "performedAt">> & {
@@ -139,13 +188,22 @@ export function useContacts() {
   return useSWR<TowerContact[]>(contactsKey, fetcher);
 }
 
-export function createContact(body: {
-  name: string;
-  role?: string;
-  phone?: string;
-  methods?: TowerCallMethod[];
-}) {
+export function createContact(body: TowerContactBody & { name: string }) {
   return request<TowerContact>(contactsKey, { method: "POST", body });
+}
+
+export function updateContact(contactId: string, body: TowerContactBody) {
+  return request<TowerContact>(`/contacts/${contactId}`, { method: "PATCH", body });
+}
+
+/** Needs an organization owner. */
+export function deleteContact(contactId: string) {
+  return request<void>(`/contacts/${contactId}`, { method: "DELETE" });
+}
+
+/** Creates each row on its own; a national id already in the book is skipped. */
+export function importContacts(contacts: (TowerContactBody & { name: string })[]) {
+  return request<TowerContactImportResult>("/contacts/import", { method: "POST", body: { contacts } });
 }
 
 /** The shared request helper, for other Control Tower clients on the same proxy. */

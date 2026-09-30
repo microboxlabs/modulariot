@@ -1,12 +1,11 @@
 "use client";
 
 /**
- * PROTOTYPE — the shared badges ("descriptors") contacts are tagged with,
- * e.g. [transportista] [mintral] [santiago]. Managed from the contact form:
- * created, renamed and deleted there, and reused across contacts. Contacts
- * store badge ids, so a rename shows everywhere and a deleted badge simply
- * stops showing. Same localStorage + custom event + `storage` listener
- * pattern as the contact store.
+ * PROTOTYPE — the list of badges ("descriptors") contacts are tagged with,
+ * e.g. [transportista] [turno noche] [santiago]. Managed from the contact
+ * form: created, renamed and deleted there. The list lives in this browser's
+ * localStorage; each contact's tags are stored by name on the contact through
+ * the API, and `store.ts` maps them to these badge ids.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -24,7 +23,8 @@ export function normalizeLabel(value: string): string {
   return value.trim().normalize("NFD").replaceAll(/[̀-ͯ]/g, "").toLowerCase();
 }
 
-function readBadges(): ContactBadge[] {
+/** The badges saved in this browser, read now rather than from React state. */
+export function readBadges(): ContactBadge[] {
   if (globalThis.window === undefined) return [];
   try {
     const raw = window.localStorage.getItem(BADGES_KEY);

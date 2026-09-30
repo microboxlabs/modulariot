@@ -1,0 +1,216 @@
+package com.microboxlabs.miot.symptoms.catalog.service;
+
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleCheck;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.Expect;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.PreparedRule;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleSchema;
+import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
+import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Checks a spec before it is published. Errors block publishing; warnings
+ * do not. Rules are checked against the source's schema.
+ */
+public final class SpecValidator {
+
+    /** Measures and hold times the level thresholds are tried on to find overlaps. */
+    private static final double MEASURE_STEP = 0.5;
+    private static final double MEASURE_MAX = 300;
+    private static final double[] HELD_SECONDS = {0, 30, 60, 120, 300, 900, 3600};
+    private static final Pattern FIELD_PATH = Pattern.compile("[A-Za-z_]\\w*(?:\\.[A-Za-z_]\\w*)+");
+
+    /** Severity of a finding. */
+    public enum Severity {
+        ERROR,
+        WARNING
+    }
+
+    /**
+     * One finding.
+     *
+     * @param position character offset in the section's rule, or -1
+     */
+    public record Finding(String section, Severity severity, String message, int position) {
+    }
+
+    /** All findings for one spec. */
+    public record Report(List<Finding> findings) {
+
+        public boolean publishable() {
+            return findings.stream().noneMatch(f -> f.severity() == Severity.ERROR);
+        }
+
+        /** Fields the rules use that the engine does not evaluate yet: only "En prueba" is allowed. */
+        public boolean needsTestOnly() {
+            return findings.stream().anyMatch(f -> "engine".equals(f.section()));
+        }
+    }
+
+    private SpecValidator() {
+    }
+
+    public static Report validate(SymptomSpec spec, DataSource source) {
+        List<Finding> out = new ArrayList<>();
+        if (source == null) {
+            out.add(new Finding("source", Severity.ERROR, "La fuente de datos no existe.", -1));
+            return new Report(out);
+        }
+        RuleSchema schema = RuleSchema.of(source);
+        rule(out, "activation", schema, spec.activation(), Expect.CONDITION);
+        duplicates(out, spec.activation());
+        if (spec.measure() != null && spec.measure().expression() != null) {
+            rule(out, "measure", schema, spec.measure().expression(), Expect.NUMBER);
+        }
+        levels(out, schema.withExtras(RuleSchema.LEVEL_VARIABLES), spec.levels());
+        if (spec.lifecycle() == null) {
+            out.add(new Finding("lifecycle", Severity.ERROR, "Falta decir cuándo se abre y se cierra el caso.", -1));
+        } else {
+            rule(out, "lifecycle.open", RuleSchema.CASE, spec.lifecycle().open(), Expect.CONDITION);
+            rule(out, "lifecycle.close", RuleSchema.CASE, spec.lifecycle().close(), Expect.CONDITION);
+        }
+        engineSupport(out, source, spec);
+        return new Report(out);
+    }
+
+    private static void rule(List<Finding> out, String section, RuleSchema schema, String rule, Expect expect) {
+        RuleCheck check = RuleLanguage.check(schema, rule, expect);
+        check.issues().forEach(i -> out.add(new Finding(section, Severity.ERROR, i.message(), i.position())));
+    }
+
+    private static void levels(List<Finding> out, RuleSchema schema, List<Level> levels) {
+        if (levels == null || levels.stream().noneMatch(Level::applies)) {
+            out.add(new Finding("levels", Severity.ERROR, "Al menos un nivel debe aplicar.", -1));
+            return;
+        }
+        Set<Integer> seen = new HashSet<>();
+        List<Level> valid = new ArrayList<>();
+        for (Level level : levels) {
+            if (level.icu() < 1 || level.icu() > 4 || !seen.add(level.icu())) {
+                out.add(new Finding("levels", Severity.ERROR, "Cada nivel va del 1 al 4 y aparece una vez.", -1));
+                return;
+            }
+            if (!level.applies()) {
+                continue;
+            }
+            String section = "levels." + level.icu();
+            int before = out.size();
+            rule(out, section, schema, level.when(), Expect.CONDITION);
+            response(out, section, level.response());
+            if (out.size() == before) {
+                valid.add(level);
+            }
+        }
+        overlaps(out, schema, valid);
+    }
+
+    private static void response(List<Finding> out, String section, SymptomSpec.Response response) {
+        if (response != null && response.operator() && (response.slaMinutes() == null || response.slaMinutes() <= 0)) {
+            out.add(new Finding(section, Severity.ERROR, "Si interviene un operador, el nivel necesita un SLA.", -1));
+        }
+    }
+
+    /** Two levels true for the same measure and hold time. Tried on a grid, so it finds real overlaps only. */
+    private static void overlaps(List<Finding> out, RuleSchema schema, List<Level> levels) {
+        Map<Level, PreparedRule> rules = new LinkedHashMap<>();
+        levels.forEach(l -> rules.put(l, RuleLanguage.prepare(schema, l.when())));
+        Set<String> reported = new HashSet<>();
+        for (double held : HELD_SECONDS) {
+            for (double measure = 0; measure <= MEASURE_MAX; measure += MEASURE_STEP) {
+                Map<String, Object> vars = Map.of("medida", measure, "sostenido_s", held);
+                List<Level> hits = levels.stream()
+                        .filter(l -> Boolean.TRUE.equals(rules.get(l).run(vars).value()))
+                        .toList();
+                reportOverlaps(out, reported, hits, measure, held);
+            }
+        }
+    }
+
+    private static void reportOverlaps(List<Finding> out, Set<String> reported, List<Level> hits, double measure,
+            double held) {
+        for (int i = 0; i + 1 < hits.size(); i++) {
+            String a = SpecDiff.LEVEL_NAMES[hits.get(i).icu() - 1];
+            String b = SpecDiff.LEVEL_NAMES[hits.get(i + 1).icu() - 1];
+            if (reported.add(a + b)) {
+                out.add(new Finding("levels", Severity.ERROR, String.format(
+                        "%s y %s se solapan: con medida %s y %s s sostenidos se cumplen los dos.",
+                        a, b, number(measure), number(held)), -1));
+            }
+        }
+    }
+
+    /** The same condition twice in the top-level list of an activation rule. */
+    private static void duplicates(List<Finding> out, String rule) {
+        if (rule == null) {
+            return;
+        }
+        Set<String> seen = new HashSet<>();
+        for (String term : topLevelTerms(rule)) {
+            if (!seen.add(term)) {
+                out.add(new Finding("activation", Severity.ERROR, "La condición «" + term + "» está repetida.",
+                        rule.indexOf(term, rule.indexOf(term) + 1)));
+            }
+        }
+    }
+
+    /** Splits on {@code &&} and {@code ||} outside parentheses and strings. */
+    static List<String> topLevelTerms(String rule) {
+        List<String> terms = new ArrayList<>();
+        int depth = 0;
+        boolean quoted = false;
+        int start = 0;
+        for (int i = 0; i < rule.length(); i++) {
+            char c = rule.charAt(i);
+            if (c == '"') {
+                quoted = !quoted;
+            } else if (!quoted && (c == '(' || c == '[')) {
+                depth++;
+            } else if (!quoted && (c == ')' || c == ']')) {
+                depth--;
+            } else if (!quoted && depth == 0 && isLogicalOperator(rule, i)) {
+                terms.add(SpecDiff.squash(rule.substring(start, i)));
+                start = i + 2;
+                i++;
+            }
+        }
+        terms.add(SpecDiff.squash(rule.substring(start)));
+        return terms;
+    }
+
+    private static boolean isLogicalOperator(String rule, int i) {
+        return i + 1 < rule.length() && rule.charAt(i) == rule.charAt(i + 1)
+                && (rule.charAt(i) == '&' || rule.charAt(i) == '|');
+    }
+
+    private static void engineSupport(List<Finding> out, DataSource source, SymptomSpec spec) {
+        Set<String> unsupported = new HashSet<>();
+        for (SourceField f : source.fields()) {
+            if (!f.engineSupported()) {
+                unsupported.add(f.path());
+            }
+        }
+        String text = spec.activation() + " " + (spec.measure() == null ? "" : spec.measure().expression());
+        Matcher m = FIELD_PATH.matcher(text);
+        Set<String> reported = new HashSet<>();
+        while (m.find()) {
+            if (unsupported.contains(m.group()) && reported.add(m.group())) {
+                out.add(new Finding("engine", Severity.WARNING,
+                        "El motor aún no evalúa «" + m.group() + "»: solo se puede publicar En prueba.", m.start()));
+            }
+        }
+    }
+
+    private static String number(double value) {
+        return value == Math.rint(value) ? String.valueOf((long) value) : String.valueOf(value);
+    }
+}

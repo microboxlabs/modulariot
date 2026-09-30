@@ -15,6 +15,7 @@ import dev.cel.common.types.SimpleType;
 import dev.cel.common.types.StructType;
 import dev.cel.common.types.StructTypeReference;
 import dev.cel.runtime.CelEvaluationException;
+import dev.cel.runtime.CelRuntime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -71,16 +72,36 @@ public final class RuleLanguage {
 
     /** Runs a rule on one sample. The rule must pass {@link #check} first. */
     public static RuleResult evaluate(RuleSchema schema, String expression, Map<String, Object> variables) {
+        return prepare(schema, expression).run(variables);
+    }
+
+    /** Compiles a rule once, to run it on many samples. */
+    public static PreparedRule prepare(RuleSchema schema, String expression) {
         Cel cel = cel(schema);
-        CelValidationResult result = cel.compile(expression);
+        CelValidationResult result = cel.compile(expression == null ? "" : expression);
         if (result.hasError()) {
-            return RuleResult.failed(RuleMessages.plain(result.getAllIssues().get(0).getMessage()));
+            String error = RuleMessages.plain(result.getAllIssues().get(0).getMessage());
+            return variables -> RuleResult.failed(error);
         }
         try {
-            return RuleResult.of(cel.createProgram(result.getAst()).eval(variables));
+            CelRuntime.Program program = cel.createProgram(result.getAst());
+            return variables -> {
+                try {
+                    return RuleResult.of(program.eval(variables));
+                } catch (CelEvaluationException e) {
+                    return RuleResult.failed(RuleMessages.plain(e.getMessage()));
+                }
+            };
         } catch (CelEvaluationException | CelValidationException e) {
-            return RuleResult.failed(RuleMessages.plain(e.getMessage()));
+            String error = RuleMessages.plain(e.getMessage());
+            return variables -> RuleResult.failed(error);
         }
+    }
+
+    /** A compiled rule. */
+    @FunctionalInterface
+    public interface PreparedRule {
+        RuleResult run(Map<String, Object> variables);
     }
 
     private static CelType resultType(CelValidationResult result) {

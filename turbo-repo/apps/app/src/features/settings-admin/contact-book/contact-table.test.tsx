@@ -10,7 +10,7 @@ import type { ContactBadge } from "./taxonomy-store";
 
 const badges: ContactBadge[] = [
   { id: "b1", name: "desarrollo" },
-  { id: "b2", name: "mintral" },
+  { id: "b2", name: "norte" },
 ];
 
 vi.mock("@/features/notifications/notification", () => ({
@@ -37,35 +37,35 @@ const labels: ContactTableLabels = {
   remove: "Eliminar contacto",
 };
 
-const rodrigo: BookContact = {
+const person: BookContact = {
   id: "contact_1",
-  name: "Rodrigo Seguel",
+  name: "Persona Ejemplo",
   phone: "+56912345678",
   role: "",
-  description: "Programador de Microboxlabs",
+  description: "Jefe de turno",
   badgeIds: ["b1", "b2", "deleted"],
   methods: ["whatsapp", "meet"],
-  channels: { whatsapp: "+56912345678", meet: "rodrigo@gmail.com" },
+  channels: { whatsapp: "+56912345678", meet: "persona@example.com" },
 };
 
 describe("ContactTable", () => {
   it("shows name, description, badges and methods for a contact (skipping deleted badges)", () => {
     render(
-      <ContactTable contacts={[rodrigo]} badges={badges}
+      <ContactTable contacts={[person]} badges={badges}
         labels={labels} onEdit={vi.fn()} onRemove={vi.fn()} />
     );
-    const row = screen.getByText("Rodrigo Seguel").closest("tr");
+    const row = screen.getByText("Persona Ejemplo").closest("tr");
     expect(row).not.toBeNull();
     const cells = within(row as HTMLElement);
-    expect(cells.getByText("R")).toBeInTheDocument();
-    expect(cells.getByText("Programador de Microboxlabs")).toBeInTheDocument();
+    expect(cells.getByText("P")).toBeInTheDocument();
+    expect(cells.getByText("Jefe de turno")).toBeInTheDocument();
     expect(cells.getByText("desarrollo")).toBeInTheDocument();
-    expect(cells.getByText("mintral")).toBeInTheDocument();
+    expect(cells.getByText("norte")).toBeInTheDocument();
     expect(
       cells.getByRole("button", { name: "Llamada por WhatsApp: +56 9 1234 5678" })
     ).toBeInTheDocument();
     expect(
-      cells.getByRole("button", { name: "Llamada por Google Meet: rodrigo@gmail.com" })
+      cells.getByRole("button", { name: "Llamada por Google Meet: persona@example.com" })
     ).toBeInTheDocument();
     expect(cells.queryByRole("button", { name: /Llamada telefónica/ })).toBeNull();
     expect(
@@ -84,19 +84,19 @@ describe("ContactTable", () => {
       configurable: true,
     });
     render(
-      <ContactTable contacts={[rodrigo]} badges={badges}
+      <ContactTable contacts={[person]} badges={badges}
         labels={labels} onEdit={vi.fn()} onRemove={vi.fn()} />
     );
     await user.click(
-      screen.getByRole("button", { name: "Llamada por Google Meet: rodrigo@gmail.com" })
+      screen.getByRole("button", { name: "Llamada por Google Meet: persona@example.com" })
     );
-    expect(writeText).toHaveBeenCalledWith("rodrigo@gmail.com");
+    expect(writeText).toHaveBeenCalledWith("persona@example.com");
   });
 
   it("falls back to the role when there is no description", () => {
     render(
       <ContactTable
-        contacts={[{ ...rodrigo, description: undefined, role: "Supervisor" }]}
+        contacts={[{ ...person, description: undefined, role: "Supervisor" }]}
         badges={badges}
         labels={labels}
         onEdit={vi.fn()}
@@ -111,12 +111,12 @@ describe("ContactTable", () => {
     const onEdit = vi.fn();
     const onRemove = vi.fn();
     render(
-      <ContactTable contacts={[rodrigo]} badges={badges}
+      <ContactTable contacts={[person]} badges={badges}
         labels={labels} onEdit={onEdit} onRemove={onRemove} />
     );
     await user.click(screen.getByRole("button", { name: "Acciones" }));
     await user.click(screen.getByText("Editar"));
-    expect(onEdit).toHaveBeenCalledWith(rodrigo);
+    expect(onEdit).toHaveBeenCalledWith(person);
 
     await user.click(screen.getByRole("button", { name: "Acciones" }));
     await user.click(screen.getByText("Eliminar contacto"));
@@ -128,16 +128,16 @@ describe("contact method tooltip", () => {
   it("shows only while the circle is hovered", async () => {
     const user = userEvent.setup();
     render(
-      <ContactTable contacts={[rodrigo]} badges={badges}
+      <ContactTable contacts={[person]} badges={badges}
         labels={labels} onEdit={vi.fn()} onRemove={vi.fn()} />
     );
     const meet = screen.getByRole("button", {
-      name: "Llamada por Google Meet: rodrigo@gmail.com",
+      name: "Llamada por Google Meet: persona@example.com",
     });
     expect(screen.queryByRole("tooltip")).toBeNull();
 
     await user.hover(meet);
-    expect(screen.getByRole("tooltip")).toHaveTextContent("rodrigo@gmail.com");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("persona@example.com");
 
     await user.unhover(meet);
     expect(screen.queryByRole("tooltip")).toBeNull();
@@ -146,11 +146,11 @@ describe("contact method tooltip", () => {
   it("switches straight from one circle's tooltip to the next", async () => {
     const user = userEvent.setup();
     render(
-      <ContactTable contacts={[rodrigo]} badges={badges}
+      <ContactTable contacts={[person]} badges={badges}
         labels={labels} onEdit={vi.fn()} onRemove={vi.fn()} />
     );
     await user.hover(
-      screen.getByRole("button", { name: "Llamada por Google Meet: rodrigo@gmail.com" })
+      screen.getByRole("button", { name: "Llamada por Google Meet: persona@example.com" })
     );
     await user.hover(
       screen.getByRole("img", { name: "Llamada por Microsoft Teams: No conectado" })
@@ -167,11 +167,11 @@ describe("contact method tooltip", () => {
       configurable: true,
     });
     render(
-      <ContactTable contacts={[rodrigo]} badges={badges}
+      <ContactTable contacts={[person]} badges={badges}
         labels={labels} onEdit={vi.fn()} onRemove={vi.fn()} />
     );
     const meet = screen.getByRole("button", {
-      name: "Llamada por Google Meet: rodrigo@gmail.com",
+      name: "Llamada por Google Meet: persona@example.com",
     });
     await user.click(meet);
     await user.unhover(meet);

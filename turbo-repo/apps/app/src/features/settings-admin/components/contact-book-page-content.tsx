@@ -5,8 +5,12 @@ import { HiOutlineBookOpen, HiOutlineUpload, HiPlus } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { ShowNotification } from "@/features/notifications/notification";
+import { ControlTowerError } from "@/features/symptoms/control-tower/control-tower-api";
 import ContactFormModal from "../contact-book/contact-form-modal";
-import ContactTable, { type ContactTableLabels } from "../contact-book/contact-table";
+import ContactTable, {
+  type ContactTableLabels,
+} from "../contact-book/contact-table";
 import ImportContactsModal from "../contact-book/import-contacts-modal";
 import { useContactBook, type BookContact } from "../contact-book/store";
 import { useContactBadges } from "../contact-book/taxonomy-store";
@@ -42,10 +46,11 @@ function contactTableLabels(d: I18nRecord): ContactTableLabels {
 }
 
 /**
- * PROTOTYPE — Settings › Libreta de contactos.
+ * Settings › Libreta de contactos.
  *
- * The system-wide directory of people. Contacts created here (or from the
- * call-center picker's "create new" step) can be picked in "who to call".
+ * The organization's directory of people, stored by the Control Tower API
+ * and shared by every operator. Contacts created here (or from the call
+ * panel's "Llamar y guardar en la libreta") can be picked in "who to call".
  * The table loads 10 rows at a time as it's scrolled.
  */
 export default function ContactBookPageContent({
@@ -54,12 +59,24 @@ export default function ContactBookPageContent({
 }: ContactBookPageContentProps) {
   const d = dict?.contactBook as I18nRecord;
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
-  const { contacts, hydrated, save, addMany, remove } = useContactBook();
+  const {
+    contacts,
+    hydrated,
+    error,
+    save,
+    addMany,
+    remove,
+    renameTag,
+    deleteTag,
+  } = useContactBook();
   const { badges } = useContactBadges();
   const [editing, setEditing] = useState<BookContact | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const { visible, hasMore, sentinelRef } = useIncrementalCount(contacts.length, PAGE_SIZE);
+  const { visible, hasMore, sentinelRef } = useIncrementalCount(
+    contacts.length,
+    PAGE_SIZE
+  );
 
   const openCreate = () => {
     setEditing(null);
@@ -68,6 +85,29 @@ export default function ContactBookPageContent({
   const openEdit = (contact: BookContact) => {
     setEditing(contact);
     setModalOpen(true);
+  };
+
+  const saveContact = async (contact: BookContact) => {
+    try {
+      await save(contact);
+    } catch (e) {
+      const duplicate = e instanceof ControlTowerError && e.status === 409;
+      ShowNotification({
+        type: "error",
+        message: duplicate ? tr("duplicateRut", d) : tr("saveError", d),
+      });
+      throw e;
+    }
+  };
+
+  const removeContact = (id: string) => {
+    remove(id).catch((e: unknown) => {
+      const forbidden = e instanceof ControlTowerError && e.status === 403;
+      ShowNotification({
+        type: "error",
+        message: forbidden ? tr("removeError", d) : tr("removeFailed", d),
+      });
+    });
   };
 
   return (
@@ -118,7 +158,9 @@ export default function ContactBookPageContent({
 
         {hydrated && contacts.length === 0 && (
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-y-auto rounded-lg border border-dashed border-gray-300 px-4 py-16 text-center dark:border-gray-700">
-            <p className="text-sm text-gray-500 dark:text-gray-400">{tr("empty", d)}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {error ? tr("loadError", d) : tr("empty", d)}
+            </p>
           </div>
         )}
 
@@ -128,9 +170,11 @@ export default function ContactBookPageContent({
             badges={badges}
             labels={contactTableLabels(d)}
             onEdit={openEdit}
-            onRemove={remove}
+            onRemove={removeContact}
             className="min-h-0 flex-1"
-            footer={hasMore && <div ref={sentinelRef} className="h-8" aria-hidden />}
+            footer={
+              hasMore && <div ref={sentinelRef} className="h-8" aria-hidden />
+            }
           />
         )}
       </div>
@@ -139,7 +183,9 @@ export default function ContactBookPageContent({
         show={modalOpen}
         onClose={() => setModalOpen(false)}
         editing={editing}
-        onSave={save}
+        onSave={saveContact}
+        onRenameTag={renameTag}
+        onDeleteTag={deleteTag}
         dict={dict}
       />
       <ImportContactsModal

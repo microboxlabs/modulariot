@@ -146,7 +146,7 @@ function BadgeSuggestion({
 }
 
 /**
- * Agrupación card — badges are shared descriptors ([transportista] [mintral]
+ * Agrupación card — badges are shared descriptors ([transportista] [norte]
  * [santiago]). Type in the input: existing badges that match show up to add
  * (and rename or delete); when none matches exactly, a "Crear" option makes
  * a new one. The contact's descriptors are listed below.

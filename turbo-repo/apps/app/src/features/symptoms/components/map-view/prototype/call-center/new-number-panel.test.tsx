@@ -1,10 +1,31 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { ShowNotification } from "@/features/notifications/notification";
 import CallCenterMenu from "./call-center-menu";
 import { canSubmitNewNumber, draftFromQuery } from "./new-number-panel";
+
+const api = vi.hoisted(() => ({
+  createContact: vi.fn(),
+  updateContact: vi.fn(),
+  deleteContact: vi.fn(),
+  importContacts: vi.fn(),
+  mutate: vi.fn(),
+}));
+
+vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
+  createContact: api.createContact,
+  updateContact: api.updateContact,
+  deleteContact: api.deleteContact,
+  importContacts: api.importContacts,
+  useContacts: () => ({ data: [], error: undefined, mutate: api.mutate }),
+}));
+
+vi.mock("@/features/notifications/notification", () => ({
+  ShowNotification: vi.fn(),
+}));
 
 const dict = es as unknown as I18nRecord;
 const PHONE = "Número de teléfono";
@@ -28,7 +49,16 @@ describe("draftFromQuery", () => {
 });
 
 describe("CallCenterMenu — new number", () => {
-  beforeEach(() => window.localStorage.clear());
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.clearAllMocks();
+    api.createContact.mockImplementation(async (body: { name: string }) => ({
+      ...body,
+      id: "api-contact-1",
+      methods: ["PHONE", "WHATSAPP"],
+      provisional: true,
+    }));
+  });
 
   function renderMenu() {
     const onCall = vi.fn();
@@ -71,7 +101,7 @@ describe("CallCenterMenu — new number", () => {
       "",
       undefined
     );
-    expect(window.localStorage.getItem("miot.prototype.contact-book.v1")).toBeNull();
+    expect(api.createContact).not.toHaveBeenCalled();
     const roles = JSON.parse(window.localStorage.getItem("miot.prototype.call-roles.v1") ?? "[]");
     expect(roles.some((r: { name: string }) => r.name === "Pedro")).toBe(true);
   });
@@ -92,14 +122,50 @@ describe("CallCenterMenu — new number", () => {
       "",
       ["phone", "whatsapp"]
     );
-    const book = JSON.parse(window.localStorage.getItem("miot.prototype.contact-book.v1") ?? "[]");
-    expect(book).toEqual([
+    expect(api.createContact).toHaveBeenCalledTimes(1);
+    expect(api.createContact).toHaveBeenCalledWith(
       expect.objectContaining({
         name: "Ana Soto",
         phone: "+56912345678",
+        methods: ["PHONE", "WHATSAPP"],
         channels: { phone: "+56912345678", whatsapp: "+56912345678" },
-      }),
-    ]);
+        provisional: true,
+      })
+    );
+    await waitFor(() => {
+      const details = JSON.parse(window.localStorage.getItem("miot.prototype.contact-details.v1") ?? "{}");
+      expect(Object.values(details)).toContainEqual({ bookId: "api-contact-1" });
+    });
+    expect(window.localStorage.getItem("miot.prototype.contact-book.v1")).toBeNull();
+  });
+
+  it("still calls when saving to the book fails, and tells the operator", async () => {
+    api.createContact.mockRejectedValueOnce(new Error("HTTP 500"));
+    const user = userEvent.setup();
+    const onCall = renderMenu();
+    await openPanel(user);
+    await user.type(screen.getByLabelText(PHONE), "900000001");
+    await user.type(screen.getByLabelText(NAME), "Persona Nueva");
+    await user.click(screen.getByRole("button", { name: "Llamar y guardar en la libreta" }));
+
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Persona Nueva" }),
+      expect.any(String),
+      "Persona Nueva",
+      "",
+      ["phone", "whatsapp"]
+    );
+    await waitFor(() =>
+      expect(ShowNotification).toHaveBeenCalledWith({
+        type: "error",
+        message: es.symptoms.call_center_new_save_error,
+      })
+    );
+    const details = JSON.parse(window.localStorage.getItem("miot.prototype.contact-details.v1") ?? "{}");
+    expect(Object.values(details)).toContainEqual({
+      phone: "+56900000001",
+      methods: ["phone", "whatsapp"],
+    });
   });
 
   it("has no add button next to the search bar", () => {

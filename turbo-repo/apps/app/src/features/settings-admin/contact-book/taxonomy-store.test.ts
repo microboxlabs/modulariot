@@ -14,12 +14,12 @@ describe("badge store", () => {
   });
 
   it("renames, refusing empty names and names used by another badge", () => {
-    const a = ensureBadge("mintral");
+    const a = ensureBadge("norte");
     ensureBadge("santiago");
     expect(renameBadge(a.id, "Santiago")).toBe(false);
     expect(renameBadge(a.id, "  ")).toBe(false);
-    expect(renameBadge(a.id, "Mintral SpA")).toBe(true);
-    expect(stored()[0].name).toBe("Mintral SpA");
+    expect(renameBadge(a.id, "Norte SpA")).toBe(true);
+    expect(stored()[0].name).toBe("Norte SpA");
   });
 
   it("deletes a badge", () => {

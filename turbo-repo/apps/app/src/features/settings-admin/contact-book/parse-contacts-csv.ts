@@ -4,7 +4,7 @@
  * nombre, descripcion, rut, empresa, cargo, etiquetas, telefono, whatsapp,
  * meet, teams. Comma or semicolon separated (Excel in Spanish uses `;`).
  * `etiquetas` holds several badges separated by `|`
- * ("transportista|mintral|santiago").
+ * ("transportista|norte|santiago").
  */
 
 import type { CallMethod } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";

@@ -5,7 +5,7 @@ import {
 } from "./contact-duplicates";
 import type { BookContact } from "./store";
 
-const base: BookContact = { id: "a", name: "Rodrigo Seguel", phone: "", role: "", methods: [] };
+const base: BookContact = { id: "a", name: "Persona Ejemplo", phone: "", role: "", methods: [] };
 const contacts: BookContact[] = [
   { ...base, rut: "11.111.111-1" },
   { ...base, id: "b", name: "Ana Pérez" },

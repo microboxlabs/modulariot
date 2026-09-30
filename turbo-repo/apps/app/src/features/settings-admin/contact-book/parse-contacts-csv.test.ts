@@ -27,7 +27,7 @@ describe("parseContactsCsv", () => {
   it("maps headers in any order/case/accents and marks each row", () => {
     const csv = [
       "Nombre,RUT,Descripción,Etiquetas,WhatsApp",
-      "Rodrigo Seguel,12.345.678-5,Programador,transportista|mintral,+56912345678",
+      "Persona Ejemplo,12.345.678-5,Programador,transportista|norte,+56912345678",
       "Otro,11111111-1,,,",
       ",,sin nombre,,",
       "Malo,12.345.678-0,,,",
@@ -37,10 +37,10 @@ describe("parseContactsCsv", () => {
     expect(rows[0]).toEqual({
       line: 2,
       values: {
-        name: "Rodrigo Seguel",
+        name: "Persona Ejemplo",
         rut: "12.345.678-5",
         description: "Programador",
-        badges: "transportista|mintral",
+        badges: "transportista|norte",
         whatsapp: "+56912345678",
       },
       status: "ok",
@@ -61,9 +61,9 @@ describe("parseContactsCsv", () => {
 
 describe("splitBadgeNames", () => {
   it("splits on | and drops blanks", () => {
-    expect(splitBadgeNames(" transportista | mintral||santiago ")).toEqual([
+    expect(splitBadgeNames(" transportista | norte||santiago ")).toEqual([
       "transportista",
-      "mintral",
+      "norte",
       "santiago",
     ]);
     expect(splitBadgeNames(undefined)).toEqual([]);

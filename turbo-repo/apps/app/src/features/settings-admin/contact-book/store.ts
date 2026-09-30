@@ -1,14 +1,34 @@
 "use client";
 
 /**
- * PROTOTYPE — client-only persistence for the contact book: the system-wide
- * directory of people that Settings › Libreta de contactos maintains and the
- * call-center's "who to call" picker searches. Same localStorage + custom
- * event + `storage` listener pattern as the Selectables store.
+ * The organization's contact book: the directory of people that Settings ›
+ * Libreta de contactos maintains and the call panel searches. Stored by the
+ * modulith Control Tower API (`/contacts`), so every operator of the
+ * organization sees the same book. Tags are stored on each contact by name;
+ * the badge list itself is still per browser (`taxonomy-store.ts`).
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { CallMethod } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
+import {
+  createContact,
+  deleteContact,
+  importContacts,
+  updateContact,
+  useContacts,
+  type TowerCallMethod,
+  type TowerContact,
+  type TowerContactBody,
+  type TowerContactImportResult,
+} from "@/features/symptoms/control-tower/control-tower-api";
+import { displayRut } from "./contact-duplicates";
+import {
+  ensureBadge,
+  normalizeLabel,
+  readBadges,
+  useContactBadges,
+  type ContactBadge,
+} from "./taxonomy-store";
 
 export interface BookContact {
   id: string;
@@ -20,92 +40,205 @@ export interface BookContact {
    *  Empty means "no restriction" — every method is offered. */
   methods: CallMethod[];
   /** Configured channels only, each with the address to reach the contact on
-   *  (a number for phone/WhatsApp, an account email for Teams/Meet). Absent on
-   *  contacts saved before channels existed. */
+   *  (a number for phone/WhatsApp, an account email for Teams/Meet). */
   channels?: Partial<Record<CallMethod, string>>;
-  /** Person data set by the stepped Settings form (absent on contacts saved
-   *  before it existed). The table falls back to `role` when `description`
-   *  is empty. */
+  /** Free text about the person; the API's `notes`. The table falls back to
+   *  `role` when it is empty. */
   description?: string;
-  /** Chilean RUT as typed; unique across the book (compared normalized). */
+  /** Chilean RUT; unique in the organization (compared normalized). */
   rut?: string;
   company?: string;
   position?: string;
   /** Id of the organization member this contact was created from, if any. */
   orgMemberId?: string;
   /** Ids of the badges ("descriptors") describing the contact, from
-   *  `taxonomy-store.ts` — e.g. [transportista] [mintral] [santiago]. */
+   *  `taxonomy-store.ts` — e.g. [transportista] [turno noche] [santiago]. */
   badgeIds?: string[];
+  /** Captured quickly from the call panel; still to be completed. */
+  provisional?: boolean;
 }
 
-const STORAGE_KEY = "miot.prototype.contact-book.v1";
-const SYNC_EVENT = "miot:contact-book-changed";
+/** A contact the API has not stored yet. `save` creates it and the API
+ *  assigns the real id. */
+const NEW_ID_PREFIX = "new_";
 
 export function makeContactId(): string {
-  return `contact_${crypto.randomUUID()}`;
+  return `${NEW_ID_PREFIX}${crypto.randomUUID()}`;
 }
 
-function read(): BookContact[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as BookContact[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+const fromApiMethod = (m: TowerCallMethod) => m.toLowerCase() as CallMethod;
+const toApiMethod = (m: CallMethod) => m.toUpperCase() as TowerCallMethod;
+
+function badgeIdByName(badges: readonly ContactBadge[]): Map<string, string> {
+  return new Map(badges.map((b) => [normalizeLabel(b.name), b.id]));
+}
+
+/** The API contact in the book's shape. Tags without a local badge are left
+ *  out until `useContactBook` creates that badge. */
+export function toBookContact(
+  c: TowerContact,
+  badges: readonly ContactBadge[]
+): BookContact {
+  const idByName = badgeIdByName(badges);
+  const channels: Partial<Record<CallMethod, string>> = {};
+  for (const [method, address] of Object.entries(c.channels ?? {})) {
+    if (address) channels[method as CallMethod] = address;
+  }
+  return {
+    id: c.id,
+    name: c.name,
+    phone: c.phone ?? "",
+    role: c.role ?? "",
+    methods: c.methods.map(fromApiMethod),
+    channels,
+    description: c.notes ?? undefined,
+    rut: c.nationalId ? displayRut(c.nationalId) : undefined,
+    company: c.company ?? undefined,
+    position: c.position ?? undefined,
+    orgMemberId: c.memberUserId ?? undefined,
+    badgeIds: (c.tags ?? []).flatMap(
+      (name) => idByName.get(normalizeLabel(name)) ?? []
+    ),
+    provisional: c.provisional,
+  };
+}
+
+/** The full request body for a book contact. Empty strings clear a field. */
+export function toContactBody(
+  c: BookContact,
+  badges: readonly ContactBadge[]
+): TowerContactBody & { name: string } {
+  const nameById = new Map(badges.map((b) => [b.id, b.name]));
+  return {
+    name: c.name,
+    role: c.role,
+    phone: c.phone,
+    methods: c.methods.map(toApiMethod),
+    notes: c.description ?? "",
+    nationalId: c.rut ?? "",
+    nationalIdType: "RUT",
+    company: c.company ?? "",
+    position: c.position ?? "",
+    channels: c.channels ?? {},
+    tags: (c.badgeIds ?? []).flatMap((id) => nameById.get(id) ?? []),
+    memberUserId: c.orgMemberId ?? "",
+    provisional: c.provisional ?? false,
+  };
+}
+
+/** A tag rename or delete that some contacts did not get. */
+export class TagUpdateError extends Error {
+  constructor(
+    readonly failed: number,
+    readonly updated: number
+  ) {
+    super(`tag not updated on ${failed} contacts`);
   }
 }
 
-function write(next: BookContact[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    window.dispatchEvent(new Event(SYNC_EVENT));
-  } catch {
-    // storage unavailable — in-memory state still updates for this tab.
-  }
-}
+const sameTag = (a: string, b: string) =>
+  normalizeLabel(a) === normalizeLabel(b);
 
 export function useContactBook() {
-  const [contacts, setContacts] = useState<BookContact[]>([]);
-  const [hydrated, setHydrated] = useState(false);
+  const { data, error, mutate } = useContacts();
+  const { badges } = useContactBadges();
 
+  // Tags another operator used may not have a badge in this browser yet.
+  // Each name is ensured once per mount, so renaming or deleting a badge
+  // here does not bring the old name back.
+  const ensured = useRef(new Set<string>());
   useEffect(() => {
-    setContacts(read());
-    setHydrated(true);
-    const sync = () => setContacts(read());
-    window.addEventListener(SYNC_EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(SYNC_EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
+    for (const tag of (data ?? []).flatMap((c) => c.tags ?? [])) {
+      const key = normalizeLabel(tag);
+      if (!key || ensured.current.has(key)) continue;
+      ensured.current.add(key);
+      ensureBadge(tag);
+    }
+  }, [data]);
 
-  /** Upsert by id. */
-  const save = useCallback((contact: BookContact) => {
-    const current = read();
-    const exists = current.some((c) => c.id === contact.id);
-    const next = exists
-      ? current.map((c) => (c.id === contact.id ? contact : c))
-      : [...current, contact];
-    write(next);
-    setContacts(next);
-  }, []);
+  const contacts = useMemo(
+    () => (data ?? []).map((c) => toBookContact(c, badges)),
+    [data, badges]
+  );
+  const hydrated = data !== undefined || error !== undefined;
 
-  /** Appends several new contacts in one write (used by the CSV import). */
-  const addMany = useCallback((added: BookContact[]) => {
-    const next = [...read(), ...added];
-    write(next);
-    setContacts(next);
-  }, []);
+  /** Creates a contact made with `makeContactId`, updates any other.
+   *  Resolves with the stored contact; rejects with the API's error. */
+  const save = useCallback(
+    async (contact: BookContact): Promise<BookContact> => {
+      const all = readBadges();
+      const body = toContactBody(contact, all);
+      const stored = contact.id.startsWith(NEW_ID_PREFIX)
+        ? await createContact(body)
+        : await updateContact(contact.id, body);
+      await mutate();
+      return toBookContact(stored, all);
+    },
+    [mutate]
+  );
 
-  const remove = useCallback((id: string) => {
-    const next = read().filter((c) => c.id !== id);
-    write(next);
-    setContacts(next);
-  }, []);
+  /** Creates several contacts in one request (the CSV import). */
+  const addMany = useCallback(
+    async (added: BookContact[]): Promise<TowerContactImportResult> => {
+      const all = readBadges();
+      const result = await importContacts(
+        added.map((c) => toContactBody(c, all))
+      );
+      await mutate();
+      return result;
+    },
+    [mutate]
+  );
 
-  return { contacts, hydrated, save, addMany, remove };
+  const remove = useCallback(
+    async (id: string) => {
+      await deleteContact(id);
+      await mutate();
+    },
+    [mutate]
+  );
+
+  /** Rewrites the tag on every contact that has it: `to` null removes it.
+   *  Rejects with a {@link TagUpdateError} when some contacts were not
+   *  updated; the book is reloaded either way. */
+  const retag = useCallback(
+    async (from: string, to: string | null) => {
+      const affected = (data ?? []).filter((c) =>
+        (c.tags ?? []).some((t) => sameTag(t, from))
+      );
+      ensured.current.add(normalizeLabel(from));
+      if (to) ensured.current.add(normalizeLabel(to));
+      try {
+        const results = await Promise.allSettled(
+          affected.map((c) => {
+            const kept = (c.tags ?? []).filter((t) => !sameTag(t, from));
+            return updateContact(c.id, { tags: to ? [...kept, to] : kept });
+          })
+        );
+        const failed = results.filter((r) => r.status === "rejected").length;
+        if (failed > 0)
+          throw new TagUpdateError(failed, results.length - failed);
+      } finally {
+        await mutate();
+      }
+    },
+    [data, mutate]
+  );
+
+  const renameTag = useCallback(
+    (from: string, to: string) => retag(from, to),
+    [retag]
+  );
+  const deleteTag = useCallback((name: string) => retag(name, null), [retag]);
+
+  return {
+    contacts,
+    hydrated,
+    error: error as Error | undefined,
+    save,
+    addMany,
+    remove,
+    renameTag,
+    deleteTag,
+  };
 }

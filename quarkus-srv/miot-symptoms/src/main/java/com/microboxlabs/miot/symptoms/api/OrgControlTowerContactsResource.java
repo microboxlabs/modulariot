@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.api;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.dto.ContactImportRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.service.ContactService;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -80,6 +81,20 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
         return memberWork(() -> Response.status(Response.Status.CREATED)
                 .entity(contacts.create(tenant, actor, body))
                 .build());
+    }
+
+    @POST
+    @Path("/import")
+    @Operation(operationId = "importContacts", summary = "Create several contacts",
+            description = "Each row is created on its own. A national id already in the book, or repeated in the "
+                    + "request, is skipped; an invalid row is an error. Returns the result of every row.")
+    public Uni<Response> importContacts(
+            @PathParam("organizationId") String organizationId,
+            ContactImportRequest body) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return memberWork(() -> Response.ok(
+                contacts.importContacts(tenant, actor, body == null ? null : body.contacts())).build());
     }
 
     @PATCH

@@ -19,29 +19,30 @@ import {
   type ImportRow,
   type ImportRowStatus,
 } from "./parse-contacts-csv";
+import type { TowerContactImportResult } from "@/features/symptoms/control-tower/control-tower-api";
 import { makeContactId, type BookContact } from "./store";
 import { ensureBadge } from "./taxonomy-store";
 
 /** What the example table shows before a file is loaded. */
 const EXAMPLE_ROWS: ImportRow["values"][] = [
   {
-    name: "Rodrigo Seguel",
-    description: "Programador de Microboxlabs",
-    rut: "12.345.678-5",
-    company: "Microboxlabs",
-    position: "Programador",
-    badges: "desarrollo|mintral|santiago",
-    whatsapp: "+56 9 1234 5678",
-    meet: "rodrigo@gmail.com",
+    name: "Persona Ejemplo",
+    description: "Jefe de turno",
+    rut: "11.111.111-1",
+    company: "Empresa Ejemplo",
+    position: "Jefe de turno",
+    badges: "transportista|turno noche|santiago",
+    whatsapp: "+56 9 0000 0001",
+    meet: "persona@example.com",
   },
   {
-    name: "Ana Pérez",
+    name: "Otra Persona",
     description: "Supervisora de turno",
-    rut: "9.876.543-3",
-    company: "Mintral",
+    rut: "22.222.222-2",
+    company: "Empresa Ejemplo",
     position: "Supervisora",
-    badges: "transportista|mintral",
-    phone: "+56 9 8765 4321",
+    badges: "transportista",
+    phone: "+56 9 0000 0002",
   },
 ];
 
@@ -216,7 +217,8 @@ function RowsTable({
  * "Importar contactos": drop a CSV (fixed columns, see
  * `parse-contacts-csv.ts`), check the preview, import. Before a file is
  * loaded the table shows example rows of the expected layout. Rows with a
- * missing name, an invalid RUT or a RUT that already exists are skipped.
+ * missing name, an invalid RUT or a RUT that already exists are skipped; the
+ * API checks the RUTs again and reports what it did not create.
  * Closes by clicking outside, like the contact form.
  */
 export default function ImportContactsModal({
@@ -229,13 +231,16 @@ export default function ImportContactsModal({
   show: boolean;
   onClose: () => void;
   contacts: readonly BookContact[];
-  onImport: (added: BookContact[]) => void;
+  onImport: (
+    added: BookContact[]
+  ) => void | Promise<TowerContactImportResult | void>;
   /** `pages.userSettings` dictionary. */
   dict: I18nRecord;
 }>) {
   const d = dict?.contactBook as I18nRecord;
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<ImportRow[] | null>(null);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     if (show) {
@@ -257,14 +262,29 @@ export default function ImportContactsModal({
 
   const okRows = rows?.filter((r) => r.status === "ok") ?? [];
 
-  const handleImport = () => {
-    if (okRows.length === 0) return;
-    onImport(okRows.map((r) => rowToContact(r.values)));
-    ShowNotification({
-      type: "success",
-      message: tr("importDone", d, { count: String(okRows.length) }),
-    });
-    onClose();
+  const handleImport = async () => {
+    if (okRows.length === 0 || importing) return;
+    setImporting(true);
+    try {
+      const result = await onImport(okRows.map((r) => rowToContact(r.values)));
+      const created = result ? result.created : okRows.length;
+      const notCreated = result ? result.skipped + result.errors : 0;
+      ShowNotification({
+        type: "success",
+        message: tr("importDone", d, { count: String(created) }),
+      });
+      if (notCreated > 0) {
+        ShowNotification({
+          type: "warning",
+          message: tr("importNotAll", d, { count: String(notCreated) }),
+        });
+      }
+      onClose();
+    } catch {
+      ShowNotification({ type: "error", message: tr("importError", d) });
+    } finally {
+      setImporting(false);
+    }
   };
 
   return (
@@ -309,8 +329,8 @@ export default function ImportContactsModal({
         <div className="shrink-0 border-t border-gray-200 px-6 py-4 dark:border-gray-700">
           <button
             type="button"
-            disabled={okRows.length === 0}
-            onClick={handleImport}
+            disabled={okRows.length === 0 || importing}
+            onClick={() => void handleImport()}
             className="w-full rounded-lg bg-blue-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {tr("importButton", d)}

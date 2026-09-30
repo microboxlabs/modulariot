@@ -15,8 +15,9 @@
  * Adding a contact happens inline (`new-number-panel.tsx`): phone number,
  * then name, then "Solo llamar" (a real entry in that same dedicated store
  * with its own phone — see `contact-details.ts` — so the call shows up in
- * "Ya llamados") or "Llamar y guardar en la libreta" (also saved to the
- * contact book, and the list entry stays linked to it). A seeded option has
+ * "Ya llamados") or "Llamar y guardar en la libreta" (also created in the
+ * organization's contact book through the API, marked provisional until
+ * someone completes it, and the list entry stays linked to it). A seeded option has
  * no details entry at all, which is how a row tells the two kinds apart.
  */
 
@@ -24,6 +25,7 @@ import { useEffect, useReducer, useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { tr } from "@/features/i18n/tr.service";
+import { ShowNotification } from "@/features/notifications/notification";
 import type { CallRole } from "./call-roles-store";
 import {
   BentoGrid,
@@ -208,6 +210,9 @@ export default function CallCenterMenu({
     const personName = name.trim() || shownPhone;
     const optionId = addContact(personName);
     let methods: CallMethod[] | undefined;
+    // The entry works with its own phone right away; once the book has the
+    // contact, it is linked to it instead.
+    setDetails(optionId, { phone: number });
     if (action === "callAndSave") {
       methods = ["phone", "whatsapp"];
       const contact: BookContact = {
@@ -217,11 +222,17 @@ export default function CallCenterMenu({
         role: "",
         methods,
         channels: { phone: number, whatsapp: number },
+        provisional: true,
       };
-      saveBookContact(contact);
-      setDetails(optionId, { bookId: contact.id });
-    } else {
-      setDetails(optionId, { phone: number });
+      saveBookContact(contact)
+        .then((saved) => setDetails(optionId, { bookId: saved.id }))
+        .catch(() => {
+          setDetails(optionId, { phone: number, methods });
+          ShowNotification({
+            type: "error",
+            message: t("call_center_new_save_error"),
+          });
+        });
     }
     setAddDraft(null);
     setSearch("");

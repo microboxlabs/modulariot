@@ -12,6 +12,14 @@ export function normalizeRut(rut: string): string {
   return rut.replaceAll(/[.\-\s]/g, "").toUpperCase();
 }
 
+/** A normalized RUT with dots and dash, for display ("111111111" → "11.111.111-1"). */
+export function displayRut(rut: string): string {
+  const normalized = normalizeRut(rut);
+  if (normalized.length < 2) return normalized;
+  const body = normalized.slice(0, -1).replaceAll(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `${body}-${normalized.slice(-1)}`;
+}
+
 export type RutProblem = "invalid" | "duplicate";
 
 export interface RutCheck {

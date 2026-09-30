@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import {
-  HiOutlineChatAlt2,
-  HiOutlineTag,
-  HiOutlineUser,
-} from "react-icons/hi";
+import { HiOutlineChatAlt2, HiOutlineTag, HiOutlineUser } from "react-icons/hi";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { ShowNotification } from "@/features/notifications/notification";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { ALL_CALL_METHODS } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
 import { isRutValid } from "@/utils/rut";
@@ -20,10 +17,21 @@ import ContactChannelsSection, {
   type ChannelValues,
 } from "./contact-channels-section";
 import { normalizeRut } from "./contact-duplicates";
-import { channelsFromContact, channelsToContact, emptyChannels } from "./contact-form-fields";
-import ContactPersonSection, { type PersonDraft } from "./contact-person-section";
-import { makeContactId, type BookContact } from "./store";
-import { useContactBadges } from "./taxonomy-store";
+import {
+  channelsFromContact,
+  channelsToContact,
+  emptyChannels,
+} from "./contact-form-fields";
+import ContactPersonSection, {
+  type PersonDraft,
+} from "./contact-person-section";
+import { makeContactId, TagUpdateError, type BookContact } from "./store";
+import {
+  ensureBadge,
+  renameBadge,
+  restoreBadge,
+  useContactBadges,
+} from "./taxonomy-store";
 
 interface ContactDraft {
   person: PersonDraft;
@@ -47,15 +55,20 @@ function draftFromContact(contact: BookContact | null): ContactDraft {
       rut: contact?.rut ?? "",
     },
     badgeIds: contact?.badgeIds ?? [],
-    channels: contact ? channelValuesFromContact(contact) : emptyChannelValues(),
+    channels: contact
+      ? channelValuesFromContact(contact)
+      : emptyChannelValues(),
   };
 }
 
 /** Only channels with a valid address become part of the contact. */
-function storedChannels(values: ChannelValues): Pick<BookContact, "channels" | "phone" | "methods"> {
+function storedChannels(
+  values: ChannelValues
+): Pick<BookContact, "channels" | "phone" | "methods"> {
   const channels = emptyChannels();
   for (const m of ALL_CALL_METHODS) {
-    if (channelFieldStatus(m, values[m]) === "active") channels[m] = { enabled: true, value: values[m] };
+    if (channelFieldStatus(m, values[m]) === "active")
+      channels[m] = { enabled: true, value: values[m] };
   }
   return channelsToContact(channels);
 }
@@ -108,27 +121,39 @@ function SectionCard({
  * person's name and RUT) and Agrupación (a badge manager) side by side, and
  * Contacto full width below (each channel activated by configuring it).
  * Only badges are written as they're managed; the contact itself isn't
- * stored until "Guardar".
+ * stored until "Guardar", which also completes a provisional contact. The
+ * form stays open when `onSave` rejects; the caller says why.
  */
 export default function ContactFormModal({
   show,
   onClose,
   editing,
   onSave,
+  onRenameTag,
+  onDeleteTag,
   dict,
 }: Readonly<{
   show: boolean;
   onClose: () => void;
   editing: BookContact | null;
-  onSave: (contact: BookContact) => void;
+  onSave: (contact: BookContact) => void | Promise<unknown>;
+  /** A badge was renamed or deleted here: update the contacts that use it.
+   *  When the promise rejects, the badge change is undone here. */
+  onRenameTag?: (from: string, to: string) => Promise<void>;
+  onDeleteTag?: (name: string) => Promise<void>;
   /** `pages.userSettings` dictionary. */
   dict: I18nRecord;
 }>) {
   const d = dict?.contactBook as I18nRecord;
   const { badges, ensure, rename, remove } = useContactBadges();
   const { activeOrg } = useOrgScopes();
-  const { members, isLoading } = useOrgMembers(show ? (activeOrg?.slug ?? null) : null);
-  const [draft, setDraft] = useState<ContactDraft>(() => draftFromContact(null));
+  const { members, isLoading } = useOrgMembers(
+    show ? (activeOrg?.slug ?? null) : null
+  );
+  const [draft, setDraft] = useState<ContactDraft>(() =>
+    draftFromContact(null)
+  );
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (show) setDraft(draftFromContact(editing));
@@ -136,24 +161,71 @@ export default function ContactFormModal({
 
   const { person } = draft;
   const rutInvalid =
-    person.source === "external" && person.rut.trim() !== "" && !isRutValid(normalizeRut(person.rut));
-  const canSave = isPersonValid(person);
+    person.source === "external" &&
+    person.rut.trim() !== "" &&
+    !isRutValid(normalizeRut(person.rut));
+  const canSave = isPersonValid(person) && !saving;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!canSave) return;
     const external = person.source === "external";
-    const badgeIds = draft.badgeIds.filter((id) => badges.some((b) => b.id === id));
-    onSave({
-      ...editing,
-      id: editing?.id ?? makeContactId(),
-      name: person.name.trim(),
-      rut: external ? person.rut.trim() || undefined : editing?.rut,
-      orgMemberId: external ? undefined : person.orgMemberId,
-      role: editing?.role ?? "",
-      badgeIds,
-      ...storedChannels(draft.channels),
+    const badgeIds = draft.badgeIds.filter((id) =>
+      badges.some((b) => b.id === id)
+    );
+    setSaving(true);
+    try {
+      await onSave({
+        ...editing,
+        id: editing?.id ?? makeContactId(),
+        name: person.name.trim(),
+        rut: external ? person.rut.trim() || undefined : editing?.rut,
+        orgMemberId: external ? undefined : person.orgMemberId,
+        role: editing?.role ?? "",
+        badgeIds,
+        provisional: false,
+        ...storedChannels(draft.channels),
+      });
+      onClose();
+    } catch {
+      // Kept open so nothing typed is lost.
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const notifyTagError = (e: unknown) =>
+    ShowNotification({
+      type: "error",
+      message:
+        e instanceof TagUpdateError
+          ? tr("tagUpdateError", d, { count: String(e.failed) })
+          : tr("saveError", d),
     });
-    onClose();
+
+  const handleRenameBadge = (id: string, name: string) => {
+    const from = badges.find((b) => b.id === id)?.name;
+    const to = name.trim();
+    const ok = rename(id, name);
+    if (ok && from && from !== to && onRenameTag) {
+      onRenameTag(from, to).catch((e: unknown) => {
+        renameBadge(id, from);
+        // Contacts already moved to the new name keep a badge for it.
+        if (e instanceof TagUpdateError && e.updated > 0) ensureBadge(to);
+        notifyTagError(e);
+      });
+    }
+    return ok;
+  };
+
+  const handleDeleteBadge = (id: string) => {
+    const badge = badges.find((b) => b.id === id);
+    remove(id);
+    if (badge && onDeleteTag) {
+      onDeleteTag(badge.name).catch((e: unknown) => {
+        restoreBadge(badge);
+        notifyTagError(e);
+      });
+    }
   };
 
   return (
@@ -195,8 +267,8 @@ export default function ContactFormModal({
               onChange={(badgeIds) => setDraft({ ...draft, badgeIds })}
               badges={badges}
               onCreate={ensure}
-              onRename={rename}
-              onDelete={remove}
+              onRename={handleRenameBadge}
+              onDelete={handleDeleteBadge}
               d={d}
             />
           </SectionCard>
@@ -224,7 +296,7 @@ export default function ContactFormModal({
           <button
             type="button"
             disabled={!canSave}
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {tr("save", d)}

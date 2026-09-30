@@ -6,11 +6,11 @@ El servidor de dashboards es el servicio que guarda los tableros, verifica quié
 
 | Paquete | Qué hace |
 | --- | --- |
-| `@microboxlabs/miot-dashboard-ui` (planificado) | Futuro paquete de visualización y edición en navegador. La UI actual se distribuye dentro de ModularIoT. |
+| `@microboxlabs/miot-dashboard-ui` (candidato del workspace sin publicar) | Primitivas reutilizables de React y un runtime autónomo para integración en navegador y Web Components. |
 | `@microboxlabs/miot-dashboard-server` | Guarda los tableros, autoriza cada petición y protege las credenciales. |
 | `@microboxlabs/miot-dashboard-contract` | El contrato entre ambos: el esquema del documento, los roles, los errores y la especificación OpenAPI. |
 
-El paquete de UI está planificado; la interfaz actual se distribuye dentro de la aplicación ModularIoT. Otra interfaz o backend puede usar el contrato compartido.
+El candidato del workspace implementa la integración embebida y algunos widgets; la migración de toda la interfaz y del catálogo de edición sigue en curso. Consulte la [referencia de UI implementada](/es/reference/sdks/miot-dashboard-ui). El host gestiona la autenticación y conserva las credenciales en el backend; otra interfaz o backend puede usar el contrato compartido.
 
 ## Dos formas de desplegarlo
 

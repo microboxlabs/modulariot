@@ -1,9 +1,19 @@
 # @microboxlabs/miot-dashboard-ui
 
-Dashboard layout utilities and a portable HTTP client, using the types and schemas
-from `@microboxlabs/miot-dashboard-contract`. The package exports `./core`, `./client` and `./document`;
-it does not yet export a dashboard renderer or editor. This workspace version is
-unreleased.
+Reusable dashboard rendering, layout, document state and server transport, using
+`@microboxlabs/miot-dashboard-contract`. React hosts use `./react`; other web
+frameworks can use `./embed`, `./web-component` or the self-contained `./browser`
+runtime. `./core`, `./client`, `./document` and `./templates` expose the lower-level
+APIs. Import `./styles.css` for the scoped presentation styles.
+
+This workspace version is **unreleased**. The portable catalog includes text,
+percentage and circular statistic registries; it is not yet the complete app
+widget catalog or a complete dashboard authoring interface. Query execution and
+authorization remain on the dashboard server.
+
+For a runnable browser host with a private server proxy and real saved-query
+binding, see the [standalone billing example](../../examples/dashboard-ui-standalone/README.md)
+([Español](../../examples/dashboard-ui-standalone/README.es.md)).
 
 ## Grid sizing
 

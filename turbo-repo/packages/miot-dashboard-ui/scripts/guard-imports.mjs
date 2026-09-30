@@ -32,7 +32,7 @@ export function importProblems(source, file, root = SOURCE) {
         isReact
       )
         return false;
-      if (isEmbed && ["react", "react-dom/client"].includes(specifier))
+      if (isEmbed && ["react", "react-dom/client", "@microboxlabs/miot-dashboard-ui/react"].includes(specifier))
         return false;
       if (specifier === "handlebars" && isTemplates) return false;
       if (isReact && specifier === "@microboxlabs/miot-dashboard-ui/document") return false;

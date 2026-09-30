@@ -3243,6 +3243,7 @@
       "showExport": "Mostrar exportación",
       "striped": "Filas alternadas",
       "tableLoading": "Cargando...",
+      "tableResizeColumn": "Ajustar {column}: arrastre o use las flechas; Enter para autoajustar",
       "tableNoData": "Sin datos",
       "tableError": "Error: {fetchError}",
       "columnFilterNoMatches": "Sin coincidencias",

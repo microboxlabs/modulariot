@@ -7,7 +7,9 @@ import {
   type ReactNode,
   type CSSProperties,
 } from "react";
-import { TableCellValue, type CellColorRule } from "./table-cell";
+import type { CellColorRule } from "./table-cell";
+import { DataTableRow, usableRowAction } from "./data-table-row";
+import type { ResolvedContextItem } from "./row-context-menu";
 import { useTableColumnWidths } from "./use-table-column-widths";
 
 export interface DataTableColumn {
@@ -29,6 +31,11 @@ export interface TableResizingOptions {
   readonly handleLabel: (columnLabel: string) => string;
 }
 export interface DataTableProps {
+  readonly striped?: boolean;
+  readonly rowActions?: (
+    row: Record<string, string>,
+    index: number,
+  ) => readonly ResolvedContextItem[];
   readonly resizing?: TableResizingOptions;
   readonly columns: readonly DataTableColumn[];
   readonly rows: readonly Record<string, string>[];
@@ -104,13 +111,6 @@ function cellPosition(
     return { position: "sticky", right: offsets.right[index] };
   return undefined;
 }
-function rowStyle(color: string | null | undefined): CSSProperties | undefined {
-  if (!color || !/^#?(?:[\da-f]{3}|[\da-f]{6})$/i.test(color)) return undefined;
-  const hex = color.startsWith("#") ? color : `#${color}`;
-  return {
-    "--miot-row-background": `color-mix(in srgb, ${hex} 12%, var(--miot-card-background, #fff))`,
-  } as CSSProperties;
-}
 /** Presentational table over authorized results; hosts own queries and controls. */
 export function DataTable({
   columns,
@@ -129,6 +129,8 @@ export function DataTable({
   renderActions,
   rowColor,
   resizing,
+  rowActions,
+  striped = false,
 }: DataTableProps) {
   const header = useRef<HTMLTableRowElement>(null);
   const table = useRef<HTMLTableElement>(null);
@@ -136,7 +138,8 @@ export function DataTable({
     left: {},
     right: {},
   });
-  const hasActions = Boolean(renderActions);
+  const resolvedRowActions = rows.map((row, index) => rowActions?.(row, index) ?? []);
+  const hasActions = Boolean(renderActions) || resolvedRowActions.some(actions => actions.slice(1).some(usableRowAction));
   const measure = useCallback(() => {
     const row = header.current;
     if (row) setOffsets(stickyOffsets(columns, row.children, hasActions));
@@ -191,6 +194,7 @@ export function DataTable({
       className="miot-data-table"
       data-dividers={showColumnDividers}
       data-resizable={Boolean(resizing)}
+      data-striped={striped}
     >
       {loading && (
         <output className="miot-data-table__message">{loadingLabel}</output>
@@ -306,41 +310,22 @@ export function DataTable({
               </tr>
             ) : (
               rows.map((row, index) => (
-                <tr
+                <DataTableRow
                   key={row.id ?? row._id ?? index}
-                  data-row-color={rowColor?.(row, index) ?? undefined}
-                  style={rowStyle(rowColor?.(row, index))}
-                >
-                  {columns.map((column, columnIndex) => (
-                    <td key={column.key} style={position(columnIndex)}>
-                      <TableCellValue
-                        value={resolveValue(
-                          column.key,
-                          row,
-                          index,
-                          rows.length,
-                        )}
-                        type={
-                          resolveType?.(column.key, row, index, rows.length) ??
-                          column.type
-                        }
-                        colorMap={
-                          column.colorRulesEnabled ? column.colorMap : undefined
-                        }
-                      />
-                      {column.decorator && (
-                        <span className="miot-data-table__decorator">
-                          {column.decorator}
-                        </span>
-                      )}
-                    </td>
-                  ))}
-                  {renderActions && (
-                    <td className="miot-data-table__actions">
-                      {renderActions(row, index)}
-                    </td>
-                  )}
-                </tr>
+                  row={row}
+                  index={index}
+                  count={rows.length}
+                  columns={columns}
+                  color={rowColor?.(row, index)}
+                  position={position}
+                  hasActions={hasActions}
+                  actions={resolvedRowActions[index] ?? []}
+                  actionsLabel={actionsLabel}
+                  resolveValue={resolveValue}
+                  resolveType={resolveType}
+                  renderActions={renderActions}
+                />
+
               ))
             )}
           </tbody>

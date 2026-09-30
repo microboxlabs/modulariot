@@ -25,32 +25,31 @@ import { DataTable, type DataTableProps } from "./data-table";
 import { ActionDropdown } from "./action-dropdown";
 import type { WidgetComponentProps } from "./widget-renderer";
 
-
 function useTableRows(config: ReturnType<typeof tableWidgetConfig.parse>) {
-    const { results, definitions } = useOptionalPlannerContext();
-    const result =
-      config.dataMode === "planner" && config.plannerVariableName
-        ? results.get(config.plannerVariableName)
-        : undefined;
-    const loading =
-      config.dataMode === "planner" &&
-      (Boolean(result?.loading) ||
-        (!result &&
-          definitions.some(
-            (d) => d.variableName === config.plannerVariableName,
-          )));
-    const failed =
-      config.dataMode === "planner" &&
-      !loading &&
-      (!result || Boolean(result.error));
-    const unsupported =
-      config.dataMode !== "static" && config.dataMode !== "planner";
-    const rows = useMemo(() => {
-      if (loading || failed || unsupported) return [];
-      if (config.dataMode === "planner") return result?.rows ?? [];
-      return config.rows;
-    }, [config, loading, failed, unsupported, result]);
-    return { rows, loading, failed, unsupported };
+  const { results, definitions } = useOptionalPlannerContext();
+  const result =
+    config.dataMode === "planner" && config.plannerVariableName
+      ? results.get(config.plannerVariableName)
+      : undefined;
+  const loading =
+    config.dataMode === "planner" &&
+    (Boolean(result?.loading) ||
+      (!result &&
+        definitions.some(
+          (d) => d.variableName === config.plannerVariableName,
+        )));
+  const failed =
+    config.dataMode === "planner" &&
+    !loading &&
+    (!result || Boolean(result.error));
+  const unsupported =
+    config.dataMode !== "static" && config.dataMode !== "planner";
+  const rows = useMemo(() => {
+    if (loading || failed || unsupported) return [];
+    if (config.dataMode === "planner") return result?.rows ?? [];
+    return config.rows;
+  }, [config, loading, failed, unsupported, result]);
+  return { rows, loading, failed, unsupported };
 }
 
 export interface DataTableRegistryOptions {
@@ -100,6 +99,20 @@ function createTableRegistry(
   resizeLabel?: (column: string) => string,
 ) {
   const engine = options.templateEngine ?? createTemplateEngine();
+  function useTableTitle(template: string, count: number) {
+    const compiled = useMemo(
+      () => engine.compileTemplates([{ id: "title", template }]),
+      [template],
+    );
+    return (
+      engine.resolveTemplate(
+        compiled,
+        "title",
+        { _count: count },
+        template || options.defaultTitle,
+      ) || options.defaultTitle
+    );
+  }
   function RegisteredDataTable({ widget }: Readonly<WidgetComponentProps>) {
     const parsed = useMemo(
       () => tableWidgetConfig.safeParse(widget.config),
@@ -118,7 +131,10 @@ function createTableRegistry(
     config,
   }: Readonly<{ config: ReturnType<typeof tableWidgetConfig.parse> }>) {
     const { rows, loading, failed, unsupported } = useTableRows(config);
-    const sourceIndices = useMemo(() => new Map(rows.map((row, index) => [row, index])), [rows]);
+    const sourceIndices = useMemo(
+      () => new Map(rows.map((row, index) => [row, index])),
+      [rows],
+    );
     const rowControls = useFilterAndSort(
       config.filter,
       config.sort,
@@ -160,17 +176,7 @@ function createTableRegistry(
         ),
       [rowActions],
     );
-    const titleTemplate = useMemo(
-      () => engine.compileTemplates([{ id: "title", template: config.title }]),
-      [config.title],
-    );
-    const title =
-      engine.resolveTemplate(
-        titleTemplate,
-        "title",
-        { _count: filters.filteredCount },
-        config.title || options.defaultTitle,
-      ) || options.defaultTitle;
+    const title = useTableTitle(config.title, filters.filteredCount);
     const renderActions: DataTableProps["renderActions"] =
       actions.enabled && actions.items.length
         ? (row) => (
@@ -307,7 +313,9 @@ function createTableRegistry(
             resolveType={resolveType}
             renderHeader={(column, label) => (
               <div className="miot-table-widget__heading">
-                {resizeLabel && config.sort.enabled && config.sort.columns.includes(column.key) ? (
+                {resizeLabel &&
+                config.sort.enabled &&
+                config.sort.columns.includes(column.key) ? (
                   <button
                     type="button"
                     title={

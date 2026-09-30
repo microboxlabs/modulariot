@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useMemo, useCallback, useState } from "react";
 import { filterChartRowsByDateRange as filterRowsByDateRange, type ChartDateRange as DateRange } from "@microboxlabs/miot-dashboard-ui/core";
+import { ChartCard } from "@microboxlabs/miot-dashboard-ui/react";
 import ReactECharts from "echarts-for-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
@@ -148,7 +149,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const { dictionary } = useOptionalDashboard();
   const chartRef = useRef<ReactECharts | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const darkMode = useDarkMode();
 
   // Force-hide tooltip when mouse leaves chart area
@@ -262,52 +262,20 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   );
 
   // Resize chart when container size changes (react-grid-layout doesn't trigger echarts auto-resize)
-  const handleResize = useCallback(() => {
-    const instance = chartRef.current?.getEchartsInstance();
-    instance?.resize();
-    if (containerRef.current) {
-      setContainerWidth(containerRef.current.clientWidth);
-    }
+  const handleResize = useCallback((width: number) => {
+    chartRef.current?.getEchartsInstance()?.resize();
+    setContainerWidth(width);
   }, []);
-
-  // Callback ref so the ResizeObserver attaches whenever the container mounts
-  // (e.g. after DashletLoading -> ready transitions)
-  const observerRef = useRef<ResizeObserver | null>(null);
-  const attachContainerRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      // Disconnect previous observer if any
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-        observerRef.current = null;
-      }
-      containerRef.current = el;
-      if (el) {
-        setContainerWidth(el.clientWidth);
-        const observer = new ResizeObserver(handleResize);
-        observer.observe(el);
-        observerRef.current = observer;
-      }
-    },
-    [handleResize]
-  );
 
   if (loading && config.dataMode !== "static") return <DashletLoading />;
   if (fetchError && config.dataMode !== "static")
     return <DashletError message={fetchError} />;
 
   return (
-    <div
-      ref={attachContainerRef}
-      className="flex h-full flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
-    >
-      {resolvedTitle && (
-        <div className="shrink-0">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-            {resolvedTitle}
-          </h3>
-        </div>
-      )}
-      {isDateAxis && (
+    <ChartCard
+      title={resolvedTitle}
+      onResize={handleResize}
+      toolbar={isDateAxis && (
         <div className="shrink-0 flex justify-end gap-1 py-1">
           {DATE_RANGE_OPTIONS.map((r) => (
             <button
@@ -325,7 +293,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           ))}
         </div>
       )}
-      <div className="min-h-0 flex-1">
+    >
         <ReactECharts
           ref={chartRef}
           option={option}
@@ -334,7 +302,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
           opts={{ renderer: "canvas" }}
           onEvents={{ globalout: handleGlobalOut }}
         />
-      </div>
-    </div>
+    </ChartCard>
   );
 }

@@ -1384,3 +1384,20 @@ future rows remain visible, matching existing charts. Bounded ranges discard
 missing/invalid dates. `all` and unknown saved values return the original array.
 Pass an epoch-millisecond `now` to share a consistent clock across dashboards.
 Dates with explicit UTC offsets avoid browser-dependent local date parsing.
+
+
+### Chart card
+
+`ChartCard` from `./react` supplies the themed chart container used by both
+Next.js chart families. Props are `title?: string`, `toolbar?: ReactNode`,
+`children: ReactNode`, and `onResize?: (width: number, height: number) => void`.
+Import the package stylesheet. The parent must provide a height.
+
+The callback receives the card’s layout dimensions (including its padding) on
+mount and resize, unaffected by CSS transform scaling. Keep the callback stable
+with `useCallback`. A ResizeObserver tracks element resizing; environments without
+it fall back to window resize. Cleanup disconnects observers and listeners and
+ignores queued callbacks after unmount. Hosts own chart engine initialization,
+option building, accessible chart descriptions and engine disposal. No chart engine
+is bundled by this component. Title text renders literally; toolbar and chart are
+host-owned React slots.

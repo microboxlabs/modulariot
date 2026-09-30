@@ -4,7 +4,7 @@ import type {
 } from "@microboxlabs/miot-dashboard-contract/document";
 import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
 
-const FILTER_TEMPLATE = /^\{\{\s*filter\.([A-Za-z0-9_]+)\s*\}\}$/;
+const FILTER_TEMPLATE = /^\{\{\s*filter\.(\w+)\s*\}\}$/;
 const MAX_TEXT = 2048;
 
 /**
@@ -102,6 +102,7 @@ export function plannerOperationContracts(
       properties[name] = { type: "string", const: literals[0] };
       required.push(name);
     }
+    required.sort((a, b) => a.localeCompare(b));
     return {
       ...(group.dataSourceId === undefined ? {} : { dataSourceId: group.dataSourceId }),
       name: group.path.slice(group.path.lastIndexOf("/") + 1),
@@ -111,15 +112,15 @@ export function plannerOperationContracts(
         type: "object",
         additionalProperties: false,
         properties,
-        ...(required.length ? { required: required.sort() } : {}),
+        ...(required.length ? { required } : {}),
         "x-dashboard": { readOnly: true, kind: "HTTP_GET", credentialScoped: true },
       },
       usedBy: group.usedBy,
     };
   });
-  return problems.length
-    ? { ok: false, problems }
-    : { ok: true, contracts: contracts.sort((a, b) => a.path.localeCompare(b.path)) };
+  if (problems.length) return { ok: false, problems };
+  contracts.sort((a, b) => a.path.localeCompare(b.path));
+  return { ok: true, contracts };
 }
 
 type BindingResult =
@@ -151,5 +152,5 @@ export function plannerParameterBindings(
 
 function operationPath(functionName: string): string | null {
   const trimmed = functionName.trim().replace(/^\/+/, "");
-  return /^[A-Za-z0-9_]+(\/[A-Za-z0-9_]+)?$/.test(trimmed) ? `/${trimmed}` : null;
+  return /^\w+(\/\w+)?$/.test(trimmed) ? `/${trimmed}` : null;
 }

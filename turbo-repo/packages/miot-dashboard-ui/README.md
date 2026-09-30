@@ -1083,3 +1083,12 @@ text and accessible custom controls from widget dragging. Nested grid items and
 when the host authorizes edit mode. Hosts embedding their own nested grid can
 reuse `DASHBOARD_DRAG_CANCEL_SELECTOR` from `./core`; Next.js container widgets
 use the same selector for both container layouts.
+
+### Status statistic
+
+`StatusStat` from `./react` renders literal `title`, `value`, optional `subtitle`
+and an optional decorative React `icon`. Hosts provide resolved `borderColor`,
+`iconColor` and `valueColor` as six-digit RGB hex strings without `#`; invalid
+values use scoped light/dark theme defaults. Import the package stylesheet.
+The Next.js status widget supplies its existing icons, template results and
+color-rule evaluation. The component itself does not load data or execute rules.

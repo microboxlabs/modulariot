@@ -826,3 +826,13 @@ thousands groups require groups of three; a single comma with a different
 fraction length is decimal. Repeated decimal separators are not numeric. The
 returned active-filter record has no object prototype, so inactive names such
 as `constructor` and `toString` read as undefined.
+
+### Active column filter summary
+
+`ColumnFilterToolbar` from `./react` renders controlled filter chips and a
+clear-all button. Import `./styles.css`. Pass `filters` from `useColumnFilters`,
+`columns` (keys and optional labels), `onRemove`, and `onClearAll`. Hosts supply
+`summary`, `clearAllLabel`, `removeLabel(text)`, and `formatValue(filter)` to keep
+all visible and accessible text localized. Values render as literal text.
+Optional `disabled` disables both removal actions; an empty filter record renders
+nothing. The component does not fetch data or enforce server permissions.

@@ -39,14 +39,16 @@ it("filters unsafe resolved destinations, protects new windows and keeps labels 
 });
 it("closes on focus exit and does not bubble trigger clicks to row actions", () => {
   const rowClick = vi.fn();
-  const view = render(
+  render(
     <>
       <ActionDropdown ariaLabel="Actions" items={[item]} />
       <button type="button">Outside</button>
     </>,
   );
-  view.container.addEventListener("click", rowClick);
+  // A native host listener lives outside the React mount root.
+  document.body.addEventListener("click", rowClick);
   fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+  document.body.removeEventListener("click", rowClick);
   expect(rowClick).not.toHaveBeenCalled();
   const outside = screen.getByRole("button", { name: "Outside" });
   act(() => outside.focus());

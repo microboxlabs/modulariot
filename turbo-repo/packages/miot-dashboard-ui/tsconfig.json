@@ -3,6 +3,7 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "paths": {
+      "@microboxlabs/miot-dashboard-ui/react": ["./src/react.ts"],
       "@microboxlabs/miot-dashboard-ui/document": ["./src/document.ts"]
     },
     "outDir": "dist",

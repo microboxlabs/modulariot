@@ -468,8 +468,8 @@ using the last options. The host must update `instanceKey` across identity chang
 Use an empty element and import the package stylesheet. Rendering uses light DOM
 and scoped styles; host CSS can still affect inherited typography. Importing the
 entry does not access the DOM or register an element, but registration requires
-the browser's `HTMLElement` and `customElements`. The registry and data remain
-host supplied, with no automatic authentication or query execution.
+the browser's `HTMLElement` and `customElements`. The registry remains host supplied, with no automatic authentication. Optional
+`savedQueries` connects descendant widgets to saved server-query results.
 
 ## Flex container
 
@@ -558,3 +558,21 @@ The fixed 100px ring retains existing widget geometry; use a sufficiently tall
 host cell. Motion respects `prefers-reduced-motion`. Card and track colors support
 the existing theme variables and dark ancestor convention. Data fetching,
 Handlebars evaluation and threshold rules remain in the caller.
+
+## Saved queries in native mounts
+
+`mountDashboard` and `element.dashboardOptions` accept optional `savedQueries`:
+all `SavedQueryOptions` except `sessionKey`, which follows the mount's
+`instanceKey`. Supply the saved query client, dashboard slug, query definitions,
+filters, refresh interval, pause state and localized error message. Queries run
+through the server transport; no connection credentials belong in these options.
+Change `instanceKey` when the authenticated identity or document changes.
+
+Custom React widgets can read results using public `usePlannerData`; the peer
+embedding entries share the public React provider context. Removing `savedQueries`
+on update aborts its requests and removes the provider. Destroying the mount or
+changing identity also aborts outstanding work. Updating options still replaces
+all values. Hosts manage filter controls and capability-derived edit intent.
+The standalone browser bundle keeps its own runtime; do not combine widgets from
+a second React installation with it. A built-in data-bound catalog is not yet
+registered automatically.

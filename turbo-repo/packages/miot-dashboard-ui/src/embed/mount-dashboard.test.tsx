@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-import { act, fireEvent, within } from "@testing-library/react";
+import { act, fireEvent, within, waitFor } from "@testing-library/react";
 import { useState } from "react";
+import { usePlannerData } from "@microboxlabs/miot-dashboard-ui/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   mountDashboard,
@@ -121,4 +122,29 @@ it("rejects missing identity and nonempty host containers without changing them"
       instanceKey: " ",
     }),
   ).toThrow("invalid-instance");
+});
+
+function QueryCard() {
+  const result = usePlannerData("costs");
+  return <output>{result.error ?? result.rows[0]?.cost ?? "Empty"}</output>;
+}
+it("shares saved queries with public React widgets and aborts on identity change and destroy", async () => {
+  const signals: AbortSignal[] = [];
+  const next: DashboardMountOptions = {
+    ...options,
+    registry: { get: () => ({ Component: QueryCard, meta: { hasChildren: false, hasSettings: false }, getLayoutDefaults: () => ({ minW: 1, minH: 1 }) }) },
+    savedQueries: {
+      client: { key: () => "costs", query: async (_slug, _id, _filters, signal) => { signals.push(signal); return [{ cost: 42 }]; } },
+      slug: "costs", queries: [{ id: "q", variableName: "costs", connectionId: "c", operationId: "o", parameters: {} }],
+      filters: {}, refreshIntervalMs: 0, paused: false, errorMessage: "Unavailable",
+    },
+  };
+  const { element, handle } = mount(next);
+  await waitFor(() => expect(within(element).getByText("42")).toBeTruthy());
+  act(() => handle.update({ ...next, instanceKey: "replacement" }));
+  expect(signals[0]?.aborted).toBe(true);
+  expect(within(element).queryByText("42")).toBeNull();
+  await waitFor(() => expect(within(element).getByText("42")).toBeTruthy());
+  act(() => handle.destroy());
+  expect(signals.at(-1)?.aborted).toBe(true);
 });

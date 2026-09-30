@@ -2,12 +2,16 @@ import { createElement } from "react";
 import { createRoot } from "react-dom/client";
 import {
   DashboardCanvas,
+  SavedQueryProvider,
+  type SavedQueryOptions,
   type DashboardCanvasProps,
-} from "../react/dashboard-canvas";
+} from "@microboxlabs/miot-dashboard-ui/react";
 
 export interface DashboardMountOptions extends DashboardCanvasProps {
   /** Change for a new tenant, session or document to discard component-local state. */
   instanceKey: string;
+  /** Optional saved-query execution for native hosts. Identity follows instanceKey. */
+  savedQueries?: Omit<SavedQueryOptions, "sessionKey">;
 }
 export interface DashboardMount {
   /** Replace all options. Omitted callbacks and edit intent are revoked. */
@@ -26,6 +30,13 @@ export class DashboardMountError extends Error {
     this.name = "DashboardMountError";
   }
 }
+function MountedDashboard({ instanceKey, savedQueries, ...canvas }: Readonly<DashboardMountOptions>) {
+  const content = createElement(DashboardCanvas, canvas);
+  return savedQueries
+    ? createElement(SavedQueryProvider, { ...savedQueries, sessionKey: instanceKey }, content)
+    : content;
+}
+
 const mounts = new WeakSet<HTMLElement>();
 function validateOptions(options: DashboardMountOptions) {
   if (typeof options.instanceKey !== "string" || !options.instanceKey.trim()) {
@@ -48,8 +59,7 @@ export function mountDashboard(
   const update = (next: DashboardMountOptions) => {
     if (destroyed) throw new DashboardMountError("destroyed");
     validateOptions(next);
-    const { instanceKey, ...props } = next;
-    root.render(createElement(DashboardCanvas, { ...props, key: instanceKey }));
+    root.render(createElement(MountedDashboard, { ...next, key: next.instanceKey }));
   };
   const destroy = () => {
     if (destroyed) return;

@@ -43,12 +43,10 @@ export function importProblems(source, file, root = SOURCE) {
       if (target === ".." || target.startsWith("../")) return true;
       if (isCore) return target !== "core" && !target.startsWith("core/");
       return (
-        !isReact &&
-        !isEmbed &&
-        (target === "react" ||
-          target.startsWith("react/") ||
-          target === "embed" ||
-          target.startsWith("embed/"))
+        (!isReact &&
+          !isEmbed &&
+          (target === "react" || target.startsWith("react/"))) ||
+        (!isEmbed && (target === "embed" || target.startsWith("embed/")))
       );
     });
 }

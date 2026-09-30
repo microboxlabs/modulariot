@@ -105,7 +105,7 @@ it("isolates roots, prevents duplicate mounts and releases containers on destroy
     a.handle.destroy();
     a.handle.destroy();
   });
-  expect(a.element.childNodes.length).toBe(0);
+  expect(a.element.childNodes).toHaveLength(0);
   expect(() => a.handle.update(options)).toThrow("destroyed");
   act(() => handles.push(mountDashboard(a.element, options)));
   expect(within(a.element).getByText("Count 0")).toBeTruthy();

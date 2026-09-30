@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useEffect, useMemo, useCallback, useState } from "react";
+import { useEffect, useMemo, useCallback, useState } from "react";
 import { filterChartRowsByDateRange as filterRowsByDateRange, type ChartDateRange as DateRange } from "@microboxlabs/miot-dashboard-ui/core";
-import { ChartCard } from "@microboxlabs/miot-dashboard-ui/react";
-import ReactECharts from "echarts-for-react";
+import { ChartCard, ChartEngineView } from "@microboxlabs/miot-dashboard-ui/react";
+import { createDashboardChartEngine } from "../common/chart-engine";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
 import { useDashletData } from "../common/use-dashlet-data";
@@ -148,17 +148,8 @@ function useDarkMode(): boolean {
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const { dictionary } = useOptionalDashboard();
-  const chartRef = useRef<ReactECharts | null>(null);
   const darkMode = useDarkMode();
 
-  // Force-hide tooltip when mouse leaves chart area
-  const handleGlobalOut = useCallback(() => {
-    const instance = chartRef.current?.getEchartsInstance();
-    if (instance) {
-      instance.dispatchAction({ type: "hideTip" });
-      instance.dispatchAction({ type: "downplay" });
-    }
-  }, []);
 
   // Fetch row data for pgrest/planner modes
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
@@ -176,7 +167,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     refreshIntervalMs,
   });
 
-  const rows = config.dataMode === "static" ? (config.rows ?? []) : fetchedRows;
+  const rows = useMemo(
+    () => config.dataMode === "static" ? (config.rows ?? []) : fetchedRows,
+    [config.dataMode, config.rows, fetchedRows],
+  );
 
   const isDateAxis =
     config.chartType === "line" &&
@@ -263,7 +257,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   // Resize chart when container size changes (react-grid-layout doesn't trigger echarts auto-resize)
   const handleResize = useCallback((width: number) => {
-    chartRef.current?.getEchartsInstance()?.resize();
     setContainerWidth(width);
   }, []);
 
@@ -294,13 +287,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         </div>
       )}
     >
-        <ReactECharts
-          ref={chartRef}
+        <ChartEngineView
+          createEngine={createDashboardChartEngine}
           option={option}
-          notMerge
-          style={{ width: "100%", height: "100%" }}
-          opts={{ renderer: "canvas" }}
-          onEvents={{ globalout: handleGlobalOut }}
+          ariaLabel={resolvedTitle || resolvedSeries.map((series) => series.label).join(", ") || noDataLabel}
         />
     </ChartCard>
   );

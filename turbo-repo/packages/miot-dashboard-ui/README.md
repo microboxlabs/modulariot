@@ -1458,3 +1458,22 @@ indices and disables horizontal layout, matching the existing `chart_v2` widget.
 The same explicit date formatter and plain-text tooltip contract apply. Both Next.js
 chart families now consume public option builders; query/planner integration and
 engine lifecycle remain with their host adapters.
+
+
+### Chart engine lifecycle
+
+`ChartEngineView<Option>` from `./react` takes `option`, a descriptive `ariaLabel`,
+and a stable `createEngine(element)` factory. The factory returns `ChartEngine<Option>`:
+`update(option)`, `resize()`, `dispose()` and optional `hideTooltip()`.
+`update` must replace obsolete data/series; for ECharts use
+`instance.setOption(option, { notMerge: true })`. Changing factory identity disposes
+the old engine and creates a new one. Ordinary option updates reuse the instance.
+
+The component observes its plot size, falls back to window resize when needed,
+hides tooltips on pointer leave and disposes the engine on removal, including
+React Strict Mode replay. Import the stylesheet and provide a sized parent (for
+example `ChartCard`). Keep interactive controls outside its image-labelled plot.
+Hosts own engine selection, engine-specific events and chart descriptions.
+Both Next.js chart families use this bridge with the app's ECharts canvas adapter;
+the library does not import or bundle the engine. Engine exceptions propagate to
+the host's React error boundary.

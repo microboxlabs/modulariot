@@ -53,7 +53,7 @@ export function getBoxZoomTarget({
   // Grow until the box's limiting side fills the viewport.
   const scale = Math.min(width / boxWidth, height / boxHeight);
   // An unmeasurable viewport would give log2(0) = -Infinity and zoom out
-  if (!(scale > 0)) return null;
+  if (scale <= 0) return null;
 
   return {
     center: { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 },

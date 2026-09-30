@@ -29,7 +29,7 @@ function statusRules(raw: unknown) {
     return [];
   return raw.rules.flatMap((entry: unknown) => {
     const rule = normalizeScalarColorRules({ rules: [entry] })[0];
-    if (!rule || rule.color.length !== 6 || !entry || typeof entry !== "object")
+    if (rule?.color.length !== 6 || !entry || typeof entry !== "object")
       return [];
     const requested =
       "targets" in entry && Array.isArray(entry.targets)

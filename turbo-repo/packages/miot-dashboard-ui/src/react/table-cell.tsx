@@ -109,8 +109,8 @@ export function TableCellValue({
   if (lines.length > 1)
     return (
       <span className="miot-table-cell__multiline" style={{ color }}>
-        <strong>{lines[0]}</strong>
-        <small>{lines.slice(1).join(" ")}</small>
+        <strong style={{ color }}>{lines[0]}</strong>
+        <small style={{ color }}>{lines.slice(1).join(" ")}</small>
       </span>
     );
   return <span style={{ color }}>{value}</span>;

@@ -93,3 +93,18 @@ it("honors custom text and progress rule colors without injecting style values",
   );
   expect(screen.getByText("10").style.color).toBe("rgb(255, 0, 0)");
 });
+
+it("applies matched text colors to both multiline children over theme defaults", () => {
+  const view = render(
+    <TableCellValue
+      value={"Critical\nDetails"}
+      colorMap={[{ operator: "contains", value: "Critical", color: "red" }]}
+    />,
+  );
+  expect(
+    (view.container.querySelector("strong") as HTMLElement).style.color,
+  ).toBe("rgb(239, 68, 68)");
+  expect(
+    (view.container.querySelector("small") as HTMLElement).style.color,
+  ).toBe("rgb(239, 68, 68)");
+});

@@ -639,3 +639,11 @@ formatted cell values, and first-match rule order. `findMatchingColor` accepts
 a host resolver with the row, row index and total count; it returns a color token
 or `null`. These functions do not produce CSS, validate color tokens, execute
 templates or fetch data. Renderers remain responsible for safe color styling.
+
+`sortColorRules` orders numeric thresholds using existing dashboard precedence
+without mutating the input. Thresholds are sorted within their existing slots;
+non-threshold rules retain their positions. `evaluateColorRulesGeneric` chooses the first matched
+color independently for each requested target. Field-based counterparts
+`sortColorRulesWithFields` and `evaluateColorRulesWithFields` resolve comparison
+values from supplied fields (`previousValue` by default; missing fields use zero).
+Hosts supply target names and field values; these helpers own no rendering state.

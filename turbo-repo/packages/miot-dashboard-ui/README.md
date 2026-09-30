@@ -1659,3 +1659,22 @@ suggested, while direct field-name entry supports a schema not yet fetched.
 Changing filter type clears its dynamic source. The host must pass current saved
 query metadata and persist the document; the editor performs no discovery or
 query execution. `FilterOptionSource` is also exported for custom settings forms.
+
+### Document import and export
+
+`DashboardTransfer` from `/react` supplies explicit export, JSON-file selection,
+text editing and import actions. Provide translated `labels`, `onExport`,
+`onImport` (returns `{ success }`) and `editable` (false by default). Export is a
+read action; import controls require editing permission. The host validates the
+shared document contract and controls downloads, authorization and persistence.
+The component rejects files and UTF-8 text exceeding `maxImportBytes` (default
+1 MiB) before importing. Selecting a file only loads a local text draft; an
+explicit replace action applies it. Remount when the document or identity changes.
+
+Use `onImport={json => state.importDashboard(json, { undoable: true })}` and
+`onExport={state.downloadDashboard}` with `useDashboardState`. The optional
+`undoable` mode gives import its own history entry, separate from nearby edits,
+and preserves preceding history. Omitting it retains the legacy history-reset
+behavior. Import changes the host draft only; saving to the server remains a
+separate action with revision checks. Unknown widget plugins and connection
+references still need support and authorization in the destination host.

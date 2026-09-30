@@ -162,3 +162,5 @@ La configuración de dashboards alojados en Next.js también incluye definicione
 Proporcione metadatos de consultas guardadas mediante `sources` para configurar opciones dinámicas sin editar JSON. El usuario elige un resultado, campos de valor/etiqueta y selección única. No se pueden aplicar fuentes eliminadas ni enlaces incompletos; seleccionar una consulta limpia el borrador de opciones estáticas.
 
 En la configuración alojada, los filtros de selección pueden usar consultas guardadas actuales como fuente de opciones. Elija la variable, columna de valor y etiqueta opcional, aplique el borrador y guarde el dashboard. La selección única permite integrar operaciones que aceptan un solo valor. Esta edición no invoca descubrimiento de planificadores ni fuentes de datos heredadas.
+
+`DashboardTransfer` ofrece importación limitada de archivos/texto y exportación explícita. Conecte la importación al controlador compartido con `{ undoable: true }` para validar el documento y conservar el borrador anterior. Importar no guarda en el servidor; el host mantiene autorización y control de revisiones.

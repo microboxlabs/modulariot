@@ -569,7 +569,7 @@ export function useDashboardState(
 
   // Import dashboard from JSON string
   const importDashboard = useCallback(
-    (jsonString: string): { success: boolean; error?: string } => {
+    (jsonString: string, options: { undoable?: boolean } = {}): { success: boolean; error?: string } => {
       if (readOnly) return { success: false, error: "Dashboard is read-only" };
       try {
         const parsed = JSON.parse(jsonString) as unknown;
@@ -601,8 +601,11 @@ export function useDashboardState(
           allowedGroups: normalizeAllowedGroups(imported.allowedGroups),
         };
 
-        clearHistory();
-        rawSaveData(newData);
+        if (options.undoable) saveData(newData, { isolate: true });
+        else {
+          clearHistory();
+          rawSaveData(newData);
+        }
         return { success: true };
       } catch (e) {
         return {
@@ -611,7 +614,7 @@ export function useDashboardState(
         };
       }
     },
-    [clearHistory, rawSaveData, readOnly, resolveDashlet],
+    [clearHistory, rawSaveData, saveData, readOnly, resolveDashlet],
   );
 
   return {

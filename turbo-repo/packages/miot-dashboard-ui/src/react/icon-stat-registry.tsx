@@ -105,12 +105,9 @@ export function createIconStatRegistry(
     ]);
     const styles = presentationStyles(config, matched);
     const subtitle = resolved.subtitle ?? "";
+    const iconName = typeof config.icon === "string" ? config.icon : "cart";
     const icon =
-      config.showIcon === false
-        ? undefined
-        : options.renderIcon?.(
-            typeof config.icon === "string" ? config.icon : "cart",
-          );
+      config.showIcon === false ? undefined : options.renderIcon?.(iconName);
     const scalable = config.expandable === true;
     const content = (
       <IconStat

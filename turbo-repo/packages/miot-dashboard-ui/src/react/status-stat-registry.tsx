@@ -8,6 +8,7 @@ import { normalizeTargetedColorRules } from "./targeted-color-rules";
 import { templateField } from "./scalar-template-field";
 import { useWidgetTemplateFields } from "./use-widget-template-fields";
 import type { WidgetComponentProps } from "./widget-renderer";
+import { templateStatusView } from "./widget-template-status";
 
 export interface StatusStatRegistryOptions {
   defaultTitle: string;
@@ -42,10 +43,8 @@ export function createStatusStatRegistry(
       () => normalizeTargetedColorRules(config.valueColorRules, targets),
       [config.valueColorRules],
     );
-    if (status === "loading") return <output>{options.loadingLabel}</output>;
-    if (status === "error") return <p role="alert">{options.errorLabel}</p>;
-    if (status === "unsupported")
-      return <p role="alert">{options.unsupportedDataLabel}</p>;
+    const pending = templateStatusView(status, options);
+    if (pending) return pending;
     const colors = evaluateColorRulesGeneric(rules, resolved.value ?? "", [
       ...targets,
     ]);

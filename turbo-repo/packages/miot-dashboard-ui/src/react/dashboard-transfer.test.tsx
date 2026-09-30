@@ -100,10 +100,10 @@ it("loads a file into a draft without importing automatically", async () => {
 it("isolates an undoable import from edits immediately before and after it", () => {
   const initial = makeDashboardStorage({ name: "Original" });
   const view = renderHook(() => {
-    const [config, onChange] = useState(initial);
+    const [config, setConfig] = useState(initial);
     return useDashboardState({
       config,
-      onChange,
+      onChange: setConfig,
       isLoaded: true,
       readOnly: false,
     });

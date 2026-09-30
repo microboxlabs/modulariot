@@ -37,7 +37,7 @@ export interface ServeOptions {
   credentials?: CredentialsVault;
   audit?: AuditSink;
   queries?: NonNullable<DashboardHandlerOptions["queries"]>;
-  queryCatalog?: DashboardHandlerOptions["queryCatalog"];
+  queryCatalog?: NonNullable<DashboardHandlerOptions["queryCatalog"]>;
   policy?: NonNullable<DashboardHandlerOptions["policy"]>;
   basePath?: string;
   cors?: CorsOptions;

@@ -145,3 +145,11 @@ describe("standalone browser entry boundary", () => {
     ).toHaveLength(1);
   });
 });
+
+it("allows React DOM portals only in the React entry", () => {
+  const source = 'import { createPortal } from "react-dom";';
+  expect(importProblems(source, "/package/src/react/popover.tsx", "/package/src")).toEqual([]);
+  for (const file of ["core.ts", "client.ts", "document.ts", "templates.ts"]) {
+    expect(importProblems(source, `/package/src/${file}`, "/package/src")).toEqual(["react-dom"]);
+  }
+});

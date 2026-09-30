@@ -26,7 +26,7 @@ export function importProblems(source, file, root = SOURCE) {
     .importedFiles.map(({ fileName }) => fileName)
     .filter((specifier) => {
       if (
-        ["react", "react-grid-layout", "react-grid-layout/core"].includes(
+        ["react", "react-dom", "react-grid-layout", "react-grid-layout/core"].includes(
           specifier,
         ) &&
         isReact

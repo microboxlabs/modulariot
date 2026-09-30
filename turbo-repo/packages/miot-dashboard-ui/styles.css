@@ -418,3 +418,12 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 :where(.dark, [data-miot-theme="dark"]) .miot-column-filter-input__field { border-color: var(--miot-card-border, #4b5563); background: var(--miot-card-background, #374151); color: var(--miot-card-text, #f3f4f6); color-scheme: dark; }
 :where(.dark, [data-miot-theme="dark"]) .miot-column-filter-input__choice { color: var(--miot-card-text, #d1d5db); }
 :where(.dark, [data-miot-theme="dark"]) .miot-column-filter-input__label { color: var(--miot-card-muted, #9ca3af); }
+
+.miot-column-filter-popover__trigger { display: inline-flex; padding: .25rem; border: 0; border-radius: .25rem; background: transparent; color: inherit; cursor: pointer; }
+.miot-column-filter-popover__trigger[data-active="true"] { background: #9ca3af40; }
+.miot-column-filter-popover__trigger:focus-visible, .miot-column-filter-popover__clear:focus-visible { outline: 2px solid var(--miot-focus-color, #2563eb); outline-offset: 2px; }
+.miot-column-filter-popover { position: fixed; margin: 0; box-sizing: border-box; width: 15rem; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow: auto; padding: .75rem; border: 1px solid var(--miot-card-border, #d1d5db); border-radius: .5rem; background: var(--miot-card-background, #fff); color: var(--miot-card-text, #111827); box-shadow: 0 10px 20px #0002; z-index: 9999; font: .875rem system-ui, sans-serif; }
+.miot-column-filter-popover p { margin: 0 0 .5rem; font-size: .75rem; }
+.miot-column-filter-popover__clear { margin-top: .75rem; width: 100%; padding: .375rem; font: inherit; border-radius: .25rem; border: 1px solid #fca5a5; color: #b91c1c; background: #fef2f2; cursor: pointer; }
+.miot-column-filter-popover[data-miot-theme="dark"] { --miot-card-border: #4b5563; --miot-card-background: #1f2937; --miot-card-text: #f3f4f6; --miot-card-muted: #9ca3af; color-scheme: dark; }
+.miot-column-filter-popover[data-miot-theme="dark"] .miot-column-filter-popover__clear { color: #fca5a5; background: #450a0a; border-color: #991b1b; }

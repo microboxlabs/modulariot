@@ -105,7 +105,6 @@ export function useTableColumnWidths({
   measureStickyOffsets,
 }: TableColumnWidthsOptions) {
   const cancelDrag = useRef<(() => void) | undefined>(undefined);
-  useEffect(() => () => cancelDrag.current?.(), [columns, loading, error]);
   const [columnWidths, setColumnWidths] = useState<(number | null)[]>([]);
   const thRefs = useRef<(HTMLTableCellElement | null)[]>([]);
   const colRefs = useRef<(HTMLTableColElement | null)[]>([]);
@@ -120,6 +119,7 @@ export function useTableColumnWidths({
   // Re-measure when column keys/order or the saved widths change (undo/redo,
   // column edits), not only when the column count changes.
   const columnKeysSig = JSON.stringify(columns.map((c) => c.key));
+  useEffect(() => () => cancelDrag.current?.(), [columnKeysSig, loading, error]);
   const savedWidthsSig = JSON.stringify(savedWidths ?? {});
   const measuredKeysSigRef = useRef(columnKeysSig);
   const measuredSavedSigRef = useRef(savedWidthsSig);

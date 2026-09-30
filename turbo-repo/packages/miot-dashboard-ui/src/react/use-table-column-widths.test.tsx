@@ -9,7 +9,9 @@ function Host({
   editable = false,
   onCommit = () => {},
   savedWidths,
+  columns: currentColumns = columns,
 }: {
+  readonly columns?: typeof columns;
   readonly editable?: boolean;
   readonly onCommit?: (w: Record<string, number>) => void;
   readonly savedWidths?: Record<string, number>;
@@ -17,7 +19,7 @@ function Host({
   const tableRef = useRef<HTMLTableElement>(null);
   const headerRowRef = useRef<HTMLTableRowElement>(null);
   const controls = useTableColumnWidths({
-    columns,
+    columns: currentColumns,
     savedWidths,
     tableRef,
     headerRowRef,
@@ -134,4 +136,29 @@ it("preserves the host inline layout when measuring and auto-fitting", () => {
   expect(onCommit).toHaveBeenCalledExactlyOnceWith({ first: 100, second: 100 });
   expect(table.style.tableLayout).toBe("fixed");
   expect(table.style.width).toBe("100%");
+});
+
+it("keeps an active drag across equivalent host column arrays", () => {
+  const onCommit = vi.fn();
+  const view = render(
+    <Host
+      editable
+      onCommit={onCommit}
+      columns={columns.map((c) => ({ ...c }))}
+    />,
+  );
+  fireEvent.mouseDown(screen.getByRole("button", { name: "first" }), {
+    clientX: 10,
+  });
+  fireEvent.mouseMove(document, { clientX: 30 });
+  view.rerender(
+    <Host
+      editable
+      onCommit={onCommit}
+      columns={columns.map((c) => ({ ...c }))}
+    />,
+  );
+  fireEvent.mouseMove(document, { clientX: 60 });
+  fireEvent.mouseUp(document, { clientX: 60 });
+  expect(onCommit).toHaveBeenCalledExactlyOnceWith({ first: 150, second: 100 });
 });

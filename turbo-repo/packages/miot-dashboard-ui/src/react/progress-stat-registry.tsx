@@ -8,6 +8,7 @@ import { normalizeScalarColorRules } from "./scalar-color-rules";
 import { templateField } from "./scalar-template-field";
 import { useWidgetTemplateFields } from "./use-widget-template-fields";
 import type { WidgetComponentProps } from "./widget-renderer";
+import { templateStatusView } from "./widget-template-status";
 export interface ProgressStatRegistryOptions {
   defaultTitle: string;
   defaultUnit: string;
@@ -85,10 +86,8 @@ export function createProgressStatRegistry(
       () => normalizeScalarColorRules(config.barColorRules),
       [config.barColorRules],
     );
-    if (status === "loading") return <output>{options.loadingLabel}</output>;
-    if (status === "error") return <p role="alert">{options.errorLabel}</p>;
-    if (status === "unsupported")
-      return <p role="alert">{options.unsupportedDataLabel}</p>;
+    const pending = templateStatusView(status, options);
+    if (pending) return pending;
     const value = number(resolved.value, 0);
     const match = rules.find((rule) =>
       evaluateRule({ ...rule, column: "" }, String(value)),

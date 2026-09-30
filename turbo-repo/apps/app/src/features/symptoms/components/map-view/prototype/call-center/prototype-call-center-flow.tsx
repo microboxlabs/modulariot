@@ -20,6 +20,7 @@
  * duration.
  */
 
+import EscalationLadderCard from "./escalation-ladder-card";
 import { useEffect, useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
@@ -193,6 +194,9 @@ export default function PrototypeCallCenterFlow({
 
   return (
     <>
+      {step === "contacts" && (
+        <EscalationLadderCard dict={dict} treatmentData={treatmentData} />
+      )}
       {step === "contacts" && (
         <CallCenterMenu
           dict={dict}

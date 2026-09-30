@@ -101,6 +101,15 @@ export interface DashboardFilterOption {
   value: string;
 }
 
+/** Metadata-only reference to an already authorized named query result. */
+export interface DashboardFilterOptionsSource {
+  /** Saved query variable name; legacy hosts may provide planner results. */
+  variableName: string;
+  valueField: string;
+  /** Defaults to valueField. */
+  labelField?: string;
+}
+
 /** One control in the dashboard's filter bar. */
 export interface DashboardFilterParam {
   /** URL parameter key, such as `asset_id`. */
@@ -114,6 +123,10 @@ export interface DashboardFilterParam {
   unique?: boolean;
   /** Only meaningful for type `select`. */
   options?: DashboardFilterOption[];
+  /** Select at most one value; hosts decide how values map to query parameters. */
+  single?: boolean;
+  /** Derive select options from named results, without adding an execution endpoint. */
+  optionsSource?: DashboardFilterOptionsSource;
 }
 
 /** The document. `version` is how this shape changes later. */

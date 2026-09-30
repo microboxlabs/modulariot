@@ -11,15 +11,18 @@ import {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
+import FormModal from "@/features/common/components/form-modal/form-modal";
 
 type Props = DashboardPermissionsOptions & {
   dictionary: I18nRecord;
+  dashboardName: string;
   onClose: () => void;
 };
 
 /** Next host: explicit IDs avoid coupling portable permissions to a directory. */
 export function ServerDashboardPermissions({
   dictionary,
+  dashboardName,
   onClose,
   ...options
 }: Readonly<Props>) {
@@ -61,59 +64,66 @@ export function ServerDashboardPermissions({
     setSaved(false);
     setSaved(await state.save(draft));
   }
+  // The same dialog shell as the legacy permissions modal.
   return (
-    <section aria-label={p("manageButton")} className="space-y-3 border-b p-4">
-      <h2 className="font-semibold">{p("manageButton")}</h2>
-      {state.busy && <output>{p("loading")}</output>}
-      {state.error !== null && <p role="alert">{t("error")}</p>}
-      {state.loaded && !state.editable && !state.busy && (
-        <p>{p("notAuthorized")}</p>
-      )}
-      {state.editable && (
-        <div>
-          <label htmlFor={inputId}>{t("authorityId")}</label>
-          <TextInput
-            id={inputId}
-            value={identity}
-            maxLength={500}
-            onChange={(event) => setIdentity(event.target.value)}
-            aria-describedby={`${inputId}-help`}
+    <FormModal
+      isOpen
+      onClose={close}
+      title={tr("dashboard.permissions.modalTitle", dictionary, {
+        name: dashboardName,
+      })}
+      size="2xl"
+      submitLabel={p("save")}
+      cancelLabel={p("cancel")}
+      showCancelButton
+      isProcessing={!state.editable || !dirty || state.busy}
+      onSubmit={() => void save()}
+    >
+      <div className="space-y-4">
+        {state.busy && <output>{p("loading")}</output>}
+        {state.error !== null && <p role="alert">{t("error")}</p>}
+        {state.loaded && !state.editable && !state.busy && (
+          <p>{p("notAuthorized")}</p>
+        )}
+        {state.editable && (
+          <div>
+            <label htmlFor={inputId}>{t("authorityId")}</label>
+            <TextInput
+              id={inputId}
+              value={identity}
+              maxLength={500}
+              onChange={(event) => setIdentity(event.target.value)}
+              aria-describedby={`${inputId}-help`}
+            />
+            <p id={`${inputId}-help`} className="text-sm text-gray-500">
+              {t("authorityHelp")}
+            </p>
+          </div>
+        )}
+        {state.loaded && (
+          <PermissionAssignmentEditor
+            key={state.editorKey}
+            assignments={draft}
+            authorities={authorities}
+            editable={state.editable}
+            disabled={state.busy}
+            onChange={change}
+            labels={{
+              authority: t("authorityId"),
+              role: t("role"),
+              choose: t("choose"),
+              add: p("addButton"),
+              remove: t("remove"),
+              empty: t("empty"),
+              roles: {
+                Consumer: p("roleConsumer"),
+                Contributor: p("roleContributor"),
+                Editor: p("roleEditor"),
+                Coordinator: p("roleCoordinator"),
+              },
+            }}
           />
-          <p id={`${inputId}-help`} className="text-sm text-gray-500">
-            {t("authorityHelp")}
-          </p>
-        </div>
-      )}
-      <PermissionAssignmentEditor
-        key={state.editorKey}
-        assignments={draft}
-        authorities={authorities}
-        editable={state.editable}
-        disabled={state.busy}
-        onChange={change}
-        labels={{
-          authority: t("authorityId"),
-          role: t("role"),
-          choose: t("choose"),
-          add: p("addButton"),
-          remove: t("remove"),
-          empty: t("empty"),
-          roles: {
-            Consumer: p("roleConsumer"),
-            Contributor: p("roleContributor"),
-            Editor: p("roleEditor"),
-            Coordinator: p("roleCoordinator"),
-          },
-        }}
-      />
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          disabled={!state.editable || !dirty}
-          onClick={() => void save()}
-        >
-          {p("save")}
-        </Button>
+        )}
         <Button
           size="sm"
           color="light"
@@ -122,11 +132,8 @@ export function ServerDashboardPermissions({
         >
           {t("reload")}
         </Button>
-        <Button size="sm" color="light" disabled={state.busy} onClick={close}>
-          {p("cancel")}
-        </Button>
+        {saved && <output>{p("saveSuccess")}</output>}
       </div>
-      {saved && <output>{p("saveSuccess")}</output>}
-    </section>
+    </FormModal>
   );
 }

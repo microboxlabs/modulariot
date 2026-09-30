@@ -35,6 +35,7 @@ it("requires confirmation and keeps existing assignments when adding an explicit
       slug="costs"
       sessionKey="one"
       dictionary={{}}
+      dashboardName="Costs"
       onClose={vi.fn()}
     />
   );
@@ -70,6 +71,7 @@ it("does not load the directory or expose identity entry without permission capa
       slug="costs"
       sessionKey="one"
       dictionary={{}}
+      dashboardName="Costs"
       onClose={vi.fn()}
     />
   );

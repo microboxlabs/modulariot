@@ -265,6 +265,7 @@ function ServerDashboardEditor({
             slug={slug}
             sessionKey={sessionKey}
             dictionary={dictionary}
+            dashboardName={document.config.name ?? slug}
             onClose={() => setPermissionsOpen(false)}
           />
         )}

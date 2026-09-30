@@ -18,6 +18,16 @@ export default defineConfig((options) => {
   return [
     {
       ...shared,
+      entry: ["src/browser.ts"],
+      outDir: "dist/browser",
+      platform: "browser",
+      splitting: false,
+      noExternal: [/.*/],
+      minify: true,
+      define: { "process.env.NODE_ENV": '"production"' },
+    },
+    {
+      ...shared,
       entry: [
         "src/core.ts",
         "src/client.ts",

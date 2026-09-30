@@ -118,3 +118,30 @@ describe("Web Component entry boundary", () => {
     ).toHaveLength(1);
   });
 });
+
+describe("standalone browser entry boundary", () => {
+  it.each([
+    ["./embed", 0],
+    ["./web-component.js", 0],
+    ["./client", 1],
+    ["./react/dashboard-canvas", 1],
+    ["react", 1],
+  ])("checks browser entry import %s", (specifier, problems) => {
+    expect(
+      importProblems(
+        `export * from "${specifier}";`,
+        "/package/src/browser.ts",
+        "/package/src",
+      ),
+    ).toHaveLength(problems);
+  });
+  it("rejects importing the bundled runtime into the peer-based React entry", () => {
+    expect(
+      importProblems(
+        'export * from "../browser";',
+        "/package/src/react/component.ts",
+        "/package/src",
+      ),
+    ).toHaveLength(1);
+  });
+});

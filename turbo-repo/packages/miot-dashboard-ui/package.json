@@ -42,6 +42,10 @@
     "./web-component": {
       "types": "./dist/web-component.d.ts",
       "import": "./dist/web-component.js"
+    },
+    "./browser": {
+      "types": "./dist/browser/browser.d.ts",
+      "import": "./dist/browser/browser.js"
     }
   },
   "files": [
@@ -49,7 +53,7 @@
     "styles.css"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/check-browser.mjs",
     "dev": "tsup --watch",
     "check-types": "tsc --noEmit -p tsconfig.core.json && tsc --noEmit && node scripts/guard-imports.mjs",
     "lint": "eslint . --max-warnings=0",

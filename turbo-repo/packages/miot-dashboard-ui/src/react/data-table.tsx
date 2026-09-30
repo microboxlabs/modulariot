@@ -140,9 +140,9 @@ export function DataTable({
   return (
     <div className="miot-data-table" data-dividers={showColumnDividers}>
       {loading && (
-        <div className="miot-data-table__message" role="status">
+        <output className="miot-data-table__message">
           {loadingLabel}
-        </div>
+        </output>
       )}
       {errorLabel && (
         <div className="miot-data-table__message" role="alert">

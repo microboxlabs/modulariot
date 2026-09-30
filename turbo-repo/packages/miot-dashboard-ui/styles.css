@@ -456,4 +456,11 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-data-table tr[data-row-color="purple"] { --miot-row-background: #faf5ff; }
 .miot-data-table tr[data-row-color="gray"] { --miot-row-background: #f3f4f6; }
 :where(.dark, [data-miot-theme="dark"]) .miot-data-table { --miot-card-border: #4b5563; --miot-card-background: #1f2937; --miot-card-text: #d1d5db; --miot-card-muted: #9ca3af; --miot-table-heading: #374151; }
-:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color] { --miot-row-background: #1f2937; }
+/* Opaque equivalents of dark conditional tints keep sticky cells readable. */
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="red"] { --miot-row-background: #322732; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="yellow"] { --miot-row-background: #2f2d30; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="green"] { --miot-row-background: #1d3135; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="blue"] { --miot-row-background: #1f2c48; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="orange"] { --miot-row-background: #322a30; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="purple"] { --miot-row-background: #2a2647; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="gray"] { --miot-row-background: #242e3c; }

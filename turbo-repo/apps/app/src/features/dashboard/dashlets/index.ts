@@ -22,6 +22,7 @@ import { dashletDefinition as flexContainerDefinition } from "./flex_container";
 import { dashletDefinition as percentageValueDefinition } from "./percentage_value";
 import { dashletDefinition as statDetailedDefinition } from "./stat_detailed";
 import { dashletDefinition as statIconDefinition } from "./stat_icon";
+import { dashletDefinition as statProgressDefinition } from "./stat_progress";
 import { dashletDefinition as statCircularDefinition } from "./stat_circular";
 import { dashletDefinition as statExpandableDefinition } from "./stat_expandable";
 import { dashletDefinition as statStackedDefinition } from "./stat_stacked";
@@ -49,6 +50,7 @@ const DASHLET_DEFINITIONS: DashletDefinition[] = [
   statDetailedDefinition,
   statIconDefinition,
   statCircularDefinition,
+  statProgressDefinition,
   statExpandableDefinition,
   statStackedDefinition,
   statSparklineDefinition,

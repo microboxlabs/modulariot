@@ -201,6 +201,9 @@ jobs:
       - name: Build the dashboard contract
         run: npm run build --workspace=@microboxlabs/miot-dashboard-contract
         working-directory: turbo-repo
+      - name: Test standalone dashboard demo authentication
+        run: npm test
+        working-directory: turbo-repo/examples/dashboard-ui-standalone
       - name: Test the server with SQLite and PostgreSQL
         run: npm test
         working-directory: turbo-repo/packages/miot-dashboard-server

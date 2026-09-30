@@ -14,6 +14,8 @@ export interface DashboardMetadataRow {
   slug: string;
   /** Copied from the config so `list` does not read one document per row. */
   name: string;
+  /** The config's `order`, copied for sorting `list`; absent when unset. */
+  order?: number;
   /** Monotonic, incremented by every successful `commit`. */
   revision: number;
   /** Key of the config in the document store. A new key on every write. */
@@ -28,6 +30,7 @@ export interface DashboardMetadataRow {
 /** The fields a write supplies. */
 export interface DashboardMetadataWrite {
   name: string;
+  order?: number;
   documentKey: string;
   updatedBy: string;
   /** ISO-8601. Passed in rather than read from a clock so tests can fix it. */

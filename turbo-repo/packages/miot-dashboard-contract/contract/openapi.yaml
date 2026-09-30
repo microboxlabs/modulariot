@@ -1010,6 +1010,12 @@ components:
         name:
           type: string
           description: Display name, as the host store records it.
+        order:
+          type: integer
+          minimum: 0
+          description: >
+            The config's `order`. Lists are sorted by it, lowest first;
+            dashboards without one come last.
     DashboardConfig:
       description: >
         The dashboard document — layout, widgets and their datasource

@@ -713,3 +713,8 @@ progress uses red, yellow, blue and green at the 0/25/50/75 percent boundaries.
 Legacy direct `pgrest` bindings display migration feedback without executing a query.
 The registry does not supply settings or issue credentials; the host supplies
 saved-query results and controls authoring permissions.
+
+The progress statistic registry and `ProgressStat` accept optional
+`formatValue(value, target, unit)` for localized accessible progress text. The
+formatter receives resolved finite values; without it the display uses
+`value / target unit`. The Next.js adapter supplies its translated “of” label.

@@ -11,6 +11,7 @@ import type { WidgetComponentProps } from "./widget-renderer";
 export interface ProgressStatRegistryOptions {
   defaultTitle: string;
   defaultUnit: string;
+  formatValue?: (value: number, target: number, unit: string) => string;
   loadingLabel: string;
   errorLabel: string;
   unsupportedDataLabel: string;
@@ -111,6 +112,7 @@ export function createProgressStatRegistry(
         unit={resolved.unit ?? options.defaultUnit}
         barColor={match?.color ?? thresholdBar}
         textColor={textColor}
+        formatValue={options.formatValue}
       />
     );
   }

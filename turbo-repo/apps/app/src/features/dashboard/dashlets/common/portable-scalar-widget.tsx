@@ -41,6 +41,8 @@ export function PortableScalarWidget({
         ...labels,
         defaultTitle: tr("dashboard.portableWidgets.progress", dictionary),
         defaultUnit: "%",
+        formatValue: (value, target, unit) =>
+          `${value} ${tr("dashboard.widgetOf", dictionary)} ${target} ${unit}`,
       });
     if (widget.componentId === "stat_circular")
       return createCircularStatRegistry({

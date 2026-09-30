@@ -9,6 +9,7 @@ afterEach(cleanup);
 const registry = createProgressStatRegistry({
   defaultTitle: "Goal",
   defaultUnit: "%",
+  formatValue: (value, target, unit) => `${value} de ${target} ${unit}`,
   loadingLabel: "Loading",
   errorLabel: "Unavailable",
   unsupportedDataLabel: "Migrate",
@@ -44,7 +45,7 @@ it("renders template values with accessible progress and quarter milestones", ()
   );
   const bar = screen.getByRole("progressbar", { name: "Budget" });
   expect(bar.getAttribute("value")).toBe("25");
-  expect(bar.getAttribute("aria-valuetext")).toBe("50 / 200 USD");
+  expect(bar.getAttribute("aria-valuetext")).toBe("50 de 200 USD");
   expect(
     view.container.querySelector(".miot-progress-stat__labels")?.textContent,
   ).toBe("050100150200");

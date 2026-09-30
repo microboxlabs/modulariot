@@ -8,6 +8,8 @@ export interface ProgressStatProps {
   /** Optional RGB/RGBA hex without #. */
   barColor?: string;
   textColor?: string;
+  /** Localized accessible value; receives finite resolved values. */
+  formatValue?: (value: number, target: number, unit: string) => string;
 }
 function hex(value: string | undefined) {
   return value && /^(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i.test(value)
@@ -22,6 +24,7 @@ export function ProgressStat({
   unit,
   barColor,
   textColor,
+  formatValue,
 }: Readonly<ProgressStatProps>) {
   const count = Number.isFinite(value) ? value : 0;
   const total = Number.isFinite(target) ? target : 100;
@@ -46,7 +49,7 @@ export function ProgressStat({
       <div className="miot-progress-stat__gauge">
         <progress
           aria-label={title}
-          aria-valuetext={`${count} / ${total} ${unit}`}
+          aria-valuetext={formatValue?.(count, total, unit) ?? `${count} / ${total} ${unit}`}
           max={100}
           value={percentage}
         />

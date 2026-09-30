@@ -3025,6 +3025,7 @@
     "organizationLogoAlt": "Logo de la organización"
   },
   "dashboard": {
+    "widgetOf": "de",
     "addWidget": "Agregar Widget",
     "editMode": "Modo Edición",
     "dragToMoveWidget": "Arrastra para mover este widget",

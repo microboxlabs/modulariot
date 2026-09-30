@@ -28,3 +28,5 @@ export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from
 export { createDetailedStatRegistry, type DetailedStatRegistryOptions } from "./react/detailed-stat-registry";
 
 export { createSparklineStatRegistry, type SparklineStatRegistryOptions } from "./react/sparkline-stat-registry";
+
+export { createInfoCardRegistry, type InfoCardRegistryOptions } from "./react/info-card-registry";

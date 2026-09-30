@@ -25,3 +25,5 @@ export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from
 export { createDetailedStatRegistry, type DetailedStatRegistryOptions } from "./embed";
 
 export { createSparklineStatRegistry, type SparklineStatRegistryOptions } from "./embed";
+
+export { createInfoCardRegistry, type InfoCardRegistryOptions } from "./embed";

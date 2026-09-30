@@ -1351,3 +1351,17 @@ mode from authorization. Optional `viewMoreUrl` accepts relative or HTTP(S)
 links only; unsafe schemes are omitted. Links open in a protected new tab unless
 `openInSameTab` is true. Next.js retains hybrid data-provider templates, rules,
 icons and nested widget ownership while consuming this renderer.
+
+`createInfoCardRegistry(options)` from `./react`, `./embed` or `./browser` binds
+`info_card` to static JSON, data-provider entries and named planner results.
+Required options: `defaultTitle`, `addDetailLabel`, `viewMoreLabel`,
+`loadingLabel`, `errorLabel`, `unsupportedDataLabel`. Optional `renderIcon(name)`
+and `templateEngine` supply host icons and template helpers.
+
+Title, value, descriptor, footer (`aiPlaceholder`), link and link label resolve
+through the shared template context. Provider entries use `data_provider.key`;
+query/static fields are available directly and through `row`. Text/icon rules override manual CSS colors;
+manual colors remain restricted to React color style properties. Nested widgets
+use the host registry, with add-detail actions gated by WidgetRenderer editing
+capabilities. Loading/errors remove stale content and links. Direct legacy
+queries show the migration label. No AI generation is performed for footer text.

@@ -40,7 +40,8 @@ function normalizeRules(raw: unknown) {
       typeof entry.operator !== "string" ||
       !operators.has(entry.operator) ||
       !("color" in entry) ||
-      typeof entry.color !== "string"
+      typeof entry.color !== "string" ||
+      !/^(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i.test(entry.color)
     )
       return [];
     return [
@@ -54,6 +55,12 @@ function normalizeRules(raw: unknown) {
       },
     ];
   });
+}
+function templateField(value: unknown, fallback: string) {
+  if (value == null) return fallback;
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : "";
 }
 function resolvedNumber(value: string | undefined, fallback: number) {
   const parsed =
@@ -74,8 +81,8 @@ export function createPercentageValueRegistry(
           typeof config.title === "string" && config.title
             ? config.title
             : options.defaultTitle,
-        value: String(config.value ?? "6"),
-        max: String(config.max ?? "10"),
+        value: templateField(config.value, "6"),
+        max: templateField(config.max, "10"),
       }),
       [config.title, config.value, config.max],
     );
@@ -100,9 +107,8 @@ export function createPercentageValueRegistry(
       typeof rawRules === "object" &&
       "evalMode" in rawRules &&
       rawRules.evalMode === "count";
-    const evalValue = String(
-      countMode ? value : max > 0 ? Math.round((value / max) * 100) : 0,
-    );
+    const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
+    const evalValue = String(countMode ? value : percentage);
     const match = rules.find((rule) =>
       evaluateRule({ ...rule, column: "" }, evalValue),
     );

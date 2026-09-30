@@ -138,3 +138,36 @@ it("consumes saved-query rows and removes values when queries fail", () => {
   view.rerender(<Card config={{ dataMode: "pgrest" }} />);
   expect(screen.getByRole("alert").textContent).toBe("Migrate");
 });
+
+it("skips invalid matching colors so later rules and configured fallback remain effective", () => {
+  const config = {
+    value: 4,
+    max: 5,
+    barColor: "00ff00",
+    barColorRules: {
+      rules: [
+        { operator: "greater_than", value: "75", color: "" },
+        { operator: "greater_than", value: "70", color: "red" },
+        { operator: "greater_than", value: "60", color: "aabbcc" },
+      ],
+    },
+  };
+  const view = render(<Card config={config} />);
+  const color = () =>
+    (
+      view.container.querySelector(".miot-percentage-value") as HTMLElement
+    ).style.getPropertyValue("--miot-progress-color");
+  expect(color()).toBe("#aabbcc");
+  view.rerender(
+    <Card
+      config={{
+        ...config,
+        barColorRules: { rules: config.barColorRules.rules.slice(0, 2) },
+      }}
+    />,
+  );
+  expect(color()).toBe("#00ff00");
+  view.rerender(<Card config={{ value: { unexpected: true }, max: [10] }} />);
+  expect(screen.getByRole("progressbar").getAttribute("value")).toBe("0");
+  expect(view.container.textContent).toContain("0 / 10");
+});

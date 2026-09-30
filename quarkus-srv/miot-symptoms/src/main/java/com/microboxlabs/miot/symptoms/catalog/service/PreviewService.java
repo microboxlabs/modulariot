@@ -27,6 +27,7 @@ public class PreviewService {
 
     /** Sample key for how long the condition has held, in seconds. */
     static final String HELD = "held_s";
+    private static final String NOT_A_CONDITION = "La condición debe dar sí o no.";
 
     private final SymptomCatalogService catalog;
     private final DataSourceService sources;
@@ -81,17 +82,23 @@ public class PreviewService {
             Map<Integer, PreparedRule> levels) {
         RuleResult active = activation.run(sample);
         if (!active.ok()) {
-            return new SamplePreview(sample, null, null, null, active.error());
+            return failed(sample, null, active.error());
+        }
+        if (!(active.value() instanceof Boolean activates)) {
+            return failed(sample, null, NOT_A_CONDITION);
         }
         Double value = null;
         if (measure != null) {
             RuleResult m = measure.run(sample);
             if (!m.ok()) {
-                return new SamplePreview(sample, Boolean.TRUE.equals(active.value()), null, null, m.error());
+                return failed(sample, activates, m.error());
             }
-            value = ((Number) m.value()).doubleValue();
+            if (!(m.value() instanceof Number n)) {
+                return failed(sample, activates, "La medida debe dar un número.");
+            }
+            value = n.doubleValue();
         }
-        if (!Boolean.TRUE.equals(active.value())) {
+        if (!activates) {
             return new SamplePreview(sample, false, value, null, null);
         }
         Map<String, Object> vars = new LinkedHashMap<>(sample);
@@ -99,11 +106,20 @@ public class PreviewService {
         vars.put("sostenido_s", sample.get(HELD) instanceof Number n ? n.doubleValue() : 0.0);
         Integer reached = null;
         for (Map.Entry<Integer, PreparedRule> e : levels.entrySet()) {
-            if (Boolean.TRUE.equals(e.getValue().run(vars).value())) {
+            RuleResult r = e.getValue().run(vars);
+            if (!r.ok() || !(r.value() instanceof Boolean)) {
+                String error = r.ok() ? NOT_A_CONDITION : r.error();
+                return new SamplePreview(sample, true, value, null, "Nivel " + e.getKey() + ": " + error);
+            }
+            if (Boolean.TRUE.equals(r.value())) {
                 reached = e.getKey();
             }
         }
         return new SamplePreview(sample, true, value, reached, null);
+    }
+
+    private static SamplePreview failed(Map<String, Object> sample, Boolean activates, String error) {
+        return new SamplePreview(sample, activates, null, null, error);
     }
 
     private static SymptomSpec pick(SymptomCatalogService.SymptomDetail detail) {

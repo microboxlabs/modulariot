@@ -83,7 +83,7 @@ export function createCircularStatRegistry(
       (typeof config.ringColor === "string" ? config.ringColor : "3b82f6");
     return (
       <CircularStat
-        title={resolved.title ?? options.defaultTitle}
+        title={resolved.title?.trim() ? resolved.title : options.defaultTitle}
         value={value}
         max={max}
         valueLabel={resolved.value ?? ""}

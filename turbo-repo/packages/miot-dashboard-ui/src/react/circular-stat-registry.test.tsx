@@ -135,6 +135,11 @@ it("rejects object template fields and ignores invalid matching rule colors", ()
     />,
   );
   expect(view.container.textContent).not.toContain("[object Object]");
+  expect(screen.getByRole("progressbar", { name: "Storage" })).toBeTruthy();
+  view.rerender(<Card config={{ title: "{{missing}}" }} />);
+  expect(screen.getByRole("progressbar", { name: "Storage" })).toBeTruthy();
+  view.rerender(<Card config={{ title: "   ", value: 0 }} />);
+  expect(screen.getByRole("progressbar", { name: "Storage" })).toBeTruthy();
   expect(screen.getByRole("progressbar").getAttribute("value")).toBe("0");
   view.rerender(
     <Card

@@ -1,4 +1,5 @@
 "use client";
+import { DASHBOARD_DRAG_CANCEL_SELECTOR } from "../core/grid-interactions";
 
 import {
   useState,
@@ -261,7 +262,7 @@ export function DashboardGrid({
             }}
             dragConfig={{
               enabled: editMode,
-              cancel: ".no-drag, .nested-grid-wrapper .react-grid-item",
+              cancel: DASHBOARD_DRAG_CANCEL_SELECTOR,
             }}
             resizeConfig={{ enabled: editMode, handles: ["se"] }}
             compactor={verticalCompactor}

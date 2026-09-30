@@ -39,3 +39,5 @@ export { ACTION_TARGETS, ROW_ACTION_METHODS, type ActionTarget, type ActionItem,
 export { toActionItems, fromActionItems, isSafeActionUrl, normalizeActionsConfig, toRowActionItems, fromRowActionItems, normalizeRowActions, type ActionItemWithId, type RowActionItemWithId } from "./core/action-helpers";
 
 export { buildCsvContent } from "./core/export-csv";
+
+export { DASHBOARD_DRAG_CANCEL_SELECTOR } from "./core/grid-interactions";

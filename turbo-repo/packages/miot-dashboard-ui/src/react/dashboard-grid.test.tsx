@@ -104,6 +104,64 @@ describe("DashboardGrid", () => {
     expect(commit).not.toHaveBeenCalled();
     expect(screen.getByText("a")).toBeTruthy();
   });
+  it("excludes interactive descendants while preserving draggable backgrounds", () => {
+    render(
+      <DashboardGrid
+        widgets={[widget]}
+        registry={registry}
+        editMode
+        onLayoutCommit={() => {}}
+        renderWidget={() => (
+          <div>
+            <button type="button">
+              <span>Button child</span>
+            </button>
+            <a href="#record">Record link</a>
+            <label>
+              Filter
+              <input aria-label="Filter" />
+            </label>
+            <select aria-label="Choice">
+              <option>A</option>
+            </select>
+            <textarea aria-label="Notes" />
+            <div contentEditable suppressContentEditableWarning>
+              Editable text
+            </div>
+            <div
+              role="slider"
+              aria-label="Width"
+              aria-valuenow={10}
+              tabIndex={0}
+            />
+            <div className="no-drag">Custom control</div>
+            <div className="nested-grid-wrapper">
+              <div className="react-grid-item">Nested widget</div>
+            </div>
+            <p>Draggable background</p>
+          </div>
+        )}
+      />,
+    );
+    const selector = grid.dragConfig?.cancel;
+    expect(selector).toBeTruthy();
+    for (const element of [
+      screen.getByText("Button child"),
+      screen.getByRole("link"),
+      screen.getByRole("textbox", { name: "Filter" }),
+      screen.getByRole("combobox"),
+      screen.getByRole("textbox", { name: "Notes" }),
+      screen.getByText("Editable text"),
+      screen.getByRole("slider"),
+      screen.getByText("Custom control"),
+      screen.getByText("Nested widget"),
+    ]) {
+      expect(element.closest(selector!)).not.toBeNull();
+    }
+    expect(
+      screen.getByText("Draggable background").closest(selector!),
+    ).toBeNull();
+  });
   it("requires both edit intent and a commit handler", () => {
     const commit = vi.fn();
     const view = render(

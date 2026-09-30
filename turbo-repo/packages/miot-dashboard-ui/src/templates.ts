@@ -1,4 +1,9 @@
 export {
+  parseTemplateRow,
+  createTemplateContext,
+  resolveTemplateFields,
+} from "./templates/data-context";
+export {
   createTemplateEngine,
   buildDataProviderContext,
   type TemplateField,

@@ -337,6 +337,22 @@ sanitizer: render text as text and validate URL/HTML destinations in the host.
 Custom helpers execute trusted JavaScript and must never contain credentials or
 perform privileged query execution in the browser.
 
+### Template data helpers
+
+The `./templates` entry also exports pure helpers for data already supplied by a
+host or an authorized saved query. They do not perform network requests.
+
+- `parseTemplateRow(json)` accepts a JSON object or the first object in a JSON
+  array. Empty, malformed, scalar and nested-array values return `undefined`;
+  dashboard contents are never logged. JSON value types are preserved.
+- `createTemplateContext({ row, filters, dataProvider? })` exposes row fields at
+  the top level and the original object under `row`, plus explicit `filter` and
+  optional `data_provider` namespaces. Explicit namespaces override colliding row
+  fields. Inputs are not mutated.
+- `resolveTemplateFields(fields, context, engine)` resolves named text fields
+  using the supplied isolated engine. Prototype-named output fields remain
+  ordinary own properties.
+
 ## Recursive widget rendering
 
 `WidgetRenderer` from `./react` renders a contract `widget` and its descendants

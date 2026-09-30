@@ -22,12 +22,14 @@ test("demo HTTP authentication, origins, cookies, throttling and route allowlist
   await writeFile(join(dir, "password"), password);
   await writeFile(join(dir, "secret"), secret);
   const calls = [];
+  let upstreamStatus = 200;
   const upstream = createServer((req, res) => {
     calls.push({
       url: req.url,
       method: req.method,
       authorization: req.headers.authorization,
     });
+    res.statusCode = upstreamStatus;
     res.setHeader("Content-Type", "application/json");
     res.end(
       JSON.stringify({ data: { rows: [{ service: "BQ", net_cost: "12" }] } }),
@@ -133,6 +135,12 @@ test("demo HTTP authentication, origins, cookies, throttling and route allowlist
     404,
   );
   assert.equal(calls.length, 2);
+  for (const status of [401, 403, 429, 500]) {
+    upstreamStatus = status;
+    assert.equal((await request("/api/dashboard", { headers })).status, 502);
+  }
+  upstreamStatus = 200;
+  assert.equal((await request("/api/dashboard", { headers })).status, 200);
   const jwt = calls[0].authorization.slice(7).split(".");
   assert.ok(
     verify(

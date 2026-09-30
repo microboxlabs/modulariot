@@ -203,7 +203,7 @@ http
       if (!response.ok)
         return reply(
           res,
-          response.status,
+          502,
           JSON.stringify({ error: "No fue posible cargar los datos." }),
           "application/json",
         );

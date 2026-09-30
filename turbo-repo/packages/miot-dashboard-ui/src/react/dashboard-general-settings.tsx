@@ -31,7 +31,7 @@ export function DashboardGeneralSettings({
 }: DashboardGeneralSettingsProps) {
   const id = useId();
   const [name, setName] = useState(value.name);
-  const [refreshInterval, setRefresh] = useState(value.refreshInterval);
+  const [refreshInterval, setRefreshInterval] = useState(value.refreshInterval);
   const [order, setOrder] = useState(value.order?.toString() ?? "");
   const [error, setError] = useState<string>();
   function apply() {
@@ -65,7 +65,7 @@ export function DashboardGeneralSettings({
             const parsed = refreshIntervalSchema.safeParse(
               Number(event.target.value),
             );
-            if (parsed.success) setRefresh(parsed.data);
+            if (parsed.success) setRefreshInterval(parsed.data);
           }}
         >
           {([0, 10, 30, 60, 300] as const).map((interval) => (

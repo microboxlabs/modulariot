@@ -1,5 +1,7 @@
-import type { DashboardFilterParam } from "@microboxlabs/miot-dashboard-contract/document";
-import type { DashboardQueryDefinition } from "@microboxlabs/miot-dashboard-contract/document";
+import type {
+  DashboardFilterParam,
+  DashboardQueryDefinition,
+} from "@microboxlabs/miot-dashboard-contract/document";
 /**
  * Dashboard Widget Type Definitions
  *

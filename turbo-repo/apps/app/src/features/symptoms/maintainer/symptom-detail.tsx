@@ -63,7 +63,10 @@ export default function SymptomDetail({
   const router = useRouter();
   const { activeOrg } = useOrgScopes();
   const canWrite = activeOrg?.role === "OWNER";
-  const { connections } = useIntegrationConfig(activeOrg?.slug ?? null);
+  const { connections } = useIntegrationConfig(
+    // Connections are listed for owners only; others see the saved choice.
+    canWrite ? (activeOrg?.slug ?? null) : null
+  );
   const {
     detail,
     error,

@@ -27,6 +27,25 @@ export function flyTo(
   mapRef.flyTo(flyToOptions);
 }
 
+/** Zoom used when the user clicks a vehicle that is shown on its own. */
+export const VEHICLE_FOCUS_ZOOM = 12;
+
+/**
+ * Flies to a clicked vehicle and zooms in on it. Only for a vehicle shown on
+ * its own; on fleet maps the click just recenters. Never zooms out if the
+ * user is already closer than VEHICLE_FOCUS_ZOOM.
+ */
+export function zoomToVehicle(
+  mapRef: Pick<MapRef, "getZoom" | "flyTo">,
+  coordinates: [number, number]
+) {
+  mapRef.flyTo({
+    center: [coordinates[0], coordinates[1]],
+    zoom: Math.max(mapRef.getZoom(), VEHICLE_FOCUS_ZOOM),
+    duration: 1000,
+  });
+}
+
 // Recenters the map on a point while keeping the user's current zoom, pitch
 // and bearing — used to follow a moving element without zooming into it.
 export function panTo(

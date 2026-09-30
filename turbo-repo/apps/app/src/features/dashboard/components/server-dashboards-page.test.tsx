@@ -1,7 +1,15 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { SWRConfig } from "swr";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
+import type { DashboardSettingsHost } from "./dashboard-settings-dropdown/dashboard-settings-dropdown";
+import type { DashboardStorageSchema } from "../types/dashboard.types";
 import { ServerDashboardsPage } from "./server-dashboards-page";
 import { DEFAULT_STORAGE } from "../types/dashboard.types";
 
@@ -13,6 +21,10 @@ const state = vi.hoisted(() => ({
   scopeFailure: false,
   missing: false,
   push: vi.fn(),
+  host: undefined as DashboardSettingsHost | undefined,
+  storage: undefined as
+    | { config: DashboardStorageSchema; onChange: (c: DashboardStorageSchema) => void }
+    | undefined,
 }));
 vi.mock("next-auth/react", () => ({
   useSession: () => ({
@@ -36,7 +48,13 @@ vi.mock(
   })
 );
 vi.mock("../context/dashboard-context", () => ({
-  DashboardProvider: ({ children }: Readonly<PropsWithChildren>) => children,
+  DashboardProvider: ({
+    children,
+    storage,
+  }: Readonly<PropsWithChildren<{ storage: typeof state.storage }>>) => {
+    state.storage = storage;
+    return children;
+  },
   useDashboard: () => ({ queries: [], setQueries: () => true }),
 }));
 vi.mock("../context/saved-query-context", () => ({
@@ -45,7 +63,21 @@ vi.mock("../context/saved-query-context", () => ({
   SavedQueryResults: ({ children }: Readonly<PropsWithChildren>) => children,
 }));
 vi.mock("./dashboard-view", () => ({
-  DashboardView: () => <div>Widget canvas</div>,
+  DashboardView: ({
+    headerActions,
+    settingsHost,
+  }: Readonly<{
+    headerActions?: ReactNode;
+    settingsHost?: DashboardSettingsHost;
+  }>) => {
+    state.host = settingsHost;
+    return (
+      <div>
+        Widget canvas
+        {headerActions}
+      </div>
+    );
+  },
 }));
 const dictionary = {
   dashboard: {
@@ -73,6 +105,8 @@ beforeEach(() => {
   state.missing = false;
   state.scopeFailure = false;
   state.push.mockReset();
+  state.host = undefined;
+  state.storage = undefined;
   fetcher.mockReset();
   fetcher.mockImplementation(async (input, init) => {
     if (init?.method === "PUT")
@@ -209,15 +243,9 @@ describe("parallel dashboard pages", () => {
   it("renders Consumers without edit or delete controls", async () => {
     show("fleet");
     expect(await screen.findByText("Widget canvas")).toBeInTheDocument();
-    expect(
-      screen.getByRole("textbox", { name: "Dashboard name" })
-    ).toBeDisabled();
-    expect(
-      screen.queryByRole("button", { name: "Save" })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Delete" })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(state.host?.onDelete).toBeUndefined();
+    expect(state.host?.canManagePermissions).toBe(false);
     expect(
       fetcher.mock.calls.every(([url]) =>
         String(url).startsWith("/app/api/dashboards/fleet")
@@ -228,10 +256,13 @@ describe("parallel dashboard pages", () => {
     state.canEdit = true;
     show("fleet");
     await screen.findByText("Widget canvas");
-    fireEvent.change(screen.getByRole("textbox", { name: "Dashboard name" }), {
-      target: { value: "Changed" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      screen.queryByRole("button", { name: "Save" })
+    ).not.toBeInTheDocument();
+    act(() =>
+      state.storage!.onChange({ ...state.storage!.config, name: "Changed" })
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument()
     );
@@ -239,6 +270,18 @@ describe("parallel dashboard pages", () => {
     expect(write?.[0]).toBe("/app/api/dashboards/fleet?org=acme");
     expect(write?.[1]?.headers).toMatchObject({ "if-match": '"7"' });
     expect(JSON.parse(String(write?.[1]?.body)).name).toBe("Changed");
+  });
+  it("deletes through the dashboard server from the settings menu", async () => {
+    state.canEdit = true;
+    show("fleet");
+    await screen.findByText("Widget canvas");
+    expect(state.host?.canManagePermissions).toBe(true);
+    await act(() => state.host!.onDelete!());
+    const removal = fetcher.mock.calls.find(
+      ([, init]) => init?.method === "DELETE"
+    );
+    expect(removal?.[0]).toBe("/app/api/dashboards/fleet?org=acme");
+    expect(state.push).toHaveBeenCalledWith("/en/dashboards");
   });
   it("does not expose an editor for a missing dashboard", async () => {
     state.canEdit = true;

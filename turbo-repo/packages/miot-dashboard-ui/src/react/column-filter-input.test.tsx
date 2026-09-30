@@ -267,3 +267,17 @@ it("applies one-sided ranges through the shared filter engine and keeps missing 
       .value,
   ).toBe("");
 });
+
+it("keeps the numeric operator after clearing its own value", () => {
+  vi.useFakeTimers();
+  render(<NumericTable />);
+  fireEvent.change(screen.getByRole("combobox"), { target: { value: "gt" } });
+  fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "10" } });
+  act(() => vi.advanceTimersByTime(300));
+  fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "" } });
+  act(() => vi.advanceTimersByTime(300));
+  expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("gt");
+  fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "5" } });
+  act(() => vi.advanceTimersByTime(300));
+  expect(screen.getByRole("status").textContent).toBe("10,20");
+});

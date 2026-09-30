@@ -195,7 +195,10 @@ function NumberFilter({
     undefined,
   );
 
+  const selfClearedRef = useRef(false);
+
   const cancelDebounce = useCallback(() => {
+    selfClearedRef.current = false;
     clearTimeout(debounceRef.current);
     debounceRef.current = undefined;
   }, []);
@@ -206,14 +209,16 @@ function NumberFilter({
   }, [cancelDebounce, cancelDebounceRef]);
 
   useEffect(() => {
+    const preserveOperator = !currentFilter && selfClearedRef.current;
     cancelDebounce();
-    setOperator(currentFilter?.operator ?? "equals");
+    if (!preserveOperator) setOperator(currentFilter?.operator ?? "equals");
     const range =
       currentFilter?.operator === "between" &&
       Array.isArray(currentFilter.value)
         ? currentFilter.value
         : null;
-    const lowerBound = range?.[0] === -Number.MAX_VALUE ? "" : String(range?.[0] ?? "");
+    const lowerBound =
+      range?.[0] === -Number.MAX_VALUE ? "" : String(range?.[0] ?? "");
     setValue(range ? lowerBound : String(currentFilter?.value ?? ""));
     setValue2(
       range && range[1] !== Number.MAX_VALUE ? String(range[1] ?? "") : "",
@@ -224,12 +229,15 @@ function NumberFilter({
     (op: FilterOperator, v1: string, v2: string) => {
       clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
+        selfClearedRef.current = false;
         if (v1 === "" && op !== "between") {
+          selfClearedRef.current = true;
           onFilterChange(columnKey, null);
           return;
         }
         if (op === "between") {
           if (v1 === "" && v2 === "") {
+            selfClearedRef.current = true;
             onFilterChange(columnKey, null);
             return;
           }

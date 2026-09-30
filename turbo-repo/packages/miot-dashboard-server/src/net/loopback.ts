@@ -23,7 +23,7 @@ function ipv4Octets(host: string): number[] | null {
   for (const part of parts) {
     // A leading zero means octal to some parsers and decimal to others, so the
     // two disagree about which address this is.
-    if (!/^(0|[1-9][0-9]{0,2})$/.test(part)) return null;
+    if (!/^(0|[1-9]\d{0,2})$/.test(part)) return null;
     const octet = Number(part);
     if (octet > 255) return null;
     octets.push(octet);

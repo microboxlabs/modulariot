@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { proxyToUpstream } from "@/app/api/utils/upstream-proxy";
 import { modulithHost } from "@/lib/modulith-host";
+import { sessionAuthHeader } from "@/features/auth/services/session-auth";
 
 /**
  * Forward the caller's session JWT to a Quarkus endpoint and return the
@@ -26,7 +27,12 @@ export async function forwardToQuarkus(
   init?: {
     method?: string;
     body?: unknown;
-  },
+    /** Dashboard revision precondition; never accepts arbitrary auth headers. */
+    ifMatch?: string;
+    signal?: AbortSignal;
+    /** Internal route budget; never read from request headers or JSON. */
+    timeoutMs?: number;
+  }
 ): Promise<NextResponse> {
   const session = await auth();
   if (!session?.user?.id) {
@@ -37,7 +43,7 @@ export async function forwardToQuarkus(
   if (!baseUrl) {
     return NextResponse.json(
       { error: "MIOT_MODULITH_URL is not configured" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 
@@ -59,9 +65,10 @@ export async function quarkusAuthHeaders(): Promise<Record<
 }
 
 function buildAuthHeaders(session: Session): Record<string, string> {
-  const headers: Record<string, string> = { Accept: "application/json" };
-  const token = session.user?.rawJWT ?? session.user?.ticket;
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    ...sessionAuthHeader(session),
+  };
   if (session.user?.email) {
     headers["X-Dev-User-Email"] = session.user.email;
   }

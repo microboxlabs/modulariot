@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ModelsInfo } from "@microboxlabs/miot-harness-client";
 import { SlashRegistry } from "../slash/registry.js";
 import { clearCommand } from "../slash/handlers/clear.js";
 import { exitCommand } from "../slash/handlers/exit.js";
 import { helpCommand } from "../slash/handlers/help.js";
-import { modeCommand } from "../slash/handlers/mode.js";
+import { modelCommand } from "../slash/handlers/model.js";
 import { resetCommand } from "../slash/handlers/reset.js";
 import { saveCommand } from "../slash/handlers/save.js";
 import { tenantCommand } from "../slash/handlers/tenant.js";
@@ -93,34 +94,93 @@ function mkSession(): SessionState {
     {
       tenantId: "demo-tenant",
       userId: "demo-user",
-      mode: "auto",
       baseUrl: "http://localhost:8000",
     },
     ctx,
   );
 }
 
-describe("/mode", () => {
-  it("dispatches SET_MODE for a valid choice", async () => {
-    const r = await modeCommand.handle(["agentic"], mkCtx(new SlashRegistry()));
-    expect(r).toEqual({ dispatch: { kind: "SET_MODE", mode: "agentic" } });
+describe("/model", () => {
+  const info: ModelsInfo = { default: "model-a", models: ["model-a", "model-b"] };
+
+  function modelCtx(
+    list: () => Promise<ModelsInfo>,
+    model: string | null = null,
+  ): Record<string, unknown> {
+    const session = mkSession();
+    return {
+      ...mkCtx(new SlashRegistry()),
+      client: { models: { list } },
+      session: { ...session, meta: { ...session.meta, model } },
+    };
+  }
+
+  it("lists models, marking the default and the current one", async () => {
+    const r = await modelCommand.handle(
+      [],
+      modelCtx(async () => info, "model-b"),
+    );
+    expect(r.error).toBeUndefined();
+    expect(r.dispatch).toBeUndefined();
+    expect(r.output?.kind).toBe("system");
+    const text = r.output?.kind === "system" ? r.output.text : "";
+    expect(text).toContain("model-a (default)");
+    expect(text).toContain("model-b (current)");
   });
 
-  it("returns an error for unknown mode", async () => {
-    const r = await modeCommand.handle(["wat"], mkCtx(new SlashRegistry()));
-    expect(r.error).toContain("unknown mode");
+  it("says so when the harness offers no models", async () => {
+    const r = await modelCommand.handle(
+      [],
+      modelCtx(async () => ({ default: null, models: [] })),
+    );
+    expect(r.output?.kind === "system" && r.output.text).toContain(
+      "no model choice",
+    );
   });
 
-  it("returns usage when called with no args", async () => {
-    const r = await modeCommand.handle([], mkCtx(new SlashRegistry()));
-    expect(r.error).toContain("usage:");
+  it("reports a listing failure as an error", async () => {
+    const r = await modelCommand.handle(
+      [],
+      modelCtx(async () => {
+        throw new Error("down");
+      }),
+    );
+    expect(r.error).toContain("down");
+  });
+
+  it("dispatches SET_MODEL for a listed model", async () => {
+    const r = await modelCommand.handle(["model-b"], modelCtx(async () => info));
+    expect(r.dispatch).toEqual({ kind: "SET_MODEL", model: "model-b" });
+  });
+
+  it("rejects a model the harness does not list", async () => {
+    const r = await modelCommand.handle(["nope"], modelCtx(async () => info));
+    expect(r.dispatch).toBeUndefined();
+    expect(r.error).toContain("unknown model: nope");
+  });
+
+  it("accepts the name when the list cannot be fetched", async () => {
+    const r = await modelCommand.handle(
+      ["model-z"],
+      modelCtx(async () => {
+        throw new Error("down");
+      }),
+    );
+    expect(r.dispatch).toEqual({ kind: "SET_MODEL", model: "model-z" });
+  });
+
+  it("`/model default` clears the model without listing", async () => {
+    const list = vi.fn(async () => info);
+    const r = await modelCommand.handle(["default"], modelCtx(list, "model-b"));
+    expect(r.dispatch).toEqual({ kind: "SET_MODEL", model: null });
+    expect(list).not.toHaveBeenCalled();
   });
 });
 
 describe("/tenant", () => {
   it("dispatches SET_TENANT", async () => {
-    const r = await tenantCommand.handle(["mintral"], mkCtx(new SlashRegistry()));
-    expect(r).toEqual({ dispatch: { kind: "SET_TENANT", tenant: "mintral" } });
+    const r = await tenantCommand.handle(["acme"], mkCtx(new SlashRegistry()));
+    expect(r).toEqual({ dispatch: { kind: "SET_TENANT", tenant: "acme" } });
   });
 
   it("returns usage when called with no args", async () => {

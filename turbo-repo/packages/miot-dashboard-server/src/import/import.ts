@@ -17,7 +17,11 @@
  */
 
 import type { ServerDashboardRef, ServerDashboardStore } from "../seams/store";
-import { refLabel, type LegacyDashboardSource } from "./legacy";
+import {
+  refLabel,
+  type LegacyDashboard,
+  type LegacyDashboardSource,
+} from "./legacy";
 import { migrateConfig } from "./migrate";
 
 export interface ImportOptions {
@@ -92,8 +96,9 @@ export async function importDashboards(
       continue;
     }
 
+    let createdRevision: number;
     try {
-      await store.save(legacy.ref, migrated.config, {
+      const created = await store.save(legacy.ref, migrated.config, {
         // Zero means "expect nothing there". Between the load above and this
         // write another importer, or an editor, may have created it; that has
         // to be a conflict rather than an overwrite of newer work.
@@ -107,6 +112,7 @@ export async function importDashboards(
         // saves again, which is a label rather than a permission.
         updatedBy: legacy.createdBy ?? legacy.updatedBy ?? importedBy,
       });
+      createdRevision = created.revision;
     } catch (error) {
       // The first write, so a failure leaves the store as it was and a re-run
       // retries this dashboard.
@@ -116,27 +122,15 @@ export async function importDashboards(
       continue;
     }
 
-    if (legacy.assignments !== undefined && legacy.assignments.length > 0) {
-      try {
-        // Verbatim, and only once the config is written: a failed save must
-        // not leave permissions behind for a dashboard that is not there.
-        await store.setPermissions(legacy.ref, [...legacy.assignments]);
-      } catch (error) {
-        // The config is in the store and its assignments are not. Left alone,
-        // the next run sees that it exists and skips it forever, so the
-        // estate keeps a dashboard carrying permissions nobody chose while
-        // the report calls it failed. Undo the create, so a re-run is a real
-        // retry rather than a skip.
-        const reason = reasonOf(error);
-        const undone = await undoCreate(store, legacy.ref);
-        const full = undone
-          ? `${reason} — the dashboard was removed again, so a re-run retries it`
-          : `${reason} — AND it could not be removed, so it is in the store ` +
-            "without its assignments and a re-run will skip it";
-        result.failed.push({ ref, reason: full });
-        options.onProgress?.({ msg: "failed", ref, reason: full });
-        continue;
-      }
+    const assignmentFailure = await importAssignments(
+      store,
+      legacy,
+      createdRevision,
+    );
+    if (assignmentFailure !== null) {
+      result.failed.push({ ref, reason: assignmentFailure });
+      options.onProgress?.({ msg: "failed", ref, reason: assignmentFailure });
+      continue;
     }
 
     result.imported.push(ref);
@@ -146,25 +140,36 @@ export async function importDashboards(
   return result;
 }
 
-/**
- * Remove a dashboard this run has just created, and say whether the store is
- * back where it started.
- *
- * Only while it is still the row this run wrote. Revision 1 is a dashboard
- * nobody has touched since the create; anything higher was edited while the
- * assignments were failing, and deleting someone's work to tidy up an import
- * is worse than the state being tidied.
- */
+/** Apply assignments only after creation, undoing the new dashboard on failure. */
+async function importAssignments(
+  store: ServerDashboardStore,
+  legacy: LegacyDashboard,
+  createdRevision: number,
+): Promise<string | null> {
+  if (!legacy.assignments?.length) return null;
+  try {
+    await store.setPermissions(legacy.ref, [...legacy.assignments]);
+    return null;
+  } catch (error) {
+    // Otherwise the next run would skip the created config forever, leaving it
+    // without the permissions the importer chose.
+    const reason = reasonOf(error);
+    const undone = await undoCreate(store, legacy.ref, createdRevision);
+    return undone
+      ? `${reason} — the dashboard was removed again, so a re-run retries it`
+      : `${reason} — AND it could not be removed, so it is in the store ` +
+          "without its assignments and a re-run will skip it";
+  }
+}
+
+/** Roll back only the exact revision this import created, without a read/delete race. */
 async function undoCreate(
   store: ServerDashboardStore,
   ref: ServerDashboardRef,
+  revision: number,
 ): Promise<boolean> {
   try {
-    const current = await store.load(ref);
-    if (current === null) return true;
-    if (current.revision !== 1) return false;
-    await store.remove(ref);
-    return true;
+    return (await store.removeIfRevision?.(ref, revision)) ?? false;
   } catch {
     return false;
   }

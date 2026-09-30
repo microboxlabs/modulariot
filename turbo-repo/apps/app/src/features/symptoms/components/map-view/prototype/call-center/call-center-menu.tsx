@@ -24,7 +24,7 @@ import { useEffect, useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { tr } from "@/features/i18n/tr.service";
-import type { SelectableOption } from "@/features/settings-admin/selectables/types";
+import type { CallRole } from "./call-roles-store";
 import {
   BentoGrid,
   PlainSection,
@@ -70,7 +70,7 @@ export default function CallCenterMenu({
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   onCall: (
-    contact: SelectableOption,
+    contact: CallRole,
     phoneNumber: string,
     personName: string,
     /** Empty for a custom contact — its option name IS the person's name,
@@ -114,7 +114,7 @@ export default function CallCenterMenu({
   // list. Entries without a `bookId` (seeded roles, contacts added before the
   // book existed) keep using their own stored details.
   const bookById = new Map(book.map((c) => [c.id, c]));
-  const linkedContact = (o: SelectableOption) => {
+  const linkedContact = (o: CallRole) => {
     const id = details[o.id]?.bookId;
     return id ? bookById.get(id) : undefined;
   };
@@ -122,7 +122,7 @@ export default function CallCenterMenu({
     (o) => !details[o.id]?.bookId || linkedContact(o)
   );
   const effectiveContact = (
-    o: SelectableOption
+    o: CallRole
   ): { name: string; custom: ContactDetails | undefined } => {
     const b = linkedContact(o);
     if (!b) return { name: o.name, custom: details[o.id] };
@@ -138,7 +138,7 @@ export default function CallCenterMenu({
 
   // Shared by rendering and searching so what you can search for is exactly
   // what the row displays.
-  const describeOption = (option: SelectableOption) => {
+  const describeOption = (option: CallRole) => {
     const isDriver = option.id === options[0]?.id;
     const { name: optionName, custom } = effectiveContact(option);
     const personName = custom
@@ -164,7 +164,7 @@ export default function CallCenterMenu({
     name.toLowerCase().includes(query) ||
     role.toLowerCase().includes(query) ||
     (queryDigits.length > 0 && phone.replace(/\D/g, "").includes(queryDigits));
-  const optionMatches = (o: SelectableOption) => {
+  const optionMatches = (o: CallRole) => {
     const { personName, roleLabel, phone } = describeOption(o);
     return matchesQuery(personName, roleLabel, phone);
   };
@@ -235,7 +235,7 @@ export default function CallCenterMenu({
     );
   };
 
-  const renderContactOption = (option: SelectableOption) => {
+  const renderContactOption = (option: CallRole) => {
     const { custom, personName, roleLabel, phone } = describeOption(option);
     const recentCallAt = recentCallTimes?.[option.id];
     // `recentCallAt` is a real, tracked timestamp regardless of mock mode —
@@ -272,7 +272,7 @@ export default function CallCenterMenu({
   const renderBookContact = (c: BookContact) => {
     const phone = formatChileanPhone(c.phone);
     const methods = c.methods.length > 0 ? c.methods : undefined;
-    const option: SelectableOption = {
+    const option: CallRole = {
       id: c.id,
       name: c.name,
       description: "",

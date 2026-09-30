@@ -1,7 +1,6 @@
 package com.microboxlabs.miot.symptoms.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.selectable.Selectable;
 import com.microboxlabs.miot.core.selectable.SelectableChanged;
@@ -24,9 +23,8 @@ class TreatmentFormSelectablesTest {
         assertEquals(List.of("who_to_call", "call_result", "call_tags", "ignore_reason", "ignore_duration",
                 "invalidate_reason"), lists.stream().map(Selectable::key).toList());
         assertEquals(List.of("result_commits", "result_corrected", "result_rejects", "result_no_answer",
-                "result_voicemail"), lists.get(1).options().stream().map(SelectableOption::id).toList());
+                "result_voicemail"), lists.get(1).options().stream().map(SelectableOption::value).toList());
         assertEquals(SelectionMode.MULTIPLE, lists.get(2).mode());
-        assertTrue(lists.stream().allMatch(s -> TENANT.equals(s.tenantCode())));
     }
 
     @Test

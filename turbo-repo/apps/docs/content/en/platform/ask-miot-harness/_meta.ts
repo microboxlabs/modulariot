@@ -1,6 +1,6 @@
 export default {
   index: 'Overview',
   architecture: 'Architecture',
-  'run-modes': 'Run Modes',
+  models: 'Models',
   authentication: 'Authentication'
 }

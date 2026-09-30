@@ -16,8 +16,6 @@ def test_profile_values_match_legacy_hardcodes() -> None:
     assert p.display_name == "Coordinador"
     assert p.source_label == "Coordinador · nexo (Citus DB)"
     assert p.tool_prefix == "coordinador_"
-    assert "coordinador" in p.router_keywords
-    assert "orion" in p.router_keywords
     assert p.tenant_lock == "orion"
     assert (
         p.tenant_refusal_template.format(

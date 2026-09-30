@@ -58,6 +58,37 @@ version survives a load-validate-save round trip with its fields intact.
 **An unrecognised `version` is refused.** Nothing here migrates a document.
 The current version is `2`.
 
+## Connection-backed queries
+
+The optional `queries` array describes named operations independently of legacy
+`requestPlanner` PostgREST paths. Each `DashboardQueryDefinition` has `id`,
+`variableName`, `connectionId`, `operationId`, `parameters` and optional column
+`schema`. No credential, endpoint or SQL is required in the dashboard document.
+
+```json
+{
+  "id": "costs",
+  "variableName": "costsByService",
+  "connectionId": "billing",
+  "operationId": "cost-summary",
+  "parameters": {
+    "days": { "kind": "literal", "value": 30 },
+    "service": { "kind": "filter", "key": "service", "defaultValue": null }
+  }
+}
+```
+
+Values are finite JSON scalars or flat arrays of scalars, never expressions or
+nested objects. Validation limits documents to 50 queries, identifiers to 128
+characters, string values to 2048 characters, and arrays to 100 values. Existing
+version-2 documents without `queries` remain valid.
+
+This is a document contract, not permission to execute an operation. A supporting
+server must authorize the dashboard, resolve bindings from the saved document,
+validate filter inputs, and enforce execution/result limits. The host must resolve
+the connection within the authorized tenant and apply operation schemas,
+credentials and tenant predicates. Schema validation alone does none of that.
+
 ## Serving the two documents
 
 `openapi.yaml` refers to `dashboard-config.schema.json` by bare filename, so
@@ -79,3 +110,28 @@ schemas, or when the OpenAPI document and the TypeScript vocabulary disagree.
 ## Licence
 
 Apache-2.0.
+
+## Test coverage
+
+Run `npm run test:coverage` in this package to generate `coverage/lcov.info`
+and a coverage summary. The SonarCloud workflow runs both dashboard packages
+and imports these reports; LCOV paths are relative to the `turbo-repo` root.
+
+### Optional query filters
+
+Filter bindings may set `omitWhenEmpty: true` to omit a parameter whose resolved
+value is missing or an empty string. A missing filter first uses `defaultValue`,
+when present; an explicit empty string does not use the default. Null, false, zero,
+empty arrays, whitespace and operator strings are preserved. Existing bindings
+keep their required/default behavior. The host operation schema must allow the
+parameter to be absent; tenant predicates remain host-controlled. Upgrade both
+contract and server to a release containing this option before using it; 0.3.0
+does not implement omission.
+
+## Scope creation eligibility (v0.5.0)
+
+The OpenAPI contract includes `GET /tenants/{tenantId}/scopes/{scopeId}/capabilities`,
+which returns `{ canCreate: boolean }` for an authenticated scope member.
+It describes scope-role and credential eligibility, not authorization for a
+particular document. Saving still applies document policy and validation.
+Embed tokens cannot call this endpoint. Use server v0.5.0 or later to serve it.

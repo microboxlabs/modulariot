@@ -1,106 +1,38 @@
-"""Route-aware tenancy gate (plan 13, E7).
+"""Whether a tenant may read the datasource.
 
-Refactor of plan 12's per-graph `tenant_gate_node` into a single
-decision function shared by `data_graph.py` (DATA_QUERY) and
-`agentic_graph.py` (DATA_AGENTIC). DATA_META is allowed for any
-authenticated tenant — meta-info is non-confidential.
-
-The decision function is pure (no I/O, no LLM call) so the graphs can
-embed it cheaply inside their entry-point node.
-
-This is the "generalized for plan 14" piece: future tenant locks (AMS,
-etc.) wire in here by extending the `_DATA_ROUTES` allowlist or
-replacing the gate with a `TenancyPolicy` strategy.
+A datasource can be locked to one tenant. Every tenant still talks to the
+model; for the others the datasource tools refuse.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 from miot_harness.config import HarnessSettings
 from miot_harness.datasource.provider import DataSourceProfile
-from miot_harness.runtime.context import HarnessContext
-from miot_harness.runtime.router import HarnessRoute
-
-# Routes that touch tenant DATA (must match the tenant lock).
-_DATA_ROUTES: frozenset[HarnessRoute] = frozenset(
-    {HarnessRoute.DATA_QUERY, HarnessRoute.DATA_AGENTIC}
-)
-
-# Routes that return non-confidential meta information (allow any tenant).
-_META_ROUTES: frozenset[HarnessRoute] = frozenset({HarnessRoute.DATA_META})
 
 
-@dataclass(frozen=True, slots=True)
-class TenancyDecision:
-    """Result of the gate check.
-
-    - `allowed=True` with `audit_attr=None`: standard pass.
-    - `allowed=True` with `audit_attr` set: pass for an off-lock tenant
-      via a non-data route — the audit attr lets Langfuse spot these.
-    - `allowed=False`: caller must short-circuit with `refusal_message`.
-    """
-
-    allowed: bool
-    refusal_message: str | None = None
-    audit_attr: dict[str, str] | None = None
-
-
-def tenancy_gate_decision(
+def data_refusal(
+    tenant_id: str,
     *,
-    ctx: HarnessContext,
-    route: HarnessRoute,
     settings: HarnessSettings,
-    profile: DataSourceProfile | None = None,
-) -> TenancyDecision:
-    """Evaluate tenancy for *route* and return a :class:`TenancyDecision`.
+    profile: DataSourceProfile | None,
+    connection_lock: str | None = None,
+) -> str | None:
+    """None when the tenant may read the datasource, else the refusal to show.
 
-    Effective lock = the env override when set, else the profile's lock:
-
-        ``settings.datasource_tenant_lock or profile.tenant_lock``
-
-    When both are None (no override, no/None-lock profile) the gate
-    behaves as "no lock" — every tenant matches and data routes are
-    allowed.
+    Two locks apply and both must match: the one the primary connection
+    declares (`connection_lock`), and the env override or the profile's own
+    (`MIOT_HARNESS_DATASOURCE_TENANT_LOCK`, else `profile.tenant_lock`). An
+    unset lock matches every tenant.
     """
-    lock = settings.datasource_tenant_lock or (
+
+    profile_lock = settings.datasource_tenant_lock or (
         profile.tenant_lock if profile is not None else None
     )
-    tenant_matches = lock is None or ctx.tenant_id == lock
-
-    if route in _DATA_ROUTES:
-        if tenant_matches:
-            return TenancyDecision(allowed=True)
-        if profile is not None:
-            refusal = profile.tenant_refusal_template.format(
+    for lock in (connection_lock, profile_lock):
+        if lock and tenant_id != lock:
+            if profile is None:
+                return f"This datasource is {lock}-only. I can't read it for other tenants."
+            return profile.tenant_refusal_template.format(
                 display_name=profile.display_name, lock=lock
             )
-        else:
-            refusal = (
-                f"This datasource is {lock}-only. I can't answer for other tenants."
-            )
-        return TenancyDecision(
-            allowed=False,
-            refusal_message=refusal,
-        )
-
-    if route in _META_ROUTES:
-        # Always allowed; emit an audit attribute when the tenant is
-        # off-lock so the Langfuse panel can spot "meta route used for
-        # non-locked tenant" patterns.
-        if tenant_matches:
-            return TenancyDecision(allowed=True)
-        return TenancyDecision(
-            allowed=True,
-            audit_attr={"tenant.bypass": "meta_route"},
-        )
-
-    # Unknown / out-of-scope routes: safe-default to refuse for non-lock
-    # tenants so a future route added without thinking about tenancy
-    # can't accidentally leak.
-    if tenant_matches:
-        return TenancyDecision(allowed=True)
-    return TenancyDecision(
-        allowed=False,
-        refusal_message=f"Route {route!s} is not available for tenant {ctx.tenant_id!r}.",
-    )
+    return None

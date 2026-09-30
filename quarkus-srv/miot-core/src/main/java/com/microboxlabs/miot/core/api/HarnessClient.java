@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.api;
 
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.POST;
@@ -19,9 +20,11 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
  * binding name matches {@code quarkus.rest-client."harness".url}.
  *
  * <p>{@link HarnessProxyResource} forwards the caller's Auth0 bearer
- * token plus four {@code X-Miot-*} identity headers verbatim:
+ * token plus {@code X-Miot-*} identity headers verbatim:
  * tenant-client-id (from {@code TenantContext}), user-email (web flow
- * only), and auth-mode ({@code "web"} vs {@code "m2m"}).
+ * only), and auth-mode ({@code "web"} vs {@code "m2m"}). Runs also carry
+ * the organization's slug, which the harness's MCP skills name in their
+ * calls back to this API.
  *
  * <p>Methods return {@code Uni<Response>} so upstream status codes
  * (notably 202 from {@code /runs:start}) propagate to the caller
@@ -39,6 +42,7 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode,
+            @HeaderParam("X-Miot-Organization") String organization,
             Map<String, Object> body);
 
     @POST
@@ -48,7 +52,20 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode,
+            @HeaderParam("X-Miot-Organization") String organization,
             Map<String, Object> body);
+
+    /** The caller's running and recent runs, as summaries. */
+    @GET
+    @Path("/runs")
+    Uni<Response> listRuns(
+            @QueryParam("conversation_id") String conversationId,
+            @QueryParam("status") String status,
+            @QueryParam("limit") Integer limit,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
 
     @GET
     @Path("/runs/{runId}")
@@ -68,6 +85,18 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode);
 
+    /** Approves or rejects a call a run is waiting on. */
+    @POST
+    @Path("/runs/{runId}/approvals/{approvalId}")
+    Uni<Response> resolveApproval(
+            @PathParam("runId") String runId,
+            @PathParam("approvalId") String approvalId,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode,
+            Map<String, Object> body);
+
     @GET
     @Path("/skills")
     Uni<Response> listSkills(
@@ -86,6 +115,15 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode);
 
+    /** {@link #listModels} read as JSON, for a caller that changes the answer. */
+    @GET
+    @Path("/models")
+    Uni<Map<String, Object>> listModelsJson(
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
+
     /**
      * Writes a human-approved business fact as a connection-scoped knowledge card
      * (the semantic-layer learning loop's APPLY seam). The harness resolves the
@@ -96,6 +134,46 @@ public interface HarnessClient {
     @Path("/connections/{connection}/knowledge")
     Uni<Response> writeConnectionKnowledge(
             @PathParam("connection") String connection,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode,
+            Map<String, Object> body);
+
+    /** The connections the caller's tenant may keep knowledge cards on. */
+    @GET
+    @Path("/knowledge/connections")
+    Uni<Response> listKnowledgeConnections(
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
+
+    /** The approved knowledge cards attached to a connection. */
+    @GET
+    @Path("/connections/{connection}/knowledge")
+    Uni<Response> listConnectionKnowledge(
+            @PathParam("connection") String connection,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
+
+    /** Removes one knowledge card from a connection. */
+    @DELETE
+    @Path("/connections/{connection}/knowledge/{cardId}")
+    Uni<Response> deleteConnectionKnowledge(
+            @PathParam("connection") String connection,
+            @PathParam("cardId") String cardId,
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode);
+
+    /** A short title for a chat thread, from its first exchange. */
+    @POST
+    @Path("/titles")
+    Uni<Response> createTitle(
             @HeaderParam("Authorization") String authorization,
             @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
             @HeaderParam("X-Miot-User-Email") String userEmail,

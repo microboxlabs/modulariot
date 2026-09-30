@@ -139,6 +139,28 @@ def test_callback_infers_openai_provider_from_model_name(
     assert attrs["gen_ai.request.model"] == "gpt-4o-mini"
 
 
+def test_callback_names_an_unrecognised_client_by_its_billed_provider(
+    memory_exporter: InMemorySpanExporter,
+) -> None:
+    cb = AgentTelemetryCallback(agent_name="agent_loop", run_id="root-6")
+    rid = uuid4()
+    serialized = {
+        "id": ["langchain_deepseek", "chat_models", "ChatDeepSeek"],
+        "kwargs": {"model": "deepseek-v4-flash"},
+        "name": "ChatDeepSeek",
+    }
+    cb.on_chat_model_start(
+        serialized,
+        [[HumanMessage(content="x")]],
+        run_id=rid,
+        metadata={"miot_provider": "llmgateway", "miot_model": "deepseek-v4-flash"},
+    )
+    cb.on_llm_end(_llm_result(input_tokens=5, output_tokens=2), run_id=rid)
+
+    attrs = dict(memory_exporter.get_finished_spans()[0].attributes)
+    assert attrs["gen_ai.system"] == "llmgateway"
+
+
 def test_callback_span_prefix_overrides_default(
     memory_exporter: InMemorySpanExporter,
 ) -> None:

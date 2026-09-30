@@ -6,6 +6,7 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -84,6 +85,18 @@ public class DashboardProxyResource {
                               Map<String, Object> body) {
         return DashboardProxySupport.passThrough(dashboards.save(
                 support.tenantIdFor(slug), support.scopeIdFor(), dashboard, authorization, ifMatch,
+                support.assertionFor(slug, authorization), body));
+    }
+
+    @POST
+    @Path("/{dashboard}/queries/{query}")
+    public Uni<Response> query(@PathParam("slug") String slug,
+                               @PathParam("dashboard") String dashboard,
+                               @PathParam("query") String query,
+                               @HeaderParam("Authorization") String authorization,
+                               Map<String, Object> body) {
+        return DashboardProxySupport.passThrough(dashboards.query(
+                support.tenantIdFor(slug), support.scopeIdFor(), dashboard, query, authorization,
                 support.assertionFor(slug, authorization), body));
     }
 

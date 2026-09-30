@@ -4,8 +4,9 @@ import jakarta.enterprise.context.RequestScoped;
 
 /**
  * Holds the resolved organization for the current request.
- * Populated by OrganizationRequestFilter from the URL path ({organizationId}).
- * Only set for org-scoped endpoints: /api/v1/orgs/{organizationId}/...
+ * Filled by {@link OrganizationAccess}: for the org-scoped endpoints
+ * (/api/v1/orgs/{organizationId}/...) from the path, and for the MCP tools
+ * from the organization they name.
  */
 @RequestScoped
 public class OrganizationContext {

@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.33</version>
+        <version>0.5.34</version>
     </parent>
 
     <artifactId>miot-integrations</artifactId>
@@ -15,6 +15,10 @@
     <description>Reusable integration connections, credential profiles, and auth resolution</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+        </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-core</artifactId>
@@ -30,6 +34,11 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <!-- A connection list's answers are kept a minute, in a bounded cache. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-caffeine</artifactId>
         </dependency>
         <!-- Background knowledge distiller (R3): a @Scheduled reconciler that
              calls the harness /distill endpoint (a REST client) off the request

@@ -41,7 +41,7 @@ export function DashletSettings({
   const handleSave = () => {
     onSave({
       layout,
-      title: title.trim() || "Untitled",
+      title: title.trim(),
       description: description.trim() || "",
     });
     onClose();

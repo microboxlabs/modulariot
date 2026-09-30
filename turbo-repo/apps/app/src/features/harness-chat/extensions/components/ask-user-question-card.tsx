@@ -6,6 +6,7 @@ import { Checkbox, Radio } from "flowbite-react";
 import { twMerge } from "tailwind-merge";
 import type { AskUserQuestionArgs, AskUserQuestionResult } from "../ask-user-question";
 import { useHarnessChatTr } from "../../context/harness-chat-i18n-context";
+import { useHarnessReadOnly } from "../../context/harness-read-only-context";
 
 const OTHER_VALUE = "__other__";
 
@@ -49,6 +50,7 @@ export const AskUserQuestionCard: FC<
   ToolCallMessagePartProps<AskUserQuestionArgs, AskUserQuestionResult>
 > = ({ args, result, isError, addResult }) => {
   const tr = useHarnessChatTr();
+  const readOnly = useHarnessReadOnly();
   // Scopes this card's radios to their own native group — see OptionSelector.
   const groupName = useId();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -79,6 +81,22 @@ export const AskUserQuestionCard: FC<
         <p className="font-medium text-gray-700 dark:text-gray-200">{args.question}</p>
         <p className="mt-1 text-gray-500 dark:text-gray-400">
           {answer || tr("harnessChat.ui.askUserQuestion.noAnswer")}
+        </p>
+      </div>
+    );
+  }
+
+  if (readOnly) {
+    return (
+      <div className="w-full rounded-lg border border-gray-200 bg-white p-3 text-xs dark:border-gray-700 dark:bg-gray-800">
+        <p className="font-medium text-gray-700 dark:text-gray-200">{args.question}</p>
+        <ul className="mt-1 list-disc pl-4 text-gray-500 dark:text-gray-400">
+          {args.options.map((option) => (
+            <li key={option.label}>{option.label}</li>
+          ))}
+        </ul>
+        <p className="mt-1 italic text-gray-400 dark:text-gray-500">
+          {tr("harnessChat.ui.askUserQuestion.noAnswer")}
         </p>
       </div>
     );

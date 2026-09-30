@@ -18,15 +18,11 @@ def _supervisor(**kw: object) -> HarnessSupervisor:
     import tempfile
     from pathlib import Path
 
-    from miot_harness.runtime.router import IntentRouter
     from miot_harness.runtime.run_store import JsonRunStore
-    from miot_harness.storytelling.module import StorytellingModule
     from miot_harness.tools.registry import ToolRegistry
 
     return HarnessSupervisor(
-        router=IntentRouter(),
         tools=ToolRegistry(),
-        stories=StorytellingModule(),
         run_store=JsonRunStore(Path(tempfile.mkdtemp())),
         **kw,
     )

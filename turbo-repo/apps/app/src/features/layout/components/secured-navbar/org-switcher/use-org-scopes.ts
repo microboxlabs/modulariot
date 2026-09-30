@@ -1,5 +1,8 @@
 "use client";
 
+import { confirmNavigation } from "@/features/common/hooks/use-unsaved-navigation";
+
+
 import useSWR from "swr";
 
 interface OrgScopeItem {
@@ -56,6 +59,7 @@ export function useOrgScopes() {
   );
 
   const switchOrg = async (slug: string) => {
+    if (!confirmNavigation()) return;
     let response: Response;
     try {
       response = await fetch("/app/api/user/active-org", {

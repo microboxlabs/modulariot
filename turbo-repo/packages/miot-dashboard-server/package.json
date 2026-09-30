@@ -1,6 +1,6 @@
 {
   "name": "@microboxlabs/miot-dashboard-server",
-  "version": "0.2.0",
+  "version": "0.5.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -61,6 +61,10 @@
     "./vault-http": {
       "types": "./dist/vault-http.d.ts",
       "import": "./dist/vault-http.js"
+    },
+    "./queries": {
+      "types": "./dist/queries.d.ts",
+      "import": "./dist/queries.js"
     }
   },
   "bin": {
@@ -79,10 +83,11 @@
     "test:api": "npm --prefix rest-api run test:api",
     "lint": "eslint .",
     "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
-    "guard": "node scripts/guard-imports.mjs"
+    "guard": "node scripts/guard-imports.mjs",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@microboxlabs/miot-dashboard-contract": "^0.2.0"
+    "@microboxlabs/miot-dashboard-contract": "^0.5.0"
   },
   "peerDependencies": {
     "jose": "^6.0.0",
@@ -112,6 +117,7 @@
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "@types/node": "^20.19.0",
+    "@vitest/coverage-v8": "^5.0.0",
     "jose": "^6.2.10",
     "swagger-ui-dist": "^5.32.14",
     "tsup": "^8.0.0",

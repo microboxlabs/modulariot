@@ -27,6 +27,19 @@ export function flyTo(
   mapRef.flyTo(flyToOptions);
 }
 
+// Recenters the map on a point while keeping the user's current zoom, pitch
+// and bearing — used to follow a moving element without zooming into it.
+export function panTo(
+  mapRef: MapRef,
+  coordinates: [number, number],
+  duration: number = 300
+) {
+  mapRef.easeTo({
+    center: [coordinates[0], coordinates[1]] as [number, number],
+    duration,
+  });
+}
+
 export function center_in_bounds(
   data: { longitude: number; latitude: number }[],
   mapRef: MapRef,

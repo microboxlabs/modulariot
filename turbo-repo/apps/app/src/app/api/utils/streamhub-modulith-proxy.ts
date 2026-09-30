@@ -5,6 +5,7 @@ import type { Session } from "next-auth";
 import { getSharedAuthToken } from "@/app/api/utils/streamhub-api-client";
 import { proxyToUpstream } from "@/app/api/utils/upstream-proxy";
 import { modulithHost } from "@/lib/modulith-host";
+import { sessionAuthHeader } from "@/features/auth/services/session-auth";
 
 /**
  * Proxy to the StreamHub-facing modulith API (GPS webhooks and future GPS
@@ -68,10 +69,7 @@ async function buildHeaders(session: Session): Promise<Record<string, string>> {
     return headers;
   }
 
-  const token = session.user?.rawJWT ?? session.user?.ticket;
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+  Object.assign(headers, sessionAuthHeader(session));
   if (session.user?.email) {
     headers["X-Dev-User-Email"] = session.user.email;
   }

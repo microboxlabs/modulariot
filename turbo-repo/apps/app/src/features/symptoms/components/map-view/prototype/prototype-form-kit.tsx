@@ -15,7 +15,8 @@ import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/rout
 import { tr } from "@/features/i18n/tr.service";
 import { useSelectables } from "@/features/settings-admin/selectables/store";
 import { useFieldSelectableBinding } from "@/features/settings-admin/selectables/field-bindings";
-import type { SelectableOption } from "@/features/settings-admin/selectables/types";
+import { pickText } from "@/features/settings-admin/selectables/localized";
+import type { Selectable } from "@/features/settings-admin/selectables/types";
 import BrandedMultiSelect from "@/features/task-forms/components/task-confirm-modal/branded-multi-select";
 import { BsStars } from "react-icons/bs";
 import { useFieldEditorMode } from "./call-center/field-editor-mode";
@@ -27,6 +28,46 @@ import { useFieldEditorMode } from "./call-center/field-editor-mode";
  * the "tarjetas" (cards-with-hints, scrolling body) variant was tried and
  * dropped in favor of this.
  */
+
+/** An option as the treatment forms use it: `id` is the stored value. */
+export interface FormOption {
+  id: string;
+  name: string;
+  description: string;
+}
+
+/** A selectable reduced to what the treatment forms need, in one language. */
+interface FormSelectable {
+  id: string;
+  name: string;
+  mode: "single" | "multiple";
+  options: FormOption[];
+}
+
+function toFormSelectable(s: Selectable, lang: string): FormSelectable {
+  return {
+    id: s.key,
+    name: pickText(s.name, lang),
+    mode: s.mode === "MULTIPLE" ? "multiple" : "single",
+    options: s.options.map((o) => ({
+      id: o.value,
+      name: pickText(o.label, lang),
+      description: pickText(o.description, lang),
+    })),
+  };
+}
+
+const SELECTABLES_FAILED = "No se pudieron guardar las listas";
+
+function useFormSelectables(): FormSelectable[] {
+  const { lang } = useParams<{ lang: string }>();
+  const { selectables } = useSelectables(SELECTABLES_FAILED);
+  return selectables.map((s) => toFormSelectable(s, lang ?? "es"));
+}
+
+function useBinding(fieldKey: string) {
+  return useFieldSelectableBinding(fieldKey, SELECTABLES_FAILED);
+}
 
 export const fieldLabel =
   "block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1";
@@ -111,8 +152,8 @@ export function SelectableFieldControl({
   dict: I18nRecord;
 }) {
   const { lang } = useParams<{ lang: string }>();
-  const { selectables } = useSelectables();
-  const [boundId, setBoundId] = useFieldSelectableBinding(fieldKey);
+  const selectables = useFormSelectables();
+  const [boundId, setBoundId] = useBinding(fieldKey);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -218,8 +259,8 @@ export function SelectableFieldControl({
  *  `SelectableFieldControl`) — lets a field's own dropdown and its submit
  *  logic (e.g. "is the first option picked?") read the same live list. */
 export function useSelectableOptions(fieldKey: string) {
-  const { selectables } = useSelectables();
-  const [boundId] = useFieldSelectableBinding(fieldKey);
+  const selectables = useFormSelectables();
+  const [boundId] = useBinding(fieldKey);
   const selectable = selectables.find((s) => s.id === boundId) ?? null;
   return { selectable, options: selectable?.options ?? [] };
 }
@@ -247,9 +288,9 @@ export function OptionsDropdown({
   className,
   triggerBorderClassName = dropdownDefaultBorderClass,
 }: {
-  options: SelectableOption[];
+  options: FormOption[];
   value: string;
-  onSelect: (option: SelectableOption) => void;
+  onSelect: (option: FormOption) => void;
   placeholder: string;
   emptyLabel: string;
   className?: string;
@@ -329,7 +370,7 @@ export function SelectableDropdown({
   fieldKey: string;
   dict: I18nRecord;
   value: string;
-  onSelect: (option: SelectableOption) => void;
+  onSelect: (option: FormOption) => void;
   placeholder?: string;
   /** Overrides the trigger's resting border color (both the single-pick
    *  dropdown and the multi-select land on the same visual). */

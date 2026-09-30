@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.33</version>
+        <version>0.5.34</version>
     </parent>
 
     <artifactId>miot-cli</artifactId>
@@ -77,6 +77,11 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

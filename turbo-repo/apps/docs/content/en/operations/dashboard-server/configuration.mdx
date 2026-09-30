@@ -78,3 +78,16 @@ The `MIOT_DASHBOARD_JWT_*`, `MIOT_DASHBOARD_TICKET_*`, `MIOT_DASHBOARD_TENANTS_*
 | `MIOT_DASHBOARD_INSECURE_AUTH` | Takes the identity from the `x-dev-user` and `x-dev-groups` headers without verifying it |
 
 Only works when listening on `localhost`. The server refuses to start with it when `HOST` is another address, when `NODE_ENV` is `production`, or when JWT or ticket variables are also set.
+
+## Saved connection operations
+
+Configure `MIOT_DASHBOARD_OPERATIONS_URL` to enable saved-query execution in the standalone pod. It delegates to the host connection catalog using `MIOT_DASHBOARD_PROXY_KEY`; no credentials catalog is needed in this server. Queries remain disabled when the URL is absent. The endpoint must use HTTPS (loopback is allowed for local validation). Set `MIOT_DASHBOARD_OPERATIONS_ALLOW_HTTP=true` only for a trusted private-network host. `MIOT_DASHBOARD_OPERATIONS_TIMEOUT` sets a deadline of 1–20000 milliseconds, default 20000. Authentication must verify identities; insecure header authentication cannot be combined with the proxy key.
+
+
+## Portable operation modules
+
+Set `MIOT_DASHBOARD_OPERATIONS_MODULE` to an absolute `.mjs`, `.js` or `.cjs` file path installed by the operator. Export `createDashboardOperations()` from that file; it may be async and must return a `DashboardOperationExecutor`. The CLI loads it once before opening storage or listening, then passes it through the normal authenticated saved-query service.
+
+Use this to assemble the portable TypeScript BigQuery executor with your authorized catalog and credential resolver, without a remote Java execution service. Keep identity, tenancy and scope configuration enabled. The module needs no proxy key unless another configured adapter uses one.
+
+Module files are trusted application code with the server's privileges. Mount them read-only and manage them through deployment review. Never derive the module path from a dashboard, viewer input or a remote URL. `MIOT_DASHBOARD_OPERATIONS_MODULE` and `MIOT_DASHBOARD_OPERATIONS_URL` are mutually exclusive. Invalid modules fail startup with a generic diagnostic that does not disclose factory errors or credentials.

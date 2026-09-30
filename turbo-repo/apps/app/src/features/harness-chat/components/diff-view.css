@@ -1,0 +1,51 @@
+.miot-diff {
+  --diff-background-color: #ffffff;
+  --diff-text-color: #1f2937;
+  --diff-font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --diff-gutter-insert-background-color: #d1fae5;
+  --diff-gutter-delete-background-color: #fee2e2;
+  --diff-code-insert-background-color: #ecfdf5;
+  --diff-code-delete-background-color: #fef2f2;
+  --diff-code-insert-edit-background-color: #a7f3d0;
+  --diff-code-delete-edit-background-color: #fecaca;
+  --diff-selection-background-color: #bfdbfe;
+  --diff-omit-gutter-line-color: #d1d5db;
+}
+
+.dark .miot-diff {
+  --diff-background-color: #111827;
+  --diff-text-color: #e5e7eb;
+  --diff-gutter-insert-background-color: rgb(6 78 59 / 0.55);
+  --diff-gutter-delete-background-color: rgb(127 29 29 / 0.55);
+  --diff-code-insert-background-color: rgb(6 78 59 / 0.3);
+  --diff-code-delete-background-color: rgb(127 29 29 / 0.3);
+  --diff-code-insert-edit-background-color: rgb(16 185 129 / 0.4);
+  --diff-code-delete-edit-background-color: rgb(239 68 68 / 0.4);
+  --diff-selection-background-color: rgb(30 64 175 / 0.6);
+  --diff-omit-gutter-line-color: #4b5563;
+}
+
+.miot-diff .diff-gutter {
+  color: #9ca3af;
+  cursor: default;
+}
+
+.miot-diff .diff-gutter-col {
+  width: 5ch;
+}
+
+.miot-diff .diff-decoration-content {
+  font-family: inherit;
+}
+
+.miot-diff-nowrap .diff {
+  table-layout: auto;
+  width: max-content;
+  min-width: 100%;
+}
+
+.miot-diff-nowrap .diff-code {
+  white-space: pre;
+  word-break: normal;
+  word-wrap: normal;
+}

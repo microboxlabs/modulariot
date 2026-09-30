@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.service;
 
 import com.microboxlabs.miot.integrations.domain.CredentialProfile;
+import com.microboxlabs.miot.integrations.domain.ConnectionStatus;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
 import com.microboxlabs.miot.integrations.persistence.CredentialProfileRepository;
@@ -68,6 +69,15 @@ public class IntegrationConnectionResolver {
                     "Connection " + connectionId + " does not exist for this organization");
         }
         return withCredential(tenantCode, connection, "connection " + connectionId);
+    }
+
+    /** Resolves one ACTIVE tenant-owned snapshot for dashboard execution. */
+    public ResolvedConnection resolveActive(String tenantCode, String connectionId) {
+        IntegrationConnection connection = connectionRepository.findByTenantAndId(tenantCode, connectionId);
+        if (connection == null || connection.status() != ConnectionStatus.ACTIVE) {
+            throw new ConnectionResolutionException("No active connection for this organization");
+        }
+        return withCredential(tenantCode, connection, "dashboard connection");
     }
 
     /**

@@ -24,7 +24,7 @@ import { useEffect, useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
-import type { SelectableOption } from "@/features/settings-admin/selectables/types";
+import type { CallRole } from "./call-roles-store";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
 import PrototypeCallDriver, {
   type CallFormDraft,
@@ -51,7 +51,7 @@ export type CallCenterReportedStep = Step | "calling";
  *  its place entirely), so nothing captured here can live in this
  *  component's own state — it has to survive one level up. */
 export type CallSnapshot = {
-  contact: SelectableOption | null;
+  contact: CallRole | null;
   personName: string;
   role: string;
   phone: string;
@@ -108,7 +108,7 @@ export default function PrototypeCallCenterFlow({
 }) {
   const [step, setStep] = useState<Step>(resumeSnapshot ? "form" : "contacts");
   const [dialingStarted, setDialingStarted] = useState(false);
-  const [activeContact, setActiveContact] = useState<SelectableOption | null>(
+  const [activeContact, setActiveContact] = useState<CallRole | null>(
     resumeSnapshot?.contact ?? null
   );
   const [activePersonName, setActivePersonName] = useState(
@@ -139,7 +139,7 @@ export default function PrototypeCallCenterFlow({
   }, [step, dialingStarted]);
 
   const handleCall = (
-    contact: SelectableOption,
+    contact: CallRole,
     phone: string,
     personName: string,
     role: string,

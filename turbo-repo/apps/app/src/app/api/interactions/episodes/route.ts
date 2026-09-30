@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "../../utils/alfresco-crud-client";
 import { resolveTenantScope } from "../../utils/tenant-scope";
 import { recordEpisode, type EpisodeBody } from "./record-episode";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
 /**
  * Relays a client-observed interaction signal (a clicked spotlight result, a
@@ -22,8 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_episode" }, { status: 400 });
   }
 
-  const token =
-    authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? undefined;
+  const token = sessionToken(authResult.session);
 
   await recordEpisode({
     orgSlug: scopeResult.scope.activeOrg.slug,

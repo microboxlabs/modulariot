@@ -17,16 +17,23 @@ scoped to a *different* tenant are filtered out.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
 from miot_harness.context_skills.models import SystemContext
 from miot_harness.context_skills.skill_models import (
     LoadedSkill,
     PlaybookSkill,
     SkillSummary,
 )
+from miot_harness.datasource.catalog import CatalogEntry
+
+if TYPE_CHECKING:
+    from miot_harness.context_skills.mcp_skills import McpSkills
+    from miot_harness.knowledge.changes import KnowledgeChange
+    from miot_harness.knowledge.tenant_overlays import TenantOverlays
+    from miot_harness.runtime.context import HarnessContext
 
 
 @dataclass(frozen=True)
@@ -57,9 +64,14 @@ class ContextSkillsBundle:
         self,
         contexts: tuple[SystemContext, ...] = (),
         playbook_skills: tuple[LoadedSkill, ...] = (),
+        mcp: McpSkills | None = None,
+        overlays: TenantOverlays | None = None,
     ) -> None:
         self.contexts = contexts
         self.playbook_skills = playbook_skills
+        self.mcp = mcp
+        # Tenant rules and skills trainers write, read live per run.
+        self.overlays = overlays
 
     # ---- primer -----------------------------------------------------------
 
@@ -87,11 +99,11 @@ class ContextSkillsBundle:
 
     # ---- facts (meta catalog) --------------------------------------------
 
-    def facts_for(self, tenant_id: str) -> list[MetaAgentCatalogEntry]:
+    def facts_for(self, tenant_id: str) -> list[CatalogEntry]:
         """Global ∪ tenant facts as meta-catalog rows; tenant overrides
         global on fact name. Plus a compact 'available skills' index so
         'what can you do?' is answered from the playbook set."""
-        chosen: dict[str, MetaAgentCatalogEntry] = {}
+        chosen: dict[str, CatalogEntry] = {}
         chosen_tenant: dict[str, bool] = {}
         for ctx in self._by_priority(self.contexts):
             if not _is_for_tenant(ctx.scope.kind, ctx.scope.tenant_id, tenant_id):
@@ -104,7 +116,7 @@ class ContextSkillsBundle:
                 # higher-priority global still replaces a lower-priority one.
                 if chosen_tenant.get(fact.name) and not tenant_scoped:
                     continue
-                chosen[fact.name] = MetaAgentCatalogEntry(
+                chosen[fact.name] = CatalogEntry(
                     name=fact.name,
                     layer=fact.layer,
                     title=fact.title or fact.name,
@@ -115,13 +127,14 @@ class ContextSkillsBundle:
         rows.extend(self._skill_index_rows(tenant_id))
         return rows
 
-    def _skill_index_rows(self, tenant_id: str) -> list[MetaAgentCatalogEntry]:
-        rows: list[MetaAgentCatalogEntry] = []
-        for loaded in self.playbooks_for(tenant_id):
+    def _skill_index_rows(self, tenant_id: str) -> list[CatalogEntry]:
+        # Learned skills have their own per-run block (TenantOverlays.skills_block).
+        rows: list[CatalogEntry] = []
+        for loaded in self.playbooks_for(tenant_id, learned=False):
             skill = loaded.skill
             assert isinstance(skill, PlaybookSkill)  # playbooks_for guarantees
             rows.append(
-                MetaAgentCatalogEntry(
+                CatalogEntry(
                     name=f"skill:{skill.id}",
                     layer="skill",
                     title=skill.name,
@@ -133,9 +146,18 @@ class ContextSkillsBundle:
     # ---- playbooks --------------------------------------------------------
 
     def playbooks_for(
-        self, tenant_id: str, *, connection: str | None = None
+        self,
+        tenant_id: str,
+        *,
+        connection: str | None = None,
+        overlay: Sequence[KnowledgeChange] = (),
+        learned: bool = True,
     ) -> list[LoadedSkill]:
         """Playbooks the tenant can see (global ∪ tenant, tenant wins).
+
+        `learned` adds the tenant's learned skills (read live, with the run's
+        `overlay` applied); they win over a same-id skill. Leave them out of
+        anything cached for the process, like the system prompt's index.
 
         `connection` narrows the set to playbooks this connection may
         actually follow: an unbound playbook is for everyone, a bound one
@@ -145,7 +167,10 @@ class ContextSkillsBundle:
         """
         chosen: dict[str, LoadedSkill] = {}
         chosen_tenant: dict[str, bool] = {}
-        for loaded in self._by_priority_skills(self.playbook_skills):
+        skills = self._by_priority_skills(self.playbook_skills)
+        if learned and self.overlays is not None:
+            skills.extend(self.overlays.skills(tenant_id, overlay))
+        for loaded in skills:
             skill = loaded.skill
             if not isinstance(skill, PlaybookSkill):
                 continue
@@ -203,7 +228,12 @@ class ContextSkillsBundle:
         return sorted(summaries, key=lambda s: s.name.lower())
 
     def activate_skill(
-        self, tenant_id: str, skill_id: str, *, connection: str | None = None
+        self,
+        tenant_id: str,
+        skill_id: str,
+        *,
+        connection: str | None = None,
+        overlay: Sequence[KnowledgeChange] = (),
     ) -> tuple[str, str] | None:
         """Resolve a skill the tenant can see to ``(name, body)`` for
         injection into a run, or ``None`` when unknown or bodyless.
@@ -217,11 +247,39 @@ class ContextSkillsBundle:
         loop's `load_skill`) cannot be talked into loading a playbook it
         never offered by a guessed id.
         """
-        for loaded in self.playbooks_for(tenant_id, connection=connection):
+        for loaded in self.playbooks_for(tenant_id, connection=connection, overlay=overlay):
             skill = loaded.skill
             assert isinstance(skill, PlaybookSkill)  # playbooks_for guarantees
             if skill.id == skill_id and loaded.playbook_body:
                 return skill.name, loaded.playbook_body
+        return None
+
+    async def activate_skill_for_run(
+        self, ctx: HarnessContext, skill_id: str, *, connection: str | None = None
+    ) -> tuple[str, str] | None:
+        """`activate_skill` for a run: an MCP skill's body also lists its
+        server's tools, fetched with the run caller's token."""
+        overlay = ctx.knowledge_overlay
+        skill = self.find_mcp_skill(ctx.tenant_id, skill_id, connection=connection)
+        if skill is None or self.mcp is None:
+            return self.activate_skill(
+                ctx.tenant_id, skill_id, connection=connection, overlay=overlay
+            )
+        activated = self.activate_skill(
+            ctx.tenant_id, skill_id, connection=connection, overlay=overlay
+        )
+        body = activated[1] if activated is not None else ""
+        tools = await self.mcp.describe(skill, ctx)
+        return skill.name, f"{body}\n\n{tools}".strip()
+
+    def find_mcp_skill(
+        self, tenant_id: str, skill_id: str, *, connection: str | None = None
+    ) -> PlaybookSkill | None:
+        """The tenant's skill with this id, if it names an MCP server."""
+        for loaded in self.playbooks_for(tenant_id, connection=connection):
+            skill = loaded.skill
+            if isinstance(skill, PlaybookSkill) and skill.id == skill_id and skill.mcp:
+                return skill
         return None
 
     # ---- helpers ----------------------------------------------------------

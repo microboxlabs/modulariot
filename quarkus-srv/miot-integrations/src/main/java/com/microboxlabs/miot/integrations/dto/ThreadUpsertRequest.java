@@ -8,10 +8,17 @@ import java.time.OffsetDateTime;
  * before the row exists. Re-posting an existing id is not an error: the panel
  * creates a thread lazily on the first message and may retry.
  *
- * <p>{@code expiresAt} null means the thread never expires.
+ * <p>{@code expiresAt} null means the thread never expires. {@code kind} is
+ * {@code chat} (the default) or {@code learning}, and only counts when the
+ * thread is created.
  */
 public record ThreadUpsertRequest(
         String id,
         String title,
-        OffsetDateTime expiresAt) {
+        OffsetDateTime expiresAt,
+        String kind) {
+
+    public ThreadUpsertRequest(String id, String title, OffsetDateTime expiresAt) {
+        this(id, title, expiresAt, null);
+    }
 }

@@ -2,7 +2,10 @@ package com.microboxlabs.miot.integrations.api;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.permission.OrganizationPermissionDefinition;
+import com.microboxlabs.miot.core.permission.OrganizationPermissionService;
 import com.microboxlabs.miot.integrations.domain.KnowledgeCandidate;
+import com.microboxlabs.miot.integrations.dto.CandidateEditRequest;
 import com.microboxlabs.miot.integrations.dto.CandidateRequest;
 import com.microboxlabs.miot.integrations.service.CandidateService;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -14,6 +17,7 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -32,7 +36,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 /**
  * User-authed (RS256/JWKS session token — deliberately NOT {@code @M2MAuth})
  * review surface for the semantic-layer learning loop's STAGING store. The app
- * stages candidates here and an authorized reviewer approves/rejects them; the
+ * stages candidates here (any member) and a {@code HARNESS_TRAINER} edits,
+ * approves or rejects them; the
  * tenant is resolved from the org path and the reviewer from the session identity
  * — never trusted from the body. Approve/reject is the HUMAN GATE: no candidate
  * becomes an authoritative connection card without a decision here. Returns a
@@ -54,17 +59,20 @@ public class OrgKnowledgeCandidatesResource {
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
     private final SecurityIdentity identity;
+    private final OrganizationPermissionService permissions;
 
     @Inject
     public OrgKnowledgeCandidatesResource(
             CandidateService service,
             TenantContext tenantContext,
             OrganizationContext organizationContext,
-            SecurityIdentity identity) {
+            SecurityIdentity identity,
+            OrganizationPermissionService permissions) {
         this.service = service;
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
         this.identity = identity;
+        this.permissions = permissions;
     }
 
     @POST
@@ -113,17 +121,35 @@ public class OrgKnowledgeCandidatesResource {
         return review(organizationId, id, "reject");
     }
 
+    @PATCH
+    @Path("/candidates/{id}")
+    @Operation(summary = "Edit a pending candidate's term and body before review")
+    public Uni<Response> edit(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("id") String id,
+            CandidateEditRequest request) {
+        String tenant = tenantCode(organizationId);
+        return asTrainer(organizationId, () -> service.edit(tenant, id, request));
+    }
+
     private Uni<Response> review(String organizationId, String id, String decision) {
         String tenant = tenantCode(organizationId);
         String userId = currentUserId();
-        return onWorker(() -> {
-            KnowledgeCandidate reviewed = service.review(tenant, id, decision, userId);
-            if (reviewed == null) {
-                return errorResponse(Response.Status.NOT_FOUND,
-                        "candidate not found or already reviewed");
-            }
-            return Response.ok(reviewed).build();
-        })
+        return asTrainer(organizationId, () -> service.review(tenant, id, decision, userId));
+    }
+
+    /** Runs a pending-candidate transition once the caller is known to be a trainer. */
+    private Uni<Response> asTrainer(String organizationId, Supplier<KnowledgeCandidate> work) {
+        return permissions.requirePermission(
+                        organizationId, OrganizationPermissionDefinition.HARNESS_TRAINER)
+                .flatMap(ignored -> onWorker(() -> {
+                    KnowledgeCandidate updated = work.get();
+                    if (updated == null) {
+                        return errorResponse(Response.Status.NOT_FOUND,
+                                "candidate not found or already reviewed");
+                    }
+                    return Response.ok(updated).build();
+                }))
                 .onFailure(IllegalArgumentException.class)
                 .recoverWithItem(e -> errorResponse(Response.Status.BAD_REQUEST, e.getMessage()));
     }

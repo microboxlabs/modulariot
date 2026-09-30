@@ -2,6 +2,7 @@
 
 import { useAui } from "@assistant-ui/react";
 import { useEffect, useRef, type FC } from "react";
+import type { PendingAttachment } from "../context/harness-chat-context";
 
 /**
  * Adds `label` as an attachment chip on the active session's composer —
@@ -10,22 +11,23 @@ import { useEffect, useRef, type FC } from "react";
  * their own message around the reference.
  */
 export const PendingAttachmentReceiver: FC<{
-  label: string | null;
+  attachment: PendingAttachment | null;
   onConsumed: () => void;
-}> = ({ label, onConsumed }) => {
+}> = ({ attachment, onConsumed }) => {
   const aui = useAui();
-  const consumedRef = useRef<string | null>(null);
+  const consumedRef = useRef<PendingAttachment | null>(null);
 
   useEffect(() => {
     // Parent clears the pending value to null right after we consume it.
     // Reset the guard on that pass so clicking "Ask Harness" for the *same*
     // component again isn't silently ignored forever.
-    if (!label) {
+    if (!attachment) {
       consumedRef.current = null;
       return;
     }
-    if (consumedRef.current === label) return;
-    consumedRef.current = label;
+    if (consumedRef.current === attachment) return;
+    consumedRef.current = attachment;
+    const { label, text } = attachment;
     void aui.composer.addAttachment({
       type: "file",
       name: label,
@@ -37,12 +39,12 @@ export const PendingAttachmentReceiver: FC<{
       content: [
         {
           type: "text",
-          text: `Referencing the "${label}" component from the embedded dashboard.`,
+          text: text ?? `Referencing the "${label}" component from the embedded dashboard.`,
         },
       ],
     });
     onConsumed();
-  }, [label, aui, onConsumed]);
+  }, [attachment, aui, onConsumed]);
 
   return null;
 };

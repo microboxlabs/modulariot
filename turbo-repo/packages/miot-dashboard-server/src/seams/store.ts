@@ -44,7 +44,8 @@ export interface DashboardRecord {
    */
   createdBy?: string;
   /**
-   * Monotonic revision counter, used for optimistic concurrency. Two editors
+   * Monotonic revision counter, never reused after deletion/recreation of this
+   * address, used for optimistic concurrency. Two editors
    * — or an editor and the AI generation skill — must not silently overwrite
    * one another; a stale revision is refused with a conflict.
    */
@@ -75,6 +76,11 @@ export interface ServerDashboardStore {
   ): Promise<DashboardRecord>;
   list(tenantId: string, scopeId: string): Promise<DashboardSummary[]>;
   remove(ref: ServerDashboardRef): Promise<void>;
+  /** Atomically remove only the exact revision. False means changed or absent. */
+  removeIfRevision?(
+    ref: ServerDashboardRef,
+    revision: number,
+  ): Promise<boolean>;
 
   /**
    * The assignments that apply to this dashboard, as the host resolves them.

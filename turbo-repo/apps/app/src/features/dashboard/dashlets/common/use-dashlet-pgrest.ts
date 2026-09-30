@@ -5,7 +5,10 @@ import type { DataProviderEntry } from "../types";
 import { usePgrestResolvedFields } from "./use-pgrest-resolved-fields";
 import { usePgrestRows } from "./use-pgrest-rows";
 import { usePlannerData } from "./use-planner-data";
-import { buildDataProviderContext } from "./use-handlebars-templates";
+import {
+  parseTemplateRow,
+  createTemplateContext,
+} from "@microboxlabs/miot-dashboard-ui/templates";
 import { resolveFilterParams } from "./resolve-filter-params";
 import { useDashboardFilters } from "../../context/dashboard-filters-context";
 
@@ -40,7 +43,7 @@ export interface PgrestDashletFields {
 export function useDashletPgrest<C extends PgrestDashletFields>(
   config: C,
   fieldDefaults: Record<string, string>,
-  refreshIntervalMs: number = 0,
+  refreshIntervalMs: number = 0
 ) {
   const fieldKeys = Object.keys(fieldDefaults);
 
@@ -89,58 +92,62 @@ export function useDashletPgrest<C extends PgrestDashletFields>(
 export function useHybridPgrestContext(
   config: PgrestDashletFields,
   dataProvider: DataProviderEntry[],
-  refreshIntervalMs: number = 0,
+  refreshIntervalMs: number = 0
 ) {
-  const dataMode = (config.dataMode as "static" | "pgrest" | "planner") || "static";
+  const dataMode =
+    (config.dataMode as "static" | "pgrest" | "planner") || "static";
   const { activeFilters } = useDashboardFilters();
 
   // Resolve {{filter.*}} templates in pgrest param values
   const resolvedParams = useMemo(
-    () => resolveFilterParams(config.pgrestParams || EMPTY_PGREST_PARAMS, activeFilters),
-    [config.pgrestParams, activeFilters],
+    () =>
+      resolveFilterParams(
+        config.pgrestParams || EMPTY_PGREST_PARAMS,
+        activeFilters
+      ),
+    [config.pgrestParams, activeFilters]
   );
 
-  const { rows: pgrestRows, loading: pgrestLoading, fetchError: pgrestError } = usePgrestRows(
+  const {
+    rows: pgrestRows,
+    loading: pgrestLoading,
+    fetchError: pgrestError,
+  } = usePgrestRows(
     dataMode === "pgrest" ? "pgrest" : "static",
     config.pgrestFunctionName || "",
     config.pgrestHttpMethod || "POST",
     resolvedParams,
     config.dataSourceId,
-    refreshIntervalMs,
+    refreshIntervalMs
   );
 
-  const { rows: plannerRows, loading: plannerLoading, error: plannerError } = usePlannerData(
-    dataMode === "planner" ? config.plannerVariableName : undefined,
+  const {
+    rows: plannerRows,
+    loading: plannerLoading,
+    error: plannerError,
+  } = usePlannerData(
+    dataMode === "planner" ? config.plannerVariableName : undefined
   );
 
   const rows = dataMode === "planner" ? plannerRows : pgrestRows;
   const loading = dataMode === "planner" ? plannerLoading : pgrestLoading;
   const fetchError = dataMode === "planner" ? plannerError : pgrestError;
 
-  const staticRow = useMemo(() => {
-    if (dataMode !== "static" || !config.staticData) return null;
-    try {
-      const parsed = JSON.parse(config.staticData) as unknown;
-      if (Array.isArray(parsed)) return (parsed[0] ?? null) as Record<string, unknown> | null;
-      if (parsed && typeof parsed === "object") return parsed as Record<string, unknown>;
-      return null;
-    } catch {
-      console.error("[useHybridPgrestContext] Invalid staticData JSON:", config.staticData);
-      return null;
-    }
-  }, [dataMode, config.staticData]);
-
-  const templateContext = useMemo(() => {
-    const dpContext = buildDataProviderContext(dataProvider);
-    if (dataMode === "static" && staticRow) {
-      return { ...staticRow, row: staticRow, ...dpContext, filter: activeFilters };
-    }
-    if ((dataMode === "pgrest" || dataMode === "planner") && rows.length > 0) {
-      const firstRow = rows[0];
-      return { ...firstRow, row: firstRow, ...dpContext, filter: activeFilters };
-    }
-    return { ...dpContext, filter: activeFilters };
-  }, [dataProvider, dataMode, rows, staticRow, activeFilters]);
+  const staticRow = useMemo(
+    () =>
+      dataMode === "static" ? parseTemplateRow(config.staticData) : undefined,
+    [dataMode, config.staticData]
+  );
+  const firstRow = dataMode === "static" ? staticRow : rows[0];
+  const templateContext = useMemo(
+    () =>
+      createTemplateContext({
+        row: firstRow,
+        filters: activeFilters,
+        dataProvider,
+      }),
+    [firstRow, activeFilters, dataProvider]
+  );
 
   return { templateContext, loading, fetchError };
 }

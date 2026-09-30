@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
@@ -47,6 +48,14 @@ class SpecRulesTest {
         assertEquals("3.0.0", SpecDiff.next("2.1.4", VersionBump.MAJOR));
         assertEquals("2.2.0", SpecDiff.next("2.1.4", VersionBump.MINOR));
         assertEquals("2.1.5", SpecDiff.next("2.1.4", VersionBump.PATCH));
+    }
+
+    @Test
+    void theReportSerializesItsVerdicts() throws Exception {
+        String json = new ObjectMapper().writeValueAsString(SpecValidator.validate(Specs.speeding(), Specs.gpsSignal()));
+
+        assertTrue(json.contains("\"publishable\":true"), json);
+        assertTrue(json.contains("\"needsTestOnly\":false"), json);
     }
 
     @Test

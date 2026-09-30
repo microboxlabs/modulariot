@@ -20,6 +20,9 @@ import {
   type SymptomDetail,
 } from "./maintainer-api";
 
+/** The API's rule for keys. */
+export const KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{1,94}$/;
+
 /** `Exceso de velocidad` → `exceso-de-velocidad`, the way the API wants keys. */
 export function keyFrom(name: string) {
   return name
@@ -51,6 +54,7 @@ export default function CreateSymptomModal({
   const [busy, setBusy] = useState(false);
 
   const effectiveKey = keyTouched ? key : keyFrom(name);
+  const keyValid = KEY_PATTERN.test(effectiveKey);
 
   const submit = async () => {
     setBusy(true);
@@ -93,7 +97,9 @@ export default function CreateSymptomModal({
                 setKey(e.target.value);
               }}
             />
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p
+              className={`mt-1 text-xs ${effectiveKey && !keyValid ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}
+            >
               {tr("keyHint", d)}
             </p>
           </div>
@@ -121,7 +127,7 @@ export default function CreateSymptomModal({
           {tr("cancel", d)}
         </Button>
         <Button
-          disabled={busy || !name.trim() || !effectiveKey}
+          disabled={busy || !name.trim() || !keyValid}
           onClick={() => void submit()}
         >
           {tr("create", d)}

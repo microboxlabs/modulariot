@@ -49,7 +49,7 @@ function Levels({
   return (
     <div className="divide-y divide-gray-100 dark:divide-gray-700">
       {ICU_LEVELS.map((meta) => {
-        const level = spec.levels.find((l) => l.icu === meta.icu);
+        const level = (spec.levels ?? []).find((l) => l.icu === meta.icu);
         const applies = level?.applies ?? false;
         return (
           <div

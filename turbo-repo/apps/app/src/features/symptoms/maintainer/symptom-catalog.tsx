@@ -173,6 +173,7 @@ export default function SymptomCatalog({
               <button
                 key={f.key}
                 type="button"
+                aria-pressed={filter === f.key}
                 onClick={() => setFilter(f.key)}
                 className={`rounded-full border px-3 py-1 text-xs font-medium ${
                   filter === f.key
@@ -197,6 +198,7 @@ export default function SymptomCatalog({
                 <button
                   key={v}
                   type="button"
+                  aria-pressed={view === v}
                   aria-label={
                     v === "cards" ? tr("viewCards", d) : tr("viewList", d)
                   }

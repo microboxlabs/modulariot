@@ -157,7 +157,7 @@ class SymptomCatalogServiceTest {
                 new CreateRequest("ok-key", "x", null, null, null, "nope", null, null)));
         speeding();
         assertThrows(IllegalStateException.class, this::speeding);
-        assertEquals(List.of("symptom.created"), audit.list(TENANT, "symptom", null, null, null, 10).stream()
+        assertEquals(List.of("symptom.created"), audit.list(TENANT, "symptom", null, null, null, null, 10).stream()
                 .map(e -> e.action()).toList());
     }
 
@@ -174,6 +174,6 @@ class SymptomCatalogServiceTest {
 
         service.saveDraft(TENANT, OWNER, id, Specs.speeding());
 
-        assertEquals("symptom.draft_saved", audit.list(TENANT, "symptom", null, null, null, 10).get(0).action());
+        assertEquals("symptom.draft_saved", audit.list(TENANT, "symptom", null, null, null, null, 10).get(0).action());
     }
 }

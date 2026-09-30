@@ -25,6 +25,7 @@ import com.microboxlabs.miot.symptoms.service.TreatmentService;
 import io.vertx.mutiny.core.Vertx;
 import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
+import io.vertx.mutiny.sqlclient.Tuple;
 import io.vertx.pgclient.PgConnectOptions;
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -92,8 +94,8 @@ class PgTreatmentStoresTest {
         OffsetDateTime earlier = OffsetDateTime.now(ZoneOffset.UTC).minusHours(1).truncatedTo(ChronoUnit.MILLIS);
         Treatment old = treatments.insert(new Treatment(null, tenant, 7L, null, null, TreatmentType.CALL,
                 TreatmentStatus.CLOSED, "demo@example.com", earlier, "demo@example.com", earlier.plusMinutes(5),
-                "resolved", null, null));
-        Treatment open = treatments.insert(openTreatment(tenant, 7L, ACTOR));
+                "resolved", null, null)).treatment();
+        Treatment open = treatments.insert(openTreatment(tenant, 7L, ACTOR)).treatment();
 
         assertEquals(earlier, old.openedAt());
         assertEquals(earlier, old.updatedAt(), "updatedAt defaults to openedAt");
@@ -123,20 +125,51 @@ class PgTreatmentStoresTest {
     @Test
     void secondOpenEpisodeForTheSameOperatorReturnsTheFirst() {
         String tenant = tenant();
-        Treatment first = treatments.insert(openTreatment(tenant, 8L, ACTOR));
-        Treatment second = treatments.insert(openTreatment(tenant, 8L, ACTOR));
-        Treatment other = treatments.insert(openTreatment(tenant, 8L, "other@example.com"));
+        TreatmentStore.Inserted first = treatments.insert(openTreatment(tenant, 8L, ACTOR));
+        TreatmentStore.Inserted second = treatments.insert(openTreatment(tenant, 8L, ACTOR));
+        Treatment other = treatments.insert(openTreatment(tenant, 8L, "other@example.com")).treatment();
 
-        assertEquals(first.id(), second.id());
-        assertFalse(first.id().equals(other.id()));
+        assertTrue(first.created());
+        assertFalse(second.created(), "the conflict path says it created nothing");
+        assertEquals(first.treatment().id(), second.treatment().id());
+        assertFalse(first.treatment().id().equals(other.id()));
         assertEquals(2, treatments.listBySymptom(tenant, 8L).size());
+    }
+
+    @Test
+    void concurrentOpenReportsNotCreatedAndIsAuditedOnce() {
+        String tenant = tenant();
+        // findOpen misses, as it does for the second of two simultaneous requests.
+        TreatmentStore racing = new MissingOpenLookup(treatments);
+        TreatmentService service = new TreatmentService(racing, contacts, new DemoSeeder(false, contacts, racing),
+                new AuditService(audit));
+        OpenTreatmentRequest req = new OpenTreatmentRequest(TreatmentType.CALL, null, null, null);
+
+        TreatmentService.OpenResult first = service.open(tenant, ACTOR, 12L, req);
+        TreatmentService.OpenResult second = service.open(tenant, ACTOR, 12L, req);
+
+        assertTrue(first.created());
+        assertFalse(second.created());
+        assertEquals(first.treatment().id(), second.treatment().id());
+        assertEquals(1, audit.list(tenant, null, null, 12L, null, 10).size());
+    }
+
+    @Test
+    void actionIsRejectedOnceTheEpisodeIsClosed() {
+        String tenant = tenant();
+        Treatment t = treatments.insert(openTreatment(tenant, 13L, ACTOR)).treatment();
+        treatments.addAction(note(tenant, t.id(), null));
+        treatments.transition(tenant, t.id(), TreatmentStatus.CLOSED, ACTOR, "resolved", null);
+
+        assertThrows(IllegalStateException.class, () -> treatments.addAction(note(tenant, t.id(), null)));
+        assertEquals(1, treatments.listActions(tenant, List.of(t.id())).size());
     }
 
     @Test
     void actionsAreNumberedPerEpisodeAndListedInTheRequestedOrder() {
         String tenant = tenant();
-        Treatment a = treatments.insert(openTreatment(tenant, 9L, ACTOR));
-        Treatment b = treatments.insert(openTreatment(tenant, 9L, "other@example.com"));
+        Treatment a = treatments.insert(openTreatment(tenant, 9L, ACTOR)).treatment();
+        Treatment b = treatments.insert(openTreatment(tenant, 9L, "other@example.com")).treatment();
         OffsetDateTime at = OffsetDateTime.now(ZoneOffset.UTC).plusMinutes(1).truncatedTo(ChronoUnit.MILLIS);
 
         TreatmentAction a1 = treatments.addAction(note(tenant, a.id(), null));
@@ -165,7 +198,7 @@ class PgTreatmentStoresTest {
     @Test
     void concurrentActionsGetDistinctSeqNumbers() throws Exception {
         String tenant = tenant();
-        Treatment t = treatments.insert(openTreatment(tenant, 10L, ACTOR));
+        Treatment t = treatments.insert(openTreatment(tenant, 10L, ACTOR)).treatment();
         ExecutorService threads = Executors.newFixedThreadPool(4);
         try {
             List<Future<TreatmentAction>> results = new ArrayList<>();
@@ -188,7 +221,7 @@ class PgTreatmentStoresTest {
         String tenant = tenant();
         Contact camila = contacts.insert(contact(tenant, "Camila"));
         Contact ignacio = contacts.insert(contact(tenant, "Ignacio"));
-        Treatment t = treatments.insert(openTreatment(tenant, 11L, ACTOR));
+        Treatment t = treatments.insert(openTreatment(tenant, 11L, ACTOR)).treatment();
         OffsetDateTime base = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
 
         treatments.addAction(call(tenant, t.id(), camila.id(), true, base));
@@ -267,6 +300,34 @@ class PgTreatmentStoresTest {
     }
 
     @Test
+    void auditPagesThroughATimestampTieWithBeforeId() {
+        String tenant = tenant();
+        OffsetDateTime tie = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+        for (int i = 0; i < 5; i++) {
+            pool.preparedQuery("INSERT INTO miot_symptoms.audit_event (tenant_code, action, created_at) "
+                            + "VALUES ($1, $2, $3)")
+                    .execute(Tuple.of(tenant, "contact.updated", tie)).await().atMost(WAIT);
+        }
+        List<String> all = ids(audit.list(tenant, null, null, null, null, 10));
+        assertEquals(5, all.size());
+
+        List<String> paged = new ArrayList<>();
+        AuditEvent last = null;
+        for (int page = 0; page < 10; page++) {
+            List<AuditEvent> events = last == null
+                    ? audit.list(tenant, null, null, null, null, 2)
+                    : audit.list(tenant, null, null, null, last.createdAt(), last.id(), 2);
+            if (events.isEmpty()) {
+                break;
+            }
+            paged.addAll(ids(events));
+            last = events.get(events.size() - 1);
+        }
+        assertEquals(all, paged, "keyset paging returns every event once, in order");
+        assertTrue(audit.list(tenant, null, null, null, tie, 10).isEmpty(), "before alone skips the tie");
+    }
+
+    @Test
     void serviceFlowAndDemoSeedSurviveARestart() {
         String tenant = tenant();
         DemoSeeder seeder = new DemoSeeder(true, contacts, treatments);
@@ -337,5 +398,50 @@ class PgTreatmentStoresTest {
     private static AuditEvent event(String tenant, String action, String entityType, String entityId, Long symptom) {
         return new AuditEvent(null, tenant, ACTOR, action, entityType, entityId, symptom, Map.of("k", "v", "n", 1),
                 null);
+    }
+
+    /** Delegates to a store but never finds an open episode, to reach the insert conflict path. */
+    private record MissingOpenLookup(TreatmentStore store) implements TreatmentStore {
+
+        @Override
+        public Inserted insert(Treatment treatment) {
+            return store.insert(treatment);
+        }
+
+        @Override
+        public Optional<Treatment> find(String tenantCode, String id) {
+            return store.find(tenantCode, id);
+        }
+
+        @Override
+        public Optional<Treatment> findOpen(String tenantCode, long symptomId, String actor) {
+            return Optional.empty();
+        }
+
+        @Override
+        public List<Treatment> listBySymptom(String tenantCode, long symptomId) {
+            return store.listBySymptom(tenantCode, symptomId);
+        }
+
+        @Override
+        public Optional<Treatment> transition(String tenantCode, String id, TreatmentStatus status, String actor,
+                String resolution, String note, OffsetDateTime at) {
+            return store.transition(tenantCode, id, status, actor, resolution, note, at);
+        }
+
+        @Override
+        public TreatmentAction addAction(TreatmentAction action) {
+            return store.addAction(action);
+        }
+
+        @Override
+        public List<TreatmentAction> listActions(String tenantCode, List<String> treatmentIds) {
+            return store.listActions(tenantCode, treatmentIds);
+        }
+
+        @Override
+        public List<ContactCallStats> contactStats(String tenantCode) {
+            return store.contactStats(tenantCode);
+        }
     }
 }

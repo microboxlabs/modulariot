@@ -98,9 +98,10 @@ public class DemoSeeder {
             boolean endsIgnored = random.nextInt(3) == 0;
             int calls = 1 + random.nextInt(3);
             OffsetDateTime closedAt = openedAt.plusMinutes(4L * calls + 2);
+            // Actions go on an OPEN episode, which is then closed at its historical time.
             Treatment t = treatments.insert(new Treatment(null, tenantCode, symptomId, null, null,
-                    TreatmentType.CALL, TreatmentStatus.CLOSED, DEMO_OPERATOR, openedAt, DEMO_OPERATOR, closedAt,
-                    endsIgnored ? "ignored" : "resolved", null, closedAt));
+                    TreatmentType.CALL, TreatmentStatus.OPEN, DEMO_OPERATOR, openedAt, null, null, null, null,
+                    openedAt)).treatment();
             for (int c = 0; c < calls; c++) {
                 addDemoCall(t, people, random, openedAt.plusMinutes(4L * c + 1));
             }
@@ -110,6 +111,8 @@ public class DemoSeeder {
                         null, null, List.of(), Map.of("demo", true, "durationSeconds", 1800), DEMO_OPERATOR,
                         closedAt));
             }
+            treatments.transition(tenantCode, t.id(), TreatmentStatus.CLOSED, DEMO_OPERATOR,
+                    endsIgnored ? "ignored" : "resolved", null, closedAt);
         }
     }
 

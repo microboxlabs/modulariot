@@ -69,10 +69,11 @@ public class PgTreatmentStore implements TreatmentStore {
             method, outcome_key, outcome_label, answered, duration_seconds, message, note, tags, details,
             performed_by, performed_at""";
 
-    // Locks the episode row so concurrent actions get distinct seq numbers.
+    // Locks the episode row: concurrent actions get distinct seq numbers, and an
+    // action racing a close either lands first or finds the episode closed.
     private static final String TOUCH_TREATMENT = """
             UPDATE miot_symptoms.treatment SET updated_at = $3
-            WHERE tenant_code = $1 AND id = $2
+            WHERE tenant_code = $1 AND id = $2 AND status = 'OPEN'
             RETURNING id""";
 
     private static final String NEXT_SEQ = """
@@ -111,7 +112,7 @@ public class PgTreatmentStore implements TreatmentStore {
     }
 
     @Override
-    public Treatment insert(Treatment t) {
+    public Inserted insert(Treatment t) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime openedAt = t.openedAt() == null ? now : t.openedAt();
         TreatmentStatus status = t.status() == null ? TreatmentStatus.OPEN : t.status();
@@ -123,10 +124,10 @@ public class PgTreatmentStore implements TreatmentStore {
                 .addString(t.note()).addOffsetDateTime(t.updatedAt() == null ? openedAt : t.updatedAt());
         List<Treatment> saved = treatments(query(pool.get(), INSERT_TREATMENT, params));
         if (!saved.isEmpty()) {
-            return saved.get(0);
+            return new Inserted(saved.get(0), true);
         }
-        return findOpen(t.tenantCode(), t.symptomId(), t.openedBy())
-                .orElseThrow(() -> new IllegalStateException("could not open treatment"));
+        return new Inserted(findOpen(t.tenantCode(), t.symptomId(), t.openedBy())
+                .orElseThrow(() -> new IllegalStateException("could not open treatment")), false);
     }
 
     @Override
@@ -155,14 +156,16 @@ public class PgTreatmentStore implements TreatmentStore {
 
     @Override
     public Optional<Treatment> transition(
-            String tenantCode, String id, TreatmentStatus status, String actor, String resolution, String note) {
+            String tenantCode, String id, TreatmentStatus status, String actor, String resolution, String note,
+            OffsetDateTime at) {
         UUID uuid = parse(id);
         if (uuid == null) {
             return Optional.empty();
         }
         Tuple params = Tuple.tuple()
                 .addString(tenantCode).addUUID(uuid).addString(status.name()).addString(actor)
-                .addOffsetDateTime(OffsetDateTime.now(ZoneOffset.UTC)).addString(resolution).addString(note);
+                .addOffsetDateTime(at == null ? OffsetDateTime.now(ZoneOffset.UTC) : at).addString(resolution)
+                .addString(note);
         return treatments(query(pool.get(), TRANSITION, params)).stream().findFirst();
     }
 
@@ -181,7 +184,8 @@ public class PgTreatmentStore implements TreatmentStore {
                         .execute(Tuple.of(a.tenantCode(), treatmentId, performedAt))
                         .flatMap(touched -> {
                             if (touched.rowCount() == 0) {
-                                throw new IllegalStateException("treatment not found: " + a.treatmentId());
+                                throw new IllegalStateException(
+                                        "treatment not found or not open: " + a.treatmentId());
                             }
                             return tx.preparedQuery(NEXT_SEQ).execute(Tuple.of(treatmentId));
                         })

@@ -64,7 +64,8 @@ public class PgAuditStore implements AuditStore {
 
     @Override
     public List<AuditEvent> list(
-            String tenantCode, String entityType, String entityId, Long symptomId, OffsetDateTime before, int limit) {
+            String tenantCode, String entityType, String entityId, Long symptomId, OffsetDateTime before,
+            String beforeId, int limit) {
         int capped = Math.min(Math.max(limit, 0), MAX_LIMIT);
         StringBuilder sql = new StringBuilder("SELECT ").append(COLUMNS)
                 .append(" FROM miot_symptoms.audit_event WHERE tenant_code = $1");
@@ -81,7 +82,13 @@ public class PgAuditStore implements AuditStore {
             params.addLong(symptomId);
             sql.append(" AND symptom_id = $").append(params.size());
         }
-        if (before != null) {
+        UUID cursorId = PgIds.parse(beforeId);
+        if (before != null && cursorId != null) {
+            params.addOffsetDateTime(before);
+            params.addUUID(cursorId);
+            sql.append(" AND (created_at, id) < ($").append(params.size() - 1).append(", $").append(params.size())
+                    .append(')');
+        } else if (before != null) {
             params.addOffsetDateTime(before);
             sql.append(" AND created_at < $").append(params.size());
         }

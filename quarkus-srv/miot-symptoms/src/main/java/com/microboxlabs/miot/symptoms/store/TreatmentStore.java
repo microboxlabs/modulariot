@@ -4,6 +4,7 @@ import com.microboxlabs.miot.symptoms.domain.ContactCallStats;
 import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,8 +15,15 @@ import java.util.Optional;
  */
 public interface TreatmentStore {
 
-    /** Stores a new episode. Assigns id and timestamps that are null on the input. */
-    Treatment insert(Treatment treatment);
+    /**
+     * Stores a new episode. Assigns id and timestamps that are null on the input.
+     * When the operator already has an OPEN episode on the symptom, returns that
+     * one with {@code created=false}.
+     */
+    Inserted insert(Treatment treatment);
+
+    record Inserted(Treatment treatment, boolean created) {
+    }
 
     Optional<Treatment> find(String tenantCode, String id);
 
@@ -26,10 +34,21 @@ public interface TreatmentStore {
     List<Treatment> listBySymptom(String tenantCode, long symptomId);
 
     /** Moves an OPEN episode to {@code status}; empty when it was not open or not found. */
-    Optional<Treatment> transition(
-            String tenantCode, String id, TreatmentStatus status, String actor, String resolution, String note);
+    default Optional<Treatment> transition(
+            String tenantCode, String id, TreatmentStatus status, String actor, String resolution, String note) {
+        return transition(tenantCode, id, status, actor, resolution, note, null);
+    }
 
-    /** Appends an action. Assigns id, the next {@code seq}, and {@code performedAt} when null. */
+    /** Same, at the given time; null means now. */
+    Optional<Treatment> transition(
+            String tenantCode, String id, TreatmentStatus status, String actor, String resolution, String note,
+            OffsetDateTime at);
+
+    /**
+     * Appends an action to an OPEN episode. Assigns id, the next {@code seq}, and
+     * {@code performedAt} when null. Throws {@link IllegalStateException} when the
+     * episode is missing or no longer open.
+     */
     TreatmentAction addAction(TreatmentAction action);
 
     /** Actions of the given episodes, grouped by episode and ordered by {@code seq}. */

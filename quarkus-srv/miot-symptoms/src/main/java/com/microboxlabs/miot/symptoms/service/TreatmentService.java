@@ -60,9 +60,14 @@ public class TreatmentService {
         if (existing.isPresent()) {
             return new OpenResult(view(tenantCode, existing.get()), false);
         }
-        Treatment saved = treatments.insert(new Treatment(
+        TreatmentStore.Inserted inserted = treatments.insert(new Treatment(
                 null, tenantCode, symptomId, blankToNull(req.assetId()), blankToNull(req.tripId()), req.type(),
                 TreatmentStatus.OPEN, actor, null, null, null, null, blankToNull(req.note()), null));
+        if (!inserted.created()) {
+            // A concurrent request opened it first.
+            return new OpenResult(view(tenantCode, inserted.treatment()), false);
+        }
+        Treatment saved = inserted.treatment();
         audit.log(tenantCode, actor, "treatment.opened", ENTITY, saved.id(), symptomId,
                 Map.of("type", saved.type().name()));
         return new OpenResult(TreatmentView.of(saved, List.of()), true);

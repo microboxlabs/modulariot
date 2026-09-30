@@ -25,7 +25,8 @@ public class InMemoryAuditStore implements AuditStore {
 
     @Override
     public synchronized List<AuditEvent> list(
-            String tenantCode, String entityType, String entityId, Long symptomId, OffsetDateTime before, int limit) {
+            String tenantCode, String entityType, String entityId, Long symptomId, OffsetDateTime before,
+            String beforeId, int limit) {
         List<AuditEvent> out = new ArrayList<>();
         for (int i = events.size() - 1; i >= 0 && out.size() < limit; i--) {
             AuditEvent e = events.get(i);
@@ -33,10 +34,21 @@ public class InMemoryAuditStore implements AuditStore {
                     && (entityType == null || entityType.equals(e.entityType()))
                     && (entityId == null || entityId.equals(e.entityId()))
                     && (symptomId == null || Objects.equals(symptomId, e.symptomId()))
-                    && (before == null || e.createdAt().isBefore(before))) {
+                    && isBefore(e, before, beforeId)) {
                 out.add(e);
             }
         }
         return out;
+    }
+
+    /** Postgres orders UUIDs like their lowercase text, so a string compare matches the Postgres store. */
+    private static boolean isBefore(AuditEvent e, OffsetDateTime before, String beforeId) {
+        if (before == null) {
+            return true;
+        }
+        if (beforeId != null && e.createdAt().isEqual(before)) {
+            return e.id().compareTo(beforeId) < 0;
+        }
+        return e.createdAt().isBefore(before);
     }
 }

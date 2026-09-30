@@ -499,3 +499,5 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 :where(.dark,[data-miot-theme="dark"]) .miot-data-list-card { background:var(--miot-card-background,#1f2937); border-color:var(--miot-card-border,#374151); color:var(--miot-card-text,#f9fafb); }
 :where(.dark,[data-miot-theme="dark"]) .miot-data-list-card :is(header p,dt) { color:var(--miot-card-muted,#9ca3af); }
 :where(.dark,[data-miot-theme="dark"]) .miot-data-list-card__footer { border-color:var(--miot-card-border,#374151); }
+
+.miot-data-list { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: .75rem; }

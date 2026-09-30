@@ -42,6 +42,15 @@ export const tableWidgetConfig = z.object({
   sort: z
     .object({ enabled: z.boolean(), columns: z.array(z.string()) })
     .default({ enabled: false, columns: [] }),
+  cardLayout: z
+    .object({
+      titleColumn: z.string(),
+      subtitleColumn: z.string(),
+      headerBadgeColumns: z.array(z.string()),
+      kpiColumns: z.array(z.string()),
+      footerColumns: z.array(z.string()),
+    })
+    .optional(),
   columnWidths: z.record(z.number().finite().positive()).optional(),
   striped: z.boolean().default(false),
   rowActions: z.unknown().optional(),

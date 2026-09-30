@@ -20,7 +20,8 @@ import { FilterPillRow, SortPillRow } from "./row-controls";
 import { ColumnFilterToolbar } from "./column-filter-toolbar";
 import { ColumnFilterPopover } from "./column-filter-popover";
 import type { ColumnFilterInputLabels } from "./column-filter-input";
-import { DataTable } from "./data-table";
+import { DataListCard } from "./data-list-card";
+import { DataTable, type DataTableProps } from "./data-table";
 import { ActionDropdown } from "./action-dropdown";
 import type { WidgetComponentProps } from "./widget-renderer";
 
@@ -60,9 +61,14 @@ export function createResizableDataTableRegistry(
 ) {
   return createTableRegistry(options, "data_table_v2", options.resizeLabel);
 }
+export function createDataListRegistry(
+  options: Readonly<DataTableRegistryOptions>,
+) {
+  return createTableRegistry(options, "data_list");
+}
 function createTableRegistry(
   options: Readonly<DataTableRegistryOptions>,
-  type: "data_table" | "data_table_v2",
+  type: "data_table" | "data_table_v2" | "data_list",
   resizeLabel?: (column: string) => string,
 ) {
   const engine = options.templateEngine ?? createTemplateEngine();
@@ -71,7 +77,8 @@ function createTableRegistry(
       () => tableWidgetConfig.safeParse(widget.config),
       [widget.config],
     );
-    if (!parsed.success) return <p role="alert">{options.errorLabel}</p>;
+    if (!parsed.success || (type === "data_list" && !parsed.data.cardLayout))
+      return <p role="alert">{options.errorLabel}</p>;
     return (
       <BoundTable
         key={`${widget.id}:${parsed.data.dataMode}:${parsed.data.plannerVariableName ?? ""}`}
@@ -157,6 +164,24 @@ function createTableRegistry(
         { _count: filters.filteredCount },
         config.title || options.defaultTitle,
       ) || options.defaultTitle;
+    const renderActions: DataTableProps["renderActions"] =
+      actions.enabled && actions.items.length
+        ? (row) => (
+            <ActionDropdown
+              ariaLabel={options.actionsLabel}
+              items={actions.items.flatMap((action, index) => {
+                const href = engine.resolveTemplate(
+                  links,
+                  String(index),
+                  { ...row, row },
+                  action.link,
+                );
+                return isSafeActionUrl(href) ? [{ action, href }] : [];
+              })}
+            />
+          )
+        : undefined;
+    const cardLayout = config.cardLayout;
     if (loading) return <output>{options.loadingLabel}</output>;
     if (failed) return <p role="alert">{options.errorLabel}</p>;
     if (unsupported) return <p role="alert">{options.unsupportedDataLabel}</p>;
@@ -223,111 +248,116 @@ function createTableRegistry(
           onRemove={filters.removeFilter}
           onClearAll={filters.clearAllFilters}
         />
-        <DataTable
-          striped={config.striped}
-          resizing={
-            resizeLabel
-              ? { savedWidths: config.columnWidths, handleLabel: resizeLabel }
-              : undefined
-          }
-          rowActions={
-            rowActions.length
-              ? (row) =>
-                  rowActions.map((action, index) => ({
-                    action,
-                    href: engine.resolveTemplate(
-                      rowLinks,
-                      String(index),
-                      { ...row, row },
-                      action.link,
-                    ),
-                  }))
-              : undefined
-          }
-          columns={config.columns}
-          rows={filters.filteredData}
-          label={title}
-          emptyLabel={options.emptyLabel}
-          loadingLabel={options.loadingLabel}
-          actionsLabel={options.actionsLabel}
-          showColumnDividers={config.showColumnDividers}
-          resolveValue={resolveValue}
-          resolveLabel={resolveLabel}
-          resolveType={resolveType}
-          renderHeader={(column, label) => (
-            <div className="miot-table-widget__heading">
-              {resizeLabel && config.sort.enabled && config.sort.columns.includes(column.key) ? (
-                <button
-                  type="button"
-                  title={
-                    column.descriptionEnabled ? column.description : undefined
-                  }
-                  onClick={() => rowControls.handleSortClick(column.key)}
-                >
-                  {label}
-                  {rowControls.sortKey === column.key && (
-                    <span
-                      aria-label={options.directionLabels[rowControls.sortDir]}
-                    >
-                      {rowControls.sortDir === "asc" ? " ↓" : " ↑"}
-                    </span>
-                  )}
-                </button>
-              ) : (
-                <span
-                  title={
-                    column.descriptionEnabled ? column.description : undefined
-                  }
-                >
-                  {label}
-                </span>
-              )}
-              <ColumnFilterPopover
-                title={options.filterTitle(label)}
-                clearLabel={options.clearFilterLabel}
-                labels={options.filterLabels}
-                columnKey={column.key}
-                dataType={filters.resolvedDataTypes[column.key] ?? "text"}
-                currentFilter={filters.filters[column.key]}
-                enumValues={filters.enumValues[column.key] ?? []}
-                onFilterChange={filters.setFilter}
+        {type === "data_list" && cardLayout ? (
+          <div className="miot-data-list">
+            {filters.filteredCount === 0 && <p>{options.emptyLabel}</p>}
+            {filters.filteredData.map((row, index) => (
+              <DataListCard
+                key={row.id ?? row._id ?? index}
+                row={row}
+                rowIdx={index}
+                totalRows={filters.filteredCount}
+                columns={config.columns}
+                cardLayout={cardLayout}
+                resolveValue={resolveValue}
+                resolveLabel={resolveLabel}
+                resolveType={resolveType}
+                actions={renderActions?.(row, index)}
               />
-            </div>
-          )}
-          rowColor={(row, index) =>
-            config.rowColorRules?.enabled
-              ? (config.rowColorRules.rules.find((rule) =>
-                  evaluateRule(
-                    rule,
-                    resolveValue(
-                      rule.column,
-                      row,
-                      index,
-                      filters.filteredCount,
-                    ),
-                  ),
-                )?.color ?? null)
-              : null
-          }
-          renderActions={
-            actions.enabled && actions.items.length
-              ? (row) => (
-                  <ActionDropdown
-                    ariaLabel={options.actionsLabel}
-                    items={actions.items.flatMap((action, index) => {
-                      const href = engine.resolveTemplate(
-                        links,
+            ))}
+          </div>
+        ) : (
+          <DataTable
+            striped={config.striped}
+            resizing={
+              resizeLabel
+                ? { savedWidths: config.columnWidths, handleLabel: resizeLabel }
+                : undefined
+            }
+            rowActions={
+              rowActions.length
+                ? (row) =>
+                    rowActions.map((action, index) => ({
+                      action,
+                      href: engine.resolveTemplate(
+                        rowLinks,
                         String(index),
                         { ...row, row },
                         action.link,
-                      );
-                      return isSafeActionUrl(href) ? [{ action, href }] : [];
-                    })}
-                  />
-                )
-              : undefined
-          }
-        />
+                      ),
+                    }))
+                : undefined
+            }
+            columns={config.columns}
+            rows={filters.filteredData}
+            label={title}
+            emptyLabel={options.emptyLabel}
+            loadingLabel={options.loadingLabel}
+            actionsLabel={options.actionsLabel}
+            showColumnDividers={config.showColumnDividers}
+            resolveValue={resolveValue}
+            resolveLabel={resolveLabel}
+            resolveType={resolveType}
+            renderHeader={(column, label) => (
+              <div className="miot-table-widget__heading">
+                {resizeLabel && config.sort.enabled && config.sort.columns.includes(column.key) ? (
+                  <button
+                    type="button"
+                    title={
+                      column.descriptionEnabled ? column.description : undefined
+                    }
+                    onClick={() => rowControls.handleSortClick(column.key)}
+                  >
+                    {label}
+                    {rowControls.sortKey === column.key && (
+                      <span
+                        aria-label={
+                          options.directionLabels[rowControls.sortDir]
+                        }
+                      >
+                        {rowControls.sortDir === "asc" ? " ↓" : " ↑"}
+                      </span>
+                    )}
+                  </button>
+                ) : (
+                  <span
+                    title={
+                      column.descriptionEnabled ? column.description : undefined
+                    }
+                  >
+                    {label}
+                  </span>
+                )}
+                <ColumnFilterPopover
+                  title={options.filterTitle(label)}
+                  clearLabel={options.clearFilterLabel}
+                  labels={options.filterLabels}
+                  columnKey={column.key}
+                  dataType={filters.resolvedDataTypes[column.key] ?? "text"}
+                  currentFilter={filters.filters[column.key]}
+                  enumValues={filters.enumValues[column.key] ?? []}
+                  onFilterChange={filters.setFilter}
+                />
+              </div>
+            )}
+            rowColor={(row, index) =>
+              config.rowColorRules?.enabled
+                ? (config.rowColorRules.rules.find((rule) =>
+                    evaluateRule(
+                      rule,
+                      resolveValue(
+                        rule.column,
+                        row,
+                        index,
+                        filters.filteredCount,
+                      ),
+                    ),
+                  )?.color ?? null)
+                : null
+            }
+            renderActions={renderActions}
+          />
+        )}
       </div>
     );
   }

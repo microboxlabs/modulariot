@@ -350,7 +350,13 @@
 .miot-progress-stat__gauge progress::-moz-progress-bar { background: var(--miot-progress-color); }
 .miot-progress-stat__gauge i { position: absolute; top: 0; bottom: 0; width: 2px; background: #ffffff80; pointer-events: none; }
 .miot-progress-stat__labels { display: flex; justify-content: space-between; margin-top: .25rem; font-size: .75rem; color: var(--miot-card-muted, #6b7280); }
-:where(.dark, [data-miot-theme="dark"]) .miot-progress-stat { --miot-card-background: #1f2937; --miot-card-border: #374151; --miot-card-text: #fff; --miot-card-muted: #9ca3af; --miot-progress-track: #374151; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-progress-stat { border: 1px solid var(--miot-card-border,#374151); background: var(--miot-card-background,#1f2937); color: var(--miot-card-text,#fff); }
+:where(.dark,[data-miot-theme="dark"]) .miot-progress-stat__header p { color: var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-progress-stat__header strong span { color: var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-progress-stat__gauge progress { background: var(--miot-progress-track,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-progress-stat__gauge progress::-webkit-progress-bar { background: var(--miot-progress-track,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-progress-stat__labels { color: var(--miot-card-muted,#9ca3af); }
 
 .miot-row-controls { box-sizing: border-box; display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: center; gap: .5rem; border: 1px solid var(--miot-card-border, #e5e7eb); border-radius: .5rem; padding: .75rem 1rem; background: var(--miot-card-background, #fff); color: var(--miot-card-muted, #6b7280); font-size: .875rem; }
 .miot-row-controls__pill { appearance: none; display: inline-flex; align-items: center; gap: .25rem; border: 0; border-radius: 9999px; padding: .25rem .75rem; background: transparent; color: inherit; font: inherit; font-weight: 500; cursor: pointer; }
@@ -455,7 +461,13 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-data-table tr[data-row-color="orange"] { --miot-row-background: #fff7ed; }
 .miot-data-table tr[data-row-color="purple"] { --miot-row-background: #faf5ff; }
 .miot-data-table tr[data-row-color="gray"] { --miot-row-background: #f3f4f6; }
-:where(.dark, [data-miot-theme="dark"]) .miot-data-table { --miot-card-border: #4b5563; --miot-card-background: #1f2937; --miot-card-text: #d1d5db; --miot-card-muted: #9ca3af; --miot-table-heading: #374151; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-data-table { border: 1px solid var(--miot-card-border,#4b5563); background: var(--miot-card-background,#1f2937); color: var(--miot-card-text,#d1d5db); }
+:where(.dark,[data-miot-theme="dark"]) .miot-data-table th { background: var(--miot-table-heading,#374151); color: var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-data-table td { border-top: 1px solid var(--miot-card-border,#4b5563); background: var(--miot-row-background, var(--miot-card-background,#1f2937)); }
+:where(.dark,[data-miot-theme="dark"]) .miot-data-table[data-dividers="true"] td:not(:last-child) { border-right: 1px solid var(--miot-card-border,#4b5563); }
+:where(.dark,[data-miot-theme="dark"]) .miot-data-table .miot-data-table__actions { border-left: 1px solid var(--miot-card-border,#4b5563); }
+:where(.dark,[data-miot-theme="dark"]) .miot-data-table__decorator { color: var(--miot-card-muted,#9ca3af); }
 /* Opaque equivalents of dark conditional tints keep sticky cells readable. */
 :where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="red"] { --miot-row-background: #322732; }
 :where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="yellow"] { --miot-row-background: #2f2d30; }

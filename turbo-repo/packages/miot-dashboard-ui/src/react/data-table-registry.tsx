@@ -107,9 +107,7 @@ function createTableRegistry(
     }, [config, loading, failed, unsupported, result]);
     const rowControls = useFilterAndSort(
       config.filter,
-      resizeLabel
-        ? { enabled: true, columns: config.columns.map((column) => column.key) }
-        : config.sort,
+      config.sort,
       rows,
       config.columns,
     );
@@ -258,7 +256,7 @@ function createTableRegistry(
           resolveType={resolveType}
           renderHeader={(column, label) => (
             <div className="miot-table-widget__heading">
-              {resizeLabel ? (
+              {resizeLabel && config.sort.enabled && config.sort.columns.includes(column.key) ? (
                 <button
                   type="button"
                   title={

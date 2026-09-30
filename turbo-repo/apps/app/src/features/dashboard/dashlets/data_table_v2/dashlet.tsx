@@ -429,7 +429,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     handleSortClick,
   } = useFilterAndSort(
     filter,
-    { enabled: true, columns: columns.map((column) => column.key) },
+    sort,
     allRows,
     columns
   );
@@ -537,6 +537,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             <button
               type="button"
               className="flex min-w-0 items-center gap-1 overflow-hidden"
+              disabled={!sort.enabled || !sort.columns.includes(column.key)}
               onClick={() => handleSortClick(column.key)}
             >
               {column.descriptionEnabled && column.description ? (

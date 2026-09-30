@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { within, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { Widget } from "@microboxlabs/miot-dashboard-contract/document";
 import {
@@ -246,6 +246,7 @@ it("renders saved resizable dashboards with header sorting and safe row actions"
         columns,
         rows,
         striped: true,
+        sort: { enabled: true, columns: ["{{row.cost}}"] },
         columnWidths: { "{{row.service}}": 160 },
         rowActions: [
           {
@@ -266,7 +267,7 @@ it("renders saved resizable dashboards with header sorting and safe row actions"
   expect(
     screen.getByRole("link", { name: "Report" }).getAttribute("href"),
   ).toBe("/report");
-  fireEvent.click(screen.getByRole("button", { name: "Cost" }));
+  fireEvent.click(within(screen.getByRole("table")).getByRole("button", { name: "Cost" }));
   expect(screen.getAllByRole("row")[1]?.textContent).toContain("SQL");
   view.rerender(
     <Table
@@ -277,4 +278,12 @@ it("renders saved resizable dashboards with header sorting and safe row actions"
   expect(screen.getByRole("alert").textContent).toBe("Unavailable");
   vi.restoreAllMocks();
 
+});
+
+it("honors disabled sorting and limits header sorting to configured columns", () => {
+ const view=render(<Table resizable config={{columns,rows,sort:{enabled:false,columns:["{{row.cost}}"]}}}/>);
+ expect(screen.queryByRole("button",{name:"Cost"})).toBeNull();
+ view.rerender(<Table resizable config={{columns,rows,sort:{enabled:true,columns:["{{row.cost}}"]}}}/>);
+ expect(within(screen.getByRole("table")).getByRole("button",{name:"Cost"})).toBeTruthy();
+ expect(screen.queryByRole("button",{name:"Service"})).toBeNull();
 });

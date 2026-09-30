@@ -1038,7 +1038,7 @@ translations, templates, export callback and saved-query bindings as
 Register either or both variants when composing a dashboard registry.
 
 The resizable variant reads saved `columnWidths`, `striped` and `rowActions`,
-allows sorting through every header, and provides local viewer resizing.
+honors configured sortable columns in both headers and the toolbar, and provides local viewer resizing.
 Widths must be finite and positive. Row links use per-row template context and
 are rechecked after resolution. These registries do not persist viewer changes
 or provide widget settings; an editing host can use `DataTable` callbacks and

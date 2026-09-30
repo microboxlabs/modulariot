@@ -147,3 +147,6 @@ export function createContact(body: {
 }) {
   return request<TowerContact>(contactsKey, { method: "POST", body });
 }
+
+/** The shared request helper, for other Control Tower clients on the same proxy. */
+export { request as controlTowerRequest, BASE as CONTROL_TOWER_BASE };

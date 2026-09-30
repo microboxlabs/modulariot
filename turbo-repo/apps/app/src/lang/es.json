@@ -1911,7 +1911,8 @@
         "platform": "Plataforma",
         "selectables": "Seleccionables",
         "symptomRules": "Reglas de síntomas",
-        "contactBook": "Libreta de contactos"
+        "contactBook": "Libreta de contactos",
+        "symptomCatalog": "Síntomas"
       },
       "symptoms": {
         "config": {
@@ -2040,7 +2041,8 @@
         "credentials": "Credenciales",
         "selectables": "Seleccionables",
         "symptomRules": "Reglas de síntomas",
-        "contactBook": "Libreta de contactos"
+        "contactBook": "Libreta de contactos",
+        "symptomCatalog": "Síntomas"
       },
       "credentials": {
         "title": "Credenciales",
@@ -2467,6 +2469,52 @@
         "badgesCreate": "Crear \"{name}\"",
         "channelInactive": "Sin configurar",
         "channelActive": "Activado"
+      },
+      "symptomCatalog": {
+        "title": "Síntomas",
+        "description": "Qué detecta cada síntoma, en qué niveles y quién actúa.",
+        "newSymptom": "Nuevo síntoma",
+        "search": "Buscar síntoma",
+        "statActive": "Activos",
+        "statActiveHint": "Generan casos para la torre",
+        "statTest": "En prueba",
+        "statTestHint": "Se evalúan sin llegar a operadores",
+        "statOff": "Apagados",
+        "statOffHint": "No se evalúan",
+        "statDrafts": "Con borrador",
+        "statDraftsHint": "Cambios sin publicar",
+        "filterAll": "Todos",
+        "stateActive": "Activo",
+        "stateTest": "En prueba",
+        "stateOff": "Apagado",
+        "withDraft": "Con borrador",
+        "draft": "Borrador",
+        "unpublished": "Sin publicar",
+        "viewCards": "Tarjetas",
+        "viewList": "Lista",
+        "empty": "Aún no hay síntomas.",
+        "emptyFiltered": "Ningún síntoma coincide.",
+        "loadFailed": "No se pudieron cargar los síntomas.",
+        "createTitle": "Nuevo síntoma",
+        "name": "Nombre",
+        "key": "Clave",
+        "keyHint": "Minúsculas, números, - y _. No cambia después.",
+        "source": "Fuente de datos",
+        "create": "Crear",
+        "cancel": "Cancelar",
+        "createFailed": "No se pudo crear el síntoma.",
+        "backToCatalog": "Síntomas",
+        "showingDraft": "mostrando el borrador",
+        "sectionActivation": "Cuándo se activa",
+        "sectionLevels": "Qué tan grave",
+        "sectionLifecycle": "Ciclo del caso",
+        "sectionVersions": "Versiones",
+        "measure": "Medida",
+        "levelOff": "No aplica",
+        "operatorSla": "Operador · SLA {minutes} min",
+        "opens": "Se abre cuando",
+        "closes": "Se cierra cuando",
+        "restores": "vuelve a {version}"
       }
     },
     "integrationJobs": {
@@ -2949,7 +2997,8 @@
         "harnessLearning": "Aprendizaje del asistente",
         "dashboardServer": "Dashboards",
         "symptomRules": "Reglas de síntomas",
-        "contactBook": "Libreta de contactos"
+        "contactBook": "Libreta de contactos",
+        "symptomCatalog": "Síntomas"
       }
     },
     "calendar": {

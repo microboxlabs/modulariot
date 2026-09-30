@@ -1,0 +1,307 @@
+"use client";
+
+/**
+ * Client for the symptom catalog API (`/control-tower/symptom-definitions`
+ * and `/control-tower/data-sources`), through the app's Control Tower proxy.
+ * Types mirror the modulith's JSON.
+ */
+
+import useSWR, { mutate } from "swr";
+import {
+  CONTROL_TOWER_BASE,
+  controlTowerRequest as request,
+} from "../control-tower/control-tower-api";
+
+export type SymptomState = "OFF" | "TEST" | "ACTIVE";
+export type VersionBump = "PATCH" | "MINOR" | "MAJOR";
+export type FieldOrigin =
+  | "DEVICE"
+  | "TRIP"
+  | "VEHICLE"
+  | "ROAD_NETWORK"
+  | "ZONES"
+  | "TENANT_SETTINGS"
+  | "CALCULATED"
+  | "CONNECTION";
+
+export interface Step {
+  role: string | null;
+  channel: string | null;
+  budgetMinutes: number | null;
+  script: string | null;
+}
+
+export interface Notice {
+  when: string;
+  channel: string;
+  connectionId: string | null;
+  templateId: string | null;
+  recipient: string | null;
+}
+
+export interface LevelResponse {
+  operator: boolean;
+  slaMinutes: number | null;
+  steps: Step[];
+  notices: Notice[];
+  evidence: string[];
+  ignorable: boolean;
+}
+
+export interface Level {
+  icu: number;
+  applies: boolean;
+  when: string | null;
+  response: LevelResponse | null;
+}
+
+/** A draft may be incomplete, so every part can be null until it is published. */
+export interface SymptomSpec {
+  source: string | null;
+  activation: string | null;
+  measure: {
+    expression: string | null;
+    label: string | null;
+    unit: string | null;
+  } | null;
+  levels: Level[] | null;
+  lifecycle: { open: string | null; close: string | null } | null;
+  recurrence: {
+    enabled: boolean;
+    count: number;
+    days: number;
+    raiseLevels: number;
+  } | null;
+}
+
+export interface SymptomDefinition {
+  id: string;
+  tenantCode: string;
+  key: string;
+  name: string;
+  family: string | null;
+  icon: string | null;
+  description: string | null;
+  sourceKey: string;
+  engineRuleId: number | null;
+  templateKey: string | null;
+  forkedFromVersionId: string | null;
+  state: SymptomState;
+  currentVersion: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedBy: string;
+  updatedAt: string;
+}
+
+export interface SymptomVersion {
+  id: string;
+  definitionId: string;
+  version: string | null;
+  status: "DRAFT" | "PUBLISHED";
+  spec: SymptomSpec;
+  bump: VersionBump | null;
+  reason: string | null;
+  rolledBackFrom: string | null;
+  createdBy: string;
+  createdAt: string;
+  publishedBy: string | null;
+  publishedAt: string | null;
+}
+
+export interface SymptomSummary {
+  definition: SymptomDefinition;
+  hasDraft: boolean;
+}
+
+export interface SymptomDetail {
+  definition: SymptomDefinition;
+  current: SymptomVersion | null;
+  draft: SymptomVersion | null;
+  versions: SymptomVersion[];
+}
+
+export interface Finding {
+  section: string;
+  severity: "ERROR" | "WARNING";
+  message: string;
+  position: number;
+}
+
+export interface ValidationReport {
+  findings: Finding[];
+  publishable: boolean;
+  needsTestOnly: boolean;
+}
+
+export interface Change {
+  section: string;
+  bump: VersionBump;
+  text: string;
+}
+
+export interface PublishPlan {
+  changes: Change[];
+  bump: VersionBump | null;
+  nextVersion: string | null;
+  report: ValidationReport;
+}
+
+export interface SourceField {
+  path: string;
+  label: string;
+  type: string;
+  unit: string | null;
+  origin: FieldOrigin | null;
+  engineSupported: boolean;
+}
+
+export interface DataSource {
+  id: string;
+  tenantCode: string | null;
+  key: string;
+  name: string;
+  kind: "SIGNAL" | "EVENT" | "CHECK" | "TRIP_EVENT" | "WEBHOOK";
+  root: string;
+  cadence: string | null;
+  fields: SourceField[];
+  samples: Record<string, unknown>[];
+}
+
+export interface SamplePreview {
+  sample: Record<string, unknown>;
+  activates: boolean | null;
+  measure: number | null;
+  level: number | null;
+  error: string | null;
+}
+
+export interface Preview {
+  source: string;
+  samples: SamplePreview[];
+}
+
+export interface CreateSymptomBody {
+  key: string;
+  name: string;
+  family?: string | null;
+  icon?: string | null;
+  description?: string | null;
+  sourceKey: string;
+  spec?: SymptomSpec;
+}
+
+const DEFS = `${CONTROL_TOWER_BASE}/symptom-definitions`;
+const SOURCES = `${CONTROL_TOWER_BASE}/data-sources`;
+
+export const definitionsKey = DEFS;
+export const definitionKey = (id: string) => `${DEFS}/${id}`;
+
+const fetcher = <T>(url: string) => request<T>(url);
+
+export function useSymptomDefinitions() {
+  return useSWR<SymptomSummary[]>(definitionsKey, fetcher);
+}
+
+export function useSymptomDefinition(id: string | null) {
+  return useSWR<SymptomDetail>(id ? definitionKey(id) : null, fetcher);
+}
+
+export function useDataSources() {
+  return useSWR<DataSource[]>(SOURCES, fetcher);
+}
+
+export function useDataSource(key: string | null) {
+  return useSWR<DataSource>(key ? `${SOURCES}/${key}` : null, fetcher);
+}
+
+/** Refreshes the list and, when given, one symptom. */
+export async function refreshSymptoms(id?: string) {
+  await mutate(definitionsKey);
+  if (id) await mutate(definitionKey(id));
+}
+
+export function createSymptom(body: CreateSymptomBody) {
+  return request<SymptomDetail>(DEFS, { method: "POST", body });
+}
+
+export function updateIdentity(
+  id: string,
+  body: {
+    name?: string;
+    family?: string | null;
+    icon?: string | null;
+    description?: string | null;
+  }
+) {
+  return request<SymptomDefinition>(`${DEFS}/${id}`, { method: "PATCH", body });
+}
+
+export function saveDraft(id: string, spec: SymptomSpec) {
+  return request<SymptomVersion>(`${DEFS}/${id}/draft`, {
+    method: "PUT",
+    body: spec,
+  });
+}
+
+export function discardDraft(id: string) {
+  return request<void>(`${DEFS}/${id}/draft`, { method: "DELETE" });
+}
+
+export function validateSpec(id: string, spec?: SymptomSpec) {
+  return request<ValidationReport>(`${DEFS}/${id}/validate`, {
+    method: "POST",
+    body: spec ?? {},
+  });
+}
+
+export function previewSpec(id: string, spec?: SymptomSpec) {
+  return request<Preview>(`${DEFS}/${id}/preview`, {
+    method: "POST",
+    body: spec ?? {},
+  });
+}
+
+export function publishPlan(id: string) {
+  return request<PublishPlan>(`${DEFS}/${id}/publish-plan`);
+}
+
+export function publishDraft(
+  id: string,
+  body: { reason: string; bump?: VersionBump | null; state?: SymptomState }
+) {
+  return request<SymptomVersion>(`${DEFS}/${id}/publish`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function rollbackTo(id: string, version: string, reason?: string) {
+  return request<SymptomVersion>(`${DEFS}/${id}/rollback`, {
+    method: "POST",
+    body: { version, reason },
+  });
+}
+
+export function forkSymptom(
+  id: string,
+  body: { version?: string | null; key: string; name: string }
+) {
+  return request<SymptomDetail>(`${DEFS}/${id}/fork`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function setSymptomState(id: string, state: SymptomState) {
+  return request<SymptomDefinition>(`${DEFS}/${id}/state`, {
+    method: "PUT",
+    body: { state },
+  });
+}
+
+export function compareVersions(id: string, from: string, to: string) {
+  return request<Change[]>(
+    `${DEFS}/${id}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+  );
+}

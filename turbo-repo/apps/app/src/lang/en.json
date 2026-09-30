@@ -1911,7 +1911,8 @@
         "platform": "Platform",
         "selectables": "Selectables",
         "symptomRules": "Symptom rules",
-        "contactBook": "Contact book"
+        "contactBook": "Contact book",
+        "symptomCatalog": "Symptoms"
       },
       "symptoms": {
         "config": {
@@ -2040,7 +2041,8 @@
         "credentials": "Credentials",
         "selectables": "Selectables",
         "symptomRules": "Symptom rules",
-        "contactBook": "Contact book"
+        "contactBook": "Contact book",
+        "symptomCatalog": "Symptoms"
       },
       "credentials": {
         "title": "Credentials",
@@ -2467,6 +2469,52 @@
         "badgesCreate": "Create \"{name}\"",
         "channelInactive": "Not set up",
         "channelActive": "Enabled"
+      },
+      "symptomCatalog": {
+        "title": "Symptoms",
+        "description": "What each symptom detects, at which levels and who acts.",
+        "newSymptom": "New symptom",
+        "search": "Search symptoms",
+        "statActive": "Active",
+        "statActiveHint": "Create cases for the tower",
+        "statTest": "Testing",
+        "statTestHint": "Evaluated without reaching operators",
+        "statOff": "Off",
+        "statOffHint": "Not evaluated",
+        "statDrafts": "With draft",
+        "statDraftsHint": "Unpublished changes",
+        "filterAll": "All",
+        "stateActive": "Active",
+        "stateTest": "Testing",
+        "stateOff": "Off",
+        "withDraft": "With draft",
+        "draft": "Draft",
+        "unpublished": "Not published",
+        "viewCards": "Cards",
+        "viewList": "List",
+        "empty": "No symptoms yet.",
+        "emptyFiltered": "No symptom matches.",
+        "loadFailed": "Could not load the symptoms.",
+        "createTitle": "New symptom",
+        "name": "Name",
+        "key": "Key",
+        "keyHint": "Lowercase letters, digits, - and _. It cannot change later.",
+        "source": "Data source",
+        "create": "Create",
+        "cancel": "Cancel",
+        "createFailed": "Could not create the symptom.",
+        "backToCatalog": "Symptoms",
+        "showingDraft": "showing the draft",
+        "sectionActivation": "When it activates",
+        "sectionLevels": "How serious",
+        "sectionLifecycle": "Case lifecycle",
+        "sectionVersions": "Versions",
+        "measure": "Measure",
+        "levelOff": "Does not apply",
+        "operatorSla": "Operator · SLA {minutes} min",
+        "opens": "Opens when",
+        "closes": "Closes when",
+        "restores": "restores {version}"
       }
     },
     "integrationJobs": {
@@ -2949,7 +2997,8 @@
         "harnessLearning": "Assistant learning",
         "dashboardServer": "Dashboards",
         "symptomRules": "Symptom rules",
-        "contactBook": "Contact book"
+        "contactBook": "Contact book",
+        "symptomCatalog": "Symptoms"
       }
     },
     "calendar": {

@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleCheck;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.Expect;
@@ -44,11 +45,13 @@ public final class SpecValidator {
     /** All findings for one spec. */
     public record Report(List<Finding> findings) {
 
+        @JsonProperty
         public boolean publishable() {
             return findings.stream().noneMatch(f -> f.severity() == Severity.ERROR);
         }
 
         /** Fields the rules use that the engine does not evaluate yet: only "En prueba" is allowed. */
+        @JsonProperty
         public boolean needsTestOnly() {
             return findings.stream().anyMatch(f -> "engine".equals(f.section()));
         }

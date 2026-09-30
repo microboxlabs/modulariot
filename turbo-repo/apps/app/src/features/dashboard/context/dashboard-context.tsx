@@ -520,7 +520,11 @@ export function useDashboard() {
 
 const NOOP = () => {};
 const DASHBOARD_FALLBACK: DashboardContextValue = {
-  registry: dashboardRegistry,
+  // Getter, not a value: dashlets import this module, so when a dashlet is
+  // loaded first `dashboardRegistry` is still in its TDZ at this point.
+  get registry() {
+    return dashboardRegistry;
+  },
   widgets: [],
   editMode: false,
   isKiosk: false,

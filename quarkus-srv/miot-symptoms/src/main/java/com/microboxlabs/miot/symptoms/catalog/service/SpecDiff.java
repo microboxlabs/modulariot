@@ -104,8 +104,8 @@ public final class SpecDiff {
         return level != null && level.applies();
     }
 
-    private static boolean sameRule(String a, String b) {
-        return Objects.equals(squash(a), squash(b));
+    private static boolean sameRule(String before, String after) {
+        return Objects.equals(squash(before), squash(after));
     }
 
     private static SymptomSpec.Lifecycle normalized(SymptomSpec.Lifecycle l) {

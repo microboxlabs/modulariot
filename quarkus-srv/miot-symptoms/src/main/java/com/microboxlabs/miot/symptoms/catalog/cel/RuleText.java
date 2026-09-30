@@ -17,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * What a rule says, read from its parsed form rather than its text: a
@@ -46,13 +47,9 @@ public final class RuleText {
                 .filter(n -> n.getKind() == ExprKind.Kind.SELECT)
                 .map(n -> path(n.expr()))
                 .forEach(p -> p.ifPresent(all::add)));
-        Set<String> leaves = new LinkedHashSet<>();
-        for (String p : all) {
-            if (all.stream().noneMatch(other -> other.startsWith(p + "."))) {
-                leaves.add(p);
-            }
-        }
-        return leaves;
+        return all.stream()
+                .filter(p -> all.stream().noneMatch(other -> other.startsWith(p + ".")))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     /** The numeric literals in the rule. */

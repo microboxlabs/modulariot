@@ -51,8 +51,8 @@ function panelWidths(
  * Same map + timeline side panel, but the treatment forms no longer open in a
  * modal. When `isFormOpen` flips, this container grows the side panel and shrinks
  * the map with a width transition — the morph used by the bento document viewer
- * (`task-bento-form/bento-media-section.tsx`). Wired into the unlisted
- * `/symptoms/prototipe-map-view/[id]` route only.
+ * (`task-bento-form/bento-media-section.tsx`). Used by the
+ * `/symptoms/map-view/[id]` route.
  */
 export default function PrototypeGeneralMap({
   dict,

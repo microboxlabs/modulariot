@@ -28,6 +28,8 @@ final class EngineRuleTranslator {
     private static final Set<String> CONTROL_KEYS = Set.of("evaluate_time", "start_hour", "end_hour",
             "cooldown_seconds");
 
+    private static final String MEASURE_AT_LEAST = "medida >= ";
+
     /** Result of translating one rule. */
     record Translation(String key, String name, String sourceKey, String icon, SymptomSpec spec,
             List<String> pending) {
@@ -38,65 +40,76 @@ final class EngineRuleTranslator {
 
     static Translation translate(EngineRule rule) {
         Map<String, Object> p = rule.pattern();
-        String sourceKey = sourceOf(rule);
-        String root = switch (sourceKey) {
-            case EVENT -> "event";
-            case CHECK -> "check";
-            default -> "signal";
-        };
-        List<String> conditions = new ArrayList<>();
-        List<String> pending = new ArrayList<>();
-        String measure = null;
-        String unit = null;
-        String icon = null;
-        List<Level> levels = null;
+        Draft d = new Draft(sourceOf(rule));
+        p.forEach(d::read);
+        String hours = hourWindow(p.get("start_hour"), p.get("end_hour"));
+        if (hours != null) {
+            d.conditions.add(hours);
+        }
+        List<Level> levels = d.levels == null ? fixedLevel() : d.levels;
+        Object cooldown = p.get("cooldown_seconds");
+        String close = cooldown instanceof Number n ? "caso.normal_s >= " + n.intValue() : "caso.normal_s >= 0";
+        SymptomSpec spec = new SymptomSpec(d.sourceKey,
+                d.conditions.isEmpty() ? "true" : String.join(" && ", d.conditions),
+                d.measure == null ? null : new SymptomSpec.Measure(d.measure, null, d.unit), levels,
+                new SymptomSpec.Lifecycle("caso.condicion_s >= 0", close), null);
+        return new Translation(key(rule), rule.name(), d.sourceKey, d.icon, spec, d.pending);
+    }
 
-        for (Map.Entry<String, Object> e : p.entrySet()) {
-            String k = e.getKey();
-            Object v = e.getValue();
+    /** A pattern key that sets the measure. {@code levels} and {@code note} may be null. */
+    private record Measured(String measure, String unit, String icon, List<Level> levels, String note) {
+    }
+
+    private static final Map<String, Measured> MEASURES = Map.of(
+            "maxspeed_infraction_osm", new Measured("signal.gps.speed_kmh - signal.road.maxspeed_osm", "km/h",
+                    "SPEED LIMIT STANDARD", speedLevels(), null),
+            "maxspeed_infraction_custom", new Measured("signal.gps.speed_kmh - signal.road.maxspeed_custom", "km/h",
+                    "SPEED LIMIT CUSTOM", speedLevels(), null),
+            "continuous_drive_check", new Measured("check.driving_minutes", "min", "CONTINUOUS DRIVE CHECK",
+                    ladder(300, 330, 360), null),
+            "continuous_resting_check", new Measured("check.resting_minutes", "min", "CONTINUOUS RESTING CHECK",
+                    null, "continuous_resting_check: los umbrales viven en el motor; revisar los niveles"),
+            "lost_signal", new Measured("check.signal_lost_minutes", "min", "LOST SIGNAL", ladder(90, 120, 180), null));
+
+    /** What the pattern keys add up to while a rule is read. */
+    private static final class Draft {
+        final String sourceKey;
+        final String root;
+        final List<String> conditions = new ArrayList<>();
+        final List<String> pending = new ArrayList<>();
+        String measure;
+        String unit;
+        String icon;
+        List<Level> levels;
+
+        Draft(String sourceKey) {
+            this.sourceKey = sourceKey;
+            this.root = switch (sourceKey) {
+                case EVENT -> "event";
+                case CHECK -> "check";
+                default -> "signal";
+            };
+        }
+
+        void read(String k, Object v) {
+            Measured m = MEASURES.get(k);
+            if (m != null) {
+                take(m);
+                return;
+            }
             boolean on = isOn(v);
             switch (k) {
-                case "in_trip" -> conditions.add(on ? root + ".trip.active" : "!" + root + ".trip.active");
-                case "double_driver" -> conditions.add(on ? root + ".trip.double_driver" : "!" + root + ".trip.double_driver");
+                case "in_trip" -> conditions.add(flag(on, root + ".trip.active"));
+                case "double_driver" -> conditions.add(flag(on, root + ".trip.double_driver"));
                 case "movement_status" -> {
                     // Only the GPS signal says whether the truck moves.
                     if (GPS.equals(sourceKey)) {
-                        conditions.add(on ? "signal.gps.moving" : "!signal.gps.moving");
+                        conditions.add(flag(on, "signal.gps.moving"));
                     } else {
                         pending.add(k + " = " + v);
                     }
                 }
                 case "tipo_evento" -> conditions.add("event.type == \"" + v + "\"");
-                case "maxspeed_infraction_osm" -> {
-                    measure = "signal.gps.speed_kmh - signal.road.maxspeed_osm";
-                    unit = "km/h";
-                    icon = "SPEED LIMIT STANDARD";
-                    levels = speedLevels();
-                }
-                case "maxspeed_infraction_custom" -> {
-                    measure = "signal.gps.speed_kmh - signal.road.maxspeed_custom";
-                    unit = "km/h";
-                    icon = "SPEED LIMIT CUSTOM";
-                    levels = speedLevels();
-                }
-                case "continuous_drive_check" -> {
-                    measure = "check.driving_minutes";
-                    unit = "min";
-                    icon = "CONTINUOUS DRIVE CHECK";
-                    levels = ladder(300, 330, 360);
-                }
-                case "continuous_resting_check" -> {
-                    measure = "check.resting_minutes";
-                    unit = "min";
-                    icon = "CONTINUOUS RESTING CHECK";
-                    pending.add("continuous_resting_check: los umbrales viven en el motor; revisar los niveles");
-                }
-                case "lost_signal" -> {
-                    measure = "check.signal_lost_minutes";
-                    unit = "min";
-                    icon = "LOST SIGNAL";
-                    levels = ladder(90, 120, 180);
-                }
                 default -> {
                     if (!CONTROL_KEYS.contains(k)) {
                         pending.add(k + " = " + v);
@@ -104,19 +117,22 @@ final class EngineRuleTranslator {
                 }
             }
         }
-        String hours = hourWindow(p.get("start_hour"), p.get("end_hour"));
-        if (hours != null) {
-            conditions.add(hours);
+
+        private void take(Measured m) {
+            measure = m.measure();
+            unit = m.unit();
+            icon = m.icon();
+            if (m.levels() != null) {
+                levels = m.levels();
+            }
+            if (m.note() != null) {
+                pending.add(m.note());
+            }
         }
-        if (levels == null) {
-            levels = fixedLevel();
+
+        private static String flag(boolean on, String path) {
+            return on ? path : "!" + path;
         }
-        Object cooldown = p.get("cooldown_seconds");
-        String close = cooldown instanceof Number n ? "caso.normal_s >= " + n.intValue() : "caso.normal_s >= 0";
-        SymptomSpec spec = new SymptomSpec(sourceKey, conditions.isEmpty() ? "true" : String.join(" && ", conditions),
-                measure == null ? null : new SymptomSpec.Measure(measure, null, unit), levels,
-                new SymptomSpec.Lifecycle("caso.condicion_s >= 0", close), null);
-        return new Translation(key(rule), rule.name(), sourceKey, icon, spec, pending);
     }
 
     static String sourceOf(EngineRule rule) {
@@ -136,7 +152,7 @@ final class EngineRuleTranslator {
                 .replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT)
                 .replaceAll("[^a-z0-9]+", "-")
-                .replaceAll("(^-+)|(-+$)", "");
+                .replaceAll("^-|-$", "");
         String suffix = "-" + rule.id();
         return (base.length() > 90 ? base.substring(0, 90) : base) + suffix;
     }
@@ -180,9 +196,9 @@ final class EngineRuleTranslator {
     private static List<Level> ladder(int compromised, int critical, int black) {
         return List.of(
                 new Level(1, false, null, null),
-                level(2, "medida >= " + compromised + " && medida < " + critical, false, null),
-                level(3, "medida >= " + critical + " && medida < " + black, true, 5),
-                level(4, "medida >= " + black, true, 2));
+                level(2, MEASURE_AT_LEAST + compromised + " && medida < " + critical, false, null),
+                level(3, MEASURE_AT_LEAST + critical + " && medida < " + black, true, 5),
+                level(4, MEASURE_AT_LEAST + black, true, 2));
     }
 
     /** Events go straight to one level; the engine does not say which, so ICU 3 until the owner decides. */

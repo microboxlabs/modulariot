@@ -7,6 +7,7 @@ import com.microboxlabs.miot.symptoms.dto.ContactRequest;
 import com.microboxlabs.miot.symptoms.dto.ContactView;
 import com.microboxlabs.miot.symptoms.store.ContactStore;
 import com.microboxlabs.miot.symptoms.store.TreatmentStore;
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 
 /** Tenant contact list ("a quién llamar") with call statistics derived from call actions. */
 @ApplicationScoped
+@IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class ContactService {
 
     private static final String CONTACT_NOT_FOUND = "contact not found";

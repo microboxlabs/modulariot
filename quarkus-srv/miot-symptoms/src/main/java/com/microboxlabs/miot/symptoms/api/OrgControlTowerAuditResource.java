@@ -47,17 +47,20 @@ public class OrgControlTowerAuditResource extends ControlTowerResourceSupport {
 
     @GET
     @Operation(operationId = "listAuditEvents", summary = "List audit events, newest first",
-            description = "Page backwards with `before` set to the createdAt of the last event received.")
+            description = "Page backwards with `before` and `beforeId` set to the createdAt and id of the last "
+                    + "event received. `before` alone also works but can skip events that share its timestamp.")
     public Uni<Response> list(
             @PathParam("organizationId") String organizationId,
             @Parameter(description = "treatment, contact or selectable") @QueryParam("entityType") String entityType,
             @QueryParam("entityId") String entityId,
             @QueryParam("symptomId") Long symptomId,
             @QueryParam("before") String before,
+            @Parameter(description = "id of the last event received; use with before") @QueryParam("beforeId")
+                    String beforeId,
             @QueryParam("limit") Integer limit) {
         String tenant = tenantCode(organizationId);
         return memberWork(() -> Response.ok(
-                audit.list(tenant, entityType, entityId, symptomId, parseBefore(before), limit)).build());
+                audit.list(tenant, entityType, entityId, symptomId, parseBefore(before), beforeId, limit)).build());
     }
 
     private static OffsetDateTime parseBefore(String raw) {

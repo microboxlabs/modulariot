@@ -87,12 +87,9 @@ public class PgDataSourceStore implements DataSourceStore {
     }
 
     private static List<DataSource> sources(RowSet<Row> rows) {
-        List<DataSource> out = new ArrayList<>();
-        for (Row r : rows) {
-            out.add(new DataSource(r.getUUID("id"), r.getString("tenant_code"), r.getString("source_key"),
-                    r.getString("name"), SourceKind.valueOf(r.getString("kind")), r.getString("root"),
-                    r.getString("cadence"), PgJson.read(r, "fields", FIELDS), PgJson.read(r, "samples", SAMPLES)));
-        }
-        return out;
+        return rows.stream().map(r -> new DataSource(r.getUUID("id"), r.getString("tenant_code"),
+                r.getString("source_key"), r.getString("name"), SourceKind.valueOf(r.getString("kind")),
+                r.getString("root"), r.getString("cadence"), PgJson.read(r, "fields", FIELDS),
+                PgJson.read(r, "samples", SAMPLES))).toList();
     }
 }

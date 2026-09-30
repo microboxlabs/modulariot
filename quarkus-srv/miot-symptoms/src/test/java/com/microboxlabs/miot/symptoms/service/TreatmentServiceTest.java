@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.domain.ActionKind;
+import com.microboxlabs.miot.symptoms.domain.AuditEvent;
 import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
@@ -15,9 +16,11 @@ import com.microboxlabs.miot.symptoms.dto.AddActionRequest;
 import com.microboxlabs.miot.symptoms.dto.CloseTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.OpenTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
+import com.microboxlabs.miot.symptoms.store.AuditStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryContactStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryTreatmentStore;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -140,6 +143,29 @@ class TreatmentServiceTest {
 
         assertEquals(List.of(a, b), list.stream().map(TreatmentView::id).toList());
         assertEquals(1, list.get(0).actions().size());
+    }
+
+    @Test
+    void failedAuditAppendDoesNotFailTheChange() {
+        AuditStore broken = new AuditStore() {
+            @Override
+            public AuditEvent append(AuditEvent event) {
+                throw new IllegalStateException("database down");
+            }
+
+            @Override
+            public List<AuditEvent> list(String tenantCode, String entityType, String entityId, Long symptomId,
+                    OffsetDateTime before, String beforeId, int limit) {
+                return List.of();
+            }
+        };
+        var withBrokenAudit = new TreatmentService(treatments, contacts, new DemoSeeder(false, contacts, treatments),
+                new AuditService(broken));
+
+        var opened = withBrokenAudit.open(TENANT, ACTOR, 43L, open(TreatmentType.CALL));
+
+        assertTrue(opened.created());
+        assertTrue(treatments.find(TENANT, opened.treatment().id()).isPresent());
     }
 
     private static OpenTreatmentRequest open(TreatmentType type) {

@@ -1322,3 +1322,18 @@ accessible image. Without it the trend is decorative. `valueClassName` and
 `valueStyle` are trusted host styling slots; `--miot-sparkline-color` controls
 the line and fill. Next.js retains query resolution, saved sample defaults,
 number formatting and threshold evaluation while using this renderer.
+
+`createSparklineStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_sparkline` with static JSON and named planner results. Required
+options: `defaultTitle`, `defaultUnit`, `loadingLabel`, `errorLabel` and
+`unsupportedDataLabel`. Optional `locale`, `formatValue(number)`, `templateEngine`
+and `trendLabel(samples)` customize formatting and accessibility.
+
+Saved `sparkline` entries may be numbers or templates resolved against static
+data or the first planner row. Invalid/empty samples create gaps. A missing or
+shorter-than-two array uses `defaultSamples` only when explicitly supplied by
+the host; otherwise no trend is drawn. No query history is inferred from a
+current scalar value. Title/value/unit and threshold fields resolve through the
+same template engine. Text thresholds use the portable validated palette.
+Loading/errors remove stale trends; legacy direct queries show the migration
+label. Hosts should label configured sample series accurately.

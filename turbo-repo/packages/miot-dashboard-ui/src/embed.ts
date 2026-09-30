@@ -26,3 +26,5 @@ export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./re
 export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from "./react/expandable-stat-registry";
 
 export { createDetailedStatRegistry, type DetailedStatRegistryOptions } from "./react/detailed-stat-registry";
+
+export { createSparklineStatRegistry, type SparklineStatRegistryOptions } from "./react/sparkline-stat-registry";

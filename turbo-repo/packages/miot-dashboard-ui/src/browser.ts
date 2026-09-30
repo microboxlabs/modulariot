@@ -23,3 +23,5 @@ export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./em
 export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from "./embed";
 
 export { createDetailedStatRegistry, type DetailedStatRegistryOptions } from "./embed";
+
+export { createSparklineStatRegistry, type SparklineStatRegistryOptions } from "./embed";

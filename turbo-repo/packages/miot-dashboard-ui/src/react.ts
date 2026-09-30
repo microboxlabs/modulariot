@@ -117,3 +117,5 @@ export { DetailedStat, type DetailedStatProps } from "./react/detailed-stat";
 export { createDetailedStatRegistry, type DetailedStatRegistryOptions } from "./react/detailed-stat-registry";
 
 export { SparklineStat, type SparklineStatProps } from "./react/sparkline-stat";
+
+export { createSparklineStatRegistry, type SparklineStatRegistryOptions } from "./react/sparkline-stat-registry";

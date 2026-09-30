@@ -94,6 +94,8 @@ El registro detallado portátil resuelve importes y comparaciones de consultas g
 
 El indicador sparkline compartido representa una tendencia SVG ligera con resúmenes accesibles opcionales del host. Las muestras ausentes dejan espacios y los valores extremos mantienen coordenadas finitas; Next.js conserva los datos y umbrales.
 
+El registro sparkline portátil resuelve plantillas de muestras configuradas y valores escalares desde datos estáticos o consultas guardadas. Elimina tendencias anteriores durante carga/errores y no inventa un historial cuando faltan muestras.
+
 ## Límite de seguridad
 
 El servidor aplica permisos de tenant, scope y documento. Nunca incluya claves de firma, credenciales de base de datos ni claves de cuenta de servicio en la configuración del navegador. El proxy del ejemplo permite únicamente las lecturas configuradas; es un acceso privado para demostración, no SSO de producción.

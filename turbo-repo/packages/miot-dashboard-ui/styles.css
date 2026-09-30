@@ -538,3 +538,118 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-icon-stat-link { display:block; color:inherit; text-decoration:none; }
 .miot-icon-stat-link:hover .miot-icon-stat { border-color:var(--miot-focus-color,#2563eb); }
 .miot-icon-stat-link:focus-visible { outline:2px solid var(--miot-focus-color,#2563eb); outline-offset:2px; }
+
+.miot-sensitive-stat { box-sizing:border-box; height:100%; display:flex; flex-direction:column; justify-content:center; border:1px solid var(--miot-card-border,#e5e7eb); border-radius:.5rem; padding:1rem; background:var(--miot-card-background,#fff); color:var(--miot-card-text,#111827); }
+.miot-sensitive-stat header { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
+.miot-sensitive-stat header p { margin:0; font-size:.875rem; font-weight:500; color:var(--miot-card-muted,#6b7280); overflow-wrap:anywhere; }
+.miot-sensitive-stat button { font:inherit; border:0; border-radius:.25rem; padding:.25rem; color:var(--miot-card-muted,#6b7280); background:transparent; cursor:pointer; }
+.miot-sensitive-stat button:hover { background:var(--miot-sensitive-hover,#f3f4f6); }
+.miot-sensitive-stat button:focus-visible { outline:2px solid var(--miot-focus-color,#2563eb); outline-offset:2px; }
+.miot-sensitive-stat button svg { width:1.25rem; height:1.25rem; display:block; }
+.miot-sensitive-stat__value { margin:.5rem 0 0; font-size:1.875rem; font-weight:700; overflow-wrap:anywhere; }
+.miot-sensitive-stat__value[data-hidden] { color:var(--miot-card-muted,#9ca3af); }
+.miot-sensitive-stat__hint { margin:.5rem 0 0; font-size:.75rem; color:var(--miot-card-muted,#6b7280); }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-sensitive-stat { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
+:where(.dark,[data-miot-theme="dark"]) .miot-sensitive-stat header p { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-sensitive-stat button { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-sensitive-stat button:hover { background:var(--miot-sensitive-hover,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-sensitive-stat__hint { color:var(--miot-card-muted,#9ca3af); }
+
+.miot-stacked-stat { box-sizing:border-box; height:100%; display:flex; flex-direction:column; gap:.75rem; border:1px solid var(--miot-card-border,#e5e7eb); border-radius:.5rem; padding:1rem; background:var(--miot-card-background,#fff); color:var(--miot-card-text,#111827); }
+.miot-stacked-stat__title { margin:0; font-weight:700; line-height:1.25; overflow-wrap:anywhere; }
+.miot-stacked-stat__chart { width:100%; min-height:.5rem; flex:1; border-radius:.5rem; }
+.miot-stacked-stat[data-chart-type="donut"] .miot-stacked-stat__chart { min-height:0; }
+.miot-stacked-stat__legend { list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:.5rem 1rem; font-size:.75rem; }
+.miot-stacked-stat__legend li { display:flex; align-items:center; gap:.25rem; min-width:0; }
+.miot-stacked-stat__legend li > span:first-child { width:.75rem; height:.75rem; border-radius:50%; flex-shrink:0; }
+.miot-stacked-stat__legend li > span:nth-child(2) { color:var(--miot-card-muted,#4b5563); overflow-wrap:anywhere; }
+.miot-stacked-stat__legend strong { font-weight:500; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-stacked-stat { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
+:where(.dark,[data-miot-theme="dark"]) .miot-stacked-stat__legend li > span:nth-child(2) { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-stacked-stat { --miot-chart-empty:#374151; }
+
+.miot-expandable-stat { box-sizing:border-box; height:100%; min-height:0; display:flex; flex-direction:column; border:1px solid var(--miot-card-border,#e5e7eb); border-radius:.5rem; color:var(--miot-card-text,#111827); background:var(--miot-expand-background,var(--miot-card-background,#fff)); }
+.miot-expandable-stat__main { padding:1rem; flex:1; display:flex; flex-direction:column; justify-content:center; }
+.miot-expandable-stat__main p { margin:0; font-size:.875rem; font-weight:500; color:var(--miot-card-muted,#6b7280); overflow-wrap:anywhere; }
+.miot-expandable-stat__main strong { margin-top:.25rem; font-size:1.875rem; overflow-wrap:anywhere; }
+.miot-expandable-stat__main strong span { margin-inline-start:.25rem; font-size:1.125rem; font-weight:400; color:var(--miot-card-muted,#6b7280); }
+.miot-expandable-stat button { font:inherit; font-size:.75rem; cursor:pointer; display:flex; justify-content:center; align-items:center; gap:.25rem; padding:.5rem; border:0; border-top:1px solid var(--miot-card-border,#e5e7eb); background:transparent; color:var(--miot-expand-control,#2563eb); }
+.miot-expandable-stat button:hover { background:var(--miot-expand-hover,#f9fafb); }
+.miot-expandable-stat button:focus-visible { outline:2px solid var(--miot-focus-color,#2563eb); outline-offset:-2px; }
+.miot-expandable-stat__details { flex-shrink:1; overflow:auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; margin:0; padding:.75rem; border-top:1px solid var(--miot-card-border,#e5e7eb); background:var(--miot-expand-detail,#f9fafb); }
+.miot-expandable-stat dt { font-size:.75rem; color:var(--miot-card-muted,#6b7280); overflow-wrap:anywhere; }
+.miot-expandable-stat dd { margin:0; font-size:.875rem; font-weight:500; overflow-wrap:anywhere; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat { border:1px solid var(--miot-card-border,#374151); color:var(--miot-card-text,#fff); background:var(--miot-expand-background,var(--miot-card-background,#1f2937)); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat__main p { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat__main strong span { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat button { border-top:1px solid var(--miot-card-border,#374151); color:var(--miot-expand-control,#60a5fa); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat button:hover { background:var(--miot-expand-hover,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat__details { border-top:1px solid var(--miot-card-border,#374151); background:var(--miot-expand-detail,#11182780); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat dt { color:var(--miot-card-muted,#9ca3af); }
+
+.miot-detailed-stat { box-sizing:border-box; height:100%; display:flex; flex-direction:column; border:1px solid var(--miot-card-border,#e5e7eb); border-radius:.5rem; padding:1rem; background:var(--miot-card-background,#fff); color:var(--miot-card-text,#111827); overflow-wrap:anywhere; }
+.miot-detailed-stat header { display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; }
+.miot-detailed-stat header p { margin:0; font-size:.875rem; color:var(--miot-card-muted,#6b7280); }
+.miot-detailed-stat header strong { display:block; margin-top:.25rem; font-size:1.875rem; }
+.miot-detailed-stat__change { display:flex; align-items:center; gap:.25rem; flex-shrink:0; border-radius:999px; padding:.25rem .5rem; font-size:.75rem; font-weight:500; color:#b91c1c; background:#fee2e2; }
+.miot-detailed-stat__change[data-positive="true"] { color:#15803d; background:#dcfce7; }
+.miot-detailed-stat__description { margin:.5rem 0 0; font-size:.75rem; color:var(--miot-card-muted,#6b7280); }
+.miot-detailed-stat__progress { margin-top:auto; padding-top:.75rem; font-size:.75rem; color:var(--miot-card-muted,#6b7280); }
+.miot-detailed-stat__progress > div:first-child { display:flex; justify-content:space-between; gap:.5rem; }
+.miot-detailed-stat progress { display:block; width:100%; height:.5rem; margin-top:.25rem; overflow:hidden; border:0; border-radius:999px; appearance:none; background:var(--miot-card-border,#e5e7eb); color:var(--miot-progress-color,#3b82f6); }
+.miot-detailed-stat progress::-webkit-progress-bar { border-radius:999px; background:var(--miot-card-border,#e5e7eb); }
+.miot-detailed-stat progress::-webkit-progress-value { border-radius:999px; background:var(--miot-progress-color,#3b82f6); }
+.miot-detailed-stat progress::-moz-progress-bar { border-radius:999px; background:var(--miot-progress-color,#3b82f6); }
+.miot-detailed-stat__progress p { margin:.25rem 0 0; }
+.miot-detailed-stat dl { display:flex; justify-content:space-between; gap:.5rem; border-top:1px solid var(--miot-card-border,#e5e7eb); margin:.75rem 0 0; padding-top:.75rem; font-size:.75rem; }
+.miot-detailed-stat dt { color:var(--miot-card-muted,#6b7280); }
+.miot-detailed-stat dd { margin:0; font-weight:500; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-detailed-stat { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
+:where(.dark,[data-miot-theme="dark"]) .miot-detailed-stat header p { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-detailed-stat__description { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-detailed-stat__progress { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-detailed-stat progress { background:var(--miot-card-border,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-detailed-stat progress::-webkit-progress-bar { background:var(--miot-card-border,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-detailed-stat dl { border-top:1px solid var(--miot-card-border,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-detailed-stat dt { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-detailed-stat__change { color:#f87171; background:#7f1d1d4d; }
+:where(.dark,[data-miot-theme="dark"]) .miot-detailed-stat__change[data-positive="true"] { color:#4ade80; background:#14532d4d; }
+
+.miot-sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.miot-sparkline-stat { box-sizing:border-box; position:relative; height:100%; overflow:hidden; border:1px solid var(--miot-card-border,#e5e7eb); border-radius:.5rem; padding:1rem; background:var(--miot-card-background,#fff); color:var(--miot-card-text,#111827); }
+.miot-sparkline-stat svg { position:absolute; bottom:0; left:0; width:100%; height:4rem; color:var(--miot-sparkline-color,#3b82f6); }
+.miot-sparkline-stat > div { position:relative; }
+.miot-sparkline-stat p { margin:0; font-size:.875rem; font-weight:500; color:var(--miot-card-muted,#6b7280); overflow-wrap:anywhere; }
+.miot-sparkline-stat strong { display:block; margin-top:.25rem; font-size:1.875rem; overflow-wrap:anywhere; }
+.miot-sparkline-stat strong span { margin-inline-start:.25rem; font-size:1.125rem; font-weight:400; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-sparkline-stat { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
+:where(.dark,[data-miot-theme="dark"]) .miot-sparkline-stat p { color:var(--miot-card-muted,#9ca3af); }
+
+.miot-info-card { box-sizing:border-box; height:100%; display:flex; flex-direction:column; border:1px solid var(--miot-card-border,#e5e7eb); border-radius:.5rem; background:var(--miot-card-background,#fff); color:var(--miot-card-text,#111827); overflow-wrap:anywhere; }
+.miot-info-card header { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.75rem 1rem; border-bottom:1px solid var(--miot-card-border,#e5e7eb); }
+.miot-info-card h3 { margin:0; font-size:1rem; font-weight:600; }
+.miot-info-card header > span { display:flex; color:var(--miot-card-muted,#6b7280); }
+.miot-info-card header svg { width:1.25rem; height:1.25rem; }
+.miot-info-card__body { flex:1; display:flex; flex-direction:column; justify-content:center; padding:1rem; }
+.miot-info-card__body > strong { font-size:1.875rem; }
+.miot-info-card__body > p { margin:.25rem 0 0; font-size:.875rem; color:var(--miot-card-muted,#6b7280); }
+.miot-info-card__details { margin-top:.75rem; display:flex; flex-direction:column; gap:.5rem; }
+.miot-info-card__add { margin-top:.75rem; padding:.5rem; border:2px dashed var(--miot-card-border,#d1d5db); border-radius:.5rem; background:transparent; color:var(--miot-card-muted,#6b7280); cursor:pointer; font:inherit; font-size:.875rem; }
+.miot-info-card footer { display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.75rem 1rem; border-top:1px solid var(--miot-card-border,#e5e7eb); }
+.miot-info-card footer p { margin:0; font-size:.75rem; font-style:italic; color:var(--miot-card-muted,#6b7280); }
+.miot-info-card footer a { flex-shrink:0; padding:.5rem .75rem; border:1px solid var(--miot-card-border,#d1d5db); border-radius:.5rem; color:inherit; text-decoration:none; font-size:.75rem; }
+.miot-info-card a:focus-visible,.miot-info-card button:focus-visible { outline:2px solid var(--miot-focus-color,#2563eb); outline-offset:2px; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card header { border-bottom:1px solid var(--miot-card-border,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card header > span { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card__body > p { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card__add { border:2px dashed var(--miot-card-border,#374151); color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card footer { border-top:1px solid var(--miot-card-border,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card footer p { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card footer a { border:1px solid var(--miot-card-border,#374151); }

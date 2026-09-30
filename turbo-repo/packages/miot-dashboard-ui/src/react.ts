@@ -102,3 +102,24 @@ export { createStatusStatRegistry, type StatusStatRegistryOptions } from "./reac
 export { IconStat, type IconStatProps } from "./react/icon-stat";
 
 export { createIconStatRegistry, type IconStatRegistryOptions } from "./react/icon-stat-registry";
+export { SensitiveStat, type SensitiveStatProps } from "./react/sensitive-stat";
+
+export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "./react/sensitive-stat-registry";
+export { StackedStat, type StackedStatProps, type StackedStatItem } from "./react/stacked-stat";
+
+export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./react/stacked-stat-registry";
+export { ExpandableStat, type ExpandableStatProps } from "./react/expandable-stat";
+
+export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from "./react/expandable-stat-registry";
+
+export { DetailedStat, type DetailedStatProps } from "./react/detailed-stat";
+
+export { createDetailedStatRegistry, type DetailedStatRegistryOptions } from "./react/detailed-stat-registry";
+
+export { SparklineStat, type SparklineStatProps } from "./react/sparkline-stat";
+
+export { createSparklineStatRegistry, type SparklineStatRegistryOptions } from "./react/sparkline-stat-registry";
+
+export { InfoCard, type InfoCardProps } from "./react/info-card";
+
+export { createInfoCardRegistry, type InfoCardRegistryOptions } from "./react/info-card-registry";

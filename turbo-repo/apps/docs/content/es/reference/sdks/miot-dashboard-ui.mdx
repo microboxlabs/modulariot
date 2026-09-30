@@ -76,6 +76,30 @@ El indicador con icono admite diseños de texto horizontal o apilado, escalado s
 
 El registro portátil de indicadores con icono conecta plantillas con datos estáticos o consultas guardadas, aplica reglas de color y permite enlaces seguros en modo lectura. El host puede proporcionar formato, iconos y descripciones enriquecidas saneadas sin dependencias de framework.
 
+El indicador sensible compartido oculta el valor hasta que se revela y restablece la ocultación al cambiar sus datos o identidad. El host proporciona controles traducidos; la ocultación visual no sustituye la autorización del servidor.
+
+El registro portátil sensible resuelve plantillas estáticas o de consultas guardadas, formatea valores según la configuración regional y aplica umbrales al texto revelado. La carga y los errores restablecen la ocultación; los datos recuperados vuelven a mostrarse ocultos.
+
+El indicador apilado utiliza barras o anillos SVG ligeros con una leyenda textual y descripciones nativas por segmento. Las etiquetas son literales, los colores se validan y el widget Next.js comparte este renderizador sin depender directamente de una biblioteca de gráficos.
+
+El registro portátil apilado resuelve la etiqueta y el valor de cada elemento guardado mediante plantillas estáticas o de consultas guardadas, admite ambos diseños y elimina segmentos anteriores durante la carga y los errores.
+
+El indicador expandible compartido utiliza controles nativos traducidos, campos de detalle semánticos, colores validados y estado independiente por instancia. El host puede restablecer la expansión al cambiar la identidad del dashboard.
+
+El registro portátil expandible resuelve plantillas del valor principal y sus detalles, aplica reglas al texto y fondo, y elimina detalles anteriores durante la carga y los errores. Los resultados recuperados comienzan contraídos.
+
+El indicador detallado compartido muestra comparaciones entre períodos, colores condicionales y progreso accesible hacia la meta. El host proporciona valores formateados y etiquetas traducidas; el adaptador Next.js conserva las consultas y las reglas de comparación entre campos.
+
+El registro detallado portátil resuelve importes y comparaciones de consultas guardadas, incluidas reglas de color basadas en campos. El host controla el formato numérico y los resúmenes de progreso traducidos; la carga y los errores eliminan importes anteriores.
+
+El indicador sparkline compartido representa una tendencia SVG ligera con resúmenes accesibles opcionales del host. Las muestras ausentes dejan espacios y los valores extremos mantienen coordenadas finitas; Next.js conserva los datos y umbrales.
+
+El registro sparkline portátil resuelve plantillas de muestras configuradas y valores escalares desde datos estáticos o consultas guardadas. Elimina tendencias anteriores durante carga/errores y no inventa un historial cuando faltan muestras.
+
+La tarjeta de información compartida admite widgets anidados, iconos y estilos del host, controles de edición autorizados y enlaces web validados. El adaptador Next.js conserva las plantillas híbridas de proveedores de datos y las reglas de color.
+
+El registro portátil de tarjetas de información resuelve plantillas de proveedores y consultas guardadas, conserva widgets anidados y elimina enlaces anteriores durante carga o errores. El host proporciona iconos y acciones de edición autorizadas.
+
 ## Límite de seguridad
 
 El servidor aplica permisos de tenant, scope y documento. Nunca incluya claves de firma, credenciales de base de datos ni claves de cuenta de servicio en la configuración del navegador. El proxy del ejemplo permite únicamente las lecturas configuradas; es un acceso privado para demostración, no SSO de producción.

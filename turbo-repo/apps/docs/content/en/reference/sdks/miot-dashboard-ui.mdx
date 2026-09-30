@@ -76,6 +76,30 @@ The icon statistic renderer supports horizontal and stacked text layouts, contai
 
 The portable icon registry binds templates to static or saved-query values, applies color rules and supports safe viewer links. Hosts can provide formatting, icons and sanitized rich descriptions without adding framework dependencies.
 
+The shared sensitive statistic masks values until reveal and resets disclosure when its data or identity changes. Hosts supply translated controls; masking is visual privacy and does not replace server authorization.
+
+The portable sensitive registry resolves static or saved-query templates, formats values by locale and applies text thresholds after reveal. Loading and failure clear disclosure; restored data starts masked again.
+
+The stacked statistic uses lightweight SVG bars or donuts with a text legend and native segment tooltips. Labels stay literal, colors are validated, and the Next.js widget shares this renderer without a direct chart-library dependency.
+
+The portable stacked registry resolves each saved item’s label and value through static or saved-query templates, supports both chart layouts, and clears stale segments during loading and errors.
+
+The shared expandable statistic uses translated native disclosure controls, semantic detail fields, validated colors and independent state per instance. Hosts can reset expansion when dashboard identity changes.
+
+The portable expandable registry resolves main and detail templates, applies text/background rules, and removes stale details during loading and errors. Recovered query results start collapsed.
+
+The shared detailed statistic displays period comparisons, conditional colors and accessible target progress. Hosts supply formatted values and translated labels; the Next.js adapter retains query and field-comparison rules.
+
+The portable detailed registry resolves saved-query amounts and comparisons, including field-based color rules. Hosts control number formatting and translated progress summaries; loading and errors clear stale amounts.
+
+The shared sparkline statistic renders a lightweight SVG trend with optional accessible host summaries. Missing samples leave gaps and extreme values stay within finite geometry; Next.js retains its data and threshold handling.
+
+The portable sparkline registry resolves configured sample templates and scalar values from static data or saved queries. It clears stale trends on loading/errors and does not invent history when samples are absent.
+
+The shared information card supports nested widgets, host icons and styling, authorized edit controls and validated web links. The Next.js adapter retains its hybrid data-provider templates and color rules.
+
+The portable information-card registry resolves provider and saved-query templates, preserves nested widgets, and clears stale links on loading or errors. Hosts provide icons and authorized editing actions.
+
 ## Security boundary
 
 The server enforces tenant, scope and document permissions. Never put signing keys, database credentials or service-account keys in browser configuration. The example proxy allows only its configured read operations; it is a private demo access gate, not production SSO.

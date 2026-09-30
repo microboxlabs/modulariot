@@ -1164,3 +1164,204 @@ six-digit RGB colors are accepted. Background colors retain 80% opacity.
 at `/`, unsafe schemes are rejected, and edit mode disables links. Hosts remain
 responsible for destination authorization. Loading/error states clear content
 and navigation. Legacy direct-query bindings display the migration label.
+
+### Sensitive statistic
+
+`SensitiveStat` from `./react` displays a resolved string `value` under `title`.
+It defaults to masked; `sensitive: false` starts visible. Required `showLabel`
+and `hideLabel` localize the native toggle; optional `hint`, `showIcon` and
+`hideIcon` customize its presentation. Each instance has distinct accessible
+control identifiers. Masked values are not included in the rendered card DOM.
+
+Changing `resetKey`, title, value or sensitive mode resets disclosure. Hosts
+must change `resetKey` when switching document, tenant or session (or unmount
+the dashboard). Optional `valueClassName` and trusted React `valueStyle` apply
+only to the revealed value, allowing host threshold styles. Import the scoped
+stylesheet for light/dark styles.
+
+This is visual privacy, not authorization or encryption: the host already has
+the value in memory. Enforce permissions on the server before sending data.
+Next.js retains its data, formatting and threshold providers and supplies
+translated reveal labels through this shared renderer.
+
+`createSensitiveStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_sensitive` with static JSON and named planner results. It resolves
+`title`, `value`, `unit` and the enabled threshold field through Handlebars.
+`isSensitive` defaults to true. Loading and errors unmount the card and clear
+its disclosure state; data is masked again on recovery. Switch host identity
+using the mount `instanceKey` or unmount before changing authorization context.
+
+```ts
+interface SensitiveStatRegistryOptions {
+  defaultTitle: string;
+  defaultUnit: string;
+  showLabel: string;
+  hideLabel: string;
+  hint?: string;
+  loadingLabel: string;
+  errorLabel: string;
+  unsupportedDataLabel: string;
+  locale?: string;
+  formatValue?: (value: string, unit: string) => string;
+  templateEngine?: ReturnType<typeof createTemplateEngine>;
+}
+```
+
+Default formatting prefixes the unit and formats finite numbers to two decimal
+places using `locale`; other values stay literal. Override `formatValue` for
+host-specific unit placement. Thresholds require `enabled: true` and a nonempty
+`field`; the first matching rule in saved order supplies the revealed text
+color when `applyTo` includes `text` (the default target). The portable scalar
+palette supports red, yellow, green, blue, orange, purple and gray plus validated
+hex colors. No threshold color is exposed on the masked value. Legacy query
+bindings require migration to saved queries.
+
+### Stacked statistic
+
+`StackedStat` from `./react` renders `items: readonly StackedStatItem[]` as an SVG
+stacked bar or donut (`chartType: "bar" | "donut"`). Each item has a literal
+`label`, numeric `value` and six-digit RGB `color` without `#`. Invalid colors
+use gray. `title` labels the chart; `showHeader: false` hides its visual header.
+Optional `unit` and `formatValue(value)` control value labels.
+
+A visible text legend exposes every item; SVG segment titles provide native
+hover tooltips without interpreting labels as HTML. This renderer adds no chart
+library dependency or body tooltip nodes. The Next.js stacked widget uses the
+same component and retains its data/template adapter. The prior ECharts hover
+animation is replaced by native SVG tooltips.
+
+Areas use positive finite values only; negative values remain in the legend,
+and nonfinite values display as zero. Empty/all-zero data renders a neutral
+track. Normalizing by the largest value avoids overflow for very large totals.
+Import the package stylesheet for scoped light/dark rendering.
+
+`createStackedStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_stacked`. Required options are `defaultTitle`, `defaultUnit`,
+`loadingLabel`, `errorLabel`, `unsupportedDataLabel` and `emptyLabel`; optional
+`formatValue(number)` and `templateEngine` customize formatting and templates.
+
+Saved `items` contain string `label`, string/number `value` and optional string
+`color`. Labels and values resolve against static JSON or the first row of the
+named planner result, including the `row` alias. This also enables templates
+for static configurations. Colors accept an optional leading `#`; the renderer
+validates the resulting RGB. Invalid item entries are skipped and an empty list
+shows `emptyLabel`. `showHeader` defaults to true and `chartType` defaults to
+`bar`; `donut` selects the ring. Loading and errors remove stale segments.
+Legacy direct queries display the migration label.
+
+### Expandable statistic
+
+`ExpandableStat` from `./react` accepts resolved `title`, string `value`, optional
+`unit`, and `details: readonly { label: string; value: string }[]`. Required
+`showLabel` and `hideLabel` localize its native disclosure button. Values remain
+literal text, including repeated detail labels. Expanded details use semantic
+term/definition markup and each instance has distinct accessible control IDs.
+
+Optional `valueColor` and `backgroundColor` accept six-digit RGB without `#`;
+invalid colors fall back to the scoped theme. Background rules tint the card,
+button and expanded section. Change `resetKey` when the dashboard identity
+changes to collapse its details. Data and formatting remain host responsibilities.
+Next.js consumes this renderer with existing value/color rules and EN/ES labels.
+
+`createExpandableStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_expandable` for static JSON and named planner results. Required
+options are `defaultTitle`, `defaultUnit`, `showLabel`, `hideLabel`, `loadingLabel`,
+`errorLabel` and `unsupportedDataLabel`. Optional `formatValue(string)` and
+`templateEngine` customize display and Handlebars helpers.
+
+Templates apply to `title`, `value`, `unit` and each saved detail's `label` and
+string/number `value`, using the first planner row or static data. Malformed
+details are skipped. Finite numeric main values normalize like the Next.js
+adapter; other values remain literal text. Value rules target `text` and `bg`,
+with text rules taking precedence over `valueColor`. Loading/errors clear the
+card and its disclosure state; recovery starts collapsed. Change the host mount
+`instanceKey` (or unmount) when switching authorization context. Legacy direct
+queries display the migration label.
+
+### Detailed statistic
+
+`DetailedStat` from `./react` renders resolved `title`, `value`, `description`,
+`previousValue`, `target` and `changeLabel` strings as literal text. The host
+formats amounts/units and supplies `positive` for the trend direction. Required
+`progress` is a percentage; the renderer clamps it to 0–100 and uses zero for
+non-finite inputs, including its accessible progressbar value.
+
+Required `progressLabel`, `progressSummary` and `previousLabel` are host-translated
+strings. Optional `valueColor`, `barColor` and `badgeColor` accept six-digit RGB
+without `#`; invalid colors use the theme defaults. The scoped stylesheet
+supports light/dark hosts without a chart or icon dependency. Next.js consumes
+this component while retaining its current query resolution and field-comparison
+color rules. This presentation component does not fetch data or calculate trends.
+
+`createDetailedStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_detailed` for static JSON and named planner results. Required
+options: `defaultTitle`, `defaultUnit`, `progressLabel`, `previousLabel`,
+`progressSummary(percent)`, `loadingLabel`, `errorLabel`, `unsupportedDataLabel`.
+Optional `formatValue(number, unit)`, `formatChange(percent, positive)` and
+`templateEngine` customize display and helpers.
+
+The registry resolves title, description, value, previousValue, target and unit
+against the first planner row or static data. Non-finite amounts become zero;
+a zero previous value gives zero percent change and a nonpositive target gives
+zero progress. Color rules target text, bar or badge and support static values
+or `compareMode: "field"` with `previousValue` (default) or `target`. Invalid
+comparison definitions are skipped. Loading/errors clear stale amounts; legacy
+direct queries show the migration label. Default number formatting uses the
+host locale and places the unit first; supply formatters for another convention.
+
+### Sparkline statistic
+
+`SparklineStat` from `./react` accepts resolved `title`, formatted string `value`,
+optional `unit` and `values: readonly number[]`. The mini SVG line and area use
+scoped styles with no chart dependency. Non-finite samples leave gaps; fewer
+than two adjacent finite samples produce no line. Extreme finite values are
+scaled before calculating coordinates to avoid overflow.
+
+Optional `trendLabel` is a host-translated summary that exposes the SVG as an
+accessible image. Without it the trend is decorative. `valueClassName` and
+`valueStyle` are trusted host styling slots; `--miot-sparkline-color` controls
+the line and fill. Next.js retains query resolution, saved sample defaults,
+number formatting and threshold evaluation while using this renderer.
+
+`createSparklineStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_sparkline` with static JSON and named planner results. Required
+options: `defaultTitle`, `defaultUnit`, `loadingLabel`, `errorLabel` and
+`unsupportedDataLabel`. Optional `locale`, `formatValue(number)`, `templateEngine`
+and `trendLabel(samples)` customize formatting and accessibility.
+
+Saved `sparkline` entries may be numbers or templates resolved against static
+data or the first planner row. Invalid/empty samples create gaps. A missing or
+shorter-than-two array uses `defaultSamples` only when explicitly supplied by
+the host; otherwise no trend is drawn. No query history is inferred from a
+current scalar value. Title/value/unit and threshold fields resolve through the
+same template engine. Text thresholds use the portable validated palette.
+Loading/errors remove stale trends; legacy direct queries show the migration
+label. Hosts should label configured sample series accurately.
+
+### Information card
+
+`InfoCard` from `./react` renders literal `title`, `value`, `descriptor` and
+`footer` strings, optional host `icon`, and nested `children`. Optional trusted
+`iconStyle`, `valueStyle` and `descriptorStyle` customize its scoped light/dark
+presentation. It has no icon, router or application component dependency.
+
+Supply translated `addDetailLabel` and `viewMoreLabel`. The add-detail button
+requires `editMode`, `onAddDetail` and no child content. The host must derive edit
+mode from authorization. Optional `viewMoreUrl` accepts relative or HTTP(S)
+links only; unsafe schemes are omitted. Links open in a protected new tab unless
+`openInSameTab` is true. Next.js retains hybrid data-provider templates, rules,
+icons and nested widget ownership while consuming this renderer.
+
+`createInfoCardRegistry(options)` from `./react`, `./embed` or `./browser` binds
+`info_card` to static JSON, data-provider entries and named planner results.
+Required options: `defaultTitle`, `addDetailLabel`, `viewMoreLabel`,
+`loadingLabel`, `errorLabel`, `unsupportedDataLabel`. Optional `renderIcon(name)`
+and `templateEngine` supply host icons and template helpers.
+
+Title, value, descriptor, footer (`aiPlaceholder`), link and link label resolve
+through the shared template context. Provider entries use `data_provider.key`;
+query/static fields are available directly and through `row`. Text/icon rules override manual CSS colors;
+manual colors remain restricted to React color style properties. Nested widgets
+use the host registry, with add-detail actions gated by WidgetRenderer editing
+capabilities. Loading/errors remove stale content and links. Direct legacy
+queries show the migration label. No AI generation is performed for footer text.

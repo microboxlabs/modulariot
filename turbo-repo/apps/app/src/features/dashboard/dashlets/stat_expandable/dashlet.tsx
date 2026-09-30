@@ -1,16 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { HiChevronDown, HiChevronUp } from "react-icons/hi2";
+import { ExpandableStat } from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+import { tr } from "@/features/i18n/tr.service";
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
 import { useDashletPgrest } from "../common/use-dashlet-pgrest";
 import { DashletLoading, DashletError } from "../common/dashlet-states";
-import {
-  evaluateColorRulesGeneric,
-  buildTextStyle,
-  getConditionalClasses,
-} from "../common/color-rule-evaluation";
+import { evaluateColorRulesGeneric } from "../common/color-rule-evaluation";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type {
   ValueColorRulesConfig,
@@ -82,36 +80,10 @@ function evaluateColorRules(
   };
 }
 
-/** Determine value text style based on rule or manual color */
-function getValueTextStyle(
-  ruleTextColor: string | undefined,
-  valueColor: string | undefined
-): React.CSSProperties | undefined {
-  return buildTextStyle(ruleTextColor, valueColor);
-}
-
-/** Determine value text classes when no color override */
-function getValueTextClasses(
-  ruleTextColor: string | undefined,
-  valueColor: string | undefined
-): string {
-  return getConditionalClasses(
-    Boolean(ruleTextColor || valueColor),
-    "text-gray-900 dark:text-white"
-  );
-}
-
-// ============================================================================
-// Component - Style 6: Expandable Details
-// ============================================================================
-
-/**
- * Expandable Card - Click to expand and show more details
- */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const details = config.details || defaultConfig.details;
-  const [expanded, setExpanded] = useState(false);
+  const { dictionary } = useOptionalDashboard();
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
   const { resolved, loading, fetchError } = useDashletPgrest(
@@ -144,99 +116,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       ? evaluateColorRules(colorRulesConfig.rules, String(displayValue))
       : { textColor: undefined, bgColor: undefined };
 
-  // Build background styles
-  const mainBgStyle = ruleBgColor
-    ? { backgroundColor: `#${ruleBgColor}20` }
-    : undefined;
-  const expandedBgStyle = ruleBgColor
-    ? { backgroundColor: `#${ruleBgColor}10` }
-    : undefined;
-
-  // Build value text styling
-  const valueTextStyle = getValueTextStyle(ruleTextColor, valueColor);
-  const valueTextClasses = getValueTextClasses(ruleTextColor, valueColor);
-
-  // Build container classes
-  const containerBgClasses = ruleBgColor ? "" : "bg-white dark:bg-gray-800";
-  const expandedBgClasses = ruleBgColor ? "" : "bg-gray-50 dark:bg-gray-900/50";
-  const buttonClasses = ruleBgColor
-    ? ""
-    : "text-blue-600 hover:bg-gray-50 dark:text-blue-400 dark:hover:bg-gray-700";
-
   return (
-    <div
-      className={`flex h-full flex-col rounded-lg border border-gray-200 dark:border-gray-700 ${containerBgClasses}`}
-      style={mainBgStyle}
-    >
-      {/* Main content */}
-      <div className="flex flex-1 flex-col justify-center p-4">
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-          {title}
-        </p>
-        <p
-          className={`mt-1 text-3xl font-bold ${valueTextClasses}`}
-          style={valueTextStyle}
-        >
-          {displayValue}
-          <span className="ml-1 text-lg font-normal text-gray-500">{unit}</span>
-        </p>
-      </div>
-
-      {/* Expand toggle */}
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className={`cursor-pointer flex items-center justify-center gap-1 border-t border-gray-200 py-2 text-xs dark:border-gray-700 ${buttonClasses}`}
-        style={
-          ruleBgColor
-            ? {
-                color: `#${ruleBgColor}`,
-                ["--tw-bg-opacity" as string]: 1,
-              }
-            : undefined
-        }
-        onMouseEnter={(e) => {
-          if (ruleBgColor) {
-            e.currentTarget.style.backgroundColor = `#${ruleBgColor}30`;
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (ruleBgColor) {
-            e.currentTarget.style.backgroundColor = "transparent";
-          }
-        }}
-      >
-        {expanded ? (
-          <>
-            Hide details <HiChevronUp className="h-4 w-4" />
-          </>
-        ) : (
-          <>
-            Show details <HiChevronDown className="h-4 w-4" />
-          </>
-        )}
-      </button>
-
-      {/* Expandable details */}
-      {expanded && (
-        <div
-          className={`border-t border-gray-200 p-3 dark:border-gray-700 ${expandedBgClasses}`}
-          style={expandedBgStyle}
-        >
-          <div className="grid grid-cols-2 gap-2">
-            {details.map((detail) => (
-              <div key={detail.label}>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {detail.label}
-                </p>
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {detail.value}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+    <ExpandableStat
+      resetKey={widget.id}
+      title={title}
+      value={String(displayValue ?? "")}
+      unit={unit}
+      details={details}
+      valueColor={ruleTextColor ?? valueColor}
+      backgroundColor={ruleBgColor}
+      showLabel={tr("dashboard.settings.showDetails", dictionary)}
+      hideLabel={tr("dashboard.settings.hideDetails", dictionary)}
+    />
   );
 }

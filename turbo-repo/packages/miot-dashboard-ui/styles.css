@@ -471,3 +471,5 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-table-widget__heading { display: flex; align-items: center; gap: .25rem; }
 :where(.dark, [data-miot-theme="dark"]) .miot-table-widget > header { color: var(--miot-card-text, #f3f4f6); }
 :where(.dark, [data-miot-theme="dark"]) .miot-table-widget > header span { color: var(--miot-card-muted, #9ca3af); }
+
+.miot-row-context-menu { transform: none; }

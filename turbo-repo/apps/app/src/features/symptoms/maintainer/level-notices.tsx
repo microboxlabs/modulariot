@@ -1,26 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import type { IconType } from "react-icons";
-import {
-  BsBroadcast,
-  BsEnvelope,
-  BsMicrosoftTeams,
-  BsPhone,
-  BsWhatsapp,
-} from "react-icons/bs";
 import { HiX } from "react-icons/hi";
 import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { Notice } from "./maintainer-api";
+import { ChannelIcon } from "./ui/channel-icon";
 
 /** A channel a notice can go out on, and the Integrations provider types that can send it. */
 interface Channel {
   key: string;
   label: string;
-  icon: IconType;
-  color: string;
   providers: string[];
 }
 
@@ -28,36 +19,26 @@ export const CHANNELS: Channel[] = [
   {
     key: "teams",
     label: "channelTeams",
-    icon: BsMicrosoftTeams,
-    color: "bg-indigo-600",
     providers: ["CUSTOM_HTTP", "N8N"],
   },
   {
     key: "whatsapp",
     label: "channelWhatsapp",
-    icon: BsWhatsapp,
-    color: "bg-green-600",
     providers: ["WHATSAPP"],
   },
   {
     key: "email",
     label: "channelEmail",
-    icon: BsEnvelope,
-    color: "bg-sky-600",
     providers: ["EMAIL"],
   },
   {
     key: "app",
     label: "channelApp",
-    icon: BsPhone,
-    color: "bg-gray-700",
     providers: ["DRIVER_APP"],
   },
   {
     key: "webhook",
     label: "channelWebhook",
-    icon: BsBroadcast,
-    color: "bg-orange-600",
     providers: ["CUSTOM_HTTP", "N8N", "GPS_WEBHOOK"],
   },
 ];
@@ -74,22 +55,6 @@ const selectClass =
 
 function channelOf(key: string): Channel {
   return CHANNELS.find((c) => c.key === key) ?? CHANNELS[4];
-}
-
-export function ChannelIcon({
-  channel,
-  d,
-}: Readonly<{ channel: string; d: I18nRecord }>) {
-  const c = channelOf(channel);
-  const Icon = c.icon;
-  return (
-    <span
-      title={trDynamic(c.label, d)}
-      className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-white ${c.color}`}
-    >
-      <Icon className="h-3.5 w-3.5" />
-    </span>
-  );
 }
 
 /**
@@ -155,7 +120,7 @@ export default function LevelNotices({
                 onClick={() => add(c.key)}
                 className="opacity-70 hover:opacity-100"
               >
-                <ChannelIcon channel={c.key} d={d} />
+                <ChannelIcon channel={c.key} label={trDynamic(c.label, d)} />
               </button>
             ))}
             <Link
@@ -175,7 +140,10 @@ export default function LevelNotices({
         const key = `${n.channel}-${i}`;
         return (
           <div key={key} className="flex flex-wrap items-center gap-2">
-            <ChannelIcon channel={n.channel} d={d} />
+            <ChannelIcon
+              channel={n.channel}
+              label={trDynamic(channelOf(n.channel).label, d)}
+            />
             <select
               aria-label={tr("noticeWhen", d)}
               className={selectClass}

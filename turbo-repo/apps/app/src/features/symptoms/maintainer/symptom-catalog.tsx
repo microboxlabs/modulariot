@@ -25,7 +25,8 @@ import {
   type SymptomState,
   type SymptomSummary,
 } from "./maintainer-api";
-import { StateBadge, familyLabel } from "./symptom-labels";
+import { familyLabel } from "./symptom-labels";
+import { StatePill } from "./ui/state";
 
 type Filter = "ALL" | SymptomState | "DRAFT";
 type View = "cards" | "list";
@@ -294,7 +295,7 @@ export default function SymptomCatalog({
                       {familyLabel(s.definition.family)}
                     </p>
                   </div>
-                  <StateBadge state={s.definition.state} d={d} />
+                  <StatePill state={s.definition.state} d={d} />
                 </div>
                 {s.definition.description && (
                   <p className="line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
@@ -331,7 +332,7 @@ export default function SymptomCatalog({
                 <span className="w-40">
                   <VersionText s={s} d={d} />
                 </span>
-                <StateBadge state={s.definition.state} d={d} />
+                <StatePill state={s.definition.state} d={d} />
               </button>
             ))}
           </div>

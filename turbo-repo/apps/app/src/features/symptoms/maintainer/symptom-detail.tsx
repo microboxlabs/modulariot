@@ -31,7 +31,8 @@ import {
   type SymptomState,
 } from "./maintainer-api";
 import PublishDialog from "./publish-dialog";
-import { StateBadge, familyLabel, stateLabel } from "./symptom-labels";
+import { familyLabel, stateLabel } from "./symptom-labels";
+import { StatePill } from "./ui/state";
 import SymptomRuleSections from "./symptom-rule-sections";
 import {
   FieldsPanel,
@@ -196,7 +197,7 @@ export default function SymptomDetail({
                 ))}
               </Select>
             ) : (
-              <StateBadge state={def.state} d={d} />
+              <StatePill state={def.state} d={d} />
             )}
           </div>
         )}

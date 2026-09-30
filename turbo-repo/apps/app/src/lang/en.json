@@ -2613,7 +2613,13 @@
         "moveDown": "Move down",
         "removeStep": "Remove step",
         "stepScript": "What to say",
-        "stepScriptPlaceholder": "What to say. You can use {vars}"
+        "stepScriptPlaceholder": "What to say. You can use {vars}",
+        "stateActiveHelp": "Active: opens cases, sends notices and asks operators to handle them.",
+        "stateTestHelp": "Testing: opens cases to measure how many there would be, but notifies no one, asks no operator and does not count in reports.",
+        "stateOffHelp": "Off: opens no cases.",
+        "bumpMajor": "MAJOR",
+        "bumpMinor": "MINOR",
+        "bumpPatch": "PATCH"
       }
     },
     "integrationJobs": {

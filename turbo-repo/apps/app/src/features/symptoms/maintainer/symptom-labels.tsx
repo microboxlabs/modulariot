@@ -14,13 +14,6 @@ export const ICU_LEVELS = [
   { icu: 4, condition: "code black", nameKey: "code_black" },
 ] as const;
 
-const STATE_CLASS: Record<SymptomState, string> = {
-  ACTIVE:
-    "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  TEST: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
-  OFF: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
-};
-
 const STATE_KEY: Record<SymptomState, string> = {
   ACTIVE: "stateActive",
   TEST: "stateTest",
@@ -29,19 +22,6 @@ const STATE_KEY: Record<SymptomState, string> = {
 
 export function stateLabel(state: SymptomState, d: I18nRecord) {
   return trDynamic(STATE_KEY[state], d);
-}
-
-export function StateBadge({
-  state,
-  d,
-}: Readonly<{ state: SymptomState; d: I18nRecord }>) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${STATE_CLASS[state]}`}
-    >
-      {stateLabel(state, d)}
-    </span>
-  );
 }
 
 /** `driving_safety` → `Driving safety`, until families come from their selectable. */

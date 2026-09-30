@@ -99,3 +99,4 @@ export { DataListCard, type DataListCardProps, type DataListCardLayout } from ".
 export { StatusStat, type StatusStatProps } from "./react/status-stat";
 
 export { createStatusStatRegistry, type StatusStatRegistryOptions } from "./react/status-stat-registry";
+export { IconStat, type IconStatProps } from "./react/icon-stat";

@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { IconType } from "react-icons";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
-import { PgrestDashletFields, useDashletPgrest } from "../common/use-dashlet-pgrest";
+import {
+  PgrestDashletFields,
+  useDashletPgrest,
+} from "../common/use-dashlet-pgrest";
 import {
   DashletLoading,
   DashletError,
@@ -19,7 +22,13 @@ import {
 } from "../common/color-rule-evaluation";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type { ThresholdConfig } from "../common/threshold-types";
-import { KpiStat } from "@/features/common/components/kpi-stat";
+import {
+  IconStat,
+  type IconStatProps,
+} from "@microboxlabs/miot-dashboard-ui/react";
+import { isSafeActionUrl } from "@microboxlabs/miot-dashboard-ui/core";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+import { MarkdownContent } from "@/features/common/utils/markdown-components";
 import type {
   ValueColorRulesConfig,
   ValueColorRule,
@@ -72,7 +81,8 @@ export const defaultConfig: DashletConfig = {
   value: "{{row.value}}",
   unit: "{{row.unit}}",
   subtitle: "{{row.value}} {{row.unit}}",
-  staticData: '{\n  "title": "Orders",\n  "value": "156",\n  "unit": "items"\n}',
+  staticData:
+    '{\n  "title": "Orders",\n  "value": "156",\n  "unit": "items"\n}',
   cardVariant: "horizontal",
   showIcon: true,
   icon: "cart",
@@ -109,10 +119,14 @@ const FIELD_DEFAULTS: Record<string, string> = {
 function useIconFromKey(key: string | undefined): IconType | undefined {
   // Legacy keys resolve synchronously
   const legacyIcon = key
-    ? (DASHLET_ICON_OPTIONS.find((opt) => opt.value === key)?.icon as IconType | undefined)
+    ? (DASHLET_ICON_OPTIONS.find((opt) => opt.value === key)?.icon as
+        | IconType
+        | undefined)
     : undefined;
 
-  const [registryIcon, setRegistryIcon] = useState<IconType | undefined>(undefined);
+  const [registryIcon, setRegistryIcon] = useState<IconType | undefined>(
+    undefined
+  );
 
   useEffect(() => {
     if (!key || legacyIcon) {
@@ -125,7 +139,8 @@ function useIconFromKey(key: string | undefined): IconType | undefined {
     entry
       .load()
       .then((mod) => {
-        if (!cancelled) setRegistryIcon(() => mod.default as unknown as IconType);
+        if (!cancelled)
+          setRegistryIcon(() => mod.default as unknown as IconType);
       })
       .catch(() => {});
     return () => {
@@ -208,13 +223,20 @@ interface KpiStatPropsInput {
   bgStyle: React.CSSProperties | undefined;
 }
 
-function buildKpiStatProps(input: KpiStatPropsInput) {
+function buildKpiStatProps(input: KpiStatPropsInput): IconStatProps {
+  const Icon = input.iconConfig?.icon;
   return {
-    icon: input.iconConfig,
-    title: input.titleConfig,
-    value: { text: String(input.value), style: input.valueStyle },
+    icon: Icon ? <Icon /> : undefined,
+    iconStyle: input.iconConfig?.style,
+    title: input.titleConfig?.text,
+    titleStyle: input.titleConfig?.style,
+    value: String(input.value),
+    valueStyle: input.valueStyle,
     unit: input.unit,
-    description: input.descriptionConfig,
+    description: input.descriptionConfig ? (
+      <MarkdownContent>{input.descriptionConfig.text}</MarkdownContent>
+    ) : undefined,
+    descriptionStyle: input.descriptionConfig?.style,
     variant: input.cardVariant,
     containerStyle: input.bgStyle,
   };
@@ -261,7 +283,8 @@ export function Dashlet({ widget, editMode }: Readonly<DashletComponentProps>) {
   const expandable = config.expandable === true;
   const showGoTo = config.showGoTo === true;
   const goToUrl = normalizeGoToUrl(resolved.goToUrl ?? "");
-  const hasGoToLink = showGoTo && goToUrl.length > 0;
+  const hasGoToLink =
+    showGoTo && goToUrl.length > 0 && isSafeActionUrl(goToUrl);
 
   // Evaluate value color rules
   const valueColorRulesConfig = normalizeValueColorRulesConfig(
@@ -356,7 +379,7 @@ function renderStatCard(
         style={{ containerType: "size" }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <KpiStat
+        <IconStat
           {...kpiProps}
           className={`h-full ${interactiveClasses}`}
           scalable
@@ -368,7 +391,7 @@ function renderStatCard(
   if (expandable) {
     return (
       <div className="h-full w-full" style={{ containerType: "size" }}>
-        <KpiStat {...kpiProps} className="h-full" scalable />
+        <IconStat {...kpiProps} className="h-full" scalable />
       </div>
     );
   }
@@ -380,7 +403,7 @@ function renderStatCard(
         className="block h-full w-full"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <KpiStat
+        <IconStat
           {...kpiProps}
           className={`h-full text-2xl ${interactiveClasses}`}
         />
@@ -388,5 +411,5 @@ function renderStatCard(
     );
   }
 
-  return <KpiStat {...kpiProps} className="h-full text-2xl" />;
+  return <IconStat {...kpiProps} className="h-full text-2xl" />;
 }

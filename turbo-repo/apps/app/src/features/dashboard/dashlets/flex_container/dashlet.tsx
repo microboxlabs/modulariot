@@ -21,7 +21,7 @@ export interface DashletConfig {
 
 export const defaultConfig: DashletConfig = {
   layout: "row",
-  title: "Untitled",
+  title: "",
   description: "",
 };
 

@@ -1044,3 +1044,18 @@ are rechecked after resolution. These registries do not persist viewer changes
 or provide widget settings; an editing host can use `DataTable` callbacks and
 its authenticated document controller. Column descriptions remain literal
 hover text in the registry; the Next.js host retains its Markdown tooltip.
+
+### Data-list cards
+
+`DataListCard` from `./react` renders one authorized row using `DataListCardLayout`
+(`titleColumn`, `subtitleColumn`, `headerBadgeColumns`, `kpiColumns`, and
+`footerColumns`). Pass `row`, `rowIdx`, `totalRows`, `columns`, and the
+`resolveValue`, `resolveLabel`, `resolveType` callbacks from `useCompiledColumns`.
+The title and subtitle are literal text; badges, metrics and footer values use
+the shared cell renderer and configured color rules. Empty sections are omitted.
+
+Import the package stylesheet for responsive card layouts and light/dark themes.
+Optional `actions` accepts host-rendered controls; no placeholder action button
+is shown when omitted. The Next.js list uses this renderer and retains query,
+filter, sort, export and settings adapters. A complete portable list widget
+registry is still separate from this presentational primitive.

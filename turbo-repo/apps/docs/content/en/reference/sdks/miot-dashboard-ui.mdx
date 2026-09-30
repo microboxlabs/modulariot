@@ -44,6 +44,8 @@ The data-table registry composes saved-query or static rows with templates, filt
 
 CSV export uses displayed rows and resolved labels, protects spreadsheet formula prefixes and supports browser downloads or a host delivery callback.
 
+Resizable table width logic is shared with Next.js, preserving local viewer widths, explicit edit commits and saved-width restoration, with interrupted-drag cleanup.
+
 ## Run the embedded example
 
 The [standalone example](https://github.com/microboxlabs/modulariot/tree/trunk/turbo-repo/examples/dashboard-ui-standalone) includes a browser host and a Node proxy. It renders billing results from a configured dashboard server and supports service selection, refresh and a searchable host table.

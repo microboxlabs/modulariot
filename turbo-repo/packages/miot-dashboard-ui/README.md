@@ -966,3 +966,20 @@ characters in the filename and releases its object URL after the browser starts
 the download. Pure hosts can use the builder and handle delivery themselves.
 The table registry exports only its currently filtered/sorted result rows; it
 does not fetch additional data or bypass server permissions.
+
+### Resizable table widths
+
+`useTableColumnWidths(options)` from `./react` shares the existing resizable
+Next.js table's width measurement, drag and auto-fit behavior. Hosts supply
+`columns`, `tableRef`, `headerRowRef`, `hasActions`, `measureStickyOffsets`, and
+optionally `savedWidths`, `loading`, `error`, `editable`, and `onCommit(widths)`.
+It returns `columnWidths`, `thRefs`, `colRefs`, `handleResizeMouseDown(event,
+index)` and `autoFitColumn(index)` for the host renderer.
+
+Widths persist by column key only after a completed interaction when `editable`
+is true. Viewers may resize locally; the last data column fills the remaining
+space and is excluded from persisted widths. Saved changes (including undo)
+remeasure the layout; nonfinite saved widths are ignored. An interrupted drag,
+unmount or window blur removes listeners and restores prior cursor/selection
+styles. This preserves mouse-driven behavior; the resizable widget's complete
+portable renderer and keyboard/touch resize acceptance remain pending.

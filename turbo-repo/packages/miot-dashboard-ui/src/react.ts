@@ -89,3 +89,5 @@ export { DataTable, type DataTableProps, type DataTableColumn } from "./react/da
 export { createDataTableRegistry, type DataTableRegistryOptions } from "./react/data-table-registry";
 
 export { downloadCsv } from "./react/download-csv";
+
+export { useTableColumnWidths, type TableColumnWidthsOptions, type WidthColumn } from "./react/use-table-column-widths";

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, TextInput } from "flowbite-react";
 import {
+  HiOutlineDownload,
   HiOutlineSearch,
   HiOutlineViewGrid,
   HiOutlineViewList,
@@ -18,6 +19,8 @@ import { tr, trDynamic } from "@/features/i18n/tr.service";
 import SymptomIcon from "../components/symtom-icon";
 import CreateSymptomModal from "./create-symptom-modal";
 import {
+  importEngineRules,
+  refreshSymptoms,
   useSymptomDefinitions,
   type SymptomState,
   type SymptomSummary,
@@ -106,6 +109,26 @@ export default function SymptomCatalog({
   const [query, setQuery] = useState("");
   const [view, setView] = useState<View>("cards");
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importNote, setImportNote] = useState<string | null>(null);
+
+  const runImport = async () => {
+    setImporting(true);
+    try {
+      const r = await importEngineRules();
+      await refreshSymptoms();
+      setImportNote(
+        tr("importDone", d, {
+          created: String(r.created.length),
+          skipped: String(r.skipped),
+        })
+      );
+    } catch (e) {
+      setImportNote(e instanceof Error ? e.message : String(e));
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const all = useMemo(() => data ?? [], [data]);
   const shown = all.filter((s) => matches(s, filter, query));
@@ -137,10 +160,21 @@ export default function SymptomCatalog({
             </div>
           </div>
           {isOwner && (
-            <Button size="sm" onClick={() => setCreating(true)}>
-              <HiPlus className="mr-1 h-4 w-4" />
-              {tr("newSymptom", d)}
-            </Button>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                size="sm"
+                color="alternative"
+                disabled={importing}
+                onClick={() => void runImport()}
+              >
+                <HiOutlineDownload className="mr-1 h-4 w-4" />
+                {tr("importEngine", d)}
+              </Button>
+              <Button size="sm" onClick={() => setCreating(true)}>
+                <HiPlus className="mr-1 h-4 w-4" />
+                {tr("newSymptom", d)}
+              </Button>
+            </div>
           )}
         </div>
 
@@ -216,6 +250,11 @@ export default function SymptomCatalog({
           </div>
         </div>
 
+        {importNote && (
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            {importNote}
+          </p>
+        )}
         {error && (
           <p className="text-sm text-red-600 dark:text-red-400">
             {tr("loadFailed", d)}

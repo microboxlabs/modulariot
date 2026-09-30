@@ -2514,7 +2514,9 @@
         "operatorSla": "Operador · SLA {minutes} min",
         "opens": "Se abre cuando",
         "closes": "Se cierra cuando",
-        "restores": "vuelve a {version}"
+        "restores": "vuelve a {version}",
+        "importEngine": "Importar del motor",
+        "importDone": "{created} síntoma(s) importado(s) como borrador apagado; {skipped} ya estaban."
       }
     },
     "integrationJobs": {

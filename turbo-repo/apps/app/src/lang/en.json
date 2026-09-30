@@ -2514,7 +2514,9 @@
         "operatorSla": "Operator · SLA {minutes} min",
         "opens": "Opens when",
         "closes": "Closes when",
-        "restores": "restores {version}"
+        "restores": "restores {version}",
+        "importEngine": "Import from the engine",
+        "importDone": "{created} symptom(s) imported as off drafts; {skipped} were already here."
       }
     },
     "integrationJobs": {

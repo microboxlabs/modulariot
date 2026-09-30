@@ -237,6 +237,21 @@ export function updateIdentity(
   return request<SymptomDefinition>(`${DEFS}/${id}`, { method: "PATCH", body });
 }
 
+export interface ImportResult {
+  created: {
+    id: string;
+    name: string;
+    engineRuleId: number;
+    pending: string[];
+  }[];
+  skipped: number;
+}
+
+/** Creates an off draft for each engine rule the organization does not have yet. */
+export function importEngineRules() {
+  return request<ImportResult>(`${DEFS}/import-engine`, { method: "POST" });
+}
+
 export function saveDraft(id: string, spec: SymptomSpec) {
   return request<SymptomVersion>(`${DEFS}/${id}/draft`, {
     method: "PUT",

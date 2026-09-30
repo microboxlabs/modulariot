@@ -12,6 +12,7 @@ import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.Rollback
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.StateRequest;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
+import com.microboxlabs.miot.symptoms.catalog.service.EngineImportService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
@@ -72,7 +73,7 @@ class OrgSymptomDefinitionsResourceTest {
         TenantContext tenant = new TenantContext();
         tenant.setTenantCode("tenant-a");
         return new OrgSymptomDefinitionsResource(tenant, org, new Roles(owner), null, catalog,
-                new PreviewService(catalog, sources));
+                new PreviewService(catalog, sources), new EngineImportService(new DemoSymptomEngine(), catalog));
     }
 
     private static int status(Uni<Response> call) {
@@ -94,7 +95,8 @@ class OrgSymptomDefinitionsResourceTest {
                 () -> member.publish(ORG, id, new PublishRequest("r", null, null)),
                 () -> member.rollback(ORG, id, new RollbackRequest("1.0.0", null)),
                 () -> member.fork(ORG, id, new ForkRequest(null, "copy", "Copia")),
-                () -> member.setState(ORG, id, new StateRequest(SymptomState.OFF)));
+                () -> member.setState(ORG, id, new StateRequest(SymptomState.OFF)),
+                () -> member.importEngine(ORG));
         for (Supplier<Uni<Response>> write : writes) {
             Uni<Response> call = write.get();
             assertThrows(ForbiddenException.class, () -> call.await().atMost(WAIT));

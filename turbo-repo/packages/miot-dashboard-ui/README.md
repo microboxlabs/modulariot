@@ -983,3 +983,19 @@ remeasure the layout; nonfinite saved widths are ignored. An interrupted drag,
 unmount or window blur removes listeners and restores prior cursor/selection
 styles. This preserves mouse-driven behavior; the resizable widget's complete
 portable renderer and keyboard/touch resize acceptance remain pending.
+
+### Row context navigation
+
+`RowContextMenu` from `./react` renders resolved `ResolvedContextItem[]` links
+(`{ action: RowAction, href: string }`). Required props are `items`, viewport
+coordinates `x`/`y`, translated `ariaLabel`, and `onClose`. Optional `theme`,
+`portalContainer` and `returnFocusTo` support embedded hosts. Import the package
+stylesheet. The Next.js resizable table uses this component.
+
+The nonmodal dialog uses native link keyboard navigation, focuses its first
+link, restores the supplied element (or previous focus) on Escape, and closes
+on outside interaction, outside scrolling or window resize. It clamps its
+position within the viewport. Only `goto` actions with safe resolved URLs and
+`_self`/`_blank` targets are shown; blank targets use `noopener noreferrer`.
+Names remain literal text. Hosts still authorize destinations and provide an
+accessible trigger; this component does not evaluate templates or query data.

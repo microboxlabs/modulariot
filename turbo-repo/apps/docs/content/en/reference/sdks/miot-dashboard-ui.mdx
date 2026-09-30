@@ -46,6 +46,8 @@ CSV export uses displayed rows and resolved labels, protects spreadsheet formula
 
 Resizable table width logic is shared with Next.js, preserving local viewer widths, explicit edit commits and saved-width restoration, with interrupted-drag cleanup.
 
+The portable row context dialog validates resolved links, clamps to the viewport, manages keyboard focus and dismisses on outside interaction. The resizable Next.js table uses it.
+
 ## Run the embedded example
 
 The [standalone example](https://github.com/microboxlabs/modulariot/tree/trunk/turbo-repo/examples/dashboard-ui-standalone) includes a browser host and a Node proxy. It renders billing results from a configured dashboard server and supports service selection, refresh and a searchable host table.

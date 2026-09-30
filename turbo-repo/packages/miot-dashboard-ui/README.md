@@ -608,3 +608,11 @@ can render supported text-card configurations without implementing a React widge
 or installing React. This explicitly registered first entry includes the
 Handlebars compiler and its CSP requirements; it does not automatically migrate
 legacy direct-query configurations or provide other widget types/settings.
+
+Native mount options can include `filterController` with `definitions`, `values`
+and `onChange`. Its values drive both template `filter` namespaces and saved-query
+parameters. Hosts apply requested changes by calling `update` with new controlled
+values. Without a controller, `savedQueries.filters` supplies read-only filter
+values to widgets and queries; widget filter changes are ignored. Removing a
+controller restores those fallback values. Provider boundaries remain stable
+across updates, preserving widget-local state for the same `instanceKey`.

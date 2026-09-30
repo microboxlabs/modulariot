@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, fireEvent, within, waitFor } from "@testing-library/react";
 import { useState } from "react";
-import { usePlannerData } from "@microboxlabs/miot-dashboard-ui/react";
+import { usePlannerData, useDashboardFilters } from "@microboxlabs/miot-dashboard-ui/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   mountDashboard,
@@ -162,4 +162,30 @@ it("preserves widget state when saved queries are enabled and disabled in the sa
   act(() => handle.update(options));
   expect(within(element).getByText("Count 1")).toBeTruthy();
   expect(query).not.toHaveBeenCalled();
+});
+
+function FilterCard() {
+  const { activeFilters, setFilter } = useDashboardFilters();
+  const result = usePlannerData("costs");
+  return <><button onClick={() => setFilter("region", "south")}>Change region</button><output>{activeFilters.region}:{result.rows[0]?.cost ?? "pending"}</output></>;
+}
+it("shares host-controlled filters between widgets and saved queries", async () => {
+  const query = vi.fn().mockResolvedValue([{ cost: 42 }]);
+  const onChange = vi.fn();
+  const next: DashboardMountOptions = { ...options,
+    registry: { get: () => ({ Component: FilterCard, meta: { hasChildren: false, hasSettings: false }, getLayoutDefaults: () => ({ minW: 1, minH: 1 }) }) },
+    savedQueries: { client: { key: () => "costs", query }, slug: "costs", queries: [{ id: "q", variableName: "costs", connectionId: "c", operationId: "o", parameters: { region: { kind: "filter", key: "region" } } }], filters: { region: "fallback" }, refreshIntervalMs: 0, paused: false, errorMessage: "Unavailable" },
+    filterController: { definitions: [], values: { region: "north" }, onChange },
+  };
+  const { element, handle } = mount(next);
+  await waitFor(() => expect(within(element).getByText("north:42")).toBeTruthy());
+  expect(query.mock.calls[0]?.[2]).toEqual({ region: "north" });
+  fireEvent.click(within(element).getByText("Change region"));
+  expect(onChange).toHaveBeenCalledWith({ region: "south" });
+  act(() => handle.update({ ...next, filterController: { ...next.filterController!, values: { region: "south" } } }));
+  await waitFor(() => expect(within(element).getByText("south:42")).toBeTruthy());
+  expect(query.mock.calls.at(-1)?.[2]).toEqual({ region: "south" });
+  act(() => handle.update({ ...next, filterController: undefined }));
+  await waitFor(() => expect(within(element).getByText("fallback:42")).toBeTruthy());
+  expect(query.mock.calls.at(-1)?.[2]).toEqual({ region: "fallback" });
 });

@@ -62,3 +62,6 @@ export { TextCardFields, type TextCardFieldsProps, type TextCardFieldValue } fro
 export { createPercentageValueRegistry, type PercentageValueRegistryOptions } from "./react/percentage-value-registry";
 
 export { createCircularStatRegistry, type CircularStatRegistryOptions } from "./react/circular-stat-registry";
+
+export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./react/progress-stat-registry";
+export { ProgressStat, type ProgressStatProps } from "./react/progress-stat";

@@ -10,3 +10,5 @@ export { createTextCardRegistry, type TextCardRegistryOptions } from "@microboxl
 export { createPercentageValueRegistry, type PercentageValueRegistryOptions } from "@microboxlabs/miot-dashboard-ui/react";
 
 export { createCircularStatRegistry, type CircularStatRegistryOptions } from "@microboxlabs/miot-dashboard-ui/react";
+
+export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./react/progress-stat-registry";

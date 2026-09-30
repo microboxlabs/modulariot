@@ -6,11 +6,11 @@ The dashboard server stores dashboards, verifies who asks for them, keeps each o
 
 | Package | Does |
 | --- | --- |
-| `@microboxlabs/miot-dashboard-ui` (planned) | Intended browser rendering and editing package. The current UI ships inside ModularIoT. |
+| `@microboxlabs/miot-dashboard-ui` (unreleased workspace candidate) | Reusable React rendering primitives and a self-contained browser/Web Component embedding runtime. |
 | `@microboxlabs/miot-dashboard-server` | Stores dashboards, authorizes every request, protects credentials. |
 | `@microboxlabs/miot-dashboard-contract` | The contract between the two: document schema, roles, errors and the OpenAPI specification. |
 
-The UI package is planned; the current product UI ships inside the ModularIoT application. A different frontend or backend can use the shared contract.
+The UI workspace candidate implements embedding and selected widgets; migration of the full product UI and editing catalog is still in progress. See the [implemented UI reference](/en/reference/sdks/miot-dashboard-ui). Hosts manage authentication and keep credentials on the backend; a different frontend or backend can use the shared contract.
 
 ## Two ways to deploy it
 

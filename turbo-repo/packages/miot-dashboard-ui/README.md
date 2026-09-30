@@ -1215,3 +1215,22 @@ color when `applyTo` includes `text` (the default target). The portable scalar
 palette supports red, yellow, green, blue, orange, purple and gray plus validated
 hex colors. No threshold color is exposed on the masked value. Legacy query
 bindings require migration to saved queries.
+
+### Stacked statistic
+
+`StackedStat` from `./react` renders `items: readonly StackedStatItem[]` as an SVG
+stacked bar or donut (`chartType: "bar" | "donut"`). Each item has a literal
+`label`, numeric `value` and six-digit RGB `color` without `#`. Invalid colors
+use gray. `title` labels the chart; `showHeader: false` hides its visual header.
+Optional `unit` and `formatValue(value)` control value labels.
+
+A visible text legend exposes every item; SVG segment titles provide native
+hover tooltips without interpreting labels as HTML. This renderer adds no chart
+library dependency or body tooltip nodes. The Next.js stacked widget uses the
+same component and retains its data/template adapter. The prior ECharts hover
+animation is replaced by native SVG tooltips.
+
+Areas use positive finite values only; negative values remain in the legend,
+and nonfinite values display as zero. Empty/all-zero data renders a neutral
+track. Normalizing by the largest value avoids overflow for very large totals.
+Import the package stylesheet for scoped light/dark rendering.

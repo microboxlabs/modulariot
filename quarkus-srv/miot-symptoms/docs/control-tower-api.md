@@ -59,12 +59,36 @@ Action body:
 | `listContacts` | `GET /contacts?active` | member |
 | `getContact` | `GET /contacts/{contactId}` | member |
 | `createContact` | `POST /contacts` | member. Operators add contacts from the call panel |
+| `importContacts` | `POST /contacts/import` | member. Body `{contacts: [...]}`, up to 1000 |
 | `updateContact` | `PATCH /contacts/{contactId}` | member |
 | `deleteContact` | `DELETE /contacts/{contactId}` | owner |
 
-Body `{name, role, phone, methods[], active, notes}`. `phone` is a full
-international number; spaces and dashes are stripped. Each contact returns
-`lastCalledAt`, `answered` and `missed`, computed from call actions.
+Contact body:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `name` | string | Required on create |
+| `role`, `notes` | string | Free text. The app's contact book shows `notes` as the description |
+| `phone` | string | Full international number; spaces and dashes are stripped. When not sent, the `channels` phone, or else the WhatsApp number |
+| `methods` | `PHONE` `WHATSAPP` `MEET` `TEAMS` | When not sent, the channels that have an address. Empty means every channel is offered |
+| `active` | boolean | Default `true` |
+| `nationalId` | string | Stored without dots or dashes, upper case. Unique per organization |
+| `nationalIdType` | string | Default `RUT`. A `RUT` must have a valid check digit |
+| `company`, `position` | string | |
+| `channels` | `{phone, whatsapp, meet, teams}` | Address per channel: numbers for phone and WhatsApp, account emails for Meet and Teams |
+| `tags` | string[] | Tag names. Trimmed, each once regardless of case |
+| `memberUserId` | string | The organization member this contact is, if any |
+| `provisional` | boolean | Captured from the call panel, to be completed later. Default `false` |
+
+On `PATCH`, a field not sent keeps its value and an empty string clears a
+text field. Each contact returns `lastCalledAt`, `answered` and `missed`,
+computed from call actions.
+
+A national id already used by another contact of the organization is a 409.
+`importContacts` creates each row on its own and returns
+`{created, skipped, errors, rows: [{index, status, reason, contact}]}`, where
+`status` is `created`, `skipped` (national id already in the book, or repeated
+in the request) or `error` (the row is invalid; `reason` says why).
 
 ## Selectables
 
@@ -98,7 +122,7 @@ Newest first, `limit` up to 500. Actions: `treatment.opened`,
 | 400 | Validation. Body `{"error": "..."}` |
 | 403 | Not a member, org path mismatch, or an owner-only write |
 | 404 | Treatment or contact not found |
-| 409 | Treatment not `OPEN`, or closing one with no actions |
+| 409 | Treatment not `OPEN`, closing one with no actions, or a contact's national id already used |
 
 ## Treatment screen flow
 

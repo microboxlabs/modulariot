@@ -6,6 +6,7 @@ import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,10 +17,9 @@ public class InMemoryContactStore implements ContactStore {
 
     @Override
     public synchronized Contact insert(Contact c) {
+        requireUniqueNationalId(c, null);
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        Contact saved = new Contact(UUID.randomUUID().toString(), c.tenantCode(), c.name(), c.role(), c.phone(),
-                c.methods() == null ? List.of() : List.copyOf(c.methods()), c.active(), c.notes(), c.createdBy(),
-                now, now);
+        Contact saved = c.stored(UUID.randomUUID().toString(), c.createdBy(), now, now);
         contacts.put(saved.id(), saved);
         return saved;
     }
@@ -30,9 +30,9 @@ public class InMemoryContactStore implements ContactStore {
         if (current.isEmpty()) {
             return Optional.empty();
         }
-        Contact saved = new Contact(c.id(), c.tenantCode(), c.name(), c.role(), c.phone(),
-                c.methods() == null ? List.of() : List.copyOf(c.methods()), c.active(), c.notes(),
-                current.get().createdBy(), current.get().createdAt(), OffsetDateTime.now(ZoneOffset.UTC));
+        requireUniqueNationalId(c, c.id());
+        Contact saved = c.stored(c.id(), current.get().createdBy(), current.get().createdAt(),
+                OffsetDateTime.now(ZoneOffset.UTC));
         contacts.put(saved.id(), saved);
         return Optional.of(saved);
     }
@@ -41,6 +41,16 @@ public class InMemoryContactStore implements ContactStore {
     public synchronized Optional<Contact> find(String tenantCode, String id) {
         Contact c = id == null ? null : contacts.get(id);
         return c != null && c.tenantCode().equals(tenantCode) ? Optional.of(c) : Optional.empty();
+    }
+
+    @Override
+    public synchronized Optional<Contact> findByNationalId(String tenantCode, String nationalId) {
+        if (nationalId == null) {
+            return Optional.empty();
+        }
+        return contacts.values().stream()
+                .filter(c -> c.tenantCode().equals(tenantCode) && nationalId.equals(c.nationalId()))
+                .findFirst();
     }
 
     @Override
@@ -63,5 +73,12 @@ public class InMemoryContactStore implements ContactStore {
     @Override
     public synchronized boolean isEmpty(String tenantCode) {
         return contacts.values().stream().noneMatch(c -> c.tenantCode().equals(tenantCode));
+    }
+
+    private void requireUniqueNationalId(Contact c, String selfId) {
+        Optional<Contact> other = findByNationalId(c.tenantCode(), c.nationalId());
+        if (other.isPresent() && !Objects.equals(other.get().id(), selfId)) {
+            throw new DuplicateNationalIdException(c.nationalId());
+        }
     }
 }

@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.StreamSupport;
 
 /**
  * Reads a PostgREST connection's OpenAPI description and turns selected RPC functions into
@@ -87,10 +88,7 @@ public class PostgrestCatalog {
 
     /** Creates one operation per selected function; functions already imported are returned as existing. */
     public ImportResult importFunctions(String tenantCode, String connectionId, ImportRequest request) {
-        if (request == null || request.functions() == null || request.functions().isEmpty()
-                || request.functions().size() > MAX_IMPORT) {
-            throw new IllegalArgumentException("Select between 1 and " + MAX_IMPORT + " functions");
-        }
+        requireSelection(request);
         IntegrationConnection connection = postgrest(tenantCode, connectionId);
         Map<String, Function> available = parse(spec(connection));
         Map<String, IntegrationOperation> byPath = new LinkedHashMap<>();
@@ -101,10 +99,7 @@ public class PostgrestCatalog {
         List<IntegrationOperation> existing = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         for (Selection selection : request.functions()) {
-            Function function = selection == null ? null : available.get(selection.name());
-            if (function == null) {
-                throw new IllegalArgumentException("Unknown function: " + (selection == null ? null : selection.name()));
-            }
+            Function function = selected(available, selection);
             IntegrationOperation current = byPath.get(function.path());
             if (seen.add(function.name()) && current == null) {
                 created.add(operations.create(new IntegrationOperation(UUID.randomUUID().toString(), connectionId,
@@ -115,6 +110,20 @@ public class PostgrestCatalog {
             }
         }
         return new ImportResult(created, existing);
+    }
+
+    private static void requireSelection(ImportRequest request) {
+        if (request == null || request.functions() == null || request.functions().isEmpty()
+                || request.functions().size() > MAX_IMPORT) {
+            throw new IllegalArgumentException("Select between 1 and " + MAX_IMPORT + " functions");
+        }
+    }
+
+    private static Function selected(Map<String, Function> available, Selection selection) {
+        String name = selection == null ? null : selection.name();
+        Function function = name == null ? null : available.get(name);
+        if (function == null) throw new IllegalArgumentException("Unknown function: " + name);
+        return function;
     }
 
     static Map<String, Object> requestSchema(Function function, Map<String, String> pinned) {
@@ -157,13 +166,12 @@ public class PostgrestCatalog {
             String name = path.substring("/rpc/".length());
             JsonNode get = entry.getValue().path("get");
             if (!FUNCTION_NAME.matcher(name).matches() || !get.isObject()) return;
-            List<Parameter> parameters = new ArrayList<>();
-            for (JsonNode parameter : get.path("parameters")) {
-                if (isQueryParameter(parameter)) {
-                    parameters.add(new Parameter(parameter.path("name").asText(), parameter.path("type").asText(null),
-                            parameter.path("format").asText(null), parameter.path("required").asBoolean(false)));
-                }
-            }
+            List<Parameter> parameters = StreamSupport.stream(get.path("parameters").spliterator(), false)
+                    .filter(PostgrestCatalog::isQueryParameter)
+                    .map(parameter -> new Parameter(parameter.path("name").asText(),
+                            parameter.path("type").asText(null), parameter.path("format").asText(null),
+                            parameter.path("required").asBoolean(false)))
+                    .toList();
             String description = get.path("summary").asText(get.path("description").asText(null));
             functions.put(name, new Function(name, path, description, List.copyOf(parameters), null));
         });

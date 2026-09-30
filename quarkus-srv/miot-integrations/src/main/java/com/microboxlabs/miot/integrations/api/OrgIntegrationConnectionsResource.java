@@ -7,7 +7,10 @@ import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationOperationRequest;
 import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
+import com.microboxlabs.miot.integrations.service.ConnectionResolutionException;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
+import com.microboxlabs.miot.integrations.service.OperationInvocationException;
+import com.microboxlabs.miot.integrations.service.PostgrestCatalog;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.smallrye.mutiny.Uni;
@@ -54,17 +57,20 @@ public class OrgIntegrationConnectionsResource {
     private final OrganizationContext organizationContext;
     private final OrganizationRoleService roleService;
     private final IntegrationConnectionService service;
+    private final PostgrestCatalog postgrest;
 
     @Inject
     public OrgIntegrationConnectionsResource(
             TenantContext tenantContext,
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
-            IntegrationConnectionService service) {
+            IntegrationConnectionService service,
+            PostgrestCatalog postgrest) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
         this.roleService = roleService;
         this.service = service;
+        this.postgrest = postgrest;
     }
 
     @GET
@@ -178,6 +184,45 @@ public class OrgIntegrationConnectionsResource {
                     ? Response.status(Response.Status.NOT_FOUND).build()
                     : Response.status(Response.Status.CREATED).entity(operation).build();
         });
+    }
+
+    @GET
+    @Path("/connections/{connectionId}/postgrest/functions")
+    @Operation(summary = "List the RPC functions a PostgREST connection exposes")
+    public Uni<Response> listPostgrestFunctions(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("connectionId") String connectionId) {
+        String tenant = tenantCode(organizationId);
+        return ownerWork(organizationId,
+                () -> postgrestResponse(() -> Response.ok(postgrest.functions(tenant, connectionId)).build()));
+    }
+
+    @POST
+    @Path("/connections/{connectionId}/postgrest/import")
+    @Operation(summary = "Create read-only dashboard operations for selected PostgREST functions")
+    public Uni<Response> importPostgrestFunctions(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("connectionId") String connectionId,
+            PostgrestCatalog.ImportRequest req) {
+        String tenant = tenantCode(organizationId);
+        return ownerWork(organizationId,
+                () -> postgrestResponse(() -> Response.ok(postgrest.importFunctions(tenant, connectionId, req)).build()));
+    }
+
+    private static Response postgrestResponse(Supplier<Response> work) {
+        try {
+            return work.get();
+        } catch (ConnectionResolutionException e) {
+            return error(Response.Status.NOT_FOUND, e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return error(Response.Status.BAD_REQUEST, e.getMessage());
+        } catch (OperationInvocationException e) {
+            return error(Response.Status.BAD_GATEWAY, e.getMessage());
+        }
+    }
+
+    private static Response error(Response.Status status, String message) {
+        return Response.status(status).type(MediaType.APPLICATION_JSON).entity(Map.of("error", message)).build();
     }
 
     /**

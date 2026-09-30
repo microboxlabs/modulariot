@@ -1134,3 +1134,33 @@ Optional `containerStyle`, `titleStyle`, `valueStyle`, `descriptionStyle` and
 outer card. Hosts resolve data, numeric formatting, color rules and navigation.
 The Next.js icon widget uses this renderer while retaining its Markdown and
 icon providers; unsafe navigation schemes do not create links.
+
+`createIconStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_icon` with static JSON or named planner bindings. Configuration
+fields `title`, `value`, `unit`, `subtitle` and `goToUrl` use the instance's
+Handlebars engine. Invalid/nonfinite numeric values display as zero.
+
+```ts
+interface IconStatRegistryOptions {
+  defaultTitle: string;
+  loadingLabel: string;
+  errorLabel: string;
+  unsupportedDataLabel: string;
+  renderIcon?: (name: string) => ReactNode;
+  renderDescription?: (text: string) => ReactNode;
+  formatValue?: (value: number) => string;
+  templateEngine?: ReturnType<typeof createTemplateEngine>;
+}
+```
+
+Descriptions default to literal text; the host may supply a sanitized rich-text
+renderer. Icons use a host callback (default key `cart`); `showIcon: false` hides
+them. `cardVariant: "vertical"` stacks text, and `expandable: true` establishes
+container-based scaling automatically. `valueColorRules.rules` targets `text`,
+`bg` and `icon`, overriding enabled manual color settings per target. Only
+six-digit RGB colors are accepted. Background colors retain 80% opacity.
+
+`showGoTo: true` enables safe native links in viewer mode; bare paths are rooted
+at `/`, unsafe schemes are rejected, and edit mode disables links. Hosts remain
+responsible for destination authorization. Loading/error states clear content
+and navigation. Legacy direct-query bindings display the migration label.

@@ -13,3 +13,5 @@ export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./
 export { createDataTableRegistry, createDataListRegistry, createResizableDataTableRegistry, type ResizableDataTableRegistryOptions, type DataTableRegistryOptions } from "./embed";
 
 export { createStatusStatRegistry, type StatusStatRegistryOptions } from "./embed";
+
+export { createIconStatRegistry, type IconStatRegistryOptions } from "./embed";

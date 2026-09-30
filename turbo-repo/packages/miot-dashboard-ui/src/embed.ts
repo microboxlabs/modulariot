@@ -16,3 +16,5 @@ export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./
 export { createDataTableRegistry, createDataListRegistry, createResizableDataTableRegistry, type ResizableDataTableRegistryOptions, type DataTableRegistryOptions } from "./react/data-table-registry";
 
 export { createStatusStatRegistry, type StatusStatRegistryOptions } from "./react/status-stat-registry";
+
+export { createIconStatRegistry, type IconStatRegistryOptions } from "./react/icon-stat-registry";

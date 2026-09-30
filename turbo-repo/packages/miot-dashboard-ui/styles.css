@@ -535,3 +535,6 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 :where(.dark,[data-miot-theme="dark"]) .miot-icon-stat { background:var(--miot-card-background,#1f2937); border-color:var(--miot-card-border,#374151); color:var(--miot-card-text,#e5e7eb); }
 :where(.dark,[data-miot-theme="dark"]) .miot-icon-stat__icon { color:var(--miot-icon-color,#60a5fa); background:var(--miot-icon-background,#1e3a8a4d); }
 :where(.dark,[data-miot-theme="dark"]) :is(.miot-icon-stat__title,.miot-icon-stat__description,.miot-icon-stat__unit) { color:var(--miot-card-muted,#d1d5db); }
+.miot-icon-stat-link { display:block; color:inherit; text-decoration:none; }
+.miot-icon-stat-link:hover .miot-icon-stat { border-color:var(--miot-focus-color,#2563eb); }
+.miot-icon-stat-link:focus-visible { outline:2px solid var(--miot-focus-color,#2563eb); outline-offset:2px; }

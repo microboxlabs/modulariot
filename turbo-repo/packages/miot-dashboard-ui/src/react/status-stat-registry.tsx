@@ -4,7 +4,7 @@ import { createWidgetRegistry } from "../core/widget-registry";
 import { evaluateColorRulesGeneric } from "../core/color-rule-evaluation";
 import { createTemplateEngine } from "../templates";
 import { StatusStat } from "./status-stat";
-import { normalizeScalarColorRules } from "./scalar-color-rules";
+import { normalizeTargetedColorRules } from "./targeted-color-rules";
 import { templateField } from "./scalar-template-field";
 import { useWidgetTemplateFields } from "./use-widget-template-fields";
 import type { WidgetComponentProps } from "./widget-renderer";
@@ -19,26 +19,6 @@ export interface StatusStatRegistryOptions {
   templateEngine?: ReturnType<typeof createTemplateEngine>;
 }
 const targets = ["border", "icon", "text"] as const;
-function statusRules(raw: unknown) {
-  if (
-    !raw ||
-    typeof raw !== "object" ||
-    !("rules" in raw) ||
-    !Array.isArray(raw.rules)
-  )
-    return [];
-  return raw.rules.flatMap((entry: unknown) => {
-    const rule = normalizeScalarColorRules({ rules: [entry] })[0];
-    if (rule?.color.length !== 6 || !entry || typeof entry !== "object")
-      return [];
-    const requested =
-      "targets" in entry && Array.isArray(entry.targets)
-        ? entry.targets
-        : ["target" in entry ? entry.target : "text"];
-    const selected = targets.filter((target) => requested.includes(target));
-    return [{ ...rule, targets: selected.length ? selected : ["text"] }];
-  });
-}
 export function createStatusStatRegistry(
   options: Readonly<StatusStatRegistryOptions>,
 ) {
@@ -59,7 +39,7 @@ export function createStatusStatRegistry(
       engine,
     );
     const rules = useMemo(
-      () => statusRules(config.valueColorRules),
+      () => normalizeTargetedColorRules(config.valueColorRules, targets),
       [config.valueColorRules],
     );
     if (status === "loading") return <output>{options.loadingLabel}</output>;

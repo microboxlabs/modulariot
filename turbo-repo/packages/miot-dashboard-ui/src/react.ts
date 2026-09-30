@@ -56,3 +56,5 @@ export { SavedQueryProvider, usePlannerData } from "./react/saved-query-provider
 export { CircularStat, type CircularStatProps } from "./react/circular-stat";
 
 export { createTextCardRegistry, type TextCardRegistryOptions } from "./react/text-card-registry";
+
+export { TextCardFields, type TextCardFieldsProps, type TextCardFieldValue } from "./react/text-card-fields";

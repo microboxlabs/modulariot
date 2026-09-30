@@ -616,3 +616,16 @@ values. Without a controller, `savedQueries.filters` supplies read-only filter
 values to widgets and queries; widget filter changes are ignored. Removing a
 controller restores those fallback values. Provider boundaries remain stable
 across updates, preserving widget-local state for the same `instanceKey`.
+
+### Text appearance fields
+
+`TextCardFields` from `/react` provides controlled text, alignment and italic
+controls. Import `@microboxlabs/miot-dashboard-ui/styles.css` for their styling.
+Pass `value`, `onChange` and localized `labels` (`legend`, `text`, `placeholder`,
+`alignment`, `left`, `center`, `right`, `italic`). The callback returns the whole
+appearance value; the host owns the draft and Apply/Cancel actions.
+
+`disabled` disables the field group and change callbacks. Optional `textStatus`
+(`none`, `valid`, `invalid`) and `validationMessage` expose host validation through
+visual and accessible feedback. Each instance generates its own label IDs. These
+fields do not execute templates, fetch data or persist configuration.

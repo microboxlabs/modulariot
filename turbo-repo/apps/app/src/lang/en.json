@@ -2567,7 +2567,9 @@
         "fieldCaseNormal": "number · seconds since it went back to normal",
         "fieldCaseAge": "number · hours since it opened",
         "fieldCaseLevel": "number · current ICU level",
-        "fieldCaseClosed": "yes/no · an operator closed it"
+        "fieldCaseClosed": "yes/no · an operator closed it",
+        "importEngine": "Import from the engine",
+        "importDone": "{created} symptom(s) imported as off drafts; {skipped} were already here."
       }
     },
     "integrationJobs": {

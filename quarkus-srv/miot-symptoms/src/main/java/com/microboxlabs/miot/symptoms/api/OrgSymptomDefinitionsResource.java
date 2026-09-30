@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
+import com.microboxlabs.miot.symptoms.catalog.service.EngineImportService;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
@@ -52,6 +53,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
 
     private final SymptomCatalogService catalog;
     private final PreviewService previews;
+    private final EngineImportService importer;
 
     /** Publishes the draft. {@code bump} may raise the computed bump; {@code state} defaults to TEST. */
     public record PublishRequest(String reason, VersionBump bump, SymptomState state) {
@@ -73,10 +75,22 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             OrganizationRoleService roleService,
             SecurityIdentity identity,
             SymptomCatalogService catalog,
-            PreviewService previews) {
+            PreviewService previews,
+            EngineImportService importer) {
         super(tenantContext, organizationContext, roleService, identity);
         this.catalog = catalog;
         this.previews = previews;
+        this.importer = importer;
+    }
+
+    @POST
+    @Path("/import-engine")
+    @Operation(operationId = "importEngineRules",
+            summary = "Create an off, unpublished symptom for each engine rule the organization does not have yet")
+    public Uni<Response> importEngine(@PathParam(ORG) String organizationId) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return ownerWork(organizationId, () -> Response.ok(importer.importRules(tenant, actor)).build());
     }
 
     @GET

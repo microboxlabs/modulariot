@@ -2567,7 +2567,9 @@
         "fieldCaseNormal": "número · segundos desde que volvió a lo normal",
         "fieldCaseAge": "número · horas desde que se abrió",
         "fieldCaseLevel": "número · nivel ICU actual",
-        "fieldCaseClosed": "sí/no · lo cerró un operador"
+        "fieldCaseClosed": "sí/no · lo cerró un operador",
+        "importEngine": "Importar del motor",
+        "importDone": "{created} síntoma(s) importado(s) como borrador apagado; {skipped} ya estaban."
       }
     },
     "integrationJobs": {

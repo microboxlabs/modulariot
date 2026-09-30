@@ -569,3 +569,16 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 :where(.dark,[data-miot-theme="dark"]) .miot-stacked-stat { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
 :where(.dark,[data-miot-theme="dark"]) .miot-stacked-stat__legend li > span:nth-child(2) { color:var(--miot-card-muted,#9ca3af); }
 :where(.dark,[data-miot-theme="dark"]) .miot-stacked-stat { --miot-chart-empty:#374151; }
+
+.miot-expandable-stat { box-sizing:border-box; height:100%; min-height:0; display:flex; flex-direction:column; border:1px solid var(--miot-card-border,#e5e7eb); border-radius:.5rem; color:var(--miot-card-text,#111827); background:var(--miot-expand-background,var(--miot-card-background,#fff)); }
+.miot-expandable-stat__main { padding:1rem; flex:1; display:flex; flex-direction:column; justify-content:center; }
+.miot-expandable-stat__main p { margin:0; font-size:.875rem; font-weight:500; color:var(--miot-card-muted,#6b7280); overflow-wrap:anywhere; }
+.miot-expandable-stat__main strong { margin-top:.25rem; font-size:1.875rem; overflow-wrap:anywhere; }
+.miot-expandable-stat__main strong span { margin-inline-start:.25rem; font-size:1.125rem; font-weight:400; color:var(--miot-card-muted,#6b7280); }
+.miot-expandable-stat button { font:inherit; font-size:.75rem; cursor:pointer; display:flex; justify-content:center; align-items:center; gap:.25rem; padding:.5rem; border:0; border-top:1px solid var(--miot-card-border,#e5e7eb); background:transparent; color:var(--miot-expand-control,#2563eb); }
+.miot-expandable-stat button:hover { background:var(--miot-expand-hover,#f9fafb); }
+.miot-expandable-stat button:focus-visible { outline:2px solid var(--miot-focus-color,#2563eb); outline-offset:-2px; }
+.miot-expandable-stat__details { flex-shrink:1; overflow:auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; margin:0; padding:.75rem; border-top:1px solid var(--miot-card-border,#e5e7eb); background:var(--miot-expand-detail,#f9fafb); }
+.miot-expandable-stat dt { font-size:.75rem; color:var(--miot-card-muted,#6b7280); overflow-wrap:anywhere; }
+.miot-expandable-stat dd { margin:0; font-size:.875rem; font-weight:500; overflow-wrap:anywhere; }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat { --miot-card-background:#1f2937; --miot-card-border:#374151; --miot-card-text:#fff; --miot-card-muted:#9ca3af; --miot-expand-detail:#11182780; --miot-expand-control:#60a5fa; --miot-expand-hover:#374151; }

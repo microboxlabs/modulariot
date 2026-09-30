@@ -108,3 +108,4 @@ export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "
 export { StackedStat, type StackedStatProps, type StackedStatItem } from "./react/stacked-stat";
 
 export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./react/stacked-stat-registry";
+export { ExpandableStat, type ExpandableStatProps } from "./react/expandable-stat";

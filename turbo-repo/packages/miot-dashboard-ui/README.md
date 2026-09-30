@@ -1248,3 +1248,17 @@ validates the resulting RGB. Invalid item entries are skipped and an empty list
 shows `emptyLabel`. `showHeader` defaults to true and `chartType` defaults to
 `bar`; `donut` selects the ring. Loading and errors remove stale segments.
 Legacy direct queries display the migration label.
+
+### Expandable statistic
+
+`ExpandableStat` from `./react` accepts resolved `title`, string `value`, optional
+`unit`, and `details: readonly { label: string; value: string }[]`. Required
+`showLabel` and `hideLabel` localize its native disclosure button. Values remain
+literal text, including repeated detail labels. Expanded details use semantic
+term/definition markup and each instance has distinct accessible control IDs.
+
+Optional `valueColor` and `backgroundColor` accept six-digit RGB without `#`;
+invalid colors fall back to the scoped theme. Background rules tint the card,
+button and expanded section. Change `resetKey` when the dashboard identity
+changes to collapse its details. Data and formatting remain host responsibilities.
+Next.js consumes this renderer with existing value/color rules and EN/ES labels.

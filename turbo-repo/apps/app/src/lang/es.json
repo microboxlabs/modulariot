@@ -3089,6 +3089,8 @@
       "color": "Color",
       "icon": "Ícono",
       "sensitive": "Valor Sensible",
+      "showDetails": "Mostrar detalles",
+      "hideDetails": "Ocultar detalles",
       "showSensitiveValue": "Mostrar valor",
       "hideSensitiveValue": "Ocultar valor",
       "revealSensitiveValue": "Seleccione para mostrar el valor",

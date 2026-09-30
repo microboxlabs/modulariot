@@ -682,6 +682,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       {/* Sort card */}
       {sort.enabled && (
         <SortPillRow
+          directionLabels={{ asc: tr("dashboard.portableWidgets.ascending", dictionary), desc: tr("dashboard.portableWidgets.descending", dictionary) }}
           label={tr("dashboard.settings.sortBy", dictionary)}
           columns={validSortColumns}
           sortKey={sortKey}

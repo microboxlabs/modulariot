@@ -67,3 +67,5 @@ export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./
 export { ProgressStat, type ProgressStatProps } from "./react/progress-stat";
 
 export { useFilterAndSort, type UseFilterAndSortResult, type RowFilterConfig, type RowSortConfig, type RowColumn } from "./react/use-filter-and-sort";
+
+export { FilterPillRow, SortPillRow, type FilterPillRowProps, type SortPillRowProps } from "./react/row-controls";

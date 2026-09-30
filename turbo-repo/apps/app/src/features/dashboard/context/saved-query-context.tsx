@@ -10,8 +10,7 @@ import type { DashboardQueryDefinition } from "@microboxlabs/miot-dashboard-cont
 import type { createDashboardServerClient } from "../services/dashboard-server-client";
 import { useDashboard } from "./dashboard-context";
 import { useDashboardFilters } from "./dashboard-filters-context";
-import { PlannerResultsProvider } from "./planner-context";
-import { useSavedQueryResults } from "@microboxlabs/miot-dashboard-ui/react";
+import { SavedQueryProvider } from "@microboxlabs/miot-dashboard-ui/react";
 
 type Session = {
   client: ReturnType<typeof createDashboardServerClient>;
@@ -53,13 +52,14 @@ function QueryResults({
 }: Readonly<PropsWithChildren<{ session: Session }>>) {
   const { refreshInterval, editMode } = useDashboard();
   const { activeFilters } = useDashboardFilters();
-  const value = useSavedQueryResults({
-    ...session,
-    filters: activeFilters,
-    refreshIntervalMs: refreshInterval * 1000,
-    paused: editMode,
-  });
   return (
-    <PlannerResultsProvider value={value}>{children}</PlannerResultsProvider>
+    <SavedQueryProvider
+      {...session}
+      filters={activeFilters}
+      refreshIntervalMs={refreshInterval * 1000}
+      paused={editMode}
+    >
+      {children}
+    </SavedQueryProvider>
   );
 }

@@ -528,3 +528,19 @@ This component does not execute queries or evaluate color rules. Resolve those i
 the data adapter before rendering. Invalid colors use the default blue; strings
 are rendered as text. Scoped dark-theme and card color overrides apply, with
 `--miot-progress-track` available for the progress track.
+
+## Saved-query provider
+
+`SavedQueryProvider` from `./react` executes configured saved dashboard queries
+through the supplied client and exposes their results to descendant widgets.
+Pass the same options as `useSavedQueryResults`, including the authenticated
+`sessionKey`, dashboard `slug`, filters, refresh interval, pause state and localized
+`errorMessage`. Change the session key when identity changes; queries execute on
+the dashboard server, where permissions and connection credentials are enforced.
+
+`usePlannerData(variableName)` reads one named result from the nearest provider
+without issuing a request. It also works with `PlannerResultsProvider` for hosts
+supplying existing planner results. Outside a provider, or for an absent name,
+it returns a stable empty result scoped to that hook instance. Sibling providers
+remain independent even when they use identical query names. Query rows retain
+the planner-compatible representation documented above.

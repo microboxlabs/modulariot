@@ -24,9 +24,9 @@ export interface DashboardCanvasProps {
   unknownWidgetLabel: string;
   /** Host derives edit intent from current server permissions; default is read-only. */
   editMode?: boolean;
-  onLayoutCommit?: DashboardGridProps["onLayoutCommit"];
-  onAction?: WidgetRendererProps["onAction"];
-  Frame?: WidgetRendererProps["Frame"];
+  onLayoutCommit?: NonNullable<DashboardGridProps["onLayoutCommit"]>;
+  onAction?: NonNullable<WidgetRendererProps["onAction"]>;
+  Frame?: NonNullable<WidgetRendererProps["Frame"]>;
 }
 
 /** Complete root layout and recursive rendering with instance-owned widget DOM IDs. */

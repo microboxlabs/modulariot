@@ -565,4 +565,7 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-stacked-stat__legend li > span:first-child { width:.75rem; height:.75rem; border-radius:50%; flex-shrink:0; }
 .miot-stacked-stat__legend li > span:nth-child(2) { color:var(--miot-card-muted,#4b5563); overflow-wrap:anywhere; }
 .miot-stacked-stat__legend strong { font-weight:500; }
-:where(.dark,[data-miot-theme="dark"]) .miot-stacked-stat { --miot-card-background:#1f2937; --miot-card-border:#374151; --miot-card-text:#fff; --miot-card-muted:#9ca3af; --miot-chart-empty:#374151; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-stacked-stat { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
+:where(.dark,[data-miot-theme="dark"]) .miot-stacked-stat__legend li > span:nth-child(2) { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-stacked-stat { --miot-chart-empty:#374151; }

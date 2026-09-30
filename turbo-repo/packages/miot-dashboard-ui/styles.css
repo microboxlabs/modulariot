@@ -549,4 +549,9 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-sensitive-stat__value { margin:.5rem 0 0; font-size:1.875rem; font-weight:700; overflow-wrap:anywhere; }
 .miot-sensitive-stat__value[data-hidden] { color:var(--miot-card-muted,#9ca3af); }
 .miot-sensitive-stat__hint { margin:.5rem 0 0; font-size:.75rem; color:var(--miot-card-muted,#6b7280); }
-:where(.dark,[data-miot-theme="dark"]) .miot-sensitive-stat { --miot-card-background:#1f2937; --miot-card-border:#374151; --miot-card-text:#fff; --miot-card-muted:#9ca3af; --miot-sensitive-hover:#374151; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-sensitive-stat { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
+:where(.dark,[data-miot-theme="dark"]) .miot-sensitive-stat header p { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-sensitive-stat button { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-sensitive-stat button:hover { background:var(--miot-sensitive-hover,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-sensitive-stat__hint { color:var(--miot-card-muted,#9ca3af); }

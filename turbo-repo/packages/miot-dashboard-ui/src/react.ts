@@ -54,3 +54,5 @@ export { PercentageValue, type PercentageValueProps } from "./react/percentage-v
 export { SavedQueryProvider, usePlannerData } from "./react/saved-query-provider";
 
 export { CircularStat, type CircularStatProps } from "./react/circular-stat";
+
+export { createTextCardRegistry, type TextCardRegistryOptions } from "./react/text-card-registry";

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { StrictMode } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { RowContextMenu, type ResolvedContextItem } from "./row-context-menu";
@@ -111,4 +112,40 @@ it("does not render unsafe-only menus and does not bubble navigation to the host
     />,
   );
   expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it("retains the external focus origin through Strict Mode and repositioning", () => {
+  const trigger = document.createElement("button");
+  document.body.append(trigger);
+  trigger.focus();
+  const onClose = vi.fn();
+  const view = render(
+    <StrictMode>
+      <RowContextMenu
+        items={items}
+        x={10}
+        y={10}
+        ariaLabel="Actions"
+        onClose={onClose}
+      />
+    </StrictMode>,
+  );
+  expect(document.activeElement).toBe(screen.getByRole("link"));
+  view.rerender(
+    <StrictMode>
+      <RowContextMenu
+        items={items}
+        x={90}
+        y={90}
+        theme="dark"
+        ariaLabel="Actions"
+        onClose={onClose}
+      />
+    </StrictMode>,
+  );
+  fireEvent.keyDown(screen.getByRole("link"), { key: "Escape" });
+  expect(document.activeElement).toBe(trigger);
+  expect(onClose).toHaveBeenCalledOnce();
+  view.unmount();
+  trigger.remove();
 });

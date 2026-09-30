@@ -31,6 +31,7 @@ export function RowContextMenu({
   returnFocusTo,
 }: RowContextMenuProps) {
   const menuRef = useRef<HTMLDialogElement>(null);
+  const originFocusRef = useRef<Element | null | undefined>(undefined);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const safeItems = items.filter(
@@ -45,21 +46,27 @@ export function RowContextMenu({
     (typeof document === "undefined" ? undefined : document.body);
 
   useLayoutEffect(() => {
+    if (!enabled) {
+      originFocusRef.current = undefined;
+      return;
+    }
     const panel = menuRef.current;
     if (!panel) return;
     const doc = panel.ownerDocument;
     const win = doc.defaultView;
     if (!win) return;
-    const previousFocus = returnFocusTo ?? doc.activeElement;
+    if (originFocusRef.current === undefined)
+      originFocusRef.current = doc.activeElement;
+    const previousFocus = returnFocusTo ?? originFocusRef.current;
     const rect = panel.getBoundingClientRect();
     panel.style.left = `${Math.max(8, Math.min(x, win.innerWidth - rect.width - 8))}px`;
     panel.style.top = `${Math.max(8, Math.min(y, win.innerHeight - rect.height - 8))}px`;
-    const ancestor = previousFocus?.closest("[data-miot-theme], .dark");
+    const ancestor = previousFocus?.closest<HTMLElement>(
+      "[data-miot-theme], .dark",
+    );
     panel.dataset.miotTheme =
       theme ??
-      (ancestor && ancestor.getAttribute("data-miot-theme") !== "light"
-        ? "dark"
-        : "light");
+      (ancestor && ancestor.dataset.miotTheme !== "light" ? "dark" : "light");
     panel.querySelector<HTMLElement>("a")?.focus();
     let dismissed = false;
     const close = () => {

@@ -836,3 +836,20 @@ clear-all button. Import `./styles.css`. Pass `filters` from `useColumnFilters`,
 all visible and accessible text localized. Values render as literal text.
 Optional `disabled` disables both removal actions; an empty filter record renders
 nothing. The component does not fetch data or enforce server permissions.
+
+### Typed column filter inputs
+
+`ColumnFilterInput` from `./react` supplies text, number, date, enum and boolean
+editors without app context or Flowbite. Pass `columnKey`, `dataType`,
+`currentFilter`, `enumValues`, `onFilterChange(key, filterOrNull)` and a `labels`
+object for search, operators, bounds, dates, empty states and boolean choices.
+Import `./styles.css`. Text and number changes emit after 300 ms; unmounting or
+changing the column cancels pending emissions. An optional `cancelDebounceRef`
+lets a host cancel pending input before a separate clear action. Text columns
+with enumerated values use checkbox selection unless an existing text filter is
+present. Date fields use native date inputs; numeric ranges allow open bounds.
+
+The host owns popover positioning and focus management. Inputs synchronize draft
+text, numeric and date values when `currentFilter` changes, cancelling pending
+emissions. Enum and boolean selections follow `currentFilter`. Radio names and
+date label IDs are unique across instances.

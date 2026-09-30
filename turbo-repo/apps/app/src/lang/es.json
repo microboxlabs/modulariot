@@ -3431,6 +3431,7 @@
       "columnFilterClearAll": "Limpiar todo",
       "columnFilterShowing": "Mostrando {filtered} de {total}",
       "columnFilterSearch": "Buscar...",
+      "columnFilterOperator": "Operador",
       "columnFilterEquals": "Igual a",
       "columnFilterGreaterThan": "Mayor que",
       "columnFilterLessThan": "Menor que",

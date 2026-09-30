@@ -3025,6 +3025,16 @@
     "organizationLogoAlt": "Logo de la organización"
   },
   "dashboard": {
+    "portableWidgets": {
+      "loading": "Cargando widget…",
+      "error": "Los datos del widget no están disponibles.",
+      "unsupported": "Migra este widget a una consulta guardada.",
+      "unknown": "Widget no disponible",
+      "text": "Añade tu texto o cita aquí…",
+      "progress": "Progreso",
+      "storage": "Almacenamiento utilizado",
+      "unit": "GB"
+    },
     "textCard": {
       "appearance": "Apariencia del texto",
       "text": "Texto",

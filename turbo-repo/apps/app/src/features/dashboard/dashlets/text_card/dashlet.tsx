@@ -1,5 +1,9 @@
 "use client";
 
+import { useOptionalDashboard } from "../../context/dashboard-context";
+
+import { PortableScalarWidget } from "../common/portable-scalar-widget";
+
 import { useMemo } from "react";
 import { TextCard } from "@microboxlabs/miot-dashboard-ui/react";
 import "@microboxlabs/miot-dashboard-ui/styles.css";
@@ -53,7 +57,12 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 
 const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
 
-export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+export function Dashlet(props: Readonly<DashletComponentProps>) {
+  const { hostAccess } = useOptionalDashboard();
+  return hostAccess ? <PortableScalarWidget widget={props.widget} /> : <LegacyDashlet {...props} />;
+}
+
+function LegacyDashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const {
     text = defaultConfig.text,

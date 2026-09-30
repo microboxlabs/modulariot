@@ -91,3 +91,30 @@ describe("React entry boundary", () => {
     ).toHaveLength(1);
   });
 });
+
+describe("Web Component entry boundary", () => {
+  it.each(["react/component.ts", "embed/mount.ts", "client/fetch.ts"])(
+    "rejects reverse Web Component imports from %s",
+    (origin) => {
+      expect(
+        importProblems(
+          'export * from "../web-component/define-dashboard-element";',
+          `/package/src/${origin}`,
+          "/package/src",
+        ),
+      ).toHaveLength(1);
+    },
+  );
+  it("allows mounting imports but rejects direct rendering dependencies", () => {
+    const file = "/package/src/web-component/element.ts";
+    expect(
+      importProblems('import "../embed/mount-dashboard";', file, "/package/src"),
+    ).toEqual([]);
+    expect(
+      importProblems('import "../react/dashboard-canvas";', file, "/package/src"),
+    ).toHaveLength(1);
+    expect(
+      importProblems('import "react-dom/client";', file, "/package/src"),
+    ).toHaveLength(1);
+  });
+});

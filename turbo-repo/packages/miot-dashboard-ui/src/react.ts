@@ -71,3 +71,5 @@ export { useFilterAndSort, type UseFilterAndSortResult, type RowFilterConfig, ty
 export { FilterPillRow, SortPillRow, type FilterPillRowProps, type SortPillRowProps } from "./react/row-controls";
 
 export { TableCellValue, renderCell, type TableCellValueProps, type CellColorRule } from "./react/table-cell";
+
+export { useCompiledColumns, type TemplateColumn, type CompiledColumnsOptions } from "./react/use-compiled-columns";

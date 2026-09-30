@@ -776,3 +776,22 @@ percentages clamp to zero instead of losing their sign. Signed values preserve
 the existing negative/below-1000/1000-or-more tones. Input rows are never modified.
 `renderCell(value, type, colorMap?)` provides a compatibility function for existing
 React table/list cell slots. These are cell primitives, not a complete table grid.
+
+## Table column templates
+
+`useCompiledColumns(columns, rowCount, options?)` from `./react` compiles column
+keys, labels and types once per column definition/engine change. Columns contain
+`{ key, label, type }` strings. It returns:
+
+- `resolveValue(key, row, rowIndex, totalRows)` with row fields, `row`, `_index`
+  and `_count` available to templates. Plain keys read only the row's own properties.
+- `resolveLabel(key)` with `_count` available for headings.
+- `resolveType(key, row, rowIndex, totalRows)` with the same row context, falling
+  back to `text` for missing/empty types.
+
+Each hook instance owns an isolated template engine unless the host supplies
+`{ templateEngine }`. Custom helpers must be registered on that engine; changing
+it recompiles the columns. Invalid syntax/helper failures use the existing
+column/row fallbacks. Render results as text through the cell primitives, never
+as raw HTML. The current compiler has the same `unsafe-eval` CSP constraint as
+other template APIs. Query execution remains outside this hook.

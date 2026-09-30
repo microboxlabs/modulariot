@@ -747,11 +747,33 @@ finds it — and the conversion should be written against that example.
 
 ### Convert planner requests to saved queries
 
-`migratePlannerQueries(config, mappings)` prepares a new document without network
-calls or store writes. Supply exactly one `PlannerQueryMapping` per legacy request:
-`plannerId`, `connectionId`, `operationId`, and explicit `parameters` using the
-contract's literal/filter bindings. Verify those operations and parameter types in
-the authorized host catalog first. Tenant predicates belong to the host plan.
+`migratePlannerQueries(config, mappings, options?)` prepares a new document without
+network calls or store writes. Supply exactly one `PlannerQueryMapping` per legacy
+request: `plannerId`, `connectionId`, `operationId`, and optionally `parameters`
+using the contract's literal/filter bindings. Verify those operations and parameter
+types in the authorized host catalog first. Tenant predicates belong to the host plan.
+
+When `parameters` is omitted it is derived from the legacy request:
+
+| Legacy value | Binding |
+|---|---|
+| `{{filter.key}}` | `{ kind: "filter", key, omitWhenEmpty: true }` |
+| other text | `{ kind: "literal", value }` |
+| empty | omitted, as the legacy planner did |
+| any other template | refused |
+
+The legacy page showed a date filter without declaring it. When a binding reads
+`date_range_from` or `date_range_to` and the document declares no `date_range`
+filter, one is added with key `date_range` and `options.dateFilterLabel`
+(default `"Date"`).
+
+`plannerOperationContracts(dashboards, { pinnedParameters })` lists the operations
+an integrations admin creates for those mappings: one read-only `HTTP_GET` contract
+per (data source, path), with every parameter any request passes as an optional
+string. A pinned parameter must have one literal value everywhere and is fixed with
+`const`, so a dashboard cannot change it. Contracts are marked `credentialScoped`:
+isolation comes from the connection's credential. POST requests and paths other
+than `name` or `rpc/name` are reported as problems.
 
 The result is `{ ok: true, config }` or `{ ok: false, problems }`. A successful
 conversion removes `requestPlanner`, retains request IDs, variable names and known
@@ -759,8 +781,7 @@ columns, and preserves widgets, filters, permissions metadata and document exten
 fields. The source is untouched. Duplicate identifiers, incomplete mappings,
 existing saved queries and invalid output contracts are refused.
 
-This helper does not interpret legacy templates, infer filter defaults, rewrite
-widget settings or certify their compatibility. Review nested and direct-datasource
+These helpers do not rewrite widget settings or certify their compatibility. Review nested and direct-datasource
 widgets separately. Pass the prepared document to an import dry run, then compare
 live data, filters and permissions before applying a parallel migration.
 

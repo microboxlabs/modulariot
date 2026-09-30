@@ -52,7 +52,7 @@ export default function PrototypeInlineForm({
   treatmentData,
   treatments_templates,
   onCallFlowStepChange,
-}: {
+}: Readonly<{
   setIsMenuOpen: (isMenuOpen: boolean) => void;
   isMenuOpen: boolean;
   dict: I18nRecord;
@@ -65,7 +65,7 @@ export default function PrototypeInlineForm({
   treatments_templates: SympthomTemplateResponse | null;
   /** Lets the map container size the panel per call-flow step. */
   onCallFlowStepChange?: (step: CallCenterReportedStep | null) => void;
-}) {
+}>) {
   const { data: session } = useSession();
   const userEmail = session?.user?.email ?? "";
 
@@ -74,9 +74,8 @@ export default function PrototypeInlineForm({
   // Mirrors the call-center flow's reported step locally so the header can
   // title/lock itself off it — `onCallFlowStepChange` alone only reaches the
   // map container, which doesn't need this component to also hold it.
-  const [callFlowStep, setCallFlowStep] = useState<CallCenterReportedStep | null>(
-    null
-  );
+  const [callFlowStep, setCallFlowStep] =
+    useState<CallCenterReportedStep | null>(null);
   // Bumped to force-remount `PrototypeCallCenterFlow`, discarding all its
   // internal state — the only way to send "back to contacts" from outside it,
   // since it owns that step itself.
@@ -86,7 +85,8 @@ export default function PrototypeInlineForm({
   // Once the call has gone live (or the results form is up), there's no way
   // back until the treatment is actually saved.
   const backLocked =
-    isCallDriverDebugFlow && (callFlowStep === "calling" || callFlowStep === "form");
+    isCallDriverDebugFlow &&
+    (callFlowStep === "calling" || callFlowStep === "form");
 
   // Set when the operator jumps straight from the call form to a different
   // treatment type via `CallSwitchDropdown` (see `handleSwitchFromCall`) —
@@ -113,7 +113,9 @@ export default function PrototypeInlineForm({
   // call"/dialing for this second (or later) round, instead of the plain
   // first-call titles in `CALL_FLOW_TITLE_KEYS`.
   const [isRepeatCall, setIsRepeatCall] = useState(false);
-  const [callFormDraft, setCallFormDraft] = useState<CallFormDraft | null>(null);
+  const [callFormDraft, setCallFormDraft] = useState<CallFormDraft | null>(
+    null
+  );
   useEffect(() => {
     if (!isCallDriverDebugFlow || !isMenuOpen) {
       setIsRepeatCall(false);
@@ -218,7 +220,7 @@ export default function PrototypeInlineForm({
   // still gets that treatment's `treatment_type`/`status` set correctly.
   const handleSwitchFromCall = (option: SelectedOption) => {
     const nextMenu = menus[option as keyof typeof menus];
-    nextMenu?.preactions?.();
+    void nextMenu?.preactions?.();
     setCameFromCall(true);
     setSelectedOption(option);
   };
@@ -349,7 +351,7 @@ export default function PrototypeInlineForm({
   useEffect(() => {
     if (isMenuOpen) {
       const preaction = menus[selectedOption as keyof typeof menus]?.preactions;
-      preaction && preaction();
+      void preaction?.();
     }
   }, [isMenuOpen]);
 
@@ -371,14 +373,19 @@ export default function PrototypeInlineForm({
   if (!selectedMenu) return null;
 
   const dictSy = dict.symptoms as I18nRecord;
-  const headerTitle =
-    isCallDriverDebugFlow && callFlowStep && callFlowStep !== "form" && isRepeatCall
-      ? `${tr("symptoms.call_again_origin_label", dict)} → ${tr("symptoms.call_again_label", dict)}`
-      : isCallDriverDebugFlow && callFlowStep
-        ? tr(`symptoms.${CALL_FLOW_TITLE_KEYS[callFlowStep]}`, dict)
-        : cameFromCall
-          ? `${tr("symptoms.call_origin_label", dict)} → ${selectedMenu.title as string}`
-          : (selectedMenu.title as string);
+  let headerTitle = selectedMenu.title as string;
+  if (
+    isCallDriverDebugFlow &&
+    callFlowStep &&
+    callFlowStep !== "form" &&
+    isRepeatCall
+  ) {
+    headerTitle = `${tr("symptoms.call_again_origin_label", dict)} → ${tr("symptoms.call_again_label", dict)}`;
+  } else if (isCallDriverDebugFlow && callFlowStep) {
+    headerTitle = tr(`symptoms.${CALL_FLOW_TITLE_KEYS[callFlowStep]}`, dict);
+  } else if (cameFromCall) {
+    headerTitle = `${tr("symptoms.call_origin_label", dict)} → ${selectedMenu.title as string}`;
+  }
 
   return (
     <div className="w-full h-full flex flex-col bg-white dark:bg-gray-900 rounded-lg overflow-hidden">

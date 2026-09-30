@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
@@ -111,8 +112,8 @@ public final class SpecDiff {
         return l == null ? null : new SymptomSpec.Lifecycle(squash(l.open()), squash(l.close()));
     }
 
-    /** Whitespace does not change a rule. */
+    /** Formatting does not change a rule; text inside string literals does. */
     static String squash(String rule) {
-        return rule == null ? null : rule.replaceAll("\\s+", " ").trim();
+        return RuleText.canonical(rule);
     }
 }

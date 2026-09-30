@@ -47,7 +47,7 @@ function DetailTooltip({
   response,
   t,
   children,
-}: {
+}: Readonly<{
   message: string;
   response?: string;
   t: (k: string) => string;
@@ -56,7 +56,7 @@ function DetailTooltip({
    *  `:hover` doesn't know about the scroll-close behavior below — without
    *  this the border could stay lit after a scroll closes the tooltip. */
   children: (open: boolean) => React.ReactNode;
-}) {
+}>) {
   return (
     <InstantTooltip
       content={
@@ -97,10 +97,10 @@ const CALL_TREATMENT_TYPE = "LLAMAR AL CONDUCTOR";
 function InstantTooltip({
   content,
   children,
-}: {
+}: Readonly<{
   content: React.ReactNode;
   children: (open: boolean) => React.ReactNode;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const { refs, floatingStyles, context } = useFloating({
     open,
@@ -125,7 +125,10 @@ function InstantTooltip({
   });
   const hover = useHover(context, { move: false });
   const dismiss = useDismiss(context);
-  const { getReferenceProps, getFloatingProps } = useInteractions([hover, dismiss]);
+  const { getReferenceProps, getFloatingProps } = useInteractions([
+    hover,
+    dismiss,
+  ]);
 
   // Scrolling doesn't reliably fire mouseenter/mouseleave on whatever
   // becomes newly hovered under a *stationary* cursor, so without this the
@@ -173,7 +176,7 @@ function GenericTreatmentRow({
   treatment,
   roundedBottom = false,
   time,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   treatment: TreatmentTimelineElement;
   /** See `CallLogRow`'s prop of the same name. */
@@ -182,9 +185,10 @@ function GenericTreatmentRow({
    *  episode's own group time (same one shown in the "Tratamiento N"
    *  header above), the closest thing to "when" this row has. */
   time?: Date | null;
-}) {
+}>) {
   const t = (k: string) => (dict.symptoms as I18nRecord)[k] as string;
-  const label = t(treatment.treatment_type.toUpperCase()) ?? treatment.treatment_type;
+  const label =
+    t(treatment.treatment_type.toUpperCase()) ?? treatment.treatment_type;
 
   const getCopyText = () => {
     const lines = [label];
@@ -236,7 +240,7 @@ export default function TreatmentsTimelineBox({
   seed,
   start,
   end,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   treatments: TreatmentTimelineElement[];
   /** Deterministic seed for the mock call-log/grouping — a real treatment
@@ -244,7 +248,7 @@ export default function TreatmentsTimelineBox({
   seed: string;
   start?: string | null;
   end?: string | null;
-}) {
+}>) {
   // Undefined = "use the default" (every episode starts expanded); once the
   // operator collapses one, that group's own choice takes over from then on.
   const [expandedOverrides, setExpandedOverrides] = useState<
@@ -338,17 +342,10 @@ export default function TreatmentsTimelineBox({
                 them to the rounded shape since they sit flush against the
                 edges. Clicking the header expands/collapses this episode's
                 procedures. */}
-            <div
-              role="button"
-              tabIndex={0}
+            <button
+              type="button"
               onClick={() => toggleGroup(group.id, expanded)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  toggleGroup(group.id, expanded);
-                }
-              }}
-              className="flex cursor-pointer items-center justify-between gap-2 border-b border-gray-100 px-2 py-1.5 transition-colors hover:bg-gray-100 dark:border-gray-700/60 dark:bg-gray-800 dark:hover:bg-gray-700"
+              className="flex w-full cursor-pointer items-center justify-between gap-2 border-b border-gray-100 px-2 py-1.5 transition-colors hover:bg-gray-100 dark:border-gray-700/60 dark:bg-gray-800 dark:hover:bg-gray-700"
             >
               <span className="flex min-w-0 items-center gap-1">
                 {expanded ? (
@@ -365,7 +362,7 @@ export default function TreatmentsTimelineBox({
                   <FormattedDate date={group.time} format="time" />
                 </span>
               )}
-            </div>
+            </button>
             {/* Grid-rows 0fr/1fr trick (see `call-dialing-step.tsx`'s timer):
                 animates smoothly between zero and the content's natural
                 height with no fixed height to guess at, and — unlike a

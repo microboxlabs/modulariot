@@ -7,7 +7,11 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ShowNotification } from "@/features/notifications/notification";
 import { ALL_CALL_METHODS } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
-import { channelsToContact, emptyChannels, type ChannelsValue } from "./contact-form-fields";
+import {
+  channelsToContact,
+  emptyChannels,
+  type ChannelsValue,
+} from "./contact-form-fields";
 import {
   IMPORT_COLUMNS,
   parseContactsCsv,
@@ -50,17 +54,13 @@ const STATUS_KEYS: Record<ImportRowStatus, string> = {
 };
 
 function statusTone(status: ImportRowStatus): string {
-  if (status === "ok") return "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300";
+  if (status === "ok")
+    return "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300";
   return "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300";
 }
 
 function readFileText(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(reader.error ?? new Error("File read failed"));
-    reader.readAsText(file);
-  });
+  return file.text();
 }
 
 /** Builds a contact from an "ok" row, creating any badge that's new. */
@@ -79,7 +79,9 @@ function rowToContact(values: ImportRow["values"]): BookContact {
     company: values.company,
     position: values.position,
     role: position || (values.description ?? ""),
-    badgeIds: splitBadgeNames(values.badges).map((name) => ensureBadge(name).id),
+    badgeIds: splitBadgeNames(values.badges).map(
+      (name) => ensureBadge(name).id
+    ),
     ...channelsToContact(channels),
   };
 }
@@ -88,7 +90,11 @@ function DropZone({
   fileName,
   onFile,
   d,
-}: Readonly<{ fileName: string; onFile: (file: File) => void; d: I18nRecord }>) {
+}: Readonly<{
+  fileName: string;
+  onFile: (file: File) => void;
+  d: I18nRecord;
+}>) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -117,7 +123,11 @@ function DropZone({
         className={`flex w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-colors ${tone}`}
       >
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-gray-500 shadow-sm dark:bg-gray-800 dark:text-gray-300">
-          {fileName ? <HiOutlineDocumentText className="h-6 w-6" /> : <HiOutlineUpload className="h-6 w-6" />}
+          {fileName ? (
+            <HiOutlineDocumentText className="h-6 w-6" />
+          ) : (
+            <HiOutlineUpload className="h-6 w-6" />
+          )}
         </span>
         <span className="text-base font-semibold text-gray-900 dark:text-white">
           {fileName || tr("importDropTitle", d)}
@@ -145,16 +155,27 @@ function RowsTable({
   rows,
   showStatus,
   d,
-}: Readonly<{ rows: readonly ImportRow["values"][]; showStatus?: readonly ImportRowStatus[]; d: I18nRecord }>) {
+}: Readonly<{
+  rows: readonly ImportRow["values"][];
+  showStatus?: readonly ImportRowStatus[];
+  d: I18nRecord;
+}>) {
   const cell = "whitespace-nowrap px-3 py-2";
   return (
     <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
       <table className="w-full text-xs">
         <thead className="bg-gray-50 dark:bg-gray-900/50">
           <tr>
-            {showStatus && <th className={`${cell} text-left font-semibold text-gray-500`}>{tr("importColStatus", d)}</th>}
+            {showStatus && (
+              <th className={`${cell} text-left font-semibold text-gray-500`}>
+                {tr("importColStatus", d)}
+              </th>
+            )}
             {IMPORT_COLUMNS.map((c) => (
-              <th key={c.field} className={`${cell} text-left font-semibold text-gray-500 dark:text-gray-400`}>
+              <th
+                key={c.field}
+                className={`${cell} text-left font-semibold text-gray-500 dark:text-gray-400`}
+              >
                 {c.header}
               </th>
             ))}
@@ -162,16 +183,24 @@ function RowsTable({
         </thead>
         <tbody>
           {rows.map((values, i) => (
-            <tr key={`${values.name ?? ""}-${i}`} className="border-t border-gray-100 dark:border-gray-700">
+            <tr
+              key={`${values.name ?? ""}-${i}`}
+              className="border-t border-gray-100 dark:border-gray-700"
+            >
               {showStatus?.[i] && (
                 <td className={cell}>
-                  <span className={`rounded-full px-2 py-0.5 font-medium ${statusTone(showStatus[i])}`}>
+                  <span
+                    className={`rounded-full px-2 py-0.5 font-medium ${statusTone(showStatus[i])}`}
+                  >
                     {trDynamic(STATUS_KEYS[showStatus[i]], d)}
                   </span>
                 </td>
               )}
               {IMPORT_COLUMNS.map((c) => (
-                <td key={c.field} className={`${cell} text-gray-700 dark:text-gray-300`}>
+                <td
+                  key={c.field}
+                  className={`${cell} text-gray-700 dark:text-gray-300`}
+                >
                   {values[c.field] ?? ""}
                 </td>
               ))}
@@ -221,7 +250,9 @@ export default function ImportContactsModal({
         setFileName(file.name);
         setRows(parseContactsCsv(text, contacts));
       })
-      .catch(() => ShowNotification({ type: "error", message: tr("importReadError", d) }));
+      .catch(() =>
+        ShowNotification({ type: "error", message: tr("importReadError", d) })
+      );
   };
 
   const okRows = rows?.filter((r) => r.status === "ok") ?? [];
@@ -246,17 +277,30 @@ export default function ImportContactsModal({
     >
       <div className="flex w-full min-h-0 flex-col">
         <div className="shrink-0 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{tr("importTitle", d)}</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{tr("importDescription", d)}</p>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {tr("importTitle", d)}
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {tr("importDescription", d)}
+          </p>
         </div>
         <div className="flex min-h-0 flex-col gap-5 overflow-y-auto px-6 py-5">
           <DropZone fileName={fileName} onFile={handleFile} d={d} />
           <div className="flex flex-col gap-2">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-              {rows ? tr("importPreviewTitle", d, { ok: String(okRows.length), total: String(rows.length) }) : tr("importExampleTitle", d)}
+              {rows
+                ? tr("importPreviewTitle", d, {
+                    ok: String(okRows.length),
+                    total: String(rows.length),
+                  })
+                : tr("importExampleTitle", d)}
             </span>
             {rows ? (
-              <RowsTable rows={rows.map((r) => r.values)} showStatus={rows.map((r) => r.status)} d={d} />
+              <RowsTable
+                rows={rows.map((r) => r.values)}
+                showStatus={rows.map((r) => r.status)}
+                d={d}
+              />
             ) : (
               <RowsTable rows={EXAMPLE_ROWS} d={d} />
             )}

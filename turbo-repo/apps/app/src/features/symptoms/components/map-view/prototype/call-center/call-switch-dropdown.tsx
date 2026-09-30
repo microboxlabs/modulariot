@@ -23,7 +23,7 @@ export default function CallSwitchDropdown({
   onSwitchOption,
   disableSwitchOptions,
   disabled,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   onSaveAndCallAgain: () => void;
   onSwitchOption: (option: SelectedOption) => void;
@@ -34,7 +34,7 @@ export default function CallSwitchDropdown({
   /** Disables the whole thing — both variants — e.g. while the call note is
    *  still empty. */
   disabled?: boolean;
-}) {
+}>) {
   const otherOptions = buildOtherOptions(dict);
 
   // "Guardar y hacer otra llamada" is always enabled; everything else in

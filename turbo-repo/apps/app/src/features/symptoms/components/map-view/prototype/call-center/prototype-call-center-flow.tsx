@@ -35,12 +35,11 @@ import { useCallHistory } from "./call-history-store";
 import type { CallMethod } from "./call-method";
 
 export type CallCenterFlowStep = "contacts" | "dialing" | "form";
-type Step = CallCenterFlowStep;
-/** What's reported upward via `onStepChange` — same as `Step`, except the
+/** What's reported upward via `onStepChange` — same as `CallCenterFlowStep`, except the
  *  "dialing" step splits into "dialing" (not started yet, back is allowed)
  *  and "calling" (live, back is locked) without needing a step of its own —
  *  `CallDialingStep` still owns that transition internally. */
-export type CallCenterReportedStep = Step | "calling";
+export type CallCenterReportedStep = CallCenterFlowStep | "calling";
 
 /** Enough of a completed call's context to redraw the "form" step exactly as
  *  it looked right when confirmed — captured by `onCallConfirmed` and handed
@@ -75,7 +74,7 @@ export default function PrototypeCallCenterFlow({
   onRepeatCallChange,
   formDraft,
   onFormDraftChange,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   messageToCommunicate: string;
@@ -105,8 +104,10 @@ export default function PrototypeCallCenterFlow({
    *  flow unmounting — handed to the form to restore. */
   formDraft?: CallFormDraft | null;
   onFormDraftChange?: (draft: CallFormDraft | null) => void;
-}) {
-  const [step, setStep] = useState<Step>(resumeSnapshot ? "form" : "contacts");
+}>) {
+  const [step, setStep] = useState<CallCenterFlowStep>(
+    resumeSnapshot ? "form" : "contacts"
+  );
   const [dialingStarted, setDialingStarted] = useState(false);
   const [activeContact, setActiveContact] = useState<CallRole | null>(
     resumeSnapshot?.contact ?? null

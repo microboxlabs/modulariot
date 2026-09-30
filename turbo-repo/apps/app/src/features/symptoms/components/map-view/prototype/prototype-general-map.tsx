@@ -33,6 +33,18 @@ function isSelectedOption(value: string | null): value is SelectedOption {
   return !!value && (MENU_OPTIONS as string[]).includes(value);
 }
 
+function panelWidths(
+  isFormOpen: boolean,
+  isCallDriver: boolean,
+  isCallFormStep: boolean
+): { side: string; map: string } {
+  if (!isFormOpen) return { side: "35%", map: "65%" };
+  if (!isCallDriver) return { side: "62%", map: "38%" };
+  return isCallFormStep
+    ? { side: "50%", map: "50%" }
+    : { side: "33.3333%", map: "66.6667%" };
+}
+
 /**
  * PROTOTYPE — variant of `features/symptoms/components/map-view/general-map.tsx`.
  *
@@ -47,12 +59,12 @@ export default function PrototypeGeneralMap({
   id,
   tripId,
   assetId,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   id: string;
   tripId?: string;
   assetId?: string;
-}) {
+}>) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -78,9 +90,8 @@ export default function PrototypeGeneralMap({
     const fromUrl = searchParams.get("menu");
     return isSelectedOption(fromUrl) ? fromUrl : "call_driver";
   });
-  const [callFlowStep, setCallFlowStep] = useState<CallCenterReportedStep | null>(
-    null
-  );
+  const [callFlowStep, setCallFlowStep] =
+    useState<CallCenterReportedStep | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -92,7 +103,9 @@ export default function PrototypeGeneralMap({
       params.delete("menu");
     }
     const query = params.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFormOpen, selectedOption]);
 
@@ -103,20 +116,11 @@ export default function PrototypeGeneralMap({
   // it's treated the same as reaching "form". Every other menu keeps 62/38.
   const isCallDriver = selectedOption === "call_driver";
   const isCallFormStep = callFlowStep === "form" || callFlowStep === null;
-  const sideWidth = !isFormOpen
-    ? "35%"
-    : isCallDriver
-      ? isCallFormStep
-        ? "50%"
-        : "33.3333%"
-      : "62%";
-  const mapWidth = !isFormOpen
-    ? "65%"
-    : isCallDriver
-      ? isCallFormStep
-        ? "50%"
-        : "66.6667%"
-      : "38%";
+  const { side: sideWidth, map: mapWidth } = panelWidths(
+    isFormOpen,
+    isCallDriver,
+    isCallFormStep
+  );
 
   const [selectedTreatment, setSelectedTreatment] =
     useState<TreatmentsGeneralResponseItem | null>(null);
@@ -350,14 +354,19 @@ export default function PrototypeGeneralMap({
               0 and its natural height without a fixed height to guess at. */}
           <div
             className={`grid shrink-0 transition-[grid-template-rows] duration-500 ease-in-out ${
-              isFormOpen && selectedOption === "call_driver" && selectedTreatmentIndex
+              isFormOpen &&
+              selectedOption === "call_driver" &&
+              selectedTreatmentIndex
                 ? "grid-rows-[1fr]"
                 : "grid-rows-[0fr]"
             }`}
           >
             <div className="overflow-hidden">
               {selectedTreatmentIndex && (
-                <SymptomContextCard dict={dict} subItem={selectedTreatmentIndex} />
+                <SymptomContextCard
+                  dict={dict}
+                  subItem={selectedTreatmentIndex}
+                />
               )}
             </div>
           </div>

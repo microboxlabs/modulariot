@@ -33,7 +33,7 @@ function write(value: boolean): void {
 }
 
 export function useFieldEditorMode() {
-  const [enabled, setEnabledState] = useState(false);
+  const [enabledState, setEnabledState] = useState(false);
 
   useEffect(() => {
     setEnabledState(read());
@@ -51,5 +51,5 @@ export function useFieldEditorMode() {
     write(value);
   }, []);
 
-  return [enabled, setEnabled] as const;
+  return [enabledState, setEnabled] as const;
 }

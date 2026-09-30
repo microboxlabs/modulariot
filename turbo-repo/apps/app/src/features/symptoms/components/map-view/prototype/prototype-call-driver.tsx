@@ -29,7 +29,11 @@ import {
 } from "./prototype-form-kit";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
 import { mockCallStatsForId } from "./call-center/mock-contact-data";
-import { CALL_METHOD_ICONS, CALL_METHOD_LABEL_KEYS, type CallMethod } from "./call-center/call-method";
+import {
+  CALL_METHOD_ICONS,
+  CALL_METHOD_LABEL_KEYS,
+  type CallMethod,
+} from "./call-center/call-method";
 import CallStatsBadges from "./call-center/call-stats-badges";
 import CallSwitchDropdown from "./call-center/call-switch-dropdown";
 
@@ -70,13 +74,42 @@ function formatCallDuration(totalSeconds: number): string {
   return `${m}:${s}`;
 }
 
-const sendTeamsCall = async (phoneNumber: string) => {
+const sendTeamsCall = (phoneNumber: string) => {
   if (!phoneNumber) return;
   window.open(
     `https://teams.microsoft.com/l/call/0/0?users=4:${phoneNumber}`,
     "_blank"
   );
 };
+
+function initialTagIds(
+  draft: CallFormDraft | null,
+  aiAssist: boolean,
+  tagOptions: readonly { id: string }[]
+): string[] {
+  if (draft) return draft.selectedTagIds;
+  return aiAssist && tagOptions[0] ? [tagOptions[0].id] : [];
+}
+
+function initialResultadoId(
+  draft: CallFormDraft | null,
+  aiAssist: boolean,
+  resultOptions: readonly { id: string }[]
+): string {
+  if (draft) return draft.resultadoId;
+  return aiAssist ? (resultOptions[0]?.id ?? "") : "";
+}
+
+function initialNotaLlamada(
+  draft: CallFormDraft | null,
+  aiAssist: boolean,
+  message: string
+): string {
+  if (draft) return draft.notaLlamada;
+  return aiAssist && message.trim()
+    ? `Resumen generado por el harness: se comunicó "${message.trim()}" y el conductor confirmó la recepción.`
+    : "";
+}
 
 /**
  * PROTOTYPE — variant of
@@ -111,7 +144,7 @@ export default function PrototypeCallDriver({
   onSwitchTreatment,
   initialDraft = null,
   onDraftChange,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   messageToCommunicate: string;
@@ -155,7 +188,7 @@ export default function PrototypeCallDriver({
   initialDraft?: CallFormDraft | null;
   /** Debug call-center flow only: reports every form change upward. */
   onDraftChange?: (draft: CallFormDraft) => void;
-}) {
+}>) {
   const dictSy = dict.symptoms as I18nRecord;
   const t = (k: string) => dictSy[k] as string;
 
@@ -168,29 +201,19 @@ export default function PrototypeCallDriver({
   const { options: tagOptions } = useSelectableOptions("call_tags");
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(() =>
-    initialDraft
-      ? initialDraft.selectedTagIds
-      : aiAssistEnabled && tagOptions[0]
-        ? [tagOptions[0].id]
-        : []
+    initialTagIds(initialDraft, aiAssistEnabled, tagOptions)
   );
   const [callTargetId, setCallTargetId] = useState(
     initialDraft?.callTargetId ?? initialCallTargetId ?? ""
   );
-  const [targetPhone, setTargetPhone] = useState(initialDraft?.targetPhone ?? "");
+  const [targetPhone, setTargetPhone] = useState(
+    initialDraft?.targetPhone ?? ""
+  );
   const [resultadoId, setResultadoId] = useState(() =>
-    initialDraft
-      ? initialDraft.resultadoId
-      : aiAssistEnabled
-        ? (resultOptions[0]?.id ?? "")
-        : ""
+    initialResultadoId(initialDraft, aiAssistEnabled, resultOptions)
   );
   const [notaLlamada, setNotaLlamada] = useState(() =>
-    initialDraft
-      ? initialDraft.notaLlamada
-      : aiAssistEnabled && messageToCommunicate.trim()
-      ? `Resumen generado por el harness: se comunicó "${messageToCommunicate.trim()}" y el conductor confirmó la recepción.`
-      : ""
+    initialNotaLlamada(initialDraft, aiAssistEnabled, messageToCommunicate)
   );
   // Each starts "AI-filled" (if there was content to fill) and loses that
   // status the moment the operator touches the field — see `AiFillFrame`.
@@ -220,8 +243,8 @@ export default function PrototypeCallDriver({
     resultOptions.find((o) => o.id === resultadoId)?.name ?? "";
   const sinRespuesta =
     resultOptions.length >= 2 &&
-    (resultadoId === resultOptions[resultOptions.length - 1]?.id ||
-      resultadoId === resultOptions[resultOptions.length - 2]?.id);
+    (resultadoId === resultOptions.at(-1)?.id ||
+      resultadoId === resultOptions.at(-2)?.id);
 
   const telefonoLlamada = esConductor
     ? (treatmentData?.trip_info?.driver_contact ?? "")
@@ -237,25 +260,33 @@ export default function PrototypeCallDriver({
       saved,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTagIds, callTargetId, targetPhone, resultadoId, notaLlamada, saved]);
+  }, [
+    selectedTagIds,
+    callTargetId,
+    targetPhone,
+    resultadoId,
+    notaLlamada,
+    saved,
+  ]);
 
   const router = useRouter();
 
   // Shared by both "Finalizar Tratamiento" and "Guardar y hacer otra
   // llamada" — the only difference between them is what happens after the
   // request resolves (leave the panel vs. go back to "who to call").
+  const telTxt = targetPhone ? ` · Tel: ${targetPhone}` : "";
+  const escalamientoTxt = esConductor
+    ? ""
+    : ` · Escalamiento propuesto por el operador${telTxt}`;
   const saveTreatment = () =>
     guardedRequestTreatment({
       ...treatmentRequest,
       driver_response:
-        (resultadoLabel ? resultadoLabel : "") +
+        (resultadoLabel || "") +
         (notaLlamada.trim() ? ` · ${notaLlamada.trim()}` : ""),
       description:
         `Llamado a: ${targetLabel}` +
-        (esConductor
-          ? ""
-          : " · Escalamiento propuesto por el operador" +
-            (targetPhone ? ` · Tel: ${targetPhone}` : "")) +
+        escalamientoTxt +
         (resultadoLabel ? ` · Resultado: ${resultadoLabel}` : "") +
         (callDurationSeconds !== null
           ? ` · Duración: ${formatCallDuration(callDurationSeconds)}`
@@ -307,7 +338,9 @@ export default function PrototypeCallDriver({
     <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
   );
 
-  const CalledMethodIcon = callMethodUsed ? CALL_METHOD_ICONS[callMethodUsed] : null;
+  const CalledMethodIcon = callMethodUsed
+    ? CALL_METHOD_ICONS[callMethodUsed]
+    : null;
   const calledStats = initialCallTargetId
     ? mockCallStatsForId(initialCallTargetId)
     : null;
@@ -336,7 +369,10 @@ export default function PrototypeCallDriver({
       </div>
       <div className="flex shrink-0 flex-col items-end gap-0.5 text-[11px] text-gray-500 dark:text-gray-400">
         {calledStats && (
-          <CallStatsBadges accepted={calledStats.accepted} denied={calledStats.denied} />
+          <CallStatsBadges
+            accepted={calledStats.accepted}
+            denied={calledStats.denied}
+          />
         )}
         {callMethodUsed && CalledMethodIcon && (
           <span className="flex items-center gap-1">
@@ -397,7 +433,8 @@ export default function PrototypeCallDriver({
     <>
       {callDurationSeconds !== null && (
         <p className="rounded-md bg-blue-50 px-2.5 py-1.5 text-xs font-light text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-          {t("call_duration_recorded")}: {formatCallDuration(callDurationSeconds)}
+          {t("call_duration_recorded")}:{" "}
+          {formatCallDuration(callDurationSeconds)}
         </p>
       )}
       <div>

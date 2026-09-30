@@ -20,7 +20,7 @@
  * no details entry at all, which is how a row tells the two kinds apart.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { tr } from "@/features/i18n/tr.service";
@@ -56,7 +56,7 @@ function mockPhoneForId(id: string): string {
   if (!isMockDataEnabled()) return "";
   let hash = 0;
   for (let i = 0; i < id.length; i++)
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+    hash = (hash * 31 + (id.codePointAt(i) ?? 0)) >>> 0;
   const digits = ((hash % 90000000) + 10000000).toString();
   return `+56 9 ${digits.slice(0, 4)} ${digits.slice(4, 8)}`;
 }
@@ -66,7 +66,7 @@ export default function CallCenterMenu({
   treatmentData,
   onCall,
   recentCallTimes,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   onCall: (
@@ -83,7 +83,7 @@ export default function CallCenterMenu({
    *  contact's row shows this time in green instead of the mock one, and
    *  sorts to the bottom of the list. */
   recentCallTimes?: Record<string, Date>;
-}) {
+}>) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
   const { options, addContact } = useCallRoles();
   const { details, setDetails } = useContactDetails();
@@ -92,9 +92,9 @@ export default function CallCenterMenu({
   // `FormattedDate format="relative"` only recomputes on re-render — without
   // this the "hace X min" next to each contact would freeze at whatever it
   // read on mount instead of ticking forward as real time passes.
-  const [, forceTick] = useState(0);
+  const [, forceTick] = useReducer((n: number) => n + 1, 0);
   useEffect(() => {
-    const id = setInterval(() => forceTick((n) => n + 1), 30_000);
+    const id = setInterval(() => forceTick(), 30_000);
     return () => clearInterval(id);
   }, []);
 
@@ -141,11 +141,10 @@ export default function CallCenterMenu({
   const describeOption = (option: CallRole) => {
     const isDriver = option.id === options[0]?.id;
     const { name: optionName, custom } = effectiveContact(option);
-    const personName = custom
-      ? optionName
-      : isDriver
-        ? (treatmentData?.trip_info?.driver ?? mockNameForId(option.id))
-        : mockNameForId(option.id);
+    const defaultName = isDriver
+      ? (treatmentData?.trip_info?.driver ?? mockNameForId(option.id))
+      : mockNameForId(option.id);
+    const personName = custom ? optionName : defaultName;
     const roleLabel = custom ? (custom.role ?? "") : optionName;
     const phone = formatChileanPhone(
       custom?.phone ??
@@ -259,12 +258,6 @@ export default function CallCenterMenu({
         onClick={() =>
           onCall(option, phone, personName, roleLabel, custom?.methods)
         }
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onCall(option, phone, personName, roleLabel, custom?.methods);
-          }
-        }}
       />
     );
   };
@@ -285,12 +278,6 @@ export default function CallCenterMenu({
         phone={phone}
         ariaLabel={`${t("call_center_call_button")} ${c.name}`}
         onClick={() => onCall(option, phone, c.name, c.role, methods)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onCall(option, phone, c.name, c.role, methods);
-          }
-        }}
       />
     );
   };

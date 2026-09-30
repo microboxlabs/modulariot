@@ -49,7 +49,7 @@ export default function CallDialingStep({
   onCancel,
   onConfirm,
   onStartedChange,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   /** Used only to seed the mock missed/last-call stats shown on the contact
    *  row — absent just means that row's stats stay blank. */
@@ -70,10 +70,12 @@ export default function CallDialingStep({
   /** Fires the moment a method button is pressed (call goes live) — lets the
    *  panel header lock the back button and swap its title. */
   onStartedChange?: (started: boolean) => void;
-}) {
+}>) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
   const methods =
-    allowedMethods && allowedMethods.length > 0 ? allowedMethods : ALL_CALL_METHODS;
+    allowedMethods && allowedMethods.length > 0
+      ? allowedMethods
+      : ALL_CALL_METHODS;
   const stats = contactId ? mockCallStatsForId(contactId) : null;
   const [started, setStarted] = useState(false);
   const [method, setMethod] = useState<CallMethod>("phone");
@@ -141,7 +143,9 @@ export default function CallDialingStep({
           </div>
 
           <div className="mt-1 flex min-h-0 w-full flex-1 flex-col gap-2 text-left">
-            <span className={`shrink-0 ${fieldLabel}`}>{t("proto_section_message")}</span>
+            <span className={`shrink-0 ${fieldLabel}`}>
+              {t("proto_section_message")}
+            </span>
             <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/60">
               {reason ? (
                 <p className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">

@@ -104,13 +104,15 @@ export default function SymptomsTable({
 
   const content = [
     ...(tableData && tableData.data
-      ? tableData.data.map((item, index) => (
+      ? tableData.data.map((item) => (
           <TableItem
-            key={index}
+            key={item.id}
             data={item}
             dict={dict}
             compact={compact}
-            recurrenceCount={recuento[`${item.licensePlate}|${item.alertType}`] ?? 1}
+            recurrenceCount={
+              recuento[`${item.licensePlate}|${item.alertType}`] ?? 1
+            }
           />
         ))
       : []),

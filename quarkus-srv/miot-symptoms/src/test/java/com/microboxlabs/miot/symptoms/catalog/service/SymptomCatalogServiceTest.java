@@ -71,6 +71,15 @@ class SymptomCatalogServiceTest {
         service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(), Specs.ACTIVATION + " && true"));
 
         assertEquals("2.0.0", service.publish(TENANT, OWNER, id, "Cambio", VersionBump.PATCH, null).version());
+
+        SymptomSpec current = service.get(TENANT, id).current().spec();
+        List<SymptomSpec.Level> slower = List.of(current.levels().get(0), current.levels().get(1),
+                current.levels().get(2), new SymptomSpec.Level(4, true, current.levels().get(3).when(),
+                        Specs.response(true, 1)));
+        service.saveDraft(TENANT, OWNER, id, Specs.withLevels(current, slower));
+        assertEquals(VersionBump.PATCH, service.plan(TENANT, id).bump());
+        assertEquals("2.1.0", service.publish(TENANT, OWNER, id, "Subo el cambio", VersionBump.MINOR, null)
+                .version());
     }
 
     @Test
@@ -150,5 +159,14 @@ class SymptomCatalogServiceTest {
         assertThrows(IllegalStateException.class, this::speeding);
         assertEquals(List.of("symptom.created"), audit.list(TENANT, "symptom", null, null, null, 10).stream()
                 .map(e -> e.action()).toList());
+    }
+
+    @Test
+    void draftSavesAreAudited() {
+        UUID id = speeding();
+
+        service.saveDraft(TENANT, OWNER, id, Specs.speeding());
+
+        assertEquals("symptom.draft_saved", audit.list(TENANT, "symptom", null, null, null, 10).get(0).action());
     }
 }

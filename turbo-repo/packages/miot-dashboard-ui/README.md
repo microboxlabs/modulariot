@@ -795,3 +795,34 @@ it recompiles the columns. Invalid syntax/helper failures use the existing
 column/row fallbacks. Render results as text through the cell primitives, never
 as raw HTML. The current compiler has the same `unsafe-eval` CSP constraint as
 other template APIs. Query execution remains outside this hook.
+
+## Typed column filters
+
+`useColumnFilters(rows, columns)` from `./react` provides instance-local typed
+filters over authorized string-valued rows. Columns contain `{ key, dataType? }`;
+`dataType` is `text`, `number`, `date`, `enum` or `boolean`. Without an explicit
+type, the hook detects boolean/date/numeric or low-cardinality enum values.
+
+The result exposes `filters`, `filteredData`, `enumValues`, `resolvedDataTypes`,
+`setFilter(key, filterOrNull)`, `removeFilter(key)`, `clearAllFilters()`,
+`activeFilterCount`, `totalCount` and `filteredCount`. Filters combine with AND.
+Removing a column stops its retained filter from affecting visible results or
+controls. Every call normalizes the filter's `columnKey` to the supplied key.
+
+`ColumnFilter`, `FilterOperator`, `ColumnDataType`, `FilterableColumn` and
+`getDefaultOperator(dataType)` are exported from `./core`. Operators cover text
+contains/equality, numeric equality/comparison/range, date range, enum membership,
+boolean equality, and empty/nonempty values. Numeric parsing retains the app's
+currency/unit and decimal-comma conventions. Date ranges retain the app's native
+JavaScript date parsing; hosts must validate their intended timezone behavior.
+
+Rows are not mutated. Inherited object properties are never row values, and
+prototype-shaped keys remain ordinary data. This hook filters results already
+returned by the server; it does not authorize rows or issue database queries.
+
+Filter evaluation rejects incompatible operator/value combinations and unknown
+boolean strings. Numeric detection and matching share validated parsing: comma
+thousands groups require groups of three; a single comma with a different
+fraction length is decimal. Repeated decimal separators are not numeric. The
+returned active-filter record has no object prototype, so inactive names such
+as `constructor` and `toString` read as undefined.

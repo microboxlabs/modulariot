@@ -32,3 +32,5 @@ export {
 } from "./core/color-rule-evaluation";
 
 export { resolveDataProperty } from "./core/resolve-data-property";
+
+export { getDefaultOperator, type ColumnFilter, type FilterOperator, type ColumnDataType, type FilterableColumn } from "./core/column-filter-types";

@@ -160,6 +160,18 @@ class RuleDescriptionServiceTest {
     }
 
     @Test
+    void theCapCountsCodePointsAndKeepsSurrogatePairsWhole() {
+        String truck = "🚚";
+        String atBoundary = "x".repeat(DescriptionHtml.MAX_CHARS - 1) + truck + "yz";
+
+        String out = DescriptionHtml.sanitize(atBoundary);
+
+        assertEquals("x".repeat(DescriptionHtml.MAX_CHARS - 1) + truck, out);
+        assertEquals(DescriptionHtml.MAX_CHARS, out.codePointCount(0, out.length()));
+        assertEquals(DescriptionHtml.MAX_CHARS * 2, DescriptionHtml.sanitize(truck.repeat(700)).length());
+    }
+
+    @Test
     void anUnavailableHarnessIsReportedAndNothingIsSaved() {
         RuleDescriptionService down = new RuleDescriptionService(store, sources, (caller, body) -> {
             throw new IllegalStateException("connection refused");

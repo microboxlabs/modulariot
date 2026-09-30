@@ -94,6 +94,12 @@ def test_sanitizer_keeps_character_references() -> None:
     assert sanitize_description(once) == once
 
 
+def test_sanitizer_cap_counts_code_points() -> None:
+    truck = "\U0001f69a"
+    out = sanitize_description("x" * (MAX_DESCRIPTION_CHARS - 1) + truck + "yz")
+    assert out == "x" * (MAX_DESCRIPTION_CHARS - 1) + truck
+
+
 def test_describe_accepts_the_whole_levels_section() -> None:
     model = _StubModel("Nivel 1 desde <b>0 km/h</b> sobre el límite.")
     app = create_app()

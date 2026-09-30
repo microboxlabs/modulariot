@@ -69,12 +69,14 @@ final class DescriptionHtml {
                 out.append(entity.group());
                 i = entity.end();
             } else {
-                char c = chunk.charAt(i++);
+                // Count code points, as the Harness does, so a surrogate pair is never split.
+                int c = chunk.codePointAt(i);
+                i += Character.charCount(c);
                 switch (c) {
                     case '<' -> out.append("&lt;");
                     case '>' -> out.append("&gt;");
                     case '&' -> out.append("&amp;");
-                    default -> out.append(c);
+                    default -> out.appendCodePoint(c);
                 }
             }
             length[0]++;

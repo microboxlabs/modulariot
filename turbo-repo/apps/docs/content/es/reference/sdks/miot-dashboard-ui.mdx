@@ -116,3 +116,5 @@ El servidor aplica permisos de tenant, scope y documento. Nunca incluya claves d
 El compilador actual de Handlebars requiere `unsafe-eval` en la CSP de scripts. Evalúe esta restricción antes de integrar en un host con CSP estricta. No se afirma compatibilidad con CSP estricta.
 
 [Referencia completa de API](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-ui/README.md) · [Servidor de dashboards](/es/operations/dashboard-server) · [Contrato compartido](/es/reference/sdks/miot-dashboard-contract)
+
+`SettingsPanel` de `/react` ofrece pestañas de configuración accesibles por teclado, un pie controlado por el anfitrión y una acción de guardado condicionada por `isDirty` y `disabled`. El anfitrión proporciona las etiquetas traducidas y controla validación, permisos, persistencia y cierre.

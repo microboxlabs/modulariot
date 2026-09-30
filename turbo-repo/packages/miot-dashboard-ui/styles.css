@@ -662,3 +662,14 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 :where(.dark,[data-miot-theme="dark"]) .miot-chart-card { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
 
 .miot-chart-engine { width:100%; height:100%; min-width:0; min-height:0; }
+
+.miot-settings-panel{display:flex;flex:1;flex-direction:column;min-height:0;color:var(--miot-text,#111827);background:var(--miot-surface,#fff)}
+.miot-settings-panel__tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--miot-border,#e5e7eb)}
+.miot-settings-panel__tabs button{padding:.75rem 1rem;border:0;border-bottom:2px solid transparent;background:transparent;color:inherit;cursor:pointer}
+.miot-settings-panel__tabs button[aria-selected="true"]{border-bottom-color:var(--miot-accent,#2563eb);color:var(--miot-accent,#2563eb)}
+.miot-settings-panel button:focus-visible{outline:2px solid var(--miot-accent,#2563eb);outline-offset:2px}
+.miot-settings-panel__content{flex:1;min-height:0;overflow:auto;padding:1rem}
+.miot-settings-panel__footer{padding:.75rem 1rem;border-top:1px solid var(--miot-border,#e5e7eb)}
+.miot-settings-panel__footer>button{width:100%;margin-top:.5rem;padding:.5rem 1rem;border:0;border-radius:.375rem;color:#fff;background:var(--miot-accent,#2563eb);cursor:pointer}
+.miot-settings-panel__footer>button:disabled{opacity:.5;cursor:default}
+:where(.dark,[data-miot-theme="dark"]) .miot-settings-panel{--miot-text:#f3f4f6;--miot-surface:#111827;--miot-border:#374151;--miot-accent:#3b82f6}

@@ -127,3 +127,5 @@ export { createInfoCardRegistry, type InfoCardRegistryOptions } from "./react/in
 export { ChartCard, type ChartCardProps } from "./react/chart-card";
 
 export { ChartEngineView, type ChartEngine, type ChartEngineViewProps } from "./react/chart-engine";
+
+export { SettingsPanel, type SettingsPanelProps, type SettingsPanelTab } from "./react/settings-panel";

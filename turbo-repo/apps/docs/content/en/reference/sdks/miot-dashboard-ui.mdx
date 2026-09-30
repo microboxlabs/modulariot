@@ -116,3 +116,5 @@ The server enforces tenant, scope and document permissions. Never put signing ke
 The current Handlebars compiler requires `unsafe-eval` in script CSP. Evaluate that constraint before embedding in a host with a strict CSP. No strict-CSP compatibility is claimed.
 
 [Full API reference](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-ui/README.md) · [Dashboard server](/en/operations/dashboard-server) · [Shared contract](/en/reference/sdks/miot-dashboard-contract)
+
+`SettingsPanel` from `/react` provides keyboard-accessible settings tabs, a host footer and a save action gated by `isDirty` and `disabled`. The host supplies translated labels and owns validation, permissions, persistence and dismissal.

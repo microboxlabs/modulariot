@@ -150,3 +150,5 @@ Los editores pueden abrir **Consultas guardadas** para cargar el catálogo autor
 El proxy autenticado de la organización reenvía `query-catalog` al servidor de dashboards. Configure un proveedor de catálogo en ese servidor; un catálogo ausente o denegado mantiene la edición deshabilitada. El catálogo contiene únicamente metadatos públicos, nunca credenciales ni SQL ejecutable.
 
 `DashboardGeneralSettings` ofrece un editor local autorizado para título, actualización automática y orden de presentación. Conéctelo a `useDashboardState().setGeneralSettings` para aplicar una actualización del documento que pueda deshacerse y luego persista mediante la acción de guardar del host. El host proporciona etiquetas y permisos; los borradores inválidos o rechazados permanecen visibles.
+
+En el espacio de dashboards del servidor en Next.js, los editores abren **Configuración del dashboard** para cambiar título, actualización y orden. Aplique al borrador y luego guarde el dashboard; use deshacer para restaurar la configuración anterior. Cerrar solicita confirmar el descarte de campos sin aplicar. Los consumidores no ven este editor.

@@ -3776,6 +3776,23 @@
       "saveError": "The operation failed. Your unsaved changes are retained.",
       "queryError": "Could not load query results.",
       "leave": "Leave this dashboard and discard unsaved changes?",
+      "settings": {
+        "title": "Dashboard settings",
+        "name": "Title",
+        "refresh": "Automatic refresh",
+        "order": "Display order",
+        "apply": "Apply to draft",
+        "close": "Close settings",
+        "hint": "Apply these settings, then save the dashboard to persist them. Undo restores the previous settings.",
+        "discard": "Discard unapplied settings and close?",
+        "invalid": "Enter a title and valid settings.",
+        "rejected": "The settings could not be applied.",
+        "off": "Off",
+        "seconds10": "10 seconds",
+        "seconds30": "30 seconds",
+        "minute1": "1 minute",
+        "minutes5": "5 minutes"
+      },
       "queries": {
         "title": "Saved queries",
         "hint": "Apply query edits to the dashboard draft, then save the dashboard to persist them.",

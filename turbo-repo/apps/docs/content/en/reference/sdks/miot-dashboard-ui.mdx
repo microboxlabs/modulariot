@@ -150,3 +150,5 @@ Editors can open **Saved queries** to load the dashboard server's authorized con
 The authenticated organization proxy forwards `query-catalog` to the dashboard server. Configure a catalog provider on that server; a missing or denied catalog keeps authoring unavailable. The catalog contains public metadata only, never credentials or executable SQL.
 
 `DashboardGeneralSettings` provides an authorized local editor for title, automatic refresh and display order. Connect it to `useDashboardState().setGeneralSettings` to apply one undoable document update, then persist with the host's save action. Labels and permissions are host-owned; invalid or rejected drafts remain visible.
+
+In the Next.js server dashboard workspace, editors open **Dashboard settings** to change title, refresh and order. Apply changes to the draft, then save the dashboard; use undo to restore the previous settings. Closing confirms discarding unapplied fields. Consumers do not see this editor.

@@ -159,6 +159,10 @@ function callTreatmentTexts({
  * look. "Who to call" is convention-first-option = the driver, and "call
  * result"'s last two options are treated as "no answer".
  */
+function isNoAnswer(options: ReadonlyArray<{ id: string }>, id: string) {
+  return options.length >= 2 && options.slice(-2).some((o) => o.id === id);
+}
+
 export default function PrototypeCallDriver({
   dict,
   treatmentData,
@@ -275,10 +279,7 @@ export default function PrototypeCallDriver({
   // Convention: the last two "call result" options mean "no answer".
   const resultadoLabel =
     resultOptions.find((o) => o.id === resultadoId)?.name ?? "";
-  const sinRespuesta =
-    resultOptions.length >= 2 &&
-    (resultadoId === resultOptions.at(-1)?.id ||
-      resultadoId === resultOptions.at(-2)?.id);
+  const sinRespuesta = isNoAnswer(resultOptions, resultadoId);
 
   const telefonoLlamada = esConductor
     ? (treatmentData?.trip_info?.driver_contact ?? "")

@@ -126,8 +126,12 @@ class RuleDescriptionServiceTest {
         String lifecycle = "abre: caso.condicion_s >= 0\ncierra: caso.normal_s >= 120";
 
         assertFalse(service.describe(TENANT, "lifecycle", lifecycle, "gps_signal", null, CALLER).cached());
-        assertTrue(service.describe(TENANT, "lifecycle", "  abre:  caso.condicion_s >= 0 \n\ncierra: "
-                + "caso.normal_s  >= 120\n", "gps_signal", null, CALLER).cached());
+        String respaced = """
+                  abre:  caso.condicion_s >= 0\s
+
+                cierra: caso.normal_s  >= 120
+                """;
+        assertTrue(service.describe(TENANT, "lifecycle", respaced, "gps_signal", null, CALLER).cached());
 
         assertEquals(1, calls.size());
         Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
@@ -188,13 +192,14 @@ class RuleDescriptionServiceTest {
     @Test
     void badInputIsRefused() {
         RuleDescriptionService service = service();
+        String tooLong = "x".repeat(4001);
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.describe(TENANT, "levels.5", "medida > 1", "gps_signal", null, CALLER));
         assertThrows(IllegalArgumentException.class,
                 () -> service.describe(TENANT, "activation", " ", "gps_signal", null, CALLER));
         assertThrows(IllegalArgumentException.class,
-                () -> service.describe(TENANT, "activation", "x".repeat(4001), "gps_signal", null, CALLER));
+                () -> service.describe(TENANT, "activation", tooLong, "gps_signal", null, CALLER));
         assertThrows(IllegalArgumentException.class,
                 () -> service.describe(TENANT, "activation", "true", "gps_signal", "<script>", CALLER));
         assertThrows(NoSuchElementException.class,

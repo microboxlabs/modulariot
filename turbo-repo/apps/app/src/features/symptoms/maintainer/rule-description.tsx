@@ -45,9 +45,22 @@ export function renderDescription(html: string): ReactNode[] {
   return out;
 }
 
+function stripTags(text: string) {
+  let out = "";
+  let at = 0;
+  let open = text.indexOf("<");
+  while (open !== -1) {
+    const close = text.indexOf(">", open);
+    if (close === -1) break;
+    out += text.slice(at, open);
+    at = close + 1;
+    open = text.indexOf("<", at);
+  }
+  return out + text.slice(at);
+}
+
 function decode(text: string) {
-  return text
-    .replaceAll(/<[^>]*>/g, "")
+  return stripTags(text)
     .replaceAll("&lt;", "<")
     .replaceAll("&gt;", ">")
     .replaceAll("&quot;", '"')

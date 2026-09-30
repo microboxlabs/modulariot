@@ -394,3 +394,21 @@ A parent with `data-miot-theme="dark"` enables the dark card palette. Existing
 `.dark` ancestors are also supported. Hosts can override `--miot-card-background`,
 `--miot-card-border`, and `--miot-card-text` on a containing element. Typography
 inherits the host font, and the card fills the host-provided height.
+
+## Dashboard grid
+
+`DashboardGrid` from `./react` lays out root contract widgets using their stored
+coordinates and a host registry's `getLayoutDefaults(config)`. Import
+`@microboxlabs/miot-dashboard-ui/styles.css` once. `renderWidget(widget)` supplies
+the content, typically a `WidgetRenderer` or a host adapter around it.
+
+The grid measures its own container and scales the layout. Narrow-view clamping
+is display-only: mounting or resizing the viewport never calls `onLayoutCommit`.
+Editing requires both `editMode: true` (derived from current server capabilities)
+and `onLayoutCommit(layout)`. The callback runs after a completed drag or resize
+and preserves the document's min/max constraints. The host applies those edits
+through its controlled document state and revision-aware persistence.
+
+The grid owns no page keyboard shortcuts, navigation, authentication, or save
+requests. Hosts supply those controls and accessible alternatives to pointer
+layout editing. React and ReactDOM peers must use matching supported versions.

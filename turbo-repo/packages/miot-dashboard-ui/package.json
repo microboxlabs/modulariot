@@ -51,7 +51,8 @@
   "dependencies": {
     "@microboxlabs/miot-dashboard-contract": "^0.5.0",
     "zod": "^3.23.8",
-    "handlebars": "^4.7.9"
+    "handlebars": "^4.7.9",
+    "react-grid-layout": "2.2.3"
   },
   "devDependencies": {
     "@repo/eslint-config": "*",
@@ -63,16 +64,21 @@
     "react": "19.2.3",
     "@types/react": "19.2.10",
     "@testing-library/react": "^16.3.0",
-    "jsdom": "^24.0.0"
+    "jsdom": "^24.0.0",
+    "react-dom": "19.2.3"
   },
   "publishConfig": {
     "access": "public"
   },
   "peerDependencies": {
-    "react": "^18.2.0 || ^19.0.0"
+    "react": "^18.2.0 || ^19.0.0",
+    "react-dom": "^18.2.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {
     "react": {
+      "optional": true
+    },
+    "react-dom": {
       "optional": true
     }
   }

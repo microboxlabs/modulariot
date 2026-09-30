@@ -9,6 +9,7 @@ import { normalizeTargetedColorRules } from "./targeted-color-rules";
 import { templateField } from "./scalar-template-field";
 import { useWidgetTemplateFields } from "./use-widget-template-fields";
 import type { WidgetComponentProps } from "./widget-renderer";
+import { templateStatusView } from "./widget-template-status";
 export interface DetailedStatRegistryOptions {
   defaultTitle: string;
   defaultUnit: string;
@@ -81,10 +82,8 @@ export function createDetailedStatRegistry(
       () => comparisonRules(config.valueColorRules),
       [config.valueColorRules],
     );
-    if (status === "loading") return <output>{options.loadingLabel}</output>;
-    if (status === "error") return <p role="alert">{options.errorLabel}</p>;
-    if (status === "unsupported")
-      return <p role="alert">{options.unsupportedDataLabel}</p>;
+    const pending = templateStatusView(status, options);
+    if (pending) return pending;
     const value = numeric(resolved.value),
       previousValue = numeric(resolved.previousValue),
       target = numeric(resolved.target);

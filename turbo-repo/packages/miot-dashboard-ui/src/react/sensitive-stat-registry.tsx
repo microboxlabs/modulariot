@@ -8,6 +8,7 @@ import { normalizeScalarThresholds } from "./scalar-thresholds";
 import { templateField } from "./scalar-template-field";
 import { useWidgetTemplateFields } from "./use-widget-template-fields";
 import type { WidgetComponentProps } from "./widget-renderer";
+import { templateStatusView } from "./widget-template-status";
 export interface SensitiveStatRegistryOptions {
   defaultTitle: string;
   defaultUnit: string;
@@ -58,10 +59,8 @@ export function createSensitiveStatRegistry(
       fields,
       engine,
     );
-    if (status === "loading") return <output>{options.loadingLabel}</output>;
-    if (status === "error") return <p role="alert">{options.errorLabel}</p>;
-    if (status === "unsupported")
-      return <p role="alert">{options.unsupportedDataLabel}</p>;
+    const pending = templateStatusView(status, options);
+    if (pending) return pending;
     const match =
       threshold.field && threshold.targets.includes("text")
         ? threshold.rules.find((rule) =>

@@ -7,6 +7,7 @@ import { StackedStat } from "./stacked-stat";
 import { templateField } from "./scalar-template-field";
 import { useWidgetTemplateFields } from "./use-widget-template-fields";
 import type { WidgetComponentProps } from "./widget-renderer";
+import { templateStatusView } from "./widget-template-status";
 export interface StackedStatRegistryOptions {
   defaultTitle: string;
   defaultUnit: string;
@@ -52,10 +53,8 @@ export function createStackedStatRegistry(
       fields,
       engine,
     );
-    if (status === "loading") return <output>{options.loadingLabel}</output>;
-    if (status === "error") return <p role="alert">{options.errorLabel}</p>;
-    if (status === "unsupported")
-      return <p role="alert">{options.unsupportedDataLabel}</p>;
+    const pending = templateStatusView(status, options);
+    if (pending) return pending;
     if (!items.length) return <p>{options.emptyLabel}</p>;
     const values = items.map((item, index) => ({
       label: resolved[`label-${index}`] ?? "",

@@ -10,10 +10,10 @@ import { FaPhoneAlt } from "react-icons/fa";
 export default function CallStatsBadges({
   accepted,
   denied,
-}: {
+}: Readonly<{
   accepted: number;
   denied: number;
-}) {
+}>) {
   return (
     <span className="flex items-center gap-1">
       <span className="flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-0.5 text-[11px] font-medium text-green-700 dark:bg-green-500/20 dark:text-green-400">

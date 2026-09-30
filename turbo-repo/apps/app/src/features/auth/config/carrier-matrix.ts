@@ -48,11 +48,18 @@ const DENY_PREFIXES = [
   "/admin",
 ];
 
+function stripTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "/") end--;
+  return value.slice(0, end);
+}
+
 /** ¿Puede una org carrier ver este href de la navegación/rutas? */
 export function carrierNavAllowed(href: string): boolean {
-  const path = (href.split("?")[0] || "/").replace(/\/+$/, "") || "/";
+  const path = stripTrailingSlashes(href.split("?")[0] || "/") || "/";
   if (path === "/") return true;
   if (DENY_EXACT.has(path)) return false;
-  if (DENY_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`))) return false;
+  if (DENY_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`)))
+    return false;
   return ALLOW_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
 }

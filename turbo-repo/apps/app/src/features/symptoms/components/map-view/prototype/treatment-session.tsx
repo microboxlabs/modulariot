@@ -11,7 +11,15 @@
  *   panel closes     → the episode is cancelled if nothing was recorded
  */
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { mutate } from "swr";
 import {
   addTreatmentAction,
@@ -42,12 +50,12 @@ export function TreatmentSessionProvider({
   assetId,
   tripId,
   children,
-}: {
+}: Readonly<{
   symptomId: number | null | undefined;
   assetId?: string;
   tripId?: string;
   children: React.ReactNode;
-}) {
+}>) {
   const [treatment, setTreatment] = useState<TowerTreatment | null>(null);
   const [actions, setActions] = useState<TowerAction[]>([]);
   const treatmentRef = useRef<TowerTreatment | null>(null);
@@ -62,20 +70,18 @@ export function TreatmentSessionProvider({
     async (type: TowerTreatmentType) => {
       if (!symptomId) return null;
       if (treatmentRef.current?.status === "OPEN") return treatmentRef.current;
-      if (!opening.current) {
-        opening.current = openTreatment(symptomId, { type, assetId, tripId })
-          .then((opened) => {
-            treatmentRef.current = opened;
-            actionsRef.current = opened.actions;
-            setTreatment(opened);
-            setActions(opened.actions);
-            refresh();
-            return opened;
-          })
-          .finally(() => {
-            opening.current = null;
-          });
-      }
+      opening.current ??= openTreatment(symptomId, { type, assetId, tripId })
+        .then((opened) => {
+          treatmentRef.current = opened;
+          actionsRef.current = opened.actions;
+          setTreatment(opened);
+          setActions(opened.actions);
+          refresh();
+          return opened;
+        })
+        .finally(() => {
+          opening.current = null;
+        });
       return opening.current;
     },
     [symptomId, assetId, tripId, refresh]
@@ -100,7 +106,10 @@ export function TreatmentSessionProvider({
     async (resolution?: string) => {
       const current = treatmentRef.current;
       if (current?.status !== "OPEN") return;
-      const closed = await closeTreatment(current.id, resolution ? { resolution } : {});
+      const closed = await closeTreatment(
+        current.id,
+        resolution ? { resolution } : {}
+      );
       treatmentRef.current = closed;
       setTreatment(closed);
       refresh();
@@ -124,11 +133,16 @@ export function TreatmentSessionProvider({
     [treatment, actions, ensureOpen, addAction, finish]
   );
 
-  return <TreatmentSessionContext.Provider value={value}>{children}</TreatmentSessionContext.Provider>;
+  return (
+    <TreatmentSessionContext.Provider value={value}>
+      {children}
+    </TreatmentSessionContext.Provider>
+  );
 }
 
 export function useTreatmentSession(): TreatmentSession {
   const session = useContext(TreatmentSessionContext);
-  if (!session) throw new Error("useTreatmentSession needs a TreatmentSessionProvider");
+  if (!session)
+    throw new Error("useTreatmentSession needs a TreatmentSessionProvider");
   return session;
 }

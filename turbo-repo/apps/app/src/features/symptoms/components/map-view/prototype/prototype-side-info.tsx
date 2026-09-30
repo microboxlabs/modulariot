@@ -39,7 +39,7 @@ export default function PrototypeSideInfo({
   selectedOption,
   setSelectedOption,
   onCallFlowStepChange,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   loading: boolean;
@@ -51,7 +51,7 @@ export default function PrototypeSideInfo({
   selectedOption: SelectedOption;
   setSelectedOption: (option: SelectedOption) => void;
   onCallFlowStepChange?: (step: CallCenterReportedStep | null) => void;
-}) {
+}>) {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const { treatments_templates } = useTreatmentsTemplates(
     treatmentData?.symptom_info?.id.toString() ?? "1",
@@ -117,7 +117,8 @@ export default function PrototypeSideInfo({
                     : ((dict.symptoms as I18nRecord).descending as string)
                 }
               >
-                <div
+                <button
+                  type="button"
                   className="h-6 w-6 p-1 mr-1 hover:bg-gray-100 hover:cursor-pointer dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200 rounded-md"
                   onClick={() => setOrder(order === "asc" ? "desc" : "asc")}
                 >
@@ -130,7 +131,7 @@ export default function PrototypeSideInfo({
                       className={`h-5 w-5 transition-all duration-200 ${order === "desc" ? "rotate-180" : ""}`}
                     />
                   )}
-                </div>
+                </button>
               </Tooltip>
             </div>
             {loading ? (

@@ -2,7 +2,10 @@
 
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
-import { guardedRequestTreatment, isPrototypeApiDisabled } from "./prototype-api-guard";
+import {
+  guardedRequestTreatment,
+  isPrototypeApiDisabled,
+} from "./prototype-api-guard";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Textarea } from "flowbite-react";
 import { useState } from "react";
@@ -53,8 +56,9 @@ export default function PrototypeInvalidateSymptom({
 
   const { options: motivoOptions } = useSelectableOptions("invalidate_reason");
   const motivoLabel = motivoOptions.find((m) => m.id === motivoId)?.name ?? "";
+  const detalle = reason.trim() ? ` · ${reason.trim()}` : "";
   const razonCompleta = motivoId
-    ? `Motivo: ${motivoLabel}` + (reason.trim() ? ` · ${reason.trim()}` : "")
+    ? `Motivo: ${motivoLabel}${detalle}`
     : reason.trim();
   const puedeGuardar = motivoId !== "" && reason.trim().length > 0;
 
@@ -92,7 +96,8 @@ export default function PrototypeInvalidateSymptom({
             treatment_id: treatmentResult.treatment_id,
           }),
         });
-        if (!invalidateResponse.ok) throw new Error("Invalidate webhook failed");
+        if (!invalidateResponse.ok)
+          throw new Error("Invalidate webhook failed");
       }
 
       setIsMenuOpen(false);
@@ -186,7 +191,9 @@ export default function PrototypeInvalidateSymptom({
 
       <FieldCard
         title={t("proto_section_detail")}
-        action={<SelectableFieldControl fieldKey="invalidate_reason" dict={dict} />}
+        action={
+          <SelectableFieldControl fieldKey="invalidate_reason" dict={dict} />
+        }
         grow
       >
         {motivoField}

@@ -38,7 +38,7 @@ export default function PrototypeIgnoreCondition({
   treatmentRequest,
   setTreatmentRequest,
   setIsMenuOpen,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   duration: number;
@@ -48,7 +48,7 @@ export default function PrototypeIgnoreCondition({
   treatmentRequest: TreatmentsRequest;
   setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
   setIsMenuOpen: (isMenuOpen: boolean) => void;
-}) {
+}>) {
   const [durationLocal, setDurationLocal] = useState(duration);
   const [motivoId, setMotivoId] = useState("");
   const [nota, setNota] = useState("");
@@ -59,8 +59,7 @@ export default function PrototypeIgnoreCondition({
   const motivoLabel = motivoOptions.find((m) => m.id === motivoId)?.name ?? "";
   // Convention: the last "reason" option is the free-text "Other".
   const notaObligatoria =
-    motivoOptions.length > 0 &&
-    motivoId === motivoOptions[motivoOptions.length - 1]?.id;
+    motivoOptions.length > 0 && motivoId === motivoOptions.at(-1)?.id;
   const puedeGuardar =
     motivoId !== "" && (!notaObligatoria || nota.trim().length > 0);
 
@@ -113,7 +112,9 @@ export default function PrototypeIgnoreCondition({
           onChange={(e) => setNota(e.target.value)}
         />
         {notaObligatoria && nota.trim().length === 0 && (
-          <p className="mt-1 text-xs text-red-500">{t("note_required_other")}</p>
+          <p className="mt-1 text-xs text-red-500">
+            {t("note_required_other")}
+          </p>
         )}
       </div>
     </>

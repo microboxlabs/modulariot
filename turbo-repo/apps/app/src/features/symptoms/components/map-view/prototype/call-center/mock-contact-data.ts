@@ -13,7 +13,8 @@ import { isMockDataEnabled } from "../prototype-api-guard";
 
 export function hashId(id: string): number {
   let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < id.length; i++)
+    hash = (hash * 31 + (id.codePointAt(i) ?? 0)) >>> 0;
   return hash;
 }
 
@@ -43,7 +44,10 @@ export function mockNameForId(id: string): string {
   if (!isMockDataEnabled()) return "";
   const hash = hashId(id);
   const first = MOCK_FIRST_NAMES[hash % MOCK_FIRST_NAMES.length];
-  const last = MOCK_LAST_NAMES[Math.floor(hash / MOCK_FIRST_NAMES.length) % MOCK_LAST_NAMES.length];
+  const last =
+    MOCK_LAST_NAMES[
+      Math.floor(hash / MOCK_FIRST_NAMES.length) % MOCK_LAST_NAMES.length
+    ];
   return `${first} ${last}`;
 }
 

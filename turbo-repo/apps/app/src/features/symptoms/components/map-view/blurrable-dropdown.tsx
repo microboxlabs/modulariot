@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import {
   autoUpdate,
   flip,
@@ -15,7 +15,6 @@ import {
 } from "@floating-ui/react";
 import { Button } from "flowbite-react";
 import { HiChevronUp, HiArrowRight } from "react-icons/hi";
-import React from "react";
 import { FaWhatsapp } from "react-icons/fa";
 import { BsStars } from "react-icons/bs";
 import { GiPoliceBadge } from "react-icons/gi";
@@ -170,7 +169,10 @@ export default function BlurrableDropdown({
   });
   const click = useClick(context);
   const dismiss = useDismiss(context);
-  const { getReferenceProps, getFloatingProps } = useInteractions([click, dismiss]);
+  const { getReferenceProps, getFloatingProps } = useInteractions([
+    click,
+    dismiss,
+  ]);
 
   const selectOption = (option: SelectedOption) => {
     setIsOpen(false);
@@ -238,24 +240,32 @@ export default function BlurrableDropdown({
               </div>
             )}
             <div className="py-1">
-              {other_options.map(({ id, label, icon: Icon, option, disabled: staticDisabled }) => {
-                const disabled = staticDisabled || forceDisableOptions;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    disabled={disabled}
-                    className={`${itemClass} ${disabled ? "cursor-not-allowed! opacity-50" : ""}`}
-                    onClick={() => {
-                      if (disabled) return;
-                      selectOption(option);
-                    }}
-                  >
-                    <Icon className="h-4 w-4 mr-2" />
-                    {label}
-                  </button>
-                );
-              })}
+              {other_options.map(
+                ({
+                  id,
+                  label,
+                  icon: Icon,
+                  option,
+                  disabled: staticDisabled,
+                }) => {
+                  const disabled = staticDisabled || forceDisableOptions;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      disabled={disabled}
+                      className={`${itemClass} ${disabled ? "cursor-not-allowed! opacity-50" : ""}`}
+                      onClick={() => {
+                        if (disabled) return;
+                        selectOption(option);
+                      }}
+                    >
+                      <Icon className="h-4 w-4 mr-2" />
+                      {label}
+                    </button>
+                  );
+                }
+              )}
             </div>
           </div>
         </FloatingPortal>

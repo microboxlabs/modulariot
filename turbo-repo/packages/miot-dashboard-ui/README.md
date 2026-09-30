@@ -1596,3 +1596,23 @@ unavailable catalog stays empty until explicit reload; no administrative fallbac
 or shared cache is used. Use `loaded` to enable the query editor and `editorKey`
 to reset its local draft after catalog changes. Keep `client` stable and replace
 the non-secret session key on authentication changes.
+
+### General dashboard settings
+
+`DashboardGeneralSettings` from `/react` edits a local draft of `name`,
+`refreshInterval` (0, 10, 30, 60 or 300 seconds) and optional numeric `order`.
+Supply translated `labels` including every interval label, an initial `value`,
+explicit `editable` permission and a synchronous boolean `onApply`. The default
+is read-only. Titles are trimmed, required and limited to 256 characters; order
+must be finite and an empty order clears it. Invalid or host-rejected drafts stay
+visible with an accessible error. Remount with a resource/session key when switching
+identities, documents or replacing the draft from a reload.
+
+Connect `onApply` to `useDashboardState().setGeneralSettings`. That method validates
+and applies all three fields in one undoable update, preserving widgets, queries,
+filters and access settings. It returns false when editing is denied or input is
+invalid. Applying updates the document draft only: the host must still save it to
+the server and enforce its current capabilities. The settings editor has no auth,
+network or storage dependency. Import the package stylesheet for scoped styles;
+`--miot-settings-text`, `--miot-settings-background` and `--miot-settings-border`
+can override its light/dark palette.

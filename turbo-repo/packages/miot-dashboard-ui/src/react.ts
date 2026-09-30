@@ -144,3 +144,5 @@ export { PermissionAssignmentEditor, type PermissionAssignmentEditorProps, type 
 export { useDashboardPermissions, type DashboardPermissionsOptions } from "./react/use-dashboard-permissions";
 
 export { useQueryCatalog, type QueryCatalogOptions } from "./react/use-query-catalog";
+
+export { DashboardGeneralSettings, type DashboardGeneralSettingsProps, type DashboardGeneralSettingsValue } from "./react/dashboard-general-settings";

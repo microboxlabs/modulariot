@@ -148,3 +148,5 @@ Saving replaces local assignments, then reloads them. Scope grants and dashboard
 Editors can open **Saved queries** to load the dashboard server's authorized connection and operation catalog. Applying a definition changes the dashboard draft: use the normal dashboard save action to persist it, or undo/redo to revise it. Closing or reloading the editor confirms discarding unapplied fields. Consumers do not load the catalog or see editing controls.
 
 The authenticated organization proxy forwards `query-catalog` to the dashboard server. Configure a catalog provider on that server; a missing or denied catalog keeps authoring unavailable. The catalog contains public metadata only, never credentials or executable SQL.
+
+`DashboardGeneralSettings` provides an authorized local editor for title, automatic refresh and display order. Connect it to `useDashboardState().setGeneralSettings` to apply one undoable document update, then persist with the host's save action. Labels and permissions are host-owned; invalid or rejected drafts remain visible.

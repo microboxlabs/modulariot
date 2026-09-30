@@ -12,6 +12,7 @@ import {
 } from "@microboxlabs/miot-dashboard-contract/document";
 import { validateDashboardConfig, dashboardQueryDefinitionSchema } from "@microboxlabs/miot-dashboard-contract/schema";
 import { getNextPosition } from "../core/get-next-position";
+import { generalSettingsSchema, type DashboardGeneralSettingsValue } from "./general-settings-value";
 import { useUndoRedo } from "./use-undo-redo";
 
 export type WidgetDefaultResolver = (
@@ -438,6 +439,14 @@ export function useDashboardState(
     [findWidget, findParent, updateConfig],
   );
 
+  const setGeneralSettings = useCallback((value: DashboardGeneralSettingsValue): boolean => {
+    if (readOnly) return false;
+    const parsed = generalSettingsSchema.safeParse(value);
+    if (!parsed.success) return false;
+    updateConfig({ ...parsed.data, order: parsed.data.order });
+    return true;
+  }, [readOnly, updateConfig]);
+
   // Set dashboard name
   const setDashboardName = useCallback(
     (name: string) => {
@@ -615,6 +624,7 @@ export function useDashboardState(
     duplicateWidget,
     setEditMode,
     setDashboardName,
+    setGeneralSettings,
     setFilters,
     setQueries,
     setRefreshInterval,

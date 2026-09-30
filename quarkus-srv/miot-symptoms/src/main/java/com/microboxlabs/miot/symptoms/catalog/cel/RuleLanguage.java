@@ -15,12 +15,12 @@ import dev.cel.common.types.SimpleType;
 import dev.cel.common.types.StructType;
 import dev.cel.common.types.StructTypeReference;
 import dev.cel.runtime.CelEvaluationException;
+import dev.cel.runtime.CelRuntime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Checks and evaluates symptom rules written in CEL. The schema's field
@@ -39,7 +39,15 @@ public final class RuleLanguage {
             .enableHeterogeneousNumericComparisons(true)
             .build();
 
-    private static final Map<RuleSchema, Cel> COMPILERS = new ConcurrentHashMap<>();
+    private static final int MAX_COMPILERS = 256;
+
+    /** Compilers per schema, least recently used dropped first, so edited schemas do not accumulate. */
+    private static final Map<RuleSchema, Cel> COMPILERS = new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<RuleSchema, Cel> eldest) {
+            return size() > MAX_COMPILERS;
+        }
+    };
 
     private RuleLanguage() {
     }
@@ -53,8 +61,8 @@ public final class RuleLanguage {
             List<RuleIssue> issues = new ArrayList<>();
             for (CelIssue issue : result.getAllIssues()) {
                 if (issue.getSeverity() == CelIssue.Severity.ERROR) {
-                    issues.add(new RuleIssue(Math.max(0, issue.getSourceLocation().getColumn()),
-                            RuleMessages.plain(issue.getMessage()), issue.getMessage()));
+                    issues.add(new RuleIssue(offset(expression, issue), RuleMessages.plain(issue.getMessage()),
+                            issue.getMessage()));
                 }
             }
             return RuleCheck.failed(issues);
@@ -71,16 +79,67 @@ public final class RuleLanguage {
 
     /** Runs a rule on one sample. The rule must pass {@link #check} first. */
     public static RuleResult evaluate(RuleSchema schema, String expression, Map<String, Object> variables) {
+        return prepare(schema, expression).run(variables);
+    }
+
+    /** Compiles a rule once, to run it on many samples. */
+    public static PreparedRule prepare(RuleSchema schema, String expression) {
         Cel cel = cel(schema);
-        CelValidationResult result = cel.compile(expression);
+        CelValidationResult result = cel.compile(expression == null ? "" : expression);
         if (result.hasError()) {
-            return RuleResult.failed(RuleMessages.plain(result.getAllIssues().get(0).getMessage()));
+            String error = RuleMessages.plain(result.getAllIssues().get(0).getMessage());
+            return variables -> RuleResult.failed(error);
         }
         try {
-            return RuleResult.of(cel.createProgram(result.getAst()).eval(variables));
+            CelRuntime.Program program = cel.createProgram(result.getAst());
+            return variables -> {
+                try {
+                    return RuleResult.of(program.eval(doubles(variables)));
+                } catch (CelEvaluationException e) {
+                    return RuleResult.failed(RuleMessages.plain(e.getMessage()));
+                }
+            };
         } catch (CelEvaluationException | CelValidationException e) {
-            return RuleResult.failed(RuleMessages.plain(e.getMessage()));
+            String error = RuleMessages.plain(e.getMessage());
+            return variables -> RuleResult.failed(error);
         }
+    }
+
+    /** A compiled rule. */
+    @FunctionalInterface
+    public interface PreparedRule {
+        RuleResult run(Map<String, Object> variables);
+    }
+
+    /** Every number the schema declares is a double, so samples with whole numbers are converted. */
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> doubles(Map<String, Object> values) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        values.forEach((k, v) -> {
+            if (v instanceof Map<?, ?> m) {
+                out.put(k, doubles((Map<String, Object>) m));
+            } else if (v instanceof Number n && !(v instanceof Double)) {
+                out.put(k, n.doubleValue());
+            } else {
+                out.put(k, v);
+            }
+        });
+        return out;
+    }
+
+    /** Offset in the whole rule of an issue CEL reports as line and column. */
+    static int offset(String expression, CelIssue issue) {
+        int line = issue.getSourceLocation().getLine();
+        int column = Math.max(0, issue.getSourceLocation().getColumn());
+        int offset = 0;
+        for (int i = 1; i < line; i++) {
+            int newline = expression.indexOf('\n', offset);
+            if (newline < 0) {
+                break;
+            }
+            offset = newline + 1;
+        }
+        return Math.min(expression.length(), offset + column);
     }
 
     private static CelType resultType(CelValidationResult result) {
@@ -92,7 +151,9 @@ public final class RuleLanguage {
     }
 
     private static Cel cel(RuleSchema schema) {
-        return COMPILERS.computeIfAbsent(schema, RuleLanguage::build);
+        synchronized (COMPILERS) {
+            return COMPILERS.computeIfAbsent(schema, RuleLanguage::build);
+        }
     }
 
     private static Cel build(RuleSchema schema) {
@@ -133,8 +194,13 @@ public final class RuleLanguage {
         return builder.build();
     }
 
-    private static String typeName(String path) {
-        return "T_" + path.replace('.', '_');
+    /** One CEL type per object path. Each segment is length-prefixed, so {@code a.b_c} and {@code a.b.c} differ. */
+    static String typeName(String path) {
+        StringBuilder name = new StringBuilder("T");
+        for (String segment : path.split("\\.")) {
+            name.append('_').append(segment.length()).append(segment);
+        }
+        return name.toString();
     }
 
     /** number and duration are doubles; yes/no is bool; text, lists, zones and times are strings. */

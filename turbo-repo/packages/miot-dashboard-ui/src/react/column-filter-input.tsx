@@ -213,13 +213,8 @@ function NumberFilter({
       Array.isArray(currentFilter.value)
         ? currentFilter.value
         : null;
-    setValue(
-      range
-        ? range[0] === -Number.MAX_VALUE
-          ? ""
-          : String(range[0] ?? "")
-        : String(currentFilter?.value ?? ""),
-    );
+    const lowerBound = range?.[0] === -Number.MAX_VALUE ? "" : String(range?.[0] ?? "");
+    setValue(range ? lowerBound : String(currentFilter?.value ?? ""));
     setValue2(
       range && range[1] !== Number.MAX_VALUE ? String(range[1] ?? "") : "",
     );

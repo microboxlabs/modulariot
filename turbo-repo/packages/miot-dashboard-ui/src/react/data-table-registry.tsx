@@ -1,5 +1,7 @@
 "use client";
 import { useMemo } from "react";
+import { buildCsvContent } from "../core/export-csv";
+import { downloadCsv } from "./download-csv";
 import { createWidgetRegistry } from "../core/widget-registry";
 import { createTemplateEngine } from "../templates";
 import {
@@ -23,6 +25,9 @@ import type { WidgetComponentProps } from "./widget-renderer";
 
 export interface DataTableRegistryOptions {
   defaultTitle: string;
+  /** Omit to hide export controls. */
+  exportLabel?: string;
+  onExportCsv?: (content: string, filename: string) => void;
   loadingLabel: string;
   errorLabel: string;
   unsupportedDataLabel: string;
@@ -129,6 +134,25 @@ export function createDataTableRegistry(
       <div className="miot-table-widget">
         <header>
           <strong>{title}</strong>
+          {config.showExport &&
+            options.exportLabel &&
+            filters.filteredCount > 0 && (
+              <button
+                type="button"
+                className="miot-row-controls__pill"
+                onClick={() => {
+                  const csv = buildCsvContent(
+                    config.columns,
+                    filters.filteredData,
+                    resolveValue,
+                    resolveLabel,
+                  );
+                  (options.onExportCsv ?? downloadCsv)(csv, `${title}.csv`);
+                }}
+              >
+                {options.exportLabel}
+              </button>
+            )}
           {config.showRowCount && (
             <span>{options.rowCountLabel(filters.filteredCount)}</span>
           )}

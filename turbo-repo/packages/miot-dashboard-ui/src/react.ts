@@ -87,3 +87,5 @@ export { ActionDropdown, type ActionDropdownProps, type ResolvedAction } from ".
 export { DataTable, type DataTableProps, type DataTableColumn } from "./react/data-table";
 
 export { createDataTableRegistry, type DataTableRegistryOptions } from "./react/data-table-registry";
+
+export { downloadCsv } from "./react/download-csv";

@@ -8,9 +8,15 @@ import {
   PlannerResultsProvider,
   type PlannerQueryResult,
 } from "./planner-results";
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+const exportCsv = vi.fn();
 const registry = createDataTableRegistry({
   defaultTitle: "Costs",
+  exportLabel: "Export CSV",
+  onExportCsv: exportCsv,
   loadingLabel: "Loading",
   errorLabel: "Unavailable",
   unsupportedDataLabel: "Migrate",
@@ -136,6 +142,8 @@ it("composes static template cells, filters and numeric sort", () => {
   fireEvent.click(screen.getByRole("checkbox", { name: "SQL" }));
   expect(screen.getByRole("cell", { name: "SQL" })).toBeTruthy();
   expect(screen.queryByRole("cell", { name: "BQ" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+  expect(exportCsv).toHaveBeenCalledWith("Service;Cost\nSQL;10", "Costs.csv");
 });
 it("rechecks templated action destinations and rejects malformed or legacy bindings", () => {
   const view = render(

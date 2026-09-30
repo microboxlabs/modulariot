@@ -938,12 +938,31 @@ Options provide `defaultTitle`, `loadingLabel`, `errorLabel`,
 `unsupportedDataLabel`, `emptyLabel`, `actionsLabel`, `allLabel`, `sortLabel`,
 `clearFilterLabel`, `clearAllLabel`, `directionLabels`, `filterLabels`,
 `filterTitle(column)`, `filterSummary(filtered,total)`, `removeFilterLabel(text)`,
-`formatFilterValue(filter)` and `rowCountLabel(count)`. Optional `templateEngine`
+`formatFilterValue(filter)` and `rowCountLabel(count)`. Optional `exportLabel` enables CSV export when
+`config.showExport` is true (the default); `onExportCsv(content, filename)`
+overrides the browser download for another host. Optional `templateEngine`
 allows host helpers. Titles can use `_count`; columns receive row/index/count
 context. Column descriptions are literal native tooltips in this registry.
 
-This candidate is a viewer: it does not supply settings, export controls,
+This candidate is a viewer: it does not supply settings,
 resizable `data_table_v2`, or authorization. Hosts provide saved-query transport
 and remount on identity/document changes. Next.js currently consumes the table
 renderer with its own adapters; adopting this complete registry there remains
 separate work.
+
+### CSV export
+
+`buildCsvContent(columns, rows, resolveValue, resolveLabel)` from `./core` builds
+semicolon-separated CSV from supplied rows in order, using the same template
+resolvers as the table. It quotes delimiters, quotes and line breaks. Formula-like
+cells and headers beginning with `=`, `+`, `-` or `@` (after leading whitespace),
+and cells beginning with tab/CR/LF, receive a leading apostrophe; plain signed
+decimal numbers remain numeric. Consumers should preserve this protection when
+processing the output. Empty rows return an empty string.
+
+`downloadCsv(content, filename)` from `./react` is browser-only and should be
+called after a user export action. It adds a UTF-8 BOM, replaces control/path
+characters in the filename and releases its object URL after the browser starts
+the download. Pure hosts can use the builder and handle delivery themselves.
+The table registry exports only its currently filtered/sorted result rows; it
+does not fetch additional data or bypass server permissions.

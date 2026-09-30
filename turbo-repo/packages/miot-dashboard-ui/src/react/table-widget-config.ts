@@ -42,6 +42,7 @@ export const tableWidgetConfig = z.object({
   sort: z
     .object({ enabled: z.boolean(), columns: z.array(z.string()) })
     .default({ enabled: false, columns: [] }),
+  showExport: z.boolean().default(true),
   showRowCount: z.boolean().default(true),
   showColumnDividers: z.boolean().default(true),
   rowColorRules: z

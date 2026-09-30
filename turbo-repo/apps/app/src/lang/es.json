@@ -2588,7 +2588,10 @@
         "whenLevelUp": "Al subir de nivel",
         "whenSlaExpired": "SLA vencido",
         "whenClose": "Al cerrar",
-        "configuredConnection": "Conexión configurada"
+        "configuredConnection": "Conexión configurada",
+        "describe": "Qué hace esta regla",
+        "describing": "Escribiendo la descripción…",
+        "describeFailed": "La descripción no está disponible ahora."
       }
     },
     "integrationJobs": {

@@ -252,6 +252,19 @@ export function importEngineRules() {
   return request<ImportResult>(`${DEFS}/import-engine`, { method: "POST" });
 }
 
+/** What a rule does, in plain words, written by the Harness and cached by rule. */
+export function describeRule(body: {
+  section: string;
+  rule: string;
+  sourceKey: string;
+  locale?: string;
+}) {
+  return request<{ html: string; cached: boolean }>(`${DEFS}/describe`, {
+    method: "POST",
+    body,
+  });
+}
+
 export function saveDraft(id: string, spec: SymptomSpec) {
   return request<SymptomVersion>(`${DEFS}/${id}/draft`, {
     method: "PUT",

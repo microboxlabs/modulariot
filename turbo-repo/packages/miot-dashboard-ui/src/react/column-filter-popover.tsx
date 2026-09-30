@@ -91,7 +91,7 @@ export function ColumnFilterPopover({
       win.removeEventListener("scroll", positionPanel, true);
       win.removeEventListener("resize", positionPanel);
     };
-  }, [open, close, input.columnKey]);
+  }, [open, close, input.columnKey, portalContainer]);
 
   const target = portalContainer ?? trigger.current?.ownerDocument.body;
   return (

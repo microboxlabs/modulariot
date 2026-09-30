@@ -116,3 +116,24 @@ it("uses the host portal and closes when keyboard focus leaves without stealing 
   view.unmount();
   container.remove();
 });
+
+it("rebinds focus and outside detection when the host moves an open portal", () => {
+  const first = document.createElement("div");
+  const second = document.createElement("div");
+  document.body.append(first, second);
+  const options = props();
+  const view = render(<ColumnFilterPopover {...options} portalContainer={first} />);
+  fireEvent.click(screen.getByRole("button", { name: "Filter cost" }));
+  view.rerender(<ColumnFilterPopover {...options} portalContainer={second} />);
+  const panel = screen.getByRole("dialog");
+  expect(first.childElementCount).toBe(0);
+  expect(second.contains(panel)).toBe(true);
+  expect(document.activeElement).toBe(screen.getByRole("combobox"));
+  fireEvent.pointerDown(screen.getByRole("spinbutton"));
+  expect(screen.getByRole("dialog")).toBe(panel);
+  fireEvent.pointerDown(document.body);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  view.unmount();
+  first.remove();
+  second.remove();
+});

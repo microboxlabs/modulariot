@@ -470,3 +470,14 @@ and scoped styles; host CSS can still affect inherited typography. Importing the
 entry does not access the DOM or register an element, but registration requires
 the browser's `HTMLElement` and `customElements`. The registry and data remain
 host supplied, with no automatic authentication or query execution.
+
+## Flex container
+
+`FlexContainer` from `./react` renders nested content in a row, column, or wrapping
+`grid` layout. Import `./styles.css`; no Tailwind build is required. Supply `title`
+and the localized `emptyLabel`. `editMode` hides the empty message so a host can
+show its insertion controls. Key child elements by widget ID to preserve their
+state when reordered. `description` accepts plain text or trusted host-rendered
+React content (for example, a Markdown renderer); the component never interprets
+strings as HTML. Card colors use the same `--miot-card-*` variables and
+`data-miot-theme="dark"` ancestor convention as `TextCard`.

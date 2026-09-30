@@ -640,4 +640,12 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-info-card footer p { margin:0; font-size:.75rem; font-style:italic; color:var(--miot-card-muted,#6b7280); }
 .miot-info-card footer a { flex-shrink:0; padding:.5rem .75rem; border:1px solid var(--miot-card-border,#d1d5db); border-radius:.5rem; color:inherit; text-decoration:none; font-size:.75rem; }
 .miot-info-card a:focus-visible,.miot-info-card button:focus-visible { outline:2px solid var(--miot-focus-color,#2563eb); outline-offset:2px; }
-:where(.dark,[data-miot-theme="dark"]) .miot-info-card { --miot-card-background:#1f2937; --miot-card-border:#374151; --miot-card-text:#fff; --miot-card-muted:#9ca3af; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card header { border-bottom:1px solid var(--miot-card-border,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card header > span { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card__body > p { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card__add { border:2px dashed var(--miot-card-border,#374151); color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card footer { border-top:1px solid var(--miot-card-border,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card footer p { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-info-card footer a { border:1px solid var(--miot-card-border,#374151); }

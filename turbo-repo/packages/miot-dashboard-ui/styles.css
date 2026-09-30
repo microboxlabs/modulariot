@@ -363,3 +363,6 @@
 :where(.dark, [data-miot-theme="dark"]) .miot-row-controls__pill:hover:not(:disabled) { color: var(--miot-card-text, #fff); }
 :where(.dark, [data-miot-theme="dark"]) .miot-row-controls__pill[aria-pressed="true"] { background: var(--miot-control-active-background, #fff); color: var(--miot-control-active-text, #111827); }
 :where(.dark, [data-miot-theme="dark"]) .miot-row-controls__pill[aria-pressed="true"]:hover:not(:disabled) { color: var(--miot-control-active-text, #111827); }
+
+fieldset.miot-row-controls { min-width: 0; margin: 0; }
+.miot-row-controls__legend { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }

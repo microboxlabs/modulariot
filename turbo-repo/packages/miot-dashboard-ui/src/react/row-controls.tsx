@@ -21,8 +21,11 @@ export function FilterPillRow({
 }: Readonly<FilterPillRowProps>) {
   const labelId = useId();
   return (
-    <div className="miot-row-controls" role="group" aria-labelledby={labelId}>
-      <span id={labelId}>{item.label}</span>
+    <fieldset className="miot-row-controls" aria-labelledby={labelId}>
+      <legend className="miot-row-controls__legend" id={labelId}>
+        {item.label}
+      </legend>
+      <span aria-hidden="true">{item.label}</span>
       <button
         type="button"
         className="miot-row-controls__pill no-drag"
@@ -44,7 +47,7 @@ export function FilterPillRow({
           {value}
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }
 export interface SortPillRowProps {
@@ -71,8 +74,11 @@ export function SortPillRow({
   const labelId = useId();
   if (columns.length === 0) return null;
   return (
-    <div className="miot-row-controls" role="group" aria-labelledby={labelId}>
-      <span id={labelId}>{label}</span>
+    <fieldset className="miot-row-controls" aria-labelledby={labelId}>
+      <legend className="miot-row-controls__legend" id={labelId}>
+        {label}
+      </legend>
+      <span aria-hidden="true">{label}</span>
       {[...new Set(columns)].map((key) => {
         const active = key === sortKey;
         const name = getColumnLabel(key);
@@ -93,6 +99,6 @@ export function SortPillRow({
           </button>
         );
       })}
-    </div>
+    </fieldset>
   );
 }

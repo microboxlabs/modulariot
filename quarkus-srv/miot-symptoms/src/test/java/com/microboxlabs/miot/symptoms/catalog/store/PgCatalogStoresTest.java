@@ -105,6 +105,7 @@ class PgCatalogStoresTest {
         assertTrue(numbers.containsAll(List.of("1.0.0", "1.1.0")));
         assertEquals("1.0.0", store.findVersion(TENANT, created.id(), "1.1.0").orElseThrow().rolledBackFrom());
         assertTrue(store.findDefinition("tenant-b", created.id()).isEmpty(), "other tenants see nothing");
+        assertTrue(!store.definitionsWithDraft(TENANT).contains(created.id()), "publishing consumed the draft");
     }
 
     @Test

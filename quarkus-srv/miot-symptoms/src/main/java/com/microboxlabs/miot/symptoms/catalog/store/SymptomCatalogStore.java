@@ -4,6 +4,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /** Symptom definitions and their versions, per organization. */
@@ -23,6 +24,9 @@ public interface SymptomCatalogStore {
     List<SymptomVersion> listVersions(String tenantCode, UUID definitionId);
 
     Optional<SymptomVersion> findDraft(String tenantCode, UUID definitionId);
+
+    /** Ids of the organization's symptoms that have a draft, in one query. */
+    Set<UUID> definitionsWithDraft(String tenantCode);
 
     Optional<SymptomVersion> findVersion(String tenantCode, UUID definitionId, String version);
 

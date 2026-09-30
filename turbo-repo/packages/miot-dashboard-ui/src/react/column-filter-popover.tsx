@@ -46,14 +46,9 @@ export function ColumnFilterPopover({
     const doc = button.ownerDocument;
     const win = doc.defaultView;
     if (!win) return;
-    const ancestor = button.closest("[data-miot-theme], .dark");
-    setInheritedTheme(
-      ancestor?.getAttribute("data-miot-theme") === "light"
-        ? "light"
-        : ancestor
-          ? "dark"
-          : "light",
-    );
+    const ancestor = button.closest<HTMLElement>("[data-miot-theme], .dark");
+    const dark = ancestor && ancestor.dataset.miotTheme !== "light";
+    setInheritedTheme(dark ? "dark" : "light");
     const positionPanel = () => {
       const rect = button.getBoundingClientRect();
       const { width, height } = panel.getBoundingClientRect();

@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { Spinner } from "flowbite-react";
+import { PercentageValue } from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import {
   type PgrestParam,
@@ -154,7 +156,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const max = Number.isFinite(parsedMax) ? parsedMax : 10;
 
   const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
-  const clampedPercentage = Math.min(100, Math.max(0, percentage));
   const defaultBarColor = config.barColor ?? "2563eb";
 
   // Determine evaluation value based on mode
@@ -169,42 +170,5 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       ? evaluateBarColor(barColorRulesConfig.rules, evalValue, defaultBarColor)
       : defaultBarColor;
 
-  return (
-    <div
-      className="flex h-full flex-col rounded-lg border border-gray-200 bg-white p-2 px-4 dark:border-gray-700 dark:bg-gray-800"
-      style={{ containerType: "size" }}
-    >
-      {/* Header with title and value */}
-      <div className="flex shrink-0 items-center justify-between">
-        <span
-          className="font-medium text-gray-600 dark:text-gray-400"
-          style={{ fontSize: "clamp(0.75rem, 15cqh, 2.5rem)" }}
-        >
-          {title}
-        </span>
-        <span
-          className="font-semibold text-gray-900 dark:text-white"
-          style={{ fontSize: "clamp(0.75rem, 15cqh, 2.5rem)" }}
-        >
-          {value} / {max}{" "}
-          <span className="text-gray-500 dark:text-gray-400">
-            ({clampedPercentage}%)
-          </span>
-        </span>
-      </div>
-
-      {/* Progress bar - fills remaining height */}
-      <div className="mt-2 flex min-h-1.5 flex-1 w-full items-center">
-        <div className="h-full w-full overflow-hidden rounded-md bg-gray-200 dark:bg-gray-700">
-          <div
-            className="h-full transition-all duration-300"
-            style={{
-              width: `${clampedPercentage}%`,
-              backgroundColor: `#${barColor}`,
-            }}
-          />
-        </div>
-      </div>
-    </div>
-  );
+  return <PercentageValue title={title} value={value} max={max} barColor={barColor} />;
 }

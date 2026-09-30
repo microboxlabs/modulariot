@@ -53,6 +53,10 @@ export default function PrototypeSideInfo({
   onCallFlowStepChange?: (step: CallCenterReportedStep | null) => void;
 }>) {
   const [order, setOrder] = useState<"asc" | "desc">("desc");
+  const orderLabel =
+    order === "asc"
+      ? ((dict.symptoms as I18nRecord).ascending as string)
+      : ((dict.symptoms as I18nRecord).descending as string);
   const { treatments_templates } = useTreatmentsTemplates(
     treatmentData?.symptom_info?.id.toString() ?? "1",
     treatmentData?.symptom_info?.name ?? "Bad Sign",
@@ -110,15 +114,10 @@ export default function PrototypeSideInfo({
                   </h1>
                 </div>
               </div>
-              <Tooltip
-                content={
-                  order === "asc"
-                    ? ((dict.symptoms as I18nRecord).ascending as string)
-                    : ((dict.symptoms as I18nRecord).descending as string)
-                }
-              >
+              <Tooltip content={orderLabel}>
                 <button
                   type="button"
+                  aria-label={orderLabel}
                   className="h-6 w-6 p-1 mr-1 hover:bg-gray-100 hover:cursor-pointer dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white flex items-center justify-center transition-all duration-200 rounded-md"
                   onClick={() => setOrder(order === "asc" ? "desc" : "asc")}
                 >

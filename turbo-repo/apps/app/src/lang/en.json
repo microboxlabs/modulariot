@@ -1910,7 +1910,6 @@
         "harness": "Harness",
         "platform": "Platform",
         "selectables": "Selectables",
-        "symptomRules": "Symptom rules",
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms"
       },
@@ -2040,7 +2039,6 @@
         "dataSources": "Data Sources",
         "credentials": "Credentials",
         "selectables": "Selectables",
-        "symptomRules": "Symptom rules",
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms"
       },
@@ -3051,7 +3049,6 @@
         "selectables": "Selectables",
         "harnessLearning": "Assistant learning",
         "dashboardServer": "Dashboards",
-        "symptomRules": "Symptom rules",
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms"
       }
@@ -4252,7 +4249,6 @@
       "Fatigue And Drowsiness Sensor": "Fatigue and drowsiness sensor"
     },
     "speed limit": "Speed limit exceeded",
-    "prototipe-map-view": "Map view (prototype)",
     "treatment_group_label": "Treatment",
     "treatment_in_progress": "In progress",
     "treatment_note": "Note",

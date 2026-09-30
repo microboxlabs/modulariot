@@ -3777,6 +3777,17 @@
       "queryError": "No se pudieron cargar los resultados.",
       "leave": "¿Salir de este dashboard y descartar los cambios sin guardar?",
       "settings": {
+        "transfer": {
+          "title": "Importar y exportar",
+          "export": "Descargar JSON del dashboard",
+          "file": "Elegir archivo JSON del dashboard",
+          "json": "JSON del dashboard",
+          "replace": "Reemplazar borrador con el dashboard importado",
+          "hint": "Importar reemplaza el borrador actual. Deshacer lo restaura; guarde por separado para persistir. Tamaño máximo: 1 MiB. Las conexiones y widgets deben existir en el destino.",
+          "tooLarge": "El dashboard supera el límite de importación de 1 MiB.",
+          "invalid": "No se pudo importar. Revise la versión y el formato del documento.",
+          "success": "Importado al borrador. Guarde para persistir o deshaga para restaurar."
+        },
         "filters": {
           "source": "Fuente de opciones",
           "static": "Opciones estáticas",

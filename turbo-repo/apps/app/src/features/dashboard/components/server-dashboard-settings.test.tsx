@@ -3,6 +3,8 @@ import { expect, it, vi } from "vitest";
 import { ServerDashboardSettings } from "./server-dashboard-settings";
 const state = vi.hoisted(() => ({
   setGeneralSettings: vi.fn(() => true),
+  downloadDashboard: vi.fn(),
+  importDashboard: vi.fn(() => ({ success: true })),
   setFilterDefinitions: vi.fn(() => true),
 }));
 vi.mock("@/features/i18n/tr.service", () => ({ tr: (key: string) => key }));
@@ -60,4 +62,15 @@ it("hides settings from consumers and applies editor changes through the documen
       optionsSource: { variableName: "billing", valueField: "service" },
     }),
   ]);
+  fireEvent.click(
+    screen.getByRole("button", { name: label("transfer.export") })
+  );
+  expect(state.downloadDashboard).toHaveBeenCalledOnce();
+  fireEvent.change(screen.getByLabelText(label("transfer.json")), {
+    target: { value: "{}" },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: label("transfer.replace") })
+  );
+  expect(state.importDashboard).toHaveBeenCalledWith("{}", { undoable: true });
 });

@@ -47,10 +47,12 @@ export function useUndoRedo(
 
   /** Wrapped saveData that records history */
   const saveDataWithHistory = useCallback(
-    (data: DashboardStorageSchema) => {
+    (data: DashboardStorageSchema, options: { isolate?: boolean } = {}) => {
       if (readOnly) return;
+      if (options.isolate) lastPushTimeRef.current = Number.NEGATIVE_INFINITY;
       pushSnapshot();
       saveData(data);
+      if (options.isolate) lastPushTimeRef.current = Number.NEGATIVE_INFINITY;
     },
     [pushSnapshot, saveData, readOnly],
   );

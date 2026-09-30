@@ -714,11 +714,11 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 
 .miot-general-settings{color:var(--miot-settings-text,#111827)}
 .miot-general-settings fieldset{display:grid;gap:.5rem;border:0;padding:0;min-width:0}
-.miot-general-settings :is(input,select){padding:.5rem;max-width:100%;color:inherit;background:var(--miot-settings-background,#fff);border:1px solid var(--miot-settings-border,#d1d5db);border-radius:.375rem;font:inherit}
+.miot-general-settings :is(input,select,textarea){padding:.5rem;max-width:100%;color:inherit;background:var(--miot-settings-background,#fff);border:1px solid var(--miot-settings-border,#d1d5db);border-radius:.375rem;font:inherit}
 .miot-general-settings button{padding:.5rem 1rem;color:#fff;background:var(--miot-accent,#2563eb);border:0;border-radius:.375rem;cursor:pointer}
 .miot-general-settings fieldset:disabled{opacity:.65}
 .miot-general-settings :focus-visible{outline:2px solid var(--miot-accent,#2563eb);outline-offset:2px}
 :where(.dark,[data-miot-theme="dark"]) .miot-general-settings{color:var(--miot-settings-text,#f3f4f6)}
-:where(.dark,[data-miot-theme="dark"]) .miot-general-settings :is(input,select){background:var(--miot-settings-background,#374151);border-color:var(--miot-settings-border,#4b5563)}
+:where(.dark,[data-miot-theme="dark"]) .miot-general-settings :is(input,select,textarea){background:var(--miot-settings-background,#374151);border-color:var(--miot-settings-border,#4b5563)}
 .miot-filter-editor .miot-filter-editor__item{margin-bottom:1rem;padding:.75rem;border:1px solid var(--miot-settings-border,#d1d5db);border-radius:.375rem}
 .miot-filter-editor__options,.miot-filter-editor__options>div{display:grid;gap:.5rem}

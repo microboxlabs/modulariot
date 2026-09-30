@@ -3777,6 +3777,17 @@
       "queryError": "Could not load query results.",
       "leave": "Leave this dashboard and discard unsaved changes?",
       "settings": {
+        "transfer": {
+          "title": "Import and export",
+          "export": "Download dashboard JSON",
+          "file": "Choose dashboard JSON file",
+          "json": "Dashboard JSON",
+          "replace": "Replace draft with imported dashboard",
+          "hint": "Import replaces the current draft. Undo restores it; save the dashboard separately to persist. Maximum file size: 1 MiB. Destination connections and widgets must be available.",
+          "tooLarge": "The dashboard exceeds the 1 MiB import limit.",
+          "invalid": "The dashboard could not be imported. Check its version and document format.",
+          "success": "Imported into the draft. Save to persist or undo to restore."
+        },
         "filters": {
           "source": "Options source",
           "static": "Static options",

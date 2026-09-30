@@ -39,8 +39,8 @@ export function defineDashboardElement(
     }
     set dashboardOptions(next: DashboardMountOptions | undefined) {
       if (next === undefined) {
-        this.#mount?.destroy();
-        this.#mount = undefined;
+        this.#options = undefined;
+        this.#unmount();
       } else if (this.isConnected) {
         if (this.#mount) this.#mount.update(next);
         else this.#mount = mountDashboard(this, next);
@@ -59,8 +59,14 @@ export function defineDashboardElement(
       }
     }
     disconnectedCallback() {
-      this.#mount?.destroy();
-      this.#mount = undefined;
+      this.#unmount();
+    }
+    #unmount() {
+      try {
+        this.#mount?.destroy();
+      } finally {
+        this.#mount = undefined;
+      }
     }
   }
   customElements.define(name, Element);

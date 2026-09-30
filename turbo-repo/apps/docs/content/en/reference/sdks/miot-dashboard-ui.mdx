@@ -120,3 +120,5 @@ The current Handlebars compiler requires `unsafe-eval` in script CSP. Evaluate t
 `SettingsPanel` from `/react` provides keyboard-accessible settings tabs, a host footer and a save action gated by `isDirty` and `disabled`. The host supplies translated labels and owns validation, permissions, persistence and dismissal.
 
 `useSettingsDirty`, `DirtySettingsProvider` and `useDirtySettings` share unsaved form state without app dependencies. Use one provider per form and unregister save callbacks on unmount; dismissal and confirmation remain host responsibilities.
+
+`QueryBindingSelector` from `/react` binds widgets to host-supplied named results and displays their schema. It preserves unavailable bindings visibly, supports translated labels and read-only mode, and performs no discovery or query execution.

@@ -120,3 +120,5 @@ El compilador actual de Handlebars requiere `unsafe-eval` en la CSP de scripts. 
 `SettingsPanel` de `/react` ofrece pestañas de configuración accesibles por teclado, un pie controlado por el anfitrión y una acción de guardado condicionada por `isDirty` y `disabled`. El anfitrión proporciona las etiquetas traducidas y controla validación, permisos, persistencia y cierre.
 
 `useSettingsDirty`, `DirtySettingsProvider` y `useDirtySettings` comparten el estado de cambios pendientes sin dependencias de la aplicación. Use un proveedor por formulario y elimine los callbacks de guardado al desmontar; el cierre y la confirmación son responsabilidad del anfitrión.
+
+`QueryBindingSelector` de `/react` vincula widgets a resultados con nombre proporcionados por el anfitrión y muestra su esquema. Conserva visibles los vínculos no disponibles, admite etiquetas traducidas y modo de solo lectura, y no realiza descubrimiento ni ejecución de consultas.

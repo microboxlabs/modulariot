@@ -160,3 +160,10 @@ describe("getCategoryLabel", () => {
     expect(getCategoryLabel("data-display")).toBe("Data Display");
   });
 });
+
+it("registers stat_progress for existing documents and the widget picker", () => {
+  const definition = getDashlet("stat_progress");
+  expect(definition?.getLayoutDefaults?.()).toEqual({ minW: 3, minH: 2 });
+  expect(definition?.SettingsModal).toBeDefined();
+  expect(getAllDashlets().some((item) => item.meta.id === "stat_progress")).toBe(true);
+});

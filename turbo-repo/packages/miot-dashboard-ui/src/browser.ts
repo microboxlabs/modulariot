@@ -7,3 +7,5 @@ export { createTextCardRegistry, type TextCardRegistryOptions } from "./embed";
 export { createPercentageValueRegistry, type PercentageValueRegistryOptions } from "./embed";
 
 export { createCircularStatRegistry, type CircularStatRegistryOptions } from "./embed";
+
+export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./embed";

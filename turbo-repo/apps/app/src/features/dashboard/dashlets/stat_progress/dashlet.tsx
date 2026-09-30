@@ -1,5 +1,7 @@
 "use client";
 
+import { useOptionalDashboard } from "../../context/dashboard-context";
+import { PortableScalarWidget } from "../common/portable-scalar-widget";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
 import { useDashletPgrest } from "../common/use-dashlet-pgrest";
@@ -101,7 +103,15 @@ function evaluateBarColorRules(
 /**
  * Progress Bar Card - Horizontal progress with milestones
  */
-export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+export function Dashlet(props: Readonly<DashletComponentProps>) {
+  const { hostAccess } = useOptionalDashboard();
+  return hostAccess ? (
+    <PortableScalarWidget widget={props.widget} />
+  ) : (
+    <LegacyDashlet {...props} />
+  );
+}
+function LegacyDashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 

@@ -18,9 +18,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Supplier;
 import java.util.UUID;
 
@@ -64,6 +66,10 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
             DO UPDATE SET spec = EXCLUDED.spec
             WHERE miot_symptoms.symptom_version.tenant_code = EXCLUDED.tenant_code
             RETURNING\s""" + VERSION_COLUMNS;
+
+    private static final String DRAFT_IDS = """
+            SELECT definition_id FROM miot_symptoms.symptom_version
+            WHERE tenant_code = $1 AND status = 'DRAFT'""";
 
     private static final String DELETE_DRAFT = """
             DELETE FROM miot_symptoms.symptom_version
@@ -153,6 +159,15 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
             throw new NoSuchElementException("Symptom not found: " + v.definitionId());
         }
         return saved.get(0);
+    }
+
+    @Override
+    public Set<UUID> definitionsWithDraft(String tenantCode) {
+        Set<UUID> ids = new HashSet<>();
+        for (Row r : query(pool.get(), DRAFT_IDS, Tuple.of(tenantCode))) {
+            ids.add(r.getUUID("definition_id"));
+        }
+        return ids;
     }
 
     @Override

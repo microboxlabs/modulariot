@@ -5,6 +5,7 @@ import {
   createTextCardRegistry,
   createPercentageValueRegistry,
   createCircularStatRegistry,
+  createProgressStatRegistry,
   WidgetRenderer,
 } from "@microboxlabs/miot-dashboard-ui/react";
 import "@microboxlabs/miot-dashboard-ui/styles.css";
@@ -34,6 +35,14 @@ export function PortableScalarWidget({
       return createPercentageValueRegistry({
         ...labels,
         defaultTitle: tr("dashboard.portableWidgets.progress", dictionary),
+      });
+    if (widget.componentId === "stat_progress")
+      return createProgressStatRegistry({
+        ...labels,
+        defaultTitle: tr("dashboard.portableWidgets.progress", dictionary),
+        defaultUnit: "%",
+        formatValue: (value, target, unit) =>
+          `${value} ${tr("dashboard.widgetOf", dictionary)} ${target} ${unit}`,
       });
     if (widget.componentId === "stat_circular")
       return createCircularStatRegistry({

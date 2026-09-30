@@ -15,6 +15,12 @@ import java.util.Map;
  */
 public record RuleSchema(String root, Map<String, String> fields, Map<String, String> extras) {
 
+    /** Copies the maps, so a schema used as a cache key cannot change. */
+    public RuleSchema {
+        fields = Map.copyOf(fields);
+        extras = Map.copyOf(extras);
+    }
+
     /** The variables a level condition adds to the source: the measure and how long it has held. */
     public static final Map<String, String> LEVEL_VARIABLES = Map.of("medida", "number", "sostenido_s", "number");
 

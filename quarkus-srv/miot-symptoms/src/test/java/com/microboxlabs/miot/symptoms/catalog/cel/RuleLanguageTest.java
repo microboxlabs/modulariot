@@ -65,6 +65,32 @@ class RuleLanguageTest {
     }
 
     @Test
+    void samplesWithWholeNumbersRun() {
+        Map<String, Object> ints = Map.of("signal", Map.of("gps", Map.of("speed_kmh", 112),
+                "road", Map.of("maxspeed_osm", 90)));
+
+        assertEquals(22.0, RuleLanguage.evaluate(SIGNAL, "signal.gps.speed_kmh - signal.road.maxspeed_osm", ints)
+                .value());
+    }
+
+    @Test
+    void similarPathsKeepTheirOwnTypes() {
+        RuleSchema schema = new RuleSchema("signal", Map.of("signal.gps_speed", "number", "signal.gps.speed", "text"),
+                Map.of());
+
+        assertTrue(RuleLanguage.check(schema, "signal.gps_speed > 1", Expect.CONDITION).ok());
+        assertTrue(RuleLanguage.check(schema, "signal.gps.speed == \"x\"", Expect.CONDITION).ok());
+    }
+
+    @Test
+    void positionsCountEarlierLines() {
+        String rule = "signal.trip.active\n&& signal.gps.speed > 1";
+
+        assertEquals(rule.indexOf("speed >") - 1,
+                RuleLanguage.check(SIGNAL, rule, Expect.CONDITION).issues().get(0).position());
+    }
+
+    @Test
     void problemsAreReportedInSpanishWithTheirPosition() {
         RuleCheck typeError = RuleLanguage.check(SIGNAL, "signal.vehicle.weight_category > 3", Expect.CONDITION);
         assertFalse(typeError.ok());

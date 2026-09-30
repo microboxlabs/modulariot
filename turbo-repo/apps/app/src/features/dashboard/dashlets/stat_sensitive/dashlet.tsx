@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { SensitiveStat } from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+import { tr } from "@/features/i18n/tr.service";
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { HiEye, HiEyeSlash } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
@@ -8,7 +11,10 @@ import { useDashletPgrest } from "../common/use-dashlet-pgrest";
 import { DashletLoading, DashletError } from "../common/dashlet-states";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { useRowThreshold } from "../common/use-threshold";
-import { getThresholdTextClasses } from "../common/threshold-engine";
+import {
+  getThresholdTextClasses,
+  getThresholdTextStyle,
+} from "../common/threshold-engine";
 import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
@@ -66,7 +72,7 @@ function getValueTextClasses(
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const isSensitive = config.isSensitive ?? true;
-  const [isHidden, setIsHidden] = useState(isSensitive);
+  const { dictionary } = useOptionalDashboard();
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
   const { resolved, loading, fetchError, firstRow } = useDashletPgrest(
@@ -96,41 +102,23 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       })}`
     : `${unit}${resolved.value}`;
 
-  const displayValue = isHidden ? "••••••" : formattedValue;
-
   return (
-    <div className="flex h-full flex-col justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-          {title}
-        </p>
-        <button
-          type="button"
-          onClick={() => setIsHidden(!isHidden)}
-          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-          aria-label={isHidden ? "Show value" : "Hide value"}
-        >
-          {isHidden ? (
-            <HiEye className="h-5 w-5" />
-          ) : (
-            <HiEyeSlash className="h-5 w-5" />
-          )}
-        </button>
-      </div>
-
-      <p
-        className={`mt-2 text-3xl font-bold transition-all ${
-          isHidden
-            ? "text-gray-400 dark:text-gray-500"
-            : getValueTextClasses(thresholdColor, appliesTo)
-        }`}
-      >
-        {displayValue}
-      </p>
-
-      {isHidden && (
-        <p className="mt-2 text-xs text-gray-400">Click eye icon to reveal</p>
-      )}
-    </div>
+    <SensitiveStat
+      resetKey={widget.id}
+      title={title}
+      value={formattedValue}
+      sensitive={isSensitive}
+      showLabel={tr("dashboard.settings.showSensitiveValue", dictionary)}
+      hideLabel={tr("dashboard.settings.hideSensitiveValue", dictionary)}
+      hint={tr("dashboard.settings.revealSensitiveValue", dictionary)}
+      showIcon={<HiEye />}
+      hideIcon={<HiEyeSlash />}
+      valueClassName={getValueTextClasses(thresholdColor, appliesTo)}
+      valueStyle={
+        thresholdColor && appliesTo("text")
+          ? getThresholdTextStyle(thresholdColor)
+          : undefined
+      }
+    />
   );
 }

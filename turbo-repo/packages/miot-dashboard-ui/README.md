@@ -1164,3 +1164,22 @@ six-digit RGB colors are accepted. Background colors retain 80% opacity.
 at `/`, unsafe schemes are rejected, and edit mode disables links. Hosts remain
 responsible for destination authorization. Loading/error states clear content
 and navigation. Legacy direct-query bindings display the migration label.
+
+### Sensitive statistic
+
+`SensitiveStat` from `./react` displays a resolved string `value` under `title`.
+It defaults to masked; `sensitive: false` starts visible. Required `showLabel`
+and `hideLabel` localize the native toggle; optional `hint`, `showIcon` and
+`hideIcon` customize its presentation. Each instance has distinct accessible
+control identifiers. Masked values are not included in the rendered card DOM.
+
+Changing `resetKey`, title, value or sensitive mode resets disclosure. Hosts
+must change `resetKey` when switching document, tenant or session (or unmount
+the dashboard). Optional `valueClassName` and trusted React `valueStyle` apply
+only to the revealed value, allowing host threshold styles. Import the scoped
+stylesheet for light/dark styles.
+
+This is visual privacy, not authorization or encryption: the host already has
+the value in memory. Enforce permissions on the server before sending data.
+Next.js retains its data, formatting and threshold providers and supplies
+translated reveal labels through this shared renderer.

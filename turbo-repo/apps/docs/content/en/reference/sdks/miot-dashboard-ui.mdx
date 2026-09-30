@@ -76,6 +76,8 @@ The icon statistic renderer supports horizontal and stacked text layouts, contai
 
 The portable icon registry binds templates to static or saved-query values, applies color rules and supports safe viewer links. Hosts can provide formatting, icons and sanitized rich descriptions without adding framework dependencies.
 
+The shared sensitive statistic masks values until reveal and resets disclosure when its data or identity changes. Hosts supply translated controls; masking is visual privacy and does not replace server authorization.
+
 ## Security boundary
 
 The server enforces tenant, scope and document permissions. Never put signing keys, database credentials or service-account keys in browser configuration. The example proxy allows only its configured read operations; it is a private demo access gate, not production SSO.

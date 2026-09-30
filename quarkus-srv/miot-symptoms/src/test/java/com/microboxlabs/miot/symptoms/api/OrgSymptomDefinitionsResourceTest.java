@@ -11,11 +11,14 @@ import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.PublishR
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.RollbackRequest;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.StateRequest;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
+import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
+import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.smallrye.mutiny.Uni;
@@ -35,6 +38,7 @@ class OrgSymptomDefinitionsResourceTest {
     private static final Duration WAIT = Duration.ofSeconds(5);
 
     private SymptomCatalogService catalog;
+    private DataSourceService sources;
     private String id;
 
     /** Owners pass; everyone else gets 403, as the real service does. */
@@ -55,8 +59,8 @@ class OrgSymptomDefinitionsResourceTest {
     @BeforeEach
     void setUp() {
         InMemoryCatalog store = new InMemoryCatalog();
-        store.upsert(Specs.gpsSignal());
-        catalog = new SymptomCatalogService(store, store, new AuditService(new InMemoryAuditStore()));
+        sources = new DataSourceService(store, new DemoSymptomEngine());
+        catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
         id = catalog.create("tenant-a", "owner@example.com", new CreateRequest("speeding", "Exceso", null, null, null,
                 "gps_signal", null, Specs.speeding())).definition().id().toString();
     }
@@ -67,7 +71,8 @@ class OrgSymptomDefinitionsResourceTest {
         org.setUserEmail(owner ? "owner@example.com" : "member@example.com");
         TenantContext tenant = new TenantContext();
         tenant.setTenantCode("tenant-a");
-        return new OrgSymptomDefinitionsResource(tenant, org, new Roles(owner), null, catalog);
+        return new OrgSymptomDefinitionsResource(tenant, org, new Roles(owner), null, catalog,
+                new PreviewService(catalog, sources));
     }
 
     private static int status(Uni<Response> call) {
@@ -79,6 +84,7 @@ class OrgSymptomDefinitionsResourceTest {
         OrgSymptomDefinitionsResource member = resource(false);
         assertEquals(200, status(member.list(ORG)));
         assertEquals(200, status(member.get(ORG, id)));
+        assertEquals(200, status(member.preview(ORG, id, null)));
 
         List<Supplier<Uni<Response>>> writes = List.of(
                 () -> member.create(ORG, new CreateRequest("other", "Otro", null, null, null, "gps_signal", null, null)),

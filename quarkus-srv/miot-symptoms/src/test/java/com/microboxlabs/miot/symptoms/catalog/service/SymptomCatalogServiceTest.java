@@ -11,6 +11,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomDetail;
+import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import java.util.List;
@@ -33,7 +34,8 @@ class SymptomCatalogServiceTest {
         catalog = new InMemoryCatalog();
         catalog.upsert(Specs.gpsSignal());
         audit = new AuditService(new InMemoryAuditStore());
-        service = new SymptomCatalogService(catalog, catalog, audit);
+        service = new SymptomCatalogService(catalog, new DataSourceService(catalog, new UnavailableSymptomEngine()),
+                audit);
     }
 
     private UUID speeding() {
@@ -157,6 +159,13 @@ class SymptomCatalogServiceTest {
         assertThrows(IllegalStateException.class, this::speeding);
         assertEquals(List.of("symptom.created"), audit.list(TENANT, "symptom", null, null, null, 10).stream()
                 .map(e -> e.action()).toList());
+    }
+
+    @Test
+    void anEmptySpecMeansTheDraft() {
+        UUID id = speeding();
+
+        assertTrue(service.validate(TENANT, id, new SymptomSpec(null, null, null, null, null, null)).publishable());
     }
 
     @Test

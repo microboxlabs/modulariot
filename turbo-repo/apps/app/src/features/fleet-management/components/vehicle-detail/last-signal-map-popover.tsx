@@ -18,6 +18,7 @@ import {
   HiOutlineCheck,
 } from "react-icons/hi2";
 import MapVisualization from "@/features/map-visualization/map-visualization";
+import { zoomToVehicle } from "@/features/map-visualization/map-view-utils";
 import { PinLayer } from "@/features/geographic-view/components/layers/pin_layer";
 import { tr } from "@/features/i18n/tr.service";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -116,6 +117,12 @@ function PopoverMapView({
             timestamp: new Date().toISOString(),
           },
         ],
+        onClick: () => {
+          if (mapRef.current) {
+            zoomToVehicle(mapRef.current, [longitude, latitude]);
+          }
+          return true;
+        },
       }),
     ],
     [latitude, longitude]

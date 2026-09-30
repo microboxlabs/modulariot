@@ -867,3 +867,24 @@ Outside pointer interaction or moving keyboard focus outside closes the editor
 without stealing focus. Closing cancels pending debounced changes. The panel
 repositions on resize/scroll and bounds itself to the viewport. The portal
 container lets hosts retain their chosen DOM styling boundary.
+
+### Table and list actions
+
+The `./core` entry exports `ActionItem`, `ActionsConfig`, `RowAction`, target and
+method constants, `normalizeActionsConfig`, `normalizeRowActions`, and editor ID
+round-trip helpers (`toActionItems`/`fromActionItems`,
+`toRowActionItems`/`fromRowActionItems`). Normalizers accept own action fields,
+`_self`/`_blank` targets and the `goto` row method. Malformed config containers use
+the caller's trusted fallback; malformed table entries are omitted independently.
+Structurally valid draft links (including empty or unsafe text) stay editable.
+Row positions are preserved: malformed rows become empty, non-navigable drafts,
+so a secondary action never replaces the primary left-click slot. Normalization
+does not authorize navigation; renderers must validate resolved links.
+
+`isSafeActionUrl(link)` allows HTTP(S), mailto, tel and relative links. It rejects
+empty and other protocol destinations, including executable schemes obfuscated
+with browser-stripped ASCII whitespace. Validate the resolved Handlebars result
+again immediately before displaying a link or navigating. This function checks
+protocol safety, not destination authorization or hostname syntax. Hosts can
+apply stricter origin policy and must use `noopener noreferrer` for new tabs.
+The helpers do not navigate, open windows or call a server.

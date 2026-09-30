@@ -34,3 +34,6 @@ export {
 export { resolveDataProperty } from "./core/resolve-data-property";
 
 export { getDefaultOperator, type ColumnFilter, type FilterOperator, type ColumnDataType, type FilterableColumn } from "./core/column-filter-types";
+
+export { ACTION_TARGETS, ROW_ACTION_METHODS, type ActionTarget, type ActionItem, type ActionsConfig, type RowActionMethod, type RowAction } from "./core/action-types";
+export { toActionItems, fromActionItems, isSafeActionUrl, normalizeActionsConfig, toRowActionItems, fromRowActionItems, normalizeRowActions, type ActionItemWithId, type RowActionItemWithId } from "./core/action-helpers";

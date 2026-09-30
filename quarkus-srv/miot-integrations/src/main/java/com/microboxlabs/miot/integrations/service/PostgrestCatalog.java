@@ -31,7 +31,7 @@ public class PostgrestCatalog {
     static final int MAX_IMPORT = 200;
     private static final int MAX_TEXT = 2048;
     private static final String SELECT = "select";
-    private static final Pattern FUNCTION_NAME = Pattern.compile("[A-Za-z_][A-Za-z0-9_]{0,62}");
+    private static final Pattern FUNCTION_NAME = Pattern.compile("[A-Za-z_]\\w{0,62}");
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final IntegrationConnectionRepository connections;
@@ -105,15 +105,14 @@ public class PostgrestCatalog {
             if (function == null) {
                 throw new IllegalArgumentException("Unknown function: " + (selection == null ? null : selection.name()));
             }
-            if (!seen.add(function.name())) continue;
             IntegrationOperation current = byPath.get(function.path());
-            if (current != null) {
+            if (seen.add(function.name()) && current == null) {
+                created.add(operations.create(new IntegrationOperation(UUID.randomUUID().toString(), connectionId,
+                        function.name(), "GET", function.path(), requestSchema(function, selection.pinned()),
+                        Map.of(), false)));
+            } else if (current != null && !existing.contains(current)) {
                 existing.add(current);
-                continue;
             }
-            created.add(operations.create(new IntegrationOperation(UUID.randomUUID().toString(), connectionId,
-                    function.name(), "GET", function.path(), requestSchema(function, selection.pinned()), Map.of(),
-                    false)));
         }
         return new ImportResult(created, existing);
     }
@@ -160,16 +159,20 @@ public class PostgrestCatalog {
             if (!FUNCTION_NAME.matcher(name).matches() || !get.isObject()) return;
             List<Parameter> parameters = new ArrayList<>();
             for (JsonNode parameter : get.path("parameters")) {
-                if (!"query".equals(parameter.path("in").asText()) || !parameter.hasNonNull("name")) continue;
-                String parameterName = parameter.path("name").asText();
-                if (!FUNCTION_NAME.matcher(parameterName).matches()) continue;
-                parameters.add(new Parameter(parameterName, parameter.path("type").asText(null),
-                        parameter.path("format").asText(null), parameter.path("required").asBoolean(false)));
+                if (isQueryParameter(parameter)) {
+                    parameters.add(new Parameter(parameter.path("name").asText(), parameter.path("type").asText(null),
+                            parameter.path("format").asText(null), parameter.path("required").asBoolean(false)));
+                }
             }
             String description = get.path("summary").asText(get.path("description").asText(null));
             functions.put(name, new Function(name, path, description, List.copyOf(parameters), null));
         });
         return functions;
+    }
+
+    private static boolean isQueryParameter(JsonNode parameter) {
+        return "query".equals(parameter.path("in").asText()) && parameter.hasNonNull("name")
+                && FUNCTION_NAME.matcher(parameter.path("name").asText()).matches();
     }
 
     private JsonNode spec(IntegrationConnection connection) {

@@ -52,6 +52,7 @@ import java.util.function.Supplier;
 @Authenticated
 @IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
 public class OrgIntegrationConnectionsResource {
+    private static final String ERROR = "error";
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
@@ -141,7 +142,7 @@ public class OrgIntegrationConnectionsResource {
                 // A connection still backing review bindings cannot be removed without orphaning them.
                 return Response.status(Response.Status.CONFLICT)
                         .type(MediaType.APPLICATION_JSON)
-                        .entity(Map.of("error", e.getMessage()))
+                        .entity(Map.of(ERROR, e.getMessage()))
                         .build();
             }
         });
@@ -222,7 +223,7 @@ public class OrgIntegrationConnectionsResource {
     }
 
     private static Response error(Response.Status status, String message) {
-        return Response.status(status).type(MediaType.APPLICATION_JSON).entity(Map.of("error", message)).build();
+        return Response.status(status).type(MediaType.APPLICATION_JSON).entity(Map.of(ERROR, message)).build();
     }
 
     /**
@@ -242,7 +243,7 @@ public class OrgIntegrationConnectionsResource {
         if (!Objects.equals(organizationId, organizationContext.getOrganizationId())) {
             throw new WebApplicationException(Response.status(Response.Status.FORBIDDEN)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(Map.of("error", "Organization context does not match request path"))
+                    .entity(Map.of(ERROR, "Organization context does not match request path"))
                     .build());
         }
         return tenantContext.getTenantCode() != null ? tenantContext.getTenantCode() : tenantContext.getClientId();

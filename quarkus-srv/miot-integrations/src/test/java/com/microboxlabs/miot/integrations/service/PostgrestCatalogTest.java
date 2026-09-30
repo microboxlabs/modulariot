@@ -81,13 +81,13 @@ class PostgrestCatalogTest {
 
     @Test
     void refusesUnknownFunctionsPinsAndNonPostgrestConnections() {
-        assertThrows(IllegalArgumentException.class, () -> catalog.importFunctions("ACME", "c1",
-                new PostgrestCatalog.ImportRequest(List.of(new PostgrestCatalog.Selection("fn_write", null)))));
-        assertThrows(IllegalArgumentException.class, () -> catalog.importFunctions("ACME", "c1",
-                new PostgrestCatalog.ImportRequest(List.of(
-                        new PostgrestCatalog.Selection("fn_summary", Map.of("p_other", "x"))))));
-        assertThrows(IllegalArgumentException.class, () -> catalog.importFunctions("ACME", "c1",
-                new PostgrestCatalog.ImportRequest(List.of())));
+        var postOnly = new PostgrestCatalog.ImportRequest(List.of(new PostgrestCatalog.Selection("fn_write", null)));
+        var unknownPin = new PostgrestCatalog.ImportRequest(List.of(
+                new PostgrestCatalog.Selection("fn_summary", Map.of("p_other", "x"))));
+        var empty = new PostgrestCatalog.ImportRequest(List.of());
+        assertThrows(IllegalArgumentException.class, () -> catalog.importFunctions("ACME", "c1", postOnly));
+        assertThrows(IllegalArgumentException.class, () -> catalog.importFunctions("ACME", "c1", unknownPin));
+        assertThrows(IllegalArgumentException.class, () -> catalog.importFunctions("ACME", "c1", empty));
         assertThrows(ConnectionResolutionException.class, () -> catalog.functions("ACME", "missing"));
         provider = ProviderType.CUSTOM_HTTP;
         assertThrows(IllegalArgumentException.class, () -> catalog.functions("ACME", "c1"));

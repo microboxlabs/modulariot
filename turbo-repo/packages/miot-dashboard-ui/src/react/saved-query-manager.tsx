@@ -116,7 +116,10 @@ export function SavedQueryManager({
         </button>
       )}
       {pendingRemove && editable && (
-        <div role="group" aria-label={labels.confirmRemove}>
+        <fieldset
+          className="miot-query-manager__confirm"
+          aria-label={labels.confirmRemove}
+        >
           <p>{labels.confirmRemove}</p>
           <button type="button" onClick={remove}>
             {labels.confirmRemove}
@@ -124,7 +127,7 @@ export function SavedQueryManager({
           <button type="button" onClick={() => setPendingRemove(undefined)}>
             {labels.cancel}
           </button>
-        </div>
+        </fieldset>
       )}
       {draft && (
         <section>

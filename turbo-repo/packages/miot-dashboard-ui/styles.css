@@ -700,4 +700,5 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-query-manager button:disabled{opacity:.5;cursor:default}
 .miot-query-manager button:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
 .miot-query-manager section,.miot-query-manager [role="group"]{margin-top:1rem}
+.miot-query-manager__confirm{min-width:0;margin:0;padding:0;border:0}
 :where(.dark,[data-miot-theme="dark"]) .miot-query-manager{--miot-manager-border:#4b5563;color:#f3f4f6}

@@ -29,3 +29,22 @@ it("isolates tab ids and only saves dirty enabled settings", () => {
   view.rerender(<><SettingsPanel {...props} tabs={tabs}/><SettingsPanel {...props} tabs={tabs}/></>);
   const ids=screen.getAllByRole("tab").map(tab=>tab.id);expect(new Set(ids).size).toBe(ids.length);
 });
+it("keeps pointer and mouse presses from reaching ancestor drag handlers", () => {
+  const onMouseDown = vi.fn();
+  const onPointerDown = vi.fn();
+  render(
+    <div onMouseDown={onMouseDown} onPointerDown={onPointerDown}>
+      <SettingsPanel
+        tabs={[{ id: "a", label: "A", content: <input aria-label="Field" /> }]}
+        tabsLabel="Settings"
+        saveLabel="Save"
+        onSave={vi.fn()}
+        isDirty={false}
+      />
+    </div>,
+  );
+  fireEvent.mouseDown(screen.getByLabelText("Field"));
+  fireEvent.pointerDown(screen.getByLabelText("Field"));
+  expect(onMouseDown).not.toHaveBeenCalled();
+  expect(onPointerDown).not.toHaveBeenCalled();
+});

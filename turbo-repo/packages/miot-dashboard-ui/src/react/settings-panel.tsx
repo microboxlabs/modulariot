@@ -1,5 +1,5 @@
 "use client";
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 export interface SettingsPanelTab {
   readonly id: string;
@@ -61,12 +61,21 @@ export function SettingsPanel({
     buttons.current[next]?.focus();
     return true;
   }
+  // Keep grid drag handlers on ancestors from starting inside the panel.
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const stop = (event: Event) => event.stopPropagation();
+    root.addEventListener("pointerdown", stop);
+    root.addEventListener("mousedown", stop);
+    return () => {
+      root.removeEventListener("pointerdown", stop);
+      root.removeEventListener("mousedown", stop);
+    };
+  }, []);
   return (
-    <div
-      className="miot-settings-panel"
-      onPointerDown={(event) => event.stopPropagation()}
-      onMouseDown={(event) => event.stopPropagation()}
-    >
+    <div className="miot-settings-panel" ref={rootRef}>
       {active && (
         <div
           role="tablist"

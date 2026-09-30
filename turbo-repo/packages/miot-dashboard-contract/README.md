@@ -136,7 +136,7 @@ It describes scope-role and credential eligibility, not authorization for a
 particular document. Saving still applies document policy and validation.
 Embed tokens cannot call this endpoint. Use server v0.5.0 or later to serve it.
 
-## Dynamic filter option metadata
+## Dynamic filter option metadata (v0.6.0)
 
 `DashboardFilterParam` includes optional `single: boolean` and
 `optionsSource: { variableName, valueField, labelField? }`. The source references

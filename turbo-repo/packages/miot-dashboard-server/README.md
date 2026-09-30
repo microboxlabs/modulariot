@@ -895,7 +895,7 @@ relied on ignored restrictions must configure trusted claims before upgrading.
 
 For ticket authentication, set `MIOT_DASHBOARD_TICKET_GROUPS_PATH` to the group-array path in the trusted ticket-validation response. JWT group-claim settings do not configure ticket identities. Without the appropriate group source, restricted dashboards remain denied.
 
-### Authoring query catalog
+### Authoring query catalog (v0.6.0)
 
 Pass an optional `queryCatalog: { list({ identity, ref, signal }) }` provider to
 `createDashboardHandler` or `serve`. The provider returns connections shaped as

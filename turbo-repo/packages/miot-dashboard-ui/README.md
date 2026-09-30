@@ -6,9 +6,11 @@ frameworks can use `./embed`, `./web-component` or the self-contained `./browser
 runtime. `./core`, `./client`, `./document` and `./templates` expose the lower-level
 APIs. Import `./styles.css` for the scoped presentation styles.
 
-This workspace version is **unreleased**. The portable catalog includes text,
-percentage, circular and progress statistic registries; it is not yet the complete app
-widget catalog or a complete dashboard authoring interface. Query execution and
+Version 0.1.0 is the first release. It requires
+`@microboxlabs/miot-dashboard-contract` 0.6.0 or later and a dashboard server 0.6.0 or
+later for query catalogs. The portable catalog covers text, statistic, card, table, list
+and chart widgets, plus authoring for settings, saved queries, permissions, filters and
+import/export. Map, file upload and batch import stay host plugins. Query execution and
 authorization remain on the dashboard server.
 
 For a runnable browser host with a private server proxy and real saved-query

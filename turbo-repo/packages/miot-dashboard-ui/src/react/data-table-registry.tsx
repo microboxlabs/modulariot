@@ -113,6 +113,40 @@ function createTableRegistry(
       ) || options.defaultTitle
     );
   }
+  function useActionRenderer(
+    actionConfig: ReturnType<typeof tableWidgetConfig.parse>["actions"],
+  ): DataTableProps["renderActions"] {
+    const actions = useMemo(
+      () => normalizeActionsConfig(actionConfig, { enabled: false, items: [] }),
+      [actionConfig],
+    );
+    const links = useMemo(
+      () =>
+        engine.compileTemplates(
+          actions.items.map((action, index) => ({
+            id: String(index),
+            template: action.link,
+          })),
+        ),
+      [actions],
+    );
+    return actions.enabled && actions.items.length
+      ? (row) => (
+          <ActionDropdown
+            ariaLabel={options.actionsLabel}
+            items={actions.items.flatMap((action, index) => {
+              const href = engine.resolveTemplate(
+                links,
+                String(index),
+                { ...row, row },
+                action.link,
+              );
+              return isSafeActionUrl(href) ? [{ action, href }] : [];
+            })}
+          />
+        )
+      : undefined;
+  }
   function RegisteredDataTable({ widget }: Readonly<WidgetComponentProps>) {
     const parsed = useMemo(
       () => tableWidgetConfig.safeParse(widget.config),
@@ -147,21 +181,7 @@ function createTableRegistry(
       filters.filteredCount,
       { templateEngine: engine },
     );
-    const actions = useMemo(
-      () =>
-        normalizeActionsConfig(config.actions, { enabled: false, items: [] }),
-      [config.actions],
-    );
-    const links = useMemo(
-      () =>
-        engine.compileTemplates(
-          actions.items.map((action, index) => ({
-            id: String(index),
-            template: action.link,
-          })),
-        ),
-      [actions],
-    );
+    const renderActions = useActionRenderer(config.actions);
     const rowActions = useMemo(
       () => normalizeRowActions(config.rowActions),
       [config.rowActions],
@@ -177,23 +197,6 @@ function createTableRegistry(
       [rowActions],
     );
     const title = useTableTitle(config.title, filters.filteredCount);
-    const renderActions: DataTableProps["renderActions"] =
-      actions.enabled && actions.items.length
-        ? (row) => (
-            <ActionDropdown
-              ariaLabel={options.actionsLabel}
-              items={actions.items.flatMap((action, index) => {
-                const href = engine.resolveTemplate(
-                  links,
-                  String(index),
-                  { ...row, row },
-                  action.link,
-                );
-                return isSafeActionUrl(href) ? [{ action, href }] : [];
-              })}
-            />
-          )
-        : undefined;
     const cardLayout = config.cardLayout;
     if (loading) return <output>{options.loadingLabel}</output>;
     if (failed) return <p role="alert">{options.errorLabel}</p>;

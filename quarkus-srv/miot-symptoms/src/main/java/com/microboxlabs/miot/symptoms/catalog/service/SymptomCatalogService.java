@@ -16,6 +16,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -208,6 +210,38 @@ public class SymptomCatalogService {
         audit.log(tenantCode, actor, "symptom.state_changed", ENTITY, id.toString(), null,
                 Map.of("state", state.name()));
         return saved;
+    }
+
+    /** What the tower does at one level of a symptom in force: the version and the level's rule and response. */
+    public record LevelResponse(UUID definitionId, String name, String version, SymptomState state,
+            SymptomSpec.Level level) {
+    }
+
+    /**
+     * The response for a live case, found by the name the engine gives the
+     * symptom (matched against the icon key or the name, ignoring case).
+     * Only symptoms that are on and published count.
+     */
+    public LevelResponse responseFor(String tenantCode, String symptomName, int icu) {
+        if (symptomName == null || symptomName.isBlank()) {
+            throw new IllegalArgumentException("symptom is required");
+        }
+        String wanted = symptomName.trim();
+        // Names and icons are not unique (a duplicate keeps its source's icon), so the pick is fixed:
+        // ACTIVE before TEST, then the most recently changed.
+        SymptomDefinition d = store.listDefinitions(tenantCode).stream()
+                .filter(x -> x.state() != SymptomState.OFF && x.currentVersion() != null)
+                .filter(x -> wanted.equalsIgnoreCase(x.icon()) || wanted.equalsIgnoreCase(x.name()))
+                .min(Comparator.comparing((SymptomDefinition x) -> x.state() == SymptomState.ACTIVE ? 0 : 1)
+                        .thenComparing(SymptomDefinition::updatedAt, Comparator.reverseOrder()))
+                .orElseThrow(() -> new NoSuchElementException("no symptom in force for " + wanted));
+        SymptomVersion v = store.findVersion(tenantCode, d.id(), d.currentVersion())
+                .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + d.currentVersion()));
+        SymptomSpec.Level level = Optional.ofNullable(v.spec().levels()).orElse(List.of()).stream()
+                .filter(l -> l.icu() == icu && l.applies())
+                .findFirst()
+                .orElseThrow(() -> new NoSuchElementException("level " + icu + " does not apply"));
+        return new LevelResponse(d.id(), d.name(), d.currentVersion(), d.state(), level);
     }
 
     /** Differences between two published versions, oldest first. */

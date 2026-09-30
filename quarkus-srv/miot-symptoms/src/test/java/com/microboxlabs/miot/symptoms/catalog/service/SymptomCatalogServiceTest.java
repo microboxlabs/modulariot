@@ -169,6 +169,25 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
+    void theResponseOfALiveCaseComesFromTheVersionInForce() {
+        UUID id = speeding();
+        assertThrows(NoSuchElementException.class, () -> service.responseFor(TENANT, "speed", 4), "off: nothing");
+
+        service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.ACTIVE);
+
+        var response = service.responseFor(TENANT, "SPEED", 4);
+        assertEquals("1.0.0", response.version());
+        assertEquals(2, response.level().response().slaMinutes());
+        assertThrows(NoSuchElementException.class, () -> service.responseFor(TENANT, "other", 4));
+        assertThrows(NoSuchElementException.class, () -> service.responseFor(TENANT, "speed", 5), "no such level");
+
+        UUID copy = service.fork(TENANT, OWNER, id, "1.0.0", "speeding-copy", "Copia").definition().id();
+        service.publish(TENANT, OWNER, copy, "Copia en prueba", null, SymptomState.TEST);
+        assertEquals(id, service.responseFor(TENANT, "speed", 4).definitionId(), "the active one wins over a test copy");
+        assertThrows(NoSuchElementException.class, () -> service.responseFor("tenant-b", "speed", 4));
+    }
+
+    @Test
     void draftSavesAreAudited() {
         UUID id = speeding();
 

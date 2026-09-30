@@ -110,6 +110,16 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     }
 
     @GET
+    @Path("/response")
+    @Operation(operationId = "getSymptomLevelResponse",
+            summary = "The steps, SLA and notices of a symptom in force at one ICU level, by the engine's symptom name")
+    public Uni<Response> levelResponse(@PathParam(ORG) String organizationId, @QueryParam("symptom") String symptom,
+            @QueryParam("icu") int icu) {
+        String tenant = tenantCode(organizationId);
+        return memberWork(() -> Response.ok(catalog.responseFor(tenant, symptom, icu)).build());
+    }
+
+    @GET
     @Path("/{id}")
     @Operation(operationId = "getSymptomDefinition",
             summary = "A symptom with its version in force, its draft and its published versions")

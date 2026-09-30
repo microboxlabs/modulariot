@@ -146,3 +146,5 @@ export { useDashboardPermissions, type DashboardPermissionsOptions } from "./rea
 export { useQueryCatalog, type QueryCatalogOptions } from "./react/use-query-catalog";
 
 export { DashboardGeneralSettings, type DashboardGeneralSettingsProps, type DashboardGeneralSettingsValue } from "./react/dashboard-general-settings";
+
+export { DashboardFilterEditor, type DashboardFilterEditorProps, type DashboardFilterEditorLabels } from "./react/dashboard-filter-editor";

@@ -1616,3 +1616,23 @@ the server and enforce its current capabilities. The settings editor has no auth
 network or storage dependency. Import the package stylesheet for scoped styles;
 `--miot-settings-text`, `--miot-settings-background` and `--miot-settings-border`
 can override its light/dark palette.
+
+### Filter definitions
+
+`DashboardFilterEditor` from `/react` edits a local array of text, date-range and
+select filter definitions, including select option labels/values. Pass `value`,
+translated `labels`, explicit `editable` and a synchronous boolean `onApply`.
+Connect that callback to `useDashboardState().setFilterDefinitions` for validated,
+undoable document updates. Both boundaries reject duplicate keys, collisions with
+date-range `_from`/`_to` keys, prototype keys and duplicate select option values.
+Keys use letters, digits, underscores and hyphens, starting with a letter or
+underscore (128 characters maximum). Labels are required and capped at 256;
+there are at most 100 filters and 500 options per filter.
+
+The editor defaults to read-only and does not fetch option data. It preserves
+existing extension fields while editing base fields; dynamic option providers
+remain host-owned. Changing a filter key does not rewrite saved-query bindings:
+update those bindings deliberately before saving. Deletions are draft changes
+until Apply, then remain undoable in the document; the host owns persistence and
+discard confirmation. Remount on document/session/reload changes. This API does
+not replace the legacy `setFilters` API used by existing integrations.

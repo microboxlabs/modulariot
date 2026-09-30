@@ -13,6 +13,7 @@ import {
 import { validateDashboardConfig, dashboardQueryDefinitionSchema } from "@microboxlabs/miot-dashboard-contract/schema";
 import { getNextPosition } from "../core/get-next-position";
 import { generalSettingsSchema, type DashboardGeneralSettingsValue } from "./general-settings-value";
+import { filterDefinitionsSchema } from "./filter-definitions-value";
 import { useUndoRedo } from "./use-undo-redo";
 
 export type WidgetDefaultResolver = (
@@ -464,6 +465,14 @@ export function useDashboardState(
     [updateConfig],
   );
 
+  const setFilterDefinitions = useCallback((filters: readonly DashboardFilterParam[]): boolean => {
+    if (readOnly) return false;
+    const parsed = filterDefinitionsSchema.safeParse(filters);
+    if (!parsed.success) return false;
+    updateConfig({ filters: parsed.data });
+    return true;
+  }, [readOnly, updateConfig]);
+
   /** Commit valid named queries through the same permission and undo boundary as widgets. */
   const setQueries = useCallback((queries: readonly DashboardQueryDefinition[]): boolean => {
     if (readOnly) return false;
@@ -626,6 +635,7 @@ export function useDashboardState(
     setDashboardName,
     setGeneralSettings,
     setFilters,
+    setFilterDefinitions,
     setQueries,
     setRefreshInterval,
     setOrder,

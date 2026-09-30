@@ -152,3 +152,5 @@ The authenticated organization proxy forwards `query-catalog` to the dashboard s
 `DashboardGeneralSettings` provides an authorized local editor for title, automatic refresh and display order. Connect it to `useDashboardState().setGeneralSettings` to apply one undoable document update, then persist with the host's save action. Labels and permissions are host-owned; invalid or rejected drafts remain visible.
 
 In the Next.js server dashboard workspace, editors open **Dashboard settings** to change title, refresh and order. Apply changes to the draft, then save the dashboard; use undo to restore the previous settings. Closing confirms discarding unapplied fields. Consumers do not see this editor.
+
+`DashboardFilterEditor` authors text, date-range and select filters with static options. Apply through `setFilterDefinitions` for validation and undo; duplicate keys, date-range collisions and duplicate option values are rejected. Dynamic option discovery stays with the host. Renaming a filter requires updating its saved-query bindings separately.

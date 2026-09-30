@@ -720,3 +720,5 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-general-settings :focus-visible{outline:2px solid var(--miot-accent,#2563eb);outline-offset:2px}
 :where(.dark,[data-miot-theme="dark"]) .miot-general-settings{color:var(--miot-settings-text,#f3f4f6)}
 :where(.dark,[data-miot-theme="dark"]) .miot-general-settings :is(input,select){background:var(--miot-settings-background,#374151);border-color:var(--miot-settings-border,#4b5563)}
+.miot-filter-editor .miot-filter-editor__item{margin-bottom:1rem;padding:.75rem;border:1px solid var(--miot-settings-border,#d1d5db);border-radius:.375rem}
+.miot-filter-editor__options,.miot-filter-editor__options>div{display:grid;gap:.5rem}

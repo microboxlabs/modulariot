@@ -21,6 +21,6 @@ public class SelectableAudit {
     }
 
     void onChanged(@Observes SelectableChanged e) {
-        audit.record(e.tenantCode(), e.actor(), e.action(), ENTITY, e.key(), null, e.details());
+        audit.log(e.tenantCode(), e.actor(), e.action(), ENTITY, e.key(), null, e.details());
     }
 }

@@ -21,7 +21,7 @@ public class AuditService {
         this.store = store;
     }
 
-    public AuditEvent record(
+    public AuditEvent log(
             String tenantCode, String actor, String action, String entityType, String entityId,
             Long symptomId, Map<String, Object> details) {
         return store.append(new AuditEvent(

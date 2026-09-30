@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 @ApplicationScoped
 public class ContactService {
 
+    private static final String CONTACT_NOT_FOUND = "contact not found";
+
     static final String ENTITY = "contact";
     /** Full international number: plus sign, then 8 to 15 digits. */
     private static final Pattern E164 = Pattern.compile("^\\+[1-9]\\d{7,14}$");
@@ -46,7 +48,7 @@ public class ContactService {
     }
 
     public ContactView get(String tenantCode, String id) {
-        Contact c = contacts.find(tenantCode, id).orElseThrow(() -> new NoSuchElementException("contact not found"));
+        Contact c = contacts.find(tenantCode, id).orElseThrow(() -> new NoSuchElementException(CONTACT_NOT_FOUND));
         return ContactView.of(c, statsByContact(tenantCode).get(c.id()));
     }
 
@@ -58,7 +60,7 @@ public class ContactService {
                 null, tenantCode, req.name().trim(), trimOrNull(req.role()), normalizePhone(req.phone()),
                 req.methods() == null ? List.of() : req.methods(),
                 req.active() == null || req.active(), trimOrNull(req.notes()), actor, null, null));
-        audit.record(tenantCode, actor, "contact.created", ENTITY, saved.id(), null,
+        audit.log(tenantCode, actor, "contact.created", ENTITY, saved.id(), null,
                 Map.of("name", saved.name(), "role", saved.role() == null ? "" : saved.role()));
         return ContactView.of(saved, null);
     }
@@ -68,7 +70,7 @@ public class ContactService {
             throw new IllegalArgumentException("body is required");
         }
         Contact current = contacts.find(tenantCode, id)
-                .orElseThrow(() -> new NoSuchElementException("contact not found"));
+                .orElseThrow(() -> new NoSuchElementException(CONTACT_NOT_FOUND));
         String name = req.name() == null ? current.name() : req.name().trim();
         if (name.isBlank()) {
             throw new IllegalArgumentException("name must not be blank");
@@ -82,8 +84,8 @@ public class ContactService {
                         req.active() == null ? current.active() : req.active(),
                         req.notes() == null ? current.notes() : trimOrNull(req.notes()),
                         current.createdBy(), current.createdAt(), null))
-                .orElseThrow(() -> new NoSuchElementException("contact not found"));
-        audit.record(tenantCode, actor, "contact.updated", ENTITY, updated.id(), null,
+                .orElseThrow(() -> new NoSuchElementException(CONTACT_NOT_FOUND));
+        audit.log(tenantCode, actor, "contact.updated", ENTITY, updated.id(), null,
                 Map.of("name", updated.name(), "active", updated.active()));
         return ContactView.of(updated, statsByContact(tenantCode).get(updated.id()));
     }
@@ -91,7 +93,7 @@ public class ContactService {
     public boolean delete(String tenantCode, String actor, String id) {
         boolean deleted = contacts.delete(tenantCode, id);
         if (deleted) {
-            audit.record(tenantCode, actor, "contact.deleted", ENTITY, id, null, Map.of());
+            audit.log(tenantCode, actor, "contact.deleted", ENTITY, id, null, Map.of());
         }
         return deleted;
     }

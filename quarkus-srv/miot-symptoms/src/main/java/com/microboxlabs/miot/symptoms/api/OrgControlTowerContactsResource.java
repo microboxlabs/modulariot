@@ -29,7 +29,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
  * The organization's "who to call" list. Any member can read, add and edit
  * contacts (operators add them from the call panel); deleting needs an owner.
  */
-@Path(ControlTowerResourceSupport.BASE_PATH + "/contacts")
+@Path("/api/v1/orgs/{organizationId}/control-tower/contacts")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Control Tower — Contacts", description = "People the tower can call about a symptom, with their call history")

@@ -24,7 +24,7 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /** Who did what, when, through this API. */
-@Path(ControlTowerResourceSupport.BASE_PATH + "/audit")
+@Path("/api/v1/orgs/{organizationId}/control-tower/audit")
 @Produces(MediaType.APPLICATION_JSON)
 @Tag(name = "Control Tower — Audit", description = "Append-only log of every write through the Control Tower API")
 @SecurityRequirement(name = "oidc")

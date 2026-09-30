@@ -125,6 +125,8 @@ value you have confirmed; never emit a literal placeholder.
 | `/harness/learning` | learning workspace, espacio de aprendizaje, train the assistant, entrenar al asistente | Assistant trainers only: teach the assistant facts, rules and procedures, and test them with evaluations | — |
 | `/users/settings/credentials` | credentials, credenciales, API credentials, credenciales API | Reusable organization credentials for data sources, integrations, and jobs | — |
 | `/users/settings/connections` | integration connections, conexiones de integración, integration templates, plantillas de integración, integration types | Integration templates (types) and the connections created from them | — |
+| `/users/settings/symptom-rules` | symptom rules, reglas de síntomas, parametrización de síntomas, symptom settings | Symptom rule settings for the Control Tower | — |
+| `/users/settings/contact-book` | contact book, libreta de contactos, contactos, contacts, directorio | Contacts the Control Tower calls: people, tags and contact channels | — |
 | `/users/settings/selectables` | selectables, seleccionables, option lists, listas de opciones, dropdown options, opciones de selección | Organization option lists that form fields offer: values, labels per language, groups, and system or connection sources | — |
 | `/users/settings/platform` | platform settings, ajustes de plataforma, branding, marca, logo, logotipo, logo por dominio, superusers, superusuarios, platform administrators, administradores de la plataforma | Platform-scope settings: per-domain logos and the superusers who may set them (platform administrators only) | — |
 | `/admin/console/logs` | admin logs, logs, registros (admins only) | Operational logs | — |

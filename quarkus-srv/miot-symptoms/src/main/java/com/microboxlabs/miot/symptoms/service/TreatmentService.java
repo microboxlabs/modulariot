@@ -13,7 +13,6 @@ import com.microboxlabs.miot.symptoms.store.ContactStore;
 import com.microboxlabs.miot.symptoms.store.TreatmentStore;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,7 +61,7 @@ public class TreatmentService {
         Treatment saved = treatments.insert(new Treatment(
                 null, tenantCode, symptomId, blankToNull(req.assetId()), blankToNull(req.tripId()), req.type(),
                 TreatmentStatus.OPEN, actor, null, null, null, null, blankToNull(req.note()), null));
-        audit.record(tenantCode, actor, "treatment.opened", ENTITY, saved.id(), symptomId,
+        audit.log(tenantCode, actor, "treatment.opened", ENTITY, saved.id(), symptomId,
                 Map.of("type", saved.type().name()));
         return new OpenResult(TreatmentView.of(saved, List.of()), true);
     }
@@ -75,18 +74,8 @@ public class TreatmentService {
         if (req.durationSeconds() != null && req.durationSeconds() < 0) {
             throw new IllegalArgumentException("durationSeconds must be >= 0");
         }
-        String contactId = blankToNull(req.contactId());
-        String contactName = blankToNull(req.contactName());
-        String contactRole = blankToNull(req.contactRole());
-        String contactPhone = blankToNull(req.contactPhone());
-        if (contactId != null) {
-            Contact c = contacts.find(tenantCode, contactId)
-                    .orElseThrow(() -> new IllegalArgumentException("contactId not found: " + contactId));
-            contactName = contactName == null ? c.name() : contactName;
-            contactRole = contactRole == null ? c.role() : contactRole;
-            contactPhone = contactPhone == null ? c.phone() : contactPhone;
-        }
-        if (req.kind() == ActionKind.CALL && contactName == null) {
+        CallTarget target = callTarget(tenantCode, req);
+        if (req.kind() == ActionKind.CALL && target.name() == null) {
             throw new IllegalArgumentException("a CALL needs contactId or contactName");
         }
         if ((req.kind() == ActionKind.IGNORE || req.kind() == ActionKind.INVALIDATE)
@@ -94,11 +83,40 @@ public class TreatmentService {
             throw new IllegalArgumentException(req.kind() + " needs an outcomeKey or outcomeLabel (the reason)");
         }
         TreatmentAction saved = treatments.addAction(new TreatmentAction(
-                null, t.id(), tenantCode, 0, req.kind(), contactId, contactName, contactRole, contactPhone,
+                null, t.id(), tenantCode, 0, req.kind(), target.id(), target.name(), target.role(), target.phone(),
                 req.method(), blankToNull(req.outcomeKey()), blankToNull(req.outcomeLabel()), req.answered(),
-                req.durationSeconds(), blankToNull(req.message()), blankToNull(req.note()),
-                req.tags() == null ? List.of() : req.tags().stream().filter(x -> x != null && !x.isBlank()).toList(),
+                req.durationSeconds(), blankToNull(req.message()), blankToNull(req.note()), tags(req.tags()),
                 req.details() == null ? Map.of() : req.details(), actor, null));
+        audit.log(tenantCode, actor, "treatment.action_added", ENTITY, t.id(), t.symptomId(), auditDetails(saved));
+        return saved;
+    }
+
+    /** Who an action is about: the request's fields, completed from the saved contact when one is named. */
+    private record CallTarget(String id, String name, String role, String phone) {
+    }
+
+    private CallTarget callTarget(String tenantCode, AddActionRequest req) {
+        String contactId = blankToNull(req.contactId());
+        CallTarget given = new CallTarget(contactId, blankToNull(req.contactName()), blankToNull(req.contactRole()),
+                blankToNull(req.contactPhone()));
+        if (contactId == null) {
+            return given;
+        }
+        Contact c = contacts.find(tenantCode, contactId)
+                .orElseThrow(() -> new IllegalArgumentException("contactId not found: " + contactId));
+        return new CallTarget(contactId, orElse(given.name(), c.name()), orElse(given.role(), c.role()),
+                orElse(given.phone(), c.phone()));
+    }
+
+    private static String orElse(String value, String fallback) {
+        return value == null ? fallback : value;
+    }
+
+    private static List<String> tags(List<String> tags) {
+        return tags == null ? List.of() : tags.stream().filter(x -> x != null && !x.isBlank()).toList();
+    }
+
+    private static Map<String, Object> auditDetails(TreatmentAction saved) {
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("kind", saved.kind().name());
         details.put("seq", saved.seq());
@@ -108,8 +126,7 @@ public class TreatmentService {
         if (saved.outcomeLabel() != null) {
             details.put("outcome", saved.outcomeLabel());
         }
-        audit.record(tenantCode, actor, "treatment.action_added", ENTITY, t.id(), t.symptomId(), details);
-        return saved;
+        return details;
     }
 
     public TreatmentView close(String tenantCode, String actor, String treatmentId, CloseTreatmentRequest req) {
@@ -122,7 +139,7 @@ public class TreatmentService {
         Treatment closed = treatments.transition(tenantCode, t.id(), TreatmentStatus.CLOSED, actor,
                         blankToNull(body.resolution()), blankToNull(body.note()))
                 .orElseThrow(() -> new IllegalStateException("treatment is no longer open"));
-        audit.record(tenantCode, actor, "treatment.closed", ENTITY, closed.id(), closed.symptomId(), Map.of(
+        audit.log(tenantCode, actor, "treatment.closed", ENTITY, closed.id(), closed.symptomId(), Map.of(
                 "resolution", closed.resolution() == null ? "" : closed.resolution(),
                 "actions", actions.size()));
         return TreatmentView.of(closed, actions);
@@ -134,7 +151,7 @@ public class TreatmentService {
         Treatment cancelled = treatments.transition(
                         tenantCode, t.id(), TreatmentStatus.CANCELLED, actor, "cancelled", blankToNull(reason))
                 .orElseThrow(() -> new IllegalStateException("treatment is no longer open"));
-        audit.record(tenantCode, actor, "treatment.cancelled", ENTITY, cancelled.id(), cancelled.symptomId(),
+        audit.log(tenantCode, actor, "treatment.cancelled", ENTITY, cancelled.id(), cancelled.symptomId(),
                 Map.of("reason", reason == null ? "" : reason));
         return view(tenantCode, cancelled);
     }
@@ -152,11 +169,9 @@ public class TreatmentService {
                 .listActions(tenantCode, episodes.stream().map(Treatment::id).toList())
                 .stream()
                 .collect(Collectors.groupingBy(TreatmentAction::treatmentId));
-        List<TreatmentView> views = new ArrayList<>();
-        for (Treatment t : episodes) {
-            views.add(TreatmentView.of(t, actionsById.getOrDefault(t.id(), List.of())));
-        }
-        return views;
+        return episodes.stream()
+                .map(t -> TreatmentView.of(t, actionsById.getOrDefault(t.id(), List.of())))
+                .toList();
     }
 
     public record OpenResult(TreatmentView treatment, boolean created) {

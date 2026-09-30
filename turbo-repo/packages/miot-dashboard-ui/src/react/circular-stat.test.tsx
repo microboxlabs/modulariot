@@ -20,7 +20,7 @@ it.each([
 ])("bounds accessible progress for %s/%s", (value, max, expected) => {
   const view = render(<CircularStat {...labels} value={value} max={max} />);
   const gauge = screen.getByRole("progressbar", { name: "Storage" });
-  expect(gauge.getAttribute("aria-valuenow")).toBe(String(expected));
+  expect(gauge.getAttribute("value")).toBe(String(expected));
   expect(gauge.getAttribute("aria-valuetext")).toBe("67 GB; de 100 GB");
   expect(
     Number(
@@ -49,7 +49,7 @@ it("preserves host formatting as text and rejects non-hex colors", () => {
   view.rerender(
     <CircularStat {...labels} value={10} max={100} ringColor="abc" />,
   );
-  expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
+  expect(screen.getByRole("progressbar").getAttribute("value")).toBe(
     "10",
   );
   expect(

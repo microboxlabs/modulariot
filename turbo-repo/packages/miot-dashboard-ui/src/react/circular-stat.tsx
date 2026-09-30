@@ -34,15 +34,9 @@ export function CircularStat({
   return (
     <div className="miot-circular-stat">
       <p className="miot-circular-stat__title">{title}</p>
-      <div
-        className="miot-circular-stat__gauge"
-        role="progressbar"
-        aria-label={title}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={progress}
-        aria-valuetext={`${valueLabel} ${unit}; ${totalLabel}`}
-      >
+      <div className="miot-circular-stat__gauge">
+        <progress className="miot-circular-stat__accessible-progress" aria-label={title}
+          max={100} value={progress} aria-valuetext={`${valueLabel} ${unit}; ${totalLabel}`} />
         <svg width={100} height={100} viewBox="0 0 100 100" aria-hidden="true">
           <circle
             className="miot-circular-stat__track"

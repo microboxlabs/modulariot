@@ -318,3 +318,8 @@
 :where(.dark, [data-miot-theme="dark"]) .miot-circular-stat__value span,
 :where(.dark, [data-miot-theme="dark"]) .miot-circular-stat__total { color: var(--miot-card-muted, #9ca3af); }
 :where(.dark, [data-miot-theme="dark"]) .miot-circular-stat__track { stroke: var(--miot-progress-track, #374151); }
+
+.miot-circular-stat__accessible-progress {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}

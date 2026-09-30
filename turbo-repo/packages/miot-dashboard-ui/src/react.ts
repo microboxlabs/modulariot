@@ -106,3 +106,5 @@ export { SensitiveStat, type SensitiveStatProps } from "./react/sensitive-stat";
 
 export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "./react/sensitive-stat-registry";
 export { StackedStat, type StackedStatProps, type StackedStatItem } from "./react/stacked-stat";
+
+export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./react/stacked-stat-registry";

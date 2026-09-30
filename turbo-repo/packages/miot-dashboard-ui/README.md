@@ -1234,3 +1234,17 @@ Areas use positive finite values only; negative values remain in the legend,
 and nonfinite values display as zero. Empty/all-zero data renders a neutral
 track. Normalizing by the largest value avoids overflow for very large totals.
 Import the package stylesheet for scoped light/dark rendering.
+
+`createStackedStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_stacked`. Required options are `defaultTitle`, `defaultUnit`,
+`loadingLabel`, `errorLabel`, `unsupportedDataLabel` and `emptyLabel`; optional
+`formatValue(number)` and `templateEngine` customize formatting and templates.
+
+Saved `items` contain string `label`, string/number `value` and optional string
+`color`. Labels and values resolve against static JSON or the first row of the
+named planner result, including the `row` alias. This also enables templates
+for static configurations. Colors accept an optional leading `#`; the renderer
+validates the resulting RGB. Invalid item entries are skipped and an empty list
+shows `emptyLabel`. `showHeader` defaults to true and `chartType` defaults to
+`bar`; `donut` selects the ring. Loading and errors remove stale segments.
+Legacy direct queries display the migration label.

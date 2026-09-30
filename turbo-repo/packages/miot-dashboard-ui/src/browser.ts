@@ -17,3 +17,5 @@ export { createStatusStatRegistry, type StatusStatRegistryOptions } from "./embe
 export { createIconStatRegistry, type IconStatRegistryOptions } from "./embed";
 
 export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "./embed";
+
+export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./embed";

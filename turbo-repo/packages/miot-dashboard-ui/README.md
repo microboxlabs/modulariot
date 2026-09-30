@@ -600,3 +600,19 @@ host-owned engine for custom helpers. Its compiled templates are scoped to each
 widget and refreshed when text changes. Output is always rendered as text.
 The template compiler retains the CSP requirements of `./templates`; this API
 does not claim precompiled-template support. Settings are not advertised yet.
+
+The `./embed` and self-contained `./browser` entries also export
+`createTextCardRegistry`. Import it from the same runtime as `mountDashboard`,
+then pass the registry and optional `savedQueries` to the mount. Plain HTML hosts
+can render supported text-card configurations without implementing a React widget
+or installing React. This explicitly registered first entry includes the
+Handlebars compiler and its CSP requirements; it does not automatically migrate
+legacy direct-query configurations or provide other widget types/settings.
+
+Native mount options can include `filterController` with `definitions`, `values`
+and `onChange`. Its values drive both template `filter` namespaces and saved-query
+parameters. Hosts apply requested changes by calling `update` with new controlled
+values. Without a controller, `savedQueries.filters` supplies read-only filter
+values to widgets and queries; widget filter changes are ignored. Removing a
+controller restores those fallback values. Provider boundaries remain stable
+across updates, preserving widget-local state for the same `instanceKey`.

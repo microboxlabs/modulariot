@@ -121,8 +121,28 @@ public final class SpecValidator {
     }
 
     private static void response(List<Finding> out, String section, SymptomSpec.Response response) {
-        if (response != null && response.operator() && (response.slaMinutes() == null || response.slaMinutes() <= 0)) {
+        if (response == null) {
+            return;
+        }
+        if (response.operator() && (response.slaMinutes() == null || response.slaMinutes() <= 0)) {
             out.add(new Finding(section, Severity.ERROR, "Si interviene un operador, el nivel necesita un SLA.", -1));
+        }
+        steps(out, section, response.steps());
+    }
+
+    /** Each step says whom to contact and has minutes; the script is optional. */
+    private static void steps(List<Finding> out, String section, List<SymptomSpec.Step> steps) {
+        if (steps == null) {
+            return;
+        }
+        for (int i = 0; i < steps.size(); i++) {
+            SymptomSpec.Step step = steps.get(i);
+            if (step.role() == null || step.role().isBlank()) {
+                out.add(new Finding(section, Severity.ERROR, "El paso " + (i + 1) + " no dice a quién contactar.", -1));
+            }
+            if (step.budgetMinutes() == null || step.budgetMinutes() <= 0) {
+                out.add(new Finding(section, Severity.ERROR, "El paso " + (i + 1) + " necesita minutos.", -1));
+            }
         }
     }
 

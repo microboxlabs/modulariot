@@ -70,7 +70,8 @@ public record SymptomSpec(
     /**
      * One step of the operator's ladder.
      *
-     * @param role          who to contact, a {@code who_to_call} value
+     * @param role          who to contact, as the operator reads it (for example "Conductor"); free text,
+     *                      like a contact's role
      * @param channel       call, whatsapp, teams, email
      * @param budgetMinutes time for this step within the SLA
      * @param script        what to say; may use case fields as {@code {{ }}} variables

@@ -129,3 +129,6 @@ export { ChartCard, type ChartCardProps } from "./react/chart-card";
 export { ChartEngineView, type ChartEngine, type ChartEngineViewProps } from "./react/chart-engine";
 
 export { SettingsPanel, type SettingsPanelProps, type SettingsPanelTab } from "./react/settings-panel";
+
+export { useSettingsDirty } from "./react/use-settings-dirty";
+export { DirtySettingsProvider, useDirtySettings, type DirtySettingsContextValue, type DirtySettingsProviderProps } from "./react/dirty-settings-context";

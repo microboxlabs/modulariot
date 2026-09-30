@@ -118,3 +118,5 @@ The current Handlebars compiler requires `unsafe-eval` in script CSP. Evaluate t
 [Full API reference](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-ui/README.md) · [Dashboard server](/en/operations/dashboard-server) · [Shared contract](/en/reference/sdks/miot-dashboard-contract)
 
 `SettingsPanel` from `/react` provides keyboard-accessible settings tabs, a host footer and a save action gated by `isDirty` and `disabled`. The host supplies translated labels and owns validation, permissions, persistence and dismissal.
+
+`useSettingsDirty`, `DirtySettingsProvider` and `useDirtySettings` share unsaved form state without app dependencies. Use one provider per form and unregister save callbacks on unmount; dismissal and confirmation remain host responsibilities.

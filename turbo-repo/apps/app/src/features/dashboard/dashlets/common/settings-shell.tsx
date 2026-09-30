@@ -167,6 +167,7 @@ function SettingsShellContent({
   const { isDirty, registerSaveAndClose } = useDirtySettings();
   useEffect(() => {
     registerSaveAndClose(onSave);
+    return () => registerSaveAndClose(undefined);
   }, [onSave, registerSaveAndClose]);
   return (
     <SettingsPanel

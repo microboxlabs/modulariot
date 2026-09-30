@@ -1522,3 +1522,5 @@ checked for unresolved imports and can be imported without a DOM.
 ### Portable settings panel
 
 `SettingsPanel` from `/react` renders host-supplied settings tabs (or a single pane), footer and save action. Supply translated `tabsLabel` and `saveLabel`, `isDirty`, and `onSave`; `disabled` blocks saving during persistence or when the host lacks editing authority. Tab navigation supports arrows, Home and End, with instance-local accessible IDs. The host owns form state, permission checks, validation, persistence, dialogs and dismissal. Import the package stylesheet.
+
+`useSettingsDirty(isOpen, snapshot)` compares JSON-serializable form fields against the baseline captured after opening effects settle. Keep one `DirtySettingsProvider` per form/editor instance; `useDirtySettings()` exposes the form's dirty state and current save-and-close callback. Register the callback in an effect and clear it with `registerSaveAndClose(undefined)` on cleanup. Hosts remain responsible for unsaved-change confirmation and successful-save dismissal. Snapshots must be acyclic JSON data; property order affects equality.

@@ -6,10 +6,11 @@ import {
   type Widget,
   type DashboardStorageSchema,
   type DashboardFilterParam,
+  type DashboardQueryDefinition,
   type PlannerRequestDefinition,
   type RefreshInterval,
 } from "@microboxlabs/miot-dashboard-contract/document";
-import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
+import { validateDashboardConfig, dashboardQueryDefinitionSchema } from "@microboxlabs/miot-dashboard-contract/schema";
 import { getNextPosition } from "../core/get-next-position";
 import { useUndoRedo } from "./use-undo-redo";
 
@@ -454,6 +455,18 @@ export function useDashboardState(
     [updateConfig],
   );
 
+  /** Commit valid named queries through the same permission and undo boundary as widgets. */
+  const setQueries = useCallback((queries: readonly DashboardQueryDefinition[]): boolean => {
+    if (readOnly) return false;
+    const parsed = dashboardQueryDefinitionSchema.array().max(50).safeParse(queries);
+    if (!parsed.success) return false;
+    const ids = new Set(parsed.data.map(query => query.id));
+    const names = new Set(parsed.data.map(query => query.variableName));
+    if (ids.size !== parsed.data.length || names.size !== parsed.data.length) return false;
+    updateConfig({ queries: parsed.data });
+    return true;
+  }, [readOnly, updateConfig]);
+
   const setRefreshInterval = useCallback(
     (refreshInterval: RefreshInterval) => {
       updateConfig({ refreshInterval });
@@ -586,6 +599,7 @@ export function useDashboardState(
   return {
     widgets: resolvedConfig.widgets,
     filters: resolvedConfig.filters ?? [],
+    queries: resolvedConfig.queries ?? [],
     plannerDefinitions: resolvedConfig.requestPlanner ?? [],
     preferences: { editMode },
     dashboardName: resolvedConfig.name,
@@ -602,6 +616,7 @@ export function useDashboardState(
     setEditMode,
     setDashboardName,
     setFilters,
+    setQueries,
     setRefreshInterval,
     setOrder,
     setAllowedGroups,

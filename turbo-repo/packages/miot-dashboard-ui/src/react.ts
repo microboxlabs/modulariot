@@ -127,3 +127,14 @@ export { createInfoCardRegistry, type InfoCardRegistryOptions } from "./react/in
 export { ChartCard, type ChartCardProps } from "./react/chart-card";
 
 export { ChartEngineView, type ChartEngine, type ChartEngineViewProps } from "./react/chart-engine";
+
+export { SettingsPanel, type SettingsPanelProps, type SettingsPanelTab } from "./react/settings-panel";
+
+export { useSettingsDirty } from "./react/use-settings-dirty";
+export { DirtySettingsProvider, useDirtySettings, type DirtySettingsContextValue, type DirtySettingsProviderProps } from "./react/dirty-settings-context";
+
+export { QueryBindingSelector, type QueryBindingSelectorProps, type QueryBindingOption } from "./react/query-binding-selector";
+
+export { SavedQueryEditor, type SavedQueryEditorProps, type SavedQueryEditorLabels, type QueryConnectionOption, type QueryOperationOption } from "./react/saved-query-editor";
+
+export { SavedQueryManager, type SavedQueryManagerProps } from "./react/saved-query-manager";

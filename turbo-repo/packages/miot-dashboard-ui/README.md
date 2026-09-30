@@ -1518,3 +1518,21 @@ and `createChartRegistry` from `./browser-charts`. Mixing independently bundled
 browser runtimes can duplicate React and provider contexts. The default browser
 bundle remains available for hosts that do not need charts. Both artifacts are
 checked for unresolved imports and can be imported without a DOM.
+
+### Portable settings panel
+
+`SettingsPanel` from `/react` renders host-supplied settings tabs (or a single pane), footer and save action. Supply translated `tabsLabel` and `saveLabel`, `isDirty`, and `onSave`; `disabled` blocks saving during persistence or when the host lacks editing authority. Tab navigation supports arrows, Home and End, with instance-local accessible IDs. The host owns form state, permission checks, validation, persistence, dialogs and dismissal. Import the package stylesheet.
+
+`useSettingsDirty(isOpen, snapshot)` compares JSON-serializable form fields against the baseline captured after opening effects settle. Keep one `DirtySettingsProvider` per form/editor instance; `useDirtySettings()` exposes the form's dirty state and current save-and-close callback. Register the callback in an effect and clear it with `registerSaveAndClose(undefined)` on cleanup. Hosts remain responsible for unsaved-change confirmation and successful-save dismissal. Snapshots must be acyclic JSON data; property order affects equality.
+
+### Named query binding selector
+
+`QueryBindingSelector` from `/react` accepts host-discovered `options` (`id`, unique `variableName`, optional `schema`), a controlled `value` and `onChange`. Provide translated labels (`label`, `placeholder`, `emptyLabel`, `columnsLabel`, `unavailableLabel`) and optional `schemaHint`. It displays available columns and calls `onSchemaDetected` with a copy when the user selects a known result. Removed bindings remain visible as unavailable until the user chooses a replacement. `disabled` supports read-only hosts. This selector performs no discovery, credential access or queries; the host supplies authorized metadata. It can use saved-query or legacy planner definitions through adapters.
+
+### Saved query authoring
+
+`SavedQueryEditor` from `/react` edits a `DashboardQueryDefinition` against host-provided `connections` and their approved `operations`. Supply translated `labels`, `existingQueries` for duplicate-name checks and `onSave` to update the host document draft. It defaults to read-only; pass `editable` only from host capabilities. Parameters use shared-contract JSON literal/filter bindings. Switching a connection or operation clears stale parameters and response schema. Invalid or unavailable operations cannot be saved. The host owns catalog discovery, credentials, server authorization and document persistence/ETags. Remount with a new React `key` when changing query, dashboard or identity. This component does not issue network requests.
+
+`useDashboardState` exposes `queries` and `setQueries(definitions)` for saved-query authoring with shared undo/redo. Updates return `false` for read-only/unloaded hosts, invalid definitions, duplicate IDs/names or more than 50 queries; accepted definitions are parsed into independent draft data. Catalog authorization and server persistence remain host responsibilities.
+
+`SavedQueryManager` composes the editor with a controlled query list, add/edit actions and an explicit removal confirmation. Pass `queries`, approved `connections`, translated labels and `onChange={state.setQueries}`; returning `false` preserves the draft and displays the host-rejection message. Write controls require `editable`. Mount with a new host session/document key on identity changes. Closing or selecting another query discards the local editor draft; changes reach the document only through Save. Hosts handle persisted document conflicts and catalog refresh.

@@ -662,3 +662,43 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 :where(.dark,[data-miot-theme="dark"]) .miot-chart-card { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
 
 .miot-chart-engine { width:100%; height:100%; min-width:0; min-height:0; }
+
+.miot-settings-panel{display:flex;flex:1;flex-direction:column;min-height:0;color:var(--miot-text,#111827);background:var(--miot-surface,#fff)}
+.miot-settings-panel__tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--miot-border,#e5e7eb)}
+.miot-settings-panel__tabs button{padding:.75rem 1rem;border:0;border-bottom:2px solid transparent;background:transparent;color:inherit;cursor:pointer}
+.miot-settings-panel__tabs button[aria-selected="true"]{border-bottom-color:var(--miot-accent,#2563eb);color:var(--miot-accent,#2563eb)}
+.miot-settings-panel button:focus-visible{outline:2px solid var(--miot-accent,#2563eb);outline-offset:2px}
+.miot-settings-panel__content{flex:1;min-height:0;overflow:auto;padding:1rem}
+.miot-settings-panel__footer{padding:.75rem 1rem;border-top:1px solid var(--miot-border,#e5e7eb)}
+.miot-settings-panel__footer>button{width:100%;margin-top:.5rem;padding:.5rem 1rem;border:0;border-radius:.375rem;color:#fff;background:var(--miot-accent,#2563eb);cursor:pointer}
+.miot-settings-panel__footer>button:disabled{opacity:.5;cursor:default}
+:where(.dark,[data-miot-theme="dark"]) .miot-settings-panel{--miot-text:#f3f4f6;--miot-surface:#111827;--miot-border:#374151;--miot-accent:#3b82f6}
+
+.miot-query-binding{color:var(--miot-binding-text,#111827)}
+.miot-query-binding>label{display:block;margin-bottom:.25rem;font-size:.875rem;font-weight:500}
+.miot-query-binding>select{box-sizing:border-box;width:100%;padding:.5rem;border:1px solid var(--miot-binding-border,#d1d5db);border-radius:.375rem;background:var(--miot-binding-background,#f9fafb);color:inherit;font:inherit}
+.miot-query-binding>select:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+.miot-query-binding__schema{margin-top:.5rem;padding:.5rem;border:1px solid var(--miot-binding-border,#d1d5db);border-radius:.25rem;background:var(--miot-binding-background,#f9fafb);font-size:.75rem}
+.miot-query-binding__schema p{margin:.25rem 0}
+.miot-query-binding__schema ul{display:flex;flex-wrap:wrap;gap:.25rem;padding:0;margin:.25rem 0;list-style:none}
+.miot-query-binding__schema li{padding:.125rem .375rem;border-radius:.25rem;background:var(--miot-binding-badge,#dbeafe)}
+:where(.dark,[data-miot-theme="dark"]) .miot-query-binding{--miot-binding-text:#f3f4f6;--miot-binding-border:#4b5563;--miot-binding-background:#374151;--miot-binding-badge:#1e3a8a}
+
+.miot-saved-query-editor{color:var(--miot-query-text,#111827)}
+.miot-saved-query-editor fieldset{display:grid;gap:.5rem;padding:0;border:0;min-width:0}
+.miot-saved-query-editor input,.miot-saved-query-editor select,.miot-saved-query-editor textarea{box-sizing:border-box;max-width:100%;padding:.5rem;border:1px solid var(--miot-query-border,#d1d5db);border-radius:.375rem;color:inherit;background:var(--miot-query-background,#fff);font:inherit}
+.miot-saved-query-editor label{font-weight:500;font-size:.875rem}
+.miot-saved-query-editor p{margin:.25rem 0;font-size:.875rem}
+.miot-saved-query-editor button{padding:.5rem 1rem;border:0;border-radius:.375rem;color:#fff;background:#2563eb;cursor:pointer}
+.miot-saved-query-editor fieldset:disabled{opacity:.65}
+.miot-saved-query-editor :focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+:where(.dark,[data-miot-theme="dark"]) .miot-saved-query-editor{--miot-query-text:#f3f4f6;--miot-query-border:#4b5563;--miot-query-background:#374151}
+
+.miot-query-manager>ul{list-style:none;margin:0 0 1rem;padding:0}
+.miot-query-manager>ul>li{display:flex;gap:.5rem;align-items:center;padding:.25rem 0}
+.miot-query-manager button{font:inherit;padding:.375rem .75rem;border:1px solid var(--miot-manager-border,#d1d5db);border-radius:.375rem;color:inherit;background:transparent;cursor:pointer}
+.miot-query-manager button:disabled{opacity:.5;cursor:default}
+.miot-query-manager button:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+.miot-query-manager section,.miot-query-manager [role="group"]{margin-top:1rem}
+.miot-query-manager__confirm{min-width:0;margin:0;padding:0;border:0}
+:where(.dark,[data-miot-theme="dark"]) .miot-query-manager{--miot-manager-border:#4b5563;color:#f3f4f6}

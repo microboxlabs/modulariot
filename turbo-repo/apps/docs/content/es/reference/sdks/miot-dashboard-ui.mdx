@@ -128,3 +128,5 @@ El compilador actual de Handlebars requiere `unsafe-eval` en la CSP de scripts. 
 `useDashboardState().setQueries` valida las consultas guardadas y la unicidad de sus identificadores y nombres, y actualiza el documento controlado mediante sus permisos e historial de deshacer/rehacer. Devuelve false si la actualización no está permitida o es inválida.
 
 `SavedQueryManager` integra selección, creación, edición y eliminación confirmada de consultas controladas. Conecte su callback booleano `onChange` a `useDashboardState().setQueries`; un rechazo del anfitrión conserva el borrador. Los controles de escritura requieren permiso explícito de edición.
+
+`PermissionAssignmentEditor` edita un borrador controlado de permisos con identidades autorizadas por el anfitrión y roles del contrato compartido. Es de solo lectura por defecto, conserva identidades ausentes del catálogo y evita agregar duplicados. El anfitrión controla el guardado explícito mediante el cliente de permisos, la actualización de capacidades y el aislamiento de sesión; la autorización del servidor sigue siendo obligatoria.

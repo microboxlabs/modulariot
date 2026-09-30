@@ -128,3 +128,5 @@ The current Handlebars compiler requires `unsafe-eval` in script CSP. Evaluate t
 `useDashboardState().setQueries` validates saved-query definitions and unique IDs/names, then updates the controlled document through its permission and undo/redo boundary. It returns false when denied or invalid.
 
 `SavedQueryManager` composes controlled query selection, creation, editing and confirmed removal. Connect its boolean `onChange` to `useDashboardState().setQueries`; host rejection retains the draft. Write controls require explicit editing permission.
+
+`PermissionAssignmentEditor` edits a controlled permission draft using host-authorized identities and shared-contract roles. It defaults to read-only, preserves identities missing from discovery and prevents duplicate additions. The host owns explicit saving through the permissions client, capability refresh and session isolation; server authorization remains mandatory.

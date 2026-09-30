@@ -1536,3 +1536,26 @@ checked for unresolved imports and can be imported without a DOM.
 `useDashboardState` exposes `queries` and `setQueries(definitions)` for saved-query authoring with shared undo/redo. Updates return `false` for read-only/unloaded hosts, invalid definitions, duplicate IDs/names or more than 50 queries; accepted definitions are parsed into independent draft data. Catalog authorization and server persistence remain host responsibilities.
 
 `SavedQueryManager` composes the editor with a controlled query list, add/edit actions and an explicit removal confirmation. Pass `queries`, approved `connections`, translated labels and `onChange={state.setQueries}`; returning `false` preserves the draft and displays the host-rejection message. Write controls require `editable`. Mount with a new host session/document key on identity changes. Closing or selecting another query discards the local editor draft; changes reach the document only through Save. Hosts handle persisted document conflicts and catalog refresh.
+
+### Permission assignment drafts
+
+`PermissionAssignmentEditor` from `/react` edits a controlled `assignments` array
+of `{ authorityId, role }`. Pass `authorities` containing only host-authorized
+`{ id, label }` discovery results, and `onChange` to update your local draft.
+Existing identities absent from discovery remain visible by ID and are preserved;
+new assignments must come from the supplied catalog and cannot duplicate an ID.
+All four roles come from the shared contract, with host-translated `labels.roles`.
+
+It defaults to read-only. Derive `editable` from the server's
+`canManagePermissions` capability and set `disabled` while loading or saving.
+The server remains the authorization boundary. Role changes and removal only edit
+the draft; provide an explicit host Save action (and confirmation if needed) that
+calls `client.setPermissions(slug, draft, signal)`. That API replaces the complete
+assignment list: first load `client.permissions`, preserve all assignments and
+reload after saving. It does not provide an ETag conflict guarantee. Handle denied
+writes and refresh capabilities; do not report success before the request resolves.
+Remount the host editor on document/session changes and cancel outstanding requests.
+
+Required `labels`: `authority`, `role`, `choose`, `add`, `remove`, `empty`, plus
+`roles: Record<DashboardRole, string>`. Import the package stylesheet. The editor
+performs no identity lookup or network requests and has no Alfresco dependency.

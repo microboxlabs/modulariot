@@ -702,3 +702,12 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-query-manager section,.miot-query-manager [role="group"]{margin-top:1rem}
 .miot-query-manager__confirm{min-width:0;margin:0;padding:0;border:0}
 :where(.dark,[data-miot-theme="dark"]) .miot-query-manager{--miot-manager-border:#4b5563;color:#f3f4f6}
+
+.miot-permission-editor{color:var(--miot-permission-text,#111827)}
+.miot-permission-editor ul{list-style:none;margin:0 0 1rem;padding:0}
+.miot-permission-editor li{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;margin:.5rem 0}
+.miot-permission-editor fieldset{display:grid;gap:.5rem;border:0;padding:0;min-width:0}
+.miot-permission-editor select,.miot-permission-editor button{font:inherit;color:inherit;background:var(--miot-permission-background,#fff);border:1px solid var(--miot-permission-border,#d1d5db);border-radius:.375rem;padding:.5rem;max-width:100%}
+.miot-permission-editor :disabled{opacity:.6}
+.miot-permission-editor :focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+:where(.dark,[data-miot-theme="dark"]) .miot-permission-editor{--miot-permission-text:#f3f4f6;--miot-permission-background:#374151;--miot-permission-border:#4b5563}

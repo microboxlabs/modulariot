@@ -2206,7 +2206,14 @@
           "privateKeyPlaceholder": "-----BEGIN PRIVATE KEY-----\n…\n-----END PRIVATE KEY-----",
           "privateKeyEditPlaceholder": "Déjala en blanco para mantener la clave actual",
           "privateKeyHelp": "El campo private_key del archivo de clave, con o sin los saltos de línea escapados. Se guarda cifrada y nunca se devuelve.",
-          "googleScopeHelp": "Vacío significa solo lectura de BigQuery. Cambia el scope solo si la cuenta necesita otra API de Google."
+          "googleScopeHelp": "Vacío significa solo lectura de BigQuery. Cambia el scope solo si la cuenta necesita otra API de Google.",
+          "bearerAddTitle": "Nuevo token Bearer",
+          "bearerEditTitle": "Editar token Bearer",
+          "bearerSubtitle": "Un token de larga duración que se envía como Authorization: Bearer.",
+          "token": "Token",
+          "tokenPlaceholder": "Pega el token",
+          "tokenEditPlaceholder": "Déjalo en blanco para mantener el token actual",
+          "tokenHelp": "Sin el prefijo \"Bearer\". Se guarda cifrado y nunca se devuelve."
         },
         "delete": {
           "title": "¿Eliminar esta credencial?",
@@ -2243,7 +2250,8 @@
           "auth0AudienceRequired": "La audiencia de la API es obligatoria en Auth0",
           "clientEmailRequired": "El correo de la cuenta de servicio es obligatorio",
           "clientEmailInvalid": "Ingresa el correo de la cuenta de servicio",
-          "privateKeyRequired": "La clave privada es obligatoria"
+          "privateKeyRequired": "La clave privada es obligatoria",
+          "tokenRequired": "El token es obligatorio"
         }
       },
       "selectables": {

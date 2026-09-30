@@ -2206,7 +2206,14 @@
           "privateKeyPlaceholder": "-----BEGIN PRIVATE KEY-----\n…\n-----END PRIVATE KEY-----",
           "privateKeyEditPlaceholder": "Leave blank to keep the current key",
           "privateKeyHelp": "The key file's private_key, with or without escaped line breaks. Stored encrypted and never returned.",
-          "googleScopeHelp": "Blank means BigQuery read-only. Change the scope only if the account needs another Google API."
+          "googleScopeHelp": "Blank means BigQuery read-only. Change the scope only if the account needs another Google API.",
+          "bearerAddTitle": "New bearer token",
+          "bearerEditTitle": "Edit bearer token",
+          "bearerSubtitle": "A long-lived token sent as Authorization: Bearer.",
+          "token": "Token",
+          "tokenPlaceholder": "Paste the token",
+          "tokenEditPlaceholder": "Leave blank to keep the current token",
+          "tokenHelp": "Without the \"Bearer\" prefix. Stored encrypted and never returned."
         },
         "delete": {
           "title": "Delete this credential?",
@@ -2243,7 +2250,8 @@
           "auth0AudienceRequired": "API audience is required for Auth0",
           "clientEmailRequired": "Service account email is required",
           "clientEmailInvalid": "Enter the service account's email",
-          "privateKeyRequired": "Private key is required"
+          "privateKeyRequired": "Private key is required",
+          "tokenRequired": "Token is required"
         }
       },
       "selectables": {

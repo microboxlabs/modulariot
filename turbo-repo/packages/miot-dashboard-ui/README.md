@@ -666,3 +666,18 @@ ordering; nonempty valid rules remain active for legacy compatibility. Invalid
 operators are ignored. Displayed progress is clamped, and the renderer validates
 hex colors. Default value/max are 6/10; unresolved numeric values fall back to
 0/10. Browser hosts import this factory from the same runtime as their mount.
+
+## Built-in circular statistic registry
+
+`createCircularStatRegistry` from `./react`, `./embed` or `./browser` supplies
+`stat_circular` with static or saved/planner-query bindings. Pass localized
+`defaultTitle`, `defaultUnit`, loading/error/unsupported labels and
+`formatTotal(max, unit)` returning a complete localized footer. The optional
+`templateEngine` supports isolated custom helpers.
+
+The widget resolves title, value, maxValue and unit, including data-provider and
+filter namespaces. It accepts old numeric configuration values, preserves the
+resolved value label, and clamps the accessible progress. Ring rules retain the
+circular widget's historical mixed-operator ordering; same-direction numeric
+thresholds prefer the strongest match. Only hex ring colors reach styling.
+The registry does not provide settings or execute legacy direct queries.

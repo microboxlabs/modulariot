@@ -60,3 +60,5 @@ export { createTextCardRegistry, type TextCardRegistryOptions } from "./react/te
 export { TextCardFields, type TextCardFieldsProps, type TextCardFieldValue } from "./react/text-card-fields";
 
 export { createPercentageValueRegistry, type PercentageValueRegistryOptions } from "./react/percentage-value-registry";
+
+export { createCircularStatRegistry, type CircularStatRegistryOptions } from "./react/circular-stat-registry";

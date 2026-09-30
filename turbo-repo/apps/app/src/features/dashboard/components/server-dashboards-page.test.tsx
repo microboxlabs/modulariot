@@ -90,6 +90,7 @@ const dictionary = {
       loading: "Loading",
       loadError: "Dashboard unavailable",
       unsaved: "Unsaved changes",
+      saving: "Saving…",
       create: "Create dashboard",
       slug: "Dashboard identifier",
       newName: "New dashboard",
@@ -252,19 +253,18 @@ describe("parallel dashboard pages", () => {
       )
     ).toBe(true);
   });
-  it("saves Editor changes with the loaded revision", async () => {
+  it("saves Editor changes on its own with the loaded revision", async () => {
     state.canEdit = true;
     show("fleet");
     await screen.findByText("Widget canvas");
-    expect(
-      screen.queryByRole("button", { name: "Save" })
-    ).not.toBeInTheDocument();
     act(() =>
       state.storage!.onChange({ ...state.storage!.config, name: "Changed" })
     );
-    fireEvent.click(await screen.findByRole("button", { name: "Save" }));
-    await waitFor(() =>
-      expect(screen.queryByText("Unsaved changes")).not.toBeInTheDocument()
+    expect(await screen.findByText("Saving…")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
+    await waitFor(
+      () => expect(screen.queryByText("Saving…")).not.toBeInTheDocument(),
+      { timeout: 4000 }
     );
     const write = fetcher.mock.calls.find(([, init]) => init?.method === "PUT");
     expect(write?.[0]).toBe("/app/api/dashboards/fleet?org=acme");

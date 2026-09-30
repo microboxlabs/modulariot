@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import { useRouter } from "next/navigation";
 import useSWR, { SWRConfig } from "swr";
+import { useDashboardAutosave } from "@microboxlabs/miot-dashboard-ui/react";
 import { useSession } from "next-auth/react";
 import { Button, TextInput } from "flowbite-react";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
@@ -180,6 +181,11 @@ function ServerDashboardEditor({
   const [permissionsOpen, setPermissionsOpen] = useState(false);
   const [removeError, setRemoveError] = useState(false);
   useUnsavedNavigation(document.dirty, t("leave"));
+  useDashboardAutosave({
+    ...document,
+    enabled:
+      document.capabilities?.canEdit === true && !document.readOnly && !removing,
+  });
   async function reload() {
     if (!document.dirty || globalThis.confirm(t("discard")))
       await document.discardAndReload();
@@ -225,26 +231,20 @@ function ServerDashboardEditor({
     onManagePermissions: () => setPermissionsOpen(true),
     onDelete: document.capabilities?.canDelete ? remove : undefined,
   };
+  // Changes save on their own; a failed save keeps the draft and offers a reload.
   const headerActions = document.dirty && (
     <div className="flex items-center gap-2">
       <output className="text-sm text-gray-500 dark:text-gray-400">
-        {t("unsaved")}
+        {t(document.error ? "unsaved" : "saving")}
       </output>
-      <Button
-        size="sm"
-        color="light"
-        disabled={document.busy || removing}
-        onClick={() => void reload()}
-      >
-        {t("reload")}
-      </Button>
-      {document.capabilities?.canEdit && (
+      {document.error !== null && (
         <Button
           size="sm"
-          disabled={document.readOnly || removing}
-          onClick={() => void document.save()}
+          color="light"
+          disabled={document.busy || removing}
+          onClick={() => void reload()}
         >
-          {t("save")}
+          {t("reload")}
         </Button>
       )}
     </div>

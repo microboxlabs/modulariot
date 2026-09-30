@@ -58,13 +58,11 @@ public final class RuleLanguage {
         }
         CelValidationResult result = cel(schema).compile(expression);
         if (result.hasError()) {
-            List<RuleIssue> issues = new ArrayList<>();
-            for (CelIssue issue : result.getAllIssues()) {
-                if (issue.getSeverity() == CelIssue.Severity.ERROR) {
-                    issues.add(new RuleIssue(offset(expression, issue), RuleMessages.plain(issue.getMessage()),
-                            issue.getMessage()));
-                }
-            }
+            List<RuleIssue> issues = result.getAllIssues().stream()
+                    .filter(issue -> issue.getSeverity() == CelIssue.Severity.ERROR)
+                    .map(issue -> new RuleIssue(offset(expression, issue), RuleMessages.plain(issue.getMessage()),
+                            issue.getMessage()))
+                    .toList();
             return RuleCheck.failed(issues);
         }
         CelType type = resultType(result);
@@ -115,15 +113,12 @@ public final class RuleLanguage {
     @SuppressWarnings("unchecked")
     static Map<String, Object> doubles(Map<String, Object> values) {
         Map<String, Object> out = new LinkedHashMap<>();
-        values.forEach((k, v) -> {
-            if (v instanceof Map<?, ?> m) {
-                out.put(k, doubles((Map<String, Object>) m));
-            } else if (v instanceof Number n && !(v instanceof Double)) {
-                out.put(k, n.doubleValue());
-            } else {
-                out.put(k, v);
-            }
-        });
+        values.forEach((k, v) -> out.put(k, switch (v) {
+            case Map<?, ?> m -> doubles((Map<String, Object>) m);
+            case Double d -> d;
+            case Number n -> n.doubleValue();
+            case null, default -> v;
+        }));
         return out;
     }
 

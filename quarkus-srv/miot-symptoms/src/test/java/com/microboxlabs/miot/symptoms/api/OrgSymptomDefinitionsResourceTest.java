@@ -23,6 +23,7 @@ import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.groups.UniAwait;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
@@ -98,8 +99,8 @@ class OrgSymptomDefinitionsResourceTest {
                 () -> member.setState(ORG, id, new StateRequest(SymptomState.OFF)),
                 () -> member.importEngine(ORG));
         for (Supplier<Uni<Response>> write : writes) {
-            Uni<Response> call = write.get();
-            assertThrows(ForbiddenException.class, () -> call.await().atMost(WAIT));
+            UniAwait<Response> call = write.get().await();
+            assertThrows(ForbiddenException.class, () -> call.atMost(WAIT));
         }
     }
 

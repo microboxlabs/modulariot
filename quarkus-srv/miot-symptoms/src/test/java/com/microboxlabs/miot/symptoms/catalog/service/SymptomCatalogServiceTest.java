@@ -144,17 +144,17 @@ class SymptomCatalogServiceTest {
         UUID id = speeding();
 
         assertThrows(NoSuchElementException.class, () -> service.get("tenant-b", id));
-        assertThrows(NoSuchElementException.class,
-                () -> service.saveDraft("tenant-b", OWNER, id, Specs.speeding()));
+        SymptomSpec spec = Specs.speeding();
+        assertThrows(NoSuchElementException.class, () -> service.saveDraft("tenant-b", OWNER, id, spec));
         assertTrue(service.list("tenant-b").isEmpty());
     }
 
     @Test
     void creatingNeedsAValidKeyAndAKnownSource() {
-        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER,
-                new CreateRequest("Bad Key", "x", null, null, null, "gps_signal", null, null)));
-        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER,
-                new CreateRequest("ok-key", "x", null, null, null, "nope", null, null)));
+        CreateRequest badKey = new CreateRequest("Bad Key", "x", null, null, null, "gps_signal", null, null);
+        CreateRequest unknownSource = new CreateRequest("ok-key", "x", null, null, null, "nope", null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER, badKey));
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER, unknownSource));
         speeding();
         assertThrows(IllegalStateException.class, this::speeding);
         assertEquals(List.of("symptom.created"), audit.list(TENANT, "symptom", null, null, null, 10).stream()

@@ -4421,7 +4421,21 @@
     "call_center_new_name_placeholder": "Who are you calling?",
     "call_center_new_call_only": "Just call",
     "call_center_new_call_and_save": "Call and save to the contact book",
-    "call_center_add_query": "Add “{query}”"
+    "call_center_add_query": "Add “{query}”",
+    "ladder": {
+      "title": "Escalation",
+      "anyone": "Anyone",
+      "say": "What to say",
+      "dueIn": "Current step: {time} left",
+      "skip": "Skip step",
+      "skipReason": "Why it is skipped",
+      "skipConfirm": "Skip",
+      "channelCall": "Call",
+      "channelWhatsapp": "WhatsApp",
+      "channelTeams": "Teams",
+      "channelEmail": "Email",
+      "dueStep": "Step {n}: {role}"
+    }
   },
   "geographic_view": {
     "speed": "Speed",

@@ -20,6 +20,7 @@
  * duration.
  */
 
+import EscalationLadderCard from "./escalation-ladder-card";
 import { useEffect, useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
@@ -193,14 +194,22 @@ export default function PrototypeCallCenterFlow({
 
   return (
     <>
-      {step === "contacts" && (
-        <CallCenterMenu
-          dict={dict}
-          treatmentData={treatmentData}
-          onCall={handleCall}
-          recentCallTimes={recentCallTimes}
-        />
-      )}
+      {/* Mounted for the whole panel, so its timing and skipped steps survive a call. */}
+      <div
+        className={
+          step === "contacts" ? "flex min-h-0 w-full flex-1 flex-col" : "hidden"
+        }
+      >
+        <EscalationLadderCard dict={dict} treatmentData={treatmentData} />
+        {step === "contacts" && (
+          <CallCenterMenu
+            dict={dict}
+            treatmentData={treatmentData}
+            onCall={handleCall}
+            recentCallTimes={recentCallTimes}
+          />
+        )}
+      </div>
 
       {step === "dialing" && (
         <CallDialingStep

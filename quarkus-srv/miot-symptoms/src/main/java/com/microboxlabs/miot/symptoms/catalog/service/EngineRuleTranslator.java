@@ -58,7 +58,14 @@ final class EngineRuleTranslator {
             switch (k) {
                 case "in_trip" -> conditions.add(on ? root + ".trip.active" : "!" + root + ".trip.active");
                 case "double_driver" -> conditions.add(on ? root + ".trip.double_driver" : "!" + root + ".trip.double_driver");
-                case "movement_status" -> conditions.add(on ? "signal.gps.moving" : "!signal.gps.moving");
+                case "movement_status" -> {
+                    // Only the GPS signal says whether the truck moves.
+                    if (GPS.equals(sourceKey)) {
+                        conditions.add(on ? "signal.gps.moving" : "!signal.gps.moving");
+                    } else {
+                        pending.add(k + " = " + v);
+                    }
+                }
                 case "tipo_evento" -> conditions.add("event.type == \"" + v + "\"");
                 case "maxspeed_infraction_osm" -> {
                     measure = "signal.gps.speed_kmh - signal.road.maxspeed_osm";

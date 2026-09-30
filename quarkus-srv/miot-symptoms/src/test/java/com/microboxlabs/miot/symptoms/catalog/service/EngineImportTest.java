@@ -79,6 +79,16 @@ class EngineImportTest {
     }
 
     @Test
+    void movementOnAPeriodicCheckIsLeftForTheOwner() {
+        Translation t = EngineRuleTranslator.translate(rule(13, "Llamada doble conductor", "job",
+                Map.of("in_trip", 1, "double_driver", 1, "movement_status", 1)));
+
+        assertEquals("trip_check", t.sourceKey());
+        assertEquals(List.of("movement_status = 1"), t.pending());
+        assertTrue(check(t, sources).publishable(), () -> check(t, sources).findings().toString());
+    }
+
+    @Test
     void importCreatesOffDraftsOnceAndNeedsAnEngine() {
         InMemoryCatalog store = new InMemoryCatalog();
         DataSourceService withEngine = new DataSourceService(store, new DemoSymptomEngine());

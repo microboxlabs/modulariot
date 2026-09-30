@@ -250,11 +250,9 @@ export default function SymptomCatalog({
           </div>
         </div>
 
-        {importNote && (
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            {importNote}
-          </p>
-        )}
+        <p role="status" aria-live="polite" className="text-sm text-gray-600 dark:text-gray-300">
+          {importNote}
+        </p>
         {error && (
           <p className="text-sm text-red-600 dark:text-red-400">
             {tr("loadFailed", d)}

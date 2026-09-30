@@ -2668,10 +2668,13 @@
       },
       "picker": {
         "title": "New connection",
-        "subtitle": "Choose the template this connection will instance.",
+        "subtitle": "Choose a built-in type or a template.",
         "searchPlaceholder": "Search templates",
         "noMatches": "No template matches that search.",
-        "empty": "No templates yet. Create one first."
+        "empty": "No templates yet.",
+        "native": "Built-in",
+        "templates": "Templates",
+        "postgrest": "Data source for dashboards: tested with its credential, then you choose which functions to expose."
       },
       "validation": {
         "nameRequired": "A name is required",
@@ -2720,8 +2723,27 @@
           "credential": "Credential",
           "noCredential": "No credential",
           "noCredentials": "No credentials. Create them in Settings › Credentials.",
-          "secretNotice": "Secrets live in the credential, not here — this connection only references it."
+          "secretNotice": "Secrets live in the credential, not here — this connection only references it.",
+          "postgrestHelp": "After saving, test it and use Functions to choose which functions dashboards may use.",
+          "postgrestBaseUrlHelp": "The PostgREST root URL, the one that returns its OpenAPI description."
         }
+      },
+      "postgrest": {
+        "functions": "Functions",
+        "title": "Functions of {name}",
+        "subtitle": "Each imported function becomes a read-only operation dashboards can query.",
+        "search": "Search functions",
+        "empty": "PostgREST describes no functions on this connection.",
+        "noMatches": "No function matches the search.",
+        "import": "Import ({count})",
+        "imported": "{count} functions imported",
+        "importedBadge": "Imported",
+        "pinsTitle": "Fixed values",
+        "pinsHelp": "A fixed value is stored in the operation and a dashboard cannot change it, for example a client id. It applies to every selected function that takes that parameter; select (PostgREST's column list) applies to all of them.",
+        "pinParameter": "Parameter",
+        "pinValue": "Value",
+        "addPin": "Add fixed value",
+        "loadFailed": "Could not read the functions. Test the connection."
       }
     },
     "calendar": {

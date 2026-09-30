@@ -2668,10 +2668,13 @@
       },
       "picker": {
         "title": "Nueva conexión",
-        "subtitle": "Elige la plantilla que esta conexión va a instanciar.",
+        "subtitle": "Elige un tipo integrado o una plantilla.",
         "searchPlaceholder": "Buscar plantillas",
         "noMatches": "Ninguna plantilla coincide con la búsqueda.",
-        "empty": "Aún no hay plantillas. Crea una primero."
+        "empty": "Aún no hay plantillas.",
+        "native": "Integradas",
+        "templates": "Plantillas",
+        "postgrest": "Fuente de datos para dashboards: se prueba con su credencial y luego eliges qué funciones exponer."
       },
       "validation": {
         "nameRequired": "El nombre es obligatorio",
@@ -2720,8 +2723,27 @@
           "credential": "Credencial",
           "noCredential": "Sin credencial",
           "noCredentials": "No hay credenciales. Créalas en Ajustes › Credenciales.",
-          "secretNotice": "Los secretos viven en la credencial, no aquí: esta conexión solo la referencia."
+          "secretNotice": "Los secretos viven en la credencial, no aquí: esta conexión solo la referencia.",
+          "postgrestHelp": "Después de guardar, pruébala y usa Funciones para elegir qué funciones pueden usar los dashboards.",
+          "postgrestBaseUrlHelp": "La URL raíz de PostgREST, la que devuelve su descripción OpenAPI."
         }
+      },
+      "postgrest": {
+        "functions": "Funciones",
+        "title": "Funciones de {name}",
+        "subtitle": "Cada función importada queda como una operación de solo lectura que los dashboards pueden consultar.",
+        "search": "Buscar funciones",
+        "empty": "PostgREST no describe funciones en esta conexión.",
+        "noMatches": "Ninguna función coincide con la búsqueda.",
+        "import": "Importar ({count})",
+        "imported": "{count} funciones importadas",
+        "importedBadge": "Importada",
+        "pinsTitle": "Valores fijos",
+        "pinsHelp": "Un valor fijo queda en la operación y un dashboard no puede cambiarlo, por ejemplo el identificador de cliente. Se aplica a cada función seleccionada que tenga ese parámetro; select (lista de columnas de PostgREST) se aplica a todas.",
+        "pinParameter": "Parámetro",
+        "pinValue": "Valor",
+        "addPin": "Agregar valor fijo",
+        "loadFailed": "No se pudieron leer las funciones. Prueba la conexión."
       }
     },
     "calendar": {

@@ -40,7 +40,7 @@ export default defineConfig((options) => {
       ...shared,
       entry: ["src/react.ts", "src/embed.ts", "src/web-component.ts"],
       splitting: false,
-      external: ["react", "react-dom/client"],
+      external: ["react", "react-dom/client", "@microboxlabs/miot-dashboard-ui/document"],
       banner: { js: '"use client";' },
     },
   ];

@@ -35,6 +35,7 @@ export function importProblems(source, file, root = SOURCE) {
       if (isEmbed && ["react", "react-dom/client"].includes(specifier))
         return false;
       if (specifier === "handlebars" && isTemplates) return false;
+      if (isReact && specifier === "@microboxlabs/miot-dashboard-ui/document") return false;
       if (ALLOWED.has(specifier)) return false;
       if (!specifier.startsWith("./") && !specifier.startsWith("../"))
         return true;

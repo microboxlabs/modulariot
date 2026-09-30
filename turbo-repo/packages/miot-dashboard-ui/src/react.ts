@@ -46,3 +46,5 @@ export { DashboardGrid, type DashboardGridProps } from "./react/dashboard-grid";
 export { DashboardCanvas, type DashboardCanvasProps } from "./react/dashboard-canvas";
 
 export { FlexContainer, type FlexContainerProps, type FlexLayout } from "./react/flex-container";
+
+export { useDashboardDocument } from "./react/use-dashboard-document";

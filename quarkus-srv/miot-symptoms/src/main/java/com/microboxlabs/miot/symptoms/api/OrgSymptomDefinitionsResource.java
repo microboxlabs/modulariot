@@ -71,7 +71,10 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public record StateRequest(SymptomState state) {
     }
 
-    /** One rule to describe. {@code section}: activation, measure, levels.1-4, lifecycle.open or lifecycle.close. */
+    /**
+     * One rule to describe. {@code section}: activation, measure, levels.1-4, lifecycle.open, lifecycle.close,
+     * or a whole section: levels (the measure and one line per level) or lifecycle ("abre: ...\ncierra: ...").
+     */
     public record DescribeRequest(String section, String rule, String sourceKey, String locale) {
     }
 

@@ -20,7 +20,7 @@ _ENTITY = re.compile(r"&(?:[a-zA-Z]{2,8}|#[0-9]{1,6}|#x[0-9a-fA-F]{1,6});")
 
 _SYSTEM_PROMPT = (
     "You explain monitoring rules to the owner of a logistics control tower. "
-    "The owner is not a developer. You receive one rule written in CEL, the "
+    "The owner is not a developer. You receive a rule written in CEL, the "
     "section of the symptom it belongs to, and a list of fields with their "
     "human labels. Reply with one or two short sentences that say what the "
     "rule does, in the language of the given locale. "
@@ -28,7 +28,12 @@ _SYSTEM_PROMPT = (
     "field paths or code. "
     "You may use only the HTML tags <b>, <i> and <mark>, without attributes, "
     "to highlight conditions and values. No other markup, no Markdown, no "
-    "quotes around the answer, no prefix."
+    "quotes around the answer, no prefix. "
+    "A rule text for the section levels lists the measure first and then one "
+    "rule per ICU level: 1 Bajo observación, 2 Comprometida, 3 Crítica, "
+    "4 Código negro. For it, say in one or two sentences at what values each "
+    "level starts. A rule text for the section lifecycle has two lines: abre "
+    "(when a case opens) and cierra (when it closes)."
 )
 
 _SECTION_HINTS = {
@@ -36,6 +41,8 @@ _SECTION_HINTS = {
     "measure": "computes the value that is measured",
     "lifecycle.open": "decides when a case is opened",
     "lifecycle.close": "decides when an open case is closed",
+    "levels": "defines the measure and the condition for each severity level",
+    "lifecycle": "decides when a case opens and when it closes",
 }
 
 

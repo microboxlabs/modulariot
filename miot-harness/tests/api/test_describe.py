@@ -92,3 +92,20 @@ def test_sanitizer_keeps_character_references() -> None:
     once = sanitize_description("a &lt;b&gt; & <b>c</b> &amp; d")
     assert once == "a &lt;b&gt; &amp; <b>c</b> &amp; d"
     assert sanitize_description(once) == once
+
+
+def test_describe_accepts_the_whole_levels_section() -> None:
+    model = _StubModel("Nivel 1 desde <b>0 km/h</b> sobre el límite.")
+    app = create_app()
+    rule = "medida = signal.gps.speed_kmh\nnivel 1: medida > 0 && medida < 5"
+    with TestClient(app) as client:
+        app.state.describe_model = model
+        resp = client.post(
+            "/describe",
+            json={"section": "levels", "rule": rule, "fields": {"medida": "valor medido"}},
+        )
+    assert resp.status_code == 200
+    system, prompt = model.prompts[0][0].content, model.prompts[0][1].content
+    assert "4 Código negro" in system
+    assert "Section: levels (this rule defines the measure" in prompt
+    assert rule in prompt

@@ -92,6 +92,51 @@ class RuleDescriptionServiceTest {
     }
 
     @Test
+    void theWholeLevelsSectionIsCachedPerLineAndGetsTheLevelLabels() {
+        RuleDescriptionService service = service();
+        String levels = """
+                medida = signal.gps.speed_kmh - signal.road.maxspeed_osm
+                nivel 1: medida > 0 && medida < 5
+                nivel 4: medida >= 21 && sostenido_s >= 60""";
+        String respaced = """
+
+                  medida =  signal.gps.speed_kmh - signal.road.maxspeed_osm\t
+                nivel 1:   medida > 0 && medida < 5
+
+                nivel 4: medida >= 21   && sostenido_s >= 60
+                """;
+
+        assertFalse(service.describe(TENANT, "levels", levels, "gps_signal", null, CALLER).cached());
+        assertTrue(service.describe(TENANT, "levels", respaced, "gps_signal", null, CALLER).cached());
+        assertFalse(service.describe(TENANT, "levels", levels.replace("< 5", "< 6"), "gps_signal", null, CALLER)
+                .cached());
+
+        assertEquals(2, calls.size());
+        assertEquals("levels", calls.get(0).get("section"));
+        Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
+        assertEquals("Velocidad", fields.get("signal.gps.speed_kmh"));
+        assertEquals("valor medido", fields.get("medida"));
+        assertTrue(fields.containsKey("sostenido_s"));
+        assertFalse(fields.containsKey("caso.nivel"));
+    }
+
+    @Test
+    void theWholeLifecycleSectionIsCachedPerLineAndGetsTheCaseLabels() {
+        RuleDescriptionService service = service();
+        String lifecycle = "abre: caso.condicion_s >= 0\ncierra: caso.normal_s >= 120";
+
+        assertFalse(service.describe(TENANT, "lifecycle", lifecycle, "gps_signal", null, CALLER).cached());
+        assertTrue(service.describe(TENANT, "lifecycle", "  abre:  caso.condicion_s >= 0 \n\ncierra: "
+                + "caso.normal_s  >= 120\n", "gps_signal", null, CALLER).cached());
+
+        assertEquals(1, calls.size());
+        Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
+        assertEquals("segundos desde que volvió a la normalidad", fields.get("caso.normal_s"));
+        assertFalse(fields.containsKey("signal.trip.active"));
+        assertFalse(fields.containsKey("medida"));
+    }
+
+    @Test
     void sanitizesTheHarnessAnswerBeforeSaving() {
         answer = "<b onclick=\"x()\">a</b> <script>alert(1)</script> <i>b</i> <mark>c";
         RuleDescriptionService service = service();

@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 
 /**
@@ -37,8 +38,13 @@ public class RuleDescriptionService {
     static final int MAX_RULE_CHARS = 4_000;
     private static final Duration HARNESS_TIMEOUT = Duration.ofSeconds(20);
 
+    /** Whole sections: several lines of text, not one CEL expression. */
+    static final String LEVELS = "levels";
+    static final String LIFECYCLE = "lifecycle";
+
     private static final Set<String> SECTIONS = Set.of("activation", "measure", "levels.1", "levels.2",
-            "levels.3", "levels.4", "lifecycle.open", "lifecycle.close");
+            "levels.3", "levels.4", "lifecycle.open", "lifecycle.close", LEVELS, LIFECYCLE);
+    private static final Pattern SPACES = Pattern.compile("\\s+");
     private static final Pattern LOCALE = Pattern.compile("[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?");
 
     private static final Map<String, String> LEVEL_LABELS = Map.of(
@@ -117,7 +123,7 @@ public class RuleDescriptionService {
         DataSource source = sources.find(tenantCode, sourceKey)
                 .orElseThrow(() -> new NoSuchElementException("data source not found: " + sourceKey));
 
-        String hash = hash(section, RuleText.canonical(rule), sourceKey);
+        String hash = hash(section, canonical(section, rule), sourceKey);
         var saved = store.find(hash, lang, AUDIENCE);
         if (saved.isPresent()) {
             return new Description(saved.get().html(), true);
@@ -144,17 +150,28 @@ public class RuleDescriptionService {
     /** Field path to label: the source's fields, plus the level or case variables for those sections. */
     static Map<String, String> fields(String section, DataSource source) {
         Map<String, String> out = new LinkedHashMap<>();
-        if (section.startsWith("lifecycle.")) {
+        if (section.equals(LIFECYCLE) || section.startsWith("lifecycle.")) {
             out.putAll(CASE_LABELS);
             return out;
         }
         for (SourceField f : source.fields() == null ? List.<SourceField>of() : source.fields()) {
             out.put(f.path(), f.label() == null || f.label().isBlank() ? f.path() : f.label());
         }
-        if (section.startsWith("levels.")) {
+        if (section.equals(LEVELS) || section.startsWith("levels.")) {
             out.putAll(LEVEL_LABELS);
         }
         return out;
+    }
+
+    /** The rule text used for the cache key. Whole sections are trimmed per line with spaces collapsed. */
+    static String canonical(String section, String rule) {
+        if (!section.equals(LEVELS) && !section.equals(LIFECYCLE)) {
+            return RuleText.canonical(rule);
+        }
+        return rule.lines()
+                .map(line -> SPACES.matcher(line.strip()).replaceAll(" "))
+                .filter(line -> !line.isEmpty())
+                .collect(Collectors.joining("\n"));
     }
 
     static String hash(String section, String canonicalRule, String sourceKey) {

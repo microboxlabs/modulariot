@@ -1585,3 +1585,14 @@ empty authorized catalog. Pass the returned connections to `SavedQueryManager`
 or `SavedQueryEditor`; clear them on session/resource changes, and do not fall
 back to administrative connection or credential endpoints. The server still
 checks operation authorization at execution time.
+
+`useQueryCatalog({ client, slug, sessionKey, enabled? })` from `/react` manages
+that discovery lifecycle. It defaults to disabled; enable it from current editing
+capabilities. It returns `connections`, `loading`, `loaded`, numeric `error`,
+`editorKey` and `reload()`. Catalogs are hidden immediately when the resource,
+client, session or permission changes. Pending requests are aborted and obsolete
+responses ignored, including providers that ignore cancellation. A failed or
+unavailable catalog stays empty until explicit reload; no administrative fallback
+or shared cache is used. Use `loaded` to enable the query editor and `editorKey`
+to reset its local draft after catalog changes. Keep `client` stable and replace
+the non-secret session key on authentication changes.

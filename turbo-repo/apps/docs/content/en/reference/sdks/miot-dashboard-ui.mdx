@@ -140,3 +140,5 @@ The server dashboard page uses the portable permission editor and state hook. Op
 Saving replaces local assignments, then reloads them. Scope grants and dashboard ownership still apply, so removing a local assignment does not revoke those other grants. Reload explicitly after an error, including when a write may have succeeded before its reload failed. Closing or reloading a changed draft asks for confirmation. The Next host uses its authenticated organization-bound proxy; the reusable editor does not depend on that proxy or Alfresco.
 
 `client.queryCatalog(slug, signal)` loads validated, authorized connection/operation metadata for the query editor. It preserves organization routing and cancellation, rejects ambiguous IDs and strips extra fields. Handle unavailable or denied catalogs explicitly; never substitute administrative credential endpoints.
+
+`useQueryCatalog` provides permission-gated catalog loading with session/resource isolation, cancellation and explicit retry. Use its `loaded` state and `editorKey` to gate/reset authoring; disabled or failed discovery never falls back to administrative metadata.

@@ -137,7 +137,7 @@ public class SymptomCatalogService {
 
     public Report validate(String tenantCode, UUID id, SymptomSpec spec) {
         SymptomDefinition d = require(tenantCode, id);
-        SymptomSpec checked = spec != null ? spec : store.findDraft(tenantCode, id).map(SymptomVersion::spec)
+        SymptomSpec checked = spec != null && !spec.isEmpty() ? spec : store.findDraft(tenantCode, id).map(SymptomVersion::spec)
                 .orElseThrow(() -> new NoSuchElementException("no draft to check"));
         return SpecValidator.validate(checked, sources.find(tenantCode, sourceKey(checked, d)).orElse(null));
     }

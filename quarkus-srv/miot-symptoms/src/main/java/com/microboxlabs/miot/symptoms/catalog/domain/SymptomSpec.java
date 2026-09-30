@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.catalog.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 
@@ -24,6 +25,13 @@ public record SymptomSpec(
         List<Level> levels,
         Lifecycle lifecycle,
         Recurrence recurrence) {
+
+    /** True when nothing is set, as when a request body is {@code {}}. */
+    @JsonIgnore
+    public boolean isEmpty() {
+        return source == null && activation == null && measure == null && levels == null && lifecycle == null
+                && recurrence == null;
+    }
 
     /** @param expression CEL over the source object; null for symptoms with a fixed level */
     @JsonIgnoreProperties(ignoreUnknown = true)

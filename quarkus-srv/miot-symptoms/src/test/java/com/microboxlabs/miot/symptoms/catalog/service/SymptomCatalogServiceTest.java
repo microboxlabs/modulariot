@@ -162,6 +162,13 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
+    void anEmptySpecMeansTheDraft() {
+        UUID id = speeding();
+
+        assertTrue(service.validate(TENANT, id, new SymptomSpec(null, null, null, null, null, null)).publishable());
+    }
+
+    @Test
     void draftSavesAreAudited() {
         UUID id = speeding();
 

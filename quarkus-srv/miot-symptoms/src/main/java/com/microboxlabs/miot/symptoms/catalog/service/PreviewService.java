@@ -52,7 +52,7 @@ public class PreviewService {
     /** Previews {@code spec}, or the draft (else the version in force) when it is null. */
     public Preview preview(String tenantCode, UUID id, SymptomSpec spec) {
         SymptomCatalogService.SymptomDetail detail = catalog.get(tenantCode, id);
-        SymptomSpec checked = spec != null ? spec : pick(detail);
+        SymptomSpec checked = spec != null && !spec.isEmpty() ? spec : pick(detail);
         String key = checked.source() == null ? detail.definition().sourceKey() : checked.source();
         DataSource source = sources.get(tenantCode, key);
         return new Preview(source.key(), run(checked, source));

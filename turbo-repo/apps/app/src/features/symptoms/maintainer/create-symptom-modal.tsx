@@ -30,7 +30,7 @@ export function keyFrom(name: string) {
     .replaceAll(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "")
+    .replaceAll(/^-|-$/g, "")
     .slice(0, 95);
 }
 

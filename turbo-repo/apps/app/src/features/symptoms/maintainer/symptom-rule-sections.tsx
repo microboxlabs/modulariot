@@ -166,7 +166,7 @@ function LevelRow({
             />
             {response.operator && (
               <label className="flex items-center gap-1">
-                SLA
+                <span>SLA</span>
                 <input
                   type="number"
                   min={1}
@@ -181,7 +181,7 @@ function LevelRow({
                     })
                   }
                 />
-                min
+                <span>min</span>
               </label>
             )}
           </div>

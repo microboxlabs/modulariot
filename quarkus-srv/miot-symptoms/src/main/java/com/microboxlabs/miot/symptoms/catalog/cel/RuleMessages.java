@@ -32,18 +32,22 @@ final class RuleMessages {
                     ? "No se puede usar «" + m.group(1) + "» con " + left + "."
                     : "No se puede usar «" + m.group(1) + "» entre " + left + " y " + type(m.group(3)) + ".";
         }
-        if ((m = UNDEFINED_FIELD.matcher(message)).find()) {
+        m = UNDEFINED_FIELD.matcher(message);
+        if (m.find()) {
             return "El campo «" + m.group(1) + "» no existe en esta fuente.";
         }
-        if ((m = UNDECLARED.matcher(message)).find()) {
+        m = UNDECLARED.matcher(message);
+        if (m.find()) {
             return "«" + m.group(1) + "» no existe en esta fuente.";
         }
-        if ((m = MISMATCHED.matcher(message)).find()) {
+        m = MISMATCHED.matcher(message);
+        if (m.find()) {
             return "<EOF>".equals(m.group(1))
                     ? "La expresión está incompleta."
                     : "Hay un símbolo inesperado: " + m.group(1) + ".";
         }
-        if ((m = EXTRANEOUS.matcher(message)).find()) {
+        m = EXTRANEOUS.matcher(message);
+        if (m.find()) {
             return "Hay un símbolo inesperado: " + m.group(1) + ".";
         }
         return message;

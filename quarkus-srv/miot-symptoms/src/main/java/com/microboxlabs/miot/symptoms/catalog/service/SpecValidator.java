@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * Checks a spec before it is published. Errors block publishing; warnings
@@ -27,6 +28,7 @@ public final class SpecValidator {
 
     /** Distance from each threshold at which overlaps are tried, on both sides. */
     private static final double NEAR = 0.01;
+    private static final String LEVELS = "levels";
 
     /** Severity of a finding. */
     public enum Severity {
@@ -94,14 +96,14 @@ public final class SpecValidator {
 
     private static void levels(List<Finding> out, RuleSchema schema, List<Level> levels) {
         if (levels == null || levels.stream().noneMatch(Level::applies)) {
-            out.add(new Finding("levels", Severity.ERROR, "Al menos un nivel debe aplicar.", -1));
+            out.add(new Finding(LEVELS, Severity.ERROR, "Al menos un nivel debe aplicar.", -1));
             return;
         }
         Set<Integer> seen = new HashSet<>();
         List<Level> valid = new ArrayList<>();
         for (Level level : levels) {
             if (level.icu() < 1 || level.icu() > 4 || !seen.add(level.icu())) {
-                out.add(new Finding("levels", Severity.ERROR, "Cada nivel va del 1 al 4 y aparece una vez.", -1));
+                out.add(new Finding(LEVELS, Severity.ERROR, "Cada nivel va del 1 al 4 y aparece una vez.", -1));
                 return;
             }
             if (!level.applies()) {
@@ -165,7 +167,7 @@ public final class SpecValidator {
             String a = SpecDiff.LEVEL_NAMES[hits.get(i).icu() - 1];
             String b = SpecDiff.LEVEL_NAMES[hits.get(i + 1).icu() - 1];
             if (reported.add(a + b)) {
-                out.add(new Finding("levels", Severity.ERROR, String.format(
+                out.add(new Finding(LEVELS, Severity.ERROR, String.format(
                         "%s y %s se solapan: con medida %s y %s s sostenidos se cumplen los dos.",
                         a, b, number(measure), number(held)), -1));
             }
@@ -192,7 +194,8 @@ public final class SpecValidator {
         int depth = 0;
         boolean quoted = false;
         int start = 0;
-        for (int i = 0; i < rule.length(); i++) {
+        int i = 0;
+        while (i < rule.length()) {
             char c = rule.charAt(i);
             if (c == '"') {
                 quoted = !quoted;
@@ -205,6 +208,7 @@ public final class SpecValidator {
                 start = i + 2;
                 i++;
             }
+            i++;
         }
         terms.add(SpecDiff.squash(rule.substring(start)));
         return terms;
@@ -216,12 +220,10 @@ public final class SpecValidator {
     }
 
     private static void engineSupport(List<Finding> out, DataSource source, SymptomSpec spec) {
-        Set<String> unsupported = new HashSet<>();
-        for (SourceField f : source.fields()) {
-            if (!f.engineSupported()) {
-                unsupported.add(f.path());
-            }
-        }
+        Set<String> unsupported = source.fields().stream()
+                .filter(f -> !f.engineSupported())
+                .map(SourceField::path)
+                .collect(Collectors.toSet());
         List<String> rules = new ArrayList<>();
         rules.add(spec.activation());
         if (spec.measure() != null) {

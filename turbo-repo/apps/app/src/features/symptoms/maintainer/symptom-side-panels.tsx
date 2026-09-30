@@ -48,6 +48,19 @@ export function originLabel(origin: FieldOrigin | null, d: I18nRecord) {
   return origin ? trDynamic(ORIGIN_KEY[origin], d) : "";
 }
 
+/** A sample value as text; objects and arrays are shown as JSON. */
+function sampleText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return String(value);
+  }
+  return JSON.stringify(value) ?? "";
+}
+
 function valueAt(
   sample: Record<string, unknown> | undefined,
   path: string
@@ -192,7 +205,7 @@ export function FieldsPanel({
                 </span>
                 {value !== undefined && (
                   <span className="shrink-0 font-mono text-gray-500">
-                    {String(value)}
+                    {sampleText(value)}
                   </span>
                 )}
                 {f.origin && (

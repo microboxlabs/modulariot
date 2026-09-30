@@ -471,6 +471,7 @@ describe("the spec against the router", () => {
     dashboards: "/tenants/{tenantId}/scopes/{scopeId}/dashboards",
     dashboard: "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}",
     query: "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/queries/{queryId}",
+    queryCatalog: "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/query-catalog",
     capabilities:
       "/tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/capabilities",
     permissions:
@@ -527,6 +528,7 @@ describe("the spec against the router", () => {
       dataSources: createMemoryDataSourceStore(),
       credentials: createMemoryCredentialsStore(),
       queries: { operations: { execute: async () => ({ rows: [] }) } },
+      queryCatalog: { list: async () => [] },
       port: 0,
       host: "127.0.0.1",
       log: () => {},

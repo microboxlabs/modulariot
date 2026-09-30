@@ -307,6 +307,7 @@ describe("the serialization gate", () => {
       dashboards: CONFIG_NOT_CREDENTIALS,
       dashboard: CONFIG_NOT_CREDENTIALS,
       query: "answers host operation rows, never the credential vault",
+      queryCatalog: "answers projected public metadata, never credential fields",
       capabilities: CONFIG_NOT_CREDENTIALS,
       permissions: CONFIG_NOT_CREDENTIALS,
       datasources: [

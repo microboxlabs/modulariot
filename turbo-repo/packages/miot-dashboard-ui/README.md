@@ -6,9 +6,11 @@ frameworks can use `./embed`, `./web-component` or the self-contained `./browser
 runtime. `./core`, `./client`, `./document` and `./templates` expose the lower-level
 APIs. Import `./styles.css` for the scoped presentation styles.
 
-This workspace version is **unreleased**. The portable catalog includes text,
-percentage, circular and progress statistic registries; it is not yet the complete app
-widget catalog or a complete dashboard authoring interface. Query execution and
+Version 0.1.0 is the first release. It requires
+`@microboxlabs/miot-dashboard-contract` 0.6.0 or later and a dashboard server 0.6.0 or
+later for query catalogs. The portable catalog covers text, statistic, card, table, list
+and chart widgets, plus authoring for settings, saved queries, permissions, filters and
+import/export. Map, file upload and batch import stay host plugins. Query execution and
 authorization remain on the dashboard server.
 
 For a runnable browser host with a private server proxy and real saved-query
@@ -1518,3 +1520,163 @@ and `createChartRegistry` from `./browser-charts`. Mixing independently bundled
 browser runtimes can duplicate React and provider contexts. The default browser
 bundle remains available for hosts that do not need charts. Both artifacts are
 checked for unresolved imports and can be imported without a DOM.
+
+### Portable settings panel
+
+`SettingsPanel` from `/react` renders host-supplied settings tabs (or a single pane), footer and save action. Supply translated `tabsLabel` and `saveLabel`, `isDirty`, and `onSave`; `disabled` blocks saving during persistence or when the host lacks editing authority. Tab navigation supports arrows, Home and End, with instance-local accessible IDs. The host owns form state, permission checks, validation, persistence, dialogs and dismissal. Import the package stylesheet.
+
+`useSettingsDirty(isOpen, snapshot)` compares JSON-serializable form fields against the baseline captured after opening effects settle. Keep one `DirtySettingsProvider` per form/editor instance; `useDirtySettings()` exposes the form's dirty state and current save-and-close callback. Register the callback in an effect and clear it with `registerSaveAndClose(undefined)` on cleanup. Hosts remain responsible for unsaved-change confirmation and successful-save dismissal. Snapshots must be acyclic JSON data; property order affects equality.
+
+### Named query binding selector
+
+`QueryBindingSelector` from `/react` accepts host-discovered `options` (`id`, unique `variableName`, optional `schema`), a controlled `value` and `onChange`. Provide translated labels (`label`, `placeholder`, `emptyLabel`, `columnsLabel`, `unavailableLabel`) and optional `schemaHint`. It displays available columns and calls `onSchemaDetected` with a copy when the user selects a known result. Removed bindings remain visible as unavailable until the user chooses a replacement. `disabled` supports read-only hosts. This selector performs no discovery, credential access or queries; the host supplies authorized metadata. It can use saved-query or legacy planner definitions through adapters.
+
+### Saved query authoring
+
+`SavedQueryEditor` from `/react` edits a `DashboardQueryDefinition` against host-provided `connections` and their approved `operations`. Supply translated `labels`, `existingQueries` for duplicate-name checks and `onSave` to update the host document draft. It defaults to read-only; pass `editable` only from host capabilities. Parameters use shared-contract JSON literal/filter bindings. Switching a connection or operation clears stale parameters and response schema. Invalid or unavailable operations cannot be saved. The host owns catalog discovery, credentials, server authorization and document persistence/ETags. Remount with a new React `key` when changing query, dashboard or identity. This component does not issue network requests.
+
+`useDashboardState` exposes `queries` and `setQueries(definitions)` for saved-query authoring with shared undo/redo. Updates return `false` for read-only/unloaded hosts, invalid definitions, duplicate IDs/names or more than 50 queries; accepted definitions are parsed into independent draft data. Catalog authorization and server persistence remain host responsibilities.
+
+`SavedQueryManager` composes the editor with a controlled query list, add/edit actions and an explicit removal confirmation. Pass `queries`, approved `connections`, translated labels and `onChange={state.setQueries}`; returning `false` preserves the draft and displays the host-rejection message. Write controls require `editable`. Mount with a new host session/document key on identity changes. Closing or selecting another query discards the local editor draft; changes reach the document only through Save. Hosts handle persisted document conflicts and catalog refresh.
+
+### Permission assignment drafts
+
+`PermissionAssignmentEditor` from `/react` edits a controlled `assignments` array
+of `{ authorityId, role }`. Pass `authorities` containing only host-authorized
+`{ id, label }` discovery results, and `onChange` to update your local draft.
+Existing identities absent from discovery remain visible by ID and are preserved;
+new assignments must come from the supplied catalog and cannot duplicate an ID.
+All four roles come from the shared contract, with host-translated `labels.roles`.
+
+It defaults to read-only. Derive `editable` from the server's
+`canManagePermissions` capability and set `disabled` while loading or saving.
+The server remains the authorization boundary. Role changes and removal only edit
+the draft; provide an explicit host Save action (and confirmation if needed) that
+calls `client.setPermissions(slug, draft, signal)`. That API replaces the complete
+assignment list: first load `client.permissions`, preserve all assignments and
+reload after saving. It does not provide an ETag conflict guarantee. Handle denied
+writes and refresh capabilities; do not report success before the request resolves.
+Remount the host editor on document/session changes and cancel outstanding requests.
+
+Required `labels`: `authority`, `role`, `choose`, `add`, `remove`, `empty`, plus
+`roles: Record<DashboardRole, string>`. Import the package stylesheet. The editor
+performs no identity lookup or network requests and has no Alfresco dependency.
+
+`useDashboardPermissions({ client, slug, sessionKey, readOnly? })` loads capabilities
+before discovering assignments. It returns `assignments`, `loaded`, `busy`,
+`editable`, a numeric `error`, `editorKey`, `reload()` and `save(assignments)`.
+Consumers without `canManagePermissions` do not request the permission list.
+`readOnly` is an additional host restriction; document `canEdit` is independent
+of permission management. Save validates unique identities and roles, rechecks
+capabilities, replaces assignments and reloads the authoritative list/capabilities.
+It returns true only after that reload succeeds. A failed reload after a successful
+write can therefore return false: show the error and reload before retrying.
+Concurrent operations are rejected. Authorization errors clear the displayed list
+and disable editing. Resource/session changes hide prior state immediately, abort
+requests and ignore late responses; use `editorKey` to reset your separate draft.
+Pass a stable client and a nonempty, non-secret `sessionKey` that changes with the
+host's authenticated identity. No shared cache or browser storage is used.
+
+`client.queryCatalog(slug, signal?)` loads the server's optional authoring catalog
+and returns `QueryCatalogConnection[]` (`id`, `label`, approved `operations` with
+optional result-column `schema`). Types are exported from `/client`. Organization
+query parameters and cancellation are preserved. Invalid/duplicate metadata fails
+with `DashboardApiError(502)`; 401/403/404 remain distinguishable. Extra server
+fields are stripped. A 404 means the document or provider is unavailable, not an
+empty authorized catalog. Pass the returned connections to `SavedQueryManager`
+or `SavedQueryEditor`; clear them on session/resource changes, and do not fall
+back to administrative connection or credential endpoints. The server still
+checks operation authorization at execution time.
+
+`useQueryCatalog({ client, slug, sessionKey, enabled? })` from `/react` manages
+that discovery lifecycle. It defaults to disabled; enable it from current editing
+capabilities. It returns `connections`, `loading`, `loaded`, numeric `error`,
+`editorKey` and `reload()`. Catalogs are hidden immediately when the resource,
+client, session or permission changes. Pending requests are aborted and obsolete
+responses ignored, including providers that ignore cancellation. A failed or
+unavailable catalog stays empty until explicit reload; no administrative fallback
+or shared cache is used. Use `loaded` to enable the query editor and `editorKey`
+to reset its local draft after catalog changes. Keep `client` stable and replace
+the non-secret session key on authentication changes.
+
+### General dashboard settings
+
+`DashboardGeneralSettings` from `/react` edits a local draft of `name`,
+`refreshInterval` (0, 10, 30, 60 or 300 seconds) and optional numeric `order`.
+Supply translated `labels` including every interval label, an initial `value`,
+explicit `editable` permission and a synchronous boolean `onApply`. The default
+is read-only. Titles are trimmed, required and limited to 256 characters; order
+must be finite and an empty order clears it. Invalid or host-rejected drafts stay
+visible with an accessible error. Remount with a resource/session key when switching
+identities, documents or replacing the draft from a reload.
+
+Connect `onApply` to `useDashboardState().setGeneralSettings`. That method validates
+and applies all three fields in one undoable update, preserving widgets, queries,
+filters and access settings. It returns false when editing is denied or input is
+invalid. Applying updates the document draft only: the host must still save it to
+the server and enforce its current capabilities. The settings editor has no auth,
+network or storage dependency. Import the package stylesheet for scoped styles;
+`--miot-settings-text`, `--miot-settings-background` and `--miot-settings-border`
+can override its light/dark palette.
+
+### Filter definitions
+
+`DashboardFilterEditor` from `/react` edits a local array of text, date-range and
+select filter definitions, including select option labels/values. Pass `value`,
+translated `labels`, explicit `editable` and a synchronous boolean `onApply`.
+Connect that callback to `useDashboardState().setFilterDefinitions` for validated,
+undoable document updates. Both boundaries reject duplicate keys, collisions with
+date-range `_from`/`_to` keys, prototype keys and duplicate select option values.
+Keys use letters, digits, underscores and hyphens, starting with a letter or
+underscore (128 characters maximum). Labels are required and capped at 256;
+there are at most 100 filters and 500 options per filter.
+
+The editor defaults to read-only and does not fetch option data. It preserves
+existing extension fields while editing base fields; dynamic option providers
+remain host-owned. Changing a filter key does not rewrite saved-query bindings:
+update those bindings deliberately before saving. Deletions are draft changes
+until Apply, then remain undoable in the document; the host owns persistence and
+discard confirmation. Remount on document/session/reload changes. This API does
+not replace the legacy `setFilters` API used by existing integrations.
+
+`useFilterOptions(filter)` from `/react` resolves static options or projects an
+`optionsSource` from the enclosing `SavedQueryProvider`/`PlannerResultsProvider`.
+It never executes or fetches a query. Return values are `options`, `loading`,
+`error` and `dynamic`. Dynamic results retain row order, deduplicate by value,
+skip missing/non-scalar values and use the value when a label is missing. Only
+own row properties are read. Projection considers at most 10,000 rows and returns
+at most 500 options; values over 1,024 characters are skipped and labels capped
+at 256. Loading or failed results clear prior options, including stale rows from
+a revoked query. Missing named results stay empty; incomplete legacy references
+retain the static fallback. Next.js consumes this same hook. The host must still
+provide authorized, session-isolated results and accessible loading/error labels.
+
+To author dynamic options, pass `sources: { queries, labels }` to
+`DashboardFilterEditor`. `queries` uses `QueryBindingOption` (ID, variable name,
+optional column schema); labels name the source/static choice, columns,
+unavailable source, value/label fields and single-selection checkbox. Only listed
+variables can be selected or applied. Choosing a query clears static options and
+requires a value field; an omitted label field uses the value. Known columns are
+suggested, while direct field-name entry supports a schema not yet fetched.
+Changing filter type clears its dynamic source. The host must pass current saved
+query metadata and persist the document; the editor performs no discovery or
+query execution. `FilterOptionSource` is also exported for custom settings forms.
+
+### Document import and export
+
+`DashboardTransfer` from `/react` supplies explicit export, JSON-file selection,
+text editing and import actions. Provide translated `labels`, `onExport`,
+`onImport` (returns `{ success }`) and `editable` (false by default). Export is a
+read action; import controls require editing permission. The host validates the
+shared document contract and controls downloads, authorization and persistence.
+The component rejects files and UTF-8 text exceeding `maxImportBytes` (default
+1 MiB) before importing. Selecting a file only loads a local text draft; an
+explicit replace action applies it. Remount when the document or identity changes.
+
+Use `onImport={json => state.importDashboard(json, { undoable: true })}` and
+`onExport={state.downloadDashboard}` with `useDashboardState`. The optional
+`undoable` mode gives import its own history entry, separate from nearby edits,
+and preserves preceding history. Omitting it retains the legacy history-reset
+behavior. Import changes the host draft only; saving to the server remains a
+separate action with revision checks. Unknown widget plugins and connection
+references still need support and authorization in the destination host.

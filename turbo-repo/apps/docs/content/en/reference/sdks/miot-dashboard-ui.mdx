@@ -116,3 +116,53 @@ The server enforces tenant, scope and document permissions. Never put signing ke
 The current Handlebars compiler requires `unsafe-eval` in script CSP. Evaluate that constraint before embedding in a host with a strict CSP. No strict-CSP compatibility is claimed.
 
 [Full API reference](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-ui/README.md) · [Dashboard server](/en/operations/dashboard-server) · [Shared contract](/en/reference/sdks/miot-dashboard-contract)
+
+`SettingsPanel` from `/react` provides keyboard-accessible settings tabs, a host footer and a save action gated by `isDirty` and `disabled`. The host supplies translated labels and owns validation, permissions, persistence and dismissal.
+
+`useSettingsDirty`, `DirtySettingsProvider` and `useDirtySettings` share unsaved form state without app dependencies. Use one provider per form and unregister save callbacks on unmount; dismissal and confirmation remain host responsibilities.
+
+`QueryBindingSelector` from `/react` binds widgets to host-supplied named results and displays their schema. It preserves unavailable bindings visibly, supports translated labels and read-only mode, and performs no discovery or query execution.
+
+`SavedQueryEditor` from `/react` edits connection-backed query definitions using a host-approved connection/operation catalog and shared-contract parameter validation. It defaults to read-only; hosts own permissions, discovery and persistence. See the package README for draft lifetime and callback requirements.
+
+`useDashboardState().setQueries` validates saved-query definitions and unique IDs/names, then updates the controlled document through its permission and undo/redo boundary. It returns false when denied or invalid.
+
+`SavedQueryManager` composes controlled query selection, creation, editing and confirmed removal. Connect its boolean `onChange` to `useDashboardState().setQueries`; host rejection retains the draft. Write controls require explicit editing permission.
+
+`PermissionAssignmentEditor` edits a controlled permission draft using host-authorized identities and shared-contract roles. It defaults to read-only, preserves identities missing from discovery and prevents duplicate additions. The host owns explicit saving through the permissions client, capability refresh and session isolation; server authorization remains mandatory.
+
+`useDashboardPermissions` connects that draft workflow to the server client: capability-first loading, validated replacement and authoritative reload, fail-closed authorization errors, and cancellation across resource/session changes. The host retains explicit save controls and draft reset behavior; see the README for replacement and failed-reload semantics.
+
+### Permissions in the Next.js workspace
+
+The server dashboard page uses the portable permission editor and state hook. Open **Manage permissions** when the server grants that capability. Enter an exact user or group authority ID from your configured identity provider, select it, choose a role and add it to the draft. Review the complete list and confirm **Save changes**. This form does not search an identity directory or validate that an ID exists; spelling and case must match the server identity. Existing assignments are preserved until explicitly edited or removed.
+
+Saving replaces local assignments, then reloads them. Scope grants and dashboard ownership still apply, so removing a local assignment does not revoke those other grants. Reload explicitly after an error, including when a write may have succeeded before its reload failed. Closing or reloading a changed draft asks for confirmation. The Next host uses its authenticated organization-bound proxy; the reusable editor does not depend on that proxy or Alfresco.
+
+`client.queryCatalog(slug, signal)` loads validated, authorized connection/operation metadata for the query editor. It preserves organization routing and cancellation, rejects ambiguous IDs and strips extra fields. Handle unavailable or denied catalogs explicitly; never substitute administrative credential endpoints.
+
+`useQueryCatalog` provides permission-gated catalog loading with session/resource isolation, cancellation and explicit retry. Use its `loaded` state and `editorKey` to gate/reset authoring; disabled or failed discovery never falls back to administrative metadata.
+
+### Saved queries in the Next.js workspace
+
+Editors can open **Saved queries** to load the dashboard server's authorized connection and operation catalog. Applying a definition changes the dashboard draft: use the normal dashboard save action to persist it, or undo/redo to revise it. Closing or reloading the editor confirms discarding unapplied fields. Consumers do not load the catalog or see editing controls.
+
+The authenticated organization proxy forwards `query-catalog` to the dashboard server. Configure a catalog provider on that server; a missing or denied catalog keeps authoring unavailable. The catalog contains public metadata only, never credentials or executable SQL.
+
+`DashboardGeneralSettings` provides an authorized local editor for title, automatic refresh and display order. Connect it to `useDashboardState().setGeneralSettings` to apply one undoable document update, then persist with the host's save action. Labels and permissions are host-owned; invalid or rejected drafts remain visible.
+
+In the Next.js server dashboard workspace, editors open **Dashboard settings** to change title, refresh and order. Apply changes to the draft, then save the dashboard; use undo to restore the previous settings. Closing confirms discarding unapplied fields. Consumers do not see this editor.
+
+`DashboardFilterEditor` authors text, date-range and select filters with static options. Apply through `setFilterDefinitions` for validation and undo; duplicate keys, date-range collisions and duplicate option values are rejected. Dynamic option discovery stays with the host. Renaming a filter requires updating its saved-query bindings separately.
+
+Hosted Next.js dashboard settings also include filter definitions. Editors add or adjust controls and static options, apply the filter draft, then save the dashboard. Current filter keys remain the inputs to saved-query bindings; update bindings when renaming keys. This editor does not invoke legacy datasource selectors.
+
+`useFilterOptions` projects named saved-query results into bounded, deduplicated select options without making another request. It clears stale options while loading or after failure and exposes loading/error state. The Next.js filter bar uses this shared resolver.
+
+Pass saved-query metadata through the filter editor's `sources` option to configure dynamic choices without editing JSON. Users select a named result, value/label fields and single-selection behavior. Removed sources and incomplete field bindings cannot be applied; selecting a query clears the static option draft.
+
+In hosted settings, select filters can now use current saved queries as their option source. Choose the result variable, value column and optional label column, apply the filter draft, then save the dashboard. Single selection is available for operations that accept one value. No legacy planner or datasource discovery is invoked by this authoring path.
+
+`DashboardTransfer` offers bounded file/text import and explicit export actions. Connect imports to the shared state controller with `{ undoable: true }` to validate the document and preserve the preceding draft. Importing does not save to the server; hosts retain authorization and revision handling.
+
+Hosted settings include JSON download and bounded file/text import. Replacing the draft is undoable and does not save automatically. Connection IDs and widget plugins must be supported by the destination; the normal server save still checks permissions and document revision.

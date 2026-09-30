@@ -116,3 +116,53 @@ El servidor aplica permisos de tenant, scope y documento. Nunca incluya claves d
 El compilador actual de Handlebars requiere `unsafe-eval` en la CSP de scripts. Evalúe esta restricción antes de integrar en un host con CSP estricta. No se afirma compatibilidad con CSP estricta.
 
 [Referencia completa de API](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-ui/README.md) · [Servidor de dashboards](/es/operations/dashboard-server) · [Contrato compartido](/es/reference/sdks/miot-dashboard-contract)
+
+`SettingsPanel` de `/react` ofrece pestañas de configuración accesibles por teclado, un pie controlado por el anfitrión y una acción de guardado condicionada por `isDirty` y `disabled`. El anfitrión proporciona las etiquetas traducidas y controla validación, permisos, persistencia y cierre.
+
+`useSettingsDirty`, `DirtySettingsProvider` y `useDirtySettings` comparten el estado de cambios pendientes sin dependencias de la aplicación. Use un proveedor por formulario y elimine los callbacks de guardado al desmontar; el cierre y la confirmación son responsabilidad del anfitrión.
+
+`QueryBindingSelector` de `/react` vincula widgets a resultados con nombre proporcionados por el anfitrión y muestra su esquema. Conserva visibles los vínculos no disponibles, admite etiquetas traducidas y modo de solo lectura, y no realiza descubrimiento ni ejecución de consultas.
+
+`SavedQueryEditor` de `/react` edita consultas basadas en conexiones mediante un catálogo autorizado por el anfitrión y validación de parámetros del contrato compartido. El modo predeterminado es solo lectura; permisos, descubrimiento y persistencia pertenecen al anfitrión. Consulte el README para el ciclo de vida del borrador y los callbacks.
+
+`useDashboardState().setQueries` valida las consultas guardadas y la unicidad de sus identificadores y nombres, y actualiza el documento controlado mediante sus permisos e historial de deshacer/rehacer. Devuelve false si la actualización no está permitida o es inválida.
+
+`SavedQueryManager` integra selección, creación, edición y eliminación confirmada de consultas controladas. Conecte su callback booleano `onChange` a `useDashboardState().setQueries`; un rechazo del anfitrión conserva el borrador. Los controles de escritura requieren permiso explícito de edición.
+
+`PermissionAssignmentEditor` edita un borrador controlado de permisos con identidades autorizadas por el anfitrión y roles del contrato compartido. Es de solo lectura por defecto, conserva identidades ausentes del catálogo y evita agregar duplicados. El anfitrión controla el guardado explícito mediante el cliente de permisos, la actualización de capacidades y el aislamiento de sesión; la autorización del servidor sigue siendo obligatoria.
+
+`useDashboardPermissions` conecta ese flujo de borrador con el cliente del servidor: consulta capacidades antes de cargar permisos, valida el reemplazo y recarga el estado autorizado, bloquea la edición ante errores de autorización y cancela solicitudes al cambiar recurso o sesión. El anfitrión mantiene el guardado explícito y el reinicio del borrador; consulte el README para la semántica de reemplazo y fallos de recarga.
+
+### Permisos en el espacio de Next.js
+
+La página del dashboard del servidor usa el editor y el hook portables de permisos. Abra **Administrar permisos** cuando el servidor otorgue esa capacidad. Ingrese el ID exacto de usuario o grupo de su proveedor de identidad, selecciónelo, elija un rol y agréguelo al borrador. Revise la lista completa y confirme **Guardar cambios**. Este formulario no busca en un directorio ni valida que el ID exista; la escritura y las mayúsculas deben coincidir con la identidad del servidor. Las asignaciones existentes se conservan hasta editarlas o eliminarlas explícitamente.
+
+El guardado reemplaza las asignaciones locales y luego las recarga. Los permisos del ámbito y del propietario siguen vigentes; eliminar una asignación local no revoca esos otros permisos. Recargue explícitamente después de un error, incluso si la escritura pudo completarse antes de fallar la recarga. Cerrar o recargar un borrador modificado requiere confirmación. El anfitrión Next usa su proxy autenticado y vinculado a la organización; el editor reutilizable no depende de ese proxy ni de Alfresco.
+
+`client.queryCatalog(slug, signal)` carga metadatos validados y autorizados de conexiones y operaciones para el editor de consultas. Conserva la organización y la cancelación, rechaza IDs ambiguos y elimina campos adicionales. Gestione explícitamente catálogos no disponibles o denegados; no los sustituya por endpoints administrativos de credenciales.
+
+`useQueryCatalog` carga el catálogo según permisos, con aislamiento por sesión y recurso, cancelación y reintento explícito. Use `loaded` y `editorKey` para habilitar o reiniciar la edición; un descubrimiento deshabilitado o fallido nunca recurre a metadatos administrativos.
+
+### Consultas guardadas en el espacio de Next.js
+
+Los editores pueden abrir **Consultas guardadas** para cargar el catálogo autorizado de conexiones y operaciones del servidor. Aplicar una definición modifica el borrador del dashboard: use la acción habitual de guardar para persistirlo, o deshacer/rehacer para revisarlo. Cerrar o recargar el editor solicita confirmar el descarte de campos sin aplicar. Los consumidores no cargan el catálogo ni ven controles de edición.
+
+El proxy autenticado de la organización reenvía `query-catalog` al servidor de dashboards. Configure un proveedor de catálogo en ese servidor; un catálogo ausente o denegado mantiene la edición deshabilitada. El catálogo contiene únicamente metadatos públicos, nunca credenciales ni SQL ejecutable.
+
+`DashboardGeneralSettings` ofrece un editor local autorizado para título, actualización automática y orden de presentación. Conéctelo a `useDashboardState().setGeneralSettings` para aplicar una actualización del documento que pueda deshacerse y luego persista mediante la acción de guardar del host. El host proporciona etiquetas y permisos; los borradores inválidos o rechazados permanecen visibles.
+
+En el espacio de dashboards del servidor en Next.js, los editores abren **Configuración del dashboard** para cambiar título, actualización y orden. Aplique al borrador y luego guarde el dashboard; use deshacer para restaurar la configuración anterior. Cerrar solicita confirmar el descarte de campos sin aplicar. Los consumidores no ven este editor.
+
+`DashboardFilterEditor` permite configurar filtros de texto, rango de fechas y selección con opciones estáticas. Aplique mediante `setFilterDefinitions` para validar y permitir deshacer; se rechazan claves duplicadas, colisiones de rangos de fechas y valores de opciones duplicados. El host conserva la obtención de opciones dinámicas. Renombrar un filtro requiere actualizar por separado sus enlaces en consultas guardadas.
+
+La configuración de dashboards alojados en Next.js también incluye definiciones de filtros. Los editores agregan o ajustan controles y opciones estáticas, aplican el borrador de filtros y luego guardan el dashboard. Las claves alimentan los enlaces de consultas guardadas; actualice los enlaces al renombrarlas. Este editor no invoca selectores de fuentes de datos heredadas.
+
+`useFilterOptions` convierte resultados de consultas guardadas en opciones de selección limitadas y sin duplicados, sin efectuar otra solicitud. Limpia opciones anteriores durante la carga o tras un error y expone esos estados. La barra de filtros de Next.js usa este resolvedor compartido.
+
+Proporcione metadatos de consultas guardadas mediante `sources` para configurar opciones dinámicas sin editar JSON. El usuario elige un resultado, campos de valor/etiqueta y selección única. No se pueden aplicar fuentes eliminadas ni enlaces incompletos; seleccionar una consulta limpia el borrador de opciones estáticas.
+
+En la configuración alojada, los filtros de selección pueden usar consultas guardadas actuales como fuente de opciones. Elija la variable, columna de valor y etiqueta opcional, aplique el borrador y guarde el dashboard. La selección única permite integrar operaciones que aceptan un solo valor. Esta edición no invoca descubrimiento de planificadores ni fuentes de datos heredadas.
+
+`DashboardTransfer` ofrece importación limitada de archivos/texto y exportación explícita. Conecte la importación al controlador compartido con `{ undoable: true }` para validar el documento y conservar el borrador anterior. Importar no guarda en el servidor; el host mantiene autorización y control de revisiones.
+
+La configuración alojada incluye descarga JSON e importación limitada de archivo/texto. Reemplazar el borrador puede deshacerse y no guarda automáticamente. El destino debe admitir las conexiones y plugins; el guardado normal sigue comprobando permisos y revisión del documento.

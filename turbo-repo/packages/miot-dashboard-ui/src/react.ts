@@ -127,3 +127,30 @@ export { createInfoCardRegistry, type InfoCardRegistryOptions } from "./react/in
 export { ChartCard, type ChartCardProps } from "./react/chart-card";
 
 export { ChartEngineView, type ChartEngine, type ChartEngineViewProps } from "./react/chart-engine";
+
+export { SettingsPanel, type SettingsPanelProps, type SettingsPanelTab } from "./react/settings-panel";
+
+export { useSettingsDirty } from "./react/use-settings-dirty";
+export { DirtySettingsProvider, useDirtySettings, type DirtySettingsContextValue, type DirtySettingsProviderProps } from "./react/dirty-settings-context";
+
+export { QueryBindingSelector, type QueryBindingSelectorProps, type QueryBindingOption } from "./react/query-binding-selector";
+
+export { SavedQueryEditor, type SavedQueryEditorProps, type SavedQueryEditorLabels, type QueryConnectionOption, type QueryOperationOption } from "./react/saved-query-editor";
+
+export { SavedQueryManager, type SavedQueryManagerProps } from "./react/saved-query-manager";
+
+export { PermissionAssignmentEditor, type PermissionAssignmentEditorProps, type PermissionAssignment, type PermissionAuthorityOption } from "./react/permission-assignment-editor";
+
+export { useDashboardPermissions, type DashboardPermissionsOptions } from "./react/use-dashboard-permissions";
+
+export { useQueryCatalog, type QueryCatalogOptions } from "./react/use-query-catalog";
+
+export { DashboardGeneralSettings, type DashboardGeneralSettingsProps, type DashboardGeneralSettingsValue } from "./react/dashboard-general-settings";
+
+export { DashboardFilterEditor, type DashboardFilterEditorProps, type DashboardFilterEditorLabels } from "./react/dashboard-filter-editor";
+
+export { useFilterOptions, type ResolvedFilterOptions } from "./react/use-filter-options";
+
+export { FilterOptionSource, type FilterOptionSourceProps, type FilterSourceConfiguration } from "./react/filter-option-source";
+
+export { DashboardTransfer, type DashboardTransferProps } from "./react/dashboard-transfer";

@@ -894,3 +894,31 @@ importing documents with this restriction. Existing standalone deployments that
 relied on ignored restrictions must configure trusted claims before upgrading.
 
 For ticket authentication, set `MIOT_DASHBOARD_TICKET_GROUPS_PATH` to the group-array path in the trusted ticket-validation response. JWT group-claim settings do not configure ticket identities. Without the appropriate group source, restricted dashboards remain denied.
+
+### Authoring query catalog (v0.6.0)
+
+Pass an optional `queryCatalog: { list({ identity, ref, signal }) }` provider to
+`createDashboardHandler` or `serve`. The provider returns connections shaped as
+`{ id, label, operations: [{ id, label, schema?: string[] }] }`. Public types
+`DashboardQueryCatalog`, `DashboardCatalogConnection` and
+`DashboardCatalogOperation` are exported from `/http`.
+
+`GET /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/query-catalog`
+requires permission to save an existing dashboard, before invoking the provider.
+It returns `{ connections }` with `Cache-Control: no-store`; an omitted provider
+or missing dashboard returns 404. Provider failures are redacted.
+
+The host must discover only active, read-only operations authorized for the
+resolved identity, tenant and scope, honor cancellation, and bound its upstream
+work. The server copies only IDs, display labels and optional result column names,
+rejects duplicate identifiers and bounds the projection to 100 connections, 100
+operations per connection, 100 columns per operation and 256 KiB. Never put secrets
+in display labels or column names. Extra administrative fields (including SQL,
+URLs and credential references) are not serialized. Catalog discovery grants no
+execution rights: the operation executor independently authorizes every request.
+For the standalone CLI, the trusted module selected by
+`MIOT_DASHBOARD_OPERATIONS_MODULE` may additionally export
+`createDashboardQueryCatalog()`, returning this provider. The factory runs once
+at startup. An absent export keeps discovery disabled; a malformed or failing
+factory refuses startup with a redacted error. Existing execution-only modules
+remain compatible. Module paths are operator configuration, never request input.

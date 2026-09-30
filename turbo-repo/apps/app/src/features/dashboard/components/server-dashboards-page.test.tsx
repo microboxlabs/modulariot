@@ -37,6 +37,7 @@ vi.mock(
 );
 vi.mock("../context/dashboard-context", () => ({
   DashboardProvider: ({ children }: Readonly<PropsWithChildren>) => children,
+  useDashboard: () => ({ queries: [], setQueries: () => true }),
 }));
 vi.mock("../context/saved-query-context", () => ({
   DashboardQuerySession: ({ children }: Readonly<PropsWithChildren>) =>

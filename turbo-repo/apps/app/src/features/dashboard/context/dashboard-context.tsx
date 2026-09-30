@@ -9,6 +9,8 @@ import {
   type PropsWithChildren,
   type ComponentType,
 } from "react";
+import type { DashboardGeneralSettingsValue } from "@microboxlabs/miot-dashboard-ui/react";
+import type { DashboardQueryDefinition } from "@microboxlabs/miot-dashboard-contract/document";
 import { mutate as mutateGlobal } from "swr";
 import { useDashboardStorage, type DashboardStorageController } from "../hooks/use-dashboard-storage";
 import {
@@ -49,6 +51,10 @@ interface DashboardContextValue {
   filters: DashboardFilterParam[];
   /** Update dashboard filter configuration */
   setFilters: (filters: DashboardFilterParam[]) => void;
+  queries: DashboardQueryDefinition[];
+  setFilterDefinitions: (filters: readonly DashboardFilterParam[]) => boolean;
+  setGeneralSettings: (value: DashboardGeneralSettingsValue) => boolean;
+  setQueries: (queries: readonly DashboardQueryDefinition[]) => boolean;
   /** Auto-refresh interval in seconds (0 = off) */
   refreshInterval: RefreshInterval;
   /** Update auto-refresh interval */
@@ -96,7 +102,7 @@ interface DashboardContextValue {
 
   // Import/Export
   exportDashboard: () => string;
-  importDashboard: (jsonString: string) => { success: boolean; error?: string };
+  importDashboard: (jsonString: string, options?: {undoable?:boolean}) => { success: boolean; error?: string };
   downloadDashboard: () => void;
 
   // Request Planner
@@ -163,6 +169,10 @@ export function DashboardProvider({
     setEditMode: setEditModeStorage,
     setDashboardName: setDashboardNameStorage,
     setFilters,
+    queries,
+    setQueries,
+    setGeneralSettings,
+    setFilterDefinitions,
     setRefreshInterval,
     order,
     setOrder: setOrderStorage,
@@ -428,6 +438,10 @@ export function DashboardProvider({
         : undefined,
       filters,
       setFilters,
+    queries,
+    setQueries,
+    setGeneralSettings,
+    setFilterDefinitions,
       refreshInterval: effectiveRefreshInterval,
       setRefreshInterval,
       order,
@@ -470,6 +484,10 @@ export function DashboardProvider({
       storageReadOnly,
       filters,
       setFilters,
+    queries,
+    setQueries,
+    setGeneralSettings,
+    setFilterDefinitions,
       effectiveRefreshInterval,
       setRefreshInterval,
       order,
@@ -519,9 +537,9 @@ export function useDashboard() {
 }
 
 const NOOP = () => {};
+// The registry is read on use, not at module load: the dashlet catalog imports
+// widgets that import this module, so the binding may not be initialized yet.
 const DASHBOARD_FALLBACK: DashboardContextValue = {
-  // Getter, not a value: dashlets import this module, so when a dashlet is
-  // loaded first `dashboardRegistry` is still in its TDZ at this point.
   get registry() {
     return dashboardRegistry;
   },
@@ -533,6 +551,10 @@ const DASHBOARD_FALLBACK: DashboardContextValue = {
   siteId: null,
   filters: [],
   setFilters: NOOP,
+  queries: [],
+  setQueries: () => false,
+  setGeneralSettings: () => false,
+  setFilterDefinitions: () => false,
   refreshInterval: 0,
   setRefreshInterval: NOOP,
   order: undefined,

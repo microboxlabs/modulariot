@@ -129,6 +129,21 @@ class SpecRulesTest {
     }
 
     @Test
+    void stepsNeedWhomToContactAndMinutes() {
+        SymptomSpec.Response withSteps = new SymptomSpec.Response(true, 5, List.of(
+                new SymptomSpec.Step("Conductor", "call", 2, null),
+                new SymptomSpec.Step(" ", "call", 0, "Hola")), List.of(), List.of(), true);
+        SymptomSpec spec = Specs.withLevels(Specs.speeding(), List.of(
+                new Level(1, false, null, null), new Level(2, false, null, null), new Level(3, false, null, null),
+                new Level(4, true, "medida >= 21", withSteps)));
+
+        List<String> messages = SpecValidator.validate(spec, Specs.gpsSignal()).findings().stream()
+                .map(SpecValidator.Finding::message).toList();
+
+        assertEquals(List.of("El paso 2 no dice a quién contactar.", "El paso 2 necesita minutos."), messages);
+    }
+
+    @Test
     void topLevelTermsIgnoreNestingAndStrings() {
         assertEquals(List.of("a", "b || c", "d == \"x && y\""),
                 SpecValidator.topLevelTerms("a && (b || c) && d == \"x && y\""));

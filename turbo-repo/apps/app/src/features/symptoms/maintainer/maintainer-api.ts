@@ -207,6 +207,29 @@ export function useSymptomDefinition(id: string | null) {
   return useSWR<SymptomDetail>(id ? definitionKey(id) : null, fetcher);
 }
 
+export interface LevelResponseView {
+  definitionId: string;
+  name: string;
+  version: string;
+  state: SymptomState;
+  level: Level;
+}
+
+/** What the tower does for a live case at one level; 404 (no data) when no symptom in force matches. */
+export function useLevelResponse(
+  symptomName: string | null,
+  icu: number | null
+) {
+  const key =
+    symptomName && icu != null
+      ? `${DEFS}/response?symptom=${encodeURIComponent(symptomName)}&icu=${icu}`
+      : null;
+  return useSWR<LevelResponseView>(key, fetcher, {
+    shouldRetryOnError: false,
+    revalidateOnFocus: false,
+  });
+}
+
 export function useDataSources() {
   return useSWR<DataSource[]>(SOURCES, fetcher);
 }

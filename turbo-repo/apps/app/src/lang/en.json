@@ -2599,7 +2599,21 @@
         "configuredConnection": "Configured connection",
         "describe": "What this rule does",
         "describing": "Writing the description…",
-        "describeFailed": "The description is not available right now."
+        "describeFailed": "The description is not available right now.",
+        "steps": "Operator steps",
+        "stepsBudget": "{used} of {sla} SLA minutes",
+        "addStep": "Add step",
+        "noSteps": "No steps. The operator decides whom to call.",
+        "stepRole": "Whom",
+        "stepRolePlaceholder": "Role, e.g. Driver",
+        "stepChannel": "How",
+        "stepBudget": "Minutes for this step",
+        "stepCall": "Call",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "removeStep": "Remove step",
+        "stepScript": "What to say",
+        "stepScriptPlaceholder": "What to say. You can use {vars}"
       }
     },
     "integrationJobs": {
@@ -4416,6 +4430,20 @@
     "call_center_new_call_only": "Just call",
     "call_center_new_call_and_save": "Call and save to the contact book",
     "call_center_add_query": "Add “{query}”",
+    "ladder": {
+      "title": "Escalation",
+      "anyone": "Anyone",
+      "say": "What to say",
+      "dueIn": "Current step: {time} left",
+      "skip": "Skip step",
+      "skipReason": "Why it is skipped",
+      "skipConfirm": "Skip",
+      "channelCall": "Call",
+      "channelWhatsapp": "WhatsApp",
+      "channelTeams": "Teams",
+      "channelEmail": "Email",
+      "dueStep": "Step {n}: {role}"
+    },
     "call_center_new_save_error": "The contact couldn't be saved to the contact book. The call goes ahead with this number only."
   },
   "geographic_view": {

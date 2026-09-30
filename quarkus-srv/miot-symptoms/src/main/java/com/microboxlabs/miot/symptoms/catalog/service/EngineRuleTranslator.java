@@ -130,6 +130,10 @@ final class EngineRuleTranslator {
             }
         }
 
+        private static boolean isOn(Object v) {
+            return v instanceof Number n ? n.intValue() != 0 : Boolean.TRUE.equals(v) || "1".equals(String.valueOf(v));
+        }
+
         private static String flag(boolean on, String path) {
             return on ? path : "!" + path;
         }
@@ -152,7 +156,7 @@ final class EngineRuleTranslator {
                 .replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT)
                 .replaceAll("[^a-z0-9]+", "-")
-                .replaceAll("^-|-$", "");
+                .replaceAll("(^-)|(-$)", "");
         String suffix = "-" + rule.id();
         return (base.length() > 90 ? base.substring(0, 90) : base) + suffix;
     }
@@ -177,10 +181,6 @@ final class EngineRuleTranslator {
 
     private static String number(double v) {
         return v == Math.rint(v) ? String.valueOf((long) v) : String.valueOf(Math.round(v * 100) / 100.0);
-    }
-
-    private static boolean isOn(Object v) {
-        return v instanceof Number n ? n.intValue() != 0 : Boolean.TRUE.equals(v) || "1".equals(String.valueOf(v));
     }
 
     /** The engine's speeding ladder: 5, 11 and 21 km/h over, código negro only after a minute. */

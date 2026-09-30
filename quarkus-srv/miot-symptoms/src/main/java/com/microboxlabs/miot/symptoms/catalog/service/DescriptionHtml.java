@@ -19,7 +19,7 @@ final class DescriptionHtml {
     static final int MAX_CHARS = 600;
     private static final Set<String> ALLOWED = Set.of("b", "i", "mark");
     private static final Pattern TAG = Pattern.compile("<(/?)([a-zA-Z]+)>");
-    private static final Pattern ENTITY = Pattern.compile("&(?:[a-zA-Z]{2,8}|#[0-9]{1,6}|#x[0-9a-fA-F]{1,6});");
+    private static final Pattern ENTITY = Pattern.compile("&(?:[a-zA-Z]{2,8}|#\\d{1,6}|#x[0-9a-fA-F]{1,6});");
 
     private DescriptionHtml() {
     }

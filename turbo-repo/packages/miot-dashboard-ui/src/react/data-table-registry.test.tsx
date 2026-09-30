@@ -354,3 +354,12 @@ it("requires explicit list layout and rejects arbitrary legacy URLs", () => {
   expect(screen.getByRole("alert").textContent).toBe("Migrate");
   expect(screen.queryByRole("article")).toBeNull();
 });
+
+it("keeps duplicate source IDs as distinct list cards without React key warnings", () => {
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    render(<Table list config={{ columns, cardLayout, rows: rows.map((row) => ({ ...row, id: "duplicate" })) }} />);
+    expect(screen.getAllByRole("article")).toHaveLength(2);
+    expect(error).not.toHaveBeenCalled();
+  } finally { error.mockRestore(); }
+});

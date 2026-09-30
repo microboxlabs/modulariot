@@ -25,6 +25,34 @@ import { DataTable, type DataTableProps } from "./data-table";
 import { ActionDropdown } from "./action-dropdown";
 import type { WidgetComponentProps } from "./widget-renderer";
 
+
+function useTableRows(config: ReturnType<typeof tableWidgetConfig.parse>) {
+    const { results, definitions } = useOptionalPlannerContext();
+    const result =
+      config.dataMode === "planner" && config.plannerVariableName
+        ? results.get(config.plannerVariableName)
+        : undefined;
+    const loading =
+      config.dataMode === "planner" &&
+      (Boolean(result?.loading) ||
+        (!result &&
+          definitions.some(
+            (d) => d.variableName === config.plannerVariableName,
+          )));
+    const failed =
+      config.dataMode === "planner" &&
+      !loading &&
+      (!result || Boolean(result.error));
+    const unsupported =
+      config.dataMode !== "static" && config.dataMode !== "planner";
+    const rows = useMemo(() => {
+      if (loading || failed || unsupported) return [];
+      if (config.dataMode === "planner") return result?.rows ?? [];
+      return config.rows;
+    }, [config, loading, failed, unsupported, result]);
+    return { rows, loading, failed, unsupported };
+}
+
 export interface DataTableRegistryOptions {
   defaultTitle: string;
   /** Omit to hide export controls. */
@@ -89,29 +117,8 @@ function createTableRegistry(
   function BoundTable({
     config,
   }: Readonly<{ config: ReturnType<typeof tableWidgetConfig.parse> }>) {
-    const { results, definitions } = useOptionalPlannerContext();
-    const result =
-      config.dataMode === "planner" && config.plannerVariableName
-        ? results.get(config.plannerVariableName)
-        : undefined;
-    const loading =
-      config.dataMode === "planner" &&
-      (Boolean(result?.loading) ||
-        (!result &&
-          definitions.some(
-            (d) => d.variableName === config.plannerVariableName,
-          )));
-    const failed =
-      config.dataMode === "planner" &&
-      !loading &&
-      (!result || Boolean(result.error));
-    const unsupported =
-      config.dataMode !== "static" && config.dataMode !== "planner";
-    const rows = useMemo(() => {
-      if (loading || failed || unsupported) return [];
-      if (config.dataMode === "planner") return result?.rows ?? [];
-      return config.rows;
-    }, [config, loading, failed, unsupported, result]);
+    const { rows, loading, failed, unsupported } = useTableRows(config);
+    const sourceIndices = useMemo(() => new Map(rows.map((row, index) => [row, index])), [rows]);
     const rowControls = useFilterAndSort(
       config.filter,
       config.sort,
@@ -253,7 +260,7 @@ function createTableRegistry(
             {filters.filteredCount === 0 && <p>{options.emptyLabel}</p>}
             {filters.filteredData.map((row, index) => (
               <DataListCard
-                key={row.id ?? row._id ?? index}
+                key={`${row.id ?? row._id ?? ""}:${sourceIndices.get(row)}:${index}`}
                 row={row}
                 rowIdx={index}
                 totalRows={filters.filteredCount}

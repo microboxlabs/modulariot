@@ -60,10 +60,9 @@ import type {
 import {
   normalizeActionsConfig,
   normalizeRowActions,
-  isSafeActionUrl,
 } from "@/features/dashboard/dashlets/common/action-helpers";
 import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
-import { ActionDropdown } from "@/features/dashboard/dashlets/common/action-dropdown";
+import { tableStatusLabels, tableRowActions } from "../common/table-host-adapters";
 import {
   DashletTitleBar,
   buildTitleBarData,
@@ -399,7 +398,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     () => normalizeActionsConfig(config.actions, { enabled: false, items: [] }),
     [config.actions]
   );
-  const hasActions = safeActions.enabled && safeActions.items.length > 0;
   const safeRowActions = useMemo(
     () => normalizeRowActions(config.rowActions),
     [config.rowActions]
@@ -496,14 +494,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         rows={displayRows}
         label={title}
         loading={loading}
-        loadingLabel={tr("dashboard.settings.tableLoading", dictionary)}
-        errorLabel={
-          fetchError
-            ? tr("dashboard.settings.tableError", dictionary, { fetchError })
-            : undefined
-        }
-        emptyLabel={tr("dashboard.settings.tableNoData", dictionary)}
-        actionsLabel={tr("dashboard.settings.moreActions", dictionary)}
+        {...tableStatusLabels(dictionary, fetchError, tr("dashboard.settings.moreActions", dictionary))}
         showColumnDividers={showColumnDividers ?? true}
         striped={striped}
         resolveValue={resolveValue}
@@ -569,22 +560,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             />
           </div>
         )}
-        renderActions={
-          hasActions
-            ? (row) => (
-                <ActionDropdown
-                  ariaLabel={tr("dashboard.settings.moreActions", dictionary)}
-                  items={safeActions.items.flatMap((action) => {
-                    const href = resolveHandlebarsField(action.link, {
-                      ...row,
-                      row,
-                    });
-                    return isSafeActionUrl(href) ? [{ action, href }] : [];
-                  })}
-                />
-              )
-            : undefined
-        }
+        renderActions={tableRowActions(safeActions, tr("dashboard.settings.moreActions", dictionary))}
       />
     </div>
   );

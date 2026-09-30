@@ -819,3 +819,10 @@ JavaScript date parsing; hosts must validate their intended timezone behavior.
 Rows are not mutated. Inherited object properties are never row values, and
 prototype-shaped keys remain ordinary data. This hook filters results already
 returned by the server; it does not authorize rows or issue database queries.
+
+Filter evaluation rejects incompatible operator/value combinations and unknown
+boolean strings. Numeric detection and matching share validated parsing: comma
+thousands groups require groups of three; a single comma with a different
+fraction length is decimal. Repeated decimal separators are not numeric. The
+returned active-filter record has no object prototype, so inactive names such
+as `constructor` and `toString` read as undefined.

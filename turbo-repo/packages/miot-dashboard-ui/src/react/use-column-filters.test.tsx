@@ -74,6 +74,8 @@ it("detects types and enumerates values without inheriting prototype properties"
   });
   expect(result.current.enumValues.service).toEqual(["BQ", "SQL"]);
   expect(result.current.enumValues.constructor).toEqual([]);
+  expect(result.current.filters.constructor).toBeUndefined();
+  expect(result.current.filters.toString).toBeUndefined();
 });
 it("supports prototype-shaped keys without prototype mutation", () => {
   const data = [JSON.parse('{"__proto__":"yes"}'), {}] as Record<
@@ -91,7 +93,7 @@ it("supports prototype-shaped keys without prototype mutation", () => {
       value: "yes",
     }),
   );
-  expect(Object.getPrototypeOf(result.current.filters)).toBe(Object.prototype);
+  expect(Object.getPrototypeOf(result.current.filters)).toBeNull();
   expect(result.current.filteredData).toEqual([data[0]]);
 });
 const cases: [
@@ -117,6 +119,17 @@ const cases: [
   ["boolean", "is", true, "sí", true],
   ["boolean", "is", false, "false", true],
   ["boolean", "is", true, "no", false],
+  ["boolean", "is", false, "pending", false],
+  ["boolean", "is", ["true", "false"], "true", false],
+  ["number", "contains", 2, "2", false],
+  ["number", "between", ["1", "3"], "2", false],
+  ["number", "equals", 1.2, "1.2.3", false],
+  ["number", "equals", 123, "1,2,3", false],
+  ["number", "equals", 1234567, "1,234,567", true],
+  ["number", "equals", 1.2345, "1,2345", true],
+  ["date", "dateRange", true, "2026-09-01", false],
+  ["enum", "equals", "BQ", "BQ", false],
+  ["text", "between", [1, 2], "1", false],
   ["text", "isEmpty", null, " ", true],
   ["text", "isNotEmpty", null, " ", false],
   ["text", "equals", "x", "", false],
@@ -140,4 +153,14 @@ it.each([
   ["boolean", "is"],
 ] as const)("defaults %s to %s", (type, operator) =>
   expect(getDefaultOperator(type)).toBe(operator),
+);
+
+it.each(["1.2.3", "1,2,3", "1234,567"])(
+  "does not infer malformed numeric values: %s",
+  (value) => {
+    const { result } = renderHook(() =>
+      useColumnFilters([{ data: value }], [{ key: "data" }]),
+    );
+    expect(result.current.resolvedDataTypes.data).toBe("text");
+  },
 );

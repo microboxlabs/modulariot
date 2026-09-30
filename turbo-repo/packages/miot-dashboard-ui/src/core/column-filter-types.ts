@@ -1,5 +1,4 @@
 export type ColumnDataType = "text" | "number" | "date" | "enum" | "boolean";
-type DataType = ColumnDataType;
 export interface FilterableColumn {
   key: string;
   dataType?: ColumnDataType;
@@ -19,7 +18,7 @@ export type FilterOperator =
 
 export interface ColumnFilter {
   columnKey: string;
-  dataType: DataType;
+  dataType: ColumnDataType;
   operator: FilterOperator;
   value:
     | string
@@ -31,7 +30,7 @@ export interface ColumnFilter {
     | null;
 }
 
-export function getDefaultOperator(dataType: DataType): FilterOperator {
+export function getDefaultOperator(dataType: ColumnDataType): FilterOperator {
   switch (dataType) {
     case "text":
       return "contains";

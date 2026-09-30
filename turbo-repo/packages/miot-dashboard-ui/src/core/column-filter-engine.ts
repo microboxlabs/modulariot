@@ -68,8 +68,10 @@ function applyTextFilter(
   operator: string,
   filterValue: ColumnFilter["value"],
 ): boolean {
+  if (typeof filterValue !== "string") return false;
   const strValue = value.toLowerCase();
   const searchTerm = String(filterValue).toLowerCase();
+  if (operator !== "contains" && operator !== "equals") return false;
   if (!searchTerm) return true;
   if (operator === "contains") return strValue.includes(searchTerm);
   if (operator === "equals") return strValue === searchTerm;
@@ -82,16 +84,27 @@ function applyNumericFilter(
   filterValue: ColumnFilter["value"],
 ): boolean {
   const numValue = parseNumericString(value);
-  if (Number.isNaN(numValue)) return false;
+  if (!Number.isFinite(numValue)) return false;
 
-  if (operator === "equals") return numValue === Number(filterValue);
-  if (operator === "gt") return numValue > Number(filterValue);
-  if (operator === "lt") return numValue < Number(filterValue);
-  if (operator === "between" && Array.isArray(filterValue)) {
+  if (operator === "between") {
+    if (
+      !Array.isArray(filterValue) ||
+      filterValue.length !== 2 ||
+      !filterValue.every((v) => typeof v === "number" && Number.isFinite(v))
+    )
+      return false;
     const [min, max] = filterValue as [number, number];
     return numValue >= min && numValue <= max;
   }
-  return true;
+  if (typeof filterValue !== "number" && typeof filterValue !== "string")
+    return false;
+  if (typeof filterValue === "string" && !filterValue.trim()) return false;
+  const operand = Number(filterValue);
+  if (!Number.isFinite(operand)) return false;
+  if (operator === "equals") return numValue === operand;
+  if (operator === "gt") return numValue > operand;
+  if (operator === "lt") return numValue < operand;
+  return false;
 }
 
 function applyDateFilter(
@@ -99,7 +112,13 @@ function applyDateFilter(
   operator: string,
   filterValue: ColumnFilter["value"],
 ): boolean {
-  if (operator !== "dateRange" || !Array.isArray(filterValue)) return true;
+  if (
+    operator !== "dateRange" ||
+    !Array.isArray(filterValue) ||
+    filterValue.length !== 2 ||
+    !filterValue.every((v) => typeof v === "string")
+  )
+    return false;
 
   const [from, to] = filterValue as [string, string];
   const dateValue = new Date(value);
@@ -120,7 +139,12 @@ function applyEnumFilter(
   operator: string,
   filterValue: ColumnFilter["value"],
 ): boolean {
-  if (operator !== "in" || !Array.isArray(filterValue)) return true;
+  if (
+    operator !== "in" ||
+    !Array.isArray(filterValue) ||
+    !filterValue.every((v) => typeof v === "string")
+  )
+    return false;
   if (filterValue.length === 0) return true;
   return (filterValue as string[]).includes(value);
 }
@@ -130,8 +154,10 @@ function applyBooleanFilter(
   operator: string,
   filterValue: ColumnFilter["value"],
 ): boolean {
-  if (operator !== "is" || filterValue === null) return true;
-  const boolValue = BOOLEAN_TRUTHY.has(value.toLowerCase());
+  if (operator !== "is" || typeof filterValue !== "boolean") return false;
+  const normalized = value.toLowerCase();
+  if (!BOOLEAN_VALUES.has(normalized)) return false;
+  const boolValue = BOOLEAN_TRUTHY.has(normalized);
   return boolValue === filterValue;
 }
 
@@ -149,7 +175,7 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+)?/;
  * - Trailing units (km, kg, días, %, etc.) — uses \p{L} for Unicode letters
  * Does NOT match alphanumeric IDs like "DHLP19" or "VF7YF1T3B20123".
  */
-const NUMERIC_VALUE_RE = /^[€$£¥]?\s*-?\d[\d.,]*\s*[\p{L}%°]*$/u;
+const NUMERIC_TOKEN_RE = /^[€$£¥]?\s*(-?\d[\d.,]*)\s*[\p{L}%°]*$/u;
 
 /** Max distinct values (relative or absolute) to classify as enum. */
 const ENUM_MAX_DISTINCT = 20;
@@ -179,7 +205,7 @@ function detectDataType(values: (string | undefined)[]): DataType {
 
   // Number: values that look like real numbers, optionally with trailing units
   // e.g. "47,400 km", "$1,234.56", "-3.5" — but NOT alphanumeric IDs like "DHLP19"
-  if (nonEmpty.every((v) => NUMERIC_VALUE_RE.test(v.trim()))) {
+  if (nonEmpty.every((v) => Number.isFinite(parseNumericString(v)))) {
     // If all numeric but few distinct values, treat as enum
     const distinct = new Set(nonEmpty);
     if (
@@ -258,26 +284,22 @@ export function buildEnumValues(
 /** Strip non-numeric characters (except minus, dot) and parse.
  *  Handles locale formats: "47,400 km" → 47400, "1,5" → 1.5, "$1,234.56" → 1234.56 */
 function parseNumericString(value: string): number {
-  // Strip currency symbols and whitespace
-  let s = value.replaceAll(/[€$£¥\s]/g, "");
-  // Trim trailing non-numeric characters (unit suffixes like "km", "días", "%")
-  let end = s.length;
-  while (end > 0 && !"-.,0123456789".includes(s.charAt(end - 1))) end--;
-  s = s.slice(0, end);
-
-  if (s.includes(",") && !s.includes(".")) {
-    // No dot present: decide whether comma is decimal or thousands separator.
-    // Thousands separators are followed by exactly 3 digits (e.g. "47,400").
-    // Decimal commas have a different digit count (e.g. "1,5" or "3,14").
-    if (/,\d{3}$/.test(s)) {
-      s = s.replaceAll(",", "");
-    } else {
-      s = s.replace(",", ".");
-    }
-  } else {
-    // Dot present (or no comma) → commas are thousands separators
-    s = s.replaceAll(",", "");
+  const token = NUMERIC_TOKEN_RE.exec(value.trim())?.[1];
+  if (!token) return Number.NaN;
+  // Dot decimals and properly grouped comma thousands.
+  if (/^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(token)) {
+    return Number(token.replaceAll(",", ""));
   }
-
-  return Number.parseFloat(s);
+  // A single comma is decimal unless exactly three fractional digits would
+  // indicate a (malformed) thousands group under the existing convention.
+  const parts = token.split(",");
+  if (
+    parts.length === 2 &&
+    /^-?\d+$/.test(parts[0]!) &&
+    /^\d+$/.test(parts[1]!) &&
+    parts[1]!.length !== 3
+  ) {
+    return Number(parts.join("."));
+  }
+  return Number.NaN;
 }

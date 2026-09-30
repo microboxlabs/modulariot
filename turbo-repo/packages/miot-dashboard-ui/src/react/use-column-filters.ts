@@ -70,13 +70,11 @@ export function useColumnFilters(
     );
   }, [filters, columns]);
 
-  const visibleFilters = useMemo(
-    () =>
-      Object.fromEntries(
-        activeFilters.map((filter) => [filter.columnKey, filter]),
-      ),
-    [activeFilters],
-  );
+  const visibleFilters = useMemo(() => {
+    const result: Record<string, ColumnFilter> = Object.create(null);
+    for (const filter of activeFilters) result[filter.columnKey] = filter;
+    return result;
+  }, [activeFilters]);
 
   // Resolve data type per column: use explicit dataType or auto-detect from data
   const resolvedDataTypes = useMemo(() => {

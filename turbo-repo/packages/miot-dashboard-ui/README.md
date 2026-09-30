@@ -1074,3 +1074,12 @@ loading and missing query bindings clear cards. Legacy dynamic URLs and direct
 pgrest modes display the migration message; query connections and credentials
 belong on the dashboard server. This is a viewer registry, without widget
 settings or document persistence.
+
+### Controls inside editable grids
+
+`DashboardGrid` excludes native buttons, links, form controls, labels, editable
+text and accessible custom controls from widget dragging. Nested grid items and
+`.no-drag` remain excluded. Plain widget backgrounds still initiate dragging
+when the host authorizes edit mode. Hosts embedding their own nested grid can
+reuse `DASHBOARD_DRAG_CANCEL_SELECTOR` from `./core`; Next.js container widgets
+use the same selector for both container layouts.

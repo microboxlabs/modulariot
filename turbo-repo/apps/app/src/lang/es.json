@@ -1434,115 +1434,12 @@
       "subtitle": "El viaje que estás buscando no existe o no se encuentra disponible."
     },
     "userSettings": {
-      "contactBook": {
-        "title": "Libreta de contactos",
-        "description": "Directorio de personas del sistema. Búscalas o créalas al elegir a quién llamar.",
-        "newContact": "Nuevo contacto",
-        "editTitle": "Editar contacto",
-        "empty": "Aún no hay contactos. Crea uno para empezar.",
-        "nameLabel": "Nombre del contacto",
-        "phoneLabel": "+56 9 …",
-        "rolePlaceholder": "Rol (ej. Supervisor de turno)",
-        "methodsLabel": "Métodos de llamada permitidos",
-        "methodPhone": "Llamada telefónica",
-        "methodWhatsapp": "Llamada por WhatsApp",
-        "methodMeet": "Llamada por Google Meet",
-        "methodTeams": "Llamada por Microsoft Teams",
-        "removeContact": "Eliminar contacto",
-        "edit": "Editar",
-        "cancel": "Cancelar",
-        "save": "Guardar",
-        "channelsTitle": "Canales de contacto",
-        "unfinishedHint": "Termina de configurar o quita los canales abiertos para guardar.",
-        "stateOff": "Desactivado",
-        "stateActive": "Configurando",
-        "stateConfigured": "Configurado",
-        "actionUseSamePhone": "Usar el número de teléfono",
-        "fieldPhone": "Número de teléfono",
-        "fieldWhatsapp": "Número de WhatsApp",
-        "fieldTeams": "Correo de Microsoft Teams",
-        "fieldMeet": "Correo de Google",
-        "colName": "Nombre",
-        "colMethods": "Métodos de contacto",
-        "colActions": "Acciones",
-        "copied": "Copiado al portapapeles",
-        "methodNotConnected": "No conectado",
-        "clickToCopy": "Clic para copiar",
-        "importContacts": "Importar contactos",
-        "importTitle": "Importar contactos",
-        "importDescription": "Sube un archivo CSV con una fila por contacto. Los contactos con un RUT ya registrado se omiten.",
-        "importDropTitle": "Arrastra tu archivo CSV aquí",
-        "importDropHint": "o haz clic para elegirlo desde tu equipo",
-        "importDropReplace": "Arrastra otro archivo o haz clic para reemplazarlo",
-        "importExampleTitle": "Formato esperado (ejemplo)",
-        "importPreviewTitle": "Vista previa: {ok} de {total} filas se importarán",
-        "importColStatus": "estado",
-        "importStatusOk": "Se importará",
-        "importStatusMissingName": "Sin nombre",
-        "importStatusInvalidRut": "RUT inválido",
-        "importStatusDuplicateRut": "RUT ya registrado",
-        "importStatusDuplicateInFile": "RUT repetido en el archivo",
-        "importButton": "Importar",
-        "importDone": "{count} contactos importados",
-        "importReadError": "No se pudo leer el archivo.",
-        "remove": "Quitar",
-        "sectionPerson": "Persona",
-        "sectionPersonHint": "Elige a alguien de tu organización o ingresa un contacto externo.",
-        "sectionGrouping": "Agrupación",
-        "sectionGroupingHint": "Etiquetas que describen al contacto (ej. transportista, mintral, santiago).",
-        "sectionContact": "Contacto",
-        "sectionContactHint": "Configura los canales de contacto.",
-        "colBadges": "Etiquetas",
-        "orgSearchPlaceholder": "Buscar por nombre o correo…",
-        "orgLoading": "Cargando personas de la organización…",
-        "orgEmpty": "No hay personas que coincidan.",
-        "externalContactButton": "O ingresa un contacto fuera de la organización",
-        "fullNameLabel": "Nombre completo",
-        "rutLabel": "RUT",
-        "rutInvalid": "El RUT no es válido.",
-        "backToOrgList": "Volver a la lista de la organización",
-        "badgeRename": "Renombrar",
-        "badgeDelete": "Eliminar",
-        "badgesSelectedTitle": "Descriptores de este contacto",
-        "badgesSelectedEmpty": "Sin etiquetas. Búscalas o créalas arriba.",
-        "badgesInputPlaceholder": "Busca o crea una etiqueta (ej. transportista)",
-        "badgesCreate": "Crear \"{name}\"",
-        "channelInactive": "Sin configurar",
-        "channelActive": "Activado"
-      },
-      "selectables": {
-        "title": "Seleccionables",
-        "description": "Define las listas de opciones reutilizables que alimentan los selectores de la app — como \"A quién llamar\" o \"Resultado de la llamada\".",
-        "newSelectable": "Nuevo seleccionable",
-        "empty": "Aún no hay seleccionables definidos. Crea uno para empezar.",
-        "nameLabel": "Nombre",
-        "namePlaceholder": "ej. A quién llamar",
-        "descriptionLabel": "Descripción",
-        "descriptionPlaceholder": "Para qué se usa esta lista",
-        "modeLabel": "Selección",
-        "modeSingle": "Selección única",
-        "modeMultiple": "Selección múltiple",
-        "optionsTitle": "Opciones",
-        "optionNamePlaceholder": "Nombre de la opción",
-        "optionDescPlaceholder": "Descripción de la opción (opcional)",
-        "addOption": "Agregar opción",
-        "removeOption": "Quitar opción",
-        "removeSelectable": "Eliminar seleccionable",
-        "duplicate": "Duplicar",
-        "optionsCount": "{count} opciones",
-        "savedHint": "Demostración: los cambios se comparten en la organización, pero se pierden al reiniciar el servicio.",
-        "resetSeed": "Restaurar predeterminados",
-        "editTitle": "Editar seleccionable",
-        "edit": "Editar",
-        "cancel": "Cancelar",
-        "save": "Guardar"
-      },
       "platform": {
         "title": "Plataforma",
         "description": "Ajustes que no pertenecen a ninguna organización: valen para todos los dominios y cuentas.",
         "listTitle": "Ajustes de plataforma",
         "notOwnerTitle": "No tienes acceso a esta sección",
-        "notOwnerBody": "Solo quienes administran la plataforma pueden configurar la marca por dominio.",
+        "notOwnerBody": "Solo quienes administran la plataforma pueden ver y cambiar estos ajustes.",
         "branding": {
           "title": "Marca",
           "menuHint": "Un logo por dominio",
@@ -1632,6 +1529,105 @@
             "bootstrapBadge": "Desde la configuración",
             "bootstrapHelp": "Los administradores marcados vienen de la configuración del despliegue y solo se cambian ahí. Existen para poder recuperar el acceso si la lista queda vacía."
           }
+        },
+        "models": {
+          "title": "Modelos de IA",
+          "menuHint": "Proveedores, claves y precios",
+          "description": "Los proveedores que usa el asistente. Todas las organizaciones pueden usar los modelos activos y se les cobra por token a estos precios.",
+          "add": "Agregar proveedor",
+          "empty": "Todavía no hay proveedores configurados. El asistente usa los que define la instalación.",
+          "loadError": "No se pudieron cargar los proveedores.",
+          "saveError": "No se pudo guardar el cambio.",
+          "statusEnabled": "Activo",
+          "statusDisabled": "Inactivo",
+          "keyPreview": "Clave {preview}",
+          "noModels": "Sin modelos. Agrega al menos uno para que se pueda usar.",
+          "defaultBadge": "Predeterminado",
+          "edit": "Editar",
+          "remove": "Eliminar",
+          "removeConfirm": "Confirmar",
+          "columns": {
+            "model": "Modelo",
+            "input": "Entrada (USD / 1M tokens)",
+            "output": "Salida (USD / 1M tokens)",
+            "multiplier": "Multiplicador"
+          },
+          "toast": {
+            "saved": "Se guardó {provider}.",
+            "removed": "Se eliminó {provider} y su clave."
+          },
+          "editor": {
+            "addTitle": "Agregar proveedor",
+            "editTitle": "Editar {provider}",
+            "provider": "Proveedor",
+            "providerPlaceholder": "Elige un proveedor",
+            "apiKey": "Clave de API",
+            "apiKeyKeep": "Déjala vacía para mantener {preview}",
+            "baseUrl": "URL base (opcional)",
+            "baseUrlPlaceholder": "https://… (vacío usa la del proveedor)",
+            "enabled": "Activo",
+            "models": "Modelos",
+            "modelsHelp": "El identificador que usa el proveedor y su precio por millón de tokens. El predeterminado es el que usa el asistente si nadie elige otro.",
+            "modelId": "Identificador del modelo",
+            "inputPrice": "Entrada",
+            "outputPrice": "Salida",
+            "default": "Predeterminado",
+            "removeModel": "Quitar modelo",
+            "addModel": "Agregar modelo",
+            "save": "Guardar",
+            "saving": "Guardando…",
+            "cancel": "Cancelar",
+            "multiplier": "Multiplicador: cuántos tokens del cupo usa cada token del modelo"
+          },
+          "errors": {
+            "provider": "Elige un proveedor.",
+            "apiKey": "Escribe la clave de API.",
+            "baseUrl": "La URL base debe empezar con https://.",
+            "modelId": "Cada modelo necesita un identificador.",
+            "duplicateModel": "Hay un modelo repetido.",
+            "price": "Los precios deben ser números mayores o iguales a cero."
+          }
+        },
+        "plan": {
+          "title": "Plan de asientos",
+          "menuHint": "Precio por asiento y tokens incluidos",
+          "description": "Cada organización compra asientos. Cada asiento suma sus tokens al cupo mensual que comparte toda la organización.",
+          "seatPrice": "Precio por asiento (USD / mes)",
+          "tokensPerSeat": "Tokens por asiento (millones / mes)",
+          "yearlyDiscount": "Descuento anual (%)",
+          "summary": "Un asiento cuesta ${price} al mes (${yearly} al mes si se paga anual) y suma {tokens}M tokens al cupo.",
+          "multiplierHelp": "Los modelos con multiplicador ×2 o ×3 gastan el cupo 2 o 3 veces más rápido. Se configura en Modelos de IA.",
+          "save": "Guardar",
+          "saving": "Guardando…",
+          "saved": "Se guardó el plan.",
+          "saveError": "No se pudo guardar el plan.",
+          "loadError": "No se pudo cargar el plan.",
+          "errors": {
+            "seatPrice": "El precio por asiento debe ser un número mayor o igual a cero.",
+            "tokensPerSeat": "Los tokens por asiento deben ser un número mayor o igual a cero.",
+            "yearlyDiscount": "El descuento anual debe estar entre 0 y 99."
+          }
+        },
+        "usage": {
+          "title": "Consumo",
+          "menuHint": "Tokens y costo por organización",
+          "description": "Tokens que usó el asistente por organización y modelo, con su costo a los precios vigentes en cada uso.",
+          "period": "Periodo",
+          "thisMonth": "Este mes",
+          "lastMonth": "Mes anterior",
+          "empty": "No hay consumo en este periodo.",
+          "loadError": "No se pudo cargar el consumo.",
+          "noOrganization": "Sin organización",
+          "total": "Total",
+          "unpriced": "{count} ejecuciones usaron modelos sin precio y no suman costo.",
+          "columns": {
+            "organization": "Organización",
+            "model": "Modelo",
+            "runs": "Ejecuciones",
+            "input": "Tokens de entrada",
+            "output": "Tokens de salida",
+            "cost": "Costo (USD)"
+          }
         }
       },
       "organizations": {
@@ -1675,6 +1671,27 @@
           "saveError": "No se pudo guardar el permiso.",
           "roleSaveError": "No se pudo actualizar el rol de la organización.",
           "save": "Guardar permiso",
+          "saving": "Guardando…"
+        },
+        "harnessTrainerPermission": {
+          "title": "Entrenadores del asistente",
+          "description": "Los entrenadores enseñan al asistente: editan su conocimiento y ejecutan evaluaciones.",
+          "ownersNote": "Los propietarios de la organización siempre son entrenadores.",
+          "enabledLabel": "Habilitar entrenadores",
+          "enabledHelp": "Los miembros asignados pueden entrenar al asistente mientras esta opción esté habilitada.",
+          "assignedCount": "{count} entrenadores asignados",
+          "searchLabel": "Buscar miembros",
+          "searchPlaceholder": "Buscar por nombre o correo…",
+          "memberColumn": "Miembro",
+          "permissionColumn": "Entrenador",
+          "ownerBadge": "Propietario",
+          "memberPermissionLabel": "Permiso de entrenador para {member}",
+          "noSearchResults": "No hay miembros que coincidan con la búsqueda.",
+          "noMembers": "Agrega miembros a la organización antes de asignar entrenadores.",
+          "unavailableMember": "Ya no pertenece a la organización; desmarca para eliminar",
+          "loadError": "No se pudieron cargar los entrenadores del asistente.",
+          "saveError": "No se pudieron guardar los entrenadores.",
+          "save": "Guardar entrenadores",
           "saving": "Guardando…"
         },
         "whatsappChannel": {
@@ -1795,23 +1812,14 @@
       },
       "harness": {
         "title": "Harness",
-        "description": "Administra los asientos, el uso y los usuarios con acceso al asistente de IA de Harness.",
-        "loadError": "No se pudo cargar la configuración de Harness.",
-        "unpaidAlert": "Tu último pago no se procesó. Actualiza tu método de pago para mantener Harness activo.",
-        "unpaidAlertAction": "Resolverlo",
+        "description": "Administra los asientos, el cupo de tokens y quién usa el asistente de IA.",
+        "loadError": "No se pudo cargar el plan de Harness.",
         "pricing": {
           "title": "Precio",
-          "description": "Costo mensual estimado para tu plan de asientos actual.",
+          "description": "Lo que pagas por tus asientos.",
           "perSeatLabel": "Por asiento",
           "estimatedTotalLabel": "Cuánto pagas por",
           "seatsLabel": "{count} asientos",
-          "extraTokensLabel": "Tokens extra",
-          "lastPaymentLabel": "Último pago",
-          "paymentStatus": {
-            "paid": "Pagado",
-            "failed": "Fallido",
-            "pending": "Pendiente"
-          },
           "seatsModal": {
             "title": "Plan de pago",
             "description": "Elige cómo quieres que se te cobre por los asientos de Harness.",
@@ -1827,7 +1835,8 @@
             "diffFewer": "{count} asientos menos",
             "savePercent": "Ahorra {percent}%",
             "save": "Guardar"
-          }
+          },
+          "tokensPerSeat": "Cada asiento suma {tokens} tokens al cupo mensual."
         },
         "usage": {
           "seats": {
@@ -1835,29 +1844,24 @@
             "description": "Miembros activos",
             "unitLabel": "asientos",
             "remaining": "{count} asientos restantes",
-            "status": {
-              "fullyUsed": "Totalmente utilizados",
-              "underused": "Asientos sin usar"
-            }
+            "tooFew": "Faltan {count} asientos para los miembros con acceso."
           },
           "tokens": {
-            "title": "Tokens usados",
+            "title": "Cupo de tokens",
             "unitLabel": "tokens",
             "remaining": "{count} tokens restantes",
-            "status": {
-              "onTrack": "Sin problemas",
-              "atLimit": "Límite alcanzado"
-            }
+            "multiplierHelp": "Los modelos ×2 y ×3 gastan el cupo más rápido."
           },
-          "extraTokens": {
-            "title": "Tokens extra",
-            "description": "Recarga de tokens bajo demanda",
-            "unitLabel": "tokens",
-            "remaining": "{count} tokens restantes",
-            "status": {
-              "onTrack": "Sin problemas",
-              "atLimit": "Límite alcanzado"
-            }
+          "breakdown": {
+            "byModel": "Uso por modelo este mes",
+            "byMember": "Uso por miembro este mes",
+            "model": "Modelo",
+            "member": "Miembro",
+            "runs": "Consultas",
+            "tokens": "Tokens",
+            "poolTokens": "Del cupo",
+            "empty": "Sin uso este mes.",
+            "machine": "Integraciones"
           }
         },
         "access": {
@@ -1880,7 +1884,20 @@
           "empty": "No se encontraron miembros.",
           "noSearchResults": "Ningún miembro coincide con tu búsqueda.",
           "loading": "Cargando…",
-          "loadError": "No se pudieron cargar los miembros de la organización."
+          "loadError": "No se pudieron cargar los miembros de la organización.",
+          "save": "Guardar acceso",
+          "tooFewSeats": "Hay más miembros con acceso que asientos ({seats}). Agrega asientos o quita acceso."
+        },
+        "forbidden": "Solo un propietario de la organización puede ver y cambiar el plan de Harness.",
+        "saved": "Se guardaron los cambios.",
+        "saveError": "No se pudieron guardar los cambios.",
+        "notEnforced": "El plan todavía no se aplica en esta instalación: el uso se registra, pero no se bloquea a nadie.",
+        "noSubscription": "Tu organización no tiene asientos. Cada asiento cuesta ${price} al mes y suma {tokens} tokens al cupo mensual.",
+        "chooseSeats": "Elegir asientos",
+        "poolExhausted": "Tu organización usó todos los tokens de este mes. El asistente vuelve a estar disponible el día 1, o antes si agregas asientos.",
+        "learningWorkspace": {
+          "text": "Enseña al asistente los términos y procedimientos de tu organización.",
+          "link": "Abrir el espacio de aprendizaje"
         }
       },
       "breadcrumb": {
@@ -1892,8 +1909,8 @@
         "connections": "Conexiones",
         "harness": "Harness",
         "platform": "Plataforma",
-        "symptomRules": "Reglas de síntomas",
         "selectables": "Seleccionables",
+        "symptomRules": "Reglas de síntomas",
         "contactBook": "Libreta de contactos"
       },
       "symptoms": {
@@ -1904,6 +1921,10 @@
         }
       },
       "dataSources": {
+        "learningWorkspace": {
+          "text": "El conocimiento del asistente ahora se administra en el espacio de aprendizaje.",
+          "link": "Abrir espacio de aprendizaje"
+        },
         "learnedKnowledge": {
           "title": "Conocimiento aprendido",
           "description": "Definiciones de negocio que el asistente aprendió de tus consultas. Apruébalas para que las use en respuestas futuras.",
@@ -1912,11 +1933,30 @@
           "retry": "Reintentar",
           "approve": "Aprobar",
           "reject": "Descartar",
+          "edit": "Editar",
+          "save": "Guardar",
+          "cancel": "Cancelar",
+          "termLabel": "Término",
+          "bodyLabel": "Significado",
+          "pendingTitle": "Pendientes de revisión",
+          "readOnly": "Solo los entrenadores pueden revisar el conocimiento aprendido.",
+          "factsTitle": "Hechos aprendidos",
+          "factsDescription": "Hechos aprobados que el asistente usa en sus respuestas, por conexión.",
+          "factsEmpty": "Aún no hay hechos aprendidos.",
+          "factsError": "No se pudieron cargar los hechos aprendidos.",
+          "factsConnectionError": "No se pudieron cargar los hechos de esta conexión.",
+          "factsReadOnly": "Solo los entrenadores pueden ver y administrar los hechos aprendidos.",
+          "delete": "Eliminar",
+          "confirmDelete": "Confirmar eliminación",
           "toast": {
             "approved": "\"{term}\" aprobado y aplicado.",
             "approvedNotApplied": "\"{term}\" aprobado, pero aún no se aplicó. Reinténtalo más tarde.",
             "rejected": "\"{term}\" descartado.",
-            "reviewError": "No se pudo completar la revisión."
+            "reviewError": "No se pudo completar la revisión.",
+            "edited": "\"{term}\" actualizado.",
+            "editError": "No se pudieron guardar los cambios.",
+            "deleted": "\"{term}\" eliminado.",
+            "deleteError": "No se pudo eliminar el hecho."
           }
         },
         "title": "Fuentes de Datos",
@@ -1998,8 +2038,8 @@
         "general": "General",
         "dataSources": "Fuentes de Datos",
         "credentials": "Credenciales",
-        "symptomRules": "Reglas de síntomas",
         "selectables": "Seleccionables",
+        "symptomRules": "Reglas de síntomas",
         "contactBook": "Libreta de contactos"
       },
       "credentials": {
@@ -2209,6 +2249,224 @@
           "clientEmailInvalid": "Ingresa el correo de la cuenta de servicio",
           "privateKeyRequired": "La clave privada es obligatoria"
         }
+      },
+      "selectables": {
+        "title": "Seleccionables",
+        "description": "Listas de opciones reutilizables para los formularios: prioridades, motivos, tipos de documento, regiones y más.",
+        "newSelectable": "Nuevo seleccionable",
+        "editTitle": "Editar seleccionable",
+        "editorSubtitle": "Los textos se definen por idioma; cada opción guarda un valor estable y muestra su etiqueta.",
+        "empty": "Aún no hay seleccionables. Crea uno o restaura los predeterminados.",
+        "edit": "Editar",
+        "duplicate": "Duplicar",
+        "removeSelectable": "Eliminar",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "saveFailed": "No se pudo guardar el cambio.",
+        "resetSeed": "Restaurar predeterminados",
+        "resetConfirmTitle": "¿Restaurar los seleccionables predeterminados?",
+        "resetConfirmBody": "Se eliminan todas las listas y asignaciones de esta organización, incluidas las creadas a mano, y se vuelven a crear las predeterminadas.",
+        "resetConfirm": "Restaurar",
+        "deleteConfirmTitle": "¿Eliminar este seleccionable?",
+        "deleteConfirmBody": "Se eliminará «{name}» y los campos que lo usan dejarán de mostrar sus opciones.",
+        "deleteConfirm": "Eliminar",
+        "modeSingle": "Selección única",
+        "modeMultiple": "Selección múltiple",
+        "sourceStatic": "Lista fija",
+        "sourceSystem": "Del sistema",
+        "sourceConnection": "Desde una conexión",
+        "optionsCount": "{count} opciones",
+        "groupsCount": "{count} grupos",
+        "badgeCreatable": "Etiquetas libres",
+        "badgeMax": "Máx. {count}",
+        "badgeDependsOn": "Depende de {list}",
+        "editor": {
+          "tabGeneral": "General",
+          "tabOptions": "Opciones",
+          "tabGroups": "Grupos",
+          "tabBehavior": "Comportamiento",
+          "nameLabel": "Nombre",
+          "namePlaceholder": "ej. Motivo de retraso",
+          "keyLabel": "Clave",
+          "keyHintNew": "Identifica la lista en formularios e integraciones. Se genera a partir del nombre; no se puede cambiar después.",
+          "keyHintFixed": "La clave no cambia una vez creada la lista.",
+          "descriptionLabel": "Descripción",
+          "descriptionPlaceholder": "Para qué se usa esta lista",
+          "modeLabel": "Selección",
+          "modeSingle": "Única",
+          "modeMultiple": "Múltiple",
+          "sourceLabel": "Origen de las opciones",
+          "sourceStatic": "Lista fija",
+          "sourceSystem": "Del sistema",
+          "sourceConnection": "Conexión",
+          "sourcePickLabel": "Fuente",
+          "sourcePickPlaceholder": "Elige una fuente",
+          "noSources": "No hay fuentes disponibles",
+          "dynamicHint": "Las opciones se obtienen al abrir el campo; no se guardan en la lista.",
+          "mappingTitle": "Cómo leer la respuesta",
+          "mappingItems": "Elementos",
+          "mappingValue": "Valor",
+          "mappingLabel": "Etiqueta",
+          "mappingDescription": "Descripción",
+          "mappingParent": "Padre",
+          "mappingHint": "Escribe {{ para elegir un campo. Elementos es una variable sobre la respuesta, como {{response.data}}; los demás se arman para cada elemento y pueden combinar campos, como {{item.name}} ({{item.code}}). Deja uno vacío para usar su valor por defecto. Solo se ofrecen las conexiones activas y sus operaciones GET.",
+          "mappingNoSchema": "La plantilla de esta conexión no declara un esquema de respuesta, así que no se sugieren campos. Agrégalo en Ajustes › Conexiones.",
+          "mappingInvalid": "No es una plantilla válida",
+          "dynamicOptions": "Esta lista obtiene sus opciones de su fuente, así que no se editan aquí. Prueba el campo en la vista previa.",
+          "valueLabel": "Valor",
+          "valueHint": "Código que se guarda en los registros. Si lo cambias, los registros que ya lo usan dejan de encontrar la opción.",
+          "labelLabel": "Etiqueta",
+          "labelPlaceholder": "ej. Tráfico",
+          "optionDescriptionPlaceholder": "Descripción (opcional)",
+          "moreLabel": "Más propiedades",
+          "addOption": "Agregar opción",
+          "removeOption": "Quitar opción",
+          "tabHint": "Tab en la última etiqueta agrega otra opción.",
+          "groupLabel": "Grupo",
+          "noGroup": "Sin grupo",
+          "colorLabel": "Color",
+          "noColor": "Sin color",
+          "iconLabel": "Ícono",
+          "iconSearch": "Buscar ícono…",
+          "iconNone": "Ningún ícono coincide",
+          "noIcon": "Quitar ícono",
+          "parentLabel": "Pertenece a",
+          "noParent": "Sin valor padre",
+          "disabledLabel": "Deshabilitada (se ve, pero no se puede elegir)",
+          "groupsHint": "Los grupos ordenan las opciones bajo un título. Cada opción elige su grupo en «Más propiedades».",
+          "groupKeyLabel": "Clave del grupo",
+          "groupLabelPlaceholder": "ej. En ruta",
+          "addGroup": "Agregar grupo",
+          "removeGroup": "Quitar grupo",
+          "searchableLabel": "Permitir búsqueda",
+          "creatableLabel": "Permitir valores nuevos (etiquetas libres)",
+          "maxSelectionsLabel": "Máximo de selecciones",
+          "maxSelectionsHint": "Vacío para no limitar.",
+          "dependsOnLabel": "Filtrar por otra lista",
+          "noDependsOn": "No depende de otra lista",
+          "dependsOnHint": "Muestra solo las opciones cuyo «Pertenece a» coincide con lo elegido en esa lista (por ejemplo, comunas según la región).",
+          "placeholderLabel": "Texto de ayuda del campo",
+          "placeholderPlaceholder": "ej. Elige hasta tres motivos",
+          "previewTitle": "Vista previa",
+          "previewAfterSave": "Guarda la lista para probarla: sus opciones vienen de la fuente.",
+          "colors": {
+            "gray": "Gris",
+            "blue": "Azul",
+            "green": "Verde",
+            "red": "Rojo",
+            "yellow": "Amarillo",
+            "indigo": "Índigo",
+            "purple": "Morado",
+            "pink": "Rosa",
+            "cyan": "Cian",
+            "teal": "Verde azulado",
+            "lime": "Lima"
+          },
+          "errors": {
+            "nameRequired": "El nombre es obligatorio en al menos un idioma.",
+            "keyInvalid": "La clave debe empezar con una letra y usar solo minúsculas, números y guion bajo (2 a 64 caracteres).",
+            "keyTaken": "Otra lista ya usa esta clave.",
+            "sourceRequired": "Elige una fuente para las opciones.",
+            "duplicateValues": "Dos opciones tienen el mismo valor."
+          }
+        },
+        "field": {
+          "placeholder": "Selecciona…",
+          "create": "Crear «{value}»",
+          "noResults": "Sin resultados",
+          "loading": "Cargando…",
+          "max": "Máximo {count}",
+          "pickParentFirst": "Primero elige un valor en «{list}»",
+          "clear": "Limpiar",
+          "remove": "Quitar {label}"
+        },
+        "nameLabel": "Nombre",
+        "namePlaceholder": "ej. A quién llamar",
+        "descriptionLabel": "Descripción",
+        "descriptionPlaceholder": "Para qué se usa esta lista",
+        "modeLabel": "Selección",
+        "optionsTitle": "Opciones",
+        "optionNamePlaceholder": "Nombre de la opción",
+        "optionDescPlaceholder": "Descripción de la opción (opcional)",
+        "addOption": "Agregar opción",
+        "removeOption": "Quitar opción",
+        "savedHint": "Demostración: los cambios se comparten en la organización, pero se pierden al reiniciar el servicio."
+      },
+      "contactBook": {
+        "title": "Libreta de contactos",
+        "description": "Directorio de personas del sistema. Búscalas o créalas al elegir a quién llamar.",
+        "newContact": "Nuevo contacto",
+        "editTitle": "Editar contacto",
+        "empty": "Aún no hay contactos. Crea uno para empezar.",
+        "nameLabel": "Nombre del contacto",
+        "phoneLabel": "+56 9 …",
+        "rolePlaceholder": "Rol (ej. Supervisor de turno)",
+        "methodsLabel": "Métodos de llamada permitidos",
+        "methodPhone": "Llamada telefónica",
+        "methodWhatsapp": "Llamada por WhatsApp",
+        "methodMeet": "Llamada por Google Meet",
+        "methodTeams": "Llamada por Microsoft Teams",
+        "removeContact": "Eliminar contacto",
+        "edit": "Editar",
+        "cancel": "Cancelar",
+        "save": "Guardar",
+        "channelsTitle": "Canales de contacto",
+        "unfinishedHint": "Termina de configurar o quita los canales abiertos para guardar.",
+        "stateOff": "Desactivado",
+        "stateActive": "Configurando",
+        "stateConfigured": "Configurado",
+        "actionUseSamePhone": "Usar el número de teléfono",
+        "fieldPhone": "Número de teléfono",
+        "fieldWhatsapp": "Número de WhatsApp",
+        "fieldTeams": "Correo de Microsoft Teams",
+        "fieldMeet": "Correo de Google",
+        "colName": "Nombre",
+        "colMethods": "Métodos de contacto",
+        "colActions": "Acciones",
+        "copied": "Copiado al portapapeles",
+        "methodNotConnected": "No conectado",
+        "clickToCopy": "Clic para copiar",
+        "importContacts": "Importar contactos",
+        "importTitle": "Importar contactos",
+        "importDescription": "Sube un archivo CSV con una fila por contacto. Los contactos con un RUT ya registrado se omiten.",
+        "importDropTitle": "Arrastra tu archivo CSV aquí",
+        "importDropHint": "o haz clic para elegirlo desde tu equipo",
+        "importDropReplace": "Arrastra otro archivo o haz clic para reemplazarlo",
+        "importExampleTitle": "Formato esperado (ejemplo)",
+        "importPreviewTitle": "Vista previa: {ok} de {total} filas se importarán",
+        "importColStatus": "estado",
+        "importStatusOk": "Se importará",
+        "importStatusMissingName": "Sin nombre",
+        "importStatusInvalidRut": "RUT inválido",
+        "importStatusDuplicateRut": "RUT ya registrado",
+        "importStatusDuplicateInFile": "RUT repetido en el archivo",
+        "importButton": "Importar",
+        "importDone": "{count} contactos importados",
+        "importReadError": "No se pudo leer el archivo.",
+        "remove": "Quitar",
+        "sectionPerson": "Persona",
+        "sectionPersonHint": "Elige a alguien de tu organización o ingresa un contacto externo.",
+        "sectionGrouping": "Agrupación",
+        "sectionGroupingHint": "Etiquetas que describen al contacto (ej. transportista, mintral, santiago).",
+        "sectionContact": "Contacto",
+        "sectionContactHint": "Configura los canales de contacto.",
+        "colBadges": "Etiquetas",
+        "orgSearchPlaceholder": "Buscar por nombre o correo…",
+        "orgLoading": "Cargando personas de la organización…",
+        "orgEmpty": "No hay personas que coincidan.",
+        "externalContactButton": "O ingresa un contacto fuera de la organización",
+        "fullNameLabel": "Nombre completo",
+        "rutLabel": "RUT",
+        "rutInvalid": "El RUT no es válido.",
+        "backToOrgList": "Volver a la lista de la organización",
+        "badgeRename": "Renombrar",
+        "badgeDelete": "Eliminar",
+        "badgesSelectedTitle": "Descriptores de este contacto",
+        "badgesSelectedEmpty": "Sin etiquetas. Búscalas o créalas arriba.",
+        "badgesInputPlaceholder": "Busca o crea una etiqueta (ej. transportista)",
+        "badgesCreate": "Crear \"{name}\"",
+        "channelInactive": "Sin configurar",
+        "channelActive": "Activado"
       }
     },
     "integrationJobs": {
@@ -2527,6 +2785,8 @@
           "operationNamePlaceholder": "Ej: Reportar veredicto",
           "requestSchema": "Esquema de la carga (JSON Schema)",
           "requestSchemaHelp": "Los campos que el proceso de revisión mapeará. Un objeto con propiedades; admite objetos y arreglos anidados.",
+          "responseSchema": "Esquema de la respuesta (JSON Schema)",
+          "responseSchemaHelp": "Opcional. Lo que responde la operación, para que una lista seleccionable que la use pueda sugerir campos. Declara sus listas como arreglos de objetos.",
           "fieldsDetected": "Campos detectados"
         }
       },
@@ -2685,8 +2945,10 @@
         "createDashboard": "Nuevo dashboard",
         "closePanel": "Cerrar panel",
         "platform": "Plataforma",
-        "symptomRules": "Reglas de síntomas",
         "selectables": "Seleccionables",
+        "harnessLearning": "Aprendizaje del asistente",
+        "dashboardServer": "Dashboards",
+        "symptomRules": "Reglas de síntomas",
         "contactBook": "Libreta de contactos"
       }
     },
@@ -2856,6 +3118,17 @@
     "organizationLogoAlt": "Logo de la organización"
   },
   "dashboard": {
+    "textCard": {
+      "appearance": "Apariencia del texto",
+      "text": "Texto",
+      "placeholder": "Añade tu texto o cita aquí...",
+      "alignment": "Alineación",
+      "left": "Izquierda",
+      "center": "Centro",
+      "right": "Derecha",
+      "italic": "Cursiva"
+    },
+    "widgetOf": "de",
     "addWidget": "Agregar Widget",
     "editMode": "Modo Edición",
     "dragToMoveWidget": "Arrastra para mover este widget",
@@ -2934,6 +3207,7 @@
       "selectBorderColor": "Seleccionar color del borde",
       "selectColor": "Seleccionar color",
       "visualization": "Visualización",
+      "requiresMigration": "requiere migración",
       "dataProvider": "Proveedor de Datos",
       "widgetAnchor": "Ancla",
       "descriptor": "Descriptor",
@@ -3550,6 +3824,28 @@
       "untitled": "Sin título",
       "group": "Grupo",
       "noWidgetsYet": "Sin widgets aún"
+    },
+    "server": {
+      "title": "Dashboards",
+      "parallel": "Este espacio funciona junto a los dashboards existentes mientras se valida la migración.",
+      "loading": "Cargando dashboard…",
+      "loadError": "No se pudieron cargar los dashboards. Revisa tu organización y acceso.",
+      "newName": "Nuevo dashboard",
+      "slug": "ID del dashboard (minúsculas, números y guiones)",
+      "create": "Crear dashboard",
+      "createError": "No se pudo crear el dashboard. Revisa tus permisos o elige otro ID.",
+      "empty": "Esta organización aún no tiene dashboards.",
+      "name": "Nombre del dashboard",
+      "save": "Guardar",
+      "reload": "Recargar",
+      "delete": "Eliminar",
+      "discard": "¿Descartar los cambios sin guardar y cargar la versión del servidor?",
+      "confirmDelete": "¿Eliminar este dashboard? Esta acción no se puede deshacer.",
+      "unsaved": "Cambios sin guardar",
+      "conflict": "Cambió el dashboard o la organización activa. Tus cambios se conservan. Recarga explícitamente antes de reintentar.",
+      "saveError": "La operación falló. Tus cambios sin guardar se conservan.",
+      "queryError": "No se pudieron cargar los resultados.",
+      "leave": "¿Salir de este dashboard y descartar los cambios sin guardar?"
     }
   },
   "liveStreams": {
@@ -3712,7 +4008,6 @@
     "share": "Compartir",
     "symptoms-list": "Lista de síntomas",
     "map-view": "Vista de mapa",
-    "prototipe-map-view": "Vista de mapa (prototipo)",
     "restablished_symptoms": "Síntomas restablecidos",
     "under_treatment": "Síntomas siendo tratados",
     "symptoms_being_treated": "Síntomas siendo tratados",
@@ -3810,10 +4105,6 @@
     "ascending": "Ascendente",
     "descending": "Descendente",
     "treatments": "Tratamientos",
-    "treatment_group_label": "Tratamiento",
-    "treatment_in_progress": "En curso",
-    "treatment_note": "Nota",
-    "treatments_load_error": "No se pudieron cargar los tratamientos",
     "message": "Mensaje",
     "response": "Respuesta",
     "treatment_saved": "Tratamiento guardado correctamente",
@@ -3847,6 +4138,11 @@
       "Fatigue And Drowsiness": "Fatiga y Somnolencia",
       "Fatigue And Drowsiness Sensor": "Sensor de Fatiga y Somnolencia"
     },
+    "prototipe-map-view": "Vista de mapa (prototipo)",
+    "treatment_group_label": "Tratamiento",
+    "treatment_in_progress": "En curso",
+    "treatment_note": "Nota",
+    "treatments_load_error": "No se pudieron cargar los tratamientos",
     "call_target": "¿A quién llamar?",
     "target_driver": "Conductor",
     "target_carrier": "Transportista / Jefe de transporte",
@@ -5338,40 +5634,31 @@
       "menu": {
         "label": "Acciones de versión",
         "open": "Abrir",
-        "iterate": "Iterar",
-        "delete": "Eliminar"
-      },
-      "delete": {
-        "title": "¿Eliminar esta versión?",
-        "branchWarning": "También se elimina todo lo que deriva de esta versión.",
-        "confirm": "Eliminar",
-        "cancel": "Cancelar"
+        "iterate": "Iterar"
       },
       "toast": {
-        "iterated": "Se creó la v{label}",
-        "deleted": "Se eliminó la v{label}"
+        "iterated": "Se creó la v{label}"
       }
     },
     "title": "Storytelling",
-    "description": "Historias generadas por IA y curadas para tu organización.",
-    "artifactType": {
-      "html": "HTML",
-      "markdown": "Markdown",
-      "ppt": "PPT",
-      "pdf": "PDF"
-    },
+    "description": "Documentos, presentaciones y reportes guardados desde el chat.",
     "filters": {
       "noMatches": "Ninguna historia coincide con los filtros actuales."
     },
     "list": {
-      "empty": "Todavía no hay historias."
+      "empty": "Todavía no hay historias.",
+      "emptyHint": "Las historias se crean desde el chat. Pide al asistente: \"haz una historia con esto\".",
+      "openChat": "Abrir el asistente",
+      "loadFailed": "No se pudieron cargar las historias.",
+      "retry": "Reintentar"
     },
     "menu": {
       "label": "Acciones",
       "share": "Compartir",
       "details": "Detalles",
       "delete": "Eliminar",
-      "download": "Descargar"
+      "download": "Descargar",
+      "rename": "Renombrar"
     },
     "card": {
       "editedBy": "Editado por {name} el {date}"
@@ -5406,18 +5693,15 @@
       "remove": "Quitar",
       "removeFor": "Quitar a {name}",
       "peopleWithAccess": "Personas con acceso",
-      "owner": "Tú",
-      "ownerBadge": "Propietario",
-      "generalAccess": "Acceso general",
-      "linkRestricted": "Restringido",
-      "linkAnyone": "Cualquiera con el enlace",
-      "linkRestrictedHint": "Solo las personas invitadas pueden abrir esta historia",
-      "linkViewerHint": "Cualquiera con el enlace puede ver esta historia",
-      "linkEditorHint": "Cualquiera con el enlace puede ver y editar esta historia"
+      "failed": "No se pudo cambiar el acceso.",
+      "permissionLabel": "Nivel de acceso",
+      "onlyYou": "Solo tú tienes acceso.",
+      "linkHint": "Cualquier persona de tu organización con el enlace puede ver la versión actual."
     },
     "toast": {
       "deleted": "Se eliminó {name}",
-      "deletedMultiple": "Se eliminaron {count} historias"
+      "deletedMultiple": "Se eliminaron {count} historias",
+      "failed": "No se pudo completar la acción. Inténtalo de nuevo."
     },
     "selection": {
       "selectAll": "Seleccionar todo",
@@ -5426,7 +5710,6 @@
       "deleteSelected": "Eliminar seleccionadas"
     },
     "detail": {
-      "aiGeneratedBadge": "Generado por IA",
       "loading": "Cargando panel…",
       "loadError": "No se pudo cargar este panel.",
       "search": {
@@ -5436,11 +5719,7 @@
         "clear": "Limpiar búsqueda"
       },
       "markdown": {
-        "error": "No se pudo cargar este documento.",
         "outline": "Índice"
-      },
-      "ppt": {
-        "comingSoon": "La vista previa de PPT aún no está disponible — esto es un marcador de posición para este tipo de artefacto."
       },
       "pdf": {
         "loading": "Cargando documento…",
@@ -5459,7 +5738,29 @@
         "title": "Historia no encontrada",
         "description": "Esta historia no existe, o fue eliminada.",
         "backButton": "Volver a Storytelling"
-      }
+      },
+      "emptyContent": "Esta versión no tiene contenido para mostrar.",
+      "loadFailed": "No se pudo cargar la historia.",
+      "openConversation": "Abrir conversación",
+      "continueInChat": "Continuar en el chat"
+    },
+    "kind": {
+      "markdown": "Markdown",
+      "html": "HTML",
+      "svg": "SVG",
+      "deck": "Presentación",
+      "pdf": "PDF",
+      "sections": "Reporte"
+    },
+    "rename": {
+      "title": "Renombrar historia",
+      "label": "Título",
+      "cancel": "Cancelar",
+      "confirm": "Guardar"
+    },
+    "chat": {
+      "continueMessage": "Sigamos trabajando en la historia \"{title}\" (id {id}). Léela y dime qué contiene.",
+      "askAboutComponent": "Me refiero al componente \"{label}\" de la historia \"{title}\" (id {id})."
     }
   },
   "conversations": {
@@ -5537,9 +5838,7 @@
     "harnessEmpty": "No encontré una respuesta, ¡inténtalo de nuevo!",
     "progress": {
       "connecting": "Buscando…",
-      "routing": "Entendiendo tu pregunta…",
       "exploring": "Consultando los datos…",
-      "verifying": "Verificando la respuesta…",
       "answering": "Redactando la respuesta…",
       "tools": {
         "query": "Consultando la base de datos",
@@ -5559,14 +5858,52 @@
     "stream": {
       "progress": {
         "connecting": "Conectando con el harness…",
-        "routingWithRoute": "Enrutando vía {route}…",
-        "routingGeneric": "Enrutando tu pregunta…",
         "exploring": "Explorando tus datos…",
-        "verifying": "Verificando la respuesta…",
         "answering": "Preparando una respuesta…",
         "thinking": "Pensando…"
       },
       "gotIt": "Entendido.",
+      "assumption": "Supuesto",
+      "steps": {
+        "list_tables": "Revisando el catálogo de tablas",
+        "describe": "Leyendo la estructura de una tabla",
+        "profile": "Perfilando los datos",
+        "select": "Leyendo registros",
+        "query": "Consultando la base de datos",
+        "grep": "Buscando coincidencias",
+        "explain": "Estimando el costo de la consulta",
+        "functions": "Revisando las funciones existentes",
+        "definition": "Leyendo una definición SQL",
+        "call": "Ejecutando una función",
+        "knowledge": "Consultando la guía del dominio",
+        "show": "Preparando un gráfico",
+        "memory": "Revisando las notas guardadas",
+        "analysis": "Revisando los análisis guardados",
+        "web_search": "Buscando en la web",
+        "web_fetch": "Leyendo una página web",
+        "load_skill": "Cargando instrucciones",
+        "write_todos": "Planificando los pasos",
+        "delegate": "Delegando una tarea a un subagente",
+        "ask_advisor": "Consultando al asesor",
+        "fs_write": "Guardando un borrador",
+        "artifact": "Preparando un documento",
+        "workflow": "Revisando el proceso de negocio",
+        "source_search": "Buscando en el código y la documentación del producto",
+        "source_read": "Leyendo el código y la documentación del producto",
+        "source_list": "Recorriendo el código y la documentación del producto"
+      },
+      "mcpSteps": {
+        "stories_list": "Buscando historias",
+        "stories_get": "Leyendo historia",
+        "stories_create": "Guardando la historia",
+        "stories_add_version": "Guardando una versión",
+        "stories_link": "Creando el enlace",
+        "connections_create": "Creando conexión",
+        "connections_test": "Probando conexión",
+        "connections": "Revisando conexiones",
+        "selectables": "Revisando listas",
+        "other": "Usando {tool}"
+      },
       "noAnswer": "El harness no devolvió una respuesta.",
       "unconfigured": "El harness no está configurado en este entorno — esta es una respuesta de marcador de posición.",
       "demo": {
@@ -5613,7 +5950,13 @@
         "sharePlaceholder": "correo de la persona",
         "shareSubmit": "Compartir",
         "sharedWithYou": "Compartido contigo",
-        "revokeShare": "Quitar acceso"
+        "revokeShare": "Quitar acceso",
+        "rename": "Renombrar chat",
+        "fork": "Bifurcar chat",
+        "shareLink": "Compartir enlace",
+        "shareWithPerson": "O dale acceso a una persona:",
+        "linkCopied": "Enlace copiado. Cualquier persona de tu organización puede abrirlo.",
+        "linkFailed": "No se pudo crear el enlace."
       },
       "thread": {
         "dropToAttach": "Suelta para adjuntar",
@@ -5623,25 +5966,78 @@
         "thoughtProcess": "Proceso de pensamiento",
         "executionCanceled": "La ejecución fue cancelada.",
         "runFailed": "No se pudo obtener una respuesta.",
+        "runInterrupted": "La ejecución se interrumpió.",
         "retry": "Reintentar",
-        "readOnly": "Este chat es de solo lectura: lo compartió otra persona."
+        "readOnly": "Este chat es de solo lectura: lo compartió otra persona.",
+        "forkFromHere": "Bifurcar desde aquí",
+        "forkToContinue": "Bifúrcalo para continuarlo como tuyo",
+        "working": "Trabajando…",
+        "elapsed": "Tiempo transcurrido",
+        "awaitingApproval": "Esperando aprobación"
       },
       "attachments": {
         "removeImage": "Quitar imagen"
       },
       "composer": {
         "placeholder": "Pregúntale al harness…",
-        "model": "Modelo",
         "cancelRun": "Cancelar",
         "model": "Modelo",
-        "pdfTooLarge": "El PDF es demasiado grande ({size} MB) — el límite es {limit} MB."
+        "attachmentTooLarge": "{name} es demasiado grande ({size} MB). El límite es {limit} MB por archivo.",
+        "tooManyAttachments": "Puedes adjuntar hasta {limit} archivos por mensaje.",
+        "attachmentNotAccepted": "Ese tipo de archivo no es compatible. Adjunta imágenes PNG, JPEG, WebP o GIF, PDF o archivos de texto.",
+        "commands": {
+          "compact": {
+            "description": "Resume la conversación para liberar contexto. Agrega qué conservar, por ejemplo: /compact conserva las cifras."
+          },
+          "context": {
+            "description": "Muestra cuánto del contexto del modelo usa esta conversación."
+          }
+        },
+        "effort": "Esfuerzo de razonamiento",
+        "effortLevels": {
+          "default": "Auto",
+          "low": "Bajo",
+          "medium": "Medio",
+          "high": "Alto",
+          "max": "Máximo"
+        },
+        "defaultModel": "Modelo por defecto",
+        "modelsUnavailable": "No se pudieron cargar los modelos. Reintentar"
+      },
+      "showArtifact": {
+        "expand": "Ampliar",
+        "copy": "Copiar contenido",
+        "copied": "Copiado",
+        "download": "Descargar",
+        "saveAsStory": "Guardar como historia",
+        "actualSizeInline": "Ver a tamaño real",
+        "zoomArea": "Diagrama: rueda o pellizco para acercar, arrastrar para mover, + - y 0 para ajustar",
+        "zoomIn": "Acercar",
+        "zoomOut": "Alejar",
+        "fit": "Ajustar a la ventana",
+        "actualSize": "Tamaño real (100 %)",
+        "savedAsStory": "Guardado como historia",
+        "openStory": "Abrir historia",
+        "saveAsStoryFailed": "No se pudo guardar la historia",
+        "omitted": "Este resultado era demasiado grande para guardarlo en el historial de la conversación."
       },
       "showDashlet": {
         "unknown": "Dashlet desconocido: {id}",
         "unsupported": "{name} no se puede mostrar en el chat."
       },
-      "createStory": {
-        "open": "Clic para abrir"
+      "dashboardDraft": {
+        "title": "Borrador de dashboard",
+        "widgets": "{count} widgets",
+        "missing": "{count} widgets de antes en esta conversación ya no están disponibles y se omitieron.",
+        "nameLabel": "Nombre",
+        "site": "Sitio: {site}",
+        "noSite": "Tu usuario no tiene un sitio, así que el dashboard no se puede guardar.",
+        "snapshot": "El dashboard guarda los datos como se ven aquí; no se actualiza.",
+        "create": "Crear dashboard",
+        "creating": "Creando...",
+        "created": "Dashboard creado",
+        "open": "Abrir dashboard",
+        "error": "No se pudo crear el dashboard."
       },
       "askUserQuestion": {
         "skipped": "Omitido — reemplazado por un mensaje posterior.",
@@ -5649,7 +6045,304 @@
         "otherPlaceholder": "Otro…",
         "otherAriaLabel": "Otro",
         "submit": "Enviar"
+      },
+      "shareLink": {
+        "story": "Enlace a la historia",
+        "thread": "Enlace a la conversación",
+        "access": "Cualquier persona con sesión en esta organización puede abrirlo.",
+        "copy": "Copiar enlace",
+        "copied": "Enlace copiado",
+        "copyFailed": "No se pudo copiar el enlace",
+        "open": "Abrir"
+      },
+      "approval": {
+        "heading": "Se necesita tu aprobación",
+        "actions": {
+          "stories_create": "Guardar historia",
+          "stories_add_version": "Guardar una nueva versión",
+          "stories_set_current": "Cambiar la versión actual de una historia",
+          "stories_link": "Crear el enlace de una historia",
+          "connections_create": "Crear conexión",
+          "connections_test": "Probar una conexión",
+          "selectables_replace": "Reemplazar la lista",
+          "selectables_delete": "Eliminar la lista",
+          "selectables_bind": "Vincular listas a campos",
+          "propose_learned_fact": "Guardar hecho aprendido",
+          "propose_knowledge_change": "Aplicar cambios de conocimiento",
+          "ws_write": "Escribir archivo",
+          "ws_edit": "Editar archivo",
+          "ws_delete": "Eliminar archivo"
+        },
+        "kind": "Tipo",
+        "description": "Descripción",
+        "content": "Contenido",
+        "showAll": "Ver todo",
+        "showLess": "Ver menos",
+        "truncated": "Parte de los datos se acortó para mostrarla.",
+        "approve": "Aprobar",
+        "reject": "Rechazar",
+        "commentPlaceholder": "Motivo (opcional)",
+        "confirmReject": "Confirmar rechazo",
+        "cancel": "Cancelar",
+        "sending": "Enviando…",
+        "sent": "Decisión enviada. Esperando al asistente…",
+        "approved": "Aprobado",
+        "rejected": "Rechazado",
+        "expired": "Sin respuesta: la ejecución terminó",
+        "by": "por {by}",
+        "notPending": "Esta solicitud ya no está pendiente.",
+        "failed": "No se pudo enviar tu decisión. Inténtalo de nuevo.",
+        "fact": {
+          "connection": "Conexión",
+          "saved": "Guardado en hechos aprendidos"
+        }
+      },
+      "activity": {
+        "label": "Actividad",
+        "summary": "{count} pasos · {duration}",
+        "summaryOne": "1 paso · {duration}",
+        "loading": "Cargando la actividad…",
+        "failed": "No se pudo cargar la actividad.",
+        "empty": "No hay pasos registrados.",
+        "arguments": "Argumentos",
+        "result": "Resultado",
+        "error": "Error",
+        "truncated": "recortado",
+        "copy": "Copiar",
+        "copied": "Copiado",
+        "unfinished": "Sin terminar",
+        "noArguments": "Esta ejecución no guardó los argumentos.",
+        "tokens": "{input} tokens de entrada · {output} de salida",
+        "tokensCached": "{input} tokens de entrada ({cached} en caché) · {output} de salida"
+      },
+      "jobs": {
+        "open": "Actividad",
+        "title": "Actividad",
+        "running": "En curso",
+        "recent": "Recientes",
+        "empty": "No hay ejecuciones recientes.",
+        "loadFailed": "No se pudo cargar la actividad.",
+        "untitled": "Chat sin título",
+        "working": "Trabajando…",
+        "statusCompleted": "Listo",
+        "statusFailed": "Falló",
+        "statusInterrupted": "Interrumpida",
+        "delegates": "Subtareas",
+        "toastDone": "Listo: {title}",
+        "toastFailed": "Falló: {title}",
+        "toastOpen": "Abrir",
+        "awaitingApproval": "Esperando tu aprobación"
+      },
+      "menu": {
+        "open": "Más opciones",
+        "sessionSummary": "Resumen de la sesión",
+        "sessionSummaryPrompt": "Cierra esta sesión de trabajo: resume lo que hicimos, con las preguntas, las respuestas y sus números, lo que quedó guardado y lo que sigue pendiente."
       }
+    },
+    "plan": {
+      "plan_no_subscription": "Tu organización no tiene asientos de Harness. Pide a un administrador que los contrate en Ajustes › Harness.",
+      "plan_no_seat": "No tienes un asiento de Harness. Pide a un administrador de tu organización que te dé acceso.",
+      "plan_pool_exhausted": "Tu organización usó todos los tokens de este mes. Vuelve a estar disponible el día 1, o antes si un administrador agrega asientos.",
+      "plan_model_not_offered": "Ese modelo ya no está disponible. Elige otro en el selector."
+    },
+    "learning": {
+      "title": "Espacio de aprendizaje",
+      "subtitle": "Enseña al asistente y comprueba cada cambio con evaluaciones.",
+      "sessions": "Sesiones",
+      "newSession": "Nueva sesión",
+      "newSessionFailed": "No se pudo crear la sesión. Inténtalo de nuevo.",
+      "untitled": "Sesión sin título",
+      "notTrainer": "Solo los entrenadores del asistente pueden usar este espacio.",
+      "loading": "Cargando…",
+      "emptyTitle": "Enseña algo nuevo al asistente",
+      "emptyText": "Abre una sesión y usa los comandos para enseñar hechos, reglas y procedimientos. Luego pruébalos con evaluaciones.",
+      "commandsHeading": "Comandos",
+      "showSessions": "Mostrar sesiones",
+      "hideSessions": "Ocultar sesiones",
+      "sessionsFailed": "No se pudieron cargar las sesiones.",
+      "retry": "Reintentar",
+      "noSessions": "Aún no hay sesiones.",
+      "layers": {
+        "fact": "Hechos de datos",
+        "rule": "Reglas y glosario",
+        "skill": "Procedimientos",
+        "primer": "Descripciones de fuentes",
+        "note": "Notas del agente",
+        "eval": "Casos de evaluación"
+      },
+      "ops": {
+        "upsert": "Guardar",
+        "delete": "Eliminar",
+        "write": "Escribir",
+        "edit": "Editar"
+      },
+      "change": {
+        "heading": "Cambio de conocimiento",
+        "scratchpad": "Archivo de trabajo",
+        "open": "Abrir en el área de trabajo",
+        "truncated": "El diff llegó acortado. Ábrelo para verlo completo.",
+        "loadingDiff": "Calculando diferencias…",
+        "version": "v{version}",
+        "count": "{count} cambios"
+      },
+      "diff": {
+        "view": "Vista del diff",
+        "unified": "Unificada",
+        "split": "Lado a lado",
+        "wrap": "Ajustar líneas",
+        "collapse": "Ocultar líneas sin cambios",
+        "hiddenLines": "{count} líneas sin cambios",
+        "noChanges": "Sin cambios",
+        "invalid": "No se pudo mostrar el diff."
+      },
+      "eval": {
+        "heading": "Evaluación",
+        "running": "Evaluando… {done}/{total}",
+        "runningShort": "Evaluando…",
+        "failed": "La evaluación falló.",
+        "loadFailed": "No se pudo cargar la evaluación.",
+        "baseline": "Antes",
+        "candidate": "Después",
+        "improved": "{count} mejoraron",
+        "regressed": "{count} empeoraron",
+        "unchanged": "{count} igual",
+        "open": "Ver casos",
+        "question": "Pregunta",
+        "expectation": "Respuesta esperada",
+        "answer": "Respuesta",
+        "reason": "Motivo",
+        "skills": "Procedimientos usados",
+        "model": "Modelo",
+        "noResults": "Sin casos.",
+        "all": "Todos",
+        "onlyImproved": "Mejoraron",
+        "onlyRegressed": "Empeoraron",
+        "case": "Caso {n}",
+        "noAnswer": "Sin respuesta",
+        "triggerOk": "Usó los procedimientos esperados",
+        "triggerMiss": "Procedimientos: faltó {missing}; sobró {unexpected}"
+      },
+      "work": {
+        "title": "Área de trabajo",
+        "close": "Cerrar el área de trabajo",
+        "back": "Atrás",
+        "forward": "Adelante",
+        "recent": "Recientes",
+        "resize": "Cambiar el ancho del área de trabajo",
+        "empty": "Abre un archivo, una evaluación o /layers desde el chat."
+      },
+      "file": {
+        "changes": "Cambios",
+        "full": "Archivo",
+        "history": "Historial",
+        "revert": "Revertir",
+        "reverted": "Versión {version} restaurada como una versión nueva.",
+        "revertFailed": "No se pudo revertir.",
+        "confirmRevert": "¿Restaurar la versión {version}? Se guardará como una versión nueva.",
+        "edit": "Editar",
+        "save": "Guardar versión",
+        "saving": "Guardando…",
+        "saved": "Nueva versión guardada.",
+        "saveFailed": "No se pudo guardar.",
+        "cancel": "Cancelar",
+        "reason": "Motivo del cambio",
+        "titleLabel": "Título",
+        "contentLabel": "Contenido",
+        "notFound": "Este archivo aún no existe.",
+        "loadFailed": "No se pudo cargar el archivo.",
+        "proposed": "Cambio propuesto",
+        "vsPrevious": "Versión {version} contra la anterior",
+        "firstVersion": "Primera versión",
+        "readOnly": "Solo lectura",
+        "by": "por {by}",
+        "current": "actual",
+        "deleted": "Eliminado en esta versión."
+      },
+      "layersView": {
+        "title": "Conocimiento editable",
+        "loadFailed": "No se pudo cargar el conocimiento.",
+        "empty": "Vacío",
+        "readOnly": "solo lectura",
+        "refresh": "Actualizar"
+      },
+      "changesView": {
+        "title": "Cambios de esta sesión",
+        "empty": "Esta sesión aún no cambió nada."
+      },
+      "view": {
+        "layers": "Conocimiento editable",
+        "diff": "Cambios de la sesión"
+      },
+      "review": {
+        "not_found": "No encontré esa conversación. Revisa el enlace o el id.",
+        "forbidden": "No tienes acceso a esa conversación.",
+        "failed": "No se pudo leer esa conversación. Inténtalo de nuevo."
+      },
+      "commands": {
+        "fact": {
+          "usage": "<texto>",
+          "description": "Enseña un hecho sobre los datos."
+        },
+        "rule": {
+          "usage": "<texto>",
+          "description": "Agrega una regla o un término del glosario de la organización."
+        },
+        "skill": {
+          "usage": "<nombre>: <procedimiento>",
+          "description": "Crea o edita un procedimiento."
+        },
+        "primer": {
+          "usage": "<conexión>: <texto>",
+          "description": "Edita la descripción de una fuente de datos."
+        },
+        "forget": {
+          "usage": "<qué>",
+          "description": "Busca el conocimiento que dice esto y propone borrarlo."
+        },
+        "eval": {
+          "usage": "<pregunta> => <respuesta esperada>",
+          "description": "Guarda un caso de evaluación."
+        },
+        "test": {
+          "usage": "[pregunta]",
+          "description": "Evalúa los cambios de esta sesión: antes y después, con el modelo actual."
+        },
+        "review": {
+          "usage": "<enlace o id>",
+          "description": "Revisa una conversación pasada y propone cambios y casos de evaluación."
+        },
+        "skillCreator": {
+          "usage": "<objetivo>",
+          "description": "Crea un procedimiento guiado: preguntas, borrador, casos y prueba."
+        },
+        "skillDoctor": {
+          "usage": "[nombre]",
+          "description": "Revisa los procedimientos de la organización y propone arreglos."
+        },
+        "layers": {
+          "usage": "",
+          "description": "Muestra el conocimiento editable."
+        },
+        "diff": {
+          "usage": "",
+          "description": "Muestra los cambios de esta sesión."
+        }
+      }
+    }
+  },
+  "shareLink": {
+    "readOnly": "Solo lectura",
+    "loadFailed": "No se pudo abrir el enlace.",
+    "notFound": {
+      "title": "Enlace no disponible",
+      "description": "El enlace fue revocado, o lo que compartía ya no existe."
+    },
+    "thread": {
+      "untitled": "Conversación",
+      "user": "Usuario",
+      "assistant": "Asistente",
+      "empty": "Esta conversación no tiene mensajes.",
+      "loadMore": "Cargar más mensajes"
     }
   },
   "moduleNames": {

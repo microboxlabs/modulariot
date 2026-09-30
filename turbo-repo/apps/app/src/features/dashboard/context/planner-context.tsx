@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  createContext,
-  useContext,
   useCallback,
   useRef,
   useState,
@@ -10,44 +8,37 @@ import {
   useMemo,
   type PropsWithChildren,
 } from "react";
-import type { PlannerRequestDefinition } from "../types/dashboard.types";
 import { useDashboard } from "./dashboard-context";
 import { useDashboardFilters } from "./dashboard-filters-context";
 import { buildPgrestFetch, parseRows } from "../dashlets/common/pgrest-utils";
 import { resolveFilterParams } from "../dashlets/common/resolve-filter-params";
 import { usePollingInterval } from "../hooks/use-polling-interval";
 
-// ============================================================================
-// Types
-// ============================================================================
+import {
+  PlannerResultsProvider,
+  type PlannerContextValue,
+  type PlannerQueryResult,
+} from "@microboxlabs/miot-dashboard-ui/react";
+export {
+  PlannerResultsProvider,
+  usePlannerContext,
+  useOptionalPlannerContext,
+  type PlannerQueryResult,
+} from "@microboxlabs/miot-dashboard-ui/react";
 
-export interface PlannerQueryResult {
-  rows: Record<string, string>[];
-  loading: boolean;
-  error: string | null;
-}
-
-interface PlannerContextValue {
-  results: Map<string, PlannerQueryResult>;
-  definitions: PlannerRequestDefinition[];
-  /** Column keys per variable name, derived from the first row of results */
-  schemas: Map<string, string[]>;
-}
-
-const EMPTY_RESULT: PlannerQueryResult = { rows: [], loading: false, error: null };
-
-// ============================================================================
-// Context
-// ============================================================================
-
-const PlannerContext = createContext<PlannerContextValue | null>(null);
-
-// ============================================================================
-// Provider
-// ============================================================================
+export const EMPTY_RESULT: PlannerQueryResult = {
+  rows: [],
+  loading: false,
+  error: null,
+};
 
 export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
-  const { plannerDefinitions, updatePlannerRequest, refreshInterval: dashboardRefreshInterval, editMode } = useDashboard();
+  const {
+    plannerDefinitions,
+    updatePlannerRequest,
+    refreshInterval: dashboardRefreshInterval,
+    editMode,
+  } = useDashboard();
   const { activeFilters } = useDashboardFilters();
   const [results, setResults] = useState<Map<string, PlannerQueryResult>>(
     () => new Map()
@@ -63,17 +54,17 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
         updatePlannerRequest(defId, { schema: newSchema });
       }
     },
-    [updatePlannerRequest],
+    [updatePlannerRequest]
   );
 
   // Serialize definitions to detect config changes (exclude schema to avoid loops)
   const definitionsKey = useMemo(
     () =>
       JSON.stringify([
-        plannerDefinitions.map(({ schema: _s, ...rest }) => rest),
+        plannerDefinitions.map((definition) => ({ ...definition, schema: undefined })),
         activeFilters,
       ]),
-    [plannerDefinitions, activeFilters],
+    [plannerDefinitions, activeFilters]
   );
 
   // Abort controller for cancelling in-flight requests
@@ -84,7 +75,11 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
   depsRef.current = { plannerDefinitions, activeFilters, persistSchema };
 
   const doFetchAll = useCallback((silent: boolean) => {
-    const { plannerDefinitions: defs, activeFilters: filters, persistSchema: persist } = depsRef.current;
+    const {
+      plannerDefinitions: defs,
+      activeFilters: filters,
+      persistSchema: persist,
+    } = depsRef.current;
 
     if (defs.length === 0) {
       setResults((prev) => (prev.size === 0 ? prev : new Map()));
@@ -115,16 +110,25 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
         defs.map(async (def): Promise<[string, PlannerQueryResult]> => {
           try {
             if (!def.pgrestFunctionName) {
-              return [def.variableName, { rows: [], loading: false, error: null }];
+              return [
+                def.variableName,
+                { rows: [], loading: false, error: null },
+              ];
             }
-            const resolvedParams = resolveFilterParams(def.pgrestParams, filters);
+            const resolvedParams = resolveFilterParams(
+              def.pgrestParams,
+              filters
+            );
             const { url, init } = buildPgrestFetch(
               def.pgrestFunctionName,
               def.pgrestHttpMethod,
               resolvedParams,
-              def.dataSourceId,
+              def.dataSourceId
             );
-            const res = await fetch(url, { ...init, signal: controller.signal });
+            const res = await fetch(url, {
+              ...init,
+              signal: controller.signal,
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data: unknown = await res.json();
             const rows = parseRows(data, { singleObjectFallback: true });
@@ -136,7 +140,10 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
             return [def.variableName, { rows, loading: false, error: null }];
           } catch (err) {
             if (controller.signal.aborted) {
-              return [def.variableName, { rows: [], loading: false, error: null }];
+              return [
+                def.variableName,
+                { rows: [], loading: false, error: null },
+              ];
             }
             return [
               def.variableName,
@@ -166,7 +173,9 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
     if (isFirstRenderRef.current) {
       isFirstRenderRef.current = false;
       doFetchAll(false);
-      return () => { abortRef.current?.abort(); };
+      return () => {
+        abortRef.current?.abort();
+      };
     }
 
     debounceRef.current = setTimeout(() => doFetchAll(false), 600);
@@ -206,36 +215,6 @@ export function PlannerProvider({ children }: Readonly<PropsWithChildren>) {
   );
 
   return (
-    <PlannerContext.Provider value={value}>{children}</PlannerContext.Provider>
+    <PlannerResultsProvider value={value}>{children}</PlannerResultsProvider>
   );
 }
-
-// ============================================================================
-// Hook
-// ============================================================================
-
-export function usePlannerContext(): PlannerContextValue {
-  const context = useContext(PlannerContext);
-  if (!context) {
-    throw new Error(
-      "usePlannerContext must be used within a PlannerProvider"
-    );
-  }
-  return context;
-}
-
-const FALLBACK: PlannerContextValue = {
-  results: new Map(),
-  definitions: [],
-  schemas: new Map(),
-};
-
-/**
- * Like `usePlannerContext` but returns a fallback value instead of throwing
- * when rendered outside a `PlannerProvider` (e.g. in the geographic-view).
- */
-export function useOptionalPlannerContext(): PlannerContextValue {
-  return useContext(PlannerContext) ?? FALLBACK;
-}
-
-export { EMPTY_RESULT };

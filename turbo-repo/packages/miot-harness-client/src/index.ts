@@ -10,15 +10,23 @@ export { parseSSE } from "./sse.js";
 export type { SSEFrame } from "./sse.js";
 export { TERMINAL_EVENT_TYPES } from "./types.js";
 export type {
+  ApprovalDecision,
+  Attachment,
   ClientConfig,
   ConversationTurn,
   ErrorResponse,
   HarnessAssumption,
+  HarnessContextUsage,
   HarnessEvent,
   HarnessEventType,
   HarnessRunRecord,
+  ListRunsQuery,
   ModelsInfo,
-  RunMode,
+  RunEffort,
+  RunSummary,
+  RunSummaryStatus,
   SkillSummary,
+  ThreadTitle,
+  ThreadTitleRequest,
   UserRequest,
 } from "./types.js";

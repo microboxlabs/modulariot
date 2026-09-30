@@ -23,7 +23,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from miot_harness.agents.meta_agent import MetaAgentCatalogEntry
     from miot_harness.config import HarnessSettings
     from miot_harness.connections.models import Connection
     from miot_harness.datasource.knowledge.models import DetectedPack
@@ -41,12 +40,8 @@ class DataSourceProfile:
     - source_label:    provenance string shown on SSE tool events and
                        evidence rows.
     - tool_prefix:     prefix of tools this datasource registers (e.g.
-                       "<slug>_") — used by the filter expert to scope tool
-                       selection.
-    - primer:          grounding text injected into analyst / synthesizer /
-                       meta-agent system prompts.
-    - router_keywords: lowercase literals that route a message to the
-                       data pipeline (keyword router).
+                       "<slug>_"); these are the tools the model is given.
+    - primer:          grounding text in the model's system prompt.
     - tenant_lock:     default tenant the datasource is locked to, or
                        None for no lock. Env-overridable via
                        `datasource_tenant_lock`.
@@ -62,7 +57,6 @@ class DataSourceProfile:
     source_label: str
     tool_prefix: str
     primer: str
-    router_keywords: frozenset[str]
     tenant_lock: str | None
     tenant_refusal_template: str
     freshness_warn_minutes: int
@@ -72,15 +66,6 @@ class DataSourceProfile:
     # the freshness judge is a no-op — a live source with no `refreshed_at` is
     # not "stale", so the snapshot-age warning is suppressed.
     has_freshness_model: bool = True
-    # Whether this datasource exposes a curated catalog of named data functions
-    # (Nexo's L1/L2/L3/VT `fn_dx_*` seats do) vs. only composable SQL primitives
-    # (generic_pg: describe/select/grep/query). The canned DATA_QUERY seat
-    # (`filter_expert`) picks ONE curated tool; it has nothing to pick on a
-    # primitives-only source, so the router must never send such a datasource
-    # there — every data question is agentic (composable-primitive) exploration.
-    # When False, the intent router drops DATA_QUERY from its menu and the
-    # supervisor remaps any DATA_QUERY it still sees to DATA_AGENTIC.
-    has_curated_catalog: bool = True
 
 
 @dataclass(frozen=True)
@@ -109,12 +94,8 @@ class BootResult:
     # float is intentional: sub-minute precision from timestamp arithmetic
     # (sub-minute precision is required by the freshness SLA checks).
     snapshot_age_minutes: float | None = None
-    # Per-function freshness survey (Gap 2): lets /health and the meta
-    # agent say which functions are fresh vs stale BEFORE a user asks.
+    # Per-function freshness survey, shown in /health.
     freshness: dict[str, FreshnessProbe] = field(default_factory=dict)
-    # Descriptor-derived meta-agent catalog (title/layer/body + freshness
-    # suffix). Empty → the server falls back to generic entries.
-    catalog_entries: tuple[MetaAgentCatalogEntry, ...] = ()
     # Connection Knowledge Base (Phase 2): the boot-time schema index for
     # generic connections. None for providers that don't introspect (e.g.
     # Nexo, which surfaces its function catalog instead).

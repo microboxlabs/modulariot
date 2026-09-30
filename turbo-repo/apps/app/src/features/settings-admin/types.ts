@@ -22,17 +22,20 @@ export interface OrgMember {
   displayName: string;
 }
 
-export interface ContentReviewPermission {
+export interface OrganizationPermission {
   enabled: boolean;
   permissionCode: string;
   roleCode: string;
   assigneeIds: string[];
 }
 
-export interface SetContentReviewPermission {
+export interface SetOrganizationPermission {
   enabled: boolean;
   assigneeIds: string[];
 }
+
+export type ContentReviewPermission = OrganizationPermission;
+export type SetContentReviewPermission = SetOrganizationPermission;
 
 export interface OrganizationRole {
   roleCode: string;

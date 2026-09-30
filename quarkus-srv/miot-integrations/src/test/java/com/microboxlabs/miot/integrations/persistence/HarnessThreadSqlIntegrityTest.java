@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.integrations.persistence;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
@@ -42,6 +43,34 @@ class HarnessThreadSqlIntegrityTest {
                 "one statement, so a failure cannot store the message and lose the stamp");
         assertTrue(sql.contains("SET last_message_at = now()"),
                 "the thread's ordering key moves with the message");
+    }
+
+    @Test
+    void aGeneratedTitleCannotReplaceANamedOne() throws Exception {
+        String sql = readStaticString("UPDATE_THREAD");
+        assertTrue(sql.contains("WHEN $3 IS NULL OR ($8 AND title_edited) THEN title"),
+                "an automatic rename must leave a title the person chose");
+        assertTrue(sql.contains("title_edited = title_edited OR ($3 IS NOT NULL AND NOT $8)"),
+                "a rename by the person marks the title as theirs");
+    }
+
+    @Test
+    void aLatePlaceholderUpsertKeepsANamedTitle() throws Exception {
+        assertTrue(readStaticString("UPSERT_THREAD").contains(
+                        "CASE WHEN miot_integrations.harness_thread.title_edited"),
+                "the first-message title must not replace one the person chose");
+    }
+
+    @Test
+    void aForkAndItsMessagesAreWrittenTogether() throws Exception {
+        String sql = readStaticString("FORK_THREAD");
+        assertTrue(sql.startsWith("WITH created AS ("),
+                "one statement, so a fork never exists without its messages");
+        assertTrue(sql.contains("WHERE m.thread_id = $7 AND m.id = ANY($8)"),
+                "only the chosen messages of the source are copied");
+        assertTrue(sql.contains("FROM created c"),
+                "the copy takes the new id from the parent insert, so it runs after it");
+        assertTrue(sql.contains("ORDER BY m.seq"), "the copy keeps the source's append order");
     }
 
     @Test
@@ -112,6 +141,17 @@ class HarnessThreadSqlIntegrityTest {
                 "purge must collect expired threads");
         assertTrue(sql.contains("deleted_at IS NOT NULL AND deleted_at <= $1"),
                 "purge must collect deleted threads past the grace cutoff");
+    }
+
+    @Test
+    void bothListingsFilterByKindAndAnUpsertNeverChangesIt() throws Exception {
+        assertTrue(readStaticString("LIST_OWNED").contains("($4::varchar IS NULL OR kind = $4::varchar)"),
+                "the owner's listing narrows to one kind when asked");
+        assertTrue(readStaticString("LIST_SHARED_WITH").contains("($4::varchar IS NULL OR t.kind = $4::varchar)"),
+                "so does the shared-with-me listing");
+        String upsert = readStaticString("UPSERT_THREAD");
+        String conflictBranch = upsert.substring(upsert.indexOf("DO UPDATE"), upsert.indexOf("RETURNING"));
+        assertFalse(conflictBranch.contains("kind"), "a thread's kind is fixed when it is created");
     }
 
     private static String readStaticString(String name) throws Exception {

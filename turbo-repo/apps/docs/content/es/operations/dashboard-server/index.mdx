@@ -6,11 +6,11 @@ El servidor de dashboards es el servicio que guarda los tableros, verifica quié
 
 | Paquete | Qué hace |
 | --- | --- |
-| `@microboxlabs/miot-dashboard-ui` | Dibuja y edita los tableros en el navegador. No sabe de usuarios ni de organizaciones. |
+| `@microboxlabs/miot-dashboard-ui` (planificado) | Futuro paquete de visualización y edición en navegador. La UI actual se distribuye dentro de ModularIoT. |
 | `@microboxlabs/miot-dashboard-server` | Guarda los tableros, autoriza cada petición y protege las credenciales. |
 | `@microboxlabs/miot-dashboard-contract` | El contrato entre ambos: el esquema del documento, los roles, los errores y la especificación OpenAPI. |
 
-Quien reemplace una de las dos primeras piezas por una propia solo necesita respetar la tercera.
+El paquete de UI está planificado; la interfaz actual se distribuye dentro de la aplicación ModularIoT. Otra interfaz o backend puede usar el contrato compartido.
 
 ## Dos formas de desplegarlo
 
@@ -36,3 +36,11 @@ Esta sección describe el modo autónomo: el servidor corre en su infraestructur
 | [Usuarios y permisos](/es/operations/dashboard-server/identidad) | Identidad, organizaciones, ámbitos y roles |
 | [Fuentes de datos y credenciales](/es/operations/dashboard-server/fuentes-de-datos) | Conectar un tablero a sus datos sin exponer secretos |
 | [API](/es/operations/dashboard-server/api) | Las rutas, el contrato OpenAPI y los errores |
+
+## Historial de revisiones
+
+La migración 5 conserva un contador de revisiones después de eliminar un dashboard. Al reutilizar el slug se asigna una revisión mayor, evitando que un editor antiguo sobrescriba su reemplazo. Conserva la tabla `dashboard_revisions` al limpiar documentos. Respalda la base y detén las escrituras durante esta actualización; no mezcles versiones anteriores y nuevas del servidor en la misma base. Para revertir, restaura el respaldo correspondiente.
+
+## Cobertura de pruebas
+
+El flujo de SonarCloud ejecuta las pruebas del servidor y del contrato con cobertura V8 e importa ambos informes LCOV. Para reproducirlo localmente, ejecuta `npm run test:coverage` en cada paquete. Configura `MIOT_DASHBOARD_TEST_POSTGRES_URL` para incluir las pruebas opcionales de integración con PostgreSQL.

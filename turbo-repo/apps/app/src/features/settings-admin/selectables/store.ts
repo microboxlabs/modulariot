@@ -3,9 +3,11 @@
 /**
  * Selectables, read from and written to the modulith core selectables API
  * (`/api/v1/orgs/{org}/selectables`). The organization gets the default lists
- * the first time it asks; writes need an organization owner, and a refused
- * write surfaces as a notification. Same hook shape the settings page and the treatment forms
- * already use.
+ * the first time it asks; writes need an organization owner.
+ *
+ * Writes show at once: the cached list changes before the request goes out
+ * and is then replaced by what the API returns, without re-fetching the whole
+ * list. A refused write rolls the cache back and shows a notification.
  */
 
 import { useCallback } from "react";
@@ -16,81 +18,113 @@ import {
   replaceSelectable,
   resetSelectables,
   selectablesKey,
-  type ApiSelectable,
   useApiSelectables,
+  type SelectableWrite,
 } from "./selectables-api";
 import type { Selectable } from "./types";
 
-export function makeId(prefix = "id"): string {
-  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+function upsert(
+  list: Selectable[] | undefined,
+  next: Selectable
+): Selectable[] {
+  const current = list ?? [];
+  if (current.some((s) => s.key === next.key)) {
+    return current.map((s) => (s.key === next.key ? next : s));
+  }
+  return [...current, next];
 }
 
-function fromApi(s: ApiSelectable): Selectable {
-  return {
-    id: s.key,
-    name: s.name,
-    description: s.description ?? "",
-    mode: s.mode === "MULTIPLE" ? "multiple" : "single",
-    options: s.options.map((o) => ({ id: o.id, name: o.name, description: o.description ?? "" })),
-  };
+function without(list: Selectable[] | undefined, key: string): Selectable[] {
+  return (list ?? []).filter((s) => s.key !== key);
 }
 
-function toApi(s: Selectable): Omit<ApiSelectable, "key"> {
+function hasLabel(option: Selectable["options"][number]): boolean {
+  return Object.values(option.label).some((text) => text.trim());
+}
+
+export function toWrite(s: Selectable): SelectableWrite {
   return {
     name: s.name,
     description: s.description,
-    mode: s.mode === "multiple" ? "MULTIPLE" : "SINGLE",
-    // A blank row left in the editor is not an option.
-    options: s.options.filter((o) => o.name.trim()).map((o) => ({ ...o, name: o.name.trim() })),
+    mode: s.mode,
+    settings: s.settings,
+    groups: s.groups,
+    source: s.source,
+    // A dynamic list fetches its options, and a row left blank is not an option.
+    options: s.source.kind === "STATIC" ? s.options.filter(hasLabel) : [],
   };
 }
 
-async function run(write: () => Promise<unknown>): Promise<boolean> {
-  try {
-    await write();
-    return true;
-  } catch (error) {
-    ShowNotification({
-      type: "error",
-      message: error instanceof Error ? error.message : "No se pudo guardar",
-    });
-    return false;
-  } finally {
-    await mutate(selectablesKey);
-  }
-}
-
-export function useSelectables() {
+/** `failed` is the notification text when the API gives no reason. */
+export function useSelectables(failed: string) {
   const { data, isLoading } = useApiSelectables();
-  const selectables = (data ?? []).map(fromApi);
 
-  /** Creates or replaces a whole selectable (the editor modal saves once, on Save). */
-  const save = useCallback((next: Selectable) => run(() => replaceSelectable(next.id, toApi(next))), []);
-
-  const duplicate = useCallback(
-    (id: string) => {
-      const src = selectables.find((s) => s.id === id);
-      if (!src) return Promise.resolve(false);
-      const copy: Selectable = {
-        ...src,
-        id: makeId("sel"),
-        name: `${src.name} (copia)`,
-        options: src.options.map((o) => ({ ...o, id: makeId("opt") })),
-      };
-      return run(() => replaceSelectable(copy.id, toApi(copy)));
-    },
-    [selectables]
+  const notify = useCallback(
+    (error: unknown) =>
+      ShowNotification({
+        type: "error",
+        message: error instanceof Error ? error.message : failed,
+      }),
+    [failed]
   );
 
-  const remove = useCallback((id: string) => run(() => deleteSelectable(id)), []);
+  /** Creates or replaces a whole list. Resolves to whether the API took it. */
+  const save = useCallback(
+    async (next: Selectable) => {
+      const write = async (current: Selectable[] | undefined) =>
+        upsert(current, await replaceSelectable(next.key, toWrite(next)));
+      try {
+        await mutate<Selectable[]>(selectablesKey, write, {
+          optimisticData: (current) => upsert(current, next),
+          rollbackOnError: true,
+          revalidate: false,
+        });
+        return true;
+      } catch (error) {
+        notify(error);
+        return false;
+      }
+    },
+    [notify]
+  );
 
-  const resetToDefaults = useCallback(() => run(() => resetSelectables()), []);
+  const remove = useCallback(
+    async (key: string) => {
+      const write = async (current: Selectable[] | undefined) => {
+        await deleteSelectable(key);
+        return without(current, key);
+      };
+      try {
+        await mutate<Selectable[]>(selectablesKey, write, {
+          optimisticData: (current) => without(current, key),
+          rollbackOnError: true,
+          revalidate: false,
+        });
+        return true;
+      } catch (error) {
+        notify(error);
+        return false;
+      }
+    },
+    [notify]
+  );
+
+  const resetToDefaults = useCallback(async () => {
+    try {
+      await mutate<Selectable[]>(selectablesKey, resetSelectables(), {
+        revalidate: false,
+      });
+      return true;
+    } catch (error) {
+      notify(error);
+      return false;
+    }
+  }, [notify]);
 
   return {
-    selectables,
+    selectables: data ?? [],
     hydrated: !isLoading,
     save,
-    duplicate,
     remove,
     resetToDefaults,
   };

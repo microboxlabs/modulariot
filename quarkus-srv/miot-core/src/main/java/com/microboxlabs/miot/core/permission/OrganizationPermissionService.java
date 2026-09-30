@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.api.dto.AuthorizationCheckRequest;
 import com.microboxlabs.miot.core.api.dto.AuthorizationDecisionDto;
 import com.microboxlabs.miot.core.api.dto.OrganizationPermissionDto;
 import com.microboxlabs.miot.core.api.dto.SetOrganizationPermissionRequest;
+import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationPermissionSetting;
 import com.microboxlabs.miot.core.model.OrganizationRoleAssignment;
@@ -12,6 +13,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
 import java.time.Instant;
 import java.util.HashSet;
@@ -27,10 +29,14 @@ import java.util.Set;
 public class OrganizationPermissionService {
 
     private final OrganizationRoleService roleService;
+    private final OrganizationContext organizationContext;
 
     @Inject
-    public OrganizationPermissionService(OrganizationRoleService roleService) {
+    public OrganizationPermissionService(
+            OrganizationRoleService roleService,
+            OrganizationContext organizationContext) {
         this.roleService = roleService;
+        this.organizationContext = organizationContext;
     }
 
     public Uni<OrganizationPermissionDto> get(
@@ -71,6 +77,54 @@ public class OrganizationPermissionService {
                 .flatMap(org -> isAllowed(org.id, permission, subjectId))
                 .map(allowed -> new AuthorizationDecisionDto(
                         permission.permissionCode(), subjectId, allowed)));
+    }
+
+    /** The caller's own decision for a permission, e.g. to show or hide actions. */
+    public Uni<AuthorizationDecisionDto> checkCurrentUser(
+            String organizationSlug, String permissionCode) {
+        OrganizationPermissionDefinition permission =
+                OrganizationPermissionDefinition.fromCode(permissionCode);
+        String personId = organizationContext.getUserEmail();
+        if (personId == null || personId.isBlank()) {
+            return Uni.createFrom().item(new AuthorizationDecisionDto(
+                    permission.permissionCode(), null, false));
+        }
+        return Panache.withSession(() -> findOrganization(organizationSlug)
+                        .flatMap(org -> hasPermission(org, permission, personId)))
+                .map(allowed -> new AuthorizationDecisionDto(
+                        permission.permissionCode(), personId, allowed));
+    }
+
+    /** Fails with 403 unless the caller holds the permission in the organization. */
+    public Uni<Void> requirePermission(
+            String organizationSlug, OrganizationPermissionDefinition permission) {
+        String personId = organizationContext.getUserEmail();
+        if (personId == null || personId.isBlank()) {
+            return forbidden(permission);
+        }
+        return Panache.withSession(() -> findOrganization(organizationSlug)
+                        .flatMap(org -> hasPermission(org, permission, personId)))
+                .flatMap(allowed -> Boolean.TRUE.equals(allowed)
+                        ? Uni.createFrom().voidItem()
+                        : forbidden(permission));
+    }
+
+    Uni<Boolean> hasPermission(
+            Organization organization,
+            OrganizationPermissionDefinition permission,
+            String personId) {
+        if (!permission.grantedToOwners()) {
+            return isAllowed(organization.id, permission, personId);
+        }
+        return roleService.resolveApplicationRole(organization, personId)
+                .flatMap(role -> OrganizationRoleService.OWNER_ACCESS_ROLE.equals(role)
+                        ? Uni.createFrom().item(true)
+                        : isAllowed(organization.id, permission, personId));
+    }
+
+    private static Uni<Void> forbidden(OrganizationPermissionDefinition permission) {
+        return Uni.createFrom().failure(new ForbiddenException(
+                "Organization permission required: " + permission.permissionCode()));
     }
 
     private Uni<Long> authorizeAndResolve(String organizationSlug) {
@@ -143,7 +197,7 @@ public class OrganizationPermissionService {
                                         .toList())));
     }
 
-    private Uni<Boolean> isAllowed(
+    Uni<Boolean> isAllowed(
             Long organizationId,
             OrganizationPermissionDefinition permission,
             String subjectId) {

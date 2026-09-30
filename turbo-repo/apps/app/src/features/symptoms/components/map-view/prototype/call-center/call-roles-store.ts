@@ -8,14 +8,20 @@
  * (`useSelectableOptions("who_to_call")`, kept untouched as the fallback),
  * but it's the wrong place for this flow's contacts: editing an unrelated
  * selectable elsewhere in settings shouldn't change who shows up here, and
- * vice versa. Same `SelectableOption` shape (so the rest of the flow didn't
+ * vice versa. Same `CallRole` shape (so the rest of the flow didn't
  * need to change) and the same localStorage + custom-event pattern as every
  * other prototype store in this feature.
  */
 
 import { useCallback, useEffect, useState } from "react";
-import type { SelectableOption } from "@/features/settings-admin/selectables/types";
 import { isMockDataEnabled } from "../prototype-api-guard";
+
+/** A person or role the operator can call. */
+export interface CallRole {
+  id: string;
+  name: string;
+  description?: string;
+}
 
 const STORAGE_KEY = "miot.prototype.call-roles.v1";
 const SYNC_EVENT = "miot:call-roles-changed";
@@ -24,7 +30,7 @@ function makeRoleId(): string {
   return `role_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-const DEFAULT_ROLES: SelectableOption[] = [
+const DEFAULT_ROLES: CallRole[] = [
   {
     id: "role_conductor",
     name: "Conductor",
@@ -44,23 +50,23 @@ const DEFAULT_ROLES: SelectableOption[] = [
  *  data.ts` — gated by the same flag (see `prototype-api-guard.ts`) so an
  *  operator with no custom contacts added sees an empty list, not a fake
  *  org chart, once this is meant to reflect something real. */
-function seededRoles(): SelectableOption[] {
+function seededRoles(): CallRole[] {
   return isMockDataEnabled() ? DEFAULT_ROLES : [];
 }
 
-function read(): SelectableOption[] {
+function read(): CallRole[] {
   if (typeof window === "undefined") return seededRoles();
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return seededRoles();
-    const parsed = JSON.parse(raw) as SelectableOption[];
+    const parsed = JSON.parse(raw) as CallRole[];
     return Array.isArray(parsed) && parsed.length > 0 ? parsed : seededRoles();
   } catch {
     return seededRoles();
   }
 }
 
-function write(next: SelectableOption[]): void {
+function write(next: CallRole[]): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -71,7 +77,7 @@ function write(next: SelectableOption[]): void {
 }
 
 export function useCallRoles() {
-  const [options, setOptions] = useState<SelectableOption[]>(seededRoles);
+  const [options, setOptions] = useState<CallRole[]>(seededRoles);
 
   useEffect(() => {
     setOptions(read());
@@ -87,7 +93,7 @@ export function useCallRoles() {
   /** Appends a real contact — its name IS the person's name, not a role
    *  placeholder like the seeded defaults above — and returns its id. */
   const addContact = useCallback((name: string): string => {
-    const option: SelectableOption = { id: makeRoleId(), name, description: "" };
+    const option: CallRole = { id: makeRoleId(), name, description: "" };
     const next = [...read(), option];
     write(next);
     setOptions(next);

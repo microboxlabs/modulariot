@@ -1,7 +1,7 @@
 "use client";
 
-import { AuiIf, ComposerPrimitive, useAui, useAuiState } from "@assistant-ui/react";
-import { LuPaperclip, LuSendHorizontal, LuSquare } from "react-icons/lu";
+import { AuiIf, ComposerPrimitive, useAui, useAuiEvent, useAuiState } from "@assistant-ui/react";
+import { LuPaperclip, LuRotateCw, LuSendHorizontal, LuSquare } from "react-icons/lu";
 import {
   useEffect,
   useMemo,
@@ -13,11 +13,13 @@ import {
   type UIEvent,
 } from "react";
 import { twMerge } from "tailwind-merge";
+import { withBuiltinCommands } from "../builtin-commands";
 import type { HarnessSkill } from "../harness-chat-types";
 import { useRunCancel } from "../context/run-cancel-context";
 import { useHarnessChatTr } from "../context/harness-chat-i18n-context";
 import { useHarnessModel } from "../context/harness-model-context";
-import { useHarnessModels } from "../hooks/use-harness-models";
+import { modelLabel, useHarnessModels } from "../hooks/use-harness-models";
+import { RUN_EFFORTS, useRunEffort } from "../hooks/use-run-effort";
 import { ComposerAttachmentPreview } from "./attachments";
 
 const WHITESPACE_CHARS = new Set([" ", "\t", "\n", "\r", "\f", "\v"]);
@@ -144,15 +146,30 @@ function useSlashCommand(
   };
 }
 
+/** Why the last file could not be attached, until the next one is or the
+ * message is sent. */
+function useAttachmentError(): string | null {
+  const tr = useHarnessChatTr();
+  const [error, setError] = useState<string | null>(null);
+  useAuiEvent("composer.attachmentAddError", ({ reason, message }) =>
+    setError(
+      reason === "not-accepted" ? tr("harnessChat.ui.composer.attachmentNotAccepted") : message,
+    ),
+  );
+  useAuiEvent("composer.attachmentAdd", () => setError(null));
+  useAuiEvent("composer.send", () => setError(null));
+  return error;
+}
+
 export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
   const tr = useHarnessChatTr();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const slash = useSlashCommand(textareaRef, skills);
+  const commands = useMemo(() => withBuiltinCommands(skills, tr), [skills, tr]);
+  const slash = useSlashCommand(textareaRef, commands);
   const backdropRef = useRef<HTMLDivElement>(null);
   const { markCanceled } = useRunCancel();
   const text = useAuiState((s) => s.composer.text);
-  const models = useHarnessModels();
-  const picked = useHarnessModel();
+  const attachmentError = useAttachmentError();
 
   const syncBackdropScroll = (e: UIEvent<HTMLTextAreaElement>) => {
     if (backdropRef.current) backdropRef.current.scrollTop = e.currentTarget.scrollTop;
@@ -176,6 +193,11 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
           )}
         </ComposerPrimitive.Attachments>
       </div>
+      {attachmentError && (
+        <p role="alert" className="px-1 text-xs text-red-600 dark:text-red-400">
+          {attachmentError}
+        </p>
+      )}
 
       <div className="flex items-center gap-1">
         <ComposerPrimitive.AddAttachment className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100">
@@ -226,21 +248,8 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
             className="relative max-h-90 w-full resize-none bg-transparent px-1 py-1 text-xs leading-snug text-transparent outline-none transition-[height] duration-100 ease-out caret-gray-800 dark:caret-gray-100"
           />
         </div>
-        {models.models.length > 1 && (
-          <select
-            aria-label={tr("harnessChat.ui.composer.model")}
-            title={tr("harnessChat.ui.composer.model")}
-            value={picked.model ?? models.default ?? ""}
-            onChange={(e) => picked.onChange(e.target.value === models.default ? null : e.target.value)}
-            className="h-6 max-w-32 shrink-0 rounded-md border-0 bg-transparent px-1 text-[11px] text-gray-500 outline-none hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100"
-          >
-            {models.models.map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
-        )}
+        <EffortPicker />
+        <ModelPicker />
         <AuiIf condition={(s) => !s.thread.isRunning}>
           <ComposerPrimitive.Send className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100">
             <LuSendHorizontal className="h-3.5 w-3.5" />
@@ -260,6 +269,84 @@ export const Composer: FC<{ skills: HarnessSkill[] }> = ({ skills }) => {
   );
 };
 
+const pickerClass =
+  "h-6 shrink-0 rounded-md border-0 bg-transparent px-1 text-[11px] text-gray-500 outline-none hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-100";
+
+const EffortPicker: FC = () => {
+  const tr = useHarnessChatTr();
+  const [effort, setEffort] = useRunEffort();
+  return (
+    <select
+      aria-label={tr("harnessChat.ui.composer.effort")}
+      title={tr("harnessChat.ui.composer.effort")}
+      value={effort ?? ""}
+      onChange={(e) => setEffort(RUN_EFFORTS.find((level) => level === e.target.value) ?? null)}
+      className={twMerge(pickerClass, "max-w-20")}
+    >
+      <option value="">{tr("harnessChat.ui.composer.effortLevels.default")}</option>
+      {RUN_EFFORTS.map((level) => (
+        <option key={level} value={level}>
+          {tr(`harnessChat.ui.composer.effortLevels.${level}`)}
+        </option>
+      ))}
+    </select>
+  );
+};
+
+/**
+ * The model picker. When the list cannot be loaded it keeps the last good one;
+ * with none at all it shows the current model and a retry, never nothing.
+ */
+const ModelPicker: FC = () => {
+  const tr = useHarnessChatTr();
+  const models = useHarnessModels();
+  const picked = useHarnessModel();
+  const failed = models.status === "error";
+
+  const retry = failed && (
+    <button
+      type="button"
+      onClick={models.retry}
+      aria-label={tr("harnessChat.ui.composer.modelsUnavailable")}
+      title={tr("harnessChat.ui.composer.modelsUnavailable")}
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-amber-600 hover:bg-gray-100 dark:text-amber-500 dark:hover:bg-gray-700"
+    >
+      <LuRotateCw className="h-3 w-3" />
+    </button>
+  );
+
+  if (models.models.length === 0) {
+    if (!failed) return null;
+    return (
+      <>
+        <span className="max-w-32 shrink-0 truncate px-1 text-[11px] text-gray-400 dark:text-gray-500">
+          {picked.model ?? tr("harnessChat.ui.composer.defaultModel")}
+        </span>
+        {retry}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <select
+        aria-label={tr("harnessChat.ui.composer.model")}
+        title={tr("harnessChat.ui.composer.model")}
+        value={picked.model ?? models.default ?? ""}
+        onChange={(e) => picked.onChange(e.target.value === models.default ? null : e.target.value)}
+        className={twMerge(pickerClass, "max-w-32")}
+      >
+        {models.models.map((name) => (
+          <option key={name} value={name}>
+            {modelLabel(models, name)}
+          </option>
+        ))}
+      </select>
+      {retry}
+    </>
+  );
+};
+
 const SlashMenu: FC<{
   skills: HarnessSkill[];
   highlighted: number;
@@ -274,12 +361,21 @@ const SlashMenu: FC<{
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => onSelect(skill)}
         onMouseEnter={() => onHover(i)}
+        // Arrow keys move past the menu's visible height.
+        ref={i === highlighted ? (el) => el?.scrollIntoView?.({ block: "nearest" }) : undefined}
         className={twMerge(
           "flex w-full flex-col gap-0.5 px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-200",
           i === highlighted && "bg-gray-100 dark:bg-gray-700"
         )}
       >
-        <span className="font-medium">/{skill.label}</span>
+        <span className="font-medium">
+          /{skill.label}
+          {skill.usage && (
+            <span className="ml-1 font-mono font-normal text-gray-400 dark:text-gray-500">
+              {skill.usage}
+            </span>
+          )}
+        </span>
         <span className="truncate text-gray-400 dark:text-gray-500">{skill.description}</span>
       </button>
     ))}

@@ -4,7 +4,6 @@ import React, {
   useState,
   useCallback,
   useMemo,
-  useRef,
   useEffect,
 } from "react";
 import { Button } from "flowbite-react";
@@ -15,13 +14,8 @@ import {
   HiArrowsPointingOut,
   HiPencilSquare,
 } from "react-icons/hi2";
-import {
-  GridLayout,
-  verticalCompactor,
-  type Layout,
-  type LayoutItem,
-} from "react-grid-layout";
-import { createScaledStrategy } from "react-grid-layout/core";
+import { DashboardGrid } from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
 import Link from "next/link";
 import { useSearchParams, usePathname, useParams } from "next/navigation";
 import { KIOSK_PARAM } from "@/features/layout/hooks/use-kiosk-mode";
@@ -65,15 +59,16 @@ function DashboardPlaceholder({
 }
 import { WidgetRenderer } from "../widget-renderer";
 import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
-import { getDashlet } from "../../dashlets";
-import { type GridLayoutItem } from "../../types/dashboard.types";
-import { computeGridSizing } from "../../utils/grid-sizing";
-import { fitLayoutToCols } from "../../utils/fit-layout-to-cols";
+import { type GridLayoutItem, type Widget } from "../../types/dashboard.types";
 
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
 import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
 import { DashboardFilterBadges } from "../dashboard-filters-card/dashboard-filters-card";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
+
+function renderRootWidget(widget: Widget) {
+  return <WidgetRenderer widget={widget} isRoot />;
+}
 
 /**
  * Main dashboard view component
@@ -81,6 +76,7 @@ import { SectionHeader } from "@/features/layout/components/section-header/secti
  */
 export function DashboardView() {
   const {
+    registry,
     widgets,
     editMode,
     isKiosk,
@@ -89,6 +85,7 @@ export function DashboardView() {
     setDashboardName,
     dictionary,
     siteId,
+    hostAccess,
     toggleEditMode,
     setEditMode,
     updateWidgetLayouts,
@@ -101,10 +98,11 @@ export function DashboardView() {
   const pathname = usePathname();
   const params = useParams<{ lang: string; slug: string }>();
 
-  const { canEdit, canManagePermissions } = useDashboardAccess(
-    siteId,
+  const legacyAccess = useDashboardAccess(
+    hostAccess ? null : siteId,
     params.slug
   );
+  const { canEdit, canManagePermissions } = hostAccess ?? legacyAccess;
 
   // Force edit mode off for read-only users so they can never accidentally
   // stay in edit mode if their role was downgraded mid-session.
@@ -121,89 +119,7 @@ export function DashboardView() {
   }, [searchParams, pathname]);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
-  const clipRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(0);
-
   const hasWidgets = isLoaded && widgets.length > 0;
-
-  // Columns the current arrangement occupies (max x + w across widgets).
-  // Resolve missing widths via the dashlet layout defaults so this matches the
-  // width the grid actually renders (see the `layout` memo). Otherwise `cols`
-  // could be smaller than a widget's real extent and react-grid-layout would
-  // clamp it and persist the shifted position.
-  const usedCols = useMemo(
-    () =>
-      widgets.reduce((max, w) => {
-        const defaults = getDashlet(w.componentId)?.getLayoutDefaults(w.config);
-        const width = w.layout?.w ?? Math.max(1, defaults?.minW ?? 1);
-        return Math.max(max, (w.layout?.x ?? 0) + width);
-      }, 0),
-    [widgets]
-  );
-
-  // Grid sizing: fills the width (scaled, clamped), identically in edit and
-  // view mode so the board looks the same regardless of mode. See
-  // utils/grid-sizing.ts.
-  const { cols, designWidth, scale, offsetLeft } = useMemo(
-    () => computeGridSizing({ containerWidth, usedCols }),
-    [containerWidth, usedCols]
-  );
-
-  // Keeps drag/resize math correct under the CSS transform.
-  const positionStrategy = useMemo(() => createScaledStrategy(scale), [scale]);
-
-  // Measure the available container width; it drives the column count and scale.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
-
-    const measure = (width: number) => {
-      if (width > 0) {
-        setContainerWidth(width);
-      }
-    };
-
-    // Initial measurement after layout is complete.
-    requestAnimationFrame(() => {
-      const style = getComputedStyle(container);
-      const px =
-        Number.parseFloat(style.paddingLeft) +
-        Number.parseFloat(style.paddingRight);
-      measure(container.clientWidth - px);
-    });
-
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        measure(entry.contentRect.width);
-      }
-    });
-    observer.observe(container);
-
-    return () => observer.disconnect();
-  }, []);
-
-  // Reserve the *scaled* grid height in normal flow. CSS transforms don't change
-  // the layout box, so without this the scaled grid would overlap the "Add widget"
-  // button at scale > 1 or leave a gap at < 1. Re-runs when scale/cols change and
-  // observes the grid so the slot tracks widgets being added/removed/resized.
-  useEffect(() => {
-    const grid = gridRef.current;
-    const clip = clipRef.current;
-    if (!grid || !clip) {
-      return;
-    }
-    const apply = () => {
-      clip.style.height = `${grid.offsetHeight * scale}px`;
-    };
-    apply();
-    const observer = new ResizeObserver(apply);
-    observer.observe(grid);
-    return () => observer.disconnect();
-  }, [scale, cols, designWidth, hasWidgets]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -227,68 +143,9 @@ export function DashboardView() {
   }, [editMode, undo, redo]);
 
 
-  // Convert widgets to react-grid-layout format
-  const layout: Layout = useMemo(() => {
-    const items = widgets.map((widget, index) => {
-      const dashlet = getDashlet(widget.componentId);
-      const layoutDefaults = dashlet?.getLayoutDefaults(widget.config);
-      const fallbackMinW = Math.max(1, layoutDefaults?.minW ?? 1);
-      const fallbackMinH = Math.max(1, layoutDefaults?.minH ?? 1);
-      return {
-        i: widget.id,
-        x: widget.layout?.x ?? 0,
-        y: widget.layout?.y ?? index,
-        w: widget.layout?.w ?? fallbackMinW,
-        h: widget.layout?.h ?? fallbackMinH,
-        isDraggable: editMode,
-        isResizable: editMode,
-        minW: widget.layout?.minW ?? fallbackMinW,
-        // Positions are stored in absolute column units that may exceed the
-        // currently-visible `cols`; fitLayoutToCols (below) clamps them into
-        // view for both modes so edit and view render identically.
-        maxW: widget.layout?.maxW ?? cols,
-        minH: widget.layout?.minH ?? fallbackMinH,
-        maxH: widget.layout?.maxH ?? Infinity,
-      };
-    });
-    // Fit over-wide widgets into the columns that fit the screen (clamp +
-    // re-pack) in both modes, so a widened board doesn't shrink the whole
-    // view on a smaller screen and edit mode matches view mode. Display-only
-    // — never persisted directly; handleLayoutChange only persists positions
-    // the user actually drags/resizes to while in edit mode.
-    return fitLayoutToCols(items, cols);
-  }, [widgets, editMode, cols]);
-
-  // Persist only on drag/resize *stop*, not onLayoutChange: react-grid-layout
-  // also fires onLayoutChange from prop-driven re-syncs (e.g. a cols change on
-  // window resize, or mount) with no user interaction involved. Since the
-  // `layout` prop is now the fitted/clamped view in both modes, using
-  // onLayoutChange here would silently persist that clamped layout over the
-  // stored positions any time the viewport changes. onDragStop/onResizeStop
-  // only fire from an actual completed pointer drag/resize (see the
-  // container dashlet's nested grid for the same pattern).
-  const handleLayoutChange = useCallback(
-    (newLayout: Layout) => {
-      if (!editMode) return;
-      const items: GridLayoutItem[] = newLayout.map((item: LayoutItem) => {
-        // Find existing widget to preserve min/max values
-        const existingWidget = widgets.find((w) => w.id === item.i);
-        return {
-          i: item.i,
-          x: item.x,
-          y: item.y,
-          w: item.w,
-          h: item.h,
-          minW: existingWidget?.layout?.minW,
-          minH: existingWidget?.layout?.minH,
-          maxW: existingWidget?.layout?.maxW,
-          maxH: existingWidget?.layout?.maxH,
-        };
-      });
-      updateWidgetLayouts(null, items);
-    },
-    [updateWidgetLayouts, editMode, widgets]
-  );
+  const handleLayoutCommit = useCallback((items: GridLayoutItem[]) => {
+    if (canEdit && editMode) updateWidgetLayouts(null, items);
+  }, [canEdit, editMode, updateWidgetLayouts]);
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -343,12 +200,12 @@ export function DashboardView() {
                   {tr("dashboard.editMode", dictionary)}
                 </Button>
               )}
-              {canEdit && (
+              {canEdit && !hostAccess && (
                 <DashboardSettingsDropdown
                   canManagePermissions={canManagePermissions}
                 />
               )}
-              <DashboardShareDropdown />
+              {!hostAccess && <DashboardShareDropdown />}
               <Link
                 href={kioskUrl}
                 target="_blank"
@@ -371,89 +228,10 @@ export function DashboardView() {
 
       {/* Content */}
       <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4">
-        <div ref={containerRef} className="w-full min-h-full">
+        <div className="w-full min-h-full">
 
           {hasWidgets ? (
-            <div ref={clipRef} style={{ width: "100%", overflow: "visible" }}>
-              <div
-                style={{
-                  width: designWidth,
-                  marginLeft: offsetLeft,
-                  transform: `scale(${scale})`,
-                  transformOrigin: "top left",
-                  transition:
-                    containerWidth > 0
-                      ? "transform 150ms ease, margin-left 150ms ease"
-                      : undefined,
-                  position: "relative",
-                }}
-                ref={gridRef}
-              >
-                {/* Grid cell overlay — only visible in edit mode */}
-                {editMode &&
-                  (() => {
-                    const colW = (designWidth - 16 * (cols - 1)) / cols;
-                    const colP = colW + 16;
-                    const rowH = 55;
-                    const rowP = 71;
-                    const makeSvg = (fill: string) =>
-                      `<svg xmlns='http://www.w3.org/2000/svg' width='${colP}' height='${rowP}'><rect x='0' y='0' width='${colW}' height='${rowH}' rx='6' fill='${fill}'/></svg>`;
-                    const lightSvg = makeSvg("rgba(0,0,0,0.06)");
-                    const darkSvg = makeSvg("rgba(55,65,81,0.25)");
-                    const bgStyle = (svg: string) => ({
-                      backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
-                      backgroundSize: `${colP}px ${rowP}px`,
-                      backgroundRepeat: "repeat",
-                      zIndex: 0,
-                    });
-                    return (
-                      <>
-                        <div
-                          aria-hidden="true"
-                          className="pointer-events-none absolute inset-0 dark:hidden"
-                          style={bgStyle(lightSvg)}
-                        />
-                        <div
-                          aria-hidden="true"
-                          className="pointer-events-none absolute inset-0 hidden dark:block"
-                          style={bgStyle(darkSvg)}
-                        />
-                      </>
-                    );
-                  })()}
-                <GridLayout
-                  className="dashboard-root-grid w-full"
-                  layout={layout}
-                  width={designWidth}
-                  positionStrategy={positionStrategy}
-                  gridConfig={{
-                    cols,
-                    rowHeight: 55,
-                    margin: [16, 16] as const,
-                    containerPadding: [0, 0] as const,
-                    maxRows: Infinity,
-                  }}
-                  dragConfig={{
-                    enabled: editMode,
-                    cancel: ".no-drag, .nested-grid-wrapper .react-grid-item",
-                  }}
-                  resizeConfig={{
-                    enabled: editMode,
-                    handles: ["se"],
-                  }}
-                  compactor={verticalCompactor}
-                  onDragStop={(layout) => handleLayoutChange(layout)}
-                  onResizeStop={(layout) => handleLayoutChange(layout)}
-                  autoSize={true}
-                >
-                  {widgets.map((widget) => (
-                    <div key={widget.id} className="h-full w-full">
-                      <WidgetRenderer widget={widget} isRoot={true} />
-                    </div>
-                  ))}
-                </GridLayout>
-              </div>
-            </div>
+            <DashboardGrid widgets={widgets} registry={registry} editMode={canEdit && editMode} onLayoutCommit={handleLayoutCommit} renderWidget={renderRootWidget} />
           ) : (
             <DashboardPlaceholder
               isLoaded={isLoaded}
@@ -482,7 +260,7 @@ export function DashboardView() {
       />
 
       {/* Custom styles for root grid */}
-      <style jsx global>{`
+      <style>{`
         /* Widget controls - hidden by default */
         .widget-controls {
           opacity: 0;

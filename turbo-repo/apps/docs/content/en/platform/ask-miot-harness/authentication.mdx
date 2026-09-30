@@ -51,7 +51,7 @@ TOKEN="<Auth0 access token>"
 curl -X POST "https://api.miot.example.com/api/v1/orgs/gama-mobility/harness/runs:start" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"message": "what is the truck status?", "mode": "agentic"}'
+  -d '{"message": "what is the truck status?", "model": "claude-sonnet-4-6"}'
 ```
 
 The proxy injects `X-Miot-Tenant-Client-Id` from the verified org membership; the harness uses that value, not anything the body declared.

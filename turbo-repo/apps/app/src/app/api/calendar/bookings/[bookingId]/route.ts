@@ -6,6 +6,7 @@ import { requireAnyGroup } from "../../../utils/alfresco-crud-client";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
+import { sessionAuthHeader } from "@/features/auth/services/session-auth";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 
@@ -26,7 +27,7 @@ export async function DELETE(
   const client = createMiotCalendarClient({
     baseUrl: MIOT_CALENDAR_URL,
     headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
+      ...sessionAuthHeader(authResult.session),
     },
   });
 
@@ -76,7 +77,7 @@ export async function PUT(
   const client = createMiotCalendarClient({
     baseUrl: MIOT_CALENDAR_URL,
     headers: {
-      Authorization: `Bearer ${authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? ""}`,
+      ...sessionAuthHeader(authResult.session),
     },
   });
 

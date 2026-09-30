@@ -10,7 +10,7 @@ interface CandidatesResponse {
 }
 
 /**
- * Loads pending knowledge candidates and reviews them (approve/reject). Reads
+ * Loads pending knowledge candidates, edits and reviews them (approve/reject). Reads
  * via SWR from the app's `/app/api/knowledge/candidates` route (basePath is
  * `/app`); a review POSTs to `/{id}` and revalidates. `reviewing` holds the id
  * currently in flight so the UI can disable its row.
@@ -18,13 +18,13 @@ interface CandidatesResponse {
 export function useKnowledgeCandidates() {
   const { data, error, isLoading, mutate } = useSWR<CandidatesResponse>(
     "/app/api/knowledge/candidates?status=pending",
-    fetcher,
+    fetcher
   );
   const [reviewing, setReviewing] = useState<string | null>(null);
 
   async function review(
     id: string,
-    decision: "approve" | "reject",
+    decision: "approve" | "reject"
   ): Promise<ReviewResult> {
     setReviewing(id);
     try {
@@ -34,10 +34,27 @@ export function useKnowledgeCandidates() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ decision }),
-        },
+        }
       );
       await mutate();
       return result;
+    } finally {
+      setReviewing(null);
+    }
+  }
+
+  async function edit(
+    id: string,
+    content: { term: string; body: string }
+  ): Promise<void> {
+    setReviewing(id);
+    try {
+      await fetcher(`/app/api/knowledge/candidates/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(content),
+      });
+      await mutate();
     } finally {
       setReviewing(null);
     }
@@ -49,6 +66,7 @@ export function useKnowledgeCandidates() {
     error,
     reviewing,
     review,
+    edit,
     refetch: () => mutate(),
   };
 }

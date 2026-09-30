@@ -106,3 +106,5 @@ Al arrancar escribe tres líneas que dicen cómo quedó configurado:
 ```
 
 Si la segunda o la tercera dicen `0 tenants`, ninguna petición pasará: el servidor no sabe quién pertenece a qué, y responde `403` a todo.
+
+Si falla la asignación de permisos, el importador usa una reversión atómica condicionada a la revisión creada. Los stores SQL y de memoria la soportan. Los stores personalizados deben implementar `removeIfRevision(ref, revision)` para permitir la limpieza automática; de lo contrario, se conserva el registro y se informa al operador, protegiendo las ediciones concurrentes.

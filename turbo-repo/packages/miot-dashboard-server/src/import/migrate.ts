@@ -14,7 +14,12 @@
  * import's dry run is what turns that question into a count.
  */
 
-export const CURRENT_CONFIG_VERSION = 2;
+import {
+  CURRENT_DASHBOARD_CONFIG_VERSION,
+  validateDashboardConfig,
+} from "@microboxlabs/miot-dashboard-contract/schema";
+
+export const CURRENT_CONFIG_VERSION = CURRENT_DASHBOARD_CONFIG_VERSION;
 
 export type MigrationResult =
   | { ok: true; config: unknown }
@@ -38,7 +43,12 @@ export function migrateConfig(config: unknown): MigrationResult {
   }
 
   const version = versionOf(config);
-  if (version === CURRENT_CONFIG_VERSION) return { ok: true, config };
+  if (version === CURRENT_CONFIG_VERSION) {
+    const validated = validateDashboardConfig(config);
+    return validated.valid
+      ? { ok: true, config: validated.config }
+      : { ok: false, reason: validated.problems.join("; ") };
+  }
 
   if (version === null) {
     return {

@@ -17,6 +17,9 @@ import {
 } from "./index";
 
 describe("getDashlet", () => {
+  it.each(["__proto__", "constructor", "toString"])("does not resolve inherited property %s as a widget", (id) => {
+    expect(getDashlet(id)).toBeUndefined();
+  });
   it('returns definition for known componentId "container"', () => {
     const result = getDashlet("container");
     expect(result).toBeDefined();

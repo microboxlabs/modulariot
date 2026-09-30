@@ -1,3 +1,4 @@
+import type { DashboardQueryDefinition } from "@microboxlabs/miot-dashboard-contract/document";
 /**
  * Dashboard Widget Type Definitions
  *
@@ -5,17 +6,8 @@
  * nested dashboard structures with containers and dashlets.
  */
 
-/** Base / minimum grid column count. Stored widget layouts use these units. */
-export const GRID_COLS = 24;
-
-/** Width (px) that GRID_COLS columns occupy at scale 1 (calibrated for 1080p). */
-export const DESIGN_WIDTH = 1600;
-
-/**
- * View-mode upper bound on the fill-to-fit scale, so the grid does not become
- * oversized on 4K / ultrawide monitors (beyond it the grid is centered).
- */
-export const MAX_SCALE = 1.35;
+export { GRID_COLS, DESIGN_WIDTH } from "@microboxlabs/miot-dashboard-contract/document";
+export { MAX_SCALE } from "@microboxlabs/miot-dashboard-ui/core";
 
 /** Refresh interval in seconds (0 = off) */
 export type RefreshInterval = 0 | 10 | 30 | 60 | 300;
@@ -134,7 +126,10 @@ export interface DashboardFilterParam {
   label: string;
   /** Filter type */
   type: "text" | "date_range" | "select";
-  /** When true, setting this filter clears all other filters */
+  /**
+   * Setting a nonempty value clears this definition's other keys (date-range
+   * from/to). Unrelated filter definitions are preserved.
+   */
   unique?: boolean;
   /** Predefined options (only for type "select") */
   options?: DashboardFilterOption[];
@@ -153,6 +148,8 @@ export interface DashboardFilterParam {
 
 /** Versioned storage schema for dashboard config (supports migrations) */
 export interface DashboardStorageSchema {
+  /** Saved connection operations executed by the dashboard server. */
+  queries?: DashboardQueryDefinition[];
   /** Schema version for migrations */
   version: 2;
   /** Dashboard display name */

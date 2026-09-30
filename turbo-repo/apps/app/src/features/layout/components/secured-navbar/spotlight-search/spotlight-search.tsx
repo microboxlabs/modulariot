@@ -1,5 +1,7 @@
 "use client";
 
+import { confirmNavigation } from "@/features/common/hooks/use-unsaved-navigation";
+
 import {
   useCallback,
   useEffect,
@@ -19,6 +21,7 @@ import type { SpotlightItem, SpotlightResultKind, HarnessBlock } from "./types";
 import { buildNavigateItems } from "./navigate-actions";
 import { useVisiblePages } from "@/features/layout/hooks/use-visible-pages";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
+import { useKnowledgeTrainer } from "@/features/knowledge/hooks/use-knowledge-trainer";
 import { filterSettings } from "@/features/layout/models/pages";
 import { useSpotlightState } from "./use-spotlight-state";
 import { useHarnessSearch } from "./use-harness-search";
@@ -136,11 +139,14 @@ interface SpotlightSearchProps {
   dict: I18nRecord;
   /** Keeps Spotlight's "Go to" results in sync with the sidebar's Harness settings gate. */
   isHarnessSettingsEnabled?: boolean;
+  /** Keeps Spotlight's "Go to" results in sync with the sidebar's dashboard workspace gate. */
+  isDashboardServerEnabled?: boolean;
 }
 
 export default function SpotlightSearch({
   dict,
   isHarnessSettingsEnabled = false,
+  isDashboardServerEnabled = false,
 }: Readonly<SpotlightSearchProps>) {
   const router = useRouter();
   const { userGroups } = usePermissions();
@@ -181,7 +187,9 @@ export default function SpotlightSearch({
   );
 
   // ── Stable nav callbacks ──────────────────────────────────────────────────
-  const onNavigate = useCallback((href: string) => router.push(href), [router]);
+  const onNavigate = useCallback((href: string) => {
+    if (confirmNavigation()) router.push(href);
+  }, [router]);
 
   const canAccess = useCallback(
     (requiredGroups: string[], blockedGroups: string[]) => {
@@ -193,14 +201,16 @@ export default function SpotlightSearch({
   );
 
   // ── Navigate item registry ────────────────────────────────────────────────
-  const visiblePages = useVisiblePages();
+  const visiblePages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
+  const { isTrainer } = useKnowledgeTrainer();
   const navigateItems = useMemo(
     () =>
       buildNavigateItems(
         filterSettings(visiblePages, {
           harness: isHarnessSettingsEnabled,
           platformOwner: isPlatformOwner,
+          trainer: isTrainer,
         }),
         sidebarLabels ?? {},
         onNavigate,
@@ -210,6 +220,7 @@ export default function SpotlightSearch({
       visiblePages,
       isHarnessSettingsEnabled,
       isPlatformOwner,
+      isTrainer,
       sidebarLabels,
       onNavigate,
       canAccess,
@@ -278,7 +289,7 @@ export default function SpotlightSearch({
         globalThis.open(url, "_blank", "noopener,noreferrer");
         return;
       }
-      if (url.startsWith("/") && !url.startsWith("//")) {
+      if (url.startsWith("/") && !url.startsWith("//") && confirmNavigation()) {
         router.push(url);
         close();
       }

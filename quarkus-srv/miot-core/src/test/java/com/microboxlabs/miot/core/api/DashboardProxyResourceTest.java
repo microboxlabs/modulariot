@@ -126,6 +126,31 @@ class DashboardProxyResourceTest {
     }
 
     @Test
+    void scopeCapabilitiesForwardMembershipAndNoStoreResponse() {
+        String path = "/tenants/" + SITE_ORG + "/scopes/" + SITE_ID + "/capabilities";
+        String token = "Bearer " + memberToken();
+        DashboardWireMock.server().stubFor(WireMock.get(WireMock.urlEqualTo(path))
+                .willReturn(WireMock.aResponse().withHeader("Content-Type", "application/json")
+                        .withHeader("Cache-Control", "no-store").withBody("{\"canCreate\":true}")));
+        Response response = given().header("Authorization", token)
+                .get("/api/v1/orgs/" + SITE_ORG + "/dashboard-capabilities");
+        assertThat(response.statusCode(), is(200));
+        assertThat(response.jsonPath().getBoolean("canCreate"), is(true));
+        assertThat(response.header("Cache-Control"), containsString("no-store"));
+        DashboardWireMock.server().verify(WireMock.getRequestedFor(WireMock.urlEqualTo(path))
+                .withHeader("Authorization", WireMock.equalTo(token)));
+    }
+
+    @Test
+    void scopeCapabilitiesRefuseAnonymousAndForeignUsersBeforeUpstream() {
+        String path = "/api/v1/orgs/" + SITE_ORG + "/dashboard-capabilities";
+        assertThat(given().get(path).statusCode(), is(401));
+        assertThat(given().header("Authorization", "Bearer " + TestTokenFactory.signWebToken(NON_MEMBER))
+                .get(path).statusCode(), is(403));
+        DashboardWireMock.server().verify(0, WireMock.getRequestedFor(WireMock.anyUrl()));
+    }
+
+    @Test
     void memberListReachesTheSiteScopeAndGetsTheUpstreamBody() {
         Response resp = given()
                 .header("Authorization", "Bearer " + memberToken())
@@ -150,6 +175,31 @@ class DashboardProxyResourceTest {
         assertThat(resp.statusCode(), is(200));
         DashboardWireMock.server().verify(WireMock.getRequestedFor(WireMock.urlEqualTo(
                 "/tenants/" + PLAIN_ORG + "/scopes/default/dashboards")));
+    }
+
+    @Test
+    void queryForwardsSessionAndFilterBodyWithNoStoreResponse() {
+        String path = siteScopePath("/fleet/queries/summary");
+        String body = "{\"filters\":{\"days\":30}}";
+        String token = "Bearer " + memberToken();
+        DashboardWireMock.server().stubFor(WireMock.post(WireMock.urlEqualTo(path))
+                .willReturn(WireMock.aResponse().withHeader("Content-Type", "application/json")
+                        .withHeader("Cache-Control", "no-store").withBody("{\"data\":{\"rows\":[{\"count\":3}]}}")));
+        Response response = given().header("Authorization", token).contentType("application/json").body(body)
+                .post("/api/v1/orgs/" + SITE_ORG + "/dashboards/fleet/queries/summary");
+        assertThat(response.statusCode(), is(200));
+        assertThat(response.header("Cache-Control"), containsString("no-store"));
+        DashboardWireMock.server().verify(WireMock.postRequestedFor(WireMock.urlEqualTo(path))
+                .withHeader("Authorization", WireMock.equalTo(token)).withRequestBody(WireMock.equalToJson(body)));
+    }
+
+    @Test
+    void nonMemberCannotExecuteSavedQueries() {
+        Response response = given().header("Authorization", "Bearer " + TestTokenFactory.signWebToken(NON_MEMBER))
+                .contentType("application/json").body("{\"filters\":{}}")
+                .post("/api/v1/orgs/" + SITE_ORG + "/dashboards/fleet/queries/summary");
+        assertThat(response.statusCode(), is(403));
+        DashboardWireMock.server().verify(0, WireMock.postRequestedFor(WireMock.anyUrl()));
     }
 
     @Test

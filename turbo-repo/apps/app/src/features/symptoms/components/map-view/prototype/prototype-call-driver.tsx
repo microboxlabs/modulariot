@@ -13,6 +13,7 @@ import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import InitialIdentifier from "@/features/common/components/user-related/initial-identifier";
 import {
+  type FormOption,
   FieldCard,
   PlainSection,
   StickyActions,
@@ -26,7 +27,6 @@ import {
   fieldLabel,
   fillTextarea,
 } from "./prototype-form-kit";
-import type { SelectableOption } from "@/features/settings-admin/selectables/types";
 import type { SelectedOption } from "@/features/symptoms/types/side-info";
 import { mockCallStatsForId } from "./call-center/mock-contact-data";
 import { CALL_METHOD_ICONS, CALL_METHOD_LABEL_KEYS, type CallMethod } from "./call-center/call-method";
@@ -160,7 +160,7 @@ export default function PrototypeCallDriver({
   const t = (k: string) => dictSy[k] as string;
 
   const { options: targetOptions } = useSelectableOptions("who_to_call");
-  const resultOptions: SelectableOption[] = CALL_RESULT_OPTION_IDS.map((id) => ({
+  const resultOptions: FormOption[] = CALL_RESULT_OPTION_IDS.map((id) => ({
     id,
     name: t(id),
     description: "",

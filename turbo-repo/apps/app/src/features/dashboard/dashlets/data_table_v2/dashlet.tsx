@@ -223,6 +223,12 @@ export interface DashletConfig {
   showRowCount: boolean;
   /** Show dim vertical dividers between table columns */
   showColumnDividers?: boolean;
+  /**
+   * Column widths in px, keyed by column key. Set by resizing columns in edit
+   * mode and shared by all users; view-mode resizes stay local to the viewer.
+   * The last column is never stored — it always fills the remaining space.
+   */
+  columnWidths?: Record<string, number>;
   dataMode: "static" | "pgrest" | "planner";
   columns: TableColumn[];
   rows: Record<string, string>[];
@@ -507,11 +513,71 @@ function ColumnSortIcon({ colKey, sortKey, sortDir }: Readonly<ColumnSortIconPro
 }
 
 // ============================================================================
+// Column width persistence helpers
+// ============================================================================
+
+/** Overlay saved widths (by column key) onto measured widths (by index). */
+function applySavedWidths(
+  measured: (number | null)[],
+  columns: TableColumn[],
+  saved: Record<string, number> | undefined
+): (number | null)[] {
+  if (!saved) return measured;
+  const lastIdx = columns.length - 1;
+  return measured.map((w, i) => {
+    if (i === lastIdx) return null;
+    return saved[columns[i].key] ?? w;
+  });
+}
+
+/** Convert index-based widths into the key-based shape stored in config. */
+function toColumnWidthRecord(
+  widths: (number | null)[],
+  columns: TableColumn[]
+): Record<string, number> {
+  const record: Record<string, number> = {};
+  const lastIdx = columns.length - 1;
+  columns.forEach((col, i) => {
+    const w = widths[i];
+    if (i !== lastIdx && w != null) record[col.key] = Math.round(w);
+  });
+  return record;
+}
+
+/**
+ * True when the saved widths no longer match the widths on screen, e.g. after
+ * undo/redo. A drag in edit mode saves the widths already shown, so it is false.
+ */
+function savedWidthsDiffer(
+  widths: (number | null)[],
+  columns: TableColumn[],
+  saved: Record<string, number> | undefined
+): boolean {
+  return (
+    JSON.stringify(saved ?? {}) !==
+    JSON.stringify(toColumnWidthRecord(widths, columns))
+  );
+}
+
+/**
+ * Drag-resize sizes the last column with inline styles React doesn't manage;
+ * clear them so it fills the remaining space again after a re-measure.
+ */
+function clearColumnInlineWidth(table: HTMLTableElement, position: number) {
+  const selector = `colgroup col:nth-child(${position}), thead th:nth-child(${position}), tbody td:nth-child(${position})`;
+  table.querySelectorAll<HTMLElement>(selector).forEach((el) => {
+    el.style.width = "";
+    el.style.minWidth = "";
+    el.style.maxWidth = "";
+  });
+}
+
+// ============================================================================
 // Component
 // ============================================================================
 
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
-  const { dictionary } = useOptionalDashboard();
+  const { dictionary, editMode, updateWidgetConfig } = useOptionalDashboard();
   const config = widget.config as unknown as DashletConfig;
   const {
     title = defaultConfig.title,
@@ -694,6 +760,28 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   columnWidthsRef.current = columnWidths;
   const hasActionsRef = useRef(hasActions);
   hasActionsRef.current = hasActions;
+  const savedWidthsRef = useRef(config.columnWidths);
+  savedWidthsRef.current = config.columnWidths;
+  // Re-measure when column keys/order or the saved widths change (undo/redo,
+  // column edits), not only when the column count changes.
+  const columnKeysSig = columns.map((c) => c.key).join("\u0000");
+  const savedWidthsSig = JSON.stringify(config.columnWidths ?? {});
+  const measuredKeysSigRef = useRef(columnKeysSig);
+  const measuredSavedSigRef = useRef(savedWidthsSig);
+
+  // Persist once per completed interaction (drag release / auto-fit), never
+  // while dragging — and only in edit mode. In view mode the resize stays in
+  // local state for this viewer. Read through a ref so the document-level
+  // mouseup listener created at drag start always sees the latest config.
+  const persistWidths = (widths: (number | null)[]) => {
+    if (!editMode) return;
+    updateWidgetConfig(widget.id, {
+      ...widget.config,
+      columnWidths: toColumnWidthRecord(widths, columnsRef.current),
+    });
+  };
+  const persistWidthsRef = useRef(persistWidths);
+  persistWidthsRef.current = persistWidths;
 
   // Measure natural content widths (auto layout) and commit them so the table
   // can stay in table-layout:fixed (via Tailwind class) for all user interaction.
@@ -706,16 +794,30 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     const cols = columnsRef.current;
     if (!headerRow.children.length || !cols.length) return;
 
-    // Clear stale ref-widths synchronously when column count changes so
+    // Clear stale ref-widths synchronously when the columns change so
     // measurement can proceed in this same layout pass without an extra render.
-    if (columnWidthsRef.current.length !== cols.length) {
+    const columnsChanged =
+      columnWidthsRef.current.length !== cols.length ||
+      measuredKeysSigRef.current !== columnKeysSig;
+    // Only a change to the saved widths re-measures, so view-mode resizes
+    // survive data refreshes.
+    const savedChanged = measuredSavedSigRef.current !== savedWidthsSig;
+    measuredKeysSigRef.current = columnKeysSig;
+    measuredSavedSigRef.current = savedWidthsSig;
+    if (columnsChanged) {
       columnWidthsRef.current = [];
       thRefs.current = [];
+    } else if (
+      savedChanged &&
+      savedWidthsDiffer(columnWidthsRef.current, cols, savedWidthsRef.current)
+    ) {
+      columnWidthsRef.current = [];
     }
 
     if (!columnWidthsRef.current.every((w) => w === null)) return;
 
     const containerWidth = table.offsetWidth;
+    clearColumnInlineWidth(table, cols.length);
 
     table.style.tableLayout = "auto";
     table.style.width = "max-content";
@@ -726,9 +828,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     // Measure every data column except the last, which stays unconstrained
     // (null) so it fills whatever space is left — same rule drag-resize and
     // autoFitColumn already follow (see the block comment above).
-    const raw = cols.map((_, i) =>
+    const measured = cols.map((_, i) =>
       i === lastIdx ? null : ((cells[i] as HTMLElement)?.offsetWidth ?? null)
     );
+    // Saved widths win over measured ones; columns without a saved width
+    // (e.g. newly added) keep their natural content width.
+    const raw = applySavedWidths(measured, cols, savedWidthsRef.current);
 
     table.style.tableLayout = "";
     table.style.width = "";
@@ -744,7 +849,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
     columnWidthsRef.current = snapshot;
     setColumnWidths(snapshot);
-  }, [loading, fetchError, columns.length]);
+  }, [loading, fetchError, columns.length, columnKeysSig, savedWidthsSig]);
 
   const handleResizeMouseDown = useCallback(
     (e: React.MouseEvent, colIdx: number) => {
@@ -806,16 +911,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         document.body.style.userSelect = "";
         const finalWidth = Math.max(80, startWidth + (ev.clientX - startX));
         applyWidth(finalWidth);
-        setColumnWidths((prev) => {
-          const next = [...prev];
-          next[colIdx] = finalWidth;
-          const lastIdx = columnsRef.current.length - 1;
-          const lastThEl = thRefs.current[lastIdx];
-          if (lastThEl) next[lastIdx] = Number.parseFloat(lastThEl.style.width) || next[lastIdx];
-          return next;
-        });
+        const next = [...columnWidthsRef.current];
+        next[colIdx] = finalWidth;
+        const lastIdx = columnsRef.current.length - 1;
+        const lastThEl = thRefs.current[lastIdx];
+        if (lastThEl) next[lastIdx] = Number.parseFloat(lastThEl.style.width) || next[lastIdx];
+        columnWidthsRef.current = next;
+        setColumnWidths(next);
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
+        // A click without movement changes nothing — don't save.
+        if (finalWidth !== startWidth) persistWidthsRef.current(next);
       };
 
       document.addEventListener("mousemove", onMouseMove);
@@ -874,12 +980,13 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       });
       columnWidthsRef.current = snapshot;
       setColumnWidths(snapshot);
+      persistWidthsRef.current(snapshot);
     } else {
-      setColumnWidths((prev) => {
-        const next = [...prev];
-        next[colIdx] = contentWidth;
-        return next;
-      });
+      const next = [...columnWidthsRef.current];
+      next[colIdx] = contentWidth;
+      columnWidthsRef.current = next;
+      setColumnWidths(next);
+      persistWidthsRef.current(next);
     }
   }, []);
 

@@ -12,6 +12,7 @@
 export type AuditAction =
   | "dashboard.list"
   | "dashboard.load"
+  | "dashboard.query"
   | "dashboard.save"
   | "dashboard.delete"
   | "dashboard.permissions.read"

@@ -1137,7 +1137,7 @@ function applyResponsePath(text: string, responsePath: string): string {
  */
 function getPlannerPreview(
   item: LayerSettingsItem,
-  plannerResults: Map<
+  plannerResults: ReadonlyMap<
     string,
     { rows: Record<string, string>[]; loading: boolean; error: string | null }
   >

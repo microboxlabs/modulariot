@@ -1,6 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
+import { CircularStat } from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+import { useOptionalDashboard } from "../../context/dashboard-context";
+import { tr } from "@/features/i18n/tr.service";
 import type {
   DashletComponentProps,
   DashletLayoutDefaults,
@@ -74,6 +78,7 @@ const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
  * Circular Progress Card - Donut chart style
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+  const { dictionary } = useOptionalDashboard();
   const config = widget.config as unknown as DashletConfig;
   const { dataProvider = EMPTY_DATA_PROVIDER } = config;
 
@@ -111,10 +116,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
 
   const numericValue = Number(compiledValue) || 0;
   const numericMaxValue = Number(compiledMaxValue) || 0;
-
-  const rawPercentage =
-    numericMaxValue > 0 ? (numericValue / numericMaxValue) * 100 : 0;
-  const percentage = Math.min(100, Math.max(0, rawPercentage));
 
   // Evaluate ring color rules
   const ringColorRulesConfig = normalizeRingColorRulesConfig(
@@ -166,18 +167,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     }
   }
 
-  const size = 100;
-  const strokeWidth = 8;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percentage / 100) * circumference;
-
-  // Stroke color: rule color > default ringColor > percentage-based gradient
-  const defaultRingColor = config.ringColor ?? "3b82f6";
-  const strokeColor = ruleStrokeColor
-    ? `#${ruleStrokeColor}`
-    : `#${defaultRingColor}`;
-
   if (loading) {
     return (
       <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -197,47 +186,14 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   }
 
   return (
-    <div className="flex h-full flex-col items-center justify-center rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-      <p className="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-        {compiledTitle}
-      </p>
-
-      {/* Circular gauge */}
-      <div className="relative">
-        <svg width={size} height={size} className="-rotate-90 transform">
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={strokeWidth}
-            className="text-gray-200 dark:text-gray-700"
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={offset}
-            stroke={strokeColor}
-            className="transition-all duration-500"
-          />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-bold text-gray-900 dark:text-white">
-            {compiledValue}
-          </span>
-          <span className="text-xs text-gray-500">{compiledUnit}</span>
-        </div>
-      </div>
-
-      <p className="mt-2 text-xs text-gray-400">
-        of {compiledMaxValue} {compiledUnit}
-      </p>
-    </div>
+    <CircularStat
+      title={compiledTitle}
+      value={numericValue}
+      max={numericMaxValue}
+      valueLabel={compiledValue}
+      unit={compiledUnit}
+      totalLabel={`${tr("dashboard.widgetOf", dictionary)} ${compiledMaxValue} ${compiledUnit}`}
+      ringColor={ruleStrokeColor ?? config.ringColor ?? "3b82f6"}
+    />
   );
 }

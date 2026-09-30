@@ -86,7 +86,7 @@ export function embed(
   };
 }
 
-export const scopeAuthority = createMemoryScopeAuthority;
+export { createMemoryScopeAuthority as scopeAuthority } from "../testing";
 
 export interface MemoryStore extends ServerDashboardStore {
   load: ReturnType<typeof vi.fn<ServerDashboardStore["load"]>>;
@@ -154,6 +154,10 @@ export function recordingAudit(): RecordingAudit {
  * Only the fixtures may leave it out; the real `AccessControl` requires it.
  */
 export interface HarnessControl {
+  scopeCapabilities(
+    request: TestRequest,
+    target: { tenantId: string; scopeId: string },
+  ): ReturnType<AccessControl<TestRequest>["scopeCapabilities"]>;
   authorize(
     request: TestRequest,
     target: Omit<AccessTarget, "tenantId"> & { tenantId?: string },
@@ -205,6 +209,7 @@ export function harness(
 
   return {
     control: {
+      scopeCapabilities: (request, target) => control.scopeCapabilities(request, target),
       authorize: (request, target) =>
         control.authorize(request, withTenant(request, target)),
       capabilities: (request, target) =>

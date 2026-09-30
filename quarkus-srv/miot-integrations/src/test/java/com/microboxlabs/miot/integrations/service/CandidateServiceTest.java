@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.integrations.domain.KnowledgeCandidate;
+import com.microboxlabs.miot.integrations.dto.CandidateEditRequest;
 import com.microboxlabs.miot.integrations.dto.CandidateRequest;
 import com.microboxlabs.miot.integrations.persistence.KnowledgeCandidateRepository;
 import java.util.List;
@@ -90,6 +91,16 @@ class CandidateServiceTest {
         repo.updateResult = null; // not found / already reviewed / other tenant
         var service = new CandidateService(repo);
         assertNull(service.review("t", "id-x", "approve", "rev"));
+    }
+
+    @Test
+    void editRequiresTermAndBody() {
+        var service = new CandidateService(new FakeRepository());
+        var blankTerm = new CandidateEditRequest("", "def");
+        var missingBody = new CandidateEditRequest("entregas", null);
+        assertThrows(IllegalArgumentException.class, () -> service.edit("t", "id-1", null));
+        assertThrows(IllegalArgumentException.class, () -> service.edit("t", "id-1", blankTerm));
+        assertThrows(IllegalArgumentException.class, () -> service.edit("t", "id-1", missingBody));
     }
 
     /** Repository stub capturing calls (null pool, no DB) — mirrors EpisodeServiceTest. */

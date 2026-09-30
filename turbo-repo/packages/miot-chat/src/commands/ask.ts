@@ -43,13 +43,13 @@ export async function runAsk(opts: AskOptions): Promise<number> {
     message: opts.message,
     tenant_id: opts.config.tenantId,
     user_id: opts.config.userId,
-    mode: opts.config.mode,
+    ...(opts.config.model ? { model: opts.config.model } : {}),
     conversation_id: opts.conversationId ?? randomUUID(),
     ...(opts.config.debug ? { debug: true } : {}),
   };
 
   stdout.write(
-    `${dim(`miot-chat → ${opts.config.harnessBaseUrl} (${opts.config.mode} / ${opts.config.tenantId})`, color)}\n`,
+    `${dim(`miot-chat → ${opts.config.harnessBaseUrl} (${opts.config.model ?? "default model"} / ${opts.config.tenantId})`, color)}\n`,
   );
 
   let state: RenderState = initialState(color);

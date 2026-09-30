@@ -24,7 +24,7 @@ def _runners() -> AgentLoopRunners:
         models=["claude-sonnet-4-6"],
         build_model=build,
         registry=_registry(),
-        settings=HarnessSettings(agents_agentic_max_turns=3),
+        settings=HarnessSettings(agents_agent_loop_max_turns=3),
         profile=FAKE_PROFILE,
     )
 

@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.service;
 
 import com.microboxlabs.miot.integrations.domain.KnowledgeCandidate;
+import com.microboxlabs.miot.integrations.dto.CandidateEditRequest;
 import com.microboxlabs.miot.integrations.dto.CandidateRequest;
 import com.microboxlabs.miot.integrations.persistence.KnowledgeCandidateRepository;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -79,6 +80,19 @@ public class CandidateService {
             default -> throw new IllegalArgumentException("decision must be 'approve' or 'reject'");
         };
         return repository.updateStatus(tenantCode, id, status, reviewerId);
+    }
+
+    /**
+     * Rewrites a pending candidate's term and body before review. Returns null when
+     * it is unknown, belongs to another tenant, or was already reviewed.
+     */
+    public KnowledgeCandidate edit(String tenantCode, String id, CandidateEditRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("candidate body is required");
+        }
+        String term = require(request.term(), "term");
+        String body = require(request.body(), "body");
+        return repository.updateContent(tenantCode, id, term, body);
     }
 
     private static String require(String value, String field) {

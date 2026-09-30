@@ -1,6 +1,6 @@
 "use client";
 
-import { STORY_AUTHOR_NAMES } from "@/features/storytelling/people";
+import { STORY_KINDS } from "@/features/storytelling/storytelling.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
@@ -119,19 +119,16 @@ const collaborators_management_params: ParamType[] = [
   setParam("rut", "text"),
 ];
 
-function storytelling_params(): ParamType[] {
+function storytelling_params(storyDict: I18nRecord): ParamType[] {
   return [
     setParam("name", "text"),
-    setParam("artifactType", "selector", [
-      { value: "html", label: "HTML" },
-      { value: "markdown", label: "Markdown" },
-      { value: "ppt", label: "PPT" },
-      { value: "pdf", label: "PDF" },
-    ]),
     setParam(
-      "creator",
+      "artifactType",
       "selector",
-      STORY_AUTHOR_NAMES.map((name) => ({ value: name, label: name }))
+      STORY_KINDS.map((kind) => ({
+        value: kind,
+        label: trDynamic(`kind.${kind}`, storyDict),
+      }))
     ),
     setParam("createdAt", "date_range"),
   ];
@@ -164,7 +161,7 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
   const kanban = kanban_params(searchbarDict);
   const fleet = fleet_params(searchbarDict);
   const calendar = calendar_params(searchbarDict);
-  const storytelling = storytelling_params();
+  const storytelling = storytelling_params(dict.storytelling as I18nRecord);
 
   return {
     finished: getParamsFixed(kanban, dict),

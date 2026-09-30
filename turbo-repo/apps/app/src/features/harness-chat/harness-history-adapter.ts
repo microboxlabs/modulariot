@@ -13,14 +13,31 @@ import {
   listMessages,
   type StoredMessage,
 } from "./harness-thread-store";
+import { attachmentMarker } from "./attachment-parts";
+import { SHOW_ARTIFACT_TOOL } from "./extensions/show-artifact-args";
+import { clearActiveRun, readActiveRun } from "./harness-active-run";
 
 /**
  * Anything longer is assumed to be inline content rather than a reference and
- * is dropped when persisting. The PDF attachment adapter inlines up to 20 MB
+ * is dropped when persisting. The attachment adapters inline up to 5 MB
  * as a data URL; a transcript is not a blob store, and the upstream row cap is
  * 256 KB for the whole message.
  */
 const MAX_INLINE_LENGTH = 2048;
+
+/** Serialized size a stored message with artifacts is kept under, with
+ * headroom below the upstream 256 KB row cap. */
+const MAX_STORED_MESSAGE_BYTES = 200_000;
+
+export type HarnessHistoryAdapter = ThreadHistoryAdapter & {
+  /** The harness run `load()` found still going, for the caller to re-attach
+   * to once the transcript is in; null when there is none or it was taken. */
+  takePendingResume(): string | null;
+  /** The harness run a message of this session was stored with. */
+  runIdOf(messageId: string): string | null;
+};
+
+type HistoryItem = { parentId: string | null; message: ThreadMessage };
 
 /**
  * Persists one thread's messages and hands them back on reload.
@@ -29,11 +46,71 @@ const MAX_INLINE_LENGTH = 2048;
  * mounts and its result seeds both the transcript and the AG-UI state, and
  * `append()` runs for every message that reaches a persistable status.
  *
+ * Each assistant message is stored with the harness run that produced it
+ * (`metadata.custom.harnessRunId`). A reload in the middle of a run finds
+ * that run in `harness-active-run`; the answer it left half-written, if one
+ * was stored, is dropped from the transcript, and the re-attached run's
+ * answer is stored over it.
+ *
  * Storage failures are swallowed. Losing a message from the transcript is
  * worse handled by breaking the chat than by forgetting it, and forgetting is
  * exactly what the panel did before it had any storage at all.
  */
-export function createHarnessHistoryAdapter(threadId: string): ThreadHistoryAdapter {
+export function createHarnessHistoryAdapter(
+  threadId: string,
+  runs?: { readonly harnessRunId: string | null },
+): HarnessHistoryAdapter {
+  let pendingResume: string | null = null;
+  // Fixed the first time a message is stored, so a later rewrite of it does
+  // not pick up whatever run is current by then.
+  const runOfMessage = new Map<string, string | null>();
+  // The stored id of the half-written answer a re-attached run replaces.
+  const replacedByRun = new Map<string, string>();
+  const storedIds = new Map<string, string>();
+
+  const toStoredMessage = (item: ExportedMessageRepositoryItem): StoredMessage => {
+    const { message } = item;
+    let runId: string | null = null;
+    if (message.role === "assistant") {
+      if (!runOfMessage.has(message.id)) runOfMessage.set(message.id, runs?.harnessRunId ?? null);
+      runId = runOfMessage.get(message.id) ?? null;
+      const replaced = runId ? replacedByRun.get(runId) : undefined;
+      if (replaced) storedIds.set(message.id, replaced);
+    }
+    const id = storedIds.get(message.id) ?? message.id;
+    const parentId = item.parentId && (storedIds.get(item.parentId) ?? item.parentId);
+    const payload = boundArtifacts(
+      stripInlineContent({
+        ...message,
+        id,
+        ...(runId && {
+          metadata: {
+            ...message.metadata,
+            custom: { ...message.metadata?.custom, harnessRunId: runId },
+          },
+        }),
+      }),
+    ) as unknown as Record<string, unknown>;
+    return { id, parentId, format: AUI_MESSAGE_FORMAT, payload };
+  };
+
+  const planResume = (items: HistoryItem[]): HistoryItem[] => {
+    const activeRunId = readActiveRun(threadId);
+    if (!activeRunId || items.length === 0) return items;
+    const head = items.at(-1)?.message;
+    if (head?.role === "assistant" && harnessRunIdOf(head) === activeRunId) {
+      if (head.status?.type === "complete") {
+        clearActiveRun(threadId, activeRunId);
+        return items;
+      }
+      replacedByRun.set(activeRunId, head.id);
+      pendingResume = activeRunId;
+      return items.slice(0, -1);
+    }
+    pendingResume = activeRunId;
+    return items;
+  };
+
   return {
     async load() {
       const [thread, stored] = await Promise.all([getThread(threadId), listMessages(threadId)]);
@@ -51,15 +128,15 @@ export function createHarnessHistoryAdapter(threadId: string): ThreadHistoryAdap
       const empty = { messages: [], state };
       if (!stored?.length) return empty;
 
-      const items = stored
-        .filter((row) => row.format === AUI_MESSAGE_FORMAT)
-        .map((row) => ({
-          parentId: row.parentId,
-          message: reviveMessage(row.payload),
-        }))
-        .filter((item): item is { parentId: string | null; message: ThreadMessage } =>
-          item.message !== null,
-        );
+      const items = planResume(
+        stored
+          .filter((row) => row.format === AUI_MESSAGE_FORMAT)
+          .map((row) => ({
+            parentId: row.parentId,
+            message: reviveMessage(row.payload),
+          }))
+          .filter((item): item is HistoryItem => item.message !== null),
+      );
       if (items.length === 0) return empty;
 
       const headId = items.at(-1)?.message.id ?? null;
@@ -74,22 +151,28 @@ export function createHarnessHistoryAdapter(threadId: string): ThreadHistoryAdap
       // Upserts on the message id upstream, so the same call covers both.
       await appendMessage(threadId, toStoredMessage(item));
     },
+
+    takePendingResume() {
+      const runId = pendingResume;
+      pendingResume = null;
+      return runId;
+    },
+
+    runIdOf(messageId: string) {
+      return runOfMessage.get(messageId) ?? null;
+    },
   };
 }
 
-function toStoredMessage(item: ExportedMessageRepositoryItem): StoredMessage {
-  return {
-    id: item.message.id,
-    parentId: item.parentId,
-    format: AUI_MESSAGE_FORMAT,
-    payload: stripInlineContent(item.message) as unknown as Record<string, unknown>,
-  };
+function harnessRunIdOf(message: ThreadMessage): string | null {
+  const runId = message.metadata?.custom?.harnessRunId;
+  return typeof runId === "string" ? runId : null;
 }
 
 /**
  * Drops inlined attachment bodies from a message before it is stored. A
  * reloaded thread shows the exchange without the file the user attached —
- * keeping a 20 MB data URL per message to redraw a PDF thumbnail is not a
+ * keeping a 5 MB data URL per file to redraw a PDF thumbnail is not a
  * trade worth making, and the answer that discussed it is what people come
  * back for.
  *
@@ -97,13 +180,88 @@ function toStoredMessage(item: ExportedMessageRepositoryItem): StoredMessage {
  * renders as a broken image, and a file part with empty `data` renders as a
  * link to the current page. With no part left, the attachment renders as what
  * it now is — a name, and nothing to open.
+ *
+ * In `attachments` the part is swapped for a text marker such as
+ * `[image: chart.png]`. The runtime sends attachment parts with the
+ * transcript, so a replayed turn still tells the model a file was there.
  */
 export function stripInlineContent<T>(message: T): T {
-  return pruneDeep(message, (value) => {
-    const body = attachmentBody(value);
-    if (body === null) return false;
-    return body.startsWith("data:") || body.length > MAX_INLINE_LENGTH;
+  return pruneDeep(markAttachments(message), isInline);
+}
+
+function isInline(value: unknown): boolean {
+  const body = attachmentBody(value);
+  if (body === null) return false;
+  return body.startsWith("data:") || body.length > MAX_INLINE_LENGTH;
+}
+
+function markAttachments<T>(message: T): T {
+  if (!isRecord(message) || !Array.isArray(message.attachments)) return message;
+  const attachments = message.attachments.map((attachment: unknown) => {
+    if (!isRecord(attachment) || !Array.isArray(attachment.content)) return attachment;
+    const content = attachment.content.map((part: unknown) =>
+      isRecord(part) && isInline(part)
+        ? { type: "text", text: markerOf(part, attachment) }
+        : part,
+    );
+    return { ...attachment, content };
   });
+  return { ...message, attachments };
+}
+
+function markerOf(part: Record<string, unknown>, attachment: Record<string, unknown>): string {
+  const name = str(part.filename) ?? str(attachment.name) ?? "file";
+  const mime =
+    str(part.mimeType) ?? str(attachment.contentType) ?? (part.type === "image" ? "image/" : "");
+  return attachmentMarker({ mime, name, data: "" });
+}
+
+function str(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+/**
+ * Keeps artifacts in a stored message, in order, while the message stays
+ * under MAX_STORED_MESSAGE_BYTES; the rest are stored without content and
+ * marked `omitted`, so a reload shows their title and says why.
+ */
+export function boundArtifacts<T>(message: T): T {
+  if (!isRecord(message) || !Array.isArray(message.content)) return message;
+  const parts: unknown[] = message.content;
+  if (!parts.some(isArtifactCall)) return message;
+  const rest = parts.filter((part) => !isArtifactCall(part));
+  let budget = MAX_STORED_MESSAGE_BYTES - jsonBytes({ ...message, content: rest });
+  const content = parts.map((part) => {
+    if (!isArtifactCall(part)) return part;
+    const size = jsonBytes(part);
+    if (size <= budget) {
+      budget -= size;
+      return part;
+    }
+    const args = { ...part.args, content: "", omitted: true };
+    const omitted = { ...part, args, argsText: JSON.stringify(args) };
+    budget -= jsonBytes(omitted);
+    return omitted;
+  });
+  return { ...message, content };
+}
+
+function jsonBytes(value: unknown): number {
+  return new TextEncoder().encode(JSON.stringify(value)).length;
+}
+
+type ArtifactCallPart = Record<string, unknown> & {
+  args: Record<string, unknown> & { content: string };
+};
+
+function isArtifactCall(part: unknown): part is ArtifactCallPart {
+  return (
+    isRecord(part) &&
+    part.type === "tool-call" &&
+    part.toolName === SHOW_ARTIFACT_TOOL &&
+    isRecord(part.args) &&
+    typeof part.args.content === "string"
+  );
 }
 
 /** The inlined body of an image or file part, if that is what this is. */

@@ -12,14 +12,20 @@ export async function proxyToUpstream(
   init?: {
     method?: string;
     body?: unknown;
+    /** Dashboard revision precondition; never accepts arbitrary auth headers. */
+    ifMatch?: string;
+    signal?: AbortSignal;
+    /** Internal route budget; never read from request headers or JSON. */
+    timeoutMs?: number;
   },
   options?: {
     /** Message used when the upstream fetch throws (network/timeout). */
     upstreamErrorMessage?: string;
-  },
+  }
 ): Promise<NextResponse> {
   const method = init?.method ?? "GET";
   const requestHeaders = { ...headers };
+  if (init?.ifMatch !== undefined) requestHeaders["If-Match"] = init.ifMatch;
   let body: string | undefined;
   if (init?.body !== undefined) {
     body = JSON.stringify(init.body);
@@ -32,7 +38,9 @@ export async function proxyToUpstream(
       method,
       headers: requestHeaders,
       body,
-      signal: AbortSignal.timeout(15_000),
+      signal: init?.signal
+        ? AbortSignal.any([init.signal, AbortSignal.timeout(init?.timeoutMs ?? 15_000)])
+        : AbortSignal.timeout(init?.timeoutMs ?? 15_000),
     });
   } catch (err) {
     return NextResponse.json(
@@ -40,12 +48,15 @@ export async function proxyToUpstream(
         error: options?.upstreamErrorMessage ?? "Upstream request failed",
         details: err instanceof Error ? err.message : "Unknown error",
       },
-      { status: 502 },
+      { status: 502 }
     );
   }
 
+  const responseHeaders = new Headers({ "Cache-Control": "private, no-store" });
+  const etag = upstream.headers.get("etag");
+  if (etag !== null) responseHeaders.set("ETag", etag);
   if (upstream.status === 204) {
-    return new NextResponse(null, { status: 204 });
+    return new NextResponse(null, { status: 204, headers: responseHeaders });
   }
 
   let responseBody: string;
@@ -55,20 +66,19 @@ export async function proxyToUpstream(
     return NextResponse.json(
       {
         error: options?.upstreamErrorMessage ?? "Upstream request failed",
-        details: err instanceof Error ? err.message : "Failed to read upstream body",
+        details:
+          err instanceof Error ? err.message : "Failed to read upstream body",
       },
-      { status: 502 },
+      { status: 502 }
     );
   }
 
   const contentType =
     upstream.headers.get("content-type") ?? "application/json";
 
+  responseHeaders.set("Content-Type", contentType);
   return new NextResponse(responseBody, {
     status: upstream.status,
-    headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "private, no-store",
-    },
+    headers: responseHeaders,
   });
 }

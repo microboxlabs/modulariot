@@ -22,7 +22,7 @@ export function ContextModal(props: ContextModalProps): React.ReactElement {
     ["tenant", session.meta.tenantId],
     ["user", session.meta.userId],
     ["conv", session.meta.conversationId],
-    ["mode", session.meta.mode],
+    ["model", session.meta.model ?? "(default)"],
     ["baseUrl", session.meta.baseUrl],
   ];
   if (session.meta.profileName) {

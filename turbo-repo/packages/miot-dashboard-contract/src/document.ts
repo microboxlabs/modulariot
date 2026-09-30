@@ -67,6 +67,35 @@ export interface PlannerRequestDefinition {
   schema?: string[];
 }
 
+/** Values passed to a stored operation; never executable expressions. */
+export type DashboardQueryScalar = string | number | boolean | null;
+export type DashboardQueryValue = DashboardQueryScalar | DashboardQueryScalar[];
+
+/** Bind a fixed value or a named dashboard filter to an operation parameter. */
+export type DashboardQueryParameter =
+  | { kind: "literal"; value: DashboardQueryValue }
+  | {
+      kind: "filter";
+      key: string;
+      defaultValue?: DashboardQueryValue;
+      /** Omit a missing or empty-string value after applying the default. */
+      omitWhenEmpty?: boolean;
+    };
+
+/**
+ * A named query over a host-owned connection operation. The host owns the
+ * endpoint/SQL, credentials and tenant predicates; none are supplied by viewers.
+ */
+export interface DashboardQueryDefinition {
+  id: string;
+  variableName: string;
+  connectionId: string;
+  operationId: string;
+  parameters: Record<string, DashboardQueryParameter>;
+  /** Optional known response columns, for an editor before the first query. */
+  schema?: string[];
+}
+
 export interface DashboardFilterOption {
   label: string;
   value: string;
@@ -78,7 +107,10 @@ export interface DashboardFilterParam {
   key: string;
   label: string;
   type: "text" | "date_range" | "select";
-  /** Setting this filter clears the others. */
+  /**
+   * Setting a nonempty value clears this definition's other keys (date-range
+   * from/to). Unrelated filter definitions are preserved.
+   */
   unique?: boolean;
   /** Only meaningful for type `select`. */
   options?: DashboardFilterOption[];
@@ -92,6 +124,8 @@ export interface DashboardStorageSchema {
   widgets: Widget[];
   preferences: DashboardPreferences;
   requestPlanner?: PlannerRequestDefinition[];
+  /** Connection-backed queries for the independent dashboard server. */
+  queries?: DashboardQueryDefinition[];
   filters?: DashboardFilterParam[];
   refreshInterval?: RefreshInterval;
   /** Sidebar position; lower sorts first, unset sorts last. */

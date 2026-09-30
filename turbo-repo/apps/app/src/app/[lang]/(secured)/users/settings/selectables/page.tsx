@@ -5,11 +5,10 @@ import { RouteGuard } from "@/features/auth/components/route-guard";
 import SelectablesPageContent from "@/features/settings-admin/components/selectables-page-content";
 
 /**
- * PROTOTYPE — Settings › Selectables.
+ * Settings › Selectables.
  *
  * Maintainer for the reusable option lists that back the treatment-form
- * selectors. Reached from the gear shortcut on those fields. Client-only
- * persistence for now (no backend).
+ * selectors, stored per organization by the modulith core selectables API.
  */
 export default async function SelectablesSettingsPage({ params }: ParamsWithLang) {
   const { lang } = await params;

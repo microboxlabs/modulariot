@@ -496,3 +496,21 @@ plugins using React hooks must not mix it with a separate React installation.
 The host still supplies a compatible registry, authorized data and instance key.
 It does not turn the dashboard server into a UI asset server or register a widget
 catalog automatically. Serve version-matched assets using your host's cache policy.
+
+## React document lifecycle
+
+`useDashboardDocument(options)` from `./react` connects React hosts to the same
+revision-aware controller as `createDashboardDocument`. Supply `client`, `slug`,
+`sessionKey`, and `emptyDocument`. Keep client and empty-document references stable
+between renders (for example with `useMemo`); replace `sessionKey` on login/logout
+or identity changes. Tokens and authentication implementation remain in the host.
+
+The hook exposes document state, `etag`, `onChange`, `save`, and
+`discardAndReload`. It starts read-only, waits for server capabilities, preserves
+drafts on conflicts and failed reloads, and aborts outstanding work on unmount.
+A changed client/resource/session hides old state before effect cleanup. Optional
+`readOnly: true` removes editing access; it cannot grant server permissions.
+Changing this restriction or `emptyDocument` starts a fresh controller and discards
+its previous local draft, just like changing identity; keep these stable while
+editing and obtain discard intent in the host when appropriate. No browser storage,
+router, login, global cache, or automatic save is installed.

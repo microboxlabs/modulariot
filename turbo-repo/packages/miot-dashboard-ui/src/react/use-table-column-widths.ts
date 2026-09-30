@@ -7,6 +7,7 @@ import {
   useCallback,
   type RefObject,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 export interface WidthColumn {
   readonly key: string;
@@ -14,6 +15,7 @@ export interface WidthColumn {
 }
 export interface TableColumnWidthsOptions {
   readonly columns: readonly WidthColumn[];
+  readonly enabled?: boolean;
   readonly savedWidths?: Record<string, number>;
   readonly tableRef: RefObject<HTMLTableElement | null>;
   readonly headerRowRef: RefObject<HTMLTableRowElement | null>;
@@ -92,8 +94,19 @@ function clearColumnInlineWidth(table: HTMLTableElement, position: number) {
   });
 }
 
+function captureWidths(table: HTMLTableElement) {
+  const entries = Array.from(table.querySelectorAll<HTMLElement>("col, th, td"), element => ({ element, width: element.style.width, min: element.style.minWidth, max: element.style.maxWidth }));
+  return () => entries.forEach(({element,width,min,max}) => {
+    element.style.width=width; element.style.minWidth=min; element.style.maxWidth=max;
+  });
+}
+function actionsWidth(row: HTMLTableRowElement | null, count: number, enabled: boolean) {
+  return enabled ? ((row?.children[count] as HTMLElement | undefined)?.offsetWidth ?? 0) : 0;
+}
+
 export function useTableColumnWidths({
   columns,
+  enabled = true,
   savedWidths,
   tableRef,
   headerRowRef,
@@ -105,6 +118,7 @@ export function useTableColumnWidths({
   measureStickyOffsets,
 }: TableColumnWidthsOptions) {
   const cancelDrag = useRef<(() => void) | undefined>(undefined);
+  const [actionsColumnWidth, setActionsColumnWidth] = useState(0);
   const [columnWidths, setColumnWidths] = useState<(number | null)[]>([]);
   const thRefs = useRef<(HTMLTableCellElement | null)[]>([]);
   const colRefs = useRef<(HTMLTableColElement | null)[]>([]);
@@ -119,7 +133,7 @@ export function useTableColumnWidths({
   // Re-measure when column keys/order or the saved widths change (undo/redo,
   // column edits), not only when the column count changes.
   const columnKeysSig = JSON.stringify(columns.map((c) => c.key));
-  useEffect(() => () => cancelDrag.current?.(), [columnKeysSig, loading, error]);
+  useEffect(() => () => cancelDrag.current?.(), [columnKeysSig, loading, error, enabled]);
   const savedWidthsSig = JSON.stringify(savedWidths ?? {});
   const measuredKeysSigRef = useRef(columnKeysSig);
   const measuredSavedSigRef = useRef(savedWidthsSig);
@@ -138,10 +152,12 @@ export function useTableColumnWidths({
   // can retain the host layout for all user interaction.
   // Temporarily overrides the host layout for measurement, then restores it.
   useLayoutEffect(() => {
+    if (!enabled) return;
     const table = tableRef.current;
     const headerRow = headerRowRef.current;
     if (!table || !headerRow) return;
     const cols = columnsRef.current;
+    setActionsColumnWidth(actionsWidth(headerRow, cols.length, hasActionsRef.current));
     if (!headerRow.children.length || !cols.length) return;
 
     // Clear stale ref-widths synchronously when the columns change so
@@ -167,7 +183,8 @@ export function useTableColumnWidths({
     if (!columnWidthsRef.current.every((w) => w === null)) return;
 
     const containerWidth = table.offsetWidth;
-    clearColumnInlineWidth(table, cols.length);
+    const restoreWidths = captureWidths(table);
+    cols.forEach((_, index) => clearColumnInlineWidth(table, index + 1));
 
     const previousLayout = table.style.tableLayout;
     const previousWidth = table.style.width;
@@ -187,12 +204,15 @@ export function useTableColumnWidths({
     // (e.g. newly added) keep their natural content width.
     const raw = applySavedWidths(measured, cols, savedWidthsRef.current);
 
+    restoreWidths();
     table.style.tableLayout = previousLayout;
     table.style.width = previousWidth;
 
     // Account for the actions column so it doesn't eat into the last data column.
-    const actionsW = hasActionsRef.current ? 40 : 0;
-    const available = containerWidth - actionsW;
+    const actionsW = actionsWidth(headerRow, cols.length, hasActionsRef.current);
+    setActionsColumnWidth(actionsW);
+    // Reserve usable space for the filling column before scaling fixed widths.
+    const available = containerWidth - actionsW - 80;
     const sum = raw.reduce<number>((a, w) => a + (w ?? 0), 0);
     // Scale proportionally if natural widths overflow the container.
     const snapshot =
@@ -204,10 +224,15 @@ export function useTableColumnWidths({
 
     columnWidthsRef.current = snapshot;
     setColumnWidths(snapshot);
-  }, [loading, error, columns.length, columnKeysSig, savedWidthsSig]);
+  }, [enabled, loading, error, hasActions, columns.length, columnKeysSig, savedWidthsSig]);
 
   const handleResizeMouseDown = useCallback(
-    (e: ReactMouseEvent, colIdx: number) => {
+    (e: ReactMouseEvent | ReactPointerEvent, colIdx: number) => {
+      if (e.button !== 0) return;
+      const pointer = e.type === "pointerdown";
+      const pointerId = "pointerId" in e ? e.pointerId : undefined;
+      const moveEvent = pointer ? "pointermove" : "mousemove";
+      const upEvent = pointer ? "pointerup" : "mouseup";
       e.preventDefault();
       e.stopPropagation();
 
@@ -215,10 +240,11 @@ export function useTableColumnWidths({
       const thEl = thRefs.current[colIdx];
       if (!colEl) return;
 
+      cancelDrag.current?.();
+      const restoreWidths = tableRef.current ? captureWidths(tableRef.current) : () => {};
       const startX = e.clientX;
       const startWidth = colEl.offsetWidth;
 
-      cancelDrag.current?.();
       const doc = colEl.ownerDocument;
       const previousCursor = doc.body.style.cursor;
       const previousSelection = doc.body.style.userSelect;
@@ -254,7 +280,7 @@ export function useTableColumnWidths({
         if (lastColEl && lastThEl) {
           const containerW =
             table.parentElement?.clientWidth ?? table.offsetWidth;
-          const actionsW = hasActionsRef.current ? 40 : 0;
+          const actionsW = actionsWidth(headerRowRef.current, columnsRef.current.length, hasActionsRef.current);
           let sumOthers = actionsW;
           colRefs.current.forEach((c, i) => {
             if (i === lastIdx) return;
@@ -286,20 +312,20 @@ export function useTableColumnWidths({
       };
 
       const onMouseMove = (ev: MouseEvent) => {
+        if (pointer && "pointerId" in ev && ev.pointerId !== pointerId) return;
         applyWidth(Math.max(80, startWidth + (ev.clientX - startX)));
       };
 
       const onMouseUp = (ev: MouseEvent) => {
+        if (pointer && "pointerId" in ev && ev.pointerId !== pointerId) return;
         finishDrag();
         const finalWidth = Math.max(80, startWidth + (ev.clientX - startX));
         applyWidth(finalWidth);
         const next = [...columnWidthsRef.current];
         next[colIdx] = finalWidth;
         const lastIdx = columnsRef.current.length - 1;
-        const lastThEl = thRefs.current[lastIdx];
-        if (lastThEl)
-          next[lastIdx] =
-            Number.parseFloat(lastThEl.style.width) || next[lastIdx] || null;
+        next[lastIdx] = null;
+        restoreWidths();
         columnWidthsRef.current = next;
         setColumnWidths(next);
 
@@ -310,15 +336,25 @@ export function useTableColumnWidths({
       const finishDrag = () => {
         doc.body.style.cursor = previousCursor;
         doc.body.style.userSelect = previousSelection;
-        doc.removeEventListener("mousemove", onMouseMove);
-        doc.removeEventListener("mouseup", onMouseUp);
-        doc.defaultView?.removeEventListener("blur", finishDrag);
+        doc.removeEventListener(moveEvent, onMouseMove);
+        doc.removeEventListener(upEvent, onMouseUp);
+        doc.removeEventListener("pointercancel", onPointerCancel);
+        doc.defaultView?.removeEventListener("blur", abortDrag);
         cancelDrag.current = undefined;
       };
-      cancelDrag.current = finishDrag;
-      doc.addEventListener("mousemove", onMouseMove);
-      doc.addEventListener("mouseup", onMouseUp);
-      doc.defaultView?.addEventListener("blur", finishDrag);
+      const abortDrag = () => {
+        finishDrag();
+        restoreWidths();
+        measureStickyOffsets();
+      };
+      const onPointerCancel = (event: PointerEvent) => {
+        if (event.pointerId === pointerId) abortDrag();
+      };
+      cancelDrag.current = abortDrag;
+      doc.addEventListener(moveEvent, onMouseMove);
+      doc.addEventListener(upEvent, onMouseUp);
+      if (pointer) doc.addEventListener("pointercancel", onPointerCancel);
+      doc.defaultView?.addEventListener("blur", abortDrag);
     },
     [measureStickyOffsets],
   );
@@ -330,9 +366,7 @@ export function useTableColumnWidths({
     const table = tableRef.current;
     if (!colEl || !thEl || !table) return;
 
-    const savedColWidths = columnsRef.current.map(
-      (_, i) => colRefs.current[i]?.style.width ?? "",
-    );
+    const restoreWidths = captureWidths(table);
 
     // Clear all col widths + temp-switch to auto to measure content width.
     columnsRef.current.forEach((_, i) => {
@@ -365,13 +399,7 @@ export function useTableColumnWidths({
     table.getBoundingClientRect(); // force reflow
     const contentWidth = thEl.offsetWidth;
 
-    // Restore other columns and the host layout after measuring.
-    columnsRef.current.forEach((_, i) => {
-      if (i !== colIdx) {
-        const col = colRefs.current[i];
-        if (col) col.style.width = savedColWidths[i] ?? "";
-      }
-    });
+    restoreWidths();
     table.style.tableLayout = previousLayout;
     table.style.width = previousWidth;
     table.getBoundingClientRect(); // force reflow
@@ -398,7 +426,29 @@ export function useTableColumnWidths({
     }
   }, []);
 
+  const resizeColumnBy = useCallback((colIdx: number, delta: number) => {
+    const col = colRefs.current[colIdx];
+    const table = tableRef.current;
+    if (
+      !col ||
+      !table ||
+      colIdx >= columnsRef.current.length - 1 ||
+      !Number.isFinite(delta)
+    )
+      return;
+    cancelDrag.current?.();
+    const next = [...columnWidthsRef.current];
+    next[colIdx] = Math.max(80, col.offsetWidth + delta);
+    next[columnsRef.current.length - 1] = null;
+    columnWidthsRef.current = next;
+    setColumnWidths(next);
+    persistWidthsRef.current(next);
+  }, []);
+
   return {
+    actionsColumnWidth,
+    handleResizePointerDown: handleResizeMouseDown,
+    resizeColumnBy,
     columnWidths,
     thRefs,
     colRefs,

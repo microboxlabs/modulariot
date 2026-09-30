@@ -162,3 +162,10 @@ it("keeps an active drag across equivalent host column arrays", () => {
   fireEvent.mouseUp(document, { clientX: 60 });
   expect(onCommit).toHaveBeenCalledExactlyOnceWith({ first: 150, second: 100 });
 });
+it("reserves space for the final column before scaling wide content", () => {
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(
+    function (this: HTMLElement) { return this.tagName === "TABLE" ? 500 : 300; },
+  );
+  render(<Host />);
+  expect(screen.getByRole("status").textContent).toBe("[210,210,null]");
+});

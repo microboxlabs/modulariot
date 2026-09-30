@@ -974,15 +974,16 @@ Next.js table's width measurement, drag and auto-fit behavior. Hosts supply
 `columns`, `tableRef`, `headerRowRef`, `hasActions`, `measureStickyOffsets`, and
 optionally `savedWidths`, `loading`, `error`, `editable`, and `onCommit(widths)`.
 It returns `columnWidths`, `thRefs`, `colRefs`, `handleResizeMouseDown(event,
-index)` and `autoFitColumn(index)` for the host renderer.
+index)` `handleResizePointerDown(event, index)`, `resizeColumnBy(index, delta)` and
+`autoFitColumn(index)` for the host renderer.
 
 Widths persist by column key only after a completed interaction when `editable`
 is true. Viewers may resize locally; the last data column fills the remaining
 space and is excluded from persisted widths. Saved changes (including undo)
 remeasure the layout; nonfinite saved widths are ignored. An interrupted drag,
 unmount or window blur removes listeners and restores prior cursor/selection
-styles. This preserves mouse-driven behavior; the resizable widget's complete
-portable renderer and keyboard/touch resize acceptance remain pending.
+styles. Hosts can disable measurement with `enabled: false`. Pointer handlers
+also support cancellation and filter other pointers during an active drag.
 
 ### Row context navigation
 
@@ -999,3 +1000,18 @@ position within the viewport. Only `goto` actions with safe resolved URLs and
 `_self`/`_blank` targets are shown; blank targets use `noopener noreferrer`.
 Names remain literal text. Hosts still authorize destinations and provide an
 accessible trigger; this component does not evaluate templates or query data.
+
+### Resizing the shared table renderer
+
+`DataTable` accepts optional `resizing: TableResizingOptions`: `savedWidths`,
+`editable`, `onCommit`, and required `handleLabel(columnLabel)`. Translate the
+label and describe the controls: drag to resize, Left/Right to adjust by 10px
+(Shift for 50px), Enter/Space or double-click to auto-fit. The last data column
+fills available space and has no handle. Resize buttons use pointer events
+and disable native touch panning only on the handle. Without `resizing`, the
+table retains its original automatic layout.
+
+Changes remain local unless `editable` and `onCommit` are supplied. The host
+owns persistence and authorization; the callback alone does not grant edit
+permission. The original Next.js resizable widget currently consumes the
+shared width hook; its full renderer migration remains in progress.

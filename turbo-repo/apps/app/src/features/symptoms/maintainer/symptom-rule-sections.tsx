@@ -94,7 +94,7 @@ function Problems({ items }: Readonly<{ items: CelProblem[] }>) {
 
 function levelOf(spec: SymptomSpec, icu: number): Level {
   return (
-    spec.levels.find((l) => l.icu === icu) ?? {
+    (spec.levels ?? []).find((l) => l.icu === icu) ?? {
       icu,
       applies: false,
       when: "",
@@ -104,7 +104,7 @@ function levelOf(spec: SymptomSpec, icu: number): Level {
 }
 
 function withLevel(spec: SymptomSpec, level: Level): SymptomSpec {
-  const others = spec.levels.filter((l) => l.icu !== level.icu);
+  const others = (spec.levels ?? []).filter((l) => l.icu !== level.icu);
   return { ...spec, levels: [...others, level].sort((a, b) => a.icu - b.icu) };
 }
 
@@ -296,7 +296,7 @@ export default function SymptomRuleSections({
           singleLine
           readOnly={readOnly}
           ariaLabel={tr("opens", d)}
-          value={lifecycle.open}
+          value={lifecycle.open ?? ""}
           fields={CASE_FIELDS}
           problems={open}
           onChange={(value) =>
@@ -311,7 +311,7 @@ export default function SymptomRuleSections({
           singleLine
           readOnly={readOnly}
           ariaLabel={tr("closes", d)}
-          value={lifecycle.close}
+          value={lifecycle.close ?? ""}
           fields={CASE_FIELDS}
           problems={close}
           onChange={(value) =>

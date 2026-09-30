@@ -55,16 +55,17 @@ export interface Level {
   response: LevelResponse | null;
 }
 
+/** A draft may be incomplete, so every part can be null until it is published. */
 export interface SymptomSpec {
-  source: string;
-  activation: string;
+  source: string | null;
+  activation: string | null;
   measure: {
     expression: string | null;
     label: string | null;
     unit: string | null;
   } | null;
-  levels: Level[];
-  lifecycle: { open: string; close: string } | null;
+  levels: Level[] | null;
+  lifecycle: { open: string | null; close: string | null } | null;
   recurrence: {
     enabled: boolean;
     count: number;
@@ -222,6 +223,18 @@ export async function refreshSymptoms(id?: string) {
 
 export function createSymptom(body: CreateSymptomBody) {
   return request<SymptomDetail>(DEFS, { method: "POST", body });
+}
+
+export function updateIdentity(
+  id: string,
+  body: {
+    name?: string;
+    family?: string | null;
+    icon?: string | null;
+    description?: string | null;
+  }
+) {
+  return request<SymptomDefinition>(`${DEFS}/${id}`, { method: "PATCH", body });
 }
 
 export function saveDraft(id: string, spec: SymptomSpec) {

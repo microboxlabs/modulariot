@@ -65,3 +65,5 @@ export { createCircularStatRegistry, type CircularStatRegistryOptions } from "./
 
 export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./react/progress-stat-registry";
 export { ProgressStat, type ProgressStatProps } from "./react/progress-stat";
+
+export { useFilterAndSort, type UseFilterAndSortResult, type RowFilterConfig, type RowSortConfig, type RowColumn } from "./react/use-filter-and-sort";

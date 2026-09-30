@@ -30,3 +30,5 @@ export {
   type ComparableRule,
   type EvaluatedColors,
 } from "./core/color-rule-evaluation";
+
+export { resolveDataProperty } from "./core/resolve-data-property";

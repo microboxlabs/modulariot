@@ -15,3 +15,18 @@ export {
   type ColorRule,
   type ColorRuleOperator,
 } from "./core/color-rules";
+
+export {
+  isGreaterOperator,
+  isLessOperator,
+  sortColorRules,
+  sortColorRulesWithFields,
+  getCompareValue,
+  evaluateColorRulesGeneric,
+  evaluateColorRulesWithFields,
+  type SortableRule,
+  type ColorableRule,
+  type EvaluatableRule,
+  type ComparableRule,
+  type EvaluatedColors,
+} from "./core/color-rule-evaluation";

@@ -1193,6 +1193,8 @@ export interface DashboardSettingsHost {
   filters: ReactNode;
   /** Mounted only while its section is open. */
   queries: ReactNode;
+  /** From the server's capabilities; the context cannot know it. */
+  canManagePermissions: boolean;
   onManagePermissions: () => void;
   onDelete?: () => Promise<void>;
 }

@@ -221,6 +221,7 @@ function ServerDashboardEditor({
         dictionary={dictionary}
       />
     ),
+    canManagePermissions: document.capabilities?.canManagePermissions === true,
     onManagePermissions: () => setPermissionsOpen(true),
     onDelete: document.capabilities?.canDelete ? remove : undefined,
   };

@@ -49,6 +49,7 @@ function host(overrides: Partial<DashboardSettingsHost> = {}) {
   return {
     filters: <div>Server filters</div>,
     queries: <div>Saved queries</div>,
+    canManagePermissions: true,
     onManagePermissions: vi.fn(),
     onDelete: vi.fn().mockResolvedValue(undefined),
     ...overrides,

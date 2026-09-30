@@ -245,6 +245,7 @@ describe("parallel dashboard pages", () => {
     expect(await screen.findByText("Widget canvas")).toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     expect(state.host?.onDelete).toBeUndefined();
+    expect(state.host?.canManagePermissions).toBe(false);
     expect(
       fetcher.mock.calls.every(([url]) =>
         String(url).startsWith("/app/api/dashboards/fleet")
@@ -274,6 +275,7 @@ describe("parallel dashboard pages", () => {
     state.canEdit = true;
     show("fleet");
     await screen.findByText("Widget canvas");
+    expect(state.host?.canManagePermissions).toBe(true);
     await act(() => state.host!.onDelete!());
     const removal = fetcher.mock.calls.find(
       ([, init]) => init?.method === "DELETE"

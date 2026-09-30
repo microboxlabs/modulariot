@@ -214,7 +214,9 @@ export function DashboardView({
               )}
               {canEdit && (!hostAccess || settingsHost) && (
                 <DashboardSettingsDropdown
-                  canManagePermissions={canManagePermissions}
+                  canManagePermissions={
+                    settingsHost?.canManagePermissions ?? canManagePermissions
+                  }
                   host={settingsHost}
                 />
               )}

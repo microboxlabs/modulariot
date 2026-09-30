@@ -756,3 +756,23 @@ Both controls use unique group labels, native buttons, focus-visible styling and
 literal text. Disabled controls prevent user interaction; authorization must
 still be enforced by the server. Wire their callbacks to `useFilterAndSort` or
 an equivalent host-owned controller.
+
+## Table cell content
+
+`TableCellValue({ value, type?, colorMap?, progressLabel? })` from `./react`
+provides literal text, multiline text, badge, signed-number and progress content.
+`value` is a resolved string; this component never compiles templates, HTML or URLs.
+Unknown types and the legacy `highlight` type use text rendering. Load `./styles.css`.
+
+`colorMap` accepts `{ operator, value, color }[]` using the shared rule operators.
+The first valid matching color wins; colors accept six-digit hex without `#` or
+`red`, `yellow`, `green`, `blue`, `gray`, `orange`, `purple`. Invalid colors cannot
+suppress a later valid match. Named badges retain light/dark palettes; custom hex
+badges use transparent backgrounds and borders.
+
+Progress cells expose native accessible progress with an optional localized
+`progressLabel` (otherwise the displayed value), clamped to 0–100. Negative
+percentages clamp to zero instead of losing their sign. Signed values preserve
+the existing negative/below-1000/1000-or-more tones. Input rows are never modified.
+`renderCell(value, type, colorMap?)` provides a compatibility function for existing
+React table/list cell slots. These are cell primitives, not a complete table grid.

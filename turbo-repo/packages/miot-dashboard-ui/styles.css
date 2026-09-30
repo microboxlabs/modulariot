@@ -366,3 +366,41 @@
 
 fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-row-controls__legend { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.miot-table-cell__badge { display: inline-block; border: 1px solid var(--miot-card-border, #e5e7eb); border-radius: 9999px; padding: .125rem .5rem; font-size: .75rem; font-weight: 500; background: var(--miot-badge-background, #f3f4f6); color: var(--miot-badge-text, #374151); }
+.miot-table-cell__badge[data-custom-color="true"] { background: color-mix(in srgb, var(--miot-cell-color) 15%, transparent); color: var(--miot-cell-color); border-color: color-mix(in srgb, var(--miot-cell-color) 30%, transparent); }
+.miot-table-cell__signed { color: var(--miot-card-text, #374151); }
+.miot-table-cell__signed[data-tone="negative"] { color: #dc2626; font-weight: 600; }
+.miot-table-cell__signed[data-tone="small"] { color: #f97316; font-weight: 600; }
+.miot-table-cell__signed[data-tone="positive"] { color: #16a34a; font-weight: 600; }
+.miot-table-cell__progress { display: inline-flex; align-items: center; gap: .5rem; font-size: .875rem; font-weight: 500; color: var(--miot-card-text, #374151); }
+.miot-table-cell__progress progress { appearance: none; display: inline-block; width: 5rem; height: .5rem; border: 0; border-radius: 9999px; overflow: hidden; background: var(--miot-progress-track, #e5e7eb); }
+.miot-table-cell__progress progress::-webkit-progress-bar { background: var(--miot-progress-track, #e5e7eb); }
+.miot-table-cell__progress progress::-webkit-progress-value { background: var(--miot-cell-color); }
+.miot-table-cell__progress progress::-moz-progress-bar { background: var(--miot-cell-color); }
+.miot-table-cell__multiline strong { display: block; font-weight: 600; color: var(--miot-card-text, #111827); }
+.miot-table-cell__multiline small { display: block; font-size: .75rem; color: var(--miot-card-muted, #6b7280); }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__badge { background: var(--miot-badge-background, #374151); color: var(--miot-badge-text, #d1d5db); border-color: var(--miot-card-border, #4b5563); }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__badge[data-custom-color="true"] { background: color-mix(in srgb, var(--miot-cell-color) 15%, transparent); color: var(--miot-cell-color); border-color: color-mix(in srgb, var(--miot-cell-color) 30%, transparent); }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__signed[data-tone="negative"] { color: #f87171; }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__signed[data-tone="small"] { color: #fb923c; }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__signed[data-tone="positive"] { color: #4ade80; }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__signed,
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__progress { color: var(--miot-card-text, #d1d5db); }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__progress progress,
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__progress progress::-webkit-progress-bar { background: var(--miot-progress-track, #4b5563); }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__multiline strong { color: var(--miot-card-text, #fff); }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__multiline small { color: var(--miot-card-muted, #9ca3af); }
+.miot-table-cell__badge[data-color="red"] { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__badge[data-color="red"] { background: #7f1d1d4d; color: #f87171; border-color: #991b1b; }
+.miot-table-cell__badge[data-color="yellow"] { background: #fef9c3; color: #a16207; border-color: #fef08a; }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__badge[data-color="yellow"] { background: #713f124d; color: #facc15; border-color: #854d0e; }
+.miot-table-cell__badge[data-color="green"] { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__badge[data-color="green"] { background: #14532d4d; color: #4ade80; border-color: #166534; }
+.miot-table-cell__badge[data-color="blue"] { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__badge[data-color="blue"] { background: #1e3a8a4d; color: #60a5fa; border-color: #1e40af; }
+.miot-table-cell__badge[data-color="orange"] { background: #ffedd5; color: #c2410c; border-color: #fed7aa; }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__badge[data-color="orange"] { background: #7c2d124d; color: #fb923c; border-color: #9a3412; }
+.miot-table-cell__badge[data-color="purple"] { background: #f3e8ff; color: #7e22ce; border-color: #e9d5ff; }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__badge[data-color="purple"] { background: #581c874d; color: #c084fc; border-color: #6b21a8; }
+.miot-table-cell__badge[data-color="gray"] { background: #f3f4f6; color: #374151; border-color: #e5e7eb; }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-cell__badge[data-color="gray"] { background: #374151; color: #d1d5db; border-color: #4b5563; }

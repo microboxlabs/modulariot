@@ -52,6 +52,7 @@ interface DashboardContextValue {
   /** Update dashboard filter configuration */
   setFilters: (filters: DashboardFilterParam[]) => void;
   queries: DashboardQueryDefinition[];
+  setFilterDefinitions: (filters: readonly DashboardFilterParam[]) => boolean;
   setGeneralSettings: (value: DashboardGeneralSettingsValue) => boolean;
   setQueries: (queries: readonly DashboardQueryDefinition[]) => boolean;
   /** Auto-refresh interval in seconds (0 = off) */
@@ -171,6 +172,7 @@ export function DashboardProvider({
     queries,
     setQueries,
     setGeneralSettings,
+    setFilterDefinitions,
     setRefreshInterval,
     order,
     setOrder: setOrderStorage,
@@ -439,6 +441,7 @@ export function DashboardProvider({
     queries,
     setQueries,
     setGeneralSettings,
+    setFilterDefinitions,
       refreshInterval: effectiveRefreshInterval,
       setRefreshInterval,
       order,
@@ -484,6 +487,7 @@ export function DashboardProvider({
     queries,
     setQueries,
     setGeneralSettings,
+    setFilterDefinitions,
       effectiveRefreshInterval,
       setRefreshInterval,
       order,
@@ -546,6 +550,7 @@ const DASHBOARD_FALLBACK: DashboardContextValue = {
   queries: [],
   setQueries: () => false,
   setGeneralSettings: () => false,
+  setFilterDefinitions: () => false,
   refreshInterval: 0,
   setRefreshInterval: NOOP,
   order: undefined,

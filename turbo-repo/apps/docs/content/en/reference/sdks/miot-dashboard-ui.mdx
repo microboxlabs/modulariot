@@ -154,3 +154,5 @@ The authenticated organization proxy forwards `query-catalog` to the dashboard s
 In the Next.js server dashboard workspace, editors open **Dashboard settings** to change title, refresh and order. Apply changes to the draft, then save the dashboard; use undo to restore the previous settings. Closing confirms discarding unapplied fields. Consumers do not see this editor.
 
 `DashboardFilterEditor` authors text, date-range and select filters with static options. Apply through `setFilterDefinitions` for validation and undo; duplicate keys, date-range collisions and duplicate option values are rejected. Dynamic option discovery stays with the host. Renaming a filter requires updating its saved-query bindings separately.
+
+Hosted Next.js dashboard settings also include filter definitions. Editors add or adjust controls and static options, apply the filter draft, then save the dashboard. Current filter keys remain the inputs to saved-query bindings; update bindings when renaming keys. This editor does not invoke legacy datasource selectors.

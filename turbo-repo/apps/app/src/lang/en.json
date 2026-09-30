@@ -3026,6 +3026,8 @@
   },
   "dashboard": {
     "portableWidgets": {
+      "ascending": "Ascending",
+      "descending": "Descending",
       "loading": "Loading widget…",
       "error": "Widget data is unavailable.",
       "unsupported": "Migrate this widget to a saved query.",

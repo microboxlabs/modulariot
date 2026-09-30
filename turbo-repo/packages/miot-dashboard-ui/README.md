@@ -739,3 +739,20 @@ and `handleSortClick`.
 The hook does not fetch data, execute templates or render a table. Server-side
 permissions remain authoritative; a host must remount instance-local controls
 when switching identities or documents, as it does for other local UI state.
+
+`FilterPillRow` and `SortPillRow` from `./react` render controlled row toolbars.
+Import `./styles.css`; no host Tailwind setup or icon package is required.
+
+- `FilterPillRow({ item, options, selected, allLabel, onClear, onSelect, disabled? })`
+  uses `{ column, label }` for `item`. Callbacks receive the column and, for
+  selection, its value. An empty selection means all rows; empty options are
+  omitted and duplicates are collapsed.
+- `SortPillRow({ label, columns, sortKey, sortDir, directionLabels,
+  getColumnLabel, onSortClick, disabled? })` accepts `directionLabels: { asc, desc }`
+  in the host language. The active button exposes its direction and pressed state.
+  Empty column lists render no group.
+
+Both controls use unique group labels, native buttons, focus-visible styling and
+literal text. Disabled controls prevent user interaction; authorization must
+still be enforced by the server. Wire their callbacks to `useFilterAndSort` or
+an equivalent host-owned controller.

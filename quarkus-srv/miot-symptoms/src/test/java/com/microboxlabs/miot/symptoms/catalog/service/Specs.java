@@ -11,14 +11,14 @@ import java.util.List;
 import java.util.UUID;
 
 /** The speeding symptom as a test fixture. */
-final class Specs {
+public final class Specs {
 
     static final String ACTIVATION = "signal.trip.active && signal.vehicle.weight_category == \"HEAVY\"";
 
     private Specs() {
     }
 
-    static DataSource gpsSignal() {
+    public static DataSource gpsSignal() {
         return new DataSource(UUID.randomUUID(), null, "gps_signal", "Señal GPS", SourceKind.SIGNAL, "signal",
                 "Cada pulso", List.of(
                         new SourceField("signal.trip.active", "En viaje", "bool", null, FieldOrigin.TRIP, true),
@@ -32,7 +32,7 @@ final class Specs {
                 List.of());
     }
 
-    static SymptomSpec speeding() {
+    public static SymptomSpec speeding() {
         return new SymptomSpec("gps_signal", ACTIVATION,
                 new SymptomSpec.Measure("signal.gps.speed_kmh - signal.road.maxspeed_osm", "Exceso", "km/h"),
                 levels("medida > 0 && medida < 5", "medida >= 5 && medida < 11", "medida >= 11 && medida < 21",

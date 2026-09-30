@@ -923,3 +923,27 @@ never executes SQL, resolves authentication, or renders raw HTML. The Next.js
 `data_table` widget now uses this renderer. The resizable `data_table_v2` and its
 row gestures remain separate migration work; this entry is not a standalone
 saved-query widget registry.
+
+### Data table registry
+
+`createDataTableRegistry(options)` is available from `./react`, `./embed` and
+`./browser`. It registers `data_table` using static `rows` or a named
+`plannerVariableName` supplied by the nearest saved-query/planner provider.
+It composes column Handlebars templates, safe actions, typed column filters,
+filter/sort pills, named row colors and the sticky table renderer. Invalid
+configuration, query failures and legacy direct datasource modes display host
+feedback; loading/errors never display old result rows.
+
+Options provide `defaultTitle`, `loadingLabel`, `errorLabel`,
+`unsupportedDataLabel`, `emptyLabel`, `actionsLabel`, `allLabel`, `sortLabel`,
+`clearFilterLabel`, `clearAllLabel`, `directionLabels`, `filterLabels`,
+`filterTitle(column)`, `filterSummary(filtered,total)`, `removeFilterLabel(text)`,
+`formatFilterValue(filter)` and `rowCountLabel(count)`. Optional `templateEngine`
+allows host helpers. Titles can use `_count`; columns receive row/index/count
+context. Column descriptions are literal native tooltips in this registry.
+
+This candidate is a viewer: it does not supply settings, export controls,
+resizable `data_table_v2`, or authorization. Hosts provide saved-query transport
+and remount on identity/document changes. Next.js currently consumes the table
+renderer with its own adapters; adopting this complete registry there remains
+separate work.

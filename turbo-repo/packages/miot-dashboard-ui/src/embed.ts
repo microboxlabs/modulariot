@@ -12,3 +12,5 @@ export { createPercentageValueRegistry, type PercentageValueRegistryOptions } fr
 export { createCircularStatRegistry, type CircularStatRegistryOptions } from "@microboxlabs/miot-dashboard-ui/react";
 
 export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./react/progress-stat-registry";
+
+export { createDataTableRegistry, type DataTableRegistryOptions } from "./react/data-table-registry";

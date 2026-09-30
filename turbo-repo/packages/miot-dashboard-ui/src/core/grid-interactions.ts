@@ -1,7 +1,7 @@
 /** Keep native and accessible controls usable while their widget is editable. */
 export const DASHBOARD_DRAG_CANCEL_SELECTOR = [
   ".no-drag",
-  ".nested-grid-wrapper .react-grid-item",
+  ".nested-grid-wrapper",
   "button",
   "a[href]",
   "input",
@@ -18,4 +18,7 @@ export const DASHBOARD_DRAG_CANCEL_SELECTOR = [
   '[role="radio"]',
   '[role="switch"]',
   '[role="textbox"]',
+  '[role="combobox"]',
+  '[role="searchbox"]',
+  '[role="spinbutton"]',
 ].join(", ");

@@ -124,3 +124,5 @@ El compilador actual de Handlebars requiere `unsafe-eval` en la CSP de scripts. 
 `QueryBindingSelector` de `/react` vincula widgets a resultados con nombre proporcionados por el anfitrión y muestra su esquema. Conserva visibles los vínculos no disponibles, admite etiquetas traducidas y modo de solo lectura, y no realiza descubrimiento ni ejecución de consultas.
 
 `SavedQueryEditor` de `/react` edita consultas basadas en conexiones mediante un catálogo autorizado por el anfitrión y validación de parámetros del contrato compartido. El modo predeterminado es solo lectura; permisos, descubrimiento y persistencia pertenecen al anfitrión. Consulte el README para el ciclo de vida del borrador y los callbacks.
+
+`useDashboardState().setQueries` valida las consultas guardadas y la unicidad de sus identificadores y nombres, y actualiza el documento controlado mediante sus permisos e historial de deshacer/rehacer. Devuelve false si la actualización no está permitida o es inválida.

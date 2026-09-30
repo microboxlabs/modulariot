@@ -3025,6 +3025,16 @@
     "organizationLogoAlt": "Organization logo"
   },
   "dashboard": {
+    "textCard": {
+      "appearance": "Text appearance",
+      "text": "Text",
+      "placeholder": "Add your text or quote here...",
+      "alignment": "Alignment",
+      "left": "Left",
+      "center": "Center",
+      "right": "Right",
+      "italic": "Italic"
+    },
     "widgetOf": "of",
     "addWidget": "Add Widget",
     "editMode": "Edit Mode",

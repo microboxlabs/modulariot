@@ -5,10 +5,16 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ConditionIcon from "../components/condition-icon";
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
-import type { Finding, Level, LevelResponse, SymptomSpec } from "./maintainer-api";
+import type {
+  Finding,
+  Level,
+  LevelResponse,
+  SymptomSpec,
+} from "./maintainer-api";
 import { ICU_LEVELS } from "./symptom-labels";
 
-const cardClass = "rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800";
+const cardClass =
+  "rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800";
 const inputClass =
   "w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
 
@@ -18,8 +24,14 @@ export const LEVEL_FIELDS: CelField[] = [
 ];
 
 export const CASE_FIELDS: CelField[] = [
-  { path: "caso.condicion_s", detail: "número · segundos con la condición activa" },
-  { path: "caso.normal_s", detail: "número · segundos desde que volvió a lo normal" },
+  {
+    path: "caso.condicion_s",
+    detail: "número · segundos con la condición activa",
+  },
+  {
+    path: "caso.normal_s",
+    detail: "número · segundos desde que volvió a lo normal",
+  },
   { path: "caso.edad_h", detail: "número · horas desde que se abrió" },
   { path: "caso.nivel", detail: "número · nivel ICU actual" },
   { path: "caso.cerrado_por_operador", detail: "sí/no" },
@@ -35,7 +47,10 @@ const EMPTY_RESPONSE: LevelResponse = {
 };
 
 /** The server's findings for one section, as editor problems. */
-export function problemsFor(findings: Finding[] | undefined, section: string): CelProblem[] {
+export function problemsFor(
+  findings: Finding[] | undefined,
+  section: string
+): CelProblem[] {
   return (findings ?? [])
     .filter((f) => f.section === section)
     .map((f) => ({
@@ -45,11 +60,16 @@ export function problemsFor(findings: Finding[] | undefined, section: string): C
     }));
 }
 
-function Section({ title, children }: Readonly<{ title: string; children: React.ReactNode }>) {
+function Section({
+  title,
+  children,
+}: Readonly<{ title: string; children: React.ReactNode }>) {
   return (
     <section className={cardClass}>
       <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">{title}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
+          {title}
+        </h2>
       </div>
       <div className="flex flex-col gap-3 px-4 py-3">{children}</div>
     </section>
@@ -73,7 +93,14 @@ function Problems({ items }: Readonly<{ items: CelProblem[] }>) {
 }
 
 function levelOf(spec: SymptomSpec, icu: number): Level {
-  return spec.levels.find((l) => l.icu === icu) ?? { icu, applies: false, when: "", response: EMPTY_RESPONSE };
+  return (
+    spec.levels.find((l) => l.icu === icu) ?? {
+      icu,
+      applies: false,
+      when: "",
+      response: EMPTY_RESPONSE,
+    }
+  );
 }
 
 function withLevel(spec: SymptomSpec, level: Level): SymptomSpec {
@@ -104,19 +131,25 @@ function LevelRow({
 }>) {
   const level = levelOf(spec, icu);
   const response = level.response ?? EMPTY_RESPONSE;
-  const set = (patch: Partial<Level>) => onChange(withLevel(spec, { ...level, ...patch }));
-  const setResponse = (patch: Partial<LevelResponse>) => set({ response: { ...response, ...patch } });
+  const set = (patch: Partial<Level>) =>
+    onChange(withLevel(spec, { ...level, ...patch }));
+  const setResponse = (patch: Partial<LevelResponse>) =>
+    set({ response: { ...response, ...patch } });
   const problems = problemsFor(findings, `levels.${icu}`);
 
   return (
-    <div className={`flex flex-col gap-2 py-3 ${level.applies ? "" : "opacity-60"}`}>
+    <div
+      className={`flex flex-col gap-2 py-3 ${level.applies ? "" : "opacity-60"}`}
+    >
       <div className="flex items-center gap-3">
         <ConditionIcon condition={condition} dict={rootDict} size="h-8 w-8" />
         <ToggleSwitch
           checked={level.applies}
           disabled={readOnly}
           label={tr("levelApplies", d)}
-          onChange={(applies) => set({ applies, when: level.when || "medida > 0" })}
+          onChange={(applies) =>
+            set({ applies, when: level.when || "medida > 0" })
+          }
         />
         {level.applies && (
           <div className="ml-auto flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
@@ -124,7 +157,12 @@ function LevelRow({
               checked={response.operator}
               disabled={readOnly}
               label={tr("operator", d)}
-              onChange={(operator) => setResponse({ operator, slaMinutes: operator ? (response.slaMinutes ?? 5) : null })}
+              onChange={(operator) =>
+                setResponse({
+                  operator,
+                  slaMinutes: operator ? (response.slaMinutes ?? 5) : null,
+                })
+              }
             />
             {response.operator && (
               <label className="flex items-center gap-1">
@@ -135,7 +173,13 @@ function LevelRow({
                   className={inputClass}
                   disabled={readOnly}
                   value={response.slaMinutes ?? ""}
-                  onChange={(e) => setResponse({ slaMinutes: e.target.value ? Number(e.target.value) : null })}
+                  onChange={(e) =>
+                    setResponse({
+                      slaMinutes: e.target.value
+                        ? Number(e.target.value)
+                        : null,
+                    })
+                  }
                 />
                 min
               </label>
@@ -185,12 +229,18 @@ export default function SymptomRuleSections({
   const close = problemsFor(findings, "lifecycle.close");
   const levelFields = [...sourceFields, ...LEVEL_FIELDS];
   const lifecycle = spec.lifecycle ?? { open: "", close: "" };
-  const measureValue = spec.measure ?? { expression: "", label: null, unit: null };
+  const measureValue = spec.measure ?? {
+    expression: "",
+    label: null,
+    unit: null,
+  };
 
   return (
     <div className="flex flex-col gap-4">
       <Section title={tr("sectionActivation", d)}>
-        <p className="text-xs text-gray-500 dark:text-gray-400">{tr("activationHint", d)}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {tr("activationHint", d)}
+        </p>
         <CelEditor
           readOnly={readOnly}
           ariaLabel={tr("sectionActivation", d)}
@@ -204,7 +254,9 @@ export default function SymptomRuleSections({
 
       <Section title={tr("sectionLevels", d)}>
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{tr("measure", d)}</span>
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+            {tr("measure", d)}
+          </span>
           <CelEditor
             singleLine
             readOnly={readOnly}
@@ -212,7 +264,9 @@ export default function SymptomRuleSections({
             value={measureValue.expression ?? ""}
             fields={sourceFields}
             problems={measure}
-            onChange={(expression) => onChange({ ...spec, measure: { ...measureValue, expression } })}
+            onChange={(expression) =>
+              onChange({ ...spec, measure: { ...measureValue, expression } })
+            }
           />
           <Problems items={measure} />
         </div>
@@ -235,7 +289,9 @@ export default function SymptomRuleSections({
       </Section>
 
       <Section title={tr("sectionLifecycle", d)}>
-        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{tr("opens", d)}</span>
+        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+          {tr("opens", d)}
+        </span>
         <CelEditor
           singleLine
           readOnly={readOnly}
@@ -243,10 +299,14 @@ export default function SymptomRuleSections({
           value={lifecycle.open}
           fields={CASE_FIELDS}
           problems={open}
-          onChange={(value) => onChange({ ...spec, lifecycle: { ...lifecycle, open: value } })}
+          onChange={(value) =>
+            onChange({ ...spec, lifecycle: { ...lifecycle, open: value } })
+          }
         />
         <Problems items={open} />
-        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">{tr("closes", d)}</span>
+        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+          {tr("closes", d)}
+        </span>
         <CelEditor
           singleLine
           readOnly={readOnly}
@@ -254,7 +314,9 @@ export default function SymptomRuleSections({
           value={lifecycle.close}
           fields={CASE_FIELDS}
           problems={close}
-          onChange={(value) => onChange({ ...spec, lifecycle: { ...lifecycle, close: value } })}
+          onChange={(value) =>
+            onChange({ ...spec, lifecycle: { ...lifecycle, close: value } })
+          }
         />
         <Problems items={close} />
       </Section>

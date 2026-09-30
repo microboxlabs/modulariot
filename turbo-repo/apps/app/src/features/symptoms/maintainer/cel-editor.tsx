@@ -1,12 +1,25 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { autocompletion, closeBrackets, type CompletionContext } from "@codemirror/autocomplete";
+import {
+  autocompletion,
+  closeBrackets,
+  type CompletionContext,
+} from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { HighlightStyle, StreamLanguage, bracketMatching, syntaxHighlighting } from "@codemirror/language";
+import {
+  HighlightStyle,
+  StreamLanguage,
+  bracketMatching,
+  syntaxHighlighting,
+} from "@codemirror/language";
 import { forceLinting, linter, type Diagnostic } from "@codemirror/lint";
 import { EditorState } from "@codemirror/state";
-import { EditorView, keymap, placeholder as placeholderExt } from "@codemirror/view";
+import {
+  EditorView,
+  keymap,
+  placeholder as placeholderExt,
+} from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 
 /** A field the rule can read: its full path and what to show next to it. */
@@ -25,13 +38,26 @@ export interface CelProblem {
 /** The editor that had focus last; the field tree inserts there. */
 let lastFocused: EditorView | null = null;
 
-const FUNCTIONS = ["has", "size", "matches", "startsWith", "endsWith", "contains", "exists", "all"];
+const FUNCTIONS = [
+  "has",
+  "size",
+  "matches",
+  "startsWith",
+  "endsWith",
+  "contains",
+  "exists",
+  "all",
+];
 
 const cel = StreamLanguage.define({
   token(stream) {
     if (stream.eatSpace()) return null;
     if (stream.match(/^\/\/.*/)) return "comment";
-    if (stream.match(/^"(?:[^"\\]|\\.)*"?/) || stream.match(/^'(?:[^'\\]|\\.)*'?/)) return "string";
+    if (
+      stream.match(/^"(?:[^"\\]|\\.)*"?/) ||
+      stream.match(/^'(?:[^'\\]|\\.)*'?/)
+    )
+      return "string";
     if (stream.match(/^\d+(\.\d+)?([eE][+-]?\d+)?u?/)) return "number";
     if (stream.match(/^(true|false|null)\b/)) return "atom";
     if (stream.match(/^in\b/)) return "keyword";
@@ -68,12 +94,19 @@ function completions(fields: () => CelField[]) {
         from: word.from,
         options: [
           ...roots.map((r) => ({ label: r, type: "variable" })),
-          ...FUNCTIONS.map((f) => ({ label: f, type: "function", apply: `${f}()` })),
+          ...FUNCTIONS.map((f) => ({
+            label: f,
+            type: "function",
+            apply: `${f}()`,
+          })),
         ],
       };
     }
     const prefix = text.slice(0, dot + 1);
-    const seen = new Map<string, { label: string; type: string; detail?: string }>();
+    const seen = new Map<
+      string,
+      { label: string; type: string; detail?: string }
+    >();
     for (const f of all) {
       if (!f.path.startsWith(prefix)) continue;
       const rest = f.path.slice(prefix.length);
@@ -81,7 +114,9 @@ function completions(fields: () => CelField[]) {
       if (seen.has(segment)) continue;
       seen.set(
         segment,
-        rest.includes(".") ? { label: segment, type: "namespace" } : { label: segment, type: "property", detail: f.detail }
+        rest.includes(".")
+          ? { label: segment, type: "namespace" }
+          : { label: segment, type: "property", detail: f.detail }
       );
     }
     return { from: word.from + dot + 1, options: [...seen.values()] };
@@ -124,8 +159,16 @@ export default function CelEditor({
       (v) => {
         const length = v.state.doc.length;
         return latest.current.problems.map((p): Diagnostic => {
-          const from = Math.max(0, Math.min(p.position, Math.max(0, length - 1)));
-          return { from, to: Math.min(length, from + 1), severity: p.severity, message: p.message };
+          const from = Math.max(
+            0,
+            Math.min(p.position, Math.max(0, length - 1))
+          );
+          return {
+            from,
+            to: Math.min(length, from + 1),
+            severity: p.severity,
+            message: p.message,
+          };
         });
       },
       { delay: 50 }
@@ -137,7 +180,10 @@ export default function CelEditor({
       syntaxHighlighting(highlight),
       bracketMatching(),
       closeBrackets(),
-      autocompletion({ override: [completions(() => latest.current.fields)], icons: false }),
+      autocompletion({
+        override: [completions(() => latest.current.fields)],
+        icons: false,
+      }),
       lint,
       EditorView.lineWrapping,
       EditorView.editable.of(!readOnly),
@@ -163,7 +209,11 @@ export default function CelEditor({
     ];
     if (placeholder) extensions.push(placeholderExt(placeholder));
     if (singleLine) {
-      extensions.push(EditorState.transactionFilter.of((tr) => (tr.newDoc.lines > 1 ? [] : tr)));
+      extensions.push(
+        EditorState.transactionFilter.of((tr) =>
+          tr.newDoc.lines > 1 ? [] : tr
+        )
+      );
     }
     view.current = new EditorView({
       state: EditorState.create({ doc: value, extensions }),
@@ -181,7 +231,9 @@ export default function CelEditor({
   useEffect(() => {
     const v = view.current;
     if (v && value !== v.state.doc.toString()) {
-      v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: value } });
+      v.dispatch({
+        changes: { from: 0, to: v.state.doc.length, insert: value },
+      });
     }
   }, [value]);
 
@@ -203,7 +255,10 @@ export function insertIntoFocused(text: string) {
   const v = lastFocused;
   if (!v) return false;
   const { from, to } = v.state.selection.main;
-  v.dispatch({ changes: { from, to, insert: text }, selection: { anchor: from + text.length } });
+  v.dispatch({
+    changes: { from, to, insert: text },
+    selection: { anchor: from + text.length },
+  });
   v.focus();
   return true;
 }

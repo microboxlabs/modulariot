@@ -50,7 +50,10 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
           void mutate();
           void refreshSymptoms();
         }
-        const [r, p] = await Promise.all([validateSpec(id, next), previewSpec(id, next)]);
+        const [r, p] = await Promise.all([
+          validateSpec(id, next),
+          previewSpec(id, next),
+        ]);
         setReport(r);
         setPreview(p);
       } catch (e) {
@@ -91,5 +94,16 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     await refreshSymptoms();
   }, [id, mutate]);
 
-  return { detail, error, spec, update, report, preview, saving, saveError, discard, reload: mutate };
+  return {
+    detail,
+    error,
+    spec,
+    update,
+    report,
+    preview,
+    saving,
+    saveError,
+    discard,
+    reload: mutate,
+  };
 }

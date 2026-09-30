@@ -5,7 +5,6 @@ import com.microboxlabs.miot.symptoms.domain.ContactCallStats;
 import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
-import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -17,15 +16,20 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Process-local treatment store. Lost on restart; one lock for the whole store is enough for demo traffic. */
-@ApplicationScoped
+/** Process-local treatment store for unit tests. Not a CDI bean: the running service uses {@link PgTreatmentStore}. */
 public class InMemoryTreatmentStore implements TreatmentStore {
 
     private final Map<String, Treatment> treatments = new LinkedHashMap<>();
     private final Map<String, List<TreatmentAction>> actions = new LinkedHashMap<>();
 
     @Override
-    public synchronized Treatment insert(Treatment t) {
+    public synchronized Inserted insert(Treatment t) {
+        if (t.status() == null || t.status() == TreatmentStatus.OPEN) {
+            Optional<Treatment> open = findOpen(t.tenantCode(), t.symptomId(), t.openedBy());
+            if (open.isPresent()) {
+                return new Inserted(open.get(), false);
+            }
+        }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         OffsetDateTime openedAt = t.openedAt() == null ? now : t.openedAt();
         Treatment saved = new Treatment(
@@ -34,7 +38,7 @@ public class InMemoryTreatmentStore implements TreatmentStore {
                 t.closedAt(), t.resolution(), t.note(), t.updatedAt() == null ? openedAt : t.updatedAt());
         treatments.put(saved.id(), saved);
         actions.put(saved.id(), new ArrayList<>());
-        return saved;
+        return new Inserted(saved, true);
     }
 
     @Override
@@ -61,13 +65,14 @@ public class InMemoryTreatmentStore implements TreatmentStore {
 
     @Override
     public synchronized Optional<Treatment> transition(
-            String tenantCode, String id, TreatmentStatus status, String actor, String resolution, String note) {
+            String tenantCode, String id, TreatmentStatus status, String actor, String resolution, String note,
+            OffsetDateTime at) {
         Optional<Treatment> current = find(tenantCode, id).filter(t -> t.status() == TreatmentStatus.OPEN);
         if (current.isEmpty()) {
             return Optional.empty();
         }
         Treatment t = current.get();
-        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime now = at == null ? OffsetDateTime.now(ZoneOffset.UTC) : at;
         Treatment moved = new Treatment(t.id(), t.tenantCode(), t.symptomId(), t.assetId(), t.tripId(), t.type(),
                 status, t.openedBy(), t.openedAt(), actor, now, resolution, note == null ? t.note() : note, now);
         treatments.put(moved.id(), moved);
@@ -77,8 +82,9 @@ public class InMemoryTreatmentStore implements TreatmentStore {
     @Override
     public synchronized TreatmentAction addAction(TreatmentAction a) {
         List<TreatmentAction> list = actions.get(a.treatmentId());
-        if (list == null) {
-            throw new IllegalStateException("treatment not found: " + a.treatmentId());
+        Treatment current = treatments.get(a.treatmentId());
+        if (list == null || current.status() != TreatmentStatus.OPEN) {
+            throw new IllegalStateException("treatment not found or not open: " + a.treatmentId());
         }
         TreatmentAction saved = new TreatmentAction(
                 UUID.randomUUID().toString(), a.treatmentId(), a.tenantCode(), list.size() + 1, a.kind(),

@@ -42,7 +42,8 @@ CREATE TABLE miot_symptoms.symptom_definition (
     created_at             TIMESTAMPTZ  NOT NULL DEFAULT now(),
     updated_by             VARCHAR(255) NOT NULL,
     updated_at             TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT chk_symptom_definition_state CHECK (state IN ('OFF', 'TEST', 'ACTIVE'))
+    CONSTRAINT chk_symptom_definition_state CHECK (state IN ('OFF', 'TEST', 'ACTIVE')),
+    CONSTRAINT uq_symptom_definition_tenant UNIQUE (id, tenant_code)
 );
 
 CREATE UNIQUE INDEX idx_symptom_definition_key
@@ -52,8 +53,7 @@ CREATE UNIQUE INDEX idx_symptom_definition_key
 -- never edited, a rollback publishes an old spec as a new version.
 CREATE TABLE miot_symptoms.symptom_version (
     id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    definition_id      UUID         NOT NULL
-                           REFERENCES miot_symptoms.symptom_definition (id) ON DELETE CASCADE,
+    definition_id      UUID         NOT NULL,
     tenant_code        VARCHAR(128) NOT NULL,
     version            VARCHAR(32),
     status             VARCHAR(16)  NOT NULL,
@@ -67,7 +67,10 @@ CREATE TABLE miot_symptoms.symptom_version (
     published_at       TIMESTAMPTZ,
     CONSTRAINT chk_symptom_version_status CHECK (status IN ('DRAFT', 'PUBLISHED')),
     CONSTRAINT chk_symptom_version_bump CHECK (bump IS NULL OR bump IN ('MAJOR', 'MINOR', 'PATCH')),
-    CONSTRAINT chk_symptom_version_published CHECK (status = 'DRAFT' OR version IS NOT NULL)
+    CONSTRAINT chk_symptom_version_published CHECK (status = 'DRAFT' OR version IS NOT NULL),
+    -- A version belongs to a definition of the same organization.
+    CONSTRAINT fk_symptom_version_definition FOREIGN KEY (definition_id, tenant_code)
+        REFERENCES miot_symptoms.symptom_definition (id, tenant_code) ON DELETE CASCADE
 );
 
 CREATE UNIQUE INDEX idx_symptom_version_number

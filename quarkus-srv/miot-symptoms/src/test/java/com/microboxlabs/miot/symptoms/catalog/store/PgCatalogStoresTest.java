@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.catalog.store;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
@@ -104,6 +105,29 @@ class PgCatalogStoresTest {
         assertTrue(numbers.containsAll(List.of("1.0.0", "1.1.0")));
         assertEquals("1.0.0", store.findVersion(TENANT, created.id(), "1.1.0").orElseThrow().rolledBackFrom());
         assertTrue(store.findDefinition("tenant-b", created.id()).isEmpty(), "other tenants see nothing");
+    }
+
+    @Test
+    void publishedVersionsAreNeverRewrittenAndDraftsStayInTheirTenant() {
+        PgSymptomCatalogStore store = new PgSymptomCatalogStore(() -> pool);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+        SymptomDefinition created = store.insertDefinition(new SymptomDefinition(UUID.randomUUID(), TENANT,
+                "lost-signal", "Pérdida de señal", null, null, null, "trip_check", null, null, null,
+                SymptomState.OFF, null, "owner@example.com", now, "owner@example.com", now));
+        SymptomSpec spec = new SymptomSpec("trip_check", "true", null, List.of(), null, null);
+        SymptomVersion draft = store.saveDraft(SymptomVersion.draft(created.id(), TENANT, spec, "owner@example.com",
+                now));
+        SymptomDefinition current = created.withCurrent("1.0.0", SymptomState.ACTIVE, "owner@example.com", now);
+        store.publish(draft.published("1.0.0", VersionBump.MAJOR, "Primera", null, "owner@example.com", now), current);
+
+        SymptomVersion again = draft.published("9.9.9", VersionBump.MAJOR, "Otra vez", null, "owner@example.com", now);
+        assertThrows(IllegalStateException.class, () -> store.publish(again, current));
+        assertEquals("1.0.0", store.listVersions(TENANT, created.id()).get(0).version());
+
+        store.saveDraft(SymptomVersion.draft(created.id(), TENANT, spec, "owner@example.com", now));
+        SymptomVersion foreign = SymptomVersion.draft(created.id(), "tenant-b", spec, "intruder@example.com", now);
+        assertThrows(RuntimeException.class, () -> store.saveDraft(foreign));
+        assertEquals("owner@example.com", store.findDraft(TENANT, created.id()).orElseThrow().createdBy());
     }
 
     @Test

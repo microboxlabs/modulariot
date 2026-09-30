@@ -62,6 +62,7 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
             ) VALUES ($1, $2, $3, 'DRAFT', $4::jsonb, $5, $6)
             ON CONFLICT (definition_id) WHERE status = 'DRAFT'
             DO UPDATE SET spec = EXCLUDED.spec
+            WHERE miot_symptoms.symptom_version.tenant_code = EXCLUDED.tenant_code
             RETURNING\s""" + VERSION_COLUMNS;
 
     private static final String DELETE_DRAFT = """
@@ -75,6 +76,8 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
                 version = EXCLUDED.version, status = 'PUBLISHED', spec = EXCLUDED.spec, bump = EXCLUDED.bump,
                 reason = EXCLUDED.reason, rolled_back_from = EXCLUDED.rolled_back_from,
                 published_by = EXCLUDED.published_by, published_at = EXCLUDED.published_at
+            WHERE miot_symptoms.symptom_version.status = 'DRAFT'
+              AND miot_symptoms.symptom_version.tenant_code = EXCLUDED.tenant_code
             RETURNING\s""" + VERSION_COLUMNS;
 
     private final Supplier<Pool> pool;
@@ -145,7 +148,11 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
         Tuple params = Tuple.tuple()
                 .addUUID(v.id()).addUUID(v.definitionId()).addString(v.tenantCode())
                 .addString(PgJson.write(v.spec())).addString(v.createdBy()).addOffsetDateTime(v.createdAt());
-        return versions(query(pool.get(), UPSERT_DRAFT, params)).get(0);
+        List<SymptomVersion> saved = versions(query(pool.get(), UPSERT_DRAFT, params));
+        if (saved.isEmpty()) {
+            throw new NoSuchElementException("Symptom not found: " + v.definitionId());
+        }
+        return saved.get(0);
     }
 
     @Override
@@ -161,9 +168,22 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
                 .addString(v.reason()).addString(v.rolledBackFrom())
                 .addString(v.createdBy()).addOffsetDateTime(v.createdAt())
                 .addString(v.publishedBy()).addOffsetDateTime(v.publishedAt());
+        // A published row is never rewritten: the upsert only takes over a draft, so no row back means the
+        // version was published already (or by someone else first) and the transaction rolls back.
         return pool.get().withTransaction(tx -> tx.preparedQuery(UPSERT_PUBLISHED).execute(params)
-                        .flatMap(rows -> tx.preparedQuery(UPDATE_DEFINITION).execute(definitionParams(definition))
-                                .map(ignored -> versions(rows).get(0))))
+                        .map(rows -> {
+                            if (rows.rowCount() == 0) {
+                                throw new IllegalStateException("version already published: " + v.id());
+                            }
+                            return versions(rows).get(0);
+                        })
+                        .flatMap(saved -> tx.preparedQuery(UPDATE_DEFINITION).execute(definitionParams(definition))
+                                .map(rows -> {
+                                    if (rows.rowCount() == 0) {
+                                        throw new NoSuchElementException("Symptom not found: " + definition.id());
+                                    }
+                                    return saved;
+                                })))
                 .await().atMost(QUERY_TIMEOUT);
     }
 

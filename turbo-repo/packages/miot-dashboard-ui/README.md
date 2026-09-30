@@ -1596,3 +1596,66 @@ unavailable catalog stays empty until explicit reload; no administrative fallbac
 or shared cache is used. Use `loaded` to enable the query editor and `editorKey`
 to reset its local draft after catalog changes. Keep `client` stable and replace
 the non-secret session key on authentication changes.
+
+### General dashboard settings
+
+`DashboardGeneralSettings` from `/react` edits a local draft of `name`,
+`refreshInterval` (0, 10, 30, 60 or 300 seconds) and optional numeric `order`.
+Supply translated `labels` including every interval label, an initial `value`,
+explicit `editable` permission and a synchronous boolean `onApply`. The default
+is read-only. Titles are trimmed, required and limited to 256 characters; order
+must be finite and an empty order clears it. Invalid or host-rejected drafts stay
+visible with an accessible error. Remount with a resource/session key when switching
+identities, documents or replacing the draft from a reload.
+
+Connect `onApply` to `useDashboardState().setGeneralSettings`. That method validates
+and applies all three fields in one undoable update, preserving widgets, queries,
+filters and access settings. It returns false when editing is denied or input is
+invalid. Applying updates the document draft only: the host must still save it to
+the server and enforce its current capabilities. The settings editor has no auth,
+network or storage dependency. Import the package stylesheet for scoped styles;
+`--miot-settings-text`, `--miot-settings-background` and `--miot-settings-border`
+can override its light/dark palette.
+
+### Filter definitions
+
+`DashboardFilterEditor` from `/react` edits a local array of text, date-range and
+select filter definitions, including select option labels/values. Pass `value`,
+translated `labels`, explicit `editable` and a synchronous boolean `onApply`.
+Connect that callback to `useDashboardState().setFilterDefinitions` for validated,
+undoable document updates. Both boundaries reject duplicate keys, collisions with
+date-range `_from`/`_to` keys, prototype keys and duplicate select option values.
+Keys use letters, digits, underscores and hyphens, starting with a letter or
+underscore (128 characters maximum). Labels are required and capped at 256;
+there are at most 100 filters and 500 options per filter.
+
+The editor defaults to read-only and does not fetch option data. It preserves
+existing extension fields while editing base fields; dynamic option providers
+remain host-owned. Changing a filter key does not rewrite saved-query bindings:
+update those bindings deliberately before saving. Deletions are draft changes
+until Apply, then remain undoable in the document; the host owns persistence and
+discard confirmation. Remount on document/session/reload changes. This API does
+not replace the legacy `setFilters` API used by existing integrations.
+
+`useFilterOptions(filter)` from `/react` resolves static options or projects an
+`optionsSource` from the enclosing `SavedQueryProvider`/`PlannerResultsProvider`.
+It never executes or fetches a query. Return values are `options`, `loading`,
+`error` and `dynamic`. Dynamic results retain row order, deduplicate by value,
+skip missing/non-scalar values and use the value when a label is missing. Only
+own row properties are read. Projection considers at most 10,000 rows and returns
+at most 500 options; values over 1,024 characters are skipped and labels capped
+at 256. Loading or failed results clear prior options, including stale rows from
+a revoked query. Missing named results stay empty; incomplete legacy references
+retain the static fallback. Next.js consumes this same hook. The host must still
+provide authorized, session-isolated results and accessible loading/error labels.
+
+To author dynamic options, pass `sources: { queries, labels }` to
+`DashboardFilterEditor`. `queries` uses `QueryBindingOption` (ID, variable name,
+optional column schema); labels name the source/static choice, columns,
+unavailable source, value/label fields and single-selection checkbox. Only listed
+variables can be selected or applied. Choosing a query clears static options and
+requires a value field; an omitted label field uses the value. Known columns are
+suggested, while direct field-name entry supports a schema not yet fetched.
+Changing filter type clears its dynamic source. The host must pass current saved
+query metadata and persist the document; the editor performs no discovery or
+query execution. `FilterOptionSource` is also exported for custom settings forms.

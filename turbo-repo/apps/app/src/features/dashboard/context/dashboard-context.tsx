@@ -9,6 +9,7 @@ import {
   type PropsWithChildren,
   type ComponentType,
 } from "react";
+import type { DashboardGeneralSettingsValue } from "@microboxlabs/miot-dashboard-ui/react";
 import type { DashboardQueryDefinition } from "@microboxlabs/miot-dashboard-contract/document";
 import { mutate as mutateGlobal } from "swr";
 import { useDashboardStorage, type DashboardStorageController } from "../hooks/use-dashboard-storage";
@@ -51,6 +52,8 @@ interface DashboardContextValue {
   /** Update dashboard filter configuration */
   setFilters: (filters: DashboardFilterParam[]) => void;
   queries: DashboardQueryDefinition[];
+  setFilterDefinitions: (filters: readonly DashboardFilterParam[]) => boolean;
+  setGeneralSettings: (value: DashboardGeneralSettingsValue) => boolean;
   setQueries: (queries: readonly DashboardQueryDefinition[]) => boolean;
   /** Auto-refresh interval in seconds (0 = off) */
   refreshInterval: RefreshInterval;
@@ -168,6 +171,8 @@ export function DashboardProvider({
     setFilters,
     queries,
     setQueries,
+    setGeneralSettings,
+    setFilterDefinitions,
     setRefreshInterval,
     order,
     setOrder: setOrderStorage,
@@ -435,6 +440,8 @@ export function DashboardProvider({
       setFilters,
     queries,
     setQueries,
+    setGeneralSettings,
+    setFilterDefinitions,
       refreshInterval: effectiveRefreshInterval,
       setRefreshInterval,
       order,
@@ -479,6 +486,8 @@ export function DashboardProvider({
       setFilters,
     queries,
     setQueries,
+    setGeneralSettings,
+    setFilterDefinitions,
       effectiveRefreshInterval,
       setRefreshInterval,
       order,
@@ -540,6 +549,8 @@ const DASHBOARD_FALLBACK: DashboardContextValue = {
   setFilters: NOOP,
   queries: [],
   setQueries: () => false,
+  setGeneralSettings: () => false,
+  setFilterDefinitions: () => false,
   refreshInterval: 0,
   setRefreshInterval: NOOP,
   order: undefined,

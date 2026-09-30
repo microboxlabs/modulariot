@@ -144,3 +144,11 @@ export { PermissionAssignmentEditor, type PermissionAssignmentEditorProps, type 
 export { useDashboardPermissions, type DashboardPermissionsOptions } from "./react/use-dashboard-permissions";
 
 export { useQueryCatalog, type QueryCatalogOptions } from "./react/use-query-catalog";
+
+export { DashboardGeneralSettings, type DashboardGeneralSettingsProps, type DashboardGeneralSettingsValue } from "./react/dashboard-general-settings";
+
+export { DashboardFilterEditor, type DashboardFilterEditorProps, type DashboardFilterEditorLabels } from "./react/dashboard-filter-editor";
+
+export { useFilterOptions, type ResolvedFilterOptions } from "./react/use-filter-options";
+
+export { FilterOptionSource, type FilterOptionSourceProps, type FilterSourceConfiguration } from "./react/filter-option-source";

@@ -148,3 +148,17 @@ El guardado reemplaza las asignaciones locales y luego las recarga. Los permisos
 Los editores pueden abrir **Consultas guardadas** para cargar el catálogo autorizado de conexiones y operaciones del servidor. Aplicar una definición modifica el borrador del dashboard: use la acción habitual de guardar para persistirlo, o deshacer/rehacer para revisarlo. Cerrar o recargar el editor solicita confirmar el descarte de campos sin aplicar. Los consumidores no cargan el catálogo ni ven controles de edición.
 
 El proxy autenticado de la organización reenvía `query-catalog` al servidor de dashboards. Configure un proveedor de catálogo en ese servidor; un catálogo ausente o denegado mantiene la edición deshabilitada. El catálogo contiene únicamente metadatos públicos, nunca credenciales ni SQL ejecutable.
+
+`DashboardGeneralSettings` ofrece un editor local autorizado para título, actualización automática y orden de presentación. Conéctelo a `useDashboardState().setGeneralSettings` para aplicar una actualización del documento que pueda deshacerse y luego persista mediante la acción de guardar del host. El host proporciona etiquetas y permisos; los borradores inválidos o rechazados permanecen visibles.
+
+En el espacio de dashboards del servidor en Next.js, los editores abren **Configuración del dashboard** para cambiar título, actualización y orden. Aplique al borrador y luego guarde el dashboard; use deshacer para restaurar la configuración anterior. Cerrar solicita confirmar el descarte de campos sin aplicar. Los consumidores no ven este editor.
+
+`DashboardFilterEditor` permite configurar filtros de texto, rango de fechas y selección con opciones estáticas. Aplique mediante `setFilterDefinitions` para validar y permitir deshacer; se rechazan claves duplicadas, colisiones de rangos de fechas y valores de opciones duplicados. El host conserva la obtención de opciones dinámicas. Renombrar un filtro requiere actualizar por separado sus enlaces en consultas guardadas.
+
+La configuración de dashboards alojados en Next.js también incluye definiciones de filtros. Los editores agregan o ajustan controles y opciones estáticas, aplican el borrador de filtros y luego guardan el dashboard. Las claves alimentan los enlaces de consultas guardadas; actualice los enlaces al renombrarlas. Este editor no invoca selectores de fuentes de datos heredadas.
+
+`useFilterOptions` convierte resultados de consultas guardadas en opciones de selección limitadas y sin duplicados, sin efectuar otra solicitud. Limpia opciones anteriores durante la carga o tras un error y expone esos estados. La barra de filtros de Next.js usa este resolvedor compartido.
+
+Proporcione metadatos de consultas guardadas mediante `sources` para configurar opciones dinámicas sin editar JSON. El usuario elige un resultado, campos de valor/etiqueta y selección única. No se pueden aplicar fuentes eliminadas ni enlaces incompletos; seleccionar una consulta limpia el borrador de opciones estáticas.
+
+En la configuración alojada, los filtros de selección pueden usar consultas guardadas actuales como fuente de opciones. Elija la variable, columna de valor y etiqueta opcional, aplique el borrador y guarde el dashboard. La selección única permite integrar operaciones que aceptan un solo valor. Esta edición no invoca descubrimiento de planificadores ni fuentes de datos heredadas.

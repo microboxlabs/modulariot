@@ -32,6 +32,7 @@ from miot_harness.agents.model_providers import (
     is_anthropic,
     registry_from_settings,
 )
+from miot_harness.agents.rule_describer import build_rule_describer
 from miot_harness.agents.thread_titler import build_thread_titler
 from miot_harness.api.auth import AuthError, JwksCache, verify_token
 from miot_harness.api.drain import RunDrain, install_sigterm_drain
@@ -184,6 +185,15 @@ class TitleRequest(BaseModel):
 
     message: str = Field(min_length=1, max_length=20_000)
     answer: str = Field(default="", max_length=200_000)
+
+
+class DescribeRequest(BaseModel):
+    """Body for POST /describe: one symptom rule and the labels of its fields."""
+
+    section: str = Field(min_length=1, max_length=64)
+    rule: str = Field(min_length=1, max_length=4_000)
+    fields: dict[str, str] = Field(default_factory=dict, max_length=200)
+    locale: str = Field(default="es-CL", min_length=2, max_length=16)
 
 
 def _make_lifespan(
@@ -1062,6 +1072,26 @@ def create_app() -> FastAPI:
             logger.warning("Thread title failed: %s", exc)
             raise HTTPException(status_code=503, detail="title unavailable") from exc
         return {"title": title}
+
+    @app.post("/describe", responses={503: {"description": "No description could be generated"}})
+    async def describe_rule(
+        body: DescribeRequest,
+        auth: Mapping[str, Any] = Depends(require_auth),
+    ) -> dict[str, str]:
+        """A short plain-language description of a symptom rule, as limited
+        HTML (b, i, mark). Uses the summarizer's model."""
+        # Tests inject a stub via app.state.describe_model.
+        model = getattr(app.state, "describe_model", None)
+        try:
+            if model is None:
+                model = get_chat_model(_summarizer_model(settings))
+            text = await build_rule_describer(model)(
+                body.section, body.rule, body.fields, body.locale
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Rule description failed: %s", exc)
+            raise HTTPException(status_code=503, detail="description unavailable") from exc
+        return {"html": text}
 
     @app.post("/runs", responses=_DRAINING_RESPONSE)
     async def create_run(

@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.api;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
@@ -21,7 +22,7 @@ import java.util.function.Supplier;
  * worker pool. The tenant comes from the resolved organization and the actor
  * from the session, never from the body. Service exceptions map to HTTP:
  * {@link IllegalArgumentException} 400, {@link NoSuchElementException} 404,
- * {@link IllegalStateException} 409.
+ * {@link IllegalStateException} 409, and an unavailable Harness 503.
  */
 abstract class ControlTowerResourceSupport {
 
@@ -74,6 +75,12 @@ abstract class ControlTowerResourceSupport {
         return null;
     }
 
+    /** The caller's identity as the Harness expects it. */
+    protected RuleDescriptionService.Caller harnessCaller(String authorization) {
+        return new RuleDescriptionService.Caller(authorization, tenantContext.getClientId(),
+                organizationContext.getUserEmail());
+    }
+
     private static Response guarded(Supplier<Response> work) {
         try {
             return work.get();
@@ -83,6 +90,8 @@ abstract class ControlTowerResourceSupport {
             return error(Response.Status.NOT_FOUND, e.getMessage());
         } catch (IllegalStateException e) {
             return error(Response.Status.CONFLICT, e.getMessage());
+        } catch (RuleDescriptionService.UnavailableException e) {
+            return error(Response.Status.SERVICE_UNAVAILABLE, e.getMessage());
         }
     }
 

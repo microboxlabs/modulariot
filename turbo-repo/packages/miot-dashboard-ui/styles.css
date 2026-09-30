@@ -41,7 +41,8 @@
   width: 100%;
 }
 .miot-dashboard-grid__clip {
-  overflow: visible;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 .miot-dashboard-grid__scaled {
   position: relative;

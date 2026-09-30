@@ -24,9 +24,7 @@ import { computeGridSizing } from "../core/grid-sizing";
 export interface DashboardGridProps {
   widgets: readonly Widget[];
   registry: {
-    get(
-      id: string,
-    ):
+    get(id: string):
       | {
           getLayoutDefaults(config: Widget["config"]): {
             minW?: number;
@@ -46,9 +44,38 @@ function fitLayoutToCols(layout: Layout, cols: number): Layout {
   const clamped = layout.map((item) => {
     const w = Math.min(item.w, cols);
     const x = Math.max(0, Math.min(item.x, cols - w));
-    return { ...item, x, w };
+    return {
+      ...item,
+      x,
+      w,
+      minW: Math.min(item.minW ?? 1, cols),
+      maxW: Math.min(item.maxW ?? cols, cols),
+    };
   });
   return verticalCompactor.compact(clamped, cols);
+}
+
+/** Preserve stored coordinates when a gesture did not change their fitted value. */
+function mergeGesture(
+  item: LayoutItem,
+  previous: LayoutItem | undefined,
+  widget: Widget | undefined,
+): GridLayoutItem {
+  const coordinate = (key: "x" | "y" | "w" | "h") =>
+    previous?.[key] === item[key]
+      ? (widget?.layout?.[key] ?? item[key])
+      : item[key];
+  return {
+    i: item.i,
+    x: coordinate("x"),
+    y: coordinate("y"),
+    w: coordinate("w"),
+    h: coordinate("h"),
+    minW: widget?.layout?.minW,
+    minH: widget?.layout?.minH,
+    maxW: widget?.layout?.maxW,
+    maxH: widget?.layout?.maxH,
+  };
 }
 
 export function DashboardGrid({
@@ -178,6 +205,11 @@ export function DashboardGrid({
     return fitLayoutToCols(items, cols);
   }, [widgets, editMode, cols, registry]);
 
+  const gestureLayout = useRef<Layout | null>(null);
+  const beginGesture = () => {
+    gestureLayout.current = layout.map((item) => ({ ...item }));
+  };
+
   // Persist only on drag/resize *stop*, not onLayoutChange: react-grid-layout
   // also fires onLayoutChange from prop-driven re-syncs (e.g. a cols change on
   // window resize, or mount) with no user interaction involved. Since the
@@ -189,24 +221,17 @@ export function DashboardGrid({
   const handleLayoutChange = useCallback(
     (newLayout: Layout) => {
       if (!editMode) return;
+      const before = gestureLayout.current ?? layout;
+      gestureLayout.current = null;
       const items: GridLayoutItem[] = newLayout.map((item: LayoutItem) => {
         // Find existing widget to preserve min/max values
         const existingWidget = widgets.find((w) => w.id === item.i);
-        return {
-          i: item.i,
-          x: item.x,
-          y: item.y,
-          w: item.w,
-          h: item.h,
-          minW: existingWidget?.layout?.minW,
-          minH: existingWidget?.layout?.minH,
-          maxW: existingWidget?.layout?.maxW,
-          maxH: existingWidget?.layout?.maxH,
-        };
+        const previous = before.find((entry) => entry.i === item.i);
+        return mergeGesture(item, previous, existingWidget);
       });
       onLayoutCommit?.(items);
     },
-    [onLayoutCommit, editMode, widgets],
+    [onLayoutCommit, editMode, widgets, layout],
   );
 
   return (
@@ -240,6 +265,8 @@ export function DashboardGrid({
             }}
             resizeConfig={{ enabled: editMode, handles: ["se"] }}
             compactor={verticalCompactor}
+            onDragStart={beginGesture}
+            onResizeStart={beginGesture}
             onDragStop={handleLayoutChange}
             onResizeStop={handleLayoutChange}
             autoSize

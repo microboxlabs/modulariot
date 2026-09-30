@@ -160,6 +160,55 @@ describe("DashboardGrid", () => {
     fireEvent.click(screen.getByText("Resize"));
     expect(commit).toHaveBeenCalledTimes(2);
   });
+  it("preserves untouched wide-screen coordinates when another widget moves", () => {
+    const commit = vi.fn();
+    const untouched = {
+      ...widget,
+      id: "b",
+      layout: { ...widget.layout, i: "b", x: 60, minW: 30 },
+    };
+    render(
+      <DashboardGrid
+        widgets={[widget, untouched]}
+        registry={registry}
+        renderWidget={renderWidget}
+        editMode
+        onLayoutCommit={commit}
+      />,
+    );
+    resize(600);
+    const before = grid.layout ?? [];
+    expect(before[1]?.minW).toBeLessThanOrEqual(grid.gridConfig?.cols ?? 0);
+    expect(before[1]?.maxW).toBeLessThanOrEqual(grid.gridConfig?.cols ?? 0);
+    act(() => {
+      grid.onDragStart?.(
+        before,
+        null,
+        null,
+        null,
+        new MouseEvent("mousedown"),
+        null,
+      );
+      const moved = before.map((item, index) =>
+        index === 0 ? { ...item, x: 1 } : item,
+      );
+      grid.onDragStop?.(
+        moved,
+        null,
+        null,
+        null,
+        new MouseEvent("mouseup"),
+        null,
+      );
+    });
+    expect(commit.mock.calls[0]?.[0][1]).toEqual(untouched.layout);
+    expect(commit.mock.calls[0]?.[0][0]).toMatchObject({
+      x: 1,
+      w: widget.layout.w,
+      y: widget.layout.y,
+    });
+  });
+
   it("disconnects observers and cancels deferred measurement on unmount", () => {
     const view = render(
       <DashboardGrid

@@ -83,6 +83,7 @@ describe("filterSettings", () => {
 
     expect(settingsHrefs(filtered)).toEqual([
       "/users/settings/organizations",
+      "/users/settings/symptoms",
       "/users/settings/symptom-rules",
       "/users/settings/selectables",
       "/users/settings/contact-book",

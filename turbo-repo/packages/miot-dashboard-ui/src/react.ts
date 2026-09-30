@@ -77,3 +77,5 @@ export { useCompiledColumns, type TemplateColumn, type CompiledColumnsOptions } 
 export { useColumnFilters, type UseColumnFiltersResult } from "./react/use-column-filters";
 
 export { ColumnFilterToolbar, type ColumnFilterToolbarProps } from "./react/column-filter-toolbar";
+
+export { ColumnFilterInput, type ColumnFilterInputProps, type ColumnFilterInputLabels } from "./react/column-filter-input";

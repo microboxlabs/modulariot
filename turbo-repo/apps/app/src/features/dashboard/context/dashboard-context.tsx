@@ -537,8 +537,12 @@ export function useDashboard() {
 }
 
 const NOOP = () => {};
+// The registry is read on use, not at module load: the dashlet catalog imports
+// widgets that import this module, so the binding may not be initialized yet.
 const DASHBOARD_FALLBACK: DashboardContextValue = {
-  registry: dashboardRegistry,
+  get registry() {
+    return dashboardRegistry;
+  },
   widgets: [],
   editMode: false,
   isKiosk: false,

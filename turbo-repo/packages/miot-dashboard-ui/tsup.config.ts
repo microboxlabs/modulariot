@@ -18,7 +18,7 @@ export default defineConfig((options) => {
   return [
     {
       ...shared,
-      entry: ["src/browser.ts"],
+      entry: ["src/browser.ts", "src/browser-charts.ts"],
       outDir: "dist/browser",
       platform: "browser",
       splitting: false,

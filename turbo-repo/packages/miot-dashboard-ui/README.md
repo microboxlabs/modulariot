@@ -1500,6 +1500,21 @@ connection/template/credential-backed named server queries.
 
 Import `./react-charts` alongside the normal `./react` entry; it shares their
 provider contexts. This optional entry references ECharts option types and expects
-an engine adapter, but does not load the engine. Plain browser hosts currently
-need to bundle this integration with their chosen engine; the default `./browser`
-entry does not yet export this chart registry.
+an engine adapter, but does not load the engine. Plain browser hosts can use `./browser-charts`, described below; the default
+`./browser` entry stays smaller and omits the chart registry.
+
+
+### Native browser charts
+
+Use `./browser-charts` instead of `./browser` when a plain HTML or LiveView host
+needs charts. It exports the same mounting/Web Component APIs plus
+`createChartRegistry`. The bundle includes its own shared React runtime, so the
+host needs no React installation, JSX, import map or app framework. Supply
+`createEngine` through registry options using the host's separately loaded chart
+engine. Prefer selective ECharts modules for the chart families you need.
+
+Use a single browser entry for a mounted dashboard: import both `mountDashboard`
+and `createChartRegistry` from `./browser-charts`. Mixing independently bundled
+browser runtimes can duplicate React and provider contexts. The default browser
+bundle remains available for hosts that do not need charts. Both artifacts are
+checked for unresolved imports and can be imported without a DOM.

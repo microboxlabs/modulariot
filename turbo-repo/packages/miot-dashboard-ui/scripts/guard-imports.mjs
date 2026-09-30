@@ -55,6 +55,7 @@ export function importProblems(source, file, root = SOURCE) {
         "",
       );
       if (target === ".." || target.startsWith("../")) return true;
+      if (origin === "browser-charts.ts") return !["browser", "react-charts"].includes(target);
       if (origin === "browser.ts") return !["embed", "web-component"].includes(target);
       if (isWebComponent)
         return !(

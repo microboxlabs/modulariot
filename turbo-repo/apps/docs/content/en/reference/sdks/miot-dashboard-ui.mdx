@@ -6,6 +6,7 @@
 
 ## Choose an integration
 
+- The self-contained `./browser-charts` entry adds chart registries to native HTML/Web Component hosts without host React; the chart engine stays optional and host-owned.
 - The opt-in React chart registry binds both chart families to static or named saved-query results, templates, date filters and color rules; denied queries dispose stale charts.
 - `ChartEngineView` manages host-engine creation, option replacement, resizing and disposal, including React Strict Mode.
 - Mixed chart options preserve dual axes, line/bar/scatter combinations and per-series settings; both Next.js chart families use the public builders.

@@ -54,6 +54,10 @@
     "./react-charts": {
       "types": "./dist/react-charts.d.ts",
       "import": "./dist/react-charts.js"
+    },
+    "./browser-charts": {
+      "types": "./dist/browser/browser-charts.d.ts",
+      "import": "./dist/browser/browser-charts.js"
     }
   },
   "files": [

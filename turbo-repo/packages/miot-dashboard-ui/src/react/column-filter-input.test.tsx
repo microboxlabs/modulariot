@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useColumnFilters } from "./use-column-filters";
 import { createRef, useState } from "react";
 import {
   act,
@@ -95,7 +96,7 @@ it("edits numeric operators, partial ranges and clears empty values", () => {
   act(() => vi.advanceTimersByTime(300));
   expect(options.onFilterChange).toHaveBeenLastCalledWith(
     "field",
-    expect.objectContaining({ value: [10, Infinity] }),
+    expect.objectContaining({ value: [10, Number.MAX_VALUE] }),
   );
   fireEvent.change(screen.getByRole("spinbutton", { name: "Maximum" }), {
     target: { value: "20" },
@@ -220,4 +221,49 @@ it("synchronizes externally replaced drafts and cancels superseded emissions", (
   );
   view.rerender(<ColumnFilterInput {...props("date")} />);
   expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("");
+});
+
+function NumericTable() {
+  const model = useColumnFilters(
+    [{ field: "5" }, { field: "10" }, { field: "20" }],
+    [{ key: "field", dataType: "number" }],
+  );
+  return (
+    <>
+      <ColumnFilterInput
+        {...props("number")}
+        currentFilter={model.filters.field}
+        onFilterChange={model.setFilter}
+      />
+      <output>{model.filteredData.map((row) => row.field).join(",")}</output>
+    </>
+  );
+}
+it("applies one-sided ranges through the shared filter engine and keeps missing bounds blank", () => {
+  vi.useFakeTimers();
+  render(<NumericTable />);
+  fireEvent.change(screen.getByRole("combobox"), {
+    target: { value: "between" },
+  });
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Minimum" }), {
+    target: { value: "10" },
+  });
+  act(() => vi.advanceTimersByTime(300));
+  expect(screen.getByRole("status").textContent).toBe("10,20");
+  expect(
+    (screen.getByRole("spinbutton", { name: "Maximum" }) as HTMLInputElement)
+      .value,
+  ).toBe("");
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Maximum" }), {
+    target: { value: "10" },
+  });
+  fireEvent.change(screen.getByRole("spinbutton", { name: "Minimum" }), {
+    target: { value: "" },
+  });
+  act(() => vi.advanceTimersByTime(300));
+  expect(screen.getByRole("status").textContent).toBe("5,10");
+  expect(
+    (screen.getByRole("spinbutton", { name: "Minimum" }) as HTMLInputElement)
+      .value,
+  ).toBe("");
 });

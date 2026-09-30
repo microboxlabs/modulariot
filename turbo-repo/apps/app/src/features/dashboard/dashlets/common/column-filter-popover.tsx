@@ -77,6 +77,21 @@ export function ColumnFilterPopover({
 
   useEffect(() => {
     if (!isOpen) return;
+    const dialog = popoverRef.current;
+    const trigger = buttonRef.current;
+    dialog?.querySelector<HTMLElement>("input, select, button")?.focus();
+    return () => {
+      if (
+        dialog?.contains(document.activeElement) ||
+        document.activeElement === document.body
+      ) {
+        trigger?.focus();
+      }
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setIsOpen(false);
@@ -107,12 +122,6 @@ export function ColumnFilterPopover({
     onFilterChange(columnKey, null);
     setIsOpen(false);
   }, [columnKey, onFilterChange]);
-
-  useEffect(() => {
-    return () => {
-      cancelDebounceRef.current?.();
-    };
-  }, []);
 
   return (
     <>

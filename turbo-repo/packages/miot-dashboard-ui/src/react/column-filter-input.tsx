@@ -214,9 +214,15 @@ function NumberFilter({
         ? currentFilter.value
         : null;
     setValue(
-      range ? String(range[0] ?? "") : String(currentFilter?.value ?? ""),
+      range
+        ? range[0] === -Number.MAX_VALUE
+          ? ""
+          : String(range[0] ?? "")
+        : String(currentFilter?.value ?? ""),
     );
-    setValue2(range ? String(range[1] ?? "") : "");
+    setValue2(
+      range && range[1] !== Number.MAX_VALUE ? String(range[1] ?? "") : "",
+    );
   }, [currentFilter, cancelDebounce]);
 
   const emitFilter = useCallback(
@@ -238,9 +244,12 @@ function NumberFilter({
             columnKey,
             dataType: "number",
             operator: "between",
+            // Finite sentinels survive JSON and cover every supported finite row value.
             value: [
-              v1 === "" || Number.isNaN(parsedV1) ? -Infinity : parsedV1,
-              v2 === "" || Number.isNaN(parsedV2) ? Infinity : parsedV2,
+              v1 === "" || Number.isNaN(parsedV1)
+                ? -Number.MAX_VALUE
+                : parsedV1,
+              v2 === "" || Number.isNaN(parsedV2) ? Number.MAX_VALUE : parsedV2,
             ],
           });
         } else {

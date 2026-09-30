@@ -43,6 +43,7 @@ export function importProblems(source, file, root = SOURCE) {
         "",
       );
       if (target === ".." || target.startsWith("../")) return true;
+      if (origin === "browser.ts") return !["embed", "web-component"].includes(target);
       if (isWebComponent)
         return !(
           target === "embed" ||
@@ -56,7 +57,8 @@ export function importProblems(source, file, root = SOURCE) {
           (target === "react" || target.startsWith("react/"))) ||
         (!isEmbed && (target === "embed" || target.startsWith("embed/"))) ||
         target === "web-component" ||
-        target.startsWith("web-component/")
+        target.startsWith("web-component/") ||
+        target === "browser"
       );
     });
 }

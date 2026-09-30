@@ -481,3 +481,18 @@ state when reordered. `description` accepts plain text or trusted host-rendered
 React content (for example, a Markdown renderer); the component never interprets
 strings as HTML. Card colors use the same `--miot-card-*` variables and
 `data-miot-theme="dark"` ancestor convention as `TextCard`.
+
+## Self-contained browser distribution
+
+The `./browser` export (file `dist/browser/browser.js`) bundles the rendering
+runtime for non-React hosts. Copy that file and `styles.css` from the same package
+version into your application's static assets. Import `mountDashboard` or
+`defineDashboardElement` directly from the copied ESM file; no import map,
+React installation, or JavaScript bundler is required in the host.
+
+Use `./react`, `./embed`, or `./web-component` when your application already
+manages React peers. The browser distribution owns its runtime; custom widget
+plugins using React hooks must not mix it with a separate React installation.
+The host still supplies a compatible registry, authorized data and instance key.
+It does not turn the dashboard server into a UI asset server or register a widget
+catalog automatically. Serve version-matched assets using your host's cache policy.

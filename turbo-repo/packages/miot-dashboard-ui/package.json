@@ -42,6 +42,10 @@
     "./web-component": {
       "types": "./dist/web-component.d.ts",
       "import": "./dist/web-component.js"
+    },
+    "./browser": {
+      "types": "./dist/browser/browser.d.ts",
+      "import": "./dist/browser/browser.js"
     }
   },
   "files": [

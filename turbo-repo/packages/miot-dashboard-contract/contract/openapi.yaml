@@ -301,6 +301,63 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/query-catalog:
+    get:
+      operationId: getDashboardQueryCatalog
+      tags: [dashboards]
+      summary: Approved connection and operation metadata for authoring
+      description: >
+        Requires permission to edit an existing dashboard. The optional host
+        provider must filter active read-only operations by caller, tenant and
+        scope. Only IDs, display labels and result column names are returned;
+        execution schemas, SQL, URLs and credentials are excluded. At most 100
+        connections, 100 operations per connection and 100 columns per operation,
+        with a total response metadata limit of 256 KiB. Discovery does not grant
+        execution authority; execution independently reauthorizes every query.
+      parameters:
+        - $ref: "#/components/parameters/tenantId"
+        - $ref: "#/components/parameters/scopeId"
+        - $ref: "#/components/parameters/slug"
+      responses:
+        "200":
+          description: Public authoring metadata. Never cached.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [connections]
+                properties:
+                  connections:
+                    type: array
+                    maxItems: 100
+                    items:
+                      type: object
+                      required: [id, label, operations]
+                      properties:
+                        id: { type: string, minLength: 1, maxLength: 128 }
+                        label: { type: string, minLength: 1, maxLength: 256 }
+                        operations:
+                          type: array
+                          maxItems: 100
+                          items:
+                            type: object
+                            required: [id, label]
+                            properties:
+                              id: { type: string, minLength: 1, maxLength: 128 }
+                              label: { type: string, minLength: 1, maxLength: 256 }
+                              schema:
+                                type: array
+                                maxItems: 100
+                                items: { type: string, minLength: 1, maxLength: 128 }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Dashboard missing or catalog provider not configured.
+        "500":
+          description: Provider failed or returned invalid metadata; details are redacted.
+
   /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/capabilities:
     get:
       operationId: getDashboardCapabilities

@@ -142,3 +142,5 @@ export { SavedQueryManager, type SavedQueryManagerProps } from "./react/saved-qu
 export { PermissionAssignmentEditor, type PermissionAssignmentEditorProps, type PermissionAssignment, type PermissionAuthorityOption } from "./react/permission-assignment-editor";
 
 export { useDashboardPermissions, type DashboardPermissionsOptions } from "./react/use-dashboard-permissions";
+
+export { useQueryCatalog, type QueryCatalogOptions } from "./react/use-query-catalog";

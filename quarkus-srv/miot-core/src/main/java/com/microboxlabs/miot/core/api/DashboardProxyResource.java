@@ -121,6 +121,16 @@ public class DashboardProxyResource {
     }
 
     @GET
+    @Path("/{dashboard}/query-catalog")
+    public Uni<Response> queryCatalog(@PathParam("slug") String slug,
+                                      @PathParam("dashboard") String dashboard,
+                                      @HeaderParam("Authorization") String authorization) {
+        return DashboardProxySupport.passThrough(dashboards.queryCatalog(
+                support.tenantIdFor(slug), support.scopeIdFor(), dashboard, authorization,
+                support.assertionFor(slug, authorization)));
+    }
+
+    @GET
     @Path("/{dashboard}/permissions")
     public Uni<Response> getPermissions(@PathParam("slug") String slug,
                                         @PathParam("dashboard") String dashboard,

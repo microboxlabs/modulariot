@@ -1,3 +1,5 @@
+import { queryCatalogSchema } from "./client/query-catalog";
+export type { QueryCatalogConnection, QueryCatalogOperation } from "./client/query-catalog";
 import { DashboardApiError } from "./client/error";
 export { DashboardApiError } from "./client/error";
 import { appendRoute, pathSegment, validateEndpoint } from "./client/routes";
@@ -190,6 +192,10 @@ export function createDashboardClient(options: DashboardClientOptions) {
         await request(url(slug, "capabilities"), { signal }),
         capabilitiesSchema,
       );
+    },
+    async queryCatalog(slug: string, signal?: AbortSignal) {
+      const result = await read(await request(url(slug, "query-catalog"), { signal }), queryCatalogSchema);
+      return result.connections;
     },
     async permissions(slug: string, signal?: AbortSignal) {
       return read(

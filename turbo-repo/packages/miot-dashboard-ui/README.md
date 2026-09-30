@@ -1574,3 +1574,25 @@ and disable editing. Resource/session changes hide prior state immediately, abor
 requests and ignore late responses; use `editorKey` to reset your separate draft.
 Pass a stable client and a nonempty, non-secret `sessionKey` that changes with the
 host's authenticated identity. No shared cache or browser storage is used.
+
+`client.queryCatalog(slug, signal?)` loads the server's optional authoring catalog
+and returns `QueryCatalogConnection[]` (`id`, `label`, approved `operations` with
+optional result-column `schema`). Types are exported from `/client`. Organization
+query parameters and cancellation are preserved. Invalid/duplicate metadata fails
+with `DashboardApiError(502)`; 401/403/404 remain distinguishable. Extra server
+fields are stripped. A 404 means the document or provider is unavailable, not an
+empty authorized catalog. Pass the returned connections to `SavedQueryManager`
+or `SavedQueryEditor`; clear them on session/resource changes, and do not fall
+back to administrative connection or credential endpoints. The server still
+checks operation authorization at execution time.
+
+`useQueryCatalog({ client, slug, sessionKey, enabled? })` from `/react` manages
+that discovery lifecycle. It defaults to disabled; enable it from current editing
+capabilities. It returns `connections`, `loading`, `loaded`, numeric `error`,
+`editorKey` and `reload()`. Catalogs are hidden immediately when the resource,
+client, session or permission changes. Pending requests are aborted and obsolete
+responses ignored, including providers that ignore cancellation. A failed or
+unavailable catalog stays empty until explicit reload; no administrative fallback
+or shared cache is used. Use `loaded` to enable the query editor and `editorKey`
+to reset its local draft after catalog changes. Keep `client` stable and replace
+the non-secret session key on authentication changes.

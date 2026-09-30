@@ -397,6 +397,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   // ── Filter & sort (shared hook) ───────────────────────────────────────────
   const {
     filterValues,
+    validSortColumns,
     sortKey,
     sortDir,
     filterOptionsByColumn,
@@ -463,7 +464,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       {sort.enabled && (
         <SortPillRow
           label={tr("dashboard.dashlets.data_list.sortBy", dictionary)}
-          columns={sort.columns}
+          columns={validSortColumns}
           sortKey={sortKey}
           sortDir={sortDir}
           getColumnLabel={getColumnLabel}

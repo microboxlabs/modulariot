@@ -718,3 +718,24 @@ The progress statistic registry and `ProgressStat` accept optional
 `formatValue(value, target, unit)` for localized accessible progress text. The
 formatter receives resolved finite values; without it the display uses
 `value / target unit`. The Next.js adapter supplies its translated “of” label.
+
+## Table and list row controls
+
+`useFilterAndSort(filter, sort, rows, columns)` from `./react` owns instance-local
+selection and sort state for already authorized string-valued rows. It returns
+`displayRows`, `filterOptionsByColumn`, `validSortColumns`, `filterValues`,
+`sortKey`, `sortDir`, `getColumnLabel`, `handleFilterSelect`, `handleFilterClear`
+and `handleSortClick`.
+
+- `filter`: `{ enabled, items: [{ column, label }] }`; selections combine with AND.
+- `sort`: `{ enabled, columns: string[] }`; clicks cycle ascending, descending,
+  then original order. Empty values sort last in both directions. A column
+  removed from the declared catalog stops affecting the result.
+- `columns`: `{ key, label }[]`; filters accept plain property keys or single
+  templates such as `{{row.service}}`. Compound templates are not evaluated.
+- `rows`: `Record<string, string>[]`; input order and row objects are not mutated.
+
+`resolveDataProperty(key)` from `./core` exposes the same simple-property parser.
+The hook does not fetch data, execute templates or render a table. Server-side
+permissions remain authoritative; a host must remount instance-local controls
+when switching identities or documents, as it does for other local UI state.

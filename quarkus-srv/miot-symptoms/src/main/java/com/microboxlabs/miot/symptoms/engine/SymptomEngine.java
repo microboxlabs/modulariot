@@ -21,8 +21,8 @@ public interface SymptomEngine {
     /** Cases per symptom name and ICU level that started in {@code [from, to)}, excluded cases left out. */
     List<LevelCount> levelCounts(String tenantCode, OffsetDateTime from, OffsetDateTime to);
 
-    /** The newest cases of one symptom, at most {@code limit}. */
-    List<EngineCase> recentCases(String tenantCode, String symptomName, int limit);
+    /** The newest cases of one symptom that started at or after {@code since}, at most {@code limit}. */
+    List<EngineCase> recentCases(String tenantCode, String symptomName, OffsetDateTime since, int limit);
 
     /**
      * Recent objects shaped like the {@code gps_signal} source, for previewing

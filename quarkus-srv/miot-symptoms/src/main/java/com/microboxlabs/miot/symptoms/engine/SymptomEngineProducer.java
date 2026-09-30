@@ -19,7 +19,7 @@ import org.jboss.logging.Logger;
 /**
  * Picks the {@link SymptomEngine} from {@code miot.symptoms.engine.kind}:
  * {@code gps} reads the GPS database through {@code miot.symptoms.gps.*}
- * with read-only sessions, {@code demo} serves fixed data, anything else is
+ * with read-only sessions (URL and username required), {@code demo} serves fixed data, anything else is
  * unavailable.
  */
 @ApplicationScoped
@@ -45,7 +45,7 @@ public class SymptomEngineProducer {
         this.vertx = vertx;
         this.kind = kind;
         this.url = url.filter(s -> !s.isBlank());
-        this.username = username;
+        this.username = username.filter(s -> !s.isBlank());
         this.password = password;
         this.clients = clients;
     }
@@ -57,7 +57,7 @@ public class SymptomEngineProducer {
             LOG.info("Symptom engine: demo data");
             return new DemoSymptomEngine();
         }
-        if ("gps".equals(kind) && url.isPresent()) {
+        if ("gps".equals(kind) && url.isPresent() && username.isPresent()) {
             LOG.info("Symptom engine: GPS database, read only");
             return new GpsSymptomEngine(this::pool, EngineTenants.parse(clients));
         }
@@ -72,7 +72,7 @@ public class SymptomEngineProducer {
                     .setHost(parsed.host())
                     .setPort(parsed.port())
                     .setDatabase(parsed.database())
-                    .setUser(username.orElse(""))
+                    .setUser(username.orElseThrow())
                     .setPassword(password.orElse(""))
                     .setProperties(Map.of(
                             "application_name", "miot-symptoms-engine",

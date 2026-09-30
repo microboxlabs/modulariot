@@ -24,13 +24,14 @@ public final class EngineTenants {
         Map<String, List<String>> out = new LinkedHashMap<>();
         for (String entry : entries.orElse(List.of())) {
             int eq = entry.indexOf('=');
-            if (eq <= 0 || eq == entry.length() - 1) {
+            String tenant = eq < 0 ? "" : entry.substring(0, eq).trim();
+            List<String> ids = eq < 0 ? List.of()
+                    : Arrays.stream(entry.substring(eq + 1).split("\\|", -1)).map(String::trim).toList();
+            if (tenant.isEmpty() || ids.isEmpty() || ids.stream().anyMatch(String::isEmpty)) {
                 throw new IllegalArgumentException(
                         "miot.symptoms.engine.clients: expected tenant=client[|client], got: " + entry);
             }
-            List<String> ids = Arrays.stream(entry.substring(eq + 1).split("\\|"))
-                    .map(String::trim).filter(s -> !s.isEmpty()).toList();
-            out.put(entry.substring(0, eq).trim(), ids);
+            out.put(tenant, ids);
         }
         return new EngineTenants(out);
     }

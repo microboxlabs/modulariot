@@ -25,8 +25,10 @@ class SymptomEngineTest {
 
     @Test
     void malformedTenantEntryFailsAtStartup() {
-        Optional<List<String>> entries = Optional.of(List.of("tenant-a"));
-        assertThrows(IllegalArgumentException.class, () -> EngineTenants.parse(entries));
+        for (String bad : List.of("tenant-a", " =client", "tenant=|", "tenant=client|", "tenant=")) {
+            Optional<List<String>> entries = Optional.of(List.of(bad));
+            assertThrows(IllegalArgumentException.class, () -> EngineTenants.parse(entries), bad);
+        }
     }
 
     @Test
@@ -50,9 +52,13 @@ class SymptomEngineTest {
 
         assertTrue(demo.available());
         assertEquals(DemoSymptomEngine.SPEEDING, demo.rules("any").get(0).name());
-        assertEquals(3, demo.recentCases("any", DemoSymptomEngine.SPEEDING, 3).size());
+        OffsetDateTime longAgo = OffsetDateTime.now().minusYears(1);
+        assertEquals(3, demo.recentCases("any", DemoSymptomEngine.SPEEDING, longAgo, 3).size());
+        assertEquals(0, demo.recentCases("any", DemoSymptomEngine.SPEEDING, OffsetDateTime.now(), 3).size());
         assertEquals(2, demo.signalSamples("any", 2).size());
-        assertEquals(3, demo.levelCounts("any", OffsetDateTime.now().minusDays(7), OffsetDateTime.now()).size());
+        OffsetDateTime now = OffsetDateTime.now();
+        assertEquals(412, demo.levelCounts("any", now.minusDays(7), now).get(0).cases());
+        assertEquals(0, demo.levelCounts("any", now, now).get(0).cases(), "an empty period has no cases");
     }
 
     @Test

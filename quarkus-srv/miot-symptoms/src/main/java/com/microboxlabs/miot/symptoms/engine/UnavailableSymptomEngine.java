@@ -23,7 +23,7 @@ public class UnavailableSymptomEngine implements SymptomEngine {
     }
 
     @Override
-    public List<EngineCase> recentCases(String tenantCode, String symptomName, int limit) {
+    public List<EngineCase> recentCases(String tenantCode, String symptomName, OffsetDateTime since, int limit) {
         return List.of();
     }
 

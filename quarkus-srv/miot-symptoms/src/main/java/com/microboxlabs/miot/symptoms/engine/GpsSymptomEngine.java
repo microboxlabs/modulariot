@@ -49,9 +49,9 @@ public class GpsSymptomEngine implements SymptomEngine {
                    last_signal_timestamp, accumulated_value::float8 AS accumulated_value, is_active, excluded
             FROM public.symptoms
             WHERE client_id = ANY($1) AND symptom_name = $2
-              AND first_signal_timestamp >= now() - interval '14 days'
+              AND first_signal_timestamp >= $3
             ORDER BY first_signal_timestamp DESC
-            LIMIT $3""";
+            LIMIT $4""";
 
     // accumulated_states has no time index; the newest ids are the newest episodes, so walk the primary key.
     private static final String SIGNAL_SAMPLES = """
@@ -103,9 +103,9 @@ public class GpsSymptomEngine implements SymptomEngine {
     }
 
     @Override
-    public List<EngineCase> recentCases(String tenantCode, String symptomName, int limit) {
+    public List<EngineCase> recentCases(String tenantCode, String symptomName, OffsetDateTime since, int limit) {
         List<EngineCase> out = new ArrayList<>();
-        for (Row r : query(tenantCode, RECENT_CASES, symptomName, limit)) {
+        for (Row r : query(tenantCode, RECENT_CASES, symptomName, since, limit)) {
             Double value = r.getDouble("accumulated_value");
             out.add(new EngineCase(r.getLong("id"), r.getString("symptom_name"), r.getInteger("icu_code"),
                     r.getString("trip_id"), r.getOffsetDateTime("first_signal_timestamp"),

@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.engine;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -8,8 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A fixed engine for local runs and demos: one speeding rule, a week of
- * counts and three signal samples. Every organization sees the same data.
+ * A fixed engine for local runs and demos: one speeding rule, counts at a
+ * fixed weekly rate, five cases and three signal samples. Every organization sees the same data.
  */
 public class DemoSymptomEngine implements SymptomEngine {
 
@@ -29,12 +30,14 @@ public class DemoSymptomEngine implements SymptomEngine {
 
     @Override
     public List<LevelCount> levelCounts(String tenantCode, OffsetDateTime from, OffsetDateTime to) {
-        return List.of(new LevelCount(SPEEDING, 2, 412), new LevelCount(SPEEDING, 3, 131),
-                new LevelCount(SPEEDING, 4, 38));
+        double weeks = Math.max(0, Duration.between(from, to).toMinutes()) / (7.0 * 24 * 60);
+        return List.of(new LevelCount(SPEEDING, 2, Math.round(412 * weeks)),
+                new LevelCount(SPEEDING, 3, Math.round(131 * weeks)),
+                new LevelCount(SPEEDING, 4, Math.round(38 * weeks)));
     }
 
     @Override
-    public List<EngineCase> recentCases(String tenantCode, String symptomName, int limit) {
+    public List<EngineCase> recentCases(String tenantCode, String symptomName, OffsetDateTime since, int limit) {
         if (!SPEEDING.equals(symptomName)) {
             return List.of();
         }
@@ -44,6 +47,9 @@ public class DemoSymptomEngine implements SymptomEngine {
         double[] excess = {24, 13, 7, 12, 6};
         for (int i = 0; i < Math.min(limit, icu.length); i++) {
             OffsetDateTime first = start.minusMinutes(37L * i);
+            if (first.isBefore(since)) {
+                break;
+            }
             out.add(new EngineCase(1000L + i, SPEEDING, icu[i], "demo-trip-" + (i + 1), first, first.plusSeconds(95),
                     BigDecimal.valueOf(excess[i]), i == 0, false));
         }

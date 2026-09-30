@@ -12,7 +12,7 @@ if (imports.length > 0) {
   throw new Error(`Browser bundle contains unresolved imports: ${imports.map((item) => item.fileName).join(", ")}`);
 }
 const runtime = await import(artifact.href);
-for (const name of ["mountDashboard", "defineDashboardElement", "createTextCardRegistry"]) {
+for (const name of ["mountDashboard", "defineDashboardElement", "createTextCardRegistry", "createPercentageValueRegistry"]) {
   if (typeof runtime[name] !== "function") {
     throw new Error(`Browser bundle is missing ${name}`);
   }

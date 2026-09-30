@@ -58,3 +58,5 @@ export { CircularStat, type CircularStatProps } from "./react/circular-stat";
 export { createTextCardRegistry, type TextCardRegistryOptions } from "./react/text-card-registry";
 
 export { TextCardFields, type TextCardFieldsProps, type TextCardFieldValue } from "./react/text-card-fields";
+
+export { createPercentageValueRegistry, type PercentageValueRegistryOptions } from "./react/percentage-value-registry";

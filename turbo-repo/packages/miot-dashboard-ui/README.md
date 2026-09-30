@@ -647,3 +647,22 @@ color independently for each requested target. Field-based counterparts
 `sortColorRulesWithFields` and `evaluateColorRulesWithFields` resolve comparison
 values from supplied fields (`previousValue` by default; missing fields use zero).
 Hosts supply target names and field values; these helpers own no rendering state.
+
+## Built-in percentage registry
+
+`createPercentageValueRegistry` is available through `./react`, `./embed` and
+`./browser`. Supply localized `defaultTitle`, `loadingLabel`, `errorLabel` and
+`unsupportedDataLabel`, plus an optional isolated `templateEngine`. Compose its
+`percentage_value` definition with other registry definitions. Settings remain
+host-owned.
+
+The registry resolves `title`, `value` and `max` from static data or the nearest
+saved/planner query result, sharing filters and template namespaces with text
+cards. Unknown/legacy direct-query modes require migration. Pending queries show
+loading; failures clear values and display the supplied error label.
+
+Existing `barColorRules` support count or percentage evaluation with threshold
+ordering; nonempty valid rules remain active for legacy compatibility. Invalid
+operators are ignored. Displayed progress is clamped, and the renderer validates
+hex colors. Default value/max are 6/10; unresolved numeric values fall back to
+0/10. Browser hosts import this factory from the same runtime as their mount.

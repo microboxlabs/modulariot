@@ -73,7 +73,7 @@ function WidgetNode({
   };
   const Component = definition?.Component;
   const children = widget.children?.map((child) => (
-    <div key={child.id} className="h-full">
+    <div key={child.id} className="miot-widget-child h-full">
       <WidgetNode
         widget={child}
         registry={registry}
@@ -89,7 +89,7 @@ function WidgetNode({
   return (
     <div
       id={widgetDomId?.(widget) ?? `${instance}-widget-${widget.id}`}
-      className="widget-wrapper relative h-full"
+      className="miot-widget widget-wrapper relative h-full"
     >
       <Frame
         widget={widget}

@@ -42,3 +42,5 @@ export {
 } from "./react/widget-renderer";
 
 export { DashboardGrid, type DashboardGridProps } from "./react/dashboard-grid";
+
+export { DashboardCanvas, type DashboardCanvasProps } from "./react/dashboard-canvas";

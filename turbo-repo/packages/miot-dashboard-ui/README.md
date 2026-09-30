@@ -412,3 +412,20 @@ through its controlled document state and revision-aware persistence.
 The grid owns no page keyboard shortcuts, navigation, authentication, or save
 requests. Hosts supply those controls and accessible alternatives to pointer
 layout editing. React and ReactDOM peers must use matching supported versions.
+
+## Dashboard canvas
+
+`DashboardCanvas` from `./react` combines the responsive grid and recursive widget
+renderer. Supply contract `widgets`, a registry with `Component`, `meta`, and
+`getLayoutDefaults(config)`, and a localized `unknownWidgetLabel`. Import the
+package stylesheet once; the canvas requires no Tailwind configuration.
+
+The canvas is read-only by default. Hosts may supply `editMode`, `onAction`,
+`onLayoutCommit`, and an optional `Frame` for editing controls. Each operation
+still requires its corresponding callback. Derive edit intent from server
+capabilities and apply edits through the document controller; this component
+performs no network or persistence operations. Widget IDs are namespaced per
+mounted renderer, including when multiple canvases contain the same document.
+
+This API composes registered widgets; it does not automatically register app
+plugins or provide settings dialogs, a catalog picker, or authentication.

@@ -40,3 +40,5 @@ export {
   type RenderableWidget,
   type WidgetAction,
 } from "./react/widget-renderer";
+
+export { DashboardGrid, type DashboardGridProps } from "./react/dashboard-grid";

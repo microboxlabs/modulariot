@@ -22,7 +22,13 @@ export function importProblems(source, file, root = SOURCE) {
     .preProcessFile(source, true, true)
     .importedFiles.map(({ fileName }) => fileName)
     .filter((specifier) => {
-      if (specifier === "react" && isReact) return false;
+      if (
+        ["react", "react-grid-layout", "react-grid-layout/core"].includes(
+          specifier,
+        ) &&
+        isReact
+      )
+        return false;
       if (specifier === "handlebars" && isTemplates) return false;
       if (ALLOWED.has(specifier)) return false;
       if (!specifier.startsWith("./") && !specifier.startsWith("../"))

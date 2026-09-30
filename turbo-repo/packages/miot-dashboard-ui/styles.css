@@ -34,3 +34,84 @@
 :where(.dark, [data-miot-theme="dark"]) .miot-text-card__text {
   color: var(--miot-card-text, #9ca3af);
 }
+
+/* Grid styles are scoped to this package's mount. No host stylesheet is required. */
+.miot-dashboard-grid,
+.miot-dashboard-grid__clip {
+  width: 100%;
+}
+.miot-dashboard-grid__clip {
+  overflow: visible;
+}
+.miot-dashboard-grid__scaled {
+  position: relative;
+  transform-origin: top left;
+}
+.miot-dashboard-grid__layout {
+  position: relative;
+}
+.miot-dashboard-grid__cell {
+  height: 100%;
+  width: 100%;
+}
+.miot-dashboard-grid__layout > .react-grid-item {
+  transition: transform 200ms ease;
+}
+.miot-dashboard-grid__layout > .react-grid-item.resizing,
+.miot-dashboard-grid__layout > .react-draggable-dragging {
+  transition: none;
+  z-index: 3;
+}
+.miot-dashboard-grid__layout > .react-grid-placeholder {
+  background: rgb(59 130 246 / 8%);
+  border: 2px dashed rgb(59 130 246 / 40%);
+  border-radius: 8px;
+  z-index: 2;
+}
+.miot-dashboard-grid__layout > .react-grid-item > .react-resizable-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 20px;
+  height: 20px;
+  cursor: se-resize;
+  opacity: 0;
+}
+.miot-dashboard-grid__layout > .react-grid-item:hover > .react-resizable-handle,
+.miot-dashboard-grid__layout
+  > .react-grid-item:focus-within
+  > .react-resizable-handle {
+  opacity: 1;
+}
+.miot-dashboard-grid__layout
+  > .react-grid-item
+  > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 5px;
+  height: 5px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+}
+.miot-dashboard-grid__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-repeat: repeat;
+}
+.miot-dashboard-grid__overlay--dark {
+  display: none;
+}
+:where(.dark, [data-miot-theme="dark"]) .miot-dashboard-grid__overlay--light {
+  display: none;
+}
+:where(.dark, [data-miot-theme="dark"]) .miot-dashboard-grid__overlay--dark {
+  display: block;
+}
+@media (prefers-reduced-motion: reduce) {
+  .miot-dashboard-grid__layout > .react-grid-item {
+    transition: none;
+  }
+}

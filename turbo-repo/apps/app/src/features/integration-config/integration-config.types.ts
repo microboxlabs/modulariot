@@ -102,7 +102,8 @@ export interface PostgrestImportResult {
 
 /**
  * Pinned values for each selected function: a pin applies only to functions that take
- * that parameter, so one "client id" pin can cover a whole selection.
+ * that parameter, so one "client id" pin can cover a whole selection. `select` (PostgREST's
+ * column list) applies to every selected function.
  */
 export function buildPostgrestImport(
   functions: readonly PostgrestFunction[],
@@ -117,7 +118,7 @@ export function buildPostgrestImport(
         const pinned = Object.fromEntries(
           pins
             .filter((pin) => pin.name.trim() && pin.value.trim())
-            .filter((pin) => names.has(pin.name.trim()))
+            .filter((pin) => pin.name.trim() === "select" || names.has(pin.name.trim()))
             .map((pin) => [pin.name.trim(), pin.value.trim()])
         );
         return Object.keys(pinned).length ? { name: fn.name, pinned } : { name: fn.name };

@@ -2739,7 +2739,7 @@
         "imported": "{count} functions imported",
         "importedBadge": "Imported",
         "pinsTitle": "Fixed values",
-        "pinsHelp": "A fixed value is stored in the operation and a dashboard cannot change it, for example a client id. It applies to every selected function that takes that parameter.",
+        "pinsHelp": "A fixed value is stored in the operation and a dashboard cannot change it, for example a client id. It applies to every selected function that takes that parameter; select (PostgREST's column list) applies to all of them.",
         "pinParameter": "Parameter",
         "pinValue": "Value",
         "addPin": "Add fixed value",

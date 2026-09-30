@@ -29,6 +29,12 @@ describe("buildPostgrestImport", () => {
       functions: [{ name: "summary", pinned: { p_client: "c1" } }, { name: "detail" }],
     });
   });
+
+  it("pins PostgREST's select column list on every selected function", () => {
+    expect(
+      buildPostgrestImport(functions, new Set(["detail"]), [{ name: "select", value: "id,total" }])
+    ).toEqual({ functions: [{ name: "detail", pinned: { select: "id,total" } }] });
+  });
 });
 
 describe("parseJsonObject", () => {

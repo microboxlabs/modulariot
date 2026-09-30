@@ -1559,3 +1559,18 @@ Remount the host editor on document/session changes and cancel outstanding reque
 Required `labels`: `authority`, `role`, `choose`, `add`, `remove`, `empty`, plus
 `roles: Record<DashboardRole, string>`. Import the package stylesheet. The editor
 performs no identity lookup or network requests and has no Alfresco dependency.
+
+`useDashboardPermissions({ client, slug, sessionKey, readOnly? })` loads capabilities
+before discovering assignments. It returns `assignments`, `loaded`, `busy`,
+`editable`, a numeric `error`, `editorKey`, `reload()` and `save(assignments)`.
+Consumers without `canManagePermissions` do not request the permission list.
+`readOnly` is an additional host restriction; document `canEdit` is independent
+of permission management. Save validates unique identities and roles, rechecks
+capabilities, replaces assignments and reloads the authoritative list/capabilities.
+It returns true only after that reload succeeds. A failed reload after a successful
+write can therefore return false: show the error and reload before retrying.
+Concurrent operations are rejected. Authorization errors clear the displayed list
+and disable editing. Resource/session changes hide prior state immediately, abort
+requests and ignore late responses; use `editorKey` to reset your separate draft.
+Pass a stable client and a nonempty, non-secret `sessionKey` that changes with the
+host's authenticated identity. No shared cache or browser storage is used.

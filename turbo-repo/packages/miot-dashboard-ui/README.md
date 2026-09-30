@@ -570,7 +570,7 @@ Change `instanceKey` when the authenticated identity or document changes.
 
 Custom React widgets can read results using public `usePlannerData`; the peer
 embedding entries share the public React provider context. Removing `savedQueries`
-on update aborts its requests and removes the provider. Destroying the mount or
+on update aborts its requests and clears results while preserving widget-local state. Destroying the mount or
 changing identity also aborts outstanding work. Updating options still replaces
 all values. Hosts manage filter controls and capability-derived edit intent.
 The standalone browser bundle keeps its own runtime; do not combine widgets from

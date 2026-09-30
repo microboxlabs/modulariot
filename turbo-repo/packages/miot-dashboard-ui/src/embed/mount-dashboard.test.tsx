@@ -148,3 +148,18 @@ it("shares saved queries with public React widgets and aborts on identity change
   act(() => handle.destroy());
   expect(signals.at(-1)?.aborted).toBe(true);
 });
+
+it("preserves widget state when saved queries are enabled and disabled in the same instance", () => {
+  const { element, handle } = mount();
+  fireEvent.click(within(element).getByText("Count 0"));
+  const query = vi.fn().mockResolvedValue([]);
+  const withQueries: DashboardMountOptions = { ...options, savedQueries: {
+    client: { key: () => "costs", query }, slug: "costs", queries: [], filters: {},
+    refreshIntervalMs: 0, paused: true, errorMessage: "Unavailable",
+  } };
+  act(() => handle.update(withQueries));
+  expect(within(element).getByText("Count 1")).toBeTruthy();
+  act(() => handle.update(options));
+  expect(within(element).getByText("Count 1")).toBeTruthy();
+  expect(query).not.toHaveBeenCalled();
+});

@@ -21,7 +21,7 @@ export function importProblems(source, file, root = SOURCE) {
   const isWebComponent =
     origin === "web-component.ts" || origin.startsWith("web-component/");
   const isEmbed = origin === "embed.ts" || origin.startsWith("embed/");
-  const isReact = origin === "react.ts" || origin.startsWith("react/");
+  const isReact = origin === "react.ts" || origin === "react-charts.ts" || origin.startsWith("react/");
   return ts
     .preProcessFile(source, true, true)
     .importedFiles.map(({ fileName }) => fileName)
@@ -46,6 +46,7 @@ export function importProblems(source, file, root = SOURCE) {
           ts.isImportDeclaration(statement) ? !statement.importClause?.isTypeOnly : !statement.isTypeOnly
         );
       }
+      if (origin === "react/chart-registry.tsx" && specifier === "@microboxlabs/miot-dashboard-ui/react") return false;
       if (ALLOWED.has(specifier)) return false;
       if (!specifier.startsWith("./") && !specifier.startsWith("../"))
         return true;

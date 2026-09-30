@@ -1477,3 +1477,29 @@ Hosts own engine selection, engine-specific events and chart descriptions.
 Both Next.js chart families use this bridge with the app's ECharts canvas adapter;
 the library does not import or bundle the engine. Engine exceptions propagate to
 the host's React error boundary.
+
+
+### Portable chart registry
+
+`createChartRegistry(options)` from the opt-in `./react-charts` entry registers
+`chart` and `chart_v2` for `WidgetRenderer`/dashboard hosts. Supply a stable
+`createEngine(element)` adapter, translated `defaultTitle`, `loadingLabel`,
+`errorLabel`, `unsupportedDataLabel`, `emptyLabel`, and `rangeLabels` keyed by
+`all`, `7d`, `30d`, `90d`, `180d`, `1y`. Optional settings are `formatDateLabel`,
+`describeChart(title, rows)`, `darkMode`, `now` and `templateEngine`.
+
+Static widgets use `rows`. Planner widgets read `plannerVariableName` from the
+shared `PlannerResultsProvider`; use the existing saved-query provider for server
+execution. Titles, axes and series labels resolve against the first source row,
+active filters and `data_provider`. Date controls filter displayed rows locally.
+Saved item color rules, chart options and source-row tooltip mapping are preserved.
+The registry validates configuration and uses read-only widget metadata. Query
+loading, errors or legacy unsupported modes unmount the chart, disposing its engine
+and clearing stale data. Direct `pgrest` execution is not provided; migrate it to
+connection/template/credential-backed named server queries.
+
+Import `./react-charts` alongside the normal `./react` entry; it shares their
+provider contexts. This optional entry references ECharts option types and expects
+an engine adapter, but does not load the engine. Plain browser hosts currently
+need to bundle this integration with their chosen engine; the default `./browser`
+entry does not yet export this chart registry.

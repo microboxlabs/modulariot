@@ -50,6 +50,10 @@
     "./charts": {
       "types": "./dist/charts.d.ts",
       "import": "./dist/charts.js"
+    },
+    "./react-charts": {
+      "types": "./dist/react-charts.d.ts",
+      "import": "./dist/react-charts.js"
     }
   },
   "files": [

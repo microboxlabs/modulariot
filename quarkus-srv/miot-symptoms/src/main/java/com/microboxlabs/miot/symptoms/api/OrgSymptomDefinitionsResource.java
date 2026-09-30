@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
+import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
@@ -50,6 +51,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     private static final String ID = "id";
 
     private final SymptomCatalogService catalog;
+    private final PreviewService previews;
 
     /** Publishes the draft. {@code bump} may raise the computed bump; {@code state} defaults to TEST. */
     public record PublishRequest(String reason, VersionBump bump, SymptomState state) {
@@ -70,9 +72,11 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            SymptomCatalogService catalog) {
+            SymptomCatalogService catalog,
+            PreviewService previews) {
         super(tenantContext, organizationContext, roleService, identity);
         this.catalog = catalog;
+        this.previews = previews;
     }
 
     @GET
@@ -142,6 +146,16 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             SymptomSpec spec) {
         String tenant = tenantCode(organizationId);
         return memberWork(() -> Response.ok(catalog.validate(tenant, uuid(id), spec)).build());
+    }
+
+    @POST
+    @Path("/{id}/preview")
+    @Operation(operationId = "previewSymptomSpec",
+            summary = "Run a spec (or the draft) on the source's samples: activation, measure and level per sample")
+    public Uni<Response> preview(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
+            SymptomSpec spec) {
+        String tenant = tenantCode(organizationId);
+        return memberWork(() -> Response.ok(previews.preview(tenant, uuid(id), spec)).build());
     }
 
     @GET

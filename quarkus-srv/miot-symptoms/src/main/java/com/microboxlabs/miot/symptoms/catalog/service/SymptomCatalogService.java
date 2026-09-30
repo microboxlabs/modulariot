@@ -9,7 +9,6 @@ import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionStatus;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecDiff.Change;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Report;
-import com.microboxlabs.miot.symptoms.catalog.store.DataSourceStore;
 import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -35,10 +34,10 @@ public class SymptomCatalogService {
     private static final Pattern KEY = Pattern.compile("^[a-z0-9][a-z0-9_-]{1,94}$");
 
     private final SymptomCatalogStore store;
-    private final DataSourceStore sources;
+    private final DataSourceService sources;
     private final AuditService audit;
 
-    public SymptomCatalogService(SymptomCatalogStore store, DataSourceStore sources, AuditService audit) {
+    public SymptomCatalogService(SymptomCatalogStore store, DataSourceService sources, AuditService audit) {
         this.store = store;
         this.sources = sources;
         this.audit = audit;

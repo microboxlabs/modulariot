@@ -520,7 +520,11 @@ export function useDashboard() {
 
 const NOOP = () => {};
 const DASHBOARD_FALLBACK: DashboardContextValue = {
-  registry: dashboardRegistry,
+  // A getter: this module and the dashlet registry import each other, so the
+  // registry may not exist yet when this object is built.
+  get registry() {
+    return dashboardRegistry;
+  },
   widgets: [],
   editMode: false,
   isKiosk: false,

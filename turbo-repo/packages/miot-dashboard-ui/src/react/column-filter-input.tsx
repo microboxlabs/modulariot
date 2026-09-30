@@ -131,6 +131,13 @@ function TextFilter({
     return cancelDebounce;
   }, [cancelDebounce, cancelDebounceRef]);
 
+  useEffect(() => {
+    cancelDebounce();
+    setLocalValue(
+      typeof currentFilter?.value === "string" ? currentFilter.value : "",
+    );
+  }, [currentFilter?.value, cancelDebounce]);
+
   const handleChange = (value: string) => {
     setLocalValue(value);
     clearTimeout(debounceRef.current);
@@ -197,6 +204,20 @@ function NumberFilter({
     if (cancelDebounceRef) cancelDebounceRef.current = cancelDebounce;
     return cancelDebounce;
   }, [cancelDebounce, cancelDebounceRef]);
+
+  useEffect(() => {
+    cancelDebounce();
+    setOperator(currentFilter?.operator ?? "equals");
+    const range =
+      currentFilter?.operator === "between" &&
+      Array.isArray(currentFilter.value)
+        ? currentFilter.value
+        : null;
+    setValue(
+      range ? String(range[0] ?? "") : String(currentFilter?.value ?? ""),
+    );
+    setValue2(range ? String(range[1] ?? "") : "");
+  }, [currentFilter, cancelDebounce]);
 
   const emitFilter = useCallback(
     (op: FilterOperator, v1: string, v2: string) => {
@@ -293,6 +314,14 @@ function DateFilter({
   const currentRange = (currentFilter?.value as [string, string]) || ["", ""];
   const [from, setFrom] = useState(currentRange[0]);
   const [to, setTo] = useState(currentRange[1]);
+
+  useEffect(() => {
+    const range = Array.isArray(currentFilter?.value)
+      ? currentFilter.value
+      : [];
+    setFrom(String(range[0] ?? ""));
+    setTo(String(range[1] ?? ""));
+  }, [currentFilter]);
 
   const emitFilter = useCallback(
     (fromVal: string, toVal: string) => {

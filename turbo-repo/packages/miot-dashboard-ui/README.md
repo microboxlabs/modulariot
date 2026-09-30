@@ -849,7 +849,7 @@ lets a host cancel pending input before a separate clear action. Text columns
 with enumerated values use checkbox selection unless an existing text filter is
 present. Date fields use native date inputs; numeric ranges allow open bounds.
 
-The host owns popover positioning and focus management. Inputs initialize draft
-text, numeric and date values when mounted; remount them when replacing a draft
-externally. Enum and boolean selections follow `currentFilter`. Radio names and
+The host owns popover positioning and focus management. Inputs synchronize draft
+text, numeric and date values when `currentFilter` changes, cancelling pending
+emissions. Enum and boolean selections follow `currentFilter`. Radio names and
 date label IDs are unique across instances.

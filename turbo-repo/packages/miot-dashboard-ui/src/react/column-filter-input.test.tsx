@@ -170,3 +170,54 @@ it("isolates boolean radio groups and date labels across dashboard instances", (
     expect.objectContaining({ value: ["2026-09-01", ""] }),
   );
 });
+
+it("synchronizes externally replaced drafts and cancels superseded emissions", () => {
+  vi.useFakeTimers();
+  const options = props("number");
+  const view = render(
+    <ColumnFilterInput
+      {...options}
+      currentFilter={{
+        columnKey: "field",
+        dataType: "number",
+        operator: "equals",
+        value: 10,
+      }}
+    />,
+  );
+  fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "20" } });
+  view.rerender(<ColumnFilterInput {...options} />);
+  expect((screen.getByRole("spinbutton") as HTMLInputElement).value).toBe("");
+  act(() => vi.advanceTimersByTime(300));
+  expect(options.onFilterChange).not.toHaveBeenCalled();
+  view.rerender(
+    <ColumnFilterInput
+      {...props("text")}
+      currentFilter={{
+        columnKey: "field",
+        dataType: "text",
+        operator: "contains",
+        value: "SQL",
+      }}
+    />,
+  );
+  expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe("SQL");
+  view.rerender(<ColumnFilterInput {...props("text")} />);
+  expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe("");
+  view.rerender(
+    <ColumnFilterInput
+      {...props("date")}
+      currentFilter={{
+        columnKey: "field",
+        dataType: "date",
+        operator: "dateRange",
+        value: ["2026-09-01", "2026-09-30"],
+      }}
+    />,
+  );
+  expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe(
+    "2026-09-01",
+  );
+  view.rerender(<ColumnFilterInput {...props("date")} />);
+  expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe("");
+});

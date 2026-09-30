@@ -11,6 +11,7 @@ import {
 import { useRouter, useParams } from "next/navigation";
 import {
   Button,
+  Checkbox,
   TextInput,
   Textarea,
   FileInput,
@@ -456,16 +457,29 @@ function withoutOption(options: DashboardFilterOption[], optIndex: number): Dash
 // Filter Manager Form
 // ============================================================================
 
+/** A named result a select filter can take its options from. */
+interface FilterOptionsVariable {
+  id: string;
+  variableName: string;
+  schema?: string[];
+}
+
 interface FilterManagerFormProps {
   filters: DashboardFilterParam[];
-  onSave: (filters: DashboardFilterParam[]) => void;
+  /** False when the host rejects the definitions. */
+  onSave: (filters: DashboardFilterParam[]) => boolean | void;
+  /** Saved queries on dashboard-server pages; the planner's requests otherwise. */
+  sources?: readonly FilterOptionsVariable[];
 }
 
 function FilterManagerForm({
   filters,
   onSave,
+  sources,
 }: Readonly<FilterManagerFormProps>) {
-  const { dictionary, plannerDefinitions } = useDashboard();
+  const { dictionary, plannerDefinitions: plannerRequests } = useDashboard();
+  const plannerDefinitions: readonly FilterOptionsVariable[] =
+    sources ?? plannerRequests;
   const { schemas } = useOptionalPlannerContext();
   const t = (key: string) => tr(`dashboard.settings.${key}`, dictionary);
 
@@ -685,7 +699,10 @@ function FilterManagerForm({
       seen.add(f.key);
       return true;
     });
-    onSave(validFilters);
+    if (onSave(validFilters) === false) {
+      ShowNotification({ type: "error", message: t("filtersRejected") });
+      return;
+    }
     ShowNotification({ type: "success", message: t("filtersUpdated") });
   };
 
@@ -855,6 +872,30 @@ function FilterManagerForm({
                       onChange={(e) => updateFilter(index, { key: e.target.value })}
                     />
                   </div>
+
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`unique-${id}`}
+                      checked={filter.unique === true}
+                      onChange={(e) =>
+                        updateFilter(index, { unique: e.target.checked || undefined })
+                      }
+                    />
+                    <Label htmlFor={`unique-${id}`}>{t("filterUnique")}</Label>
+                  </div>
+
+                  {filter.type === "select" && (
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`single-${id}`}
+                        checked={filter.single === true}
+                        onChange={(e) =>
+                          updateFilter(index, { single: e.target.checked || undefined })
+                        }
+                      />
+                      <Label htmlFor={`single-${id}`}>{t("filterSingle")}</Label>
+                    </div>
+                  )}
 
                   {/* Where the select options come from */}
                   {filter.type === "select" && (
@@ -1190,7 +1231,6 @@ interface DashboardSettingsDropdownProps {
 }
 
 export interface DashboardSettingsHost {
-  filters: ReactNode;
   /** Mounted only while its section is open. */
   queries: ReactNode;
   /** From the server's capabilities; the context cannot know it. */
@@ -1207,6 +1247,8 @@ export default function DashboardSettingsDropdown({
     dashboardName,
     filters,
     setFilters,
+    setFilterDefinitions,
+    queries,
     exportDashboard,
     importDashboard,
     downloadDashboard,
@@ -1390,7 +1432,11 @@ export default function DashboardSettingsDropdown({
             maxHeight="max-h-[70vh]"
           >
             {host ? (
-              host.filters
+              <FilterManagerForm
+                filters={filters}
+                onSave={setFilterDefinitions}
+                sources={queries}
+              />
             ) : (
               <FilterManagerForm filters={filters} onSave={setFilters} />
             )}

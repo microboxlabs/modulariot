@@ -19,7 +19,6 @@ import {
   DashboardQuerySession,
   SavedQueryResults,
 } from "../context/saved-query-context";
-import { ServerDashboardFilters } from "./server-dashboard-filters";
 import { ServerDashboardQueries } from "./server-dashboard-queries";
 import { DashboardView } from "./dashboard-view";
 import type { DashboardSettingsHost } from "./dashboard-settings-dropdown/dashboard-settings-dropdown";
@@ -217,7 +216,6 @@ function ServerDashboardEditor({
     );
   const editable = !document.readOnly && !removing;
   const settingsHost: DashboardSettingsHost = {
-    filters: <ServerDashboardFilters dictionary={dictionary} />,
     queries: (
       <ServerDashboardQueries
         client={document.client}

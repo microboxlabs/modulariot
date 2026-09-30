@@ -20,7 +20,6 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,14 +37,13 @@ public class PgContactStore implements ContactStore {
     private static final String UNIQUE_VIOLATION = "23505";
 
     private static final String COLUMNS = """
-            id, tenant_code, name, role, phone, methods, active, notes, created_by, created_at, updated_at, \
+            id, tenant_code, name, role, phone, methods, active, notes, created_by, created_at, updated_at,
             national_id, national_id_type, company, position, channels, tags, member_user_id, provisional""";
 
     private static final String SELECT = "SELECT " + COLUMNS + " FROM miot_symptoms.contact WHERE tenant_code = $1 ";
 
     // A duplicate national id inserts nothing and returns no row.
-    private static final String INSERT = """
-            INSERT INTO miot_symptoms.contact (""" + COLUMNS + """
+    private static final String INSERT = "INSERT INTO miot_symptoms.contact (" + COLUMNS + """
             ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11,
                       $12, $13, $14, $15, $16::jsonb, $17::jsonb, $18, $19)
             ON CONFLICT (tenant_code, national_id) WHERE national_id IS NOT NULL DO NOTHING
@@ -158,17 +156,17 @@ public class PgContactStore implements ContactStore {
     }
 
     private static List<Contact> contacts(RowSet<Row> rows) {
-        List<Contact> out = new ArrayList<>();
-        for (Row r : rows) {
-            out.add(new Contact(
-                    text(r.getUUID("id")), r.getString("tenant_code"), r.getString("name"), r.getString("role"),
-                    r.getString("phone"), PgJson.read(r, "methods", METHODS), r.getBoolean("active"),
-                    r.getString("notes"), r.getString("created_by"), PgJson.time(r, "created_at"),
-                    PgJson.time(r, "updated_at"), r.getString("national_id"), r.getString("national_id_type"),
-                    r.getString("company"), r.getString("position"),
-                    PgJson.read(r, "channels", ContactChannels.class), PgJson.read(r, "tags", TAGS),
-                    r.getString("member_user_id"), r.getBoolean("provisional")));
-        }
-        return out;
+        return rows.stream().map(PgContactStore::contact).toList();
+    }
+
+    private static Contact contact(Row r) {
+        return new Contact(
+                text(r.getUUID("id")), r.getString("tenant_code"), r.getString("name"), r.getString("role"),
+                r.getString("phone"), PgJson.read(r, "methods", METHODS), r.getBoolean("active"),
+                r.getString("notes"), r.getString("created_by"), PgJson.time(r, "created_at"),
+                PgJson.time(r, "updated_at"), r.getString("national_id"), r.getString("national_id_type"),
+                r.getString("company"), r.getString("position"),
+                PgJson.read(r, "channels", ContactChannels.class), PgJson.read(r, "tags", TAGS),
+                r.getString("member_user_id"), r.getBoolean("provisional"));
     }
 }

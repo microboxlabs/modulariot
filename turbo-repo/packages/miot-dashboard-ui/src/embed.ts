@@ -22,3 +22,5 @@ export { createIconStatRegistry, type IconStatRegistryOptions } from "./react/ic
 export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "./react/sensitive-stat-registry";
 
 export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./react/stacked-stat-registry";
+
+export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from "./react/expandable-stat-registry";

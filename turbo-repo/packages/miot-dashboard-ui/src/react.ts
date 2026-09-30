@@ -109,3 +109,5 @@ export { StackedStat, type StackedStatProps, type StackedStatItem } from "./reac
 
 export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./react/stacked-stat-registry";
 export { ExpandableStat, type ExpandableStatProps } from "./react/expandable-stat";
+
+export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from "./react/expandable-stat-registry";

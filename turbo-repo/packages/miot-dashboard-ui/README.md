@@ -1262,3 +1262,18 @@ invalid colors fall back to the scoped theme. Background rules tint the card,
 button and expanded section. Change `resetKey` when the dashboard identity
 changes to collapse its details. Data and formatting remain host responsibilities.
 Next.js consumes this renderer with existing value/color rules and EN/ES labels.
+
+`createExpandableStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_expandable` for static JSON and named planner results. Required
+options are `defaultTitle`, `defaultUnit`, `showLabel`, `hideLabel`, `loadingLabel`,
+`errorLabel` and `unsupportedDataLabel`. Optional `formatValue(string)` and
+`templateEngine` customize display and Handlebars helpers.
+
+Templates apply to `title`, `value`, `unit` and each saved detail's `label` and
+string/number `value`, using the first planner row or static data. Malformed
+details are skipped. Finite numeric main values normalize like the Next.js
+adapter; other values remain literal text. Value rules target `text` and `bg`,
+with text rules taking precedence over `valueColor`. Loading/errors clear the
+card and its disclosure state; recovery starts collapsed. Change the host mount
+`instanceKey` (or unmount) when switching authorization context. Legacy direct
+queries display the migration label.

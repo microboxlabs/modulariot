@@ -19,3 +19,5 @@ export { createIconStatRegistry, type IconStatRegistryOptions } from "./embed";
 export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "./embed";
 
 export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./embed";
+
+export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from "./embed";

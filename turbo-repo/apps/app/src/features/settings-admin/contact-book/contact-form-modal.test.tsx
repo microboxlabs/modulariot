@@ -1,10 +1,15 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { ShowNotification } from "@/features/notifications/notification";
 import ContactFormModal from "./contact-form-modal";
-import type { BookContact } from "./store";
+import { TagUpdateError, type BookContact } from "./store";
+
+vi.mock("@/features/notifications/notification", () => ({
+  ShowNotification: vi.fn(),
+}));
 
 vi.mock("@/features/layout/components/secured-navbar/org-switcher/use-org-scopes", () => ({
   useOrgScopes: () => ({ activeOrg: { slug: "norte", displayName: "Norte" } }),
@@ -100,8 +105,8 @@ describe("ContactFormModal — saving", () => {
         { id: "b2", name: "valpo" },
       ])
     );
-    const onRenameTag = vi.fn();
-    const onDeleteTag = vi.fn();
+    const onRenameTag = vi.fn().mockResolvedValue(undefined);
+    const onDeleteTag = vi.fn().mockResolvedValue(undefined);
     render(
       <ContactFormModal
         show
@@ -125,6 +130,55 @@ describe("ContactFormModal — saving", () => {
 
     expect(onRenameTag).toHaveBeenCalledWith("santiago", "Santiago Centro");
     expect(onDeleteTag).toHaveBeenCalledWith("valpo");
+    expect(JSON.parse(window.localStorage.getItem(BADGES_KEY) ?? "[]")).toEqual([
+      { id: "b1", name: "Santiago Centro" },
+    ]);
+  });
+
+  it("undoes the badge change and says so when contacts were not updated", async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(
+      BADGES_KEY,
+      JSON.stringify([
+        { id: "b1", name: "santiago" },
+        { id: "b2", name: "valpo" },
+      ])
+    );
+    const onRenameTag = vi.fn().mockRejectedValue(new TagUpdateError(2, 1));
+    const onDeleteTag = vi.fn().mockRejectedValue(new TagUpdateError(1, 0));
+    render(
+      <ContactFormModal
+        show
+        onClose={vi.fn()}
+        editing={null}
+        onSave={vi.fn()}
+        onRenameTag={onRenameTag}
+        onDeleteTag={onDeleteTag}
+        dict={dict}
+      />
+    );
+    const input = screen.getByPlaceholderText(/Busca o crea una etiqueta/);
+    await user.type(input, "santiago");
+    await user.click(await screen.findByRole("button", { name: "Renombrar santiago" }));
+    const editor = screen.getByLabelText("Renombrar");
+    await user.clear(editor);
+    await user.type(editor, "Santiago Centro{Enter}");
+    await user.clear(input);
+    await user.type(input, "valpo");
+    await user.click(screen.getByRole("button", { name: "Eliminar valpo" }));
+
+    const stored = () => JSON.parse(window.localStorage.getItem(BADGES_KEY) ?? "[]");
+    await waitFor(() =>
+      expect(stored()).toEqual([
+        { id: "b1", name: "santiago" },
+        expect.objectContaining({ name: "Santiago Centro" }),
+        { id: "b2", name: "valpo" },
+      ])
+    );
+    expect(ShowNotification).toHaveBeenCalledWith({
+      type: "error",
+      message: "No se pudo actualizar la etiqueta en 2 contactos. Se deshizo el cambio.",
+    });
   });
 });
 

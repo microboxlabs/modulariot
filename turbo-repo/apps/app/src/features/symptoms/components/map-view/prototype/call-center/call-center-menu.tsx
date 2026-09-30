@@ -25,6 +25,7 @@ import { useEffect, useReducer, useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { tr } from "@/features/i18n/tr.service";
+import { ShowNotification } from "@/features/notifications/notification";
 import type { CallRole } from "./call-roles-store";
 import {
   BentoGrid,
@@ -225,7 +226,13 @@ export default function CallCenterMenu({
       };
       saveBookContact(contact)
         .then((saved) => setDetails(optionId, { bookId: saved.id }))
-        .catch(() => setDetails(optionId, { phone: number, methods }));
+        .catch(() => {
+          setDetails(optionId, { phone: number, methods });
+          ShowNotification({
+            type: "error",
+            message: t("call_center_new_save_error"),
+          });
+        });
     }
     setAddDraft(null);
     setSearch("");

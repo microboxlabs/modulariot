@@ -2472,7 +2472,9 @@
         "duplicateRut": "Ya existe un contacto con ese RUT.",
         "removeError": "No se pudo eliminar el contacto. Solo un propietario de la organización puede eliminar contactos.",
         "importNotAll": "{count} filas no se importaron (RUT ya registrado o datos inválidos).",
-        "importError": "No se pudieron importar los contactos."
+        "importError": "No se pudieron importar los contactos.",
+        "removeFailed": "No se pudo eliminar el contacto.",
+        "tagUpdateError": "No se pudo actualizar la etiqueta en {count} contactos. Se deshizo el cambio."
       },
       "symptomCatalog": {
         "title": "Síntomas",
@@ -4413,7 +4415,8 @@
     "call_center_new_name_placeholder": "¿A quién llamas?",
     "call_center_new_call_only": "Solo llamar",
     "call_center_new_call_and_save": "Llamar y guardar en la libreta",
-    "call_center_add_query": "Agregar «{query}»"
+    "call_center_add_query": "Agregar «{query}»",
+    "call_center_new_save_error": "No se pudo guardar el contacto en la libreta. La llamada sigue solo con este número."
   },
   "geographic_view": {
     "speed": "Velocidad",

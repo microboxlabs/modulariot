@@ -2472,7 +2472,9 @@
         "duplicateRut": "A contact with this RUT already exists.",
         "removeError": "The contact couldn't be deleted. Only an organization owner can delete contacts.",
         "importNotAll": "{count} rows weren't imported (RUT already registered or invalid data).",
-        "importError": "The contacts couldn't be imported."
+        "importError": "The contacts couldn't be imported.",
+        "removeFailed": "The contact couldn't be deleted.",
+        "tagUpdateError": "The tag couldn't be updated on {count} contacts. The change was undone."
       },
       "symptomCatalog": {
         "title": "Symptoms",
@@ -4413,7 +4415,8 @@
     "call_center_new_name_placeholder": "Who are you calling?",
     "call_center_new_call_only": "Just call",
     "call_center_new_call_and_save": "Call and save to the contact book",
-    "call_center_add_query": "Add “{query}”"
+    "call_center_add_query": "Add “{query}”",
+    "call_center_new_save_error": "The contact couldn't be saved to the contact book. The call goes ahead with this number only."
   },
   "geographic_view": {
     "speed": "Speed",

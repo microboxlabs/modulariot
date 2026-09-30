@@ -80,6 +80,14 @@ export function renameBadge(id: string, name: string): boolean {
   return true;
 }
 
+/** Puts back a deleted badge with its id, unless a badge has that name. */
+export function restoreBadge(badge: ContactBadge): void {
+  const current = readBadges();
+  if (current.some((b) => b.id === badge.id) || findByName(current, badge.name))
+    return;
+  writeBadges([...current, badge]);
+}
+
 export function deleteBadge(id: string): void {
   writeBadges(readBadges().filter((b) => b.id !== id));
 }

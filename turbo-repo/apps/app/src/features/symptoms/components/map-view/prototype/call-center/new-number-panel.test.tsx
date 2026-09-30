@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import es from "@/lang/es.json";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { ShowNotification } from "@/features/notifications/notification";
 import CallCenterMenu from "./call-center-menu";
 import { canSubmitNewNumber, draftFromQuery } from "./new-number-panel";
 
@@ -20,6 +21,10 @@ vi.mock("@/features/symptoms/control-tower/control-tower-api", () => ({
   deleteContact: api.deleteContact,
   importContacts: api.importContacts,
   useContacts: () => ({ data: [], error: undefined, mutate: api.mutate }),
+}));
+
+vi.mock("@/features/notifications/notification", () => ({
+  ShowNotification: vi.fn(),
 }));
 
 const dict = es as unknown as I18nRecord;
@@ -132,6 +137,35 @@ describe("CallCenterMenu — new number", () => {
       expect(Object.values(details)).toContainEqual({ bookId: "api-contact-1" });
     });
     expect(window.localStorage.getItem("miot.prototype.contact-book.v1")).toBeNull();
+  });
+
+  it("still calls when saving to the book fails, and tells the operator", async () => {
+    api.createContact.mockRejectedValueOnce(new Error("HTTP 500"));
+    const user = userEvent.setup();
+    const onCall = renderMenu();
+    await openPanel(user);
+    await user.type(screen.getByLabelText(PHONE), "900000001");
+    await user.type(screen.getByLabelText(NAME), "Persona Nueva");
+    await user.click(screen.getByRole("button", { name: "Llamar y guardar en la libreta" }));
+
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Persona Nueva" }),
+      expect.any(String),
+      "Persona Nueva",
+      "",
+      ["phone", "whatsapp"]
+    );
+    await waitFor(() =>
+      expect(ShowNotification).toHaveBeenCalledWith({
+        type: "error",
+        message: es.symptoms.call_center_new_save_error,
+      })
+    );
+    const details = JSON.parse(window.localStorage.getItem("miot.prototype.contact-details.v1") ?? "{}");
+    expect(Object.values(details)).toContainEqual({
+      phone: "+56900000001",
+      methods: ["phone", "whatsapp"],
+    });
   });
 
   it("has no add button next to the search bar", () => {

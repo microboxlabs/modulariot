@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TowerContact } from "@/features/symptoms/control-tower/control-tower-api";
 import {
+  TagUpdateError,
   makeContactId,
   toBookContact,
   toContactBody,
@@ -212,5 +213,25 @@ describe("useContactBook", () => {
       tags: ["norte", "transportista"],
     });
     expect(api.updateContact).toHaveBeenCalledWith("c2", { tags: [] });
+  });
+  it("reloads the book and reports how many contacts a tag change missed", async () => {
+    api.data = [
+      apiContact({ id: "c1", tags: ["sur"] }),
+      apiContact({ id: "c2", tags: ["sur"] }),
+    ];
+    api.updateContact
+      .mockResolvedValueOnce(apiContact())
+      .mockRejectedValueOnce(new Error("HTTP 500"));
+    const { result } = renderHook(() => useContactBook());
+    let error: unknown;
+    await act(async () => {
+      error = await result.current
+        .renameTag("sur", "austral")
+        .catch((e: unknown) => e);
+    });
+    expect(error).toBeInstanceOf(TagUpdateError);
+    expect(error).toMatchObject({ failed: 1, updated: 1 });
+    expect(api.updateContact).toHaveBeenCalledTimes(2);
+    expect(api.mutate).toHaveBeenCalledTimes(1);
   });
 });

@@ -126,6 +126,16 @@ export function toContactBody(
   };
 }
 
+/** A tag rename or delete that some contacts did not get. */
+export class TagUpdateError extends Error {
+  constructor(
+    readonly failed: number,
+    readonly updated: number
+  ) {
+    super(`tag not updated on ${failed} contacts`);
+  }
+}
+
 const sameTag = (a: string, b: string) =>
   normalizeLabel(a) === normalizeLabel(b);
 
@@ -188,7 +198,9 @@ export function useContactBook() {
     [mutate]
   );
 
-  /** Rewrites the tag on every contact that has it: `to` null removes it. */
+  /** Rewrites the tag on every contact that has it: `to` null removes it.
+   *  Rejects with a {@link TagUpdateError} when some contacts were not
+   *  updated; the book is reloaded either way. */
   const retag = useCallback(
     async (from: string, to: string | null) => {
       const affected = (data ?? []).filter((c) =>
@@ -196,13 +208,19 @@ export function useContactBook() {
       );
       ensured.current.add(normalizeLabel(from));
       if (to) ensured.current.add(normalizeLabel(to));
-      await Promise.all(
-        affected.map((c) => {
-          const kept = (c.tags ?? []).filter((t) => !sameTag(t, from));
-          return updateContact(c.id, { tags: to ? [...kept, to] : kept });
-        })
-      );
-      if (affected.length > 0) await mutate();
+      try {
+        const results = await Promise.allSettled(
+          affected.map((c) => {
+            const kept = (c.tags ?? []).filter((t) => !sameTag(t, from));
+            return updateContact(c.id, { tags: to ? [...kept, to] : kept });
+          })
+        );
+        const failed = results.filter((r) => r.status === "rejected").length;
+        if (failed > 0)
+          throw new TagUpdateError(failed, results.length - failed);
+      } finally {
+        await mutate();
+      }
     },
     [data, mutate]
   );

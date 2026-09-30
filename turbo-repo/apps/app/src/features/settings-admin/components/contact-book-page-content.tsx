@@ -101,13 +101,14 @@ export default function ContactBookPageContent({
   };
 
   const removeContact = (id: string) => {
-    remove(id).catch(() =>
-      ShowNotification({ type: "error", message: tr("removeError", d) })
-    );
+    remove(id).catch((e: unknown) => {
+      const forbidden = e instanceof ControlTowerError && e.status === 403;
+      ShowNotification({
+        type: "error",
+        message: forbidden ? tr("removeError", d) : tr("removeFailed", d),
+      });
+    });
   };
-
-  const notifyTagError = () =>
-    ShowNotification({ type: "error", message: tr("saveError", d) });
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden">
@@ -183,10 +184,8 @@ export default function ContactBookPageContent({
         onClose={() => setModalOpen(false)}
         editing={editing}
         onSave={saveContact}
-        onRenameTag={(from, to) =>
-          void renameTag(from, to).catch(notifyTagError)
-        }
-        onDeleteTag={(name) => void deleteTag(name).catch(notifyTagError)}
+        onRenameTag={renameTag}
+        onDeleteTag={deleteTag}
         dict={dict}
       />
       <ImportContactsModal

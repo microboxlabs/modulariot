@@ -5,6 +5,7 @@ import { HiOutlineChatAlt2, HiOutlineTag, HiOutlineUser } from "react-icons/hi";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { ShowNotification } from "@/features/notifications/notification";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { ALL_CALL_METHODS } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
 import { isRutValid } from "@/utils/rut";
@@ -24,8 +25,13 @@ import {
 import ContactPersonSection, {
   type PersonDraft,
 } from "./contact-person-section";
-import { makeContactId, type BookContact } from "./store";
-import { useContactBadges } from "./taxonomy-store";
+import { makeContactId, TagUpdateError, type BookContact } from "./store";
+import {
+  ensureBadge,
+  renameBadge,
+  restoreBadge,
+  useContactBadges,
+} from "./taxonomy-store";
 
 interface ContactDraft {
   person: PersonDraft;
@@ -131,9 +137,10 @@ export default function ContactFormModal({
   onClose: () => void;
   editing: BookContact | null;
   onSave: (contact: BookContact) => void | Promise<unknown>;
-  /** A badge was renamed or deleted here: update the contacts that use it. */
-  onRenameTag?: (from: string, to: string) => void;
-  onDeleteTag?: (name: string) => void;
+  /** A badge was renamed or deleted here: update the contacts that use it.
+   *  When the promise rejects, the badge change is undone here. */
+  onRenameTag?: (from: string, to: string) => Promise<void>;
+  onDeleteTag?: (name: string) => Promise<void>;
   /** `pages.userSettings` dictionary. */
   dict: I18nRecord;
 }>) {
@@ -186,17 +193,39 @@ export default function ContactFormModal({
     }
   };
 
+  const notifyTagError = (e: unknown) =>
+    ShowNotification({
+      type: "error",
+      message:
+        e instanceof TagUpdateError
+          ? tr("tagUpdateError", d, { count: String(e.failed) })
+          : tr("saveError", d),
+    });
+
   const handleRenameBadge = (id: string, name: string) => {
     const from = badges.find((b) => b.id === id)?.name;
+    const to = name.trim();
     const ok = rename(id, name);
-    if (ok && from && from !== name.trim()) onRenameTag?.(from, name.trim());
+    if (ok && from && from !== to && onRenameTag) {
+      onRenameTag(from, to).catch((e: unknown) => {
+        renameBadge(id, from);
+        // Contacts already moved to the new name keep a badge for it.
+        if (e instanceof TagUpdateError && e.updated > 0) ensureBadge(to);
+        notifyTagError(e);
+      });
+    }
     return ok;
   };
 
   const handleDeleteBadge = (id: string) => {
-    const name = badges.find((b) => b.id === id)?.name;
+    const badge = badges.find((b) => b.id === id);
     remove(id);
-    if (name) onDeleteTag?.(name);
+    if (badge && onDeleteTag) {
+      onDeleteTag(badge.name).catch((e: unknown) => {
+        restoreBadge(badge);
+        notifyTagError(e);
+      });
+    }
   };
 
   return (

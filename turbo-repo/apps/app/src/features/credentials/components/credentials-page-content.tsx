@@ -188,6 +188,22 @@ export default function CredentialsPageContent({
     }
   }
 
+  // Every credential form shares these; only `show` and a type's own extras differ.
+  const shown = (type: CredentialTypeId) => formOpen && formType === type;
+  const formProps = {
+    editing,
+    onClose: () => {
+      setFormOpen(false);
+      setEditing(null);
+    },
+    onSubmit: handleSubmit,
+    onTest: handleFormTest,
+    onDelete: editing ? () => handleDeleteFromModal(editing) : undefined,
+    loading: actionLoading,
+    environments,
+    dict: credentialsDict,
+  };
+
   return (
     // Same shell as Settings > Data sources: a full-width breadcrumb bar
     // (outside the scroll container, so it never moves — including during
@@ -272,81 +288,18 @@ export default function CredentialsPageContent({
         dict={credentialsDict}
       />
 
-      <AzureEntraCredentialModal
-        show={formOpen && formType === ENTRA}
-        editing={editing}
-        onClose={() => {
-          setFormOpen(false);
-          setEditing(null);
-        }}
-        onSubmit={handleSubmit}
-        onTest={handleFormTest}
-        onDelete={editing ? () => handleDeleteFromModal(editing) : undefined}
-        loading={actionLoading}
-        environments={environments}
-        dict={credentialsDict}
-      />
-
-      <OAuth2CredentialModal
-        show={formOpen && formType === OAUTH2}
-        editing={editing}
-        onClose={() => {
-          setFormOpen(false);
-          setEditing(null);
-        }}
-        onSubmit={handleSubmit}
-        onTest={handleFormTest}
-        onDelete={editing ? () => handleDeleteFromModal(editing) : undefined}
-        loading={actionLoading}
-        environments={environments}
-        dict={credentialsDict}
-      />
-
+      <AzureEntraCredentialModal show={shown(ENTRA)} {...formProps} />
+      <OAuth2CredentialModal show={shown(OAUTH2)} {...formProps} />
       <Auth0M2MCredentialModal
-        show={formOpen && formType === AUTH0}
-        editing={editing}
-        onClose={() => {
-          setFormOpen(false);
-          setEditing(null);
-        }}
-        onSubmit={handleSubmit}
-        onTest={handleFormTest}
-        onDelete={editing ? () => handleDeleteFromModal(editing) : undefined}
-        loading={actionLoading}
-        environments={environments}
+        show={shown(AUTH0)}
+        {...formProps}
         orgSlug={orgSlug}
-        dict={credentialsDict}
       />
-
       <GoogleServiceAccountCredentialModal
-        show={formOpen && formType === GOOGLE}
-        editing={editing}
-        onClose={() => {
-          setFormOpen(false);
-          setEditing(null);
-        }}
-        onSubmit={handleSubmit}
-        onTest={handleFormTest}
-        onDelete={editing ? () => handleDeleteFromModal(editing) : undefined}
-        loading={actionLoading}
-        environments={environments}
-        dict={credentialsDict}
+        show={shown(GOOGLE)}
+        {...formProps}
       />
-
-      <BearerTokenCredentialModal
-        show={formOpen && formType === BEARER}
-        editing={editing}
-        onClose={() => {
-          setFormOpen(false);
-          setEditing(null);
-        }}
-        onSubmit={handleSubmit}
-        onTest={handleFormTest}
-        onDelete={editing ? () => handleDeleteFromModal(editing) : undefined}
-        loading={actionLoading}
-        environments={environments}
-        dict={credentialsDict}
-      />
+      <BearerTokenCredentialModal show={shown(BEARER)} {...formProps} />
 
       <CredentialDeleteDialog
         credential={deleting}

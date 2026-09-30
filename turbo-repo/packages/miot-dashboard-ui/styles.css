@@ -496,7 +496,7 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-data-list-card__metrics > div { min-width:0; }
 .miot-data-list-card__footer { display:flex; flex-wrap:wrap; gap:.25rem 1rem; padding-top:.75rem; border-top:1px solid var(--miot-card-border,#e5e7eb); }
 .miot-data-list-card__footer > div { display:flex; gap:.375rem; align-items:baseline; }
-:where(.dark,[data-miot-theme="dark"]) .miot-data-list-card { background:var(--miot-card-background,#1f2937); border-color:var(--miot-card-border,#374151); color:var(--miot-card-text,#f9fafb); }
+:where(.dark,[data-miot-theme="dark"]) .miot-data-list-card { background:var(--miot-card-background,#1f2937); border-top-color:var(--miot-card-border,#374151); border-right-color:var(--miot-card-border,#374151); border-bottom-color:var(--miot-card-border,#374151); color:var(--miot-card-text,#f9fafb); }
 :where(.dark,[data-miot-theme="dark"]) .miot-data-list-card :is(header p,dt) { color:var(--miot-card-muted,#9ca3af); }
 :where(.dark,[data-miot-theme="dark"]) .miot-data-list-card__footer { border-color:var(--miot-card-border,#374151); }
 
@@ -509,6 +509,6 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-status-stat__icon { width:2rem; height:2rem; flex-shrink:0; display:flex; align-items:center; justify-content:center; border-radius:50%; background:var(--miot-status-icon-background,#f3f4f6); color:var(--miot-card-muted,#6b7280); }
 .miot-status-stat__icon svg { width:1rem; height:1rem; }
 .miot-status-stat__subtitle { margin:.25rem 0 0; font-size:.875rem; color:var(--miot-card-muted,#6b7280); overflow-wrap:anywhere; }
-:where(.dark,[data-miot-theme="dark"]) .miot-status-stat { background:var(--miot-card-background,#1f2937); border-color:var(--miot-card-border,#374151); color:var(--miot-card-text,#f9fafb); }
+:where(.dark,[data-miot-theme="dark"]) .miot-status-stat { background:var(--miot-card-background,#1f2937); border-top-color:var(--miot-card-border,#374151); border-right-color:var(--miot-card-border,#374151); border-bottom-color:var(--miot-card-border,#374151); color:var(--miot-card-text,#f9fafb); }
 :where(.dark,[data-miot-theme="dark"]) .miot-status-stat__icon { background:var(--miot-status-icon-background,#374151); color:var(--miot-card-muted,#9ca3af); }
 :where(.dark,[data-miot-theme="dark"]) .miot-status-stat__subtitle { color:var(--miot-card-muted,#9ca3af); }

@@ -28,7 +28,7 @@ function Host({
   });
   return (
     <>
-      <table ref={tableRef}>
+      <table ref={tableRef} style={{ tableLayout: "fixed", width: "100%" }}>
         <colgroup>
           {columns.map((c, i) => (
             <col
@@ -122,4 +122,16 @@ it("restores saved widths after undo and ignores nonfinite saved values", () => 
   expect(screen.getByRole("status").textContent).toBe("[160,100,null]");
   view.rerender(<Host savedWidths={{ first: 120, second: 140 }} />);
   expect(screen.getByRole("status").textContent).toBe("[120,140,null]");
+});
+
+it("preserves the host inline layout when measuring and auto-fitting", () => {
+  const onCommit = vi.fn();
+  render(<Host editable onCommit={onCommit} savedWidths={{ first: 160 }} />);
+  const table = screen.getByRole("table");
+  expect(table.style.tableLayout).toBe("fixed");
+  expect(table.style.width).toBe("100%");
+  fireEvent.doubleClick(screen.getByRole("button", { name: "first" }));
+  expect(onCommit).toHaveBeenCalledExactlyOnceWith({ first: 100, second: 100 });
+  expect(table.style.tableLayout).toBe("fixed");
+  expect(table.style.width).toBe("100%");
 });

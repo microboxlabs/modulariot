@@ -119,7 +119,7 @@ export function useTableColumnWidths({
   savedWidthsRef.current = savedWidths;
   // Re-measure when column keys/order or the saved widths change (undo/redo,
   // column edits), not only when the column count changes.
-  const columnKeysSig = columns.map((c) => c.key).join("\u0000");
+  const columnKeysSig = JSON.stringify(columns.map((c) => c.key));
   const savedWidthsSig = JSON.stringify(savedWidths ?? {});
   const measuredKeysSigRef = useRef(columnKeysSig);
   const measuredSavedSigRef = useRef(savedWidthsSig);
@@ -135,9 +135,8 @@ export function useTableColumnWidths({
   persistWidthsRef.current = persistWidths;
 
   // Measure natural content widths (auto layout) and commit them so the table
-  // can stay in table-layout:fixed (via Tailwind class) for all user interaction.
-  // Temporarily overrides the Tailwind class with an inline style for measurement,
-  // then clears it so the class takes back over.
+  // can retain the host layout for all user interaction.
+  // Temporarily overrides the host layout for measurement, then restores it.
   useLayoutEffect(() => {
     const table = tableRef.current;
     const headerRow = headerRowRef.current;
@@ -170,6 +169,8 @@ export function useTableColumnWidths({
     const containerWidth = table.offsetWidth;
     clearColumnInlineWidth(table, cols.length);
 
+    const previousLayout = table.style.tableLayout;
+    const previousWidth = table.style.width;
     table.style.tableLayout = "auto";
     table.style.width = "max-content";
     table.getBoundingClientRect(); // force reflow in auto mode
@@ -186,8 +187,8 @@ export function useTableColumnWidths({
     // (e.g. newly added) keep their natural content width.
     const raw = applySavedWidths(measured, cols, savedWidthsRef.current);
 
-    table.style.tableLayout = "";
-    table.style.width = "";
+    table.style.tableLayout = previousLayout;
+    table.style.width = previousWidth;
 
     // Account for the actions column so it doesn't eat into the last data column.
     const actionsW = hasActionsRef.current ? 40 : 0;
@@ -357,20 +358,22 @@ export function useTableColumnWidths({
           td.style.maxWidth = "";
         });
     });
+    const previousLayout = table.style.tableLayout;
+    const previousWidth = table.style.width;
     table.style.tableLayout = "auto";
     table.style.width = "max-content";
     table.getBoundingClientRect(); // force reflow
     const contentWidth = thEl.offsetWidth;
 
-    // Restore other columns and clear inline override → Tailwind class kicks in.
+    // Restore other columns and the host layout after measuring.
     columnsRef.current.forEach((_, i) => {
       if (i !== colIdx) {
         const col = colRefs.current[i];
         if (col) col.style.width = savedColWidths[i] ?? "";
       }
     });
-    table.style.tableLayout = "";
-    table.style.width = "";
+    table.style.tableLayout = previousLayout;
+    table.style.width = previousWidth;
     table.getBoundingClientRect(); // force reflow
 
     colEl.style.width = `${contentWidth}px`;

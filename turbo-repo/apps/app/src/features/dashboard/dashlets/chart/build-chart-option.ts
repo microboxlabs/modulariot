@@ -1,6 +1,6 @@
 import type { EChartsOption } from "echarts";
 import type { ChartType, SeriesConfig, XAxisDateFormat } from "./dashlet";
-import { resolveHandlebarsField } from "../common/use-handlebars-templates";
+import { createChartTooltipFormatter } from "@microboxlabs/miot-dashboard-ui/templates";
 import { getColors, type ColorPalette } from "./chart-palettes";
 import type { ChartColorRule, ChartColorRulesConfig } from "./value-color-rules";
 import { normalizeChartColorRulesConfig } from "./value-color-rules";
@@ -88,17 +88,9 @@ function buildTooltip(
   return {
     trigger: "item",
     ...base,
-    formatter: (params: unknown) => {
-      const p = params as { dataIndex?: number; data?: unknown[] };
-      // For scatter, the original row index is stored as the 3rd element
-      const rowIdx = Array.isArray(p.data) && p.data.length >= 3
-        ? (p.data[2] as number)
-        : (p.dataIndex ?? 0);
-      const row = rows[rowIdx];
-      if (!row) return "";
-      const resolved = resolveHandlebarsField(config.tooltipTemplate!, { row, ...row });
-      return resolved.replaceAll("\n", "<br>");
-    },
+    renderMode: "richText",
+    confine: true,
+    formatter: createChartTooltipFormatter(config.tooltipTemplate, rows),
   };
 }
 
@@ -268,12 +260,12 @@ function buildPieOption(
   const valueSeries = config.series[0];
   if (!valueSeries) return noDataOption(darkMode);
 
-  const data = rows.reduce<{ name: string; value: number; itemStyle?: { color: string } }[]>(
-    (acc, r) => {
+  const data = rows.reduce<{ name: string; value: number; rowIndex: number; itemStyle?: { color: string } }[]>(
+    (acc, r, rowIndex) => {
       const v = Number.parseFloat(r[valueSeries.columnKey]);
       if (Number.isFinite(v)) {
         const color = resolveRuleColor(v, colorRules);
-        acc.push({ name: r[config.xAxisColumn] ?? "", value: v, ...(color ? { itemStyle: { color } } : {}) });
+        acc.push({ name: r[config.xAxisColumn] ?? "", value: v, rowIndex, ...(color ? { itemStyle: { color } } : {}) });
       }
       return acc;
     },

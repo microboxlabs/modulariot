@@ -1401,3 +1401,20 @@ ignores queued callbacks after unmount. Hosts own chart engine initialization,
 option building, accessible chart descriptions and engine disposal. No chart engine
 is bundled by this component. Title text renders literally; toolbar and chart are
 host-owned React slots.
+
+
+### Plain-text chart tooltips
+
+`createChartTooltipFormatter(template, rows, engine?)` from `./templates` compiles
+a template once and returns a formatter for ECharts item parameters. Both Next.js
+chart families use it with `renderMode: "richText"` and `confine: true`. Custom
+tooltip templates are text, including literal markup; they do not render HTML.
+Newlines remain newlines. Filtered pie data supplies its original `rowIndex`, and
+scatter data retains the original index in its third coordinate, including when
+wrapped with item color styling. Invalid/out-of-range indices return empty text.
+
+`createTemplateEngine().compileTextTemplate(template)` is the underlying plain-text
+compiler. It disables HTML escaping while retaining prototype access restrictions.
+Its output must only be used as text (React children, textContent, or a non-HTML
+chart renderer), never innerHTML or an HTML-mode tooltip. Existing `resolveField`
+and `compileTemplates` retain their HTML-escaping behavior.

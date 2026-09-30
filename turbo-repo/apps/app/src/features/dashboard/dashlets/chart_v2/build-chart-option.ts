@@ -1,6 +1,6 @@
 import type { EChartsOption } from "echarts";
 import type { ChartFamily, RepresentationConfig, XAxisDateFormat } from "./dashlet";
-import { resolveHandlebarsField } from "../common/use-handlebars-templates";
+import { createChartTooltipFormatter } from "@microboxlabs/miot-dashboard-ui/templates";
 import { getColors, type ColorPalette } from "../chart/chart-palettes";
 import type { ChartColorRule, ChartColorRulesConfig } from "../chart/value-color-rules";
 import { normalizeChartColorRulesConfig } from "../chart/value-color-rules";
@@ -84,16 +84,9 @@ function buildTooltip(
   return {
     trigger: "item",
     ...base,
-    formatter: (params: unknown) => {
-      const p = params as { dataIndex?: number; data?: unknown[] };
-      const rowIdx =
-        Array.isArray(p.data) && p.data.length >= 3
-          ? (p.data[2] as number)
-          : (p.dataIndex ?? 0);
-      const row = rows[rowIdx];
-      if (!row) return "";
-      return resolveHandlebarsField(config.tooltipTemplate!, { row, ...row }).replaceAll("\n", "<br>");
-    },
+    renderMode: "richText",
+    confine: true,
+    formatter: createChartTooltipFormatter(config.tooltipTemplate, rows),
   };
 }
 
@@ -310,14 +303,15 @@ function buildPieOption(
   const rep = config.representations[0];
   if (!rep) return noDataOption(darkMode);
 
-  const data = rows.reduce<{ name: string; value: number; itemStyle?: { color: string } }[]>(
-    (acc, r) => {
+  const data = rows.reduce<{ name: string; value: number; rowIndex: number; itemStyle?: { color: string } }[]>(
+    (acc, r, rowIndex) => {
       const v = Number.parseFloat(r[rep.columnKey]);
       if (Number.isFinite(v)) {
         const ruleColor = resolveRuleColor(v, colorRules);
         acc.push({
           name: r[config.xAxisColumn] ?? "",
           value: v,
+          rowIndex,
           ...(ruleColor ? { itemStyle: { color: ruleColor } } : {}),
         });
       }

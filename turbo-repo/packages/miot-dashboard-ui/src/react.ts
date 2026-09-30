@@ -93,3 +93,5 @@ export { downloadCsv } from "./react/download-csv";
 export { useTableColumnWidths, type TableColumnWidthsOptions, type WidthColumn } from "./react/use-table-column-widths";
 
 export { RowContextMenu, type RowContextMenuProps, type ResolvedContextItem } from "./react/row-context-menu";
+
+export { DataListCard, type DataListCardProps, type DataListCardLayout } from "./react/data-list-card";

@@ -17,6 +17,7 @@ export function importProblems(source, file, root = SOURCE) {
   const isCore = origin === "core.ts" || origin.startsWith("core/");
   const isTemplates =
     origin === "templates.ts" || origin.startsWith("templates/");
+  const isEmbed = origin === "embed.ts" || origin.startsWith("embed/");
   const isReact = origin === "react.ts" || origin.startsWith("react/");
   return ts
     .preProcessFile(source, true, true)
@@ -29,6 +30,8 @@ export function importProblems(source, file, root = SOURCE) {
         isReact
       )
         return false;
+      if (isEmbed && ["react", "react-dom/client"].includes(specifier))
+        return false;
       if (specifier === "handlebars" && isTemplates) return false;
       if (ALLOWED.has(specifier)) return false;
       if (!specifier.startsWith("./") && !specifier.startsWith("../"))
@@ -39,7 +42,12 @@ export function importProblems(source, file, root = SOURCE) {
       );
       if (target === ".." || target.startsWith("../")) return true;
       if (isCore) return target !== "core" && !target.startsWith("core/");
-      return !isReact && (target === "react" || target.startsWith("react/"));
+      return (
+        (!isReact &&
+          !isEmbed &&
+          (target === "react" || target.startsWith("react/"))) ||
+        (!isEmbed && (target === "embed" || target.startsWith("embed/")))
+      );
     });
 }
 

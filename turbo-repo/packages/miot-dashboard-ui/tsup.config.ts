@@ -28,9 +28,9 @@ export default defineConfig((options) => {
     },
     {
       ...shared,
-      entry: ["src/react.ts"],
+      entry: ["src/react.ts", "src/embed.ts"],
       splitting: false,
-      external: ["react"],
+      external: ["react", "react-dom/client"],
       banner: { js: '"use client";' },
     },
   ];

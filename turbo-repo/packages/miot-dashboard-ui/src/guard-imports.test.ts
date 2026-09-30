@@ -30,6 +30,27 @@ describe("pure UI import boundary", () => {
 });
 
 describe("React entry boundary", () => {
+  it.each(["../embed", "../embed/mount-dashboard.js"])(
+    "rejects mounting dependencies from React: %s",
+    (specifier) => {
+      expect(
+        importProblems(
+          `export * from "${specifier}";`,
+          "/package/src/react/component.ts",
+          "/package/src",
+        ),
+      ).toHaveLength(1);
+    },
+  );
+  it("allows the mounting entry to consume React components", () => {
+    expect(
+      importProblems(
+        'export * from "../react/dashboard-canvas.js";',
+        "/package/src/embed/mount-dashboard.ts",
+        "/package/src",
+      ),
+    ).toEqual([]);
+  });
   it("allows React only inside the opt-in React entry", () => {
     expect(
       importProblems(

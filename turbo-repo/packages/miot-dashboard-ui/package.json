@@ -34,7 +34,11 @@
       "types": "./dist/templates.d.ts",
       "import": "./dist/templates.js"
     },
-    "./styles.css": "./styles.css"
+    "./styles.css": "./styles.css",
+    "./embed": {
+      "types": "./dist/embed.d.ts",
+      "import": "./dist/embed.js"
+    }
   },
   "files": [
     "dist",

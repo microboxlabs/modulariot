@@ -1277,3 +1277,18 @@ with text rules taking precedence over `valueColor`. Loading/errors clear the
 card and its disclosure state; recovery starts collapsed. Change the host mount
 `instanceKey` (or unmount) when switching authorization context. Legacy direct
 queries display the migration label.
+
+### Detailed statistic
+
+`DetailedStat` from `./react` renders resolved `title`, `value`, `description`,
+`previousValue`, `target` and `changeLabel` strings as literal text. The host
+formats amounts/units and supplies `positive` for the trend direction. Required
+`progress` is a percentage; the renderer clamps it to 0–100 and uses zero for
+non-finite inputs, including its accessible progressbar value.
+
+Required `progressLabel`, `progressSummary` and `previousLabel` are host-translated
+strings. Optional `valueColor`, `barColor` and `badgeColor` accept six-digit RGB
+without `#`; invalid colors use the theme defaults. The scoped stylesheet
+supports light/dark hosts without a chart or icon dependency. Next.js consumes
+this component while retaining its current query resolution and field-comparison
+color rules. This presentation component does not fetch data or calculate trends.

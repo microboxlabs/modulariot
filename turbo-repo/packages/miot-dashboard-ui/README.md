@@ -1092,3 +1092,27 @@ and an optional decorative React `icon`. Hosts provide resolved `borderColor`,
 values use scoped light/dark theme defaults. Import the package stylesheet.
 The Next.js status widget supplies its existing icons, template results and
 color-rule evaluation. The component itself does not load data or execute rules.
+
+`createStatusStatRegistry(options)` from `./react`, `./embed` or `./browser`
+registers `stat_status` for static JSON or named planner results. It resolves
+`title`, `value` and `subtitle` through the supplied template engine and clears
+values during loading or errors. Legacy direct-query bindings require migration.
+
+```ts
+interface StatusStatRegistryOptions {
+  defaultTitle: string;
+  loadingLabel: string;
+  errorLabel: string;
+  unsupportedDataLabel: string;
+  renderIcon?: (name: string) => ReactNode;
+  templateEngine?: ReturnType<typeof createTemplateEngine>;
+}
+```
+
+All labels come from the host. `renderIcon` receives the saved icon name (default
+`check`); use an own-key lookup with a fallback for unknown names. Without this
+callback the statistic renders without an icon. No icon library is bundled.
+`valueColorRules.rules` uses the existing operators and threshold ordering, with
+`targets` (`border`, `icon`, `text`) or the legacy single `target`; missing or
+invalid targets default to text. Rules override the `showColor`/`color` base
+independently per target. Colors must be six-digit RGB without `#`.

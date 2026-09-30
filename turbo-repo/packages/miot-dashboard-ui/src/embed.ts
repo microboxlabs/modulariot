@@ -14,3 +14,5 @@ export { createCircularStatRegistry, type CircularStatRegistryOptions } from "@m
 export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./react/progress-stat-registry";
 
 export { createDataTableRegistry, createDataListRegistry, createResizableDataTableRegistry, type ResizableDataTableRegistryOptions, type DataTableRegistryOptions } from "./react/data-table-registry";
+
+export { createStatusStatRegistry, type StatusStatRegistryOptions } from "./react/status-stat-registry";

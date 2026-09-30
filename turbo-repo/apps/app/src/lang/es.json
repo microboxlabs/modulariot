@@ -2569,7 +2569,27 @@
         "fieldCaseLevel": "número · nivel ICU actual",
         "fieldCaseClosed": "sí/no · lo cerró un operador",
         "importEngine": "Importar del motor",
-        "importDone": "{created} síntoma(s) importado(s) como borrador apagado; {skipped} ya estaban."
+        "importDone": "{created} síntoma(s) importado(s) como borrador apagado; {skipped} ya estaban.",
+        "notices": "Avisos automáticos",
+        "addNotice": "Agregar aviso por {channel}",
+        "connectionsLink": "Conexiones",
+        "noNotices": "Sin avisos. Toca un canal para agregar uno.",
+        "noticeWhen": "Cuándo",
+        "noticeConnection": "Conexión",
+        "pickConnection": "Elige una conexión",
+        "noConnections": "No hay conexiones de este tipo",
+        "noticeRecipient": "A quién",
+        "recipientPlaceholder": "Destinatario (rol, canal o grupo)",
+        "removeNotice": "Quitar aviso",
+        "channelTeams": "Teams",
+        "channelWhatsapp": "WhatsApp",
+        "channelEmail": "Correo",
+        "channelApp": "App conductor",
+        "channelWebhook": "Webhook",
+        "whenOpen": "Al abrir",
+        "whenLevelUp": "Al subir de nivel",
+        "whenSlaExpired": "SLA vencido",
+        "whenClose": "Al cerrar"
       }
     },
     "integrationJobs": {

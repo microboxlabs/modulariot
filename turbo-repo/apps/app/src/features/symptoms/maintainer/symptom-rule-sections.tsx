@@ -4,6 +4,7 @@ import { ToggleSwitch } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import ConditionIcon from "../components/condition-icon";
+import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import type {
   Finding,
@@ -11,6 +12,7 @@ import type {
   LevelResponse,
   SymptomSpec,
 } from "./maintainer-api";
+import LevelNotices from "./level-notices";
 import { ICU_LEVELS } from "./symptom-labels";
 
 const cardClass =
@@ -115,6 +117,8 @@ function LevelRow({
   fields,
   findings,
   readOnly,
+  connections,
+  lang,
   d,
   rootDict,
   onChange,
@@ -125,6 +129,8 @@ function LevelRow({
   fields: CelField[];
   findings: Finding[] | undefined;
   readOnly: boolean;
+  connections: IntegrationConnection[];
+  lang: string;
   d: I18nRecord;
   rootDict: I18nRecord;
   onChange: (spec: SymptomSpec) => void;
@@ -199,6 +205,14 @@ function LevelRow({
             onChange={(when) => set({ when })}
           />
           <Problems items={problems} />
+          <LevelNotices
+            notices={response.notices ?? []}
+            connections={connections}
+            lang={lang}
+            readOnly={readOnly}
+            d={d}
+            onChange={(notices) => setResponse({ notices })}
+          />
         </>
       )}
     </div>
@@ -211,6 +225,8 @@ export default function SymptomRuleSections({
   sourceFields,
   findings,
   readOnly,
+  connections,
+  lang,
   d,
   rootDict,
   onChange,
@@ -219,6 +235,8 @@ export default function SymptomRuleSections({
   sourceFields: CelField[];
   findings: Finding[] | undefined;
   readOnly: boolean;
+  connections: IntegrationConnection[];
+  lang: string;
   d: I18nRecord;
   rootDict: I18nRecord;
   onChange: (spec: SymptomSpec) => void;
@@ -227,7 +245,7 @@ export default function SymptomRuleSections({
   const measure = problemsFor(findings, "measure");
   const open = problemsFor(findings, "lifecycle.open");
   const close = problemsFor(findings, "lifecycle.close");
-  const withLevel = [...sourceFields, ...levelFields(d)];
+  const levelRuleFields = [...sourceFields, ...levelFields(d)];
   const lifecycleFields = caseFields(d);
   const lifecycle = spec.lifecycle ?? { open: "", close: "" };
   const measureValue = spec.measure ?? {
@@ -278,9 +296,11 @@ export default function SymptomRuleSections({
               spec={spec}
               icu={meta.icu}
               condition={meta.condition}
-              fields={withLevel}
+              fields={levelRuleFields}
               findings={findings}
               readOnly={readOnly}
+              connections={connections}
+              lang={lang}
               d={d}
               rootDict={rootDict}
               onChange={onChange}

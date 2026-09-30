@@ -1376,3 +1376,11 @@ and `custom`. The function returns a fresh array; changing it never changes
 another dashboard or the host's custom color array. Empty custom palettes and
 unrecognized stored names fall back to the default palette. Both Next.js chart
 families consume these helpers. This export provides colors, not a chart renderer.
+
+`filterChartRowsByDateRange(rows, dateColumn, range, now?)` and
+`ChartDateRange` are also exported from `./core`. Ranges are `all`, `7d`,
+`30d`, `90d`, `180d` and `1y` (365 elapsed days). Cutoffs are inclusive;
+future rows remain visible, matching existing charts. Bounded ranges discard
+missing/invalid dates. `all` and unknown saved values return the original array.
+Pass an epoch-millisecond `now` to share a consistent clock across dashboards.
+Dates with explicit UTC offsets avoid browser-dependent local date parsing.

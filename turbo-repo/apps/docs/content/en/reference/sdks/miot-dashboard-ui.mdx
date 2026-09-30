@@ -6,6 +6,7 @@
 
 ## Choose an integration
 
+- Both chart families share rolling date-range filters with an optional host clock and the existing inclusive cutoff behavior.
 - Shared chart palettes preserve existing chart colors and isolate each dashboard’s color array; chart rendering remains host-owned.
 - **React and Next.js:** use the React entry for rendering, document state, filters and saved-query providers. Keep session and server credentials in the host's backend.
 - **Plain HTML or another framework:** use the self-contained browser runtime with `mountDashboard`. Update the instance when host state changes and destroy it when its container is removed.

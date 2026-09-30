@@ -6,6 +6,7 @@
 
 ## Elegir una integración
 
+- Ambas familias de gráficos comparten filtros de fecha relativos con reloj opcional del host y el límite inclusivo existente.
 - Las paletas de gráficos compartidas conservan los colores existentes y aíslan el arreglo de cada dashboard; el renderizado de gráficos sigue a cargo del host.
 - **React y Next.js:** use la entrada React para renderizado, estado del documento, filtros y proveedores de consultas guardadas. Mantenga la sesión y las credenciales del servidor en el backend del host.
 - **HTML u otro framework:** use el runtime de navegador autocontenido con `mountDashboard`. Actualice la instancia cuando cambie el estado del host y destrúyala al retirar su contenedor.

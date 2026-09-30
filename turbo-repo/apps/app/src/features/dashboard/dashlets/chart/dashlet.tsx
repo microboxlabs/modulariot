@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useMemo, useCallback, useState } from "react";
+import { filterChartRowsByDateRange as filterRowsByDateRange, type ChartDateRange as DateRange } from "@microboxlabs/miot-dashboard-ui/core";
 import ReactECharts from "echarts-for-react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
@@ -21,7 +22,7 @@ import type { ChartColorRulesConfig } from "./value-color-rules";
 
 export type ChartType = "line" | "bar" | "pie" | "gauge" | "scatter";
 export type XAxisDateFormat = "none" | "day" | "month" | "year";
-export type DateRange = "all" | "7d" | "30d" | "90d" | "180d" | "1y";
+export type { ChartDateRange as DateRange } from "@microboxlabs/miot-dashboard-ui/core";
 
 export interface SeriesConfig {
   columnKey: string;
@@ -113,30 +114,6 @@ const DATE_RANGE_OPTIONS: { value: DateRange; labelKey: string }[] = [
   { value: "180d", labelKey: "dashboard.dashlets.chart.range180d" },
   { value: "1y", labelKey: "dashboard.dashlets.chart.range1y" },
 ];
-
-const DATE_RANGE_DAYS: Partial<Record<DateRange, number>> = {
-  "7d": 7,
-  "30d": 30,
-  "90d": 90,
-  "180d": 180,
-  "1y": 365,
-};
-
-function filterRowsByDateRange(
-  rows: Record<string, string>[],
-  xAxisColumn: string,
-  range: DateRange
-): Record<string, string>[] {
-  const days = DATE_RANGE_DAYS[range];
-  if (!days) return rows;
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  return rows.filter((r) => {
-    const v = r[xAxisColumn];
-    if (!v) return false;
-    const ts = new Date(v).getTime();
-    return !Number.isNaN(ts) && ts >= cutoff;
-  });
-}
 
 // ============================================================================
 // Dark mode detection

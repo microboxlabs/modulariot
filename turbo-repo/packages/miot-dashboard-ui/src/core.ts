@@ -47,3 +47,5 @@ export {
   getChartColors,
   type ChartColorPalette,
 } from "./core/chart-palettes";
+
+export { filterChartRowsByDateRange, type ChartDateRange } from "./core/chart-date-range";

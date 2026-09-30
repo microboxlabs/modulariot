@@ -622,4 +622,6 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-sparkline-stat p { margin:0; font-size:.875rem; font-weight:500; color:var(--miot-card-muted,#6b7280); overflow-wrap:anywhere; }
 .miot-sparkline-stat strong { display:block; margin-top:.25rem; font-size:1.875rem; overflow-wrap:anywhere; }
 .miot-sparkline-stat strong span { margin-inline-start:.25rem; font-size:1.125rem; font-weight:400; }
-:where(.dark,[data-miot-theme="dark"]) .miot-sparkline-stat { --miot-card-background:#1f2937; --miot-card-border:#374151; --miot-card-text:#fff; --miot-card-muted:#9ca3af; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-sparkline-stat { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }
+:where(.dark,[data-miot-theme="dark"]) .miot-sparkline-stat p { color:var(--miot-card-muted,#9ca3af); }

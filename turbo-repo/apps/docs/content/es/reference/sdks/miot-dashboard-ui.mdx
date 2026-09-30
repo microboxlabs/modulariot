@@ -70,6 +70,8 @@ Su README explica cómo preparar los archivos del paquete compilado, configurar 
 
 Los borradores de acciones incompletos siguen siendo editables. Las posiciones de fila inválidas quedan vacías sin promover acciones secundarias; el renderizador valida los destinos resueltos.
 
+El registro portátil de estado resuelve plantillas estáticas o de consultas guardadas y aplica reglas al borde, icono y texto. El host proporciona estados traducidos e iconos decorativos opcionales; no se incluye una dependencia de iconos.
+
 ## Límite de seguridad
 
 El servidor aplica permisos de tenant, scope y documento. Nunca incluya claves de firma, credenciales de base de datos ni claves de cuenta de servicio en la configuración del navegador. El proxy del ejemplo permite únicamente las lecturas configuradas; es un acceso privado para demostración, no SSO de producción.

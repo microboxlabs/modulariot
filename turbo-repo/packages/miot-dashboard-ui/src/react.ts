@@ -97,3 +97,5 @@ export { RowContextMenu, type RowContextMenuProps, type ResolvedContextItem } fr
 export { DataListCard, type DataListCardProps, type DataListCardLayout } from "./react/data-list-card";
 
 export { StatusStat, type StatusStatProps } from "./react/status-stat";
+
+export { createStatusStatRegistry, type StatusStatRegistryOptions } from "./react/status-stat-registry";

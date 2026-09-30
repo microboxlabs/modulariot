@@ -24,6 +24,7 @@ describe("displayRut", () => {
     expect(displayRut("1234567K")).toBe("1.234.567-K");
     expect(displayRut("123-4")).toBe("123-4");
     expect(displayRut("5")).toBe("5");
+    expect(displayRut("ABCDEFG")).toBe("ABCDEF-G");
   });
 });
 

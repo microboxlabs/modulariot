@@ -21,6 +21,7 @@ export function displayRut(rut: string): string {
 
 /** "11111111" → "11.111.111". */
 function groupThousands(digits: string): string {
+  if (!/^\d+$/.test(digits)) return digits;
   const groups: string[] = [];
   for (let end = digits.length; end > 0; end -= 3) {
     groups.unshift(digits.slice(Math.max(0, end - 3), end));

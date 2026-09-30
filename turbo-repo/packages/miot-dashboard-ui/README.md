@@ -1308,3 +1308,17 @@ or `compareMode: "field"` with `previousValue` (default) or `target`. Invalid
 comparison definitions are skipped. Loading/errors clear stale amounts; legacy
 direct queries show the migration label. Default number formatting uses the
 host locale and places the unit first; supply formatters for another convention.
+
+### Sparkline statistic
+
+`SparklineStat` from `./react` accepts resolved `title`, formatted string `value`,
+optional `unit` and `values: readonly number[]`. The mini SVG line and area use
+scoped styles with no chart dependency. Non-finite samples leave gaps; fewer
+than two adjacent finite samples produce no line. Extreme finite values are
+scaled before calculating coordinates to avoid overflow.
+
+Optional `trendLabel` is a host-translated summary that exposes the SVG as an
+accessible image. Without it the trend is decorative. `valueClassName` and
+`valueStyle` are trusted host styling slots; `--miot-sparkline-color` controls
+the line and fill. Next.js retains query resolution, saved sample defaults,
+number formatting and threshold evaluation while using this renderer.

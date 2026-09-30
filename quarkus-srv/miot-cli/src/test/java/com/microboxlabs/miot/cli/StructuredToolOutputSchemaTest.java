@@ -80,6 +80,8 @@ class StructuredToolOutputSchemaTest {
             Map.entry(BigDecimal.class, () -> BigDecimal.ONE),
             Map.entry(JsonNode.class, () -> MAPPER.createObjectNode().put("k", "v")));
 
+    private static final int MAX_DEPTH = 8;
+
     /** NULLS: containers and records filled, scalars null. EMPTY: every reference null. FILLED: no nulls. */
     enum Mode { NULLS, EMPTY, FILLED }
 
@@ -150,7 +152,9 @@ class StructuredToolOutputSchemaTest {
             return Array.get(Array.newInstance(raw, 1), 0);
         }
         boolean scalar = raw.isEnum() || SCALARS.containsKey(raw);
-        if ((mode == Mode.EMPTY && !top) || (mode == Mode.NULLS && scalar) || depth > 4) {
+        // The cap only stops self-referencing types; real results nest up to seven levels
+        // (symptoms_get: detail > versions > version > spec > levels > level > response).
+        if ((mode == Mode.EMPTY && !top) || (mode == Mode.NULLS && scalar) || depth > MAX_DEPTH) {
             return null;
         }
         if (raw.isEnum()) {

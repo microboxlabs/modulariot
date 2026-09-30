@@ -641,7 +641,8 @@ or `null`. These functions do not produce CSS, validate color tokens, execute
 templates or fetch data. Renderers remain responsible for safe color styling.
 
 `sortColorRules` orders numeric thresholds using existing dashboard precedence
-without mutating the input. `evaluateColorRulesGeneric` chooses the first matched
+without mutating the input. Thresholds are sorted within their existing slots;
+non-threshold rules retain their positions. `evaluateColorRulesGeneric` chooses the first matched
 color independently for each requested target. Field-based counterparts
 `sortColorRulesWithFields` and `evaluateColorRulesWithFields` resolve comparison
 values from supplied fields (`previousValue` by default; missing fields use zero).

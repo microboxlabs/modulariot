@@ -63,3 +63,65 @@ it("sorts less-than thresholds ascending and leaves an empty target set empty", 
   });
   expect(evaluateColorRulesGeneric(rules, "5", [])).toEqual({});
 });
+
+it("sorts threshold slots across intervening equality rules", () => {
+  const rules: ComparableRule[] = [
+    {
+      operator: "greater_than",
+      value: "10",
+      color: "yellow",
+      targets: ["text"],
+    },
+    { operator: "equals", value: "999", color: "blue", targets: ["text"] },
+    { operator: "greater_than", value: "35", color: "red", targets: ["text"] },
+  ];
+  expect(sortColorRules(rules).map((r) => r.value)).toEqual([
+    "35",
+    "999",
+    "10",
+  ]);
+  expect(evaluateColorRulesGeneric(rules, "50", ["text"])).toEqual({
+    text: "red",
+  });
+  const fields = rules.map((r, i) => ({
+    ...r,
+    compareMode: "field" as const,
+    compareField: String(i),
+  }));
+  expect(
+    evaluateColorRulesWithFields(fields, "50", { "0": 10, "1": 999, "2": 35 }, [
+      "text",
+    ]),
+  ).toEqual({ text: "red" });
+  expect(rules.map((r) => r.value)).toEqual(["10", "999", "35"]);
+});
+it("preserves empty first-match tokens and supports own-property target names", () => {
+  const rules: ComparableRule[] = [
+    {
+      operator: "equals",
+      value: "1",
+      color: "",
+      targets: ["text", "__proto__", "constructor"],
+    },
+    {
+      operator: "equals",
+      value: "1",
+      color: "red",
+      targets: ["text", "__proto__", "constructor"],
+    },
+  ];
+  for (const result of [
+    evaluateColorRulesGeneric(rules, "1", ["text", "__proto__", "constructor"]),
+    evaluateColorRulesWithFields(rules, "1", {}, [
+      "text",
+      "__proto__",
+      "constructor",
+    ]),
+  ]) {
+    expect(Object.keys(result)).toEqual(["text", "__proto__", "constructor"]);
+    expect(result.text).toBe("");
+    expect(result.__proto__).toBe("");
+    expect(result.constructor).toBe("");
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
+  }
+});

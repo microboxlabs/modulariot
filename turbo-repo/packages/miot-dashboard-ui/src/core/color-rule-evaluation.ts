@@ -47,44 +47,39 @@ export interface ComparableRule extends EvaluatableRule {
 // Sorting helpers
 // ============================================================================
 
-/** Sort rules so most specific matches win */
-export function sortColorRules<T extends SortableRule>(rules: T[]): T[] {
-  return [...rules].sort((a, b) => {
-    const aVal = Number(a.value) || 0;
-    const bVal = Number(b.value) || 0;
-    const aIsGreater = isGreaterOperator(a.operator);
-    const bIsGreater = isGreaterOperator(b.operator);
-    const aIsLess = isLessOperator(a.operator);
-    const bIsLess = isLessOperator(b.operator);
-    if (aIsGreater && bIsGreater) return bVal - aVal;
-    if (aIsLess && bIsLess) return aVal - bVal;
-    // Mixed types: greater-than before less-than to avoid non-transitive comparator
-    // issues where an intervening less-than rule blocks the sort from comparing two
-    // greater-than rules against each other (e.g. [>10, <=10, >35] stays unsorted).
-    if (aIsGreater && bIsLess) return -1;
-    if (aIsLess && bIsGreater) return 1;
-    return 0;
+/** Sort only threshold slots; non-threshold rules keep their original positions. */
+function sortThresholds<T extends SortableRule>(
+  rules: T[],
+  valueOf: (rule: T) => number,
+): T[] {
+  const isThreshold = (rule: T) =>
+    isGreaterOperator(rule.operator) || isLessOperator(rule.operator);
+  const thresholds = rules.filter(isThreshold).sort((a, b) => {
+    const aGreater = isGreaterOperator(a.operator);
+    const bGreater = isGreaterOperator(b.operator);
+    if (aGreater !== bGreater) return aGreater ? -1 : 1;
+    return aGreater ? valueOf(b) - valueOf(a) : valueOf(a) - valueOf(b);
   });
+  let index = 0;
+  return rules.map((rule) =>
+    isThreshold(rule) ? (thresholds[index++] ?? rule) : rule,
+  );
 }
 
-/** Sort rules with field comparison support */
+/** Prefer strongest numeric thresholds without moving non-threshold slots. */
+export function sortColorRules<T extends SortableRule>(rules: T[]): T[] {
+  return sortThresholds(rules, (rule) => Number(rule.value) || 0);
+}
+
+/** Apply the same ordering using resolved comparison fields. */
 export function sortColorRulesWithFields<T extends ComparableRule>(
   rules: T[],
   fieldValues: Record<string, number>,
 ): T[] {
-  return [...rules].sort((a, b) => {
-    const aVal = Number(getCompareValue(a, fieldValues)) || 0;
-    const bVal = Number(getCompareValue(b, fieldValues)) || 0;
-    const aIsGreater = isGreaterOperator(a.operator);
-    const bIsGreater = isGreaterOperator(b.operator);
-    const aIsLess = isLessOperator(a.operator);
-    const bIsLess = isLessOperator(b.operator);
-    if (aIsGreater && bIsGreater) return bVal - aVal;
-    if (aIsLess && bIsLess) return aVal - bVal;
-    if (aIsGreater && bIsLess) return -1;
-    if (aIsLess && bIsGreater) return 1;
-    return 0;
-  });
+  return sortThresholds(
+    rules,
+    (rule) => Number(getCompareValue(rule, fieldValues)) || 0,
+  );
 }
 
 /** Get comparison value based on rule's compare mode */
@@ -131,8 +126,13 @@ export function evaluateColorRulesGeneric<
     if (!matches) continue;
 
     for (const target of targetKeys) {
-      if (rule.targets.includes(target) && !result[target]) {
-        result[target] = rule.color;
+      if (rule.targets.includes(target) && !Object.hasOwn(result, target)) {
+        Object.defineProperty(result, target, {
+          value: rule.color,
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        });
         foundCount++;
       }
     }
@@ -173,8 +173,13 @@ export function evaluateColorRulesWithFields<
     if (!matches) continue;
 
     for (const target of targetKeys) {
-      if (rule.targets.includes(target) && !result[target]) {
-        result[target] = rule.color;
+      if (rule.targets.includes(target) && !Object.hasOwn(result, target)) {
+        Object.defineProperty(result, target, {
+          value: rule.color,
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        });
         foundCount++;
       }
     }

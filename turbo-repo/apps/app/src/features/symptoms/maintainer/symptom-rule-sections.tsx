@@ -14,6 +14,7 @@ import type {
   SymptomSpec,
 } from "./maintainer-api";
 import LevelNotices from "./level-notices";
+import LevelSteps from "./level-steps";
 import RuleDescription, { RuleDescriptionToggle } from "./rule-description";
 import { ICU_LEVELS } from "./symptom-labels";
 
@@ -234,6 +235,15 @@ function LevelRow({
             onChange={(when) => set({ when })}
           />
           <Problems items={problems} />
+          {response.operator && (
+            <LevelSteps
+              steps={response.steps ?? []}
+              slaMinutes={response.slaMinutes}
+              readOnly={readOnly}
+              d={d}
+              onChange={(steps) => setResponse({ steps })}
+            />
+          )}
           <LevelNotices
             notices={response.notices ?? []}
             connections={connections}

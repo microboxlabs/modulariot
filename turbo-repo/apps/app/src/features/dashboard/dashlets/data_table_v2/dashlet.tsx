@@ -372,6 +372,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     showColumnDividers = defaultConfig.showColumnDividers,
     dataMode = defaultConfig.dataMode,
     columns = defaultColumns,
+    sort = defaultSort,
     rows: staticRows = defaultRows,
     pgrestFunctionName = "",
     pgrestParams = [],

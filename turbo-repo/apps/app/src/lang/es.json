@@ -2591,7 +2591,21 @@
         "configuredConnection": "Conexión configurada",
         "describe": "Qué hace esta regla",
         "describing": "Escribiendo la descripción…",
-        "describeFailed": "La descripción no está disponible ahora."
+        "describeFailed": "La descripción no está disponible ahora.",
+        "steps": "Pasos del operador",
+        "stepsBudget": "{used} de {sla} min del SLA",
+        "addStep": "Agregar paso",
+        "noSteps": "Sin pasos. El operador decide a quién llamar.",
+        "stepRole": "A quién",
+        "stepRolePlaceholder": "Rol, p. ej. Conductor",
+        "stepChannel": "Por dónde",
+        "stepBudget": "Minutos para este paso",
+        "stepCall": "Llamada",
+        "moveUp": "Subir",
+        "moveDown": "Bajar",
+        "removeStep": "Quitar paso",
+        "stepScript": "Qué decir",
+        "stepScriptPlaceholder": "Qué decir. Puedes usar {vars}"
       }
     },
     "integrationJobs": {

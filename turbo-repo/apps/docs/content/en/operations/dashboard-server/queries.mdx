@@ -203,3 +203,13 @@ The official image also ships `/app/examples/modulariot-operations.mjs`, so the 
 ## Optional filters during migration
 
 A filter binding can opt into `omitWhenEmpty: true` to omit missing or empty-string values. Missing values first use `defaultValue`, if supplied; an explicit empty string does not use the default. Null, false, zero, empty arrays, whitespace and operator strings are preserved. Bindings without this option keep their existing behavior. The host operation schema must permit omission and must still enforce tenant isolation. This supports legacy RPCs whose optional arguments must be absent, rather than sent as null or empty text. Review defaults explicitly; no template expressions are evaluated. Upgrade contract and server together to a release containing this option; published 0.3.0 does not implement it.
+
+## Authoring metadata
+
+Embedded hosts can supply `queryCatalog` to `createDashboardHandler` or `serve`.
+The optional dashboard `query-catalog` GET route checks editing permission before
+asking that provider for active, authorized connections and operations. Responses
+contain only IDs, labels and optional result column names; they exclude execution
+schemas and credentials and are never cached. Missing providers return 404.
+The host bounds discovery work and honors cancellation; query execution still
+reauthorizes independently. See the package README for limits and provider types.

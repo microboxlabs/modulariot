@@ -37,6 +37,7 @@ export interface ServeOptions {
   credentials?: CredentialsVault;
   audit?: AuditSink;
   queries?: NonNullable<DashboardHandlerOptions["queries"]>;
+  queryCatalog?: DashboardHandlerOptions["queryCatalog"];
   policy?: NonNullable<DashboardHandlerOptions["policy"]>;
   basePath?: string;
   cors?: CorsOptions;
@@ -113,6 +114,7 @@ export function createRequestHandler(options: ServeOptions) {
     scopes: options.scopes,
     store: options.store,
     ...(options.queries ? { queries: options.queries } : {}),
+    ...(options.queryCatalog ? { queryCatalog: options.queryCatalog } : {}),
     ...(options.policy ? { policy: options.policy } : {}),
     ...(options.maxBodyBytes === undefined
       ? {}

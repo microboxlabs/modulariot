@@ -544,3 +544,17 @@ supplying existing planner results. Outside a provider, or for an absent name,
 it returns a stable empty result scoped to that hook instance. Sibling providers
 remain independent even when they use identical query names. Query rows retain
 the planner-compatible representation documented above.
+
+## Circular statistic
+
+`CircularStat` from `./react` renders a circular progress card. Import `./styles.css`
+and provide `title`, numeric `value` and `max`, host-formatted `valueLabel`, `unit`,
+and a complete localized `totalLabel` (for example, `of 100 GB`). Optional
+`ringColor` accepts hexadecimal RGB/RGBA without `#`; invalid colors use blue.
+The renderer clamps progress to 0–100 and treats nonfinite numeric inputs as zero,
+while preserving display labels as literal text. The named progressbar exposes
+both the normalized percentage and supplied labels to assistive technology.
+The fixed 100px ring retains existing widget geometry; use a sufficiently tall
+host cell. Motion respects `prefers-reduced-motion`. Card and track colors support
+the existing theme variables and dark ancestor convention. Data fetching,
+Handlebars evaluation and threshold rules remain in the caller.

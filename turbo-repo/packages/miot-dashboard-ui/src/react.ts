@@ -52,3 +52,5 @@ export { useDashboardDocument } from "./react/use-dashboard-document";
 export { PercentageValue, type PercentageValueProps } from "./react/percentage-value";
 
 export { SavedQueryProvider, usePlannerData } from "./react/saved-query-provider";
+
+export { CircularStat, type CircularStatProps } from "./react/circular-stat";

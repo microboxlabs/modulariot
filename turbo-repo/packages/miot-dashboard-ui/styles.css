@@ -581,4 +581,11 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-expandable-stat__details { flex-shrink:1; overflow:auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; margin:0; padding:.75rem; border-top:1px solid var(--miot-card-border,#e5e7eb); background:var(--miot-expand-detail,#f9fafb); }
 .miot-expandable-stat dt { font-size:.75rem; color:var(--miot-card-muted,#6b7280); overflow-wrap:anywhere; }
 .miot-expandable-stat dd { margin:0; font-size:.875rem; font-weight:500; overflow-wrap:anywhere; }
-:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat { --miot-card-background:#1f2937; --miot-card-border:#374151; --miot-card-text:#fff; --miot-card-muted:#9ca3af; --miot-expand-detail:#11182780; --miot-expand-control:#60a5fa; --miot-expand-hover:#374151; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat { border:1px solid var(--miot-card-border,#374151); color:var(--miot-card-text,#fff); background:var(--miot-expand-background,var(--miot-card-background,#1f2937)); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat__main p { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat__main strong span { color:var(--miot-card-muted,#9ca3af); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat button { border-top:1px solid var(--miot-card-border,#374151); color:var(--miot-expand-control,#60a5fa); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat button:hover { background:var(--miot-expand-hover,#374151); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat__details { border-top:1px solid var(--miot-card-border,#374151); background:var(--miot-expand-detail,#11182780); }
+:where(.dark,[data-miot-theme="dark"]) .miot-expandable-stat dt { color:var(--miot-card-muted,#9ca3af); }

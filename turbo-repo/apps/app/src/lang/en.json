@@ -2560,7 +2560,14 @@
         "duplicateTitle": "Duplicate version {version}",
         "restoreTitle": "Restore version {version}",
         "duplicateHint": "Creates a new symptom, off, with these rules as its draft.",
-        "restoreHint": "Publishes these rules as a new version. History is not rewritten."
+        "restoreHint": "Publishes these rules as a new version. History is not rewritten.",
+        "fieldMeasure": "number · the measure's result",
+        "fieldHeld": "number · seconds it has held",
+        "fieldCaseCondition": "number · seconds the condition has been on",
+        "fieldCaseNormal": "number · seconds since it went back to normal",
+        "fieldCaseAge": "number · hours since it opened",
+        "fieldCaseLevel": "number · current ICU level",
+        "fieldCaseClosed": "yes/no · an operator closed it"
       }
     },
     "integrationJobs": {

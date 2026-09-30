@@ -29,10 +29,21 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   const [saveError, setSaveError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedFor = useRef<string | null>(null);
+  // Checks run one after another, and only the latest one's results are kept.
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const latest = useRef(0);
 
   const base = detail?.draft?.spec ?? detail?.current?.spec ?? null;
 
-  // Take the server's spec once per symptom, then keep local edits.
+  // A new symptom starts clean: nothing from the previous one's checks.
+  useEffect(() => {
+    loadedFor.current = null;
+    setSpec(null);
+    setReport(null);
+    setPreview(null);
+  }, [id]);
+
+  // Take the server's spec once per load; later edits stay local.
   useEffect(() => {
     if (base && loadedFor.current !== id) {
       loadedFor.current = id;
@@ -41,26 +52,32 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   }, [base, id]);
 
   const check = useCallback(
-    async (next: SymptomSpec, save: boolean) => {
-      try {
-        if (save) {
-          setSaving(true);
-          await saveDraft(id, next);
-          setSaveError(null);
-          void mutate();
-          void refreshSymptoms();
+    (next: SymptomSpec, save: boolean) => {
+      const ticket = ++latest.current;
+      queue.current = queue.current.then(async () => {
+        try {
+          if (save) {
+            setSaving(true);
+            await saveDraft(id, next);
+            setSaveError(null);
+            void mutate();
+            void refreshSymptoms();
+          }
+          if (ticket !== latest.current) return;
+          const [r, p] = await Promise.all([
+            validateSpec(id, next),
+            previewSpec(id, next),
+          ]);
+          if (ticket !== latest.current) return;
+          setReport(r);
+          setPreview(p);
+        } catch (e) {
+          setSaveError(e instanceof Error ? e.message : String(e));
+        } finally {
+          if (ticket === latest.current) setSaving(false);
         }
-        const [r, p] = await Promise.all([
-          validateSpec(id, next),
-          previewSpec(id, next),
-        ]);
-        setReport(r);
-        setPreview(p);
-      } catch (e) {
-        setSaveError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setSaving(false);
-      }
+      });
+      return queue.current;
     },
     [id, mutate]
   );
@@ -86,13 +103,21 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     []
   );
 
+  /** Reloads the editor from the server, after a publish, restore or discard changed it there. */
+  const resync = useCallback(async () => {
+    if (timer.current) clearTimeout(timer.current);
+    const fresh = await mutate();
+    const next = fresh?.draft?.spec ?? fresh?.current?.spec ?? null;
+    loadedFor.current = id;
+    setSpec(next);
+    setReport(null);
+  }, [id, mutate]);
+
   const discard = useCallback(async () => {
     await discardDraft(id);
-    loadedFor.current = null;
-    setReport(null);
-    await mutate();
     await refreshSymptoms();
-  }, [id, mutate]);
+    await resync();
+  }, [id, resync]);
 
   return {
     detail,
@@ -104,6 +129,6 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     saving,
     saveError,
     discard,
-    reload: mutate,
+    resync,
   };
 }

@@ -18,24 +18,24 @@ const cardClass =
 const inputClass =
   "w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
 
-export const LEVEL_FIELDS: CelField[] = [
-  { path: "medida", detail: "número · resultado de la medida" },
-  { path: "sostenido_s", detail: "número · segundos que se ha mantenido" },
-];
+/** Variables a level rule adds to the source: the measure and how long it has held. */
+export function levelFields(d: I18nRecord): CelField[] {
+  return [
+    { path: "medida", detail: tr("fieldMeasure", d) },
+    { path: "sostenido_s", detail: tr("fieldHeld", d) },
+  ];
+}
 
-export const CASE_FIELDS: CelField[] = [
-  {
-    path: "caso.condicion_s",
-    detail: "número · segundos con la condición activa",
-  },
-  {
-    path: "caso.normal_s",
-    detail: "número · segundos desde que volvió a lo normal",
-  },
-  { path: "caso.edad_h", detail: "número · horas desde que se abrió" },
-  { path: "caso.nivel", detail: "número · nivel ICU actual" },
-  { path: "caso.cerrado_por_operador", detail: "sí/no" },
-];
+/** The case a lifecycle rule reads. */
+export function caseFields(d: I18nRecord): CelField[] {
+  return [
+    { path: "caso.condicion_s", detail: tr("fieldCaseCondition", d) },
+    { path: "caso.normal_s", detail: tr("fieldCaseNormal", d) },
+    { path: "caso.edad_h", detail: tr("fieldCaseAge", d) },
+    { path: "caso.nivel", detail: tr("fieldCaseLevel", d) },
+    { path: "caso.cerrado_por_operador", detail: tr("fieldCaseClosed", d) },
+  ];
+}
 
 const EMPTY_RESPONSE: LevelResponse = {
   operator: false,
@@ -227,7 +227,8 @@ export default function SymptomRuleSections({
   const measure = problemsFor(findings, "measure");
   const open = problemsFor(findings, "lifecycle.open");
   const close = problemsFor(findings, "lifecycle.close");
-  const levelFields = [...sourceFields, ...LEVEL_FIELDS];
+  const withLevel = [...sourceFields, ...levelFields(d)];
+  const lifecycleFields = caseFields(d);
   const lifecycle = spec.lifecycle ?? { open: "", close: "" };
   const measureValue = spec.measure ?? {
     expression: "",
@@ -277,7 +278,7 @@ export default function SymptomRuleSections({
               spec={spec}
               icu={meta.icu}
               condition={meta.condition}
-              fields={levelFields}
+              fields={withLevel}
               findings={findings}
               readOnly={readOnly}
               d={d}
@@ -297,7 +298,7 @@ export default function SymptomRuleSections({
           readOnly={readOnly}
           ariaLabel={tr("opens", d)}
           value={lifecycle.open ?? ""}
-          fields={CASE_FIELDS}
+          fields={lifecycleFields}
           problems={open}
           onChange={(value) =>
             onChange({ ...spec, lifecycle: { ...lifecycle, open: value } })
@@ -312,7 +313,7 @@ export default function SymptomRuleSections({
           readOnly={readOnly}
           ariaLabel={tr("closes", d)}
           value={lifecycle.close ?? ""}
-          fields={CASE_FIELDS}
+          fields={lifecycleFields}
           problems={close}
           onChange={(value) =>
             onChange({ ...spec, lifecycle: { ...lifecycle, close: value } })

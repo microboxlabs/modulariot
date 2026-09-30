@@ -14,7 +14,7 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import { forceLinting, linter, type Diagnostic } from "@codemirror/lint";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import {
   EditorView,
   keymap,
@@ -148,6 +148,7 @@ export default function CelEditor({
   ariaLabel?: string;
 }>) {
   const host = useRef<HTMLDivElement>(null);
+  const editable = useRef(new Compartment());
   const view = useRef<EditorView | null>(null);
   // Extensions read these through refs, so the editor is built once.
   const latest = useRef({ onChange, fields, problems });
@@ -186,7 +187,7 @@ export default function CelEditor({
       }),
       lint,
       EditorView.lineWrapping,
-      EditorView.editable.of(!readOnly),
+      editable.current.of(EditorView.editable.of(!readOnly)),
       EditorView.contentAttributes.of({ "aria-label": ariaLabel ?? "CEL" }),
       EditorView.domEventHandlers({
         focus: (_event, v) => {
@@ -227,6 +228,12 @@ export default function CelEditor({
     // Built once; value and problems are pushed in by the effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: editable.current.reconfigure(EditorView.editable.of(!readOnly)),
+    });
+  }, [readOnly]);
 
   useEffect(() => {
     const v = view.current;

@@ -46,6 +46,7 @@ export default function PublishDialog({
 
   useEffect(() => {
     if (!open) return;
+    setPlan(null);
     setError(null);
     setReason("");
     publishPlan(id)

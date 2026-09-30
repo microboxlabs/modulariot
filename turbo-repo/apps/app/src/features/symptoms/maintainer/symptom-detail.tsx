@@ -72,7 +72,7 @@ export default function SymptomDetail({
     saving,
     saveError,
     discard,
-    reload,
+    resync,
   } = useSymptomDraft(id, canWrite);
   const { data: source } = useDataSource(
     spec?.source ?? detail?.definition.sourceKey ?? null
@@ -97,8 +97,8 @@ export default function SymptomDetail({
     setActionError(null);
     try {
       await work();
-      await reload();
       await refreshSymptoms();
+      await resync();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
     }
@@ -268,8 +268,8 @@ export default function SymptomDetail({
         onClose={() => setPublishing(false)}
         onPublished={() => {
           setPublishing(false);
-          void reload();
           void refreshSymptoms();
+          void resync();
         }}
       />
 

@@ -11,14 +11,14 @@ import java.util.List;
 import java.util.UUID;
 
 /** The speeding symptom as a test fixture. */
-final class Specs {
+public final class Specs {
 
-    static final String ACTIVATION = "signal.trip.active && signal.vehicle.weight_category == \"HEAVY\"";
+    public static final String ACTIVATION = "signal.trip.active && signal.vehicle.weight_category == \"HEAVY\"";
 
     private Specs() {
     }
 
-    static DataSource gpsSignal() {
+    public static DataSource gpsSignal() {
         return new DataSource(UUID.randomUUID(), null, "gps_signal", "Señal GPS", SourceKind.SIGNAL, "signal",
                 "Cada pulso", List.of(
                         new SourceField("signal.trip.active", "En viaje", "bool", null, FieldOrigin.TRIP, true),
@@ -32,7 +32,7 @@ final class Specs {
                 List.of());
     }
 
-    static SymptomSpec speeding() {
+    public static SymptomSpec speeding() {
         return new SymptomSpec("gps_signal", ACTIVATION,
                 new SymptomSpec.Measure("signal.gps.speed_kmh - signal.road.maxspeed_osm", "Exceso", "km/h"),
                 levels("medida > 0 && medida < 5", "medida >= 5 && medida < 11", "medida >= 11 && medida < 21",
@@ -40,7 +40,7 @@ final class Specs {
                 new SymptomSpec.Lifecycle("caso.condicion_s >= 0", "caso.normal_s >= 120"), null);
     }
 
-    static List<Level> levels(String... when) {
+    public static List<Level> levels(String... when) {
         return List.of(
                 new Level(1, true, when[0], response(false, null)),
                 new Level(2, true, when[1], response(false, null)),
@@ -48,15 +48,15 @@ final class Specs {
                 new Level(4, true, when[3], response(true, 2)));
     }
 
-    static Response response(boolean operator, Integer sla) {
+    public static Response response(boolean operator, Integer sla) {
         return new Response(operator, sla, List.of(), List.of(), List.of(), true);
     }
 
-    static SymptomSpec with(SymptomSpec s, String activation) {
+    public static SymptomSpec with(SymptomSpec s, String activation) {
         return new SymptomSpec(s.source(), activation, s.measure(), s.levels(), s.lifecycle(), s.recurrence());
     }
 
-    static SymptomSpec withLevels(SymptomSpec s, List<Level> levels) {
+    public static SymptomSpec withLevels(SymptomSpec s, List<Level> levels) {
         return new SymptomSpec(s.source(), s.activation(), s.measure(), levels, s.lifecycle(), s.recurrence());
     }
 }

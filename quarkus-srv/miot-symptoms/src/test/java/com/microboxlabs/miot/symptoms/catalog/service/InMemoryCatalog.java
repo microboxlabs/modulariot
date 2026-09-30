@@ -16,7 +16,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 /** In-memory catalog and source stores for service tests, with the same rules as the Postgres ones. */
-class InMemoryCatalog implements SymptomCatalogStore, DataSourceStore {
+public class InMemoryCatalog implements SymptomCatalogStore, DataSourceStore {
 
     private final Map<UUID, SymptomDefinition> definitions = new LinkedHashMap<>();
     private final Map<UUID, SymptomVersion> versions = new LinkedHashMap<>();

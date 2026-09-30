@@ -42,6 +42,8 @@ The [standalone example](https://github.com/microboxlabs/modulariot/tree/trunk/t
 
 Its README describes preparing the built UI assets, configuring the server and Consumer identity, and mounting private key/access files. The table and summary belong to the example host; the three embedded widgets come from the library.
 
+Incomplete action drafts remain editable. Invalid row slots remain empty instead of promoting secondary navigation; resolved destinations are checked by the renderer.
+
 ## Security boundary
 
 The server enforces tenant, scope and document permissions. Never put signing keys, database credentials or service-account keys in browser configuration. The example proxy allows only its configured read operations; it is a private demo access gate, not production SSO.

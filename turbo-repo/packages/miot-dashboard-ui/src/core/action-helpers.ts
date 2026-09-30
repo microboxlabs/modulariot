@@ -44,7 +44,6 @@ function isValidActionItem(item: unknown): item is ActionItem {
   return (
     typeof obj.name === "string" &&
     typeof obj.link === "string" &&
-    isSafeActionUrl(obj.link) &&
     typeof obj.target === "string" &&
     (ACTION_TARGETS as string[]).includes(obj.target)
   );
@@ -58,8 +57,7 @@ export function normalizeActionsConfig(
   const obj = raw as Record<string, unknown>;
   if (typeof obj.enabled !== "boolean") return fallback;
   if (!Array.isArray(obj.items)) return fallback;
-  if (!obj.items.every(isValidActionItem)) return fallback;
-  return { enabled: obj.enabled, items: obj.items };
+  return { enabled: obj.enabled, items: obj.items.filter(isValidActionItem) };
 }
 
 // ── Row actions ──────────────────────────────────────────────────────────────
@@ -89,7 +87,6 @@ function isValidRowAction(item: unknown): item is RowAction {
   return (
     typeof obj.name === "string" &&
     typeof obj.link === "string" &&
-    isSafeActionUrl(obj.link) &&
     Object.hasOwn(obj, "method") &&
     typeof obj.method === "string" &&
     (ROW_ACTION_METHODS as string[]).includes(obj.method) &&
@@ -100,5 +97,16 @@ function isValidRowAction(item: unknown): item is RowAction {
 
 export function normalizeRowActions(raw: unknown): RowAction[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter(isValidRowAction);
+  // Index zero owns left-click navigation. Invalid entries must never promote
+  // a secondary action into that role. Empty placeholders stay editable.
+  return raw.map((item) =>
+    isValidRowAction(item)
+      ? item
+      : {
+          method: "goto",
+          name: "",
+          link: "",
+          target: "_self",
+        },
+  );
 }

@@ -874,8 +874,12 @@ The `./core` entry exports `ActionItem`, `ActionsConfig`, `RowAction`, target an
 method constants, `normalizeActionsConfig`, `normalizeRowActions`, and editor ID
 round-trip helpers (`toActionItems`/`fromActionItems`,
 `toRowActionItems`/`fromRowActionItems`). Normalizers accept own action fields,
-`_self`/`_blank` targets and the `goto` row method. An invalid action config uses
-the caller's trusted fallback; invalid row actions are omitted.
+`_self`/`_blank` targets and the `goto` row method. Malformed config containers use
+the caller's trusted fallback; malformed table entries are omitted independently.
+Structurally valid draft links (including empty or unsafe text) stay editable.
+Row positions are preserved: malformed rows become empty, non-navigable drafts,
+so a secondary action never replaces the primary left-click slot. Normalization
+does not authorize navigation; renderers must validate resolved links.
 
 `isSafeActionUrl(link)` allows HTTP(S), mailto, tel and relative links. It rejects
 empty and other protocol destinations, including executable schemes obfuscated

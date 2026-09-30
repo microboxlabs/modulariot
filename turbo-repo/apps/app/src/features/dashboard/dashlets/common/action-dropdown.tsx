@@ -1,4 +1,5 @@
 "use client";
+import { isSafeActionUrl } from "./action-helpers";
 
 import { createPortal } from "react-dom";
 import {
@@ -52,25 +53,29 @@ export function ActionDropdown({
               transform: "translateX(-100%)",
             }}
           >
-            {items.map(({ action, href }, idx) => (
-              <a
-                key={`${idx}-${action.name}`}
-                href={href}
-                target={action.target}
-                rel={
-                  action.target === "_blank" ? "noopener noreferrer" : undefined
-                }
-                onClick={close}
-                className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                {action.target === "_blank" ? (
-                  <HiArrowTopRightOnSquare className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
-                ) : (
-                  <HiLink className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
-                )}
-                <span className="truncate">{action.name}</span>
-              </a>
-            ))}
+            {items
+              .filter(({ href }) => isSafeActionUrl(href))
+              .map(({ action, href }, idx) => (
+                <a
+                  key={`${idx}-${action.name}`}
+                  href={href}
+                  target={action.target}
+                  rel={
+                    action.target === "_blank"
+                      ? "noopener noreferrer"
+                      : undefined
+                  }
+                  onClick={close}
+                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700"
+                >
+                  {action.target === "_blank" ? (
+                    <HiArrowTopRightOnSquare className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
+                  ) : (
+                    <HiLink className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
+                  )}
+                  <span className="truncate">{action.name}</span>
+                </a>
+              ))}
           </div>,
           document.body
         )}

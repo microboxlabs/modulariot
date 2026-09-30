@@ -42,7 +42,7 @@ it.each([
 ])("rejects unsupported or obfuscated URL %s", (url) => {
   expect(isSafeActionUrl(url)).toBe(false);
 });
-it("normalizes supported actions and drops unsafe resolved row destinations", () => {
+it("normalizes action structure while preserving drafts and row roles", () => {
   const item: ActionItem = {
     name: "Open",
     link: "/details/{{row.id}}",
@@ -58,7 +58,11 @@ it("normalizes supported actions and drops unsafe resolved row destinations", ()
       { enabled: true, items: [{ ...item, link: "java\nscript:alert(1)" }] },
       fallback,
     ),
-  ).toBe(fallback);
+  ).toEqual({
+    enabled: true,
+    items: [{ ...item, link: "java\nscript:alert(1)" }],
+  });
+  const empty = { method: "goto", name: "", link: "", target: "_self" };
   expect(
     normalizeRowActions([
       row,
@@ -67,15 +71,27 @@ it("normalizes supported actions and drops unsafe resolved row destinations", ()
       { ...row, link: "data:x" },
       null,
     ]),
-  ).toEqual([row]);
+  ).toEqual([row, empty, empty, { ...row, link: "data:x" }, empty]);
   expect(normalizeRowActions(Object.create(row))).toEqual([]);
-  expect(normalizeRowActions([Object.create(row)])).toEqual([]);
+  expect(normalizeRowActions([Object.create(row)])).toEqual([empty]);
   expect(
     normalizeActionsConfig(
       { enabled: true, items: [Object.create(item)] },
       fallback,
     ),
-  ).toBe(fallback);
+  ).toEqual({ enabled: true, items: [] });
+  const draft = { ...item, link: "" };
+  expect(
+    normalizeActionsConfig(
+      { enabled: true, items: [item, draft, null] },
+      fallback,
+    ),
+  ).toEqual({ enabled: true, items: [item, draft] });
+  expect(normalizeRowActions([{ ...row, link: "" }, row])).toEqual([
+    { ...row, link: "" },
+    row,
+  ]);
+  expect(normalizeRowActions([null, row])).toEqual([empty, row]);
 });
 it("round trips editor identifiers without leaking them into persisted actions", () => {
   const items: ActionItem[] = [

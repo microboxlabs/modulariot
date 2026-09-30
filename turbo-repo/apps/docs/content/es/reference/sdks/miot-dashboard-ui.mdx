@@ -126,3 +126,5 @@ El compilador actual de Handlebars requiere `unsafe-eval` en la CSP de scripts. 
 `SavedQueryEditor` de `/react` edita consultas basadas en conexiones mediante un catálogo autorizado por el anfitrión y validación de parámetros del contrato compartido. El modo predeterminado es solo lectura; permisos, descubrimiento y persistencia pertenecen al anfitrión. Consulte el README para el ciclo de vida del borrador y los callbacks.
 
 `useDashboardState().setQueries` valida las consultas guardadas y la unicidad de sus identificadores y nombres, y actualiza el documento controlado mediante sus permisos e historial de deshacer/rehacer. Devuelve false si la actualización no está permitida o es inválida.
+
+`SavedQueryManager` integra selección, creación, edición y eliminación confirmada de consultas controladas. Conecte su callback booleano `onChange` a `useDashboardState().setQueries`; un rechazo del anfitrión conserva el borrador. Los controles de escritura requieren permiso explícito de edición.

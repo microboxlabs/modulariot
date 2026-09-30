@@ -126,3 +126,5 @@ The current Handlebars compiler requires `unsafe-eval` in script CSP. Evaluate t
 `SavedQueryEditor` from `/react` edits connection-backed query definitions using a host-approved connection/operation catalog and shared-contract parameter validation. It defaults to read-only; hosts own permissions, discovery and persistence. See the package README for draft lifetime and callback requirements.
 
 `useDashboardState().setQueries` validates saved-query definitions and unique IDs/names, then updates the controlled document through its permission and undo/redo boundary. It returns false when denied or invalid.
+
+`SavedQueryManager` composes controlled query selection, creation, editing and confirmed removal. Connect its boolean `onChange` to `useDashboardState().setQueries`; host rejection retains the draft. Write controls require explicit editing permission.

@@ -693,3 +693,11 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-saved-query-editor fieldset:disabled{opacity:.65}
 .miot-saved-query-editor :focus-visible{outline:2px solid #2563eb;outline-offset:2px}
 :where(.dark,[data-miot-theme="dark"]) .miot-saved-query-editor{--miot-query-text:#f3f4f6;--miot-query-border:#4b5563;--miot-query-background:#374151}
+
+.miot-query-manager>ul{list-style:none;margin:0 0 1rem;padding:0}
+.miot-query-manager>ul>li{display:flex;gap:.5rem;align-items:center;padding:.25rem 0}
+.miot-query-manager button{font:inherit;padding:.375rem .75rem;border:1px solid var(--miot-manager-border,#d1d5db);border-radius:.375rem;color:inherit;background:transparent;cursor:pointer}
+.miot-query-manager button:disabled{opacity:.5;cursor:default}
+.miot-query-manager button:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+.miot-query-manager section,.miot-query-manager [role="group"]{margin-top:1rem}
+:where(.dark,[data-miot-theme="dark"]) .miot-query-manager{--miot-manager-border:#4b5563;color:#f3f4f6}

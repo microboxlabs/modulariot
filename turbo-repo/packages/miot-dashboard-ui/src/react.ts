@@ -136,3 +136,5 @@ export { DirtySettingsProvider, useDirtySettings, type DirtySettingsContextValue
 export { QueryBindingSelector, type QueryBindingSelectorProps, type QueryBindingOption } from "./react/query-binding-selector";
 
 export { SavedQueryEditor, type SavedQueryEditorProps, type SavedQueryEditorLabels, type QueryConnectionOption, type QueryOperationOption } from "./react/saved-query-editor";
+
+export { SavedQueryManager, type SavedQueryManagerProps } from "./react/saved-query-manager";

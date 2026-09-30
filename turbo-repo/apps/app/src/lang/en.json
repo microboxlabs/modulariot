@@ -2589,7 +2589,8 @@
         "whenOpen": "On open",
         "whenLevelUp": "On level up",
         "whenSlaExpired": "SLA expired",
-        "whenClose": "On close"
+        "whenClose": "On close",
+        "configuredConnection": "Configured connection"
       }
     },
     "integrationJobs": {

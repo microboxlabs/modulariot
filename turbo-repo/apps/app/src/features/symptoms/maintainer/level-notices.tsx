@@ -30,7 +30,7 @@ export const CHANNELS: Channel[] = [
     label: "channelTeams",
     icon: BsMicrosoftTeams,
     color: "bg-indigo-600",
-    providers: ["CUSTOM_HTTP"],
+    providers: ["CUSTOM_HTTP", "N8N"],
   },
   {
     key: "whatsapp",
@@ -207,6 +207,12 @@ export default function LevelNotices({
                   ? tr("pickConnection", d)
                   : tr("noConnections", d)}
               </option>
+              {n.connectionId &&
+                !options.some((c) => c.id === n.connectionId) && (
+                  <option value={n.connectionId}>
+                    {tr("configuredConnection", d)}
+                  </option>
+                )}
               {options.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}

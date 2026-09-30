@@ -75,3 +75,5 @@ export { TableCellValue, renderCell, type TableCellValueProps, type CellColorRul
 export { useCompiledColumns, type TemplateColumn, type CompiledColumnsOptions } from "./react/use-compiled-columns";
 
 export { useColumnFilters, type UseColumnFiltersResult } from "./react/use-column-filters";
+
+export { ColumnFilterToolbar, type ColumnFilterToolbarProps } from "./react/column-filter-toolbar";

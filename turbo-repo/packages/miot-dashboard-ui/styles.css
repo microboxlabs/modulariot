@@ -404,3 +404,7 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 :where(.dark, [data-miot-theme="dark"]) .miot-table-cell__badge[data-color="purple"] { background: #581c874d; color: #c084fc; border-color: #6b21a8; }
 .miot-table-cell__badge[data-color="gray"] { background: #f3f4f6; color: #374151; border-color: #e5e7eb; }
 :where(.dark, [data-miot-theme="dark"]) .miot-table-cell__badge[data-color="gray"] { background: #374151; color: #d1d5db; border-color: #4b5563; }
+
+.miot-column-filter-toolbar { font-size: .75rem; }
+.miot-column-filter-toolbar__chip { border: 1px solid var(--miot-card-border, #d1d5db); overflow-wrap: anywhere; text-align: start; }
+:where(.dark, [data-miot-theme="dark"]) .miot-column-filter-toolbar__chip { border-color: var(--miot-card-border, #4b5563); }

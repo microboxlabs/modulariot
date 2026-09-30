@@ -142,3 +142,9 @@ El guardado reemplaza las asignaciones locales y luego las recarga. Los permisos
 `client.queryCatalog(slug, signal)` carga metadatos validados y autorizados de conexiones y operaciones para el editor de consultas. Conserva la organización y la cancelación, rechaza IDs ambiguos y elimina campos adicionales. Gestione explícitamente catálogos no disponibles o denegados; no los sustituya por endpoints administrativos de credenciales.
 
 `useQueryCatalog` carga el catálogo según permisos, con aislamiento por sesión y recurso, cancelación y reintento explícito. Use `loaded` y `editorKey` para habilitar o reiniciar la edición; un descubrimiento deshabilitado o fallido nunca recurre a metadatos administrativos.
+
+### Consultas guardadas en el espacio de Next.js
+
+Los editores pueden abrir **Consultas guardadas** para cargar el catálogo autorizado de conexiones y operaciones del servidor. Aplicar una definición modifica el borrador del dashboard: use la acción habitual de guardar para persistirlo, o deshacer/rehacer para revisarlo. Cerrar o recargar el editor solicita confirmar el descarte de campos sin aplicar. Los consumidores no cargan el catálogo ni ven controles de edición.
+
+El proxy autenticado de la organización reenvía `query-catalog` al servidor de dashboards. Configure un proveedor de catálogo en ese servidor; un catálogo ausente o denegado mantiene la edición deshabilitada. El catálogo contiene únicamente metadatos públicos, nunca credenciales ni SQL ejecutable.

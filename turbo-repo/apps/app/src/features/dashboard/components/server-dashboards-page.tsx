@@ -18,6 +18,7 @@ import {
   DashboardQuerySession,
   SavedQueryResults,
 } from "../context/saved-query-context";
+import { ServerDashboardQueries } from "./server-dashboard-queries";
 import { DashboardView } from "./dashboard-view";
 import { ServerDashboardPermissions } from "./server-dashboard-permissions";
 
@@ -294,6 +295,13 @@ function ServerDashboardEditor({
             onChange: document.onChange,
           }}
         >
+          <ServerDashboardQueries
+            client={document.client}
+            slug={slug}
+            sessionKey={sessionKey}
+            editable={!document.readOnly && !removing}
+            dictionary={dictionary}
+          />
           <DashboardView />
         </DashboardProvider>
       </DashboardQuerySession>

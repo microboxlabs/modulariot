@@ -81,3 +81,5 @@ export { ColumnFilterToolbar, type ColumnFilterToolbarProps } from "./react/colu
 export { ColumnFilterInput, type ColumnFilterInputProps, type ColumnFilterInputLabels } from "./react/column-filter-input";
 
 export { ColumnFilterPopover, type ColumnFilterPopoverProps } from "./react/column-filter-popover";
+
+export { ActionDropdown, type ActionDropdownProps, type ResolvedAction } from "./react/action-dropdown";

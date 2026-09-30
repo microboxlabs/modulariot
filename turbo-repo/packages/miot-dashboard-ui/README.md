@@ -888,3 +888,17 @@ again immediately before displaying a link or navigating. This function checks
 protocol safety, not destination authorization or hostname syntax. Hosts can
 apply stricter origin policy and must use `noopener noreferrer` for new tabs.
 The helpers do not navigate, open windows or call a server.
+
+### Resolved action dropdown
+
+`ActionDropdown` from `./react` accepts `items: { action: ActionItem, href: string }[]`,
+`ariaLabel` and optional `theme`. Import `./styles.css`. The host resolves links;
+the component rechecks their protocols and targets before rendering. Unsafe
+items are omitted and an empty list has no trigger. New-tab links use
+`noopener noreferrer`; labels render literally.
+
+The portal inherits the nearest host light/dark theme unless overridden. Opening
+focuses the first link, Escape restores trigger focus, and outside focus/pointer
+or scroll/resize dismisses the panel. Native links retain normal browser keyboard
+navigation; this is a nonmodal dialog, not an ARIA menu with custom arrow-key
+navigation. Trigger/link clicks do not invoke an enclosing row click handler.

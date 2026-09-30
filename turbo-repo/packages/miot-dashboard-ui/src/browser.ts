@@ -3,3 +3,5 @@ export { mountDashboard, DashboardMountError, type DashboardMount, type Dashboar
 export { defineDashboardElement, DashboardElementRegistrationError, type DashboardElement, type DashboardElementConstructor } from "./web-component";
 
 export { createTextCardRegistry, type TextCardRegistryOptions } from "./embed";
+
+export { createPercentageValueRegistry, type PercentageValueRegistryOptions } from "./embed";

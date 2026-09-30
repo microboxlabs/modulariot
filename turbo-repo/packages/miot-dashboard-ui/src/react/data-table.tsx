@@ -69,14 +69,10 @@ function stickyOffsets(
     index++
   ) {
     result.left[index] = offset;
-    offset +=
-      (cells[index] as HTMLElement | undefined)?.getBoundingClientRect()
-        .width ?? 0;
+    offset += (cells[index] as HTMLElement | undefined)?.offsetWidth ?? 0;
   }
   offset = hasActions
-    ? ((
-        cells[columns.length] as HTMLElement | undefined
-      )?.getBoundingClientRect().width ?? 0)
+    ? ((cells[columns.length] as HTMLElement | undefined)?.offsetWidth ?? 0)
     : 0;
   for (
     let index = columns.length - 1;
@@ -84,9 +80,7 @@ function stickyOffsets(
     index--
   ) {
     result.right[index] = offset;
-    offset +=
-      (cells[index] as HTMLElement | undefined)?.getBoundingClientRect()
-        .width ?? 0;
+    offset += (cells[index] as HTMLElement | undefined)?.offsetWidth ?? 0;
   }
   return result;
 }

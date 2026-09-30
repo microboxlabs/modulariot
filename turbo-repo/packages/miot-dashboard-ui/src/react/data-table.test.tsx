@@ -42,11 +42,16 @@ it("renders literal cells, decorators and host headers/actions over provided row
   expect(screen.getByRole("link").getAttribute("href")).toBe("#one");
   expect(screen.getByRole("progressbar").getAttribute("value")).toBe("25");
 });
-it("measures left and right sticky groups including action width, then updates after columns change", () => {
+it("measures unscaled sticky groups including action width, then updates after columns change", () => {
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(
+    function (this: HTMLElement) {
+      return this.textContent === "Actions" ? 40 : 100;
+    },
+  );
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
     function (this: HTMLElement) {
       return {
-        width: this.textContent === "Actions" ? 40 : 100,
+        width: this.textContent === "Actions" ? 20 : 50,
         height: 30,
         top: 0,
         left: 0,

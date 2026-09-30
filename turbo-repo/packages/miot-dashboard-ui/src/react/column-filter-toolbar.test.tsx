@@ -43,6 +43,9 @@ it("renders literal translated summaries and dispatches removal without submitti
   fireEvent.click(screen.getByRole("button", { name: "Clear all" }));
   expect(options.onClearAll).toHaveBeenCalledOnce();
   expect(submit).not.toHaveBeenCalled();
+  for (const button of screen.getAllByRole("button")) {
+    expect(button.matches(".no-drag")).toBe(true);
+  }
 });
 it("uses fallback column labels, honors disabled state and removes empty summaries", () => {
   const options = props();

@@ -46,7 +46,7 @@ export function ColumnFilterToolbar({
           <button
             key={filter.columnKey}
             type="button"
-            className="miot-row-controls__pill miot-column-filter-toolbar__chip"
+            className="no-drag miot-row-controls__pill miot-column-filter-toolbar__chip"
             aria-label={removeLabel(text)}
             disabled={disabled}
             onClick={() => onRemove(filter.columnKey)}
@@ -57,7 +57,7 @@ export function ColumnFilterToolbar({
       })}
       <button
         type="button"
-        className="miot-row-controls__pill"
+        className="no-drag miot-row-controls__pill"
         disabled={disabled}
         onClick={onClearAll}
       >

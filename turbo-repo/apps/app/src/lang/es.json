@@ -3775,7 +3775,19 @@
       "conflict": "Cambió el dashboard o la organización activa. Tus cambios se conservan. Recarga explícitamente antes de reintentar.",
       "saveError": "La operación falló. Tus cambios sin guardar se conservan.",
       "queryError": "No se pudieron cargar los resultados.",
-      "leave": "¿Salir de este dashboard y descartar los cambios sin guardar?"
+      "leave": "¿Salir de este dashboard y descartar los cambios sin guardar?",
+      "permissions": {
+        "authorityId": "ID de autoridad",
+        "authorityHelp": "Ingrese el ID exacto de usuario o grupo reconocido por el proveedor de identidad del dashboard. No se consulta un directorio; un ID desconocido no otorgará acceso a nadie.",
+        "role": "Rol",
+        "choose": "Seleccionar identidad",
+        "remove": "Eliminar",
+        "empty": "No hay asignaciones locales. Los permisos del ámbito y del propietario siguen vigentes.",
+        "discard": "¿Descartar los cambios de permisos sin guardar?",
+        "confirmSave": "¿Reemplazar las asignaciones locales de permisos del dashboard con esta lista?",
+        "error": "La operación de permisos falló. Recargue antes de reintentar; la escritura puede haberse completado.",
+        "reload": "Recargar permisos"
+      }
     }
   },
   "liveStreams": {

@@ -19,6 +19,7 @@ import {
   SavedQueryResults,
 } from "../context/saved-query-context";
 import { DashboardView } from "./dashboard-view";
+import { ServerDashboardPermissions } from "./server-dashboard-permissions";
 
 type Props = { lang: string; slug?: string; dictionary: I18nRecord };
 const EMPTY_QUERIES: NonNullable<typeof DEFAULT_STORAGE.queries> = [];
@@ -173,6 +174,7 @@ function ServerDashboardEditor({
   const document = useDashboardDocument(org, slug, empty, sessionKey);
   const router = useRouter();
   const [removing, setRemoving] = useState(false);
+  const [permissionsOpen, setPermissionsOpen] = useState(false);
   const [removeError, setRemoveError] = useState(false);
   useUnsavedNavigation(document.dirty, t("leave"));
   async function reload() {
@@ -234,6 +236,16 @@ function ServerDashboardEditor({
         >
           {t("reload")}
         </Button>
+        {document.capabilities?.canManagePermissions && (
+          <Button
+            size="sm"
+            color="light"
+            disabled={document.busy || removing}
+            onClick={() => setPermissionsOpen(true)}
+          >
+            {tr("dashboard.permissions.manageButton", dictionary)}
+          </Button>
+        )}
         {document.capabilities?.canDelete && (
           <Button
             size="sm"
@@ -251,6 +263,18 @@ function ServerDashboardEditor({
           {t(document.error === 409 ? "conflict" : "saveError")}
         </p>
       )}
+      {permissionsOpen &&
+        document.capabilities?.canManagePermissions &&
+        !removing && (
+          <ServerDashboardPermissions
+            key={`${sessionKey}/${org}/${slug}`}
+            client={document.client}
+            slug={slug}
+            sessionKey={sessionKey}
+            dictionary={dictionary}
+            onClose={() => setPermissionsOpen(false)}
+          />
+        )}
       <DashboardQuerySession
         sessionKey={sessionKey}
         client={document.client}

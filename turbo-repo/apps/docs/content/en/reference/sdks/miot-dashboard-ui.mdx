@@ -128,3 +128,13 @@ The current Handlebars compiler requires `unsafe-eval` in script CSP. Evaluate t
 `useDashboardState().setQueries` validates saved-query definitions and unique IDs/names, then updates the controlled document through its permission and undo/redo boundary. It returns false when denied or invalid.
 
 `SavedQueryManager` composes controlled query selection, creation, editing and confirmed removal. Connect its boolean `onChange` to `useDashboardState().setQueries`; host rejection retains the draft. Write controls require explicit editing permission.
+
+`PermissionAssignmentEditor` edits a controlled permission draft using host-authorized identities and shared-contract roles. It defaults to read-only, preserves identities missing from discovery and prevents duplicate additions. The host owns explicit saving through the permissions client, capability refresh and session isolation; server authorization remains mandatory.
+
+`useDashboardPermissions` connects that draft workflow to the server client: capability-first loading, validated replacement and authoritative reload, fail-closed authorization errors, and cancellation across resource/session changes. The host retains explicit save controls and draft reset behavior; see the README for replacement and failed-reload semantics.
+
+### Permissions in the Next.js workspace
+
+The server dashboard page uses the portable permission editor and state hook. Open **Manage permissions** when the server grants that capability. Enter an exact user or group authority ID from your configured identity provider, select it, choose a role and add it to the draft. Review the complete list and confirm **Save changes**. This form does not search an identity directory or validate that an ID exists; spelling and case must match the server identity. Existing assignments are preserved until explicitly edited or removed.
+
+Saving replaces local assignments, then reloads them. Scope grants and dashboard ownership still apply, so removing a local assignment does not revoke those other grants. Reload explicitly after an error, including when a write may have succeeded before its reload failed. Closing or reloading a changed draft asks for confirmation. The Next host uses its authenticated organization-bound proxy; the reusable editor does not depend on that proxy or Alfresco.

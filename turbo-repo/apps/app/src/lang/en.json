@@ -3775,7 +3775,19 @@
       "conflict": "The dashboard or active organization changed. Your edits are retained. Reload explicitly before trying again.",
       "saveError": "The operation failed. Your unsaved changes are retained.",
       "queryError": "Could not load query results.",
-      "leave": "Leave this dashboard and discard unsaved changes?"
+      "leave": "Leave this dashboard and discard unsaved changes?",
+      "permissions": {
+        "authorityId": "Authority ID",
+        "authorityHelp": "Enter the exact user or group ID recognized by the dashboard identity provider. No directory lookup is performed; an unknown ID will not grant access to anyone.",
+        "role": "Role",
+        "choose": "Choose identity",
+        "remove": "Remove",
+        "empty": "No local assignments. Scope and owner permissions still apply.",
+        "discard": "Discard unsaved permission changes?",
+        "confirmSave": "Replace the dashboard local permission assignments with this list?",
+        "error": "Permission operation failed. Reload before retrying; the write may have succeeded.",
+        "reload": "Reload permissions"
+      }
     }
   },
   "liveStreams": {

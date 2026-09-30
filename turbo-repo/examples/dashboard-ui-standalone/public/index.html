@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Cloud Cost Studio · MIOT Analytics</title>
+    <link rel="stylesheet" href="demo.css" />
+    <link rel="stylesheet" href="runtime.css" />
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="#overview"><b>M</b> MIOT <span>Analytics</span></a>
+      <div class="header-right">
+        <span class="pill">Demostración privada</span>
+        <form action="logout" method="post">
+          <button class="quiet">Salir</button>
+        </form>
+      </div>
+    </header>
+    <main>
+      <section id="overview" class="intro">
+        <div>
+          <p class="eyebrow">STREAMHUB / CLOUD INTELLIGENCE</p>
+          <h1>Claridad sobre tus<br /><em>costos en la nube.</em></h1>
+          <p class="lead">
+            Una vista conectada a BigQuery, integrada en una aplicación
+            independiente.
+          </p>
+        </div>
+        <div class="source">
+          <span class="live-dot"></span>
+          <div>
+            <strong>Google BigQuery</strong
+            ><small>Datos reales · Últimos 30 días · USD</small>
+          </div>
+        </div>
+      </section>
+      <section class="toolbar" aria-label="Controles del dashboard">
+        <div>
+          <label for="service">Explorar servicio</label
+          ><select id="service" disabled>
+            <option>Cargando servicios…</option>
+          </select>
+        </div>
+        <div class="toolbar-right">
+          <span id="updated">Conectando…</span
+          ><button id="refresh" class="primary" disabled>
+            ↻ Actualizar datos
+          </button>
+        </div>
+      </section>
+      <div id="notice" role="status" aria-live="polite">
+        Cargando el dashboard…
+      </div>
+      <section class="metrics" aria-label="Resumen">
+        <article>
+          <span>Costo total del período</span><strong id="total">—</strong
+          ><small>Todos los servicios de la consulta</small>
+        </article>
+        <article>
+          <span>Servicios con consumo</span><strong id="count">—</strong
+          ><small>Desglose disponible abajo</small>
+        </article>
+        <article>
+          <span>Servicio principal</span
+          ><strong id="largest" class="service-name">—</strong
+          ><small id="largest-share">—</small>
+        </article>
+      </section>
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">DASHBOARD EMBEBIDO</p>
+            <h2 id="selection-title">Detalle del servicio</h2>
+          </div>
+          <span class="pill green">Solo lectura</span>
+        </div>
+        <div id="dashboard" aria-label="Dashboard de costos"></div>
+        <p class="caption">
+          La participación compara el costo del servicio con el total del
+          período. No representa un presupuesto.
+        </p>
+      </section>
+      <section class="panel services" id="services">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">DISTRIBUCIÓN DEL GASTO</p>
+            <h2>Todos los servicios</h2>
+          </div>
+          <label class="search-label"
+            >Buscar servicio<input
+              id="search"
+              type="search"
+              placeholder="Filtrar por nombre"
+              disabled
+          /></label>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Servicio</th>
+                <th scope="col">Participación</th>
+                <th scope="col" class="numeric">Costo neto · USD</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <p id="empty" hidden>No hay servicios que coincidan con la búsqueda.</p>
+      </section>
+      <footer>
+        <span>MIOT Analytics · Embedded dashboard preview</span
+        ><span
+          >Consulta autenticada · Credenciales protegidas en el servidor</span
+        >
+      </footer>
+    </main>
+    <script type="module" src="demo.js"></script>
+  </body>
+</html>

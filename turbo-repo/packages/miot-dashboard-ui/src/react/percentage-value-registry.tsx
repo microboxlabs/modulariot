@@ -1,7 +1,9 @@
 "use client";
+import { normalizeScalarColorRules } from "./scalar-color-rules";
+import { templateField } from "./scalar-template-field";
 import { useMemo } from "react";
 import { createWidgetRegistry } from "../core/widget-registry";
-import { evaluateRule, type ColorRuleOperator } from "../core/color-rules";
+import { evaluateRule } from "../core/color-rules";
 import { sortColorRules } from "../core/color-rule-evaluation";
 import { createTemplateEngine } from "../templates";
 import { PercentageValue } from "./percentage-value";
@@ -13,54 +15,6 @@ export interface PercentageValueRegistryOptions {
   errorLabel: string;
   unsupportedDataLabel: string;
   templateEngine?: ReturnType<typeof createTemplateEngine>;
-}
-const operators = new Set<string>([
-  "equals",
-  "not_equals",
-  "contains",
-  "not_contains",
-  "greater_than",
-  "less_than",
-  "greater_than_or_equal",
-  "less_than_or_equal",
-]);
-function normalizeRules(raw: unknown) {
-  if (
-    !raw ||
-    typeof raw !== "object" ||
-    !("rules" in raw) ||
-    !Array.isArray(raw.rules)
-  )
-    return [];
-  return raw.rules.flatMap((entry: unknown) => {
-    if (
-      !entry ||
-      typeof entry !== "object" ||
-      !("operator" in entry) ||
-      typeof entry.operator !== "string" ||
-      !operators.has(entry.operator) ||
-      !("color" in entry) ||
-      typeof entry.color !== "string" ||
-      !/^(?:[\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i.test(entry.color)
-    )
-      return [];
-    return [
-      {
-        operator: entry.operator as ColorRuleOperator,
-        color: entry.color,
-        value:
-          "value" in entry && typeof entry.value === "string"
-            ? entry.value
-            : "",
-      },
-    ];
-  });
-}
-function templateField(value: unknown, fallback: string) {
-  if (value == null) return fallback;
-  return typeof value === "string" || typeof value === "number"
-    ? String(value)
-    : "";
 }
 function resolvedNumber(value: string | undefined, fallback: number) {
   const parsed =
@@ -92,7 +46,7 @@ export function createPercentageValueRegistry(
       engine,
     );
     const rules = useMemo(
-      () => sortColorRules(normalizeRules(config.barColorRules)),
+      () => sortColorRules(normalizeScalarColorRules(config.barColorRules)),
       [config.barColorRules],
     );
     if (status === "unsupported")

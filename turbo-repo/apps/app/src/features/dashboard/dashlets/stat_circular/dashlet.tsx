@@ -1,5 +1,7 @@
 "use client";
 
+import { PortableScalarWidget } from "../common/portable-scalar-widget";
+
 import { useMemo } from "react";
 import { CircularStat } from "@microboxlabs/miot-dashboard-ui/react";
 import "@microboxlabs/miot-dashboard-ui/styles.css";
@@ -77,7 +79,12 @@ const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
 /**
  * Circular Progress Card - Donut chart style
  */
-export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+export function Dashlet(props: Readonly<DashletComponentProps>) {
+  const { hostAccess } = useOptionalDashboard();
+  return hostAccess ? <PortableScalarWidget widget={props.widget} /> : <LegacyDashlet {...props} />;
+}
+
+function LegacyDashlet({ widget }: Readonly<DashletComponentProps>) {
   const { dictionary } = useOptionalDashboard();
   const config = widget.config as unknown as DashletConfig;
   const { dataProvider = EMPTY_DATA_PROVIDER } = config;

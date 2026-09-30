@@ -1,9 +1,19 @@
 # @microboxlabs/miot-dashboard-ui
 
-Dashboard layout utilities and a portable HTTP client, using the types and schemas
-from `@microboxlabs/miot-dashboard-contract`. The package exports `./core`, `./client` and `./document`;
-it does not yet export a dashboard renderer or editor. This workspace version is
-unreleased.
+Reusable dashboard rendering, layout, document state and server transport, using
+`@microboxlabs/miot-dashboard-contract`. React hosts use `./react`; other web
+frameworks can use `./embed`, `./web-component` or the self-contained `./browser`
+runtime. `./core`, `./client`, `./document` and `./templates` expose the lower-level
+APIs. Import `./styles.css` for the scoped presentation styles.
+
+This workspace version is **unreleased**. The portable catalog includes text,
+percentage, circular and progress statistic registries; it is not yet the complete app
+widget catalog or a complete dashboard authoring interface. Query execution and
+authorization remain on the dashboard server.
+
+For a runnable browser host with a private server proxy and real saved-query
+binding, see the [standalone billing example](../../examples/dashboard-ui-standalone/README.md)
+([Español](../../examples/dashboard-ui-standalone/README.es.md)).
 
 ## Grid sizing
 
@@ -666,3 +676,45 @@ ordering; nonempty valid rules remain active for legacy compatibility. Invalid
 operators are ignored. Displayed progress is clamped, and the renderer validates
 hex colors. Default value/max are 6/10; unresolved numeric values fall back to
 0/10. Browser hosts import this factory from the same runtime as their mount.
+
+## Built-in circular statistic registry
+
+`createCircularStatRegistry` from `./react`, `./embed` or `./browser` supplies
+`stat_circular` with static or saved/planner-query bindings. Pass localized
+`defaultTitle`, `defaultUnit`, loading/error/unsupported labels and
+`formatTotal(max, unit)` returning a complete localized footer. The optional
+`templateEngine` supports isolated custom helpers.
+
+The widget resolves title, value, maxValue and unit, including data-provider and
+filter namespaces. It accepts old numeric configuration values, preserves the
+resolved value label, and clamps the accessible progress. Ring rules retain the
+circular widget's historical mixed-operator ordering; same-direction numeric
+thresholds prefer the strongest match. Only hex ring colors reach styling.
+The registry does not provide settings or execute legacy direct queries.
+
+## Progress statistic
+
+`ProgressStat` from `./react` displays resolved `title`, `value`, `target` and
+`unit` with quarter milestones and accessible native progress. Optional
+`barColor` and `textColor` accept RGB/RGBA hex without `#`; invalid colors are
+ignored. Nonfinite values and out-of-range percentages are normalized for display.
+
+`createProgressStatRegistry({ defaultTitle, defaultUnit, loadingLabel,
+errorLabel, unsupportedDataLabel, templateEngine? })` is available from
+`./react`, `./embed` and `./browser`. It registers `stat_progress`, resolves
+static/template/provider/saved-query fields, and preserves numeric configs.
+Defaults are value 78 and target 100; hosts provide localized title/unit labels.
+
+Bar rules evaluate the resolved value in saved order, with the first valid match
+winning. An enabled threshold evaluates its configured template field, applying
+to `background` and/or `text` (`text` by default). Thresholds accept legacy named
+colors or hexadecimal colors. Bar rules take precedence over thresholds; otherwise
+progress uses red, yellow, blue and green at the 0/25/50/75 percent boundaries.
+Legacy direct `pgrest` bindings display migration feedback without executing a query.
+The registry does not supply settings or issue credentials; the host supplies
+saved-query results and controls authoring permissions.
+
+The progress statistic registry and `ProgressStat` accept optional
+`formatValue(value, target, unit)` for localized accessible progress text. The
+formatter receives resolved finite values; without it the display uses
+`value / target unit`. The Next.js adapter supplies its translated “of” label.

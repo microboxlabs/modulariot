@@ -1,0 +1,33 @@
+# Dashboard UI
+
+`@microboxlabs/miot-dashboard-ui` renders dashboard documents in React and other web frameworks using the shared dashboard contract.
+
+**Status: unreleased workspace candidate.** Build the package or use a candidate tarball; these APIs are not a claim that an npm release is available.
+
+## Choose an integration
+
+- **React and Next.js:** use the React entry for rendering, document state, filters and saved-query providers. Keep session and server credentials in the host's backend.
+- **Plain HTML or another framework:** use the self-contained browser runtime with `mountDashboard`. Update the instance when host state changes and destroy it when its container is removed.
+- **Web Components and LiveView:** explicitly register the custom element and pass configuration through its JavaScript property. Keep the mount container outside host DOM patching and clean it up in the host lifecycle.
+
+The browser runtime bundles its own rendering dependencies; a host does not need to install React. Load the package's scoped stylesheet once. Hosts can override the documented theme tokens.
+
+## Implemented capabilities
+
+The package provides a widget registry, grid/canvas primitives, text, percentage, circular and progress statistic renderers, template binding, filters and saved-query results. Query results support cancellation and bounded concurrency. Document state carries revisions and preserves drafts after conflicts.
+
+The portable registries accept static data, template/provider values and named saved-query results. Legacy direct datasource configurations require migration to server connections and saved queries. These registries are not the entire app widget catalog, settings suite or backoffice.
+
+## Run the embedded example
+
+The [standalone example](https://github.com/microboxlabs/modulariot/tree/trunk/turbo-repo/examples/dashboard-ui-standalone) includes a browser host and a Node proxy. It renders billing results from a configured dashboard server and supports service selection, refresh and a searchable host table.
+
+Its README describes preparing the built UI assets, configuring the server and Consumer identity, and mounting private key/access files. The table and summary belong to the example host; the three embedded widgets come from the library.
+
+## Security boundary
+
+The server enforces tenant, scope and document permissions. Never put signing keys, database credentials or service-account keys in browser configuration. The example proxy allows only its configured read operations; it is a private demo access gate, not production SSO.
+
+The current Handlebars compiler requires `unsafe-eval` in script CSP. Evaluate that constraint before embedding in a host with a strict CSP. No strict-CSP compatibility is claimed.
+
+[Full API reference](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-ui/README.md) · [Dashboard server](/en/operations/dashboard-server) · [Shared contract](/en/reference/sdks/miot-dashboard-contract)

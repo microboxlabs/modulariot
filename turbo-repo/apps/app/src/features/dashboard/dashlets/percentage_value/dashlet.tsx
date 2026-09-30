@@ -1,5 +1,9 @@
 "use client";
 
+import { useOptionalDashboard } from "../../context/dashboard-context";
+
+import { PortableScalarWidget } from "../common/portable-scalar-widget";
+
 import { useMemo } from "react";
 import { Spinner } from "flowbite-react";
 import { PercentageValue } from "@microboxlabs/miot-dashboard-ui/react";
@@ -95,7 +99,12 @@ function evaluateBarColor(
  * Percentage Value Dashlet
  * Displays a progress indicator with title, value/max, and progress bar
  */
-export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+export function Dashlet(props: Readonly<DashletComponentProps>) {
+  const { hostAccess } = useOptionalDashboard();
+  return hostAccess ? <PortableScalarWidget widget={props.widget} /> : <LegacyDashlet {...props} />;
+}
+
+function LegacyDashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
 
   const fields = useMemo(

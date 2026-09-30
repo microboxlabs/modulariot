@@ -68,12 +68,12 @@ it("resolves templates and compares against previous and target fields", () => {
   expect(view.container.querySelector("img")).toBeNull();
   expect(screen.getByText("$80.00").style.color).toBe("rgb(255, 0, 0)");
   expect(screen.getByText("-20%").style.color).toBe("rgb(255, 0, 0)");
-  expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
-    "40",
-  );
+  expect(screen.getByRole("progressbar").getAttribute("value")).toBe("40");
   expect(
-    screen.getByRole("progressbar").firstElementChild?.getAttribute("style"),
-  ).toContain("rgb(0, 255, 0)");
+    screen
+      .getByRole("progressbar")
+      .style.getPropertyValue("--miot-progress-color"),
+  ).toBe("#00ff00");
   expect(screen.getByRole("definition").textContent).toBe("$100.00");
 });
 it("clears saved-query values on loading and errors and handles zero baselines", () => {
@@ -87,7 +87,9 @@ it("clears saved-query values on loading and errors and handles zero baselines",
   const wrap = (loading: boolean, error: string | null) => (
     <PlannerResultsProvider
       value={{
-        results: new Map([["costs", { rows: [{ cost: "42" }], loading, error }]]),
+        results: new Map([
+          ["costs", { rows: [{ cost: "42" }], loading, error }],
+        ]),
         definitions: [],
         schemas: new Map(),
       }}
@@ -98,9 +100,7 @@ it("clears saved-query values on loading and errors and handles zero baselines",
   const view = render(wrap(false, null));
   expect(screen.getByText("$42.00")).toBeTruthy();
   expect(screen.getByText("+0%")).toBeTruthy();
-  expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
-    "0",
-  );
+  expect(screen.getByRole("progressbar").getAttribute("value")).toBe("0");
   view.rerender(wrap(true, null));
   expect(screen.queryByText("$42.00")).toBeNull();
   expect(screen.getByText("Loading")).toBeTruthy();

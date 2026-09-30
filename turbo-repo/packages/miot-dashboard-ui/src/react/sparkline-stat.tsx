@@ -61,13 +61,7 @@ export function SparklineStat({
   const geometry = useMemo(() => paths(values), [values]);
   return (
     <article className="miot-sparkline-stat" aria-label={title || undefined}>
-      <svg
-        viewBox="0 0 200 50"
-        preserveAspectRatio="none"
-        role={trendLabel ? "img" : undefined}
-        aria-label={trendLabel}
-        aria-hidden={trendLabel ? undefined : true}
-      >
+      <svg viewBox="0 0 200 50" preserveAspectRatio="none" aria-hidden="true">
         <path d={geometry.area} fill="currentColor" opacity=".2" />
         <path
           d={geometry.line}
@@ -76,6 +70,7 @@ export function SparklineStat({
           strokeWidth="2"
         />
       </svg>
+      {trendLabel && <span className="miot-sr-only">{trendLabel}</span>}
       <div>
         <p>{title}</p>
         <strong className={valueClassName} style={valueStyle}>

@@ -1,4 +1,5 @@
 "use client";
+import type { CSSProperties } from "react";
 
 export interface DetailedStatProps {
   readonly title: string;
@@ -66,17 +67,12 @@ export function DetailedStat({
           <span>{progressLabel}</span>
           <span>{target}</span>
         </div>
-        <div
-          role="progressbar"
+        <progress
           aria-label={progressLabel}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent}
-        >
-          <span
-            style={{ width: `${percent}%`, backgroundColor: color(barColor) }}
-          />
-        </div>
+          max={100}
+          value={percent}
+          style={{ "--miot-progress-color": color(barColor) } as CSSProperties}
+        />
         <p>{progressSummary}</p>
       </div>
       <dl>

@@ -28,9 +28,7 @@ it("renders literal formatted values, translated labels and accessible progress"
   expect(screen.getByRole("article", { name: "<img>" })).toBeTruthy();
   expect(view.container.querySelector("img")).toBeNull();
   expect(
-    screen
-      .getByRole("progressbar", { name: "Progreso" })
-      .getAttribute("aria-valuenow"),
+    screen.getByRole("progressbar", { name: "Progreso" }).getAttribute("value"),
   ).toBe("84.5");
   expect(screen.getByText("$84,500").style.color).toBe("rgb(255, 0, 0)");
   expect(screen.getByText("+17.4%").style.color).toBe("rgb(0, 0, 255)");
@@ -39,9 +37,7 @@ it("renders literal formatted values, translated labels and accessible progress"
 });
 it("clamps progress and ignores invalid colors when values change", () => {
   const view = render(<DetailedStat {...props} progress={125} />);
-  expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
-    "100",
-  );
+  expect(screen.getByRole("progressbar").getAttribute("value")).toBe("100");
   for (const progress of [-10, Number.NaN, Number.POSITIVE_INFINITY]) {
     view.rerender(
       <DetailedStat
@@ -54,16 +50,16 @@ it("clamps progress and ignores invalid colors when values change", () => {
         badgeColor="#ff0000"
       />,
     );
-    expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
-      "0",
-    );
+    expect(screen.getByRole("progressbar").getAttribute("value")).toBe("0");
     expect(screen.getByText("$84,500").style.color).toBe("");
     expect(screen.getByText("-20%").style.color).toBe("");
     expect(screen.getByText("-20%").getAttribute("data-positive")).toBe(
       "false",
     );
     expect(
-      screen.getByRole("progressbar").firstElementChild?.getAttribute("style"),
-    ).toBe("width: 0%;");
+      screen
+        .getByRole("progressbar")
+        .style.getPropertyValue("--miot-progress-color"),
+    ).toBe("");
   }
 });

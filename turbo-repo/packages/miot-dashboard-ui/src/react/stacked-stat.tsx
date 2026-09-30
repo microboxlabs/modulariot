@@ -1,4 +1,5 @@
 "use client";
+import { withStableKeys } from "./stable-keys";
 export interface StackedStatItem {
   readonly label: string;
   readonly value: number;
@@ -80,12 +81,12 @@ export function StackedStat({
             fill="var(--miot-chart-empty,#e5e7eb)"
           />
         )}
-        {values.map((item, index) => {
+        {withStableKeys(values, (entry) => entry.label).map(({ item, key }) => {
           if (!item.share) return null;
           const label = `${item.label}: ${formatValue(item.value)}${unit} (${item.share.toFixed(1)}%)`;
           return donut ? (
             <circle
-              key={index}
+              key={key}
               cx="50"
               cy="50"
               r="36"
@@ -101,7 +102,7 @@ export function StackedStat({
             </circle>
           ) : (
             <rect
-              key={index}
+              key={key}
               x={item.offset}
               width={item.share}
               height="20"
@@ -113,8 +114,8 @@ export function StackedStat({
         })}
       </svg>
       <ul className="miot-stacked-stat__legend">
-        {values.map((item, index) => (
-          <li key={index}>
+        {withStableKeys(values, (entry) => entry.label).map(({ item, key }) => (
+          <li key={key}>
             <span aria-hidden="true" style={{ backgroundColor: item.color }} />
             <span>{item.label}</span>
             <strong>

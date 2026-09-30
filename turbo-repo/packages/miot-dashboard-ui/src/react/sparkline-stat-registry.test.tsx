@@ -49,7 +49,7 @@ it("resolves static samples and value templates with text thresholds", () => {
     />,
   );
   expect(screen.getByText("42.00").style.color).toBe("rgb(255, 0, 0)");
-  expect(screen.getByRole("img", { name: "Configured samples" })).toBeTruthy();
+  expect(screen.getByText("Configured samples")).toBeTruthy();
   expect(view.container.querySelectorAll("path")[1]?.getAttribute("d")).toBe(
     "M 0,50 L 200,0",
   );

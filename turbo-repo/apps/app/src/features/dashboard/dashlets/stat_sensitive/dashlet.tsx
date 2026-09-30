@@ -6,11 +6,9 @@ import { tr } from "@/features/i18n/tr.service";
 import { useOptionalDashboard } from "../../context/dashboard-context";
 import { HiEye, HiEyeSlash } from "react-icons/hi2";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { useThresholdDashletData } from "../common/use-threshold-dashlet-data";
 import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
-import { useDashletPgrest } from "../common/use-dashlet-pgrest";
 import { DashletLoading, DashletError } from "../common/dashlet-states";
-import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
-import { useRowThreshold } from "../common/use-threshold";
 import {
   getThresholdTextClasses,
   getThresholdTextStyle,
@@ -73,18 +71,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
   const isSensitive = config.isSensitive ?? true;
   const { dictionary } = useOptionalDashboard();
-  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
-
-  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(
-    config,
-    FIELD_DEFAULTS,
-    refreshIntervalMs
-  );
-
-  const { color: thresholdColor, appliesTo } = useRowThreshold(
-    config.thresholds,
-    firstRow
-  );
+  const { resolved, loading, fetchError, thresholdColor, appliesTo } =
+    useThresholdDashletData(widget.config, config, FIELD_DEFAULTS);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

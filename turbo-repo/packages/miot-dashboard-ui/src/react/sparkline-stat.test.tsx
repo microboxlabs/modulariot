@@ -13,7 +13,7 @@ it("renders formatted literal text with a host-provided trend summary", () => {
       trendLabel="Cost rose then fell"
     />,
   );
-  expect(screen.getByRole("img", { name: "Cost rose then fell" })).toBeTruthy();
+  expect(screen.getByText("Cost rose then fell")).toBeTruthy();
   expect(view.container.querySelector("img")).toBeNull();
   expect(screen.getByText("1,234").textContent).toBe("1,234USD");
   expect(view.container.querySelectorAll("path")[1]?.getAttribute("d")).toBe(

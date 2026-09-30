@@ -1,5 +1,6 @@
 "use client";
 import { useId, useState, type CSSProperties } from "react";
+import { withStableKeys } from "./stable-keys";
 export interface ExpandableStatProps {
   readonly title: string;
   readonly value: string;
@@ -19,7 +20,8 @@ function color(raw: string | undefined) {
   return raw && /^[\da-f]{6}$/i.test(raw) ? `#${raw}` : undefined;
 }
 export function ExpandableStat(props: ExpandableStatProps) {
-  return <ExpandableStatContent key={props.resetKey} {...props} />;
+  const { resetKey, ...content } = props;
+  return <ExpandableStatContent key={resetKey} {...content} />;
 }
 function ExpandableStatContent({
   title,
@@ -30,7 +32,7 @@ function ExpandableStatContent({
   hideLabel,
   valueColor,
   backgroundColor,
-}: ExpandableStatProps) {
+}: Omit<ExpandableStatProps, "resetKey">) {
   const [expanded, setExpanded] = useState(false);
   const id = useId();
   const foreground = color(valueColor),
@@ -68,12 +70,14 @@ function ExpandableStatContent({
       </button>
       {expanded && (
         <dl id={id} className="miot-expandable-stat__details">
-          {details.map((detail, index) => (
-            <div key={index}>
-              <dt>{detail.label}</dt>
-              <dd>{detail.value}</dd>
-            </div>
-          ))}
+          {withStableKeys(details, (detail) => detail.label).map(
+            ({ item: detail, key }) => (
+              <div key={key}>
+                <dt>{detail.label}</dt>
+                <dd>{detail.value}</dd>
+              </div>
+            ),
+          )}
         </dl>
       )}
     </article>

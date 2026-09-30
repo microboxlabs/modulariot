@@ -22,7 +22,8 @@ export function SensitiveStat(props: SensitiveStatProps) {
     props.value,
     props.sensitive,
   ]);
-  return <SensitiveStatContent key={key} {...props} />;
+  const { resetKey: _resetKey, ...content } = props;
+  return <SensitiveStatContent key={key} {...content} />;
 }
 function SensitiveStatContent({
   title,
@@ -35,7 +36,7 @@ function SensitiveStatContent({
   hideIcon,
   valueClassName = "",
   valueStyle,
-}: SensitiveStatProps) {
+}: Omit<SensitiveStatProps, "resetKey">) {
   const id = useId();
   const [hidden, setHidden] = useState(sensitive);
   const label = hidden ? showLabel : hideLabel;

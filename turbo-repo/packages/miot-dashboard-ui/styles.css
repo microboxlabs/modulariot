@@ -441,7 +441,7 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-data-table th { padding: .75rem 1rem; text-align: start; white-space: nowrap; background: var(--miot-table-heading, #f9fafb); color: var(--miot-card-muted, #6b7280); font-size: .75rem; font-weight: 600; }
 .miot-data-table td { padding: 1rem; border-top: 1px solid var(--miot-card-border, #e5e7eb); background: var(--miot-row-background, var(--miot-card-background, #fff)); }
 .miot-data-table[data-dividers="true"] td:not(:last-child) { border-right: 1px solid var(--miot-card-border, #e5e7eb); }
-.miot-data-table th[style] { z-index: 30; }
+.miot-data-table th[data-sticky="true"] { z-index: 30; }
 .miot-data-table td[style] { z-index: 10; }
 .miot-data-table .miot-data-table__actions { position: sticky; right: 0; width: 2.5rem; padding: .5rem; z-index: 10; border-left: 1px solid var(--miot-card-border, #e5e7eb); }
 .miot-data-table th.miot-data-table__actions { z-index: 30; }

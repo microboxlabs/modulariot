@@ -213,7 +213,7 @@ export function DataTable({
                       .slice(0, -1)
                       .reduce<number>((sum, width) => sum + (width ?? 0), 0) +
                     80 +
-                    (hasActions ? 80 : 0),
+                    widths.actionsColumnWidth,
                 }
               : undefined
           }
@@ -243,6 +243,7 @@ export function DataTable({
                     ref={(element) => {
                       widths.thRefs.current[index] = element;
                     }}
+                    data-sticky={cellPosition(index, offsets)?.position === "sticky" || undefined}
                     style={position(index)}
                   >
                     {renderHeader ? renderHeader(column, title) : title}

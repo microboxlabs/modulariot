@@ -186,3 +186,29 @@ it("tracks pointer resize and cancels without saving when the pointer is interru
   vi.unstubAllGlobals();
 
 });
+
+it("restores natural widths after undo and preserves other constraints during keyboard resizing", () => {
+  vi.spyOn(HTMLElement.prototype,"offsetWidth","get").mockImplementation(function(this:HTMLElement){return this.tagName==='TABLE'?800:Number.parseFloat(this.style.width)||100;});
+  vi.spyOn(HTMLElement.prototype,"getBoundingClientRect").mockReturnValue({width:50} as DOMRect);
+  const options=props();const resizing={handleLabel:(label:string)=>`Resize ${label}`,savedWidths:{service:160,cost:200}};
+  const view=render(<DataTable {...options} resizing={resizing} renderActions={()=>'Open'}/>);
+  const headers=screen.getAllByRole('columnheader');
+  fireEvent.keyDown(screen.getByRole('button',{name:'Resize Service'}),{key:'ArrowRight'});
+  expect(headers[0]?.style.width).toBe('170px');expect(headers[1]?.style.width).toBe('200px');
+  expect(headers[0]?.dataset.sticky).toBe('true');expect(headers[1]?.dataset.sticky).toBeUndefined();
+  view.rerender(<DataTable {...options} resizing={{...resizing,savedWidths:{cost:200}}} renderActions={()=>'Open'}/>);
+  expect(headers[0]?.style.width).toBe('100px');expect(headers[1]?.style.width).toBe('200px');
+});
+it("rolls back interrupted pointer styles and leaves the filling column flexible on release", () => {
+  class TestPointerEvent extends MouseEvent {pointerId:number;constructor(type:string,init:PointerEventInit={}){super(type,init);this.pointerId=init.pointerId??1;}}
+  vi.stubGlobal('PointerEvent',TestPointerEvent);
+  vi.spyOn(HTMLElement.prototype,'offsetWidth','get').mockImplementation(function(this:HTMLElement){return this.tagName==='TABLE'?800:Number.parseFloat(this.style.width)||100;});
+  const save=vi.fn();render(<DataTable {...props()} resizing={{handleLabel:label=>`Resize ${label}`,editable:true,onCommit:save}}/>);
+  const handle=screen.getByRole('button',{name:'Resize Service'});const headers=screen.getAllByRole('columnheader');
+  fireEvent.pointerDown(handle,{clientX:0,pointerId:7});fireEvent.pointerMove(document,{clientX:50,pointerId:7});
+  expect(headers[0]?.style.width).toBe('150px');
+  fireEvent.pointerCancel(document,{pointerId:8});expect(headers[0]?.style.width).toBe('150px');
+  fireEvent.pointerCancel(document,{pointerId:7});expect(headers[0]?.style.width).toBe('100px');expect(save).not.toHaveBeenCalled();
+  fireEvent.pointerDown(handle,{clientX:0,pointerId:7});fireEvent.pointerUp(document,{clientX:50,pointerId:7});
+  expect(headers[0]?.style.width).toBe('150px');expect(headers[2]?.style.width).toBe('');expect(save).toHaveBeenCalledOnce();
+});

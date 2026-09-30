@@ -514,3 +514,17 @@ Changing this restriction or `emptyDocument` starts a fresh controller and disca
 its previous local draft, just like changing identity; keep these stable while
 editing and obtain discard intent in the host when appropriate. No browser storage,
 router, login, global cache, or automatic save is installed.
+
+## Percentage value
+
+`PercentageValue` from `./react` displays a resolved `title`, numeric `value` and
+`max`, and optional hexadecimal `barColor` without `#`. Import `./styles.css`.
+It fills the supplied height, shows the count and rounded percentage, and exposes
+a native progress element named by the title. Displayed progress is clamped to
+0–100; nonfinite values fall back to zero and a nonfinite maximum to ten, matching
+the existing dashboard widget. A zero or negative maximum shows zero progress.
+
+This component does not execute queries or evaluate color rules. Resolve those in
+the data adapter before rendering. Invalid colors use the default blue; strings
+are rendered as text. Scoped dark-theme and card color overrides apply, with
+`--miot-progress-track` available for the progress track.

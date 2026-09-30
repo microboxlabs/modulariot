@@ -1,0 +1,12 @@
+{
+  "name": "miot-dashboard-standalone-example",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "prepare:ui": "node scripts/prepare-ui.mjs",
+    "start": "node server.mjs"
+  }
+}

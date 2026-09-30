@@ -16,6 +16,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -223,14 +225,17 @@ public class SymptomCatalogService {
             throw new IllegalArgumentException("symptom is required");
         }
         String wanted = symptomName.trim();
+        // Names and icons are not unique (a duplicate keeps its source's icon), so the pick is fixed:
+        // ACTIVE before TEST, then the most recently changed.
         SymptomDefinition d = store.listDefinitions(tenantCode).stream()
                 .filter(x -> x.state() != SymptomState.OFF && x.currentVersion() != null)
                 .filter(x -> wanted.equalsIgnoreCase(x.icon()) || wanted.equalsIgnoreCase(x.name()))
-                .findFirst()
+                .min(Comparator.comparing((SymptomDefinition x) -> x.state() == SymptomState.ACTIVE ? 0 : 1)
+                        .thenComparing(SymptomDefinition::updatedAt, Comparator.reverseOrder()))
                 .orElseThrow(() -> new NoSuchElementException("no symptom in force for " + wanted));
         SymptomVersion v = store.findVersion(tenantCode, d.id(), d.currentVersion())
                 .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + d.currentVersion()));
-        SymptomSpec.Level level = v.spec().levels() == null ? null : v.spec().levels().stream()
+        SymptomSpec.Level level = Optional.ofNullable(v.spec().levels()).orElse(List.of()).stream()
                 .filter(l -> l.icu() == icu && l.applies())
                 .findFirst()
                 .orElseThrow(() -> new NoSuchElementException("level " + icu + " does not apply"));

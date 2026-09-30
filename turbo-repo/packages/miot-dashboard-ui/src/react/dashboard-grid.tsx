@@ -289,8 +289,10 @@ function GridOverlay({
 }: Readonly<{ cols: number; width: number }>) {
   const cellWidth = (width - 16 * (cols - 1)) / cols;
   const pitch = cellWidth + 16;
-  const image = (fill: string) =>
-    `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${pitch}' height='71'><rect width='${cellWidth}' height='55' rx='6' fill='${fill}'/></svg>`)}")`;
+  const image = (fill: string) => {
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${pitch}' height='71'><rect width='${cellWidth}' height='55' rx='6' fill='${fill}'/></svg>`;
+    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+  };
   return (
     <>
       <div

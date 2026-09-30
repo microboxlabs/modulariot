@@ -3771,6 +3771,7 @@
       "delete": "Eliminar",
       "discard": "¿Descartar los cambios sin guardar y cargar la versión del servidor?",
       "confirmDelete": "¿Eliminar este dashboard? Esta acción no se puede deshacer.",
+      "saving": "Guardando…",
       "unsaved": "Cambios sin guardar",
       "conflict": "Cambió el dashboard o la organización activa. Tus cambios se conservan. Recarga explícitamente antes de reintentar.",
       "saveError": "La operación falló. Tus cambios sin guardar se conservan.",

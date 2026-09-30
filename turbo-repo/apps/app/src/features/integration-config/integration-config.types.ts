@@ -48,12 +48,81 @@ export interface CreateTemplateRequest {
 
 export type UpdateTemplateRequest = Partial<Omit<CreateTemplateRequest, "providerType">>;
 
-export interface CreateConnectionRequest {
+export type CreateConnectionRequest = {
   readonly name: string;
   readonly baseUrl: string;
   readonly credentialProfileId: string | null;
-  /** Set to create an instance of a template; the operation is provisioned from it. */
-  readonly templateId: string;
+} & (
+  | {
+      /** An instance of a template; its operation is provisioned from it. */
+      readonly templateId: string;
+    }
+  | {
+      /** A built-in provider, created without a template. */
+      readonly providerType: NativeProvider;
+    }
+);
+
+/** Providers the app supports directly, without an operator-defined template. */
+export const NATIVE_PROVIDERS = ["POSTGREST"] as const;
+export type NativeProvider = (typeof NATIVE_PROVIDERS)[number];
+
+export function isNativeProvider(value: string): value is NativeProvider {
+  return (NATIVE_PROVIDERS as readonly string[]).includes(value);
+}
+
+/** One argument of a PostgREST function, from its OpenAPI description. */
+export interface PostgrestParameter {
+  readonly name: string;
+  readonly type: string | null;
+  readonly format: string | null;
+  readonly required: boolean;
+}
+
+/** An RPC function a PostgREST connection exposes; `operationId` is set once imported. */
+export interface PostgrestFunction {
+  readonly name: string;
+  readonly path: string;
+  readonly description: string | null;
+  readonly parameters: readonly PostgrestParameter[];
+  readonly operationId: string | null;
+}
+
+export interface PostgrestImportRequest {
+  readonly functions: readonly {
+    readonly name: string;
+    readonly pinned?: Readonly<Record<string, string>>;
+  }[];
+}
+
+export interface PostgrestImportResult {
+  readonly created: readonly { readonly id: string; readonly name: string }[];
+  readonly existing: readonly { readonly id: string; readonly name: string }[];
+}
+
+/**
+ * Pinned values for each selected function: a pin applies only to functions that take
+ * that parameter, so one "client id" pin can cover a whole selection.
+ */
+export function buildPostgrestImport(
+  functions: readonly PostgrestFunction[],
+  selected: ReadonlySet<string>,
+  pins: readonly { readonly name: string; readonly value: string }[]
+): PostgrestImportRequest {
+  return {
+    functions: functions
+      .filter((fn) => selected.has(fn.name))
+      .map((fn) => {
+        const names = new Set(fn.parameters.map((parameter) => parameter.name));
+        const pinned = Object.fromEntries(
+          pins
+            .filter((pin) => pin.name.trim() && pin.value.trim())
+            .filter((pin) => names.has(pin.name.trim()))
+            .map((pin) => [pin.name.trim(), pin.value.trim()])
+        );
+        return Object.keys(pinned).length ? { name: fn.name, pinned } : { name: fn.name };
+      }),
+  };
 }
 
 export interface UpdateConnectionRequest {

@@ -2,9 +2,34 @@ import { describe, it, expect } from "vitest";
 import {
   ConnectionFormSchema,
   TemplateFormSchema,
+  buildPostgrestImport,
   parseJsonObject,
   schemaLeafPaths,
+  type PostgrestFunction,
 } from "./integration-config.types";
+
+describe("buildPostgrestImport", () => {
+  const fn = (name: string, ...parameters: string[]): PostgrestFunction => ({
+    name,
+    path: `/rpc/${name}`,
+    description: null,
+    parameters: parameters.map((p) => ({ name: p, type: "string", format: null, required: false })),
+    operationId: null,
+  });
+  const functions = [fn("summary", "p_client", "p_days"), fn("detail", "p_asset"), fn("other", "p_client")];
+
+  it("imports only selected functions and applies each pin where the parameter exists", () => {
+    expect(
+      buildPostgrestImport(functions, new Set(["summary", "detail"]), [
+        { name: " p_client ", value: " c1 " },
+        { name: "p_days", value: "" },
+        { name: "", value: "x" },
+      ])
+    ).toEqual({
+      functions: [{ name: "summary", pinned: { p_client: "c1" } }, { name: "detail" }],
+    });
+  });
+});
 
 describe("parseJsonObject", () => {
   it("returns the object for valid JSON", () => {

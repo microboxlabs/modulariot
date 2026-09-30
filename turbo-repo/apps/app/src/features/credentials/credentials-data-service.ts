@@ -6,6 +6,7 @@ import {
   buildAuth0TokenUrl,
   type Auth0M2MFormData,
   type AzureEntraFormData,
+  type BearerTokenFormData,
   type CredentialFormData,
   type CredentialListItem,
   type CredentialTestResult,
@@ -160,13 +161,21 @@ function isGoogleForm(
   return "clientEmail" in form;
 }
 
+function isBearerForm(form: CredentialFormData): form is BearerTokenFormData {
+  return "token" in form;
+}
+
 /**
- * The secret half. A service account's secret is its private key; every
- * OAuth2 flavour carries a client secret.
+ * The secret half. A service account's secret is its private key, a bearer
+ * credential's is the token; every OAuth2 flavour carries a client secret.
  */
 function toSecretConfig(
   form: CredentialFormData
 ): Record<string, string> | undefined {
+  if (isBearerForm(form)) {
+    const token = form.token?.trim();
+    return token ? { token } : undefined;
+  }
   const secret = (
     isGoogleForm(form) ? form.privateKey : form.clientSecret
   )?.trim();
@@ -196,6 +205,8 @@ function auth0PublicConfig(form: Auth0M2MFormData): Record<string, string> {
 }
 
 function toPublicConfig(form: CredentialFormData): Record<string, string> {
+  // A bearer credential is all secret.
+  if (isBearerForm(form)) return {};
   if (isAuth0Form(form)) {
     return auth0PublicConfig(form);
   }

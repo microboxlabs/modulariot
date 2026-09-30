@@ -9,3 +9,5 @@ export { createPercentageValueRegistry, type PercentageValueRegistryOptions } fr
 export { createCircularStatRegistry, type CircularStatRegistryOptions } from "./embed";
 
 export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./embed";
+
+export { createDataTableRegistry, type DataTableRegistryOptions } from "./embed";

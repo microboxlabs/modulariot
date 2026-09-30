@@ -99,3 +99,16 @@ it("hides rows during loading/errors and renders an empty state after recovery",
   expect(screen.getByRole("cell").getAttribute("colspan")).toBe("3");
   expect(screen.getByText("No rows")).toBeTruthy();
 });
+
+it("supports validated hex row tints without dropping legacy color names", () => {
+  const view = render(<DataTable {...props()} rowColor={() => "ef4444"} />);
+  const row = screen.getAllByRole("row")[1]!;
+  expect(row.style.getPropertyValue("--miot-row-background")).toBe(
+    "color-mix(in srgb, #ef4444 12%, var(--miot-card-background, #fff))",
+  );
+  view.rerender(<DataTable {...props()} rowColor={() => "red"} />);
+  expect(row.dataset.rowColor).toBe("red");
+  expect(row.style.getPropertyValue("--miot-row-background")).toBe("");
+  view.rerender(<DataTable {...props()} rowColor={() => "url(secret)"} />);
+  expect(row.style.getPropertyValue("--miot-row-background")).toBe("");
+});

@@ -464,3 +464,10 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 :where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="orange"] { --miot-row-background: #322a30; }
 :where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="purple"] { --miot-row-background: #2a2647; }
 :where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="gray"] { --miot-row-background: #242e3c; }
+
+.miot-table-widget { display: flex; flex-direction: column; gap: .75rem; height: 100%; min-height: 0; }
+.miot-table-widget > header { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; color: var(--miot-card-text, #111827); }
+.miot-table-widget > header span { font-size: .75rem; color: var(--miot-card-muted, #6b7280); }
+.miot-table-widget__heading { display: flex; align-items: center; gap: .25rem; }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-widget > header { color: var(--miot-card-text, #f3f4f6); }
+:where(.dark, [data-miot-theme="dark"]) .miot-table-widget > header span { color: var(--miot-card-muted, #9ca3af); }

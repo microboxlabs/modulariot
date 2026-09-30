@@ -94,6 +94,13 @@ function cellPosition(
     return { position: "sticky", right: offsets.right[index] };
   return undefined;
 }
+function rowStyle(color: string | null | undefined): CSSProperties | undefined {
+  if (!color || !/^#?(?:[\da-f]{3}|[\da-f]{6})$/i.test(color)) return undefined;
+  const hex = color.startsWith("#") ? color : `#${color}`;
+  return {
+    "--miot-row-background": `color-mix(in srgb, ${hex} 12%, var(--miot-card-background, #fff))`,
+  } as CSSProperties;
+}
 /** Presentational table over authorized results; hosts own queries and controls. */
 export function DataTable({
   columns,
@@ -140,9 +147,7 @@ export function DataTable({
   return (
     <div className="miot-data-table" data-dividers={showColumnDividers}>
       {loading && (
-        <output className="miot-data-table__message">
-          {loadingLabel}
-        </output>
+        <output className="miot-data-table__message">{loadingLabel}</output>
       )}
       {errorLabel && (
         <div className="miot-data-table__message" role="alert">
@@ -189,6 +194,7 @@ export function DataTable({
                 <tr
                   key={row.id ?? row._id ?? index}
                   data-row-color={rowColor?.(row, index) ?? undefined}
+                  style={rowStyle(rowColor?.(row, index))}
                 >
                   {columns.map((column, columnIndex) => (
                     <td

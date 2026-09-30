@@ -372,11 +372,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     showColumnDividers = defaultConfig.showColumnDividers,
     dataMode = defaultConfig.dataMode,
     columns = defaultColumns,
+    sort = defaultSort,
     rows: staticRows = defaultRows,
     pgrestFunctionName = "",
     pgrestParams = [],
     pgrestHttpMethod = "POST",
-    sort = defaultSort,
     dataSourceId,
     plannerVariableName,
     showExport = true,
@@ -428,7 +428,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     sortDir,
     displayRows: legacyDisplayRows,
     handleSortClick,
-  } = useFilterAndSort(filter, { ...sort, enabled: true }, allRows, columns);
+  } = useFilterAndSort(
+    filter,
+    sort,
+    allRows,
+    columns
+  );
 
   // ── Per-column filters ─────────────────────────────────────────────────────
   const {
@@ -533,6 +538,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
             <button
               type="button"
               className="flex min-w-0 items-center gap-1 overflow-hidden"
+              disabled={!sort.enabled || !sort.columns.includes(column.key)}
               onClick={() => handleSortClick(column.key)}
             >
               {column.descriptionEnabled && column.description ? (

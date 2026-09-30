@@ -40,7 +40,7 @@ The portable action dropdown displays validated resolved links with native keybo
 
 The presentational data table renders shared cells with sticky edge columns, an action column, host-provided headers and loading/error/empty states. Both Next.js table variants use it, including resizable columns and row navigation.
 
-The data-table registry composes saved-query or static rows with templates, filtering, sorting and safe actions in React and the browser runtime. It is a viewer; document editing and registration of the resizable variant are not included.
+The data-table registry composes saved-query or static rows with templates, filtering, sorting and safe actions in React and the browser runtime. Both original and resizable table registries are available; they are viewers and do not provide document editing or widget settings.
 
 CSV export uses displayed rows and resolved labels, protects spreadsheet formula prefixes and supports browser downloads or a host delivery callback.
 
@@ -51,6 +51,8 @@ The portable row context dialog validates resolved links, clamps to the viewport
 The shared table renderer optionally supports pointer resizing, keyboard width adjustment and auto-fit, with local viewer widths and explicit host persistence.
 
 Primary row links and secondary context actions use validated resolved URLs, with native keyboard links and action buttons. Alternating row backgrounds respect configured color rules.
+
+The resizable registry renders existing `data_table_v2` widgets with saved widths, header sorting, row navigation and local viewer resizing in React and framework-independent browser hosts.
 
 ## Run the embedded example
 

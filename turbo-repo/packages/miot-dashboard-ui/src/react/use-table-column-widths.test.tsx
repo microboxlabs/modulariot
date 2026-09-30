@@ -164,8 +164,31 @@ it("keeps an active drag across equivalent host column arrays", () => {
 });
 it("reserves space for the final column before scaling wide content", () => {
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(
-    function (this: HTMLElement) { return this.tagName === "TABLE" ? 500 : 300; },
+    function (this: HTMLElement) {
+      return this.tagName === "TABLE" ? 500 : 300;
+    },
   );
   render(<Host />);
   expect(screen.getByRole("status").textContent).toBe("[210,210,null]");
+});
+
+it("converts screen drag distance to column units inside a scaled dashboard", () => {
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+    width: 50,
+    height: 20,
+    left: 0,
+    top: 0,
+    right: 50,
+    bottom: 20,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+  const onCommit = vi.fn();
+  render(<Host editable onCommit={onCommit} />);
+  fireEvent.mouseDown(screen.getByRole("button", { name: "first" }), {
+    clientX: 10,
+  });
+  fireEvent.mouseUp(document, { clientX: 60 });
+  expect(onCommit).toHaveBeenCalledExactlyOnceWith({ first: 200, second: 100 });
 });

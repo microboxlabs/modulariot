@@ -120,7 +120,7 @@ it("resizes with keyboard controls and persists only editor changes", () => {
     },
   );
   vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
-    width: 100,
+    width: 50,
     height: 20,
     left: 0,
     top: 0,

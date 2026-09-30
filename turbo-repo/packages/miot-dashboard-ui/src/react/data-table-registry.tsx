@@ -6,6 +6,7 @@ import { createWidgetRegistry } from "../core/widget-registry";
 import { createTemplateEngine } from "../templates";
 import {
   normalizeActionsConfig,
+  normalizeRowActions,
   isSafeActionUrl,
 } from "../core/action-helpers";
 import { evaluateRule } from "../core/color-rules";
@@ -48,6 +49,21 @@ export interface DataTableRegistryOptions {
 }
 export function createDataTableRegistry(
   options: Readonly<DataTableRegistryOptions>,
+) {
+  return createTableRegistry(options, "data_table");
+}
+export interface ResizableDataTableRegistryOptions extends DataTableRegistryOptions {
+  resizeLabel: (column: string) => string;
+}
+export function createResizableDataTableRegistry(
+  options: Readonly<ResizableDataTableRegistryOptions>,
+) {
+  return createTableRegistry(options, "data_table_v2", options.resizeLabel);
+}
+function createTableRegistry(
+  options: Readonly<DataTableRegistryOptions>,
+  type: "data_table" | "data_table_v2",
+  resizeLabel?: (column: string) => string,
 ) {
   const engine = options.templateEngine ?? createTemplateEngine();
   function RegisteredDataTable({ widget }: Readonly<WidgetComponentProps>) {
@@ -115,6 +131,20 @@ export function createDataTableRegistry(
           })),
         ),
       [actions],
+    );
+    const rowActions = useMemo(
+      () => normalizeRowActions(config.rowActions),
+      [config.rowActions],
+    );
+    const rowLinks = useMemo(
+      () =>
+        engine.compileTemplates(
+          rowActions.map((action, index) => ({
+            id: String(index),
+            template: action.link,
+          })),
+        ),
+      [rowActions],
     );
     const titleTemplate = useMemo(
       () => engine.compileTemplates([{ id: "title", template: config.title }]),
@@ -194,6 +224,26 @@ export function createDataTableRegistry(
           onClearAll={filters.clearAllFilters}
         />
         <DataTable
+          striped={config.striped}
+          resizing={
+            resizeLabel
+              ? { savedWidths: config.columnWidths, handleLabel: resizeLabel }
+              : undefined
+          }
+          rowActions={
+            rowActions.length
+              ? (row) =>
+                  rowActions.map((action, index) => ({
+                    action,
+                    href: engine.resolveTemplate(
+                      rowLinks,
+                      String(index),
+                      { ...row, row },
+                      action.link,
+                    ),
+                  }))
+              : undefined
+          }
           columns={config.columns}
           rows={filters.filteredData}
           label={title}
@@ -206,13 +256,32 @@ export function createDataTableRegistry(
           resolveType={resolveType}
           renderHeader={(column, label) => (
             <div className="miot-table-widget__heading">
-              <span
-                title={
-                  column.descriptionEnabled ? column.description : undefined
-                }
-              >
-                {label}
-              </span>
+              {resizeLabel && config.sort.enabled && config.sort.columns.includes(column.key) ? (
+                <button
+                  type="button"
+                  title={
+                    column.descriptionEnabled ? column.description : undefined
+                  }
+                  onClick={() => rowControls.handleSortClick(column.key)}
+                >
+                  {label}
+                  {rowControls.sortKey === column.key && (
+                    <span
+                      aria-label={options.directionLabels[rowControls.sortDir]}
+                    >
+                      {rowControls.sortDir === "asc" ? " ↓" : " ↑"}
+                    </span>
+                  )}
+                </button>
+              ) : (
+                <span
+                  title={
+                    column.descriptionEnabled ? column.description : undefined
+                  }
+                >
+                  {label}
+                </span>
+              )}
               <ColumnFilterPopover
                 title={options.filterTitle(label)}
                 clearLabel={options.clearFilterLabel}
@@ -264,7 +333,7 @@ export function createDataTableRegistry(
   }
   return createWidgetRegistry([
     {
-      meta: { id: "data_table", hasChildren: false, hasSettings: false },
+      meta: { id: type, hasChildren: false, hasSettings: false },
       Component: RegisteredDataTable,
       getLayoutDefaults: () => ({ minW: 4, minH: 3 }),
     },

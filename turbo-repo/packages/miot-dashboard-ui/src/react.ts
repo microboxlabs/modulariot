@@ -84,7 +84,7 @@ export { ColumnFilterPopover, type ColumnFilterPopoverProps } from "./react/colu
 
 export { ActionDropdown, type ActionDropdownProps, type ResolvedAction } from "./react/action-dropdown";
 
-export { DataTable, type DataTableProps, type DataTableColumn } from "./react/data-table";
+export { DataTable, type DataTableProps, type TableResizingOptions, type DataTableColumn } from "./react/data-table";
 
 export { createDataTableRegistry, type DataTableRegistryOptions } from "./react/data-table-registry";
 

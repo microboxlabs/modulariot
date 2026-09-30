@@ -7,6 +7,7 @@ import {
   useCallback,
   type RefObject,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 export interface WidthColumn {
   readonly key: string;
@@ -14,6 +15,7 @@ export interface WidthColumn {
 }
 export interface TableColumnWidthsOptions {
   readonly columns: readonly WidthColumn[];
+  readonly enabled?: boolean;
   readonly savedWidths?: Record<string, number>;
   readonly tableRef: RefObject<HTMLTableElement | null>;
   readonly headerRowRef: RefObject<HTMLTableRowElement | null>;
@@ -94,6 +96,7 @@ function clearColumnInlineWidth(table: HTMLTableElement, position: number) {
 
 export function useTableColumnWidths({
   columns,
+  enabled = true,
   savedWidths,
   tableRef,
   headerRowRef,
@@ -119,7 +122,7 @@ export function useTableColumnWidths({
   // Re-measure when column keys/order or the saved widths change (undo/redo,
   // column edits), not only when the column count changes.
   const columnKeysSig = JSON.stringify(columns.map((c) => c.key));
-  useEffect(() => () => cancelDrag.current?.(), [columnKeysSig, loading, error]);
+  useEffect(() => () => cancelDrag.current?.(), [columnKeysSig, loading, error, enabled]);
   const savedWidthsSig = JSON.stringify(savedWidths ?? {});
   const measuredKeysSigRef = useRef(columnKeysSig);
   const measuredSavedSigRef = useRef(savedWidthsSig);
@@ -138,6 +141,7 @@ export function useTableColumnWidths({
   // can retain the host layout for all user interaction.
   // Temporarily overrides the host layout for measurement, then restores it.
   useLayoutEffect(() => {
+    if (!enabled) return;
     const table = tableRef.current;
     const headerRow = headerRowRef.current;
     if (!table || !headerRow) return;
@@ -204,10 +208,15 @@ export function useTableColumnWidths({
 
     columnWidthsRef.current = snapshot;
     setColumnWidths(snapshot);
-  }, [loading, error, columns.length, columnKeysSig, savedWidthsSig]);
+  }, [enabled, loading, error, columns.length, columnKeysSig, savedWidthsSig]);
 
   const handleResizeMouseDown = useCallback(
-    (e: ReactMouseEvent, colIdx: number) => {
+    (e: ReactMouseEvent | ReactPointerEvent, colIdx: number) => {
+      if (e.button !== 0) return;
+      const pointer = e.type === "pointerdown";
+      const pointerId = "pointerId" in e ? e.pointerId : undefined;
+      const moveEvent = pointer ? "pointermove" : "mousemove";
+      const upEvent = pointer ? "pointerup" : "mouseup";
       e.preventDefault();
       e.stopPropagation();
 
@@ -286,10 +295,12 @@ export function useTableColumnWidths({
       };
 
       const onMouseMove = (ev: MouseEvent) => {
+        if (pointer && "pointerId" in ev && ev.pointerId !== pointerId) return;
         applyWidth(Math.max(80, startWidth + (ev.clientX - startX)));
       };
 
       const onMouseUp = (ev: MouseEvent) => {
+        if (pointer && "pointerId" in ev && ev.pointerId !== pointerId) return;
         finishDrag();
         const finalWidth = Math.max(80, startWidth + (ev.clientX - startX));
         applyWidth(finalWidth);
@@ -310,14 +321,16 @@ export function useTableColumnWidths({
       const finishDrag = () => {
         doc.body.style.cursor = previousCursor;
         doc.body.style.userSelect = previousSelection;
-        doc.removeEventListener("mousemove", onMouseMove);
-        doc.removeEventListener("mouseup", onMouseUp);
+        doc.removeEventListener(moveEvent, onMouseMove);
+        doc.removeEventListener(upEvent, onMouseUp);
+        doc.removeEventListener("pointercancel", finishDrag);
         doc.defaultView?.removeEventListener("blur", finishDrag);
         cancelDrag.current = undefined;
       };
       cancelDrag.current = finishDrag;
-      doc.addEventListener("mousemove", onMouseMove);
-      doc.addEventListener("mouseup", onMouseUp);
+      doc.addEventListener(moveEvent, onMouseMove);
+      doc.addEventListener(upEvent, onMouseUp);
+      if (pointer) doc.addEventListener("pointercancel", finishDrag);
       doc.defaultView?.addEventListener("blur", finishDrag);
     },
     [measureStickyOffsets],
@@ -398,7 +411,32 @@ export function useTableColumnWidths({
     }
   }, []);
 
+  const resizeColumnBy = useCallback((colIdx: number, delta: number) => {
+    const col = colRefs.current[colIdx];
+    const table = tableRef.current;
+    if (
+      !col ||
+      !table ||
+      colIdx >= columnsRef.current.length - 1 ||
+      !Number.isFinite(delta)
+    )
+      return;
+    cancelDrag.current?.();
+    const next = [...columnWidthsRef.current];
+    next[colIdx] = Math.max(80, col.getBoundingClientRect().width + delta);
+    // Drop drag-only overrides before React applies the new widths.
+    columnsRef.current.forEach((_, index) =>
+      clearColumnInlineWidth(table, index + 1),
+    );
+    next[columnsRef.current.length - 1] = null;
+    columnWidthsRef.current = next;
+    setColumnWidths(next);
+    persistWidthsRef.current(next);
+  }, []);
+
   return {
+    handleResizePointerDown: handleResizeMouseDown,
+    resizeColumnBy,
     columnWidths,
     thRefs,
     colRefs,

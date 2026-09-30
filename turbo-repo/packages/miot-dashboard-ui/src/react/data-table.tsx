@@ -1,12 +1,14 @@
 "use client";
 import {
   useLayoutEffect,
+  useCallback,
   useRef,
   useState,
   type ReactNode,
   type CSSProperties,
 } from "react";
 import { TableCellValue, type CellColorRule } from "./table-cell";
+import { useTableColumnWidths } from "./use-table-column-widths";
 
 export interface DataTableColumn {
   readonly key: string;
@@ -19,7 +21,15 @@ export interface DataTableColumn {
   readonly descriptionEnabled?: boolean;
   readonly description?: string;
 }
+export interface TableResizingOptions {
+  readonly savedWidths?: Record<string, number>;
+  readonly editable?: boolean;
+  readonly onCommit?: (widths: Record<string, number>) => void;
+  /** Explain drag, arrow-key adjustment and Enter/double-click auto-fit. */
+  readonly handleLabel: (columnLabel: string) => string;
+}
 export interface DataTableProps {
+  readonly resizing?: TableResizingOptions;
   readonly columns: readonly DataTableColumn[];
   readonly rows: readonly Record<string, string>[];
   readonly label: string;
@@ -118,18 +128,42 @@ export function DataTable({
   renderHeader,
   renderActions,
   rowColor,
+  resizing,
 }: DataTableProps) {
   const header = useRef<HTMLTableRowElement>(null);
+  const table = useRef<HTMLTableElement>(null);
   const [offsets, setOffsets] = useState<StickyOffsets>({
     left: {},
     right: {},
   });
   const hasActions = Boolean(renderActions);
+  const measure = useCallback(() => {
+    const row = header.current;
+    if (row) setOffsets(stickyOffsets(columns, row.children, hasActions));
+  }, [columns, hasActions]);
+  const widths = useTableColumnWidths({
+    columns,
+    enabled: Boolean(resizing),
+    savedWidths: resizing?.savedWidths,
+    editable: resizing?.editable,
+    onCommit: resizing?.onCommit,
+    tableRef: table,
+    headerRowRef: header,
+    hasActions,
+    loading,
+    error: errorLabel,
+    measureStickyOffsets: measure,
+  });
+  const position = (index: number): CSSProperties => {
+    const width = resizing ? widths.columnWidths[index] : undefined;
+    return {
+      ...cellPosition(index, offsets),
+      ...(width == null ? {} : { width, minWidth: width, maxWidth: width }),
+    };
+  };
   useLayoutEffect(() => {
     const row = header.current;
     if (!row) return;
-    const measure = () =>
-      setOffsets(stickyOffsets(columns, row.children, hasActions));
     measure();
     const observer =
       typeof ResizeObserver === "undefined"
@@ -143,9 +177,21 @@ export function DataTable({
       observer?.disconnect();
       win?.removeEventListener("resize", measure);
     };
-  }, [columns, hasActions, rows, loading, errorLabel]);
+  }, [
+    columns,
+    hasActions,
+    rows,
+    loading,
+    errorLabel,
+    measure,
+    widths.columnWidths,
+  ]);
   return (
-    <div className="miot-data-table" data-dividers={showColumnDividers}>
+    <div
+      className="miot-data-table"
+      data-dividers={showColumnDividers}
+      data-resizable={Boolean(resizing)}
+    >
       {loading && (
         <output className="miot-data-table__message">{loadingLabel}</output>
       )}
@@ -155,7 +201,25 @@ export function DataTable({
         </div>
       )}
       {!loading && !errorLabel && (
-        <table aria-label={label}>
+        <table
+          ref={table}
+          aria-label={label}
+          style={resizing ? { tableLayout: "fixed" } : undefined}
+        >
+          {resizing && (
+            <colgroup>
+              {columns.map((column, index) => (
+                <col
+                  key={column.key}
+                  ref={(element) => {
+                    widths.colRefs.current[index] = element;
+                  }}
+                  style={{ width: widths.columnWidths[index] ?? undefined }}
+                />
+              ))}
+              {hasActions && <col />}
+            </colgroup>
+          )}
           <thead>
             <tr ref={header}>
               {columns.map((column, index) => {
@@ -164,9 +228,47 @@ export function DataTable({
                   <th
                     scope="col"
                     key={column.key}
-                    style={cellPosition(index, offsets)}
+                    ref={(element) => {
+                      widths.thRefs.current[index] = element;
+                    }}
+                    style={position(index)}
                   >
                     {renderHeader ? renderHeader(column, title) : title}
+                    {resizing && index < columns.length - 1 && (
+                      <button
+                        type="button"
+                        className="miot-data-table__resize"
+                        aria-label={resizing.handleLabel(title)}
+                        title={resizing.handleLabel(title)}
+                        onPointerDown={(event) =>
+                          widths.handleResizePointerDown(event, index)
+                        }
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (event.detail === 0) widths.autoFitColumn(index);
+                        }}
+                        onDoubleClick={(event) => {
+                          event.stopPropagation();
+                          widths.autoFitColumn(index);
+                        }}
+                        onKeyDown={(event) => {
+                          if (
+                            event.key !== "ArrowLeft" &&
+                            event.key !== "ArrowRight"
+                          )
+                            return;
+                          event.preventDefault();
+                          event.stopPropagation();
+                          widths.resizeColumnBy(
+                            index,
+                            (event.key === "ArrowRight" ? 1 : -1) *
+                              (event.shiftKey ? 50 : 10),
+                          );
+                        }}
+                      >
+                        <span aria-hidden="true">⋮</span>
+                      </button>
+                    )}
                   </th>
                 );
               })}
@@ -197,10 +299,7 @@ export function DataTable({
                   style={rowStyle(rowColor?.(row, index))}
                 >
                   {columns.map((column, columnIndex) => (
-                    <td
-                      key={column.key}
-                      style={cellPosition(columnIndex, offsets)}
-                    >
+                    <td key={column.key} style={position(columnIndex)}>
                       <TableCellValue
                         value={resolveValue(
                           column.key,

@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { DataTable, type DataTableProps } from "./data-table";
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 function props(): DataTableProps {
   return {
@@ -111,4 +112,77 @@ it("supports validated hex row tints without dropping legacy color names", () =>
   expect(row.style.getPropertyValue("--miot-row-background")).toBe("");
   view.rerender(<DataTable {...props()} rowColor={() => "url(secret)"} />);
   expect(row.style.getPropertyValue("--miot-row-background")).toBe("");
+});
+it("resizes with keyboard controls and persists only editor changes", () => {
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(
+    function (this: HTMLElement) {
+      return this.tagName === "TABLE" ? 600 : 100;
+    },
+  );
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+    width: 100,
+    height: 20,
+    left: 0,
+    top: 0,
+    right: 100,
+    bottom: 20,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  });
+  const onCommit = vi.fn();
+  const options = props();
+  const resizing = {
+    editable: true,
+    onCommit,
+    handleLabel: (label: string) => `Resize ${label}`,
+  };
+  const view = render(<DataTable {...options} resizing={resizing} />);
+  const handle = screen.getByRole("button", { name: "Resize Service" });
+  expect(screen.queryByRole("button", { name: "Resize Share" })).toBeNull();
+  fireEvent.keyDown(handle, { key: "ArrowRight" });
+  expect(onCommit).toHaveBeenLastCalledWith({ service: 110, cost: 100 });
+  expect(screen.getByRole("table").style.tableLayout).toBe("fixed");
+  view.rerender(
+    <DataTable {...options} resizing={{ ...resizing, editable: false }} />,
+  );
+  fireEvent.keyDown(handle, { key: "ArrowLeft", shiftKey: true });
+  expect(onCommit).toHaveBeenCalledOnce();
+  expect(view.container.querySelector("col")?.style.width).toBe("80px");
+  fireEvent.click(handle, { detail: 0 });
+  expect(view.container.querySelector("col")?.style.width).toBe("100px");
+  expect(onCommit).toHaveBeenCalledOnce();
+});
+it("tracks pointer resize and cancels without saving when the pointer is interrupted", () => {
+  vi.stubGlobal("PointerEvent", MouseEvent);
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(
+    function (this: HTMLElement) {
+      return this.tagName === "TABLE" ? 600 : 100;
+    },
+  );
+  const onCommit = vi.fn();
+  render(
+    <DataTable
+      {...props()}
+      resizing={{
+        editable: true,
+        onCommit,
+        handleLabel: (label) => `Resize ${label}`,
+      }}
+    />,
+  );
+  const handle = screen.getByRole("button", { name: "Resize Service" });
+  fireEvent.pointerDown(handle, { clientX: 10 });
+  fireEvent.pointerMove(document, { clientX: 60 });
+  expect(onCommit).not.toHaveBeenCalled();
+  fireEvent.pointerUp(document, { clientX: 60 });
+  expect(onCommit).toHaveBeenCalledExactlyOnceWith({ service: 150, cost: 100 });
+  fireEvent.pointerDown(handle, { clientX: 10 });
+  fireEvent.pointerMove(document, { clientX: 30 });
+  fireEvent.pointerCancel(document);
+  fireEvent.pointerUp(document, { clientX: 30 });
+  expect(onCommit).toHaveBeenCalledOnce();
+  expect(document.body.style.cursor).toBe("");
+  vi.unstubAllGlobals();
+
 });

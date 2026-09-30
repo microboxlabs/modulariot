@@ -5,6 +5,7 @@ import React, {
   useCallback,
   useMemo,
   useEffect,
+  type ReactNode,
 } from "react";
 import { Button } from "flowbite-react";
 import {
@@ -62,6 +63,7 @@ import { AddWidgetModal } from "../add-widget-modal/add-widget-modal";
 import { type GridLayoutItem, type Widget } from "../../types/dashboard.types";
 
 import { DashboardSettingsDropdown } from "../dashboard-settings-dropdown";
+import type { DashboardSettingsHost } from "../dashboard-settings-dropdown/dashboard-settings-dropdown";
 import DashboardShareDropdown from "../dashboard-share-dropdown/dashboard-share-dropdown";
 import { DashboardFilterBadges } from "../dashboard-filters-card/dashboard-filters-card";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
@@ -74,7 +76,16 @@ function renderRootWidget(widget: Widget) {
  * Main dashboard view component
  * Renders all root-level widgets with edit mode controls using react-grid-layout
  */
-export function DashboardView() {
+interface DashboardViewProps {
+  /** Rendered before the edit-mode button, e.g. a host's save controls. */
+  headerActions?: ReactNode;
+  settingsHost?: DashboardSettingsHost;
+}
+
+export function DashboardView({
+  headerActions,
+  settingsHost,
+}: Readonly<DashboardViewProps> = {}) {
   const {
     registry,
     widgets,
@@ -189,6 +200,7 @@ export function DashboardView() {
                   </Button>
                 </div>
               )}
+              {headerActions}
               {hasWidgets && canEdit && (
                 <Button
                   color={editMode ? "blue" : "light"}
@@ -200,12 +212,13 @@ export function DashboardView() {
                   {tr("dashboard.editMode", dictionary)}
                 </Button>
               )}
-              {canEdit && !hostAccess && (
+              {canEdit && (!hostAccess || settingsHost) && (
                 <DashboardSettingsDropdown
                   canManagePermissions={canManagePermissions}
+                  host={settingsHost}
                 />
               )}
-              {!hostAccess && <DashboardShareDropdown />}
+              <DashboardShareDropdown />
               <Link
                 href={kioskUrl}
                 target="_blank"

@@ -60,8 +60,6 @@ export function ServerDashboardSettings({
           <DashboardFilterEditor
             sources={{
               queries,
-              downloadDashboard,
-              importDashboard,
               labels: {
                 source: t("filters.source"),
                 static: t("filters.static"),

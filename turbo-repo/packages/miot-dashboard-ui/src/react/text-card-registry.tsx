@@ -42,7 +42,7 @@ export function createTextCardRegistry(
   function RegisteredTextCard({ widget }: Readonly<WidgetComponentProps>) {
     const config = widget.config;
     const mode = config.dataMode ?? "static";
-    const { results } = useOptionalPlannerContext();
+    const { results, definitions } = useOptionalPlannerContext();
     const { activeFilters } = useDashboardFilters();
     const result =
       mode === "planner" && typeof config.plannerVariableName === "string"
@@ -77,9 +77,14 @@ export function createTextCardRegistry(
     );
     if (mode !== "static" && mode !== "planner")
       return <p role="alert">{options.unsupportedDataLabel}</p>;
+    const pendingDeclaration = mode === "planner" && !result && definitions.some(
+      (definition) => definition.variableName === config.plannerVariableName,
+    );
+    if (pendingDeclaration || result?.loading)
+      return <output>{options.loadingLabel}</output>;
     if (mode === "planner" && (!result || result.error))
       return <p role="alert">{options.errorLabel}</p>;
-    if (result?.loading) return <p role="status">{options.loadingLabel}</p>;
+    if (result?.loading) return <output>{options.loadingLabel}</output>;
     return (
       <TextCard
         text={resolved}

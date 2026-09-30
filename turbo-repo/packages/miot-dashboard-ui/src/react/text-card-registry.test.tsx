@@ -145,3 +145,15 @@ it("isolates host helper engines between registries", () => {
   expect(screen.getByText("First")).toBeTruthy();
   expect(screen.getByText("Second")).toBeTruthy();
 });
+
+it("shows loading for a declared query before results exist, not a false alert", () => {
+  const value: PlannerContextValue = {
+    results: new Map(), schemas: new Map(), definitions: [{ id: "q", variableName: "costs", pgrestFunctionName: "", pgrestHttpMethod: "GET", pgrestParams: [] }],
+  };
+  const card = <WidgetRenderer registry={registry} unknownWidgetLabel="Missing" widget={widget({ dataMode: "planner", plannerVariableName: "costs", text: "{{cost}}" })} />;
+  const view = render(<PlannerResultsProvider value={value}>{card}</PlannerResultsProvider>);
+  expect(screen.getByRole("status").textContent).toBe("Loading");
+  expect(screen.queryByRole("alert")).toBeNull();
+  view.rerender(<PlannerResultsProvider value={{ ...value, definitions: [] }}>{card}</PlannerResultsProvider>);
+  expect(screen.getByRole("alert").textContent).toBe("Unavailable");
+});

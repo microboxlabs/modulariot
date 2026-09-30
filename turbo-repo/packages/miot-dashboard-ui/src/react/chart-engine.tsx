@@ -50,12 +50,14 @@ export function ChartEngineView<Option>({
     engineRef.current?.update(option);
   }, [createEngine, option]);
   return (
-    <div
-      ref={elementRef}
-      className="miot-chart-engine"
-      role="img"
-      aria-label={ariaLabel}
-      onPointerLeave={() => engineRef.current?.hideTooltip?.()}
-    />
+    <>
+      <div
+        ref={elementRef}
+        className="miot-chart-engine"
+        aria-hidden="true"
+        onPointerLeave={() => engineRef.current?.hideTooltip?.()}
+      />
+      {ariaLabel && <span className="miot-sr-only">{ariaLabel}</span>}
+    </>
   );
 }

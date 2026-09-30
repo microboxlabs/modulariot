@@ -48,7 +48,10 @@ it("updates in place, observes resize and disposes on replacement/unmount", () =
   expect(first.update).toHaveBeenLastCalledWith({ value: 2 });
   resize();
   expect(first.resize).toHaveBeenCalledOnce();
-  fireEvent.pointerLeave(screen.getByRole("img"));
+  expect(screen.getByText("Costs").className).toBe("miot-sr-only");
+  fireEvent.pointerLeave(
+    view.container.querySelector(".miot-chart-engine") as Element,
+  );
   expect(first.hideTooltip).toHaveBeenCalledOnce();
   const oldResize = resize;
   view.rerender(

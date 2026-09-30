@@ -429,3 +429,24 @@ mounted renderer, including when multiple canvases contain the same document.
 
 This API composes registered widgets; it does not automatically register app
 plugins or provide settings dialogs, a catalog picker, or authentication.
+
+## Native mount lifecycle
+
+`mountDashboard(element, options)` from `./embed` renders a canvas in an empty
+host-owned element and returns `update(options)` and `destroy()`. Import the
+package stylesheet once. Options contain the canvas props plus a required,
+nonempty `instanceKey`: change this key whenever the tenant, authenticated
+session, or document changes. The key resets widget-local state; it is not an
+authorization credential and must not contain tokens or secrets.
+
+Updates replace all options, including callbacks and edit intent. Same-key
+updates retain component state. `destroy()` is idempotent, releases the container,
+and must run before the host removes it. Updating a destroyed handle, mounting
+twice in the same element, mounting over existing host content, or omitting an
+instance key throws `DashboardMountError` with a stable `code`.
+
+For LiveView, use a hook with an ignored mount container; call `update` from the
+hook's update lifecycle and `destroy` from its destruction lifecycle. The host
+supplies the registry and data. This ESM entry uses React/ReactDOM peers internally
+but requires no host React root management; it is not yet a standalone browser
+script distribution or an automatically configured widget catalog.

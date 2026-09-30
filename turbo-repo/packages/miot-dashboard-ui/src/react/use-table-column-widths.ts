@@ -244,6 +244,11 @@ export function useTableColumnWidths({
       const restoreWidths = tableRef.current ? captureWidths(tableRef.current) : () => {};
       const startX = e.clientX;
       const startWidth = colEl.offsetWidth;
+      const visualWidth = colEl.getBoundingClientRect().width;
+      const scale =
+        startWidth > 0 && visualWidth > 0 ? visualWidth / startWidth : 1;
+      const widthAt = (clientX: number) =>
+        Math.max(80, startWidth + (clientX - startX) / scale);
 
       const doc = colEl.ownerDocument;
       const previousCursor = doc.body.style.cursor;
@@ -313,13 +318,13 @@ export function useTableColumnWidths({
 
       const onMouseMove = (ev: MouseEvent) => {
         if (pointer && "pointerId" in ev && ev.pointerId !== pointerId) return;
-        applyWidth(Math.max(80, startWidth + (ev.clientX - startX)));
+        applyWidth(widthAt(ev.clientX));
       };
 
       const onMouseUp = (ev: MouseEvent) => {
         if (pointer && "pointerId" in ev && ev.pointerId !== pointerId) return;
         finishDrag();
-        const finalWidth = Math.max(80, startWidth + (ev.clientX - startX));
+        const finalWidth = widthAt(ev.clientX);
         applyWidth(finalWidth);
         const next = [...columnWidthsRef.current];
         next[colIdx] = finalWidth;

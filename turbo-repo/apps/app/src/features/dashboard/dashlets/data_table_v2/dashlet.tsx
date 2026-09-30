@@ -376,7 +376,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     pgrestFunctionName = "",
     pgrestParams = [],
     pgrestHttpMethod = "POST",
-    sort = defaultSort,
     dataSourceId,
     plannerVariableName,
     showExport = true,
@@ -428,7 +427,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     sortDir,
     displayRows: legacyDisplayRows,
     handleSortClick,
-  } = useFilterAndSort(filter, { ...sort, enabled: true }, allRows, columns);
+  } = useFilterAndSort(
+    filter,
+    { enabled: true, columns: columns.map((column) => column.key) },
+    allRows,
+    columns
+  );
 
   // ── Per-column filters ─────────────────────────────────────────────────────
   const {

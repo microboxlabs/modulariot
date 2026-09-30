@@ -2,7 +2,11 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { Widget } from "@microboxlabs/miot-dashboard-contract/document";
-import { createDataTableRegistry } from "./data-table-registry";
+import {
+  createDataTableRegistry,
+  createResizableDataTableRegistry,
+  type DataTableRegistryOptions,
+} from "./data-table-registry";
 import { WidgetRenderer } from "./widget-renderer";
 import {
   PlannerResultsProvider,
@@ -13,7 +17,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 const exportCsv = vi.fn();
-const registry = createDataTableRegistry({
+const options: DataTableRegistryOptions = {
   defaultTitle: "Costs",
   exportLabel: "Export CSV",
   onExportCsv: exportCsv,
@@ -51,6 +55,11 @@ const registry = createDataTableRegistry({
   removeFilterLabel: (label) => `Remove ${label}`,
   formatFilterValue: (filter) => String(filter.value),
   rowCountLabel: (count) => `${count} rows`,
+};
+const registry = createDataTableRegistry(options);
+const resizableRegistry = createResizableDataTableRegistry({
+  ...options,
+  resizeLabel: (label) => `Resize ${label}`,
 });
 const columns = [
   { key: "{{row.service}}", label: "Service", type: "text" },
@@ -63,13 +72,15 @@ const rows = [
 function Table({
   config,
   result,
+  resizable = false,
 }: {
   readonly config: Widget["config"];
+  readonly resizable?: boolean;
   readonly result?: PlannerQueryResult;
 }) {
   const widget: Widget = {
     id: "t",
-    componentId: "data_table",
+    componentId: resizable ? "data_table_v2" : "data_table",
     config,
     layout: { i: "t", x: 0, y: 0, w: 8, h: 5 },
     createdAt: "2026-09-30",
@@ -84,7 +95,7 @@ function Table({
       }}
     >
       <WidgetRenderer
-        registry={registry}
+        registry={resizable ? resizableRegistry : registry}
         widget={widget}
         unknownWidgetLabel="Unknown"
       />
@@ -221,4 +232,49 @@ it("keeps duplicate-column filter pills distinct across updates", () => {
   } finally {
     errors.mockRestore();
   }
+});
+it("renders saved resizable dashboards with header sorting and safe row actions", () => {
+  vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(
+    function (this: HTMLElement) {
+      return this.tagName === "TABLE" ? 600 : 100;
+    },
+  );
+  const view = render(
+    <Table
+      resizable
+      config={{
+        columns,
+        rows,
+        striped: true,
+        columnWidths: { "{{row.service}}": 160 },
+        rowActions: [
+          {
+            method: "goto",
+            name: "Report",
+            link: "{{row.href}}",
+            target: "_self",
+          },
+        ],
+      }}
+    />,
+  );
+  expect(screen.getByRole("table").style.tableLayout).toBe("fixed");
+  expect(view.container.querySelector("col")?.style.width).toBe("160px");
+  expect(screen.getByRole("button", { name: "Resize Service" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Resize Cost" })).toBeNull();
+  expect(screen.getAllByRole("link", { name: "Report" })).toHaveLength(1);
+  expect(
+    screen.getByRole("link", { name: "Report" }).getAttribute("href"),
+  ).toBe("/report");
+  fireEvent.click(screen.getByRole("button", { name: "Cost" }));
+  expect(screen.getAllByRole("row")[1]?.textContent).toContain("SQL");
+  view.rerender(
+    <Table
+      resizable
+      config={{ columns, rows, columnWidths: { "{{row.service}}": -1 } }}
+    />,
+  );
+  expect(screen.getByRole("alert").textContent).toBe("Unavailable");
+  vi.restoreAllMocks();
+
 });

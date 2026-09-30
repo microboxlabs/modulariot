@@ -1028,3 +1028,19 @@ keyboard-accessible action dropdown. Host `renderActions` can coexist with them.
 The host resolves templates and authorizes destinations; the renderer rechecks
 URLs and targets. `striped` enables alternating row backgrounds where no row
 color rule applies.
+
+### Resizable table widget registry
+
+`createResizableDataTableRegistry(options)` from `./react`, `./embed` and the
+self-contained browser runtime registers `data_table_v2`. It accepts the same
+translations, templates, export callback and saved-query bindings as
+`createDataTableRegistry`, plus required `resizeLabel(columnLabel)` instructions.
+Register either or both variants when composing a dashboard registry.
+
+The resizable variant reads saved `columnWidths`, `striped` and `rowActions`,
+allows sorting through every header, and provides local viewer resizing.
+Widths must be finite and positive. Row links use per-row template context and
+are rechecked after resolution. These registries do not persist viewer changes
+or provide widget settings; an editing host can use `DataTable` callbacks and
+its authenticated document controller. Column descriptions remain literal
+hover text in the registry; the Next.js host retains its Markdown tooltip.

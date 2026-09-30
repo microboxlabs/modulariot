@@ -38,9 +38,9 @@ Los modelos compartidos normalizan acciones de tablas/listas y restringen protoc
 
 El menú portable de acciones muestra enlaces resueltos validados, con navegación nativa por teclado, restauración de foco y estilos claros/oscuros acotados.
 
-La tabla presentacional muestra celdas compartidas con columnas fijas, acciones, encabezados del host y estados de carga/error/vacío. La tabla original de Next.js la utiliza; la variante redimensionable sigue separada.
+La tabla presentacional muestra celdas compartidas con columnas fijas, acciones, encabezados del host y estados de carga/error/vacío. Ambas tablas de Next.js la utilizan, incluidos anchos redimensionables y navegación por fila.
 
-El registro de tablas combina filas estáticas o de consultas guardadas con plantillas, filtros, ordenamiento y acciones seguras en React y navegador. Es un visor; no incluye edición ni la variante redimensionable.
+El registro de tablas combina filas estáticas o de consultas guardadas con plantillas, filtros, ordenamiento y acciones seguras en React y navegador. Es un visor; no incluye edición de documentos ni el registro de la variante redimensionable.
 
 La exportación CSV utiliza las filas visibles y etiquetas resueltas, protege prefijos de fórmulas y permite descarga en navegador o entrega mediante callback del host.
 
@@ -49,6 +49,8 @@ La lógica de anchos redimensionables se comparte con Next.js: conserva ajustes 
 El diálogo contextual portable valida enlaces resueltos, limita su posición a la ventana, gestiona el foco de teclado y cierra con interacción exterior. La tabla redimensionable de Next.js lo utiliza.
 
 La tabla compartida admite redimensionamiento por puntero, ajuste por teclado y ancho automático, con cambios locales del visor y persistencia explícita del host.
+
+Los enlaces principales y las acciones contextuales de filas usan URLs resueltas validadas, con enlaces nativos y botones accesibles por teclado. Los fondos alternos respetan las reglas de color.
 
 ## Ejecutar el ejemplo embebido
 

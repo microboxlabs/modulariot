@@ -212,3 +212,76 @@ it("rolls back interrupted pointer styles and leaves the filling column flexible
   fireEvent.pointerDown(handle,{clientX:0,pointerId:7});fireEvent.pointerUp(document,{clientX:50,pointerId:7});
   expect(headers[0]?.style.width).toBe('150px');expect(headers[2]?.style.width).toBe('');expect(save).toHaveBeenCalledOnce();
 });
+it("supports primary row navigation and keyboard-accessible secondary actions", () => {
+  const options = props();
+  const view = render(
+    <DataTable
+      {...options}
+      striped
+      rowActions={() => [
+        {
+          action: {
+            method: "goto",
+            name: "View cost",
+            link: "",
+            target: "_blank",
+          },
+          href: "https://example.com/cost",
+        },
+        {
+          action: {
+            method: "goto",
+            name: "History",
+            link: "",
+            target: "_self",
+          },
+          href: "#history",
+        },
+        {
+          action: { method: "goto", name: "Unsafe", link: "", target: "_self" },
+          href: "javascript:alert(1)",
+        },
+      ]}
+    />,
+  );
+  const primary = screen.getByRole("link", { name: "View cost" });
+  expect(primary.getAttribute("rel")).toBe("noopener noreferrer");
+  const navigate = vi.fn((event: Event) => event.preventDefault());
+  primary.addEventListener("click", navigate);
+  fireEvent.click(screen.getByRole("cell", { name: "-2" }));
+  expect(navigate).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+  expect(navigate).toHaveBeenCalledOnce();
+  expect(screen.getByRole("link", { name: "History" })).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "Unsafe" })).toBeNull();
+  fireEvent.keyDown(document, { key: "Escape" });
+  fireEvent.contextMenu(primary, { clientX: 12, clientY: 20 });
+  expect(screen.getByRole("dialog", { name: "Actions" })).toBeTruthy();
+  view.rerender(<DataTable {...options} rows={[]} />);
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+it("never promotes a secondary action when the primary URL is unsafe", () => {
+  render(
+    <DataTable
+      {...props()}
+      rowActions={() => [
+        {
+          action: { method: "goto", name: "Unsafe", link: "", target: "_self" },
+          href: "javascript:alert(1)",
+        },
+        {
+          action: {
+            method: "goto",
+            name: "Secondary",
+            link: "",
+            target: "_self",
+          },
+          href: "#secondary",
+        },
+      ]}
+    />,
+  );
+  expect(screen.queryByRole("link")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Actions" }));
+  expect(screen.getByRole("link", { name: "Secondary" })).toBeTruthy();
+});

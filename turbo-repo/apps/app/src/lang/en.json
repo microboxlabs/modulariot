@@ -3234,6 +3234,7 @@
       "showExport": "Show export",
       "striped": "Striped rows",
       "tableLoading": "Loading...",
+      "tableResizeColumn": "Resize {column}: drag or use arrow keys; Enter to fit",
       "tableNoData": "No data",
       "tableError": "Error: {fetchError}",
       "columnFilterNoMatches": "No matches",

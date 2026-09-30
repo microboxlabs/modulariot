@@ -1013,5 +1013,18 @@ table retains its original automatic layout.
 
 Changes remain local unless `editable` and `onCommit` are supplied. The host
 owns persistence and authorization; the callback alone does not grant edit
-permission. The original Next.js resizable widget currently consumes the
-shared width hook; its full renderer migration remains in progress.
+permission. Both Next.js table variants consume the shared renderer; the resizable
+variant keeps its host query, descriptions, translations and settings adapter.
+
+### Table row navigation
+
+`DataTable.rowActions(row, index)` optionally returns resolved context actions.
+The first configured action is primary: its safe URL appears as a native link
+in the first cell and can also be activated by clicking noninteractive row
+content. Text selection and controls within the row do not trigger navigation.
+Unsafe primary links are omitted rather than replaced by a secondary action.
+The remaining safe links are available through the row context dialog and a
+keyboard-accessible action dropdown. Host `renderActions` can coexist with them.
+The host resolves templates and authorizes destinations; the renderer rechecks
+URLs and targets. `striped` enables alternating row backgrounds where no row
+color rule applies.

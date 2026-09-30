@@ -24,12 +24,11 @@ type RowProps = Pick<
   readonly hasActions: boolean;
   readonly actions: readonly ResolvedContextItem[];
 };
-function usable(
+export function usableRowAction(
   item: ResolvedContextItem | undefined,
 ): item is ResolvedContextItem {
   return Boolean(
-    item &&
-    item.action.method === "goto" &&
+    item?.action.method === "goto" &&
     (item.action.target === "_self" || item.action.target === "_blank") &&
     isSafeActionUrl(item.href),
   );
@@ -55,8 +54,8 @@ export function DataTableRow({
   resolveType,
   renderActions,
 }: RowProps) {
-  const primary = usable(actions[0]) ? actions[0] : undefined;
-  const secondary = actions.slice(1).filter(usable);
+  const primary = usableRowAction(actions[0]) ? actions[0] : undefined;
+  const secondary = actions.slice(1).filter(usableRowAction);
   const primaryRef = useRef<HTMLAnchorElement>(null);
   const rowRef = useRef<HTMLTableRowElement>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -81,7 +80,7 @@ export function DataTableRow({
     <>
       <tr
         ref={rowRef}
-        data-row-color={color ?? undefined}
+        data-row-color={color && (rowStyle(color) || ["red", "orange", "yellow", "green", "blue", "purple", "gray"].includes(color)) ? color : undefined}
         style={rowStyle(color)}
         data-navigable={Boolean(primary)}
         onClick={navigate}

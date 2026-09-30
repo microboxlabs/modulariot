@@ -8,7 +8,7 @@ import {
   type CSSProperties,
 } from "react";
 import type { CellColorRule } from "./table-cell";
-import { DataTableRow } from "./data-table-row";
+import { DataTableRow, usableRowAction } from "./data-table-row";
 import type { ResolvedContextItem } from "./row-context-menu";
 import { useTableColumnWidths } from "./use-table-column-widths";
 
@@ -138,7 +138,8 @@ export function DataTable({
     left: {},
     right: {},
   });
-  const hasActions = Boolean(renderActions || rowActions);
+  const resolvedRowActions = rows.map((row, index) => rowActions?.(row, index) ?? []);
+  const hasActions = Boolean(renderActions) || resolvedRowActions.some(actions => actions.slice(1).some(usableRowAction));
   const measure = useCallback(() => {
     const row = header.current;
     if (row) setOffsets(stickyOffsets(columns, row.children, hasActions));
@@ -318,7 +319,7 @@ export function DataTable({
                   color={rowColor?.(row, index)}
                   position={position}
                   hasActions={hasActions}
-                  actions={rowActions?.(row, index) ?? []}
+                  actions={resolvedRowActions[index] ?? []}
                   actionsLabel={actionsLabel}
                   resolveValue={resolveValue}
                   resolveType={resolveType}

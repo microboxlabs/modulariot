@@ -285,3 +285,14 @@ it("never promotes a secondary action when the primary URL is unsafe", () => {
   fireEvent.click(screen.getByRole("button", { name: "Actions" }));
   expect(screen.getByRole("link", { name: "Secondary" })).toBeTruthy();
 });
+it("keeps stripes available for unsupported colors and omits primary-only action columns", () => {
+ const options=props();
+ const action={action:{method:"goto" as const,name:"Primary",link:"",target:"_self" as const},href:"#details"};
+ const view=render(<DataTable {...options} striped rowColor={()=>"url(secret)"} rowActions={()=>[action]}/>);
+ expect(screen.getAllByRole("columnheader")).toHaveLength(options.columns.length);
+ expect(screen.getAllByRole("row")[1]?.hasAttribute("data-row-color")).toBe(false);
+ view.rerender(<DataTable {...options} rowActions={()=>[action,{...action,href:"#secondary"}]}/>);
+ expect(screen.getAllByRole("columnheader")).toHaveLength(options.columns.length+1);
+ view.rerender(<DataTable {...options} rowActions={()=>[action,{...action,href:"javascript:alert(1)"}]}/>);
+ expect(screen.getAllByRole("columnheader")).toHaveLength(options.columns.length);
+});

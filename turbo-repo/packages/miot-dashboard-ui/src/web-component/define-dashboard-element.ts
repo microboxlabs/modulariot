@@ -8,9 +8,7 @@ export interface DashboardElement extends HTMLElement {
   /** Full replacement; set undefined to clear the dashboard and release its state. */
   dashboardOptions: DashboardMountOptions | undefined;
 }
-export interface DashboardElementConstructor {
-  new (): DashboardElement;
-}
+export type DashboardElementConstructor = new () => DashboardElement;
 export class DashboardElementRegistrationError extends Error {
   constructor() {
     super(

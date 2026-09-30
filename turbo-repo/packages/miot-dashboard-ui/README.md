@@ -1365,3 +1365,156 @@ manual colors remain restricted to React color style properties. Nested widgets
 use the host registry, with add-detail actions gated by WidgetRenderer editing
 capabilities. Loading/errors remove stale content and links. Direct legacy
 queries show the migration label. No AI generation is performed for footer text.
+
+
+### Chart color palettes
+
+The React-free `./core` entry exports `ChartColorPalette`, the frozen
+`CHART_COLOR_PALETTES` catalog and `getChartColors(palette, customColors?)`.
+Palette names are `default`, `cool`, `warm`, `monochrome`, `pastel`, `vivid`
+and `custom`. The function returns a fresh array; changing it never changes
+another dashboard or the host's custom color array. Empty custom palettes and
+unrecognized stored names fall back to the default palette. Both Next.js chart
+families consume these helpers. This export provides colors, not a chart renderer.
+
+`filterChartRowsByDateRange(rows, dateColumn, range, now?)` and
+`ChartDateRange` are also exported from `./core`. Ranges are `all`, `7d`,
+`30d`, `90d`, `180d` and `1y` (365 elapsed days). Cutoffs are inclusive;
+future rows remain visible, matching existing charts. Bounded ranges discard
+missing/invalid dates. `all` and unknown saved values return the original array.
+Pass an epoch-millisecond `now` to share a consistent clock across dashboards.
+Dates with explicit UTC offsets avoid browser-dependent local date parsing.
+
+
+### Chart card
+
+`ChartCard` from `./react` supplies the themed chart container used by both
+Next.js chart families. Props are `title?: string`, `toolbar?: ReactNode`,
+`children: ReactNode`, and `onResize?: (width: number, height: number) => void`.
+Import the package stylesheet. The parent must provide a height.
+
+The callback receives the card’s layout dimensions (including its padding) on
+mount and resize, unaffected by CSS transform scaling. Keep the callback stable
+with `useCallback`. A ResizeObserver tracks element resizing; environments without
+it fall back to window resize. Cleanup disconnects observers and listeners and
+ignores queued callbacks after unmount. Hosts own chart engine initialization,
+option building, accessible chart descriptions and engine disposal. No chart engine
+is bundled by this component. Title text renders literally; toolbar and chart are
+host-owned React slots.
+
+
+### Plain-text chart tooltips
+
+`createChartTooltipFormatter(template, rows, engine?)` from `./templates` compiles
+a template once and returns a formatter for ECharts item parameters. Both Next.js
+chart families use it with `renderMode: "richText"` and `confine: true`. Custom
+tooltip templates are text, including literal markup; they do not render HTML.
+Newlines remain newlines. Filtered pie data supplies its original `rowIndex`, and
+scatter data retains the original index in its third coordinate, including when
+wrapped with item color styling. Invalid/out-of-range indices return empty text.
+
+`createTemplateEngine().compileTextTemplate(template)` is the underlying plain-text
+compiler. It disables HTML escaping while retaining prototype access restrictions.
+Its output must only be used as text (React children, textContent, or a non-HTML
+chart renderer), never innerHTML or an HTML-mode tooltip. Existing `resolveField`
+and `compileTemplates` retain their HTML-escaping behavior.
+
+
+### Chart options (original chart configuration)
+
+`buildLegacyChartOption(config, rows, darkMode?, noDataLabel?, containerWidth?, host?)`
+from `./charts` builds ECharts options for the original `chart` widget: line, bar,
+scatter, pie and gauge. `LegacyChartOptions`, `ChartType`, `ChartSeries`,
+`ChartXAxisDateFormat` and `ChartOptionHost` are exported alongside it. This
+entry builds options only; hosts create, resize and dispose the chart engine.
+Install ECharts 6 when consuming its option types or rendering charts. It is an
+optional peer and is never imported at runtime by the library. The standalone
+browser bundle does not include a chart engine.
+
+Existing series labels, palettes, horizontal bars, stacking, smoothing, bar labels,
+legend, zoom and dark styles are preserved. Missing/nonfinite numeric values become
+line/bar gaps or are omitted from scatter/pie points. Gauge uses the first row.
+Custom tooltips use the plain-text formatter described above.
+
+The optional `host` contains `formatDateLabel(value): string` and
+`colorForValue(value): string | undefined`. Date labels stay as supplied unless
+the host explicitly formats them; there is no implicit locale or time zone.
+Next.js supplies its existing es-CL/America/Santiago formatter and saved color-rule
+evaluator. Pass a translated `noDataLabel` and the measured width for label rotation.
+The mixed-series `chart_v2` builder is described below.
+
+
+### Mixed chart options
+
+`buildMixedChartOption(config, rows, darkMode?, noDataLabel?, containerWidth?, host?)`
+from `./charts` accepts `MixedChartOptions` and `ChartRepresentation[]`. It supports
+cartesian combinations of line, bar and scatter with per-series smoothing, stacking,
+bar labels, colors and left/right Y-axis selection. `ChartFamily` is `cartesian`,
+`pie` or `gauge`; pie/gauge share the original builder's behavior.
+
+Custom colors take precedence over representation colors, then the selected palette.
+Point color rules are supplied through `host.colorForValue`. Scatter uses category
+indices and disables horizontal layout, matching the existing `chart_v2` widget.
+The same explicit date formatter and plain-text tooltip contract apply. Both Next.js
+chart families now consume public option builders; query/planner integration and
+engine lifecycle remain with their host adapters.
+
+
+### Chart engine lifecycle
+
+`ChartEngineView<Option>` from `./react` takes `option`, a descriptive `ariaLabel`,
+and a stable `createEngine(element)` factory. The factory returns `ChartEngine<Option>`:
+`update(option)`, `resize()`, `dispose()` and optional `hideTooltip()`.
+`update` must replace obsolete data/series; for ECharts use
+`instance.setOption(option, { notMerge: true })`. Changing factory identity disposes
+the old engine and creates a new one. Ordinary option updates reuse the instance.
+
+The component observes its plot size, falls back to window resize when needed,
+hides tooltips on pointer leave and disposes the engine on removal, including
+React Strict Mode replay. Import the stylesheet and provide a sized parent (for
+example `ChartCard`). Keep interactive controls outside its image-labelled plot.
+Hosts own engine selection, engine-specific events and chart descriptions.
+Both Next.js chart families use this bridge with the app's ECharts canvas adapter;
+the library does not import or bundle the engine. Engine exceptions propagate to
+the host's React error boundary.
+
+
+### Portable chart registry
+
+`createChartRegistry(options)` from the opt-in `./react-charts` entry registers
+`chart` and `chart_v2` for `WidgetRenderer`/dashboard hosts. Supply a stable
+`createEngine(element)` adapter, translated `defaultTitle`, `loadingLabel`,
+`errorLabel`, `unsupportedDataLabel`, `emptyLabel`, and `rangeLabels` keyed by
+`all`, `7d`, `30d`, `90d`, `180d`, `1y`. Optional settings are `formatDateLabel`,
+`describeChart(title, rows)`, `darkMode`, `now` and `templateEngine`.
+
+Static widgets use `rows`. Planner widgets read `plannerVariableName` from the
+shared `PlannerResultsProvider`; use the existing saved-query provider for server
+execution. Titles, axes and series labels resolve against the first source row,
+active filters and `data_provider`. Date controls filter displayed rows locally.
+Saved item color rules, chart options and source-row tooltip mapping are preserved.
+The registry validates configuration and uses read-only widget metadata. Query
+loading, errors or legacy unsupported modes unmount the chart, disposing its engine
+and clearing stale data. Direct `pgrest` execution is not provided; migrate it to
+connection/template/credential-backed named server queries.
+
+Import `./react-charts` alongside the normal `./react` entry; it shares their
+provider contexts. This optional entry references ECharts option types and expects
+an engine adapter, but does not load the engine. Plain browser hosts can use `./browser-charts`, described below; the default
+`./browser` entry stays smaller and omits the chart registry.
+
+
+### Native browser charts
+
+Use `./browser-charts` instead of `./browser` when a plain HTML or LiveView host
+needs charts. It exports the same mounting/Web Component APIs plus
+`createChartRegistry`. The bundle includes its own shared React runtime, so the
+host needs no React installation, JSX, import map or app framework. Supply
+`createEngine` through registry options using the host's separately loaded chart
+engine. Prefer selective ECharts modules for the chart families you need.
+
+Use a single browser entry for a mounted dashboard: import both `mountDashboard`
+and `createChartRegistry` from `./browser-charts`. Mixing independently bundled
+browser runtimes can duplicate React and provider contexts. The default browser
+bundle remains available for hosts that do not need charts. Both artifacts are
+checked for unresolved imports and can be imported without a DOM.

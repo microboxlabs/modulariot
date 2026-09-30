@@ -41,3 +41,11 @@ export { toActionItems, fromActionItems, isSafeActionUrl, normalizeActionsConfig
 export { buildCsvContent } from "./core/export-csv";
 
 export { DASHBOARD_DRAG_CANCEL_SELECTOR } from "./core/grid-interactions";
+
+export {
+  CHART_COLOR_PALETTES,
+  getChartColors,
+  type ChartColorPalette,
+} from "./core/chart-palettes";
+
+export { filterChartRowsByDateRange, type ChartDateRange } from "./core/chart-date-range";

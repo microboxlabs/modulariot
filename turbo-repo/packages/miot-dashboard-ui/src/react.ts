@@ -123,3 +123,7 @@ export { createSparklineStatRegistry, type SparklineStatRegistryOptions } from "
 export { InfoCard, type InfoCardProps } from "./react/info-card";
 
 export { createInfoCardRegistry, type InfoCardRegistryOptions } from "./react/info-card-registry";
+
+export { ChartCard, type ChartCardProps } from "./react/chart-card";
+
+export { ChartEngineView, type ChartEngine, type ChartEngineViewProps } from "./react/chart-engine";

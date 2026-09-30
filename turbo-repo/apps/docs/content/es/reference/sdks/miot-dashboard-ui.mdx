@@ -6,6 +6,15 @@
 
 ## Elegir una integración
 
+- La entrada autónoma `./browser-charts` agrega gráficos a hosts HTML/Web Component sin React del host; el motor sigue siendo opcional y administrado por el host.
+- El registro opcional de gráficos React conecta ambas familias con datos estáticos o consultas guardadas, plantillas, filtros de fecha y reglas de color; consultas denegadas liberan gráficos anteriores.
+- `ChartEngineView` gestiona la creación del motor del host, reemplazo de opciones, redimensionado y liberación, incluido Strict Mode de React.
+- Las opciones mixtas conservan ejes duales, combinaciones de líneas/barras/dispersión y ajustes por serie; ambas familias de Next.js usan los generadores públicos.
+- La entrada opcional `./charts` genera opciones del gráfico original para líneas, barras, dispersión, circular e indicador; el host conserva el motor, formato de fechas y reglas de color.
+- Los tooltips personalizados se compilan una vez y se muestran como texto, conservando la fila de origen en gráficos circulares filtrados y puntos de dispersión con color.
+- `ChartCard` ofrece un contenedor de gráficos con tema, espacios para controles y gráfico del host, y limpieza de observadores; el host aporta el motor de gráficos.
+- Ambas familias de gráficos comparten filtros de fecha relativos con reloj opcional del host y el límite inclusivo existente.
+- Las paletas de gráficos compartidas conservan los colores existentes y aíslan el arreglo de cada dashboard; el renderizado de gráficos sigue a cargo del host.
 - **React y Next.js:** use la entrada React para renderizado, estado del documento, filtros y proveedores de consultas guardadas. Mantenga la sesión y las credenciales del servidor en el backend del host.
 - **HTML u otro framework:** use el runtime de navegador autocontenido con `mountDashboard`. Actualice la instancia cuando cambie el estado del host y destrúyala al retirar su contenedor.
 - **Web Components y LiveView:** registre explícitamente el elemento personalizado y pase su configuración mediante la propiedad JavaScript. Excluya el contenedor de montaje de los parches DOM del host y límpielo en su ciclo de vida.

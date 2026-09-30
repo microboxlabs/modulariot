@@ -18,7 +18,7 @@ export default defineConfig((options) => {
   return [
     {
       ...shared,
-      entry: ["src/browser.ts"],
+      entry: ["src/browser.ts", "src/browser-charts.ts"],
       outDir: "dist/browser",
       platform: "browser",
       splitting: false,
@@ -33,12 +33,13 @@ export default defineConfig((options) => {
         "src/client.ts",
         "src/document.ts",
         "src/templates.ts",
+        "src/charts.ts",
       ],
       splitting: true,
     },
     {
       ...shared,
-      entry: ["src/react.ts", "src/embed.ts", "src/web-component.ts"],
+      entry: ["src/react.ts", "src/react-charts.ts", "src/embed.ts", "src/web-component.ts"],
       splitting: false,
       external: ["react", "react-dom", "react-dom/client", "@microboxlabs/miot-dashboard-ui/document", "@microboxlabs/miot-dashboard-ui/react"],
       banner: { js: '"use client";' },

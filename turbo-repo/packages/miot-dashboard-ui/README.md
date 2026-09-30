@@ -450,3 +450,23 @@ hook's update lifecycle and `destroy` from its destruction lifecycle. The host
 supplies the registry and data. This ESM entry uses React/ReactDOM peers internally
 but requires no host React root management; it is not yet a standalone browser
 script distribution or an automatically configured widget catalog.
+
+## Web Component
+
+Call `defineDashboardElement()` from `./web-component` in the browser to register
+`<miot-dashboard>` explicitly. An optional tag name supports host naming
+conventions. Repeating registration with this module is safe; a name owned by
+another implementation throws `DashboardElementRegistrationError`.
+
+Set `element.dashboardOptions` to the same options used by `mountDashboard`.
+Configuration is a JavaScript property, never JSON or credentials in HTML
+attributes. Properties assigned before element registration are upgraded.
+Updates replace all options; setting `undefined` clears the mounted dashboard.
+Removing the element destroys its root; reconnecting mounts fresh local state
+using the last options. The host must update `instanceKey` across identity changes.
+
+Use an empty element and import the package stylesheet. Rendering uses light DOM
+and scoped styles; host CSS can still affect inherited typography. Importing the
+entry does not access the DOM or register an element, but registration requires
+the browser's `HTMLElement` and `customElements`. The registry and data remain
+host supplied, with no automatic authentication or query execution.

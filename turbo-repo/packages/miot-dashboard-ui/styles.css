@@ -120,3 +120,5 @@
 /* Portable renderer sizing does not depend on host Tailwind utilities. */
 .miot-widget { position: relative; height: 100%; }
 .miot-widget-child { height: 100%; }
+
+.miot-dashboard-element { display: block; }

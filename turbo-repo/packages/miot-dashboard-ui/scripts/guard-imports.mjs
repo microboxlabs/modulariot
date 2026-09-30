@@ -17,6 +17,8 @@ export function importProblems(source, file, root = SOURCE) {
   const isCore = origin === "core.ts" || origin.startsWith("core/");
   const isTemplates =
     origin === "templates.ts" || origin.startsWith("templates/");
+  const isWebComponent =
+    origin === "web-component.ts" || origin.startsWith("web-component/");
   const isEmbed = origin === "embed.ts" || origin.startsWith("embed/");
   const isReact = origin === "react.ts" || origin.startsWith("react/");
   return ts
@@ -41,12 +43,20 @@ export function importProblems(source, file, root = SOURCE) {
         "",
       );
       if (target === ".." || target.startsWith("../")) return true;
+      if (isWebComponent)
+        return !(
+          target === "embed" ||
+          target.startsWith("embed/") ||
+          target.startsWith("web-component/")
+        );
       if (isCore) return target !== "core" && !target.startsWith("core/");
       return (
         (!isReact &&
           !isEmbed &&
           (target === "react" || target.startsWith("react/"))) ||
-        (!isEmbed && (target === "embed" || target.startsWith("embed/")))
+        (!isEmbed && (target === "embed" || target.startsWith("embed/"))) ||
+        target === "web-component" ||
+        target.startsWith("web-component/")
       );
     });
 }

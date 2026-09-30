@@ -38,6 +38,10 @@
     "./embed": {
       "types": "./dist/embed.d.ts",
       "import": "./dist/embed.js"
+    },
+    "./web-component": {
+      "types": "./dist/web-component.d.ts",
+      "import": "./dist/web-component.js"
     }
   },
   "files": [

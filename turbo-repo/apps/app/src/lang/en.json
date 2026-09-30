@@ -2589,7 +2589,10 @@
         "whenOpen": "On open",
         "whenLevelUp": "On level up",
         "whenSlaExpired": "SLA expired",
-        "whenClose": "On close"
+        "whenClose": "On close",
+        "describe": "What this rule does",
+        "describing": "Writing the description…",
+        "describeFailed": "The description is not available right now."
       }
     },
     "integrationJobs": {

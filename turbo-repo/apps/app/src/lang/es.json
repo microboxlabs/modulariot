@@ -2589,7 +2589,10 @@
         "whenOpen": "Al abrir",
         "whenLevelUp": "Al subir de nivel",
         "whenSlaExpired": "SLA vencido",
-        "whenClose": "Al cerrar"
+        "whenClose": "Al cerrar",
+        "describe": "Qué hace esta regla",
+        "describing": "Escribiendo la descripción…",
+        "describeFailed": "La descripción no está disponible ahora."
       }
     },
     "integrationJobs": {

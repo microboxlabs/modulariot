@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ToggleSwitch } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -13,6 +14,7 @@ import type {
   SymptomSpec,
 } from "./maintainer-api";
 import LevelNotices from "./level-notices";
+import RuleDescription, { RuleDescriptionToggle } from "./rule-description";
 import { ICU_LEVELS } from "./symptom-labels";
 
 const cardClass =
@@ -64,16 +66,43 @@ export function problemsFor(
 
 function Section({
   title,
+  describe,
+  d,
   children,
-}: Readonly<{ title: string; children: React.ReactNode }>) {
+}: Readonly<{
+  title: string;
+  describe?: { section: string; rule: string; sourceKey: string | null };
+  d: I18nRecord;
+  children: React.ReactNode;
+}>) {
+  const [open, setOpen] = useState(false);
   return (
     <section className={cardClass}>
-      <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+      <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
           {title}
         </h2>
+        {describe && (
+          <span className="ml-auto">
+            <RuleDescriptionToggle
+              open={open}
+              onToggle={() => setOpen((o) => !o)}
+              d={d}
+            />
+          </span>
+        )}
       </div>
-      <div className="flex flex-col gap-3 px-4 py-3">{children}</div>
+      <div className="flex flex-col gap-3 px-4 py-3">
+        {describe && open && (
+          <RuleDescription
+            section={describe.section}
+            rule={describe.rule}
+            sourceKey={describe.sourceKey}
+            d={d}
+          />
+        )}
+        {children}
+      </div>
     </section>
   );
 }
@@ -247,6 +276,14 @@ export default function SymptomRuleSections({
   const close = problemsFor(findings, "lifecycle.close");
   const levelRuleFields = [...sourceFields, ...levelFields(d)];
   const lifecycleFields = caseFields(d);
+  // The levels and the lifecycle are described together, one text per section.
+  const levelsText = [
+    `medida = ${spec.measure?.expression ?? ""}`,
+    ...(spec.levels ?? [])
+      .filter((l) => l.applies)
+      .map((l) => `nivel ${l.icu}: ${l.when ?? ""}`),
+  ].join("\n");
+  const lifecycleText = `abre: ${spec.lifecycle?.open ?? ""}\ncierra: ${spec.lifecycle?.close ?? ""}`;
   const lifecycle = spec.lifecycle ?? { open: "", close: "" };
   const measureValue = spec.measure ?? {
     expression: "",
@@ -256,7 +293,15 @@ export default function SymptomRuleSections({
 
   return (
     <div className="flex flex-col gap-4">
-      <Section title={tr("sectionActivation", d)}>
+      <Section
+        title={tr("sectionActivation", d)}
+        d={d}
+        describe={{
+          section: "activation",
+          rule: spec.activation ?? "",
+          sourceKey: spec.source,
+        }}
+      >
         <p className="text-xs text-gray-500 dark:text-gray-400">
           {tr("activationHint", d)}
         </p>
@@ -271,7 +316,15 @@ export default function SymptomRuleSections({
         <Problems items={activation} />
       </Section>
 
-      <Section title={tr("sectionLevels", d)}>
+      <Section
+        title={tr("sectionLevels", d)}
+        d={d}
+        describe={{
+          section: "levels",
+          rule: levelsText,
+          sourceKey: spec.source,
+        }}
+      >
         <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
             {tr("measure", d)}
@@ -309,7 +362,15 @@ export default function SymptomRuleSections({
         </div>
       </Section>
 
-      <Section title={tr("sectionLifecycle", d)}>
+      <Section
+        title={tr("sectionLifecycle", d)}
+        d={d}
+        describe={{
+          section: "lifecycle",
+          rule: lifecycleText,
+          sourceKey: spec.source,
+        }}
+      >
         <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
           {tr("opens", d)}
         </span>

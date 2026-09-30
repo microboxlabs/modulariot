@@ -14,6 +14,7 @@ const ALLOWED = new Set([
 /** Portable package imports cannot pull in a framework, server or host application. */
 export function importProblems(source, file, root = SOURCE) {
   const origin = relative(root, file);
+  const isCharts = origin === "charts.ts" || origin.startsWith("charts/");
   const isCore = origin === "core.ts" || origin.startsWith("core/");
   const isTemplates =
     origin === "templates.ts" || origin.startsWith("templates/");
@@ -36,6 +37,15 @@ export function importProblems(source, file, root = SOURCE) {
         return false;
       if (specifier === "handlebars" && isTemplates) return false;
       if (isReact && specifier === "@microboxlabs/miot-dashboard-ui/document") return false;
+      if (specifier === "echarts" && isCharts) {
+        const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
+        const declarations = ast.statements.filter((statement) =>
+          (ts.isImportDeclaration(statement) || ts.isExportDeclaration(statement)) && statement.moduleSpecifier?.text === "echarts"
+        );
+        return declarations.length === 0 || declarations.some((statement) =>
+          ts.isImportDeclaration(statement) ? !statement.importClause?.isTypeOnly : !statement.isTypeOnly
+        );
+      }
       if (ALLOWED.has(specifier)) return false;
       if (!specifier.startsWith("./") && !specifier.startsWith("../"))
         return true;

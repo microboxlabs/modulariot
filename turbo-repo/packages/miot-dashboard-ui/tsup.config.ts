@@ -33,6 +33,7 @@ export default defineConfig((options) => {
         "src/client.ts",
         "src/document.ts",
         "src/templates.ts",
+        "src/charts.ts",
       ],
       splitting: true,
     },

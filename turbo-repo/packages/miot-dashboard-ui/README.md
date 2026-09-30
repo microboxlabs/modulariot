@@ -1418,3 +1418,27 @@ compiler. It disables HTML escaping while retaining prototype access restriction
 Its output must only be used as text (React children, textContent, or a non-HTML
 chart renderer), never innerHTML or an HTML-mode tooltip. Existing `resolveField`
 and `compileTemplates` retain their HTML-escaping behavior.
+
+
+### Chart options (original chart configuration)
+
+`buildLegacyChartOption(config, rows, darkMode?, noDataLabel?, containerWidth?, host?)`
+from `./charts` builds ECharts options for the original `chart` widget: line, bar,
+scatter, pie and gauge. `LegacyChartOptions`, `ChartType`, `ChartSeries`,
+`ChartXAxisDateFormat` and `ChartOptionHost` are exported alongside it. This
+entry builds options only; hosts create, resize and dispose the chart engine.
+Install ECharts 6 when consuming its option types or rendering charts. It is an
+optional peer and is never imported at runtime by the library. The standalone
+browser bundle does not include a chart engine.
+
+Existing series labels, palettes, horizontal bars, stacking, smoothing, bar labels,
+legend, zoom and dark styles are preserved. Missing/nonfinite numeric values become
+line/bar gaps or are omitted from scatter/pie points. Gauge uses the first row.
+Custom tooltips use the plain-text formatter described above.
+
+The optional `host` contains `formatDateLabel(value): string` and
+`colorForValue(value): string | undefined`. Date labels stay as supplied unless
+the host explicitly formats them; there is no implicit locale or time zone.
+Next.js supplies its existing es-CL/America/Santiago formatter and saved color-rule
+evaluator. Pass a translated `noDataLabel` and the measured width for label rotation.
+The mixed-series `chart_v2` builder is not yet part of this export.

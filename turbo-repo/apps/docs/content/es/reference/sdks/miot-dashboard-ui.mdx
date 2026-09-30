@@ -156,3 +156,5 @@ En el espacio de dashboards del servidor en Next.js, los editores abren **Config
 `DashboardFilterEditor` permite configurar filtros de texto, rango de fechas y selección con opciones estáticas. Aplique mediante `setFilterDefinitions` para validar y permitir deshacer; se rechazan claves duplicadas, colisiones de rangos de fechas y valores de opciones duplicados. El host conserva la obtención de opciones dinámicas. Renombrar un filtro requiere actualizar por separado sus enlaces en consultas guardadas.
 
 La configuración de dashboards alojados en Next.js también incluye definiciones de filtros. Los editores agregan o ajustan controles y opciones estáticas, aplican el borrador de filtros y luego guardan el dashboard. Las claves alimentan los enlaces de consultas guardadas; actualice los enlaces al renombrarlas. Este editor no invoca selectores de fuentes de datos heredadas.
+
+`useFilterOptions` convierte resultados de consultas guardadas en opciones de selección limitadas y sin duplicados, sin efectuar otra solicitud. Limpia opciones anteriores durante la carga o tras un error y expone esos estados. La barra de filtros de Next.js usa este resolvedor compartido.

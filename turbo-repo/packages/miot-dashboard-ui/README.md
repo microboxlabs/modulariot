@@ -1636,3 +1636,15 @@ update those bindings deliberately before saving. Deletions are draft changes
 until Apply, then remain undoable in the document; the host owns persistence and
 discard confirmation. Remount on document/session/reload changes. This API does
 not replace the legacy `setFilters` API used by existing integrations.
+
+`useFilterOptions(filter)` from `/react` resolves static options or projects an
+`optionsSource` from the enclosing `SavedQueryProvider`/`PlannerResultsProvider`.
+It never executes or fetches a query. Return values are `options`, `loading`,
+`error` and `dynamic`. Dynamic results retain row order, deduplicate by value,
+skip missing/non-scalar values and use the value when a label is missing. Only
+own row properties are read. Projection considers at most 10,000 rows and returns
+at most 500 options; values over 1,024 characters are skipped and labels capped
+at 256. Loading or failed results clear prior options, including stale rows from
+a revoked query. Missing named results stay empty; incomplete legacy references
+retain the static fallback. Next.js consumes this same hook. The host must still
+provide authorized, session-isolated results and accessible loading/error labels.

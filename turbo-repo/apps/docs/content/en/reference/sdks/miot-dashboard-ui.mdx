@@ -156,3 +156,5 @@ In the Next.js server dashboard workspace, editors open **Dashboard settings** t
 `DashboardFilterEditor` authors text, date-range and select filters with static options. Apply through `setFilterDefinitions` for validation and undo; duplicate keys, date-range collisions and duplicate option values are rejected. Dynamic option discovery stays with the host. Renaming a filter requires updating its saved-query bindings separately.
 
 Hosted Next.js dashboard settings also include filter definitions. Editors add or adjust controls and static options, apply the filter draft, then save the dashboard. Current filter keys remain the inputs to saved-query bindings; update bindings when renaming keys. This editor does not invoke legacy datasource selectors.
+
+`useFilterOptions` projects named saved-query results into bounded, deduplicated select options without making another request. It clears stale options while loading or after failure and exposes loading/error state. The Next.js filter bar uses this shared resolver.

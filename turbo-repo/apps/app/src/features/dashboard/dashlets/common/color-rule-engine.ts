@@ -1,4 +1,7 @@
-import type { ColorRule } from "./color-rule-types";
+export {
+  evaluateRule,
+  findMatchingColor,
+} from "@microboxlabs/miot-dashboard-ui/core";
 
 // ============================================================================
 // Legacy named color mappings (for backward compatibility)
@@ -33,73 +36,6 @@ function hexToRgba(hex: string, alpha: number): string {
   const g = Number.parseInt(hex.slice(2, 4), 16);
   const b = Number.parseInt(hex.slice(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-// ============================================================================
-// Rule evaluation
-// ============================================================================
-
-export function evaluateRule(rule: ColorRule, resolvedValue: string): boolean {
-  const ruleVal = rule.value.trim();
-  const cellVal = resolvedValue.trim();
-
-  switch (rule.operator) {
-    case "equals": {
-      // Try numeric comparison first, fall back to string comparison
-      const numCell = Number.parseFloat(cellVal.replaceAll(/[^\d.-]/g, ""));
-      const numRule = Number.parseFloat(ruleVal.replaceAll(/[^\d.-]/g, ""));
-      if (!Number.isNaN(numCell) && !Number.isNaN(numRule)) {
-        return numCell === numRule;
-      }
-      return cellVal.toLowerCase() === ruleVal.toLowerCase();
-    }
-    case "not_equals": {
-      // Try numeric comparison first, fall back to string comparison
-      const numCell = Number.parseFloat(cellVal.replaceAll(/[^\d.-]/g, ""));
-      const numRule = Number.parseFloat(ruleVal.replaceAll(/[^\d.-]/g, ""));
-      if (!Number.isNaN(numCell) && !Number.isNaN(numRule)) {
-        return numCell !== numRule;
-      }
-      return cellVal.toLowerCase() !== ruleVal.toLowerCase();
-    }
-    case "contains":
-      return cellVal.toLowerCase().includes(ruleVal.toLowerCase());
-    case "not_contains":
-      return !cellVal.toLowerCase().includes(ruleVal.toLowerCase());
-    case "greater_than":
-    case "less_than":
-    case "greater_than_or_equal":
-    case "less_than_or_equal": {
-      const numCell = Number.parseFloat(cellVal.replaceAll(/[^\d.-]/g, ""));
-      const numRule = Number.parseFloat(ruleVal);
-      if (Number.isNaN(numCell) || Number.isNaN(numRule)) return false;
-      if (rule.operator === "greater_than") return numCell > numRule;
-      if (rule.operator === "less_than") return numCell < numRule;
-      if (rule.operator === "greater_than_or_equal") return numCell >= numRule;
-      return numCell <= numRule;
-    }
-  }
-}
-
-export function findMatchingColor(
-  rules: ColorRule[],
-  row: Record<string, string>,
-  resolveValue: (
-    key: string,
-    row: Record<string, string>,
-    rowIdx: number,
-    total: number
-  ) => string,
-  rowIdx: number,
-  total: number
-): string | null {
-  for (const rule of rules) {
-    const resolved = resolveValue(rule.column, row, rowIdx, total);
-    if (evaluateRule(rule, resolved)) {
-      return rule.color;
-    }
-  }
-  return null;
 }
 
 // ============================================================================

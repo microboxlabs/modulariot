@@ -8,3 +8,10 @@ export {
   createWidgetRegistry,
   type WidgetRegistry,
 } from "./core/widget-registry";
+
+export {
+  evaluateRule,
+  findMatchingColor,
+  type ColorRule,
+  type ColorRuleOperator,
+} from "./core/color-rules";

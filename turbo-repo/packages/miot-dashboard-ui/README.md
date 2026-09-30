@@ -629,3 +629,13 @@ appearance value; the host owns the draft and Apply/Cancel actions.
 (`none`, `valid`, `invalid`) and `validationMessage` expose host validation through
 visual and accessible feedback. Each instance generates its own label IDs. These
 fields do not execute templates, fetch data or persist configuration.
+
+## Color-rule comparisons
+
+The React-free `./core` entry exports `evaluateRule`, `findMatchingColor`,
+`ColorRule` and `ColorRuleOperator`. They preserve existing dashboard comparison
+semantics: trimmed case-insensitive string matching, numeric comparisons of
+formatted cell values, and first-match rule order. `findMatchingColor` accepts
+a host resolver with the row, row index and total count; it returns a color token
+or `null`. These functions do not produce CSS, validate color tokens, execute
+templates or fetch data. Renderers remain responsible for safe color styling.

@@ -1059,3 +1059,18 @@ Optional `actions` accepts host-rendered controls; no placeholder action button
 is shown when omitted. The Next.js list uses this renderer and retains query,
 filter, sort, export and settings adapters. A complete portable list widget
 registry is still separate from this presentational primitive.
+
+### Portable list widget registry
+
+`createDataListRegistry(options)` is exported from `./react`, `./embed` and the
+self-contained browser runtime. It registers `data_list`, using the shared
+`DataTableRegistryOptions` translations, templates and export callback. Saved
+widgets must include `columns` and a complete `cardLayout`; malformed or missing
+layouts display the configured error message.
+
+Static rows and named planner/saved-query results compose with filter pills,
+sorting, row counts, CSV export and safe configured actions. Permission errors,
+loading and missing query bindings clear cards. Legacy dynamic URLs and direct
+pgrest modes display the migration message; query connections and credentials
+belong on the dashboard server. This is a viewer registry, without widget
+settings or document persistence.

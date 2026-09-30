@@ -10,4 +10,4 @@ export { createCircularStatRegistry, type CircularStatRegistryOptions } from "./
 
 export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./embed";
 
-export { createDataTableRegistry, createResizableDataTableRegistry, type ResizableDataTableRegistryOptions, type DataTableRegistryOptions } from "./embed";
+export { createDataTableRegistry, createDataListRegistry, createResizableDataTableRegistry, type ResizableDataTableRegistryOptions, type DataTableRegistryOptions } from "./embed";

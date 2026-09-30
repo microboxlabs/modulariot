@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import type { Widget } from "@microboxlabs/miot-dashboard-contract/document";
 import {
   createDataTableRegistry,
+  createDataListRegistry,
   createResizableDataTableRegistry,
   type DataTableRegistryOptions,
 } from "./data-table-registry";
@@ -57,6 +58,7 @@ const options: DataTableRegistryOptions = {
   rowCountLabel: (count) => `${count} rows`,
 };
 const registry = createDataTableRegistry(options);
+const listRegistry = createDataListRegistry(options);
 const resizableRegistry = createResizableDataTableRegistry({
   ...options,
   resizeLabel: (label) => `Resize ${label}`,
@@ -73,14 +75,18 @@ function Table({
   config,
   result,
   resizable = false,
+  list = false,
 }: {
   readonly config: Widget["config"];
   readonly resizable?: boolean;
+  readonly list?: boolean;
   readonly result?: PlannerQueryResult;
 }) {
+  const basicType = list ? "data_list" : "data_table";
+  const basicRegistry = list ? listRegistry : registry;
   const widget: Widget = {
     id: "t",
-    componentId: resizable ? "data_table_v2" : "data_table",
+    componentId: resizable ? "data_table_v2" : basicType,
     config,
     layout: { i: "t", x: 0, y: 0, w: 8, h: 5 },
     createdAt: "2026-09-30",
@@ -95,7 +101,7 @@ function Table({
       }}
     >
       <WidgetRenderer
-        registry={resizable ? resizableRegistry : registry}
+        registry={resizable ? resizableRegistry : basicRegistry}
         widget={widget}
         unknownWidgetLabel="Unknown"
       />
@@ -286,4 +292,74 @@ it("honors disabled sorting and limits header sorting to configured columns", ()
  view.rerender(<Table resizable config={{columns,rows,sort:{enabled:true,columns:["{{row.cost}}"]}}}/>);
  expect(within(screen.getByRole("table")).getByRole("button",{name:"Cost"})).toBeTruthy();
  expect(screen.queryByRole("button",{name:"Service"})).toBeNull();
+});
+const cardLayout = {
+  titleColumn: "{{row.service}}",
+  subtitleColumn: "",
+  headerBadgeColumns: [],
+  kpiColumns: ["{{row.cost}}"],
+  footerColumns: [],
+};
+it("renders saved-query lists, filters cards and clears them on permission errors", () => {
+  const config = {
+    columns,
+    cardLayout,
+    dataMode: "planner",
+    plannerVariableName: "costs",
+    filter: {
+      enabled: true,
+      items: [{ column: "{{row.service}}", label: "Service" }],
+    },
+  };
+  const view = render(
+    <Table
+      list
+      config={config}
+      result={{ rows, loading: false, error: null }}
+    />,
+  );
+  expect(screen.getAllByRole("article")).toHaveLength(2);
+  fireEvent.click(screen.getByRole("button", { name: "SQL" }));
+  expect(screen.getAllByRole("article")).toHaveLength(1);
+  expect(screen.getByRole("article", { name: "SQL" }).textContent).toContain(
+    "10",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+  expect(exportCsv).toHaveBeenCalledWith("Service;Cost\nSQL;10", "Costs.csv");
+  view.rerender(
+    <Table
+      list
+      config={config}
+      result={{ rows, loading: false, error: "403" }}
+    />,
+  );
+  expect(screen.queryByRole("article")).toBeNull();
+  expect(screen.getByRole("alert").textContent).toBe("Unavailable");
+});
+it("requires explicit list layout and rejects arbitrary legacy URLs", () => {
+  const view = render(<Table list config={{ columns, rows }} />);
+  expect(screen.getByRole("alert").textContent).toBe("Unavailable");
+  view.rerender(
+    <Table
+      list
+      config={{
+        columns,
+        rows,
+        cardLayout,
+        dataMode: "dynamic",
+        apiUrl: "https://example.com/private",
+      }}
+    />,
+  );
+  expect(screen.getByRole("alert").textContent).toBe("Migrate");
+  expect(screen.queryByRole("article")).toBeNull();
+});
+
+it("keeps duplicate source IDs as distinct list cards without React key warnings", () => {
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    render(<Table list config={{ columns, cardLayout, rows: rows.map((row) => ({ ...row, id: "duplicate" })) }} />);
+    expect(screen.getAllByRole("article")).toHaveLength(2);
+    expect(error).not.toHaveBeenCalled();
+  } finally { error.mockRestore(); }
 });

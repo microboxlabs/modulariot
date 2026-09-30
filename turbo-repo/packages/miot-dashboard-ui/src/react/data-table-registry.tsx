@@ -20,9 +20,37 @@ import { FilterPillRow, SortPillRow } from "./row-controls";
 import { ColumnFilterToolbar } from "./column-filter-toolbar";
 import { ColumnFilterPopover } from "./column-filter-popover";
 import type { ColumnFilterInputLabels } from "./column-filter-input";
-import { DataTable } from "./data-table";
+import { DataListCard } from "./data-list-card";
+import { DataTable, type DataTableProps } from "./data-table";
 import { ActionDropdown } from "./action-dropdown";
 import type { WidgetComponentProps } from "./widget-renderer";
+
+function useTableRows(config: ReturnType<typeof tableWidgetConfig.parse>) {
+  const { results, definitions } = useOptionalPlannerContext();
+  const result =
+    config.dataMode === "planner" && config.plannerVariableName
+      ? results.get(config.plannerVariableName)
+      : undefined;
+  const loading =
+    config.dataMode === "planner" &&
+    (Boolean(result?.loading) ||
+      (!result &&
+        definitions.some(
+          (d) => d.variableName === config.plannerVariableName,
+        )));
+  const failed =
+    config.dataMode === "planner" &&
+    !loading &&
+    (!result || Boolean(result.error));
+  const unsupported =
+    config.dataMode !== "static" && config.dataMode !== "planner";
+  const rows = useMemo(() => {
+    if (loading || failed || unsupported) return [];
+    if (config.dataMode === "planner") return result?.rows ?? [];
+    return config.rows;
+  }, [config, loading, failed, unsupported, result]);
+  return { rows, loading, failed, unsupported };
+}
 
 export interface DataTableRegistryOptions {
   defaultTitle: string;
@@ -60,18 +88,72 @@ export function createResizableDataTableRegistry(
 ) {
   return createTableRegistry(options, "data_table_v2", options.resizeLabel);
 }
+export function createDataListRegistry(
+  options: Readonly<DataTableRegistryOptions>,
+) {
+  return createTableRegistry(options, "data_list");
+}
 function createTableRegistry(
   options: Readonly<DataTableRegistryOptions>,
-  type: "data_table" | "data_table_v2",
+  type: "data_table" | "data_table_v2" | "data_list",
   resizeLabel?: (column: string) => string,
 ) {
   const engine = options.templateEngine ?? createTemplateEngine();
+  function useTableTitle(template: string, count: number) {
+    const compiled = useMemo(
+      () => engine.compileTemplates([{ id: "title", template }]),
+      [template],
+    );
+    return (
+      engine.resolveTemplate(
+        compiled,
+        "title",
+        { _count: count },
+        template || options.defaultTitle,
+      ) || options.defaultTitle
+    );
+  }
+  function useActionRenderer(
+    actionConfig: ReturnType<typeof tableWidgetConfig.parse>["actions"],
+  ): DataTableProps["renderActions"] {
+    const actions = useMemo(
+      () => normalizeActionsConfig(actionConfig, { enabled: false, items: [] }),
+      [actionConfig],
+    );
+    const links = useMemo(
+      () =>
+        engine.compileTemplates(
+          actions.items.map((action, index) => ({
+            id: String(index),
+            template: action.link,
+          })),
+        ),
+      [actions],
+    );
+    return actions.enabled && actions.items.length
+      ? (row) => (
+          <ActionDropdown
+            ariaLabel={options.actionsLabel}
+            items={actions.items.flatMap((action, index) => {
+              const href = engine.resolveTemplate(
+                links,
+                String(index),
+                { ...row, row },
+                action.link,
+              );
+              return isSafeActionUrl(href) ? [{ action, href }] : [];
+            })}
+          />
+        )
+      : undefined;
+  }
   function RegisteredDataTable({ widget }: Readonly<WidgetComponentProps>) {
     const parsed = useMemo(
       () => tableWidgetConfig.safeParse(widget.config),
       [widget.config],
     );
-    if (!parsed.success) return <p role="alert">{options.errorLabel}</p>;
+    if (!parsed.success || (type === "data_list" && !parsed.data.cardLayout))
+      return <p role="alert">{options.errorLabel}</p>;
     return (
       <BoundTable
         key={`${widget.id}:${parsed.data.dataMode}:${parsed.data.plannerVariableName ?? ""}`}
@@ -82,29 +164,11 @@ function createTableRegistry(
   function BoundTable({
     config,
   }: Readonly<{ config: ReturnType<typeof tableWidgetConfig.parse> }>) {
-    const { results, definitions } = useOptionalPlannerContext();
-    const result =
-      config.dataMode === "planner" && config.plannerVariableName
-        ? results.get(config.plannerVariableName)
-        : undefined;
-    const loading =
-      config.dataMode === "planner" &&
-      (Boolean(result?.loading) ||
-        (!result &&
-          definitions.some(
-            (d) => d.variableName === config.plannerVariableName,
-          )));
-    const failed =
-      config.dataMode === "planner" &&
-      !loading &&
-      (!result || Boolean(result.error));
-    const unsupported =
-      config.dataMode !== "static" && config.dataMode !== "planner";
-    const rows = useMemo(() => {
-      if (loading || failed || unsupported) return [];
-      if (config.dataMode === "planner") return result?.rows ?? [];
-      return config.rows;
-    }, [config, loading, failed, unsupported, result]);
+    const { rows, loading, failed, unsupported } = useTableRows(config);
+    const sourceIndices = useMemo(
+      () => new Map(rows.map((row, index) => [row, index])),
+      [rows],
+    );
     const rowControls = useFilterAndSort(
       config.filter,
       config.sort,
@@ -117,21 +181,7 @@ function createTableRegistry(
       filters.filteredCount,
       { templateEngine: engine },
     );
-    const actions = useMemo(
-      () =>
-        normalizeActionsConfig(config.actions, { enabled: false, items: [] }),
-      [config.actions],
-    );
-    const links = useMemo(
-      () =>
-        engine.compileTemplates(
-          actions.items.map((action, index) => ({
-            id: String(index),
-            template: action.link,
-          })),
-        ),
-      [actions],
-    );
+    const renderActions = useActionRenderer(config.actions);
     const rowActions = useMemo(
       () => normalizeRowActions(config.rowActions),
       [config.rowActions],
@@ -146,17 +196,8 @@ function createTableRegistry(
         ),
       [rowActions],
     );
-    const titleTemplate = useMemo(
-      () => engine.compileTemplates([{ id: "title", template: config.title }]),
-      [config.title],
-    );
-    const title =
-      engine.resolveTemplate(
-        titleTemplate,
-        "title",
-        { _count: filters.filteredCount },
-        config.title || options.defaultTitle,
-      ) || options.defaultTitle;
+    const title = useTableTitle(config.title, filters.filteredCount);
+    const cardLayout = config.cardLayout;
     if (loading) return <output>{options.loadingLabel}</output>;
     if (failed) return <p role="alert">{options.errorLabel}</p>;
     if (unsupported) return <p role="alert">{options.unsupportedDataLabel}</p>;
@@ -223,111 +264,118 @@ function createTableRegistry(
           onRemove={filters.removeFilter}
           onClearAll={filters.clearAllFilters}
         />
-        <DataTable
-          striped={config.striped}
-          resizing={
-            resizeLabel
-              ? { savedWidths: config.columnWidths, handleLabel: resizeLabel }
-              : undefined
-          }
-          rowActions={
-            rowActions.length
-              ? (row) =>
-                  rowActions.map((action, index) => ({
-                    action,
-                    href: engine.resolveTemplate(
-                      rowLinks,
-                      String(index),
-                      { ...row, row },
-                      action.link,
-                    ),
-                  }))
-              : undefined
-          }
-          columns={config.columns}
-          rows={filters.filteredData}
-          label={title}
-          emptyLabel={options.emptyLabel}
-          loadingLabel={options.loadingLabel}
-          actionsLabel={options.actionsLabel}
-          showColumnDividers={config.showColumnDividers}
-          resolveValue={resolveValue}
-          resolveLabel={resolveLabel}
-          resolveType={resolveType}
-          renderHeader={(column, label) => (
-            <div className="miot-table-widget__heading">
-              {resizeLabel && config.sort.enabled && config.sort.columns.includes(column.key) ? (
-                <button
-                  type="button"
-                  title={
-                    column.descriptionEnabled ? column.description : undefined
-                  }
-                  onClick={() => rowControls.handleSortClick(column.key)}
-                >
-                  {label}
-                  {rowControls.sortKey === column.key && (
-                    <span
-                      aria-label={options.directionLabels[rowControls.sortDir]}
-                    >
-                      {rowControls.sortDir === "asc" ? " ↓" : " ↑"}
-                    </span>
-                  )}
-                </button>
-              ) : (
-                <span
-                  title={
-                    column.descriptionEnabled ? column.description : undefined
-                  }
-                >
-                  {label}
-                </span>
-              )}
-              <ColumnFilterPopover
-                title={options.filterTitle(label)}
-                clearLabel={options.clearFilterLabel}
-                labels={options.filterLabels}
-                columnKey={column.key}
-                dataType={filters.resolvedDataTypes[column.key] ?? "text"}
-                currentFilter={filters.filters[column.key]}
-                enumValues={filters.enumValues[column.key] ?? []}
-                onFilterChange={filters.setFilter}
+        {type === "data_list" && cardLayout ? (
+          <div className="miot-data-list">
+            {filters.filteredCount === 0 && <p>{options.emptyLabel}</p>}
+            {filters.filteredData.map((row, index) => (
+              <DataListCard
+                key={`${row.id ?? row._id ?? ""}:${sourceIndices.get(row)}:${index}`}
+                row={row}
+                rowIdx={index}
+                totalRows={filters.filteredCount}
+                columns={config.columns}
+                cardLayout={cardLayout}
+                resolveValue={resolveValue}
+                resolveLabel={resolveLabel}
+                resolveType={resolveType}
+                actions={renderActions?.(row, index)}
               />
-            </div>
-          )}
-          rowColor={(row, index) =>
-            config.rowColorRules?.enabled
-              ? (config.rowColorRules.rules.find((rule) =>
-                  evaluateRule(
-                    rule,
-                    resolveValue(
-                      rule.column,
-                      row,
-                      index,
-                      filters.filteredCount,
-                    ),
-                  ),
-                )?.color ?? null)
-              : null
-          }
-          renderActions={
-            actions.enabled && actions.items.length
-              ? (row) => (
-                  <ActionDropdown
-                    ariaLabel={options.actionsLabel}
-                    items={actions.items.flatMap((action, index) => {
-                      const href = engine.resolveTemplate(
-                        links,
+            ))}
+          </div>
+        ) : (
+          <DataTable
+            striped={config.striped}
+            resizing={
+              resizeLabel
+                ? { savedWidths: config.columnWidths, handleLabel: resizeLabel }
+                : undefined
+            }
+            rowActions={
+              rowActions.length
+                ? (row) =>
+                    rowActions.map((action, index) => ({
+                      action,
+                      href: engine.resolveTemplate(
+                        rowLinks,
                         String(index),
                         { ...row, row },
                         action.link,
-                      );
-                      return isSafeActionUrl(href) ? [{ action, href }] : [];
-                    })}
-                  />
-                )
-              : undefined
-          }
-        />
+                      ),
+                    }))
+                : undefined
+            }
+            columns={config.columns}
+            rows={filters.filteredData}
+            label={title}
+            emptyLabel={options.emptyLabel}
+            loadingLabel={options.loadingLabel}
+            actionsLabel={options.actionsLabel}
+            showColumnDividers={config.showColumnDividers}
+            resolveValue={resolveValue}
+            resolveLabel={resolveLabel}
+            resolveType={resolveType}
+            renderHeader={(column, label) => (
+              <div className="miot-table-widget__heading">
+                {resizeLabel &&
+                config.sort.enabled &&
+                config.sort.columns.includes(column.key) ? (
+                  <button
+                    type="button"
+                    title={
+                      column.descriptionEnabled ? column.description : undefined
+                    }
+                    onClick={() => rowControls.handleSortClick(column.key)}
+                  >
+                    {label}
+                    {rowControls.sortKey === column.key && (
+                      <span
+                        aria-label={
+                          options.directionLabels[rowControls.sortDir]
+                        }
+                      >
+                        {rowControls.sortDir === "asc" ? " ↓" : " ↑"}
+                      </span>
+                    )}
+                  </button>
+                ) : (
+                  <span
+                    title={
+                      column.descriptionEnabled ? column.description : undefined
+                    }
+                  >
+                    {label}
+                  </span>
+                )}
+                <ColumnFilterPopover
+                  title={options.filterTitle(label)}
+                  clearLabel={options.clearFilterLabel}
+                  labels={options.filterLabels}
+                  columnKey={column.key}
+                  dataType={filters.resolvedDataTypes[column.key] ?? "text"}
+                  currentFilter={filters.filters[column.key]}
+                  enumValues={filters.enumValues[column.key] ?? []}
+                  onFilterChange={filters.setFilter}
+                />
+              </div>
+            )}
+            rowColor={(row, index) =>
+              config.rowColorRules?.enabled
+                ? (config.rowColorRules.rules.find((rule) =>
+                    evaluateRule(
+                      rule,
+                      resolveValue(
+                        rule.column,
+                        row,
+                        index,
+                        filters.filteredCount,
+                      ),
+                    ),
+                  )?.color ?? null)
+                : null
+            }
+            renderActions={renderActions}
+          />
+        )}
       </div>
     );
   }

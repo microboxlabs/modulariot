@@ -531,4 +531,7 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-icon-stat[data-scalable="true"] .miot-icon-stat__value { font-size:clamp(1.25rem,40cqh,6rem); }
 .miot-icon-stat[data-scalable="true"] .miot-icon-stat__unit { font-size:clamp(.75rem,20cqh,3rem); }
 .miot-icon-stat[data-scalable="true"] .miot-icon-stat__description { font-size:clamp(.625rem,12cqh,2rem); }
-:where(.dark,[data-miot-theme="dark"]) .miot-icon-stat { --miot-card-background:#1f2937; --miot-card-border:#374151; --miot-card-text:#e5e7eb; --miot-card-muted:#d1d5db; --miot-icon-color:#60a5fa; --miot-icon-background:#1e3a8a4d; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-icon-stat { background:var(--miot-card-background,#1f2937); border-color:var(--miot-card-border,#374151); color:var(--miot-card-text,#e5e7eb); }
+:where(.dark,[data-miot-theme="dark"]) .miot-icon-stat__icon { color:var(--miot-icon-color,#60a5fa); background:var(--miot-icon-background,#1e3a8a4d); }
+:where(.dark,[data-miot-theme="dark"]) :is(.miot-icon-stat__title,.miot-icon-stat__description,.miot-icon-stat__unit) { color:var(--miot-card-muted,#d1d5db); }

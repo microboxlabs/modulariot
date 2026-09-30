@@ -59,6 +59,26 @@ public final class DashboardOperationPolicy {
         }
     }
 
+    /** Whether a stored operation is one the dashboard boundary could run, judged without parameters. */
+    public static boolean eligible(IntegrationOperation operation) {
+        if (operation == null || operation.requestSchema() == null) return false;
+        try {
+            ObjectNode schema = JSON.valueToTree(operation.requestSchema());
+            boundSchema(schema, 0);
+            JsonNode settings = schema.remove("x-dashboard");
+            operationKind(operation, settings);
+            JsonNode tenant = settings.get("tenantParameter");
+            boolean credentialScoped = settings.path("credentialScoped").asBoolean(false);
+            if (tenant == null ? !credentialScoped : credentialScoped || !tenant.isTextual() || tenant.textValue().isBlank()) {
+                return false;
+            }
+            requireClosedSchema(schema);
+            return true;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
     private static String operationKind(IntegrationOperation operation, JsonNode settings) {
         if (settings == null || !settings.isObject() || !settings.path("readOnly").isBoolean()
                 || !settings.path("readOnly").booleanValue()) throw refused();

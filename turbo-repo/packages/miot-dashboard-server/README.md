@@ -919,6 +919,14 @@ execution rights: the operation executor independently authorizes every request.
 For the standalone CLI, the trusted module selected by
 `MIOT_DASHBOARD_OPERATIONS_MODULE` may additionally export
 `createDashboardQueryCatalog()`, returning this provider. The factory runs once
-at startup. An absent export keeps discovery disabled; a malformed or failing
-factory refuses startup with a redacted error. Existing execution-only modules
-remain compatible. Module paths are operator configuration, never request input.
+at startup. An absent export, or a factory that returns `null`, keeps discovery
+disabled; a malformed or failing factory refuses startup with a redacted error.
+Existing execution-only modules remain compatible. Module paths are operator
+configuration, never request input.
+
+`createRemoteQueryCatalog({ url, proxyKey })` (from `./queries`) is a provider
+backed by a host endpoint: it POSTs `{ tenantId }` with the `x-miot-proxy-key`
+header and keeps only connection and operation IDs and labels. The bundled
+`examples/modulariot-operations.mjs` enables it when `MIOT_DASHBOARD_CATALOG_URL`
+is set (the ModularIoT endpoint is `/internal/dashboard-operations/catalog`),
+and returns `null` otherwise.

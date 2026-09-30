@@ -83,3 +83,5 @@ export { ColumnFilterInput, type ColumnFilterInputProps, type ColumnFilterInputL
 export { ColumnFilterPopover, type ColumnFilterPopoverProps } from "./react/column-filter-popover";
 
 export { ActionDropdown, type ActionDropdownProps, type ResolvedAction } from "./react/action-dropdown";
+
+export { DataTable, type DataTableProps, type DataTableColumn } from "./react/data-table";

@@ -434,3 +434,33 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-action-dropdown a { display: flex; justify-content: space-between; gap: .75rem; padding: .5rem .75rem; text-decoration: none; color: inherit; overflow-wrap: anywhere; }
 .miot-action-dropdown a:hover { background: #9ca3af20; }
 .miot-action-dropdown[data-miot-theme="dark"] { --miot-card-background: #1f2937; --miot-card-text: #d1d5db; --miot-card-border: #374151; }
+
+.miot-data-table { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: none; border: 1px solid var(--miot-card-border, #e5e7eb); border-radius: .5rem; background: var(--miot-card-background, #fff); color: var(--miot-card-text, #374151); }
+.miot-data-table table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: .875rem; }
+.miot-data-table thead { position: sticky; top: 0; z-index: 20; }
+.miot-data-table th { padding: .75rem 1rem; text-align: start; white-space: nowrap; background: var(--miot-table-heading, #f9fafb); color: var(--miot-card-muted, #6b7280); font-size: .75rem; font-weight: 600; }
+.miot-data-table td { padding: 1rem; border-top: 1px solid var(--miot-card-border, #e5e7eb); background: var(--miot-row-background, var(--miot-card-background, #fff)); }
+.miot-data-table[data-dividers="true"] td:not(:last-child) { border-right: 1px solid var(--miot-card-border, #e5e7eb); }
+.miot-data-table th[style] { z-index: 30; }
+.miot-data-table td[style] { z-index: 10; }
+.miot-data-table .miot-data-table__actions { position: sticky; right: 0; width: 2.5rem; padding: .5rem; z-index: 10; border-left: 1px solid var(--miot-card-border, #e5e7eb); }
+.miot-data-table th.miot-data-table__actions { z-index: 30; }
+.miot-data-table__message { padding: 2rem 1rem; text-align: center; }
+.miot-data-table__decorator { margin-inline-start: .25rem; font-size: .75rem; color: var(--miot-card-muted, #6b7280); }
+.miot-data-table__sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.miot-data-table tr[data-row-color="red"] { --miot-row-background: #fef2f2; }
+.miot-data-table tr[data-row-color="yellow"] { --miot-row-background: #fefce8; }
+.miot-data-table tr[data-row-color="green"] { --miot-row-background: #f0fdf4; }
+.miot-data-table tr[data-row-color="blue"] { --miot-row-background: #eff6ff; }
+.miot-data-table tr[data-row-color="orange"] { --miot-row-background: #fff7ed; }
+.miot-data-table tr[data-row-color="purple"] { --miot-row-background: #faf5ff; }
+.miot-data-table tr[data-row-color="gray"] { --miot-row-background: #f3f4f6; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table { --miot-card-border: #4b5563; --miot-card-background: #1f2937; --miot-card-text: #d1d5db; --miot-card-muted: #9ca3af; --miot-table-heading: #374151; }
+/* Opaque equivalents of dark conditional tints keep sticky cells readable. */
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="red"] { --miot-row-background: #322732; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="yellow"] { --miot-row-background: #2f2d30; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="green"] { --miot-row-background: #1d3135; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="blue"] { --miot-row-background: #1f2c48; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="orange"] { --miot-row-background: #322a30; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="purple"] { --miot-row-background: #2a2647; }
+:where(.dark, [data-miot-theme="dark"]) .miot-data-table tr[data-row-color="gray"] { --miot-row-background: #242e3c; }

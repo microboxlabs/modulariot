@@ -658,4 +658,5 @@ fieldset.miot-row-controls { min-width: 0; margin: 0; }
 .miot-chart-card > h3 { flex-shrink:0; margin:0; font-size:.875rem; font-weight:600; overflow-wrap:anywhere; }
 .miot-chart-card__toolbar { flex-shrink:0; }
 .miot-chart-card__plot { flex:1; min-height:0; min-width:0; }
-:where(.dark,[data-miot-theme="dark"]) .miot-chart-card { --miot-card-background:#1f2937; --miot-card-border:#374151; --miot-card-text:#fff; }
+/* Dark defaults are fallbacks so a host palette set on an ancestor still wins. */
+:where(.dark,[data-miot-theme="dark"]) .miot-chart-card { border:1px solid var(--miot-card-border,#374151); background:var(--miot-card-background,#1f2937); color:var(--miot-card-text,#fff); }

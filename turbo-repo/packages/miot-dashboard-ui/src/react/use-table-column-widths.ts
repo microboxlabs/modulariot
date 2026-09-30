@@ -195,8 +195,11 @@ export function useTableColumnWidths({
     table.style.width = previousWidth;
 
     // Account for the actions column so it doesn't eat into the last data column.
-    const actionsW = hasActionsRef.current ? 40 : 0;
-    const available = containerWidth - actionsW;
+    const actionsW = hasActionsRef.current
+      ? ((cells[cols.length] as HTMLElement | undefined)?.offsetWidth ?? 40)
+      : 0;
+    // Reserve usable space for the filling column before scaling fixed widths.
+    const available = containerWidth - actionsW - 80;
     const sum = raw.reduce<number>((a, w) => a + (w ?? 0), 0);
     // Scale proportionally if natural widths overflow the container.
     const snapshot =

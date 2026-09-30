@@ -204,7 +204,19 @@ export function DataTable({
         <table
           ref={table}
           aria-label={label}
-          style={resizing ? { tableLayout: "fixed" } : undefined}
+          style={
+            resizing
+              ? {
+                  tableLayout: "fixed",
+                  minWidth:
+                    widths.columnWidths
+                      .slice(0, -1)
+                      .reduce<number>((sum, width) => sum + (width ?? 0), 0) +
+                    80 +
+                    (hasActions ? 80 : 0),
+                }
+              : undefined
+          }
         >
           {resizing && (
             <colgroup>

@@ -34,7 +34,7 @@ export function ColumnFilterToolbar({
   if (activeFilters.length === 0) return null;
   return (
     <div className="miot-row-controls miot-column-filter-toolbar">
-      <span role="status">{summary}</span>
+      <output>{summary}</output>
       {activeFilters.map((filter) => {
         const column = columns.find((item) => item.key === filter.columnKey);
         const label =

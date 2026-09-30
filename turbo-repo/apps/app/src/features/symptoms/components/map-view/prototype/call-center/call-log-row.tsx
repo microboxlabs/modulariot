@@ -22,7 +22,7 @@ export default function CallLogRow({
   entry,
   roundedBottom = false,
   highlighted = false,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   entry: CallLogEntry;
   /** True for the very last row rendered in a "Tratamiento" card — matches
@@ -35,7 +35,7 @@ export default function CallLogRow({
    *  behavior, so it could stay lit after a scroll force-closes the
    *  tooltip while the cursor never actually left the row. */
   highlighted?: boolean;
-}) {
+}>) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
   const MethodIcon = CALL_METHOD_ICONS[entry.method];
   const when = new Date(Date.now() - entry.minutesAgo * 60_000);

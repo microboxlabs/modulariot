@@ -22,18 +22,19 @@ export type ImportField =
   | CallMethod;
 
 /** Column order used for the example table and the downloadable layout. */
-export const IMPORT_COLUMNS: readonly { field: ImportField; header: string }[] = [
-  { field: "name", header: "nombre" },
-  { field: "description", header: "descripcion" },
-  { field: "rut", header: "rut" },
-  { field: "company", header: "empresa" },
-  { field: "position", header: "cargo" },
-  { field: "badges", header: "etiquetas" },
-  { field: "phone", header: "telefono" },
-  { field: "whatsapp", header: "whatsapp" },
-  { field: "meet", header: "meet" },
-  { field: "teams", header: "teams" },
-];
+export const IMPORT_COLUMNS: readonly { field: ImportField; header: string }[] =
+  [
+    { field: "name", header: "nombre" },
+    { field: "description", header: "descripcion" },
+    { field: "rut", header: "rut" },
+    { field: "company", header: "empresa" },
+    { field: "position", header: "cargo" },
+    { field: "badges", header: "etiquetas" },
+    { field: "phone", header: "telefono" },
+    { field: "whatsapp", header: "whatsapp" },
+    { field: "meet", header: "meet" },
+    { field: "teams", header: "teams" },
+  ];
 
 const HEADER_ALIASES: Record<string, ImportField> = {
   nombre: "name",
@@ -86,32 +87,46 @@ function detectDelimiter(headerLine: string): string {
   return semicolons > commas ? ";" : ",";
 }
 
+/** Reads a quoted cell body from `start` up to its closing quote (`end`),
+ *  turning `""` into `"`. */
+function readQuoted(
+  text: string,
+  start: number
+): { value: string; end: number } {
+  let value = "";
+  let i = start;
+  while (i < text.length) {
+    if (text[i] === '"' && text[i + 1] === '"') {
+      value += '"';
+      i += 2;
+    } else if (text[i] === '"') {
+      return { value, end: i };
+    } else {
+      value += text[i];
+      i++;
+    }
+  }
+  return { value, end: i };
+}
+
 /** Splits CSV text into rows of cells, honouring double-quoted cells
  *  (which may contain the delimiter, newlines and `""` escapes). */
 export function splitCsv(text: string): string[][] {
   const clean = text.startsWith("﻿") ? text.slice(1) : text;
   const firstBreak = clean.indexOf("\n");
-  const delimiter = detectDelimiter(firstBreak === -1 ? clean : clean.slice(0, firstBreak));
+  const delimiter = detectDelimiter(
+    firstBreak === -1 ? clean : clean.slice(0, firstBreak)
+  );
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = "";
-  let quoted = false;
 
   for (let i = 0; i < clean.length; i++) {
     const ch = clean[i];
-    if (quoted) {
-      if (ch === '"' && clean[i + 1] === '"') {
-        cell += '"';
-        i++;
-      } else if (ch === '"') {
-        quoted = false;
-      } else {
-        cell += ch;
-      }
-      continue;
-    }
     if (ch === '"') {
-      quoted = true;
+      const quoted = readQuoted(clean, i + 1);
+      cell += quoted.value;
+      i = quoted.end;
     } else if (ch === delimiter) {
       row.push(cell);
       cell = "";

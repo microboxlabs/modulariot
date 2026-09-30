@@ -9,12 +9,15 @@
  * value).
  */
 
-import { useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import { TextInput } from "flowbite-react";
 import { HiArrowLeft, HiOutlineBookmark, HiPhone } from "react-icons/hi";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import PhoneInput, { isValidPhone, toE164 } from "@/features/common/components/phone-input/phone-input";
+import PhoneInput, {
+  isValidPhone,
+  toE164,
+} from "@/features/common/components/phone-input/phone-input";
 
 export type NewNumberAction = "call" | "callAndSave";
 
@@ -33,7 +36,10 @@ export function draftFromQuery(query: string): NewNumberDraft {
 }
 
 /** Only calling needs a valid number; saving to the book also needs a name. */
-export function canSubmitNewNumber(draft: NewNumberDraft, action: NewNumberAction): boolean {
+export function canSubmitNewNumber(
+  draft: NewNumberDraft,
+  action: NewNumberAction
+): boolean {
   if (!isValidPhone(draft.phone)) return false;
   return action === "call" || draft.name.trim() !== "";
 }
@@ -58,7 +64,7 @@ export default function NewNumberPanel({
   };
 
   // Enter anywhere in the panel = the plain "just call".
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     submit("call");
   };

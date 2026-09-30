@@ -24,6 +24,11 @@ class SpecRulesTest {
                 Specs.with(base, Specs.ACTIVATION + " && signal.gps.speed_kmh > 10"))));
         assertNull(SpecDiff.bump(SpecDiff.changes(base, Specs.with(base, "  " + Specs.ACTIVATION.replace(" && ",
                 "\n && ")))), "whitespace is not a change");
+        assertNull(SpecDiff.bump(SpecDiff.changes(base, Specs.with(base, Specs.ACTIVATION.replace(" && ", "&&")))),
+                "neither is spacing around operators");
+        SymptomSpec zone = Specs.with(base, "signal.geo.zone == \"North Yard\"");
+        assertEquals(VersionBump.MAJOR, SpecDiff.bump(SpecDiff.changes(zone,
+                Specs.with(base, "signal.geo.zone == \"North  Yard\""))), "spaces inside a string are a change");
 
         List<Level> raised = Specs.levels("medida > 0 && medida < 5", "medida >= 5 && medida < 11",
                 "medida >= 11 && medida < 25", "medida >= 25 && sostenido_s >= 60");
@@ -65,6 +70,26 @@ class SpecRulesTest {
     }
 
     @Test
+    void overlapsAreFoundBeyondAnyFixedRange() {
+        SymptomSpec high = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
+                "medida >= 5 && medida < 11", "medida > 500", "medida > 500"));
+
+        assertFalse(SpecValidator.validate(high, Specs.gpsSignal()).publishable());
+    }
+
+    @Test
+    void levelRulesCountForEngineSupportButStringsDoNot() {
+        SymptomSpec levelField = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
+                "medida >= 5 && medida < 11", "medida >= 11 && medida < 21",
+                "medida >= 21 && signal.derived.speed_avg_5m > 90.0"));
+        assertTrue(SpecValidator.validate(levelField, Specs.gpsSignal()).needsTestOnly());
+
+        SymptomSpec inText = Specs.with(Specs.speeding(),
+                Specs.ACTIVATION + " && signal.vehicle.weight_category != \"signal.derived.speed_avg_5m\"");
+        assertFalse(SpecValidator.validate(inText, Specs.gpsSignal()).needsTestOnly());
+    }
+
+    @Test
     void duplicatedConditionsAndBadRulesAreErrors() {
         Report dup = SpecValidator.validate(Specs.with(Specs.speeding(),
                 "signal.trip.active && signal.trip.active"), Specs.gpsSignal());
@@ -96,7 +121,7 @@ class SpecRulesTest {
 
     @Test
     void topLevelTermsIgnoreNestingAndStrings() {
-        assertEquals(List.of("a", "(b || c)", "d == \"x && y\""),
+        assertEquals(List.of("a", "b || c", "d == \"x && y\""),
                 SpecValidator.topLevelTerms("a && (b || c) && d == \"x && y\""));
     }
 }

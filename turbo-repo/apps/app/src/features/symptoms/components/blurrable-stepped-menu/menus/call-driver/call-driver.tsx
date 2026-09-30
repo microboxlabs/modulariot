@@ -110,17 +110,18 @@ export default function CallDriver({
       color: "blue",
       text: (dict.symptoms as I18nRecord).save_treatment,
       function: async () => {
+        const telTxt = targetPhone ? ` · Tel: ${targetPhone}` : "";
+        const escalamientoTxt = esConductor
+          ? ""
+          : ` · Escalamiento propuesto por el operador${telTxt}`;
         const response = await requestTreatment({
           ...treatmentRequest,
           driver_response:
-            (resultadoLabel ? resultadoLabel : "") +
+            (resultadoLabel || "") +
             (notaLlamada.trim() ? ` · ${notaLlamada.trim()}` : ""),
           description:
             `Llamado a: ${targetLabel}` +
-            (esConductor
-              ? ""
-              : " · Escalamiento propuesto por el operador" +
-                (targetPhone ? ` · Tel: ${targetPhone}` : "")) +
+            escalamientoTxt +
             (resultadoLabel ? ` · Resultado: ${resultadoLabel}` : "") +
             (sinRespuesta && registrarEscalamiento
               ? ` · Sin respuesta → escala a: ${dictSy[escalarA] as string}`

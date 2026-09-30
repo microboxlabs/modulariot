@@ -16,15 +16,15 @@ import { ShowNotification } from "@/features/notifications/notification";
 export default function CopyButton({
   dict,
   getText,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   getText: () => string;
-}) {
+}>) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(getText()).then(() => {
+    void navigator.clipboard.writeText(getText()).then(() => {
       setCopied(true);
       ShowNotification({
         type: "success",

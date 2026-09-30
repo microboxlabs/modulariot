@@ -99,7 +99,9 @@ const cellTitleClass =
  * floor instead of stopping short. `prototype-inline-form` makes the body
  * `flex flex-col` so this is itself a genuine flex item.
  */
-export function BentoGrid({ children }: { children: React.ReactNode }) {
+export function BentoGrid({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-3">
       {children}
@@ -120,10 +122,10 @@ export function BentoGrid({ children }: { children: React.ReactNode }) {
 export function BentoRow({
   grow = false,
   children,
-}: {
+}: Readonly<{
   grow?: boolean;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div
       className={`grid grid-cols-1 grid-rows-[minmax(0,1fr)] gap-3 sm:grid-cols-2 ${
@@ -147,10 +149,10 @@ export function BentoRow({
 export function SelectableFieldControl({
   fieldKey,
   dict,
-}: {
+}: Readonly<{
   fieldKey: string;
   dict: I18nRecord;
-}) {
+}>) {
   const { lang } = useParams<{ lang: string }>();
   const selectables = useFormSelectables();
   const [boundId, setBoundId] = useBinding(fieldKey);
@@ -199,11 +201,13 @@ export function SelectableFieldControl({
           <label className="relative block">
             <HiOutlineSearch className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
             <input
-              autoFocus
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={tr("symptoms.proto_selectable_search_placeholder", dict)}
+              placeholder={tr(
+                "symptoms.proto_selectable_search_placeholder",
+                dict
+              )}
               className="w-full rounded-md border border-gray-300 bg-white py-1.5 pl-7 pr-2 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
             />
           </label>
@@ -233,7 +237,8 @@ export function SelectableFieldControl({
                   {s.name || tr("symptoms.proto_selectable_unassigned", dict)}
                 </span>
                 <span className="truncate text-[11px] text-gray-400 dark:text-gray-500">
-                  {s.options.length} · {s.mode === "multiple" ? "multi" : "single"}
+                  {s.options.length} ·{" "}
+                  {s.mode === "multiple" ? "multi" : "single"}
                 </span>
               </button>
             ))}
@@ -287,7 +292,7 @@ export function OptionsDropdown({
   emptyLabel,
   className,
   triggerBorderClassName = dropdownDefaultBorderClass,
-}: {
+}: Readonly<{
   options: FormOption[];
   value: string;
   onSelect: (option: FormOption) => void;
@@ -298,7 +303,7 @@ export function OptionsDropdown({
    *  layers onto, the default so there's never two conflicting `border-*`
    *  utilities at once. */
   triggerBorderClassName?: string;
-}) {
+}>) {
   const selected = options.find((o) => o.id === value) ?? null;
   return (
     // `relative` makes this the containing block for the floating panel below,
@@ -366,7 +371,7 @@ export function SelectableDropdown({
   onSelect,
   placeholder,
   triggerBorderClassName,
-}: {
+}: Readonly<{
   fieldKey: string;
   dict: I18nRecord;
   value: string;
@@ -375,7 +380,7 @@ export function SelectableDropdown({
   /** Overrides the trigger's resting border color (both the single-pick
    *  dropdown and the multi-select land on the same visual). */
   triggerBorderClassName?: string;
-}) {
+}>) {
   const { selectable, options } = useSelectableOptions(fieldKey);
   const unassignedLabel = tr("symptoms.proto_selectable_unassigned", dict);
 
@@ -403,7 +408,9 @@ export function SelectableDropdown({
           tr("symptoms.proto_multi_summary", dict, { count: String(count) })
         }
         emptyLabel={unassignedLabel}
-        {...(triggerBorderClassName ? { borderClassName: triggerBorderClassName } : {})}
+        {...(triggerBorderClassName
+          ? { borderClassName: triggerBorderClassName }
+          : {})}
       />
     );
   }
@@ -444,7 +451,7 @@ export function FieldCard({
   borderClassName,
   scrollBody = true,
   children,
-}: {
+}: Readonly<{
   title: string;
   action?: React.ReactNode;
   grow?: boolean;
@@ -462,7 +469,8 @@ export function FieldCard({
    *  the edge, since it isn't rendered outside this DOM subtree. */
   scrollBody?: boolean;
   children: React.ReactNode;
-}) {
+}>) {
+  const scrollClass = scrollBody ? "overflow-y-auto" : "";
   return (
     <section
       className={`flex min-h-0 flex-col gap-3 rounded-lg border px-3 pb-3 transition-colors ${
@@ -485,7 +493,7 @@ export function FieldCard({
       </div>
       <div
         className={`flex flex-col gap-2 ${
-          grow ? `min-h-0 flex-1 ${scrollBody ? "overflow-y-auto" : ""}` : ""
+          grow ? `min-h-0 flex-1 ${scrollClass}` : ""
         }`}
       >
         {children}
@@ -496,7 +504,9 @@ export function FieldCard({
 
 /** The form's action bar — the last (shrink-0) row in the bento column, held
  *  at the floor by the flexible row above it absorbing the rest of the height. */
-export function StickyActions({ children }: { children: React.ReactNode }) {
+export function StickyActions({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return <div className="shrink-0">{children}</div>;
 }
 
@@ -504,10 +514,10 @@ export function StickyActions({ children }: { children: React.ReactNode }) {
 export function PlainSection({
   title,
   children,
-}: {
+}: Readonly<{
   title: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <section className="flex min-h-0 shrink-0 flex-col gap-3 rounded-lg border border-gray-200 bg-white px-3 pb-3 dark:border-gray-700 dark:bg-gray-800/40">
       <div className={cellHeaderClass}>
@@ -528,10 +538,10 @@ export function PlainSection({
 export function GeneralInfoGrid({
   dict,
   treatmentData,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
-}) {
+}>) {
   const rows: Array<[string, string | undefined | null]> = [
     [tr("symptoms.vehicle_plate", dict), treatmentData?.trip_info?.asset_id],
     [tr("symptoms.phone", dict), treatmentData?.trip_info?.driver_contact],

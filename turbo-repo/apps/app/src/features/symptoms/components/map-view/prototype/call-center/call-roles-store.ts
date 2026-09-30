@@ -27,7 +27,7 @@ const STORAGE_KEY = "miot.prototype.call-roles.v1";
 const SYNC_EVENT = "miot:call-roles-changed";
 
 function makeRoleId(): string {
-  return `role_${Math.random().toString(36).slice(2, 9)}`;
+  return `role_${crypto.randomUUID()}`;
 }
 
 const DEFAULT_ROLES: CallRole[] = [

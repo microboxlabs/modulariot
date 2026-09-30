@@ -40,7 +40,10 @@ export interface ContactTableLabels {
 /** The address a contact is reached on for `method`, or "" when that method
  *  isn't configured. Contacts saved before `channels` existed fall back to
  *  the legacy `phone` for phone/WhatsApp. */
-export function contactMethodValue(contact: BookContact, method: CallMethod): string {
+export function contactMethodValue(
+  contact: BookContact,
+  method: CallMethod
+): string {
   const value = contact.channels?.[method];
   if (value) return value;
   if (!contact.methods.includes(method)) return "";
@@ -48,7 +51,9 @@ export function contactMethodValue(contact: BookContact, method: CallMethod): st
 }
 
 function displayValue(method: CallMethod, value: string): string {
-  return method === "phone" || method === "whatsapp" ? formatChileanPhone(value) : value;
+  return method === "phone" || method === "whatsapp"
+    ? formatChileanPhone(value)
+    : value;
 }
 
 const CONNECTED_ICON_CLASS =
@@ -121,7 +126,11 @@ function MethodTooltipContent({
   method,
   labels,
   value,
-}: Readonly<{ method: CallMethod; labels: ContactTableLabels; value?: string }>) {
+}: Readonly<{
+  method: CallMethod;
+  labels: ContactTableLabels;
+  value?: string;
+}>) {
   const Icon = CALL_METHOD_ICONS[method];
   return (
     <div className="flex flex-col gap-1.5 py-1">
@@ -166,7 +175,9 @@ function DisconnectedMethodIcon({ method, labels }: Readonly<MethodIconProps>) {
   const Icon = CALL_METHOD_ICONS[method];
   const label = `${labels.methodLabels[method]}: ${labels.notConnected}`;
   return (
-    <HoverTooltip content={<MethodTooltipContent method={method} labels={labels} />}>
+    <HoverTooltip
+      content={<MethodTooltipContent method={method} labels={labels} />}
+    >
       <span aria-label={label} role="img" className={DISCONNECTED_ICON_CLASS}>
         <Icon className="h-3.5 w-3.5" />
       </span>
@@ -186,7 +197,7 @@ function ConnectedMethodIcon({
   const shown = displayValue(method, value);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(value).then(() => {
+    void navigator.clipboard.writeText(value).then(() => {
       setCopied(true);
       ShowNotification({ type: "success", message: labels.copied });
       setTimeout(() => setCopied(false), 2000);
@@ -195,7 +206,9 @@ function ConnectedMethodIcon({
 
   return (
     <HoverTooltip
-      content={<MethodTooltipContent method={method} labels={labels} value={shown} />}
+      content={
+        <MethodTooltipContent method={method} labels={labels} value={shown} />
+      }
     >
       <button
         type="button"
@@ -224,7 +237,14 @@ function ContactMethods({
       {ALL_CALL_METHODS.map((m) => {
         const value = contactMethodValue(contact, m);
         if (value) {
-          return <ConnectedMethodIcon key={m} method={m} value={value} labels={labels} />;
+          return (
+            <ConnectedMethodIcon
+              key={m}
+              method={m}
+              value={value}
+              labels={labels}
+            />
+          );
         }
         return <DisconnectedMethodIcon key={m} method={m} labels={labels} />;
       })}
@@ -377,13 +397,17 @@ export default function ContactTable({
     "px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400";
 
   return (
-    <div className={`overflow-auto rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}>
+    <div
+      className={`overflow-auto rounded-lg border border-gray-200 dark:border-gray-700 ${className}`}
+    >
       <table className="w-full text-sm">
         <thead className="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900">
           <tr>
             <th className={headerClass}>{labels.columns.name}</th>
             <th className={headerClass}>{labels.columns.badges}</th>
-            <th className={`${headerClass} text-left w-50`}>{labels.columns.methods}</th>
+            <th className={`${headerClass} text-left w-50`}>
+              {labels.columns.methods}
+            </th>
             <th className="w-12 px-2 py-3">
               <span className="sr-only">{labels.columns.actions}</span>
             </th>

@@ -56,7 +56,7 @@ function write(next: DetailsMap): void {
 }
 
 export function useContactDetails() {
-  const [details, setDetailsState] = useState<DetailsMap>({});
+  const [detailsState, setDetailsState] = useState<DetailsMap>({});
 
   useEffect(() => {
     setDetailsState(read());
@@ -75,5 +75,5 @@ export function useContactDetails() {
     setDetailsState(next);
   }, []);
 
-  return { details, setDetails };
+  return { details: detailsState, setDetails };
 }

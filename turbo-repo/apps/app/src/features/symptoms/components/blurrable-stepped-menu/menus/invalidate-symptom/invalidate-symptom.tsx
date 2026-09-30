@@ -37,12 +37,16 @@ export default function InvalidateSymptom({
     { key: "inv_motivo_gps", label: tr("symptoms.inv_motivo_gps", dict) },
     { key: "inv_motivo_map", label: tr("symptoms.inv_motivo_map", dict) },
     { key: "inv_motivo_rule", label: tr("symptoms.inv_motivo_rule", dict) },
-    { key: "inv_motivo_duplicate", label: tr("symptoms.inv_motivo_duplicate", dict) },
+    {
+      key: "inv_motivo_duplicate",
+      label: tr("symptoms.inv_motivo_duplicate", dict),
+    },
     { key: "motivo_other", label: tr("symptoms.motivo_other", dict) },
   ];
   const motivoLabel = motivos.find((m) => m.key === motivo)?.label ?? "";
+  const detalle = reason.trim() ? ` · ${reason.trim()}` : "";
   const razonCompleta = motivo
-    ? `Motivo: ${motivoLabel}` + (reason.trim() ? ` · ${reason.trim()}` : "")
+    ? `Motivo: ${motivoLabel}${detalle}`
     : reason.trim();
   const puedeGuardar = motivo !== "" && reason.trim().length > 0;
 

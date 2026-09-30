@@ -125,7 +125,9 @@ public class SymptomCatalogService {
         }
         SymptomVersion base = store.findDraft(tenantCode, id)
                 .orElseGet(() -> SymptomVersion.draft(id, tenantCode, spec, actor, now()));
-        return store.saveDraft(base.withSpec(spec));
+        SymptomVersion saved = store.saveDraft(base.withSpec(spec));
+        audit.log(tenantCode, actor, "symptom.draft_saved", ENTITY, id.toString(), null, Map.of());
+        return saved;
     }
 
     public void discardDraft(String tenantCode, String actor, UUID id) {
@@ -195,8 +197,7 @@ public class SymptomCatalogService {
         if (state != SymptomState.OFF && d.currentVersion() == null) {
             throw new IllegalStateException("publish a version before turning the symptom on");
         }
-        if (state == SymptomState.ACTIVE && detail.current() != null && SpecValidator.validate(detail.current().spec(),
-                sources.find(tenantCode, d.sourceKey()).orElse(null)).needsTestOnly()) {
+        if (state == SymptomState.ACTIVE && detail.current() != null && !activatable(tenantCode, detail)) {
             throw new IllegalStateException("the engine cannot evaluate this version yet; use TEST");
         }
         SymptomDefinition saved = store.updateDefinition(d.withCurrent(d.currentVersion(), state, actor, now()));
@@ -249,6 +250,14 @@ public class SymptomCatalogService {
                 sources.find(tenantCode, sourceKey(spec, detail.definition())).orElse(null));
         return new PublishPlan(changes, bump,
                 bump == null ? null : SpecDiff.next(detail.definition().currentVersion(), bump), report);
+    }
+
+    /** The version in force has no errors against its own source and needs nothing the engine lacks. */
+    private boolean activatable(String tenantCode, SymptomDetail detail) {
+        SymptomSpec spec = detail.current().spec();
+        Report report = SpecValidator.validate(spec,
+                sources.find(tenantCode, sourceKey(spec, detail.definition())).orElse(null));
+        return report.publishable() && !report.needsTestOnly();
     }
 
     private SymptomDefinition require(String tenantCode, UUID id) {

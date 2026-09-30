@@ -1,13 +1,4 @@
-import {
-  DARK_TEXT,
-  LIGHT_TEXT,
-  DARK_AXIS_LINE,
-  LIGHT_AXIS_LINE,
-  DARK_AXIS_NAME,
-  LIGHT_AXIS_NAME,
-  noDataOption,
-  buildTooltip,
-} from "./common";
+import { noDataOption, buildTooltip, cartesianAxisParts } from "./common";
 import type { EChartsOption } from "echarts";
 import {
   getChartColors as getColors,
@@ -55,14 +46,6 @@ function buildCartesianOption(
   colorForValue: (value: number) => string | undefined,
   formatDateLabel: (value: string) => string = (value) => value,
 ): EChartsOption {
-  const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
-  const axisLineColor = darkMode ? DARK_AXIS_LINE : LIGHT_AXIS_LINE;
-  const axisNameStyle = {
-    color: darkMode ? DARK_AXIS_NAME : LIGHT_AXIS_NAME,
-    fontWeight: "bold" as const,
-    fontSize: 13,
-  };
-
   const hasScatterRep = config.representations.some(
     (r) => r.type === "scatter",
   );
@@ -70,43 +53,16 @@ function buildCartesianOption(
   const useTimeAxis =
     !!config.xAxisDateFormat && config.xAxisDateFormat !== "none";
 
-  const categoryData = useTimeAxis
-    ? rows.map((r) => formatDateLabel(r[config.xAxisColumn] ?? ""))
-    : rows.map((r) => r[config.xAxisColumn] ?? "");
-
-  const labelRotate = (() => {
-    if (isHorizontalBar || categoryData.length === 0 || containerWidth === 0)
-      return 0;
-    const maxLabelPx =
-      categoryData.reduce(
-        (max, label) => Math.max(max, String(label).length),
-        0,
-      ) * 7;
-    return maxLabelPx > containerWidth / categoryData.length ? 30 : 0;
-  })();
-
-  const categoryAxis = {
-    type: "category" as const,
-    data: categoryData,
-    axisLabel: isHorizontalBar
-      ? { color: textColor, overflow: "truncate" as const, width: 120 }
-      : {
-          color: textColor,
-          interval: 0,
-          rotate: labelRotate,
-          overflow: "truncate" as const,
-          width: 120,
-        },
-    axisLine: { lineStyle: { color: axisLineColor } },
-  };
-
-  const valueAxis = {
-    type: "value" as const,
-    nameTextStyle: axisNameStyle,
-    axisLabel: { color: textColor },
-    axisLine: { lineStyle: { color: axisLineColor } },
-    splitLine: { lineStyle: { color: axisLineColor } },
-  };
+  const { textColor, axisNameStyle, categoryData, categoryAxis, valueAxis } =
+    cartesianAxisParts({
+      rows,
+      xAxisColumn: config.xAxisColumn,
+      useTimeAxis,
+      isHorizontalBar,
+      darkMode,
+      containerWidth,
+      formatDateLabel,
+    });
 
   let xAxis: EChartsOption["xAxis"];
   let yAxis: EChartsOption["yAxis"];

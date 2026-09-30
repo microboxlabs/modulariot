@@ -57,3 +57,76 @@ export function buildTooltip(
     formatter: createChartTooltipFormatter(config.tooltipTemplate, rows),
   };
 }
+
+/** Axis colors, category labels and base axes shared by the cartesian chart builders. */
+export function cartesianAxisParts({
+  rows,
+  xAxisColumn,
+  useTimeAxis,
+  isHorizontalBar,
+  darkMode,
+  containerWidth,
+  formatDateLabel,
+}: {
+  rows: Record<string, string>[];
+  xAxisColumn: string;
+  useTimeAxis: boolean;
+  isHorizontalBar: boolean;
+  darkMode: boolean;
+  containerWidth: number;
+  formatDateLabel: (value: string) => string;
+}) {
+  const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
+  const axisLineColor = darkMode ? DARK_AXIS_LINE : LIGHT_AXIS_LINE;
+  const axisNameStyle = {
+    color: darkMode ? DARK_AXIS_NAME : LIGHT_AXIS_NAME,
+    fontWeight: "bold" as const,
+    fontSize: 13,
+  };
+
+  const categoryData = useTimeAxis
+    ? rows.map((r) => formatDateLabel(r[xAxisColumn] ?? ""))
+    : rows.map((r) => r[xAxisColumn] ?? "");
+
+  const labelRotate = (() => {
+    if (isHorizontalBar || categoryData.length === 0 || containerWidth === 0)
+      return 0;
+    const maxLabelPx =
+      categoryData.reduce(
+        (max, label) => Math.max(max, String(label).length),
+        0,
+      ) * 7;
+    return maxLabelPx > containerWidth / categoryData.length ? 30 : 0;
+  })();
+
+  const categoryAxis = {
+    type: "category" as const,
+    data: categoryData,
+    axisLabel: isHorizontalBar
+      ? { color: textColor, overflow: "truncate" as const, width: 120 }
+      : {
+          color: textColor,
+          interval: 0,
+          rotate: labelRotate,
+          overflow: "truncate" as const,
+          width: 120,
+        },
+    axisLine: { lineStyle: { color: axisLineColor } },
+  };
+
+  const valueAxis = {
+    type: "value" as const,
+    nameTextStyle: axisNameStyle,
+    axisLabel: { color: textColor },
+    axisLine: { lineStyle: { color: axisLineColor } },
+    splitLine: { lineStyle: { color: axisLineColor } },
+  };
+  return {
+    textColor,
+    axisLineColor,
+    axisNameStyle,
+    categoryData,
+    categoryAxis,
+    valueAxis,
+  };
+}

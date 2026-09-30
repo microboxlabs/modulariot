@@ -1,12 +1,9 @@
 import {
   DARK_TEXT,
   LIGHT_TEXT,
-  DARK_AXIS_LINE,
-  LIGHT_AXIS_LINE,
-  DARK_AXIS_NAME,
-  LIGHT_AXIS_NAME,
   noDataOption,
   buildTooltip,
+  cartesianAxisParts,
 } from "./common";
 import type { EChartsOption } from "echarts";
 import {
@@ -16,7 +13,6 @@ import {
 
 export type ChartType = "line" | "bar" | "pie" | "gauge" | "scatter";
 export type ChartXAxisDateFormat = "none" | "day" | "month" | "year";
-type XAxisDateFormat = ChartXAxisDateFormat;
 export interface ChartSeries {
   columnKey: string;
   label: string;
@@ -43,7 +39,7 @@ export interface LegacyChartOptions {
   stacked: boolean;
   horizontal: boolean;
   showBarLabels?: boolean;
-  xAxisDateFormat?: XAxisDateFormat;
+  xAxisDateFormat?: ChartXAxisDateFormat;
   tooltipTemplate?: string;
 }
 
@@ -56,56 +52,21 @@ function buildCartesianOption(
   colorForValue: (value: number) => string | undefined,
   formatDateLabel: (value: string) => string = (value) => value,
 ): EChartsOption {
-  const textColor = darkMode ? DARK_TEXT : LIGHT_TEXT;
-  const axisLineColor = darkMode ? DARK_AXIS_LINE : LIGHT_AXIS_LINE;
-  const axisNameStyle = {
-    color: darkMode ? DARK_AXIS_NAME : LIGHT_AXIS_NAME,
-    fontWeight: "bold" as const,
-    fontSize: 13,
-  };
-
   const isHorizontalBar = config.chartType === "bar" && config.horizontal;
   const useTimeAxis =
     config.chartType === "line" &&
     !!config.xAxisDateFormat &&
     config.xAxisDateFormat !== "none";
-  const categoryData = useTimeAxis
-    ? rows.map((r) => formatDateLabel(r[config.xAxisColumn] ?? ""))
-    : rows.map((r) => r[config.xAxisColumn] ?? "");
-
-  const labelRotate = (() => {
-    if (isHorizontalBar || categoryData.length === 0 || containerWidth === 0)
-      return 0;
-    const maxLabelPx =
-      categoryData.reduce(
-        (max, label) => Math.max(max, String(label).length),
-        0,
-      ) * 7;
-    return maxLabelPx > containerWidth / categoryData.length ? 30 : 0;
-  })();
-
-  const categoryAxis = {
-    type: "category" as const,
-    data: categoryData,
-    axisLabel: isHorizontalBar
-      ? { color: textColor, overflow: "truncate" as const, width: 120 }
-      : {
-          color: textColor,
-          interval: 0,
-          rotate: labelRotate,
-          overflow: "truncate" as const,
-          width: 120,
-        },
-    axisLine: { lineStyle: { color: axisLineColor } },
-  };
-
-  const valueAxis = {
-    type: "value" as const,
-    nameTextStyle: axisNameStyle,
-    axisLabel: { color: textColor },
-    axisLine: { lineStyle: { color: axisLineColor } },
-    splitLine: { lineStyle: { color: axisLineColor } },
-  };
+  const { textColor, axisLineColor, axisNameStyle, categoryAxis, valueAxis } =
+    cartesianAxisParts({
+      rows,
+      xAxisColumn: config.xAxisColumn,
+      useTimeAxis,
+      isHorizontalBar,
+      darkMode,
+      containerWidth,
+      formatDateLabel,
+    });
 
   let xAxis: EChartsOption["xAxis"];
   let yAxis: EChartsOption["yAxis"];
@@ -326,18 +287,6 @@ export function buildLegacyChartOption(
   const colorForValue = host.colorForValue ?? (() => undefined);
 
   switch (config.chartType) {
-    case "line":
-    case "bar":
-    case "scatter":
-      return buildCartesianOption(
-        config,
-        rows,
-        colors,
-        darkMode,
-        containerWidth,
-        colorForValue,
-        host.formatDateLabel,
-      );
     case "pie":
       return buildPieOption(
         config,
@@ -357,6 +306,7 @@ export function buildLegacyChartOption(
         noDataLabel,
       );
     default:
+      // line, bar, scatter and unknown types
       return buildCartesianOption(
         config,
         rows,

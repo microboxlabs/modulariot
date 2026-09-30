@@ -30,7 +30,7 @@ export function RowContextMenu({
   portalContainer,
   returnFocusTo,
 }: RowContextMenuProps) {
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const safeItems = items.filter(
@@ -94,9 +94,9 @@ export function RowContextMenu({
 
   if (!enabled || !container) return null;
   return createPortal(
-    <div
+    <dialog
+      open
       ref={menuRef}
-      role="dialog"
       aria-label={ariaLabel}
       className="miot-action-dropdown miot-row-context-menu"
       style={{ top: y, left: x }}
@@ -118,7 +118,7 @@ export function RowContextMenu({
           </span>
         </a>
       ))}
-    </div>,
+    </dialog>,
     container,
   );
 }

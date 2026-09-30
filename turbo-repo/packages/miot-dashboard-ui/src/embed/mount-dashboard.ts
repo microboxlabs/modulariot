@@ -33,7 +33,7 @@ export class DashboardMountError extends Error {
 // Keep provider identity stable when query execution is disabled. Empty definitions
 // make this transport unreachable; changing instanceKey still remounts the tree.
 const NO_SAVED_QUERIES: Omit<SavedQueryOptions, "sessionKey"> = {
-  client: { key: () => "", query: async () => [] },
+  client: { key: () => "", query: () => Promise.resolve([]) },
   slug: "", queries: [], filters: {}, refreshIntervalMs: 0, paused: true, errorMessage: "",
 };
 function MountedDashboard({ instanceKey, savedQueries, ...canvas }: Readonly<DashboardMountOptions>) {

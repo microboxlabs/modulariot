@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
-import { HiCheck, HiOutlinePencil, HiOutlineTrash, HiPlus, HiX } from "react-icons/hi";
+import {
+  HiCheck,
+  HiOutlinePencil,
+  HiOutlineTrash,
+  HiPlus,
+  HiX,
+} from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { SECTION_INPUT_CLASS } from "./contact-person-section";
@@ -15,7 +21,12 @@ function BadgeEditor({
   onSave,
   onCancel,
   d,
-}: Readonly<{ initial: string; onSave: (name: string) => boolean; onCancel: () => void; d: I18nRecord }>) {
+}: Readonly<{
+  initial: string;
+  onSave: (name: string) => boolean;
+  onCancel: () => void;
+  d: I18nRecord;
+}>) {
   const [name, setName] = useState(initial);
   const [error, setError] = useState(false);
   const save = () => {
@@ -35,7 +46,6 @@ function BadgeEditor({
   return (
     <span className="flex items-center gap-1">
       <input
-        autoFocus
         aria-label={tr("badgeRename", d)}
         aria-invalid={error}
         className={`w-32 rounded-md border bg-white px-2 py-0.5 text-xs text-gray-900 focus:outline-none dark:bg-gray-900 dark:text-white ${
@@ -48,10 +58,20 @@ function BadgeEditor({
         }}
         onKeyDown={handleKeyDown}
       />
-      <button type="button" aria-label={tr("save", d)} onClick={save} className="text-green-600 hover:text-green-700">
+      <button
+        type="button"
+        aria-label={tr("save", d)}
+        onClick={save}
+        className="text-green-600 hover:text-green-700"
+      >
         <HiCheck className="h-4 w-4" />
       </button>
-      <button type="button" aria-label={tr("cancel", d)} onClick={onCancel} className="text-gray-400 hover:text-gray-600">
+      <button
+        type="button"
+        aria-label={tr("cancel", d)}
+        onClick={onCancel}
+        className="text-gray-400 hover:text-gray-600"
+      >
         <HiX className="h-4 w-4" />
       </button>
     </span>
@@ -101,7 +121,9 @@ function BadgeSuggestion({
         className="flex min-w-0 flex-1 items-center gap-2 px-3 py-1.5 text-left text-sm text-gray-700 dark:text-gray-200"
       >
         <span className={BADGE_CLASS}>{badge.name}</span>
-        {selected && <HiCheck className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-300" />}
+        {selected && (
+          <HiCheck className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-300" />
+        )}
       </button>
       <button
         type="button"
@@ -149,11 +171,17 @@ export default function ContactBadgesSection({
   const [query, setQuery] = useState("");
   const key = normalizeLabel(query);
   const exact = badges.find((b) => normalizeLabel(b.name) === key);
-  const matches = key ? badges.filter((b) => normalizeLabel(b.name).includes(key)) : [];
+  const matches = key
+    ? badges.filter((b) => normalizeLabel(b.name).includes(key))
+    : [];
   const selected = badges.filter((b) => selectedIds.includes(b.id));
 
   const toggle = (id: string) =>
-    onChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
+    onChange(
+      selectedIds.includes(id)
+        ? selectedIds.filter((x) => x !== id)
+        : [...selectedIds, id]
+    );
 
   const add = (badge: ContactBadge) => {
     if (!selectedIds.includes(badge.id)) onChange([...selectedIds, badge.id]);
@@ -202,7 +230,9 @@ export default function ContactBadgesSection({
                   className="flex w-full items-center gap-1.5 px-3 py-2 text-left text-sm font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-500/10"
                 >
                   <HiPlus className="h-4 w-4 shrink-0" />
-                  <span className="truncate">{tr("badgesCreate", d, { name: query.trim() })}</span>
+                  <span className="truncate">
+                    {tr("badgesCreate", d, { name: query.trim() })}
+                  </span>
                 </button>
               </li>
             )}
@@ -211,10 +241,14 @@ export default function ContactBadgesSection({
       </div>
 
       <div className="flex flex-1 flex-col gap-1.5">
-        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">{tr("badgesSelectedTitle", d)}</span>
+        <span className="text-xs font-medium text-gray-600 dark:text-gray-300">
+          {tr("badgesSelectedTitle", d)}
+        </span>
         <div className="flex min-h-9 flex-1 flex-wrap content-start items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-2 py-1.5 dark:border-gray-600">
           {selected.length === 0 && (
-            <span className="px-1 text-xs text-gray-400 dark:text-gray-500">{tr("badgesSelectedEmpty", d)}</span>
+            <span className="px-1 text-xs text-gray-400 dark:text-gray-500">
+              {tr("badgesSelectedEmpty", d)}
+            </span>
           )}
           {selected.map((b) => (
             <span key={b.id} className={BADGE_CLASS}>

@@ -21,11 +21,7 @@ const SYNC_EVENT = "miot:contact-badges-changed";
 
 /** Case- and accent-insensitive key for matching names. */
 export function normalizeLabel(value: string): string {
-  return value
-    .trim()
-    .normalize("NFD")
-    .replaceAll(/[̀-ͯ]/g, "")
-    .toLowerCase();
+  return value.trim().normalize("NFD").replaceAll(/[̀-ͯ]/g, "").toLowerCase();
 }
 
 function readBadges(): ContactBadge[] {
@@ -50,7 +46,10 @@ function writeBadges(next: ContactBadge[]): void {
   }
 }
 
-function findByName(badges: readonly ContactBadge[], name: string): ContactBadge | undefined {
+function findByName(
+  badges: readonly ContactBadge[],
+  name: string
+): ContactBadge | undefined {
   const key = normalizeLabel(name);
   return badges.find((b) => normalizeLabel(b.name) === key);
 }
@@ -62,7 +61,7 @@ export function ensureBadge(name: string): ContactBadge {
   const existing = findByName(current, name);
   if (existing) return existing;
   const created: ContactBadge = {
-    id: `badge_${Math.random().toString(36).slice(2, 9)}`,
+    id: `badge_${crypto.randomUUID()}`,
     name: name.trim(),
   };
   writeBadges([...current, created]);
@@ -75,7 +74,9 @@ export function renameBadge(id: string, name: string): boolean {
   const current = readBadges();
   const clash = findByName(current, name);
   if (!name.trim() || (clash && clash.id !== id)) return false;
-  writeBadges(current.map((b) => (b.id === id ? { ...b, name: name.trim() } : b)));
+  writeBadges(
+    current.map((b) => (b.id === id ? { ...b, name: name.trim() } : b))
+  );
   return true;
 }
 
@@ -96,7 +97,10 @@ export function useContactBadges() {
     };
   }, []);
   const ensure = useCallback((name: string) => ensureBadge(name), []);
-  const rename = useCallback((id: string, name: string) => renameBadge(id, name), []);
+  const rename = useCallback(
+    (id: string, name: string) => renameBadge(id, name),
+    []
+  );
   const remove = useCallback((id: string) => deleteBadge(id), []);
   return { badges, ensure, rename, remove };
 }

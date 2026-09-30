@@ -42,7 +42,7 @@ const STORAGE_KEY = "miot.prototype.contact-book.v1";
 const SYNC_EVENT = "miot:contact-book-changed";
 
 export function makeContactId(): string {
-  return `contact_${Math.random().toString(36).slice(2, 9)}`;
+  return `contact_${crypto.randomUUID()}`;
 }
 
 function read(): BookContact[] {

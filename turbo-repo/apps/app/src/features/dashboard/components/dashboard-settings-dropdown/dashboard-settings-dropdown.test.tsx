@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import DashboardSettingsDropdown, {
   type DashboardSettingsHost,
@@ -26,13 +32,23 @@ vi.mock("../dashboard-permissions-modal", () => ({
   DashboardPermissionsModal: () => null,
 }));
 vi.mock("../../context/planner-context", () => ({
-  useOptionalPlannerContext: () => null,
+  useOptionalPlannerContext: () => ({ schemas: new Map() }),
 }));
 vi.mock("../../context/dashboard-context", () => ({
   useDashboard: () => ({
     dashboardName: "Fleet",
-    filters: [],
+    filters: [
+      {
+        key: "service",
+        label: "Service",
+        type: "select",
+        optionsSource: { variableName: "billing", valueField: "service" },
+      },
+    ],
     setFilters: vi.fn(),
+    setFilterDefinitions: vi.fn(() => true),
+    queries: [{ id: "costs", variableName: "billing", schema: ["service", "total"] }],
+    plannerDefinitions: [],
     exportDashboard: () => "{}",
     importDashboard: state.importDashboard,
     downloadDashboard: vi.fn(),
@@ -47,7 +63,6 @@ vi.mock("../../context/dashboard-context", () => ({
 
 function host(overrides: Partial<DashboardSettingsHost> = {}) {
   return {
-    filters: <div>Server filters</div>,
     queries: <div>Saved queries</div>,
     canManagePermissions: true,
     onManagePermissions: vi.fn(),
@@ -63,9 +78,19 @@ function open(settings: DashboardSettingsHost) {
 
 beforeEach(() => vi.clearAllMocks());
 
-it("replaces the legacy planner and filters with the host's sections", () => {
+it("replaces the legacy planner with saved queries, which also feed select filters", () => {
   open(host());
-  expect(screen.getByText("Server filters")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: /dashboard\.settings\.filterBarTitle/ }));
+  fireEvent.click(screen.getByText("Service"));
+  const source = screen.getByLabelText("dashboard.settings.optionsSourceLabel");
+  expect(within(source).getByRole("option", { name: "billing" })).toBeInTheDocument();
+  expect(
+    within(screen.getByLabelText("dashboard.settings.optionsSourceValueField")).getByRole(
+      "option",
+      { name: "total" },
+    ),
+  ).toBeInTheDocument();
+  expect(screen.getByLabelText("dashboard.settings.filterSingle")).toBeInTheDocument();
   expect(screen.queryByText("Legacy planner")).not.toBeInTheDocument();
   expect(screen.queryByText("Saved queries")).not.toBeInTheDocument();
   fireEvent.click(

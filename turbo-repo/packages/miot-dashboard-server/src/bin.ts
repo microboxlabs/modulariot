@@ -321,6 +321,7 @@ async function main(): Promise<void> {
     scopes: scopes.scopes,
     store: assembled.store,
     ...(operations ? { queries: { operations } } : {}),
+    ...(operations?.queryCatalog ? { queryCatalog: operations.queryCatalog } : {}),
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,

@@ -213,3 +213,9 @@ contain only IDs, labels and optional result column names; they exclude executio
 schemas and credentials and are never cached. Missing providers return 404.
 The host bounds discovery work and honors cancellation; query execution still
 reauthorizes independently. See the package README for limits and provider types.
+
+Standalone pods can use the same provider: the operator-installed module named by
+`MIOT_DASHBOARD_OPERATIONS_MODULE` may export `createDashboardQueryCatalog()` in
+addition to `createDashboardOperations()`. Both factories initialize once at
+startup. Omitting the catalog export keeps discovery disabled; invalid providers
+stop startup with a redacted error. No remote execution service is required.

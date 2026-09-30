@@ -214,3 +214,10 @@ columnas opcionales; excluye esquemas de ejecución y credenciales y no se almac
 en caché. Sin proveedor devuelve 404. El anfitrión limita el trabajo de consulta y
 respeta la cancelación; la ejecución vuelve a autorizar cada solicitud. Consulte
 el README del paquete para los límites y tipos del proveedor.
+
+Los pods independientes pueden usar el mismo proveedor: el módulo instalado por
+el operador en `MIOT_DASHBOARD_OPERATIONS_MODULE` puede exportar
+`createDashboardQueryCatalog()` además de `createDashboardOperations()`.
+Ambas fábricas se inicializan una vez al arrancar. Sin la exportación del catálogo,
+el descubrimiento queda deshabilitado; un proveedor inválido detiene el arranque
+con un error sin detalles sensibles. No requiere un servicio remoto de ejecución.

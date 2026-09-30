@@ -1528,3 +1528,7 @@ checked for unresolved imports and can be imported without a DOM.
 ### Named query binding selector
 
 `QueryBindingSelector` from `/react` accepts host-discovered `options` (`id`, unique `variableName`, optional `schema`), a controlled `value` and `onChange`. Provide translated labels (`label`, `placeholder`, `emptyLabel`, `columnsLabel`, `unavailableLabel`) and optional `schemaHint`. It displays available columns and calls `onSchemaDetected` with a copy when the user selects a known result. Removed bindings remain visible as unavailable until the user chooses a replacement. `disabled` supports read-only hosts. This selector performs no discovery, credential access or queries; the host supplies authorized metadata. It can use saved-query or legacy planner definitions through adapters.
+
+### Saved query authoring
+
+`SavedQueryEditor` from `/react` edits a `DashboardQueryDefinition` against host-provided `connections` and their approved `operations`. Supply translated `labels`, `existingQueries` for duplicate-name checks and `onSave` to update the host document draft. It defaults to read-only; pass `editable` only from host capabilities. Parameters use shared-contract JSON literal/filter bindings. Switching a connection or operation clears stale parameters and response schema. Invalid or unavailable operations cannot be saved. The host owns catalog discovery, credentials, server authorization and document persistence/ETags. Remount with a new React `key` when changing query, dashboard or identity. This component does not issue network requests.

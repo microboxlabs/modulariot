@@ -24,6 +24,8 @@ export interface ServerDashboardRef {
 export interface DashboardSummary {
   slug: string;
   name: string;
+  /** Lower sorts first; `list` puts dashboards without one last. */
+  order?: number;
 }
 
 /**

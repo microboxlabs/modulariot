@@ -15,6 +15,7 @@
 
 import { DashboardServerError } from "./access/errors";
 import { dashboardDisplayName } from "./store/composite";
+import { dashboardSortOrder } from "./store/display-name";
 import type { DashboardRole } from "./access/roles";
 import { FULL_CAPABILITIES, isDashboardRole } from "./access/roles";
 import type { AuditEvent, AuditSink } from "./seams/audit";
@@ -177,7 +178,22 @@ export function createMemoryStore(
           .filter(
             (e) => e.ref.tenantId === tenantId && e.ref.scopeId === scopeId,
           )
-          .map((e) => ({ slug: e.ref.slug, name: e.name })),
+          .map((e) => {
+            const order = dashboardSortOrder(e.record.config);
+            return {
+              slug: e.ref.slug,
+              name: e.name,
+              ...(order === undefined ? {} : { order }),
+            };
+          })
+          // The SQL stores' order: by `order` with unordered last, then name, then slug.
+          .sort(
+            (a, b) =>
+              (a.order ?? Number.MAX_SAFE_INTEGER) -
+                (b.order ?? Number.MAX_SAFE_INTEGER) ||
+              a.name.localeCompare(b.name) ||
+              a.slug.localeCompare(b.slug),
+          ),
       );
     },
 

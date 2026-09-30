@@ -18,6 +18,7 @@ import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { useIntegrationConfig } from "@/features/integration-config/use-integration-config";
 import SymptomIcon from "../components/symtom-icon";
 import type { CelField } from "./cel-editor";
 import { keyFrom } from "./create-symptom-modal";
@@ -62,6 +63,10 @@ export default function SymptomDetail({
   const router = useRouter();
   const { activeOrg } = useOrgScopes();
   const canWrite = activeOrg?.role === "OWNER";
+  const { connections } = useIntegrationConfig(
+    // Connections are listed for owners only; others see the saved choice.
+    canWrite ? (activeOrg?.slug ?? null) : null
+  );
   const {
     detail,
     error,
@@ -235,6 +240,8 @@ export default function SymptomDetail({
                 readOnly={!canWrite}
                 d={d}
                 rootDict={rootDict}
+                connections={connections}
+                lang={lang}
                 onChange={update}
               />
             </div>

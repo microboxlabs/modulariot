@@ -20,8 +20,8 @@ export function fromActionItems(items: ActionItemWithId[]): ActionItem[] {
 export function isSafeActionUrl(url: string): boolean {
   let start = 0;
   let end = url.length;
-  while (start < end && url.charCodeAt(start) <= 32) start++;
-  while (end > start && url.charCodeAt(end - 1) <= 32) end--;
+  while (start < end && url.codePointAt(start)! <= 32) start++;
+  while (end > start && url.codePointAt(end - 1)! <= 32) end--;
   if (start === end) return false;
   let scheme = "";
   for (let index = start; index < end; index++) {

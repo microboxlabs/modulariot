@@ -1,9 +1,9 @@
 /** Browser-only download; call in response to a user's export action. */
 export function downloadCsv(csvContent: string, filename: string): void {
-  const forbidden = new Set('/\\:*?"<>|');
+  const forbidden = new Set(String.raw`/\:*?"<>|`);
   const safeName =
     Array.from(filename, (char) =>
-      char.charCodeAt(0) < 32 || forbidden.has(char) ? "_" : char,
+      (char.codePointAt(0) ?? 0) < 32 || forbidden.has(char) ? "_" : char,
     )
       .join("")
       .trim()

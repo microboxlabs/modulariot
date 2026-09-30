@@ -10,9 +10,9 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 /** JSON and column helpers shared by the Postgres stores. */
-final class PgJson {
+public final class PgJson {
 
-    static final Duration QUERY_TIMEOUT = Duration.ofSeconds(10);
+    public static final Duration QUERY_TIMEOUT = Duration.ofSeconds(10);
 
     private static final ObjectMapper JSON = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -21,7 +21,7 @@ final class PgJson {
     }
 
     /** JSON text for a {@code $n::jsonb} parameter. */
-    static String write(Object value) {
+    public static String write(Object value) {
         try {
             return JSON.writeValueAsString(value);
         } catch (JsonProcessingException e) {
@@ -29,7 +29,7 @@ final class PgJson {
         }
     }
 
-    static <T> T read(Row row, String column, Class<T> type) {
+    public static <T> T read(Row row, String column, Class<T> type) {
         try {
             return JSON.readValue(text(row, column), type);
         } catch (JsonProcessingException e) {
@@ -37,7 +37,7 @@ final class PgJson {
         }
     }
 
-    static <T> T read(Row row, String column, TypeReference<T> type) {
+    public static <T> T read(Row row, String column, TypeReference<T> type) {
         try {
             return JSON.readValue(text(row, column), type);
         } catch (JsonProcessingException e) {
@@ -45,7 +45,7 @@ final class PgJson {
         }
     }
 
-    static OffsetDateTime time(Row row, String column) {
+    public static OffsetDateTime time(Row row, String column) {
         OffsetDateTime value = row.getOffsetDateTime(column);
         return value == null ? null : value.withOffsetSameInstant(ZoneOffset.UTC);
     }

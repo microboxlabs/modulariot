@@ -9,6 +9,7 @@ import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import com.microboxlabs.miot.symptoms.domain.TreatmentType;
 import com.microboxlabs.miot.symptoms.store.ContactStore;
 import com.microboxlabs.miot.symptoms.store.TreatmentStore;
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
@@ -27,9 +28,11 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * per symptom the first time either is read. Everything it writes carries
  * {@code details.demo=true} or a {@code .example} address so it cannot be
  * mistaken for real activity. Off unless {@code miot.symptoms.control-tower.demo-seed=true}
- * (the default in the dev profile only).
+ * (the default in the dev profile only). It writes only to an organization with
+ * no contacts and a symptom with no episodes, so a restart does not seed twice.
  */
 @ApplicationScoped
+@IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class DemoSeeder {
 
     static final String DEMO_OPERATOR = "operador.demo@modulariot.example";

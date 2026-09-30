@@ -11,6 +11,7 @@ import com.microboxlabs.miot.symptoms.dto.OpenTreatmentRequest;
 import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import com.microboxlabs.miot.symptoms.store.ContactStore;
 import com.microboxlabs.miot.symptoms.store.TreatmentStore;
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.LinkedHashMap;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
  * {@link IllegalStateException} (409).
  */
 @ApplicationScoped
+@IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class TreatmentService {
 
     static final String ENTITY = "treatment";

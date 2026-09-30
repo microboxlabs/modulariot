@@ -5,7 +5,6 @@ import com.microboxlabs.miot.symptoms.domain.ContactCallStats;
 import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
-import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -17,8 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Process-local treatment store. Lost on restart; one lock for the whole store is enough for demo traffic. */
-@ApplicationScoped
+/** Process-local treatment store for unit tests. Not a CDI bean: the running service uses {@link PgTreatmentStore}. */
 public class InMemoryTreatmentStore implements TreatmentStore {
 
     private final Map<String, Treatment> treatments = new LinkedHashMap<>();

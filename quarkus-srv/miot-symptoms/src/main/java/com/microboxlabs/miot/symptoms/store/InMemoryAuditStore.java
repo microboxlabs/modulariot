@@ -1,7 +1,6 @@
 package com.microboxlabs.miot.symptoms.store;
 
 import com.microboxlabs.miot.symptoms.domain.AuditEvent;
-import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -10,8 +9,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Process-local audit log. */
-@ApplicationScoped
+/** Process-local audit log for unit tests. Not a CDI bean: the running service uses {@link PgAuditStore}. */
 public class InMemoryAuditStore implements AuditStore {
 
     private final List<AuditEvent> events = new ArrayList<>();

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.service;
 
 import com.microboxlabs.miot.symptoms.domain.AuditEvent;
 import com.microboxlabs.miot.symptoms.store.AuditStore;
+import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
@@ -10,6 +11,7 @@ import java.util.Map;
 
 /** Writes one audit row per Control Tower mutation and serves the audit log. */
 @ApplicationScoped
+@IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class AuditService {
 
     public static final int MAX_LIMIT = 500;

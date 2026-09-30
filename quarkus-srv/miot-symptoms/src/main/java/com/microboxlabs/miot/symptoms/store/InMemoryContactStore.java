@@ -1,7 +1,6 @@
 package com.microboxlabs.miot.symptoms.store;
 
 import com.microboxlabs.miot.symptoms.domain.Contact;
-import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
@@ -10,8 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Process-local contact store. */
-@ApplicationScoped
+/** Process-local contact store for unit tests. Not a CDI bean: the running service uses {@link PgContactStore}. */
 public class InMemoryContactStore implements ContactStore {
 
     private final Map<String, Contact> contacts = new LinkedHashMap<>();

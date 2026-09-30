@@ -9,9 +9,8 @@ import java.util.Optional;
 
 /**
  * Where treatment episodes and their actions live. Every call is scoped by
- * tenant. The only implementation today is {@link InMemoryTreatmentStore}
- * (demo data); a database-backed one replaces it without touching the
- * services or the HTTP contract.
+ * tenant. {@link PgTreatmentStore} is the bean; {@link InMemoryTreatmentStore}
+ * backs unit tests.
  */
 public interface TreatmentStore {
 

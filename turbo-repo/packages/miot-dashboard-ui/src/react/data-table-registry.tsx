@@ -79,15 +79,11 @@ export function createDataTableRegistry(
       (!result || Boolean(result.error));
     const unsupported =
       config.dataMode !== "static" && config.dataMode !== "planner";
-    const rows = useMemo(
-      () =>
-        loading || failed || unsupported
-          ? []
-          : config.dataMode === "planner"
-            ? (result?.rows ?? [])
-            : config.rows,
-      [config, loading, failed, unsupported, result],
-    );
+    const rows = useMemo(() => {
+      if (loading || failed || unsupported) return [];
+      if (config.dataMode === "planner") return result?.rows ?? [];
+      return config.rows;
+    }, [config, loading, failed, unsupported, result]);
     const rowControls = useFilterAndSort(
       config.filter,
       config.sort,
@@ -138,9 +134,9 @@ export function createDataTableRegistry(
           )}
         </header>
         {config.filter.enabled &&
-          config.filter.items.map((item) => (
+          config.filter.items.map((item, index) => (
             <FilterPillRow
-              key={item.column}
+              key={`${item.column}-${index}`}
               item={item}
               options={rowControls.filterOptionsByColumn[item.column] ?? []}
               selected={rowControls.filterValues[item.column] ?? ""}

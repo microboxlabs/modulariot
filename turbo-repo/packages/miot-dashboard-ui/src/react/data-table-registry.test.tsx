@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 import type { Widget } from "@microboxlabs/miot-dashboard-contract/document";
 import { createDataTableRegistry } from "./data-table-registry";
 import { WidgetRenderer } from "./widget-renderer";
@@ -132,9 +132,7 @@ it("composes static template cells, filters and numeric sort", () => {
     "20",
   ]);
   fireEvent.click(screen.getByRole("button", { name: "All" }));
-  fireEvent.click(
-    screen.getByRole("button", { name: "Filter Service" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Filter Service" }));
   fireEvent.click(screen.getByRole("checkbox", { name: "SQL" }));
   expect(screen.getByRole("cell", { name: "SQL" })).toBeTruthy();
   expect(screen.queryByRole("cell", { name: "BQ" })).toBeNull();
@@ -152,9 +150,7 @@ it("rechecks templated action destinations and rejects malformed or legacy bindi
       }}
     />,
   );
-  expect(
-    screen.getAllByRole("button", { name: "Actions" }),
-  ).toHaveLength(1);
+  expect(screen.getAllByRole("button", { name: "Actions" })).toHaveLength(1);
   fireEvent.click(screen.getByRole("button", { name: "Actions" }));
   expect(screen.getByRole("link", { name: "Open" }).getAttribute("href")).toBe(
     "/report",
@@ -184,4 +180,37 @@ it("preserves static titles and action destinations", () => {
   expect(
     screen.getByRole("link", { name: "Report" }).getAttribute("href"),
   ).toBe("/static-report");
+});
+
+it("keeps duplicate-column filter pills distinct across updates", () => {
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  try {
+    const config = {
+      columns,
+      rows,
+      filter: {
+        enabled: true,
+        items: [
+          { column: "{{row.service}}", label: "Primary" },
+          { column: "{{row.service}}", label: "Secondary" },
+        ],
+      },
+    };
+    const view = render(<Table config={config} />);
+    expect(screen.getByRole("group", {name: "Primary"})).toBeTruthy();
+    expect(screen.getByRole("group", {name: "Secondary"})).toBeTruthy();
+    view.rerender(
+      <Table
+        config={{
+          ...config,
+          filter: { ...config.filter, items: [config.filter.items[1]!] },
+        }}
+      />,
+    );
+    expect(screen.queryByRole("group", {name: "Primary"})).toBeNull();
+    expect(screen.getByRole("group", {name: "Secondary"})).toBeTruthy();
+    expect(errors).not.toHaveBeenCalled();
+  } finally {
+    errors.mockRestore();
+  }
 });

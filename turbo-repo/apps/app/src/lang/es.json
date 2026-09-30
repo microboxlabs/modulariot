@@ -3778,8 +3778,15 @@
       "leave": "¿Salir de este dashboard y descartar los cambios sin guardar?",
       "settings": {
         "filters": {
+          "source": "Fuente de opciones",
+          "static": "Opciones estáticas",
+          "columns": "Columnas conocidas",
+          "unavailable": "Consulta guardada no disponible",
+          "valueField": "Columna de valor",
+          "labelField": "Columna de etiqueta (opcional)",
+          "single": "Permitir una sola selección",
           "title": "Definiciones de filtros",
-          "hint": "Aplique los filtros al borrador y luego guarde. Renombrar una clave requiere actualizar sus enlaces en consultas guardadas. Aquí se editan opciones estáticas; el host administra las dinámicas.",
+          "hint": "Aplique los filtros al borrador y luego guarde. Renombrar una clave requiere actualizar sus enlaces en consultas guardadas. Elija opciones estáticas o una consulta guardada como fuente.",
           "key": "Clave del filtro",
           "label": "Etiqueta visible",
           "type": "Tipo de control",

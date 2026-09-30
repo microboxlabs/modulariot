@@ -12,6 +12,7 @@ vi.mock("../context/dashboard-context", () => ({
     refreshInterval: 0,
     order: undefined,
     filters: [],
+    queries: [{ id: "costs", variableName: "billing", schema: ["service"] }],
     ...state,
   }),
 }));
@@ -42,5 +43,21 @@ it("hides settings from consumers and applies editor changes through the documen
   fireEvent.click(screen.getByRole("button", { name: label("filters.apply") }));
   expect(state.setFilterDefinitions).toHaveBeenCalledWith([
     { key: "service", label: "Service", type: "text" },
+  ]);
+  fireEvent.change(screen.getByLabelText(label("filters.type")), {
+    target: { value: "select" },
+  });
+  fireEvent.change(screen.getByLabelText(label("filters.source")), {
+    target: { value: "billing" },
+  });
+  fireEvent.change(screen.getByLabelText(label("filters.valueField")), {
+    target: { value: "service" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: label("filters.apply") }));
+  expect(state.setFilterDefinitions).toHaveBeenLastCalledWith([
+    expect.objectContaining({
+      type: "select",
+      optionsSource: { variableName: "billing", valueField: "service" },
+    }),
   ]);
 });

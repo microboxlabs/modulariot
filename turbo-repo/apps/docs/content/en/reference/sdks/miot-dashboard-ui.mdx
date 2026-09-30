@@ -160,3 +160,5 @@ Hosted Next.js dashboard settings also include filter definitions. Editors add o
 `useFilterOptions` projects named saved-query results into bounded, deduplicated select options without making another request. It clears stale options while loading or after failure and exposes loading/error state. The Next.js filter bar uses this shared resolver.
 
 Pass saved-query metadata through the filter editor's `sources` option to configure dynamic choices without editing JSON. Users select a named result, value/label fields and single-selection behavior. Removed sources and incomplete field bindings cannot be applied; selecting a query clears the static option draft.
+
+In hosted settings, select filters can now use current saved queries as their option source. Choose the result variable, value column and optional label column, apply the filter draft, then save the dashboard. Single selection is available for operations that accept one value. No legacy planner or datasource discovery is invoked by this authoring path.

@@ -3778,8 +3778,15 @@
       "leave": "Leave this dashboard and discard unsaved changes?",
       "settings": {
         "filters": {
+          "source": "Options source",
+          "static": "Static options",
+          "columns": "Known columns",
+          "unavailable": "Saved query unavailable",
+          "valueField": "Value column",
+          "labelField": "Label column (optional)",
+          "single": "Allow a single selection",
           "title": "Filter definitions",
-          "hint": "Apply filters to the draft, then save. Renaming a key requires updating saved-query bindings. Static options are edited here; dynamic options remain host-managed.",
+          "hint": "Apply filters to the draft, then save. Renaming a key requires updating saved-query bindings. Choose static options or a saved-query source.",
           "key": "Filter key",
           "label": "Display label",
           "type": "Control type",

@@ -20,6 +20,7 @@ export function ServerDashboardSettings({
     setGeneralSettings,
     filters,
     setFilterDefinitions,
+    queries,
   } = useDashboard();
   const t = (key: string) => tr(`dashboard.server.settings.${key}`, dictionary);
   if (!editable) return null;
@@ -54,6 +55,18 @@ export function ServerDashboardSettings({
           <h3>{t("filters.title")}</h3>
           <p>{t("filters.hint")}</p>
           <DashboardFilterEditor
+            sources={{
+              queries,
+              labels: {
+                source: t("filters.source"),
+                static: t("filters.static"),
+                columns: t("filters.columns"),
+                unavailable: t("filters.unavailable"),
+                valueField: t("filters.valueField"),
+                labelField: t("filters.labelField"),
+                single: t("filters.single"),
+              },
+            }}
             value={filters}
             editable={editable}
             onApply={setFilterDefinitions}

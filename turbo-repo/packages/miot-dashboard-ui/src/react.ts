@@ -95,3 +95,5 @@ export { useTableColumnWidths, type TableColumnWidthsOptions, type WidthColumn }
 export { RowContextMenu, type RowContextMenuProps, type ResolvedContextItem } from "./react/row-context-menu";
 
 export { DataListCard, type DataListCardProps, type DataListCardLayout } from "./react/data-list-card";
+
+export { StatusStat, type StatusStatProps } from "./react/status-stat";

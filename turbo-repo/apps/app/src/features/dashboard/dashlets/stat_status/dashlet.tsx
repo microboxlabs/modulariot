@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import { StatusStat } from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
 import type {
   DashletComponentProps,
   DashletLayoutDefaults,
@@ -9,7 +11,7 @@ import type {
 import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
 import { useHybridPgrestContext } from "../common/use-dashlet-pgrest";
 import { DashletLoading, DashletError } from "../common/dashlet-states";
-import { evaluateColorRulesGeneric, getConditionalClasses } from "../common/color-rule-evaluation";
+import { evaluateColorRulesGeneric } from "../common/color-rule-evaluation";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import { resolveHandlebarsField } from "../common/use-handlebars-templates";
 import type {
@@ -123,13 +125,6 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 // Default Color (gray fallback)
 // ============================================================================
 
-const DEFAULT_COLORS = {
-  border: "border-l-gray-400",
-  iconBg: "bg-gray-100 dark:bg-gray-700",
-  iconText: "text-gray-600 dark:text-gray-400",
-  valueText: "text-gray-900 dark:text-white",
-};
-
 const EMPTY_DATA_PROVIDER: DataProviderEntry[] = [];
 
 // ============================================================================
@@ -219,69 +214,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const effectiveIconColor = ruleIconColor ?? baseColor;
   const effectiveTextColor = ruleTextColor ?? baseColor;
 
-  const IconComponent = ICONS[icon] ?? ICONS.check;
-
-  // Build styles for hex colors (only when we have a custom color)
-  const borderStyle = effectiveBorderColor
-    ? { borderLeftColor: `#${effectiveBorderColor}` }
-    : undefined;
-  const iconBgStyle = effectiveIconColor
-    ? { backgroundColor: `#${effectiveIconColor}20` }
-    : undefined;
-  const iconTextStyle = effectiveIconColor
-    ? { color: `#${effectiveIconColor}` }
-    : undefined;
-  const valueTextStyle = effectiveTextColor
-    ? { color: `#${effectiveTextColor}` }
-    : undefined;
-
-  // Pre-compute classes using helpers (avoids negated conditions in JSX)
-  const borderClasses = getConditionalClasses(
-    !!effectiveBorderColor,
-    DEFAULT_COLORS.border
-  );
-  const iconBgClasses = getConditionalClasses(
-    !!effectiveIconColor,
-    DEFAULT_COLORS.iconBg
-  );
-  const iconTextClasses = getConditionalClasses(
-    !!effectiveIconColor,
-    DEFAULT_COLORS.iconText
-  );
-  const valueTextClasses = getConditionalClasses(
-    !!effectiveTextColor,
-    DEFAULT_COLORS.valueText
-  );
+  const IconComponent = Object.hasOwn(ICONS, icon) ? ICONS[icon] : ICONS.check;
 
   return (
-    <div
-      className={`flex h-full flex-col justify-between rounded-lg border border-gray-200 border-l-4 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${borderClasses}`}
-      style={borderStyle}
-    >
-      <div className="flex items-start justify-between">
-        <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-          {compiledTitle}
-        </p>
-        <div
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconBgClasses} ${iconTextClasses}`}
-          style={{ ...iconBgStyle, ...iconTextStyle }}
-        >
-          <IconComponent className="h-4 w-4" />
-        </div>
-      </div>
-      <div>
-        <p
-          className={`text-3xl font-bold ${valueTextClasses}`}
-          style={valueTextStyle}
-        >
-          {compiledValue}
-        </p>
-        {compiledSubtitle && (
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {compiledSubtitle}
-          </p>
-        )}
-      </div>
-    </div>
+    <StatusStat
+      title={compiledTitle}
+      value={compiledValue}
+      subtitle={compiledSubtitle}
+      icon={<IconComponent />}
+      borderColor={effectiveBorderColor}
+      iconColor={effectiveIconColor}
+      valueColor={effectiveTextColor}
+    />
   );
 }

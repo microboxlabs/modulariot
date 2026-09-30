@@ -576,3 +576,27 @@ all values. Hosts manage filter controls and capability-derived edit intent.
 The standalone browser bundle keeps its own runtime; do not combine widgets from
 a second React installation with it. A built-in data-bound catalog is not yet
 registered automatically.
+
+## Built-in text-card registry
+
+`createTextCardRegistry(options)` from `./react` supplies the `text_card` renderer
+and layout metadata for `DashboardCanvas` or `WidgetRenderer`. Create the registry
+once per dashboard instance. Provide localized `defaultText`, `loadingLabel`,
+`errorLabel` and `unsupportedDataLabel`. Compose additional definitions through
+`createWidgetRegistry([...textRegistry.all(), ...otherDefinitions])` from `./core`.
+This is the first built-in entry, not the complete widget/settings catalog.
+
+Static cards accept `text`, `italic`, `align`, `staticData` JSON and `dataProvider`
+entries. `dataMode: "planner"` with `plannerVariableName` reads the nearest
+`SavedQueryProvider` or `PlannerResultsProvider`; it issues no request itself.
+Missing query bindings and query failures show `errorLabel` without transport
+details. Legacy direct-query modes show `unsupportedDataLabel`; migrate them to
+server saved queries before using this renderer. No old query endpoint is called.
+
+Handlebars templates receive the first data row, reserved `row`, `filter` and
+`data_provider` namespaces using the shared template helpers. Each registry owns
+an isolated template engine by default; optional `templateEngine` accepts a
+host-owned engine for custom helpers. Its compiled templates are scoped to each
+widget and refreshed when text changes. Output is always rendered as text.
+The template compiler retains the CSP requirements of `./templates`; this API
+does not claim precompiled-template support. Settings are not advertised yet.

@@ -20,7 +20,7 @@ export function ChartEngineView<Option>({
   createEngine,
   option,
   ariaLabel,
-}: ChartEngineViewProps<Option>) {
+}: Readonly<ChartEngineViewProps<Option>>) {
   const elementRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<ChartEngine<Option> | null>(null);
   useEffect(() => {

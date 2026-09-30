@@ -4,6 +4,7 @@ import { PlannerResultsProvider } from "@microboxlabs/miot-dashboard-ui/react";
 import dictionary from "@/lang/es.json";
 import { Dashlet as Text } from "../text_card/dashlet";
 import { Dashlet as Percentage } from "../percentage_value/dashlet";
+import { Dashlet as Progress } from "../stat_progress/dashlet";
 import { Dashlet as Circular } from "../stat_circular/dashlet";
 import type { Widget } from "../../types/dashboard.types";
 vi.mock("../../context/dashboard-context", () => ({
@@ -13,6 +14,9 @@ vi.mock("../../context/dashboard-context", () => ({
   }),
 }));
 vi.mock("./use-dashlet-pgrest", () => ({
+  useDashletPgrest: () => {
+    throw new Error("Legacy transport must not run for server widgets");
+  },
   useHybridPgrestContext: () => {
     throw new Error("Legacy transport must not run for server widgets");
   },
@@ -56,13 +60,14 @@ it("server widget adapters use shared saved results and Spanish labels without l
         widget={widget("percentage_value", config)}
         editMode={false}
       />
+      <Progress widget={widget("stat_progress", config)} editMode={false} />
       <Circular widget={widget("stat_circular", config)} editMode={false} />
     </PlannerResultsProvider>
   );
   expect(screen.getByText("Cost 42")).toBeTruthy();
   expect(
     screen.getAllByRole("progressbar").map((e) => e.getAttribute("value"))
-  ).toEqual(["42", "42"]);
+  ).toEqual(["42", "42", "42"]);
   expect(screen.getByText("de 100 USD")).toBeTruthy();
   expect(screen.queryByRole("button")).toBeNull();
 });

@@ -1116,3 +1116,21 @@ callback the statistic renders without an icon. No icon library is bundled.
 `targets` (`border`, `icon`, `text`) or the legacy single `target`; missing or
 invalid targets default to text. Rules override the `showColor`/`color` base
 independently per target. Colors must be six-digit RGB without `#`.
+
+### Icon statistic
+
+`IconStat` from `./react` renders a resolved string `value`, optional `title` and
+`unit`, and host-provided React `icon` and `description`. Strings remain literal;
+a host can supply its sanitized Markdown component as the description. Icons
+are decorative and hidden from assistive technology.
+
+`variant` selects `horizontal` (value alongside title/description) or `vertical`
+(stacked text beside the icon). `scalable` uses container-relative sizing; the
+parent must provide `container-type: size` and explicit dimensions. Import the
+package stylesheet; colors follow the scoped light/dark theme.
+
+Optional `containerStyle`, `titleStyle`, `valueStyle`, `descriptionStyle` and
+`iconStyle` accept trusted host React CSS properties. `className` customizes the
+outer card. Hosts resolve data, numeric formatting, color rules and navigation.
+The Next.js icon widget uses this renderer while retaining its Markdown and
+icon providers; unsafe navigation schemes do not create links.

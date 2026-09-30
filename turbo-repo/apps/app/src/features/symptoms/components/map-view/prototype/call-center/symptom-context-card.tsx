@@ -98,9 +98,17 @@ export default function SymptomContextCard({
               ] as string) ?? subItem.symptom_description}
             </p>
           )}
-          <div className="mt-2">
-            <TreatmentsTimelineBox dict={dict} symptomId={subItem.symptom_id} />
-          </div>
+          {subItem.treatments.length > 0 && (
+            <div className="mt-2">
+              <TreatmentsTimelineBox
+                dict={dict}
+                treatments={subItem.treatments}
+                seed={`${subItem.symptom_id ?? "symptom"}`}
+                start={subItem.start}
+                end={subItem.end}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,13 +1,13 @@
 "use client";
 
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
-import { isPrototypeApiDisabled } from "./prototype-api-guard";
+import { TreatmentsRequest } from "@/app/api/treatments/route.type";
+import { guardedRequestTreatment, isPrototypeApiDisabled } from "./prototype-api-guard";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Textarea } from "flowbite-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { MdBlock } from "react-icons/md";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { ShowNotification } from "@/features/notifications/notification";
 import { tr } from "@/features/i18n/tr.service";
 import {
@@ -22,36 +22,33 @@ import {
   fieldLabel,
   fillTextarea,
 } from "./prototype-form-kit";
-import { useTreatmentSession } from "./treatment-session";
 
 /**
  * PROTOTYPE — variant of
- * `blurrable-stepped-menu/menus/invalidate-symptom/invalidate-symptom.tsx`,
- * laid out as a bento grid that fits the panel height. Saving records an
- * INVALIDATE action into the panel's treatment episode and closes it; the
- * external invalidate webhook stays behind its own kill switch.
+ * `blurrable-stepped-menu/menus/invalidate-symptom/invalidate-symptom.tsx`.
+ * Same submit + webhook logic; laid out as a bento grid that fits the panel
+ * height.
  */
 export default function PrototypeInvalidateSymptom({
   dict,
   treatmentData,
   reason,
   setReason,
+  treatmentRequest,
+  setTreatmentRequest,
   setIsMenuOpen,
 }: Readonly<{
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
   reason: string;
   setReason: (reason: string) => void;
+  treatmentRequest: TreatmentsRequest;
+  setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
   setIsMenuOpen: (isMenuOpen: boolean) => void;
 }>) {
   const router = useRouter();
-  const { data: authSession } = useSession();
-  const session = useTreatmentSession();
   const t = (k: string) => tr(`symptoms.${k}`, dict);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Set once the action is in the episode, so a retry after a later step
-  // failed does not record it a second time.
-  const actionRecorded = useRef(false);
   const [motivoId, setMotivoId] = useState("");
 
   const { options: motivoOptions } = useSelectableOptions("invalidate_reason");
@@ -65,19 +62,23 @@ export default function PrototypeInvalidateSymptom({
     if (!puedeGuardar || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      if (!actionRecorded.current) {
-        await session.addAction({
-          kind: "INVALIDATE",
-          outcomeKey: motivoId,
-          outcomeLabel: motivoLabel,
-          note: reason.trim(),
-        });
-        actionRecorded.current = true;
-      }
-      await session.finish("invalidated");
+      const treatmentResult = await guardedRequestTreatment({
+        ...treatmentRequest,
+        status: "active",
+        treatment_type: "invalidar sintoma",
+        description: razonCompleta,
+      });
 
-      // A second, separate real write (symptom invalidation) that the Control
-      // Tower API does not own yet — off unless explicitly enabled.
+      setTreatmentRequest({
+        ...treatmentRequest,
+        status: "active",
+        description: razonCompleta,
+        treatment_id: treatmentResult.treatment_id,
+      });
+
+      // Same kill switch as `guardedRequestTreatment` above — this webhook
+      // is a second, separate real write (symptom invalidation), not routed
+      // through `requestTreatment` at all, so it needs its own check.
       if (!isPrototypeApiDisabled()) {
         const invalidateResponse = await fetch("/app/api/symptoms/invalidate", {
           method: "POST",
@@ -87,7 +88,8 @@ export default function PrototypeInvalidateSymptom({
             asset_id: treatmentData?.trip_info?.asset_id ?? "",
             trip_id: treatmentData?.trip_info?.trip_id ?? "",
             reason: razonCompleta,
-            invalidated_by: authSession?.user?.email ?? "",
+            invalidated_by: treatmentRequest.assigned_to,
+            treatment_id: treatmentResult.treatment_id,
           }),
         });
         if (!invalidateResponse.ok) throw new Error("Invalidate webhook failed");

@@ -64,6 +64,7 @@ describe("filterSettings", () => {
       "/users/settings/organizations",
       "/users/settings/symptom-rules",
       "/users/settings/selectables",
+      "/users/settings/contact-book",
       "/users/settings/data-sources",
       "/users/settings/credentials",
       "/users/settings/connections",

@@ -1,57 +1,93 @@
 "use client";
 
 /**
- * PROTOTYPE — step 1 of the "Llamar a…" flow: who to call. The trip's driver
- * comes first, then the organization's contacts from the Control Tower API,
- * each with its last-call time and answered/missed counts. Contacts called in
- * this treatment episode sink into their own "Ya llamados" group. The whole
- * row is the call button. "Agregar contacto" creates a contact through the API.
+ * PROTOTYPE — step 1 of the new "Llamar a…" debug flow: a contact list
+ * sourced from its own dedicated `call-roles-store.ts` — not the generic
+ * Selectables admin system (that's what the older, non-debug "Llamar al
+ * conductor" form's dropdown still reads from via
+ * `useSelectableOptions("who_to_call")`, kept untouched as the fallback).
+ * The whole row is the call button — hover highlights it, clicking anywhere
+ * on it moves to the dialing step. Calls made from here already show up as
+ * treatments in the symptom's own timeline, so there's no separate call
+ * history here — the trailing column is just a last-call-time + accepted/
+ * denied tally, not a log.
+ *
+ * Adding a contact happens inline (`new-number-panel.tsx`): phone number,
+ * then name, then "Solo llamar" (a real entry in that same dedicated store
+ * with its own phone — see `contact-details.ts` — so the call shows up in
+ * "Ya llamados") or "Llamar y guardar en la libreta" (also saved to the
+ * contact book, and the list entry stays linked to it). A seeded option has
+ * no details entry at all, which is how a row tells the two kinds apart.
  */
 
-import { useEffect, useRef, useState } from "react";
-import { Button, TextInput } from "flowbite-react";
-import { HiOutlinePlus } from "react-icons/hi";
+import { useEffect, useState } from "react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { tr } from "@/features/i18n/tr.service";
-import { ShowNotification } from "@/features/notifications/notification";
-import { BentoGrid, PlainSection, GeneralInfoGrid } from "../prototype-form-kit";
-import { useTreatmentSession } from "../treatment-session";
-import { formatChileanPhone } from "./format-chilean-phone";
-import ContactRow from "./contact-row";
-import { targetIdOfAction, useCallTargets, type CallTarget } from "./call-targets";
+import type { SelectableOption } from "@/features/settings-admin/selectables/types";
 import {
-  ALL_CALL_METHODS,
-  CALL_METHOD_ICONS,
-  CALL_METHOD_LABEL_KEYS,
-  type CallMethod,
-} from "./call-method";
+  BentoGrid,
+  PlainSection,
+  GeneralInfoGrid,
+} from "../prototype-form-kit";
+import { formatChileanPhone } from "./format-chilean-phone";
+import { mockNameForId, mockCallStatsForId } from "./mock-contact-data";
+import { useContactDetails, type ContactDetails } from "./contact-details";
+import { useCallRoles } from "./call-roles-store";
+import ContactRow from "./contact-row";
+import { isMockDataEnabled } from "../prototype-api-guard";
+import type { CallMethod } from "./call-method";
+import {
+  makeContactId,
+  useContactBook,
+  type BookContact,
+} from "@/features/settings-admin/contact-book/store";
+import { HiOutlineSearch, HiPlus } from "react-icons/hi";
+import NewNumberPanel, {
+  draftFromQuery,
+  type NewNumberAction,
+  type NewNumberDraft,
+} from "./new-number-panel";
 
-/** Latest call time per call-list row, from the episode's recorded calls. */
-function useEpisodeCallTimes(): Record<string, Date> {
-  const { actions } = useTreatmentSession();
-  const times: Record<string, Date> = {};
-  for (const action of actions) {
-    const id = targetIdOfAction(action);
-    if (!id) continue;
-    const at = new Date(action.performedAt);
-    if (!times[id] || times[id] < at) times[id] = at;
-  }
-  return times;
+/** Deterministic mock number so a contact's phone stays stable across renders
+ *  — there's no real phonebook backing these prototype "other" contacts.
+ *  Gated by `isMockDataEnabled` like every other fabricated field here. */
+function mockPhoneForId(id: string): string {
+  if (!isMockDataEnabled()) return "";
+  let hash = 0;
+  for (let i = 0; i < id.length; i++)
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  const digits = ((hash % 90000000) + 10000000).toString();
+  return `+56 9 ${digits.slice(0, 4)} ${digits.slice(4, 8)}`;
 }
 
 export default function CallCenterMenu({
   dict,
   treatmentData,
   onCall,
-}: Readonly<{
+  recentCallTimes,
+}: {
   dict: I18nRecord;
   treatmentData: TreatmentsGeneralResponseItem | null;
-  onCall: (target: CallTarget) => void;
-}>) {
+  onCall: (
+    contact: SelectableOption,
+    phoneNumber: string,
+    personName: string,
+    /** Empty for a custom contact — its option name IS the person's name,
+     *  not a role, so there's nothing to badge it with. */
+    role: string,
+    allowedMethods?: CallMethod[]
+  ) => void;
+  /** Real last-call time per contact id actually called this session (as
+   *  opposed to `mockCallStatsForId`'s stable-but-fake history) — that
+   *  contact's row shows this time in green instead of the mock one, and
+   *  sorts to the bottom of the list. */
+  recentCallTimes?: Record<string, Date>;
+}) {
   const t = (k: string) => tr(`symptoms.${k}`, dict);
-  const { targets, knownRoles, addContact } = useCallTargets(treatmentData);
-  const recentCallTimes = useEpisodeCallTimes();
+  const { options, addContact } = useCallRoles();
+  const { details, setDetails } = useContactDetails();
+  const { contacts: book, save: saveBookContact } = useContactBook();
 
   // `FormattedDate format="relative"` only recomputes on re-render — without
   // this the "hace X min" next to each contact would freeze at whatever it
@@ -62,91 +98,197 @@ export default function CallCenterMenu({
     return () => clearInterval(id);
   }, []);
 
-  const [addingContact, setAddingContact] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newPhone, setNewPhone] = useState("");
-  const [newRole, setNewRole] = useState("");
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
-  const roleFieldRef = useRef<HTMLDivElement>(null);
-  const [newMethods, setNewMethods] = useState<CallMethod[]>(["phone"]);
+  const [search, setSearch] = useState("");
+  // Starting values of the inline "new number" form while it's open (null =
+  // closed): pre-filled from the search's "Agregar «…»" button.
+  const [addDraft, setAddDraft] = useState<NewNumberDraft | null>(null);
+  const addOpen = addDraft !== null;
 
-  // Contacts called in this episode go to "Ya llamados", oldest first.
-  const pendingTargets = targets.filter((o) => !recentCallTimes[o.id]);
-  const calledTargets = targets
-    .filter((o) => recentCallTimes[o.id])
-    .sort((a, b) => recentCallTimes[a.id].getTime() - recentCallTimes[b.id].getTime());
-
-  const roleQuery = newRole.trim().toLowerCase();
-  const roleSuggestions = knownRoles.filter(
-    (r) => r.toLowerCase() !== roleQuery && (!roleQuery || r.toLowerCase().includes(roleQuery))
+  const generalInfo = (
+    <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
   );
 
-  useEffect(() => {
-    if (!roleMenuOpen) return;
-    const onOutside = (e: MouseEvent) => {
-      if (!roleFieldRef.current?.contains(e.target as Node)) setRoleMenuOpen(false);
+  // An entry picked from the contact book stays LINKED to it: name, phone,
+  // role and methods are read live from the book (edits in Settings show up
+  // here at once), and deleting the person there removes the entry from this
+  // list. Entries without a `bookId` (seeded roles, contacts added before the
+  // book existed) keep using their own stored details.
+  const bookById = new Map(book.map((c) => [c.id, c]));
+  const linkedContact = (o: SelectableOption) => {
+    const id = details[o.id]?.bookId;
+    return id ? bookById.get(id) : undefined;
+  };
+  const visibleOptions = options.filter(
+    (o) => !details[o.id]?.bookId || linkedContact(o)
+  );
+  const effectiveContact = (
+    o: SelectableOption
+  ): { name: string; custom: ContactDetails | undefined } => {
+    const b = linkedContact(o);
+    if (!b) return { name: o.name, custom: details[o.id] };
+    return {
+      name: b.name,
+      custom: {
+        phone: b.phone || undefined,
+        role: b.role || undefined,
+        methods: b.methods.length > 0 ? b.methods : undefined,
+      },
     };
-    document.addEventListener("mousedown", onOutside);
-    return () => document.removeEventListener("mousedown", onOutside);
-  }, [roleMenuOpen]);
-
-  const resetAddContactForm = () => {
-    setAddingContact(false);
-    setNewName("");
-    setNewPhone("");
-    setNewRole("");
-    setNewMethods(["phone"]);
   };
 
-  const toggleNewMethod = (id: CallMethod) => {
-    setNewMethods((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
+  // Shared by rendering and searching so what you can search for is exactly
+  // what the row displays.
+  const describeOption = (option: SelectableOption) => {
+    const isDriver = option.id === options[0]?.id;
+    const { name: optionName, custom } = effectiveContact(option);
+    const personName = custom
+      ? optionName
+      : isDriver
+        ? (treatmentData?.trip_info?.driver ?? mockNameForId(option.id))
+        : mockNameForId(option.id);
+    const roleLabel = custom ? (custom.role ?? "") : optionName;
+    const phone = formatChileanPhone(
+      custom?.phone ??
+        (isDriver
+          ? (treatmentData?.trip_info?.driver_contact ??
+            mockPhoneForId(option.id))
+          : mockPhoneForId(option.id))
+    );
+    return { custom, personName, roleLabel, phone };
+  };
+
+  const query = search.trim().toLowerCase();
+  const queryDigits = query.replace(/\D/g, "");
+  const matchesQuery = (name: string, role: string, phone: string) =>
+    !query ||
+    name.toLowerCase().includes(query) ||
+    role.toLowerCase().includes(query) ||
+    (queryDigits.length > 0 && phone.replace(/\D/g, "").includes(queryDigits));
+  const optionMatches = (o: SelectableOption) => {
+    const { personName, roleLabel, phone } = describeOption(o);
+    return matchesQuery(personName, roleLabel, phone);
+  };
+
+  // Contacts actually called this session sink into their own "Ya llamados"
+  // group below the rest (oldest of them first) instead of sitting wherever
+  // they started — everyone else keeps the store's own order.
+  const pendingOptions = visibleOptions.filter(
+    (o) => !recentCallTimes?.[o.id] && optionMatches(o)
+  );
+  const calledOptions = recentCallTimes
+    ? visibleOptions
+        .filter((o) => recentCallTimes[o.id] && optionMatches(o))
+        .sort(
+          (a, b) =>
+            recentCallTimes[a.id].getTime() - recentCallTimes[b.id].getTime()
+        )
+    : [];
+
+  // Contact-book people NOT on this list — only surfaced while searching, and
+  // callable directly (no link is created; they just get called).
+  const linkedBookIds = new Set(
+    options
+      .map((o) => details[o.id]?.bookId)
+      .filter((id): id is string => Boolean(id))
+  );
+  const bookOnly = query
+    ? book.filter(
+        (c) => !linkedBookIds.has(c.id) && matchesQuery(c.name, c.role, c.phone)
+      )
+    : [];
+
+  // Inline "Agregar contacto": the new number joins this list and gets called
+  // right away; "callAndSave" also puts the person in the contact book (the
+  // list entry then stays linked to it, like any book contact picked here).
+  const handleNewNumber = (
+    { phone, name }: NewNumberDraft,
+    action: NewNumberAction
+  ) => {
+    const number = phone.trim();
+    const shownPhone = formatChileanPhone(number);
+    const personName = name.trim() || shownPhone;
+    const optionId = addContact(personName);
+    let methods: CallMethod[] | undefined;
+    if (action === "callAndSave") {
+      methods = ["phone", "whatsapp"];
+      const contact: BookContact = {
+        id: makeContactId(),
+        name: personName,
+        phone: number,
+        role: "",
+        methods,
+        channels: { phone: number, whatsapp: number },
+      };
+      saveBookContact(contact);
+      setDetails(optionId, { bookId: contact.id });
+    } else {
+      setDetails(optionId, { phone: number });
+    }
+    setAddDraft(null);
+    setSearch("");
+    onCall(
+      { id: optionId, name: personName, description: "" },
+      shownPhone,
+      personName,
+      "",
+      methods
     );
   };
 
-  const handleAddContact = async () => {
-    if (!newName.trim() || saving) return;
-    setSaving(true);
-    try {
-      await addContact({
-        name: newName.trim(),
-        phone: newPhone.trim(),
-        role: newRole.trim(),
-        methods: newMethods,
-      });
-      resetAddContactForm();
-    } catch (error) {
-      ShowNotification({
-        type: "error",
-        message: error instanceof Error ? error.message : String(error),
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const renderTarget = (target: CallTarget) => {
-    const recentCallAt = recentCallTimes[target.id];
+  const renderContactOption = (option: SelectableOption) => {
+    const { custom, personName, roleLabel, phone } = describeOption(option);
+    const recentCallAt = recentCallTimes?.[option.id];
+    // `recentCallAt` is a real, tracked timestamp regardless of mock mode —
+    // accepted/denied have no real backing either way, so default to 0
+    // rather than spread `mockCallStatsForId`'s result, which is `null`
+    // once mock data is off.
     const stats = recentCallAt
-      ? { lastCallAt: recentCallAt, accepted: target.stats?.accepted ?? 0, denied: target.stats?.denied ?? 0 }
-      : target.stats;
-    const phone = formatChileanPhone(target.phone);
+      ? { lastCallAt: recentCallAt, accepted: 0, denied: 0 }
+      : mockCallStatsForId(option.id);
+
     return (
       <ContactRow
-        key={target.id}
-        personName={target.personName}
-        roleLabel={target.role}
+        key={option.id}
+        personName={personName}
+        roleLabel={roleLabel}
         phone={phone}
         stats={stats}
         recentlyCalled={!!recentCallAt}
         justCalledLabel={t("call_center_just_called")}
-        ariaLabel={`${t("call_center_call_button")} ${target.personName}`}
-        onClick={() => onCall(target)}
+        ariaLabel={`${t("call_center_call_button")} ${personName}`}
+        onClick={() =>
+          onCall(option, phone, personName, roleLabel, custom?.methods)
+        }
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            onCall(target);
+            onCall(option, phone, personName, roleLabel, custom?.methods);
+          }
+        }}
+      />
+    );
+  };
+
+  const renderBookContact = (c: BookContact) => {
+    const phone = formatChileanPhone(c.phone);
+    const methods = c.methods.length > 0 ? c.methods : undefined;
+    const option: SelectableOption = {
+      id: c.id,
+      name: c.name,
+      description: "",
+    };
+    return (
+      <ContactRow
+        key={c.id}
+        personName={c.name}
+        roleLabel={c.role}
+        phone={phone}
+        ariaLabel={`${t("call_center_call_button")} ${c.name}`}
+        onClick={() => onCall(option, phone, c.name, c.role, methods)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onCall(option, phone, c.name, c.role, methods);
           }
         }}
       />
@@ -156,132 +298,92 @@ export default function CallCenterMenu({
   return (
     <BentoGrid>
       <PlainSection title={t("proto_section_general")}>
-        <GeneralInfoGrid dict={dict} treatmentData={treatmentData} />
+        {generalInfo}
       </PlainSection>
 
-      {/* Three explicit background tiers (card / header / row), since every
-          row here needs its own background. */}
+      {/* Same colors as the form kit's usual card — just with three explicit
+          background tiers layered on top (card / header / row), since every
+          row here needs its own background. Hand-rolled instead of stretching
+          `FieldCard`, which doesn't have a per-row background hook. */}
       <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-900">
         <div className="flex h-10 shrink-0 items-center border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800">
           <h3 className="truncate text-sm font-semibold leading-none text-gray-900 dark:text-white">
             {t("proto_section_who")}
           </h3>
         </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {pendingTargets.map(renderTarget)}
+        {!addOpen && (
+          <div className="flex shrink-0 items-stretch gap-1 border-b border-gray-200 bg-white p-1.5 dark:border-gray-700 dark:bg-gray-800/60">
+            <div className="relative min-w-0 flex-1">
+              <HiOutlineSearch className="pointer-events-none absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-400" />
+              <input
+                className="w-full rounded-md border border-gray-300 bg-white py-1.5 pl-8 pr-2.5 text-xs text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                placeholder={t("call_center_contact_search_placeholder")}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+        {addDraft && (
+          <NewNumberPanel
+            dict={dict}
+            initial={addDraft}
+            onSubmit={handleNewNumber}
+            onCancel={() => setAddDraft(null)}
+          />
+        )}
+        <div
+          className={`min-h-0 flex-1 flex-col overflow-y-auto ${addOpen ? "hidden" : "flex"}`}
+        >
+          {visibleOptions.length === 0 && !query && (
+            <p className="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400">
+              {t("proto_selectable_unassigned")}
+            </p>
+          )}
+          {pendingOptions.map(renderContactOption)}
 
-          {calledTargets.length > 0 && (
+          {calledOptions.length > 0 && (
             <div className="flex h-7 shrink-0 items-center border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800/60">
               <h4 className="truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 {t("call_center_already_called_header")}
               </h4>
             </div>
           )}
-          {calledTargets.map(renderTarget)}
-        </div>
+          {calledOptions.map(renderContactOption)}
 
-        {/* Fixed footer — a sibling of the scrollable list above, not its
-            last item, so it stays put regardless of how the list scrolls. */}
-        {addingContact ? (
-          <div className="flex shrink-0 flex-col gap-2 border-t border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800/60">
-            <TextInput
-              sizing="sm"
-              placeholder={t("call_center_add_contact_name")}
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              autoFocus
-            />
-            <TextInput
-              sizing="sm"
-              type="tel"
-              placeholder="+56 9 …"
-              value={newPhone}
-              onChange={(e) => setNewPhone(e.target.value)}
-            />
-            {/* Search existing roles as you type, or keep typing to use a new one. */}
-            <div ref={roleFieldRef} className="relative">
-              <TextInput
-                sizing="sm"
-                placeholder={t("call_center_add_contact_role_placeholder")}
-                value={newRole}
-                onChange={(e) => {
-                  setNewRole(e.target.value);
-                  setRoleMenuOpen(true);
-                }}
-                onFocus={() => setRoleMenuOpen(true)}
-              />
-              {roleMenuOpen && roleSuggestions.length > 0 && (
-                <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-32 overflow-y-auto rounded-md border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800">
-                  {roleSuggestions.map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => {
-                        setNewRole(r);
-                        setRoleMenuOpen(false);
-                      }}
-                      className="block w-full truncate px-2.5 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
-                    >
-                      {r}
-                    </button>
-                  ))}
-                </div>
-              )}
+          {bookOnly.length > 0 && (
+            <div className="flex h-7 shrink-0 items-center border-b border-gray-200 bg-white px-3 dark:border-gray-700 dark:bg-gray-800/60">
+              <h4 className="truncate text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                {t("call_center_contact_book_header")}
+              </h4>
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium text-gray-600 dark:text-gray-300">
-                {t("call_center_add_contact_methods")}
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {ALL_CALL_METHODS.map((id) => {
-                  const Icon = CALL_METHOD_ICONS[id];
-                  const active = newMethods.includes(id);
-                  const label = t(CALL_METHOD_LABEL_KEYS[id]);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      title={label}
-                      aria-label={label}
-                      aria-pressed={active}
-                      onClick={() => toggleNewMethod(id)}
-                      className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${
-                        active
-                          ? "border-blue-500 bg-blue-500/20 text-blue-700 dark:text-blue-300"
-                          : "border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700 dark:border-gray-600 dark:hover:border-gray-500 dark:hover:text-gray-300"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </button>
-                  );
+          )}
+          {bookOnly.map(renderBookContact)}
+
+          {query &&
+            pendingOptions.length === 0 &&
+            calledOptions.length === 0 &&
+            bookOnly.length === 0 && (
+              <p className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">
+                {t("call_center_contact_none")}
+              </p>
+            )}
+
+          {query && (
+            <button
+              type="button"
+              onClick={() => setAddDraft(draftFromQuery(search))}
+              className="flex shrink-0 items-center gap-1.5 border-b border-gray-200 bg-white px-3 py-2.5 text-left text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-blue-500/10"
+            >
+              <HiPlus className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">
+                {tr("symptoms.call_center_add_query", dict, {
+                  query: search.trim(),
                 })}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button size="xs" color="light" className="flex-1" onClick={resetAddContactForm}>
-                {t("proto_back")}
-              </Button>
-              <Button
-                size="xs"
-                color="blue"
-                className="flex-1"
-                disabled={!newName.trim() || saving}
-                onClick={handleAddContact}
-              >
-                {t("call_center_add_contact_confirm")}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setAddingContact(true)}
-            className="flex w-full shrink-0 items-center gap-2 border-t border-gray-200 px-3 py-2.5 text-left text-xs font-medium text-blue-600 transition-colors hover:bg-white dark:border-gray-700 dark:text-blue-400 dark:hover:bg-gray-700"
-          >
-            <HiOutlinePlus className="h-4 w-4" />
-            {t("call_center_add_contact")}
-          </button>
-        )}
+              </span>
+            </button>
+          )}
+        </div>
       </section>
     </BentoGrid>
   );

@@ -194,17 +194,22 @@ export default function PrototypeCallCenterFlow({
 
   return (
     <>
-      {step === "contacts" && (
-        <div className="flex min-h-0 w-full flex-1 flex-col">
-          <EscalationLadderCard dict={dict} treatmentData={treatmentData} />
+      {/* Mounted for the whole panel, so its timing and skipped steps survive a call. */}
+      <div
+        className={
+          step === "contacts" ? "flex min-h-0 w-full flex-1 flex-col" : "hidden"
+        }
+      >
+        <EscalationLadderCard dict={dict} treatmentData={treatmentData} />
+        {step === "contacts" && (
           <CallCenterMenu
             dict={dict}
             treatmentData={treatmentData}
             onCall={handleCall}
             recentCallTimes={recentCallTimes}
           />
-        </div>
-      )}
+        )}
+      </div>
 
       {step === "dialing" && (
         <CallDialingStep

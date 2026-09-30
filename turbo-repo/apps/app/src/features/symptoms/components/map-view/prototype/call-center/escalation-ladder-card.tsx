@@ -98,10 +98,7 @@ export default function EscalationLadderCard({
   const sla = (response.slaMinutes ?? 0) * 60;
 
   return (
-    <section
-      className="mx-3 mb-2 mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20"
-      aria-live="polite"
-    >
+    <section className="mx-3 mb-2 mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
       <div className="flex items-center gap-2 text-xs text-blue-900 dark:text-blue-200">
         <span className="font-semibold uppercase tracking-wide">
           {tr("title", d)}
@@ -134,6 +131,13 @@ export default function EscalationLadderCard({
           );
         })}
       </ol>
+      {/* Announced only when the due step changes, not every second. */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {tr("dueStep", d, {
+          n: String(due + 1),
+          role: step.role || tr("anyone", d),
+        })}
+      </p>
       {step.script && (
         <blockquote className="mt-2 rounded-md bg-white px-3 py-2 text-sm text-gray-800 dark:bg-gray-800 dark:text-gray-100">
           <span className="mb-1 block text-xs text-gray-500">

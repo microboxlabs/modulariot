@@ -4433,7 +4433,8 @@
       "channelCall": "Call",
       "channelWhatsapp": "WhatsApp",
       "channelTeams": "Teams",
-      "channelEmail": "Email"
+      "channelEmail": "Email",
+      "dueStep": "Step {n}: {role}"
     }
   },
   "geographic_view": {

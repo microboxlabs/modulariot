@@ -152,7 +152,7 @@ h1 em {
 }
 .source small {
   display: block;
-  color: #7a897d;
+  color: #5b6d61;
   font-size: 11px;
   margin-top: 6px;
 }
@@ -259,7 +259,7 @@ h2 {
 }
 .caption {
   font-size: 11px;
-  color: #7d897f;
+  color: #5b6d61;
   border-top: 1px solid #edf0e9;
   padding-top: 17px;
   margin-bottom: 0;
@@ -316,7 +316,7 @@ th {
   font-weight: 650;
   letter-spacing: 1.2px;
   text-transform: uppercase;
-  color: #879083;
+  color: #5b6d61;
   text-align: left;
   border-bottom: 1px solid #e3e8df;
   padding: 12px 10px;
@@ -380,7 +380,7 @@ footer {
   justify-content: space-between;
   gap: 20px;
   font-size: 10px;
-  color: #8a9589;
+  color: #5b6d61;
   padding: 15px 0 8px;
 }
 .login {
@@ -419,7 +419,7 @@ footer {
 .login small {
   display: block;
   text-align: center;
-  color: #85907f;
+  color: #5b6d61;
   font-size: 11px;
   margin-top: 8px;
 }

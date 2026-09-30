@@ -1,3 +1,4 @@
+import { aggregateServices } from "./billing.js";
 import {
   mountDashboard,
   createTextCardRegistry,
@@ -183,12 +184,7 @@ async function refresh() {
       throw Error("No fue posible actualizar. Puedes volver a intentarlo.");
     const [doc, data] = await Promise.all(responses.map((r) => r.json()));
     dashboard = doc.data;
-    rows = data.data.rows
-      .filter(
-        (r) =>
-          typeof r.service === "string" && Number.isFinite(Number(r.net_cost)),
-      )
-      .sort((a, b) => Number(b.net_cost) - Number(a.net_cost));
+    rows = aggregateServices(data.data.rows);
     if (!rows.length)
       throw Error("La consulta no devolvió servicios para este período.");
     total = rows.reduce((sum, r) => sum + Number(r.net_cost), 0);

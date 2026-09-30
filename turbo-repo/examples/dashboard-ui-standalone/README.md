@@ -53,3 +53,21 @@ Consumer authorization. The Handlebars compiler currently requires `unsafe-eval`
 in script CSP. The host CSS is intentionally scoped to this example. No dashboard
 editing or permissions administration is exposed. Never commit `.env`, key files,
 access codes or session secrets.
+
+### Ingress and validation
+
+For direct access leave `TRUSTED_PROXY_IPS` empty: forwarded headers are ignored.
+Behind an ingress, set it to the exact comma-separated IP addresses of the immediate
+proxy peers, and configure those proxies to overwrite `X-Real-IP` with the real
+client address. Never trust a client-supplied header or an entire network by default.
+Update the allowlist when proxy pods change. A missing/invalid header falls back
+to the socket peer, which can share a throttle bucket; configure a trusted ingress
+before exposing the demo. The in-process limiter is bounded to 2,048 identities,
+expires failed-login buckets after ten minutes and is per replica. Use a shared
+or ingress limiter if deploying multiple replicas.
+
+Run `npm test` for repeatable local HTTP authentication/origin/cookie/route tests,
+proxy trust, bounded throttling and duplicate-service aggregation. Tests generate
+temporary keys and use a local fake upstream; the billing integration still needs
+a configured real dashboard server. Billing rows are aggregated by service before
+calculating totals, service counts and shares.

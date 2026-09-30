@@ -46,3 +46,21 @@ Este acceso por código privado no sustituye SSO de producción. Usa cookies
 HttpOnly/SameSite con vencimiento, Secure cuando el origen es HTTPS. El compilador
 Handlebars requiere actualmente `unsafe-eval` en CSP. No se expone edición de
 dashboards ni administración de permisos. No publiques `.env`, claves ni códigos.
+
+### Ingress y validación
+
+Para acceso directo deje `TRUSTED_PROXY_IPS` vacío: se ignoran los encabezados reenviados.
+Detrás de un ingress, configure las IP exactas de los proxies inmediatos, separadas
+por comas, y haga que esos proxies sobrescriban `X-Real-IP` con la dirección real
+del cliente. No confíe por defecto en encabezados del cliente ni en redes completas.
+Actualice la lista cuando cambien los pods del proxy. Un encabezado ausente o inválido
+usa la dirección del socket, que puede compartir un contador; configure el ingress
+antes de exponer la demo. El limitador mantiene como máximo 2.048 identidades,
+vence los intentos fallidos tras diez minutos y funciona por réplica. Use un
+limitador compartido o del ingress si despliega varias réplicas.
+
+Ejecute `npm test` para probar autenticación HTTP, origen, cookies, rutas,
+confianza del proxy, límites de almacenamiento y agregación de servicios duplicados.
+Las pruebas generan claves temporales y usan un upstream local simulado; la
+integración de facturación requiere un servidor real configurado. Las filas se
+agrupan por servicio antes de calcular totales, cantidades y participaciones.

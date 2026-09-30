@@ -36,10 +36,10 @@ function formatLongEmails(emails: string) {
 export default function SymptomContextCard({
   dict,
   subItem,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   subItem: ConditionsAgg;
-}) {
+}>) {
   return (
     <div className="flex max-h-[50vh] flex-row gap-2 overflow-y-auto rounded-md border border-amber-300 bg-white p-2 shadow-md dark:bg-gray-900">
       <div className="flex flex-col">
@@ -69,7 +69,10 @@ export default function SymptomContextCard({
           <div className="flex flex-grow flex-row justify-end gap-1">
             {subItem.evidences && subItem.evidences?.length > 0 && (
               <small className="flex items-center gap-1 rounded-md bg-gray-100 px-2 text-xs dark:bg-gray-800">
-                <FaImages className="text-gray-600 dark:text-gray-400" size={15} />
+                <FaImages
+                  className="text-gray-600 dark:text-gray-400"
+                  size={15}
+                />
                 <p className="text-gray-800 dark:text-gray-200">
                   {subItem.evidences?.length}
                 </p>

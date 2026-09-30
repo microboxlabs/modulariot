@@ -62,7 +62,10 @@ export function emptyChannels(): ChannelsValue {
   };
 }
 
-export function isChannelValueValid(method: CallMethod, value: string): boolean {
+export function isChannelValueValid(
+  method: CallMethod,
+  value: string
+): boolean {
   const v = value.trim();
   if (INPUT_TYPES[method] === "email") return v.includes("@") && v.length > 3;
   return v.replace(/\D/g, "").length >= 8;
@@ -78,20 +81,26 @@ export function channelStatus(
 
 /** True while a channel is switched on but has no usable address yet. */
 export function hasUnfinishedChannel(channels: ChannelsValue): boolean {
-  return ALL_CALL_METHODS.some((m) => channelStatus(m, channels[m]) === "active");
+  return ALL_CALL_METHODS.some(
+    (m) => channelStatus(m, channels[m]) === "active"
+  );
 }
 
 /** Rebuilds the per-channel state from a stored contact. Contacts saved
  *  before channels existed only have `phone` + `methods`: phone/WhatsApp
  *  reuse that number, and a Teams/Meet method that was allowed but never
  *  given an address comes back switched on and empty so the gap is obvious. */
-export function channelsFromContact(contact: BookContact | null): ChannelsValue {
+export function channelsFromContact(
+  contact: BookContact | null
+): ChannelsValue {
   const channels = emptyChannels();
   if (!contact) return channels;
   for (const m of ALL_CALL_METHODS) {
     const legacyPhone = m === "phone" || m === "whatsapp" ? contact.phone : "";
-    const value = contact.channels?.[m] ?? (contact.methods.includes(m) ? legacyPhone : "");
-    const allowed = contact.methods.includes(m) || contact.channels?.[m] !== undefined;
+    const value =
+      contact.channels?.[m] ?? (contact.methods.includes(m) ? legacyPhone : "");
+    const allowed =
+      contact.methods.includes(m) || contact.channels?.[m] !== undefined;
     channels[m] = { enabled: allowed || Boolean(value), value };
   }
   return channels;
@@ -105,7 +114,8 @@ export function channelsToContact(
 ): Pick<BookContact, "channels" | "phone" | "methods"> {
   const configured: Partial<Record<CallMethod, string>> = {};
   for (const m of ALL_CALL_METHODS) {
-    if (channels[m].enabled && isChannelValueValid(m, channels[m].value)) configured[m] = channels[m].value.trim();
+    if (channels[m].enabled && isChannelValueValid(m, channels[m].value))
+      configured[m] = channels[m].value.trim();
   }
   return {
     channels: configured,
@@ -116,8 +126,7 @@ export function channelsToContact(
 
 const BOX_TONES: Record<ChannelStatus, string> = {
   off: "border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800/40",
-  active:
-    "border-blue-300 bg-white dark:border-blue-700/60 dark:bg-gray-800",
+  active: "border-blue-300 bg-white dark:border-blue-700/60 dark:bg-gray-800",
   configured:
     "border-green-300 bg-green-50/60 dark:border-green-700/60 dark:bg-green-900/10",
 };
@@ -125,7 +134,8 @@ const BOX_TONES: Record<ChannelStatus, string> = {
 const ICON_TONES: Record<ChannelStatus, string> = {
   off: "bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500",
   active: "bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300",
-  configured: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300",
+  configured:
+    "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300",
 };
 
 const STATUS_TEXT_TONES: Record<ChannelStatus, string> = {
@@ -164,7 +174,11 @@ export function ChannelBox({
   }, [state.enabled]);
 
   const toggle = () =>
-    onChange(state.enabled ? { enabled: false, value: "" } : { enabled: true, value: "" });
+    onChange(
+      state.enabled
+        ? { enabled: false, value: "" }
+        : { enabled: true, value: "" }
+    );
 
   return (
     <div className={`rounded-xl border transition-colors ${BOX_TONES[status]}`}>
@@ -221,15 +235,17 @@ export function ChannelBox({
             value={state.value}
             onChange={(e) => onChange({ ...state, value: e.target.value })}
           />
-          {method === "whatsapp" && phoneValue && state.value !== phoneValue && (
-            <button
-              type="button"
-              className="self-start text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
-              onClick={() => onChange({ ...state, value: phoneValue })}
-            >
-              {labels.actions.useSamePhone}
-            </button>
-          )}
+          {method === "whatsapp" &&
+            phoneValue &&
+            state.value !== phoneValue && (
+              <button
+                type="button"
+                className="self-start text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+                onClick={() => onChange({ ...state, value: phoneValue })}
+              >
+                {labels.actions.useSamePhone}
+              </button>
+            )}
         </div>
       )}
     </div>
@@ -250,7 +266,6 @@ export default function ContactFormFields({
   roleSuggestionsSource,
   labels,
   inputClassName,
-  autoFocusName = true,
   inlineSuggestions = false,
 }: {
   readonly value: ContactFormValue;
@@ -258,7 +273,6 @@ export default function ContactFormFields({
   readonly roleSuggestionsSource: readonly string[];
   readonly labels: ContactFormLabels;
   readonly inputClassName: string;
-  readonly autoFocusName?: boolean;
   /** Render role suggestions in normal flow (growing the form) instead of
    *  an overlay — for containers that clip overflow, like a fit-content modal. */
   readonly inlineSuggestions?: boolean;
@@ -269,7 +283,8 @@ export default function ContactFormFields({
   useEffect(() => {
     if (!roleMenuOpen) return;
     const onOutside = (e: MouseEvent) => {
-      if (!roleFieldRef.current?.contains(e.target as Node)) setRoleMenuOpen(false);
+      if (!roleFieldRef.current?.contains(e.target as Node))
+        setRoleMenuOpen(false);
     };
     document.addEventListener("mousedown", onOutside);
     return () => document.removeEventListener("mousedown", onOutside);
@@ -277,7 +292,9 @@ export default function ContactFormFields({
 
   const roleQuery = value.role.trim().toLowerCase();
   const suggestions = Array.from(new Set(roleSuggestionsSource)).filter(
-    (r) => r.toLowerCase() !== roleQuery && (!roleQuery || r.toLowerCase().includes(roleQuery))
+    (r) =>
+      r.toLowerCase() !== roleQuery &&
+      (!roleQuery || r.toLowerCase().includes(roleQuery))
   );
 
   const setChannel = (method: CallMethod, next: ChannelState) => {
@@ -292,7 +309,6 @@ export default function ContactFormFields({
   return (
     <div className="flex flex-col gap-3">
       <input
-        autoFocus={autoFocusName}
         className={inputClassName}
         placeholder={labels.name}
         value={value.name}

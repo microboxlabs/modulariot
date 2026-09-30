@@ -46,15 +46,12 @@ export function ActionDropdown({
         aria-controls={open ? id : undefined}
         onClick={(event) => {
           event.stopPropagation();
-          const ancestor = buttonRef.current?.closest(
+          const ancestor = buttonRef.current?.closest<HTMLElement>(
             "[data-miot-theme], .dark",
           );
+          const ancestorTheme = ancestor ? "dark" : "light";
           setInheritedTheme(
-            ancestor?.getAttribute("data-miot-theme") === "light"
-              ? "light"
-              : ancestor
-                ? "dark"
-                : "light",
+            ancestor?.dataset.miotTheme === "light" ? "light" : ancestorTheme,
           );
           toggle();
         }}
@@ -64,10 +61,10 @@ export function ActionDropdown({
       {open &&
         buttonRef.current &&
         createPortal(
-          <div
+          <dialog
+            open
             ref={menuRef}
             id={id}
-            role="dialog"
             aria-label={ariaLabel}
             className="miot-action-dropdown"
             data-miot-theme={theme ?? inheritedTheme}
@@ -92,7 +89,7 @@ export function ActionDropdown({
                 </span>
               </a>
             ))}
-          </div>,
+          </dialog>,
           buttonRef.current.ownerDocument.body,
         )}
     </>

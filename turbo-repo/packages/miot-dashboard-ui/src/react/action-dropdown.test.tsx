@@ -65,3 +65,14 @@ it("closes when actions disappear and when its scroll container moves", () => {
   fireEvent.scroll(window);
   expect(screen.queryByRole("dialog")).toBeNull();
 });
+
+it("allows scrolling inside the menu but closes on viewport resize", () => {
+  render(<ActionDropdown ariaLabel="Actions" items={[item]} />);
+  fireEvent.click(screen.getByRole("button"));
+  fireEvent.scroll(screen.getByRole("dialog"));
+  expect(screen.getByRole("dialog").tagName).toBe("DIALOG");
+  fireEvent.scroll(screen.getByRole("link"));
+  expect(screen.getByRole("dialog")).toBeTruthy();
+  fireEvent.resize(window);
+  expect(screen.queryByRole("dialog")).toBeNull();
+});

@@ -10,7 +10,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 export function usePortalDropdown(enabled: boolean) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDialogElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
   const close = useCallback(() => setOpen(false), []);
@@ -87,7 +87,15 @@ export function usePortalDropdown(enabled: boolean) {
     if (!open) return;
     const win = buttonRef.current?.ownerDocument.defaultView;
     if (!win) return;
-    const handler = () => close();
+    const handler = (event: Event) => {
+      if (
+        event.type === "scroll" &&
+        menuRef.current &&
+        event.composedPath().includes(menuRef.current)
+      )
+        return;
+      close();
+    };
     win.addEventListener("scroll", handler, true);
     win.addEventListener("resize", handler);
     return () => {

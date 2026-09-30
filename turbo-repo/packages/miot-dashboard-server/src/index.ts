@@ -128,8 +128,17 @@ export type { MigrationResult } from "./import/migrate";
 export { migratePlannerQueries } from "./import/planner";
 export type {
   PlannerQueryMapping,
+  PlannerMigrationOptions,
   PlannerMigrationResult,
 } from "./import/planner";
+export {
+  plannerOperationContracts,
+  plannerParameterBindings,
+} from "./import/planner-contracts";
+export type {
+  PlannerContractOptions,
+  PlannerOperationContract,
+} from "./import/planner-contracts";
 
 export {
   createDashboardQueryService,

@@ -110,25 +110,26 @@ public class InMemoryTreatmentStore implements TreatmentStore {
     public synchronized List<ContactCallStats> contactStats(String tenantCode) {
         Map<String, long[]> counts = new LinkedHashMap<>();
         Map<String, OffsetDateTime> last = new LinkedHashMap<>();
-        for (Treatment t : treatments.values()) {
-            if (!t.tenantCode().equals(tenantCode)) {
-                continue;
+        for (TreatmentAction a : contactCalls(tenantCode)) {
+            long[] c = counts.computeIfAbsent(a.contactId(), k -> new long[2]);
+            if (Boolean.TRUE.equals(a.answered())) {
+                c[0]++;
+            } else if (Boolean.FALSE.equals(a.answered())) {
+                c[1]++;
             }
-            for (TreatmentAction a : actions.getOrDefault(t.id(), List.of())) {
-                if (a.kind() != ActionKind.CALL || a.contactId() == null) {
-                    continue;
-                }
-                long[] c = counts.computeIfAbsent(a.contactId(), k -> new long[2]);
-                if (Boolean.TRUE.equals(a.answered())) {
-                    c[0]++;
-                } else if (Boolean.FALSE.equals(a.answered())) {
-                    c[1]++;
-                }
-                last.merge(a.contactId(), a.performedAt(), (x, y) -> x.isAfter(y) ? x : y);
-            }
+            last.merge(a.contactId(), a.performedAt(), (x, y) -> x.isAfter(y) ? x : y);
         }
         List<ContactCallStats> out = new ArrayList<>();
         counts.forEach((id, c) -> out.add(new ContactCallStats(id, last.get(id), c[0], c[1])));
         return out;
+    }
+
+    /** The tenant's CALL actions made to a saved contact. */
+    private List<TreatmentAction> contactCalls(String tenantCode) {
+        return treatments.values().stream()
+                .filter(t -> t.tenantCode().equals(tenantCode))
+                .flatMap(t -> actions.getOrDefault(t.id(), List.of()).stream())
+                .filter(a -> a.kind() == ActionKind.CALL && a.contactId() != null)
+                .toList();
     }
 }

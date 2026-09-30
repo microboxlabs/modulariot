@@ -25,8 +25,6 @@ import java.util.function.Supplier;
  */
 abstract class ControlTowerResourceSupport {
 
-    static final String BASE_PATH = "/api/v1/orgs/{organizationId}/control-tower";
-
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
     private final OrganizationRoleService roleService;

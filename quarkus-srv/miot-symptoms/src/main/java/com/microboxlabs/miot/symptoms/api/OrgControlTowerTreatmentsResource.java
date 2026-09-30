@@ -26,7 +26,7 @@ import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /** Treatment episodes: what operators do about a symptom. */
-@Path(ControlTowerResourceSupport.BASE_PATH)
+@Path("/api/v1/orgs/{organizationId}/control-tower")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Control Tower — Treatments", description = "What operators do about a symptom: calls, ignore, invalidate")

@@ -8,11 +8,13 @@ import com.microboxlabs.miot.symptoms.catalog.store.DataSourceStore;
 import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /** In-memory catalog and source stores for service tests, with the same rules as the Postgres ones. */
@@ -78,6 +80,15 @@ public class InMemoryCatalog implements SymptomCatalogStore, DataSourceStore {
         SymptomVersion saved = existing.map(e -> e.withSpec(draft.spec())).orElse(draft);
         versions.put(saved.id(), saved);
         return saved;
+    }
+
+    @Override
+    public Set<UUID> definitionsWithDraft(String tenantCode) {
+        Set<UUID> ids = new HashSet<>();
+        versions.values().stream()
+                .filter(v -> v.tenantCode().equals(tenantCode) && v.status() == VersionStatus.DRAFT)
+                .forEach(v -> ids.add(v.definitionId()));
+        return ids;
     }
 
     @Override

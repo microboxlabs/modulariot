@@ -337,3 +337,17 @@
 .miot-text-card-fields p { margin: 0; font-size: 0.875rem; }
 :where(.dark, [data-miot-theme="dark"]) .miot-text-card-fields { color: var(--miot-card-text, #fff); }
 :where(.dark, [data-miot-theme="dark"]) .miot-text-card-fields :is(textarea, select) { background: var(--miot-card-background, #1f2937); border-color: var(--miot-card-border, #4b5563); }
+
+.miot-progress-stat { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; justify-content: center; padding: 1rem; border: 1px solid var(--miot-card-border, #e5e7eb); border-radius: .5rem; background: var(--miot-card-background, #fff); color: var(--miot-card-text, #111827); }
+.miot-progress-stat__header { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; }
+.miot-progress-stat__header p { margin: 0; font-size: .875rem; color: var(--miot-card-muted, #6b7280); overflow-wrap: anywhere; }
+.miot-progress-stat__header strong { font-size: 1.5rem; }
+.miot-progress-stat__header strong span { margin-left: .25rem; font-size: .875rem; font-weight: 400; color: var(--miot-card-muted, #6b7280); }
+.miot-progress-stat__gauge { position: relative; margin-top: .75rem; height: .75rem; }
+.miot-progress-stat__gauge progress { display: block; appearance: none; border: 0; width: 100%; height: 100%; border-radius: 9999px; overflow: hidden; background: var(--miot-progress-track, #e5e7eb); }
+.miot-progress-stat__gauge progress::-webkit-progress-bar { background: var(--miot-progress-track, #e5e7eb); }
+.miot-progress-stat__gauge progress::-webkit-progress-value { background: var(--miot-progress-color); }
+.miot-progress-stat__gauge progress::-moz-progress-bar { background: var(--miot-progress-color); }
+.miot-progress-stat__gauge i { position: absolute; top: 0; bottom: 0; width: 2px; background: #ffffff80; pointer-events: none; }
+.miot-progress-stat__labels { display: flex; justify-content: space-between; margin-top: .25rem; font-size: .75rem; color: var(--miot-card-muted, #6b7280); }
+:where(.dark, [data-miot-theme="dark"]) .miot-progress-stat { --miot-card-background: #1f2937; --miot-card-border: #374151; --miot-card-text: #fff; --miot-card-muted: #9ca3af; --miot-progress-track: #374151; }

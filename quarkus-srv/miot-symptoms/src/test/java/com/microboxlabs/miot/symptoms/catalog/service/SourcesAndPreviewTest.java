@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService.SamplePreview;
 import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
@@ -51,6 +52,23 @@ class SourcesAndPreviewTest {
         assertEquals(3, results.get(1).level(), "11 km/h over, held 20 s: crítica");
         assertFalse(results.get(2).activates(), "a light vehicle does not activate");
         assertNull(results.get(2).level());
+    }
+
+    @Test
+    void wrongResultTypesAndFailingLevelsAreReportedNotThrown() {
+        DataSource gps = new DataSourceService(new InMemoryCatalog(), new DemoSymptomEngine()).get(TENANT, "gps_signal");
+        SymptomSpec base = Specs.speeding();
+
+        SymptomSpec boolMeasure = new SymptomSpec(base.source(), base.activation(),
+                new SymptomSpec.Measure("true", null, null), base.levels(), base.lifecycle(), null);
+        assertEquals("La medida debe dar un número.", PreviewService.run(boolMeasure, gps).get(0).error());
+
+        SymptomSpec numberActivation = Specs.with(base, "signal.gps.speed_kmh");
+        assertEquals("La condición debe dar sí o no.", PreviewService.run(numberActivation, gps).get(0).error());
+
+        SymptomSpec badLevel = Specs.withLevels(base, Specs.levels("medida > 0 && medida < 5",
+                "medida >= 5 && medida < 11", "medida >= 11 && medida < 21", "medida >= 21 && signal.nope > 1.0"));
+        assertTrue(PreviewService.run(badLevel, gps).get(0).error().startsWith("Nivel 4: "));
     }
 
     @Test

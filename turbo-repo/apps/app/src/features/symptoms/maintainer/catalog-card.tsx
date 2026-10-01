@@ -43,14 +43,20 @@ function thresholdText(t: string | null, d: I18nRecord) {
   return t ?? tr("notApplicable", d);
 }
 
+/** Each level draws its piece of the line at its icon's center; the ends stop at the first and last icon. */
+const LINE_SPAN = [
+  "left-1/2 right-0",
+  "left-0 right-0",
+  "left-0 right-0",
+  "left-0 right-1/2",
+];
+
 function Ladder({ s, d }: Readonly<{ s: SymptomSummary; d: I18nRecord }>) {
   const spec = s.current?.spec ?? null;
   const unit = spec?.measure?.unit ?? null;
   const ops = operatorLevels(spec);
   return (
-    <div className="relative mx-4 mt-3 grid grid-cols-4 gap-1 rounded-lg bg-gray-50 px-2 pb-2 pt-3 dark:bg-gray-900/50">
-      {/* pt-3 plus half of the h-7 level icon, so the line runs through the icon centers. */}
-      <div className="absolute left-5 right-5 top-[calc(1.625rem-0.5px)] h-px bg-gray-200 dark:bg-gray-600" />
+    <div className="mx-4 mt-3 grid grid-cols-4 rounded-lg bg-gray-50 px-2 pb-2 pt-3 dark:bg-gray-900/50">
       {levelsOf(spec).map((level, i) => {
         const icu = i + 1;
         const t = shortThreshold(level, unit);
@@ -58,9 +64,16 @@ function Ladder({ s, d }: Readonly<{ s: SymptomSummary; d: I18nRecord }>) {
           <div
             key={icu}
             title={`${levelName(icu, d)}: ${thresholdText(t, d)}`}
-            className="relative flex flex-col items-center gap-1 text-center"
+            className="flex flex-col items-center gap-1 px-0.5 text-center"
           >
-            <LevelIcon icu={icu} empty={!t} />
+            <div className="relative flex w-full justify-center">
+              <div
+                className={`absolute top-1/2 h-px bg-gray-200 dark:bg-gray-600 ${LINE_SPAN[i]}`}
+              />
+              <span className="relative">
+                <LevelIcon icu={icu} empty={!t} />
+              </span>
+            </div>
             <span
               className={`text-[11px] leading-tight ${t ? "text-gray-700 dark:text-gray-200" : MUTED}`}
             >

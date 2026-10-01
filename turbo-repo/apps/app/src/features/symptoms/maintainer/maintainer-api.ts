@@ -112,6 +112,45 @@ export interface SymptomVersion {
 export interface SymptomSummary {
   definition: SymptomDefinition;
   hasDraft: boolean;
+  /** The published version's spec; null before the first publish. */
+  currentSpec?: SymptomSpec | null;
+  /** Cached Harness description of the published activation (b, i, mark), if any. */
+  activationText?: string | null;
+}
+
+/** Catalog numbers: weekly cases from the engine's last 90 days, operator load and recent changes. */
+export interface SymptomStats {
+  engineAvailable: boolean;
+  windowDays: number;
+  symptoms: {
+    definitionId: string;
+    weekByLevel: number[];
+    week: number;
+    operatorWeek: number;
+  }[];
+  totals: {
+    weekByLevel: number[];
+    week: number;
+    perShift: number;
+    topShare: { definitionIds: string[]; share: number } | null;
+  };
+  operators: {
+    operators: number;
+    shiftHours: number;
+    capacityPerShift: number;
+    slaMetLastWeek: number | null;
+  };
+  changes: {
+    drafts: number;
+    lastPublished: {
+      definitionId: string;
+      name: string;
+      version: string;
+      at: string;
+      by: string;
+      reason: string | null;
+    } | null;
+  };
 }
 
 export interface SymptomDetail {
@@ -201,6 +240,16 @@ const fetcher = <T>(url: string) => request<T>(url);
 
 export function useSymptomDefinitions() {
   return useSWR<SymptomSummary[]>(definitionsKey, fetcher);
+}
+
+export const statsKey = `${DEFS}/stats`;
+
+/** Null data (not an error) while the modulith has no stats endpoint or no engine. */
+export function useSymptomStats() {
+  return useSWR<SymptomStats>(statsKey, fetcher, {
+    shouldRetryOnError: false,
+    revalidateOnFocus: false,
+  });
 }
 
 export function useSymptomDefinition(id: string | null) {

@@ -95,6 +95,15 @@ class PostgrestCatalogTest {
     }
 
     @Test
+    void probesWithTheValuesTheOperationPins() {
+        var schema = PostgrestCatalog.requestSchema(catalog.functions("ACME", "c1").get(0),
+                Map.of("p_client", "client-1"));
+        assertEquals(Map.of("p_client", "client-1"), PostgrestCatalog.pinnedValues(schema));
+        assertEquals(Map.of(), PostgrestCatalog.pinnedValues(Map.of("type", "object")));
+        assertEquals(Map.of(), PostgrestCatalog.pinnedValues(null));
+    }
+
+    @Test
     void reportsAnUnusableDescription() {
         answer = new OperationInvocationResult(401, "{}");
         assertThrows(OperationInvocationException.class, () -> catalog.functions("ACME", "c1"));

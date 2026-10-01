@@ -326,6 +326,7 @@ function TestResultLine({
       <span className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
         <HiCheckCircle className="h-4 w-4" />
         {tr("toast.testOk", dict)}
+        {result.message ? ` · ${result.message}` : ""}
       </span>
     );
   }

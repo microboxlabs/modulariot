@@ -15,8 +15,9 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
 /**
- * Live check for a POSTGREST connection: {@code GET {baseUrl}/} with the connection's
- * credential must return PostgREST's OpenAPI description.
+ * Live check for a POSTGREST connection. {@code GET {baseUrl}/} with the credential must return
+ * PostgREST's OpenAPI description, and an imported function must answer with the credential and
+ * be refused without it.
  */
 @ApplicationScoped
 public class PostgrestConnectionTester implements ConnectionTester {
@@ -40,6 +41,7 @@ public class PostgrestConnectionTester implements ConnectionTester {
             ConnectionTestRequest request) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         if (connection.baseUrl() == null) return fail(now, "Connection base URL is not set");
+        if (credential == null) return fail(now, "Link a credential to this connection");
         OperationInvocationResult result;
         try {
             result = catalog.fetchSpec(connection);
@@ -51,7 +53,28 @@ public class PostgrestConnectionTester implements ConnectionTester {
         }
         int functions = countFunctions(result.body());
         if (functions < 0) return fail(now, "The base URL did not return a PostgREST OpenAPI description");
-        return new ConnectionTestResponse(true, now, "PostgREST OK — " + functions + " functions available");
+        PostgrestCatalog.Probe probe;
+        try {
+            probe = catalog.probe(connection);
+        } catch (RuntimeException e) {
+            return fail(now, e.getMessage());
+        }
+        return verdict(now, probe);
+    }
+
+    private static ConnectionTestResponse verdict(OffsetDateTime now, PostgrestCatalog.Probe probe) {
+        if (!successful(probe.withCredential())) {
+            return fail(now, probe.function() + " answered HTTP " + probe.withCredential() + " with the credential");
+        }
+        if (successful(probe.withoutCredential())) {
+            return fail(now, probe.function() + " also answers without a token: the credential is not what grants access");
+        }
+        return new ConnectionTestResponse(true, now, "PostgREST OK — " + probe.function()
+                + " answers with the credential and is refused without it (HTTP " + probe.withoutCredential() + ")");
+    }
+
+    private static boolean successful(int status) {
+        return status >= 200 && status < 300;
     }
 
     private static int countFunctions(String body) {

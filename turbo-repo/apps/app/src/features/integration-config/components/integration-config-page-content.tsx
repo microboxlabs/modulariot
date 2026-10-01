@@ -157,7 +157,9 @@ export function IntegrationConfigPageContent({
     try {
       const result = await testInstance(connection.id);
       if (result.success) {
-        toast.success(tr("toast.testOk", dict));
+        toast.success(tr("toast.testOk", dict), {
+          description: result.message ?? undefined,
+        });
       } else {
         toast.error(result.message ?? tr("toast.testFailed", dict));
       }

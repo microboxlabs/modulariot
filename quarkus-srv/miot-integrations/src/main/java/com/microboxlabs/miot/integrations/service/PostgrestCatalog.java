@@ -32,6 +32,8 @@ public class PostgrestCatalog {
     static final int MAX_IMPORT = 200;
     private static final int MAX_TEXT = 2048;
     private static final String SELECT = "select";
+    private static final String RPC = "/rpc/";
+    private static final String CONST = "const";
     private static final Pattern FUNCTION_NAME = Pattern.compile("[A-Za-z_]\\w{0,62}");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -72,6 +74,46 @@ public class PostgrestCatalog {
         var resolved = resolver.resolve(connection.tenantCode(), connection.id());
         var root = new IntegrationOperation(null, connection.id(), "openapi", "GET", "/", Map.of(), Map.of(), false);
         return invoker.executeBounded(resolved, root, Map.of(), MAX_SPEC_BYTES);
+    }
+
+    /** Statuses of one imported function called with the connection's credential and without it. */
+    public record Probe(String function, int withCredential, int withoutCredential) {
+    }
+
+    /**
+     * Calls the first imported function twice, with and without the credential, sending its
+     * pinned values. A PostgREST may publish its description to anyone, so only a function call
+     * shows whether the credential is what grants access.
+     *
+     * @throws IllegalStateException when no credential is linked or no function is imported
+     */
+    public Probe probe(IntegrationConnection connection) {
+        var resolved = resolver.resolve(connection.tenantCode(), connection.id());
+        if (!resolved.hasAuth()) throw new IllegalStateException("Link a credential to this connection");
+        IntegrationOperation operation = operations.listByConnection(connection.id()).stream()
+                .filter(candidate -> candidate.path() != null && candidate.path().startsWith(RPC))
+                .filter(DashboardOperationPolicy::eligible)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Import at least one function in Funciones: the test calls it with and without the credential"));
+        Map<String, String> parameters = pinnedValues(operation.requestSchema());
+        int with = invoker.executeBounded(resolved, operation, parameters, MAX_SPEC_BYTES).status();
+        var anonymous = new ResolvedConnection(resolved.connectionId(), resolved.baseUrl(), resolved.metadata(), Map.of());
+        int without = invoker.executeBounded(anonymous, operation, parameters, MAX_SPEC_BYTES).status();
+        return new Probe(operation.name(), with, without);
+    }
+
+    /** The values an operation's schema fixes with {@code const}. */
+    static Map<String, String> pinnedValues(Map<String, Object> requestSchema) {
+        Map<String, String> values = new TreeMap<>();
+        if (requestSchema != null && requestSchema.get("properties") instanceof Map<?, ?> properties) {
+            properties.forEach((name, property) -> {
+                if (property instanceof Map<?, ?> definition && definition.get(CONST) != null) {
+                    values.put(String.valueOf(name), String.valueOf(definition.get(CONST)));
+                }
+            });
+        }
+        return values;
     }
 
     /** RPC functions the connection exposes, by name. */
@@ -143,7 +185,7 @@ public class PostgrestCatalog {
             if (value == null || value.isBlank() || value.length() > MAX_TEXT) {
                 throw new IllegalArgumentException("Pinned value for " + pin.getKey() + " must be 1-" + MAX_TEXT + " characters");
             }
-            properties.put(pin.getKey(), Map.of("type", "string", "const", value));
+            properties.put(pin.getKey(), Map.of("type", "string", CONST, value));
             required.add(pin.getKey());
         }
         Map<String, Object> schema = new LinkedHashMap<>();
@@ -162,8 +204,8 @@ public class PostgrestCatalog {
         Map<String, Function> functions = new TreeMap<>();
         paths.fields().forEachRemaining(entry -> {
             String path = entry.getKey();
-            if (!path.startsWith("/rpc/")) return;
-            String name = path.substring("/rpc/".length());
+            if (!path.startsWith(RPC)) return;
+            String name = path.substring(RPC.length());
             JsonNode get = entry.getValue().path("get");
             if (!FUNCTION_NAME.matcher(name).matches() || !get.isObject()) return;
             List<Parameter> parameters = StreamSupport.stream(get.path("parameters").spliterator(), false)

@@ -320,6 +320,33 @@ export interface ImportResult {
 }
 
 /** Creates an off draft for each engine rule the organization does not have yet. */
+/** A platform template: a ready symptom the organization copies. */
+export interface SymptomTemplate {
+  key: string;
+  name: string;
+  family: string;
+  icon: string | null;
+  /** When it opens, in words. */
+  description: string;
+  spec: SymptomSpec;
+}
+
+export function useSymptomTemplates(enabled: boolean) {
+  return useSWR<SymptomTemplate[]>(
+    enabled ? `${DEFS}/templates` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+}
+
+/** Copies a template into the catalog, published as 0.1.0 in TEST. */
+export function createFromTemplate(templateKey: string, name?: string) {
+  return request<SymptomDetail>(`${DEFS}/from-template`, {
+    method: "POST",
+    body: { templateKey, name },
+  });
+}
+
 export function importEngineRules() {
   return request<ImportResult>(`${DEFS}/import-engine`, { method: "POST" });
 }

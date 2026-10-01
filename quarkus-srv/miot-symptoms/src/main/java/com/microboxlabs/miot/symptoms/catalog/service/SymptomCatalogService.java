@@ -4,6 +4,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionStatus;
@@ -36,6 +37,7 @@ public class SymptomCatalogService {
 
     static final String ENTITY = "symptom";
     private static final String VERSION_NOT_FOUND = "version not found: ";
+    static final String FIRST_VERSION = "0.1.0";
     private static final Pattern KEY = Pattern.compile("^[a-z0-9][a-z0-9_-]{1,94}$");
 
     private final SymptomCatalogStore store;
@@ -99,10 +101,34 @@ public class SymptomCatalogService {
     }
 
     public SymptomDetail create(String tenantCode, String actor, CreateRequest req) {
-        return create(tenantCode, actor, req, null);
+        return create(tenantCode, actor, req, null, null);
     }
 
-    private SymptomDetail create(String tenantCode, String actor, CreateRequest req, UUID forkedFrom) {
+    /**
+     * Copies a platform template into the organization's catalog and publishes
+     * it as {@value #FIRST_VERSION} in TEST. The key is the template's, with a
+     * number added when the organization already uses it.
+     */
+    public SymptomDetail createFromTemplate(String tenantCode, String actor, SymptomTemplate template, String name) {
+        String title = name == null || name.isBlank() ? template.name() : name.trim();
+        SymptomDetail created = create(tenantCode, actor, new CreateRequest(freeKey(tenantCode, template.key()), title,
+                template.family(), template.icon(), template.description(), template.spec().source(), null,
+                template.spec()), null, template.key());
+        publish(tenantCode, actor, created, created.draft(), plan(tenantCode, created, created.draft().spec()),
+                new Release("Desde la plantilla " + template.name(), null, SymptomState.TEST, null, true));
+        return get(tenantCode, created.definition().id());
+    }
+
+    private String freeKey(String tenantCode, String key) {
+        String candidate = key;
+        for (int n = 2; store.findDefinitionByKey(tenantCode, candidate).isPresent(); n++) {
+            candidate = key + "-" + n;
+        }
+        return candidate;
+    }
+
+    private SymptomDetail create(String tenantCode, String actor, CreateRequest req, UUID forkedFrom,
+            String templateKey) {
         if (req == null || req.key() == null || !KEY.matcher(req.key()).matches()) {
             throw new IllegalArgumentException("key: lowercase letters, digits, - and _, 2 to 95 characters");
         }
@@ -115,8 +141,8 @@ public class SymptomCatalogService {
         }
         OffsetDateTime now = now();
         SymptomDefinition d = store.insertDefinition(new SymptomDefinition(UUID.randomUUID(), tenantCode, req.key(),
-                req.name().trim(), req.family(), req.icon(), req.description(), source.key(), req.engineRuleId(), null,
-                forkedFrom, SymptomState.OFF, null, actor, now, actor, now));
+                req.name().trim(), req.family(), req.icon(), req.description(), source.key(), req.engineRuleId(),
+                templateKey, forkedFrom, SymptomState.OFF, null, actor, now, actor, now));
         SymptomSpec spec = req.spec() == null ? emptySpec(source) : req.spec();
         store.saveDraft(SymptomVersion.draft(d.id(), tenantCode, spec, actor, now));
         audit.log(tenantCode, actor, "symptom.created", ENTITY, d.id().toString(), null, Map.of("key", d.key()));
@@ -177,7 +203,7 @@ public class SymptomCatalogService {
         }
         PublishPlan plan = plan(tenantCode, detail, detail.draft().spec());
         return publish(tenantCode, actor, detail, detail.draft(), plan,
-                new Release(reason, requested, state, null));
+                new Release(reason, requested, state, null, false));
     }
 
     /** Publishes an old version's spec as a new version. History is never rewritten. */
@@ -193,7 +219,7 @@ public class SymptomCatalogService {
         PublishPlan plan = plan(tenantCode, detail, old.spec());
         String why = reason == null || reason.isBlank() ? "Volver a " + version : reason;
         return publish(tenantCode, actor, detail, copy, plan,
-                new Release(why, null, detail.definition().state(), version));
+                new Release(why, null, detail.definition().state(), version, false));
     }
 
     /** Creates a new symptom from one version of this one. It starts off, with that spec as its draft. */
@@ -204,7 +230,7 @@ public class SymptomCatalogService {
                 : store.findVersion(tenantCode, id, v)
                         .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + v));
         SymptomDetail created = create(tenantCode, actor, new CreateRequest(key, name, from.family(), from.icon(),
-                from.description(), from.sourceKey(), null, source.spec()), source.id());
+                from.description(), from.sourceKey(), null, source.spec()), source.id(), from.templateKey());
         audit.log(tenantCode, actor, "symptom.forked", ENTITY, created.definition().id().toString(), null,
                 Map.of("from", from.key(), "version", v == null ? "draft" : v));
         return created;
@@ -267,8 +293,12 @@ public class SymptomCatalogService {
         return SpecDiff.changes(a.spec(), b.spec());
     }
 
-    /** What the caller asks of a publication; {@code rolledBackFrom} is set on a rollback. */
-    private record Release(String reason, VersionBump requested, SymptomState state, String rolledBackFrom) {
+    /**
+     * What the caller asks of a publication; {@code rolledBackFrom} is set on a rollback, {@code first} when a
+     * new symptom publishes {@value #FIRST_VERSION}.
+     */
+    private record Release(String reason, VersionBump requested, SymptomState state, String rolledBackFrom,
+            boolean first) {
     }
 
     private SymptomVersion publish(String tenantCode, String actor, SymptomDetail detail, SymptomVersion version,
@@ -290,8 +320,9 @@ public class SymptomCatalogService {
         if (next == SymptomState.ACTIVE && plan.report().needsTestOnly()) {
             throw new IllegalStateException("the engine cannot evaluate this version yet; publish it as TEST");
         }
-        VersionBump bump = requested != null && requested.compareTo(plan.bump()) > 0 ? requested : plan.bump();
-        String number = SpecDiff.next(detail.definition().currentVersion(), bump);
+        boolean first = release.first() && detail.definition().currentVersion() == null;
+        VersionBump bump = first ? VersionBump.MINOR : raised(plan.bump(), requested);
+        String number = first ? FIRST_VERSION : SpecDiff.next(detail.definition().currentVersion(), bump);
         OffsetDateTime now = now();
         SymptomVersion saved = store.publish(
                 version.published(number, bump, reason.trim(), rolledBackFrom, actor, now),
@@ -339,6 +370,11 @@ public class SymptomCatalogService {
     private static SymptomSpec emptySpec(DataSource source) {
         return new SymptomSpec(source.key(), "", null, List.of(), new SymptomSpec.Lifecycle(
                 "caso.condicion_s >= 0", "caso.normal_s >= 120"), null);
+    }
+
+    /** The owner may raise the computed bump, never lower it. */
+    private static VersionBump raised(VersionBump computed, VersionBump requested) {
+        return requested != null && requested.compareTo(computed) > 0 ? requested : computed;
     }
 
     private static String orKeep(String value, String current) {

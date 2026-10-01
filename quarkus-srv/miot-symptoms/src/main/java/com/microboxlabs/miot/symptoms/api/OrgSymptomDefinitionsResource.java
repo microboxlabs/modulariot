@@ -10,6 +10,7 @@ import com.microboxlabs.miot.symptoms.catalog.service.EngineImportService;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
+import com.microboxlabs.miot.symptoms.catalog.service.TemplateService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -57,6 +58,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     private final PreviewService previews;
     private final EngineImportService importer;
     private final RuleDescriptionService descriptions;
+    private final TemplateService templates;
 
     /** Publishes the draft. {@code bump} may raise the computed bump; {@code state} defaults to TEST. */
     public record PublishRequest(String reason, VersionBump bump, SymptomState state) {
@@ -69,6 +71,10 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     }
 
     public record StateRequest(SymptomState state) {
+    }
+
+    /** {@code name} defaults to the template's. */
+    public record FromTemplateRequest(String templateKey, String name) {
     }
 
     /**
@@ -87,12 +93,14 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             SymptomCatalogService catalog,
             PreviewService previews,
             EngineImportService importer,
-            RuleDescriptionService descriptions) {
+            RuleDescriptionService descriptions,
+            TemplateService templates) {
         super(tenantContext, organizationContext, roleService, identity);
         this.catalog = catalog;
         this.previews = previews;
         this.importer = importer;
         this.descriptions = descriptions;
+        this.templates = templates;
     }
 
     @POST
@@ -128,8 +136,34 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public Uni<Response> list(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
         return memberWork(() -> Response.ok(catalog.list(tenant).stream()
-                .map(s -> s.withActivationText(descriptions.cachedActivation(s.current() == null ? null : s.current().spec()).orElse(null)))
+                .map(s -> s.withActivationText(descriptions
+                        .cachedActivation(s.current() == null ? null : s.current().spec()).orElse(null)))
                 .toList()).build());
+    }
+
+    @GET
+    @Path("/templates")
+    @Operation(operationId = "listSymptomTemplates", summary = "The platform templates a symptom can start from")
+    public Uni<Response> templates(@PathParam(ORG) String organizationId) {
+        tenantCode(organizationId); // refuses an organization other than the caller's; templates are global
+        return memberWork(() -> Response.ok(templates.list()).build());
+    }
+
+    @POST
+    @Path("/from-template")
+    @Operation(operationId = "createSymptomFromTemplate",
+            summary = "Copy a platform template into the catalog, published as 0.1.0 in TEST")
+    public Uni<Response> fromTemplate(@PathParam(ORG) String organizationId, FromTemplateRequest body) {
+        String tenant = tenantCode(organizationId);
+        String actor = actor();
+        return ownerWork(organizationId, () -> {
+            if (body == null || body.templateKey() == null || body.templateKey().isBlank()) {
+                throw new IllegalArgumentException("templateKey is required");
+            }
+            return Response.status(Response.Status.CREATED)
+                    .entity(catalog.createFromTemplate(tenant, actor, templates.get(body.templateKey()), body.name()))
+                    .build();
+        });
     }
 
     @POST

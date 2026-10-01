@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomDetail;
@@ -137,6 +138,27 @@ class SymptomCatalogServiceTest {
                         : service.get(TENANT, id).definition().state());
         assertThrows(IllegalStateException.class,
                 () -> service.setState(TENANT, OWNER, id, SymptomState.ACTIVE));
+    }
+
+    @Test
+    void aTemplateStartsInTestAtZeroOneZero() {
+        SymptomTemplate template = new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
+                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", Specs.speeding());
+
+        SymptomDetail first = service.createFromTemplate(TENANT, OWNER, template, null);
+        SymptomDetail second = service.createFromTemplate(TENANT, OWNER, template, "Exceso en ruta 5");
+
+        assertEquals("0.1.0", first.definition().currentVersion());
+        assertEquals(SymptomState.TEST, first.definition().state());
+        assertEquals("speeding", first.definition().templateKey());
+        assertEquals("Exceso de velocidad", first.definition().name());
+        assertNull(first.draft(), "the template is published, not left as a draft");
+        assertEquals("speeding-2", second.definition().key());
+        assertEquals("Exceso en ruta 5", second.definition().name());
+
+        UUID id = first.definition().id();
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(), Specs.ACTIVATION + " && true"));
+        assertEquals("1.0.0", service.publish(TENANT, OWNER, id, "Nueva condición", null, null).version());
     }
 
     @Test

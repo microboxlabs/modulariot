@@ -9,6 +9,7 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.DescribeRequest;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.ForkRequest;
+import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.FromTemplateRequest;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.PublishRequest;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.RollbackRequest;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.StateRequest;
@@ -24,6 +25,7 @@ import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
+import com.microboxlabs.miot.symptoms.catalog.service.TemplateService;
 import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
@@ -86,7 +88,7 @@ class OrgSymptomDefinitionsResourceTest {
                         throw new IllegalStateException("down");
                     }
                     return "Se activa <b>en viaje</b>";
-                }));
+                }), new TemplateService());
     }
 
     private static int status(Uni<Response> call) {
@@ -97,6 +99,7 @@ class OrgSymptomDefinitionsResourceTest {
     void membersReadButCannotWrite() {
         OrgSymptomDefinitionsResource member = resource(false);
         assertEquals(200, status(member.list(ORG)));
+        assertEquals(200, status(member.templates(ORG)));
         assertEquals(200, status(member.get(ORG, id)));
         assertEquals(200, status(member.preview(ORG, id, null)));
         assertEquals(200, status(member.describe(ORG, "Bearer t",
@@ -111,7 +114,8 @@ class OrgSymptomDefinitionsResourceTest {
                 () -> member.rollback(ORG, id, new RollbackRequest("1.0.0", null)),
                 () -> member.fork(ORG, id, new ForkRequest(null, "copy", "Copia")),
                 () -> member.setState(ORG, id, new StateRequest(SymptomState.OFF)),
-                () -> member.importEngine(ORG));
+                () -> member.importEngine(ORG),
+                () -> member.fromTemplate(ORG, new FromTemplateRequest("speeding", null)));
         for (Supplier<Uni<Response>> write : writes) {
             UniAwait<Response> call = write.get().await();
             assertThrows(ForbiddenException.class, () -> call.atMost(WAIT));
@@ -131,6 +135,15 @@ class OrgSymptomDefinitionsResourceTest {
         harnessDown = true;
         assertEquals(503, status(owner.describe(ORG, null,
                 new DescribeRequest("measure", "signal.gps.speed_kmh", "gps_signal", null))));
+    }
+
+    @Test
+    void ownersCreateFromATemplate() {
+        OrgSymptomDefinitionsResource owner = resource(true);
+
+        assertEquals(201, status(owner.fromTemplate(ORG, new FromTemplateRequest("continuous-driving", null))));
+        assertEquals(404, status(owner.fromTemplate(ORG, new FromTemplateRequest("nope", null))));
+        assertEquals(400, status(owner.fromTemplate(ORG, new FromTemplateRequest(" ", null))));
     }
 
     @Test

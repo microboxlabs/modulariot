@@ -2,21 +2,52 @@
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { lastPublished } from "./catalog-derive";
-import { fmtK, shortDate } from "./catalog-format";
+import { type CatalogFilterKey, lastPublished } from "./catalog-derive";
+import { fmtK, levelName, shortDate } from "./catalog-format";
 import type { SymptomStats, SymptomSummary } from "./maintainer-api";
+import { stateLabel } from "./symptom-labels";
 import { Card, CardFooter, CardHeader, MUTED, Tile } from "./ui/card";
 import { LEVEL_STYLES, LevelIcon } from "./ui/level-icon";
+
+const LINK =
+  "rounded hover:text-blue-700 hover:underline dark:hover:text-blue-400";
+
+/** A number or label in a stat card that applies a catalog filter or opens a symptom. */
+function StatLink({
+  children,
+  title,
+  onClick,
+}: Readonly<{
+  children: React.ReactNode;
+  title: string;
+  onClick?: () => void;
+}>) {
+  if (!onClick) return <>{children}</>;
+  return (
+    <button type="button" title={title} onClick={onClick} className={LINK}>
+      {children}
+    </button>
+  );
+}
 
 function Big({
   value,
   unit,
-}: Readonly<{ value: string | number; unit: string }>) {
+  title,
+  onClick,
+}: Readonly<{
+  value: string | number;
+  unit: string;
+  title?: string;
+  onClick?: () => void;
+}>) {
   return (
     <div className="flex items-baseline gap-1">
-      <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-        {value}
-      </span>
+      <StatLink title={title ?? ""} onClick={onClick}>
+        <span className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+          {value}
+        </span>
+      </StatLink>
       <span className={`text-sm ${MUTED}`}>{unit}</span>
     </div>
   );
@@ -46,12 +77,17 @@ export default function CatalogStats({
   stats,
   lang,
   d,
+  onFilter,
+  onOpen,
 }: Readonly<{
   all: SymptomSummary[];
   stats: SymptomStats | undefined;
   lang: string;
   d: I18nRecord;
+  onFilter: (key: CatalogFilterKey, value: string) => void;
+  onOpen: (id: string) => void;
 }>) {
+  const filterHint = tr("statFilterHint", d);
   const active = all.filter((s) => s.definition.state === "ACTIVE").length;
   const test = all.filter((s) => s.definition.state === "TEST").length;
   const off = all.length - active - test;
@@ -75,6 +111,8 @@ export default function CatalogStats({
           <Big
             value={active}
             unit={tr("ofAvailable", d, { n: String(all.length) })}
+            title={filterHint}
+            onClick={() => onFilter("state", stateLabel("ACTIVE", d))}
           />
           <Bar
             parts={[
@@ -84,7 +122,19 @@ export default function CatalogStats({
           />
         </div>
         <CardFooter>
-          {tr("testAndOff", d, { test: String(test), off: String(off) })}
+          <StatLink
+            title={filterHint}
+            onClick={() => onFilter("state", stateLabel("TEST", d))}
+          >
+            {tr("inTest", d, { n: String(test) })}
+          </StatLink>
+          {" · "}
+          <StatLink
+            title={filterHint}
+            onClick={() => onFilter("state", stateLabel("OFF", d))}
+          >
+            {tr("offCount", d, { n: String(off) })}
+          </StatLink>
         </CardFooter>
       </Card>
 
@@ -108,13 +158,16 @@ export default function CatalogStats({
           {totals && !noEngine && (
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
               {totals.weekByLevel.map((n, i) => (
-                <span
+                <button
+                  type="button"
                   key={LEVEL_STYLES[i].icu}
-                  className={`flex items-center gap-1 text-xs ${MUTED}`}
+                  title={filterHint}
+                  onClick={() => onFilter("level", levelName(i + 1, d))}
+                  className={`flex items-center gap-1 text-xs ${MUTED} ${LINK}`}
                 >
                   <LevelIcon icu={i + 1} size="h-4 w-4" />
                   {fmtK(n, lang, d)}
-                </span>
+                </button>
               ))}
             </div>
           )}
@@ -144,6 +197,12 @@ export default function CatalogStats({
             unit={tr("perShiftOf", d, {
               n: String(op?.capacityPerShift ?? "—"),
             })}
+            title={filterHint}
+            onClick={
+              noEngine || !totals
+                ? undefined
+                : () => onFilter("who", tr("whoOperator", d))
+            }
           />
           <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
             <div
@@ -172,13 +231,25 @@ export default function CatalogStats({
           subtitle={tr("cardChangesHint", d)}
         />
         <div className="flex-1 px-4 py-3">
-          <Big value={drafts} unit={tr("draftsUnpublished", d)} />
+          <Big
+            value={drafts}
+            unit={tr("draftsUnpublished", d)}
+            title={filterHint}
+            onClick={
+              drafts ? () => onFilter("draft", tr("withDraft", d)) : undefined
+            }
+          />
           {last && (
             <div className={`mt-2 text-xs ${MUTED}`}>
               {tr("lastPublished", d)}{" "}
-              <b className="text-gray-900 dark:text-white">
-                {last.name} {last.version}
-              </b>
+              <StatLink
+                title={tr("statOpenHint", d)}
+                onClick={() => onOpen(last.definitionId)}
+              >
+                <b className="text-gray-900 dark:text-white">
+                  {last.name} {last.version}
+                </b>
+              </StatLink>
             </div>
           )}
         </div>

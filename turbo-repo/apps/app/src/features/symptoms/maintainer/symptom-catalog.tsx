@@ -8,6 +8,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { channelGroupLabel, SymptomCard, SymptomRow } from "./catalog-card";
 import {
+  type CatalogFilterKey,
   CHANNEL_GROUPS,
   channelGroups,
   operatorLevels,
@@ -28,8 +29,7 @@ import { MUTED, Tile } from "./ui/card";
 import { FilterChip } from "./ui/filter-chip";
 import { STATES } from "./ui/state";
 
-type FilterKey = "family" | "state" | "level" | "who" | "channel";
-type Filters = Record<FilterKey, string>;
+type Filters = Record<CatalogFilterKey, string>;
 type Layout = "cards" | "list";
 
 const EMPTY: Filters = {
@@ -38,10 +38,12 @@ const EMPTY: Filters = {
   level: "",
   who: "",
   channel: "",
+  draft: "",
 };
 
 function passes(s: SymptomSummary, f: Filters, d: I18nRecord) {
   const spec = s.current?.spec ?? null;
+  if (f.draft && !s.hasDraft) return false;
   if (f.family && familyLabel(s.definition.family) !== f.family) return false;
   if (f.state && stateLabel(s.definition.state, d) !== f.state) return false;
   if (
@@ -91,7 +93,11 @@ export default function SymptomCatalog({
   const open = (id: string) =>
     router.push(`/${lang}/users/settings/symptoms/${id}`);
 
-  const filterDefs: { key: FilterKey; label: string; options: string[] }[] = [
+  const filterDefs: {
+    key: CatalogFilterKey;
+    label: string;
+    options: string[];
+  }[] = [
     {
       key: "family",
       label: tr("filterFamily", d),
@@ -122,6 +128,14 @@ export default function SymptomCatalog({
       options: CHANNEL_GROUPS.map((g) => channelGroupLabel(g, d)),
     },
   ];
+  // Not in the prototype's bar: the Cambios card sets it, and the chip shows so it can be cleared.
+  if (filters.draft) {
+    filterDefs.push({
+      key: "draft",
+      label: tr("draft", d),
+      options: [tr("withDraft", d)],
+    });
+  }
 
   const runImport = async () => {
     setImporting(true);
@@ -226,7 +240,14 @@ export default function SymptomCatalog({
             </div>
           </div>
 
-          <CatalogStats all={all} stats={stats} lang={lang} d={d} />
+          <CatalogStats
+            all={all}
+            stats={stats}
+            lang={lang}
+            d={d}
+            onFilter={(key, value) => setFilters({ ...filters, [key]: value })}
+            onOpen={open}
+          />
 
           <p
             role="status"

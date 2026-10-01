@@ -134,3 +134,12 @@ export function lastPublished(all: SymptomSummary[]): LastPublished | null {
   }
   return last;
 }
+
+/** The catalog filters; values are the labels the chips show. */
+export type CatalogFilterKey =
+  | "family"
+  | "state"
+  | "level"
+  | "who"
+  | "channel"
+  | "draft";

@@ -32,6 +32,8 @@ public class PostgrestCatalog {
     static final int MAX_IMPORT = 200;
     private static final int MAX_TEXT = 2048;
     private static final String SELECT = "select";
+    private static final String RPC = "/rpc/";
+    private static final String CONST = "const";
     private static final Pattern FUNCTION_NAME = Pattern.compile("[A-Za-z_]\\w{0,62}");
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -89,7 +91,7 @@ public class PostgrestCatalog {
         var resolved = resolver.resolve(connection.tenantCode(), connection.id());
         if (!resolved.hasAuth()) throw new IllegalStateException("Link a credential to this connection");
         IntegrationOperation operation = operations.listByConnection(connection.id()).stream()
-                .filter(candidate -> candidate.path() != null && candidate.path().startsWith("/rpc/"))
+                .filter(candidate -> candidate.path() != null && candidate.path().startsWith(RPC))
                 .filter(DashboardOperationPolicy::eligible)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
@@ -106,8 +108,8 @@ public class PostgrestCatalog {
         Map<String, String> values = new TreeMap<>();
         if (requestSchema != null && requestSchema.get("properties") instanceof Map<?, ?> properties) {
             properties.forEach((name, property) -> {
-                if (property instanceof Map<?, ?> definition && definition.get("const") != null) {
-                    values.put(String.valueOf(name), String.valueOf(definition.get("const")));
+                if (property instanceof Map<?, ?> definition && definition.get(CONST) != null) {
+                    values.put(String.valueOf(name), String.valueOf(definition.get(CONST)));
                 }
             });
         }
@@ -183,7 +185,7 @@ public class PostgrestCatalog {
             if (value == null || value.isBlank() || value.length() > MAX_TEXT) {
                 throw new IllegalArgumentException("Pinned value for " + pin.getKey() + " must be 1-" + MAX_TEXT + " characters");
             }
-            properties.put(pin.getKey(), Map.of("type", "string", "const", value));
+            properties.put(pin.getKey(), Map.of("type", "string", CONST, value));
             required.add(pin.getKey());
         }
         Map<String, Object> schema = new LinkedHashMap<>();
@@ -202,8 +204,8 @@ public class PostgrestCatalog {
         Map<String, Function> functions = new TreeMap<>();
         paths.fields().forEachRemaining(entry -> {
             String path = entry.getKey();
-            if (!path.startsWith("/rpc/")) return;
-            String name = path.substring("/rpc/".length());
+            if (!path.startsWith(RPC)) return;
+            String name = path.substring(RPC.length());
             JsonNode get = entry.getValue().path("get");
             if (!FUNCTION_NAME.matcher(name).matches() || !get.isObject()) return;
             List<Parameter> parameters = StreamSupport.stream(get.path("parameters").spliterator(), false)

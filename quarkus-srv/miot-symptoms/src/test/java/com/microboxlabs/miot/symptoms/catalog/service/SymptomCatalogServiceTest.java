@@ -140,6 +140,19 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
+    void theListCarriesTheSpecInForceNotTheDraft() {
+        UUID id = speeding();
+        assertNull(service.list(TENANT).get(0).currentSpec(), "nothing published yet");
+
+        service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.ACTIVE);
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(), Specs.ACTIVATION + " && true"));
+
+        var summary = service.list(TENANT).get(0);
+        assertTrue(summary.hasDraft());
+        assertEquals(Specs.ACTIVATION, summary.currentSpec().activation());
+    }
+
+    @Test
     void otherTenantsCannotSeeOrChangeASymptom() {
         UUID id = speeding();
 

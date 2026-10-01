@@ -5,6 +5,7 @@ import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.RuleDescription;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.store.RuleDescriptionStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -18,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -41,8 +43,9 @@ public class RuleDescriptionService {
     /** Whole sections: several lines of text, not one CEL expression. */
     static final String LEVELS = "levels";
     static final String LIFECYCLE = "lifecycle";
+    static final String ACTIVATION = "activation";
 
-    private static final Set<String> SECTIONS = Set.of("activation", "measure", "levels.1", "levels.2",
+    private static final Set<String> SECTIONS = Set.of(ACTIVATION, "measure", "levels.1", "levels.2",
             "levels.3", "levels.4", "lifecycle.open", "lifecycle.close", LEVELS, LIFECYCLE);
     private static final Pattern SPACES = Pattern.compile("\\s+");
     private static final Pattern LOCALE = Pattern.compile("[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?");
@@ -145,6 +148,16 @@ public class RuleDescriptionService {
         }
         store.save(new RuleDescription(hash, lang, AUDIENCE, html));
         return new Description(html, false);
+    }
+
+    /** The description already written for a spec's activation, without calling the Harness. */
+    public Optional<String> cachedActivation(SymptomSpec spec) {
+        if (spec == null || spec.activation() == null || spec.activation().isBlank() || spec.source() == null
+                || spec.activation().length() > MAX_RULE_CHARS) {
+            return Optional.empty();
+        }
+        String hash = hash(ACTIVATION, canonical(ACTIVATION, spec.activation()), spec.source());
+        return store.find(hash, DEFAULT_LOCALE, AUDIENCE).map(RuleDescription::html);
     }
 
     /** Field path to label: the source's fields, plus the level or case variables for those sections. */

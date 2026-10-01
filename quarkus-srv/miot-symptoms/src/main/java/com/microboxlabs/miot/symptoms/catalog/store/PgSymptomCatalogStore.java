@@ -71,6 +71,14 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
             SELECT definition_id FROM miot_symptoms.symptom_version
             WHERE tenant_code = $1 AND status = 'DRAFT'""";
 
+    private static final String CURRENT_VERSIONS = """
+            SELECT v.id, v.definition_id, v.tenant_code, v.version, v.status, v.spec, v.bump, v.reason,
+                   v.rolled_back_from, v.created_by, v.created_at, v.published_by, v.published_at
+            FROM miot_symptoms.symptom_version v
+            JOIN miot_symptoms.symptom_definition d
+              ON d.id = v.definition_id AND d.tenant_code = v.tenant_code AND d.current_version = v.version
+            WHERE v.tenant_code = $1 AND v.status = 'PUBLISHED'""";
+
     private static final String DELETE_DRAFT = """
             DELETE FROM miot_symptoms.symptom_version
             WHERE tenant_code = $1 AND definition_id = $2 AND status = 'DRAFT'""";
@@ -166,6 +174,11 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
         return query(pool.get(), DRAFT_IDS, Tuple.of(tenantCode)).stream()
                 .map(r -> r.getUUID("definition_id"))
                 .collect(Collectors.toSet());
+    }
+
+    @Override
+    public List<SymptomVersion> currentVersions(String tenantCode) {
+        return versions(query(pool.get(), CURRENT_VERSIONS, Tuple.of(tenantCode)));
     }
 
     @Override

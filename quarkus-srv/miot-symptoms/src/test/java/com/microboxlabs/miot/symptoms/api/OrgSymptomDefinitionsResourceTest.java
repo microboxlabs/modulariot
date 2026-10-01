@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
@@ -21,6 +22,7 @@ import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
 import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
@@ -129,6 +131,21 @@ class OrgSymptomDefinitionsResourceTest {
         harnessDown = true;
         assertEquals(503, status(owner.describe(ORG, null,
                 new DescribeRequest("measure", "signal.gps.speed_kmh", "gps_signal", null))));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void theListShowsTheActivationTextOnceItWasWritten() {
+        OrgSymptomDefinitionsResource owner = resource(true);
+        owner.publish(ORG, id, new PublishRequest("Primera", null, SymptomState.ACTIVE)).await().atMost(WAIT);
+        Supplier<SymptomSummary> first = () -> ((List<SymptomSummary>) owner.list(ORG).await().atMost(WAIT)
+                .getEntity()).get(0);
+        assertNull(first.get().activationText(), "the list never calls the Harness");
+
+        owner.describe(ORG, "Bearer t", new DescribeRequest("activation", Specs.ACTIVATION, "gps_signal", null))
+                .await().atMost(WAIT);
+
+        assertEquals("Se activa <b>en viaje</b>", first.get().activationText());
     }
 
     @Test

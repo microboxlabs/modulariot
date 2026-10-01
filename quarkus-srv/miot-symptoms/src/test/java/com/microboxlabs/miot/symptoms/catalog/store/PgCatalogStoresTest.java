@@ -106,6 +106,9 @@ class PgCatalogStoresTest {
         assertEquals("1.0.0", store.findVersion(TENANT, created.id(), "1.1.0").orElseThrow().rolledBackFrom());
         assertTrue(store.findDefinition("tenant-b", created.id()).isEmpty(), "other tenants see nothing");
         assertTrue(!store.definitionsWithDraft(TENANT).contains(created.id()), "publishing consumed the draft");
+        assertEquals(List.of("1.1.0"), store.currentVersions(TENANT).stream()
+                .filter(v -> v.definitionId().equals(created.id())).map(SymptomVersion::version).toList());
+        assertTrue(store.currentVersions("tenant-b").isEmpty());
     }
 
     @Test

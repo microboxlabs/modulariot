@@ -49,7 +49,8 @@ function Ladder({ s, d }: Readonly<{ s: SymptomSummary; d: I18nRecord }>) {
   const ops = operatorLevels(spec);
   return (
     <div className="relative mx-4 mt-3 grid grid-cols-4 gap-1 rounded-lg bg-gray-50 px-2 pb-2 pt-3 dark:bg-gray-900/50">
-      <div className="absolute left-5 right-5 top-[15px] h-px bg-gray-200 dark:bg-gray-600" />
+      {/* pt-3 plus half of the h-7 level icon, so the line runs through the icon centers. */}
+      <div className="absolute left-5 right-5 top-[calc(1.625rem-0.5px)] h-px bg-gray-200 dark:bg-gray-600" />
       {levelsOf(spec).map((level, i) => {
         const icu = i + 1;
         const t = shortThreshold(level, unit);

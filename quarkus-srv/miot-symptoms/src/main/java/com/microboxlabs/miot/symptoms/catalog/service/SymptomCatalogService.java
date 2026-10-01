@@ -56,14 +56,14 @@ public class SymptomCatalogService {
     /**
      * A symptom in the catalog list.
      *
-     * @param currentSpec    the published version's spec; null before the first publish
+     * @param current        the version in force; null before the first publish
      * @param activationText the cached description of the published activation, if one was written
      */
-    public record SymptomSummary(SymptomDefinition definition, boolean hasDraft, SymptomSpec currentSpec,
+    public record SymptomSummary(SymptomDefinition definition, boolean hasDraft, SymptomVersion current,
             String activationText) {
 
         public SymptomSummary withActivationText(String text) {
-            return new SymptomSummary(definition, hasDraft, currentSpec, text);
+            return new SymptomSummary(definition, hasDraft, current, text);
         }
     }
 
@@ -80,9 +80,8 @@ public class SymptomCatalogService {
 
     public List<SymptomSummary> list(String tenantCode) {
         Set<UUID> drafts = store.definitionsWithDraft(tenantCode);
-        Map<UUID, SymptomSpec> current = store.currentVersions(tenantCode).stream()
-                .filter(v -> v.spec() != null)
-                .collect(Collectors.toMap(SymptomVersion::definitionId, SymptomVersion::spec));
+        Map<UUID, SymptomVersion> current = store.currentVersions(tenantCode).stream()
+                .collect(Collectors.toMap(SymptomVersion::definitionId, v -> v));
         return store.listDefinitions(tenantCode).stream()
                 .map(d -> new SymptomSummary(d, drafts.contains(d.id()), current.get(d.id()), null))
                 .toList();

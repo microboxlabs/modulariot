@@ -41,7 +41,7 @@ const EMPTY: Filters = {
 };
 
 function passes(s: SymptomSummary, f: Filters, d: I18nRecord) {
-  const spec = s.currentSpec ?? null;
+  const spec = s.current?.spec ?? null;
   if (f.family && familyLabel(s.definition.family) !== f.family) return false;
   if (f.state && stateLabel(s.definition.state, d) !== f.state) return false;
   if (

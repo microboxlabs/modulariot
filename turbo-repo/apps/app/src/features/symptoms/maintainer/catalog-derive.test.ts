@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   channelGroups,
   formatAmount,
+  lastPublished,
   operatorLevels,
   reachableLevels,
   shortThreshold,
 } from "./catalog-derive";
-import type { Level, SymptomSpec } from "./maintainer-api";
+import type { Level, SymptomSpec, SymptomSummary } from "./maintainer-api";
 
 const level = (icu: number, when: string | null, applies = true): Level => ({
   icu,
@@ -114,5 +115,35 @@ describe("levels, operators and channels", () => {
     expect(channelGroups(spec)).toEqual(["chat", "email"]);
     expect(reachableLevels(spec)).toEqual([1, 3, 4]);
     expect(operatorLevels(null)).toEqual([false, false, false, false]);
+  });
+});
+
+describe("lastPublished", () => {
+  const summary = (name: string, publishedAt: string | null) =>
+    ({
+      definition: { id: name, name },
+      hasDraft: false,
+      current: publishedAt
+        ? {
+            version: "1.0.0",
+            publishedAt,
+            publishedBy: "owner@example.com",
+            reason: "Primera",
+          }
+        : null,
+    }) as unknown as SymptomSummary;
+
+  it("picks the newest version in force, whatever the offset", () => {
+    const last = lastPublished([
+      summary("a", "2026-09-29T10:00:00Z"),
+      summary("b", "2026-09-29T08:00:00-03:00"),
+      summary("c", null),
+    ]);
+    expect(last?.name).toBe("b");
+    expect(last?.reason).toBe("Primera");
+  });
+
+  it("is null before anything is published", () => {
+    expect(lastPublished([summary("c", null)])).toBeNull();
   });
 });

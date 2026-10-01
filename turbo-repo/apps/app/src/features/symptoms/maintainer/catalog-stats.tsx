@@ -2,6 +2,7 @@
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { lastPublished } from "./catalog-derive";
 import { fmtK, shortDate } from "./catalog-format";
 import type { SymptomStats, SymptomSummary } from "./maintainer-api";
 import { Card, CardFooter, CardHeader, MUTED, Tile } from "./ui/card";
@@ -59,7 +60,7 @@ export default function CatalogStats({
   const op = stats?.operators;
   const names = new Map(all.map((s) => [s.definition.id, s.definition.name]));
   const top = totals?.topShare;
-  const last = stats?.changes.lastPublished;
+  const last = stats?.changes.lastPublished ?? lastPublished(all);
   const drafts = stats?.changes.drafts ?? all.filter((s) => s.hasDraft).length;
 
   return (

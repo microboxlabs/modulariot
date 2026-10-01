@@ -29,7 +29,7 @@ export function channelGroupLabel(g: ChannelGroup, d: I18nRecord) {
 
 /** "☎ Operador en Crítica, Código negro" or "Solo avisos". */
 export function whoActs(s: SymptomSummary, d: I18nRecord) {
-  const levels = operatorLevels(s.currentSpec ?? null)
+  const levels = operatorLevels(s.current?.spec ?? null)
     .map((on, i) => (on ? levelShortName(i + 1, d) : null))
     .filter(Boolean);
   return levels.length
@@ -44,7 +44,7 @@ function thresholdText(t: string | null, d: I18nRecord) {
 }
 
 function Ladder({ s, d }: Readonly<{ s: SymptomSummary; d: I18nRecord }>) {
-  const spec = s.currentSpec ?? null;
+  const spec = s.current?.spec ?? null;
   const unit = spec?.measure?.unit ?? null;
   const ops = operatorLevels(spec);
   return (
@@ -79,7 +79,8 @@ function Ladder({ s, d }: Readonly<{ s: SymptomSummary; d: I18nRecord }>) {
 
 function Activation({ s, d }: Readonly<{ s: SymptomSummary; d: I18nRecord }>) {
   const text = s.activationText;
-  const fallback = s.definition.description ?? s.currentSpec?.activation ?? "";
+  const fallback =
+    s.definition.description ?? s.current?.spec?.activation ?? "";
   return (
     <p className="mt-3 line-clamp-2 min-h-[2.5rem] px-4 text-xs text-gray-600 dark:text-gray-300">
       {tr("activatesOn", d)}{" "}
@@ -123,7 +124,7 @@ export function SymptomCard({
   onOpen: () => void;
 }>) {
   const def = s.definition;
-  const channels = channelGroups(s.currentSpec ?? null);
+  const channels = channelGroups(s.current?.spec ?? null);
   return (
     <button
       type="button"
@@ -182,7 +183,7 @@ export function SymptomRow({
   onOpen: () => void;
 }>) {
   const def = s.definition;
-  const unit = s.currentSpec?.measure?.unit ?? null;
+  const unit = s.current?.spec?.measure?.unit ?? null;
   return (
     <tr className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700/50">
       <td className="px-4 py-2.5">
@@ -202,7 +203,7 @@ export function SymptomRow({
       </td>
       <td className="px-4 py-2.5">
         <div className="flex gap-1.5">
-          {levelsOf(s.currentSpec ?? null).map((level, i) => {
+          {levelsOf(s.current?.spec ?? null).map((level, i) => {
             const t = shortThreshold(level, unit);
             return (
               <span

@@ -1,4 +1,9 @@
-import type { Level, SymptomSpec } from "./maintainer-api";
+import type {
+  Level,
+  SymptomSpec,
+  SymptomStats,
+  SymptomSummary,
+} from "./maintainer-api";
 
 /** Channel groups the catalog shows and filters by. Teams and WhatsApp share one tag. */
 export type ChannelGroup = "app" | "chat" | "email" | "webhook";
@@ -107,4 +112,25 @@ export function reachableLevels(spec: SymptomSpec | null): number[] {
   return levelsOf(spec)
     .map((l, i) => (l?.applies ? i + 1 : 0))
     .filter(Boolean);
+}
+
+type LastPublished = NonNullable<SymptomStats["changes"]["lastPublished"]>;
+
+/** The most recently published version across the catalog, from each symptom's version in force. */
+export function lastPublished(all: SymptomSummary[]): LastPublished | null {
+  let last: LastPublished | null = null;
+  for (const s of all) {
+    const v = s.current;
+    if (!v?.publishedAt || !v.version) continue;
+    if (last && Date.parse(last.at) >= Date.parse(v.publishedAt)) continue;
+    last = {
+      definitionId: s.definition.id,
+      name: s.definition.name,
+      version: v.version,
+      at: v.publishedAt,
+      by: v.publishedBy ?? "",
+      reason: v.reason,
+    };
+  }
+  return last;
 }

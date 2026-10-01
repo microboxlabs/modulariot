@@ -112,8 +112,8 @@ export interface SymptomVersion {
 export interface SymptomSummary {
   definition: SymptomDefinition;
   hasDraft: boolean;
-  /** The published version's spec; null before the first publish. */
-  currentSpec?: SymptomSpec | null;
+  /** The version in force; null before the first publish. */
+  current?: SymptomVersion | null;
   /** Cached Harness description of the published activation (b, i, mark), if any. */
   activationText?: string | null;
 }

@@ -128,7 +128,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public Uni<Response> list(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
         return memberWork(() -> Response.ok(catalog.list(tenant).stream()
-                .map(s -> s.withActivationText(descriptions.cachedActivation(s.currentSpec()).orElse(null)))
+                .map(s -> s.withActivationText(descriptions.cachedActivation(s.current() == null ? null : s.current().spec()).orElse(null)))
                 .toList()).build());
     }
 

@@ -83,6 +83,7 @@ describe("filterSettings", () => {
 
     expect(settingsHrefs(filtered)).toEqual([
       "/users/settings/organizations",
+      "/users/settings/places",
       "/users/settings/selectables",
       "/users/settings/data-sources",
       "/users/settings/credentials",

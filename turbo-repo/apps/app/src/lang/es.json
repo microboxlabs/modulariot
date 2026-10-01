@@ -1905,6 +1905,7 @@
         "settings": "Ajustes",
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",
+        "places": "Lugares de interés",
         "credentials": "Credenciales",
         "connections": "Conexiones",
         "harness": "Harness",
@@ -2035,6 +2036,7 @@
         "title": "Ajustes",
         "general": "General",
         "dataSources": "Fuentes de Datos",
+        "places": "Lugares de interés",
         "credentials": "Credenciales",
         "selectables": "Seleccionables"
       },
@@ -2861,6 +2863,7 @@
         "settings": "Ajustes",
         "organizations": "Organizaciones",
         "dataSources": "Fuentes de Datos",
+        "places": "Lugares de interés",
         "credentials": "Credenciales",
         "connections": "Conexiones",
         "harness": "Harness",

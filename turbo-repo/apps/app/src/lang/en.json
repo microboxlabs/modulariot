@@ -1905,6 +1905,7 @@
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",
+        "places": "Places of interest",
         "credentials": "Credentials",
         "connections": "Connections",
         "harness": "Harness",
@@ -2035,6 +2036,7 @@
         "title": "Settings",
         "general": "General",
         "dataSources": "Data Sources",
+        "places": "Places of interest",
         "credentials": "Credentials",
         "selectables": "Selectables"
       },
@@ -2857,6 +2859,7 @@
         "settings": "Settings",
         "organizations": "Organizations",
         "dataSources": "Data Sources",
+        "places": "Places of interest",
         "credentials": "Credentials",
         "connections": "Connections",
         "harness": "Harness",

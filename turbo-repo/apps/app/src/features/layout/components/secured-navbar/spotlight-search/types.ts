@@ -3,7 +3,11 @@ import type { HarnessBlock, HarnessIntent } from "@/app/api/harness/search/searc
 
 export type { HarnessBlock, HarnessIntent };
 
-export type SpotlightResultKind = "navigate" | "harness" | "harness-goto";
+export type SpotlightResultKind =
+  | "navigate"
+  | "harness"
+  | "harness-goto"
+  | "harness-continue";
 
 export interface SpotlightItem {
   id: string;
@@ -23,4 +27,7 @@ export interface SpotlightItem {
   intent?: HarnessIntent;
   /** Marks the synthetic "Ask Harness" prompt row — selecting it fires the search, does not close modal */
   isHarnessPrompt?: boolean;
+  /** The harness's conversation id for this answer — harness items only, used to
+   * hand the conversation off to the full chat panel unbroken. */
+  conversationId?: string;
 }

@@ -276,6 +276,7 @@ const LearningWorkspaceBody: FC<{ locale: string }> = ({ locale }) => {
                 active={session.id === learning.activeId}
                 shouldFocus={session.id === learning.activeId}
                 initialMessage={null}
+                initialConversation={null}
                 pendingAttachment={null}
                 onAttachmentConsumed={noop}
                 pendingPrompt={null}

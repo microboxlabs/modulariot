@@ -20,6 +20,10 @@ export interface HarnessSearchResult {
   sublabel?: string;
   intent?: HarnessIntent;
   blocks: HarnessBlock[];
+  /** The harness's conversation id for this run — lets a later surface (the
+   * "Take to chat" handoff) continue the same conversation instead of
+   * starting a fresh one. */
+  conversationId?: string;
 }
 
 const HARNESS_INTENTS: ReadonlySet<string> = new Set(["ask", "navigate", "build"]);
@@ -69,7 +73,11 @@ export function buildLabel(blocks: HarnessBlock[]): string {
 }
 
 /** Fold a raw run answer into the search-result shape both routes return. */
-export function toSearchResult(runId: string, answer: string): HarnessSearchResult {
+export function toSearchResult(
+  runId: string,
+  answer: string,
+  conversationId?: string | null,
+): HarnessSearchResult {
   const parsed = parseAnswerBlocks(answer);
   // The skill emits the intent as a leading typed block — surface it as a
   // field and keep only renderable blocks.
@@ -82,5 +90,6 @@ export function toSearchResult(runId: string, answer: string): HarnessSearchResu
     label: buildLabel(blocks),
     ...(intent && { intent }),
     blocks,
+    ...(conversationId && { conversationId }),
   };
 }

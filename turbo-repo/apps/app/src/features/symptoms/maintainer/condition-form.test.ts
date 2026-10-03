@@ -181,6 +181,21 @@ describe("parseConditions", () => {
     ).toBe('signal.trip.active && signal.geo.zone == "Faena  Norte"');
   });
 
+  it("reads quotes, backslashes and parentheses inside values", () => {
+    for (const rule of [
+      'signal.geo.zone == "say \\"hi\\""',
+      'signal.geo.zone == "a\\\\b" && signal.trip.active',
+      'signal.geo.zone == "Faena (Norte) && Sur" && signal.trip.active',
+      '!(signal.geo.zone == "x\\")y")',
+    ]) {
+      expect(roundTrip(rule)).toBe(rule);
+    }
+    expect(
+      shape(parseConditions('signal.geo.zone == "say \\"hi\\""', FIELDS))
+        ?.rows[0]?.value
+    ).toBe('say "hi"');
+  });
+
   it("returns null for logic the form cannot show", () => {
     for (const rule of [
       "signal.trip.active && signal.gps.speed_kmh > signal.road.maxspeed_osm", // field against field
@@ -194,7 +209,7 @@ describe("parseConditions", () => {
       'signal.gps.speed_kmh > "90"', // text on a number field
       'signal.geo.zone > "A"', // order on text
       "signal.geo.zone == 'A'", // single quotes
-      'signal.geo.zone == "say \\"hi\\""', // escaped quotes
+      'signal.geo.zone == "\\x41"', // an escape the form does not write
       "signal.trip.active == 1", // number on a yes/no field
       "signal.trip.active && (signal.gps.moving", // unbalanced
       "signal.local_hour in [1, 2]", // list membership

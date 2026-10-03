@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { CHANGED } from "./changed";
 
 const PILL =
-  "inline-flex items-center gap-1 rounded-md border border-gray-300 bg-gray-50 px-2 py-0.5 font-medium text-gray-900 hover:border-blue-400 dark:border-gray-600 dark:bg-gray-700 dark:text-white";
+  "inline-flex items-center gap-1 rounded-md border border-gray-300 bg-gray-50 px-2 py-0.5 font-medium text-gray-900 hover:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white";
 const BARE =
   "border-0 bg-transparent p-0 text-inherit outline-none focus:ring-0 [font:inherit]";
 

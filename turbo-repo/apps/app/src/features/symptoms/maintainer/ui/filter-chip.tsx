@@ -34,7 +34,7 @@ export function FilterChip({
   };
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative inline-block">
       <button
         type="button"
         aria-expanded={open}

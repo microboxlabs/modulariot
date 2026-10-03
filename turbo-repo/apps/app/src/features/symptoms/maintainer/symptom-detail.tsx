@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -38,7 +38,9 @@ import {
   VersionsPanel,
   originLabel,
 } from "./symptom-side-panels";
+import { pendingError } from "./pending-error";
 import { useSymptomDraft } from "./use-symptom-draft";
+import VersionBanner from "./version-banner";
 
 /** The name a copy starts with, as in the prototype: "Exceso de velocidad (variante)". */
 function variantName(name: string, d: I18nRecord) {
@@ -47,6 +49,8 @@ function variantName(name: string, d: I18nRecord) {
 
 /** The versions panel, which the version menu scrolls to. */
 const VERSIONS_ID = "symptom-versions";
+/** The scrolling sheet; opening an old version scrolls it to the top. */
+const SHEET_ID = "symptom-sheet";
 
 type Pending =
   | { kind: "rollback"; version: string }
@@ -91,13 +95,26 @@ export default function SymptomDetail({
     id,
     Boolean(canWrite && detail?.draft)
   );
+  // An old version open read-only in place of the draft.
+  const [viewing, setViewing] = useState<string | null>(null);
+  const viewed = viewing
+    ? detail?.versions.find((v) => v.version === viewing)
+    : undefined;
+  const shownSpec = viewed?.spec ?? spec;
   const { data: source } = useDataSource(
-    spec?.source ?? detail?.definition.sourceKey ?? null
+    shownSpec?.source ?? detail?.definition.sourceKey ?? null
   );
   const [publishing, setPublishing] = useState(false);
   const [pending, setPending] = useState<Pending>(null);
   const [text, setText] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
+
+  // After the banner renders: scrolling before it would be undone by scroll anchoring.
+  useEffect(() => {
+    if (viewing) document.getElementById(SHEET_ID)?.scrollTo({ top: 0 });
+  }, [viewing]);
 
   const fields: CelField[] = useMemo(
     () =>
@@ -121,27 +138,40 @@ export default function SymptomDetail({
     }
   };
 
+  // The dialog stays open on failure and shows why; its buttons are off while the request runs.
   const confirmPending = async () => {
-    if (!pending) return;
-    if (pending.kind === "rollback") {
-      await run(() =>
-        rollbackTo(id, pending.version, text.trim() || undefined)
-      );
-      setPending(null);
-      return;
-    }
+    if (!pending || confirming) return;
+    setConfirming(true);
+    setDialogError(null);
     try {
-      const created = await forkSymptom(id, {
-        version: pending.version,
-        key: keyFrom(text),
-        name: text.trim(),
-      });
-      await refreshSymptoms();
+      if (pending.kind === "rollback") {
+        await rollbackTo(id, pending.version, text.trim() || undefined);
+        await refreshSymptoms();
+        await resync();
+        setViewing(null);
+      } else {
+        const created = await forkSymptom(id, {
+          version: pending.version,
+          key: keyFrom(text),
+          name: text.trim(),
+        });
+        await refreshSymptoms();
+        router.push(
+          `/${lang}/users/settings/symptoms/${created.definition.id}`
+        );
+      }
       setPending(null);
-      router.push(`/${lang}/users/settings/symptoms/${created.definition.id}`);
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : String(e));
+      setDialogError(pendingError(e, pending.kind, d));
+    } finally {
+      setConfirming(false);
     }
+  };
+
+  const closePending = () => {
+    if (confirming) return;
+    setPending(null);
+    setDialogError(null);
   };
 
   const def = detail?.definition;
@@ -156,7 +186,10 @@ export default function SymptomDetail({
           disableLinks
         />
       </div>
-      <div className="mx-auto flex w-full max-w-screen-2xl min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-10 dark:bg-gray-900">
+      <div
+        id={SHEET_ID}
+        className="mx-auto flex w-full max-w-screen-2xl min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-10 dark:bg-gray-900"
+      >
         {error && (
           <p className="text-sm text-red-600 dark:text-red-400">
             {tr("loadFailed", d)}
@@ -165,8 +198,8 @@ export default function SymptomDetail({
         {def && (
           <SheetHeader
             def={def}
-            spec={spec}
-            canWrite={canWrite}
+            spec={shownSpec}
+            canWrite={canWrite && !viewed}
             families={families}
             templates={templates}
             forkedFrom={detail?.forkedFrom ?? null}
@@ -193,14 +226,36 @@ export default function SymptomDetail({
           </p>
         )}
 
-        {spec && detail && (
+        {viewed?.version && (
+          <VersionBanner
+            id={id}
+            version={viewed.version}
+            current={def?.currentVersion ?? null}
+            canWrite={canWrite}
+            d={d}
+            onRevert={() => {
+              setText("");
+              setPending({
+                kind: "rollback",
+                version: viewed.version as string,
+              });
+            }}
+            onDuplicate={() => {
+              setText(variantName(def?.name ?? "", d));
+              setPending({ kind: "fork", version: viewed.version as string });
+            }}
+            onBack={() => setViewing(null)}
+          />
+        )}
+
+        {shownSpec && detail && (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <div className="xl:col-span-2">
               <SymptomRuleSections
-                spec={spec}
+                spec={shownSpec}
                 sourceFields={fields}
-                findings={report?.findings}
-                readOnly={!canWrite}
+                findings={viewed ? undefined : report?.findings}
+                readOnly={!canWrite || Boolean(viewed)}
                 d={d}
                 rootDict={rootDict}
                 connections={connections}
@@ -209,15 +264,21 @@ export default function SymptomDetail({
               />
             </div>
             <div className="flex flex-col gap-4">
-              <ReviewPanel report={report} d={d} />
-              <PreviewPanel preview={preview} d={d} rootDict={rootDict} />
+              {!viewed && (
+                <>
+                  <ReviewPanel report={report} d={d} />
+                  <PreviewPanel preview={preview} d={d} rootDict={rootDict} />
+                </>
+              )}
               <FieldsPanel source={source} d={d} />
               <div id={VERSIONS_ID} className="scroll-mt-4">
                 <VersionsPanel
                   versions={detail.versions}
                   current={detail.definition.currentVersion}
                   canWrite={canWrite}
+                  viewing={viewed?.version ?? null}
                   d={d}
+                  onView={setViewing}
                   onRollback={(version) => {
                     setText("");
                     setPending({ kind: "rollback", version });
@@ -231,7 +292,7 @@ export default function SymptomDetail({
             </div>
           </div>
         )}
-        {canWrite && detail?.draft && (
+        {canWrite && detail?.draft && !viewed && (
           <DraftBar
             plan={plan}
             planFailed={Boolean(planError)}
@@ -257,7 +318,7 @@ export default function SymptomDetail({
         }}
       />
 
-      <Modal show={pending !== null} size="md" onClose={() => setPending(null)}>
+      <Modal show={pending !== null} size="md" onClose={closePending}>
         <ModalHeader>
           {pending?.kind === "fork"
             ? tr("duplicateAsNew", d)
@@ -277,13 +338,25 @@ export default function SymptomDetail({
               ? tr("duplicateHint", d, { version: pending.version })
               : tr("restoreHint", d)}
           </p>
+          {dialogError && (
+            <p
+              role="alert"
+              className="mt-2 text-sm text-red-600 dark:text-red-400"
+            >
+              {dialogError}
+            </p>
+          )}
         </ModalBody>
         <ModalFooter className="justify-end">
-          <Button color="alternative" onClick={() => setPending(null)}>
+          <Button
+            color="alternative"
+            disabled={confirming}
+            onClick={closePending}
+          >
             {tr("cancel", d)}
           </Button>
           <Button
-            disabled={pending?.kind === "fork" && !text.trim()}
+            disabled={confirming || (pending?.kind === "fork" && !text.trim())}
             onClick={() => void confirmPending()}
           >
             {pending?.kind === "fork" ? tr("duplicate", d) : tr("restore", d)}

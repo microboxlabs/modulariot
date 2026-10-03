@@ -232,13 +232,17 @@ export function VersionsPanel({
   current,
   canWrite,
   d,
+  viewing,
+  onView,
   onRollback,
   onFork,
 }: Readonly<{
   versions: SymptomVersion[];
   current: string | null;
   canWrite: boolean;
+  viewing: string | null;
   d: I18nRecord;
+  onView: (version: string) => void;
   onRollback: (version: string) => void;
   onFork: (version: string) => void;
 }>) {
@@ -260,8 +264,26 @@ export function VersionsPanel({
                   {tr("inForce", d)}
                 </span>
               )}
-              {canWrite && v.version && (
+              {v.version === viewing && (
+                <span className="rounded bg-blue-100 px-1.5 text-[10px] text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
+                  {tr("viewingTag", d)}
+                </span>
+              )}
+              {v.version && (
                 <span className="ml-auto flex gap-2">
+                  {v.version !== current && v.version !== viewing && (
+                    <button
+                      type="button"
+                      className="text-blue-600 hover:underline dark:text-blue-400"
+                      onClick={() => onView(v.version as string)}
+                    >
+                      {tr("viewVersion", d)}
+                    </button>
+                  )}
+                </span>
+              )}
+              {canWrite && v.version && (
+                <span className="flex gap-2">
                   {v.version !== current && (
                     <button
                       type="button"

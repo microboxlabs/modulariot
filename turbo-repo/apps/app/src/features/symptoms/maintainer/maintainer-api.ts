@@ -496,8 +496,18 @@ export function setSymptomState(id: string, state: SymptomState) {
   });
 }
 
-export function compareVersions(id: string, from: string, to: string) {
-  return request<Change[]>(
-    `${DEFS}/${id}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
-  );
+/** What changes from one published version to another; null while either is unknown. */
+export function useVersionCompare(
+  id: string,
+  from: string | null,
+  to: string | null
+) {
+  const key =
+    from && to && from !== to
+      ? `${DEFS}/${id}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+      : null;
+  return useSWR<Change[]>(key, fetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+  });
 }

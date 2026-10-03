@@ -301,6 +301,7 @@ export default function SymptomDetail({
                     definitionId={id}
                     spec={spec ?? shownSpec}
                     published={published}
+                    lang={lang}
                     d={d}
                   />
                 </>

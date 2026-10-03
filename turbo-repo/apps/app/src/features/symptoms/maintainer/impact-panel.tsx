@@ -2,6 +2,7 @@
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { fmt } from "./catalog-format";
 import { ruleKey } from "./condition-form";
 import {
   type Level,
@@ -80,12 +81,14 @@ function Rows({
   published,
   stats,
   definitionId,
+  lang,
   d,
 }: Readonly<{
   spec: SymptomSpec;
   published: SymptomSpec | null | undefined;
   stats: SymptomStats;
   definitionId: string;
+  lang: string;
   d: I18nRecord;
 }>) {
   const row = stats.symptoms.find((s) => s.definitionId === definitionId);
@@ -108,7 +111,7 @@ function Rows({
                 {name}
               </span>
               <span className="tabular-nums text-gray-900 dark:text-white">
-                {(week[icu - 1] ?? 0).toLocaleString("es-CL")}
+                {fmt(week[icu - 1] ?? 0, lang)}
               </span>
               <span
                 title={trDynamic(mark.key, d)}
@@ -146,32 +149,45 @@ function Rows({
  * days), whether the spec on screen keeps each level's threshold, and the cases
  * per shift its operator levels would bring.
  */
+/** The panel's message when there are no figures to show, or null when there are. */
+function unavailable(
+  stats: SymptomStats | undefined,
+  error: unknown,
+  d: I18nRecord
+): string | null {
+  if (stats?.engineAvailable) return null;
+  if (stats || error) return tr("impactNoEngine", d);
+  return tr("impactLoading", d);
+}
+
 export default function ImpactPanel({
   definitionId,
   spec,
   published,
+  lang,
   d,
 }: Readonly<{
   definitionId: string;
   spec: SymptomSpec;
   published: SymptomSpec | null | undefined;
+  lang: string;
   d: I18nRecord;
 }>) {
-  const { data: stats } = useSymptomStats();
+  const { data: stats, error } = useSymptomStats();
+  const message = unavailable(stats, error, d);
   return (
     <Panel title={tr("impactTitle", d)}>
-      {stats?.engineAvailable ? (
+      {message === null && stats ? (
         <Rows
           spec={spec}
           published={published}
           stats={stats}
           definitionId={definitionId}
+          lang={lang}
           d={d}
         />
       ) : (
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          {stats ? tr("impactNoEngine", d) : tr("impactLoading", d)}
-        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{message}</p>
       )}
     </Panel>
   );

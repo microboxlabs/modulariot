@@ -114,7 +114,13 @@ describe("ImpactPanel", () => {
   it("lists each level's weekly cases with its mark and the cases per shift", () => {
     api.useSymptomStats.mockReturnValue({ data: stats });
     render(
-      <ImpactPanel definitionId="s1" spec={DRAFT} published={PUBLISHED} d={d} />
+      <ImpactPanel
+        definitionId="s1"
+        spec={DRAFT}
+        published={PUBLISHED}
+        lang="es"
+        d={d}
+      />
     );
     expect(screen.getByText("1.866")).toBeTruthy();
     expect(screen.getByText("81")).toBeTruthy();
@@ -122,12 +128,50 @@ describe("ImpactPanel", () => {
     expect(screen.getAllByText("apagado")).toHaveLength(1);
   });
 
+  it("formats counts for the route language", () => {
+    api.useSymptomStats.mockReturnValue({ data: stats });
+    render(
+      <ImpactPanel
+        definitionId="s1"
+        spec={DRAFT}
+        published={PUBLISHED}
+        lang="en"
+        d={d}
+      />
+    );
+    expect(screen.getByText("1,866")).toBeTruthy();
+  });
+
+  it("stops saying it is loading when the request failed", () => {
+    api.useSymptomStats.mockReturnValue({
+      data: undefined,
+      error: new Error("down"),
+    });
+    render(
+      <ImpactPanel
+        definitionId="s1"
+        spec={DRAFT}
+        published={null}
+        lang="es"
+        d={d}
+      />
+    );
+    expect(screen.getByText("Sin datos del motor.")).toBeTruthy();
+    expect(screen.queryByText("Cargando")).toBeNull();
+  });
+
   it("says so when the engine has no data", () => {
     api.useSymptomStats.mockReturnValue({
       data: { ...stats, engineAvailable: false },
     });
     render(
-      <ImpactPanel definitionId="s1" spec={DRAFT} published={null} d={d} />
+      <ImpactPanel
+        definitionId="s1"
+        spec={DRAFT}
+        published={null}
+        lang="es"
+        d={d}
+      />
     );
     expect(screen.getByText("Sin datos del motor.")).toBeTruthy();
   });

@@ -21,9 +21,8 @@ export function overviewText(spec: SymptomSpec): string {
   const lines = [`activa: ${spec.activation}`];
   const measure = spec.measure;
   if (measure?.expression) {
-    lines.push(
-      `medida: ${measure.expression}${measure.unit ? ` (${measure.unit})` : ""}`
-    );
+    const unit = measure.unit ? ` (${measure.unit})` : "";
+    lines.push(`medida: ${measure.expression}${unit}`);
   }
   for (const level of [...(spec.levels ?? [])].sort((a, b) => a.icu - b.icu)) {
     if (level.applies) {

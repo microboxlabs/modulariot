@@ -86,6 +86,7 @@ public final class SpecValidator {
         rule(out, "activation", schema, spec.activation(), Expect.CONDITION);
         duplicates(out, spec.activation());
         out.addAll(ConditionChecks.check(spec.activation(), path -> label(source, path)));
+        unknownValues(out, source, spec.activation());
         if (spec.measure() != null && spec.measure().expression() != null) {
             rule(out, "measure", schema, spec.measure().expression(), Expect.NUMBER);
         }
@@ -268,6 +269,23 @@ public final class SpecValidator {
                 .filter(n -> Math.abs(n - point) <= NEAR * 1.5)
                 .min(Comparator.comparingDouble(n -> Math.abs(n - point)))
                 .orElse(point);
+    }
+
+    /** A list field compared with a value it does not take, anywhere in the activation. */
+    private static void unknownValues(List<Finding> out, DataSource source, String activation) {
+        Set<String> reported = new HashSet<>();
+        for (RuleText.TextComparison c : RuleText.textComparisons(activation)) {
+            SourceField field = source.fields().stream().filter(f -> f.path().equals(c.path())).findFirst()
+                    .orElse(null);
+            if (field == null || field.values() == null || field.values().isEmpty()) {
+                continue;
+            }
+            List<String> known = field.values().stream().map(SourceField.FieldValue::value).toList();
+            if (!known.contains(c.value()) && reported.add(c.path() + "=" + c.value())) {
+                out.add(new Finding("activation", Severity.WARNING, "«" + field.label() + "» no toma el valor «"
+                        + c.value() + "»; sus valores son " + String.join(", ", known) + ".", -1));
+            }
+        }
     }
 
     private static String label(DataSource source, String path) {

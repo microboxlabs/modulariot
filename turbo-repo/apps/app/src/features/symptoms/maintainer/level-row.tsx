@@ -286,6 +286,49 @@ function LevelRule({
   );
 }
 
+/** What the operator must record to close a case, as stored in the spec. */
+export const EVIDENCE = [
+  { value: "call_result", label: "evidenceCallResult" },
+  { value: "note", label: "evidenceNote" },
+  { value: "photo", label: "evidencePhoto" },
+];
+
+function EvidenceSelect({
+  evidence,
+  readOnly,
+  d,
+  onChange,
+}: Readonly<{
+  evidence: string[];
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (evidence: string[]) => void;
+}>) {
+  const value = evidence[0] ?? "";
+  const known = value === "" || EVIDENCE.some((e) => e.value === value);
+  return (
+    <label className="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+      <span>{tr("closeRequires", d)}</span>
+      <select
+        className={pillClass}
+        disabled={readOnly}
+        value={value}
+        onChange={(e) =>
+          onChange(e.target.value ? [e.target.value, ...evidence.slice(1)] : [])
+        }
+      >
+        <option value="">{tr("evidenceNothing", d)}</option>
+        {!known && <option value={value}>{value}</option>}
+        {EVIDENCE.map((e) => (
+          <option key={e.value} value={e.value}>
+            {trDynamic(e.label, d)}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 function OperatorDetail({
   response,
   readOnly,
@@ -341,6 +384,12 @@ function OperatorDetail({
             readOnly={readOnly}
             d={d}
             onChange={(steps) => onChange({ steps })}
+          />
+          <EvidenceSelect
+            evidence={response.evidence ?? []}
+            readOnly={readOnly}
+            d={d}
+            onChange={(evidence) => onChange({ evidence })}
           />
         </>
       ) : (

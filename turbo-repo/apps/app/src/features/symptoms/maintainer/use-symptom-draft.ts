@@ -61,6 +61,11 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   const check = useCallback(
     (next: SymptomSpec, save: boolean) => {
       const ticket = ++latest.current;
+      // The plan describes `next` once its reload after the save resolves.
+      const reloadPlan = async () => {
+        await globalMutate(publishPlanKey(id));
+        if (ticket === latest.current) setPlanFor(next);
+      };
       queue.current = queue.current.then(async () => {
         try {
           if (save) {
@@ -69,9 +74,7 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
             setSaveError(null);
             void mutate();
             void refreshSymptoms();
-            void globalMutate(publishPlanKey(id)).then(() => {
-              if (ticket === latest.current) setPlanFor(next);
-            });
+            void reloadPlan();
           }
           if (ticket !== latest.current) return;
           const [r, p] = await Promise.all([

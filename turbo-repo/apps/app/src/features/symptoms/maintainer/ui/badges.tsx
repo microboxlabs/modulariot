@@ -47,7 +47,8 @@ export function Spark({
       title={title}
       className={`flex shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-[rgb(241,179,0)] to-[rgb(209,137,0)] text-white ${pulse ? "animate-pulse" : ""} ${size} ${className}`}
     >
-      ✦
+      <span aria-hidden>✦</span>
+      {title && <span className="sr-only">{title}</span>}
     </span>
   );
 }

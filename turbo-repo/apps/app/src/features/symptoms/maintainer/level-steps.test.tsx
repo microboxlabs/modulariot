@@ -143,6 +143,35 @@ describe("LevelSteps", () => {
     expect(onChange.mock.calls[0]?.[0][0].script).toBe("va por {{ruta}} hoy");
   });
 
+  it("keeps a moved step's own fields", () => {
+    let steps = STEPS;
+    const onChange = vi.fn((next: Step[]) => {
+      steps = next;
+    });
+    const view = render(
+      <LevelSteps
+        steps={steps}
+        slaMinutes={5}
+        readOnly={false}
+        d={{ ...d, moveUp: "Subir" }}
+        onChange={onChange}
+      />
+    );
+    const second = screen.getByDisplayValue("Transportista");
+    fireEvent.click(screen.getAllByLabelText("Subir")[1]!);
+    view.rerender(
+      <LevelSteps
+        steps={steps}
+        slaMinutes={5}
+        readOnly={false}
+        d={{ ...d, moveUp: "Subir" }}
+        onChange={onChange}
+      />
+    );
+    expect(steps.map((s) => s.role)).toEqual(["Transportista", "Conductor"]);
+    expect(screen.getByDisplayValue("Transportista")).toBe(second);
+  });
+
   it("lets readers read the script but not change the steps", () => {
     render(
       <LevelSteps

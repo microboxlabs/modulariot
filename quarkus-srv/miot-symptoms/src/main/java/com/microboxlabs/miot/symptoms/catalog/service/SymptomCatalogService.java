@@ -54,8 +54,16 @@ public class SymptomCatalogService {
     }
 
     /** A symptom with the spec in force, its draft if any, and its version history. */
+    /**
+     * @param forkedFrom the symptom and version this one was copied from, or null when it is not a copy or the
+     *                   source is gone
+     */
     public record SymptomDetail(SymptomDefinition definition, SymptomVersion current, SymptomVersion draft,
-            List<SymptomVersion> versions) {
+            List<SymptomVersion> versions, ForkedFrom forkedFrom) {
+    }
+
+    /** @param version the copied version's number, or null when a draft was copied */
+    public record ForkedFrom(UUID definitionId, String name, String version) {
     }
 
     /**
@@ -100,7 +108,8 @@ public class SymptomCatalogService {
         SymptomVersion current = d.currentVersion() == null ? null
                 : versions.stream().filter(v -> d.currentVersion().equals(v.version())).findFirst().orElse(null);
         return new SymptomDetail(d, current, draft,
-                versions.stream().filter(v -> v.status() == VersionStatus.PUBLISHED).toList());
+                versions.stream().filter(v -> v.status() == VersionStatus.PUBLISHED).toList(),
+                forkedFrom(tenantCode, d));
     }
 
     public SymptomDetail create(String tenantCode, String actor, CreateRequest req) {
@@ -262,17 +271,48 @@ public class SymptomCatalogService {
     }
 
     /** Creates a new symptom from one version of this one. It starts off, with that spec as its draft. */
+    /**
+     * Copies a version into a new symptom. A published version is published again as {@value #FIRST_VERSION} in
+     * TEST, as the prototype does; a symptom that was never published is copied as a draft.
+     */
     public SymptomDetail fork(String tenantCode, String actor, UUID id, String version, String key, String name) {
         SymptomDefinition from = require(tenantCode, id);
         String v = version == null ? from.currentVersion() : version;
         SymptomVersion source = v == null ? store.findDraft(tenantCode, id).orElseThrow()
                 : store.findVersion(tenantCode, id, v)
                         .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + v));
+        SymptomSpec spec = v == null ? source.spec() : source.spec().withState(SymptomState.TEST);
+        if (v != null) {
+            // Checked before anything is written, so a copy that cannot be published leaves nothing behind.
+            Report report = SpecValidator.validate(spec,
+                    sources.find(tenantCode, sourceKey(spec, from)).orElse(null));
+            if (!report.publishable()) {
+                throw new IllegalStateException("version " + v + " does not pass its source's checks any more");
+            }
+        }
+        // A draft has no stable identity: publishing it reuses its row as a version and discarding deletes it.
+        // Only a published version is recorded as the copy's source.
+        UUID copiedVersion = v == null ? null : source.id();
         SymptomDetail created = create(tenantCode, actor, new CreateRequest(key, name, from.family(), from.icon(),
-                from.description(), from.sourceKey(), null, source.spec()), source.id(), from.templateKey());
+                from.description(), from.sourceKey(), null, spec), copiedVersion, from.templateKey());
         audit.log(tenantCode, actor, "symptom.forked", ENTITY, created.definition().id().toString(), null,
                 Map.of("from", from.key(), "version", v == null ? "draft" : v));
-        return created;
+        if (v == null) {
+            return created;
+        }
+        publish(tenantCode, actor, created, created.draft(), plan(tenantCode, created, spec),
+                new Release("Copia de " + from.name() + " " + v, null, SymptomState.TEST, null, true));
+        return get(tenantCode, created.definition().id());
+    }
+
+    private ForkedFrom forkedFrom(String tenantCode, SymptomDefinition d) {
+        if (d.forkedFromVersionId() == null) {
+            return null;
+        }
+        return store.findVersionById(tenantCode, d.forkedFromVersionId())
+                .flatMap(v -> store.findDefinition(tenantCode, v.definitionId())
+                        .map(src -> new ForkedFrom(src.id(), src.name(), v.version())))
+                .orElse(null);
     }
 
     public SymptomDefinition setState(String tenantCode, String actor, UUID id, SymptomState state) {

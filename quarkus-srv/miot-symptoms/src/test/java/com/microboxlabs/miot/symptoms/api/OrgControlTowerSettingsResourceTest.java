@@ -92,8 +92,8 @@ class OrgControlTowerSettingsResourceTest {
         OrgControlTowerSettingsResource owner = resource(true);
         WebApplicationException e = assertThrows(WebApplicationException.class, () -> owner.get("org-b"));
         assertEquals(403, e.getResponse().getStatus());
-        WebApplicationException w = assertThrows(WebApplicationException.class,
-                () -> owner.save("org-b", new SettingsRequest(1, 8, 1)));
+        SettingsRequest team = new SettingsRequest(1, 8, 1);
+        WebApplicationException w = assertThrows(WebApplicationException.class, () -> owner.save("org-b", team));
         assertEquals(403, w.getResponse().getStatus());
     }
 }

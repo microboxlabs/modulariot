@@ -172,6 +172,25 @@ describe("LevelSteps", () => {
     expect(screen.getByDisplayValue("Transportista")).toBe(second);
   });
 
+  it("keeps the next step's own fields when the first is removed", () => {
+    let steps = STEPS;
+    const onChange = vi.fn((next: Step[]) => {
+      steps = next;
+    });
+    const props = {
+      slaMinutes: 5,
+      readOnly: false,
+      d: { ...d, removeStep: "Quitar" },
+      onChange,
+    };
+    const view = render(<LevelSteps steps={steps} {...props} />);
+    const second = screen.getByDisplayValue("Transportista");
+    fireEvent.click(screen.getAllByLabelText("Quitar")[0]!);
+    view.rerender(<LevelSteps steps={steps} {...props} />);
+    expect(steps.map((s) => s.role)).toEqual(["Transportista"]);
+    expect(screen.getByDisplayValue("Transportista")).toBe(second);
+  });
+
   it("lets readers read the script but not change the steps", () => {
     render(
       <LevelSteps

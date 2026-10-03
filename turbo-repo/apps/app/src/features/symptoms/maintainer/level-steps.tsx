@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { HiArrowDown, HiArrowUp, HiPhone, HiPlus, HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -204,23 +204,27 @@ export default function LevelSteps({
 }>) {
   const [editing, setEditing] = useState<number | null>(null);
   // Steps have no id of their own: each keeps one here, moved and removed with it.
-  const ids = useRef<string[]>([]);
-  const nextId = useRef(0);
-  while (ids.current.length < steps.length)
-    ids.current.push(`step-${++nextId.current}`);
-  ids.current.length = steps.length;
+  const [ids, setIds] = useState(() => steps.map(() => crypto.randomUUID()));
+  let keys = ids;
+  if (ids.length !== steps.length) {
+    // Steps added, or the list replaced from outside: keep the ids that still have a step.
+    keys = steps.map((_, i) => ids[i] ?? crypto.randomUUID());
+    setIds(keys);
+  }
   const set = (i: number, patch: Partial<Step>) =>
     onChange(steps.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const move = (i: number, by: number) => {
     const next = [...steps];
     const [s] = next.splice(i, 1);
     next.splice(i + by, 0, s);
-    const [id] = ids.current.splice(i, 1);
-    ids.current.splice(i + by, 0, id ?? "");
+    const nextIds = [...keys];
+    const [id] = nextIds.splice(i, 1);
+    nextIds.splice(i + by, 0, id ?? crypto.randomUUID());
+    setIds(nextIds);
     onChange(next);
   };
   const remove = (i: number) => {
-    ids.current.splice(i, 1);
+    setIds(keys.filter((_, j) => j !== i));
     onChange(steps.filter((_, j) => j !== i));
   };
   const budget = steps.reduce((sum, s) => sum + (s.budgetMinutes ?? 0), 0);
@@ -250,7 +254,7 @@ export default function LevelSteps({
       <ol className="flex flex-col">
         {steps.map((s, i) => (
           <StepItem
-            key={ids.current[i]}
+            key={keys[i]}
             step={s}
             index={i}
             count={steps.length}

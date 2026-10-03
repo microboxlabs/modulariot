@@ -260,6 +260,7 @@ export default function SymptomDetail({
               <SymptomRuleSections
                 spec={shownSpec}
                 changed={changed}
+                published={viewed ? null : published}
                 preview={viewed ? undefined : (currentPreview ?? undefined)}
                 fields={source?.fields ?? []}
                 sourceFields={fields}

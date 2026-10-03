@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SymptomSpec } from "./maintainer-api";
-import { levelChanged } from "./symptom-rule-sections";
-import { changedPaths } from "./ui/changed";
+import { changedLevels } from "./symptom-rule-sections";
 
 const level = (icu: number, when: string) => ({
   icu,
@@ -13,18 +12,27 @@ const level = (icu: number, when: string) => ({
 const spec = (levels: ReturnType<typeof level>[]) =>
   ({ levels }) as unknown as SymptomSpec;
 
-describe("levelChanged", () => {
-  it("marks the level whose rule changed, found by ICU", () => {
+describe("changedLevels", () => {
+  it("marks the level whose rule changed", () => {
     const published = spec([level(1, "medida > 0"), level(3, "medida >= 10")]);
     const draft = spec([level(1, "medida > 0"), level(3, "medida >= 12")]);
-    const changed = changedPaths(draft, published);
-    expect(levelChanged(draft, changed, 3)).toBe(true);
-    expect(levelChanged(draft, changed, 1)).toBe(false);
-    expect(levelChanged(draft, changed, 4)).toBe(false);
+    expect([...changedLevels(draft, published)]).toEqual([3]);
   });
 
-  it("marks nothing when the draft equals the published version", () => {
-    const s = spec([level(1, "medida > 0")]);
-    expect(levelChanged(s, changedPaths(s, s), 1)).toBe(false);
+  it("matches levels by ICU, so adding or removing one marks only that one", () => {
+    const published = spec([level(1, "a"), level(3, "c")]);
+    expect([
+      ...changedLevels(
+        spec([level(1, "a"), level(2, "b"), level(3, "c")]),
+        published
+      ),
+    ]).toEqual([2]);
+    expect([...changedLevels(spec([level(3, "c")]), published)]).toEqual([1]);
+  });
+
+  it("marks nothing when equal or before the first version", () => {
+    const s = spec([level(1, "a")]);
+    expect(changedLevels(s, s).size).toBe(0);
+    expect(changedLevels(s, null).size).toBe(0);
   });
 });

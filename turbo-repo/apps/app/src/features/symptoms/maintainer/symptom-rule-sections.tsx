@@ -7,7 +7,7 @@ import type { IntegrationConnection } from "@/features/integration-config/integr
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
 import ClauseBreakdown from "./clause-breakdown";
-import { isChanged } from "./ui/changed";
+import { changedPaths, isChanged } from "./ui/changed";
 import type {
   Finding,
   Preview,
@@ -131,14 +131,23 @@ function ModeToggle({
 
 const NOTHING_CHANGED: ReadonlySet<string> = new Set();
 
-/** Whether the level with this ICU changed; levels are stored by position, sorted by ICU. */
-export function levelChanged(
-  spec: SymptomSpec,
-  changed: ReadonlySet<string>,
-  icu: number
-): boolean {
-  const index = (spec.levels ?? []).findIndex((l) => l.icu === icu);
-  return index >= 0 && isChanged(changed, `levels.${index}`);
+/**
+ * The ICU levels that differ between the draft and the published spec,
+ * matched by ICU rather than by position: adding or removing one level does
+ * not mark the others.
+ */
+export function changedLevels(
+  draft: SymptomSpec,
+  published: SymptomSpec | null | undefined
+): ReadonlySet<number> {
+  const out = new Set<number>();
+  if (!published) return out;
+  const before = new Map((published.levels ?? []).map((l) => [l.icu, l]));
+  const after = new Map((draft.levels ?? []).map((l) => [l.icu, l]));
+  for (const icu of new Set([...before.keys(), ...after.keys()])) {
+    if (changedPaths(after.get(icu), before.get(icu)).size > 0) out.add(icu);
+  }
+  return out;
 }
 
 /** The measure in form mode: its name, unit and expression, edited under { }. */
@@ -250,6 +259,7 @@ function ActivationSection({
 
 export default function SymptomRuleSections({
   spec,
+  published,
   changed = NOTHING_CHANGED,
   preview,
   fields,
@@ -262,6 +272,8 @@ export default function SymptomRuleSections({
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
+  /** The version in force, for the per-level marks; null before publishing or while viewing an old version. */
+  published?: SymptomSpec | null;
   /** Paths that differ from the published version (see changedPaths). */
   changed?: ReadonlySet<string>;
   preview?: Preview;
@@ -275,6 +287,7 @@ export default function SymptomRuleSections({
   onChange: (spec: SymptomSpec) => void;
 }>) {
   const [levelsMode, setLevelsMode] = useState<EditMode>("form");
+  const levelsChanged = changedLevels(spec, published);
   const [lifeMode, setLifeMode] = useState<EditMode>("form");
   const activation = problemsFor(findings, "activation");
   const measure = problemsFor(findings, "measure");
@@ -352,7 +365,7 @@ export default function SymptomRuleSections({
           {ICU_LEVELS.map((meta) => (
             <LevelRow
               key={meta.icu}
-              changed={levelChanged(spec, changed, meta.icu)}
+              changed={levelsChanged.has(meta.icu)}
               spec={spec}
               icu={meta.icu}
               mode={levelsMode}

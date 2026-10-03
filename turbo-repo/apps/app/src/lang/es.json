@@ -2716,7 +2716,7 @@
         "harnessExampleActivationText": "Abre el caso solo para camiones pesados en viaje, fuera de las zonas autorizadas",
         "harnessExampleLevels": "Ejemplo: niveles",
         "harnessExampleLevelsText": "Sube Crítica a 15 km/h y que Código negro exija 90 s sostenidos",
-        "harnessChangePrompt": "En el síntoma «{name}» (id {id}), propone este cambio y guárdalo como borrador para que yo lo revise antes de publicar: {text}",
+        "harnessChangePrompt": "En el síntoma «{name}» (id {id}), propón este cambio y guárdalo como borrador para que yo lo revise antes de publicar: {text}",
         "draftChangedElsewhere": "El borrador cambió fuera de esta página (por ejemplo, Harness) y aquí hay cambios sin guardar.",
         "draftReload": "Usar el borrador nuevo",
         "levelApplies": "Aplica",

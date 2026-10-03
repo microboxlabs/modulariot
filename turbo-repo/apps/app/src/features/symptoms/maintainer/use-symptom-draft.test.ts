@@ -142,4 +142,19 @@ describe("useSymptomDraft and a draft written elsewhere", () => {
     expect(result.current.external).toBe(false);
     expect(result.current.spec).toEqual(harnessDraft);
   });
+
+  it("forgets the conflict when another symptom opens", async () => {
+    const { result, rerender } = renderHook(
+      ({ id }) => useSymptomDraft(id, true),
+      { initialProps: { id: "s1" } }
+    );
+    await waitFor(() => expect(result.current.spec).toBe(DRAFT));
+    act(() => result.current.update({ activation: "typing" } as SymptomSpec));
+    detail = { ...DETAIL, draft: { spec: harnessDraft } } as SymptomDetail;
+    rerender({ id: "s1" });
+    await waitFor(() => expect(result.current.external).toBe(true));
+
+    rerender({ id: "s2" });
+    await waitFor(() => expect(result.current.external).toBe(false));
+  });
 });

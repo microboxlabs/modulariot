@@ -57,6 +57,9 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   // A new symptom starts clean: nothing from the previous one's checks.
   useEffect(() => {
     loadedFor.current = null;
+    known.current = null;
+    dirty.current = false;
+    setExternal(false);
     setSpec(null);
     setReport(null);
     setPreview(null);

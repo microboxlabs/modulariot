@@ -4,12 +4,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
+import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
+import com.microboxlabs.miot.symptoms.catalog.service.TemplateService;
+import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator.Result;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -60,7 +66,7 @@ class SignalEvaluatorTest {
     @Test
     void aCaseOpensAtTheLevelReachedRisesAndClosesAfterTwoMinutesNormal() {
         assertEquals(List.of(), kinds(at(0, 85)), "under the limit: nothing");
-        assertEquals(0, store.size(), "nothing worth keeping");
+        assertEquals(1, store.size(), "on a trip: the activation's run is kept for time-based levels");
 
         assertEquals(List.of("OPENED:2"), kinds(at(5, 96)));
         assertEquals(List.of(), kinds(at(10, 97)), "same level: no change");
@@ -75,7 +81,8 @@ class SignalEvaluatorTest {
         assertEquals(12.0, t.measure(), 1e-9, "the highest measure of the case");
         assertEquals(SymptomState.TEST, t.state());
         assertEquals("1.0.0", t.version());
-        assertEquals(0, store.size(), "closed and normal: forgotten");
+        evaluator.evaluate(TENANT, TRUCK, T0.plusSeconds(150), signal(80, false), symptoms);
+        assertEquals(0, store.size(), "off the trip and closed: forgotten");
     }
 
     @Test
@@ -179,6 +186,8 @@ class SignalEvaluatorTest {
         assertEquals(List.of(), kinds(evaluator.evaluate(TENANT, TRUCK, T0.plusSeconds(1799), signal(0), one)));
         assertEquals(List.of("OPENED:3"),
                 kinds(evaluator.evaluate(TENANT, TRUCK, T0.plusSeconds(1800), signal(0), one)));
+        assertEquals(List.of(), kinds(evaluator.evaluate(TENANT, TRUCK, T0.plusSeconds(1801), signal(0), one)),
+                "still stopped: normal_s is -1, so \"normal_s >= 0\" does not close it");
         assertEquals(List.of("CLOSED:3"),
                 kinds(evaluator.evaluate(TENANT, TRUCK, T0.plusSeconds(1805), signal(40), one)), "moving again");
         assertEquals(List.of(), kinds(evaluator.evaluate(TENANT, TRUCK, T0.plusSeconds(1810), signal(0), one)),
@@ -209,6 +218,70 @@ class SignalEvaluatorTest {
         assertEquals("1.1.0", r.transitions().get(0).version());
         assertEquals(SymptomState.ACTIVE, r.transitions().get(0).state());
         assertEquals(2, r.transitions().get(0).previousLevel());
+    }
+
+    @Test
+    void aStaleSignalAfterAQuietPeriodIsIgnored() {
+        evaluator.evaluate(TENANT, TRUCK, T0.plusSeconds(10), signal(80, false), symptoms);
+        assertEquals(0, store.size(), "nothing kept for a truck off its trip");
+        assertEquals(List.of(), kinds(at(5, 130)), "older than the last signal applied");
+    }
+
+    @Test
+    void aClosingSignalReplayedDoesNotReopen() {
+        SymptomSpec byAge = new SymptomSpec(Specs.speeding().source(), Specs.speeding().activation(),
+                Specs.speeding().measure(), Specs.speeding().levels(),
+                new SymptomSpec.Lifecycle("caso.condicion_s >= 0", "caso.edad_h >= 1"), null);
+        symptoms = List.of(CompiledSymptom.compile(SPEEDING, "2.0.0", SymptomState.ACTIVE, byAge,
+                Specs.gpsSignal()));
+        at(0, 100);
+        assertEquals(List.of("CLOSED:2"), kinds(at(3600, 100)));
+        assertEquals(List.of(), kinds(at(3600, 100)), "the same signal again");
+    }
+
+    @Test
+    void aCloseOnARisingSignalReportsTheLevelBefore() {
+        SymptomSpec byAge = new SymptomSpec(Specs.speeding().source(), Specs.speeding().activation(),
+                Specs.speeding().measure(), Specs.speeding().levels(),
+                new SymptomSpec.Lifecycle("caso.condicion_s >= 0", "caso.edad_h >= 1"), null);
+        symptoms = List.of(CompiledSymptom.compile(SPEEDING, "2.0.0", SymptomState.ACTIVE, byAge,
+                Specs.gpsSignal()));
+        at(0, 100);
+        Transition closed = at(3600, 102).transitions().get(0);
+        assertEquals(Kind.CLOSED, closed.kind());
+        assertEquals(3, closed.level());
+        assertEquals(2, closed.previousLevel());
+    }
+
+    @Test
+    void theNightStopTemplateClimbsByTimeStopped() {
+        UUID stop = UUID.randomUUID();
+        SymptomSpec night = new TemplateService().get("night-stop-unauthorized").spec();
+        DataSource platform = new DataSourceService(new InMemoryCatalog(), new UnavailableSymptomEngine())
+                .find(TENANT, "gps_signal").orElseThrow();
+        List<CompiledSymptom> one = List.of(CompiledSymptom.compile(stop, "0.1.0", SymptomState.TEST, night,
+                platform));
+        Map<String, Object> stopped = Map.of("signal", Map.of(
+                "trip", Map.of("active", true),
+                "gps", Map.of("moving", false),
+                "geo", Map.of("authorized_zone", false),
+                "local_hour", 23.0));
+        List<String> seen = new ArrayList<>();
+        for (int sec : new int[] {0, 300, 600, 900, 1200, 1800, 1900}) {
+            seen.addAll(kinds(evaluator.evaluate(TENANT, TRUCK, T0.plusSeconds(sec), stopped, one)));
+        }
+        assertEquals(List.of("OPENED:1", "LEVEL_CHANGED:2", "LEVEL_CHANGED:3", "LEVEL_CHANGED:4"), seen);
+    }
+
+    @Test
+    void aNewVersionRestartsTheHoldTimes() {
+        at(0, 115);
+        List<SymptomSpec.Level> stricter = Specs.levels("medida > 0 && medida < 5", "medida >= 5 && medida < 11",
+                "medida >= 11 && medida < 30", "medida >= 30 && sostenido_s >= 60");
+        symptoms = List.of(CompiledSymptom.compile(SPEEDING, "1.1.0", SymptomState.TEST,
+                Specs.withLevels(Specs.speeding(), stricter), Specs.gpsSignal()));
+        assertEquals(List.of(), kinds(at(60, 121)), "31 over under 1.1.0: its minute starts now");
+        assertEquals(List.of("LEVEL_CHANGED:4"), kinds(at(120, 121)));
     }
 
     @Test

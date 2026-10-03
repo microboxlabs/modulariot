@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
@@ -54,6 +55,31 @@ class ConditionChecksTest {
         assertEquals(Optional.of(List.of(SpecDiff.squash("a || b"), "c")),
                 ConditionChecks.conjunction("((a || b)) && c"), "an || group stays one condition");
         assertEquals(1, ConditionChecks.conjunction("((a) || (b))").orElseThrow().size());
+    }
+
+    @Test
+    void conditionsInAnotherOrderAreTheSameRule() {
+        String rule = "a > 1 && (b == \"x\" || c) && !(d || e)";
+        String same = ConditionChecks.unordered(rule);
+        assertEquals(same, ConditionChecks.unordered("!(e || d) && (c || b == \"x\") && a > 1"));
+        assertEquals(same, ConditionChecks.unordered("(a > 1 && ((c) || b == \"x\")) && !((e) || d)"));
+        assertEquals(ConditionChecks.unordered("a || b || c"), ConditionChecks.unordered("c || (b || a)"));
+
+        assertNotEquals(same, ConditionChecks.unordered("a > 1 && (b == \"x\" && c) && !(d || e)"),
+                "&& instead of || in a group");
+        assertNotEquals(same, ConditionChecks.unordered("a > 1 && (b == \"x\" || c) && (d || e)"),
+                "the exception dropped its !");
+        assertNotEquals(ConditionChecks.unordered("a || b && c"), ConditionChecks.unordered("c && b || a"),
+                "mixed joins at one level keep their order");
+        assertNotEquals(ConditionChecks.unordered("a == \"x && y\" && b"),
+                ConditionChecks.unordered("a == \"y && x\" && b"), "text inside quotes is not split");
+        assertEquals(SpecDiff.squash(null), ConditionChecks.unordered(null));
+        assertNotEquals(ConditionChecks.unordered("t ? false || false : false || true"),
+                ConditionChecks.unordered("t ? false || true || false : false"), "a conditional keeps its parts in order");
+        assertNotEquals(ConditionChecks.unordered("a && (t ? b || c : d)"),
+                ConditionChecks.unordered("a && (t ? b : c || d)"), "also inside a group");
+        assertEquals(ConditionChecks.unordered("x == \"?\" && y"), ConditionChecks.unordered("y && x == \"?\""),
+                "a ? inside quotes is text");
     }
 
     @Test

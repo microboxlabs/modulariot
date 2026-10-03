@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { HiTrash } from "react-icons/hi";
+import { MdDragIndicator } from "react-icons/md";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
@@ -14,6 +15,7 @@ import {
   decimalText,
   exactNumber,
   isNumeric,
+  moveRow,
   newCondition,
   newId,
   opsFor,
@@ -146,6 +148,7 @@ function ConditionRow({
   fields,
   readOnly,
   d,
+  handle,
   onChange,
   onRemove,
 }: Readonly<{
@@ -153,6 +156,7 @@ function ConditionRow({
   fields: SourceField[];
   readOnly: boolean;
   d: I18nRecord;
+  handle?: ReactNode;
   onChange: (row: Condition) => void;
   onRemove: () => void;
 }>) {
@@ -160,6 +164,7 @@ function ConditionRow({
   if (!field) return null;
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-gray-800">
+      {handle}
       <select
         aria-label={tr("conditionField", d)}
         className={pillClass}
@@ -219,6 +224,8 @@ function ConditionRow({
   );
 }
 
+const KEY_STEP: Record<string, number> = { ArrowUp: -1, ArrowDown: 1 };
+
 function Rows({
   rows,
   fields,
@@ -233,20 +240,98 @@ function Rows({
   onChange: (rows: Condition[]) => void;
 }>) {
   const first = fields[0];
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [over, setOver] = useState<string | null>(null);
+  // A row moved with the keyboard keeps focus on its handle, once the moved list comes back.
+  const handles = useRef(new Map<string, HTMLButtonElement>());
+  const pendingFocus = useRef<{ id: string; index: number } | null>(null);
+  useEffect(() => {
+    const pending = pendingFocus.current;
+    if (!pending) return;
+    pendingFocus.current = null;
+    if (rows[pending.index]?.id === pending.id)
+      handles.current.get(pending.id)?.focus();
+  }, [rows]);
+  const sortable = !readOnly && rows.length > 1;
+  const move = (id: string, to: number, keepFocus = false) => {
+    const next = moveRow(
+      rows,
+      rows.findIndex((x) => x.id === id),
+      to
+    );
+    if (next === rows) return;
+    if (keepFocus) pendingFocus.current = { id, index: to };
+    onChange(next);
+  };
+  const end = () => {
+    setDragging(null);
+    setOver(null);
+  };
   return (
     <div className="flex flex-col gap-1.5">
-      {rows.map((r) => (
-        <ConditionRow
+      {rows.map((r, i) => (
+        <div
           key={r.id}
-          row={r}
-          fields={fields}
-          readOnly={readOnly}
-          d={d}
-          onChange={(next) =>
-            onChange(rows.map((x) => (x.id === r.id ? next : x)))
-          }
-          onRemove={() => onChange(rows.filter((x) => x.id !== r.id))}
-        />
+          data-testid="condition-row"
+          className={`rounded-lg ${dragging === r.id ? "opacity-50" : ""} ${
+            over === r.id && dragging !== r.id
+              ? "ring-2 ring-blue-400 dark:ring-blue-500"
+              : ""
+          }`}
+          onDragOver={(e) => {
+            if (!dragging) return;
+            e.preventDefault();
+            setOver(r.id);
+          }}
+          onDrop={(e) => {
+            if (!dragging) return;
+            e.preventDefault();
+            move(dragging, i);
+            end();
+          }}
+        >
+          <ConditionRow
+            row={r}
+            fields={fields}
+            readOnly={readOnly}
+            d={d}
+            handle={
+              sortable && (
+                <button
+                  type="button"
+                  draggable
+                  ref={(el) => {
+                    if (el) handles.current.set(r.id, el);
+                    else handles.current.delete(r.id);
+                  }}
+                  aria-label={tr("dragCondition", d)}
+                  title={tr("dragCondition", d)}
+                  className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing dark:hover:text-gray-200"
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", r.id);
+                    const rowEl = e.currentTarget.parentElement;
+                    if (rowEl) e.dataTransfer.setDragImage(rowEl, 12, 12);
+                    setDragging(r.id);
+                  }}
+                  onDragEnd={end}
+                  onKeyDown={(e) => {
+                    const step = KEY_STEP[e.key];
+                    if (step === undefined) return;
+                    e.preventDefault();
+                    move(r.id, i + step, true);
+                  }}
+                >
+                  <MdDragIndicator className="h-4 w-4" />
+                </button>
+              )
+            }
+            onChange={(next) =>
+              onChange(rows.map((x) => (x.id === r.id ? next : x)))
+            }
+            onRemove={() => onChange(rows.filter((x) => x.id !== r.id))}
+          />
+        </div>
       ))}
       {!readOnly && first && (
         <button

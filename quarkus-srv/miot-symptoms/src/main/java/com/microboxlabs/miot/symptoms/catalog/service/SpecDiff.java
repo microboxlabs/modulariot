@@ -8,7 +8,6 @@ import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * What changed between two specs, in plain Spanish, and the version bump
@@ -129,15 +128,10 @@ public final class SpecDiff {
         return level != null && level.applies();
     }
 
-    /** Conditions joined by {@code &&} in another order open the same cases, so they are the same rule. */
+    /** The same conditions in another order open the same cases, so they are the same rule. */
     private static boolean sameActivation(String before, String after) {
-        if (sameRule(before, after)) {
-            return true;
-        }
-        Optional<List<String>> a = ConditionChecks.conjunction(before);
-        Optional<List<String>> b = ConditionChecks.conjunction(after);
-        return a.isPresent() && b.isPresent() && a.get().stream().sorted().toList()
-                .equals(b.get().stream().sorted().toList());
+        return sameRule(before, after)
+                || Objects.equals(ConditionChecks.unordered(before), ConditionChecks.unordered(after));
     }
 
     private static boolean sameRule(String before, String after) {

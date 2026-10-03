@@ -4,6 +4,7 @@ import {
   compileConditions,
   decimalText,
   exactNumber,
+  moveRow,
   newCondition,
   opsFor,
   parseConditions,
@@ -329,5 +330,18 @@ describe("newCondition and opsFor", () => {
     expect(newCondition(num)).toMatchObject({ op: ">", value: 0 });
     expect(opsFor("zone")).toEqual(["==", "!="]);
     expect(newCondition(bool).id).not.toBe(newCondition(bool).id);
+  });
+});
+
+describe("moveRow", () => {
+  it("moves one row and leaves the list alone when an index is out of range", () => {
+    const rows = ["a", "b", "c"];
+    expect(moveRow(rows, 0, 2)).toEqual(["b", "c", "a"]);
+    expect(moveRow(rows, 2, 0)).toEqual(["c", "a", "b"]);
+    expect(moveRow(rows, 0, -1)).toBe(rows);
+    expect(moveRow(rows, 2, 3)).toBe(rows);
+    expect(moveRow(rows, -1, 0)).toBe(rows);
+    expect(moveRow(rows, 1, 1)).toBe(rows);
+    expect(rows).toEqual(["a", "b", "c"]);
   });
 });

@@ -306,6 +306,22 @@ function literal(c: Condition): string {
   return JSON.stringify(c.value ?? "");
 }
 
+/** `rows` with the row at `from` moved to `to`; the same list when either index is out of range. */
+export function moveRow<T>(rows: T[], from: number, to: number): T[] {
+  if (
+    from === to ||
+    from < 0 ||
+    to < 0 ||
+    from >= rows.length ||
+    to >= rows.length
+  )
+    return rows;
+  const next = [...rows];
+  const [row] = next.splice(from, 1);
+  next.splice(to, 0, row);
+  return next;
+}
+
 /** One condition as CEL. */
 export function compileCondition(c: Condition): string {
   if (c.op === "is_true") return c.path;

@@ -22,6 +22,7 @@ import {
   importEngineRules,
   refreshSymptoms,
   useSymptomDefinitions,
+  useSymptomFamilies,
   useSymptomStats,
   type SymptomSummary,
 } from "./maintainer-api";
@@ -42,10 +43,15 @@ const EMPTY: Filters = {
   draft: "",
 };
 
-function passes(s: SymptomSummary, f: Filters, d: I18nRecord) {
+function passes(
+  s: SymptomSummary,
+  f: Filters,
+  d: I18nRecord,
+  family: (value: string | null) => string
+) {
   const spec = s.current?.spec ?? null;
   if (f.draft && !s.hasDraft) return false;
-  if (f.family && familyLabel(s.definition.family) !== f.family) return false;
+  if (f.family && family(s.definition.family) !== f.family) return false;
   if (f.state && stateLabel(s.definition.state, d) !== f.state) return false;
   if (
     f.level &&
@@ -80,6 +86,7 @@ export default function SymptomCatalog({
   const router = useRouter();
   const { data, error, isLoading } = useSymptomDefinitions();
   const { data: stats } = useSymptomStats();
+  const { data: families } = useSymptomFamilies();
   const { activeOrg } = useOrgScopes();
   const isOwner = activeOrg?.role === "OWNER";
   const [filters, setFilters] = useState<Filters>(EMPTY);
@@ -90,7 +97,8 @@ export default function SymptomCatalog({
   const [importNote, setImportNote] = useState<string | null>(null);
 
   const all = useMemo(() => data ?? [], [data]);
-  const shown = all.filter((s) => passes(s, filters, d));
+  const family = (value: string | null) => familyLabel(value, families, lang);
+  const shown = all.filter((s) => passes(s, filters, d, family));
   const weekOf = useMemo(() => {
     const byId = new Map(
       (stats?.symptoms ?? []).map((x) => [x.definitionId, x.week])
@@ -110,9 +118,7 @@ export default function SymptomCatalog({
       key: "family",
       label: tr("filterFamily", d),
       options: [
-        ...new Set(
-          all.map((s) => familyLabel(s.definition.family)).filter(Boolean)
-        ),
+        ...new Set(all.map((s) => family(s.definition.family)).filter(Boolean)),
       ],
     },
     {
@@ -273,6 +279,7 @@ export default function SymptomCatalog({
                 <SymptomCard
                   key={s.definition.id}
                   s={s}
+                  family={family(s.definition.family)}
                   week={weekOf(s.definition.id)}
                   lang={lang}
                   d={d}
@@ -301,6 +308,7 @@ export default function SymptomCatalog({
                     <SymptomRow
                       key={s.definition.id}
                       s={s}
+                      family={family(s.definition.family)}
                       week={weekOf(s.definition.id)}
                       lang={lang}
                       d={d}
@@ -322,6 +330,7 @@ export default function SymptomCatalog({
         open={creating}
         d={d}
         rootDict={rootDict}
+        lang={lang}
         harnessEnabled={harnessEnabled}
         importing={importing}
         onImport={() => {

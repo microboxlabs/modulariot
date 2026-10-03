@@ -8,6 +8,7 @@ import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
 import ClauseBreakdown from "./clause-breakdown";
 import LevelsExpression from "./levels-expression";
+import LifecycleExpression from "./lifecycle-expression";
 import SampleTree, { unsupportedPaths, useSourceSamples } from "./sample-tree";
 import { SourceHelp, SourceSelect } from "./source-select";
 import { changedPaths, isChanged } from "./ui/changed";
@@ -475,36 +476,16 @@ export default function SymptomRuleSections({
           </div>
         )}
         {lifeMode === "expr" && (
-          <>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-              {tr("opens", d)}
-            </span>
-            <CelEditor
-              singleLine
-              readOnly={readOnly}
-              ariaLabel={tr("opens", d)}
-              value={lifecycle.open ?? ""}
-              fields={lifecycleFields}
-              problems={open}
-              onChange={(value) =>
-                onChange({ ...spec, lifecycle: { ...lifecycle, open: value } })
-              }
-            />
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-              {tr("closes", d)}
-            </span>
-            <CelEditor
-              singleLine
-              readOnly={readOnly}
-              ariaLabel={tr("closes", d)}
-              value={lifecycle.close ?? ""}
-              fields={lifecycleFields}
-              problems={close}
-              onChange={(value) =>
-                onChange({ ...spec, lifecycle: { ...lifecycle, close: value } })
-              }
-            />
-          </>
+          <LifecycleExpression
+            lifecycle={lifecycle}
+            preview={preview}
+            fields={lifecycleFields}
+            openProblems={open}
+            closeProblems={close}
+            readOnly={readOnly}
+            d={d}
+            onChange={(next) => onChange({ ...spec, lifecycle: next })}
+          />
         )}
         {(lifeMode === "expr" || !lifeFormable) && (
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">

@@ -253,9 +253,21 @@ export interface SamplePreview {
   clauses?: ClauseResult[];
 }
 
+/** The lifecycle on one fixed case moment: the open rule before a case opens, the close rule after. */
+export interface CasePreview {
+  scenario: string;
+  open: boolean;
+  sample: Record<string, unknown>;
+  /** opens or waits before a case opens; closes or stays_open after; null when the rule could not run. */
+  outcome: "opens" | "waits" | "closes" | "stays_open" | null;
+  error: string | null;
+}
+
 export interface Preview {
   source: string;
   samples: SamplePreview[];
+  /** Absent from servers that do not try the lifecycle yet. */
+  cases?: CasePreview[];
 }
 
 export interface CreateSymptomBody {

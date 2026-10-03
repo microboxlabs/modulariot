@@ -340,7 +340,9 @@ export default function SymptomRuleSections({
     <div className="flex flex-col gap-4">
       <ActivationSection
         spec={spec}
-        changed={isChanged(changed, "activation")}
+        changed={
+          isChanged(changed, "activation") || isChanged(changed, "source")
+        }
         preview={preview}
         fields={fields}
         sourceFields={sourceFields}

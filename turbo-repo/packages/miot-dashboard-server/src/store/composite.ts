@@ -1,4 +1,4 @@
-import { dashboardDisplayName } from "./display-name";
+import { dashboardDisplayName, dashboardSortOrder } from "./display-name";
 export { dashboardDisplayName } from "./display-name";
 /**
  * Builds a `ServerDashboardStore` from a metadata store and a document store.
@@ -174,6 +174,7 @@ export function createCompositeStore(
         ref,
         {
           name: dashboardDisplayName(config, ref.slug),
+          order: dashboardSortOrder(config),
           documentKey: key,
           updatedBy: saveOptions.updatedBy,
           updatedAt: now().toISOString(),
@@ -200,7 +201,11 @@ export function createCompositeStore(
 
     async list(tenantId: string, scopeId: string): Promise<DashboardSummary[]> {
       const rows = await metadata.list(tenantId, scopeId);
-      return rows.map((row) => ({ slug: row.slug, name: row.name }));
+      return rows.map((row) => ({
+        slug: row.slug,
+        name: row.name,
+        ...(row.order === undefined ? {} : { order: row.order }),
+      }));
     },
 
     async remove(ref: ServerDashboardRef): Promise<void> {

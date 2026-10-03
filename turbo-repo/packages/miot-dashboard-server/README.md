@@ -747,11 +747,33 @@ finds it — and the conversion should be written against that example.
 
 ### Convert planner requests to saved queries
 
-`migratePlannerQueries(config, mappings)` prepares a new document without network
-calls or store writes. Supply exactly one `PlannerQueryMapping` per legacy request:
-`plannerId`, `connectionId`, `operationId`, and explicit `parameters` using the
-contract's literal/filter bindings. Verify those operations and parameter types in
-the authorized host catalog first. Tenant predicates belong to the host plan.
+`migratePlannerQueries(config, mappings, options?)` prepares a new document without
+network calls or store writes. Supply exactly one `PlannerQueryMapping` per legacy
+request: `plannerId`, `connectionId`, `operationId`, and optionally `parameters`
+using the contract's literal/filter bindings. Verify those operations and parameter
+types in the authorized host catalog first. Tenant predicates belong to the host plan.
+
+When `parameters` is omitted it is derived from the legacy request:
+
+| Legacy value | Binding |
+|---|---|
+| `{{filter.key}}` | `{ kind: "filter", key, omitWhenEmpty: true }` |
+| other text | `{ kind: "literal", value }` |
+| empty | omitted, as the legacy planner did |
+| any other template | refused |
+
+The legacy page showed a date filter without declaring it. When a binding reads
+`date_range_from` or `date_range_to` and the document declares no `date_range`
+filter, one is added with key `date_range` and `options.dateFilterLabel`
+(default `"Date"`).
+
+`plannerOperationContracts(dashboards, { pinnedParameters })` lists the operations
+an integrations admin creates for those mappings: one read-only `HTTP_GET` contract
+per (data source, path), with every parameter any request passes as an optional
+string. A pinned parameter must have one literal value everywhere and is fixed with
+`const`, so a dashboard cannot change it. Contracts are marked `credentialScoped`:
+isolation comes from the connection's credential. POST requests and paths other
+than `name` or `rpc/name` are reported as problems.
 
 The result is `{ ok: true, config }` or `{ ok: false, problems }`. A successful
 conversion removes `requestPlanner`, retains request IDs, variable names and known
@@ -759,8 +781,7 @@ columns, and preserves widgets, filters, permissions metadata and document exten
 fields. The source is untouched. Duplicate identifiers, incomplete mappings,
 existing saved queries and invalid output contracts are refused.
 
-This helper does not interpret legacy templates, infer filter defaults, rewrite
-widget settings or certify their compatibility. Review nested and direct-datasource
+These helpers do not rewrite widget settings or certify their compatibility. Review nested and direct-datasource
 widgets separately. Pass the prepared document to an import dry run, then compare
 live data, filters and permissions before applying a parallel migration.
 
@@ -894,3 +915,39 @@ importing documents with this restriction. Existing standalone deployments that
 relied on ignored restrictions must configure trusted claims before upgrading.
 
 For ticket authentication, set `MIOT_DASHBOARD_TICKET_GROUPS_PATH` to the group-array path in the trusted ticket-validation response. JWT group-claim settings do not configure ticket identities. Without the appropriate group source, restricted dashboards remain denied.
+
+### Authoring query catalog (v0.6.0)
+
+Pass an optional `queryCatalog: { list({ identity, ref, signal }) }` provider to
+`createDashboardHandler` or `serve`. The provider returns connections shaped as
+`{ id, label, operations: [{ id, label, schema?: string[] }] }`. Public types
+`DashboardQueryCatalog`, `DashboardCatalogConnection` and
+`DashboardCatalogOperation` are exported from `/http`.
+
+`GET /tenants/{tenantId}/scopes/{scopeId}/dashboards/{slug}/query-catalog`
+requires permission to save an existing dashboard, before invoking the provider.
+It returns `{ connections }` with `Cache-Control: no-store`; an omitted provider
+or missing dashboard returns 404. Provider failures are redacted.
+
+The host must discover only active, read-only operations authorized for the
+resolved identity, tenant and scope, honor cancellation, and bound its upstream
+work. The server copies only IDs, display labels and optional result column names,
+rejects duplicate identifiers and bounds the projection to 100 connections, 100
+operations per connection, 100 columns per operation and 256 KiB. Never put secrets
+in display labels or column names. Extra administrative fields (including SQL,
+URLs and credential references) are not serialized. Catalog discovery grants no
+execution rights: the operation executor independently authorizes every request.
+For the standalone CLI, the trusted module selected by
+`MIOT_DASHBOARD_OPERATIONS_MODULE` may additionally export
+`createDashboardQueryCatalog()`, returning this provider. The factory runs once
+at startup. An absent export, or a factory that returns `null`, keeps discovery
+disabled; a malformed or failing factory refuses startup with a redacted error.
+Existing execution-only modules remain compatible. Module paths are operator
+configuration, never request input.
+
+`createRemoteQueryCatalog({ url, proxyKey })` (from `./queries`) is a provider
+backed by a host endpoint: it POSTs `{ tenantId }` with the `x-miot-proxy-key`
+header and keeps only connection and operation IDs and labels. The bundled
+`examples/modulariot-operations.mjs` enables it when `MIOT_DASHBOARD_CATALOG_URL`
+is set (the ModularIoT endpoint is `/internal/dashboard-operations/catalog`),
+and returns `null` otherwise.

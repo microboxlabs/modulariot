@@ -11,6 +11,7 @@ vi.mock("@/app/api/utils/quarkus-proxy", () => ({
   forwardToQuarkus: forwardMock,
 }));
 
+import { GET as queryCatalog } from "./[dashboard]/query-catalog/route";
 import { POST as query } from "./[dashboard]/queries/[query]/route";
 import { GET as list } from "./route";
 import { GET as scopeCapabilities } from "../dashboard-capabilities/route";
@@ -37,6 +38,7 @@ describe("new dashboard product routes", () => {
     ["PUT", save, "/fleet%20report"],
     ["DELETE", remove, "/fleet%20report"],
     ["GET", capabilities, "/fleet%20report/capabilities"],
+    ["GET", queryCatalog, "/fleet%20report/query-catalog"],
     ["GET", permissions, "/fleet%20report/permissions"],
     ["PUT", setPermissions, "/fleet%20report/permissions"],
   ] as const)(

@@ -246,7 +246,7 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     id: "BEARER_TOKEN",
     nameKey: "types.bearer.name",
     descriptionKey: "types.bearer.description",
-    available: false,
+    available: true,
     supportsTest: false,
   },
   {
@@ -481,6 +481,24 @@ export type GoogleServiceAccountFormData = z.infer<
   typeof GoogleServiceAccountCredentialSchema
 >;
 
+/** A static token sent as `Authorization: Bearer <token>`. */
+export const BearerTokenCredentialSchema = z.object({
+  name: z.string().min(1, "validation.nameRequired").max(100),
+  environment: z
+    .string()
+    .min(1, "validation.environmentRequired")
+    .max(40, "validation.environmentTooLong"),
+  token: z.string().trim().min(1, "validation.tokenRequired"),
+});
+
+/** On edit the token may be left blank to keep the stored one. */
+export const BearerTokenCredentialEditSchema =
+  BearerTokenCredentialSchema.extend({
+    token: z.string().optional(),
+  });
+
+export type BearerTokenFormData = z.infer<typeof BearerTokenCredentialSchema>;
+
 /**
  * Any credential form's data. The list/create/update paths are type-agnostic —
  * they carry the payload to the API and let the per-type `toPublicConfig`
@@ -490,7 +508,8 @@ export type CredentialFormData =
   | AzureEntraFormData
   | OAuth2FormData
   | Auth0M2MFormData
-  | GoogleServiceAccountFormData;
+  | GoogleServiceAccountFormData
+  | BearerTokenFormData;
 
 export interface CredentialTestResult {
   readonly success: boolean;

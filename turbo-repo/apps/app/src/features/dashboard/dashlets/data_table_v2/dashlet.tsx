@@ -1,6 +1,7 @@
 "use client";
+import { DataTable } from "@microboxlabs/miot-dashboard-ui/react";
 
-import { useMemo, useRef, useState, useEffect, useLayoutEffect, useCallback } from "react";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import type {
   DashletComponentProps,
@@ -10,11 +11,8 @@ import type {
   TableColumn,
   SortConfig,
 } from "@/features/dashboard/dashlets/common/column-types";
-import type {
-  FilterConfig,
-} from "@/features/dashboard/dashlets/common/filter-types";
+import type { FilterConfig } from "@/features/dashboard/dashlets/common/filter-types";
 import { HiArrowUp, HiArrowDown } from "react-icons/hi2";
-import { renderCell } from "@/features/dashboard/dashlets/common/cell-renderers";
 import { normalizeFilterConfig } from "@/features/dashboard/dashlets/common/filter-helpers";
 import { useFilterAndSort } from "@/features/dashboard/dashlets/common/use-filter-and-sort";
 import { useColumnFilters } from "@/features/dashboard/dashlets/common/use-column-filters";
@@ -53,166 +51,22 @@ import type {
   PgrestHttpMethod,
 } from "@/features/dashboard/dashlets/common/pgrest-types";
 import type { ColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-types";
-import {
-  findMatchingColor,
-  getRowColorClasses,
-} from "@/features/dashboard/dashlets/common/color-rule-engine";
+import { findMatchingColor } from "@/features/dashboard/dashlets/common/color-rule-engine";
 import { normalizeColorRulesConfig } from "@/features/dashboard/dashlets/common/color-rule-helpers";
-import type { ActionsConfig, RowAction } from "@/features/dashboard/dashlets/common/action-types";
+import type {
+  ActionsConfig,
+  RowAction,
+} from "@/features/dashboard/dashlets/common/action-types";
 import {
   normalizeActionsConfig,
   normalizeRowActions,
-  isSafeActionUrl,
 } from "@/features/dashboard/dashlets/common/action-helpers";
 import { resolveHandlebarsField } from "@/features/dashboard/dashlets/common/use-handlebars-templates";
-import { ActionDropdown } from "@/features/dashboard/dashlets/common/action-dropdown";
-import { RowContextMenu } from "@/features/dashboard/dashlets/common/row-context-menu";
-import type { ResolvedContextItem } from "@/features/dashboard/dashlets/common/row-context-menu";
+import { tableStatusLabels, tableRowActions } from "../common/table-host-adapters";
 import {
   DashletTitleBar,
   buildTitleBarData,
 } from "@/features/dashboard/dashlets/common/dashlet-title-bar";
-
-// ============================================================================
-// Sticky column helpers
-// ============================================================================
-
-function measureLeftOffsets(
-  columns: TableColumn[],
-  cells: HTMLCollection
-): Record<number, number> {
-  const offsets: Record<number, number> = {};
-  let left = 0;
-  for (let i = 0; i < columns.length; i++) {
-    if (!columns[i].sticky) break;
-    offsets[i] = left;
-    const cell = cells[i] as HTMLElement | undefined;
-    if (cell) left += cell.offsetWidth;
-  }
-  return offsets;
-}
-
-function measureRightOffsets(
-  columns: TableColumn[],
-  cells: HTMLCollection,
-  leftOff: Record<number, number>,
-  actionsWidth: number
-): Record<number, number> {
-  const offsets: Record<number, number> = {};
-  let right = actionsWidth;
-  for (let i = columns.length - 1; i >= 0; i--) {
-    if (!columns[i].sticky) break;
-    if (leftOff[i] !== undefined) break;
-    offsets[i] = right;
-    const cell = cells[i] as HTMLElement | undefined;
-    if (cell) right += cell.offsetWidth;
-  }
-  return offsets;
-}
-
-function buildStickyThClass(
-  colIdx: number,
-  lastStickyIdx: number,
-  firstStickyRightIdx: number
-): string {
-  const base =
-    "relative bg-gray-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-700 dark:text-gray-400";
-  if (colIdx <= lastStickyIdx) {
-    const shadow =
-      colIdx === lastStickyIdx
-        ? " shadow-[inset_-1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_-1px_0_0_theme(colors.gray.600)]"
-        : "";
-    return `${base} sticky left-0 z-30${shadow}`;
-  }
-  if (firstStickyRightIdx >= 0 && colIdx >= firstStickyRightIdx) {
-    const shadow =
-      colIdx === firstStickyRightIdx
-        ? " shadow-[inset_1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_1px_0_0_theme(colors.gray.600)]"
-        : "";
-    return `${base} sticky right-0 z-30${shadow}`;
-  }
-  return base;
-}
-
-function stickyBgForColor(rowColor: string | null): string {
-  switch (rowColor) {
-    case "red":
-      return "bg-red-50 dark:bg-gray-800";
-    case "yellow":
-      return "bg-yellow-50 dark:bg-gray-800";
-    case "green":
-      return "bg-green-50 dark:bg-gray-800";
-    case "blue":
-      return "bg-blue-50 dark:bg-gray-800";
-    case "orange":
-      return "bg-orange-50 dark:bg-gray-800";
-    case "purple":
-      return "bg-purple-50 dark:bg-gray-800";
-    case "gray":
-      return "bg-gray-100 dark:bg-gray-800";
-    default:
-      return "bg-white dark:bg-gray-800";
-  }
-}
-
-function buildStickyTdClass(
-  colIdx: number,
-  lastStickyIdx: number,
-  firstStickyRightIdx: number,
-  showColumnDividers: boolean,
-  columnsLength: number,
-  rowColor: string | null
-): string {
-  const divider =
-    showColumnDividers && colIdx < columnsLength - 1
-      ? " relative after:absolute after:right-0 after:top-3 after:bottom-3 after:w-px after:bg-gray-200/30 dark:after:bg-gray-600/25"
-      : "";
-  const rowBorder = "border-t border-gray-200 dark:border-gray-600";
-  const base = `${rowBorder} overflow-hidden select-text px-4 py-4 text-gray-700 dark:text-gray-300${divider}`;
-  if (colIdx <= lastStickyIdx) {
-    const shadow =
-      colIdx === lastStickyIdx
-        ? " shadow-[inset_-1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_-1px_0_0_theme(colors.gray.600)]"
-        : "";
-    return `${base} sticky left-0 z-10 ${stickyBgForColor(rowColor)}${shadow}`;
-  }
-  if (firstStickyRightIdx >= 0 && colIdx >= firstStickyRightIdx) {
-    const shadow =
-      colIdx === firstStickyRightIdx
-        ? " shadow-[inset_1px_0_0_theme(colors.gray.300)] dark:shadow-[inset_1px_0_0_theme(colors.gray.600)]"
-        : "";
-    return `${base} sticky right-0 z-10 ${stickyBgForColor(rowColor)}${shadow}`;
-  }
-  return base;
-}
-
-function buildStickyStyle(
-  colIdx: number,
-  leftOffsets: Record<number, number>,
-  rightOffsets: Record<number, number>,
-  lastStickyIdx: number,
-  firstStickyRightIdx: number
-): React.CSSProperties | undefined {
-  if (colIdx <= lastStickyIdx && leftOffsets[colIdx] !== undefined) {
-    const style: React.CSSProperties = { left: leftOffsets[colIdx] };
-    if (colIdx < lastStickyIdx) {
-      style.paddingRight = "calc(1rem + 0.1px)";
-    }
-    return style;
-  }
-  if (
-    firstStickyRightIdx >= 0 &&
-    colIdx >= firstStickyRightIdx &&
-    rightOffsets[colIdx] !== undefined
-  ) {
-    const style: React.CSSProperties = { right: rightOffsets[colIdx] };
-    if (colIdx > firstStickyRightIdx) {
-      style.paddingLeft = "calc(1rem + 0.1px)";
-    }
-    return style;
-  }
-  return undefined;
-}
 
 // ============================================================================
 // Config & Defaults
@@ -479,98 +333,31 @@ function MarkdownTooltip({
 // Column resize handle
 // ============================================================================
 
-interface ResizeHandleProps {
-  onMouseDown: (e: React.MouseEvent) => void;
-  onDoubleClick: (e: React.MouseEvent) => void;
-}
-
-function ResizeHandle({ onMouseDown, onDoubleClick }: Readonly<ResizeHandleProps>) {
-  return (
-    <div
-      role="separator"
-      aria-orientation="vertical"
-      className="group/rh absolute inset-y-0 -right-1.5 z-10 flex w-3 cursor-col-resize select-none items-center justify-center"
-      onMouseDown={onMouseDown}
-      onDoubleClick={onDoubleClick}
-    >
-      <div className="h-3 w-px rounded-full bg-gray-300 transition-colors group-hover/rh:bg-blue-400 dark:bg-gray-500 dark:group-hover/rh:bg-blue-500" />
-    </div>
-  );
-}
-
 interface ColumnSortIconProps {
   colKey: string;
   sortKey: string | null;
   sortDir: "asc" | "desc";
 }
 
-function ColumnSortIcon({ colKey, sortKey, sortDir }: Readonly<ColumnSortIconProps>) {
+function ColumnSortIcon({
+  colKey,
+  sortKey,
+  sortDir,
+}: Readonly<ColumnSortIconProps>) {
   if (sortKey !== colKey) return null;
   if (sortDir === "asc") {
-    return <HiArrowDown className="h-3 w-3 shrink-0 text-blue-500 dark:text-gray-200" />;
+    return (
+      <HiArrowDown className="h-3 w-3 shrink-0 text-blue-500 dark:text-gray-200" />
+    );
   }
-  return <HiArrowUp className="h-3 w-3 shrink-0 text-blue-500 dark:text-gray-200" />;
+  return (
+    <HiArrowUp className="h-3 w-3 shrink-0 text-blue-500 dark:text-gray-200" />
+  );
 }
 
 // ============================================================================
 // Column width persistence helpers
 // ============================================================================
-
-/** Overlay saved widths (by column key) onto measured widths (by index). */
-function applySavedWidths(
-  measured: (number | null)[],
-  columns: TableColumn[],
-  saved: Record<string, number> | undefined
-): (number | null)[] {
-  if (!saved) return measured;
-  const lastIdx = columns.length - 1;
-  return measured.map((w, i) => {
-    if (i === lastIdx) return null;
-    return saved[columns[i].key] ?? w;
-  });
-}
-
-/** Convert index-based widths into the key-based shape stored in config. */
-function toColumnWidthRecord(
-  widths: (number | null)[],
-  columns: TableColumn[]
-): Record<string, number> {
-  const record: Record<string, number> = {};
-  const lastIdx = columns.length - 1;
-  columns.forEach((col, i) => {
-    const w = widths[i];
-    if (i !== lastIdx && w != null) record[col.key] = Math.round(w);
-  });
-  return record;
-}
-
-/**
- * True when the saved widths no longer match the widths on screen, e.g. after
- * undo/redo. A drag in edit mode saves the widths already shown, so it is false.
- */
-function savedWidthsDiffer(
-  widths: (number | null)[],
-  columns: TableColumn[],
-  saved: Record<string, number> | undefined
-): boolean {
-  return (
-    JSON.stringify(saved ?? {}) !==
-    JSON.stringify(toColumnWidthRecord(widths, columns))
-  );
-}
-
-/**
- * Drag-resize sizes the last column with inline styles React doesn't manage;
- * clear them so it fills the remaining space again after a re-measure.
- */
-function clearColumnInlineWidth(table: HTMLTableElement, position: number) {
-  const selector = `colgroup col:nth-child(${position}), thead th:nth-child(${position}), tbody td:nth-child(${position})`;
-  table.querySelectorAll<HTMLElement>(selector).forEach((el) => {
-    el.style.width = "";
-    el.style.minWidth = "";
-    el.style.maxWidth = "";
-  });
-}
 
 // ============================================================================
 // Component
@@ -585,11 +372,11 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     showColumnDividers = defaultConfig.showColumnDividers,
     dataMode = defaultConfig.dataMode,
     columns = defaultColumns,
+    sort = defaultSort,
     rows: staticRows = defaultRows,
     pgrestFunctionName = "",
     pgrestParams = [],
     pgrestHttpMethod = "POST",
-    sort = defaultSort,
     dataSourceId,
     plannerVariableName,
     showExport = true,
@@ -611,12 +398,10 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     () => normalizeActionsConfig(config.actions, { enabled: false, items: [] }),
     [config.actions]
   );
-  const hasActions = safeActions.enabled && safeActions.items.length > 0;
   const safeRowActions = useMemo(
     () => normalizeRowActions(config.rowActions),
     [config.rowActions]
   );
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: ResolvedContextItem[] } | null>(null);
 
   // ── Data fetching ───────────────────────────────────────────────────────────
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
@@ -643,7 +428,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     sortDir,
     displayRows: legacyDisplayRows,
     handleSortClick,
-  } = useFilterAndSort(filter, { ...sort, enabled: true }, allRows, columns);
+  } = useFilterAndSort(
+    filter,
+    sort,
+    allRows,
+    columns
+  );
 
   // ── Per-column filters ─────────────────────────────────────────────────────
   const {
@@ -677,319 +467,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     dictionary,
   });
 
-  // ── Sticky column offsets ───────────────────────────────────────────────────
-  const headerRowRef = useRef<HTMLTableRowElement>(null);
-  const tableRef = useRef<HTMLTableElement>(null);
-  const [stickyLeftOffsets, setStickyLeftOffsets] = useState<
-    Record<number, number>
-  >({});
-  const [stickyRightOffsets, setStickyRightOffsets] = useState<
-    Record<number, number>
-  >({});
-
-  const measureStickyOffsets = useCallback(() => {
-    const row = headerRowRef.current;
-    if (!row) return;
-    const cells = row.children;
-
-    const leftOff = measureLeftOffsets(columns, cells);
-    setStickyLeftOffsets(leftOff);
-
-    let actionsWidth = 0;
-    if (hasActions && cells.length > columns.length) {
-      const actionsCell = cells[cells.length - 1] as HTMLElement | undefined;
-      if (actionsCell) actionsWidth = actionsCell.offsetWidth;
-    }
-
-    setStickyRightOffsets(
-      measureRightOffsets(columns, cells, leftOff, actionsWidth)
-    );
-  }, [columns, hasActions]);
-
-  useEffect(() => {
-    measureStickyOffsets();
-
-    const row = headerRowRef.current;
-    window.addEventListener("resize", measureStickyOffsets);
-
-    let observer: ResizeObserver | undefined;
-    if (row) {
-      observer = new ResizeObserver(measureStickyOffsets);
-      observer.observe(row);
-    }
-
-    document.fonts?.ready.then(measureStickyOffsets);
-
-    return () => {
-      window.removeEventListener("resize", measureStickyOffsets);
-      observer?.disconnect();
-    };
-  }, [measureStickyOffsets, displayRows]);
-
-  const lastStickyIdx = useMemo(() => {
-    let last = -1;
-    for (let i = 0; i < columns.length; i++) {
-      if (!columns[i].sticky) break;
-      last = i;
-    }
-    return last;
-  }, [columns]);
-
-  const firstStickyRightIdx = useMemo(() => {
-    let first = -1;
-    for (let i = columns.length - 1; i >= 0; i--) {
-      if (!columns[i].sticky) break;
-      if (i <= lastStickyIdx) break;
-      first = i;
-    }
-    return first;
-  }, [columns, lastStickyIdx]);
-
-  // ── Column resizing ─────────────────────────────────────────────────────────
-  // Default state: table-layout:auto so the browser sizes columns by content
-  // and the last column naturally fills remaining space. On the user's first
-  // drag we snapshot the current auto-layout widths for all columns except the
-  // last, apply them as explicit widths, and switch to table-layout:fixed —
-  // from that point the last column continues to fill whatever space is left.
-  const [columnWidths, setColumnWidths] = useState<(number | null)[]>([]);
-  const thRefs = useRef<(HTMLTableCellElement | null)[]>([]);
-  const colRefs = useRef<(HTMLTableColElement | null)[]>([]);
-  const columnsRef = useRef(columns);
-  columnsRef.current = columns;
-  const columnWidthsRef = useRef(columnWidths);
-  columnWidthsRef.current = columnWidths;
-  const hasActionsRef = useRef(hasActions);
-  hasActionsRef.current = hasActions;
-  const savedWidthsRef = useRef(config.columnWidths);
-  savedWidthsRef.current = config.columnWidths;
-  // Re-measure when column keys/order or the saved widths change (undo/redo,
-  // column edits), not only when the column count changes.
-  const columnKeysSig = columns.map((c) => c.key).join("\u0000");
-  const savedWidthsSig = JSON.stringify(config.columnWidths ?? {});
-  const measuredKeysSigRef = useRef(columnKeysSig);
-  const measuredSavedSigRef = useRef(savedWidthsSig);
-
-  // Persist once per completed interaction (drag release / auto-fit), never
-  // while dragging — and only in edit mode. In view mode the resize stays in
-  // local state for this viewer. Read through a ref so the document-level
-  // mouseup listener created at drag start always sees the latest config.
-  const persistWidths = (widths: (number | null)[]) => {
-    if (!editMode) return;
-    updateWidgetConfig(widget.id, {
-      ...widget.config,
-      columnWidths: toColumnWidthRecord(widths, columnsRef.current),
-    });
-  };
-  const persistWidthsRef = useRef(persistWidths);
-  persistWidthsRef.current = persistWidths;
-
-  // Measure natural content widths (auto layout) and commit them so the table
-  // can stay in table-layout:fixed (via Tailwind class) for all user interaction.
-  // Temporarily overrides the Tailwind class with an inline style for measurement,
-  // then clears it so the class takes back over.
-  useLayoutEffect(() => {
-    const table = tableRef.current;
-    const headerRow = headerRowRef.current;
-    if (!table || !headerRow) return;
-    const cols = columnsRef.current;
-    if (!headerRow.children.length || !cols.length) return;
-
-    // Clear stale ref-widths synchronously when the columns change so
-    // measurement can proceed in this same layout pass without an extra render.
-    const columnsChanged =
-      columnWidthsRef.current.length !== cols.length ||
-      measuredKeysSigRef.current !== columnKeysSig;
-    // Only a change to the saved widths re-measures, so view-mode resizes
-    // survive data refreshes.
-    const savedChanged = measuredSavedSigRef.current !== savedWidthsSig;
-    measuredKeysSigRef.current = columnKeysSig;
-    measuredSavedSigRef.current = savedWidthsSig;
-    if (columnsChanged) {
-      columnWidthsRef.current = [];
-      thRefs.current = [];
-    } else if (
-      savedChanged &&
-      savedWidthsDiffer(columnWidthsRef.current, cols, savedWidthsRef.current)
-    ) {
-      columnWidthsRef.current = [];
-    }
-
-    if (!columnWidthsRef.current.every((w) => w === null)) return;
-
-    const containerWidth = table.offsetWidth;
-    clearColumnInlineWidth(table, cols.length);
-
-    table.style.tableLayout = "auto";
-    table.style.width = "max-content";
-    table.getBoundingClientRect(); // force reflow in auto mode
-
-    const cells = headerRow.children;
-    const lastIdx = cols.length - 1;
-    // Measure every data column except the last, which stays unconstrained
-    // (null) so it fills whatever space is left — same rule drag-resize and
-    // autoFitColumn already follow (see the block comment above).
-    const measured = cols.map((_, i) =>
-      i === lastIdx ? null : ((cells[i] as HTMLElement)?.offsetWidth ?? null)
-    );
-    // Saved widths win over measured ones; columns without a saved width
-    // (e.g. newly added) keep their natural content width.
-    const raw = applySavedWidths(measured, cols, savedWidthsRef.current);
-
-    table.style.tableLayout = "";
-    table.style.width = "";
-
-    // Account for the actions column so it doesn't eat into the last data column.
-    const actionsW = hasActionsRef.current ? 40 : 0;
-    const available = containerWidth - actionsW;
-    const sum = raw.reduce<number>((a, w) => a + (w ?? 0), 0);
-    // Scale proportionally if natural widths overflow the container.
-    const snapshot = sum > available && available > 0
-      ? raw.map(w => w == null ? null : Math.max(40, Math.round(w * available / sum)))
-      : raw;
-
-    columnWidthsRef.current = snapshot;
-    setColumnWidths(snapshot);
-  }, [loading, fetchError, columns.length, columnKeysSig, savedWidthsSig]);
-
-  const handleResizeMouseDown = useCallback(
-    (e: React.MouseEvent, colIdx: number) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const colEl = colRefs.current[colIdx];
-      const thEl = thRefs.current[colIdx];
-      if (!colEl) return;
-
-      const startX = e.clientX;
-      const startWidth = colEl.offsetWidth;
-
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-
-      const applyWidth = (w: number) => {
-        const table = tableRef.current;
-        if (!table) return;
-        const px = `${w}px`;
-        colEl.style.width = px; colEl.style.minWidth = px; colEl.style.maxWidth = px;
-        if (thEl) { thEl.style.width = px; thEl.style.minWidth = px; thEl.style.maxWidth = px; }
-        table.querySelectorAll<HTMLTableCellElement>(`tbody tr td:nth-child(${colIdx + 1})`).forEach(td => {
-          td.style.width = px; td.style.minWidth = px; td.style.maxWidth = px;
-        });
-
-        // Keep the last column filling all remaining space.
-        const lastIdx = columnsRef.current.length - 1;
-        const lastColEl = colRefs.current[lastIdx];
-        const lastThEl = thRefs.current[lastIdx];
-        if (lastColEl && lastThEl) {
-          const containerW = table.parentElement?.clientWidth ?? table.offsetWidth;
-          const actionsW = hasActionsRef.current ? 40 : 0;
-          let sumOthers = actionsW;
-          colRefs.current.forEach((c, i) => {
-            if (i === lastIdx) return;
-            sumOthers += i === colIdx ? w : (Number.parseFloat(c?.style.width ?? "0") || 0);
-          });
-          const lastW = Math.max(40, containerW - sumOthers);
-          const lastPx = `${lastW}px`;
-          lastColEl.style.width = lastPx; lastColEl.style.minWidth = lastPx; lastColEl.style.maxWidth = lastPx;
-          lastThEl.style.width = lastPx; lastThEl.style.minWidth = lastPx; lastThEl.style.maxWidth = lastPx;
-          table.querySelectorAll<HTMLTableCellElement>(`tbody tr td:nth-child(${lastIdx + 1})`).forEach(td => {
-            td.style.width = lastPx; td.style.minWidth = lastPx; td.style.maxWidth = lastPx;
-          });
-        }
-
-        if (columnsRef.current.some(c => c.sticky)) {
-          measureStickyOffsets();
-        }
-      };
-
-      const onMouseMove = (ev: MouseEvent) => {
-        applyWidth(Math.max(80, startWidth + (ev.clientX - startX)));
-      };
-
-      const onMouseUp = (ev: MouseEvent) => {
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-        const finalWidth = Math.max(80, startWidth + (ev.clientX - startX));
-        applyWidth(finalWidth);
-        const next = [...columnWidthsRef.current];
-        next[colIdx] = finalWidth;
-        const lastIdx = columnsRef.current.length - 1;
-        const lastThEl = thRefs.current[lastIdx];
-        if (lastThEl) next[lastIdx] = Number.parseFloat(lastThEl.style.width) || next[lastIdx];
-        columnWidthsRef.current = next;
-        setColumnWidths(next);
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
-        // A click without movement changes nothing — don't save.
-        if (finalWidth !== startWidth) persistWidthsRef.current(next);
-      };
-
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", onMouseUp);
-    },
-    [measureStickyOffsets]
-  );
-
-
-  // Double-click a resize handle → auto-fit the column to its content width.
-  const autoFitColumn = useCallback((colIdx: number) => {
-    const colEl = colRefs.current[colIdx];
-    const thEl = thRefs.current[colIdx];
-    const table = tableRef.current;
-    if (!colEl || !thEl || !table) return;
-
-    const savedColWidths = columnsRef.current.map(
-      (_, i) => colRefs.current[i]?.style.width ?? ""
-    );
-
-    // Clear all col widths + temp-switch to auto to measure content width.
-    columnsRef.current.forEach((_, i) => {
-      const col = colRefs.current[i];
-      if (col) { col.style.width = ""; col.style.minWidth = ""; col.style.maxWidth = ""; }
-      const th = thRefs.current[i];
-      if (th) { th.style.width = ""; th.style.minWidth = ""; th.style.maxWidth = ""; }
-      table.querySelectorAll<HTMLTableCellElement>(`tbody tr td:nth-child(${i + 1})`).forEach(td => {
-        td.style.width = ""; td.style.minWidth = ""; td.style.maxWidth = "";
-      });
-    });
-    table.style.tableLayout = "auto";
-    table.style.width = "max-content";
-    table.getBoundingClientRect(); // force reflow
-    const contentWidth = thEl.offsetWidth;
-
-    // Restore other columns and clear inline override → Tailwind class kicks in.
-    columnsRef.current.forEach((_, i) => {
-      if (i !== colIdx) {
-        const col = colRefs.current[i];
-        if (col) col.style.width = savedColWidths[i];
-      }
-    });
-    table.style.tableLayout = "";
-    table.style.width = "";
-    table.getBoundingClientRect(); // force reflow
-
-    colEl.style.width = `${contentWidth}px`;
-
-    if (columnWidthsRef.current.every((w) => w === null)) {
-      const cols = columnsRef.current;
-      const snapshot = cols.map((_, i): number | null => {
-        if (i === cols.length - 1) return null;
-        if (i === colIdx) return contentWidth;
-        const col = colRefs.current[i];
-        return col ? (Number.parseFloat(col.style.width) || null) : null;
-      });
-      columnWidthsRef.current = snapshot;
-      setColumnWidths(snapshot);
-      persistWidthsRef.current(snapshot);
-    } else {
-      const next = [...columnWidthsRef.current];
-      next[colIdx] = contentWidth;
-      columnWidthsRef.current = next;
-      setColumnWidths(next);
-      persistWidthsRef.current(next);
-    }
-  }, []);
-
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -1005,7 +482,6 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         )}
       />
 
-
       {/* Per-column filter toolbar */}
       {activeFilterCount > 0 && (
         <ColumnFilterToolbar
@@ -1018,245 +494,80 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
         />
       )}
 
-      {/* Table card */}
-      <div className="flex-1 overflow-auto overscroll-none rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-        {loading && (
-          <div className="flex h-20 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-            {tr("dashboard.settings.tableLoading", dictionary)}
-          </div>
-        )}
-        {fetchError && (
-          <div className="flex h-20 items-center justify-center text-sm text-red-500 dark:text-red-400">
-            {tr("dashboard.settings.tableError", dictionary, { fetchError })}
-          </div>
-        )}
-        {!loading && !fetchError && (
-          <table
-            ref={tableRef}
-            className="text-sm"
-            style={{ tableLayout: "fixed", borderCollapse: "collapse", width: "100%" }}
-          >
-            <colgroup>
-              {columns.map((col, i) => (
-                <col
-                  key={col.key}
-                  ref={(el) => { colRefs.current[i] = el; }}
-                  style={columnWidths[i] == null ? undefined : { width: `${columnWidths[i]}px`, minWidth: `${columnWidths[i]}px`, maxWidth: `${columnWidths[i]}px` }}
-                />
-              ))}
-              {hasActions && <col />}
-            </colgroup>
-            <thead className="sticky top-0 z-20">
-              <tr ref={headerRowRef} className="bg-gray-50 dark:bg-gray-700">
-                {columns.map((col, colIdx) => (
-                  <th
-                    key={col.key}
-                    ref={(el) => { thRefs.current[colIdx] = el; }}
-                    className={buildStickyThClass(colIdx, lastStickyIdx, firstStickyRightIdx)}
-                    style={{
-                      ...(columnWidths[colIdx] == null ? undefined : { width: `${columnWidths[colIdx]}px`, minWidth: `${columnWidths[colIdx]}px`, maxWidth: `${columnWidths[colIdx]}px` }),
-                      ...buildStickyStyle(colIdx, stickyLeftOffsets, stickyRightOffsets, lastStickyIdx, firstStickyRightIdx),
-                    }}
-                  >
-                    <div className="flex items-center gap-1 overflow-hidden">
-                      <button
-                        type="button"
-                        className="group/sort flex min-w-0 cursor-pointer items-center gap-1 overflow-hidden rounded px-0.5 transition-colors hover:text-gray-900 dark:hover:text-gray-100"
-                        onClick={() => handleSortClick(col.key)}
-                      >
-                        {col.descriptionEnabled && col.description ? (
-                          <MarkdownTooltip description={col.description}>
-                            <span className="cursor-help truncate border-b border-dashed border-gray-400 group-hover/sort:border-gray-600 dark:border-gray-500 dark:group-hover/sort:border-gray-300">
-                              {resolveLabel(col.key)}
-                            </span>
-                          </MarkdownTooltip>
-                        ) : (
-                          <span className="truncate">
-                            {resolveLabel(col.key)}
-                          </span>
-                        )}
-                        <ColumnSortIcon
-                          colKey={col.key}
-                          sortKey={sortKey}
-                          sortDir={sortDir}
-                        />
-                      </button>
-                      <ColumnFilterPopover
-                        columnKey={col.key}
-                        columnLabel={resolveLabel(col.key)}
-                        dataType={resolvedDataTypes[col.key] ?? "text"}
-                        currentFilter={columnFilters[col.key]}
-                        enumValues={enumValues[col.key] ?? []}
-                        onFilterChange={setColumnFilter}
-                      />
-                    </div>
-                    {colIdx < columns.length - 1 && (
-                      <ResizeHandle
-                        onMouseDown={(e) => handleResizeMouseDown(e, colIdx)}
-                        onDoubleClick={(e) => { e.preventDefault(); e.stopPropagation(); autoFitColumn(colIdx); }}
-                      />
-                    )}
-                  </th>
-                ))}
-                {hasActions && (
-                  <th
-                    className={`sticky right-0 z-30 w-10 bg-gray-50 px-2 py-3 dark:bg-gray-700 ${firstStickyRightIdx < 0 ? "border-l border-gray-200 dark:border-gray-600" : ""}`}
-                  >
-                    <span className="sr-only">
-                      {tr("dashboard.settings.actions", dictionary)}
-                    </span>
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {displayRows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={(columns.length || 1) + (hasActions ? 1 : 0)}
-                    className="px-4 py-8 text-center text-sm text-gray-400 dark:text-gray-500"
-                  >
-                    {tr("dashboard.settings.tableNoData", dictionary)}
-                  </td>
-                </tr>
+      <DataTable
+        columns={columns}
+        rows={displayRows}
+        label={title}
+        loading={loading}
+        {...tableStatusLabels(dictionary, fetchError, tr("dashboard.settings.moreActions", dictionary))}
+        showColumnDividers={showColumnDividers ?? true}
+        striped={striped}
+        resolveValue={resolveValue}
+        resolveLabel={resolveLabel}
+        resolveType={resolveType}
+        resizing={{
+          savedWidths: config.columnWidths,
+          editable: editMode,
+          onCommit: (columnWidths) =>
+            updateWidgetConfig(widget.id, { ...widget.config, columnWidths }),
+          handleLabel: (column) =>
+            tr("dashboard.settings.tableResizeColumn", dictionary, { column }),
+        }}
+        rowColor={(row, index) =>
+          safeRowColorRules.enabled
+            ? findMatchingColor(
+                safeRowColorRules.rules,
+                row,
+                resolveValue,
+                index,
+                displayRows.length
+              )
+            : null
+        }
+        rowActions={
+          safeRowActions.length
+            ? (row) =>
+                safeRowActions.map((action) => ({
+                  action,
+                  href: resolveHandlebarsField(action.link, { ...row, row }),
+                }))
+            : undefined
+        }
+        renderHeader={(column, label) => (
+          <div className="flex items-center gap-1 overflow-hidden">
+            <button
+              type="button"
+              className="flex min-w-0 items-center gap-1 overflow-hidden"
+              disabled={!sort.enabled || !sort.columns.includes(column.key)}
+              onClick={() => handleSortClick(column.key)}
+            >
+              {column.descriptionEnabled && column.description ? (
+                <MarkdownTooltip description={column.description}>
+                  <span className="truncate border-b border-dashed">
+                    {label}
+                  </span>
+                </MarkdownTooltip>
               ) : (
-                displayRows.map((row, rowIdx) => {
-                  const rowColor = safeRowColorRules.enabled
-                    ? findMatchingColor(
-                        safeRowColorRules.rules,
-                        row,
-                        resolveValue,
-                        rowIdx,
-                        displayRows.length
-                      )
-                    : null;
-                  let rowBgClass: string;
-                  if (rowColor) {
-                    rowBgClass = getRowColorClasses(rowColor);
-                  } else if (striped && rowIdx % 2 === 1) {
-                    rowBgClass = "bg-gray-50 dark:bg-gray-700/50";
-                  } else {
-                    rowBgClass = "bg-white dark:bg-gray-800";
-                  }
-
-                  const ctx = { ...row, row };
-                  const clickAction = safeRowActions[0];
-                  const clickHref = clickAction
-                    ? (() => {
-                        const href = resolveHandlebarsField(clickAction.link, ctx);
-                        return isSafeActionUrl(href) ? href : null;
-                      })()
-                    : null;
-
-                  const rightClickItems: ResolvedContextItem[] = safeRowActions
-                    .slice(1)
-                    .map((action) => {
-                      const href = resolveHandlebarsField(action.link, ctx);
-                      return isSafeActionUrl(href) ? { action, href } : null;
-                    })
-                    .filter((item): item is ResolvedContextItem => item !== null);
-
-                  const hasAnyAction = !!clickHref || rightClickItems.length > 0;
-
-                  return (
-                    <tr
-                      key={row.id ?? row._id ?? rowIdx}
-                      className={`${rowBgClass}${hasAnyAction ? " cursor-pointer hover:brightness-95 dark:hover:brightness-110" : ""}`}
-                      onClick={
-                        clickHref
-                          ? () => {
-                              if (clickAction?.target === "_blank") {
-                                globalThis.open(clickHref, "_blank", "noopener,noreferrer");
-                              } else {
-                                globalThis.location.href = clickHref;
-                              }
-                            }
-                          : undefined
-                      }
-                      onContextMenu={
-                        rightClickItems.length > 0
-                          ? (e) => {
-                              e.preventDefault();
-                              setContextMenu({ x: e.clientX, y: e.clientY, items: rightClickItems });
-                            }
-                          : undefined
-                      }
-                    >
-                      {columns.map((col, colIdx) => (
-                        <td
-                          key={col.key}
-                          className={buildStickyTdClass(
-                            colIdx,
-                            lastStickyIdx,
-                            firstStickyRightIdx,
-                            showColumnDividers ?? true,
-                            columns.length,
-                            rowColor
-                          )}
-                          style={{
-                            ...(columnWidths[colIdx] == null ? undefined : { width: `${columnWidths[colIdx]}px`, minWidth: `${columnWidths[colIdx]}px`, maxWidth: `${columnWidths[colIdx]}px` }),
-                            ...buildStickyStyle(colIdx, stickyLeftOffsets, stickyRightOffsets, lastStickyIdx, firstStickyRightIdx),
-                          }}
-                        >
-                          {(() => {
-                            const cell = renderCell(
-                              resolveValue(col.key, row, rowIdx, displayRows.length),
-                              resolveType(col.key, row, rowIdx, displayRows.length),
-                              col.colorRulesEnabled ? col.colorMap : undefined
-                            );
-                            return col.decorator ? (
-                              <span className="inline-flex items-baseline gap-1">
-                                {cell}
-                                <span className="text-xs text-gray-400 dark:text-gray-500">{col.decorator}</span>
-                              </span>
-                            ) : cell;
-                          })()}
-                        </td>
-                      ))}
-                      {hasActions && (
-                        <td
-                          className={`sticky right-0 border-t border-gray-200 px-2 py-4 dark:border-gray-600 ${firstStickyRightIdx < 0 ? "border-l" : ""} ${stickyBgForColor(rowColor)}`}
-                        >
-                          <ActionDropdown
-                            items={safeActions.items
-                              .map((action) => {
-                                const ctx = { ...row, row };
-                                const href = resolveHandlebarsField(
-                                  action.link,
-                                  ctx
-                                );
-                                return isSafeActionUrl(href)
-                                  ? { action, href }
-                                  : null;
-                              })
-                              .filter(
-                                (item): item is NonNullable<typeof item> =>
-                                  item !== null
-                              )}
-                            ariaLabel={tr(
-                              "dashboard.settings.moreActions",
-                              dictionary
-                            )}
-                          />
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })
+                <span className="truncate">{label}</span>
               )}
-            </tbody>
-          </table>
+              <ColumnSortIcon
+                colKey={column.key}
+                sortKey={sortKey}
+                sortDir={sortDir}
+              />
+            </button>
+            <ColumnFilterPopover
+              columnKey={column.key}
+              columnLabel={label}
+              dataType={resolvedDataTypes[column.key] ?? "text"}
+              currentFilter={columnFilters[column.key]}
+              enumValues={enumValues[column.key] ?? []}
+              onFilterChange={setColumnFilter}
+            />
+          </div>
         )}
-      </div>
-
-      {contextMenu && (
-        <RowContextMenu
-          items={contextMenu.items}
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onClose={() => setContextMenu(null)}
-        />
-      )}
+        renderActions={tableRowActions(safeActions, tr("dashboard.settings.moreActions", dictionary))}
+      />
     </div>
   );
 }

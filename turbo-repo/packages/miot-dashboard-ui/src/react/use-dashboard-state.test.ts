@@ -313,3 +313,23 @@ it("ignores unchanged layout events after undo while preserving layout constrain
   act(() => result.current.redo());
   expect(result.current.widgets[0]?.layout.x).toBe(2);
 });
+
+it("validates query definitions, copies the draft and includes query edits in undo/redo", () => {
+  const {result}=renderHook(()=>{const [config,onChange]=useState(makeDashboardStorage());return useDashboardState({config,onChange,isLoaded:true,readOnly:false});});
+  const query={id:'costs',variableName:'costs',connectionId:'billing',operationId:'cost-by-service',parameters:{}};
+  act(()=>{expect(result.current.setQueries([query])).toBe(true);});
+  expect(result.current.queries).toEqual([query]);
+  query.variableName='mutated-after-save';expect(result.current.queries[0]?.variableName).toBe('costs');
+  act(()=>result.current.undo());expect(result.current.queries).toEqual([]);
+  act(()=>result.current.redo());expect(result.current.queries[0]?.id).toBe('costs');
+  act(()=>{expect(result.current.setQueries([query,{...query,id:'other'}])).toBe(false);expect(result.current.setQueries([{...query,operationId:''}])).toBe(false);});
+  expect(result.current.queries).toHaveLength(1);
+});
+it("denies saved-query mutation for read-only or unloaded documents",()=>{
+  const onChange=vi.fn();const config=makeDashboardStorage();
+  const view=renderHook(({readOnly,isLoaded})=>useDashboardState({config,onChange,readOnly,isLoaded}),{initialProps:{readOnly:true,isLoaded:true}});
+  act(()=>{expect(view.result.current.setQueries([])).toBe(false);});
+  view.rerender({readOnly:false,isLoaded:false});
+  act(()=>{expect(view.result.current.setQueries([])).toBe(false);});
+  expect(onChange).not.toHaveBeenCalled();
+});

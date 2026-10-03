@@ -108,10 +108,18 @@ describe("Web Component entry boundary", () => {
   it("allows mounting imports but rejects direct rendering dependencies", () => {
     const file = "/package/src/web-component/element.ts";
     expect(
-      importProblems('import "../embed/mount-dashboard";', file, "/package/src"),
+      importProblems(
+        'import "../embed/mount-dashboard";',
+        file,
+        "/package/src",
+      ),
     ).toEqual([]);
     expect(
-      importProblems('import "../react/dashboard-canvas";', file, "/package/src"),
+      importProblems(
+        'import "../react/dashboard-canvas";',
+        file,
+        "/package/src",
+      ),
     ).toHaveLength(1);
     expect(
       importProblems('import "react-dom/client";', file, "/package/src"),
@@ -140,6 +148,46 @@ describe("standalone browser entry boundary", () => {
       importProblems(
         'export * from "../browser";',
         "/package/src/react/component.ts",
+        "/package/src",
+      ),
+    ).toHaveLength(1);
+  });
+});
+
+it("allows React DOM portals only in the React entry", () => {
+  const source = 'import { createPortal } from "react-dom";';
+  expect(
+    importProblems(source, "/package/src/react/popover.tsx", "/package/src"),
+  ).toEqual([]);
+  for (const file of ["core.ts", "client.ts", "document.ts", "templates.ts"]) {
+    expect(
+      importProblems(source, `/package/src/${file}`, "/package/src"),
+    ).toEqual(["react-dom"]);
+  }
+});
+
+describe("chart engine boundary", () => {
+  it("allows only type declarations from the optional chart engine", () => {
+    expect(
+      importProblems(
+        'import type { EChartsOption } from "echarts";',
+        "/package/src/charts/legacy.ts",
+        "/package/src",
+      ),
+    ).toEqual([]);
+    for (const source of [
+      'import { init } from "echarts";',
+      'export * from "echarts";',
+      'const engine = import("echarts");',
+    ]) {
+      expect(
+        importProblems(source, "/package/src/charts/legacy.ts", "/package/src"),
+      ).toHaveLength(1);
+    }
+    expect(
+      importProblems(
+        'import type { EChartsOption } from "echarts";',
+        "/package/src/core.ts",
         "/package/src",
       ),
     ).toHaveLength(1);

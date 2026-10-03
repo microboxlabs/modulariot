@@ -1,0 +1,84 @@
+# Migrar dashboards con planificador
+
+Los dashboards heredados cargan datos con un planificador de solicitudes: cada solicitud llama una ruta de PostgREST a través de una fuente de datos heredada. El servidor de dashboards usa consultas guardadas. Cada consulta guardada nombra una operación de conexión que crea un administrador de integraciones. Los widgets siguen funcionando porque la consulta guardada conserva el `variableName` de la solicitud.
+
+## Qué se necesita
+
+| Heredado | Servidor de dashboards |
+|---|---|
+| Fuente de datos | Una conexión `POSTGREST` con su perfil de credencial |
+| Ruta de PostgREST, como `rpc/fn_resumen` | Una operación `HTTP_GET` de solo lectura en esa conexión |
+| Solicitud del planificador | Una consulta guardada en el dashboard |
+| Parámetro con valor `{{filter.clave}}` | Enlace a filtro, omitido cuando el filtro está vacío |
+| Otro valor de parámetro | Enlace a valor fijo |
+| Filtro de fecha implícito | Filtro `date_range` declarado con clave `date_range` |
+
+Las operaciones se comparten: una operación sirve a todos los dashboards que llaman la misma ruta en la misma fuente de datos.
+
+## Pasos
+
+1. **Listar las operaciones.** Pase las configuraciones heredadas a `plannerOperationContracts`. Devuelve un contrato por fuente de datos y ruta, con todos los parámetros que usa cualquier dashboard.
+
+   ```ts
+   import { plannerOperationContracts } from "@microboxlabs/miot-dashboard-server";
+
+   const result = plannerOperationContracts(configsPorSlug, {
+     pinnedParameters: ["p_client_id"],
+   });
+   ```
+
+   Un parámetro fijado queda con `const`, así un dashboard no puede cambiarlo. Debe tener el mismo valor en todas las solicitudes que usan la ruta. `result.problems` lista solicitudes POST, rutas no soportadas y valores fijados en conflicto.
+
+2. **Crear conexiones y operaciones.** Para cada fuente de datos, cree un perfil de credencial y una conexión `POSTGREST`, y pruébela para que quede `ACTIVE`. Luego cree cada contrato como operación:
+
+   ```bash
+   miot connections operations create <connectionId> \
+     --name fn_resumen --method GET --path /rpc/fn_resumen \
+     --request-schema-json "$SCHEMA" --response-schema-json '{}' --output json
+   ```
+
+   Anote el `id` de cada operación.
+
+3. **Convertir los dashboards.** Entregue a `migratePlannerQueries` un mapeo por solicitud. Omita `parameters` para derivar los enlaces desde los valores heredados.
+
+   ```ts
+   const convertido = migratePlannerQueries(
+     configHeredada,
+     solicitudes.map((s) => ({ plannerId: s.id, connectionId, operationId: ids[s.pgrestFunctionName] })),
+     { dateFilterLabel: "Fecha" },
+   );
+   ```
+
+   El resultado quita `requestPlanner` y conserva widgets, filtros y demás ajustes. Si un enlace lee `date_range_from` o `date_range_to`, se agrega un filtro `date_range`.
+
+4. **Guardar y comparar.** Guarde cada dashboard convertido y compárelo con la página heredada usando los mismos filtros.
+
+## Contratos de operación
+
+Un esquema de solicitud generado se ve así:
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "p_client_id": { "type": "string", "const": "cliente-1" },
+    "p_desde": { "type": "string", "maxLength": 2048 }
+  },
+  "required": ["p_client_id"],
+  "x-dashboard": { "readOnly": true, "kind": "HTTP_GET", "credentialScoped": true }
+}
+```
+
+| Requisito | Qué falla si no se cumple |
+|---|---|
+| La credencial envía `authorization`, `x-api-key` o `apikey` | Se rechazan otros encabezados |
+| La URL base de la conexión usa `https` | Las operaciones HTTP_GET solo resuelven URLs `https` |
+| El origen de la URL base está en `MIOT_DASHBOARD_DATA_ORIGINS` | El servidor rechaza otros orígenes |
+| Cada valor del resultado es escalar o arreglo de escalares | Una fila con una columna JSON hace fallar toda la consulta |
+
+Si una función devuelve una columna JSON que ningún widget usa, agregue un parámetro `select` fijado con las columnas escalares, por ejemplo `{ "type": "string", "const": "id,total,estado" }`, y un enlace fijo `select` con el mismo valor en la consulta guardada. PostgREST devuelve solo esas columnas.
+
+## Elegir operaciones al editar
+
+El editor de consultas guardadas lista conexiones y operaciones desde un catálogo. Con el módulo de operaciones de ModularIoT, defina `MIOT_DASHBOARD_CATALOG_URL` con el endpoint `/internal/dashboard-operations/catalog` del modulith. Usa la misma clave de servicio que `MIOT_DASHBOARD_PLAN_URL`. Sin esa variable, el editor indica que el catálogo no está disponible; las consultas guardadas siguen funcionando.

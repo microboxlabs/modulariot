@@ -6,11 +6,14 @@ import {
   type Widget,
   type DashboardStorageSchema,
   type DashboardFilterParam,
+  type DashboardQueryDefinition,
   type PlannerRequestDefinition,
   type RefreshInterval,
 } from "@microboxlabs/miot-dashboard-contract/document";
-import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
+import { validateDashboardConfig, dashboardQueryDefinitionSchema } from "@microboxlabs/miot-dashboard-contract/schema";
 import { getNextPosition } from "../core/get-next-position";
+import { generalSettingsSchema, type DashboardGeneralSettingsValue } from "./general-settings-value";
+import { filterDefinitionsSchema } from "./filter-definitions-value";
 import { useUndoRedo } from "./use-undo-redo";
 
 export type WidgetDefaultResolver = (
@@ -437,6 +440,14 @@ export function useDashboardState(
     [findWidget, findParent, updateConfig],
   );
 
+  const setGeneralSettings = useCallback((value: DashboardGeneralSettingsValue): boolean => {
+    if (readOnly) return false;
+    const parsed = generalSettingsSchema.safeParse(value);
+    if (!parsed.success) return false;
+    updateConfig({ ...parsed.data, order: parsed.data.order });
+    return true;
+  }, [readOnly, updateConfig]);
+
   // Set dashboard name
   const setDashboardName = useCallback(
     (name: string) => {
@@ -453,6 +464,26 @@ export function useDashboardState(
     },
     [updateConfig],
   );
+
+  const setFilterDefinitions = useCallback((filters: readonly DashboardFilterParam[]): boolean => {
+    if (readOnly) return false;
+    const parsed = filterDefinitionsSchema.safeParse(filters);
+    if (!parsed.success) return false;
+    updateConfig({ filters: parsed.data });
+    return true;
+  }, [readOnly, updateConfig]);
+
+  /** Commit valid named queries through the same permission and undo boundary as widgets. */
+  const setQueries = useCallback((queries: readonly DashboardQueryDefinition[]): boolean => {
+    if (readOnly) return false;
+    const parsed = dashboardQueryDefinitionSchema.array().max(50).safeParse(queries);
+    if (!parsed.success) return false;
+    const ids = new Set(parsed.data.map(query => query.id));
+    const names = new Set(parsed.data.map(query => query.variableName));
+    if (ids.size !== parsed.data.length || names.size !== parsed.data.length) return false;
+    updateConfig({ queries: parsed.data });
+    return true;
+  }, [readOnly, updateConfig]);
 
   const setRefreshInterval = useCallback(
     (refreshInterval: RefreshInterval) => {
@@ -538,7 +569,7 @@ export function useDashboardState(
 
   // Import dashboard from JSON string
   const importDashboard = useCallback(
-    (jsonString: string): { success: boolean; error?: string } => {
+    (jsonString: string, options: { undoable?: boolean } = {}): { success: boolean; error?: string } => {
       if (readOnly) return { success: false, error: "Dashboard is read-only" };
       try {
         const parsed = JSON.parse(jsonString) as unknown;
@@ -570,8 +601,11 @@ export function useDashboardState(
           allowedGroups: normalizeAllowedGroups(imported.allowedGroups),
         };
 
-        clearHistory();
-        rawSaveData(newData);
+        if (options.undoable) saveData(newData, { isolate: true });
+        else {
+          clearHistory();
+          rawSaveData(newData);
+        }
         return { success: true };
       } catch (e) {
         return {
@@ -580,12 +614,13 @@ export function useDashboardState(
         };
       }
     },
-    [clearHistory, rawSaveData, readOnly, resolveDashlet],
+    [clearHistory, rawSaveData, saveData, readOnly, resolveDashlet],
   );
 
   return {
     widgets: resolvedConfig.widgets,
     filters: resolvedConfig.filters ?? [],
+    queries: resolvedConfig.queries ?? [],
     plannerDefinitions: resolvedConfig.requestPlanner ?? [],
     preferences: { editMode },
     dashboardName: resolvedConfig.name,
@@ -601,7 +636,10 @@ export function useDashboardState(
     duplicateWidget,
     setEditMode,
     setDashboardName,
+    setGeneralSettings,
     setFilters,
+    setFilterDefinitions,
+    setQueries,
     setRefreshInterval,
     setOrder,
     setAllowedGroups,

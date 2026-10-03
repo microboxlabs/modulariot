@@ -64,6 +64,31 @@ describe("dashboard list visibility", () => {
     expect((await request("/secret")).status).toBe(403);
   });
 
+  it("returns each dashboard's order and lists by it, unordered last", async () => {
+    const { store, request } = setup();
+    const ref = { tenantId: "acme", scopeId: "ops" };
+    await store.save(
+      { ...ref, slug: "first" },
+      sampleConfig({ name: "Zeta", order: 1 }),
+      { updatedBy: "viewer" },
+    );
+    await store.save(
+      { ...ref, slug: "open" },
+      sampleConfig({ name: "Open", order: 3 }),
+      { updatedBy: "viewer" },
+    );
+    await store.save({ ...ref, slug: "plain" }, sampleConfig({ name: "Alpha" }), {
+      updatedBy: "viewer",
+    });
+    expect(await (await request()).json()).toEqual({
+      data: [
+        { slug: "first", name: "Zeta", order: 1 },
+        { slug: "open", name: "Open", order: 3 },
+        { slug: "plain", name: "Alpha" },
+      ],
+    });
+  });
+
   it("fails closed on storage errors instead of returning an unfiltered list", async () => {
     const { store, request } = setup();
     vi.spyOn(store, "getPermissions").mockRejectedValue(

@@ -203,3 +203,21 @@ La imagen oficial incluye `/app/examples/modulariot-operations.mjs`, de modo que
 ## Filtros opcionales durante la migración
 
 Un vínculo de filtro puede usar `omitWhenEmpty: true` para omitir valores ausentes o cadenas vacías. Los valores ausentes usan primero `defaultValue`, si existe; una cadena vacía explícita no usa ese valor por defecto. Se conservan null, false, cero, arreglos vacíos, espacios y cadenas de operadores. Los vínculos sin esta opción mantienen su comportamiento. El esquema de la operación debe permitir omitir el parámetro y seguir imponiendo el aislamiento del tenant. Esto permite conservar argumentos opcionales de RPCs que deben estar ausentes, en vez de enviar null o texto vacío. Revise los valores por defecto explícitamente; no se evalúan expresiones de plantillas. Actualice contrato y servidor juntos a una versión que incluya esta opción; la versión publicada 0.3.0 no la implementa.
+
+## Metadatos para edición
+
+Los anfitriones embebidos pueden proporcionar `queryCatalog` a
+`createDashboardHandler` o `serve`. La ruta GET opcional `query-catalog` del
+dashboard verifica el permiso de edición antes de solicitar conexiones y
+operaciones activas y autorizadas. Solo devuelve IDs, etiquetas y nombres de
+columnas opcionales; excluye esquemas de ejecución y credenciales y no se almacena
+en caché. Sin proveedor devuelve 404. El anfitrión limita el trabajo de consulta y
+respeta la cancelación; la ejecución vuelve a autorizar cada solicitud. Consulte
+el README del paquete para los límites y tipos del proveedor.
+
+Los pods independientes pueden usar el mismo proveedor: el módulo instalado por
+el operador en `MIOT_DASHBOARD_OPERATIONS_MODULE` puede exportar
+`createDashboardQueryCatalog()` además de `createDashboardOperations()`.
+Ambas fábricas se inicializan una vez al arrancar. Sin la exportación del catálogo,
+el descubrimiento queda deshabilitado; un proveedor inválido detiene el arranque
+con un error sin detalles sensibles. No requiere un servicio remoto de ejecución.

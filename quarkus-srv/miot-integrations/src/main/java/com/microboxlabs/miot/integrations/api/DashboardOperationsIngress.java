@@ -53,7 +53,8 @@ public class DashboardOperationsIngress {
     private static boolean matches(RoutingContext context) {
         String path = context.normalizedPath();
         return PATH.equals(path) || (PATH + "/").equals(path)
-                || (PATH + "/resolve").equals(path) || (PATH + "/resolve/").equals(path);
+                || (PATH + "/resolve").equals(path) || (PATH + "/resolve/").equals(path)
+                || (PATH + "/catalog").equals(path) || (PATH + "/catalog/").equals(path);
     }
 
     private static void reject(RoutingContext context, int status, String message) {

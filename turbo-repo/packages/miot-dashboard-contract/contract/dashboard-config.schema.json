@@ -304,6 +304,28 @@
               "unique": {
                 "type": "boolean"
               },
+              "single": {
+                "type": "boolean"
+              },
+              "optionsSource": {
+                "type": "object",
+                "properties": {
+                  "variableName": {
+                    "type": "string"
+                  },
+                  "valueField": {
+                    "type": "string"
+                  },
+                  "labelField": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "variableName",
+                  "valueField"
+                ],
+                "additionalProperties": true
+              },
               "options": {
                 "type": "array",
                 "items": {

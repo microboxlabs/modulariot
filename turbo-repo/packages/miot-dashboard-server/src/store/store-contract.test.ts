@@ -226,6 +226,21 @@ describe.each(BACKENDS)("$name", ({ open }) => {
     );
   });
 
+  it("lists by the config's order, unordered dashboards last", async () => {
+    const s = await store();
+    const at = (slug: string) => ({ ...ref, slug });
+    await s.save(at("b"), { version: 2, name: "B" }, { updatedBy: "ana" });
+    await s.save(at("c"), { version: 2, name: "C", order: 2 }, { updatedBy: "ana" });
+    await s.save(at("a"), { version: 2, name: "A", order: 5 }, { updatedBy: "ana" });
+    await s.save(at("d"), { version: 2, name: "D", order: 2 }, { updatedBy: "ana" });
+    expect(await s.list(ref.tenantId, ref.scopeId)).toEqual([
+      { slug: "c", name: "C", order: 2 },
+      { slug: "d", name: "D", order: 2 },
+      { slug: "a", name: "A", order: 5 },
+      { slug: "b", name: "B" },
+    ]);
+  });
+
   it("shows a rename in the list", async () => {
     const s = await store();
     await s.save(ref, config, { updatedBy: "ana" });

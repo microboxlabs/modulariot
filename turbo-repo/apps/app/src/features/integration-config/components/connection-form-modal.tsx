@@ -22,6 +22,7 @@ import {
   type CreateConnectionRequest,
   type IntegrationConnection,
   type IntegrationTemplate,
+  type NativeProvider,
   type UpdateConnectionRequest,
 } from "../integration-config.types";
 import { IntegrationFormModal } from "./integration-form-modal";
@@ -32,6 +33,8 @@ interface ConnectionFormModalProps {
   readonly connection: IntegrationConnection | undefined;
   /** The contract this instance speaks: from the picker when creating, resolved when editing. */
   readonly template: IntegrationTemplate | undefined;
+  /** A built-in provider being created without a template. */
+  readonly providerType?: NativeProvider;
   readonly credentials: readonly CredentialListItem[];
   readonly onClose: () => void;
   readonly onSave: (
@@ -64,6 +67,7 @@ export function ConnectionFormModal({
   show,
   connection,
   template,
+  providerType,
   credentials,
   onClose,
   onSave,
@@ -73,6 +77,8 @@ export function ConnectionFormModal({
   dict,
 }: Readonly<ConnectionFormModalProps>) {
   const isEdit = connection !== undefined;
+  const isPostgrest =
+    !template && (providerType ?? connection?.providerType) === "POSTGREST";
   const [error, setError] = useState<Error | null>(null);
   const [testResult, setTestResult] = useState<ConnectionTestResult | null>(
     null
@@ -122,6 +128,13 @@ export function ConnectionFormModal({
           credentialProfileId,
           templateId: template.id,
         });
+      } else if (providerType) {
+        await onSave({
+          name: data.name.trim(),
+          baseUrl: data.baseUrl.trim(),
+          credentialProfileId,
+          providerType,
+        });
       }
       onClose();
     } catch (cause) {
@@ -161,7 +174,14 @@ export function ConnectionFormModal({
       saving={saving}
       dict={dict}
     >
-      <ContractPanel template={template} dict={dict} />
+      {template ? (
+        <ContractPanel template={template} dict={dict} />
+      ) : (
+        <NativePanel
+          provider={providerType ?? connection?.providerType}
+          dict={dict}
+        />
+      )}
 
         <SettingsFormField
           id="connection-name"
@@ -190,7 +210,9 @@ export function ConnectionFormModal({
             color={errors.baseUrl ? "failure" : undefined}
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            {tr("connection.form.baseUrlHelp", dict)}
+            {isPostgrest
+              ? tr("connection.form.postgrestBaseUrlHelp", dict)
+              : tr("connection.form.baseUrlHelp", dict)}
           </p>
         </SettingsFormField>
 
@@ -277,6 +299,24 @@ function ContractPanel({
   );
 }
 
+/** What a built-in provider connection does, in place of a template contract. */
+function NativePanel({
+  provider,
+  dict,
+}: Readonly<{ provider: string | undefined; dict: I18nRecord }>) {
+  if (provider !== "POSTGREST") return null;
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+        PostgREST
+      </div>
+      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+        {tr("connection.form.postgrestHelp", dict)}
+      </p>
+    </div>
+  );
+}
+
 function TestResultLine({
   result,
   dict,
@@ -286,6 +326,7 @@ function TestResultLine({
       <span className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
         <HiCheckCircle className="h-4 w-4" />
         {tr("toast.testOk", dict)}
+        {result.message ? ` · ${result.message}` : ""}
       </span>
     );
   }

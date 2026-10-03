@@ -113,6 +113,13 @@ export const MIGRATIONS: readonly Migration[] = [
        SELECT tenant_id, scope_id, slug, revision FROM dashboards`,
     ],
   },
+  {
+    version: 6,
+    name: "dashboard sort order, copied from the config for listing",
+    // Nullable: rows saved before this version list after ordered ones until
+    // their next save.
+    statements: [`ALTER TABLE dashboards ADD COLUMN sort_order INTEGER`],
+  },
 ];
 
 export const DEFAULT_HISTORY_TABLE = "schema_migrations";

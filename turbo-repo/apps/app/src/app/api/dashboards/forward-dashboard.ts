@@ -9,14 +9,21 @@ export type DashboardRouteContext = {
 };
 
 function isSafeIdentifier(value: string | undefined): value is string {
-  return !!value && !value.split("/").some((part) => part === "." || part === "..");
+  return (
+    !!value && !value.split("/").some((part) => part === "." || part === "..")
+  );
 }
 
 /** Active-org selection and session authentication stay on the server. */
 export async function forwardDashboard(
   request: Request,
   context?: DashboardRouteContext,
-  action?: "capabilities" | "permissions" | "query" | "scopeCapabilities"
+  action?:
+    | "capabilities"
+    | "permissions"
+    | "query"
+    | "scopeCapabilities"
+    | "query-catalog"
 ) {
   const tenant = await resolveTenantScope();
   if (!tenant.resolved) return tenant.response;
@@ -69,7 +76,9 @@ export async function forwardDashboard(
   }
   return forwardToQuarkus(orgPath(tenant.scope.activeOrg.slug, segments), {
     method: request.method,
-    ...(action === "query" ? { signal: request.signal, timeoutMs: 30_000 } : {}),
+    ...(action === "query"
+      ? { signal: request.signal, timeoutMs: 30_000 }
+      : {}),
     body,
     ifMatch: request.headers.get("if-match") ?? undefined,
   });

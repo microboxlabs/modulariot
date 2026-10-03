@@ -7,10 +7,12 @@ import { tr } from "@/features/i18n/tr.service";
 import ConditionIcon from "../components/condition-icon";
 import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
+import ActivationForm, { useActivationForm } from "./activation-form";
 import type {
   Finding,
   Level,
   LevelResponse,
+  SourceField,
   SymptomSpec,
 } from "./maintainer-api";
 import LevelNotices from "./level-notices";
@@ -70,11 +72,13 @@ export function problemsFor(
 function Section({
   title,
   describe,
+  actions,
   d,
   children,
 }: Readonly<{
   title: string;
   describe?: { section: string; rule: string; sourceKey: string | null };
+  actions?: React.ReactNode;
   d: I18nRecord;
   children: React.ReactNode;
 }>) {
@@ -85,8 +89,9 @@ function Section({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
           {title}
         </h2>
+        {actions && <span className="ml-auto">{actions}</span>}
         {describe && (
-          <span className="ml-auto">
+          <span className={actions ? "" : "ml-auto"}>
             <RuleDescriptionToggle
               open={open}
               onToggle={() => setOpen((o) => !o)}
@@ -107,6 +112,112 @@ function Section({
         {children}
       </div>
     </section>
+  );
+}
+
+type EditMode = "form" | "expr";
+
+/** ☰ form / { } expression, as in the prototype. */
+function ModeToggle({
+  mode,
+  d,
+  onChange,
+}: Readonly<{
+  mode: EditMode;
+  d: I18nRecord;
+  onChange: (mode: EditMode) => void;
+}>) {
+  const button = (m: EditMode, label: string, title: string) => (
+    <button
+      type="button"
+      title={title}
+      aria-pressed={mode === m}
+      className={`rounded-md px-2 py-0.5 text-xs ${mode === m ? "bg-gray-100 font-medium dark:bg-gray-700" : "text-gray-500"}`}
+      onClick={() => onChange(m)}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <span className="flex rounded-lg border border-gray-300 p-0.5 dark:border-gray-600">
+      {button("form", "☰", tr("formMode", d))}
+      {button("expr", "{ }", tr("exprMode", d))}
+    </span>
+  );
+}
+
+/** Cuándo se activa: the conditions as a form, or the CEL expression. */
+function ActivationSection({
+  spec,
+  fields,
+  sourceFields,
+  problems,
+  readOnly,
+  d,
+  onChange,
+}: Readonly<{
+  spec: SymptomSpec;
+  fields: SourceField[];
+  sourceFields: CelField[];
+  problems: CelProblem[];
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (spec: SymptomSpec) => void;
+}>) {
+  const [mode, setMode] = useState<EditMode>("form");
+  const activation = spec.activation ?? "";
+  const { form, update } = useActivationForm(activation, fields, (value) =>
+    onChange({ ...spec, activation: value })
+  );
+  return (
+    <Section
+      title={tr("sectionActivation", d)}
+      d={d}
+      actions={<ModeToggle mode={mode} d={d} onChange={setMode} />}
+      describe={{
+        section: "activation",
+        rule: activation,
+        sourceKey: spec.source,
+      }}
+    >
+      {mode === "form" && form && (
+        <ActivationForm
+          form={form}
+          fields={fields}
+          readOnly={readOnly}
+          d={d}
+          onChange={update}
+        />
+      )}
+      {mode === "form" && !form && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
+          {tr("formCannotShow", d)}{" "}
+          <button
+            type="button"
+            className="font-medium underline"
+            onClick={() => setMode("expr")}
+          >
+            {tr("editAsExpression", d)}
+          </button>
+        </div>
+      )}
+      {mode === "expr" && (
+        <>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {tr("activationHint", d)}
+          </p>
+          <CelEditor
+            readOnly={readOnly}
+            ariaLabel={tr("sectionActivation", d)}
+            value={activation}
+            fields={sourceFields}
+            problems={problems}
+            onChange={(value) => onChange({ ...spec, activation: value })}
+          />
+        </>
+      )}
+      <Problems items={problems} />
+    </Section>
   );
 }
 
@@ -269,6 +380,7 @@ function LevelRow({
 /** Activation, measure with levels, and lifecycle, each as CEL with the server's findings in place. */
 export default function SymptomRuleSections({
   spec,
+  fields,
   sourceFields,
   findings,
   readOnly,
@@ -279,6 +391,7 @@ export default function SymptomRuleSections({
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
+  fields: SourceField[];
   sourceFields: CelField[];
   findings: Finding[] | undefined;
   readOnly: boolean;
@@ -312,28 +425,15 @@ export default function SymptomRuleSections({
 
   return (
     <div className="flex flex-col gap-4">
-      <Section
-        title={tr("sectionActivation", d)}
+      <ActivationSection
+        spec={spec}
+        fields={fields}
+        sourceFields={sourceFields}
+        problems={activation}
+        readOnly={readOnly}
         d={d}
-        describe={{
-          section: "activation",
-          rule: spec.activation ?? "",
-          sourceKey: spec.source,
-        }}
-      >
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          {tr("activationHint", d)}
-        </p>
-        <CelEditor
-          readOnly={readOnly}
-          ariaLabel={tr("sectionActivation", d)}
-          value={spec.activation ?? ""}
-          fields={sourceFields}
-          problems={activation}
-          onChange={(value) => onChange({ ...spec, activation: value })}
-        />
-        <Problems items={activation} />
-      </Section>
+        onChange={onChange}
+      />
 
       <Section
         title={tr("sectionLevels", d)}

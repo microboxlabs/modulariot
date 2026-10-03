@@ -1,0 +1,492 @@
+"use client";
+
+import { useState } from "react";
+import { HiTrash } from "react-icons/hi";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
+import {
+  type Condition,
+  type ConditionForm,
+  type ConditionGroup,
+  type ConditionOp,
+  type Match,
+  compileConditions,
+  newCondition,
+  newId,
+  opsFor,
+  parseConditions,
+} from "./condition-form";
+import type { SourceField } from "./maintainer-api";
+import { originLabel } from "./symptom-side-panels";
+
+const pillClass =
+  "rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
+const linkClass =
+  "text-xs text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400";
+
+/** The word for an operator; text fields and zones read differently from numbers. */
+export function opLabel(op: ConditionOp, type: string, d: I18nRecord) {
+  if (op === "is_true") return tr("opIsTrue", d);
+  if (op === "is_false") return tr("opIsFalse", d);
+  if (type === "number")
+    return { "==": "=", "!=": "≠", ">": ">", ">=": "≥", "<": "<", "<=": "≤" }[
+      op
+    ];
+  if (type === "zone")
+    return op === "==" ? tr("opInside", d) : tr("opOutside", d);
+  return op === "==" ? tr("opIs", d) : tr("opIsNot", d);
+}
+
+/** A number typed as text, kept while it is half written ("-", "1.") and passed on when it is a number. */
+function NumberValue({
+  value,
+  unit,
+  label,
+  readOnly,
+  onChange,
+}: Readonly<{
+  value: number;
+  unit: string | null;
+  label: string;
+  readOnly: boolean;
+  onChange: (value: number) => void;
+}>) {
+  // The value last sent: when the prop moves away from it, the rule changed elsewhere and the text follows.
+  const [typed, setTyped] = useState({ text: String(value), value });
+  const shown = typed.value === value ? typed.text : String(value);
+  return (
+    <span className={`${pillClass} flex items-center gap-1`}>
+      <input
+        inputMode="decimal"
+        aria-label={label}
+        className="w-16 bg-transparent outline-none"
+        disabled={readOnly}
+        value={shown}
+        onChange={(e) => {
+          const text = e.target.value;
+          const n = Number(text);
+          const valid = text.trim() !== "" && Number.isFinite(n);
+          setTyped({ text, value: valid ? n : value });
+          if (valid) onChange(n);
+        }}
+      />
+      {unit && <span className="text-xs text-gray-500">{unit}</span>}
+    </span>
+  );
+}
+
+function ValueInput({
+  row,
+  field,
+  readOnly,
+  d,
+  onChange,
+}: Readonly<{
+  row: Condition;
+  field: SourceField;
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (value: number | string) => void;
+}>) {
+  if (field.type === "bool") return null;
+  if (field.type === "number") {
+    return (
+      <NumberValue
+        value={typeof row.value === "number" ? row.value : 0}
+        unit={field.unit}
+        label={tr("conditionValue", d)}
+        readOnly={readOnly}
+        onChange={onChange}
+      />
+    );
+  }
+  const value = typeof row.value === "string" ? row.value : "";
+  if (field.values?.length) {
+    const known = field.values.some((v) => v.value === value);
+    return (
+      <select
+        aria-label={tr("conditionValue", d)}
+        className={pillClass}
+        disabled={readOnly}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {!known && <option value={value}>{value}</option>}
+        {field.values.map((v) => (
+          <option key={v.value} value={v.value}>
+            {v.label}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  return (
+    <input
+      aria-label={tr("conditionValue", d)}
+      className={`${pillClass} w-48`}
+      disabled={readOnly}
+      maxLength={200}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+function ConditionRow({
+  row,
+  fields,
+  readOnly,
+  d,
+  onChange,
+  onRemove,
+}: Readonly<{
+  row: Condition;
+  fields: SourceField[];
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (row: Condition) => void;
+  onRemove: () => void;
+}>) {
+  const field = fields.find((f) => f.path === row.path);
+  if (!field) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-gray-800">
+      <select
+        aria-label={tr("conditionField", d)}
+        className={pillClass}
+        disabled={readOnly}
+        value={row.path}
+        onChange={(e) => {
+          const next = fields.find((f) => f.path === e.target.value);
+          if (next) onChange({ ...newCondition(next), id: row.id });
+        }}
+      >
+        {fields.map((f) => (
+          <option key={f.path} value={f.path}>
+            {f.engineSupported
+              ? f.label
+              : `${f.label} (${tr("engineNotYetTag", d)})`}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label={tr("conditionOp", d)}
+        className={pillClass}
+        disabled={readOnly}
+        value={row.op}
+        onChange={(e) =>
+          onChange({ ...row, op: e.target.value as ConditionOp })
+        }
+      >
+        {opsFor(field.type).map((op) => (
+          <option key={op} value={op}>
+            {opLabel(op, field.type, d)}
+          </option>
+        ))}
+      </select>
+      <ValueInput
+        row={row}
+        field={field}
+        readOnly={readOnly}
+        d={d}
+        onChange={(value) => onChange({ ...row, value })}
+      />
+      {field.origin && (
+        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+          {originLabel(field.origin, d)}
+        </span>
+      )}
+      {!readOnly && (
+        <button
+          type="button"
+          aria-label={tr("removeCondition", d)}
+          className="ml-auto text-gray-400 hover:text-red-500"
+          onClick={onRemove}
+        >
+          <HiTrash className="h-4 w-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function Rows({
+  rows,
+  fields,
+  readOnly,
+  d,
+  onChange,
+}: Readonly<{
+  rows: Condition[];
+  fields: SourceField[];
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (rows: Condition[]) => void;
+}>) {
+  const first = fields[0];
+  return (
+    <div className="flex flex-col gap-1.5">
+      {rows.map((r) => (
+        <ConditionRow
+          key={r.id}
+          row={r}
+          fields={fields}
+          readOnly={readOnly}
+          d={d}
+          onChange={(next) =>
+            onChange(rows.map((x) => (x.id === r.id ? next : x)))
+          }
+          onRemove={() => onChange(rows.filter((x) => x.id !== r.id))}
+        />
+      ))}
+      {!readOnly && first && (
+        <button
+          type="button"
+          className={`${linkClass} self-start`}
+          onClick={() => onChange([...rows, newCondition(first)])}
+        >
+          {tr("addCondition", d)}
+        </button>
+      )}
+    </div>
+  );
+}
+
+const MATCH_HELP: Record<Match, string> = {
+  all: "matchAllHelp",
+  any: "matchAnyHelp",
+  none: "matchNoneHelp",
+};
+
+function GroupBox({
+  group,
+  fields,
+  readOnly,
+  d,
+  onChange,
+  onRemove,
+}: Readonly<{
+  group: ConditionGroup;
+  fields: SourceField[];
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (group: ConditionGroup) => void;
+  onRemove: () => void;
+}>) {
+  const border =
+    group.match === "none"
+      ? "border-rose-300 dark:border-rose-800"
+      : "border-gray-300 dark:border-gray-600";
+  return (
+    <div className={`rounded-lg border border-dashed p-3 ${border}`}>
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+        <span>
+          {group.match === "none" ? tr("exceptIf", d) : tr("andAlso", d)}
+        </span>
+        <select
+          aria-label={tr("groupMatch", d)}
+          className={pillClass}
+          disabled={readOnly}
+          value={group.match}
+          onChange={(e) =>
+            onChange({ ...group, match: e.target.value as Match })
+          }
+        >
+          <option value="all">{tr("matchAll", d)}</option>
+          <option value="any">{tr("matchAny", d)}</option>
+          <option value="none">{tr("matchNone", d)}</option>
+        </select>
+        <span className="text-xs text-gray-500">
+          {trDynamic(MATCH_HELP[group.match], d)}
+        </span>
+        {!readOnly && (
+          <button
+            type="button"
+            className="ml-auto text-xs text-gray-500 hover:text-red-500"
+            onClick={onRemove}
+          >
+            {tr("removeGroup", d)}
+          </button>
+        )}
+      </div>
+      <Rows
+        rows={group.rows}
+        fields={fields}
+        readOnly={readOnly}
+        d={d}
+        onChange={(rows) => onChange({ ...group, rows })}
+      />
+    </div>
+  );
+}
+
+function FieldsTable({
+  fields,
+  d,
+}: Readonly<{ fields: SourceField[]; d: I18nRecord }>) {
+  return (
+    <details className="ml-auto text-xs">
+      <summary className="cursor-pointer text-blue-600 dark:text-blue-400">
+        {tr("availableFields", d)}
+      </summary>
+      <table className="mt-2 w-full text-left text-[11px] text-gray-700 dark:text-gray-300">
+        <thead className="text-gray-500">
+          <tr>
+            <th className="pr-3">{tr("fieldColumn", d)}</th>
+            <th className="pr-3">{tr("typeColumn", d)}</th>
+            <th className="pr-3">{tr("originColumn", d)}</th>
+            <th>{tr("engineColumn", d)}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {fields.map((f) => (
+            <tr
+              key={f.path}
+              className="border-t border-gray-100 dark:border-gray-700"
+            >
+              <td className="py-1 pr-3">{f.label}</td>
+              <td className="pr-3">
+                {f.unit ? `${f.type} · ${f.unit}` : f.type}
+              </td>
+              <td className="pr-3">{originLabel(f.origin, d)}</td>
+              <td>
+                {f.engineSupported ? tr("engineYes", d) : tr("engineNotYet", d)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </details>
+  );
+}
+
+/**
+ * The form for an activation rule, kept in step with the rule: an edit in the
+ * form compiles to the rule; a rule changed elsewhere (the expression, a
+ * discarded draft, the source's fields arriving) is read again.
+ */
+export function useActivationForm(
+  activation: string,
+  fields: SourceField[],
+  onChange: (activation: string) => void
+) {
+  const fieldsKey = fields.map((f) => f.path).join("|");
+  const [state, setState] = useState(() => ({
+    rule: activation,
+    fieldsKey,
+    form: parseConditions(activation, fields),
+  }));
+  let current = state;
+  if (state.rule !== activation || state.fieldsKey !== fieldsKey) {
+    current = {
+      rule: activation,
+      fieldsKey,
+      form: parseConditions(activation, fields),
+    };
+    setState(current);
+  }
+  const update = (form: ConditionForm) => {
+    const rule = compileConditions(form);
+    setState({ rule, fieldsKey, form });
+    if (rule !== activation) onChange(rule);
+  };
+  return { form: current.form, update };
+}
+
+/** "Cuándo se activa" as a form: conditions on the source fields, groups and exceptions. */
+export default function ActivationForm({
+  form,
+  fields,
+  readOnly,
+  d,
+  onChange,
+}: Readonly<{
+  form: ConditionForm;
+  fields: SourceField[];
+  readOnly: boolean;
+  d: I18nRecord;
+  onChange: (form: ConditionForm) => void;
+}>) {
+  const addGroup = (match: Match) => {
+    const first = fields[0];
+    if (!first) return;
+    onChange({
+      ...form,
+      groups: [
+        ...form.groups,
+        { id: newId(), match, rows: [newCondition(first)] },
+      ],
+    });
+  };
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+        <span>{tr("conditionsHold", d)}</span>
+        <select
+          aria-label={tr("listMatch", d)}
+          className={pillClass}
+          disabled={readOnly}
+          value={form.match}
+          onChange={(e) =>
+            onChange({ ...form, match: e.target.value as "all" | "any" })
+          }
+        >
+          <option value="all">{tr("matchAll", d)}</option>
+          <option value="any">{tr("matchAny", d)}</option>
+        </select>
+        <span className="text-xs text-gray-500">
+          {trDynamic(MATCH_HELP[form.match], d)} · {tr("orderDoesNotMatter", d)}
+        </span>
+      </div>
+      <Rows
+        rows={form.rows}
+        fields={fields}
+        readOnly={readOnly}
+        d={d}
+        onChange={(rows) => onChange({ ...form, rows })}
+      />
+      {form.groups.map((g) => (
+        <GroupBox
+          key={g.id}
+          group={g}
+          fields={fields}
+          readOnly={readOnly}
+          d={d}
+          onChange={(next) =>
+            onChange({
+              ...form,
+              groups: form.groups.map((x) => (x.id === g.id ? next : x)),
+            })
+          }
+          onRemove={() =>
+            onChange({
+              ...form,
+              groups: form.groups.filter((x) => x.id !== g.id),
+            })
+          }
+        />
+      ))}
+      <div className="flex flex-wrap items-start gap-3">
+        {!readOnly && (
+          <>
+            <button
+              type="button"
+              className={linkClass}
+              onClick={() => addGroup("any")}
+            >
+              {tr("addAnyGroup", d)}
+            </button>
+            <button
+              type="button"
+              className={linkClass}
+              onClick={() => addGroup("none")}
+            >
+              {tr("addException", d)}
+            </button>
+          </>
+        )}
+        <FieldsTable fields={fields} d={d} />
+      </div>
+    </div>
+  );
+}

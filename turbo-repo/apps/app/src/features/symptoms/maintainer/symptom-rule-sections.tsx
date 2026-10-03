@@ -7,12 +7,14 @@ import type { IntegrationConnection } from "@/features/integration-config/integr
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
 import ClauseBreakdown from "./clause-breakdown";
+import { SourceHelp, SourceSelect } from "./source-select";
 import { changedPaths, isChanged } from "./ui/changed";
-import type {
-  Finding,
-  Preview,
-  SourceField,
-  SymptomSpec,
+import {
+  type Finding,
+  type Preview,
+  type SourceField,
+  type SymptomSpec,
+  useDataSources,
 } from "./maintainer-api";
 import LevelRow, { type EditMode } from "./level-row";
 import LifecycleFormFields, { LevelDownSelect } from "./lifecycle-form-fields";
@@ -199,6 +201,8 @@ function ActivationSection({
   onChange: (spec: SymptomSpec) => void;
 }>) {
   const [mode, setMode] = useState<EditMode>("form");
+  const [sourceHelp, setSourceHelp] = useState(false);
+  const { data: sources } = useDataSources();
   const activation = spec.activation ?? "";
   const { form, update } = useActivationForm(activation, fields, (value) =>
     onChange({ ...spec, activation: value })
@@ -208,13 +212,32 @@ function ActivationSection({
       title={tr("sectionActivation", d)}
       changed={changed}
       d={d}
-      actions={<ModeToggle mode={mode} d={d} onChange={setMode} />}
+      actions={
+        <span className="flex items-center gap-3">
+          <SourceSelect
+            value={spec.source}
+            sources={sources ?? []}
+            readOnly={readOnly}
+            helpOpen={sourceHelp}
+            d={d}
+            onChange={(source) => onChange({ ...spec, source })}
+            onToggleHelp={() => setSourceHelp((o) => !o)}
+          />
+          <ModeToggle mode={mode} d={d} onChange={setMode} />
+        </span>
+      }
       describe={{
         section: "activation",
         rule: activation,
         sourceKey: spec.source,
       }}
     >
+      {sourceHelp && (
+        <SourceHelp
+          source={(sources ?? []).find((x) => x.key === spec.source)}
+          d={d}
+        />
+      )}
       {mode === "form" && form && (
         <ActivationForm
           form={form}

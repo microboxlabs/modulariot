@@ -20,8 +20,9 @@ import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
-import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomFamilies;
 import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
@@ -33,6 +34,7 @@ import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.core.Response;
 import java.lang.reflect.RecordComponent;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import org.jose4j.jwt.JwtClaims;
@@ -64,7 +66,10 @@ class SymptomToolsTest {
         OrganizationContext organization = new OrganizationContext();
         McpCaller caller = new McpCaller(identity, new FakeAccess(tenant, organization), new FakeRoles(organization),
                 tenant, List.of("azp", "aud"));
-        return new SymptomTools(caller, catalog, sources, new PreviewService(catalog, sources));
+        return new SymptomTools(caller, catalog, sources, new PreviewService(catalog, sources),
+                new SymptomFamilies(t -> {
+                    throw new NoSuchElementException("no list");
+                }));
     }
 
     private static <T> T await(Uni<T> call) {
@@ -90,6 +95,7 @@ class SymptomToolsTest {
         assertTrue(list.symptoms().get(0).hasDraft());
         assertEquals("speeding", await(tools.get(ORG, speeding)).definition().key());
 
+        assertEquals("driving_safety", await(tools.families(ORG)).families().get(0).value());
         SymptomTools.Sources all = await(tools.sources(ORG, null));
         assertNull(all.source());
         assertTrue(all.sources().stream().anyMatch(s -> s.key().equals("gps_signal") && s.fieldCount() > 0));

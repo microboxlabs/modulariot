@@ -38,6 +38,17 @@ class TemplateServiceTest {
     }
 
     @Test
+    void everyTemplateFamilyIsADefaultFamily() {
+        Set<String> families = new HashSet<>();
+        new SymptomFamilies(tenant -> {
+            throw new NoSuchElementException("no list");
+        }).options("tenant-a").forEach(o -> families.add(o.value()));
+        for (SymptomTemplate t : templates.list()) {
+            assertTrue(families.contains(t.family()), t.key() + ": " + t.family());
+        }
+    }
+
+    @Test
     void anUnknownTemplateIsNotFound() {
         assertEquals("speeding", templates.get("speeding").key());
         assertThrows(NoSuchElementException.class, () -> templates.get("nope"));

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
+import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
@@ -72,7 +73,8 @@ class EvaluatorCatalogTest {
     void aVersionIsCompiledOnceAndAgainWhenANewOneIsPublished() {
         UUID id = published("speeding", SymptomState.ACTIVE);
         CompiledSymptom first = evaluatorCatalog.forSource(TENANT, "gps_signal").symptoms().get(0);
-        assertSame(first, evaluatorCatalog.forSource(TENANT, "gps_signal").symptoms().get(0));
+        assertSame(first.activation(), evaluatorCatalog.forSource(TENANT, "gps_signal").symptoms().get(0)
+                .activation(), "the same compiled rules");
 
         catalog.setState(TENANT, OWNER, id, SymptomState.TEST);
         CompiledSymptom switched = evaluatorCatalog.forSource(TENANT, "gps_signal").symptoms().get(0);
@@ -85,6 +87,26 @@ class EvaluatorCatalogTest {
         assertEquals("2.0.0", next.version());
         assertNotSame(first.activation(), next.activation());
         assertEquals(1, evaluatorCatalog.cached(), "one entry per symptom");
+    }
+
+    @Test
+    void aVersionReadingAFieldTheEngineLacksRunsInTestButNotActive() {
+        UUID id = published("speeding", SymptomState.ACTIVE);
+        DataSource gps = Specs.gpsSignal();
+        store.upsert(new DataSource(gps.id(), gps.tenantCode(), gps.key(), gps.name(), gps.kind(), gps.root(),
+                gps.cadence(), gps.fields().stream()
+                        .map(f -> f.path().equals("signal.gps.speed_kmh") ? new SourceField(f.path(), f.label(),
+                                f.type(), f.unit(), f.origin(), false) : f)
+                        .toList(), gps.samples()));
+
+        Versions active = evaluatorCatalog.forSource(TENANT, "gps_signal");
+        assertTrue(active.symptoms().isEmpty());
+        assertEquals(EvaluatorCatalog.ACTIVE_NEEDS_ENGINE, active.skipped().get(0).reason());
+
+        catalog.setState(TENANT, OWNER, id, SymptomState.TEST);
+        Versions test = evaluatorCatalog.forSource(TENANT, "gps_signal");
+        assertEquals(List.of(id), ids(test), "the version was published ACTIVE; its current state is what counts");
+        assertTrue(test.skipped().isEmpty());
     }
 
     @Test

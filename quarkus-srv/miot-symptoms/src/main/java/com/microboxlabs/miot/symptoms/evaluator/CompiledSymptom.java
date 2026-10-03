@@ -35,7 +35,8 @@ public record CompiledSymptom(
 
     /** The same rules under another state, as when the symptom is switched between test and active. */
     public CompiledSymptom withState(SymptomState next) {
-        return new CompiledSymptom(definitionId, version, next, activation, measure, levels, open, close);
+        return new CompiledSymptom(definitionId, version, next, sourceKey, activation, measure, levels, open,
+                close);
     }
 
     public static CompiledSymptom compile(UUID definitionId, String version, SymptomState state, SymptomSpec spec,

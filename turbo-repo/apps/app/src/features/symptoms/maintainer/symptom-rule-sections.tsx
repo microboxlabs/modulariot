@@ -7,7 +7,8 @@ import type { IntegrationConnection } from "@/features/integration-config/integr
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
 import ClauseBreakdown from "./clause-breakdown";
-import SampleTree from "./sample-tree";
+import LevelsExpression from "./levels-expression";
+import SampleTree, { useSourceSamples } from "./sample-tree";
 import { SourceHelp, SourceSelect } from "./source-select";
 import { changedPaths, isChanged } from "./ui/changed";
 import {
@@ -218,11 +219,7 @@ function ActivationSection({
   const [mode, setMode] = useState<EditMode>("form");
   const [sourceHelp, setSourceHelp] = useState(false);
   const { data: sources } = useDataSources();
-  // The tree keeps the last samples while a new preview is on its way.
-  const [cached, setCached] = useState(preview);
-  if (preview && preview !== cached) setCached(preview);
-  // Samples of another source are not shown, even while the new source's preview loads.
-  const samples = cached?.source === spec.source ? cached.samples : [];
+  const samples = useSourceSamples(preview, spec.source);
   const [sampleIndex, setSampleIndex] = useState(0);
   const sampleAt = Math.min(sampleIndex, Math.max(0, samples.length - 1));
   const notInEngine = useMemo(
@@ -407,27 +404,26 @@ export default function SymptomRuleSections({
           sourceKey: spec.source,
         }}
       >
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-            {tr("measure", d)}
-          </span>
-          {levelsMode === "form" ? (
+        {levelsMode === "form" ? (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              {tr("measure", d)}
+            </span>
             <MeasureText measure={measureValue} d={d} />
-          ) : (
-            <CelEditor
-              singleLine
-              readOnly={readOnly}
-              ariaLabel={tr("measure", d)}
-              value={measureValue.expression ?? ""}
-              fields={sourceFields}
-              problems={measure}
-              onChange={(expression) =>
-                onChange({ ...spec, measure: { ...measureValue, expression } })
-              }
-            />
-          )}
-          <Problems items={measure} />
-        </div>
+            <Problems items={measure} />
+          </div>
+        ) : (
+          <LevelsExpression
+            spec={spec}
+            preview={preview}
+            sourceFields={sourceFields}
+            levelFields={levelRuleFields}
+            findings={findings}
+            readOnly={readOnly}
+            d={d}
+            onChange={onChange}
+          />
+        )}
         <div className="divide-y divide-gray-100 dark:divide-gray-700">
           {ICU_LEVELS.map((meta) => (
             <LevelRow
@@ -435,7 +431,7 @@ export default function SymptomRuleSections({
               changed={levelsChanged.has(meta.icu)}
               spec={spec}
               icu={meta.icu}
-              mode={levelsMode}
+              mode="form"
               fields={levelRuleFields}
               findings={findings}
               readOnly={readOnly}

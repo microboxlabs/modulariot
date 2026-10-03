@@ -46,7 +46,8 @@ const pillClass =
 const inputClass =
   "w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
 
-function levelOf(spec: SymptomSpec, icu: number): Level {
+/** The level as stored, or an empty one that does not apply. */
+export function levelOf(spec: SymptomSpec, icu: number): Level {
   return (
     (spec.levels ?? []).find((l) => l.icu === icu) ?? {
       icu,
@@ -57,7 +58,8 @@ function levelOf(spec: SymptomSpec, icu: number): Level {
   );
 }
 
-function withLevel(spec: SymptomSpec, level: Level): SymptomSpec {
+/** The spec with `level` in place of the level of the same ICU, levels in order. */
+export function withLevel(spec: SymptomSpec, level: Level): SymptomSpec {
   const others = (spec.levels ?? []).filter((l) => l.icu !== level.icu);
   return { ...spec, levels: [...others, level].sort((a, b) => a.icu - b.icu) };
 }

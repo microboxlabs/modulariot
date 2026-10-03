@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
+import com.microboxlabs.miot.symptoms.catalog.domain.SourceKind;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
@@ -120,16 +122,43 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
-    void forkStartsOffWithTheVersionAsItsDraft() {
+    void aForkOfAPublishedVersionStartsInTestAtZeroOneZeroAndSaysWhereItCameFrom() {
         UUID id = speeding();
         service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.ACTIVE);
 
         SymptomDetail fork = service.fork(TENANT, OWNER, id, "1.0.0", "speeding-mine", "Exceso en faena");
 
+        assertEquals(SymptomState.TEST, fork.definition().state(), "the source was ACTIVE; a copy starts in test");
+        assertEquals("0.1.0", fork.definition().currentVersion());
+        assertNull(fork.draft());
+        assertEquals(SymptomState.TEST, fork.current().spec().state());
+        assertEquals("Copia de Exceso de velocidad 1.0.0", fork.current().reason());
+        assertEquals(Specs.ACTIVATION, fork.current().spec().activation());
+        assertNotNull(fork.definition().forkedFromVersionId());
+        assertEquals(new SymptomCatalogService.ForkedFrom(id, "Exceso de velocidad", "1.0.0"), fork.forkedFrom());
+        assertNull(service.get(TENANT, id).forkedFrom(), "the source is not a copy");
+    }
+
+    @Test
+    void aForkOfANeverPublishedSymptomIsADraft() {
+        UUID id = speeding();
+        SymptomDetail fork = service.fork(TENANT, OWNER, id, null, "speeding-draft", "Borrador copiado");
         assertEquals(SymptomState.OFF, fork.definition().state());
         assertNull(fork.definition().currentVersion());
-        assertNotNull(fork.definition().forkedFromVersionId());
         assertEquals(Specs.ACTIVATION, fork.draft().spec().activation());
+        assertNull(fork.forkedFrom().version(), "a draft was copied");
+    }
+
+    @Test
+    void aForkThatCannotBePublishedLeavesNothingBehind() {
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.TEST);
+        catalog.upsert(new DataSource(UUID.randomUUID(), null, "gps_signal", "Señal GPS", SourceKind.SIGNAL,
+                "signal", "Cada pulso", List.of(), List.of()));
+
+        assertThrows(IllegalStateException.class,
+                () -> service.fork(TENANT, OWNER, id, "1.0.0", "speeding-copy", "Copia"));
+        assertEquals(1, service.list(TENANT).size());
     }
 
     @Test
@@ -396,8 +425,7 @@ class SymptomCatalogServiceTest {
         assertThrows(NoSuchElementException.class, () -> service.responseFor(TENANT, "other", 4));
         assertThrows(NoSuchElementException.class, () -> service.responseFor(TENANT, "speed", 5), "no such level");
 
-        UUID copy = service.fork(TENANT, OWNER, id, "1.0.0", "speeding-copy", "Copia").definition().id();
-        service.publish(TENANT, OWNER, copy, "Copia en prueba", null, SymptomState.TEST);
+        service.fork(TENANT, OWNER, id, "1.0.0", "speeding-copy", "Copia");
         assertEquals(id, service.responseFor(TENANT, "speed", 4).definitionId(), "the active one wins over a test copy");
         assertThrows(NoSuchElementException.class, () -> service.responseFor("tenant-b", "speed", 4));
     }

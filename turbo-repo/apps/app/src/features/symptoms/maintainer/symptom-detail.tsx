@@ -28,6 +28,7 @@ import {
   useSymptomTemplates,
 } from "./maintainer-api";
 import DraftBar from "./draft-bar";
+import ImpactPanel from "./impact-panel";
 import { overviewText } from "./overview-text";
 import RuleDescription from "./rule-description";
 import PublishDialog from "./publish-dialog";
@@ -296,6 +297,12 @@ export default function SymptomDetail({
                 <>
                   <ReviewPanel report={report} d={d} />
                   <PreviewPanel preview={preview} d={d} rootDict={rootDict} />
+                  <ImpactPanel
+                    definitionId={id}
+                    spec={spec ?? shownSpec}
+                    published={published}
+                    d={d}
+                  />
                 </>
               )}
               <FieldsPanel source={source} d={d} />

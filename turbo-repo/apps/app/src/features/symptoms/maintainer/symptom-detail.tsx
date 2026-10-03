@@ -28,6 +28,7 @@ import {
   useSymptomTemplates,
 } from "./maintainer-api";
 import DraftBar from "./draft-bar";
+import HarnessPanel from "./harness-panel";
 import ImpactPanel from "./impact-panel";
 import { overviewText } from "./overview-text";
 import RuleDescription from "./rule-description";
@@ -65,11 +66,14 @@ export default function SymptomDetail({
   dict,
   rootDict,
   lang,
+  harnessEnabled = false,
 }: Readonly<{
   id: string;
   dict: I18nRecord;
   rootDict: I18nRecord;
   lang: string;
+  /** The Harness chat is mounted, so requests can be sent to it. */
+  harnessEnabled?: boolean;
 }>) {
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
@@ -89,6 +93,7 @@ export default function SymptomDetail({
     currentPreview,
     saving,
     saveError,
+    external,
     discard,
     resync,
     planIsCurrent,
@@ -242,6 +247,18 @@ export default function SymptomDetail({
             {actionError}
           </p>
         )}
+        {external && (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+            {tr("draftChangedElsewhere", d)}
+            <button
+              type="button"
+              className="font-medium underline"
+              onClick={() => void resync()}
+            >
+              {tr("draftReload", d)}
+            </button>
+          </div>
+        )}
 
         {viewed?.version && (
           <VersionBanner
@@ -297,6 +314,9 @@ export default function SymptomDetail({
                 <>
                   <ReviewPanel report={report} d={d} />
                   <PreviewPanel preview={preview} d={d} rootDict={rootDict} />
+                  {harnessEnabled && canWrite && def && (
+                    <HarnessPanel id={id} name={def.name} d={d} />
+                  )}
                   <ImpactPanel
                     definitionId={id}
                     spec={spec ?? shownSpec}

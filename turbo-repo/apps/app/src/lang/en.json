@@ -2661,7 +2661,7 @@
         "sampleOf": "Sample {n} of {total}",
         "previousSample": "Previous sample",
         "nextSample": "Next sample",
-        "noClauses": "The rule uses “or”: it is evaluated whole, without a breakdown.",
+        "noClauses": "The rule uses “or”: it is evaluated as a whole, without a breakdown.",
         "clauseHolds": "holds",
         "clauseFails": "does not hold",
         "clauseError": "could not be evaluated",

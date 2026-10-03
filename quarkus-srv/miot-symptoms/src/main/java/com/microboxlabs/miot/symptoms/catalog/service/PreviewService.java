@@ -79,7 +79,9 @@ public class PreviewService {
         RuleSchema levelSchema = schema.withExtras(RuleSchema.LEVEL_VARIABLES);
         PreparedRule activation = RuleLanguage.prepare(schema, spec.activation());
         Map<String, PreparedRule> clauses = new LinkedHashMap<>();
+        // The text split must agree with the parsed rule: "flag ? a && b : false" is one condition, not two.
         ConditionChecks.conjunction(spec.activation())
+                .filter(terms -> terms.size() == RuleText.conjunctionSize(spec.activation()))
                 .ifPresent(terms -> terms.forEach(t -> clauses.put(t, RuleLanguage.prepare(schema, t))));
         PreparedRule measure = spec.measure() == null || spec.measure().expression() == null ? null
                 : RuleLanguage.prepare(schema, spec.measure().expression());

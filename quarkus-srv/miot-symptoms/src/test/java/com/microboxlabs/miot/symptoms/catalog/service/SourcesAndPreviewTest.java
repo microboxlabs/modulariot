@@ -74,6 +74,13 @@ class SourcesAndPreviewTest {
 
         SymptomSpec or = Specs.with(Specs.speeding(), "signal.trip.active || signal.gps.speed_kmh > 0");
         assertTrue(PreviewService.run(or, gps).get(0).clauses().isEmpty(), "an || rule has no clause list");
+
+        SymptomSpec ternary = Specs.with(Specs.speeding(),
+                "signal.trip.active ? signal.gps.speed_kmh > 0 && signal.gps.speed_kmh < 200 : false");
+        assertTrue(PreviewService.run(ternary, gps).get(0).clauses().isEmpty(),
+                "&& inside a conditional is not the rule's own conjunction");
+        SymptomSpec grouped = Specs.with(Specs.speeding(), "(signal.trip.active && signal.gps.speed_kmh > 0)");
+        assertEquals(2, PreviewService.run(grouped, gps).get(0).clauses().size(), "parentheses are looked through");
     }
 
     @Test

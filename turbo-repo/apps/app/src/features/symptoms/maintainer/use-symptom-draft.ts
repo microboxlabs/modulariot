@@ -27,6 +27,8 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   const [spec, setSpec] = useState<SymptomSpec | null>(null);
   const [report, setReport] = useState<ValidationReport | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
+  // The spec the preview was made for: a preview of an earlier spec must not describe the one on screen.
+  const [previewFor, setPreviewFor] = useState<SymptomSpec | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -74,6 +76,7 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
           if (ticket !== latest.current) return;
           setReport(r);
           setPreview(p);
+          setPreviewFor(next);
         } catch (e) {
           setSaveError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -129,6 +132,8 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     update,
     report,
     preview,
+    /** The preview, only while it describes the spec on screen. */
+    currentPreview: preview && previewFor === spec ? preview : null,
     saving,
     saveError,
     discard,

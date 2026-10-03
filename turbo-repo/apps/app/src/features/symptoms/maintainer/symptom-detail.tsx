@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -10,29 +9,27 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
-  Select,
   TextInput,
 } from "flowbite-react";
-import { HiArrowLeft } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useIntegrationConfig } from "@/features/integration-config/use-integration-config";
-import SymptomIcon from "../components/symtom-icon";
 import type { CelField } from "./cel-editor";
 import { keyFrom } from "./create-symptom-modal";
 import {
   forkSymptom,
   refreshSymptoms,
   rollbackTo,
-  setSymptomState,
   useDataSource,
-  type SymptomState,
+  usePublishPlan,
+  useSymptomFamilies,
+  useSymptomTemplates,
 } from "./maintainer-api";
+import DraftBar from "./draft-bar";
 import PublishDialog from "./publish-dialog";
-import { familyLabel, stateLabel } from "./symptom-labels";
-import { StatePill } from "./ui/state";
+import SheetHeader from "./sheet-header";
 import SymptomRuleSections from "./symptom-rule-sections";
 import {
   FieldsPanel,
@@ -42,6 +39,9 @@ import {
   originLabel,
 } from "./symptom-side-panels";
 import { useSymptomDraft } from "./use-symptom-draft";
+
+/** The versions panel, which the version menu scrolls to. */
+const VERSIONS_ID = "symptom-versions";
 
 type Pending =
   | { kind: "rollback"; version: string }
@@ -80,6 +80,12 @@ export default function SymptomDetail({
     discard,
     resync,
   } = useSymptomDraft(id, canWrite);
+  const { data: families } = useSymptomFamilies();
+  const { data: templates } = useSymptomTemplates(true);
+  const { data: plan, error: planError } = usePublishPlan(
+    id,
+    Boolean(canWrite && detail?.draft)
+  );
   const { data: source } = useDataSource(
     spec?.source ?? detail?.definition.sourceKey ?? null
   );
@@ -146,84 +152,34 @@ export default function SymptomDetail({
         />
       </div>
       <div className="mx-auto flex w-full max-w-screen-2xl min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-3 pb-10 dark:bg-gray-900">
-        <Link
-          href={`/${lang}/users/settings/symptoms`}
-          className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white"
-        >
-          <HiArrowLeft className="h-4 w-4" />
-          {tr("backToCatalog", d)}
-        </Link>
         {error && (
           <p className="text-sm text-red-600 dark:text-red-400">
             {tr("loadFailed", d)}
           </p>
         )}
         {def && (
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-200">
-              <SymptomIcon
-                type={def.icon ?? def.name}
-                dict={rootDict}
-                size="h-10 w-10"
-                fixed_label={def.name}
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-2xl font-semibold text-gray-900 dark:text-white">
-                {def.name}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {familyLabel(def.family)}
-                {def.currentVersion
-                  ? ` · v${def.currentVersion}`
-                  : ` · ${tr("unpublished", d)}`}
-              </p>
-            </div>
-            {canWrite && def.currentVersion ? (
-              <Select
-                sizing="sm"
-                aria-label={tr("state", d)}
-                value={def.state}
-                onChange={(e) =>
-                  void run(() =>
-                    setSymptomState(id, e.target.value as SymptomState)
-                  )
-                }
-              >
-                {(["OFF", "TEST", "ACTIVE"] as const).map((s) => (
-                  <option key={s} value={s}>
-                    {stateLabel(s, d)}
-                  </option>
-                ))}
-              </Select>
-            ) : (
-              <StatePill state={def.state} d={d} />
-            )}
-          </div>
-        )}
-
-        {canWrite && detail?.draft && (
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 dark:border-blue-800 dark:bg-blue-900/20">
-            <span className="h-2 w-2 rounded-full bg-blue-600" />
-            <span className="text-sm text-blue-900 dark:text-blue-200">
-              {tr("draftBar", d)} · {saving ? tr("saving", d) : tr("saved", d)}
-            </span>
-            {saveError && (
-              <span className="text-xs text-red-600">{saveError}</span>
-            )}
-            <div className="ml-auto flex gap-2">
-              <Button
-                size="xs"
-                color="alternative"
-                onClick={() => void run(discard)}
-              >
-                {tr("discard", d)}
-              </Button>
-              <Button size="xs" onClick={() => setPublishing(true)}>
-                {tr("publish", d)}
-              </Button>
-            </div>
-          </div>
+          <SheetHeader
+            def={def}
+            spec={spec}
+            canWrite={canWrite}
+            families={families}
+            templates={templates}
+            backHref={`/${lang}/users/settings/symptoms`}
+            lang={lang}
+            d={d}
+            rootDict={rootDict}
+            onChange={update}
+            onHistory={() =>
+              document
+                .getElementById(VERSIONS_ID)
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            onDuplicate={() => {
+              if (!def.currentVersion) return;
+              setText("");
+              setPending({ kind: "fork", version: def.currentVersion });
+            }}
+          />
         )}
         {actionError && (
           <p className="text-sm text-red-600 dark:text-red-400">
@@ -250,22 +206,36 @@ export default function SymptomDetail({
               <ReviewPanel report={report} d={d} />
               <PreviewPanel preview={preview} d={d} rootDict={rootDict} />
               <FieldsPanel source={source} d={d} />
-              <VersionsPanel
-                versions={detail.versions}
-                current={detail.definition.currentVersion}
-                canWrite={canWrite}
-                d={d}
-                onRollback={(version) => {
-                  setText("");
-                  setPending({ kind: "rollback", version });
-                }}
-                onFork={(version) => {
-                  setText("");
-                  setPending({ kind: "fork", version });
-                }}
-              />
+              <div id={VERSIONS_ID} className="scroll-mt-4">
+                <VersionsPanel
+                  versions={detail.versions}
+                  current={detail.definition.currentVersion}
+                  canWrite={canWrite}
+                  d={d}
+                  onRollback={(version) => {
+                    setText("");
+                    setPending({ kind: "rollback", version });
+                  }}
+                  onFork={(version) => {
+                    setText("");
+                    setPending({ kind: "fork", version });
+                  }}
+                />
+              </div>
             </div>
           </div>
+        )}
+        {canWrite && detail?.draft && (
+          <DraftBar
+            plan={plan}
+            planFailed={Boolean(planError)}
+            report={report}
+            saving={saving}
+            saveError={saveError}
+            d={d}
+            onReview={() => setPublishing(true)}
+            onDiscard={() => void run(discard)}
+          />
         )}
       </div>
 

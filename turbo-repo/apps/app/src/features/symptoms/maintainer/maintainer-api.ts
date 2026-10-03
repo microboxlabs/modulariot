@@ -72,6 +72,10 @@ export interface SymptomSpec {
     days: number;
     raiseLevels: number;
   } | null;
+  /** A symptom_families value; null or missing keeps the symptom's. */
+  family?: string | null;
+  /** The state publishing this version sets; null or missing keeps the symptom's. */
+  state?: SymptomState | null;
 }
 
 export interface SymptomDefinition {
@@ -412,13 +416,38 @@ export function previewSpec(id: string, spec?: SymptomSpec) {
   });
 }
 
+export const publishPlanKey = (id: string) => `${DEFS}/${id}/publish-plan`;
+
 export function publishPlan(id: string) {
-  return request<PublishPlan>(`${DEFS}/${id}/publish-plan`);
+  return request<PublishPlan>(publishPlanKey(id));
+}
+
+/** What publishing the draft would do; null key when there is no draft. */
+export function usePublishPlan(id: string, hasDraft: boolean) {
+  return useSWR<PublishPlan>(hasDraft ? publishPlanKey(id) : null, fetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+  });
+}
+
+/** A family the organization files symptoms under; the label is per language. */
+export interface SymptomFamily {
+  value: string;
+  label: Record<string, string>;
+  disabled: boolean;
+}
+
+export function useSymptomFamilies() {
+  return useSWR<SymptomFamily[]>(
+    `${CONTROL_TOWER_BASE}/symptom-families`,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
 }
 
 export function publishDraft(
   id: string,
-  body: { reason: string; bump?: VersionBump | null; state?: SymptomState }
+  body: { reason: string; bump?: VersionBump | null }
 ) {
   return request<SymptomVersion>(`${DEFS}/${id}/publish`, {
     method: "POST",

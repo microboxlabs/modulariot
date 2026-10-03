@@ -17,13 +17,12 @@ import {
   publishDraft,
   publishPlan,
   type PublishPlan,
-  type SymptomState,
   type VersionBump,
 } from "./maintainer-api";
 
 const BUMPS: VersionBump[] = ["PATCH", "MINOR", "MAJOR"];
 
-/** Publishing the draft: what changed, the version it becomes, a reason and the state to publish in. */
+/** Publishing the draft: what changed, the version it becomes and a reason. The state comes from the draft. */
 export default function PublishDialog({
   id,
   open,
@@ -39,7 +38,6 @@ export default function PublishDialog({
 }>) {
   const [plan, setPlan] = useState<PublishPlan | null>(null);
   const [reason, setReason] = useState("");
-  const [state, setState] = useState<SymptomState>("TEST");
   const [bump, setBump] = useState<VersionBump | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -53,7 +51,6 @@ export default function PublishDialog({
       .then((p) => {
         setPlan(p);
         setBump(p.bump);
-        if (p.report.needsTestOnly) setState("TEST");
       })
       .catch((e: unknown) =>
         setError(e instanceof Error ? e.message : String(e))
@@ -66,7 +63,7 @@ export default function PublishDialog({
     setBusy(true);
     setError(null);
     try {
-      await publishDraft(id, { reason: reason.trim(), bump, state });
+      await publishDraft(id, { reason: reason.trim(), bump });
       onPublished();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -114,7 +111,7 @@ export default function PublishDialog({
                 placeholder={tr("reasonPlaceholder", d)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div>
               <div>
                 <Label htmlFor="publish-bump">{tr("versionBump", d)}</Label>
                 <Select
@@ -128,19 +125,6 @@ export default function PublishDialog({
                       {b}
                     </option>
                   ))}
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="publish-state">{tr("publishAs", d)}</Label>
-                <Select
-                  id="publish-state"
-                  value={state}
-                  onChange={(e) => setState(e.target.value as SymptomState)}
-                >
-                  <option value="TEST">{tr("stateTest", d)}</option>
-                  <option value="ACTIVE" disabled={plan.report.needsTestOnly}>
-                    {tr("stateActive", d)}
-                  </option>
                 </Select>
               </div>
             </div>

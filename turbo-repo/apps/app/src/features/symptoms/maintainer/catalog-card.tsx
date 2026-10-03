@@ -16,7 +16,6 @@ import {
 import { ago, fmt, levelName, levelShortName } from "./catalog-format";
 import type { SymptomSummary } from "./maintainer-api";
 import { renderDescription } from "./rule-description";
-import { familyLabel } from "./symptom-labels";
 import { MUTED } from "./ui/card";
 import { LevelIcon } from "./ui/level-icon";
 import { StatePill } from "./ui/state";
@@ -129,6 +128,7 @@ export function SymptomIconCircle({
 
 export function SymptomCard({
   s,
+  family,
   week,
   lang,
   d,
@@ -136,6 +136,8 @@ export function SymptomCard({
   onOpen,
 }: Readonly<{
   s: SymptomSummary;
+  /** The family label in the page language. */
+  family: string;
   week: number | null;
   lang: string;
   d: I18nRecord;
@@ -156,7 +158,7 @@ export function SymptomCard({
           <div className="truncate font-semibold text-gray-900 dark:text-white">
             {def.name}
           </div>
-          <div className={`text-xs ${MUTED}`}>{familyLabel(def.family)}</div>
+          <div className={`text-xs ${MUTED}`}>{family}</div>
         </div>
         <StatePill state={def.state} d={d} />
       </div>
@@ -188,6 +190,7 @@ export function SymptomCard({
 
 export function SymptomRow({
   s,
+  family,
   week,
   lang,
   d,
@@ -195,6 +198,8 @@ export function SymptomRow({
   onOpen,
 }: Readonly<{
   s: SymptomSummary;
+  /** The family label in the page language. */
+  family: string;
   week: number | null;
   lang: string;
   d: I18nRecord;
@@ -216,7 +221,7 @@ export function SymptomRow({
             <div className="text-sm font-medium text-gray-900 dark:text-white">
               {def.name}
             </div>
-            <div className={MUTED}>{familyLabel(def.family)}</div>
+            <div className={MUTED}>{family}</div>
           </div>
         </button>
       </td>

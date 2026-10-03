@@ -16,6 +16,9 @@ import java.util.List;
  * @param levels     the four ICU levels, lowest first
  * @param lifecycle  when a case opens and closes
  * @param recurrence optional: raise later cases of the same plate
+ * @param family     the {@code symptom_families} value this version files the symptom under; null keeps the
+ *                   symptom's
+ * @param state      the state publishing this version sets; null keeps the symptom's
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record SymptomSpec(
@@ -24,13 +27,31 @@ public record SymptomSpec(
         Measure measure,
         List<Level> levels,
         Lifecycle lifecycle,
-        Recurrence recurrence) {
+        Recurrence recurrence,
+        String family,
+        SymptomState state) {
+
+    /** A spec that leaves the family and the state as the symptom has them. */
+    public SymptomSpec(String source, String activation, Measure measure, List<Level> levels, Lifecycle lifecycle,
+            Recurrence recurrence) {
+        this(source, activation, measure, levels, lifecycle, recurrence, null, null);
+    }
+
+    public SymptomSpec withState(SymptomState next) {
+        return new SymptomSpec(source, activation, measure, levels, lifecycle, recurrence, family, next);
+    }
+
+    /** This spec with the family and state filled in where it leaves them to the symptom. */
+    public SymptomSpec withDefaults(String defaultFamily, SymptomState defaultState) {
+        return new SymptomSpec(source, activation, measure, levels, lifecycle, recurrence,
+                family == null ? defaultFamily : family, state == null ? defaultState : state);
+    }
 
     /** True when nothing is set, as when a request body is {@code {}}. */
     @JsonIgnore
     public boolean isEmpty() {
         return source == null && activation == null && measure == null && levels == null && lifecycle == null
-                && recurrence == null;
+                && recurrence == null && family == null && state == null;
     }
 
     /** @param expression CEL over the source object; null for symptoms with a fixed level */

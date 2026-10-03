@@ -20,11 +20,13 @@ import {
   createSymptom,
   refreshSymptoms,
   useDataSources,
+  useSymptomFamilies,
   useSymptomTemplates,
   type SymptomDetail,
   type SymptomTemplate,
 } from "./maintainer-api";
 import { renderDescription } from "./rule-description";
+import { familyLabel } from "./symptom-labels";
 import { Spark } from "./ui/badges";
 import { MUTED } from "./ui/card";
 
@@ -247,6 +249,7 @@ export default function CreateSymptomModal({
   open,
   d,
   rootDict,
+  lang,
   harnessEnabled,
   importing,
   onImport,
@@ -256,6 +259,7 @@ export default function CreateSymptomModal({
   open: boolean;
   d: I18nRecord;
   rootDict: I18nRecord;
+  lang: string;
   harnessEnabled: boolean;
   importing: boolean;
   onImport: () => void;
@@ -268,6 +272,7 @@ export default function CreateSymptomModal({
     error: templatesError,
     mutate: reloadTemplates,
   } = useSymptomTemplates(open);
+  const { data: families } = useSymptomFamilies();
   const [blank, setBlank] = useState(false);
   const [creating, setCreating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -334,7 +339,7 @@ export default function CreateSymptomModal({
                 <div
                   className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${MUTED}`}
                 >
-                  {family}
+                  {familyLabel(family, families, lang)}
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {list.map((t) => (

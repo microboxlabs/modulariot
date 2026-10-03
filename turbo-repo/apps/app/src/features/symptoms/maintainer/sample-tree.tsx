@@ -227,6 +227,7 @@ function Entries({
  */
 export default function SampleTree({
   samples,
+  labels,
   index,
   notInEngine = new Set(),
   readOnly,
@@ -234,6 +235,8 @@ export default function SampleTree({
   onIndex,
 }: Readonly<{
   samples: Json[];
+  /** A name for each sample, in place of the one read from its fields. */
+  labels?: string[];
   index: number;
   /** Paths the engine cannot read yet; they get the "motor: aún no" tag. */
   notInEngine?: ReadonlySet<string>;
@@ -267,7 +270,9 @@ export default function SampleTree({
         >
           ‹
         </button>
-        <span title={position}>{sampleLabel(sample) ?? position}</span>
+        <span title={position}>
+          {labels?.[index] ?? sampleLabel(sample) ?? position}
+        </span>
         <button
           type="button"
           aria-label={tr("nextSample", d)}

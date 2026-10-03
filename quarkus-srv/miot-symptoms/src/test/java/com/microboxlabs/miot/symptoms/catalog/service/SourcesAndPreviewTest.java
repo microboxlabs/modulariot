@@ -109,4 +109,29 @@ class SourcesAndPreviewTest {
 
         assertEquals("El campo «activo» no existe en esta fuente.", first.error());
     }
+
+    @Test
+    void theLifecycleRunsOnEachCaseMoment() {
+        List<PreviewService.CasePreview> cases = PreviewService.cases(new SymptomSpec.Lifecycle(
+                "caso.condicion_s >= 60", "caso.normal_s >= 120 || caso.cerrado_por_operador"));
+
+        assertEquals(List.of("detected", "held", "ongoing", "normal", "closed_by_operator"),
+                cases.stream().map(PreviewService.CasePreview::scenario).toList());
+        assertEquals(List.of("waits", "opens", "stays_open", "closes", "closes"),
+                cases.stream().map(PreviewService.CasePreview::outcome).toList());
+        assertEquals(-1.0, ((java.util.Map<?, ?>) cases.get(2).sample().get("caso")).get("normal_s"),
+                "normal_s is -1 while the condition holds, as the engine writes it");
+    }
+
+    @Test
+    void aLifecycleRuleThatFailsIsReportedPerMoment() {
+        List<PreviewService.CasePreview> cases = PreviewService.cases(
+                new SymptomSpec.Lifecycle("caso.condicion_s", "caso.nope > 1"));
+
+        assertNull(cases.get(0).outcome());
+        assertEquals("La condición debe dar sí o no.", cases.get(0).error());
+        assertNull(cases.get(2).outcome());
+        assertTrue(cases.get(2).error() != null && !cases.get(2).error().isBlank());
+        assertTrue(PreviewService.cases(null).isEmpty());
+    }
 }

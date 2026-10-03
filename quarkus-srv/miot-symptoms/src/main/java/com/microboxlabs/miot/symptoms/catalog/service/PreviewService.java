@@ -62,8 +62,47 @@ public class PreviewService {
     public record Clause(String text, Boolean holds, Map<String, Object> values, String error) {
     }
 
-    public record Preview(String source, List<SamplePreview> samples) {
+    /**
+     * The lifecycle on one case moment.
+     *
+     * @param scenario which moment, a key the app names
+     * @param open     whether a case is already open; then the close rule runs, else the open rule
+     * @param sample   the {@code caso} object the rule reads
+     * @param outcome  {@code opens} or {@code waits} for a case not open yet, {@code closes} or {@code stays_open}
+     *                 for an open one; null when the rule could not run
+     * @param error    why the rule could not run, or null
+     */
+    public record CasePreview(String scenario, boolean open, Map<String, Object> sample, String outcome,
+            String error) {
     }
+
+    public record Preview(String source, List<SamplePreview> samples, List<CasePreview> cases) {
+    }
+
+    /** A fixed case moment: seconds the condition has held, seconds back to normal, hours open, level. */
+    record Scenario(String key, boolean open, double conditionS, double normalS, double ageH, int level,
+            boolean closedByOperator) {
+
+        Map<String, Object> sample() {
+            Map<String, Object> caso = new LinkedHashMap<>();
+            caso.put("condicion_s", conditionS);
+            caso.put("normal_s", normalS);
+            caso.put("edad_h", ageH);
+            caso.put("nivel", (double) level);
+            caso.put("cerrado_por_operador", closedByOperator);
+            return Map.of("caso", caso);
+        }
+    }
+
+    /** {@code caso.normal_s} while the condition still holds, as the engine writes it. */
+    private static final double NOT_NORMAL = -1;
+
+    static final List<Scenario> SCENARIOS = List.of(
+            new Scenario("detected", false, 10, NOT_NORMAL, 0, 1, false),
+            new Scenario("held", false, 75, NOT_NORMAL, 0, 4, false),
+            new Scenario("ongoing", true, 75, NOT_NORMAL, 0.1, 4, false),
+            new Scenario("normal", true, 0, 180, 0.5, 3, false),
+            new Scenario("closed_by_operator", true, 0, 30, 1, 2, true));
 
     /** Previews {@code spec}, or the draft (else the version in force) when it is null. */
     public Preview preview(String tenantCode, UUID id, SymptomSpec spec) {
@@ -71,7 +110,7 @@ public class PreviewService {
         SymptomSpec checked = spec != null && !spec.isEmpty() ? spec : pick(detail);
         String key = checked.source() == null ? detail.definition().sourceKey() : checked.source();
         DataSource source = sources.get(tenantCode, key);
-        return new Preview(source.key(), run(checked, source));
+        return new Preview(source.key(), run(checked, source), cases(checked.lifecycle()));
     }
 
     static List<SamplePreview> run(SymptomSpec spec, DataSource source) {
@@ -94,6 +133,27 @@ public class PreviewService {
         return source.samples().stream()
                 .map(sample -> runOne(sample, activation, measure, levels).withClauses(clauses(sample, clauses)))
                 .toList();
+    }
+
+    /** The lifecycle on each fixed case moment; none without a lifecycle. */
+    static List<CasePreview> cases(SymptomSpec.Lifecycle lifecycle) {
+        if (lifecycle == null) {
+            return List.of();
+        }
+        PreparedRule open = RuleLanguage.prepare(RuleSchema.CASE, lifecycle.open());
+        PreparedRule close = RuleLanguage.prepare(RuleSchema.CASE, lifecycle.close());
+        return SCENARIOS.stream().map(s -> {
+            Map<String, Object> sample = s.sample();
+            RuleResult r = (s.open() ? close : open).run(sample);
+            if (!r.ok()) {
+                return new CasePreview(s.key(), s.open(), sample, null, r.error());
+            }
+            if (!(r.value() instanceof Boolean holds)) {
+                return new CasePreview(s.key(), s.open(), sample, null, NOT_A_CONDITION);
+            }
+            String outcome = s.open() ? (holds ? "closes" : "stays_open") : (holds ? "opens" : "waits");
+            return new CasePreview(s.key(), s.open(), sample, outcome, null);
+        }).toList();
     }
 
     private static List<Clause> clauses(Map<String, Object> sample, Map<String, PreparedRule> rules) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { Preview, SourceField } from "./maintainer-api";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { insertIntoFocused } from "./cel-editor";
@@ -23,6 +24,25 @@ function find(sample: Json, key: string): unknown {
     }
   }
   return undefined;
+}
+
+/** The paths of the fields the engine cannot read yet. */
+export function unsupportedPaths(fields: SourceField[]): ReadonlySet<string> {
+  return new Set(fields.filter((f) => !f.engineSupported).map((f) => f.path));
+}
+
+/**
+ * The samples of the last preview made for `source`. They stay while a new
+ * preview is on its way, so the tree does not blink while typing, and are
+ * dropped as soon as the source changes.
+ */
+export function useSourceSamples(
+  preview: Preview | undefined,
+  source: string | null
+): Preview["samples"] {
+  const [cached, setCached] = useState(preview);
+  if (preview && preview !== cached) setCached(preview);
+  return cached?.source === source ? cached.samples : [];
 }
 
 /** "LDKF17 · Ruta 5 Norte · 21:31": plate, route and time of the sample, when it has them. */

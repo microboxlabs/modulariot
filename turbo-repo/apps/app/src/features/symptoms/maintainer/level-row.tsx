@@ -46,7 +46,8 @@ const pillClass =
 const inputClass =
   "w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
 
-function levelOf(spec: SymptomSpec, icu: number): Level {
+/** The level as stored, or an empty one that does not apply. */
+export function levelOf(spec: SymptomSpec, icu: number): Level {
   return (
     (spec.levels ?? []).find((l) => l.icu === icu) ?? {
       icu,
@@ -57,7 +58,8 @@ function levelOf(spec: SymptomSpec, icu: number): Level {
   );
 }
 
-function withLevel(spec: SymptomSpec, level: Level): SymptomSpec {
+/** The spec with `level` in place of the level of the same ICU, levels in order. */
+export function withLevel(spec: SymptomSpec, level: Level): SymptomSpec {
   const others = (spec.levels ?? []).filter((l) => l.icu !== level.icu);
   return { ...spec, levels: [...others, level].sort((a, b) => a.icu - b.icu) };
 }
@@ -409,6 +411,7 @@ function OperatorDetail({
 export default function LevelRow({
   spec,
   changed = false,
+  showProblems = true,
   icu,
   mode,
   fields,
@@ -422,6 +425,8 @@ export default function LevelRow({
   spec: SymptomSpec;
   /** The level differs from the published version. */
   changed?: boolean;
+  /** False when the level's problems are shown elsewhere, as under the { } editors. */
+  showProblems?: boolean;
   icu: number;
   mode: EditMode;
   fields: CelField[];
@@ -498,7 +503,7 @@ export default function LevelRow({
           </span>
         )}
       </div>
-      {level.applies && <Problems items={problems} />}
+      {level.applies && showProblems && <Problems items={problems} />}
       {level.applies && open && (
         <div className="grid grid-cols-1 gap-5 px-1 pb-4 lg:grid-cols-2">
           <LevelNotices

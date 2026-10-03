@@ -57,12 +57,14 @@ function Leaf({
   name,
   path,
   value,
+  notInEngine,
   readOnly,
   d,
 }: Readonly<{
   name: string;
   path: string;
   value: unknown;
+  notInEngine: boolean;
   readOnly: boolean;
   d: I18nRecord;
 }>) {
@@ -73,6 +75,11 @@ function Leaf({
       <span className={leafClass(value)}>
         {JSON.stringify(value) ?? "null"}
       </span>
+      {notInEngine && (
+        <span className="ml-2 rounded bg-amber-50 px-1 text-[10px] text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+          {tr("engineNotYetTag", d)}
+        </span>
+      )}
     </>
   );
   if (readOnly) return <div className="py-0.5 pl-4">{text}</div>;
@@ -100,6 +107,7 @@ function Node({
   path,
   value,
   collapsed,
+  notInEngine,
   readOnly,
   d,
   onToggle,
@@ -108,6 +116,7 @@ function Node({
   path: string;
   value: Json;
   collapsed: ReadonlySet<string>;
+  notInEngine: ReadonlySet<string>;
   readOnly: boolean;
   d: I18nRecord;
   onToggle: (path: string) => void;
@@ -132,6 +141,7 @@ function Node({
             value={value}
             path={path}
             collapsed={collapsed}
+            notInEngine={notInEngine}
             readOnly={readOnly}
             d={d}
             onToggle={onToggle}
@@ -146,6 +156,7 @@ function Entries({
   value,
   path,
   collapsed,
+  notInEngine,
   readOnly,
   d,
   onToggle,
@@ -153,6 +164,7 @@ function Entries({
   value: Json;
   path: string;
   collapsed: ReadonlySet<string>;
+  notInEngine: ReadonlySet<string>;
   readOnly: boolean;
   d: I18nRecord;
   onToggle: (path: string) => void;
@@ -168,6 +180,7 @@ function Entries({
             path={child}
             value={v}
             collapsed={collapsed}
+            notInEngine={notInEngine}
             readOnly={readOnly}
             d={d}
             onToggle={onToggle}
@@ -178,6 +191,7 @@ function Entries({
             name={name}
             path={child}
             value={v}
+            notInEngine={notInEngine.has(child)}
             readOnly={readOnly}
             d={d}
           />
@@ -194,12 +208,15 @@ function Entries({
 export default function SampleTree({
   samples,
   index,
+  notInEngine = new Set(),
   readOnly,
   d,
   onIndex,
 }: Readonly<{
   samples: Json[];
   index: number;
+  /** Paths the engine cannot read yet; they get the "motor: aún no" tag. */
+  notInEngine?: ReadonlySet<string>;
   readOnly: boolean;
   d: I18nRecord;
   onIndex: (index: number) => void;
@@ -246,6 +263,7 @@ export default function SampleTree({
           value={sample}
           path=""
           collapsed={collapsed}
+          notInEngine={notInEngine}
           readOnly={readOnly}
           d={d}
           onToggle={toggle}

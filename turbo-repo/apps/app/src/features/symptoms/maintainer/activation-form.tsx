@@ -20,7 +20,7 @@ import {
   newId,
   opsFor,
   parseConditions,
-  squashSpaces,
+  ruleKey,
 } from "./condition-form";
 import type { SourceField } from "./maintainer-api";
 import { originLabel } from "./symptom-side-panels";
@@ -483,7 +483,7 @@ export function useActivationForm(
   const update = (form: ConditionForm) => {
     const rule = compileConditions(form);
     setState({ rule, fieldsKey, form });
-    if (squashSpaces(rule) !== squashSpaces(activation)) onChange(rule);
+    if (ruleKey(rule) !== ruleKey(activation)) onChange(rule);
   };
   return { form: current.form, update };
 }

@@ -1,4 +1,4 @@
-import { squashSpaces } from "../condition-form";
+import { ruleKey } from "../condition-form";
 
 /** Amber mark on a field whose value differs from the published version. */
 export const CHANGED =
@@ -7,6 +7,10 @@ export const CHANGED =
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
+
+/** The spec fields that hold CEL; two writings of one rule there are no change. */
+const RULE_PATH =
+  /^(activation|measure\.expression|lifecycle\.(open|close)|levels\.\d+\.when)$/;
 
 const join = (path: string, key: string | number) =>
   path ? `${path}.${key}` : String(key);
@@ -17,7 +21,8 @@ function walk(a: unknown, b: unknown, path: string, out: Set<string>) {
   if (
     typeof a === "string" &&
     typeof b === "string" &&
-    squashSpaces(a) === squashSpaces(b)
+    RULE_PATH.test(path) &&
+    ruleKey(a) === ruleKey(b)
   )
     return;
   if (Array.isArray(a) && Array.isArray(b)) {
@@ -39,8 +44,7 @@ function walk(a: unknown, b: unknown, path: string, out: Set<string>) {
 /**
  * Dotted paths whose value differs between `draft` and `published`, with array
  * indexes as path segments: `levels.3.response.slaMinutes`. A missing and a
- * null value count as equal, and so do two texts that differ only in whitespace
- * outside quotes, as two writings of one rule do.
+ * null value count as equal, and so do two writings of one CEL rule.
  */
 export function changedPaths(draft: unknown, published: unknown): Set<string> {
   const out = new Set<string>();

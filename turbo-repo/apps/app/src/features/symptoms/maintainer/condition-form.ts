@@ -322,8 +322,14 @@ export function moveRow<T>(rows: T[], from: number, to: number): T[] {
   return next;
 }
 
-/** The rule with runs of whitespace outside quoted strings made one space, for comparing two writings of a rule. */
-export function squashSpaces(rule: string): string {
+const WORD = /\w/;
+
+/**
+ * A key for comparing two writings of a rule: whitespace outside quotes is
+ * dropped, except one space between two word characters (`a in b`). A rule with
+ * a `//` comment is its own key, since a line break ends the comment.
+ */
+export function ruleKey(rule: string): string {
   let out = "";
   let quote: string | null = null;
   let space = false;
@@ -335,8 +341,10 @@ export function squashSpaces(rule: string): string {
       else if (c === quote) quote = null;
     } else if (/\s/.test(c)) {
       space = true;
+    } else if (rule.startsWith("//", i)) {
+      return rule;
     } else {
-      if (space && out) out += " ";
+      if (space && WORD.test(out.at(-1) ?? "") && WORD.test(c)) out += " ";
       space = false;
       if (c === '"' || c === "'") quote = c;
       out += c;

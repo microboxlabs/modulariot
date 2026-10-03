@@ -9,7 +9,7 @@ import {
   newCondition,
   opsFor,
   parseConditions,
-  squashSpaces,
+  ruleKey,
 } from "./condition-form";
 import type { SourceField } from "./maintainer-api";
 
@@ -62,7 +62,7 @@ function shape(form: ConditionForm | null) {
 function roundTrip(rule: string) {
   const form = parseConditions(rule, FIELDS);
   expect(form, rule).not.toBeNull();
-  return squashSpaces(compileConditions(form as ConditionForm));
+  return compileConditions(form as ConditionForm).replaceAll("\n&& ", " && ");
 }
 
 describe("parseConditions", () => {
@@ -363,12 +363,16 @@ describe("formatRule", () => {
   });
 });
 
-describe("squashSpaces", () => {
-  it("makes runs of whitespace one space, except inside quotes", () => {
-    expect(squashSpaces("  a\n&&   b  ")).toBe("a && b");
-    expect(squashSpaces('x == "a  b" &&\ty')).toBe('x == "a  b" && y');
-    expect(squashSpaces('x == "a \\"  b"  && y')).toBe('x == "a \\"  b" && y');
-    expect(squashSpaces("x == 'p  q'")).toBe("x == 'p  q'");
+describe("ruleKey", () => {
+  it("is the same for two writings of a rule and different for a real change", () => {
+    expect(ruleKey("a && b")).toBe(ruleKey("a\n&&   b"));
+    expect(ruleKey("a && b")).toBe(ruleKey("a&&b"));
+    expect(ruleKey("x in  [1, 2]")).toBe("x in[1,2]");
+    expect(ruleKey('x == "a  b" &&\ty')).toBe('x=="a  b"&&y');
+    expect(ruleKey('x == "a \\"  b"  && y')).toBe('x=="a \\"  b"&&y');
+    expect(ruleKey("x == 'p  q'")).toBe("x=='p  q'");
+    expect(ruleKey('x == "a b"')).not.toBe(ruleKey('x == "a  b"'));
+    expect(ruleKey("a // note\n&& b")).not.toBe(ruleKey("a // note && b"));
   });
 });
 

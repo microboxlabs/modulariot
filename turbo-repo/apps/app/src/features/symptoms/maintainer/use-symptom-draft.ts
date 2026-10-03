@@ -75,7 +75,7 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
         await globalMutate(publishPlanKey(id));
         if (ticket === latest.current) setPlanFor(next);
       };
-      queue.current = queue.current.then(async () => {
+      const run = async () => {
         try {
           if (save) {
             setSaving(true);
@@ -99,7 +99,8 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
         } finally {
           if (ticket === latest.current) setSaving(false);
         }
-      });
+      };
+      queue.current = queue.current.then(run);
       return queue.current;
     },
     [id, mutate]

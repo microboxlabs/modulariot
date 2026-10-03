@@ -215,7 +215,7 @@ export default function CelEditor({
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
           padding: singleLine ? "6px 0" : "8px 0",
           lineHeight: singleLine ? "normal" : "20px",
-          minHeight: singleLine ? "auto" : "84px",
+          minHeight: singleLine ? "auto" : "116px",
         },
         ".cm-line": { padding: "0 10px" },
       }),

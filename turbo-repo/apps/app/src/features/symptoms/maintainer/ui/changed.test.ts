@@ -52,4 +52,13 @@ describe("changedPaths on rule text", () => {
       ...changedPaths({ activation: 'a\n&& b == "x y"' }, published),
     ]).toEqual(["activation"]);
   });
+
+  it("compares other texts exactly", () => {
+    expect([
+      ...changedPaths(
+        { measure: { label: "Speed  limit", expression: "a\n&& b" } },
+        { measure: { label: "Speed limit", expression: "a && b" } }
+      ),
+    ]).toEqual(["measure.label"]);
+  });
 });

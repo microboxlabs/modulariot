@@ -95,20 +95,21 @@ export default function SymptomDetail({
     id,
     Boolean(canWrite && detail?.draft)
   );
-  const { data: source } = useDataSource(
-    spec?.source ?? detail?.definition.sourceKey ?? null
-  );
-  const [publishing, setPublishing] = useState(false);
-  const [pending, setPending] = useState<Pending>(null);
-  const [text, setText] = useState("");
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
   // An old version open read-only in place of the draft.
   const [viewing, setViewing] = useState<string | null>(null);
   const viewed = viewing
     ? detail?.versions.find((v) => v.version === viewing)
     : undefined;
   const shownSpec = viewed?.spec ?? spec;
+  const { data: source } = useDataSource(
+    shownSpec?.source ?? detail?.definition.sourceKey ?? null
+  );
+  const [publishing, setPublishing] = useState(false);
+  const [pending, setPending] = useState<Pending>(null);
+  const [text, setText] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
 
   // After the banner renders: scrolling before it would be undone by scroll anchoring.
   useEffect(() => {
@@ -141,7 +142,7 @@ export default function SymptomDetail({
   const confirmPending = async () => {
     if (!pending || confirming) return;
     setConfirming(true);
-    setActionError(null);
+    setDialogError(null);
     try {
       if (pending.kind === "rollback") {
         await rollbackTo(id, pending.version, text.trim() || undefined);
@@ -161,7 +162,7 @@ export default function SymptomDetail({
       }
       setPending(null);
     } catch (e) {
-      setActionError(pendingError(e, pending.kind, d));
+      setDialogError(pendingError(e, pending.kind, d));
     } finally {
       setConfirming(false);
     }
@@ -170,7 +171,7 @@ export default function SymptomDetail({
   const closePending = () => {
     if (confirming) return;
     setPending(null);
-    setActionError(null);
+    setDialogError(null);
   };
 
   const def = detail?.definition;
@@ -219,7 +220,7 @@ export default function SymptomDetail({
             }}
           />
         )}
-        {actionError && !pending && (
+        {actionError && (
           <p className="text-sm text-red-600 dark:text-red-400">
             {actionError}
           </p>
@@ -337,12 +338,12 @@ export default function SymptomDetail({
               ? tr("duplicateHint", d, { version: pending.version })
               : tr("restoreHint", d)}
           </p>
-          {actionError && (
+          {dialogError && (
             <p
               role="alert"
               className="mt-2 text-sm text-red-600 dark:text-red-400"
             >
-              {actionError}
+              {dialogError}
             </p>
           )}
         </ModalBody>

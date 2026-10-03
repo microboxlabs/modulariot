@@ -500,8 +500,12 @@ export default function SymptomRuleSections({
             />
           </label>
         )}
-        <Problems items={open} />
-        <Problems items={close} />
+        {lifeMode === "form" && (
+          <>
+            <Problems items={open} />
+            <Problems items={close} />
+          </>
+        )}
       </Section>
 
       <Section

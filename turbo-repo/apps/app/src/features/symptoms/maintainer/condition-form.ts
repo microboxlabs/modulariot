@@ -47,19 +47,37 @@ export function isNumeric(type: string) {
   return type === "number" || type === "duration";
 }
 
+/** A number as a plain decimal, never in exponent notation: 1e-7 is written 0.0000001. */
+export function decimalText(n: number): string {
+  const text = String(n);
+  const e = text.indexOf("e");
+  if (e < 0) return text;
+  const sign = text.startsWith("-") ? "-" : "";
+  const mantissa = text.slice(sign.length, e);
+  const exponent = Number(text.slice(e + 1));
+  const [whole = "", fraction = ""] = mantissa.split(".");
+  const digits = whole + fraction;
+  const point = whole.length + exponent;
+  if (point <= 0) return `${sign}0.${"0".repeat(-point)}${digits}`;
+  if (point >= digits.length)
+    return sign + digits + "0".repeat(point - digits.length);
+  return `${sign}${digits.slice(0, point)}.${digits.slice(point)}`;
+}
+
 /**
  * A number literal as a JavaScript number, or null when the conversion would
  * change it (too many digits, too large, too small): writing it back would
  * change the rule. Trailing zeros after the point may go.
  */
-function exactNumber(raw: string): number | null {
-  if (!NUMBER.test(raw)) return null;
-  const n = Number(raw);
-  const trimmed = raw.includes(".")
-    ? raw.replace(/0+$/, "").replace(/\.$/, "")
-    : raw;
+export function exactNumber(raw: string): number | null {
+  const text = raw.trim();
+  if (!NUMBER.test(text)) return null;
+  const n = Number(text);
+  const trimmed = text.includes(".")
+    ? text.replace(/0+$/, "").replace(/\.$/, "")
+    : text;
   const expected = trimmed === "-0" ? "0" : trimmed;
-  return Number.isFinite(n) && String(n) === expected ? n : null;
+  return Number.isFinite(n) && decimalText(n) === expected ? n : null;
 }
 
 /** The operators a field of this type offers. */
@@ -260,7 +278,7 @@ function lead(form: ConditionForm): ConditionForm {
 }
 
 function literal(c: Condition): string {
-  if (typeof c.value === "number") return String(c.value);
+  if (typeof c.value === "number") return decimalText(c.value);
   return JSON.stringify(c.value ?? "");
 }
 

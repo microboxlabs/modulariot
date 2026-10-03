@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   type ConditionForm,
   compileConditions,
+  decimalText,
+  exactNumber,
   newCondition,
   opsFor,
   parseConditions,
@@ -239,6 +241,28 @@ describe("numbers and durations", () => {
     expect(roundTrip("signal.gps.speed_kmh < 9007199254740991")).toBe(
       "signal.gps.speed_kmh < 9007199254740991"
     );
+  });
+
+  it("writes numbers as plain decimals that read back the same", () => {
+    expect(decimalText(1e-7)).toBe("0.0000001");
+    expect(decimalText(1.5e-7)).toBe("0.00000015");
+    expect(decimalText(-2.5e-8)).toBe("-0.000000025");
+    expect(decimalText(1e21)).toBe("1000000000000000000000");
+    expect(decimalText(123.25)).toBe("123.25");
+    for (const n of [1e-7, 0.1, 2.5e-12, 90, -0.5]) {
+      const rule = compileConditions({
+        match: "all",
+        rows: [{ id: "r", path: "signal.gps.speed_kmh", op: ">", value: n }],
+        groups: [],
+      });
+      expect(shape(parseConditions(rule, FIELDS))?.rows[0]?.value, rule).toBe(
+        n
+      );
+    }
+    expect(exactNumber(" 0.0000001 ")).toBe(1e-7);
+    expect(exactNumber("1e-7")).toBeNull();
+    expect(exactNumber("1,5")).toBeNull();
+    expect(exactNumber("-")).toBeNull();
   });
 
   it("treats durations as numbers", () => {

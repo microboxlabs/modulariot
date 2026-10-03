@@ -113,6 +113,21 @@ public final class RuleText {
         return out;
     }
 
+    /**
+     * How many conditions the rule joins with {@code &&} at its root, looking
+     * through nested {@code &&}; 1 for any other rule, 0 when it does not parse.
+     */
+    public static int conjunctionSize(String rule) {
+        return parse(rule).map(ast -> conjuncts(ast.getExpr())).orElse(0);
+    }
+
+    private static int conjuncts(CelExpr e) {
+        if (e.exprKind().getKind() == ExprKind.Kind.CALL && e.call().function().equals("_&&_")) {
+            return e.call().args().stream().mapToInt(RuleText::conjuncts).sum();
+        }
+        return 1;
+    }
+
     /** A field compared with a text, such as {@code signal.geo.zone == "Puerto"}. */
     public record TextComparison(String path, String value) {
     }

@@ -234,12 +234,23 @@ export interface DataSource {
   samples: Record<string, unknown>[];
 }
 
+/** One activation condition run on its own on a sample. */
+export interface ClauseResult {
+  text: string;
+  holds: boolean | null;
+  /** The sample's value for each field the condition reads. */
+  values: Record<string, unknown>;
+  error: string | null;
+}
+
 export interface SamplePreview {
   sample: Record<string, unknown>;
   activates: boolean | null;
   measure: number | null;
   level: number | null;
   error: string | null;
+  /** Each condition of an activation joined by &&; empty otherwise. */
+  clauses?: ClauseResult[];
 }
 
 export interface Preview {

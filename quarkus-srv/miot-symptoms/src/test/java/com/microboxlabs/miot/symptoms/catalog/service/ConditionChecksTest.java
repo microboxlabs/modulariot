@@ -78,6 +78,12 @@ class ConditionChecksTest {
     }
 
     @Test
+    void aComparisonWithAnotherFieldIsNotABound() {
+        assertTrue(messages("v > w.limit && v < 3 && v == other").isEmpty());
+        assertTrue(messages("v == 1.2.3 && v == 4").isEmpty(), "not a number");
+    }
+
+    @Test
     void anOrderOnATextIsLeftToTheTypeCheck() {
         assertTrue(messages("signal.geo.zone > \"A\" && signal.geo.zone < \"B\"").isEmpty());
         SymptomSpec spec = Specs.with(Specs.speeding(), Specs.ACTIVATION + " && signal.trip.active > \"A\"");

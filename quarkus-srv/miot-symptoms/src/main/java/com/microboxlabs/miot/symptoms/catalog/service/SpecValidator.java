@@ -31,6 +31,8 @@ public final class SpecValidator {
     /** Distance from each threshold at which overlaps are tried, on both sides. */
     private static final double NEAR = 0.01;
     private static final String LEVELS = "levels";
+    private static final String MEASURE = "medida";
+    private static final String HELD = "sostenido_s";
 
     /** Severity of a finding. */
     public enum Severity {
@@ -192,7 +194,7 @@ public final class SpecValidator {
         Set<String> reported = new HashSet<>();
         for (double held : points) {
             for (double measure : points) {
-                Map<String, Object> vars = Map.of("medida", measure, "sostenido_s", held);
+                Map<String, Object> vars = Map.of(MEASURE, measure, HELD, held);
                 List<Level> hits = levels.stream()
                         .filter(l -> Boolean.TRUE.equals(rules.get(l).run(vars).value()))
                         .toList();
@@ -221,35 +223,43 @@ public final class SpecValidator {
      * with a measure of zero.
      */
     private static void gaps(List<Finding> out, RuleSchema schema, List<Level> levels) {
-        boolean byMeasure = levels.stream().anyMatch(l -> l.when() != null && l.when().contains("medida"));
-        boolean byTime = !byMeasure
-                && levels.stream().anyMatch(l -> l.when() != null && l.when().contains("sostenido_s"));
-        if (!byMeasure && !byTime) {
+        boolean byMeasure = mentions(levels, MEASURE);
+        if (!byMeasure && !mentions(levels, HELD)) {
             return;
         }
         List<PreparedRule> rules = levels.stream().map(l -> RuleLanguage.prepare(schema, l.when())).toList();
         List<Double> thresholds = levels.stream().flatMap(l -> RuleText.numbers(l.when()).stream()).toList();
-        Double lastCovered = null;
+        String unit = byMeasure ? "" : " s sostenidos";
+        boolean seenCovered = false;
         Double gapStart = null;
         for (double point : testPoints(levels)) {
-            Map<String, Object> vars = byMeasure ? Map.of("medida", point, "sostenido_s", 1e9)
-                    : Map.of("medida", 0.0, "sostenido_s", point);
-            boolean covered = rules.stream().anyMatch(r -> Boolean.TRUE.equals(r.run(vars).value()));
+            boolean covered = covered(rules, byMeasure, point);
             if (covered && gapStart != null) {
-                String unit = byMeasure ? "" : " s sostenidos";
-                double from = threshold(gapStart, thresholds);
-                double to = threshold(point, thresholds);
-                out.add(new Finding(LEVELS, Severity.WARNING, from == to
-                        ? "Con " + number(from) + unit + " exactos ningún nivel aplica."
-                        : "Entre " + number(from) + " y " + number(to) + unit + " ningún nivel aplica.", -1));
+                out.add(gap(threshold(gapStart, thresholds), threshold(point, thresholds), unit));
                 gapStart = null;
-            } else if (!covered && lastCovered != null && gapStart == null) {
+            } else if (!covered && seenCovered && gapStart == null) {
                 gapStart = point;
             }
-            if (covered) {
-                lastCovered = point;
-            }
+            seenCovered |= covered;
         }
+    }
+
+    private static boolean mentions(List<Level> levels, String variable) {
+        return levels.stream().anyMatch(l -> l.when() != null && l.when().contains(variable));
+    }
+
+    /** Whether any level applies at this point of the ladder. */
+    private static boolean covered(List<PreparedRule> rules, boolean byMeasure, double point) {
+        Map<String, Object> vars = byMeasure ? Map.of(MEASURE, point, HELD, 1e9)
+                : Map.of(MEASURE, 0.0, HELD, point);
+        return rules.stream().anyMatch(r -> Boolean.TRUE.equals(r.run(vars).value()));
+    }
+
+    private static Finding gap(double from, double to, String unit) {
+        String message = from == to
+                ? "Con " + number(from) + unit + " exactos ningún nivel aplica."
+                : "Entre " + number(from) + " y " + number(to) + unit + " ningún nivel aplica.";
+        return new Finding(LEVELS, Severity.WARNING, message, -1);
     }
 
     /** The rule number a test point was taken next to. */

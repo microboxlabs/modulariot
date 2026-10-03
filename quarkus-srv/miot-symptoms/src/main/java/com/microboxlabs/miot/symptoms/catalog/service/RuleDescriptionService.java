@@ -46,9 +46,11 @@ public class RuleDescriptionService {
     static final String LEVELS = "levels";
     static final String LIFECYCLE = "lifecycle";
     static final String ACTIVATION = "activation";
+    /** The whole symptom: activation, measure, levels with their response, open and close. */
+    static final String OVERVIEW = "overview";
 
     private static final Set<String> SECTIONS = Set.of(ACTIVATION, "measure", "levels.1", "levels.2",
-            "levels.3", "levels.4", "lifecycle.open", "lifecycle.close", LEVELS, LIFECYCLE);
+            "levels.3", "levels.4", "lifecycle.open", "lifecycle.close", LEVELS, LIFECYCLE, OVERVIEW);
     private static final Pattern SPACES = Pattern.compile("\\s+");
     private static final Pattern LOCALE = Pattern.compile("[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?");
 
@@ -181,7 +183,7 @@ public class RuleDescriptionService {
         return source == null ? null : hash(ACTIVATION, canonical(ACTIVATION, spec.activation()), source);
     }
 
-    /** Field path to label: the source's fields, plus the level or case variables for those sections. */
+    /** Field path to label: the source's fields, plus the level or case variables for those sections; all for the overview. */
     static Map<String, String> fields(String section, DataSource source) {
         Map<String, String> out = new LinkedHashMap<>();
         if (section.equals(LIFECYCLE) || section.startsWith("lifecycle.")) {
@@ -191,15 +193,18 @@ public class RuleDescriptionService {
         for (SourceField f : source.fields() == null ? List.<SourceField>of() : source.fields()) {
             out.put(f.path(), f.label() == null || f.label().isBlank() ? f.path() : f.label());
         }
-        if (section.equals(LEVELS) || section.startsWith("levels.")) {
+        if (section.equals(LEVELS) || section.startsWith("levels.") || section.equals(OVERVIEW)) {
             out.putAll(LEVEL_LABELS);
+        }
+        if (section.equals(OVERVIEW)) {
+            out.putAll(CASE_LABELS);
         }
         return out;
     }
 
     /** The rule text used for the cache key. Whole sections are trimmed per line with spaces collapsed. */
     static String canonical(String section, String rule) {
-        if (!section.equals(LEVELS) && !section.equals(LIFECYCLE)) {
+        if (!section.equals(LEVELS) && !section.equals(LIFECYCLE) && !section.equals(OVERVIEW)) {
             return RuleText.canonical(rule);
         }
         return rule.lines()

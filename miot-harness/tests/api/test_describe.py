@@ -115,3 +115,26 @@ def test_describe_accepts_the_whole_levels_section() -> None:
     assert "4 Código negro" in system
     assert "Section: levels (this rule defines the measure" in prompt
     assert rule in prompt
+
+
+def test_describe_accepts_the_overview_of_the_whole_symptom() -> None:
+    model = _StubModel("Exceso de velocidad de camiones <b>en viaje</b>.")
+    app = create_app()
+    rule = (
+        "activa: signal.trip.active\n"
+        "medida: signal.gps.speed_kmh - signal.road.maxspeed_osm (km/h)\n"
+        "nivel 3: medida >= 11 · operador 5 min\n"
+        "abre: caso.condicion_s >= 0\n"
+        "cierra: caso.normal_s >= 120"
+    )
+    with TestClient(app) as client:
+        app.state.describe_model = model
+        resp = client.post(
+            "/describe",
+            json={"section": "overview", "rule": rule, "fields": {"medida": "valor medido"}},
+        )
+    assert resp.status_code == 200
+    system, prompt = model.prompts[0][0].content, model.prompts[0][1].content
+    assert "section overview has the whole symptom" in system
+    assert "Section: overview (this rule is the whole symptom" in prompt
+    assert rule in prompt

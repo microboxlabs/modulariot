@@ -6,7 +6,11 @@ import {
   screen,
 } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import ActivationForm, { opLabel, useActivationForm } from "./activation-form";
+import ActivationForm, {
+  NumberValue,
+  opLabel,
+  useActivationForm,
+} from "./activation-form";
 import type { SourceField } from "./maintainer-api";
 
 const field = (path: string, type: string): SourceField => ({
@@ -145,5 +149,28 @@ describe("the number input", () => {
       target: { value: "0.0000001" },
     });
     expect(onChange.mock.calls[0]?.[0].rows[0].value).toBe(1e-7);
+  });
+});
+
+describe("a number input that only accepts some numbers", () => {
+  it("keeps a refused number as typed text and does not send it", () => {
+    const onChange = vi.fn();
+    render(
+      <NumberValue
+        value={30}
+        unit="s"
+        label="Segundos"
+        readOnly={false}
+        accept={(n) => n >= 0}
+        onChange={onChange}
+      />
+    );
+    const input = screen.getByLabelText("Segundos") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "-1" } });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.blur(input);
+    expect(input.value).toBe("30");
+    fireEvent.change(input, { target: { value: "45" } });
+    expect(onChange).toHaveBeenCalledWith(45);
   });
 });

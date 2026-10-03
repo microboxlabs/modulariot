@@ -94,6 +94,9 @@ class PgCatalogStoresTest {
         SymptomVersion v1 = store.publish(edited.published("1.0.0", VersionBump.MAJOR, "Primera versión", null,
                 "owner@example.com", now), created.withCurrent("1.0.0", SymptomState.ACTIVE, "owner@example.com", now));
         assertEquals(VersionStatus.PUBLISHED, v1.status());
+        assertEquals("1.0.0", store.findVersionById(TENANT, v1.id()).orElseThrow().version());
+        assertTrue(store.findVersionById("tenant-b", v1.id()).isEmpty(), "another tenant sees nothing");
+        assertTrue(store.findVersionById(TENANT, UUID.randomUUID()).isEmpty());
         assertTrue(store.findDraft(TENANT, created.id()).isEmpty());
         assertEquals("1.0.0", store.findDefinition(TENANT, created.id()).orElseThrow().currentVersion());
 

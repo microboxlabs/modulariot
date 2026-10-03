@@ -40,6 +40,11 @@ import {
 } from "./symptom-side-panels";
 import { useSymptomDraft } from "./use-symptom-draft";
 
+/** The name a copy starts with, as in the prototype: "Exceso de velocidad (variante)". */
+function variantName(name: string, d: I18nRecord) {
+  return tr("variantName", d, { name });
+}
+
 /** The versions panel, which the version menu scrolls to. */
 const VERSIONS_ID = "symptom-versions";
 
@@ -164,6 +169,7 @@ export default function SymptomDetail({
             canWrite={canWrite}
             families={families}
             templates={templates}
+            forkedFrom={detail?.forkedFrom ?? null}
             backHref={`/${lang}/users/settings/symptoms`}
             lang={lang}
             d={d}
@@ -176,7 +182,7 @@ export default function SymptomDetail({
             }
             onDuplicate={() => {
               if (!def.currentVersion) return;
-              setText("");
+              setText(variantName(def.name, d));
               setPending({ kind: "fork", version: def.currentVersion });
             }}
           />
@@ -217,7 +223,7 @@ export default function SymptomDetail({
                     setPending({ kind: "rollback", version });
                   }}
                   onFork={(version) => {
-                    setText("");
+                    setText(variantName(detail.definition.name, d));
                     setPending({ kind: "fork", version });
                   }}
                 />
@@ -254,7 +260,7 @@ export default function SymptomDetail({
       <Modal show={pending !== null} size="md" onClose={() => setPending(null)}>
         <ModalHeader>
           {pending?.kind === "fork"
-            ? tr("duplicateTitle", d, { version: pending.version })
+            ? tr("duplicateAsNew", d)
             : tr("restoreTitle", d, { version: pending?.version ?? "" })}
         </ModalHeader>
         <ModalBody>
@@ -268,7 +274,7 @@ export default function SymptomDetail({
           />
           <p className="mt-2 text-xs text-gray-500">
             {pending?.kind === "fork"
-              ? tr("duplicateHint", d)
+              ? tr("duplicateHint", d, { version: pending.version })
               : tr("restoreHint", d)}
           </p>
         </ModalBody>

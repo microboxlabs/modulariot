@@ -78,6 +78,13 @@ public class InMemoryCatalog implements SymptomCatalogStore, DataSourceStore {
     }
 
     @Override
+    public Optional<SymptomVersion> findVersionById(String tenantCode, UUID versionId) {
+        return versions.values().stream()
+                .filter(v -> v.id().equals(versionId) && tenantCode.equals(v.tenantCode()))
+                .findFirst();
+    }
+
+    @Override
     public SymptomVersion saveDraft(SymptomVersion draft) {
         findDefinition(draft.tenantCode(), draft.definitionId()).orElseThrow();
         Optional<SymptomVersion> existing = findDraft(draft.tenantCode(), draft.definitionId());

@@ -168,6 +168,13 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
     }
 
     @Override
+    public Optional<SymptomVersion> findVersionById(String tenantCode, UUID versionId) {
+        return versions(query(pool.get(), "SELECT " + VERSION_COLUMNS
+                + " FROM miot_symptoms.symptom_version WHERE tenant_code = $1 AND id = $2",
+                Tuple.of(tenantCode, versionId))).stream().findFirst();
+    }
+
+    @Override
     public SymptomVersion saveDraft(SymptomVersion v) {
         Tuple params = Tuple.tuple()
                 .addUUID(v.id()).addUUID(v.definitionId()).addString(v.tenantCode())

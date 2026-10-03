@@ -33,6 +33,9 @@ public interface SymptomCatalogStore {
 
     Optional<SymptomVersion> findVersion(String tenantCode, UUID definitionId, String version);
 
+    /** A version by its id, whatever symptom of the tenant it belongs to. */
+    Optional<SymptomVersion> findVersionById(String tenantCode, UUID versionId);
+
     /** Creates the symptom's draft, or replaces its spec. */
     SymptomVersion saveDraft(SymptomVersion draft);
 

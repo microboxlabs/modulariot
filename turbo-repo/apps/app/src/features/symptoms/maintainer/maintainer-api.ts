@@ -164,6 +164,12 @@ export interface SymptomDetail {
   current: SymptomVersion | null;
   draft: SymptomVersion | null;
   versions: SymptomVersion[];
+  /** The symptom and version this one was copied from; version null when a draft was copied. */
+  forkedFrom: {
+    definitionId: string;
+    name: string;
+    version: string | null;
+  } | null;
 }
 
 export interface Finding {

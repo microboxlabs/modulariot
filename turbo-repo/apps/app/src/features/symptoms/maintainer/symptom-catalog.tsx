@@ -11,8 +11,8 @@ import {
   type CatalogFilterKey,
   CHANNEL_GROUPS,
   channelGroups,
-  operatorLevels,
   reachableLevels,
+  whoActsKind,
 } from "./catalog-derive";
 import { levelName } from "./catalog-format";
 import CatalogStats from "./catalog-stats";
@@ -52,8 +52,8 @@ function passes(s: SymptomSummary, f: Filters, d: I18nRecord) {
   )
     return false;
   if (f.who) {
-    const operator = operatorLevels(spec).some(Boolean);
-    if ((f.who === tr("whoOperator", d)) !== operator) return false;
+    const wanted = f.who === tr("whoOperator", d) ? "operator" : "notices";
+    if (whoActsKind(spec) !== wanted) return false;
   }
   if (
     f.channel &&
@@ -283,7 +283,7 @@ export default function SymptomCatalog({
               ))}
             </div>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
               <table className="w-full text-left text-xs text-gray-600 dark:text-gray-300">
                 <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-900 dark:text-gray-400">
                   <tr>

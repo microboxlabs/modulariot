@@ -6,6 +6,7 @@ import {
   operatorLevels,
   reachableLevels,
   shortThreshold,
+  whoActsKind,
 } from "./catalog-derive";
 import type { Level, SymptomSpec, SymptomSummary } from "./maintainer-api";
 
@@ -38,6 +39,11 @@ describe("shortThreshold", () => {
       shortThreshold(level(3, "medida >= 120 && medida < 180"), "min")
     ).toBe("≥ 2 h");
     expect(shortThreshold(level(3, "medida >= 330"), "min")).toBe("≥ 5 h 30");
+  });
+
+  it("keeps an inclusive upper bound inclusive", () => {
+    expect(shortThreshold(level(1, "medida <= 5"), "km/h")).toBe("≤ 5 km/h");
+    expect(shortThreshold(level(1, "medida < 5"), "km/h")).toBe("< 5 km/h");
   });
 
   it("marks fixed, custom and missing levels", () => {
@@ -145,5 +151,65 @@ describe("lastPublished", () => {
 
   it("is null before anything is published", () => {
     expect(lastPublished([summary("c", null)])).toBeNull();
+  });
+});
+
+describe("whoActsKind", () => {
+  const spec = (levels: Level[]): SymptomSpec => ({
+    source: "gps_signal",
+    activation: "true",
+    measure: null,
+    levels,
+    lifecycle: null,
+    recurrence: null,
+  });
+  const response = (operator: boolean, channels: string[]) => ({
+    operator,
+    slaMinutes: null,
+    steps: [],
+    notices: channels.map((channel) => ({
+      when: "open",
+      channel,
+      connectionId: null,
+      templateId: null,
+      recipient: null,
+    })),
+    evidence: [],
+    ignorable: false,
+  });
+
+  it("tells operator, notices only and no response apart", () => {
+    expect(
+      whoActsKind(
+        spec([
+          { icu: 4, applies: true, when: "true", response: response(true, []) },
+        ])
+      )
+    ).toBe("operator");
+    expect(
+      whoActsKind(
+        spec([
+          {
+            icu: 4,
+            applies: true,
+            when: "true",
+            response: response(false, ["email"]),
+          },
+        ])
+      )
+    ).toBe("notices");
+    expect(
+      whoActsKind(
+        spec([
+          {
+            icu: 4,
+            applies: true,
+            when: "true",
+            response: response(false, []),
+          },
+        ])
+      )
+    ).toBe("none");
+    expect(whoActsKind(null)).toBe("none");
   });
 });

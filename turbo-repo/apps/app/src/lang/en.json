@@ -2626,6 +2626,7 @@
         "filterWho": "Who acts",
         "filterChannel": "Notice channel",
         "whoOperator": "Operator",
+        "noResponse": "No response set",
         "onlyNotices": "Notices only",
         "operatorIn": "☎ Operator in {levels}",
         "operatorMark": "☎ operator",

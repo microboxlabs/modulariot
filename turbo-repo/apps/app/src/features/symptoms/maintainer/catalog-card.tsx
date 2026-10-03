@@ -8,6 +8,7 @@ import {
   levelsOf,
   operatorLevels,
   shortThreshold,
+  whoActsKind,
   type ChannelGroup,
 } from "./catalog-derive";
 import { ago, fmt, levelName, levelShortName } from "./catalog-format";
@@ -27,14 +28,16 @@ export function channelGroupLabel(g: ChannelGroup, d: I18nRecord) {
   return trDynamic(`channelGroup_${g}`, d);
 }
 
-/** "☎ Operador en Crítica, Código negro" or "Solo avisos". */
+/** "☎ Operador en Crítica, Código negro", "Solo avisos" or "Sin respuesta definida". */
 export function whoActs(s: SymptomSummary, d: I18nRecord) {
-  const levels = operatorLevels(s.current?.spec ?? null)
+  const spec = s.current?.spec ?? null;
+  const kind = whoActsKind(spec);
+  if (kind === "notices") return tr("onlyNotices", d);
+  if (kind === "none") return tr("noResponse", d);
+  const levels = operatorLevels(spec)
     .map((on, i) => (on ? levelShortName(i + 1, d) : null))
     .filter(Boolean);
-  return levels.length
-    ? tr("operatorIn", d, { levels: levels.join(", ") })
-    : tr("onlyNotices", d);
+  return tr("operatorIn", d, { levels: levels.join(", ") });
 }
 
 function thresholdText(t: string | null, d: I18nRecord) {

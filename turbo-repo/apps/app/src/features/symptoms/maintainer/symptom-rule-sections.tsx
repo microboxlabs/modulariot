@@ -8,7 +8,7 @@ import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
 import ClauseBreakdown from "./clause-breakdown";
 import LevelsExpression from "./levels-expression";
-import SampleTree, { useSourceSamples } from "./sample-tree";
+import SampleTree, { unsupportedPaths, useSourceSamples } from "./sample-tree";
 import { SourceHelp, SourceSelect } from "./source-select";
 import { changedPaths, isChanged } from "./ui/changed";
 import {
@@ -222,10 +222,7 @@ function ActivationSection({
   const samples = useSourceSamples(preview, spec.source);
   const [sampleIndex, setSampleIndex] = useState(0);
   const sampleAt = Math.min(sampleIndex, Math.max(0, samples.length - 1));
-  const notInEngine = useMemo(
-    () => new Set(fields.filter((f) => !f.engineSupported).map((f) => f.path)),
-    [fields]
-  );
+  const notInEngine = useMemo(() => unsupportedPaths(fields), [fields]);
   const activation = spec.activation ?? "";
   const { form, update } = useActivationForm(activation, fields, (value) =>
     onChange({ ...spec, activation: value })
@@ -285,32 +282,30 @@ function ActivationSection({
         </div>
       )}
       {mode === "expr" && (
-        <>
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-            <SampleTree
-              samples={samples.map((s) => s.sample)}
-              index={sampleAt}
-              notInEngine={notInEngine}
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          <SampleTree
+            samples={samples.map((s) => s.sample)}
+            index={sampleAt}
+            notInEngine={notInEngine}
+            readOnly={readOnly}
+            d={d}
+            onIndex={setSampleIndex}
+          />
+          <div className="flex min-w-0 flex-col gap-2">
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              {tr("celLabel", d)}
+            </span>
+            <CelEditor
               readOnly={readOnly}
-              d={d}
-              onIndex={setSampleIndex}
+              ariaLabel={tr("celLabel", d)}
+              value={activation}
+              fields={sourceFields}
+              problems={problems}
+              onChange={(value) => onChange({ ...spec, activation: value })}
             />
-            <div className="flex min-w-0 flex-col gap-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                {tr("celLabel", d)}
-              </span>
-              <CelEditor
-                readOnly={readOnly}
-                ariaLabel={tr("celLabel", d)}
-                value={activation}
-                fields={sourceFields}
-                problems={problems}
-                onChange={(value) => onChange({ ...spec, activation: value })}
-              />
-              <ClauseBreakdown preview={preview} index={sampleAt} d={d} />
-            </div>
+            <ClauseBreakdown preview={preview} index={sampleAt} d={d} />
           </div>
-        </>
+        </div>
       )}
       <Problems items={problems} />
     </Section>
@@ -416,6 +411,7 @@ export default function SymptomRuleSections({
           <LevelsExpression
             spec={spec}
             preview={preview}
+            fields={fields}
             sourceFields={sourceFields}
             levelFields={levelRuleFields}
             findings={findings}
@@ -432,6 +428,7 @@ export default function SymptomRuleSections({
               spec={spec}
               icu={meta.icu}
               mode="form"
+              showProblems={levelsMode === "form"}
               fields={levelRuleFields}
               findings={findings}
               readOnly={readOnly}

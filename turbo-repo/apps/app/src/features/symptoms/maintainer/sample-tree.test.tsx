@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const editor = vi.hoisted(() => ({ insertIntoFocused: vi.fn() }));
 vi.mock("./cel-editor", () => editor);
 
-import SampleTree, { sampleLabel } from "./sample-tree";
+import type { Preview } from "./maintainer-api";
+import SampleTree, { sampleLabel, useSourceSamples } from "./sample-tree";
 
 const d = {
   insertField: "Insertar {path}",
@@ -143,5 +144,55 @@ describe("SampleTree", () => {
       />
     );
     expect(container.innerHTML).toBe("");
+  });
+});
+
+describe("useSourceSamples", () => {
+  const preview = (source: string, n: number): Preview => ({
+    source,
+    samples: [
+      {
+        sample: { n },
+        activates: true,
+        measure: null,
+        level: null,
+        error: null,
+      },
+    ],
+  });
+
+  it("keeps the last samples while a new preview is on its way", () => {
+    const first = preview("gps_signal", 1);
+    const { result, rerender } = renderHook(
+      ({ p, source }) => useSourceSamples(p, source),
+      {
+        initialProps: {
+          p: first as Preview | undefined,
+          source: "gps_signal" as string | null,
+        },
+      }
+    );
+    expect(result.current).toBe(first.samples);
+    rerender({ p: undefined, source: "gps_signal" });
+    expect(result.current).toBe(first.samples);
+    const second = preview("gps_signal", 2);
+    rerender({ p: second, source: "gps_signal" });
+    expect(result.current).toBe(second.samples);
+  });
+
+  it("drops another source's samples at once", () => {
+    const { result, rerender } = renderHook(
+      ({ p, source }) => useSourceSamples(p, source),
+      {
+        initialProps: {
+          p: preview("gps_signal", 1) as Preview | undefined,
+          source: "gps_signal" as string | null,
+        },
+      }
+    );
+    rerender({ p: undefined, source: "trip_check" });
+    expect(result.current).toEqual([]);
+    rerender({ p: preview("trip_check", 3), source: "trip_check" });
+    expect(result.current[0]?.sample).toEqual({ n: 3 });
   });
 });

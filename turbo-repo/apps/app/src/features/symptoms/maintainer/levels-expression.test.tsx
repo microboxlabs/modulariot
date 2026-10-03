@@ -79,6 +79,7 @@ const renderIt = (preview: Preview | undefined, onChange = vi.fn()) =>
     <LevelsExpression
       spec={SPEC}
       preview={preview}
+      fields={[]}
       sourceFields={[]}
       levelFields={[]}
       findings={[]}

@@ -1,14 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import CelEditor, { type CelField } from "./cel-editor";
 import { verdict } from "./clause-breakdown";
 import { levelOf, withLevel } from "./level-row";
-import type { Finding, Preview, SymptomSpec } from "./maintainer-api";
+import type {
+  Finding,
+  Preview,
+  SourceField,
+  SymptomSpec,
+} from "./maintainer-api";
 import { Problems, problemsFor } from "./rule-problems";
-import SampleTree, { useSourceSamples } from "./sample-tree";
+import SampleTree, { unsupportedPaths, useSourceSamples } from "./sample-tree";
 import { ICU_LEVELS } from "./symptom-labels";
 import { LevelIcon } from "./ui/level-icon";
 
@@ -22,6 +27,7 @@ const labelClass =
 export default function LevelsExpression({
   spec,
   preview,
+  fields,
   sourceFields,
   levelFields,
   findings,
@@ -32,6 +38,7 @@ export default function LevelsExpression({
   spec: SymptomSpec;
   /** The preview of the spec on screen; undefined while it is being made. */
   preview: Preview | undefined;
+  fields: SourceField[];
   sourceFields: CelField[];
   /** The source fields plus `medida` and `sostenido_s`. */
   levelFields: CelField[];
@@ -41,6 +48,7 @@ export default function LevelsExpression({
   onChange: (spec: SymptomSpec) => void;
 }>) {
   const samples = useSourceSamples(preview, spec.source);
+  const notInEngine = useMemo(() => unsupportedPaths(fields), [fields]);
   const [index, setIndex] = useState(0);
   const at = Math.min(index, Math.max(0, samples.length - 1));
   const shown = preview?.samples[at];
@@ -51,6 +59,7 @@ export default function LevelsExpression({
       <SampleTree
         samples={samples.map((s) => s.sample)}
         index={at}
+        notInEngine={notInEngine}
         readOnly={readOnly}
         d={d}
         onIndex={setIndex}

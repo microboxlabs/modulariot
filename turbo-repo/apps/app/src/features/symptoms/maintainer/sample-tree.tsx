@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Preview } from "./maintainer-api";
+import type { Preview, SourceField } from "./maintainer-api";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { insertIntoFocused } from "./cel-editor";
@@ -24,6 +24,11 @@ function find(sample: Json, key: string): unknown {
     }
   }
   return undefined;
+}
+
+/** The paths of the fields the engine cannot read yet. */
+export function unsupportedPaths(fields: SourceField[]): ReadonlySet<string> {
+  return new Set(fields.filter((f) => !f.engineSupported).map((f) => f.path));
 }
 
 /**

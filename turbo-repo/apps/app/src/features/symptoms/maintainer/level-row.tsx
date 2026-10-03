@@ -411,6 +411,7 @@ function OperatorDetail({
 export default function LevelRow({
   spec,
   changed = false,
+  showProblems = true,
   icu,
   mode,
   fields,
@@ -424,6 +425,8 @@ export default function LevelRow({
   spec: SymptomSpec;
   /** The level differs from the published version. */
   changed?: boolean;
+  /** False when the level's problems are shown elsewhere, as under the { } editors. */
+  showProblems?: boolean;
   icu: number;
   mode: EditMode;
   fields: CelField[];
@@ -500,7 +503,7 @@ export default function LevelRow({
           </span>
         )}
       </div>
-      {level.applies && <Problems items={problems} />}
+      {level.applies && showProblems && <Problems items={problems} />}
       {level.applies && open && (
         <div className="grid grid-cols-1 gap-5 px-1 pb-4 lg:grid-cols-2">
           <LevelNotices

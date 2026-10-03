@@ -13,6 +13,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -211,6 +212,7 @@ public final class SpecValidator {
             return;
         }
         List<PreparedRule> rules = levels.stream().map(l -> RuleLanguage.prepare(schema, l.when())).toList();
+        List<Double> thresholds = levels.stream().flatMap(l -> RuleText.numbers(l.when()).stream()).toList();
         Double lastCovered = null;
         Double gapStart = null;
         for (double point : testPoints(levels)) {
@@ -219,8 +221,11 @@ public final class SpecValidator {
             boolean covered = rules.stream().anyMatch(r -> Boolean.TRUE.equals(r.run(vars).value()));
             if (covered && gapStart != null) {
                 String unit = byMeasure ? "" : " s sostenidos";
-                out.add(new Finding(LEVELS, Severity.WARNING, "Entre " + number(gapStart) + " y "
-                        + number(point) + unit + " ningún nivel aplica.", -1));
+                double from = threshold(gapStart, thresholds);
+                double to = threshold(point, thresholds);
+                out.add(new Finding(LEVELS, Severity.WARNING, from == to
+                        ? "Con " + number(from) + unit + " exactos ningún nivel aplica."
+                        : "Entre " + number(from) + " y " + number(to) + unit + " ningún nivel aplica.", -1));
                 gapStart = null;
             } else if (!covered && lastCovered != null && gapStart == null) {
                 gapStart = point;
@@ -229,6 +234,14 @@ public final class SpecValidator {
                 lastCovered = point;
             }
         }
+    }
+
+    /** The rule number a test point was taken next to. */
+    private static double threshold(double point, List<Double> thresholds) {
+        return thresholds.stream()
+                .filter(n -> Math.abs(n - point) <= NEAR * 1.5)
+                .min(Comparator.comparingDouble(n -> Math.abs(n - point)))
+                .orElse(point);
     }
 
     private static String label(DataSource source, String path) {

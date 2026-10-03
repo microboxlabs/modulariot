@@ -368,6 +368,10 @@ class SymptomCatalogServiceTest {
         assertThrows(IllegalStateException.class, () -> service.publish(TENANT, OWNER, id, "Orden", null, null));
 
         service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(),
+                "(signal.vehicle.weight_category == \"HEAVY\" && (signal.trip.active))"));
+        assertTrue(service.plan(TENANT, id).changes().isEmpty(), "parentheses are no change");
+
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(),
                 "signal.vehicle.weight_category == \"HEAVY\" || signal.trip.active"));
         assertEquals(VersionBump.MAJOR, service.plan(TENANT, id).bump(), "|| instead of &&: a real change");
     }

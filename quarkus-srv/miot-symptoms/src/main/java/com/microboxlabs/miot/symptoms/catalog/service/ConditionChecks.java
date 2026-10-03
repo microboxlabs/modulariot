@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.catalog.service;
 
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Finding;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,7 +15,8 @@ import java.util.regex.Pattern;
 /**
  * Checks on an activation written as conditions joined by {@code &&}: two
  * conditions on the same field that can never both hold, and bounds that
- * repeat. Rules with a top-level {@code ||} are left alone.
+ * repeat. Parentheses around {@code &&} groups are ignored; rules with a
+ * top-level {@code ||} are left alone.
  */
 final class ConditionChecks {
 
@@ -22,6 +24,7 @@ final class ConditionChecks {
     private static final Pattern COMPARISON = Pattern.compile(
             "^(" + FIELD + ")\\s*(==|!=|>=|<=|>|<)\\s*(-?\\d+(?:\\.\\d+)?|\"[^\"]*\"|true|false)$");
     private static final Pattern BARE = Pattern.compile("^(!?)(" + FIELD + ")$");
+    private static final Pattern NUMBER = Pattern.compile("-?\\d+(?:\\.\\d+)?");
 
     private ConditionChecks() {
     }
@@ -31,6 +34,24 @@ final class ConditionChecks {
         if (rule == null || rule.isBlank()) {
             return Optional.empty();
         }
+        Optional<List<String>> parts = split(rule);
+        if (parts.isEmpty()) {
+            return parts;
+        }
+        List<String> terms = new ArrayList<>();
+        for (String part : parts.get()) {
+            Optional<List<String>> inner = wrapped(part) ? conjunction(part.substring(1, part.length() - 1))
+                    : Optional.empty();
+            if (inner.isPresent()) {
+                terms.addAll(inner.get());
+            } else {
+                terms.add(SpecDiff.squash(part));
+            }
+        }
+        return Optional.of(terms);
+    }
+
+    private static Optional<List<String>> split(String rule) {
         List<String> terms = new ArrayList<>();
         int depth = 0;
         boolean quoted = false;
@@ -46,13 +67,33 @@ final class ConditionChecks {
             } else if (!quoted && depth == 0 && rule.startsWith("||", i)) {
                 return Optional.empty();
             } else if (!quoted && depth == 0 && rule.startsWith("&&", i)) {
-                terms.add(SpecDiff.squash(rule.substring(start, i)));
+                terms.add(rule.substring(start, i).strip());
                 start = i + 2;
                 i++;
             }
         }
-        terms.add(SpecDiff.squash(rule.substring(start)));
+        terms.add(rule.substring(start).strip());
         return Optional.of(terms);
+    }
+
+    /** True when the whole term sits inside one pair of parentheses. */
+    private static boolean wrapped(String term) {
+        if (term.length() < 2 || term.charAt(0) != '(' || term.charAt(term.length() - 1) != ')') {
+            return false;
+        }
+        int depth = 0;
+        boolean quoted = false;
+        for (int i = 0; i < term.length() - 1; i++) {
+            char c = term.charAt(i);
+            if (c == '"') {
+                quoted = !quoted;
+            } else if (!quoted && c == '(') {
+                depth++;
+            } else if (!quoted && c == ')' && --depth == 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** What the conditions on one field say. */
@@ -61,6 +102,7 @@ final class ConditionChecks {
         boolean truthClash;
         String equals;
         boolean equalsClash;
+        Double number;
         final List<String> notEquals = new ArrayList<>();
         Double lower;
         boolean lowerStrict;
@@ -97,7 +139,8 @@ final class ConditionChecks {
         }
         FieldBounds b = fields.computeIfAbsent(m.group(1), f -> new FieldBounds());
         String op = m.group(2);
-        String value = m.group(3);
+        boolean numeric = NUMBER.matcher(m.group(3)).matches();
+        String value = numeric ? new BigDecimal(m.group(3)).stripTrailingZeros().toPlainString() : m.group(3);
         if (value.equals("true") || value.equals("false")) {
             boolean v = Boolean.parseBoolean(value);
             truth(b, op.equals("==") == v);
@@ -107,10 +150,20 @@ final class ConditionChecks {
             case "==" -> {
                 b.equalsClash |= b.equals != null && !b.equals.equals(value);
                 b.equals = value;
+                b.number = numeric ? Double.valueOf(value) : null;
             }
             case "!=" -> b.notEquals.add(value);
-            case ">", ">=" -> lower(b, Double.parseDouble(value), op.equals(">"));
-            default -> upper(b, Double.parseDouble(value), op.equals("<"));
+            // An order on a string is a type error the rule check reports.
+            case ">", ">=" -> {
+                if (numeric) {
+                    lower(b, Double.parseDouble(value), op.equals(">"));
+                }
+            }
+            default -> {
+                if (numeric) {
+                    upper(b, Double.parseDouble(value), op.equals("<"));
+                }
+            }
         }
     }
 
@@ -147,6 +200,10 @@ final class ConditionChecks {
             out.add(error("«" + name + "» mayor que " + SpecValidator.number(b.lower) + " y menor que "
                     + SpecValidator.number(b.upper) + " nunca se cumple."));
         }
+        if (!b.equalsClash && b.number != null && outside(b)) {
+            out.add(error("«" + name + "» igual a " + SpecValidator.number(b.number)
+                    + " queda fuera de sus otros límites; nunca se cumpliría."));
+        }
         if (b.lowers > 1) {
             out.add(warning("Dos mínimos para «" + name + "»; basta el mayor (" + SpecValidator.number(b.lower)
                     + ")."));
@@ -155,6 +212,13 @@ final class ConditionChecks {
             out.add(warning("Dos máximos para «" + name + "»; basta el menor (" + SpecValidator.number(b.upper)
                     + ")."));
         }
+    }
+
+    private static boolean outside(FieldBounds b) {
+        double v = b.number;
+        boolean belowLower = b.lower != null && (v < b.lower || (v == b.lower && b.lowerStrict));
+        boolean aboveUpper = b.upper != null && (v > b.upper || (v == b.upper && b.upperStrict));
+        return belowLower || aboveUpper;
     }
 
     private static Finding error(String message) {

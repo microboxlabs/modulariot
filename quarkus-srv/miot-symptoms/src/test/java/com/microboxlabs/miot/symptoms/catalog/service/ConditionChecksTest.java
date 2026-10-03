@@ -45,6 +45,47 @@ class ConditionChecksTest {
     }
 
     @Test
+    void parenthesesAroundAndGroupsAreIgnored() {
+        assertEquals(List.of("ERROR «x» no puede ser verdadero y falso a la vez; nunca se cumpliría."),
+                messages("(x && !x)"));
+        assertEquals(List.of("ERROR «x» no puede ser verdadero y falso a la vez; nunca se cumpliría."),
+                messages("y && ((x) && (z && !x))"));
+        assertEquals(Optional.of(List.of("a", "b", "c")), ConditionChecks.conjunction("(a && b) && c"));
+        assertEquals(Optional.of(List.of(SpecDiff.squash("a || b"), "c")),
+                ConditionChecks.conjunction("((a || b)) && c"), "an || group stays one condition");
+        assertEquals(1, ConditionChecks.conjunction("((a) || (b))").orElseThrow().size());
+    }
+
+    @Test
+    void numbersCompareByValue() {
+        assertTrue(messages("v == 1 && v == 1.0").isEmpty());
+        assertEquals(List.of("ERROR «v» no puede tener dos valores a la vez; nunca se cumpliría."),
+                messages("v == 1 && v != 1.00"));
+        assertEquals(List.of("ERROR «v» no puede tener dos valores a la vez; nunca se cumpliría."),
+                messages("v == 1 && v == 2.5"));
+    }
+
+    @Test
+    void anEqualityOutsideTheBoundsIsAnError() {
+        assertEquals(List.of("ERROR «v» igual a 80 queda fuera de sus otros límites; nunca se cumpliría."),
+                messages("v == 80 && v > 90"));
+        assertEquals(List.of("ERROR «v» igual a 80 queda fuera de sus otros límites; nunca se cumpliría."),
+                messages("v == 80 && v < 80"));
+        assertTrue(messages("v == 80 && v >= 80 && v <= 80").isEmpty());
+        assertTrue(messages("v == 80 && v > 70 && v < 90").isEmpty());
+        assertEquals(List.of("ERROR «v» no puede tener dos valores a la vez; nunca se cumpliría."),
+                messages("v == \"A\" && v == \"B\" && v > 3"), "one error per field");
+    }
+
+    @Test
+    void anOrderOnATextIsLeftToTheTypeCheck() {
+        assertTrue(messages("signal.geo.zone > \"A\" && signal.geo.zone < \"B\"").isEmpty());
+        SymptomSpec spec = Specs.with(Specs.speeding(), Specs.ACTIVATION + " && signal.trip.active > \"A\"");
+        assertTrue(SpecValidator.validate(spec, Specs.gpsSignal()).findings().stream()
+                .anyMatch(f -> f.severity() == Severity.ERROR && f.section().equals("activation")));
+    }
+
+    @Test
     void rulesWithOrAtTheTopAreLeftAlone() {
         assertTrue(messages("signal.trip.active || !signal.trip.active").isEmpty());
         assertTrue(messages("(signal.trip.active || x) && !signal.trip.active").isEmpty(), "the || is nested");
@@ -73,6 +114,16 @@ class ConditionChecksTest {
                 new SymptomSpec.Level(3, false, null, null),
                 new SymptomSpec.Level(4, false, null, null)));
         assertEquals(List.of("Entre 600 y 900 s sostenidos ningún nivel aplica."), levelWarnings(byTime));
+    }
+
+    @Test
+    void gapsAreReportedAtTheRuleNumbers() {
+        SymptomSpec open = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
+                "medida > 10 && medida < 21", "medida >= 21 && medida < 30", "medida >= 30 && sostenido_s >= 60"));
+        assertEquals(List.of("Entre 5 y 10 ningún nivel aplica."), levelWarnings(open));
+        SymptomSpec point = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
+                "medida > 5 && medida < 21", "medida >= 21 && medida < 30", "medida >= 30 && sostenido_s >= 60"));
+        assertEquals(List.of("Con 5 exactos ningún nivel aplica."), levelWarnings(point));
     }
 
     private static List<String> levelWarnings(SymptomSpec spec) {

@@ -135,6 +135,7 @@ public class SymptomCatalogService {
         if (req.name() == null || req.name().isBlank()) {
             throw new IllegalArgumentException("name is required");
         }
+        checkIdentity(req.name().trim(), req.family(), req.icon());
         DataSource source = requireSource(tenantCode, req.sourceKey());
         if (store.findDefinitionByKey(tenantCode, req.key()).isPresent()) {
             throw new IllegalStateException("a symptom with key " + req.key() + " already exists");
@@ -152,12 +153,26 @@ public class SymptomCatalogService {
     public SymptomDefinition updateIdentity(String tenantCode, String actor, UUID id, IdentityRequest req) {
         SymptomDefinition d = require(tenantCode, id);
         String name = req.name() == null || req.name().isBlank() ? d.name() : req.name().trim();
+        checkIdentity(name, req.family(), req.icon());
         SymptomDefinition saved = store.updateDefinition(new SymptomDefinition(d.id(), tenantCode, d.key(), name,
                 orKeep(req.family(), d.family()), orKeep(req.icon(), d.icon()),
                 orKeep(req.description(), d.description()), d.sourceKey(), d.engineRuleId(), d.templateKey(),
                 d.forkedFromVersionId(), d.state(), d.currentVersion(), d.createdBy(), d.createdAt(), actor, now()));
         audit.log(tenantCode, actor, "symptom.renamed", ENTITY, id.toString(), null, Map.of("name", name));
         return saved;
+    }
+
+    /** Rejects values longer than their columns, so the caller gets a 400 instead of a database error. */
+    private static void checkIdentity(String name, String family, String icon) {
+        maxLength("name", name, 200);
+        maxLength("family", family, 96);
+        maxLength("icon", icon, 64);
+    }
+
+    private static void maxLength(String field, String value, int max) {
+        if (value != null && value.length() > max) {
+            throw new IllegalArgumentException(field + ": at most " + max + " characters");
+        }
     }
 
     /** Saves the draft; it may be invalid. Returns the draft and its checks. */

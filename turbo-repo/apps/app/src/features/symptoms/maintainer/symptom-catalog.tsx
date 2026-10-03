@@ -68,7 +68,13 @@ export default function SymptomCatalog({
   dict,
   rootDict,
   lang,
-}: Readonly<{ dict: I18nRecord; rootDict: I18nRecord; lang: string }>) {
+  harnessEnabled,
+}: Readonly<{
+  dict: I18nRecord;
+  rootDict: I18nRecord;
+  lang: string;
+  harnessEnabled: boolean;
+}>) {
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
   const { data, error, isLoading } = useSymptomDefinitions();
@@ -219,23 +225,13 @@ export default function SymptomCatalog({
                 ))}
               </div>
               {isOwner && (
-                <>
-                  <button
-                    type="button"
-                    disabled={importing}
-                    onClick={() => void runImport()}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700"
-                  >
-                    {tr("importEngine", d)}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCreating(true)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
-                  >
-                    ＋ {tr("newSymptom", d)}
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={() => setCreating(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
+                >
+                  ＋ {tr("newSymptom", d)}
+                </button>
               )}
             </div>
           </div>
@@ -319,6 +315,13 @@ export default function SymptomCatalog({
       <CreateSymptomModal
         open={creating}
         d={d}
+        rootDict={rootDict}
+        harnessEnabled={harnessEnabled}
+        importing={importing}
+        onImport={() => {
+          setCreating(false);
+          void runImport();
+        }}
         onClose={() => setCreating(false)}
         onCreated={(created) => {
           setCreating(false);

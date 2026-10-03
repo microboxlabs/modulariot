@@ -82,6 +82,7 @@ public final class SpecValidator {
         RuleSchema schema = RuleSchema.of(source);
         rule(out, "activation", schema, spec.activation(), Expect.CONDITION);
         duplicates(out, spec.activation());
+        out.addAll(ConditionChecks.check(spec.activation(), path -> label(source, path)));
         if (spec.measure() != null && spec.measure().expression() != null) {
             rule(out, "measure", schema, spec.measure().expression(), Expect.NUMBER);
         }
@@ -133,6 +134,7 @@ public final class SpecValidator {
             }
         }
         overlaps(out, schema, valid);
+        gaps(out, schema, valid);
     }
 
     private static void response(List<Finding> out, String section, SymptomSpec.Response response) {
@@ -194,6 +196,47 @@ public final class SpecValidator {
         }
         points.add(points.last() + 1);
         return List.copyOf(points);
+    }
+
+    /**
+     * Values between two levels where none applies. Measure ladders are
+     * tried with all the hold time in the world; ladders on hold time alone
+     * with a measure of zero.
+     */
+    private static void gaps(List<Finding> out, RuleSchema schema, List<Level> levels) {
+        boolean byMeasure = levels.stream().anyMatch(l -> l.when() != null && l.when().contains("medida"));
+        boolean byTime = !byMeasure
+                && levels.stream().anyMatch(l -> l.when() != null && l.when().contains("sostenido_s"));
+        if (!byMeasure && !byTime) {
+            return;
+        }
+        List<PreparedRule> rules = levels.stream().map(l -> RuleLanguage.prepare(schema, l.when())).toList();
+        Double lastCovered = null;
+        Double gapStart = null;
+        for (double point : testPoints(levels)) {
+            Map<String, Object> vars = byMeasure ? Map.of("medida", point, "sostenido_s", 1e9)
+                    : Map.of("medida", 0.0, "sostenido_s", point);
+            boolean covered = rules.stream().anyMatch(r -> Boolean.TRUE.equals(r.run(vars).value()));
+            if (covered && gapStart != null) {
+                String unit = byMeasure ? "" : " s sostenidos";
+                out.add(new Finding(LEVELS, Severity.WARNING, "Entre " + number(gapStart) + " y "
+                        + number(point) + unit + " ningún nivel aplica.", -1));
+                gapStart = null;
+            } else if (!covered && lastCovered != null && gapStart == null) {
+                gapStart = point;
+            }
+            if (covered) {
+                lastCovered = point;
+            }
+        }
+    }
+
+    private static String label(DataSource source, String path) {
+        return source.fields().stream()
+                .filter(f -> f.path().equals(path) && f.label() != null && !f.label().isBlank())
+                .map(SourceField::label)
+                .findFirst()
+                .orElse(path);
     }
 
     private static void reportOverlaps(List<Finding> out, Set<String> reported, List<Level> hits, double measure,
@@ -279,7 +322,7 @@ public final class SpecValidator {
         }
     }
 
-    private static String number(double value) {
+    static String number(double value) {
         return value == Math.rint(value) ? String.valueOf((long) value) : String.valueOf(value);
     }
 }

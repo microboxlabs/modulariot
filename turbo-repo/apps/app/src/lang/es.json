@@ -2694,6 +2694,7 @@
         "oneError": "1 error",
         "errorsCount": "{n} errores",
         "seeChanges": "Ver cambios",
+        "planFailed": "No se pudo calcular la próxima versión.",
         "perShift": "por turno",
         "save": "Guardar",
         "teamEdit": "Equipo",

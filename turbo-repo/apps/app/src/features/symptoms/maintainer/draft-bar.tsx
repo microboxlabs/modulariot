@@ -29,6 +29,7 @@ function draftLabel(changes: number, d: I18nRecord) {
  */
 export default function DraftBar({
   plan,
+  planFailed,
   report,
   saving,
   saveError,
@@ -37,6 +38,8 @@ export default function DraftBar({
   onDiscard,
 }: Readonly<{
   plan: PublishPlan | undefined;
+  /** The plan request failed; the bar stays so the draft can still be discarded. */
+  planFailed: boolean;
   report: ValidationReport | null;
   saving: boolean;
   saveError: string | null;
@@ -46,7 +49,9 @@ export default function DraftBar({
 }>) {
   const changes = plan?.changes.length ?? 0;
   const errors = errorCount(report, plan);
-  if (!plan) return null;
+  // Publishing needs a plan that matches what was saved: none while it loads, after a failed save, or with errors.
+  const blocked =
+    !plan || errors > 0 || saving || saveError !== null || changes === 0;
 
   return (
     <section
@@ -55,9 +60,17 @@ export default function DraftBar({
     >
       <span className="h-2 w-2 rounded-full bg-amber-400" />
       <span className="text-gray-900 dark:text-white">
-        {draftLabel(changes, d)}
+        {plan ? draftLabel(changes, d) : tr("draftBarLabel", d)}
       </span>
-      {plan.nextVersion && plan.bump && (
+      {!plan && (
+        <span
+          role={planFailed ? "alert" : "status"}
+          className={`text-xs ${planFailed ? "text-red-600 dark:text-red-400" : MUTED}`}
+        >
+          {planFailed ? tr("planFailed", d) : tr("loading", d)}
+        </span>
+      )}
+      {plan?.nextVersion && plan.bump && (
         <>
           <span className={`text-xs ${MUTED}`}>{tr("nextVersion", d)}</span>
           <span className="font-mono text-gray-900 dark:text-white">
@@ -77,13 +90,14 @@ export default function DraftBar({
         {saving ? tr("saving", d) : tr("saved", d)}
       </span>
       {saveError && (
-        <span className="text-xs text-red-600 dark:text-red-400">
+        <span role="alert" className="text-xs text-red-600 dark:text-red-400">
           {saveError}
         </span>
       )}
       <button
         type="button"
-        className="text-blue-600 hover:underline dark:text-blue-400"
+        disabled={!plan}
+        className="text-blue-600 hover:underline disabled:opacity-50 dark:text-blue-400"
         onClick={onReview}
       >
         {tr("seeChanges", d)}
@@ -95,11 +109,7 @@ export default function DraftBar({
       >
         {tr("discard", d)}
       </button>
-      <Button
-        size="sm"
-        disabled={errors > 0 || saving || changes === 0}
-        onClick={onReview}
-      >
+      <Button size="sm" disabled={blocked} onClick={onReview}>
         {tr("publish", d)}
       </Button>
     </section>

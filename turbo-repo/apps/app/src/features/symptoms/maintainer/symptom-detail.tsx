@@ -82,7 +82,10 @@ export default function SymptomDetail({
   } = useSymptomDraft(id, canWrite);
   const { data: families } = useSymptomFamilies();
   const { data: templates } = useSymptomTemplates(true);
-  const { data: plan } = usePublishPlan(id, Boolean(canWrite && detail?.draft));
+  const { data: plan, error: planError } = usePublishPlan(
+    id,
+    Boolean(canWrite && detail?.draft)
+  );
   const { data: source } = useDataSource(
     spec?.source ?? detail?.definition.sourceKey ?? null
   );
@@ -225,6 +228,7 @@ export default function SymptomDetail({
         {canWrite && detail?.draft && (
           <DraftBar
             plan={plan}
+            planFailed={Boolean(planError)}
             report={report}
             saving={saving}
             saveError={saveError}

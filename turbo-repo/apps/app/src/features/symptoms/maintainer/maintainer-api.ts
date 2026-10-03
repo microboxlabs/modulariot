@@ -175,6 +175,8 @@ export interface SymptomDetail {
   current: SymptomVersion | null;
   draft: SymptomVersion | null;
   versions: SymptomVersion[];
+  /** Per published version, what changed from the one before it; the first has none. */
+  versionChanges?: Record<string, Change[]>;
   /** The symptom and version this one was copied from; version null when a draft was copied. */
   forkedFrom: {
     definitionId: string;

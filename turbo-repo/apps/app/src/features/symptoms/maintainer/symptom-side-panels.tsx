@@ -9,7 +9,6 @@ import type {
   DataSource,
   FieldOrigin,
   Preview,
-  SymptomVersion,
   ValidationReport,
 } from "./maintainer-api";
 import { ICU_LEVELS } from "./symptom-labels";
@@ -223,94 +222,6 @@ export function FieldsPanel({
           );
         })}
       </ul>
-    </Panel>
-  );
-}
-
-export function VersionsPanel({
-  versions,
-  current,
-  canWrite,
-  d,
-  viewing,
-  onView,
-  onRollback,
-  onFork,
-}: Readonly<{
-  versions: SymptomVersion[];
-  current: string | null;
-  canWrite: boolean;
-  viewing: string | null;
-  d: I18nRecord;
-  onView: (version: string) => void;
-  onRollback: (version: string) => void;
-  onFork: (version: string) => void;
-}>) {
-  return (
-    <Panel title={tr("sectionVersions", d)}>
-      {versions.length === 0 && (
-        <p className="text-xs text-gray-500">{tr("unpublished", d)}</p>
-      )}
-      <ol className="flex flex-col gap-3">
-        {versions.map((v) => (
-          <li key={v.id} className="text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
-                v{v.version}
-              </span>
-              <span className="text-gray-500">{v.bump}</span>
-              {v.version === current && (
-                <span className="rounded bg-green-100 px-1.5 text-[10px] text-green-800 dark:bg-green-900/40 dark:text-green-300">
-                  {tr("inForce", d)}
-                </span>
-              )}
-              {v.version === viewing && (
-                <span className="rounded bg-blue-100 px-1.5 text-[10px] text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
-                  {tr("viewingTag", d)}
-                </span>
-              )}
-              {v.version && (
-                <span className="ml-auto flex gap-2">
-                  {v.version !== current && v.version !== viewing && (
-                    <button
-                      type="button"
-                      className="text-blue-600 hover:underline dark:text-blue-400"
-                      onClick={() => onView(v.version as string)}
-                    >
-                      {tr("viewVersion", d)}
-                    </button>
-                  )}
-                </span>
-              )}
-              {canWrite && v.version && (
-                <span className="flex gap-2">
-                  {v.version !== current && (
-                    <button
-                      type="button"
-                      className="text-blue-600 hover:underline dark:text-blue-400"
-                      onClick={() => onRollback(v.version as string)}
-                    >
-                      {tr("restore", d)}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="text-blue-600 hover:underline dark:text-blue-400"
-                    onClick={() => onFork(v.version as string)}
-                  >
-                    {tr("duplicate", d)}
-                  </button>
-                </span>
-              )}
-            </div>
-            <p className="text-gray-600 dark:text-gray-300">{v.reason}</p>
-            <p className="text-gray-400">
-              {v.publishedBy} ·{" "}
-              {v.publishedAt ? new Date(v.publishedAt).toLocaleString() : ""}
-            </p>
-          </li>
-        ))}
-      </ol>
     </Panel>
   );
 }

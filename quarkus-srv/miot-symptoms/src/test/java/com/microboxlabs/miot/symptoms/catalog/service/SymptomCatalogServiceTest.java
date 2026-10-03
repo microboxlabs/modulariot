@@ -359,6 +359,27 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
+    void eachVersionCarriesWhatChangedFromThePreviousOne() {
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.ACTIVE);
+        service.saveDraft(TENANT, OWNER, id, Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
+                "medida >= 5 && medida < 11", "medida >= 11 && medida < 25", "medida >= 25 && sostenido_s >= 60")));
+        String second = service.publish(TENANT, OWNER, id, "Umbrales", null, null).version();
+
+        var changes = service.get(TENANT, id).versionChanges();
+        assertEquals(List.of("1.0.0", second), List.copyOf(changes.keySet()));
+        assertTrue(changes.get("1.0.0").isEmpty(), "the first version has nothing before it");
+        assertEquals(List.of("levels"), changes.get(second).stream().map(SpecDiff.Change::section).distinct().toList());
+    }
+
+    @Test
+    void versionsCompareByNumber() {
+        assertTrue(SymptomCatalogService.compareVersions("0.10.0", "0.9.0") > 0);
+        assertTrue(SymptomCatalogService.compareVersions("1.0.0", "0.99.99") > 0);
+        assertEquals(0, SymptomCatalogService.compareVersions("2.1.3", "2.1.3"));
+    }
+
+    @Test
     void reorderingTheActivationsConditionsIsNoChange() {
         UUID id = speeding();
         service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.ACTIVE);

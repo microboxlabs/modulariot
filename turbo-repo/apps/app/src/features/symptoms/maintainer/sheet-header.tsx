@@ -7,6 +7,7 @@ import { tr } from "@/features/i18n/tr.service";
 import SymptomIcon from "../components/symtom-icon";
 import type {
   SymptomDefinition,
+  SymptomDetail,
   SymptomFamily,
   SymptomSpec,
   SymptomState,
@@ -24,8 +25,15 @@ const MENU_ROW =
 export function originText(
   def: SymptomDefinition,
   templates: readonly SymptomTemplate[] | undefined,
-  d: I18nRecord
+  d: I18nRecord,
+  forkedFrom: SymptomDetail["forkedFrom"] = null
 ) {
+  if (forkedFrom) {
+    return tr("originForkOf", d, {
+      name: forkedFrom.name,
+      version: forkedFrom.version ?? tr("unpublished", d),
+    });
+  }
   if (def.templateKey) {
     const name =
       templates?.find((t) => t.key === def.templateKey)?.name ??
@@ -154,6 +162,7 @@ export default function SheetHeader({
   canWrite,
   families,
   templates,
+  forkedFrom,
   backHref,
   lang,
   d,
@@ -167,6 +176,7 @@ export default function SheetHeader({
   canWrite: boolean;
   families: readonly SymptomFamily[] | undefined;
   templates: readonly SymptomTemplate[] | undefined;
+  forkedFrom: SymptomDetail["forkedFrom"];
   backHref: string;
   lang: string;
   d: I18nRecord;
@@ -227,9 +237,11 @@ export default function SheetHeader({
                 family !== canonicalFamily(def.family, families)
               }
               className="!text-xs"
-              onChange={(value) =>
-                spec && onChange({ ...spec, family: value || null })
-              }
+              onChange={(value) => {
+                if (spec && (value || null) !== family) {
+                  onChange({ ...spec, family: value || null });
+                }
+              }}
             />
           ) : (
             <span className="font-medium text-gray-900 dark:text-white">
@@ -237,7 +249,7 @@ export default function SheetHeader({
             </span>
           )}
           <span>· {tr("familySource", d)}</span>
-          <span>· {originText(def, templates, d)}</span>
+          <span>· {originText(def, templates, d, forkedFrom)}</span>
         </div>
       </div>
       <div className="ml-auto flex items-center gap-2">
@@ -246,7 +258,10 @@ export default function SheetHeader({
           d={d}
           disabled={!editable}
           changed={spec?.state != null && spec.state !== def.state}
-          onChange={(next) => spec && onChange({ ...spec, state: next })}
+          onChange={(next) => {
+            // Picking the state already shown changes nothing, so it must not create a draft.
+            if (spec && next !== state) onChange({ ...spec, state: next });
+          }}
         />
       </div>
     </div>

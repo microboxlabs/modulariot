@@ -15,6 +15,8 @@ const d = {
   originFork: "Copia de otro síntoma",
   originEngine: "Importado del motor (regla {id})",
   originBlank: "Creado en blanco",
+  originForkOf: "Copia de {name} {version}",
+  unpublished: "Sin publicar",
 } as unknown as I18nRecord;
 
 const def = (over: Partial<SymptomDefinition> = {}): SymptomDefinition =>
@@ -72,6 +74,20 @@ describe("originText", () => {
       "Importado del motor (regla 9)"
     );
     expect(originText(def(), undefined, d)).toBe("Creado en blanco");
+    const from = {
+      definitionId: "9",
+      name: "Exceso de velocidad",
+      version: "2.1.0",
+    };
+    expect(originText(def({ forkedFromVersionId: "v" }), [], d, from)).toBe(
+      "Copia de Exceso de velocidad 2.1.0"
+    );
+    expect(
+      originText(def({ forkedFromVersionId: "v" }), [], d, {
+        ...from,
+        version: null,
+      })
+    ).toBe("Copia de Exceso de velocidad Sin publicar");
   });
 });
 

@@ -1,6 +1,6 @@
 # Symptom evaluator
 
-Runs published symptom versions on a vehicle's signals and keeps one episode per vehicle and symptom. It turns each signal into at most one case change per symptom: opened, level raised or closed.
+Runs published symptom versions on a vehicle's signals and keeps one episode per vehicle and symptom. It turns each signal into at most one case change per symptom: opened, level changed or closed.
 
 **Status: core only.** Nothing feeds it signals yet and nothing stores its episodes outside memory. The signal topic, the consumer and the database store come next.
 

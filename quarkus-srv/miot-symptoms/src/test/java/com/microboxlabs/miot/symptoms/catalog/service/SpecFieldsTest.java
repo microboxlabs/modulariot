@@ -48,7 +48,8 @@ class SpecFieldsTest {
         Lifecycle l = base.lifecycle();
         List<Change> changes = SpecDiff.changes(base, with(base, new Lifecycle(l.open(), l.close(), true), null));
         assertEquals(VersionBump.MINOR, SpecDiff.bump(changes));
-        assertEquals(List.of("lifecycle"), changes.stream().map(Change::section).toList());
+        assertEquals(List.of("El nivel ahora baja si baja la medida"),
+                changes.stream().map(Change::text).toList(), "the rules did not change");
     }
 
     @Test
@@ -67,6 +68,8 @@ class SpecFieldsTest {
         assertTrue(errors(with(base, base.lifecycle(), new Recurrence(true, 20, 7, 1, "camión"))));
         assertTrue(errors(with(base, base.lifecycle(), new Recurrence(true, 1, 7, 1))));
         assertTrue(errors(with(base, base.lifecycle(), new Recurrence(true, 20, 0, 1))));
+        assertTrue(errors(with(base, base.lifecycle(), new Recurrence(true, 20, 7, 0))));
+        assertFalse(errors(with(base, base.lifecycle(), new Recurrence(true, 20, 7, 1, null))), "old specs");
         assertFalse(errors(with(base, base.lifecycle(), new Recurrence(true, 20, 7, 1, Recurrence.DRIVER))));
         assertFalse(errors(with(base, base.lifecycle(), new Recurrence(false, 0, 0, 0, "x"))), "off: not checked");
     }

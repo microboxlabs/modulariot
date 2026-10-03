@@ -14,7 +14,9 @@ import type {
   SymptomSpec,
 } from "./maintainer-api";
 import LevelNotices from "./level-notices";
+import LevelResponseOptions from "./level-response-options";
 import LevelSteps from "./level-steps";
+import RecurrenceForm from "./recurrence-form";
 import RuleDescription, { RuleDescriptionToggle } from "./rule-description";
 import { ICU_LEVELS } from "./symptom-labels";
 
@@ -252,6 +254,12 @@ function LevelRow({
             d={d}
             onChange={(notices) => setResponse({ notices })}
           />
+          <LevelResponseOptions
+            response={response}
+            readOnly={readOnly}
+            d={d}
+            onChange={setResponse}
+          />
         </>
       )}
     </div>
@@ -284,6 +292,7 @@ export default function SymptomRuleSections({
   const measure = problemsFor(findings, "measure");
   const open = problemsFor(findings, "lifecycle.open");
   const close = problemsFor(findings, "lifecycle.close");
+  const recurrence = problemsFor(findings, "recurrence");
   const levelRuleFields = [...sourceFields, ...levelFields(d)];
   const lifecycleFields = caseFields(d);
   // The levels and the lifecycle are described together, one text per section.
@@ -411,6 +420,24 @@ export default function SymptomRuleSections({
           }
         />
         <Problems items={close} />
+        <ToggleSwitch
+          checked={lifecycle.levelDown ?? false}
+          disabled={readOnly}
+          label={tr("levelDown", d)}
+          onChange={(levelDown) =>
+            onChange({ ...spec, lifecycle: { ...lifecycle, levelDown } })
+          }
+        />
+      </Section>
+
+      <Section title={tr("sectionRecurrence", d)} d={d}>
+        <RecurrenceForm
+          recurrence={spec.recurrence}
+          readOnly={readOnly}
+          d={d}
+          onChange={(value) => onChange({ ...spec, recurrence: value })}
+        />
+        <Problems items={recurrence} />
       </Section>
     </div>
   );

@@ -205,8 +205,10 @@ function ActivationSection({
   const [sourceHelp, setSourceHelp] = useState(false);
   const { data: sources } = useDataSources();
   // The tree keeps the last samples while a new preview is on its way.
-  const [samples, setSamples] = useState(preview?.samples ?? []);
-  if (preview && preview.samples !== samples) setSamples(preview.samples);
+  const [cached, setCached] = useState(preview);
+  if (preview && preview !== cached) setCached(preview);
+  // Samples of another source are not shown, even while the new source's preview loads.
+  const samples = cached?.source === spec.source ? cached.samples : [];
   const [sampleIndex, setSampleIndex] = useState(0);
   const sampleAt = Math.min(sampleIndex, Math.max(0, samples.length - 1));
   const activation = spec.activation ?? "";

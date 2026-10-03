@@ -331,26 +331,33 @@ const WORD = /\w/;
  */
 export function ruleKey(rule: string): string {
   let out = "";
-  let quote: string | null = null;
   let space = false;
-  for (let i = 0; i < rule.length; i++) {
+  let i = 0;
+  while (i < rule.length) {
     const c = rule.charAt(i);
-    if (quote) {
-      out += c;
-      if (c === "\\" && i + 1 < rule.length) out += rule.charAt(++i);
-      else if (c === quote) quote = null;
-    } else if (/\s/.test(c)) {
+    if (/\s/.test(c)) {
       space = true;
-    } else if (rule.startsWith("//", i)) {
-      return rule;
-    } else {
-      if (space && WORD.test(out.at(-1) ?? "") && WORD.test(c)) out += " ";
-      space = false;
-      if (c === '"' || c === "'") quote = c;
-      out += c;
+      i++;
+      continue;
     }
+    if (rule.startsWith("//", i)) return rule;
+    if (space && WORD.test(out.at(-1) ?? "") && WORD.test(c)) out += " ";
+    space = false;
+    const end = c === '"' || c === "'" ? quotedEnd(rule, i) : i + 1;
+    out += rule.slice(i, end);
+    i = end;
   }
   return out;
+}
+
+/** The index just past the string literal that starts at `start`, or the end of the rule. */
+function quotedEnd(rule: string, start: number): number {
+  const quote = rule.charAt(start);
+  let i = start + 1;
+  while (i < rule.length && rule.charAt(i) !== quote) {
+    i += rule.charAt(i) === "\\" ? 2 : 1;
+  }
+  return Math.min(i + 1, rule.length);
 }
 
 /**

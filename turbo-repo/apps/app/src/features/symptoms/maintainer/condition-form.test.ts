@@ -206,6 +206,9 @@ describe("parseConditions", () => {
       "signal.trip.active && ((signal.gps.moving || signal.local_hour < 6) && signal.trip.double_driver)", // nested
       "signal.trip.active && !(signal.gps.moving && signal.local_hour < 6)", // not all
       "signal.gps.speed_kmh > 1e3", // number syntax the form does not write
+      "signal.gps.speed_kmh > 9007199254740993", // more digits than a number keeps
+      "signal.gps.speed_kmh > 0.1000000000000000055511151231257827", // the same
+      "signal.gps.speed_kmh > 007", // leading zeros
       'signal.gps.speed_kmh > "90"', // text on a number field
       'signal.geo.zone > "A"', // order on text
       "signal.geo.zone == 'A'", // single quotes
@@ -216,6 +219,39 @@ describe("parseConditions", () => {
     ]) {
       expect(parseConditions(rule, FIELDS), rule).toBeNull();
     }
+  });
+});
+
+describe("numbers and durations", () => {
+  it("keeps numbers exactly, dropping only trailing zeros", () => {
+    expect(roundTrip("signal.gps.speed_kmh > 90.5")).toBe(
+      "signal.gps.speed_kmh > 90.5"
+    );
+    expect(roundTrip("signal.gps.speed_kmh > 90.50")).toBe(
+      "signal.gps.speed_kmh > 90.5"
+    );
+    expect(roundTrip("signal.gps.speed_kmh > 90.0")).toBe(
+      "signal.gps.speed_kmh > 90"
+    );
+    expect(roundTrip("signal.gps.speed_kmh >= -0.0")).toBe(
+      "signal.gps.speed_kmh >= 0"
+    );
+    expect(roundTrip("signal.gps.speed_kmh < 9007199254740991")).toBe(
+      "signal.gps.speed_kmh < 9007199254740991"
+    );
+  });
+
+  it("treats durations as numbers", () => {
+    const fields = [...FIELDS, field("check.stopped_s", "duration")];
+    const form = parseConditions("check.stopped_s >= 600", fields);
+    expect(shape(form)?.rows).toEqual([
+      { path: "check.stopped_s", op: ">=", value: 600 },
+    ]);
+    expect(opsFor("duration")).toEqual(opsFor("number"));
+    expect(newCondition(fields.at(-1) as SourceField)).toMatchObject({
+      op: ">",
+      value: 0,
+    });
   });
 });
 

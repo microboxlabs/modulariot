@@ -74,6 +74,12 @@ class ConditionChecksTest {
         assertNotEquals(ConditionChecks.unordered("a == \"x && y\" && b"),
                 ConditionChecks.unordered("a == \"y && x\" && b"), "text inside quotes is not split");
         assertEquals(SpecDiff.squash(null), ConditionChecks.unordered(null));
+        assertNotEquals(ConditionChecks.unordered("t ? false || false : false || true"),
+                ConditionChecks.unordered("t ? false || true || false : false"), "a conditional keeps its parts in order");
+        assertNotEquals(ConditionChecks.unordered("a && (t ? b || c : d)"),
+                ConditionChecks.unordered("a && (t ? b : c || d)"), "also inside a group");
+        assertEquals(ConditionChecks.unordered("x == \"?\" && y"), ConditionChecks.unordered("y && x == \"?\""),
+                "a ? inside quotes is text");
     }
 
     @Test

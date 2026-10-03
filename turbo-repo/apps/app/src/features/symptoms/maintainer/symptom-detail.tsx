@@ -88,6 +88,7 @@ export default function SymptomDetail({
     saveError,
     discard,
     resync,
+    planIsCurrent,
   } = useSymptomDraft(id, canWrite);
   const { data: families } = useSymptomFamilies();
   const { data: templates } = useSymptomTemplates(true);
@@ -107,10 +108,13 @@ export default function SymptomDetail({
     if (viewed || !published || !spec) return new Set<string>();
     const paths = changedPaths(spec, published);
     // Conditions in another order are no change for the publish plan, so no mark either.
-    if (plan && !plan.changes.some((c) => c.section === "activation"))
-      paths.delete("activation");
+    const reordered =
+      planIsCurrent &&
+      plan &&
+      !plan.changes.some((c) => c.section === "activation");
+    if (reordered) paths.delete("activation");
     return paths;
-  }, [viewed, published, spec, plan]);
+  }, [viewed, published, spec, plan, planIsCurrent]);
   const { data: source } = useDataSource(
     shownSpec?.source ?? detail?.definition.sourceKey ?? null
   );

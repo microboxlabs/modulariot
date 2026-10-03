@@ -29,6 +29,8 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   const [preview, setPreview] = useState<Preview | null>(null);
   // The spec the preview was made for: a preview of an earlier spec must not describe the one on screen.
   const [previewFor, setPreviewFor] = useState<SymptomSpec | null>(null);
+  // The spec the publish plan was made for: the saved draft, once its plan has reloaded.
+  const [planFor, setPlanFor] = useState<SymptomSpec | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,6 +54,7 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     if (base && loadedFor.current !== id) {
       loadedFor.current = id;
       setSpec(base);
+      setPlanFor(base);
     }
   }, [base, id]);
 
@@ -66,7 +69,9 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
             setSaveError(null);
             void mutate();
             void refreshSymptoms();
-            void globalMutate(publishPlanKey(id));
+            void globalMutate(publishPlanKey(id)).then(() => {
+              if (ticket === latest.current) setPlanFor(next);
+            });
           }
           if (ticket !== latest.current) return;
           const [r, p] = await Promise.all([
@@ -116,6 +121,7 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     const next = fresh?.draft?.spec ?? fresh?.current?.spec ?? null;
     loadedFor.current = id;
     setSpec(next);
+    setPlanFor(next);
     setReport(null);
   }, [id, mutate]);
 
@@ -134,6 +140,8 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     preview,
     /** The preview, only while it describes the spec on screen. */
     currentPreview: preview && previewFor === spec ? preview : null,
+    /** Whether the publish plan describes the spec on screen. */
+    planIsCurrent: spec !== null && planFor === spec,
     saving,
     saveError,
     discard,

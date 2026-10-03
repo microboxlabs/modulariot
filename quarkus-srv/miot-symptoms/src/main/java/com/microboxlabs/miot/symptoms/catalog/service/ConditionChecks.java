@@ -67,6 +67,9 @@ final class ConditionChecks {
         if (wrapped(r)) {
             return unordered(r.substring(1, r.length() - 1));
         }
+        if (conditional(r)) {
+            return SpecDiff.squash(r);
+        }
         String negated = r.substring(1).strip();
         if (r.charAt(0) == '!' && wrapped(negated)) {
             return "!(" + unordered(negated.substring(1, negated.length() - 1)) + ")";
@@ -78,6 +81,30 @@ final class ConditionChecks {
             }
         }
         return SpecDiff.squash(r);
+    }
+
+    /** True when the rule has a {@code ?} outside quotes and parentheses: a conditional, whose parts keep their order. */
+    private static boolean conditional(String rule) {
+        int depth = 0;
+        boolean quoted = false;
+        int i = 0;
+        while (i < rule.length()) {
+            char c = rule.charAt(i);
+            int step = 1;
+            if (quoted && c == '\\') {
+                step = 2;
+            } else if (c == '"') {
+                quoted = !quoted;
+            } else if (!quoted && (c == '(' || c == '[')) {
+                depth++;
+            } else if (!quoted && (c == ')' || c == ']')) {
+                depth--;
+            } else if (!quoted && depth == 0 && c == '?') {
+                return true;
+            }
+            i += step;
+        }
+        return false;
     }
 
     /**

@@ -242,20 +242,26 @@ function Rows({
   const first = fields[0];
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
-  // A row moved with the keyboard keeps focus on its handle.
+  // A row moved with the keyboard keeps focus on its handle, once the moved list comes back.
   const handles = useRef(new Map<string, HTMLButtonElement>());
-  const [focusId, setFocusId] = useState<string | null>(null);
+  const pendingFocus = useRef<{ id: string; index: number } | null>(null);
   useEffect(() => {
-    if (focusId) handles.current.get(focusId)?.focus();
-  }, [focusId, rows]);
+    const pending = pendingFocus.current;
+    if (!pending) return;
+    pendingFocus.current = null;
+    if (rows[pending.index]?.id === pending.id)
+      handles.current.get(pending.id)?.focus();
+  }, [rows]);
   const sortable = !readOnly && rows.length > 1;
-  const move = (id: string, to: number) => {
+  const move = (id: string, to: number, keepFocus = false) => {
     const next = moveRow(
       rows,
       rows.findIndex((x) => x.id === id),
       to
     );
-    if (next !== rows) onChange(next);
+    if (next === rows) return;
+    if (keepFocus) pendingFocus.current = { id, index: to };
+    onChange(next);
   };
   const end = () => {
     setDragging(null);
@@ -313,8 +319,7 @@ function Rows({
                     const step = KEY_STEP[e.key];
                     if (step === undefined) return;
                     e.preventDefault();
-                    setFocusId(r.id);
-                    move(r.id, i + step);
+                    move(r.id, i + step, true);
                   }}
                 >
                   <MdDragIndicator className="h-4 w-4" />

@@ -5,6 +5,7 @@ import {
   renderHook,
   screen,
 } from "@testing-library/react";
+import { useState } from "react";
 import { type Mock, describe, expect, it, vi } from "vitest";
 import ActivationForm, {
   NumberValue,
@@ -219,6 +220,37 @@ describe("reordering conditions", () => {
     expect(onChange).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(handles[4]!, { key: "ArrowUp" });
     expect(ids(sent(onChange, 1)?.groups[0]?.rows)).toEqual(["y", "x"]);
+  });
+
+  it("keeps focus on a moved row's handle, and not after the next edit", () => {
+    const d2 = { ...d, conditionValue: "Valor" };
+    function Stateful() {
+      const [form, setForm] = useState(FORM);
+      return (
+        <ActivationForm
+          form={form}
+          fields={FIELDS}
+          readOnly={false}
+          d={d2}
+          onChange={setForm}
+        />
+      );
+    }
+    render(<Stateful />);
+    screen.getAllByLabelText("Arrastra")[0]!.focus();
+    fireEvent.keyDown(screen.getAllByLabelText("Arrastra")[0]!, {
+      key: "ArrowDown",
+    });
+    const moved = screen.getAllByLabelText("Arrastra")[1]!;
+    expect(document.activeElement).toBe(moved);
+    expect(
+      (screen.getAllByLabelText("Valor")[1] as HTMLInputElement).value
+    ).toBe("1");
+
+    const input = screen.getAllByLabelText("Valor")[2] as HTMLInputElement;
+    input.focus();
+    fireEvent.change(input, { target: { value: "7" } });
+    expect(document.activeElement).toBe(input);
   });
 
   it("moves a row dropped on another row of its list", () => {

@@ -62,6 +62,48 @@ public final class RuleText {
         return out;
     }
 
+    /** A field compared with a text, such as {@code signal.geo.zone == "Puerto"}. */
+    public record TextComparison(String path, String value) {
+    }
+
+    /**
+     * Every field compared with a text anywhere in the rule: {@code ==},
+     * {@code !=} and {@code in [...]}, inside groups, negations and either
+     * side of {@code ||}.
+     */
+    public static List<TextComparison> textComparisons(String rule) {
+        List<TextComparison> out = new ArrayList<>();
+        parse(rule).ifPresent(ast -> CelNavigableAst.fromAst(ast).getRoot().allNodes()
+                .filter(n -> n.getKind() == ExprKind.Kind.CALL)
+                .map(CelNavigableExpr::expr)
+                .forEach(e -> textComparisons(e, out)));
+        return out;
+    }
+
+    private static void textComparisons(CelExpr call, List<TextComparison> out) {
+        String function = call.call().function();
+        List<CelExpr> args = call.call().args();
+        if (args.size() != 2) {
+            return;
+        }
+        if (function.equals("_==_") || function.equals("_!=_")) {
+            Optional<String> left = path(args.get(0));
+            Optional<String> right = path(args.get(1));
+            left.ifPresent(p -> text(args.get(1)).ifPresent(v -> out.add(new TextComparison(p, v))));
+            right.ifPresent(p -> text(args.get(0)).ifPresent(v -> out.add(new TextComparison(p, v))));
+        } else if (function.equals("@in") && args.get(1).exprKind().getKind() == ExprKind.Kind.LIST) {
+            path(args.get(0)).ifPresent(p -> args.get(1).list().elements().forEach(
+                    e -> text(e).ifPresent(v -> out.add(new TextComparison(p, v)))));
+        }
+    }
+
+    private static Optional<String> text(CelExpr e) {
+        return e.exprKind().getKind() == ExprKind.Kind.CONSTANT
+                && e.constant().getKind() == CelConstant.Kind.STRING_VALUE
+                        ? Optional.of(e.constant().stringValue())
+                        : Optional.empty();
+    }
+
     private static Optional<Double> number(CelConstant c) {
         return switch (c.getKind()) {
             case DOUBLE_VALUE -> Optional.of(c.doubleValue());

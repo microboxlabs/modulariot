@@ -6,6 +6,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.RuleDescription;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
 import com.microboxlabs.miot.symptoms.catalog.store.RuleDescriptionStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -14,12 +15,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -150,14 +152,33 @@ public class RuleDescriptionService {
         return new Description(html, false);
     }
 
-    /** The description already written for a spec's activation, without calling the Harness. */
-    public Optional<String> cachedActivation(SymptomSpec spec) {
-        if (spec == null || spec.activation() == null || spec.activation().isBlank() || spec.source() == null
-                || spec.activation().length() > MAX_RULE_CHARS) {
-            return Optional.empty();
+    /**
+     * The summaries with the description already written for their activation, read in one lookup and without
+     * calling the Harness. A spec without a source uses its definition's.
+     */
+    public List<SymptomSummary> withActivationTexts(List<SymptomSummary> summaries) {
+        List<String> hashes = summaries.stream()
+                .map(s -> activationHash(s.current() == null ? null : s.current().spec(),
+                        s.definition().sourceKey()))
+                .toList();
+        Map<String, RuleDescription> found = store.findAll(
+                hashes.stream().filter(Objects::nonNull).collect(Collectors.toSet()), DEFAULT_LOCALE, AUDIENCE);
+        List<SymptomSummary> out = new ArrayList<>(summaries.size());
+        for (int i = 0; i < summaries.size(); i++) {
+            RuleDescription d = hashes.get(i) == null ? null : found.get(hashes.get(i));
+            out.add(summaries.get(i).withActivationText(d == null ? null : d.html()));
         }
-        String hash = hash(ACTIVATION, canonical(ACTIVATION, spec.activation()), spec.source());
-        return store.find(hash, DEFAULT_LOCALE, AUDIENCE).map(RuleDescription::html);
+        return out;
+    }
+
+    /** The cache key of a spec's activation, or null when it has none to describe. */
+    static String activationHash(SymptomSpec spec, String fallbackSource) {
+        if (spec == null || spec.activation() == null || spec.activation().isBlank()
+                || spec.activation().length() > MAX_RULE_CHARS) {
+            return null;
+        }
+        String source = spec.source() == null || spec.source().isBlank() ? fallbackSource : spec.source();
+        return source == null ? null : hash(ACTIVATION, canonical(ACTIVATION, spec.activation()), source);
     }
 
     /** Field path to label: the source's fields, plus the level or case variables for those sections. */

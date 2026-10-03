@@ -135,10 +135,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     @Operation(operationId = "listSymptomDefinitions", summary = "List the organization's symptoms")
     public Uni<Response> list(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(catalog.list(tenant).stream()
-                .map(s -> s.withActivationText(descriptions
-                        .cachedActivation(s.current() == null ? null : s.current().spec()).orElse(null)))
-                .toList()).build());
+        return memberWork(() -> Response.ok(descriptions.withActivationTexts(catalog.list(tenant))).build());
     }
 
     @GET

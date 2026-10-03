@@ -30,7 +30,7 @@ const FIRST_LEVEL = new RegExp(
 const RANGE = new RegExp(
   String.raw`^medida\s*>=\s*${NUMBER}\s*&&\s*medida\s*<\s*${NUMBER}$`
 );
-const BELOW = new RegExp(String.raw`^medida\s*<=?\s*${NUMBER}$`);
+const BELOW = new RegExp(String.raw`^medida\s*(<=?)\s*${NUMBER}$`);
 const FROM = new RegExp(
   String.raw`^medida\s*(>=|>)\s*${NUMBER}(?:\s*&&\s*sostenido_s\s*>=\s*${NUMBER})?$`
 );
@@ -75,7 +75,8 @@ export function shortThreshold(
   m = RANGE.exec(when);
   if (m) return `≥ ${formatAmount(Number(m[1]), unit)}`;
   m = BELOW.exec(when);
-  if (m) return `< ${formatAmount(Number(m[1]), unit)}`;
+  if (m)
+    return `${m[1] === "<=" ? "≤" : "<"} ${formatAmount(Number(m[2]), unit)}`;
   m = FROM.exec(when);
   if (m) {
     const op = m[1] === ">" ? ">" : "≥";
@@ -88,6 +89,14 @@ export function shortThreshold(
 /** The four levels in ICU order, missing ones as undefined. */
 export function levelsOf(spec: SymptomSpec | null): (Level | undefined)[] {
   return [1, 2, 3, 4].map((icu) => spec?.levels?.find((l) => l.icu === icu));
+}
+
+/** Who acts on a symptom's cases: an operator at some level, only automatic notices, or nobody yet. */
+export type WhoActs = "operator" | "notices" | "none";
+
+export function whoActsKind(spec: SymptomSpec | null): WhoActs {
+  if (operatorLevels(spec).some(Boolean)) return "operator";
+  return channelGroups(spec).length ? "notices" : "none";
 }
 
 /** Per level: whether an operator must handle the case there. */

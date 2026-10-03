@@ -2678,6 +2678,7 @@
         "sourceKindTripEvent": "Trip event",
         "sourceKindWebhook": "Integration",
         "dragCondition": "Drag to reorder, or use ↑ ↓. The order does not change the version.",
+        "writtenByHarness": "Written by Harness",
         "levelApplies": "Applies",
         "operator": "Operator",
         "levelRule": "Level threshold",

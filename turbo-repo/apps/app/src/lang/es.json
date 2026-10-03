@@ -2678,6 +2678,7 @@
         "sourceKindTripEvent": "Evento de viaje",
         "sourceKindWebhook": "Integración",
         "dragCondition": "Arrastra para cambiar el orden, o usa ↑ ↓. El orden no cambia la versión.",
+        "writtenByHarness": "Escrito por Harness",
         "levelApplies": "Aplica",
         "operator": "Operador",
         "levelRule": "Umbral del nivel",

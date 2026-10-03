@@ -1,6 +1,5 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
-import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Finding;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
 import java.math.BigDecimal;
@@ -9,7 +8,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -129,28 +127,6 @@ final class ConditionChecks {
         }
         List<Finding> out = new ArrayList<>();
         fields.forEach((field, b) -> report(label.apply(field), b, out));
-        return out;
-    }
-
-    /** Comparisons of a list field with a value the field does not take. */
-    static List<Finding> unknownValues(String rule, Function<String, SourceField> fields) {
-        Optional<List<String>> terms = conjunction(rule);
-        if (terms.isEmpty()) {
-            return List.of();
-        }
-        List<Finding> out = new ArrayList<>();
-        for (String term : terms.get()) {
-            Matcher m = COMPARISON.matcher(term);
-            SourceField field = m.matches() && m.group(3).startsWith("\"") ? fields.apply(m.group(1)) : null;
-            if (field != null && field.values() != null && !field.values().isEmpty()) {
-                String value = m.group(3).substring(1, m.group(3).length() - 1);
-                List<String> known = field.values().stream().map(SourceField.FieldValue::value).toList();
-                if (!known.contains(value)) {
-                    out.add(warning("«" + field.label() + "» no toma el valor «" + value + "»; sus valores son "
-                            + String.join(", ", known) + "."));
-                }
-            }
-        }
         return out;
     }
 

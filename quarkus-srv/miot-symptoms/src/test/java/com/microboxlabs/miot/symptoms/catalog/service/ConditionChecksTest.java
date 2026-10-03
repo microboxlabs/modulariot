@@ -97,6 +97,29 @@ class ConditionChecksTest {
     }
 
     @Test
+    void unknownValuesAreFoundAnywhereInTheRule() {
+        for (String rule : new String[] {
+                "signal.vehicle.weight_category == \"HEAVVY\" || signal.trip.active",
+                "signal.trip.active && !(signal.vehicle.weight_category == \"HEAVVY\")",
+                "\"HEAVVY\" == signal.vehicle.weight_category && signal.trip.active",
+                "signal.trip.active && signal.vehicle.weight_category in [\"LIGHT\", \"HEAVVY\"]",
+                "signal.trip.active && (signal.vehicle.weight_category == \"HEAVVY\""
+                        + " || signal.vehicle.weight_category == \"HEAVVY\")" }) {
+            List<String> warnings = SpecValidator.validate(Specs.with(Specs.speeding(), rule), Specs.gpsSignal())
+                    .findings().stream()
+                    .map(Finding::message)
+                    .filter(m -> m.contains("no toma el valor"))
+                    .toList();
+            assertEquals(List.of("«Categoría de peso» no toma el valor «HEAVVY»; sus valores son HEAVY, LIGHT."),
+                    warnings, rule);
+        }
+        SymptomSpec escaped = Specs.with(Specs.speeding(),
+                Specs.ACTIVATION + " && signal.vehicle.weight_category == \"HEA\\\"VY\"");
+        assertTrue(SpecValidator.validate(escaped, Specs.gpsSignal()).findings().stream()
+                .anyMatch(f -> f.message().contains("«HEA\"VY»")), "the value is read unescaped");
+    }
+
+    @Test
     void thePlatformGpsSourceListsTheWeightCategories() {
         var weight = DataSourceService.read().stream()
                 .filter(s -> s.key().equals("gps_signal"))

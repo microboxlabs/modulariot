@@ -1,3 +1,5 @@
+import { squashSpaces } from "../condition-form";
+
 /** Amber mark on a field whose value differs from the published version. */
 export const CHANGED =
   "!border-amber-400 !bg-amber-50 dark:!border-amber-500 dark:!bg-amber-500/15";
@@ -12,6 +14,12 @@ const join = (path: string, key: string | number) =>
 /** Adds to `out` every path under which `a` and `b` differ. */
 function walk(a: unknown, b: unknown, path: string, out: Set<string>) {
   if ((a ?? null) === (b ?? null)) return;
+  if (
+    typeof a === "string" &&
+    typeof b === "string" &&
+    squashSpaces(a) === squashSpaces(b)
+  )
+    return;
   if (Array.isArray(a) && Array.isArray(b)) {
     if (a.length !== b.length) out.add(path);
     for (let i = 0; i < Math.max(a.length, b.length); i++) {
@@ -31,7 +39,8 @@ function walk(a: unknown, b: unknown, path: string, out: Set<string>) {
 /**
  * Dotted paths whose value differs between `draft` and `published`, with array
  * indexes as path segments: `levels.3.response.slaMinutes`. A missing and a
- * null value count as equal.
+ * null value count as equal, and so do two texts that differ only in whitespace
+ * outside quotes, as two writings of one rule do.
  */
 export function changedPaths(draft: unknown, published: unknown): Set<string> {
   const out = new Set<string>();

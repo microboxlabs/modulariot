@@ -41,3 +41,15 @@ describe("changedPaths", () => {
     expect(isChanged(paths, "levels.0")).toBe(false);
   });
 });
+
+describe("changedPaths on rule text", () => {
+  it("does not mark a rule that only gained line breaks, but marks a change inside quotes", () => {
+    const published = { activation: 'a && b == "x  y"' };
+    expect(
+      changedPaths({ activation: 'a\n&& b == "x  y"' }, published).size
+    ).toBe(0);
+    expect([
+      ...changedPaths({ activation: 'a\n&& b == "x y"' }, published),
+    ]).toEqual(["activation"]);
+  });
+});

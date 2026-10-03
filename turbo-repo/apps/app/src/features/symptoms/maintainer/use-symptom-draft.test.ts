@@ -17,11 +17,12 @@ vi.mock("swr", () => swr);
 
 import { useSymptomDraft } from "./use-symptom-draft";
 
-const DRAFT = { activation: "a && b" } as SymptomSpec;
+const DRAFT = { activation: "a\n&& b" } as SymptomSpec;
 const DETAIL = { draft: { spec: DRAFT }, current: null } as SymptomDetail;
 
 describe("useSymptomDraft planIsCurrent", () => {
   beforeEach(() => {
+    api.saveDraft.mockReset();
     vi.useFakeTimers({ shouldAdvanceTime: true });
     api.useSymptomDefinition.mockReturnValue({
       data: DETAIL,
@@ -53,6 +54,20 @@ describe("useSymptomDraft planIsCurrent", () => {
 
     await act(async () => reloadPlan());
     expect(result.current.planIsCurrent).toBe(true);
+  });
+
+  it("shows a one-line activation one condition per line without saving it", async () => {
+    api.useSymptomDefinition.mockReturnValue({
+      data: { draft: null, current: { spec: { activation: "a && b" } } },
+      error: undefined,
+      mutate: vi.fn(),
+    });
+    const { result } = renderHook(() => useSymptomDraft("s1", true));
+    await waitFor(() =>
+      expect(result.current.spec?.activation).toBe("a\n&& b")
+    );
+    await act(() => vi.advanceTimersByTimeAsync(700));
+    expect(api.saveDraft).not.toHaveBeenCalled();
   });
 
   it("stays false when the save fails", async () => {

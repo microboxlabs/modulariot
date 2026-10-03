@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate as globalMutate } from "swr";
+import { formatRule } from "./condition-form";
 import {
   discardDraft,
   previewSpec,
@@ -16,6 +17,13 @@ import {
 } from "./maintainer-api";
 
 const DEBOUNCE_MS = 600;
+
+/** The spec as the sheet shows it: the activation one condition per line. Nothing is saved until an edit. */
+function shown(spec: SymptomSpec | null): SymptomSpec | null {
+  if (!spec?.activation) return spec;
+  const activation = formatRule(spec.activation);
+  return activation === spec.activation ? spec : { ...spec, activation };
+}
 
 /**
  * The spec being edited on the symptom page. Starts from the draft (else the
@@ -53,8 +61,9 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   useEffect(() => {
     if (base && loadedFor.current !== id) {
       loadedFor.current = id;
-      setSpec(base);
-      setPlanFor(base);
+      const loaded = shown(base);
+      setSpec(loaded);
+      setPlanFor(loaded);
     }
   }, [base, id]);
 
@@ -121,7 +130,7 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   const resync = useCallback(async () => {
     if (timer.current) clearTimeout(timer.current);
     const fresh = await mutate();
-    const next = fresh?.draft?.spec ?? fresh?.current?.spec ?? null;
+    const next = shown(fresh?.draft?.spec ?? fresh?.current?.spec ?? null);
     loadedFor.current = id;
     setSpec(next);
     setPlanFor(next);

@@ -70,15 +70,23 @@ const cel = StreamLanguage.define({
   },
 });
 
+// The root of a field path in bold, the rest of the path in blue, as in the prototype.
 const highlight = HighlightStyle.define([
-  { tag: tags.keyword, color: "#7c3aed" },
-  { tag: tags.operator, color: "#db2777", fontWeight: "600" },
-  { tag: tags.number, color: "#2563eb" },
-  { tag: tags.string, color: "#059669" },
-  { tag: tags.atom, color: "#d97706" },
-  { tag: [tags.propertyName, tags.variableName], color: "inherit" },
-  { tag: tags.standard(tags.variableName), color: "#0891b2" },
-  { tag: tags.comment, color: "#9ca3af", fontStyle: "italic" },
+  { tag: tags.keyword, class: "text-violet-600 dark:text-violet-400" },
+  { tag: tags.operator, class: "text-rose-600 dark:text-rose-400" },
+  { tag: tags.number, class: "text-blue-600 dark:text-blue-400" },
+  { tag: tags.string, class: "text-green-700 dark:text-green-400" },
+  { tag: tags.atom, class: "text-violet-600 dark:text-violet-400" },
+  {
+    tag: tags.variableName,
+    class: "font-semibold text-gray-900 dark:text-white",
+  },
+  { tag: tags.propertyName, class: "text-sky-700 dark:text-sky-400" },
+  {
+    tag: tags.standard(tags.variableName),
+    class: "text-cyan-600 dark:text-cyan-400",
+  },
+  { tag: tags.comment, class: "italic text-gray-400" },
 ]);
 
 function completions(fields: () => CelField[]) {
@@ -198,12 +206,16 @@ export default function CelEditor({
         if (u.docChanged) latest.current.onChange(u.state.doc.toString());
       }),
       EditorView.theme({
-        "&": { fontSize: "12.5px", backgroundColor: "transparent" },
+        "&": {
+          fontSize: singleLine ? "12.5px" : "14px",
+          backgroundColor: "transparent",
+        },
         "&.cm-focused": { outline: "none" },
         ".cm-content": {
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-          padding: "6px 0",
-          minHeight: singleLine ? "auto" : "4.5em",
+          padding: singleLine ? "6px 0" : "8px 0",
+          lineHeight: singleLine ? "normal" : "20px",
+          minHeight: singleLine ? "auto" : "84px",
         },
         ".cm-line": { padding: "0 10px" },
       }),
@@ -252,7 +264,7 @@ export default function CelEditor({
   return (
     <div
       ref={host}
-      className="rounded-md border border-gray-300 bg-white text-gray-900 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+      className={`rounded-md border border-gray-300 text-gray-900 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 ${singleLine ? "bg-white" : "bg-gray-50"}`}
     />
   );
 }

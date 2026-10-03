@@ -322,6 +322,59 @@ export function moveRow<T>(rows: T[], from: number, to: number): T[] {
   return next;
 }
 
+/** The rule with runs of whitespace outside quoted strings made one space, for comparing two writings of a rule. */
+export function squashSpaces(rule: string): string {
+  let out = "";
+  let quote: string | null = null;
+  let space = false;
+  for (let i = 0; i < rule.length; i++) {
+    const c = rule.charAt(i);
+    if (quote) {
+      out += c;
+      if (c === "\\" && i + 1 < rule.length) out += rule.charAt(++i);
+      else if (c === quote) quote = null;
+    } else if (/\s/.test(c)) {
+      space = true;
+    } else {
+      if (space && out) out += " ";
+      space = false;
+      if (c === '"' || c === "'") quote = c;
+      out += c;
+    }
+  }
+  return out;
+}
+
+/**
+ * The rule with each top-level `&&` starting a new line, as the form writes it.
+ * `&&` inside quotes or brackets stays; a rule with a `//` comment is returned as is,
+ * since a line break would end the comment.
+ */
+export function formatRule(rule: string): string {
+  const parts: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let start = 0;
+  for (let i = 0; i < rule.length; i++) {
+    const c = rule.charAt(i);
+    if (quote) {
+      if (c === "\\") i++;
+      else if (c === quote) quote = null;
+    } else if (c === '"' || c === "'") quote = c;
+    else if ("([{".includes(c)) depth++;
+    else if (")]}".includes(c)) depth--;
+    else if (rule.startsWith("//", i)) return rule;
+    else if (depth === 0 && rule.startsWith("&&", i)) {
+      parts.push(rule.slice(start, i).trim());
+      start = i + 2;
+      i++;
+    }
+  }
+  parts.push(rule.slice(start).trim());
+  if (parts.length < 2 || parts.some((part) => !part)) return rule;
+  return parts.join("\n&& ");
+}
+
 /** One condition as CEL. */
 export function compileCondition(c: Condition): string {
   if (c.op === "is_true") return c.path;
@@ -353,5 +406,5 @@ export function compileConditions(form: ConditionForm): string {
     const clause = compileGroup(g);
     if (clause) parts.push(clause);
   }
-  return parts.length === 0 ? "true" : parts.join(" && ");
+  return parts.length === 0 ? "true" : parts.join("\n&& ");
 }

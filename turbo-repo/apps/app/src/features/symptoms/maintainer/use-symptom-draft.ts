@@ -46,12 +46,20 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   // Checks run one after another, and only the latest one's results are kept.
   const queue = useRef<Promise<void>>(Promise.resolve());
   const latest = useRef(0);
+  // The draft as this page last loaded or saved it, to notice a draft written elsewhere (Harness, another tab).
+  const known = useRef<string | null>(null);
+  // Edits on screen that are not saved yet.
+  const dirty = useRef(false);
+  const [external, setExternal] = useState(false);
 
   const base = detail?.draft?.spec ?? detail?.current?.spec ?? null;
 
   // A new symptom starts clean: nothing from the previous one's checks.
   useEffect(() => {
     loadedFor.current = null;
+    known.current = null;
+    dirty.current = false;
+    setExternal(false);
     setSpec(null);
     setReport(null);
     setPreview(null);
@@ -61,11 +69,31 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   useEffect(() => {
     if (base && loadedFor.current !== id) {
       loadedFor.current = id;
+      known.current = JSON.stringify(detail?.draft?.spec ?? null);
+      dirty.current = false;
       const loaded = shown(base);
       setSpec(loaded);
       setPlanFor(loaded);
     }
-  }, [base, id]);
+  }, [base, id, detail]);
+
+  // A draft written elsewhere: taken at once when nothing here is unsaved, else offered.
+  const serverDraft = detail?.draft?.spec ?? null;
+  useEffect(() => {
+    if (loadedFor.current !== id || !serverDraft) return;
+    const text = JSON.stringify(serverDraft);
+    if (text === known.current) return;
+    if (dirty.current) {
+      setExternal(true);
+      return;
+    }
+    known.current = text;
+    const loaded = shown(serverDraft);
+    setSpec(loaded);
+    setPlanFor(loaded);
+    setReport(null);
+    void globalMutate(publishPlanKey(id));
+  }, [serverDraft, id]);
 
   const check = useCallback(
     (next: SymptomSpec, save: boolean) => {
@@ -79,7 +107,9 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
         try {
           if (save) {
             setSaving(true);
-            await saveDraft(id, next);
+            const saved = await saveDraft(id, next);
+            known.current = JSON.stringify(saved?.spec ?? next);
+            if (ticket === latest.current) dirty.current = false;
             setSaveError(null);
             void mutate();
             void refreshSymptoms();
@@ -114,6 +144,7 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   const update = useCallback(
     (next: SymptomSpec) => {
       setSpec(next);
+      if (canWrite) dirty.current = true;
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => void check(next, canWrite), DEBOUNCE_MS);
     },
@@ -132,6 +163,9 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     if (timer.current) clearTimeout(timer.current);
     const fresh = await mutate();
     const next = shown(fresh?.draft?.spec ?? fresh?.current?.spec ?? null);
+    known.current = JSON.stringify(fresh?.draft?.spec ?? null);
+    dirty.current = false;
+    setExternal(false);
     loadedFor.current = id;
     setSpec(next);
     setPlanFor(next);
@@ -157,6 +191,8 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     planIsCurrent: spec !== null && planFor === spec,
     saving,
     saveError,
+    /** The draft changed elsewhere while this page has unsaved edits; resync takes the other one. */
+    external,
     discard,
     resync,
   };

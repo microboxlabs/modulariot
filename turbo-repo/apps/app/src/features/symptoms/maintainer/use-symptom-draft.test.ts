@@ -81,3 +81,80 @@ describe("useSymptomDraft planIsCurrent", () => {
     expect(result.current.planIsCurrent).toBe(false);
   });
 });
+
+describe("useSymptomDraft and a draft written elsewhere", () => {
+  let detail: SymptomDetail;
+  beforeEach(() => {
+    detail = DETAIL;
+    api.saveDraft.mockReset();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    api.useSymptomDefinition.mockImplementation(() => ({
+      data: detail,
+      error: undefined,
+      mutate: vi.fn(async () => detail),
+    }));
+    api.saveDraft.mockImplementation(
+      async (_id: string, spec: SymptomSpec) => ({ spec })
+    );
+    api.validateSpec.mockResolvedValue({ findings: [] });
+    api.previewSpec.mockResolvedValue({ samples: [] });
+    api.refreshSymptoms.mockResolvedValue(undefined);
+    swr.mutate.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  const harnessDraft = { activation: "c\n&& d" } as SymptomSpec;
+
+  it("takes the new draft at once when nothing here is unsaved", async () => {
+    const { result, rerender } = renderHook(() => useSymptomDraft("s1", true));
+    await waitFor(() => expect(result.current.spec).toBe(DRAFT));
+    detail = { ...DETAIL, draft: { spec: harnessDraft } } as SymptomDetail;
+    rerender();
+    await waitFor(() => expect(result.current.spec).toEqual(harnessDraft));
+    expect(result.current.external).toBe(false);
+  });
+
+  it("does not take its own saved draft for one written elsewhere", async () => {
+    const { result, rerender } = renderHook(() => useSymptomDraft("s1", true));
+    await waitFor(() => expect(result.current.spec).toBe(DRAFT));
+    const mine = { activation: "mine" } as SymptomSpec;
+    act(() => result.current.update(mine));
+    await act(() => vi.advanceTimersByTimeAsync(700));
+    await waitFor(() => expect(api.saveDraft).toHaveBeenCalled());
+    detail = { ...DETAIL, draft: { spec: mine } } as SymptomDetail;
+    rerender();
+    expect(result.current.external).toBe(false);
+    expect(result.current.spec).toBe(mine);
+  });
+
+  it("offers the new draft, keeping the edits on screen, when they are unsaved", async () => {
+    const { result, rerender } = renderHook(() => useSymptomDraft("s1", true));
+    await waitFor(() => expect(result.current.spec).toBe(DRAFT));
+    const typing = { activation: "typing" } as SymptomSpec;
+    act(() => result.current.update(typing));
+    detail = { ...DETAIL, draft: { spec: harnessDraft } } as SymptomDetail;
+    rerender();
+    await waitFor(() => expect(result.current.external).toBe(true));
+    expect(result.current.spec).toBe(typing);
+
+    await act(() => result.current.resync());
+    expect(result.current.external).toBe(false);
+    expect(result.current.spec).toEqual(harnessDraft);
+  });
+
+  it("forgets the conflict when another symptom opens", async () => {
+    const { result, rerender } = renderHook(
+      ({ id }) => useSymptomDraft(id, true),
+      { initialProps: { id: "s1" } }
+    );
+    await waitFor(() => expect(result.current.spec).toBe(DRAFT));
+    act(() => result.current.update({ activation: "typing" } as SymptomSpec));
+    detail = { ...DETAIL, draft: { spec: harnessDraft } } as SymptomDetail;
+    rerender({ id: "s1" });
+    await waitFor(() => expect(result.current.external).toBe(true));
+
+    rerender({ id: "s2" });
+    await waitFor(() => expect(result.current.external).toBe(false));
+  });
+});

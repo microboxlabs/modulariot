@@ -17,7 +17,8 @@ import java.util.UUID;
  * One published symptom version with its rules compiled once, ready to run on
  * every signal of its source.
  *
- * @param measure null for a symptom whose levels do not read a measure
+ * @param sourceKey the data source whose signals it reads
+ * @param measure   null for a symptom whose levels do not read a measure
  * @param levels  the levels that apply, by ICU, lowest first
  * @param state   TEST runs in shadow, ACTIVE runs live; OFF versions are not compiled
  */
@@ -25,6 +26,7 @@ public record CompiledSymptom(
         UUID definitionId,
         String version,
         SymptomState state,
+        String sourceKey,
         PreparedRule activation,
         PreparedRule measure,
         Map<Integer, PreparedRule> levels,
@@ -49,7 +51,8 @@ public record CompiledSymptom(
         }
         PreparedRule measure = spec.measure() == null || spec.measure().expression() == null ? null
                 : RuleLanguage.prepare(schema, spec.measure().expression());
-        return new CompiledSymptom(definitionId, version, state, RuleLanguage.prepare(schema, spec.activation()),
+        return new CompiledSymptom(definitionId, version, state, source.key(),
+                RuleLanguage.prepare(schema, spec.activation()),
                 measure, Collections.unmodifiableMap(levels),
                 RuleLanguage.prepare(RuleSchema.CASE, spec.lifecycle().open()),
                 RuleLanguage.prepare(RuleSchema.CASE, spec.lifecycle().close()));

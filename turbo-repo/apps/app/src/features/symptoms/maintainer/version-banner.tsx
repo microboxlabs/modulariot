@@ -73,8 +73,8 @@ export default function VersionBanner({
   onBack: () => void;
 }>) {
   return (
-    <div
-      role="status"
+    <section
+      aria-label={tr("viewingVersion", d, { version })}
       className="flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-blue-900 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-100"
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -98,6 +98,6 @@ export default function VersionBanner({
         </span>
       </div>
       <Changes id={id} version={version} current={current} d={d} />
-    </div>
+    </section>
   );
 }

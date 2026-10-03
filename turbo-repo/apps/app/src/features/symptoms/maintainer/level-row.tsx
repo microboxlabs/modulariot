@@ -313,9 +313,7 @@ function EvidenceSelect({
         className={pillClass}
         disabled={readOnly}
         value={value}
-        onChange={(e) =>
-          onChange(e.target.value ? [e.target.value, ...evidence.slice(1)] : [])
-        }
+        onChange={(e) => onChange(e.target.value ? [e.target.value] : [])}
       >
         <option value="">{tr("evidenceNothing", d)}</option>
         {!known && <option value={value}>{value}</option>}

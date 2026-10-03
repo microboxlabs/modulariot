@@ -8,6 +8,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * What changed between two specs, in plain Spanish, and the version bump
@@ -35,7 +36,7 @@ public final class SpecDiff {
         if (!Objects.equals(before.source(), after.source())) {
             out.add(new Change("source", VersionBump.MAJOR, "Cambió la fuente de datos"));
         }
-        if (!sameRule(before.activation(), after.activation())) {
+        if (!sameActivation(before.activation(), after.activation())) {
             out.add(new Change("activation", VersionBump.MAJOR, "Cambió cuándo se activa"));
         }
         measureChanges(before.measure(), after.measure(), out);
@@ -121,6 +122,17 @@ public final class SpecDiff {
 
     private static boolean applies(Level level) {
         return level != null && level.applies();
+    }
+
+    /** Conditions joined by {@code &&} in another order open the same cases, so they are the same rule. */
+    private static boolean sameActivation(String before, String after) {
+        if (sameRule(before, after)) {
+            return true;
+        }
+        Optional<List<String>> a = ConditionChecks.conjunction(before);
+        Optional<List<String>> b = ConditionChecks.conjunction(after);
+        return a.isPresent() && b.isPresent() && a.get().stream().sorted().toList()
+                .equals(b.get().stream().sorted().toList());
     }
 
     private static boolean sameRule(String before, String after) {

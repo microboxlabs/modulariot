@@ -359,6 +359,24 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
+    void reorderingTheActivationsConditionsIsNoChange() {
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.ACTIVE);
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(),
+                "signal.vehicle.weight_category == \"HEAVY\" && signal.trip.active"));
+        assertTrue(service.plan(TENANT, id).changes().isEmpty());
+        assertThrows(IllegalStateException.class, () -> service.publish(TENANT, OWNER, id, "Orden", null, null));
+
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(),
+                "(signal.vehicle.weight_category == \"HEAVY\" && (signal.trip.active))"));
+        assertTrue(service.plan(TENANT, id).changes().isEmpty(), "parentheses are no change");
+
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(),
+                "signal.vehicle.weight_category == \"HEAVY\" || signal.trip.active"));
+        assertEquals(VersionBump.MAJOR, service.plan(TENANT, id).bump(), "|| instead of &&: a real change");
+    }
+
+    @Test
     void theListCarriesTheSpecInForceNotTheDraft() {
         UUID id = speeding();
         assertNull(service.list(TENANT).get(0).current(), "nothing published yet");

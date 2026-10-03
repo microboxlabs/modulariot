@@ -60,12 +60,15 @@ public final class SpecValidator {
         /** Fields the rules use that the engine does not evaluate yet: only "En prueba" is allowed. */
         @JsonProperty
         public boolean needsTestOnly() {
-            return findings.stream().anyMatch(f -> "engine".equals(f.section()));
+            return findings.stream().anyMatch(f -> ENGINE.equals(f.section()));
         }
     }
 
     /** The definition's family column. */
     static final int MAX_FAMILY = 96;
+
+    /** Section of the findings for fields the engine does not evaluate yet. */
+    static final String ENGINE = "engine";
 
     private SpecValidator() {
     }
@@ -94,7 +97,7 @@ public final class SpecValidator {
             out.add(new Finding("family", Severity.ERROR,
                     "La familia no puede tener más de " + MAX_FAMILY + " caracteres.", -1));
         }
-        if (spec.state() == SymptomState.ACTIVE && out.stream().anyMatch(f -> "engine".equals(f.section()))) {
+        if (spec.state() == SymptomState.ACTIVE && out.stream().anyMatch(f -> ENGINE.equals(f.section()))) {
             out.add(new Finding("state", Severity.ERROR,
                     "El motor aún no evalúa todas las variables de esta versión: déjala En prueba.", -1));
         }
@@ -268,7 +271,7 @@ public final class SpecValidator {
         for (String rule : rules) {
             for (String path : RuleText.fieldPaths(rule)) {
                 if (unsupported.contains(path) && reported.add(path)) {
-                    out.add(new Finding("engine", Severity.WARNING,
+                    out.add(new Finding(ENGINE, Severity.WARNING,
                             "El motor aún no evalúa «" + path + "»: solo se puede publicar En prueba.",
                             rule.indexOf(path)));
                 }

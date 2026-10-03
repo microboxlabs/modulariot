@@ -31,6 +31,7 @@ public final class SpecValidator {
     /** Distance from each threshold at which overlaps are tried, on both sides. */
     private static final double NEAR = 0.01;
     private static final String LEVELS = "levels";
+    private static final String ACTIVATION = "activation";
     private static final String MEASURE = "medida";
     private static final String HELD = "sostenido_s";
 
@@ -83,7 +84,7 @@ public final class SpecValidator {
             return new Report(out);
         }
         RuleSchema schema = RuleSchema.of(source);
-        rule(out, "activation", schema, spec.activation(), Expect.CONDITION);
+        rule(out, ACTIVATION, schema, spec.activation(), Expect.CONDITION);
         duplicates(out, spec.activation());
         out.addAll(ConditionChecks.check(spec.activation(), path -> label(source, path)));
         unknownValues(out, source, spec.activation());
@@ -282,7 +283,7 @@ public final class SpecValidator {
             }
             List<String> known = field.values().stream().map(SourceField.FieldValue::value).toList();
             if (!known.contains(c.value()) && reported.add(c.path() + "=" + c.value())) {
-                out.add(new Finding("activation", Severity.WARNING, "«" + field.label() + "» no toma el valor «"
+                out.add(new Finding(ACTIVATION, Severity.WARNING, "«" + field.label() + "» no toma el valor «"
                         + c.value() + "»; sus valores son " + String.join(", ", known) + ".", -1));
             }
         }
@@ -317,7 +318,7 @@ public final class SpecValidator {
         Set<String> seen = new HashSet<>();
         for (String term : topLevelTerms(rule)) {
             if (!seen.add(term)) {
-                out.add(new Finding("activation", Severity.ERROR, "La condición «" + term + "» está repetida.",
+                out.add(new Finding(ACTIVATION, Severity.ERROR, "La condición «" + term + "» está repetida.",
                         rule.indexOf(term, rule.indexOf(term) + 1)));
             }
         }

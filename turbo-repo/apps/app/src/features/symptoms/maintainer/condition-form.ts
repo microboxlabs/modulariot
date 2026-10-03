@@ -73,11 +73,17 @@ export function exactNumber(raw: string): number | null {
   const text = raw.trim();
   if (!NUMBER.test(text)) return null;
   const n = Number(text);
-  const trimmed = text.includes(".")
-    ? text.replace(/0+$/, "").replace(/\.$/, "")
-    : text;
+  const trimmed = text.includes(".") ? withoutTrailingZeros(text) : text;
   const expected = trimmed === "-0" ? "0" : trimmed;
   return Number.isFinite(n) && decimalText(n) === expected ? n : null;
+}
+
+/** "90.50" → "90.5", "90.0" → "90"; for text that has a point. */
+function withoutTrailingZeros(text: string): string {
+  let end = text.length;
+  while (text[end - 1] === "0") end--;
+  if (text[end - 1] === ".") end--;
+  return text.slice(0, end);
 }
 
 /** The operators a field of this type offers. */
@@ -99,34 +105,55 @@ function defaultValue(field: SourceField): number | string | null {
   return field.values?.[0]?.value ?? "";
 }
 
+/** Where a scan of a rule stands: inside a string, and how many parentheses deep. */
+interface Scan {
+  quoted: boolean;
+  depth: number;
+}
+
+/** Moves the scan past the character at i; returns how many characters that took. */
+function advance(rule: string, i: number, scan: Scan): number {
+  const c = rule[i];
+  if (scan.quoted) {
+    if (c === "\\") return 2;
+    if (c === '"') scan.quoted = false;
+    return 1;
+  }
+  if (c === '"') scan.quoted = true;
+  else if (c === "(") scan.depth++;
+  else if (c === ")") scan.depth--;
+  return 1;
+}
+
+/** The && or || at i when it is outside parentheses and strings. */
+function topLevelJoin(rule: string, i: number, scan: Scan): "&&" | "||" | null {
+  if (scan.quoted || scan.depth !== 0) return null;
+  const pair = rule.slice(i, i + 2);
+  return pair === "&&" || pair === "||" ? pair : null;
+}
+
 /** Splits a rule on one operator at the top level, outside parentheses and strings; null when both appear. */
 function split(
   rule: string
 ): { op: "&&" | "||" | null; parts: string[] } | null {
   const parts: string[] = [];
+  const scan: Scan = { quoted: false, depth: 0 };
   let op: "&&" | "||" | null = null;
-  let depth = 0;
-  let quoted = false;
   let start = 0;
   let i = 0;
   while (i < rule.length) {
-    const c = rule[i];
-    const pair = rule.slice(i, i + 2);
-    let step = 1;
-    if (quoted && c === "\\") step = 2;
-    else if (c === '"') quoted = !quoted;
-    else if (!quoted && c === "(") depth++;
-    else if (!quoted && c === ")") depth--;
-    else if (!quoted && depth === 0 && (pair === "&&" || pair === "||")) {
-      if (op && op !== pair) return null;
-      op = pair;
+    const join = topLevelJoin(rule, i, scan);
+    if (join) {
+      if (op && op !== join) return null;
+      op = join;
       parts.push(rule.slice(start, i).trim());
       start = i + 2;
-      step = 2;
+      i += 2;
+    } else {
+      i += advance(rule, i, scan);
     }
-    i += step;
   }
-  if (depth !== 0 || quoted) return null;
+  if (scan.depth !== 0 || scan.quoted) return null;
   parts.push(rule.slice(start).trim());
   return { op, parts };
 }
@@ -134,16 +161,12 @@ function split(
 /** The text inside one pair of parentheses around the whole term, or null. */
 function unwrap(term: string): string | null {
   if (!term.startsWith("(") || !term.endsWith(")")) return null;
-  let depth = 0;
-  let quoted = false;
+  const scan: Scan = { quoted: false, depth: 0 };
   let i = 0;
   while (i < term.length - 1) {
-    const c = term[i];
-    if (quoted && c === "\\") i++;
-    else if (c === '"') quoted = !quoted;
-    else if (!quoted && c === "(") depth++;
-    else if (!quoted && c === ")" && --depth === 0) return null;
-    i++;
+    const closes = !scan.quoted && term[i] === ")";
+    i += advance(term, i, scan);
+    if (closes && scan.depth === 0) return null;
   }
   return term.slice(1, -1).trim();
 }
@@ -226,7 +249,7 @@ function parseGroup(
   const s = split(inner);
   if (!s) return null;
   const rows = s.parts.map((p) => parseCondition(p, fields));
-  if (rows.some((r) => r === null)) return null;
+  if (rows.includes(null)) return null;
   let match: Match = s.op === "||" ? "any" : "all";
   if (negated) {
     // "Ninguna": none of the conditions may hold, written !(a || b).

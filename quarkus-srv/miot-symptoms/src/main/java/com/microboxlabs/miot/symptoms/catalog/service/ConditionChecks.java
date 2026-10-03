@@ -96,10 +96,12 @@ final class ConditionChecks {
         }
         int depth = 0;
         boolean quoted = false;
-        for (int i = 0; i < term.length() - 1; i++) {
+        int i = 0;
+        while (i < term.length() - 1) {
             char c = term.charAt(i);
+            int step = 1;
             if (quoted && c == '\\') {
-                i++;
+                step = 2;
             } else if (c == '"') {
                 quoted = !quoted;
             } else if (!quoted && c == '(') {
@@ -107,6 +109,7 @@ final class ConditionChecks {
             } else if (!quoted && c == ')' && --depth == 0) {
                 return false;
             }
+            i += step;
         }
         return true;
     }

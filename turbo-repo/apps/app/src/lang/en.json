@@ -2685,6 +2685,8 @@
         "teamCapacityHint": "A whole number. Leave empty if not set yet.",
         "teamOwnersOnly": "Only an owner of the organization can change the team.",
         "teamSaveFailed": "The team could not be saved.",
+        "loading": "Loading…",
+        "teamLoadFailed": "The saved team could not be read.",
         "cardChanges": "Changes",
         "cardChangesHint": "Rule versions",
         "draftsUnpublished": "unpublished drafts",

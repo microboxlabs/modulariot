@@ -13,7 +13,7 @@ import {
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { ControlTowerError } from "../control-tower/control-tower-api";
-import { saveTowerTeam, type TowerTeam } from "./maintainer-api";
+import { saveTowerTeam, useTowerTeam, type TowerTeam } from "./maintainer-api";
 import { MUTED } from "./ui/card";
 
 /** Bounds the API accepts. */
@@ -33,8 +33,39 @@ export function parseCount(raw: string, min: number, max: number) {
 
 const text = (n: number | null) => (n == null ? "" : String(n));
 
-/** The operator team used by the operator load card: operators, shift length, cases a shift can handle. */
+/**
+ * The operator team used by the operator load card: operators, shift length,
+ * cases a shift can handle. The form waits for the saved team, so a save never
+ * starts from blanks.
+ */
 export default function TeamSettingsModal({
+  d,
+  onClose,
+}: Readonly<{
+  d: I18nRecord;
+  onClose: () => void;
+}>) {
+  const { data: team, error } = useTowerTeam(true);
+  return (
+    <Modal show size="md" onClose={onClose} dismissible>
+      <ModalHeader>{tr("teamTitle", d)}</ModalHeader>
+      {team ? (
+        <TeamForm team={team} d={d} onClose={onClose} />
+      ) : (
+        <ModalBody>
+          <p
+            role={error ? "alert" : "status"}
+            className={`text-sm ${error ? "text-red-600 dark:text-red-400" : MUTED}`}
+          >
+            {error ? tr("teamLoadFailed", d) : tr("loading", d)}
+          </p>
+        </ModalBody>
+      )}
+    </Modal>
+  );
+}
+
+function TeamForm({
   team,
   d,
   onClose,
@@ -91,9 +122,12 @@ export default function TeamSettingsModal({
         inputMode="numeric"
         value={value}
         color={ok ? undefined : "failure"}
+        aria-invalid={!ok}
+        aria-describedby={`${id}-hint`}
         onChange={(e) => setValue(e.target.value)}
       />
       <p
+        id={`${id}-hint`}
         className={`mt-1 text-xs ${ok ? MUTED : "text-red-600 dark:text-red-400"}`}
       >
         {hint}
@@ -102,8 +136,7 @@ export default function TeamSettingsModal({
   );
 
   return (
-    <Modal show size="md" onClose={onClose} dismissible>
-      <ModalHeader>{tr("teamTitle", d)}</ModalHeader>
+    <>
       <ModalBody>
         <div className="flex flex-col gap-4">
           <p className={`text-sm ${MUTED}`}>{tr("teamIntro", d)}</p>
@@ -132,7 +165,9 @@ export default function TeamSettingsModal({
             cap.ok
           )}
           {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
           )}
         </div>
       </ModalBody>
@@ -144,6 +179,6 @@ export default function TeamSettingsModal({
           {tr("save", d)}
         </Button>
       </ModalFooter>
-    </Modal>
+    </>
   );
 }

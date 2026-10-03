@@ -2685,6 +2685,8 @@
         "teamCapacityHint": "Número entero. Vacío si aún no lo defines.",
         "teamOwnersOnly": "Solo un dueño de la organización puede cambiar el equipo.",
         "teamSaveFailed": "No se pudo guardar el equipo.",
+        "loading": "Cargando…",
+        "teamLoadFailed": "No se pudo leer el equipo guardado.",
         "cardChanges": "Cambios",
         "cardChangesHint": "Versiones de las reglas",
         "draftsUnpublished": "borrador sin publicar",

@@ -24,7 +24,6 @@ import {
   useSymptomDefinitions,
   useSymptomStats,
   type SymptomSummary,
-  type TowerTeam,
 } from "./maintainer-api";
 import { familyLabel, stateLabel } from "./symptom-labels";
 import { MUTED, Tile } from "./ui/card";
@@ -33,13 +32,6 @@ import { STATES } from "./ui/state";
 
 type Filters = Record<CatalogFilterKey, string>;
 type Layout = "cards" | "list";
-
-/** What the team editor starts from when the stats could not be read. */
-const NO_TEAM: TowerTeam = {
-  operators: null,
-  shiftHours: 8,
-  capacityPerShift: null,
-};
 
 const EMPTY: Filters = {
   family: "",
@@ -324,11 +316,7 @@ export default function SymptomCatalog({
       </div>
 
       {editingTeam && (
-        <TeamSettingsModal
-          team={stats?.operators ?? NO_TEAM}
-          d={d}
-          onClose={() => setEditingTeam(false)}
-        />
+        <TeamSettingsModal d={d} onClose={() => setEditingTeam(false)} />
       )}
       <CreateSymptomModal
         open={creating}

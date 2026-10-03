@@ -246,12 +246,22 @@ export function useSymptomDefinitions() {
 
 export const statsKey = `${DEFS}/stats`;
 
+const settingsKey = `${CONTROL_TOWER_BASE}/settings`;
+
+/** The operator team as saved; the editor starts from it. */
+export function useTowerTeam(enabled: boolean) {
+  return useSWR<TowerTeam>(enabled ? settingsKey : null, fetcher, {
+    revalidateOnFocus: false,
+  });
+}
+
 /** Saves the operator team (owners); the stats carry it back. */
 export async function saveTowerTeam(team: TowerTeam) {
-  const saved = await request<TowerTeam>(`${CONTROL_TOWER_BASE}/settings`, {
+  const saved = await request<TowerTeam>(settingsKey, {
     method: "PUT",
     body: team,
   });
+  await mutate(settingsKey, saved, { revalidate: false });
   await mutate(statsKey);
   return saved;
 }

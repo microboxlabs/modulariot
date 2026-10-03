@@ -10,6 +10,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionStatus;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecDiff.Change;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Report;
+import com.microboxlabs.miot.symptoms.catalog.store.DuplicateSymptomKeyException;
 import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -37,6 +38,8 @@ public class SymptomCatalogService {
 
     static final String ENTITY = "symptom";
     private static final String VERSION_NOT_FOUND = "version not found: ";
+    /** Tries at picking a free key when copying a template, for concurrent copies of the same one. */
+    static final int KEY_ATTEMPTS = 5;
     static final String FIRST_VERSION = "0.1.0";
     private static final Pattern KEY = Pattern.compile("^[a-z0-9][a-z0-9_-]{1,94}$");
 
@@ -111,9 +114,25 @@ public class SymptomCatalogService {
      */
     public SymptomDetail createFromTemplate(String tenantCode, String actor, SymptomTemplate template, String name) {
         String title = name == null || name.isBlank() ? template.name() : name.trim();
-        SymptomDetail created = create(tenantCode, actor, new CreateRequest(freeKey(tenantCode, template.key()), title,
-                template.family(), template.icon(), template.description(), template.spec().source(), null,
-                template.spec()), null, template.key());
+        // Checked before anything is written, so a template that does not fit leaves no draft and takes no key.
+        Report report = SpecValidator.validate(template.spec(),
+                sources.find(tenantCode, template.spec().source()).orElse(null));
+        if (!report.publishable()) {
+            throw new IllegalStateException("the template does not fit this organization's data source");
+        }
+        SymptomDetail created = null;
+        for (int attempt = 1; created == null; attempt++) {
+            CreateRequest req = new CreateRequest(freeKey(tenantCode, template.key()), title, template.family(),
+                    template.icon(), template.description(), template.spec().source(), null, template.spec());
+            try {
+                created = create(tenantCode, actor, req, null, template.key());
+            } catch (DuplicateSymptomKeyException e) {
+                // Another request took the same key between the lookup and the insert.
+                if (attempt == KEY_ATTEMPTS) {
+                    throw e;
+                }
+            }
+        }
         publish(tenantCode, actor, created, created.draft(), plan(tenantCode, created, created.draft().spec()),
                 new Release("Desde la plantilla " + template.name(), null, SymptomState.TEST, null, true));
         return get(tenantCode, created.definition().id());
@@ -138,7 +157,7 @@ public class SymptomCatalogService {
         checkIdentity(req.name().trim(), req.family(), req.icon());
         DataSource source = requireSource(tenantCode, req.sourceKey());
         if (store.findDefinitionByKey(tenantCode, req.key()).isPresent()) {
-            throw new IllegalStateException("a symptom with key " + req.key() + " already exists");
+            throw new DuplicateSymptomKeyException(req.key());
         }
         OffsetDateTime now = now();
         SymptomDefinition d = store.insertDefinition(new SymptomDefinition(UUID.randomUUID(), tenantCode, req.key(),
@@ -170,7 +189,7 @@ public class SymptomCatalogService {
     }
 
     private static void maxLength(String field, String value, int max) {
-        if (value != null && value.length() > max) {
+        if (value != null && value.codePointCount(0, value.length()) > max) {
             throw new IllegalArgumentException(field + ": at most " + max + " characters");
         }
     }

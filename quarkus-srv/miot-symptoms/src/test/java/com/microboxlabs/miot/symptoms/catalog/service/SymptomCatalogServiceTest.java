@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate;
@@ -160,6 +161,57 @@ class SymptomCatalogServiceTest {
         UUID id = first.definition().id();
         service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(), Specs.ACTIVATION + " && true"));
         assertEquals("1.0.0", service.publish(TENANT, OWNER, id, "Nueva condición", null, null).version());
+    }
+
+    private static SymptomTemplate speedingTemplate() {
+        return new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
+                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", Specs.speeding());
+    }
+
+    @Test
+    void aTemplateThatDoesNotFitTheSourceLeavesNothingBehind() {
+        SymptomTemplate template = new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
+                null, "En viaje", Specs.with(Specs.speeding(), "signal.gps.not_in_this_source > 1"));
+
+        assertThrows(IllegalStateException.class, () -> service.createFromTemplate(TENANT, OWNER, template, null));
+
+        assertTrue(service.list(TENANT).isEmpty(), "no definition and no draft were written");
+        assertEquals("speeding", service.createFromTemplate(TENANT, OWNER, speedingTemplate(), null).definition()
+                .key(), "the key is still free");
+    }
+
+    @Test
+    void aTemplateCopyRacingAnotherForTheSameKeyTakesTheNextOne() {
+        InMemoryCatalog racing = new InMemoryCatalog() {
+            private boolean raced;
+
+            @Override
+            public SymptomDefinition insertDefinition(SymptomDefinition d) {
+                if (!raced && d.key().equals("speeding")) {
+                    raced = true;
+                    super.insertDefinition(new SymptomDefinition(UUID.randomUUID(), d.tenantCode(), "speeding",
+                            "Ganó la otra", null, null, null, "gps_signal", null, null, null, SymptomState.OFF, null,
+                            OWNER, d.createdAt(), OWNER, d.createdAt()));
+                }
+                return super.insertDefinition(d);
+            }
+        };
+        racing.upsert(Specs.gpsSignal());
+        SymptomCatalogService raced = new SymptomCatalogService(racing,
+                new DataSourceService(racing, new UnavailableSymptomEngine()), audit);
+
+        assertEquals("speeding-2", raced.createFromTemplate(TENANT, OWNER, speedingTemplate(), null).definition()
+                .key());
+    }
+
+    @Test
+    void lengthsCountCharactersNotUtf16Units() {
+        String emoji = "\uD83D\uDE9A";
+        CreateRequest fits = new CreateRequest("emoji", emoji.repeat(200), null, null, null, "gps_signal", null, null);
+        assertEquals(emoji.repeat(200), service.create(TENANT, OWNER, fits).definition().name());
+        CreateRequest tooLong = new CreateRequest("emoji-2", emoji.repeat(201), null, null, null, "gps_signal", null,
+                null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER, tooLong));
     }
 
     @Test

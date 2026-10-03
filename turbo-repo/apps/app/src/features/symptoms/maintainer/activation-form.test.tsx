@@ -52,7 +52,7 @@ describe("useActivationForm", () => {
     });
     rerender();
     expect(onChange).toHaveBeenCalledWith(
-      "signal.trip.active && signal.gps.speed_kmh > 90"
+      "signal.trip.active\n&& signal.gps.speed_kmh > 90"
     );
     expect(result.current.form?.rows.map((r) => r.id)).toContain("new");
   });
@@ -83,6 +83,19 @@ describe("useActivationForm", () => {
     const onChange = vi.fn();
     const { result } = renderHook(() =>
       useActivationForm("signal.trip.active", FIELDS, onChange)
+    );
+    act(() => result.current.update(result.current.form!));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("does not report a change when only the line breaks differ", () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() =>
+      useActivationForm(
+        "signal.trip.active && signal.gps.speed_kmh > 90",
+        FIELDS,
+        onChange
+      )
     );
     act(() => result.current.update(result.current.form!));
     expect(onChange).not.toHaveBeenCalled();

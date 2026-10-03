@@ -4,10 +4,12 @@ import {
   compileConditions,
   decimalText,
   exactNumber,
+  formatRule,
   moveRow,
   newCondition,
   opsFor,
   parseConditions,
+  ruleKey,
 } from "./condition-form";
 import type { SourceField } from "./maintainer-api";
 
@@ -56,10 +58,11 @@ function shape(form: ConditionForm | null) {
   };
 }
 
+/** The rule read into the form and written back, compared without its line breaks. */
 function roundTrip(rule: string) {
   const form = parseConditions(rule, FIELDS);
   expect(form, rule).not.toBeNull();
-  return compileConditions(form as ConditionForm);
+  return compileConditions(form as ConditionForm).replaceAll("\n&& ", " && ");
 }
 
 describe("parseConditions", () => {
@@ -139,7 +142,7 @@ describe("parseConditions", () => {
       ],
     });
     expect(compileConditions(form as ConditionForm)).toBe(
-      'signal.trip.active && (signal.geo.zone == "A" || signal.geo.zone == "B")'
+      'signal.trip.active\n&& (signal.geo.zone == "A" || signal.geo.zone == "B")'
     );
   });
 
@@ -281,6 +284,16 @@ describe("numbers and durations", () => {
 });
 
 describe("compileConditions", () => {
+  it("puts each top-level condition on its own line, starting with &&", () => {
+    const form = parseConditions(
+      'signal.trip.active && signal.gps.speed_kmh > 90 && (signal.geo.zone == "A" || signal.geo.zone == "B")',
+      FIELDS
+    ) as ConditionForm;
+    expect(compileConditions(form)).toBe(
+      'signal.trip.active\n&& signal.gps.speed_kmh > 90\n&& (signal.geo.zone == "A" || signal.geo.zone == "B")'
+    );
+  });
+
   it("writes true for an empty form", () => {
     expect(compileConditions({ match: "all", rows: [], groups: [] })).toBe(
       "true"
@@ -302,7 +315,7 @@ describe("compileConditions", () => {
       rows: [{ id: "r", path: "signal.geo.zone", op: "==", value: "Puerto" }],
     });
     expect(compileConditions(form)).toBe(
-      '(signal.trip.active || signal.gps.moving) && !(signal.geo.zone == "Puerto")'
+      '(signal.trip.active || signal.gps.moving)\n&& !(signal.geo.zone == "Puerto")'
     );
     expect(shape(parseConditions(compileConditions(form), FIELDS))?.match).toBe(
       "any"
@@ -330,6 +343,36 @@ describe("newCondition and opsFor", () => {
     expect(newCondition(num)).toMatchObject({ op: ">", value: 0 });
     expect(opsFor("zone")).toEqual(["==", "!="]);
     expect(newCondition(bool).id).not.toBe(newCondition(bool).id);
+  });
+});
+
+describe("formatRule", () => {
+  it("starts each top-level && on a new line and leaves the rest alone", () => {
+    expect(formatRule("a && b > 1 && (c || d)")).toBe(
+      "a\n&& b > 1\n&& (c || d)"
+    );
+    expect(formatRule("a\n&& b")).toBe("a\n&& b");
+    expect(formatRule('x == "p && q" && has(y.z) && f(a && b)')).toBe(
+      'x == "p && q"\n&& has(y.z)\n&& f(a && b)'
+    );
+    expect(formatRule('x == "a\\" && b" && c')).toBe('x == "a\\" && b"\n&& c');
+    expect(formatRule("a || b")).toBe("a || b");
+    expect(formatRule("a && b // and c && d")).toBe("a && b // and c && d");
+    expect(formatRule("a &&")).toBe("a &&");
+    expect(formatRule("")).toBe("");
+  });
+});
+
+describe("ruleKey", () => {
+  it("is the same for two writings of a rule and different for a real change", () => {
+    expect(ruleKey("a && b")).toBe(ruleKey("a\n&&   b"));
+    expect(ruleKey("a && b")).toBe(ruleKey("a&&b"));
+    expect(ruleKey("x in  [1, 2]")).toBe("x in[1,2]");
+    expect(ruleKey('x == "a  b" &&\ty')).toBe('x=="a  b"&&y');
+    expect(ruleKey('x == "a \\"  b"  && y')).toBe('x=="a \\"  b"&&y');
+    expect(ruleKey("x == 'p  q'")).toBe("x=='p  q'");
+    expect(ruleKey('x == "a b"')).not.toBe(ruleKey('x == "a  b"'));
+    expect(ruleKey("a // note\n&& b")).not.toBe(ruleKey("a // note && b"));
   });
 });
 

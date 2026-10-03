@@ -105,6 +105,9 @@ function defaultValue(field: SourceField): number | string | null {
   return field.values?.[0]?.value ?? "";
 }
 
+/** How the conditions of a rule are joined. */
+type Join = "&&" | "||";
+
 /** Where a scan of a rule stands: inside a string, and how many parentheses deep. */
 interface Scan {
   quoted: boolean;
@@ -126,19 +129,17 @@ function advance(rule: string, i: number, scan: Scan): number {
 }
 
 /** The && or || at i when it is outside parentheses and strings. */
-function topLevelJoin(rule: string, i: number, scan: Scan): "&&" | "||" | null {
+function topLevelJoin(rule: string, i: number, scan: Scan): Join | null {
   if (scan.quoted || scan.depth !== 0) return null;
   const pair = rule.slice(i, i + 2);
   return pair === "&&" || pair === "||" ? pair : null;
 }
 
 /** Splits a rule on one operator at the top level, outside parentheses and strings; null when both appear. */
-function split(
-  rule: string
-): { op: "&&" | "||" | null; parts: string[] } | null {
+function split(rule: string): { op: Join | null; parts: string[] } | null {
   const parts: string[] = [];
   const scan: Scan = { quoted: false, depth: 0 };
-  let op: "&&" | "||" | null = null;
+  let op: Join | null = null;
   let start = 0;
   let i = 0;
   while (i < rule.length) {

@@ -276,8 +276,9 @@ export const definitionKey = (id: string) => `${DEFS}/${id}`;
 
 const fetcher = <T>(url: string) => request<T>(url);
 
-export function useSymptomDefinitions() {
-  return useSWR<SymptomSummary[]>(definitionsKey, fetcher);
+/** The organization's symptoms; nothing is fetched while `enabled` is false. */
+export function useSymptomDefinitions(enabled = true) {
+  return useSWR<SymptomSummary[]>(enabled ? definitionsKey : null, fetcher);
 }
 
 export const statsKey = `${DEFS}/stats`;

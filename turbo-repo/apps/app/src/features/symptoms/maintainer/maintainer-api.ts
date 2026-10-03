@@ -216,6 +216,8 @@ export interface SourceField {
   unit: string | null;
   origin: FieldOrigin | null;
   engineSupported: boolean;
+  /** The values a list field takes, as rules write them and as people read them. */
+  values?: { value: string; label: string }[] | null;
 }
 
 export interface DataSource {

@@ -160,6 +160,17 @@ class PgCatalogStoresTest {
     }
 
     @Test
+    void fieldValuesAreStoredWithTheSource() {
+        PgDataSourceStore store = new PgDataSourceStore(() -> pool);
+        SourceField weight = new SourceField("signal.vehicle.weight_category", "Categoría de peso", "list", null,
+                FieldOrigin.VEHICLE, true, List.of(new SourceField.FieldValue("HEAVY", "Pesado")));
+        store.upsert(new DataSource(UUID.randomUUID(), null, "weights", "Pesos", SourceKind.SIGNAL, "signal",
+                null, List.of(weight), List.of()));
+
+        assertEquals(weight, store.find(TENANT, "weights").orElseThrow().fields().get(0));
+    }
+
+    @Test
     void descriptionIsStoredByRuleHash() {
         PgRuleDescriptionStore store = new PgRuleDescriptionStore(() -> pool);
         store.save(new RuleDescription("abc", "es-CL", "owner", "<b>Se abre</b> al instante"));

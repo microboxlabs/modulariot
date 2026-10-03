@@ -84,6 +84,29 @@ class ConditionChecksTest {
     }
 
     @Test
+    void aListFieldComparedWithAValueItDoesNotTakeIsAWarning() {
+        SymptomSpec typo = Specs.with(Specs.speeding(),
+                Specs.ACTIVATION + " && signal.vehicle.weight_category == \"HEAVVY\"");
+        assertTrue(SpecValidator.validate(typo, Specs.gpsSignal()).findings().stream()
+                .anyMatch(f -> f.severity() == Severity.WARNING && f.message().equals(
+                        "«Categoría de peso» no toma el valor «HEAVVY»; sus valores son HEAVY, LIGHT.")));
+        SymptomSpec known = Specs.with(Specs.speeding(),
+                Specs.ACTIVATION + " && signal.vehicle.weight_category != \"LIGHT\"");
+        assertTrue(SpecValidator.validate(known, Specs.gpsSignal()).findings().stream()
+                .noneMatch(f -> f.message().contains("no toma el valor")));
+    }
+
+    @Test
+    void thePlatformGpsSourceListsTheWeightCategories() {
+        var weight = DataSourceService.read().stream()
+                .filter(s -> s.key().equals("gps_signal"))
+                .flatMap(s -> s.fields().stream())
+                .filter(f -> f.path().equals("signal.vehicle.weight_category"))
+                .findFirst().orElseThrow();
+        assertEquals(List.of("HEAVY", "LIGHT"), weight.values().stream().map(v -> v.value()).toList());
+    }
+
+    @Test
     void anOrderOnATextIsLeftToTheTypeCheck() {
         assertTrue(messages("signal.geo.zone > \"A\" && signal.geo.zone < \"B\"").isEmpty());
         SymptomSpec spec = Specs.with(Specs.speeding(), Specs.ACTIVATION + " && signal.trip.active > \"A\"");

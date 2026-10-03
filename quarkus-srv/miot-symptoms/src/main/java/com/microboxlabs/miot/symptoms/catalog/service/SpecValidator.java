@@ -86,6 +86,7 @@ public final class SpecValidator {
         rule(out, "activation", schema, spec.activation(), Expect.CONDITION);
         duplicates(out, spec.activation());
         out.addAll(ConditionChecks.check(spec.activation(), path -> label(source, path)));
+        out.addAll(ConditionChecks.unknownValues(spec.activation(), path -> field(source, path)));
         if (spec.measure() != null && spec.measure().expression() != null) {
             rule(out, "measure", schema, spec.measure().expression(), Expect.NUMBER);
         }
@@ -268,6 +269,10 @@ public final class SpecValidator {
                 .filter(n -> Math.abs(n - point) <= NEAR * 1.5)
                 .min(Comparator.comparingDouble(n -> Math.abs(n - point)))
                 .orElse(point);
+    }
+
+    private static SourceField field(DataSource source, String path) {
+        return source.fields().stream().filter(f -> f.path().equals(path)).findFirst().orElse(null);
     }
 
     private static String label(DataSource source, String path) {

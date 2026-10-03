@@ -8,7 +8,8 @@
     "fields": [
       {"path": "signal.trip.active", "label": "En viaje", "type": "bool", "origin": "TRIP", "engineSupported": true},
       {"path": "signal.trip.double_driver", "label": "Dos conductores", "type": "bool", "origin": "TRIP", "engineSupported": true},
-      {"path": "signal.vehicle.weight_category", "label": "Categoría de peso", "type": "list", "origin": "VEHICLE", "engineSupported": true},
+      {"path": "signal.vehicle.weight_category", "label": "Categoría de peso", "type": "list", "origin": "VEHICLE", "engineSupported": true,
+       "values": [{"value": "HEAVY", "label": "Pesado (más de 3.860 kg o sin dato)"}, {"value": "LIGHT", "label": "Liviano (hasta 3.860 kg)"}]},
       {"path": "signal.vehicle.weight_kg", "label": "Peso máximo", "type": "number", "unit": "kg", "origin": "VEHICLE", "engineSupported": true},
       {"path": "signal.gps.speed_kmh", "label": "Velocidad", "type": "number", "unit": "km/h", "origin": "DEVICE", "engineSupported": true},
       {"path": "signal.gps.engine_on", "label": "Motor encendido", "type": "bool", "origin": "DEVICE", "engineSupported": true},

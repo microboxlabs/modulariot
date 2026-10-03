@@ -11,6 +11,8 @@ import {
   type ConditionOp,
   type Match,
   compileConditions,
+  decimalText,
+  exactNumber,
   isNumeric,
   newCondition,
   newId,
@@ -53,8 +55,8 @@ function NumberValue({
   onChange: (value: number) => void;
 }>) {
   // The value last sent: when the prop moves away from it, the rule changed elsewhere and the text follows.
-  const [typed, setTyped] = useState({ text: String(value), value });
-  const shown = typed.value === value ? typed.text : String(value);
+  const [typed, setTyped] = useState({ text: decimalText(value), value });
+  const shown = typed.value === value ? typed.text : decimalText(value);
   return (
     <span className={`${pillClass} flex items-center gap-1`}>
       <input
@@ -65,11 +67,12 @@ function NumberValue({
         value={shown}
         onChange={(e) => {
           const text = e.target.value;
-          const n = Number(text);
-          const valid = text.trim() !== "" && Number.isFinite(n);
-          setTyped({ text, value: valid ? n : value });
-          if (valid) onChange(n);
+          const n = exactNumber(text);
+          setTyped({ text, value: n ?? value });
+          if (n !== null) onChange(n);
         }}
+        // Text that is not a number ("", "-", "1,5") goes back to the number the rule holds.
+        onBlur={() => setTyped({ text: decimalText(value), value })}
       />
       {unit && <span className="text-xs text-gray-500">{unit}</span>}
     </span>
@@ -93,6 +96,7 @@ function ValueInput({
   if (isNumeric(field.type)) {
     return (
       <NumberValue
+        key={row.path}
         value={typeof row.value === "number" ? row.value : 0}
         unit={field.unit}
         label={tr("conditionValue", d)}

@@ -1,6 +1,12 @@
-import { act, renderHook } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { opLabel, useActivationForm } from "./activation-form";
+import ActivationForm, { opLabel, useActivationForm } from "./activation-form";
 import type { SourceField } from "./maintainer-api";
 
 const field = (path: string, type: string): SourceField => ({
@@ -92,5 +98,52 @@ describe("opLabel", () => {
     expect(opLabel("!=", "list", d)).toBe("no es");
     expect(opLabel("is_true", "bool", d)).toBe("es verdadero");
     expect(opLabel(">=", "duration", d)).toBe("≥");
+  });
+});
+
+describe("the number input", () => {
+  const form = {
+    match: "all" as const,
+    rows: [
+      { id: "r", path: "signal.gps.speed_kmh", op: ">" as const, value: 90 },
+    ],
+    groups: [],
+  };
+  const d = { conditionValue: "Valor" };
+
+  it("keeps half-typed text while typing and restores the number on blur", () => {
+    const onChange = vi.fn();
+    render(
+      <ActivationForm
+        form={form}
+        fields={FIELDS}
+        readOnly={false}
+        d={d}
+        onChange={onChange}
+      />
+    );
+    const input = screen.getByLabelText("Valor") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "-" } });
+    expect(input.value).toBe("-");
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.blur(input);
+    expect(input.value).toBe("90");
+  });
+
+  it("passes on a typed number", () => {
+    const onChange = vi.fn();
+    render(
+      <ActivationForm
+        form={form}
+        fields={FIELDS}
+        readOnly={false}
+        d={d}
+        onChange={onChange}
+      />
+    );
+    fireEvent.change(screen.getByLabelText("Valor"), {
+      target: { value: "0.0000001" },
+    });
+    expect(onChange.mock.calls[0]?.[0].rows[0].value).toBe(1e-7);
   });
 });

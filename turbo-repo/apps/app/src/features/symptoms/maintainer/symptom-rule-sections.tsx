@@ -131,6 +131,7 @@ function ModeToggle({
     <button
       type="button"
       title={title}
+      aria-label={title}
       aria-pressed={mode === m}
       className={`rounded-md px-2 py-0.5 text-xs ${mode === m ? "bg-gray-100 font-medium dark:bg-gray-700" : "text-gray-500"}`}
       onClick={() => onChange(m)}

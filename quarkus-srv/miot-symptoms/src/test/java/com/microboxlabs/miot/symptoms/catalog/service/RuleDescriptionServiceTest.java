@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.Caller;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.Description;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.UnavailableException;
@@ -85,7 +86,8 @@ class RuleDescriptionServiceTest {
 
     private static SymptomSummary summary(SymptomSpec spec, OffsetDateTime now) {
         return new SymptomSummary(new SymptomDefinition(UUID.randomUUID(), TENANT, "k", "n", null, null, null,
-                "gps_signal", null, null, null, SymptomState.ACTIVE, "1.0.0", "o", now, "o", now), false, spec, null);
+                "gps_signal", null, null, null, SymptomState.ACTIVE, "1.0.0", "o", now, "o", now), false,
+                spec == null ? null : SymptomVersion.draft(UUID.randomUUID(), TENANT, spec, "o", now), null);
     }
 
     @Test

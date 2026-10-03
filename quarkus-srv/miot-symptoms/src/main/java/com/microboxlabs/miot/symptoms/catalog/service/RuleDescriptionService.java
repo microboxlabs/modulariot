@@ -158,7 +158,8 @@ public class RuleDescriptionService {
      */
     public List<SymptomSummary> withActivationTexts(List<SymptomSummary> summaries) {
         List<String> hashes = summaries.stream()
-                .map(s -> activationHash(s.currentSpec(), s.definition().sourceKey()))
+                .map(s -> activationHash(s.current() == null ? null : s.current().spec(),
+                        s.definition().sourceKey()))
                 .toList();
         Map<String, RuleDescription> found = store.findAll(
                 hashes.stream().filter(Objects::nonNull).collect(Collectors.toSet()), DEFAULT_LOCALE, AUDIENCE);

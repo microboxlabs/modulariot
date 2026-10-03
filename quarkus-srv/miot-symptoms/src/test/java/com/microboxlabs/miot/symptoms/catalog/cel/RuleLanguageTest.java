@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.catalog.cel;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.Expect;
@@ -38,7 +39,7 @@ class RuleLanguageTest {
         assertEquals("z==\"a\\\"b\"", RuleText.canonical(" z == \"a\\\"b\" "));
         String oneString = RuleText.canonical("z == \"a\\\" || z == \\\"b\"");
         String twoConditions = RuleText.canonical("z == \"a\" || z == \"b\"");
-        assertFalse(oneString.equals(twoConditions), "one string with || inside is not two conditions");
+        assertNotEquals(twoConditions, oneString, "one string with || inside is not two conditions");
         assertEquals(RuleText.canonical("z==\"a\\\"b\"&&x  in  [1]"),
                 RuleText.canonical(" z == \"a\\\"b\" && x in [1] "), "spacing outside strings is not a change");
         assertEquals("z==\"a  \\\" b\"", RuleText.canonical("z == \"a  \\\" b\""), "spacing inside strings is kept");

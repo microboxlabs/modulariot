@@ -20,7 +20,8 @@ import java.util.UUID;
  * @param sourceKey the data source whose signals it reads
  * @param measure   null for a symptom whose levels do not read a measure
  * @param levels  the levels that apply, by ICU, lowest first
- * @param state   TEST runs in shadow, ACTIVE runs live; OFF versions are not compiled
+ * @param state     TEST runs in shadow, ACTIVE runs live; OFF versions are not compiled
+ * @param levelDown an open case's level follows the measure down
  */
 public record CompiledSymptom(
         UUID definitionId,
@@ -31,12 +32,13 @@ public record CompiledSymptom(
         PreparedRule measure,
         Map<Integer, PreparedRule> levels,
         PreparedRule open,
-        PreparedRule close) {
+        PreparedRule close,
+        boolean levelDown) {
 
     /** The same rules under another state, as when the symptom is switched between test and active. */
     public CompiledSymptom withState(SymptomState next) {
         return new CompiledSymptom(definitionId, version, next, sourceKey, activation, measure, levels, open,
-                close);
+                close, levelDown);
     }
 
     public static CompiledSymptom compile(UUID definitionId, String version, SymptomState state, SymptomSpec spec,
@@ -61,6 +63,6 @@ public record CompiledSymptom(
                 RuleLanguage.prepare(schema, spec.activation()),
                 measure, Collections.unmodifiableMap(levels),
                 RuleLanguage.prepare(RuleSchema.CASE, spec.lifecycle().open()),
-                RuleLanguage.prepare(RuleSchema.CASE, spec.lifecycle().close()));
+                RuleLanguage.prepare(RuleSchema.CASE, spec.lifecycle().close()), spec.lifecycle().levelDown());
     }
 }

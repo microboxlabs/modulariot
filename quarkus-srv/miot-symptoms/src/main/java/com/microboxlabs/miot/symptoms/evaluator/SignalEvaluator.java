@@ -33,7 +33,8 @@ import java.util.UUID;
  * from the first signal after it stopped, and is -1 while it holds. The
  * lifecycle opens and closes the case.</li>
  * <li>Per vehicle and source, a signal not newer than the last one applied is
- * ignored. A case's level only rises. After a case closes, a condition that
+ * ignored. A case's level only rises, unless the lifecycle lets it follow the
+ * measure down while the condition holds. After a case closes, a condition that
  * still holds starts a new run. A new version keeps the open case but restarts
  * the levels' hold times. An episode with nothing running is not kept.</li>
  * </ul>
@@ -174,7 +175,8 @@ public class SignalEvaluator {
     }
 
     private Step whileOpen(CompiledSymptom s, Episode e, Instant at, Reading r) {
-        int level = Math.max(e.level(), r.level());
+        // Down only while the condition still holds: a normal signal leaves the case at its level until it closes.
+        int level = s.levelDown() && r.active() ? r.level() : Math.max(e.level(), r.level());
         double max = r.active() ? Math.max(e.maxMeasure(), r.measure()) : e.maxMeasure();
         if (condition(s.close(), caso(r.conditionSince(), r.normalSince(), e.openedAt(), level, at),
                 "lifecycle.close")) {
@@ -185,10 +187,10 @@ public class SignalEvaluator {
         }
         Episode kept = new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                 r.conditionSince(), r.normalSince(), r.levelSince(), at, e.openedAt(), level, max);
-        Transition raised = level > e.level()
+        Transition changed = level != e.level()
                 ? transition(Kind.LEVEL_CHANGED, s, e.assetId(), at, level, e.level(), r.measure())
                 : null;
-        return new Step(kept, raised);
+        return new Step(kept, changed);
     }
 
     private static Transition transition(Kind kind, CompiledSymptom s, String assetId, Instant at, int level,

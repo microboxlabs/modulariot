@@ -43,7 +43,7 @@ public final class SpecDiff {
         if (!Objects.equals(normalized(before.lifecycle()), normalized(after.lifecycle()))) {
             out.add(new Change("lifecycle", VersionBump.MINOR, "Cambió cuándo se abre o se cierra el caso"));
         }
-        if (!Objects.equals(before.recurrence(), after.recurrence())) {
+        if (!Objects.equals(normalized(before.recurrence()), normalized(after.recurrence()))) {
             out.add(new Change("recurrence", VersionBump.MINOR, "Cambió qué pasa si se repite"));
         }
         if (after.family() != null && !Objects.equals(before.family(), after.family())) {
@@ -127,8 +127,15 @@ public final class SpecDiff {
         return Objects.equals(squash(before), squash(after));
     }
 
+    /** A recurrence without an entity counts per vehicle. */
+    private static SymptomSpec.Recurrence normalized(SymptomSpec.Recurrence r) {
+        return r == null || r.entity() != null ? r
+                : new SymptomSpec.Recurrence(r.enabled(), r.count(), r.days(), r.raiseLevels(),
+                        SymptomSpec.Recurrence.VEHICLE);
+    }
+
     private static SymptomSpec.Lifecycle normalized(SymptomSpec.Lifecycle l) {
-        return l == null ? null : new SymptomSpec.Lifecycle(squash(l.open()), squash(l.close()));
+        return l == null ? null : new SymptomSpec.Lifecycle(squash(l.open()), squash(l.close()), l.levelDown());
     }
 
     /** Formatting does not change a rule; text inside string literals does. */

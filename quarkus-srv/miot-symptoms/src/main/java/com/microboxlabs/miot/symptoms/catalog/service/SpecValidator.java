@@ -92,6 +92,7 @@ public final class SpecValidator {
             rule(out, "lifecycle.open", RuleSchema.CASE, spec.lifecycle().open(), Expect.CONDITION);
             rule(out, "lifecycle.close", RuleSchema.CASE, spec.lifecycle().close(), Expect.CONDITION);
         }
+        recurrence(out, spec.recurrence());
         engineSupport(out, source, spec);
         if (spec.family() != null && spec.family().codePointCount(0, spec.family().length()) > MAX_FAMILY) {
             out.add(new Finding("family", Severity.ERROR,
@@ -133,6 +134,21 @@ public final class SpecValidator {
             }
         }
         overlaps(out, schema, valid);
+    }
+
+    private static void recurrence(List<Finding> out, SymptomSpec.Recurrence r) {
+        if (r == null || !r.enabled()) {
+            return;
+        }
+        if (r.entity() != null && !r.entity().equals(SymptomSpec.Recurrence.VEHICLE)
+                && !r.entity().equals(SymptomSpec.Recurrence.DRIVER)) {
+            out.add(new Finding("recurrence", Severity.ERROR, "La repetición se cuenta por patente o por conductor.",
+                    -1));
+        }
+        if (r.count() < 2 || r.days() < 1 || r.raiseLevels() < 1) {
+            out.add(new Finding("recurrence", Severity.ERROR,
+                    "La repetición necesita al menos 2 casos, 1 día y subir al menos un nivel.", -1));
+        }
     }
 
     private static void response(List<Finding> out, String section, SymptomSpec.Response response) {

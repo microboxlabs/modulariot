@@ -285,6 +285,21 @@ class SignalEvaluatorTest {
     }
 
     @Test
+    void withLevelDownTheLevelFollowsTheMeasureWhileTheConditionHolds() {
+        SymptomSpec down = new SymptomSpec(Specs.speeding().source(), Specs.speeding().activation(),
+                Specs.speeding().measure(), Specs.speeding().levels(),
+                new SymptomSpec.Lifecycle("caso.condicion_s >= 0", "caso.normal_s >= 120", true), null);
+        symptoms = List.of(CompiledSymptom.compile(SPEEDING, "3.0.0", SymptomState.ACTIVE, down,
+                Specs.gpsSignal()));
+        assertEquals(List.of("OPENED:3"), kinds(at(0, 102)));
+        Result lower = at(5, 96);
+        assertEquals(List.of("LEVEL_CHANGED:2"), kinds(lower));
+        assertEquals(3, lower.transitions().get(0).previousLevel());
+        assertEquals(List.of(), kinds(at(10, 80)), "normal: the case keeps its level until it closes");
+        assertEquals(List.of("CLOSED:2"), kinds(at(130, 80)));
+    }
+
+    @Test
     void offVersionsAndVersionsWithoutLifecycleAreNotCompiled() {
         assertThrows(IllegalArgumentException.class, () -> CompiledSymptom.compile(SPEEDING, "1.0.0",
                 SymptomState.OFF, Specs.speeding(), Specs.gpsSignal()));

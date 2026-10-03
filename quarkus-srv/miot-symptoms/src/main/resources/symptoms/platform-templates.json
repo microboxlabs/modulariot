@@ -2,7 +2,7 @@
   {
     "key": "speeding",
     "name": "Exceso de velocidad",
-    "family": "Seguridad de conducción",
+    "family": "driving_safety",
     "icon": "SPEED LIMIT STANDARD",
     "description": "En viaje y sobre el límite de la vía",
     "spec": {
@@ -21,7 +21,7 @@
   {
     "key": "speeding-custom-limit",
     "name": "Exceso sobre el límite propio",
-    "family": "Seguridad de conducción",
+    "family": "driving_safety",
     "icon": "SPEED LIMIT CUSTOM",
     "description": "En viaje y sobre el límite que fija la organización para la zona",
     "spec": {
@@ -40,7 +40,7 @@
   {
     "key": "night-stop-unauthorized",
     "name": "Detención nocturna fuera de zona autorizada",
-    "family": "Zonas y lugares",
+    "family": "zones_places",
     "icon": "NIGHT STAY RISK",
     "description": "En viaje, detenido entre 21:00 y 06:00 fuera de una zona autorizada",
     "spec": {
@@ -58,7 +58,7 @@
   {
     "key": "off-hours-driving",
     "name": "Conducción en horario no permitido",
-    "family": "Jornada y fatiga",
+    "family": "workday_fatigue",
     "icon": "OFF HOURS DRIVING",
     "description": "En viaje con un conductor y en movimiento entre 02:00 y 06:00",
     "spec": {
@@ -76,7 +76,7 @@
   {
     "key": "continuous-driving",
     "name": "Conducción continua",
-    "family": "Jornada y fatiga",
+    "family": "workday_fatigue",
     "icon": "CONTINUOUS DRIVE CHECK",
     "description": "En viaje con un conductor, conduciendo sin descanso",
     "spec": {
@@ -95,7 +95,7 @@
   {
     "key": "signal-loss",
     "name": "Pérdida de señal",
-    "family": "Continuidad de señal",
+    "family": "signal_continuity",
     "icon": "LOST SIGNAL",
     "description": "En viaje y sin señales del GPS",
     "spec": {
@@ -114,7 +114,7 @@
   {
     "key": "panic-button",
     "name": "Botón de pánico",
-    "family": "Emergencias",
+    "family": "emergencies",
     "icon": null,
     "description": "El conductor activa el botón de emergencia",
     "spec": {

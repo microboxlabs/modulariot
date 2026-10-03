@@ -130,6 +130,15 @@ export class ControlTowerError extends Error {
   }
 }
 
+/** A gateway error page is HTML, not JSON; the status still reaches the caller. */
+function parseJson(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
 /** `path` is relative to the proxy, or a full key from the `*Key` helpers. */
 async function request<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
   const url = path.startsWith(BASE) ? path : `${BASE}${path}`;
@@ -141,7 +150,7 @@ async function request<T>(path: string, init?: { method?: string; body?: unknown
   });
   if (response.status === 204) return undefined as T;
   const text = await response.text();
-  const json = text ? JSON.parse(text) : undefined;
+  const json = text ? parseJson(text) : undefined;
   if (!response.ok) {
     throw new ControlTowerError(json?.error ?? `HTTP ${response.status}`, response.status);
   }

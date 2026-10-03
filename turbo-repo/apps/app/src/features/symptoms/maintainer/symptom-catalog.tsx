@@ -241,6 +241,7 @@ export default function SymptomCatalog({
           </div>
 
           <CatalogStats
+            loading={isLoading}
             all={all}
             stats={stats}
             lang={lang}

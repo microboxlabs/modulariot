@@ -71,8 +71,29 @@ function Bar({
 
 const pct = (part: number, whole: number) => (whole ? (part / whole) * 100 : 0);
 
+/** Placeholder cards while the catalog loads, so zeros never show before the data. */
+function LoadingStats() {
+  return (
+    <div
+      aria-busy="true"
+      className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"
+    >
+      {["a", "b", "c", "d"].map((k) => (
+        <Card key={k}>
+          <div className="flex animate-pulse flex-col gap-3 p-4">
+            <div className="h-4 w-1/2 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="h-8 w-1/3 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="h-2 w-full rounded bg-gray-200 dark:bg-gray-700" />
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 /** The four cards over the catalog: symptoms on, cases per week, operator load, changes. */
 export default function CatalogStats({
+  loading,
   all,
   stats,
   lang,
@@ -80,6 +101,7 @@ export default function CatalogStats({
   onFilter,
   onOpen,
 }: Readonly<{
+  loading: boolean;
   all: SymptomSummary[];
   stats: SymptomStats | undefined;
   lang: string;
@@ -87,6 +109,7 @@ export default function CatalogStats({
   onFilter: (key: CatalogFilterKey, value: string) => void;
   onOpen: (id: string) => void;
 }>) {
+  if (loading) return <LoadingStats />;
   const filterHint = tr("statFilterHint", d);
   const active = all.filter((s) => s.definition.state === "ACTIVE").length;
   const test = all.filter((s) => s.definition.state === "TEST").length;

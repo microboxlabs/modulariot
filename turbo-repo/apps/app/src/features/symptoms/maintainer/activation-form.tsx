@@ -46,12 +46,15 @@ export function NumberValue({
   unit,
   label,
   readOnly,
+  accept = () => true,
   onChange,
 }: Readonly<{
   value: number;
   unit: string | null;
   label: string;
   readOnly: boolean;
+  /** Numbers the rule can hold; others are kept as typed text and not sent, like "-". */
+  accept?: (value: number) => boolean;
   onChange: (value: number) => void;
 }>) {
   // The value last sent: when the prop moves away from it, the rule changed elsewhere and the text follows.
@@ -67,7 +70,8 @@ export function NumberValue({
         value={shown}
         onChange={(e) => {
           const text = e.target.value;
-          const n = exactNumber(text);
+          const parsed = exactNumber(text);
+          const n = parsed !== null && accept(parsed) ? parsed : null;
           setTyped({ text, value: n ?? value });
           if (n !== null) onChange(n);
         }}

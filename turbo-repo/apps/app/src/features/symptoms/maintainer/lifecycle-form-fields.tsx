@@ -62,6 +62,7 @@ function OpenRow({
           value={open.seconds}
           unit="s"
           label={tr("openSeconds", d)}
+          accept={(n) => n >= 0}
           readOnly={readOnly}
           onChange={(seconds) => onChange({ kind: "sustained", seconds })}
         />
@@ -105,6 +106,7 @@ function CloseRow({
           value={close.minutes}
           unit="min"
           label={tr("closeMinutes", d)}
+          accept={(n) => n >= 0}
           readOnly={readOnly}
           onChange={(minutes) => onChange({ kind: "normal", minutes })}
         />
@@ -114,6 +116,7 @@ function CloseRow({
           value={close.hours}
           unit="h"
           label={tr("closeHours", d)}
+          accept={(n) => n > 0}
           readOnly={readOnly}
           onChange={(hours) => onChange({ kind: "expire", hours })}
         />

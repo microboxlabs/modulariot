@@ -308,6 +308,8 @@ export default function SymptomDetail({
 
       <PublishDialog
         id={id}
+        name={def?.name ?? ""}
+        current={def?.currentVersion ?? null}
         open={publishing}
         d={d}
         onClose={() => setPublishing(false)}

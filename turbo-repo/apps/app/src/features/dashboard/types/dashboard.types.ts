@@ -1,4 +1,7 @@
-import type { DashboardQueryDefinition } from "@microboxlabs/miot-dashboard-contract/document";
+import type {
+  DashboardFilterParam,
+  DashboardQueryDefinition,
+} from "@microboxlabs/miot-dashboard-contract/document";
 /**
  * Dashboard Widget Type Definitions
  *
@@ -99,52 +102,7 @@ export interface PlannerRequestDefinition {
   schema?: string[];
 }
 
-/** A single selectable option for a "select" filter */
-export interface DashboardFilterOption {
-  label: string;
-  value: string;
-}
-
-/**
- * Dynamic option source for a "select" filter: options are derived from the
- * rows of a Request Planner variable instead of being typed in by hand.
- */
-export interface DashboardFilterOptionsSource {
-  /** Planner variable name whose rows provide the options */
-  variableName: string;
-  /** Row field used as the option value */
-  valueField: string;
-  /** Row field used as the option label (falls back to valueField) */
-  labelField?: string;
-}
-
-/** A filter parameter available in the dashboard filter bar */
-export interface DashboardFilterParam {
-  /** URL param key (e.g., "asset_id", "date_range") */
-  key: string;
-  /** Display label shown in the filter bar */
-  label: string;
-  /** Filter type */
-  type: "text" | "date_range" | "select";
-  /**
-   * Setting a nonempty value clears this definition's other keys (date-range
-   * from/to). Unrelated filter definitions are preserved.
-   */
-  unique?: boolean;
-  /** Predefined options (only for type "select") */
-  options?: DashboardFilterOption[];
-  /**
-   * Only one option may be picked at a time (only for type "select"). Set it
-   * when the backing API takes a single value: a comma-joined list would reach
-   * it as one unmatchable string and silently return nothing.
-   */
-  single?: boolean;
-  /**
-   * Derive options from a planner variable instead of `options`
-   * (only for type "select"). Takes precedence over `options`.
-   */
-  optionsSource?: DashboardFilterOptionsSource;
-}
+export type { DashboardFilterOption, DashboardFilterOptionsSource, DashboardFilterParam } from "@microboxlabs/miot-dashboard-contract/document";
 
 /** Versioned storage schema for dashboard config (supports migrations) */
 export interface DashboardStorageSchema {

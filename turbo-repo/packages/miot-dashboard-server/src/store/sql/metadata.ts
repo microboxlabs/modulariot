@@ -20,11 +20,12 @@ import type {
 import { placeholders, type SqlDriver, type SqlValue } from "./driver";
 
 const COLUMNS =
-  "slug, name, revision, document_key, updated_at, updated_by, created_by";
+  "slug, name, sort_order, revision, document_key, updated_at, updated_by, created_by";
 
 interface RawRow {
   slug: string;
   name: string;
+  sort_order: number | null;
   revision: number;
   document_key: string;
   updated_at: string;
@@ -36,6 +37,7 @@ function toRow(raw: RawRow): DashboardMetadataRow {
   return {
     slug: raw.slug,
     name: raw.name,
+    ...(raw.sort_order === null ? {} : { order: Number(raw.sort_order) }),
     revision: Number(raw.revision),
     documentKey: raw.document_key,
     updatedAt: raw.updated_at,
@@ -85,13 +87,14 @@ export function createSqlMetadataStore(
     const p = placeholders(driver.dialect);
     const rows = await driver.all<RawRow>(
       `INSERT INTO dashboards
-         (tenant_id, scope_id, slug, name, revision, document_key, updated_at, updated_by, created_by)
-       VALUES (${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()})
+         (tenant_id, scope_id, slug, name, sort_order, revision, document_key, updated_at, updated_by, created_by)
+       VALUES (${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()})
        ON CONFLICT DO NOTHING
        RETURNING ${COLUMNS}`,
       [
         ...refValues(ref),
         write.name,
+        write.order ?? null,
         revision,
         write.documentKey,
         write.updatedAt,
@@ -113,13 +116,14 @@ export function createSqlMetadataStore(
     const p = placeholders(driver.dialect);
     const rows = await driver.all<RawRow>(
       `UPDATE dashboards
-          SET name = ${p()}, revision = ${p()}, document_key = ${p()},
+          SET name = ${p()}, sort_order = ${p()}, revision = ${p()}, document_key = ${p()},
               updated_at = ${p()}, updated_by = ${p()}
         WHERE tenant_id = ${p()} AND scope_id = ${p()} AND slug = ${p()}
           AND revision = ${p()}
        RETURNING ${COLUMNS}`,
       [
         write.name,
+        write.order ?? null,
         revision,
         write.documentKey,
         write.updatedAt,
@@ -140,10 +144,11 @@ export function createSqlMetadataStore(
     const p = placeholders(driver.dialect);
     const rows = await driver.all<RawRow>(
       `INSERT INTO dashboards
-         (tenant_id, scope_id, slug, name, revision, document_key, updated_at, updated_by, created_by)
-       VALUES (${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()})
+         (tenant_id, scope_id, slug, name, sort_order, revision, document_key, updated_at, updated_by, created_by)
+       VALUES (${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()})
        ON CONFLICT (tenant_id, scope_id, slug) DO UPDATE
           SET name = excluded.name,
+              sort_order = excluded.sort_order,
               revision = excluded.revision,
               document_key = excluded.document_key,
               updated_at = excluded.updated_at,
@@ -152,6 +157,7 @@ export function createSqlMetadataStore(
       [
         ...refValues(ref),
         write.name,
+        write.order ?? null,
         revision,
         write.documentKey,
         write.updatedAt,
@@ -199,7 +205,7 @@ export function createSqlMetadataStore(
       const rows = await driver.all<RawRow>(
         `SELECT ${COLUMNS} FROM dashboards
           WHERE tenant_id = ${p()} AND scope_id = ${p()}
-          ORDER BY name, slug`,
+          ORDER BY sort_order IS NULL, sort_order, name, slug`,
         [tenantId, scopeId],
       );
       return rows.map(toRow);

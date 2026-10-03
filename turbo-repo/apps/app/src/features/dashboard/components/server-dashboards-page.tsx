@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import { useRouter } from "next/navigation";
 import useSWR, { SWRConfig } from "swr";
+import { useDashboardAutosave } from "@microboxlabs/miot-dashboard-ui/react";
 import { useSession } from "next-auth/react";
 import { Button, TextInput } from "flowbite-react";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
@@ -18,7 +19,10 @@ import {
   DashboardQuerySession,
   SavedQueryResults,
 } from "../context/saved-query-context";
+import { ServerDashboardQueries } from "./server-dashboard-queries";
 import { DashboardView } from "./dashboard-view";
+import type { DashboardSettingsHost } from "./dashboard-settings-dropdown/dashboard-settings-dropdown";
+import { ServerDashboardPermissions } from "./server-dashboard-permissions";
 
 type Props = { lang: string; slug?: string; dictionary: I18nRecord };
 const EMPTY_QUERIES: NonNullable<typeof DEFAULT_STORAGE.queries> = [];
@@ -173,15 +177,20 @@ function ServerDashboardEditor({
   const document = useDashboardDocument(org, slug, empty, sessionKey);
   const router = useRouter();
   const [removing, setRemoving] = useState(false);
+  const [permissionsOpen, setPermissionsOpen] = useState(false);
   const [removeError, setRemoveError] = useState(false);
   useUnsavedNavigation(document.dirty, t("leave"));
+  useDashboardAutosave({
+    ...document,
+    enabled:
+      document.capabilities?.canEdit === true && !document.readOnly && !removing,
+  });
   async function reload() {
     if (!document.dirty || globalThis.confirm(t("discard")))
       await document.discardAndReload();
   }
   async function remove() {
-    if (removing || document.busy || !globalThis.confirm(t("confirmDelete")))
-      return;
+    if (removing || document.busy) return;
     setRemoving(true);
     setRemoveError(false);
     try {
@@ -205,27 +214,28 @@ function ServerDashboardEditor({
         {t("loadError")}
       </p>
     );
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center gap-3 border-b p-3">
-        <Link href={`/${lang}/dashboards`}>{t("title")}</Link>
-        <TextInput
-          aria-label={t("name")}
-          value={document.config.name}
-          disabled={document.readOnly || removing}
-          onChange={(event) =>
-            document.onChange({ ...document.config, name: event.target.value })
-          }
-        />
-        {document.capabilities?.canEdit && (
-          <Button
-            size="sm"
-            disabled={!document.dirty || document.readOnly || removing}
-            onClick={() => void document.save()}
-          >
-            {t("save")}
-          </Button>
-        )}
+  const editable = !document.readOnly && !removing;
+  const settingsHost: DashboardSettingsHost = {
+    queries: (
+      <ServerDashboardQueries
+        client={document.client}
+        slug={slug}
+        sessionKey={sessionKey}
+        editable={editable}
+        dictionary={dictionary}
+      />
+    ),
+    canManagePermissions: document.capabilities?.canManagePermissions === true,
+    onManagePermissions: () => setPermissionsOpen(true),
+    onDelete: document.capabilities?.canDelete ? remove : undefined,
+  };
+  // Changes save on their own; a failed save keeps the draft and offers a reload.
+  const headerActions = document.dirty && (
+    <div className="flex items-center gap-2">
+      <output className="text-sm text-gray-500 dark:text-gray-400">
+        {t(document.error ? "unsaved" : "saving")}
+      </output>
+      {document.error !== null && (
         <Button
           size="sm"
           color="light"
@@ -234,23 +244,29 @@ function ServerDashboardEditor({
         >
           {t("reload")}
         </Button>
-        {document.capabilities?.canDelete && (
-          <Button
-            size="sm"
-            color="failure"
-            disabled={document.busy || removing}
-            onClick={() => void remove()}
-          >
-            {t("delete")}
-          </Button>
-        )}
-        {document.dirty && <output className="text-sm">{t("unsaved")}</output>}
-      </div>
+      )}
+    </div>
+  );
+  return (
+    <div className="flex h-full min-h-0 flex-col">
       {(document.error || removeError) && (
         <p role="alert" className="p-3 text-red-600">
           {t(document.error === 409 ? "conflict" : "saveError")}
         </p>
       )}
+      {permissionsOpen &&
+        document.capabilities?.canManagePermissions &&
+        !removing && (
+          <ServerDashboardPermissions
+            key={`${sessionKey}/${org}/${slug}`}
+            client={document.client}
+            slug={slug}
+            sessionKey={sessionKey}
+            dictionary={dictionary}
+            dashboardName={document.config.name ?? slug}
+            onClose={() => setPermissionsOpen(false)}
+          />
+        )}
       <DashboardQuerySession
         sessionKey={sessionKey}
         client={document.client}
@@ -270,7 +286,10 @@ function ServerDashboardEditor({
             onChange: document.onChange,
           }}
         >
-          <DashboardView />
+          <DashboardView
+            headerActions={headerActions}
+            settingsHost={settingsHost}
+          />
         </DashboardProvider>
       </DashboardQuerySession>
     </div>

@@ -9,3 +9,21 @@ export { createPercentageValueRegistry, type PercentageValueRegistryOptions } fr
 export { createCircularStatRegistry, type CircularStatRegistryOptions } from "./embed";
 
 export { createProgressStatRegistry, type ProgressStatRegistryOptions } from "./embed";
+
+export { createDataTableRegistry, createDataListRegistry, createResizableDataTableRegistry, type ResizableDataTableRegistryOptions, type DataTableRegistryOptions } from "./embed";
+
+export { createStatusStatRegistry, type StatusStatRegistryOptions } from "./embed";
+
+export { createIconStatRegistry, type IconStatRegistryOptions } from "./embed";
+
+export { createSensitiveStatRegistry, type SensitiveStatRegistryOptions } from "./embed";
+
+export { createStackedStatRegistry, type StackedStatRegistryOptions } from "./embed";
+
+export { createExpandableStatRegistry, type ExpandableStatRegistryOptions } from "./embed";
+
+export { createDetailedStatRegistry, type DetailedStatRegistryOptions } from "./embed";
+
+export { createSparklineStatRegistry, type SparklineStatRegistryOptions } from "./embed";
+
+export { createInfoCardRegistry, type InfoCardRegistryOptions } from "./embed";

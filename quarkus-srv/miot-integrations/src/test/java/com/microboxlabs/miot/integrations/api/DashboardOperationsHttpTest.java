@@ -24,7 +24,7 @@ class DashboardOperationsHttpTest {
     private static final String KEY = "dashboard-test-service-key-32-characters";
 
     @ParameterizedTest
-    @ValueSource(strings = {PATH, PATH + "/resolve"})
+    @ValueSource(strings = {PATH, PATH + "/resolve", PATH + "/catalog"})
     void authenticatesBeforeJsonDecodingOrBodySizeValidation(String path) {
         for (String body : new String[]{"not-json", "x".repeat(DashboardOperationsIngress.MAX_BODY_BYTES + 1)}) {
             given().contentType("application/json").body(body).post(path)
@@ -33,7 +33,7 @@ class DashboardOperationsHttpTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {PATH, PATH + "/resolve"})
+    @ValueSource(strings = {PATH, PATH + "/resolve", PATH + "/catalog"})
     void boundsDeclaredAndStreamingBodiesBeforeJsonDecoding(String path) {
         byte[] bytes = "x".repeat(DashboardOperationsIngress.MAX_BODY_BYTES + 1).getBytes(StandardCharsets.UTF_8);
         given().header("x-miot-proxy-key", KEY).contentType("application/json").body(bytes).post(path)
@@ -44,7 +44,7 @@ class DashboardOperationsHttpTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {PATH, PATH + "/resolve"})
+    @ValueSource(strings = {PATH, PATH + "/resolve", PATH + "/catalog"})
     void frameworkErrorsAreNeverCached(String path) {
         given().header("x-miot-proxy-key", KEY).contentType("application/json").body("{").post(path)
                 .then().statusCode(400).header("Cache-Control", "no-store");
@@ -55,14 +55,14 @@ class DashboardOperationsHttpTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {PATH, PATH + "/resolve"})
+    @ValueSource(strings = {PATH, PATH + "/resolve", PATH + "/catalog"})
     void validJsonReachesResourceValidation(String path) {
         given().header("x-miot-proxy-key", KEY).contentType("application/json").body("{}").post(path)
                 .then().statusCode(400).header("Cache-Control", "no-store");
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {PATH, PATH + "/resolve"})
+    @ValueSource(strings = {PATH, PATH + "/resolve", PATH + "/catalog"})
     void acceptsHttp2BodiesAndBoundsUnknownLengthStreams(String path) throws Exception {
         String valid = "{\"tenantId\":\"missing-dashboard-test-org\",\"scopeId\":\"default\",\"dashboardSlug\":\"costs\","
                 + "\"userId\":\"test\",\"connectionId\":\"connection\",\"operationId\":\"operation\",\"parameters\":{},"

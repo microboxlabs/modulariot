@@ -164,6 +164,40 @@ describe("credentials data service", () => {
     expect(bodyOf(fetchMock)).not.toHaveProperty("secretConfig");
   });
 
+  it("sends a bearer token as the only secret, with no public config", async () => {
+    const fetchMock = stubFetch({ body: apiCredential() });
+
+    await createCredential(ORG, "BEARER_TOKEN", {
+      name: "PostgREST token",
+      environment: "QA",
+      token: "  abc.def.ghi  ",
+    });
+
+    expect(bodyOf(fetchMock)).toEqual({
+      displayName: "PostgREST token",
+      credentialType: "BEARER_TOKEN",
+      environment: "QA",
+      publicConfig: {},
+      secretConfig: { token: "abc.def.ghi" },
+    });
+  });
+
+  it("keeps the stored token when a bearer credential is edited without one", async () => {
+    const fetchMock = stubFetch({ body: apiCredential() });
+
+    await updateCredential(ORG, "cred-1", {
+      name: "PostgREST token",
+      environment: "QA",
+      token: "",
+    });
+
+    expect(bodyOf(fetchMock)).toEqual({
+      displayName: "PostgREST token",
+      environment: "QA",
+      publicConfig: {},
+    });
+  });
+
   // A blank override would otherwise replace the endpoint derived from the directory id.
   it("omits an empty token URL override", async () => {
     const fetchMock = stubFetch({ body: apiCredential() });

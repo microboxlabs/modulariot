@@ -13,3 +13,7 @@ export {
   createRemotePlanOperationExecutor,
   type RemotePlanExecutorOptions,
 } from "./queries/remote-plan";
+export {
+  createRemoteQueryCatalog,
+  type RemoteQueryCatalogOptions,
+} from "./queries/remote-catalog";

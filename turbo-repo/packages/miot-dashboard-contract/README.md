@@ -135,3 +135,14 @@ which returns `{ canCreate: boolean }` for an authenticated scope member.
 It describes scope-role and credential eligibility, not authorization for a
 particular document. Saving still applies document policy and validation.
 Embed tokens cannot call this endpoint. Use server v0.5.0 or later to serve it.
+
+## Dynamic filter option metadata (v0.6.0)
+
+`DashboardFilterParam` includes optional `single: boolean` and
+`optionsSource: { variableName, valueField, labelField? }`. The source references
+an already authorized named result; it supplies no endpoint, SQL or credentials.
+`labelField` defaults to `valueField`. Portable hosts use saved-query variables;
+legacy hosts may supply planner results through their adapter. The contract only
+validates metadata shape: result projection, loading states and selection behavior
+belong to the UI. Blank legacy source fields remain readable; authoring interfaces
+should require complete references. Existing extension fields remain preserved.

@@ -15,9 +15,9 @@ export function createTemplateEngine(options: TemplateEngineOptions = {}) {
   const runtime = Handlebars.create();
   registerTemplateHelpers(runtime);
   if (options.helpers) runtime.registerHelper(options.helpers);
-  const compile = (template: string): CompiledTemplate => {
+  const compile = (template: string, noEscape = false): CompiledTemplate => {
     // compile is lazy; parse validates once and reuses the parsed syntax tree.
-    const compiled = runtime.compile(runtime.parse(template));
+    const compiled = runtime.compile(runtime.parse(template), { noEscape });
     return (context) =>
       compiled(context, {
         allowProtoMethodsByDefault: false,
@@ -60,7 +60,12 @@ export function createTemplateEngine(options: TemplateEngineOptions = {}) {
       return template;
     }
   };
-  return { compileTemplates, resolveTemplate, resolveField };
+  return {
+    compileTemplates,
+    resolveTemplate,
+    resolveField,
+    compileTextTemplate: (template: string) => compile(template, true),
+  };
 }
 
 export function buildDataProviderContext(

@@ -116,3 +116,31 @@ describe("standalone portable operations module", () => {
     });
   });
 });
+
+it("loads an optional catalog factory without changing the executor receiver", async () => {
+  const path = await fixture(`
+    export function createDashboardOperations() { return { value: 7, async execute() { return { rows: [{ value: this.value }] }; } }; }
+    export function createDashboardQueryCatalog() { return { async list({ref}) { return [{ id: ref.tenantId, label: 'Billing', operations: [] }]; } }; }
+  `);
+  const operations = await loadConfiguredOperations({ operationsModule: path });
+  expect(await operations?.execute({} as never)).toEqual({ rows: [{ value: 7 }] });
+  expect(await operations?.queryCatalog?.list({ ref: { tenantId: "acme" } } as never)).toEqual([{ id: "acme", label: "Billing", operations: [] }]);
+});
+it("treats a null catalog as a deployment without one", async () => {
+  const path = await fixture(`
+    export function createDashboardOperations() { return { execute: async () => ({ rows: [] }) }; }
+    export function createDashboardQueryCatalog() { return null; }
+  `);
+  const operations = await loadConfiguredOperations({ operationsModule: path });
+  expect(operations?.execute).toBeTypeOf("function");
+  expect(operations?.queryCatalog).toBeUndefined();
+});
+it.each([
+  'export const createDashboardQueryCatalog = "private-token";',
+  'export function createDashboardQueryCatalog() { throw new Error("private-token"); }',
+  'export function createDashboardQueryCatalog() { return undefined; }',
+  'export function createDashboardQueryCatalog() { return { list: "private-token" }; }',
+])("rejects invalid catalog factories without leaking initialization details", async (catalog) => {
+  const path = await fixture('export function createDashboardOperations() { return { execute: async () => ({rows:[]}) }; }\n' + catalog);
+  await expect(loadConfiguredOperations({ operationsModule: path })).rejects.toMatchObject({message: "Dashboard operation module could not be initialized"});
+});

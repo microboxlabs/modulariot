@@ -2613,7 +2613,13 @@
         "moveDown": "Bajar",
         "removeStep": "Quitar paso",
         "stepScript": "Qué decir",
-        "stepScriptPlaceholder": "Qué decir. Puedes usar {vars}"
+        "stepScriptPlaceholder": "Qué decir. Puedes usar {vars}",
+        "stateActiveHelp": "Activo: crea casos, envía avisos y pide gestión a los operadores.",
+        "stateTestHelp": "En prueba: crea casos para medir cuántos habría, pero no avisa a nadie, no pide operador y no cuenta en reportes.",
+        "stateOffHelp": "Apagado: no crea casos.",
+        "bumpMajor": "MAYOR",
+        "bumpMinor": "MENOR",
+        "bumpPatch": "PARCHE"
       }
     },
     "integrationJobs": {

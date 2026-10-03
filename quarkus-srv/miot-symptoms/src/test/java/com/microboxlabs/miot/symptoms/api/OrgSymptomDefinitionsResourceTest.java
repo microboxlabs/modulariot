@@ -22,13 +22,17 @@ import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomStatsService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.TemplateService;
 import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.service.TowerSettingsService;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
+import com.microboxlabs.miot.symptoms.store.InMemoryTowerSettingsStore;
+import com.microboxlabs.miot.symptoms.store.InMemoryTreatmentStore;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.groups.UniAwait;
 import jakarta.ws.rs.ForbiddenException;
@@ -88,7 +92,9 @@ class OrgSymptomDefinitionsResourceTest {
                         throw new IllegalStateException("down");
                     }
                     return "Se activa <b>en viaje</b>";
-                }), new TemplateService());
+                }), new TemplateService(), new SymptomStatsService(catalog, new DemoSymptomEngine(),
+                        new InMemoryTreatmentStore(), new TowerSettingsService(new InMemoryTowerSettingsStore(),
+                                new AuditService(new InMemoryAuditStore()))));
     }
 
     private static int status(Uni<Response> call) {
@@ -100,6 +106,7 @@ class OrgSymptomDefinitionsResourceTest {
         OrgSymptomDefinitionsResource member = resource(false);
         assertEquals(200, status(member.list(ORG)));
         assertEquals(200, status(member.templates(ORG)));
+        assertEquals(200, status(member.stats(ORG)));
         assertEquals(200, status(member.get(ORG, id)));
         assertEquals(200, status(member.preview(ORG, id, null)));
         assertEquals(200, status(member.describe(ORG, "Bearer t",

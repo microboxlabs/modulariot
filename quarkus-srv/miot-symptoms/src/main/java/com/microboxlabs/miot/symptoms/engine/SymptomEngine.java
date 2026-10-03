@@ -25,6 +25,14 @@ public interface SymptomEngine {
     List<EngineCase> recentCases(String tenantCode, String symptomName, OffsetDateTime since, int limit);
 
     /**
+     * One page of a symptom's cases that started in {@code [from, to)} at one of {@code icus}, excluded cases left
+     * out, ordered by id. Pass the last id of the previous page as {@code afterId} (0 for the first page); a page
+     * shorter than {@code limit} is the last one.
+     */
+    List<EngineCase> casesPage(String tenantCode, String symptomName, OffsetDateTime from, OffsetDateTime to,
+            List<Integer> icus, long afterId, int limit);
+
+    /**
      * Recent objects shaped like the {@code gps_signal} source, for previewing
      * rules. They carry no plate, driver or device identifiers.
      */

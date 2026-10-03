@@ -5,7 +5,9 @@ import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -56,4 +58,7 @@ public interface TreatmentStore {
 
     /** Call statistics per tenant contact, derived from CALL actions. */
     List<ContactCallStats> contactStats(String tenantCode);
+
+    /** When an operator first took each of these cases; cases nobody took are left out. */
+    Map<Long, OffsetDateTime> firstOpenedAt(String tenantCode, Collection<Long> symptomIds);
 }

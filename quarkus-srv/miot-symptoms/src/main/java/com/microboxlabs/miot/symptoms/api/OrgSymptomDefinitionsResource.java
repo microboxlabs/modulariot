@@ -10,6 +10,7 @@ import com.microboxlabs.miot.symptoms.catalog.service.EngineImportService;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomStatsService;
 import com.microboxlabs.miot.symptoms.catalog.service.TemplateService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
@@ -59,6 +60,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     private final EngineImportService importer;
     private final RuleDescriptionService descriptions;
     private final TemplateService templates;
+    private final SymptomStatsService stats;
 
     /** Publishes the draft. {@code bump} may raise the computed bump; {@code state} defaults to TEST. */
     public record PublishRequest(String reason, VersionBump bump, SymptomState state) {
@@ -94,13 +96,25 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             PreviewService previews,
             EngineImportService importer,
             RuleDescriptionService descriptions,
-            TemplateService templates) {
+            TemplateService templates,
+            SymptomStatsService stats) {
         super(tenantContext, organizationContext, roleService, identity);
         this.catalog = catalog;
         this.previews = previews;
         this.importer = importer;
         this.descriptions = descriptions;
         this.templates = templates;
+        this.stats = stats;
+    }
+
+    @GET
+    @Path("/stats")
+    @Operation(operationId = "symptomStats",
+            summary = "Cases per week by level (90-day average), operator load per shift, last week's SLA and"
+                    + " recent changes. engineAvailable is false when the engine is not connected")
+    public Uni<Response> stats(@PathParam(ORG) String organizationId) {
+        String tenant = tenantCode(organizationId);
+        return memberWork(() -> Response.ok(stats.stats(tenant)).build());
     }
 
     @POST

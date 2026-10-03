@@ -23,6 +23,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Symptom definitions and their versions: drafts, validation, publishing
@@ -52,8 +53,18 @@ public class SymptomCatalogService {
             List<SymptomVersion> versions) {
     }
 
-    /** A symptom in the catalog list. */
-    public record SymptomSummary(SymptomDefinition definition, boolean hasDraft) {
+    /**
+     * A symptom in the catalog list.
+     *
+     * @param currentSpec    the published version's spec; null before the first publish
+     * @param activationText the cached description of the published activation, if one was written
+     */
+    public record SymptomSummary(SymptomDefinition definition, boolean hasDraft, SymptomSpec currentSpec,
+            String activationText) {
+
+        public SymptomSummary withActivationText(String text) {
+            return new SymptomSummary(definition, hasDraft, currentSpec, text);
+        }
     }
 
     /** What a publish would do: the changes, the computed bump, the next version and the checks. */
@@ -69,8 +80,11 @@ public class SymptomCatalogService {
 
     public List<SymptomSummary> list(String tenantCode) {
         Set<UUID> drafts = store.definitionsWithDraft(tenantCode);
+        Map<UUID, SymptomSpec> current = store.currentVersions(tenantCode).stream()
+                .filter(v -> v.spec() != null)
+                .collect(Collectors.toMap(SymptomVersion::definitionId, SymptomVersion::spec));
         return store.listDefinitions(tenantCode).stream()
-                .map(d -> new SymptomSummary(d, drafts.contains(d.id())))
+                .map(d -> new SymptomSummary(d, drafts.contains(d.id()), current.get(d.id()), null))
                 .toList();
     }
 

@@ -92,6 +92,15 @@ public class InMemoryCatalog implements SymptomCatalogStore, DataSourceStore {
     }
 
     @Override
+    public List<SymptomVersion> currentVersions(String tenantCode) {
+        return listDefinitions(tenantCode).stream()
+                .filter(d -> d.currentVersion() != null)
+                .flatMap(d -> findVersion(tenantCode, d.id(), d.currentVersion()).stream())
+                .filter(v -> v.status() == VersionStatus.PUBLISHED)
+                .toList();
+    }
+
+    @Override
     public void deleteDraft(String tenantCode, UUID definitionId) {
         findDraft(tenantCode, definitionId).ifPresent(d -> versions.remove(d.id()));
     }

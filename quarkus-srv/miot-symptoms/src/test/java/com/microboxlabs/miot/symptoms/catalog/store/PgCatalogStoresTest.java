@@ -29,6 +29,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -106,6 +107,9 @@ class PgCatalogStoresTest {
         assertEquals("1.0.0", store.findVersion(TENANT, created.id(), "1.1.0").orElseThrow().rolledBackFrom());
         assertTrue(store.findDefinition("tenant-b", created.id()).isEmpty(), "other tenants see nothing");
         assertTrue(!store.definitionsWithDraft(TENANT).contains(created.id()), "publishing consumed the draft");
+        assertEquals(List.of("1.1.0"), store.currentVersions(TENANT).stream()
+                .filter(v -> v.definitionId().equals(created.id())).map(SymptomVersion::version).toList());
+        assertTrue(store.currentVersions("tenant-b").isEmpty());
     }
 
     @Test
@@ -156,5 +160,12 @@ class PgCatalogStoresTest {
 
         assertEquals("<b>Se abre</b> de inmediato", store.find("abc", "es-CL", "owner").orElseThrow().html());
         assertTrue(store.find("abc", "en", "owner").isEmpty());
+
+        store.save(new RuleDescription("def", "es-CL", "owner", "otra"));
+        store.save(new RuleDescription("def", "en", "owner", "other"));
+        assertEquals(Set.of("abc", "def"),
+                store.findAll(List.of("abc", "def", "nope"), "es-CL", "owner").keySet());
+        assertEquals("other", store.findAll(List.of("def"), "en", "owner").get("def").html());
+        assertTrue(store.findAll(List.of(), "es-CL", "owner").isEmpty());
     }
 }

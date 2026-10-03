@@ -15,7 +15,6 @@ import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Report;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.PublishPlan;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomDetail;
-import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -79,7 +78,11 @@ public class SymptomTools {
     public record Sources(List<SourceSummary> sources, DataSource source) {
     }
 
-    public record Symptoms(List<SymptomSummary> symptoms) {
+    /** A symptom in the tool's list; the spec is read with symptoms_get. */
+    public record SymptomItem(SymptomDefinition definition, boolean hasDraft) {
+    }
+
+    public record Symptoms(List<SymptomItem> symptoms) {
     }
 
     private final McpCaller caller;
@@ -104,7 +107,9 @@ public class SymptomTools {
                     destructiveHint = false, openWorldHint = false))
     public Uni<Symptoms> list(@ToolArg(description = ORGANIZATION) String organization) {
         return caller.member(organization)
-                .flatMap(in -> work(() -> new Symptoms(catalog.list(in.tenantCode()))));
+                .flatMap(in -> work(() -> new Symptoms(catalog.list(in.tenantCode()).stream()
+                        .map(s -> new SymptomItem(s.definition(), s.hasDraft()))
+                        .toList())));
     }
 
     @Tool(name = "symptoms_get", structuredContent = true,

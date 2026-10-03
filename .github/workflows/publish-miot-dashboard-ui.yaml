@@ -1,0 +1,166 @@
+name: Publish miot-dashboard-ui
+
+# Publish after @microboxlabs/miot-dashboard-contract, which this package depends on.
+# The first version of a new package name is published by hand; OIDC cannot create it.
+#
+# Publishing is authenticated by OIDC, so there is no token to keep. npm issues
+# a short-lived credential to this workflow file alone; renaming it breaks the
+# release until the trusted publisher is updated.
+
+on:
+  push:
+    tags:
+      - "miot-dashboard-ui@v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag to publish (e.g. miot-dashboard-ui@v0.1.0)"
+        required: true
+
+env:
+  NODE_VERSION: "24"
+  PACKAGE_NAME: "@microboxlabs/miot-dashboard-ui"
+  PACKAGE_DIR: "packages/miot-dashboard-ui"
+  TAG_PREFIX: "miot-dashboard-ui@v"
+
+jobs:
+  publish:
+    name: Publish to npmjs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # OIDC for npm trusted publishers
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # `refs/tags/` is explicit: actions/checkout resolves an
+          # unqualified ref to a branch before a tag.
+          ref: ${{ startsWith(inputs.tag, 'miot-dashboard-ui@v') && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+          cache: npm
+          cache-dependency-path: turbo-repo/package-lock.json
+
+      - name: Check the tag names the version being published
+        id: version
+        env:
+          # Through the environment, not interpolated: the dispatch input
+          # is untrusted text and bash expands `$(...)` inside quotes.
+          RELEASE_REF: ${{ startsWith(inputs.tag, 'miot-dashboard-ui@v') && inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          ref="$RELEASE_REF"
+          case "$ref" in
+            "$TAG_PREFIX"*) ;;
+            *)
+              echo "This workflow publishes ${TAG_PREFIX}<version> tags; got '$ref'." >&2
+              exit 1
+              ;;
+          esac
+          tagged="${ref#"$TAG_PREFIX"}"
+          declared="$(node -p "require('./turbo-repo/$PACKAGE_DIR/package.json').version")"
+          if [[ "$tagged" != "$declared" ]]; then
+            echo "The tag says $tagged but $PACKAGE_DIR/package.json says $declared." >&2
+            echo "Bump the manifest and re-tag; do not publish a version the tag does not name." >&2
+            exit 1
+          fi
+          echo "version=$declared" >> "$GITHUB_OUTPUT"
+          echo "tag=$ref" >> "$GITHUB_OUTPUT"
+          echo "Publishing $PACKAGE_NAME@$declared"
+
+      # No node_modules cache: one populated by another branch's CI could
+      # reach the published tarball.
+      - name: Install dependencies
+        run: npm ci
+        working-directory: turbo-repo
+
+      - name: Build package
+        run: npx turbo run build --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Run lint
+        run: npx turbo run lint --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Run type check and the import guard
+        run: npx turbo run check-types --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Run tests
+        run: npx turbo run test --filter=$PACKAGE_NAME
+        working-directory: turbo-repo
+
+      - name: Pack the tarball
+        id: pack
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release"
+          npm pack --workspace="$PACKAGE_DIR" --pack-destination "$RUNNER_TEMP/release"
+          tarball="$RUNNER_TEMP/release/microboxlabs-miot-dashboard-ui-${{ steps.version.outputs.version }}.tgz"
+          if [[ ! -f "$tarball" ]]; then
+            echo "npm pack did not produce $tarball. Contents:" >&2
+            ls -la "$RUNNER_TEMP/release" >&2
+            exit 1
+          fi
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+        working-directory: turbo-repo
+
+      - name: Install the tarball as a consumer would
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/consumer"
+          cd "$RUNNER_TEMP/consumer"
+          npm init -y > /dev/null
+          # Peers a React or chart host installs itself.
+          npm install --no-audit --no-fund "${{ steps.pack.outputs.tarball }}" react react-dom echarts
+
+      - name: Resolve every published entry point
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/consumer"
+          cat > check-exports.mjs <<'CHECK'
+          import { createRequire } from "node:module";
+          import { existsSync } from "node:fs";
+
+          const require = createRequire(import.meta.url);
+          const name = "@microboxlabs/miot-dashboard-ui";
+          const entries = [
+            "/core", "/client", "/document", "/templates", "/react", "/embed",
+            "/web-component", "/browser", "/charts", "/react-charts", "/browser-charts",
+          ];
+          for (const entry of entries) {
+            const loaded = await import(name + entry);
+            const names = Object.keys(loaded);
+            if (names.length === 0) {
+              throw new Error(`${name}${entry} resolved but exports nothing`);
+            }
+            console.log("ok", entry, "->", names.length, "exports");
+          }
+          const { createDashboardClient } = await import(name + "/client");
+          if (typeof createDashboardClient !== "function") {
+            throw new Error("the client entry does not export createDashboardClient");
+          }
+          const styles = require.resolve(name + "/styles.css");
+          if (!existsSync(styles)) throw new Error(`missing ${styles}`);
+          console.log("ok styles.css");
+          CHECK
+          node check-exports.mjs
+
+      - name: Publish to npm
+        run: npm publish --workspace=$PACKAGE_DIR --access public
+        working-directory: turbo-repo
+
+      - name: Summary
+        run: |
+          {
+            echo "# $PACKAGE_NAME@${{ steps.version.outputs.version }}"
+            echo ""
+            echo "- Published from tag \`${{ steps.version.outputs.tag }}\`"
+            echo "- Entry points and styles resolved from the installed tarball with its peers"
+          } >> "$GITHUB_STEP_SUMMARY"

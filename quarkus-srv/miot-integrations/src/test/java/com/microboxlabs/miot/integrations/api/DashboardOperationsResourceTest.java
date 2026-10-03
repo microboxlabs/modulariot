@@ -5,11 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.microboxlabs.miot.integrations.service.DashboardOperationCatalog;
 import com.microboxlabs.miot.integrations.service.DashboardOperationService;
 import com.microboxlabs.miot.integrations.service.DashboardOperationResolver;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.core.Response;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -81,6 +83,32 @@ class DashboardOperationsResourceTest {
         assertResponse(502, enabled.resolve(KEY, REQUEST));
     }
 
+    @Test
+    void catalogIsAuthenticatedResolvesTheOrganizationAndRedactsFailures() {
+        Resource resource = new Resource(KEY);
+        assertResponse(401, resource.catalog("wrong", new DashboardOperationsResource.CatalogRequest("acme")));
+        assertResponse(400, resource.catalog(KEY, new DashboardOperationsResource.CatalogRequest(" ")));
+        assertResponse(400, resource.catalog(KEY, null));
+        assertEquals(0, resource.lookups);
+        Response response = assertResponse(200, resource.catalog(KEY, new DashboardOperationsResource.CatalogRequest("acme")));
+        assertEquals("acme", resource.slug);
+        assertEquals(Map.of("connections", Catalog.LISTING), response.getEntity());
+        resource.tenant = Optional.empty();
+        assertResponse(404, resource.catalog(KEY, new DashboardOperationsResource.CatalogRequest("acme")));
+        resource.lookupFailure = true;
+        response = assertResponse(502, resource.catalog(KEY, new DashboardOperationsResource.CatalogRequest("acme")));
+        assertEquals(Map.of("error", "Dashboard catalog could not be listed"), response.getEntity());
+    }
+
+    private static class Catalog extends DashboardOperationCatalog {
+        static final List<Connection> LISTING = List.of(new Connection("c", "Data", List.of(new Operation("o", "fn"))));
+        Catalog() { super(null, null); }
+        @Override public List<Connection> list(String tenant) {
+            assertEquals("ACME", tenant);
+            return LISTING;
+        }
+    }
+
     private static class Resolver extends DashboardOperationResolver {
         Resolver() { super(null, null, null, 1000); }
         @Override public ObjectNode resolve(String tenant, DashboardOperationService.Request request) {
@@ -106,7 +134,7 @@ class DashboardOperationsResourceTest {
         Resource(String key) { this(new Service(), key, false); }
         Resource(String key, boolean enabled) { this(new Service(), key, enabled); }
         Resource(Service service, String key, boolean enabled) {
-            super(service, new Resolver(), enabled, Optional.of(key));
+            super(service, new Resolver(), new Catalog(), enabled, Optional.of(key));
             this.service = service;
         }
         @Override Uni<Optional<String>> tenantCodeFor(String slug) {

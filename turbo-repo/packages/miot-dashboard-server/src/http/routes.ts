@@ -11,6 +11,7 @@ export type RouteName =
   | "dashboards"
   | "dashboard"
   | "query"
+  | "queryCatalog"
   | "capabilities"
   | "permissions"
   | "datasources"
@@ -94,6 +95,8 @@ function matchDashboards(
 
   if (segments.length === 7) {
     const tail = segments[6];
+    if (tail === "query-catalog")
+      return { route: "queryCatalog", tenantId, scopeId, slug };
     if (tail === "capabilities")
       return { route: "capabilities", tenantId, scopeId, slug };
     if (tail === "permissions")

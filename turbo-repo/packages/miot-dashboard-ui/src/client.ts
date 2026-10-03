@@ -1,3 +1,5 @@
+import { queryCatalogSchema } from "./client/query-catalog";
+export type { QueryCatalogConnection, QueryCatalogOperation } from "./client/query-catalog";
 import { DashboardApiError } from "./client/error";
 export { DashboardApiError } from "./client/error";
 import { appendRoute, pathSegment, validateEndpoint } from "./client/routes";
@@ -12,7 +14,11 @@ import type {
 } from "@microboxlabs/miot-dashboard-contract/document";
 import { DASHBOARD_ROLES } from "@microboxlabs/miot-dashboard-contract/roles";
 
-const summarySchema = z.object({ slug: z.string(), name: z.string() });
+const summarySchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  order: z.number().int().nonnegative().optional(),
+});
 const permissionSchema = z.object({
   authorityId: z.string().min(1),
   role: z.enum(DASHBOARD_ROLES),
@@ -190,6 +196,10 @@ export function createDashboardClient(options: DashboardClientOptions) {
         await request(url(slug, "capabilities"), { signal }),
         capabilitiesSchema,
       );
+    },
+    async queryCatalog(slug: string, signal?: AbortSignal) {
+      const result = await read(await request(url(slug, "query-catalog"), { signal }), queryCatalogSchema);
+      return result.connections;
     },
     async permissions(slug: string, signal?: AbortSignal) {
       return read(

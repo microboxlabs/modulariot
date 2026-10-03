@@ -1,19 +1,18 @@
 "use client";
 
 import { useMemo } from "react";
-import { HiEllipsisVertical } from "react-icons/hi2";
+import {
+  DataListCard,
+  type DataListCardLayout as CardLayoutConfig,
+} from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+export type { DataListCardLayout as CardLayoutConfig } from "@microboxlabs/miot-dashboard-ui/react";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { useOptionalDashboard } from "../../context/dashboard-context";
 import { tr } from "@/features/i18n/tr.service";
-import type {
-  BadgeColorMapping,
-  DataMode,
-  TableColumn,
-  SortConfig,
-} from "../common/column-types";
+import type { DataMode, TableColumn, SortConfig } from "../common/column-types";
 import type { FilterConfig, FilterItemConfig } from "../common/filter-types";
 import type { PgrestParam, PgrestHttpMethod } from "../common/pgrest-types";
-import { renderCell } from "../common/cell-renderers";
 import { useDynamicRows } from "../common/use-dynamic-rows";
 import { useDashletData } from "../common/use-dashlet-data";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
@@ -40,19 +39,6 @@ export { normalizeFilterConfig } from "../common/filter-helpers";
 // ============================================================================
 // Configuration Types
 // ============================================================================
-
-export interface CardLayoutConfig {
-  /** Column key for the primary title (e.g. vehicle ID) */
-  titleColumn: string;
-  /** Column key for the subtitle line */
-  subtitleColumn: string;
-  /** Column keys rendered as badges next to the title */
-  headerBadgeColumns: string[];
-  /** Column keys shown as a KPI grid in the card body */
-  kpiColumns: string[];
-  /** Column keys shown in the footer row */
-  footerColumns: string[];
-}
 
 export interface DashletConfig {
   title: string;
@@ -200,139 +186,6 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
 }
 
 // ============================================================================
-// List Card
-// ============================================================================
-
-interface ListCardProps {
-  row: Record<string, string>;
-  rowIdx: number;
-  totalRows: number;
-  columns: TableColumn[];
-  cardLayout: CardLayoutConfig;
-  resolveValue: (
-    key: string,
-    row: Record<string, string>,
-    rowIdx: number,
-    totalRows: number
-  ) => string;
-  resolveLabel: (key: string) => string;
-  resolveType: (
-    key: string,
-    row: Record<string, string>,
-    rowIdx: number,
-    totalRows: number
-  ) => string;
-}
-
-function ListCard({
-  row,
-  rowIdx,
-  totalRows,
-  columns,
-  cardLayout,
-  resolveValue,
-  resolveLabel,
-  resolveType,
-}: Readonly<ListCardProps>) {
-  function resolveColorMap(key: string): BadgeColorMapping[] | undefined {
-    const col = columns.find((c) => c.key === key);
-    return col?.colorRulesEnabled ? col.colorMap : undefined;
-  }
-
-  const titleValue = resolveValue(
-    cardLayout.titleColumn,
-    row,
-    rowIdx,
-    totalRows
-  );
-  const subtitleValue = resolveValue(
-    cardLayout.subtitleColumn,
-    row,
-    rowIdx,
-    totalRows
-  );
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-      {/* Header: title + badges + menu */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-base font-bold text-gray-900 dark:text-white">
-              {titleValue}
-            </span>
-            {cardLayout.headerBadgeColumns.map((key) => {
-              const val = resolveValue(key, row, rowIdx, totalRows);
-              if (!val) return null;
-              const colType = resolveType(key, row, rowIdx, totalRows);
-              return (
-                <span key={key}>
-                  {renderCell(val, colType || "badge", resolveColorMap(key))}
-                </span>
-              );
-            })}
-          </div>
-          {subtitleValue && (
-            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-              {subtitleValue}
-            </p>
-          )}
-        </div>
-        <button
-          type="button"
-          aria-hidden="true"
-          tabIndex={-1}
-          className="no-drag shrink-0 cursor-pointer rounded p-1 text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-        >
-          <HiEllipsisVertical className="h-5 w-5" />
-        </button>
-      </div>
-
-      {/* KPI Grid */}
-      {cardLayout.kpiColumns.length > 0 && (
-        <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 md:grid-cols-6">
-          {cardLayout.kpiColumns.map((key) => {
-            const val = resolveValue(key, row, rowIdx, totalRows);
-            const colType = resolveType(key, row, rowIdx, totalRows);
-            return (
-              <div key={key} className="min-w-0">
-                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                  {resolveLabel(key)}
-                </p>
-                <p className="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">
-                  {renderCell(val, colType || "text", resolveColorMap(key))}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Footer metadata */}
-      {cardLayout.footerColumns.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-gray-100 pt-3 dark:border-gray-700">
-          {cardLayout.footerColumns.map((key) => {
-            const val = resolveValue(key, row, rowIdx, totalRows);
-            const colType = resolveType(key, row, rowIdx, totalRows);
-            return (
-              <span
-                key={key}
-                className="inline-flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400"
-              >
-                <span>{resolveLabel(key)}:</span>
-                <span className="font-medium text-gray-700 dark:text-gray-300">
-                  {renderCell(val, colType || "text", resolveColorMap(key))}
-                </span>
-              </span>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================================================
 // Component
 // ============================================================================
 
@@ -397,6 +250,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   // ── Filter & sort (shared hook) ───────────────────────────────────────────
   const {
     filterValues,
+    validSortColumns,
     sortKey,
     sortDir,
     filterOptionsByColumn,
@@ -462,8 +316,12 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       {/* Sort card */}
       {sort.enabled && (
         <SortPillRow
+          directionLabels={{
+            asc: tr("dashboard.portableWidgets.ascending", dictionary),
+            desc: tr("dashboard.portableWidgets.descending", dictionary),
+          }}
           label={tr("dashboard.dashlets.data_list.sortBy", dictionary)}
-          columns={sort.columns}
+          columns={validSortColumns}
           sortKey={sortKey}
           sortDir={sortDir}
           getColumnLabel={getColumnLabel}
@@ -500,7 +358,7 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
               displayRows.length
             );
             return (
-              <ListCard
+              <DataListCard
                 key={titleKey ? `${titleKey}-${idx}` : `row-${idx}`}
                 row={row}
                 rowIdx={idx}

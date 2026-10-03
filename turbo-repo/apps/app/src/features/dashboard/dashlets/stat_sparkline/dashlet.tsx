@@ -1,16 +1,19 @@
 "use client";
 
+import { SparklineStat } from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { useThresholdDashletData } from "../common/use-threshold-dashlet-data";
 import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
-import { useDashletPgrest } from "../common/use-dashlet-pgrest";
 import {
   DashletLoading,
   DashletError,
   parseResolvedNumber,
 } from "../common/dashlet-states";
-import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
-import { useRowThreshold } from "../common/use-threshold";
-import { getThresholdTextClasses } from "../common/threshold-engine";
+import {
+  getThresholdTextClasses,
+  getThresholdTextStyle,
+} from "../common/threshold-engine";
 import type { ThresholdConfig } from "../common/threshold-types";
 
 // ============================================================================
@@ -41,7 +44,11 @@ export function getLayoutDefaults(): DashletLayoutDefaults {
   return layoutDefaults;
 }
 
-const FIELD_DEFAULTS: Record<string, string> = { title: "Page Views", value: "24567", unit: "" };
+const FIELD_DEFAULTS: Record<string, string> = {
+  title: "Page Views",
+  value: "24567",
+  unit: "",
+};
 
 // ============================================================================
 // Component - Style 9: Sparkline
@@ -57,11 +64,8 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
     Array.isArray(rawSparkline) && rawSparkline.length >= 2
       ? rawSparkline
       : defaultConfig.sparkline;
-  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
-
-  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(config, FIELD_DEFAULTS, refreshIntervalMs);
-
-  const { color: thresholdColor, appliesTo } = useRowThreshold(config.thresholds, firstRow);
+  const { resolved, loading, fetchError, thresholdColor, appliesTo } =
+    useThresholdDashletData(widget.config, config, FIELD_DEFAULTS);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;
@@ -70,58 +74,17 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const unit = resolved.unit ?? "";
   const value = parseResolvedNumber(resolved.value);
 
-  const min = Math.min(...sparkline);
-  const max = Math.max(...sparkline);
-  const range = max - min || 1;
-
-  // Generate SVG path for sparkline
-  const width = 200;
-  const height = 50;
-  const points = sparkline
-    .map((v, i) => {
-      const x = (i / (sparkline.length - 1)) * width;
-      const y = height - ((v - min) / range) * height;
-      return `${x},${y}`;
-    })
-    .join(" ");
-
-  const pathD = `M ${points}`;
-  const areaD = `M 0,${height} L ${points} L ${width},${height} Z`;
-
+  const textColor = thresholdColor && appliesTo("text") ? thresholdColor : null;
   return (
-    <div className="relative flex h-full flex-col justify-between overflow-hidden rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-      {/* Sparkline background */}
-      <svg
-        className="absolute bottom-0 left-0 right-0 h-16 w-full opacity-20"
-        viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-      >
-        <path d={areaD} className="fill-blue-500" />
-      </svg>
-      <svg
-        className="absolute bottom-0 left-0 right-0 h-16 w-full"
-        viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-      >
-        <path
-          d={pathD}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className="text-blue-500"
-        />
-      </svg>
-
-      {/* Content */}
-      <div className="relative">
-        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-          {title}
-        </p>
-        <p className={`mt-1 text-3xl font-bold ${thresholdColor && appliesTo("text") ? getThresholdTextClasses(thresholdColor) : "text-gray-900 dark:text-white"}`}>
-          {value.toLocaleString()}
-          {unit && <span className="ml-1 text-lg font-normal">{unit}</span>}
-        </p>
-      </div>
-    </div>
+    <SparklineStat
+      title={title}
+      value={value.toLocaleString()}
+      unit={unit}
+      values={sparkline}
+      valueClassName={
+        textColor ? getThresholdTextClasses(textColor) : undefined
+      }
+      valueStyle={textColor ? getThresholdTextStyle(textColor) : undefined}
+    />
   );
 }

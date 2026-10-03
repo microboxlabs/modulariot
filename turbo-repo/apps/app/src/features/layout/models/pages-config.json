@@ -1,5 +1,14 @@
 [
-  { "label": "dashboardServer", "href": "/dashboards", "requiredGroups": [], "blockedGroups": [] },
+  {
+    "label": "dashboardServer",
+    "href": "/dashboards",
+    "dynamicItemsSource": "serverDashboards",
+    "searchable": true,
+    "createAction": { "href": "/dashboards", "label": "createDashboard" },
+    "items": [],
+    "requiredGroups": [],
+    "blockedGroups": []
+  },
   {
     "label": "home",
     "dynamicItemsSource": "dashboards",

@@ -53,7 +53,7 @@ describe("migratePlannerQueries", () => {
       kind: "literal",
       value: "changed",
     };
-    expect(mapping.parameters.asset).toEqual({
+    expect(mapping.parameters!.asset).toEqual({
       kind: "filter",
       key: "asset",
       defaultValue: null,
@@ -116,5 +116,50 @@ describe("migratePlannerQueries", () => {
         "summary",
         "details",
       ]);
+  });
+
+  it("derives bindings from the legacy parameters and declares the date filter they read", () => {
+    const dated = {
+      ...request,
+      pgrestParams: [
+        { key: "p_client", value: "client-1" },
+        { key: "p_asset", value: "{{ filter.asset }}" },
+        { key: "p_from", value: "{{filter.date_range_from}}" },
+        { key: "p_blank", value: "" },
+      ],
+    };
+    const result = migratePlannerQueries(
+      { ...source(), requestPlanner: [dated] },
+      [{ plannerId: "summary", connectionId: "fleet", operationId: "summary" }],
+      { dateFilterLabel: "Fecha" },
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.config.queries![0]!.parameters).toEqual({
+      p_client: { kind: "literal", value: "client-1" },
+      p_asset: { kind: "filter", key: "asset", omitWhenEmpty: true },
+      p_from: { kind: "filter", key: "date_range_from", omitWhenEmpty: true },
+    });
+    expect(result.config.filters).toEqual([
+      { key: "asset", label: "Asset", type: "text" },
+      { key: "date_range", label: "Fecha", type: "date_range" },
+    ]);
+  });
+
+  it("leaves filters alone when no query reads a date and refuses other templates", () => {
+    const plain = migratePlannerQueries(source(), [
+      { plannerId: "summary", connectionId: "fleet", operationId: "summary" },
+    ]);
+    expect(plain.ok && plain.config.filters).toEqual(source().filters);
+    const templated = migratePlannerQueries(
+      {
+        ...source(),
+        requestPlanner: [
+          { ...request, pgrestParams: [{ key: "p", value: "x-{{filter.a}}" }] },
+        ],
+      },
+      [{ plannerId: "summary", connectionId: "fleet", operationId: "summary" }],
+    );
+    expect(templated.ok).toBe(false);
   });
 });

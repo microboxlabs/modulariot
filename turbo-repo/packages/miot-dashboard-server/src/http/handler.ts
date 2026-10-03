@@ -1,3 +1,5 @@
+import type { DashboardQueryCatalog } from "../seams/query-catalog";
+import { projectQueryCatalog } from "./query-catalog";
 /**
  * The HTTP layer: a Web `Request` in, a Web `Response` out.
  *
@@ -65,6 +67,8 @@ export interface DashboardHandlerOptions extends AccessControlOptions<Request> {
    * Stripped before matching. Defaults to the root.
    */
   basePath?: string;
+  /** Optional host-authorized authoring metadata; omitted routes return 404. */
+  queryCatalog?: DashboardQueryCatalog;
   cors?: CorsOptions;
   /** Maximum JSON body bytes in embedded and standalone handlers; default 1 MiB. */
   maxBodyBytes?: number;
@@ -263,6 +267,18 @@ export function createDashboardHandler(
         request.signal,
       );
       return jsonResponse({ data });
+    },
+
+    async queryCatalog(request, match) {
+      if (request.method !== "GET") return methodNotAllowed();
+      if (!options.queryCatalog) throw DashboardServerError.notFound("Query catalog is not configured");
+      const ref = refOf(match.tenantId, match.scopeId, requireSlug(match));
+      const decision = await access.authorize(request, { ...ref, action: "dashboard.save" });
+      if (!decision.dashboard?.record) throw DashboardServerError.notFound("Dashboard not found");
+      request.signal.throwIfAborted();
+      const catalog = await options.queryCatalog.list({ identity: decision.identity, ref, signal: request.signal });
+      request.signal.throwIfAborted();
+      return jsonResponse({ connections: projectQueryCatalog(catalog) });
     },
 
     async scopeCapabilities(request, match) {

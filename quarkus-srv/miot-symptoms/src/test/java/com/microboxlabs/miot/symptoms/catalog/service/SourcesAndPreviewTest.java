@@ -55,6 +55,28 @@ class SourcesAndPreviewTest {
     }
 
     @Test
+    void eachConditionOfTheActivationIsRunOnItsOwn() {
+        DataSource gps = new DataSourceService(new InMemoryCatalog(), new DemoSymptomEngine()).get(TENANT, "gps_signal");
+
+        List<SamplePreview> results = PreviewService.run(Specs.speeding(), gps);
+
+        List<PreviewService.Clause> light = results.get(2).clauses();
+        assertEquals(List.of("signal.trip.active", "signal.vehicle.weight_category == \"HEAVY\""),
+                light.stream().map(PreviewService.Clause::text).toList());
+        assertEquals(List.of(true, false), light.stream().map(PreviewService.Clause::holds).toList(),
+                "the light vehicle fails only the weight condition");
+        assertEquals("LIGHT", light.get(1).values().get("signal.vehicle.weight_category"));
+
+        SymptomSpec missing = Specs.with(Specs.speeding(), Specs.ACTIVATION + " && signal.nope == 1");
+        PreviewService.Clause broken = PreviewService.run(missing, gps).get(0).clauses().get(2);
+        assertNull(broken.holds());
+        assertNull(broken.values().get("signal.nope"));
+
+        SymptomSpec or = Specs.with(Specs.speeding(), "signal.trip.active || signal.gps.speed_kmh > 0");
+        assertTrue(PreviewService.run(or, gps).get(0).clauses().isEmpty(), "an || rule has no clause list");
+    }
+
+    @Test
     void wrongResultTypesAndFailingLevelsAreReportedNotThrown() {
         DataSource gps = new DataSourceService(new InMemoryCatalog(), new DemoSymptomEngine()).get(TENANT, "gps_signal");
         SymptomSpec base = Specs.speeding();

@@ -6,7 +6,13 @@ import { tr } from "@/features/i18n/tr.service";
 import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
-import type { Finding, SourceField, SymptomSpec } from "./maintainer-api";
+import ClauseBreakdown from "./clause-breakdown";
+import type {
+  Finding,
+  Preview,
+  SourceField,
+  SymptomSpec,
+} from "./maintainer-api";
 import LevelRow, { type EditMode } from "./level-row";
 import LifecycleFormFields, { LevelDownSelect } from "./lifecycle-form-fields";
 import { parseClose, parseOpen } from "./lifecycle-form";
@@ -142,6 +148,7 @@ function MeasureText({
 /** Cuándo se activa: the conditions as a form, or the CEL expression. */
 function ActivationSection({
   spec,
+  preview,
   fields,
   sourceFields,
   problems,
@@ -150,6 +157,7 @@ function ActivationSection({
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
+  preview: Preview | undefined;
   fields: SourceField[];
   sourceFields: CelField[];
   problems: CelProblem[];
@@ -207,6 +215,7 @@ function ActivationSection({
             problems={problems}
             onChange={(value) => onChange({ ...spec, activation: value })}
           />
+          <ClauseBreakdown preview={preview} d={d} />
         </>
       )}
       <Problems items={problems} />
@@ -216,6 +225,7 @@ function ActivationSection({
 
 export default function SymptomRuleSections({
   spec,
+  preview,
   fields,
   sourceFields,
   findings,
@@ -226,6 +236,7 @@ export default function SymptomRuleSections({
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
+  preview?: Preview;
   fields: SourceField[];
   sourceFields: CelField[];
   findings: Finding[] | undefined;
@@ -265,6 +276,7 @@ export default function SymptomRuleSections({
     <div className="flex flex-col gap-4">
       <ActivationSection
         spec={spec}
+        preview={preview}
         fields={fields}
         sourceFields={sourceFields}
         problems={activation}

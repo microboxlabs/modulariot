@@ -248,6 +248,7 @@ export default function SymptomDetail({
             <div className="xl:col-span-2">
               <SymptomRuleSections
                 spec={shownSpec}
+                preview={viewed ? undefined : (preview ?? undefined)}
                 fields={source?.fields ?? []}
                 sourceFields={fields}
                 findings={viewed ? undefined : report?.findings}

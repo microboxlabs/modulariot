@@ -4,6 +4,7 @@ import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.PreparedRule;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleResult;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleSchema;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
@@ -39,11 +40,26 @@ public class PreviewService {
     /**
      * One sample's result.
      *
-     * @param level the ICU level reached, or null
-     * @param error why the rules could not run on this sample, or null
+     * @param level   the ICU level reached, or null
+     * @param error   why the rules could not run on this sample, or null
+     * @param clauses each condition of an activation joined by {@code &&}, run on its own; empty otherwise
      */
     public record SamplePreview(Map<String, Object> sample, Boolean activates, Double measure, Integer level,
-            String error) {
+            String error, List<Clause> clauses) {
+
+        SamplePreview withClauses(List<Clause> next) {
+            return new SamplePreview(sample, activates, measure, level, error, next);
+        }
+    }
+
+    /**
+     * One condition of the activation on one sample.
+     *
+     * @param holds  whether the condition holds, or null when it could not run
+     * @param values the sample's value for each field the condition reads
+     * @param error  why it could not run, or null
+     */
+    public record Clause(String text, Boolean holds, Map<String, Object> values, String error) {
     }
 
     public record Preview(String source, List<SamplePreview> samples) {
@@ -62,6 +78,9 @@ public class PreviewService {
         RuleSchema schema = RuleSchema.of(source);
         RuleSchema levelSchema = schema.withExtras(RuleSchema.LEVEL_VARIABLES);
         PreparedRule activation = RuleLanguage.prepare(schema, spec.activation());
+        Map<String, PreparedRule> clauses = new LinkedHashMap<>();
+        ConditionChecks.conjunction(spec.activation())
+                .ifPresent(terms -> terms.forEach(t -> clauses.put(t, RuleLanguage.prepare(schema, t))));
         PreparedRule measure = spec.measure() == null || spec.measure().expression() == null ? null
                 : RuleLanguage.prepare(schema, spec.measure().expression());
         Map<Integer, PreparedRule> levels = new LinkedHashMap<>();
@@ -70,7 +89,34 @@ public class PreviewService {
                 levels.put(l.icu(), RuleLanguage.prepare(levelSchema, l.when()));
             }
         }
-        return source.samples().stream().map(sample -> runOne(sample, activation, measure, levels)).toList();
+        return source.samples().stream()
+                .map(sample -> runOne(sample, activation, measure, levels).withClauses(clauses(sample, clauses)))
+                .toList();
+    }
+
+    private static List<Clause> clauses(Map<String, Object> sample, Map<String, PreparedRule> rules) {
+        return rules.entrySet().stream().map(e -> {
+            Map<String, Object> values = new LinkedHashMap<>();
+            RuleText.fieldPaths(e.getKey()).forEach(path -> values.put(path, valueAt(sample, path)));
+            RuleResult r = e.getValue().run(sample);
+            if (!r.ok()) {
+                return new Clause(e.getKey(), null, values, r.error());
+            }
+            return r.value() instanceof Boolean b ? new Clause(e.getKey(), b, values, null)
+                    : new Clause(e.getKey(), null, values, NOT_A_CONDITION);
+        }).toList();
+    }
+
+    /** The value at a dotted path of the sample, or null when a part is missing. */
+    static Object valueAt(Map<String, Object> sample, String path) {
+        Object at = sample;
+        for (String part : path.split("\\.")) {
+            if (!(at instanceof Map<?, ?> map)) {
+                return null;
+            }
+            at = map.get(part);
+        }
+        return at;
     }
 
     private static SamplePreview runOne(Map<String, Object> sample, PreparedRule activation, PreparedRule measure,
@@ -95,7 +141,7 @@ public class PreviewService {
             value = n.doubleValue();
         }
         if (!activates) {
-            return new SamplePreview(sample, false, value, null, null);
+            return new SamplePreview(sample, false, value, null, null, List.of());
         }
         return reachLevel(sample, value, levels);
     }
@@ -111,17 +157,17 @@ public class PreviewService {
             RuleResult r = e.getValue().run(vars);
             if (!r.ok() || !(r.value() instanceof Boolean)) {
                 String error = r.ok() ? NOT_A_CONDITION : r.error();
-                return new SamplePreview(sample, true, value, null, "Nivel " + e.getKey() + ": " + error);
+                return new SamplePreview(sample, true, value, null, "Nivel " + e.getKey() + ": " + error, List.of());
             }
             if (Boolean.TRUE.equals(r.value())) {
                 reached = e.getKey();
             }
         }
-        return new SamplePreview(sample, true, value, reached, null);
+        return new SamplePreview(sample, true, value, reached, null, List.of());
     }
 
     private static SamplePreview failed(Map<String, Object> sample, Boolean activates, String error) {
-        return new SamplePreview(sample, activates, null, null, error);
+        return new SamplePreview(sample, activates, null, null, error, List.of());
     }
 
     private static SymptomSpec pick(SymptomCatalogService.SymptomDetail detail) {

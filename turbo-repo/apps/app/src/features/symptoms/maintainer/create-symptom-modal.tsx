@@ -45,10 +45,15 @@ export function keyFrom(name: string) {
 /** The API's longest name. */
 const NAME_MAX = 200;
 
-/** A creation error in the page's language; the API's own messages are in English. */
-function createError(e: unknown, d: I18nRecord) {
-  if (e instanceof ControlTowerError && e.status === 409) return tr("keyTaken", d);
-  if (e instanceof ControlTowerError && e.status === 403) return tr("ownersOnly", d);
+/**
+ * A creation error in the page's language; the API's own messages are in English.
+ * Only the blank form chooses its key, so only there does a 409 mean the key is taken.
+ */
+function createError(e: unknown, d: I18nRecord, keyChosen = false) {
+  if (keyChosen && e instanceof ControlTowerError && e.status === 409)
+    return tr("keyTaken", d);
+  if (e instanceof ControlTowerError && e.status === 403)
+    return tr("ownersOnly", d);
   return tr("createFailed", d);
 }
 
@@ -168,7 +173,7 @@ function BlankForm({
       await refreshSymptoms();
       onCreated(created);
     } catch (e) {
-      setError(createError(e, d));
+      setError(createError(e, d, true));
     } finally {
       setBusy(false);
     }

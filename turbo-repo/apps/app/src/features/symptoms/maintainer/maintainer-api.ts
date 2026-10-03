@@ -319,7 +319,6 @@ export interface ImportResult {
   skipped: number;
 }
 
-/** Creates an off draft for each engine rule the organization does not have yet. */
 /** A platform template: a ready symptom the organization copies. */
 export interface SymptomTemplate {
   key: string;
@@ -347,6 +346,7 @@ export function createFromTemplate(templateKey: string, name?: string) {
   });
 }
 
+/** Creates an off draft for each engine rule the organization does not have yet. */
 export function importEngineRules() {
   return request<ImportResult>(`${DEFS}/import-engine`, { method: "POST" });
 }

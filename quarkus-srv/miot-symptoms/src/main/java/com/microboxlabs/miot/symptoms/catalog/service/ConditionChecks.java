@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Finding;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
 import java.math.BigDecimal;
@@ -22,8 +23,14 @@ final class ConditionChecks {
 
     private static final String FIELD = "[A-Za-z_][\\w.]*";
     private static final Pattern COMPARISON = Pattern.compile(
-            "^(" + FIELD + ")\\s*(==|!=|>=|<=|>|<)\\s*(\"[^\"]*\"|[\\w.-]+)$");
+            "^(" + FIELD + ")\\s*+(==|!=|>=|<=|>|<)\\s*+(\\S.*)$");
+    /** A string literal; a quote inside it is escaped. */
+    private static final Pattern STRING = Pattern.compile("\"(?:[^\"\\\\]|\\\\.)*+\"");
     private static final Pattern BARE = Pattern.compile("^(!?)(" + FIELD + ")$");
+    private static final String AND = "&&";
+    private static final String OR = "||";
+    private static final Map<String, String> OPPOSITE = Map.of("==", "!=", "!=", "==", ">", "<=", ">=", "<",
+            "<", ">=", "<=", ">");
     private static final Pattern NUMBER = Pattern.compile("-?\\d+(?:\\.\\d+)?");
 
     private ConditionChecks() {
@@ -34,7 +41,7 @@ final class ConditionChecks {
         if (rule == null || rule.isBlank()) {
             return Optional.empty();
         }
-        Optional<List<String>> parts = split(rule);
+        Optional<List<String>> parts = split(rule, AND, OR);
         if (parts.isEmpty()) {
             return parts;
         }
@@ -51,7 +58,8 @@ final class ConditionChecks {
         return Optional.of(terms);
     }
 
-    private static Optional<List<String>> split(String rule) {
+    /** The parts of a rule joined by {@code join} at the top level; empty when {@code other} joins any. */
+    private static Optional<List<String>> split(String rule, String join, String other) {
         List<String> terms = new ArrayList<>();
         int depth = 0;
         boolean quoted = false;
@@ -60,15 +68,17 @@ final class ConditionChecks {
         while (i < rule.length()) {
             char c = rule.charAt(i);
             int step = 1;
-            if (c == '"') {
+            if (quoted && c == '\\') {
+                step = 2;
+            } else if (c == '"') {
                 quoted = !quoted;
             } else if (!quoted && (c == '(' || c == '[')) {
                 depth++;
             } else if (!quoted && (c == ')' || c == ']')) {
                 depth--;
-            } else if (!quoted && depth == 0 && rule.startsWith("||", i)) {
+            } else if (!quoted && depth == 0 && rule.startsWith(other, i)) {
                 return Optional.empty();
-            } else if (!quoted && depth == 0 && rule.startsWith("&&", i)) {
+            } else if (!quoted && depth == 0 && rule.startsWith(join, i)) {
                 terms.add(rule.substring(start, i).strip());
                 start = i + 2;
                 step = 2;
@@ -88,7 +98,9 @@ final class ConditionChecks {
         boolean quoted = false;
         for (int i = 0; i < term.length() - 1; i++) {
             char c = term.charAt(i);
-            if (c == '"') {
+            if (quoted && c == '\\') {
+                i++;
+            } else if (c == '"') {
                 quoted = !quoted;
             } else if (!quoted && c == '(') {
                 depth++;
@@ -123,11 +135,49 @@ final class ConditionChecks {
         }
         Map<String, FieldBounds> fields = new LinkedHashMap<>();
         for (String term : terms.get()) {
-            read(term, fields);
+            for (String condition : negations(term)) {
+                read(condition, fields);
+            }
         }
         List<Finding> out = new ArrayList<>();
         fields.forEach((field, b) -> report(label.apply(field), b, out));
         return out;
+    }
+
+    /**
+     * An exception {@code !(a || b)} holds when no condition in it does: the
+     * conditions {@code !a} and {@code !b}. Any other term is itself.
+     */
+    private static List<String> negations(String term) {
+        if (!term.startsWith("!")) {
+            return List.of(term);
+        }
+        String rest = term.substring(1).strip();
+        Optional<List<String>> parts = wrapped(rest)
+                ? split(rest.substring(1, rest.length() - 1), OR, AND)
+                : Optional.empty();
+        if (parts.isEmpty()) {
+            return List.of(term);
+        }
+        List<String> out = new ArrayList<>();
+        for (String part : parts.get()) {
+            String negated = negate(SpecDiff.squash(part));
+            if (negated == null) {
+                return List.of(term);
+            }
+            out.add(negated);
+        }
+        return out;
+    }
+
+    /** The opposite of one plain condition, or null when it is not one. */
+    private static String negate(String condition) {
+        Matcher bare = BARE.matcher(condition);
+        if (bare.matches()) {
+            return bare.group(1).isEmpty() ? "!" + bare.group(2) : bare.group(2);
+        }
+        Matcher m = COMPARISON.matcher(condition);
+        return m.matches() ? m.group(1) + " " + OPPOSITE.get(m.group(2)) + " " + m.group(3) : null;
     }
 
     private static void read(String term, Map<String, FieldBounds> fields) {
@@ -144,7 +194,7 @@ final class ConditionChecks {
         String raw = m.group(3);
         boolean numeric = NUMBER.matcher(raw).matches();
         boolean bool = raw.equals("true") || raw.equals("false");
-        if (!numeric && !bool && !raw.startsWith("\"")) {
+        if (!numeric && !bool && !STRING.matcher(raw).matches()) {
             // Another field or an expression: nothing to compare against.
             return;
         }
@@ -153,7 +203,8 @@ final class ConditionChecks {
             truth(b, op.equals("==") == Boolean.parseBoolean(raw));
             return;
         }
-        String value = numeric ? new BigDecimal(raw).stripTrailingZeros().toPlainString() : raw;
+        String value = numeric ? new BigDecimal(raw).stripTrailingZeros().toPlainString()
+                : RuleText.stringLiteral(raw).map(v -> "\"" + v).orElse(raw);
         if (op.equals("==")) {
             b.equalsClash |= b.equals != null && !b.equals.equals(value);
             b.equals = value;

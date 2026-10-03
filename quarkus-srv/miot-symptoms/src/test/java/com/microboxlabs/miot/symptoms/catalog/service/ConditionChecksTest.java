@@ -84,6 +84,37 @@ class ConditionChecksTest {
     }
 
     @Test
+    void anExceptionIsReadAsTheOppositeOfEachOfItsConditions() {
+        assertEquals(List.of("ERROR «x» no puede ser verdadero y falso a la vez; nunca se cumpliría."),
+                messages("x && !(x)"));
+        assertEquals(List.of("ERROR «x» no puede ser verdadero y falso a la vez; nunca se cumpliría."),
+                messages("x && !(y || x)"));
+        assertEquals(List.of("ERROR «z» no puede tener dos valores a la vez; nunca se cumpliría."),
+                messages("z == \"A\" && !(z == \"A\")"));
+        assertEquals(List.of("ERROR «v» mayor que 90 y menor que 80 nunca se cumple."),
+                messages("v > 90 && !(v >= 80)"));
+        assertTrue(messages("x && !(y || z == \"A\")").isEmpty());
+        assertTrue(messages("x && !(x && y)").isEmpty(), "not all of them: the form never writes this");
+        assertTrue(messages("x && !(v > w)").isEmpty(), "field against field is left alone");
+    }
+
+    @Test
+    void escapedAndPlainSpellingsOfAValueAreTheSameValue() {
+        assertTrue(messages("z == \"\\u0041\" && !(z != \"A\")").isEmpty());
+        assertTrue(messages("z == \"\\u0041\" && z == \"A\"").isEmpty());
+        assertEquals(List.of("ERROR «z» no puede tener dos valores a la vez; nunca se cumpliría."),
+                messages("z == \"\\u0041\" && !(z == \"A\")"));
+    }
+
+    @Test
+    void quotesInsideValuesDoNotSplitTheRule() {
+        assertEquals(Optional.of(List.of("z==\"a\\\" && b\"", "x")),
+                ConditionChecks.conjunction("z == \"a\\\" && b\" && x"));
+        assertEquals(List.of("ERROR «z» no puede tener dos valores a la vez; nunca se cumpliría."),
+                messages("z == \"a\\\"b\" && !(z == \"a\\\"b\")"));
+    }
+
+    @Test
     void aListFieldComparedWithAValueItDoesNotTakeIsAWarning() {
         SymptomSpec typo = Specs.with(Specs.speeding(),
                 Specs.ACTIVATION + " && signal.vehicle.weight_category == \"HEAVVY\"");

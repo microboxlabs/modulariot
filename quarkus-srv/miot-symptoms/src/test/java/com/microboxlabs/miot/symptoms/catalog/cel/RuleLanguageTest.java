@@ -25,6 +25,27 @@ class RuleLanguageTest {
             "geo", Map.of("zone", "Ruta 5")));
 
     @Test
+    void stringLiteralsAreDecoded() {
+        assertEquals("A", RuleText.stringLiteral("\"\\u0041\"").orElseThrow());
+        assertEquals("a\"b", RuleText.stringLiteral("\"a\\\"b\"").orElseThrow());
+        assertTrue(RuleText.stringLiteral("x").isEmpty());
+        assertTrue(RuleText.stringLiteral("1").isEmpty());
+    }
+
+    @Test
+    void canonicalTextIgnoresSpacingButKeepsEscapedQuotes() {
+        assertEquals(RuleText.canonical("a  &&   b > 1"), RuleText.canonical("a && b > 1"));
+        assertEquals("z==\"a\\\"b\"", RuleText.canonical(" z == \"a\\\"b\" "));
+        String oneString = RuleText.canonical("z == \"a\\\" || z == \\\"b\"");
+        String twoConditions = RuleText.canonical("z == \"a\" || z == \"b\"");
+        assertFalse(oneString.equals(twoConditions), "one string with || inside is not two conditions");
+        assertEquals(RuleText.canonical("z==\"a\\\"b\"&&x  in  [1]"),
+                RuleText.canonical(" z == \"a\\\"b\" && x in [1] "), "spacing outside strings is not a change");
+        assertEquals("z==\"a  \\\" b\"", RuleText.canonical("z == \"a  \\\" b\""), "spacing inside strings is kept");
+        assertEquals("a in b", RuleText.spacing("a   in\n b"));
+    }
+
+    @Test
     void speedingActivationChecksAndRuns() {
         String rule = "signal.trip.active && signal.vehicle.weight_category == \"HEAVY\""
                 + " && !(signal.geo.zone == \"Faena Norte\")";

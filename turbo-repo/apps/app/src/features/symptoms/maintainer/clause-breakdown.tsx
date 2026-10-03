@@ -114,6 +114,7 @@ export default function ClauseBreakdown({
                 >
                   {i > 0 ? "&&" : ""}
                 </span>
+                {i > 0 && <span className="sr-only">{tr("and", d)}</span>}
                 <span
                   aria-hidden
                   className={`w-4 text-center font-semibold ${m.cls}`}

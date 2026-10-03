@@ -5,6 +5,7 @@ import type { Preview, SamplePreview } from "./maintainer-api";
 
 const d = {
   clauseByClause: "Condición por condición",
+  and: "y",
   sampleOf: "Muestra {n} de {total}",
   previousSample: "Anterior",
   nextSample: "Siguiente",
@@ -107,6 +108,8 @@ describe("ClauseBreakdown", () => {
     const items = [...container.querySelectorAll("li")];
     expect(items[0]?.firstElementChild?.textContent).toBe("");
     expect(items[1]?.firstElementChild?.textContent).toBe("&&");
+    expect(items[1]?.querySelector(".sr-only")?.textContent).toBe("y");
+    expect(items[0]?.textContent).not.toContain("y");
     expect(container.querySelector("p.text-green-700")).not.toBeNull();
     const { container: closed } = render(
       <ClauseBreakdown preview={preview} d={d} />

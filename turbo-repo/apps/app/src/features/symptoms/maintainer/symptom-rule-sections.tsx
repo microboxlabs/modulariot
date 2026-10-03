@@ -304,7 +304,7 @@ function ActivationSection({
               </span>
               <CelEditor
                 readOnly={readOnly}
-                ariaLabel={tr("sectionActivation", d)}
+                ariaLabel={tr("celLabel", d)}
                 value={activation}
                 fields={sourceFields}
                 problems={problems}

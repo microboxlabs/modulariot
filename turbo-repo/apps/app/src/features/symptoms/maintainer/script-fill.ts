@@ -1,18 +1,10 @@
-/** Script variables the treatment screen fills from the case. */
-export const SCRIPT_VARIABLES = [
-  "patente",
-  "conductor",
-  "velocidad",
-  "limite",
-  "ruta",
-] as const;
+/** Script variables the treatment screen fills from the case (`fillScript` in the call center). */
+export const SCRIPT_VARIABLES = ["patente", "conductor", "ruta"] as const;
 
 /** The sample fields each variable is read from, first match wins. */
 const SOURCES: Record<string, string[]> = {
   patente: ["plate"],
   conductor: ["driver_name", "driver"],
-  velocidad: ["speed_kmh"],
-  limite: ["maxspeed_osm", "speed_limit"],
   ruta: ["route"],
 };
 
@@ -42,10 +34,14 @@ function valueOf(name: string, sample: Json | undefined): string | null {
   return null;
 }
 
-/** A piece of a script: plain text, or a variable with the sample's value (null when the sample lacks it). */
+/**
+ * A piece of a script: plain text, or a variable with the sample's value (null
+ * when the sample lacks it). `known` is false for a variable the treatment
+ * screen does not fill.
+ */
 export type ScriptPart =
   | { text: string }
-  | { variable: string; value: string | null };
+  | { variable: string; value: string | null; known: boolean };
 
 /** The script split into text and `{{variables}}`, each variable filled from the sample when it has the field. */
 export function scriptParts(
@@ -59,7 +55,12 @@ export function scriptParts(
     const at = match.index ?? 0;
     if (at > last) parts.push({ text: script.slice(last, at) });
     const name = match[1] ?? "";
-    parts.push({ variable: name, value: valueOf(name, sample) });
+    const known = Object.hasOwn(SOURCES, name);
+    parts.push({
+      variable: name,
+      value: known ? valueOf(name, sample) : null,
+      known,
+    });
     last = at + match[0].length;
   }
   if (last < script.length) parts.push({ text: script.slice(last) });

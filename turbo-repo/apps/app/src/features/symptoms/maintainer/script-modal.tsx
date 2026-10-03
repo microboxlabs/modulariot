@@ -12,6 +12,12 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { SCRIPT_VARIABLES, scriptParts } from "./script-fill";
 
+/** Why a variable shows unfilled in the preview. */
+function missingText(known: boolean, hasSample: boolean, d: I18nRecord) {
+  if (!known) return tr("scriptUnknown", d);
+  return hasSample ? tr("scriptMissing", d) : tr("scriptNoSampleValue", d);
+}
+
 /**
  * A step's script ("Guion"): edit it, insert variables, and read it as the
  * operator will, filled from one of the source's samples.
@@ -86,7 +92,7 @@ export default function ScriptModal({
           />
           <div className="flex flex-col gap-1">
             <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              {tr("scriptPreview", d)}
+              {sample ? tr("scriptPreview", d) : tr("scriptNoSample", d)}
             </span>
             <p className="whitespace-pre-wrap rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800 dark:bg-gray-900/50 dark:text-gray-100">
               {script.trim()
@@ -97,7 +103,7 @@ export default function ScriptModal({
                     return part.value === null ? (
                       <mark
                         key={key}
-                        title={tr("scriptMissing", d)}
+                        title={missingText(part.known, sample !== undefined, d)}
                         className="rounded bg-amber-100 px-0.5 dark:bg-amber-900/40 dark:text-amber-200"
                       >
                         {`{{${part.variable}}}`}

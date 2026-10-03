@@ -39,9 +39,56 @@ public final class RuleText {
         }
         // The unparser writes string constants without escaping them: "a\\"b" would come back as "a"b".
         if (rule.indexOf('\\') >= 0) {
-            return rule.trim();
+            return spacing(rule);
         }
         return parse(rule).map(UNPARSER::unparse).orElse(rule.trim());
+    }
+
+    /**
+     * The rule with spacing outside strings normalized: none next to a symbol,
+     * one space between two words ({@code a in b}). Strings are kept as written.
+     */
+    static String spacing(String rule) {
+        StringBuilder out = new StringBuilder();
+        boolean quoted = false;
+        boolean pendingSpace = false;
+        int i = 0;
+        String text = rule.trim();
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (quoted) {
+                out.append(c);
+                if (c == '\\' && i + 1 < text.length()) {
+                    out.append(text.charAt(++i));
+                } else if (c == '"') {
+                    quoted = false;
+                }
+            } else if (Character.isWhitespace(c)) {
+                pendingSpace = true;
+            } else {
+                if (pendingSpace && !out.isEmpty() && word(out.charAt(out.length() - 1)) && word(c)) {
+                    out.append(' ');
+                }
+                pendingSpace = false;
+                out.append(c);
+                quoted = c == '"';
+            }
+            i++;
+        }
+        return out.toString();
+    }
+
+    private static boolean word(char c) {
+        return Character.isLetterOrDigit(c) || c == '_' || c == '.';
+    }
+
+    /** The text of a CEL string literal, escapes decoded, or empty when the text is not one. */
+    public static Optional<String> stringLiteral(String literal) {
+        return parse(literal)
+                .map(CelAbstractSyntaxTree::getExpr)
+                .filter(e -> e.exprKind().getKind() == ExprKind.Kind.CONSTANT
+                        && e.constant().getKind() == CelConstant.Kind.STRING_VALUE)
+                .map(e -> e.constant().stringValue());
     }
 
     /** Field paths the rule reads, such as {@code signal.gps.speed_kmh}. Text inside strings is not a field. */

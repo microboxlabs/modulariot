@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Finding;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
 import java.math.BigDecimal;
@@ -202,7 +203,8 @@ final class ConditionChecks {
             truth(b, op.equals("==") == Boolean.parseBoolean(raw));
             return;
         }
-        String value = numeric ? new BigDecimal(raw).stripTrailingZeros().toPlainString() : raw;
+        String value = numeric ? new BigDecimal(raw).stripTrailingZeros().toPlainString()
+                : RuleText.stringLiteral(raw).map(v -> "\"" + v).orElse(raw);
         if (op.equals("==")) {
             b.equalsClash |= b.equals != null && !b.equals.equals(value);
             b.equals = value;

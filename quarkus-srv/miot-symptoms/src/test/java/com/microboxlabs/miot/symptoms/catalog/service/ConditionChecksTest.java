@@ -99,8 +99,16 @@ class ConditionChecksTest {
     }
 
     @Test
+    void escapedAndPlainSpellingsOfAValueAreTheSameValue() {
+        assertTrue(messages("z == \"\\u0041\" && !(z != \"A\")").isEmpty());
+        assertTrue(messages("z == \"\\u0041\" && z == \"A\"").isEmpty());
+        assertEquals(List.of("ERROR «z» no puede tener dos valores a la vez; nunca se cumpliría."),
+                messages("z == \"\\u0041\" && !(z == \"A\")"));
+    }
+
+    @Test
     void quotesInsideValuesDoNotSplitTheRule() {
-        assertEquals(Optional.of(List.of("z == \"a\\\" && b\"", "x")),
+        assertEquals(Optional.of(List.of("z==\"a\\\" && b\"", "x")),
                 ConditionChecks.conjunction("z == \"a\\\" && b\" && x"));
         assertEquals(List.of("ERROR «z» no puede tener dos valores a la vez; nunca se cumpliría."),
                 messages("z == \"a\\\"b\" && !(z == \"a\\\"b\")"));

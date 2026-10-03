@@ -5,6 +5,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionStatus;
 import com.microboxlabs.miot.symptoms.catalog.store.DataSourceStore;
+import com.microboxlabs.miot.symptoms.catalog.store.DuplicateSymptomKeyException;
 import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -41,6 +42,9 @@ public class InMemoryCatalog implements SymptomCatalogStore, DataSourceStore {
 
     @Override
     public SymptomDefinition insertDefinition(SymptomDefinition definition) {
+        if (findDefinitionByKey(definition.tenantCode(), definition.key()).isPresent()) {
+            throw new DuplicateSymptomKeyException(definition.key());
+        }
         definitions.put(definition.id(), definition);
         return definition;
     }

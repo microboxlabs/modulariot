@@ -2626,6 +2626,7 @@
         "filterWho": "Quién actúa",
         "filterChannel": "Canal de aviso",
         "whoOperator": "Operador",
+        "noResponse": "Sin respuesta definida",
         "onlyNotices": "Solo avisos",
         "operatorIn": "☎ Operador en {levels}",
         "operatorMark": "☎ operador",

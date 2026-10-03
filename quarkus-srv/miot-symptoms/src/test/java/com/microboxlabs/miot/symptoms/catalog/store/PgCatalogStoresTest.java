@@ -29,6 +29,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -118,6 +119,10 @@ class PgCatalogStoresTest {
         SymptomDefinition created = store.insertDefinition(new SymptomDefinition(UUID.randomUUID(), TENANT,
                 "lost-signal", "Pérdida de señal", null, null, null, "trip_check", null, null, null,
                 SymptomState.OFF, null, "owner@example.com", now, "owner@example.com", now));
+        SymptomDefinition sameKey = new SymptomDefinition(UUID.randomUUID(), TENANT, "lost-signal", "Otra", null,
+                null, null, "trip_check", null, null, null, SymptomState.OFF, null, "owner@example.com", now,
+                "owner@example.com", now);
+        assertThrows(DuplicateSymptomKeyException.class, () -> store.insertDefinition(sameKey));
         SymptomSpec spec = new SymptomSpec("trip_check", "true", null, List.of(), null, null);
         SymptomVersion draft = store.saveDraft(SymptomVersion.draft(created.id(), TENANT, spec, "owner@example.com",
                 now));
@@ -159,5 +164,12 @@ class PgCatalogStoresTest {
 
         assertEquals("<b>Se abre</b> de inmediato", store.find("abc", "es-CL", "owner").orElseThrow().html());
         assertTrue(store.find("abc", "en", "owner").isEmpty());
+
+        store.save(new RuleDescription("def", "es-CL", "owner", "otra"));
+        store.save(new RuleDescription("def", "en", "owner", "other"));
+        assertEquals(Set.of("abc", "def"),
+                store.findAll(List.of("abc", "def", "nope"), "es-CL", "owner").keySet());
+        assertEquals("other", store.findAll(List.of("def"), "en", "owner").get("def").html());
+        assertTrue(store.findAll(List.of(), "es-CL", "owner").isEmpty());
     }
 }

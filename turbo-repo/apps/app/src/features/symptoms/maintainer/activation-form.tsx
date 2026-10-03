@@ -11,6 +11,7 @@ import {
   type ConditionOp,
   type Match,
   compileConditions,
+  isNumeric,
   newCondition,
   newId,
   opsFor,
@@ -28,7 +29,7 @@ const linkClass =
 export function opLabel(op: ConditionOp, type: string, d: I18nRecord) {
   if (op === "is_true") return tr("opIsTrue", d);
   if (op === "is_false") return tr("opIsFalse", d);
-  if (type === "number")
+  if (isNumeric(type))
     return { "==": "=", "!=": "≠", ">": ">", ">=": "≥", "<": "<", "<=": "≤" }[
       op
     ];
@@ -89,7 +90,7 @@ function ValueInput({
   onChange: (value: number | string) => void;
 }>) {
   if (field.type === "bool") return null;
-  if (field.type === "number") {
+  if (isNumeric(field.type)) {
     return (
       <NumberValue
         value={typeof row.value === "number" ? row.value : 0}

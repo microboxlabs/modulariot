@@ -91,5 +91,6 @@ describe("opLabel", () => {
     expect(opLabel("==", "zone", d)).toBe("dentro");
     expect(opLabel("!=", "list", d)).toBe("no es");
     expect(opLabel("is_true", "bool", d)).toBe("es verdadero");
+    expect(opLabel(">=", "duration", d)).toBe("≥");
   });
 });

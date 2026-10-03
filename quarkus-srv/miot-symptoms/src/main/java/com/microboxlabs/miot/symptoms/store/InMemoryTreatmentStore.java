@@ -8,7 +8,9 @@ import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +55,17 @@ public class InMemoryTreatmentStore implements TreatmentStore {
                 .filter(t -> t.tenantCode().equals(tenantCode) && t.symptomId() == symptomId)
                 .filter(t -> t.status() == TreatmentStatus.OPEN && Objects.equals(t.openedBy(), actor))
                 .max(Comparator.comparing(Treatment::openedAt));
+    }
+
+    @Override
+    public synchronized Map<Long, OffsetDateTime> firstOpenedAt(String tenantCode, Collection<Long> symptomIds) {
+        Map<Long, OffsetDateTime> out = new HashMap<>();
+        for (Treatment t : treatments.values()) {
+            if (t.tenantCode().equals(tenantCode) && symptomIds.contains(t.symptomId())) {
+                out.merge(t.symptomId(), t.openedAt(), (a, b) -> a.isBefore(b) ? a : b);
+            }
+        }
+        return out;
     }
 
     @Override

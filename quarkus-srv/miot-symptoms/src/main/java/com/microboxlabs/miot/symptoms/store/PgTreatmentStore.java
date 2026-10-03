@@ -24,6 +24,8 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -98,6 +100,11 @@ public class PgTreatmentStore implements TreatmentStore {
             WHERE tenant_code = $1 AND kind = 'CALL' AND contact_id IS NOT NULL
             GROUP BY contact_id""";
 
+    private static final String FIRST_OPENED = """
+            SELECT symptom_id, min(opened_at) AS opened_at FROM miot_symptoms.treatment
+            WHERE tenant_code = $1 AND symptom_id = ANY($2)
+            GROUP BY symptom_id""";
+
     private final Supplier<Pool> pool;
 
     @Inject
@@ -144,6 +151,18 @@ public class PgTreatmentStore implements TreatmentStore {
                 AND symptom_id = $2 AND status = 'OPEN' AND opened_by IS NOT DISTINCT FROM $3
                 ORDER BY opened_at DESC LIMIT 1""";
         return treatments(query(pool.get(), sql, Tuple.of(tenantCode, symptomId, actor))).stream().findFirst();
+    }
+
+    @Override
+    public Map<Long, OffsetDateTime> firstOpenedAt(String tenantCode, Collection<Long> symptomIds) {
+        if (symptomIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, OffsetDateTime> out = new HashMap<>();
+        for (Row r : query(pool.get(), FIRST_OPENED, Tuple.of(tenantCode, symptomIds.toArray(Long[]::new)))) {
+            out.put(r.getLong("symptom_id"), r.getOffsetDateTime("opened_at"));
+        }
+        return out;
     }
 
     @Override

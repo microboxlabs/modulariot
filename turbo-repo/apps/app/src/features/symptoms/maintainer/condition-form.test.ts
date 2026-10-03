@@ -1,0 +1,258 @@
+import { describe, expect, it } from "vitest";
+import {
+  type ConditionForm,
+  compileConditions,
+  newCondition,
+  opsFor,
+  parseConditions,
+} from "./condition-form";
+import type { SourceField } from "./maintainer-api";
+
+const field = (
+  path: string,
+  type: string,
+  values?: { value: string; label: string }[]
+): SourceField => ({
+  path,
+  label: path,
+  type,
+  unit: null,
+  origin: null,
+  engineSupported: true,
+  values,
+});
+
+const FIELDS = [
+  field("signal.trip.active", "bool"),
+  field("signal.trip.double_driver", "bool"),
+  field("signal.gps.moving", "bool"),
+  field("signal.geo.authorized_zone", "bool"),
+  field("signal.road.maxspeed_osm", "number"),
+  field("signal.road.maxspeed_custom", "number"),
+  field("signal.local_hour", "number"),
+  field("signal.gps.speed_kmh", "number"),
+  field("signal.geo.zone", "zone"),
+  field("signal.vehicle.weight_category", "list", [
+    { value: "HEAVY", label: "Pesado" },
+    { value: "LIGHT", label: "Liviano" },
+  ]),
+  field("event.type", "text"),
+  field("check.trip.active", "bool"),
+  field("check.trip.double_driver", "bool"),
+];
+
+/** Strips the generated ids so forms compare by content. */
+function shape(form: ConditionForm | null) {
+  if (!form) return null;
+  const rows = (rs: ConditionForm["rows"]) =>
+    rs.map(({ path, op, value }) => ({ path, op, value }));
+  return {
+    match: form.match,
+    rows: rows(form.rows),
+    groups: form.groups.map((g) => ({ match: g.match, rows: rows(g.rows) })),
+  };
+}
+
+function roundTrip(rule: string) {
+  const form = parseConditions(rule, FIELDS);
+  expect(form, rule).not.toBeNull();
+  return compileConditions(form as ConditionForm);
+}
+
+describe("parseConditions", () => {
+  it("reads every platform template activation and writes it back unchanged", () => {
+    for (const rule of [
+      "signal.trip.active && signal.road.maxspeed_osm > 0",
+      "signal.trip.active && signal.road.maxspeed_custom > 0",
+      "signal.trip.active && !signal.gps.moving && !signal.geo.authorized_zone && (signal.local_hour >= 21 || signal.local_hour < 6)",
+      "signal.trip.active && signal.gps.moving && !signal.trip.double_driver && signal.local_hour >= 2 && signal.local_hour < 6",
+      "check.trip.active && !check.trip.double_driver",
+      "check.trip.active",
+      'event.type == "SOS"',
+    ]) {
+      expect(roundTrip(rule)).toBe(rule);
+    }
+  });
+
+  it("shows yes/no fields, numbers and list values as typed rows", () => {
+    expect(
+      shape(
+        parseConditions(
+          'signal.trip.active && !signal.gps.moving && signal.gps.speed_kmh >= 90.5 && signal.vehicle.weight_category != "LIGHT"',
+          FIELDS
+        )
+      )
+    ).toEqual({
+      match: "all",
+      rows: [
+        { path: "signal.trip.active", op: "is_true", value: null },
+        { path: "signal.gps.moving", op: "is_false", value: null },
+        { path: "signal.gps.speed_kmh", op: ">=", value: 90.5 },
+        { path: "signal.vehicle.weight_category", op: "!=", value: "LIGHT" },
+      ],
+      groups: [],
+    });
+  });
+
+  it("reads == true and != true on yes/no fields", () => {
+    expect(
+      shape(parseConditions("signal.trip.active == true", FIELDS))?.rows[0]?.op
+    ).toBe("is_true");
+    expect(
+      shape(parseConditions("signal.trip.active != true", FIELDS))?.rows[0]?.op
+    ).toBe("is_false");
+    expect(
+      shape(parseConditions("signal.trip.active == false", FIELDS))?.rows[0]?.op
+    ).toBe("is_false");
+  });
+
+  it("reads groups: any, all and an exception", () => {
+    expect(
+      shape(
+        parseConditions(
+          'signal.trip.active && (signal.geo.zone == "A" || signal.geo.zone == "B") && !(signal.gps.moving || signal.local_hour < 6)',
+          FIELDS
+        )
+      )?.groups.map((g) => g.match)
+    ).toEqual(["any", "none"]);
+  });
+
+  it("reads an any group next to plain conditions as a group", () => {
+    const form = parseConditions(
+      '(signal.geo.zone == "A" || signal.geo.zone == "B") && signal.trip.active',
+      FIELDS
+    );
+    expect(shape(form)).toEqual({
+      match: "all",
+      rows: [{ path: "signal.trip.active", op: "is_true", value: null }],
+      groups: [
+        {
+          match: "any",
+          rows: [
+            { path: "signal.geo.zone", op: "==", value: "A" },
+            { path: "signal.geo.zone", op: "==", value: "B" },
+          ],
+        },
+      ],
+    });
+    expect(compileConditions(form as ConditionForm)).toBe(
+      'signal.trip.active && (signal.geo.zone == "A" || signal.geo.zone == "B")'
+    );
+  });
+
+  it("reads a rule that is only an any group and exceptions as an any list", () => {
+    expect(
+      shape(
+        parseConditions(
+          '(signal.geo.zone == "A" || signal.geo.zone == "B") && !(signal.gps.moving)',
+          FIELDS
+        )
+      )
+    ).toMatchObject({ match: "any", groups: [{ match: "none" }] });
+  });
+
+  it("reads a rule of conditions joined by o", () => {
+    expect(
+      shape(
+        parseConditions('event.type == "SOS" || event.type == "AAS"', FIELDS)
+      )?.match
+    ).toBe("any");
+    expect(roundTrip('event.type == "SOS" || event.type == "AAS"')).toBe(
+      'event.type == "SOS" || event.type == "AAS"'
+    );
+  });
+
+  it("reads an empty rule or true as no conditions", () => {
+    expect(shape(parseConditions("", FIELDS))).toEqual({
+      match: "all",
+      rows: [],
+      groups: [],
+    });
+    expect(shape(parseConditions("true", FIELDS))).toEqual({
+      match: "all",
+      rows: [],
+      groups: [],
+    });
+  });
+
+  it("keeps spaces inside values and accepts line breaks between conditions", () => {
+    expect(
+      roundTrip('signal.trip.active\n&& signal.geo.zone == "Faena  Norte"')
+    ).toBe('signal.trip.active && signal.geo.zone == "Faena  Norte"');
+  });
+
+  it("returns null for logic the form cannot show", () => {
+    for (const rule of [
+      "signal.trip.active && signal.gps.speed_kmh > signal.road.maxspeed_osm", // field against field
+      "signal.gps.speed_kmh - signal.road.maxspeed_osm > 10", // calculation
+      "signal.unknown.field > 3", // not in the source
+      "signal.trip.active || signal.gps.moving && signal.local_hour < 6", // mixed at the top
+      "signal.trip.active || (signal.gps.moving && signal.local_hour < 6)", // group under o
+      "signal.trip.active && ((signal.gps.moving || signal.local_hour < 6) && signal.trip.double_driver)", // nested
+      "signal.trip.active && !(signal.gps.moving && signal.local_hour < 6)", // not all
+      "signal.gps.speed_kmh > 1e3", // number syntax the form does not write
+      'signal.gps.speed_kmh > "90"', // text on a number field
+      'signal.geo.zone > "A"', // order on text
+      "signal.geo.zone == 'A'", // single quotes
+      'signal.geo.zone == "say \\"hi\\""', // escaped quotes
+      "signal.trip.active == 1", // number on a yes/no field
+      "signal.trip.active && (signal.gps.moving", // unbalanced
+      "signal.local_hour in [1, 2]", // list membership
+    ]) {
+      expect(parseConditions(rule, FIELDS), rule).toBeNull();
+    }
+  });
+});
+
+describe("compileConditions", () => {
+  it("writes true for an empty form", () => {
+    expect(compileConditions({ match: "all", rows: [], groups: [] })).toBe(
+      "true"
+    );
+  });
+
+  it("skips empty groups and wraps an any list that is followed by groups", () => {
+    const form = parseConditions(
+      "signal.trip.active || signal.gps.moving",
+      FIELDS
+    ) as ConditionForm;
+    form.groups.push({ id: "g1", match: "none", rows: [] });
+    expect(compileConditions(form)).toBe(
+      "signal.trip.active || signal.gps.moving"
+    );
+    form.groups.push({
+      id: "g2",
+      match: "none",
+      rows: [{ id: "r", path: "signal.geo.zone", op: "==", value: "Puerto" }],
+    });
+    expect(compileConditions(form)).toBe(
+      '(signal.trip.active || signal.gps.moving) && !(signal.geo.zone == "Puerto")'
+    );
+    expect(shape(parseConditions(compileConditions(form), FIELDS))?.match).toBe(
+      "any"
+    );
+  });
+
+  it("escapes quotes in text values", () => {
+    expect(
+      compileConditions({
+        match: "all",
+        rows: [{ id: "r", path: "event.type", op: "==", value: 'a"b' }],
+        groups: [],
+      })
+    ).toBe('event.type == "a\\"b"');
+  });
+});
+
+describe("newCondition and opsFor", () => {
+  it("starts each type with an operator and a value it accepts", () => {
+    const bool = FIELDS[0] as SourceField;
+    const list = FIELDS.find((f) => f.type === "list") as SourceField;
+    const num = FIELDS.find((f) => f.type === "number") as SourceField;
+    expect(newCondition(bool)).toMatchObject({ op: "is_true", value: null });
+    expect(newCondition(list)).toMatchObject({ op: "==", value: "HEAVY" });
+    expect(newCondition(num)).toMatchObject({ op: ">", value: 0 });
+    expect(opsFor("zone")).toEqual(["==", "!="]);
+    expect(newCondition(bool).id).not.toBe(newCondition(bool).id);
+  });
+});

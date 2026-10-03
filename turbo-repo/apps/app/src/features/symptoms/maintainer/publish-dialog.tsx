@@ -89,7 +89,7 @@ export default function PublishDialog({
   const bump = raise ?? plan?.bump ?? null;
   const target =
     raise && current ? nextVersion(current, raise) : (plan?.nextVersion ?? "");
-  // A first version is always 0.1.0, so there is nothing to raise.
+  // With nothing published there is no version to raise from; the server picks the first one.
   const higher =
     plan?.bump && current ? BUMPS.slice(BUMPS.indexOf(plan.bump) + 1) : [];
   const errors = (plan?.report.findings ?? []).filter(

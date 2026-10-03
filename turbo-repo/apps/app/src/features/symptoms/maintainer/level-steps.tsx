@@ -203,13 +203,29 @@ export default function LevelSteps({
   onChange: (steps: Step[]) => void;
 }>) {
   const [editing, setEditing] = useState<number | null>(null);
+  // Steps have no id of their own: each keeps one here, moved and removed with it.
+  const [ids, setIds] = useState(() => steps.map(() => crypto.randomUUID()));
+  let keys = ids;
+  if (ids.length !== steps.length) {
+    // Steps added, or the list replaced from outside: keep the ids that still have a step.
+    keys = steps.map((_, i) => ids[i] ?? crypto.randomUUID());
+    setIds(keys);
+  }
   const set = (i: number, patch: Partial<Step>) =>
     onChange(steps.map((s, j) => (j === i ? { ...s, ...patch } : s)));
   const move = (i: number, by: number) => {
     const next = [...steps];
     const [s] = next.splice(i, 1);
     next.splice(i + by, 0, s);
+    const nextIds = [...keys];
+    const [id] = nextIds.splice(i, 1);
+    nextIds.splice(i + by, 0, id ?? crypto.randomUUID());
+    setIds(nextIds);
     onChange(next);
+  };
+  const remove = (i: number) => {
+    setIds(keys.filter((_, j) => j !== i));
+    onChange(steps.filter((_, j) => j !== i));
   };
   const budget = steps.reduce((sum, s) => sum + (s.budgetMinutes ?? 0), 0);
   const over = slaMinutes != null && budget > slaMinutes;
@@ -238,7 +254,7 @@ export default function LevelSteps({
       <ol className="flex flex-col">
         {steps.map((s, i) => (
           <StepItem
-            key={`step-${i}`}
+            key={keys[i]}
             step={s}
             index={i}
             count={steps.length}
@@ -246,7 +262,7 @@ export default function LevelSteps({
             d={d}
             onSet={(patch) => set(i, patch)}
             onMove={(by) => move(i, by)}
-            onRemove={() => onChange(steps.filter((_, j) => j !== i))}
+            onRemove={() => remove(i)}
             onScript={() => setEditing(i)}
           />
         ))}

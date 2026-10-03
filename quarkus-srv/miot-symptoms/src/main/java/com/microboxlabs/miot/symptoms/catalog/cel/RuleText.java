@@ -37,6 +37,10 @@ public final class RuleText {
         if (rule == null) {
             return null;
         }
+        // The unparser writes string constants without escaping them: "a\\"b" would come back as "a"b".
+        if (rule.indexOf('\\') >= 0) {
+            return rule.trim();
+        }
         return parse(rule).map(UNPARSER::unparse).orElse(rule.trim());
     }
 

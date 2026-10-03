@@ -314,7 +314,9 @@ public final class SpecValidator {
         int i = 0;
         while (i < rule.length()) {
             char c = rule.charAt(i);
-            if (c == '"') {
+            if (quoted && c == '\\') {
+                i++;
+            } else if (c == '"') {
                 quoted = !quoted;
             } else if (!quoted && (c == '(' || c == '[')) {
                 depth++;

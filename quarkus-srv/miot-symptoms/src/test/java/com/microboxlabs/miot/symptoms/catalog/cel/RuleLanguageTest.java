@@ -25,6 +25,15 @@ class RuleLanguageTest {
             "geo", Map.of("zone", "Ruta 5")));
 
     @Test
+    void canonicalTextIgnoresSpacingButKeepsEscapedQuotes() {
+        assertEquals(RuleText.canonical("a  &&   b > 1"), RuleText.canonical("a && b > 1"));
+        assertEquals("z == \"a\\\"b\"", RuleText.canonical(" z == \"a\\\"b\" "));
+        String oneString = RuleText.canonical("z == \"a\\\" || z == \\\"b\"");
+        String twoConditions = RuleText.canonical("z == \"a\" || z == \"b\"");
+        assertFalse(oneString.equals(twoConditions), "one string with || inside is not two conditions");
+    }
+
+    @Test
     void speedingActivationChecksAndRuns() {
         String rule = "signal.trip.active && signal.vehicle.weight_category == \"HEAVY\""
                 + " && !(signal.geo.zone == \"Faena Norte\")";

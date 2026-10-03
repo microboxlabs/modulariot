@@ -42,10 +42,30 @@ const COMPARISON = /^([A-Za-z_][\w.]*)\s*(==|!=|>=|<=|>|<)/;
 let nextId = 0;
 export const newId = () => `cond-${++nextId}`;
 
+/** Fields compared as numbers: plain numbers and durations in seconds. */
+export function isNumeric(type: string) {
+  return type === "number" || type === "duration";
+}
+
+/**
+ * A number literal as a JavaScript number, or null when the conversion would
+ * change it (too many digits, too large, too small): writing it back would
+ * change the rule. Trailing zeros after the point may go.
+ */
+function exactNumber(raw: string): number | null {
+  if (!NUMBER.test(raw)) return null;
+  const n = Number(raw);
+  const trimmed = raw.includes(".")
+    ? raw.replace(/0+$/, "").replace(/\.$/, "")
+    : raw;
+  const expected = trimmed === "-0" ? "0" : trimmed;
+  return Number.isFinite(n) && String(n) === expected ? n : null;
+}
+
 /** The operators a field of this type offers. */
 export function opsFor(type: string): ConditionOp[] {
   if (type === "bool") return ["is_true", "is_false"];
-  if (type === "number") return [...ORDER_OPS, "==", "!="];
+  if (isNumeric(type)) return [...ORDER_OPS, "==", "!="];
   return ["==", "!="];
 }
 
@@ -57,7 +77,7 @@ export function newCondition(field: SourceField): Condition {
 
 function defaultValue(field: SourceField): number | string | null {
   if (field.type === "bool") return null;
-  if (field.type === "number") return 0;
+  if (isNumeric(field.type)) return 0;
   return field.values?.[0]?.value ?? "";
 }
 
@@ -149,9 +169,10 @@ function comparisonRow(
       value: null,
     };
   }
-  if (field.type === "number") {
-    if (!NUMBER.test(raw)) return null;
-    return { id: newId(), path, op: op as ConditionOp, value: Number(raw) };
+  if (isNumeric(field.type)) {
+    const value = exactNumber(raw);
+    if (value === null) return null;
+    return { id: newId(), path, op: op as ConditionOp, value };
   }
   if (!STRING.test(raw) || (op !== "==" && op !== "!=")) return null;
   const text = unquote(raw);

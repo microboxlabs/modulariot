@@ -14,6 +14,7 @@ import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.SqlClient;
 import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.pgclient.PgException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -22,14 +23,16 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /** {@link SymptomCatalogStore} on the modulith database, schema {@code miot_symptoms}. */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class PgSymptomCatalogStore implements SymptomCatalogStore {
+
+    private static final String UNIQUE_VIOLATION = "23505";
 
     private static final String DEFINITION_COLUMNS = """
             id, tenant_code, symptom_key, name, family, icon, description, source_key, engine_rule_id,
@@ -131,7 +134,14 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
                 .addString(d.state().name()).addString(d.currentVersion())
                 .addString(d.createdBy()).addOffsetDateTime(d.createdAt())
                 .addString(d.updatedBy()).addOffsetDateTime(d.updatedAt());
-        return definitions(query(pool.get(), INSERT_DEFINITION, params)).get(0);
+        try {
+            return definitions(query(pool.get(), INSERT_DEFINITION, params)).get(0);
+        } catch (PgException e) {
+            if (UNIQUE_VIOLATION.equals(e.getSqlState())) {
+                throw new DuplicateSymptomKeyException(d.key());
+            }
+            throw e;
+        }
     }
 
     @Override

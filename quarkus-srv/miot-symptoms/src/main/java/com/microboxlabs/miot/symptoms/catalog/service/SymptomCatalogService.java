@@ -4,11 +4,13 @@ import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionStatus;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecDiff.Change;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Report;
+import com.microboxlabs.miot.symptoms.catalog.store.DuplicateSymptomKeyException;
 import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import io.quarkus.arc.properties.IfBuildProperty;
@@ -36,6 +38,9 @@ public class SymptomCatalogService {
 
     static final String ENTITY = "symptom";
     private static final String VERSION_NOT_FOUND = "version not found: ";
+    /** Tries at picking a free key when copying a template, for concurrent copies of the same one. */
+    static final int KEY_ATTEMPTS = 5;
+    static final String FIRST_VERSION = "0.1.0";
     private static final Pattern KEY = Pattern.compile("^[a-z0-9][a-z0-9_-]{1,94}$");
 
     private final SymptomCatalogStore store;
@@ -99,24 +104,65 @@ public class SymptomCatalogService {
     }
 
     public SymptomDetail create(String tenantCode, String actor, CreateRequest req) {
-        return create(tenantCode, actor, req, null);
+        return create(tenantCode, actor, req, null, null);
     }
 
-    private SymptomDetail create(String tenantCode, String actor, CreateRequest req, UUID forkedFrom) {
+    /**
+     * Copies a platform template into the organization's catalog and publishes
+     * it as {@value #FIRST_VERSION} in TEST. The key is the template's, with a
+     * number added when the organization already uses it.
+     */
+    public SymptomDetail createFromTemplate(String tenantCode, String actor, SymptomTemplate template, String name) {
+        String title = name == null || name.isBlank() ? template.name() : name.trim();
+        // Checked before anything is written, so a template that does not fit leaves no draft and takes no key.
+        Report report = SpecValidator.validate(template.spec(),
+                sources.find(tenantCode, template.spec().source()).orElse(null));
+        if (!report.publishable()) {
+            throw new IllegalStateException("the template does not fit this organization's data source");
+        }
+        SymptomDetail created = null;
+        for (int attempt = 1; created == null; attempt++) {
+            CreateRequest req = new CreateRequest(freeKey(tenantCode, template.key()), title, template.family(),
+                    template.icon(), template.description(), template.spec().source(), null, template.spec());
+            try {
+                created = create(tenantCode, actor, req, null, template.key());
+            } catch (DuplicateSymptomKeyException e) {
+                // Another request took the same key between the lookup and the insert.
+                if (attempt == KEY_ATTEMPTS) {
+                    throw e;
+                }
+            }
+        }
+        publish(tenantCode, actor, created, created.draft(), plan(tenantCode, created, created.draft().spec()),
+                new Release("Desde la plantilla " + template.name(), null, SymptomState.TEST, null, true));
+        return get(tenantCode, created.definition().id());
+    }
+
+    private String freeKey(String tenantCode, String key) {
+        String candidate = key;
+        for (int n = 2; store.findDefinitionByKey(tenantCode, candidate).isPresent(); n++) {
+            candidate = key + "-" + n;
+        }
+        return candidate;
+    }
+
+    private SymptomDetail create(String tenantCode, String actor, CreateRequest req, UUID forkedFrom,
+            String templateKey) {
         if (req == null || req.key() == null || !KEY.matcher(req.key()).matches()) {
             throw new IllegalArgumentException("key: lowercase letters, digits, - and _, 2 to 95 characters");
         }
         if (req.name() == null || req.name().isBlank()) {
             throw new IllegalArgumentException("name is required");
         }
+        checkIdentity(req.name().trim(), req.family(), req.icon());
         DataSource source = requireSource(tenantCode, req.sourceKey());
         if (store.findDefinitionByKey(tenantCode, req.key()).isPresent()) {
-            throw new IllegalStateException("a symptom with key " + req.key() + " already exists");
+            throw new DuplicateSymptomKeyException(req.key());
         }
         OffsetDateTime now = now();
         SymptomDefinition d = store.insertDefinition(new SymptomDefinition(UUID.randomUUID(), tenantCode, req.key(),
-                req.name().trim(), req.family(), req.icon(), req.description(), source.key(), req.engineRuleId(), null,
-                forkedFrom, SymptomState.OFF, null, actor, now, actor, now));
+                req.name().trim(), req.family(), req.icon(), req.description(), source.key(), req.engineRuleId(),
+                templateKey, forkedFrom, SymptomState.OFF, null, actor, now, actor, now));
         SymptomSpec spec = req.spec() == null ? emptySpec(source) : req.spec();
         store.saveDraft(SymptomVersion.draft(d.id(), tenantCode, spec, actor, now));
         audit.log(tenantCode, actor, "symptom.created", ENTITY, d.id().toString(), null, Map.of("key", d.key()));
@@ -126,12 +172,26 @@ public class SymptomCatalogService {
     public SymptomDefinition updateIdentity(String tenantCode, String actor, UUID id, IdentityRequest req) {
         SymptomDefinition d = require(tenantCode, id);
         String name = req.name() == null || req.name().isBlank() ? d.name() : req.name().trim();
+        checkIdentity(name, req.family(), req.icon());
         SymptomDefinition saved = store.updateDefinition(new SymptomDefinition(d.id(), tenantCode, d.key(), name,
                 orKeep(req.family(), d.family()), orKeep(req.icon(), d.icon()),
                 orKeep(req.description(), d.description()), d.sourceKey(), d.engineRuleId(), d.templateKey(),
                 d.forkedFromVersionId(), d.state(), d.currentVersion(), d.createdBy(), d.createdAt(), actor, now()));
         audit.log(tenantCode, actor, "symptom.renamed", ENTITY, id.toString(), null, Map.of("name", name));
         return saved;
+    }
+
+    /** Rejects values longer than their columns, so the caller gets a 400 instead of a database error. */
+    private static void checkIdentity(String name, String family, String icon) {
+        maxLength("name", name, 200);
+        maxLength("family", family, 96);
+        maxLength("icon", icon, 64);
+    }
+
+    private static void maxLength(String field, String value, int max) {
+        if (value != null && value.codePointCount(0, value.length()) > max) {
+            throw new IllegalArgumentException(field + ": at most " + max + " characters");
+        }
     }
 
     /** Saves the draft; it may be invalid. Returns the draft and its checks. */
@@ -177,7 +237,7 @@ public class SymptomCatalogService {
         }
         PublishPlan plan = plan(tenantCode, detail, detail.draft().spec());
         return publish(tenantCode, actor, detail, detail.draft(), plan,
-                new Release(reason, requested, state, null));
+                new Release(reason, requested, state, null, false));
     }
 
     /** Publishes an old version's spec as a new version. History is never rewritten. */
@@ -193,7 +253,7 @@ public class SymptomCatalogService {
         PublishPlan plan = plan(tenantCode, detail, old.spec());
         String why = reason == null || reason.isBlank() ? "Volver a " + version : reason;
         return publish(tenantCode, actor, detail, copy, plan,
-                new Release(why, null, detail.definition().state(), version));
+                new Release(why, null, detail.definition().state(), version, false));
     }
 
     /** Creates a new symptom from one version of this one. It starts off, with that spec as its draft. */
@@ -204,7 +264,7 @@ public class SymptomCatalogService {
                 : store.findVersion(tenantCode, id, v)
                         .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + v));
         SymptomDetail created = create(tenantCode, actor, new CreateRequest(key, name, from.family(), from.icon(),
-                from.description(), from.sourceKey(), null, source.spec()), source.id());
+                from.description(), from.sourceKey(), null, source.spec()), source.id(), from.templateKey());
         audit.log(tenantCode, actor, "symptom.forked", ENTITY, created.definition().id().toString(), null,
                 Map.of("from", from.key(), "version", v == null ? "draft" : v));
         return created;
@@ -267,8 +327,12 @@ public class SymptomCatalogService {
         return SpecDiff.changes(a.spec(), b.spec());
     }
 
-    /** What the caller asks of a publication; {@code rolledBackFrom} is set on a rollback. */
-    private record Release(String reason, VersionBump requested, SymptomState state, String rolledBackFrom) {
+    /**
+     * What the caller asks of a publication; {@code rolledBackFrom} is set on a rollback, {@code first} when a
+     * new symptom publishes {@value #FIRST_VERSION}.
+     */
+    private record Release(String reason, VersionBump requested, SymptomState state, String rolledBackFrom,
+            boolean first) {
     }
 
     private SymptomVersion publish(String tenantCode, String actor, SymptomDetail detail, SymptomVersion version,
@@ -290,8 +354,9 @@ public class SymptomCatalogService {
         if (next == SymptomState.ACTIVE && plan.report().needsTestOnly()) {
             throw new IllegalStateException("the engine cannot evaluate this version yet; publish it as TEST");
         }
-        VersionBump bump = requested != null && requested.compareTo(plan.bump()) > 0 ? requested : plan.bump();
-        String number = SpecDiff.next(detail.definition().currentVersion(), bump);
+        boolean first = release.first() && detail.definition().currentVersion() == null;
+        VersionBump bump = first ? VersionBump.MINOR : raised(plan.bump(), requested);
+        String number = first ? FIRST_VERSION : SpecDiff.next(detail.definition().currentVersion(), bump);
         OffsetDateTime now = now();
         SymptomVersion saved = store.publish(
                 version.published(number, bump, reason.trim(), rolledBackFrom, actor, now),
@@ -339,6 +404,11 @@ public class SymptomCatalogService {
     private static SymptomSpec emptySpec(DataSource source) {
         return new SymptomSpec(source.key(), "", null, List.of(), new SymptomSpec.Lifecycle(
                 "caso.condicion_s >= 0", "caso.normal_s >= 120"), null);
+    }
+
+    /** The owner may raise the computed bump, never lower it. */
+    private static VersionBump raised(VersionBump computed, VersionBump requested) {
+        return requested != null && requested.compareTo(computed) > 0 ? requested : computed;
     }
 
     private static String orKeep(String value, String current) {

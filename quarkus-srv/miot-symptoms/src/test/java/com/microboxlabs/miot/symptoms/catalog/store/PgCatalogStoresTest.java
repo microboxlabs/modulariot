@@ -119,6 +119,10 @@ class PgCatalogStoresTest {
         SymptomDefinition created = store.insertDefinition(new SymptomDefinition(UUID.randomUUID(), TENANT,
                 "lost-signal", "Pérdida de señal", null, null, null, "trip_check", null, null, null,
                 SymptomState.OFF, null, "owner@example.com", now, "owner@example.com", now));
+        SymptomDefinition sameKey = new SymptomDefinition(UUID.randomUUID(), TENANT, "lost-signal", "Otra", null,
+                null, null, "trip_check", null, null, null, SymptomState.OFF, null, "owner@example.com", now,
+                "owner@example.com", now);
+        assertThrows(DuplicateSymptomKeyException.class, () -> store.insertDefinition(sameKey));
         SymptomSpec spec = new SymptomSpec("trip_check", "true", null, List.of(), null, null);
         SymptomVersion draft = store.saveDraft(SymptomVersion.draft(created.id(), TENANT, spec, "owner@example.com",
                 now));

@@ -6,10 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomDetail;
 import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
@@ -140,6 +143,78 @@ class SymptomCatalogServiceTest {
     }
 
     @Test
+    void aTemplateStartsInTestAtZeroOneZero() {
+        SymptomTemplate template = new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
+                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", Specs.speeding());
+
+        SymptomDetail first = service.createFromTemplate(TENANT, OWNER, template, null);
+        SymptomDetail second = service.createFromTemplate(TENANT, OWNER, template, "Exceso en ruta 5");
+
+        assertEquals("0.1.0", first.definition().currentVersion());
+        assertEquals(SymptomState.TEST, first.definition().state());
+        assertEquals("speeding", first.definition().templateKey());
+        assertEquals("Exceso de velocidad", first.definition().name());
+        assertNull(first.draft(), "the template is published, not left as a draft");
+        assertEquals("speeding-2", second.definition().key());
+        assertEquals("Exceso en ruta 5", second.definition().name());
+
+        UUID id = first.definition().id();
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(), Specs.ACTIVATION + " && true"));
+        assertEquals("1.0.0", service.publish(TENANT, OWNER, id, "Nueva condición", null, null).version());
+    }
+
+    private static SymptomTemplate speedingTemplate() {
+        return new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
+                "SPEED LIMIT STANDARD", "En viaje y sobre el límite", Specs.speeding());
+    }
+
+    @Test
+    void aTemplateThatDoesNotFitTheSourceLeavesNothingBehind() {
+        SymptomTemplate template = new SymptomTemplate("speeding", "Exceso de velocidad", "Seguridad de conducción",
+                null, "En viaje", Specs.with(Specs.speeding(), "signal.gps.not_in_this_source > 1"));
+
+        assertThrows(IllegalStateException.class, () -> service.createFromTemplate(TENANT, OWNER, template, null));
+
+        assertTrue(service.list(TENANT).isEmpty(), "no definition and no draft were written");
+        assertEquals("speeding", service.createFromTemplate(TENANT, OWNER, speedingTemplate(), null).definition()
+                .key(), "the key is still free");
+    }
+
+    @Test
+    void aTemplateCopyRacingAnotherForTheSameKeyTakesTheNextOne() {
+        InMemoryCatalog racing = new InMemoryCatalog() {
+            private boolean raced;
+
+            @Override
+            public SymptomDefinition insertDefinition(SymptomDefinition d) {
+                if (!raced && d.key().equals("speeding")) {
+                    raced = true;
+                    super.insertDefinition(new SymptomDefinition(UUID.randomUUID(), d.tenantCode(), "speeding",
+                            "Ganó la otra", null, null, null, "gps_signal", null, null, null, SymptomState.OFF, null,
+                            OWNER, d.createdAt(), OWNER, d.createdAt()));
+                }
+                return super.insertDefinition(d);
+            }
+        };
+        racing.upsert(Specs.gpsSignal());
+        SymptomCatalogService raced = new SymptomCatalogService(racing,
+                new DataSourceService(racing, new UnavailableSymptomEngine()), audit);
+
+        assertEquals("speeding-2", raced.createFromTemplate(TENANT, OWNER, speedingTemplate(), null).definition()
+                .key());
+    }
+
+    @Test
+    void lengthsCountCharactersNotUtf16Units() {
+        String emoji = "\uD83D\uDE9A";
+        CreateRequest fits = new CreateRequest("emoji", emoji.repeat(200), null, null, null, "gps_signal", null, null);
+        assertEquals(emoji.repeat(200), service.create(TENANT, OWNER, fits).definition().name());
+        CreateRequest tooLong = new CreateRequest("emoji-2", emoji.repeat(201), null, null, null, "gps_signal", null,
+                null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER, tooLong));
+    }
+
+    @Test
     void theListCarriesTheSpecInForceNotTheDraft() {
         UUID id = speeding();
         assertNull(service.list(TENANT).get(0).current(), "nothing published yet");
@@ -173,6 +248,20 @@ class SymptomCatalogServiceTest {
         assertThrows(IllegalStateException.class, this::speeding);
         assertEquals(List.of("symptom.created"), audit.list(TENANT, "symptom", null, null, null, null, 10).stream()
                 .map(e -> e.action()).toList());
+    }
+
+    @Test
+    void namesFamiliesAndIconsLongerThanTheirColumnsAreRejected() {
+        String longName = "x".repeat(201);
+        CreateRequest tooLong = new CreateRequest("ok-key", longName, null, null, null, "gps_signal", null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER, tooLong));
+        UUID id = speeding();
+        IdentityRequest family = new IdentityRequest(null, "f".repeat(97), null, null);
+        IdentityRequest icon = new IdentityRequest(null, null, "i".repeat(65), null);
+        assertThrows(IllegalArgumentException.class, () -> service.updateIdentity(TENANT, OWNER, id, family));
+        assertThrows(IllegalArgumentException.class, () -> service.updateIdentity(TENANT, OWNER, id, icon));
+        assertEquals("x".repeat(200), service.updateIdentity(TENANT, OWNER, id,
+                new IdentityRequest("x".repeat(200), null, null, null)).name());
     }
 
     @Test

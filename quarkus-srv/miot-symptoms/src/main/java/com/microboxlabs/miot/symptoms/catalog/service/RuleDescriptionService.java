@@ -51,7 +51,6 @@ public class RuleDescriptionService {
 
     private static final Set<String> SECTIONS = Set.of(ACTIVATION, "measure", "levels.1", "levels.2",
             "levels.3", "levels.4", "lifecycle.open", "lifecycle.close", LEVELS, LIFECYCLE, OVERVIEW);
-    private static final Pattern SPACES = Pattern.compile("\\s+");
     private static final Pattern LOCALE = Pattern.compile("[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?");
 
     private static final Map<String, String> LEVEL_LABELS = Map.of(
@@ -202,13 +201,13 @@ public class RuleDescriptionService {
         return out;
     }
 
-    /** The rule text used for the cache key. Whole sections are trimmed per line with spaces collapsed. */
+    /** The rule text used for the cache key. Whole sections are normalized per line; text inside quotes is kept. */
     static String canonical(String section, String rule) {
         if (!section.equals(LEVELS) && !section.equals(LIFECYCLE) && !section.equals(OVERVIEW)) {
             return RuleText.canonical(rule);
         }
         return rule.lines()
-                .map(line -> SPACES.matcher(line.strip()).replaceAll(" "))
+                .map(RuleText::spacing)
                 .filter(line -> !line.isEmpty())
                 .collect(Collectors.joining("\n"));
     }

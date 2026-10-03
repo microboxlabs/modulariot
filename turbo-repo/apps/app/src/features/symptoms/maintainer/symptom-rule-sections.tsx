@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { ToggleSwitch } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
@@ -9,6 +8,8 @@ import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
 import type { Finding, SourceField, SymptomSpec } from "./maintainer-api";
 import LevelRow, { type EditMode } from "./level-row";
+import LifecycleFormFields, { LevelDownSelect } from "./lifecycle-form-fields";
+import { parseClose, parseOpen } from "./lifecycle-form";
 import RecurrenceForm from "./recurrence-form";
 import { Problems, problemsFor } from "./rule-problems";
 import RuleDescription, { RuleDescriptionToggle } from "./rule-description";
@@ -235,6 +236,7 @@ export default function SymptomRuleSections({
   onChange: (spec: SymptomSpec) => void;
 }>) {
   const [levelsMode, setLevelsMode] = useState<EditMode>("form");
+  const [lifeMode, setLifeMode] = useState<EditMode>("form");
   const activation = problemsFor(findings, "activation");
   const measure = problemsFor(findings, "measure");
   const open = problemsFor(findings, "lifecycle.open");
@@ -251,6 +253,8 @@ export default function SymptomRuleSections({
   ].join("\n");
   const lifecycleText = `abre: ${spec.lifecycle?.open ?? ""}\ncierra: ${spec.lifecycle?.close ?? ""}`;
   const lifecycle = spec.lifecycle ?? { open: "", close: "" };
+  const lifeFormable =
+    parseOpen(lifecycle.open) !== null && parseClose(lifecycle.close) !== null;
   const measureValue = spec.measure ?? {
     expression: "",
     label: null,
@@ -324,50 +328,80 @@ export default function SymptomRuleSections({
       <Section
         title={tr("sectionLifecycle", d)}
         d={d}
+        actions={<ModeToggle mode={lifeMode} d={d} onChange={setLifeMode} />}
         describe={{
           section: "lifecycle",
           rule: lifecycleText,
           sourceKey: spec.source,
         }}
       >
-        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-          {tr("opens", d)}
-        </span>
-        <CelEditor
-          singleLine
-          readOnly={readOnly}
-          ariaLabel={tr("opens", d)}
-          value={lifecycle.open ?? ""}
-          fields={lifecycleFields}
-          problems={open}
-          onChange={(value) =>
-            onChange({ ...spec, lifecycle: { ...lifecycle, open: value } })
-          }
-        />
+        {lifeMode === "form" && lifeFormable && (
+          <LifecycleFormFields
+            lifecycle={lifecycle}
+            readOnly={readOnly}
+            d={d}
+            onChange={(next) => onChange({ ...spec, lifecycle: next })}
+          />
+        )}
+        {lifeMode === "form" && !lifeFormable && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-900/20 dark:text-amber-200">
+            {tr("lifeCannotShow", d)}{" "}
+            <button
+              type="button"
+              className="font-medium underline"
+              onClick={() => setLifeMode("expr")}
+            >
+              {tr("editAsExpression", d)}
+            </button>
+          </div>
+        )}
+        {lifeMode === "expr" && (
+          <>
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              {tr("opens", d)}
+            </span>
+            <CelEditor
+              singleLine
+              readOnly={readOnly}
+              ariaLabel={tr("opens", d)}
+              value={lifecycle.open ?? ""}
+              fields={lifecycleFields}
+              problems={open}
+              onChange={(value) =>
+                onChange({ ...spec, lifecycle: { ...lifecycle, open: value } })
+              }
+            />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              {tr("closes", d)}
+            </span>
+            <CelEditor
+              singleLine
+              readOnly={readOnly}
+              ariaLabel={tr("closes", d)}
+              value={lifecycle.close ?? ""}
+              fields={lifecycleFields}
+              problems={close}
+              onChange={(value) =>
+                onChange({ ...spec, lifecycle: { ...lifecycle, close: value } })
+              }
+            />
+          </>
+        )}
+        {(lifeMode === "expr" || !lifeFormable) && (
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+            <span>{tr("levelGoesDown", d)}</span>
+            <LevelDownSelect
+              levelDown={lifecycle.levelDown ?? false}
+              readOnly={readOnly}
+              d={d}
+              onChange={(levelDown) =>
+                onChange({ ...spec, lifecycle: { ...lifecycle, levelDown } })
+              }
+            />
+          </label>
+        )}
         <Problems items={open} />
-        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-          {tr("closes", d)}
-        </span>
-        <CelEditor
-          singleLine
-          readOnly={readOnly}
-          ariaLabel={tr("closes", d)}
-          value={lifecycle.close ?? ""}
-          fields={lifecycleFields}
-          problems={close}
-          onChange={(value) =>
-            onChange({ ...spec, lifecycle: { ...lifecycle, close: value } })
-          }
-        />
         <Problems items={close} />
-        <ToggleSwitch
-          checked={lifecycle.levelDown ?? false}
-          disabled={readOnly}
-          label={tr("levelDown", d)}
-          onChange={(levelDown) =>
-            onChange({ ...spec, lifecycle: { ...lifecycle, levelDown } })
-          }
-        />
       </Section>
 
       <Section title={tr("sectionRecurrence", d)} d={d}>

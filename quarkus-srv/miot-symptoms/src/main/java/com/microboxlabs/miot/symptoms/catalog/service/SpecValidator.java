@@ -64,6 +64,9 @@ public final class SpecValidator {
         }
     }
 
+    /** The definition's family column. */
+    static final int MAX_FAMILY = 96;
+
     private SpecValidator() {
     }
 
@@ -87,6 +90,10 @@ public final class SpecValidator {
             rule(out, "lifecycle.close", RuleSchema.CASE, spec.lifecycle().close(), Expect.CONDITION);
         }
         engineSupport(out, source, spec);
+        if (spec.family() != null && spec.family().codePointCount(0, spec.family().length()) > MAX_FAMILY) {
+            out.add(new Finding("family", Severity.ERROR,
+                    "La familia no puede tener más de " + MAX_FAMILY + " caracteres.", -1));
+        }
         if (spec.state() == SymptomState.ACTIVE && out.stream().anyMatch(f -> "engine".equals(f.section()))) {
             out.add(new Finding("state", Severity.ERROR,
                     "El motor aún no evalúa todas las variables de esta versión: déjala En prueba.", -1));

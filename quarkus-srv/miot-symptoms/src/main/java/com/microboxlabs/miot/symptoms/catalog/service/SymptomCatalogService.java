@@ -236,9 +236,11 @@ public class SymptomCatalogService {
         if (detail.draft() == null) {
             throw new IllegalStateException("there is no draft to publish");
         }
-        PublishPlan plan = plan(tenantCode, detail, detail.draft().spec());
-        return publish(tenantCode, actor, detail, detail.draft(), plan,
-                new Release(reason, requested, state, null, false));
+        // An explicit state wins over the draft's, so it is part of the plan: its checks, changes and bump.
+        SymptomVersion draft = state == null ? detail.draft()
+                : detail.draft().withSpec(detail.draft().spec().withState(state));
+        PublishPlan plan = plan(tenantCode, detail, draft.spec());
+        return publish(tenantCode, actor, detail, draft, plan, new Release(reason, requested, state, null, false));
     }
 
     /** Publishes an old version's spec as a new version. History is never rewritten. */
@@ -250,8 +252,10 @@ public class SymptomCatalogService {
         if (version.equals(detail.definition().currentVersion())) {
             throw new IllegalStateException(version + " is already the version in force");
         }
-        SymptomVersion copy = SymptomVersion.draft(id, tenantCode, old.spec(), actor, now());
-        PublishPlan plan = plan(tenantCode, detail, old.spec());
+        // Rolling back restores the rules, not the state: the symptom stays as it is.
+        SymptomVersion copy = SymptomVersion.draft(id, tenantCode,
+                old.spec().withState(detail.definition().state()), actor, now());
+        PublishPlan plan = plan(tenantCode, detail, copy.spec());
         String why = reason == null || reason.isBlank() ? "Volver a " + version : reason;
         return publish(tenantCode, actor, detail, copy, plan,
                 new Release(why, null, detail.definition().state(), version, false));
@@ -320,12 +324,13 @@ public class SymptomCatalogService {
 
     /** Differences between two published versions, oldest first. */
     public List<Change> compare(String tenantCode, UUID id, String from, String to) {
-        require(tenantCode, id);
         SymptomVersion a = store.findVersion(tenantCode, id, from)
                 .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + from));
         SymptomVersion b = store.findVersion(tenantCode, id, to)
                 .orElseThrow(() -> new NoSuchElementException(VERSION_NOT_FOUND + to));
-        return SpecDiff.changes(a.spec(), b.spec());
+        SymptomDefinition d = require(tenantCode, id);
+        return SpecDiff.changes(a.spec().withDefaults(d.family(), d.state()),
+                b.spec().withDefaults(d.family(), d.state()));
     }
 
     /**

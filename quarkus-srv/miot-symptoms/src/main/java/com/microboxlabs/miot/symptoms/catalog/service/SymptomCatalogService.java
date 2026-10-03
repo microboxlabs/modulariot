@@ -53,8 +53,9 @@ public class SymptomCatalogService {
         this.audit = audit;
     }
 
-    /** A symptom with the spec in force, its draft if any, and its version history. */
     /**
+     * A symptom with the spec in force, its draft if any, and its version history.
+     *
      * @param forkedFrom the symptom and version this one was copied from, or null when it is not a copy or the
      *                   source is gone
      */
@@ -270,7 +271,6 @@ public class SymptomCatalogService {
                 new Release(why, null, detail.definition().state(), version, false));
     }
 
-    /** Creates a new symptom from one version of this one. It starts off, with that spec as its draft. */
     /**
      * Copies a version into a new symptom. A published version is published again as {@value #FIRST_VERSION} in
      * TEST, as the prototype does; a symptom that was never published is copied as a draft.

@@ -286,10 +286,12 @@ class SignalEvaluatorTest {
 
     @Test
     void offVersionsAndVersionsWithoutLifecycleAreNotCompiled() {
+        SymptomSpec speeding = Specs.speeding();
+        DataSource gps = Specs.gpsSignal();
         assertThrows(IllegalArgumentException.class, () -> CompiledSymptom.compile(SPEEDING, "1.0.0",
-                SymptomState.OFF, Specs.speeding(), Specs.gpsSignal()));
+                SymptomState.OFF, speeding, gps));
         SymptomSpec noLifecycle = new SymptomSpec("gps_signal", Specs.ACTIVATION, null, List.of(), null, null);
         assertThrows(IllegalArgumentException.class, () -> CompiledSymptom.compile(SPEEDING, "1.0.0",
-                SymptomState.TEST, noLifecycle, Specs.gpsSignal()));
+                SymptomState.TEST, noLifecycle, gps));
     }
 }

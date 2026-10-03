@@ -39,6 +39,7 @@ import {
 } from "./symptom-side-panels";
 import { pendingError } from "./pending-error";
 import { useSymptomDraft } from "./use-symptom-draft";
+import { changedPaths } from "./ui/changed";
 import VersionBanner from "./version-banner";
 import VersionsDrawer from "./versions-drawer";
 
@@ -100,6 +101,15 @@ export default function SymptomDetail({
     ? detail?.versions.find((v) => v.version === viewing)
     : undefined;
   const shownSpec = viewed?.spec ?? spec;
+  // Amber marks: what the spec on screen changes against the published version; none for an old version or before publishing.
+  const published = detail?.current?.spec;
+  const changed = useMemo(
+    () =>
+      viewed || !published || !spec
+        ? new Set<string>()
+        : changedPaths(spec, published),
+    [viewed, published, spec]
+  );
   const { data: source } = useDataSource(
     shownSpec?.source ?? detail?.definition.sourceKey ?? null
   );
@@ -249,6 +259,7 @@ export default function SymptomDetail({
             <div className="xl:col-span-2">
               <SymptomRuleSections
                 spec={shownSpec}
+                changed={changed}
                 preview={viewed ? undefined : (currentPreview ?? undefined)}
                 fields={source?.fields ?? []}
                 sourceFields={fields}

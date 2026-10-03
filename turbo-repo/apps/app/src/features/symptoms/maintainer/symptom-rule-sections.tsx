@@ -4,28 +4,18 @@ import { useState } from "react";
 import { ToggleSwitch } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import ConditionIcon from "../components/condition-icon";
 import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
-import type {
-  Finding,
-  Level,
-  LevelResponse,
-  SourceField,
-  SymptomSpec,
-} from "./maintainer-api";
-import LevelNotices from "./level-notices";
-import LevelResponseOptions from "./level-response-options";
-import LevelSteps from "./level-steps";
+import type { Finding, SourceField, SymptomSpec } from "./maintainer-api";
+import LevelRow, { type EditMode } from "./level-row";
 import RecurrenceForm from "./recurrence-form";
+import { Problems, problemsFor } from "./rule-problems";
 import RuleDescription, { RuleDescriptionToggle } from "./rule-description";
 import { ICU_LEVELS } from "./symptom-labels";
 
 const cardClass =
   "rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800";
-const inputClass =
-  "w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white";
 
 /** Variables a level rule adds to the source: the measure and how long it has held. */
 export function levelFields(d: I18nRecord): CelField[] {
@@ -44,29 +34,6 @@ export function caseFields(d: I18nRecord): CelField[] {
     { path: "caso.nivel", detail: tr("fieldCaseLevel", d) },
     { path: "caso.cerrado_por_operador", detail: tr("fieldCaseClosed", d) },
   ];
-}
-
-const EMPTY_RESPONSE: LevelResponse = {
-  operator: false,
-  slaMinutes: null,
-  steps: [],
-  notices: [],
-  evidence: [],
-  ignorable: true,
-};
-
-/** The server's findings for one section, as editor problems. */
-export function problemsFor(
-  findings: Finding[] | undefined,
-  section: string
-): CelProblem[] {
-  return (findings ?? [])
-    .filter((f) => f.section === section)
-    .map((f) => ({
-      position: Math.max(0, f.position),
-      message: f.message,
-      severity: f.severity === "ERROR" ? "error" : "warning",
-    }));
 }
 
 function Section({
@@ -115,8 +82,6 @@ function Section({
   );
 }
 
-type EditMode = "form" | "expr";
-
 /** ☰ form / { } expression, as in the prototype. */
 function ModeToggle({
   mode,
@@ -143,6 +108,32 @@ function ModeToggle({
     <span className="flex rounded-lg border border-gray-300 p-0.5 dark:border-gray-600">
       {button("form", "☰", tr("formMode", d))}
       {button("expr", "{ }", tr("exprMode", d))}
+    </span>
+  );
+}
+
+/** The measure in form mode: its name, unit and expression, edited under { }. */
+function MeasureText({
+  measure,
+  d,
+}: Readonly<{
+  measure: {
+    expression: string | null;
+    label: string | null;
+    unit: string | null;
+  };
+  d: I18nRecord;
+}>) {
+  if (!measure.expression) {
+    return <span className="text-sm text-gray-500">{tr("noMeasure", d)}</span>;
+  }
+  return (
+    <span className="flex flex-wrap items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+      {measure.label && <b>{measure.label}</b>}
+      <code className="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-700">
+        {measure.expression}
+      </code>
+      {measure.unit && <span className="text-gray-500">{measure.unit}</span>}
     </span>
   );
 }
@@ -222,163 +213,6 @@ function ActivationSection({
   );
 }
 
-function Problems({ items }: Readonly<{ items: CelProblem[] }>) {
-  if (!items.length) return null;
-  return (
-    <ul className="flex flex-col gap-0.5">
-      {items.map((p) => (
-        <li
-          key={`${p.position}-${p.message}`}
-          className={`text-xs ${p.severity === "error" ? "text-red-600 dark:text-red-400" : "text-yellow-700 dark:text-yellow-400"}`}
-        >
-          {p.message}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function levelOf(spec: SymptomSpec, icu: number): Level {
-  return (
-    (spec.levels ?? []).find((l) => l.icu === icu) ?? {
-      icu,
-      applies: false,
-      when: "",
-      response: EMPTY_RESPONSE,
-    }
-  );
-}
-
-function withLevel(spec: SymptomSpec, level: Level): SymptomSpec {
-  const others = (spec.levels ?? []).filter((l) => l.icu !== level.icu);
-  return { ...spec, levels: [...others, level].sort((a, b) => a.icu - b.icu) };
-}
-
-function LevelRow({
-  spec,
-  icu,
-  condition,
-  fields,
-  findings,
-  readOnly,
-  connections,
-  lang,
-  d,
-  rootDict,
-  onChange,
-}: Readonly<{
-  spec: SymptomSpec;
-  icu: number;
-  condition: string;
-  fields: CelField[];
-  findings: Finding[] | undefined;
-  readOnly: boolean;
-  connections: IntegrationConnection[];
-  lang: string;
-  d: I18nRecord;
-  rootDict: I18nRecord;
-  onChange: (spec: SymptomSpec) => void;
-}>) {
-  const level = levelOf(spec, icu);
-  const response = level.response ?? EMPTY_RESPONSE;
-  const set = (patch: Partial<Level>) =>
-    onChange(withLevel(spec, { ...level, ...patch }));
-  const setResponse = (patch: Partial<LevelResponse>) =>
-    set({ response: { ...response, ...patch } });
-  const problems = problemsFor(findings, `levels.${icu}`);
-
-  return (
-    <div
-      className={`flex flex-col gap-2 py-3 ${level.applies ? "" : "opacity-60"}`}
-    >
-      <div className="flex items-center gap-3">
-        <ConditionIcon condition={condition} dict={rootDict} size="h-8 w-8" />
-        <ToggleSwitch
-          checked={level.applies}
-          disabled={readOnly}
-          label={tr("levelApplies", d)}
-          onChange={(applies) =>
-            set({ applies, when: level.when || "medida > 0" })
-          }
-        />
-        {level.applies && (
-          <div className="ml-auto flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-            <ToggleSwitch
-              checked={response.operator}
-              disabled={readOnly}
-              label={tr("operator", d)}
-              onChange={(operator) =>
-                setResponse({
-                  operator,
-                  slaMinutes: operator ? (response.slaMinutes ?? 5) : null,
-                })
-              }
-            />
-            {response.operator && (
-              <label className="flex items-center gap-1">
-                <span>SLA</span>
-                <input
-                  type="number"
-                  min={1}
-                  className={inputClass}
-                  disabled={readOnly}
-                  value={response.slaMinutes ?? ""}
-                  onChange={(e) =>
-                    setResponse({
-                      slaMinutes: e.target.value
-                        ? Number(e.target.value)
-                        : null,
-                    })
-                  }
-                />
-                <span>min</span>
-              </label>
-            )}
-          </div>
-        )}
-      </div>
-      {level.applies && (
-        <>
-          <CelEditor
-            singleLine
-            readOnly={readOnly}
-            ariaLabel={tr("levelRule", d)}
-            value={level.when ?? ""}
-            fields={fields}
-            problems={problems}
-            onChange={(when) => set({ when })}
-          />
-          <Problems items={problems} />
-          {response.operator && (
-            <LevelSteps
-              steps={response.steps ?? []}
-              slaMinutes={response.slaMinutes}
-              readOnly={readOnly}
-              d={d}
-              onChange={(steps) => setResponse({ steps })}
-            />
-          )}
-          <LevelNotices
-            notices={response.notices ?? []}
-            connections={connections}
-            lang={lang}
-            readOnly={readOnly}
-            d={d}
-            onChange={(notices) => setResponse({ notices })}
-          />
-          <LevelResponseOptions
-            response={response}
-            readOnly={readOnly}
-            d={d}
-            onChange={setResponse}
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
-/** Activation, measure with levels, and lifecycle, each as CEL with the server's findings in place. */
 export default function SymptomRuleSections({
   spec,
   fields,
@@ -388,7 +222,6 @@ export default function SymptomRuleSections({
   connections,
   lang,
   d,
-  rootDict,
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
@@ -399,9 +232,9 @@ export default function SymptomRuleSections({
   connections: IntegrationConnection[];
   lang: string;
   d: I18nRecord;
-  rootDict: I18nRecord;
   onChange: (spec: SymptomSpec) => void;
 }>) {
+  const [levelsMode, setLevelsMode] = useState<EditMode>("form");
   const activation = problemsFor(findings, "activation");
   const measure = problemsFor(findings, "measure");
   const open = problemsFor(findings, "lifecycle.open");
@@ -439,6 +272,9 @@ export default function SymptomRuleSections({
       <Section
         title={tr("sectionLevels", d)}
         d={d}
+        actions={
+          <ModeToggle mode={levelsMode} d={d} onChange={setLevelsMode} />
+        }
         describe={{
           section: "levels",
           rule: levelsText,
@@ -449,17 +285,21 @@ export default function SymptomRuleSections({
           <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
             {tr("measure", d)}
           </span>
-          <CelEditor
-            singleLine
-            readOnly={readOnly}
-            ariaLabel={tr("measure", d)}
-            value={measureValue.expression ?? ""}
-            fields={sourceFields}
-            problems={measure}
-            onChange={(expression) =>
-              onChange({ ...spec, measure: { ...measureValue, expression } })
-            }
-          />
+          {levelsMode === "form" ? (
+            <MeasureText measure={measureValue} d={d} />
+          ) : (
+            <CelEditor
+              singleLine
+              readOnly={readOnly}
+              ariaLabel={tr("measure", d)}
+              value={measureValue.expression ?? ""}
+              fields={sourceFields}
+              problems={measure}
+              onChange={(expression) =>
+                onChange({ ...spec, measure: { ...measureValue, expression } })
+              }
+            />
+          )}
           <Problems items={measure} />
         </div>
         <div className="divide-y divide-gray-100 dark:divide-gray-700">
@@ -468,14 +308,13 @@ export default function SymptomRuleSections({
               key={meta.icu}
               spec={spec}
               icu={meta.icu}
-              condition={meta.condition}
+              mode={levelsMode}
               fields={levelRuleFields}
               findings={findings}
               readOnly={readOnly}
               connections={connections}
               lang={lang}
               d={d}
-              rootDict={rootDict}
               onChange={onChange}
             />
           ))}

@@ -41,7 +41,7 @@ export function opLabel(op: ConditionOp, type: string, d: I18nRecord) {
 }
 
 /** A number typed as text, kept while it is half written ("-", "1.") and passed on when it is a number. */
-function NumberValue({
+export function NumberValue({
   value,
   unit,
   label,

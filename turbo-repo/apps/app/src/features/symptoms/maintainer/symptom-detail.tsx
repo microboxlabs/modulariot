@@ -258,7 +258,6 @@ export default function SymptomDetail({
                 findings={viewed ? undefined : report?.findings}
                 readOnly={!canWrite || Boolean(viewed)}
                 d={d}
-                rootDict={rootDict}
                 connections={connections}
                 lang={lang}
                 onChange={update}

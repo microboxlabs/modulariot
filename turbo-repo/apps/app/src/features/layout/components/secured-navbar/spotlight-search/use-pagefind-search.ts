@@ -41,7 +41,7 @@ async function loadPagefind(): Promise<PagefindInstance | null> {
 }
 
 // ── Fuzzy fallback (used in dev when /pagefind/pagefind.js is not built yet) ──
-function norm(str: string): string {
+export function norm(str: string): string {
   return str
     .toLowerCase()
     .normalize("NFD")

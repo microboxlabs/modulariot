@@ -22,7 +22,7 @@ final class ConditionChecks {
 
     private static final String FIELD = "[A-Za-z_][\\w.]*";
     private static final Pattern COMPARISON = Pattern.compile(
-            "^(" + FIELD + ")\\s*(==|!=|>=|<=|>|<)\\s*(-?\\d+(?:\\.\\d+)?|\"[^\"]*\"|true|false)$");
+            "^(" + FIELD + ")\\s*(==|!=|>=|<=|>|<)\\s*(\"[^\"]*\"|[\\w.-]+)$");
     private static final Pattern BARE = Pattern.compile("^(!?)(" + FIELD + ")$");
     private static final Pattern NUMBER = Pattern.compile("-?\\d+(?:\\.\\d+)?");
 
@@ -56,8 +56,10 @@ final class ConditionChecks {
         int depth = 0;
         boolean quoted = false;
         int start = 0;
-        for (int i = 0; i < rule.length(); i++) {
+        int i = 0;
+        while (i < rule.length()) {
             char c = rule.charAt(i);
+            int step = 1;
             if (c == '"') {
                 quoted = !quoted;
             } else if (!quoted && (c == '(' || c == '[')) {
@@ -69,8 +71,9 @@ final class ConditionChecks {
             } else if (!quoted && depth == 0 && rule.startsWith("&&", i)) {
                 terms.add(rule.substring(start, i).strip());
                 start = i + 2;
-                i++;
+                step = 2;
             }
+            i += step;
         }
         terms.add(rule.substring(start).strip());
         return Optional.of(terms);
@@ -137,33 +140,36 @@ final class ConditionChecks {
         if (!m.matches()) {
             return;
         }
-        FieldBounds b = fields.computeIfAbsent(m.group(1), f -> new FieldBounds());
         String op = m.group(2);
-        boolean numeric = NUMBER.matcher(m.group(3)).matches();
-        String value = numeric ? new BigDecimal(m.group(3)).stripTrailingZeros().toPlainString() : m.group(3);
-        if (value.equals("true") || value.equals("false")) {
-            boolean v = Boolean.parseBoolean(value);
-            truth(b, op.equals("==") == v);
+        String raw = m.group(3);
+        boolean numeric = NUMBER.matcher(raw).matches();
+        boolean bool = raw.equals("true") || raw.equals("false");
+        if (!numeric && !bool && !raw.startsWith("\"")) {
+            // Another field or an expression: nothing to compare against.
             return;
         }
-        switch (op) {
-            case "==" -> {
-                b.equalsClash |= b.equals != null && !b.equals.equals(value);
-                b.equals = value;
-                b.number = numeric ? Double.valueOf(value) : null;
-            }
-            case "!=" -> b.notEquals.add(value);
+        FieldBounds b = fields.computeIfAbsent(m.group(1), f -> new FieldBounds());
+        if (bool) {
+            truth(b, op.equals("==") == Boolean.parseBoolean(raw));
+            return;
+        }
+        String value = numeric ? new BigDecimal(raw).stripTrailingZeros().toPlainString() : raw;
+        if (op.equals("==")) {
+            b.equalsClash |= b.equals != null && !b.equals.equals(value);
+            b.equals = value;
+            b.number = numeric ? Double.valueOf(value) : null;
+        } else if (op.equals("!=")) {
+            b.notEquals.add(value);
+        } else if (numeric) {
             // An order on a string is a type error the rule check reports.
-            case ">", ">=" -> {
-                if (numeric) {
-                    lower(b, Double.parseDouble(value), op.equals(">"));
-                }
-            }
-            default -> {
-                if (numeric) {
-                    upper(b, Double.parseDouble(value), op.equals("<"));
-                }
-            }
+            bound(b, op, Double.parseDouble(value));
+        }
+    }
+
+    private static void bound(FieldBounds b, String op, double value) {
+        switch (op) {
+            case ">", ">=" -> lower(b, value, op.equals(">"));
+            default -> upper(b, value, op.equals("<"));
         }
     }
 

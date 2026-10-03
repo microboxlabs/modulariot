@@ -17,11 +17,12 @@ import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.List;
-import java.util.Optional;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -56,11 +57,13 @@ public class SymptomCatalogService {
     /**
      * A symptom with the spec in force, its draft if any, and its version history.
      *
-     * @param forkedFrom the symptom and version this one was copied from, or null when it is not a copy or the
-     *                   source is gone
+     * @param forkedFrom     the symptom and version this one was copied from, or null when it is not a copy or
+     *                       the source is gone
+     * @param versionChanges per published version, what changed from the one published before it; the first has
+     *                       none
      */
     public record SymptomDetail(SymptomDefinition definition, SymptomVersion current, SymptomVersion draft,
-            List<SymptomVersion> versions, ForkedFrom forkedFrom) {
+            List<SymptomVersion> versions, ForkedFrom forkedFrom, Map<String, List<Change>> versionChanges) {
     }
 
     /** @param version the copied version's number, or null when a draft was copied */
@@ -108,9 +111,39 @@ public class SymptomCatalogService {
                 .orElse(null);
         SymptomVersion current = d.currentVersion() == null ? null
                 : versions.stream().filter(v -> d.currentVersion().equals(v.version())).findFirst().orElse(null);
-        return new SymptomDetail(d, current, draft,
-                versions.stream().filter(v -> v.status() == VersionStatus.PUBLISHED).toList(),
-                forkedFrom(tenantCode, d));
+        List<SymptomVersion> published = versions.stream().filter(v -> v.status() == VersionStatus.PUBLISHED)
+                .toList();
+        return new SymptomDetail(d, current, draft, published, forkedFrom(tenantCode, d),
+                versionChanges(d, published));
+    }
+
+    /** Orders x.y.z versions by number: 0.10.0 after 0.9.0. */
+    static int compareVersions(String a, String b) {
+        String[] x = a.split("\\.");
+        String[] y = b.split("\\.");
+        for (int i = 0; i < Math.min(x.length, y.length); i++) {
+            int c = Integer.compare(Integer.parseInt(x[i]), Integer.parseInt(y[i]));
+            if (c != 0) {
+                return c;
+            }
+        }
+        return Integer.compare(x.length, y.length);
+    }
+
+    /** Each published version against the one before it. Versions only grow, rollbacks included. */
+    private static Map<String, List<Change>> versionChanges(SymptomDefinition d, List<SymptomVersion> published) {
+        List<SymptomVersion> ordered = published.stream()
+                .sorted(Comparator.comparing(SymptomVersion::version, SymptomCatalogService::compareVersions))
+                .toList();
+        Map<String, List<Change>> out = new LinkedHashMap<>();
+        SymptomVersion before = null;
+        for (SymptomVersion v : ordered) {
+            out.put(v.version(), before == null ? List.of()
+                    : SpecDiff.changes(before.spec().withDefaults(d.family(), d.state()),
+                            v.spec().withDefaults(d.family(), d.state())));
+            before = v;
+        }
+        return out;
     }
 
     public SymptomDetail create(String tenantCode, String actor, CreateRequest req) {

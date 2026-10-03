@@ -35,20 +35,18 @@ import {
   FieldsPanel,
   PreviewPanel,
   ReviewPanel,
-  VersionsPanel,
   originLabel,
 } from "./symptom-side-panels";
 import { pendingError } from "./pending-error";
 import { useSymptomDraft } from "./use-symptom-draft";
 import VersionBanner from "./version-banner";
+import VersionsDrawer from "./versions-drawer";
 
 /** The name a copy starts with, as in the prototype: "Exceso de velocidad (variante)". */
 function variantName(name: string, d: I18nRecord) {
   return tr("variantName", d, { name });
 }
 
-/** The versions panel, which the version menu scrolls to. */
-const VERSIONS_ID = "symptom-versions";
 /** The scrolling sheet; opening an old version scrolls it to the top. */
 const SHEET_ID = "symptom-sheet";
 
@@ -105,6 +103,7 @@ export default function SymptomDetail({
     shownSpec?.source ?? detail?.definition.sourceKey ?? null
   );
   const [publishing, setPublishing] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [pending, setPending] = useState<Pending>(null);
   const [text, setText] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
@@ -208,11 +207,7 @@ export default function SymptomDetail({
             d={d}
             rootDict={rootDict}
             onChange={update}
-            onHistory={() =>
-              document
-                .getElementById(VERSIONS_ID)
-                ?.scrollIntoView({ behavior: "smooth", block: "start" })
-            }
+            onHistory={() => setHistoryOpen(true)}
             onDuplicate={() => {
               if (!def.currentVersion) return;
               setText(variantName(def.name, d));
@@ -271,24 +266,6 @@ export default function SymptomDetail({
                 </>
               )}
               <FieldsPanel source={source} d={d} />
-              <div id={VERSIONS_ID} className="scroll-mt-4">
-                <VersionsPanel
-                  versions={detail.versions}
-                  current={detail.definition.currentVersion}
-                  canWrite={canWrite}
-                  viewing={viewed?.version ?? null}
-                  d={d}
-                  onView={setViewing}
-                  onRollback={(version) => {
-                    setText("");
-                    setPending({ kind: "rollback", version });
-                  }}
-                  onFork={(version) => {
-                    setText(variantName(detail.definition.name, d));
-                    setPending({ kind: "fork", version });
-                  }}
-                />
-              </div>
             </div>
           </div>
         )}
@@ -305,6 +282,30 @@ export default function SymptomDetail({
           />
         )}
       </div>
+
+      <VersionsDrawer
+        show={historyOpen}
+        versions={detail?.versions ?? []}
+        changes={detail?.versionChanges ?? {}}
+        current={def?.currentVersion ?? null}
+        canWrite={canWrite}
+        d={d}
+        onClose={() => setHistoryOpen(false)}
+        onView={(version) => {
+          setHistoryOpen(false);
+          setViewing(version);
+        }}
+        onRollback={(version) => {
+          setHistoryOpen(false);
+          setText("");
+          setPending({ kind: "rollback", version });
+        }}
+        onFork={(version) => {
+          setHistoryOpen(false);
+          setText(variantName(def?.name ?? "", d));
+          setPending({ kind: "fork", version });
+        }}
+      />
 
       <PublishDialog
         id={id}

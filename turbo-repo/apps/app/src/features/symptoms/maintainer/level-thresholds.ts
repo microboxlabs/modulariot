@@ -45,8 +45,10 @@ function place(range: Range, op: string, value: number): boolean {
  */
 export function parseThresholds(when: string | null): LevelThresholds | null {
   const text = (when ?? "").trim();
+  // A blank rule is an error the validator reports, not a level that always applies.
+  if (text === "") return null;
   const out: LevelThresholds = { measure: emptyRange(), held: emptyRange() };
-  if (text === "" || text === "true") return out;
+  if (text === "true") return out;
   if (/[()"|!]/.test(text)) return null;
   for (const part of text.split("&&")) {
     const m = TERM.exec(part.trim());

@@ -17,7 +17,7 @@ import {
   compileThresholds,
   parseThresholds,
 } from "./level-thresholds";
-import LevelNotices from "./level-notices";
+import LevelNotices, { CHANNELS } from "./level-notices";
 import LevelResponseOptions from "./level-response-options";
 import LevelSteps from "./level-steps";
 import type {
@@ -207,14 +207,19 @@ function ResponseSummary({
           : tr("noOperator", d)}
       </span>
       <span className="flex -space-x-1">
-        {channels.map((c) => (
-          <span
-            key={c}
-            className="rounded-md ring-2 ring-white dark:ring-gray-800"
-          >
-            <ChannelIcon channel={c} size={5} />
-          </span>
-        ))}
+        {channels.map((c) => {
+          const key = CHANNELS.find((ch) => ch.key === c)?.label;
+          const label = key ? trDynamic(key, d) : c;
+          return (
+            <span
+              key={c}
+              className="rounded-md ring-2 ring-white dark:ring-gray-800"
+            >
+              <ChannelIcon channel={c} label={label} size={5} />
+              <span className="sr-only">{label}</span>
+            </span>
+          );
+        })}
       </span>
     </span>
   );
@@ -250,6 +255,13 @@ function LevelRule({
         d={d}
         onChange={(t) => onChange(compileThresholds(t))}
       />
+    );
+  }
+  if (mode === "form" && !level.when?.trim()) {
+    return (
+      <span className="text-sm text-red-600 dark:text-red-400">
+        {tr("levelRuleMissing", d)}
+      </span>
     );
   }
   if (mode === "form") {

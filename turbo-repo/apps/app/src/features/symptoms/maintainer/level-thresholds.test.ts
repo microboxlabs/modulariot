@@ -34,9 +34,11 @@ describe("parseThresholds", () => {
     ).toBe("medida > 1 && medida <= 5");
   });
 
-  it("reads an empty rule as no bounds", () => {
-    expect(compileThresholds(parseThresholds("")!)).toBe("true");
-    expect(compileThresholds(parseThresholds(null)!)).toBe("true");
+  it("reads true as no bounds and leaves a blank rule to the validator", () => {
+    expect(compileThresholds(parseThresholds("true")!)).toBe("true");
+    expect(parseThresholds("")).toBeNull();
+    expect(parseThresholds("   ")).toBeNull();
+    expect(parseThresholds(null)).toBeNull();
   });
 
   it("returns null for rules the form cannot show", () => {

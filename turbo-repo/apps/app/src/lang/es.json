@@ -2616,6 +2616,7 @@
         "showLevelDetail": "Ver detalle del nivel",
         "hideLevelDetail": "Ocultar detalle del nivel",
         "noMeasure": "Sin medida: los niveles se miden por el tiempo sostenido.",
+        "levelRuleMissing": "Falta la regla del nivel. Escríbela en { }.",
         "levelApplies": "Aplica",
         "operator": "Operador",
         "levelRule": "Umbral del nivel",

@@ -2616,6 +2616,7 @@
         "showLevelDetail": "Show level detail",
         "hideLevelDetail": "Hide level detail",
         "noMeasure": "No measure: the levels go by how long it is held.",
+        "levelRuleMissing": "The level has no rule. Write it under { }.",
         "levelApplies": "Applies",
         "operator": "Operator",
         "levelRule": "Level threshold",

@@ -32,7 +32,8 @@ public class SymptomFamilies implements SelectableDefaults {
         this(tenant -> selectables.get(tenant, KEY));
     }
 
-    SymptomFamilies(Function<String, Selectable> tenantList) {
+    /** {@code tenantList} returns the organization's list, or throws {@link NoSuchElementException} without one. */
+    public SymptomFamilies(Function<String, Selectable> tenantList) {
         this.tenantList = tenantList;
     }
 

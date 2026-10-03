@@ -1,8 +1,9 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
-import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,7 +12,7 @@ import java.util.Objects;
 /**
  * What changed between two specs, in plain Spanish, and the version bump
  * each change needs. MAJOR: source, activation or measure. MINOR:
- * thresholds, a level turned on or off, lifecycle or recurrence. PATCH: the
+ * thresholds, a level turned on or off, lifecycle or recurrence. PATCH: family, state, the
  * response or the measure's label.
  */
 public final class SpecDiff {
@@ -45,10 +46,28 @@ public final class SpecDiff {
         if (!Objects.equals(before.recurrence(), after.recurrence())) {
             out.add(new Change("recurrence", VersionBump.MINOR, "Cambió qué pasa si se repite"));
         }
+        if (after.family() != null && !Objects.equals(before.family(), after.family())) {
+            out.add(new Change("family", VersionBump.PATCH, "Cambió la familia"));
+        }
+        if (after.state() != null && before.state() != after.state()) {
+            out.add(new Change("state", VersionBump.PATCH,
+                    "Estado: " + stateName(before.state()) + " → " + stateName(after.state())));
+        }
         return out;
     }
 
     /** The largest bump among the changes, or null when nothing changed. */
+    private static String stateName(SymptomState state) {
+        if (state == null) {
+            return "sin estado";
+        }
+        return switch (state) {
+            case OFF -> "Apagado";
+            case TEST -> "En prueba";
+            case ACTIVE -> "Activo";
+        };
+    }
+
     public static VersionBump bump(List<Change> changes) {
         return changes.stream().map(Change::bump).max(Enum::compareTo).orElse(null);
     }

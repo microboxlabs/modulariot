@@ -217,7 +217,8 @@ public class SymptomCatalogService {
         SymptomDefinition d = require(tenantCode, id);
         SymptomSpec checked = spec != null && !spec.isEmpty() ? spec : store.findDraft(tenantCode, id).map(SymptomVersion::spec)
                 .orElseThrow(() -> new NoSuchElementException("no draft to check"));
-        return SpecValidator.validate(checked, sources.find(tenantCode, sourceKey(checked, d)).orElse(null));
+        return SpecValidator.validate(effective(checked, d),
+                sources.find(tenantCode, sourceKey(checked, d)).orElse(null));
     }
 
     /** What publishing the draft would do, without publishing. */
@@ -350,7 +351,8 @@ public class SymptomCatalogService {
         if (plan.bump() == null) {
             throw new IllegalStateException("nothing changed since " + detail.definition().currentVersion());
         }
-        SymptomState next = state == null ? SymptomState.TEST : state;
+        SymptomSpec spec = effective(version.spec(), detail.definition());
+        SymptomState next = state == null ? spec.state() : state;
         if (next == SymptomState.ACTIVE && plan.report().needsTestOnly()) {
             throw new IllegalStateException("the engine cannot evaluate this version yet; publish it as TEST");
         }
@@ -359,21 +361,34 @@ public class SymptomCatalogService {
         String number = first ? FIRST_VERSION : SpecDiff.next(detail.definition().currentVersion(), bump);
         OffsetDateTime now = now();
         SymptomVersion saved = store.publish(
-                version.published(number, bump, reason.trim(), rolledBackFrom, actor, now),
-                detail.definition().withCurrent(number, next, actor, now));
+                version.withSpec(spec.withState(next)).published(number, bump, reason.trim(), rolledBackFrom, actor,
+                        now),
+                detail.definition().withCurrent(number, next, actor, now).withFamily(spec.family()));
         audit.log(tenantCode, actor, rolledBackFrom == null ? "symptom.published" : "symptom.rolled_back", ENTITY,
                 detail.definition().id().toString(), null,
                 Map.of("version", number, "bump", bump.name(), "state", next.name()));
         return saved;
     }
 
-    private PublishPlan plan(String tenantCode, SymptomDetail detail, SymptomSpec spec) {
-        List<Change> changes = SpecDiff.changes(detail.current() == null ? null : detail.current().spec(), spec);
+    private PublishPlan plan(String tenantCode, SymptomDetail detail, SymptomSpec draft) {
+        SymptomDefinition d = detail.definition();
+        SymptomSpec before = detail.current() == null ? null : detail.current().spec().withDefaults(d.family(),
+                d.state());
+        SymptomSpec spec = effective(draft, d);
+        List<Change> changes = SpecDiff.changes(before, spec);
         VersionBump bump = SpecDiff.bump(changes);
-        Report report = SpecValidator.validate(spec,
-                sources.find(tenantCode, sourceKey(spec, detail.definition())).orElse(null));
+        Report report = SpecValidator.validate(spec, sources.find(tenantCode, sourceKey(spec, d)).orElse(null));
         return new PublishPlan(changes, bump,
                 bump == null ? null : SpecDiff.next(detail.definition().currentVersion(), bump), report);
+    }
+
+    /**
+     * The spec with the family and state it would publish: its own, else the symptom's. A symptom's first version
+     * starts in TEST.
+     */
+    static SymptomSpec effective(SymptomSpec spec, SymptomDefinition d) {
+        SymptomState state = d.currentVersion() == null ? SymptomState.TEST : d.state();
+        return spec.withDefaults(d.family(), state);
     }
 
     /** The version in force has no errors against its own source and needs nothing the engine lacks. */

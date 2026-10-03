@@ -35,4 +35,10 @@ public record SymptomDefinition(
         return new SymptomDefinition(id, tenantCode, key, name, family, icon, description, sourceKey, engineRuleId,
                 templateKey, forkedFromVersionId, nextState, version, createdBy, createdAt, actor, at);
     }
+
+    public SymptomDefinition withFamily(String nextFamily) {
+        return new SymptomDefinition(id, tenantCode, key, name, nextFamily, icon, description, sourceKey,
+                engineRuleId, templateKey, forkedFromVersionId, state, currentVersion, createdBy, createdAt, updatedBy,
+                updatedAt);
+    }
 }

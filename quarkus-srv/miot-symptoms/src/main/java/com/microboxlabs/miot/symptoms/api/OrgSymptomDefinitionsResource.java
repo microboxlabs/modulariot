@@ -62,7 +62,10 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     private final TemplateService templates;
     private final SymptomStatsService stats;
 
-    /** Publishes the draft. {@code bump} may raise the computed bump; {@code state} defaults to TEST. */
+    /**
+     * Publishes the draft. {@code bump} may raise the computed bump; {@code state} overrides the draft's, which
+     * defaults to the symptom's (TEST for a first version).
+     */
     public record PublishRequest(String reason, VersionBump bump, SymptomState state) {
     }
 

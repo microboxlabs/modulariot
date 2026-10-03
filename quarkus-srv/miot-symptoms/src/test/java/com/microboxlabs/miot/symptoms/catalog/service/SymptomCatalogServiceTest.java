@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -10,9 +11,11 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.PublishPlan;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomDetail;
 import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
@@ -212,6 +215,62 @@ class SymptomCatalogServiceTest {
         CreateRequest tooLong = new CreateRequest("emoji-2", emoji.repeat(201), null, null, null, "gps_signal", null,
                 null);
         assertThrows(IllegalArgumentException.class, () -> service.create(TENANT, OWNER, tooLong));
+    }
+
+    private static SymptomSpec withFamilyAndState(SymptomSpec s, String family, SymptomState state) {
+        return new SymptomSpec(s.source(), s.activation(), s.measure(), s.levels(), s.lifecycle(), s.recurrence(),
+                family, state);
+    }
+
+    @Test
+    void stateAndFamilyInTheDraftArePatchChangesAppliedOnPublish() {
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Primera versión", null, SymptomState.ACTIVE);
+
+        service.saveDraft(TENANT, OWNER, id, withFamilyAndState(Specs.speeding(), "zones_places", SymptomState.TEST));
+        PublishPlan plan = service.plan(TENANT, id);
+        assertEquals(VersionBump.PATCH, plan.bump());
+        assertEquals(List.of("Cambió la familia", "Estado: Activo → En prueba"),
+                plan.changes().stream().map(c -> c.text()).toList());
+
+        SymptomVersion v = service.publish(TENANT, OWNER, id, "A prueba", null, null);
+        assertEquals("1.0.1", v.version());
+        SymptomDefinition d = service.get(TENANT, id).definition();
+        assertEquals(SymptomState.TEST, d.state());
+        assertEquals("zones_places", d.family());
+        assertEquals(SymptomState.TEST, v.spec().state(), "the version records the state it set");
+        assertEquals("zones_places", v.spec().family());
+    }
+
+    @Test
+    void aDraftThatLeavesStateAndFamilyKeepsTheSymptoms() {
+        UUID id = speeding();
+        service.publish(TENANT, OWNER, id, "Primera versión", null, SymptomState.ACTIVE);
+        service.saveDraft(TENANT, OWNER, id, Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 6",
+                "medida >= 6 && medida < 11", "medida >= 11 && medida < 21", "medida >= 21 && sostenido_s >= 60")));
+
+        assertTrue(service.plan(TENANT, id).changes().stream().allMatch(c -> c.section().equals("levels")));
+        service.publish(TENANT, OWNER, id, "Umbral", null, null);
+
+        SymptomDefinition d = service.get(TENANT, id).definition();
+        assertEquals(SymptomState.ACTIVE, d.state(), "publishing keeps the state in force");
+        assertEquals("driving_safety", d.family());
+    }
+
+    @Test
+    void aDraftCannotBeActiveWithFieldsTheEngineLacks() {
+        UUID id = speeding();
+        SymptomSpec unsupported = withFamilyAndState(
+                Specs.with(Specs.speeding(), Specs.ACTIVATION + " && signal.derived.speed_avg_5m > 10"), null,
+                SymptomState.ACTIVE);
+        service.saveDraft(TENANT, OWNER, id, unsupported);
+
+        assertFalse(service.validate(TENANT, id, null).publishable());
+        assertTrue(service.validate(TENANT, id, null).findings().stream().anyMatch(f -> f.section().equals("state")));
+        assertThrows(IllegalStateException.class, () -> service.publish(TENANT, OWNER, id, "x", null, null));
+
+        service.saveDraft(TENANT, OWNER, id, withFamilyAndState(unsupported, null, SymptomState.TEST));
+        assertEquals(SymptomState.TEST, service.publish(TENANT, OWNER, id, "En prueba", null, null).spec().state());
     }
 
     @Test

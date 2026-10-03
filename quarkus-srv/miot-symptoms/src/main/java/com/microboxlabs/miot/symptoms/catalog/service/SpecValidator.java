@@ -2,15 +2,16 @@ package com.microboxlabs.miot.symptoms.catalog.service;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleCheck;
-import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.Expect;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage.PreparedRule;
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleLanguage;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleSchema;
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
-import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -86,6 +87,10 @@ public final class SpecValidator {
             rule(out, "lifecycle.close", RuleSchema.CASE, spec.lifecycle().close(), Expect.CONDITION);
         }
         engineSupport(out, source, spec);
+        if (spec.state() == SymptomState.ACTIVE && out.stream().anyMatch(f -> "engine".equals(f.section()))) {
+            out.add(new Finding("state", Severity.ERROR,
+                    "El motor aún no evalúa todas las variables de esta versión: déjala En prueba.", -1));
+        }
         return new Report(out);
     }
 

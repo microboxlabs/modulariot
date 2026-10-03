@@ -48,7 +48,7 @@ public final class RuleText {
      * The rule with spacing outside strings normalized: none next to a symbol,
      * one space between two words ({@code a in b}). Strings are kept as written.
      */
-    static String spacing(String rule) {
+    public static String spacing(String rule) {
         StringBuilder out = new StringBuilder();
         boolean quoted = false;
         boolean pendingSpace = false;

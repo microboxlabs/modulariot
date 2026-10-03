@@ -174,6 +174,36 @@ class RuleDescriptionServiceTest {
     }
 
     @Test
+    void theOverviewIsCachedPerLineAndGetsEveryLabel() {
+        RuleDescriptionService service = service();
+        String overview = "activa: signal.trip.active\nmedida: signal.gps.speed_kmh - 90 (km/h)\n"
+                + "nivel 3: medida >= 11 · operador 5 min\nabre: caso.condicion_s >= 0\ncierra: caso.normal_s >= 120";
+
+        assertFalse(service.describe(TENANT, "overview", overview, "gps_signal", null, CALLER).cached());
+        assertTrue(service.describe(TENANT, "overview", overview.replace("\n", "\n\n  "), "gps_signal", null,
+                CALLER).cached());
+
+        assertEquals(1, calls.size());
+        Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
+        assertTrue(fields.containsKey("signal.trip.active"));
+        assertTrue(fields.containsKey("medida"));
+        assertTrue(fields.containsKey("caso.normal_s"));
+    }
+
+    @Test
+    void spacesInsideAQuotedValueMakeANewText() {
+        RuleDescriptionService service = service();
+        String yard = "activa: signal.geo.zone == \"North Yard\"\nabre: caso.condicion_s >= 0";
+
+        assertFalse(service.describe(TENANT, "overview", yard, "gps_signal", null, CALLER).cached());
+        assertTrue(service.describe(TENANT, "overview", yard.replace(" == ", "  ==   "), "gps_signal", null,
+                CALLER).cached());
+        assertFalse(service.describe(TENANT, "overview", yard.replace("North Yard", "North  Yard"), "gps_signal",
+                null, CALLER).cached());
+        assertEquals(2, calls.size());
+    }
+
+    @Test
     void sanitizesTheHarnessAnswerBeforeSaving() {
         answer = "<b onclick=\"x()\">a</b> <script>alert(1)</script> <i>b</i> <mark>c";
         RuleDescriptionService service = service();

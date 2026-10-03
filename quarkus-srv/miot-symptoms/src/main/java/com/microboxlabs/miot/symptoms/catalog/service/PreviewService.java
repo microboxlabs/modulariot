@@ -151,9 +151,16 @@ public class PreviewService {
             if (!(r.value() instanceof Boolean holds)) {
                 return new CasePreview(s.key(), s.open(), sample, null, NOT_A_CONDITION);
             }
-            String outcome = s.open() ? (holds ? "closes" : "stays_open") : (holds ? "opens" : "waits");
-            return new CasePreview(s.key(), s.open(), sample, outcome, null);
+            return new CasePreview(s.key(), s.open(), sample, outcome(s.open(), holds.booleanValue()), null);
         }).toList();
+    }
+
+    /** What a rule that held or not does to a case that is open or not yet. */
+    private static String outcome(boolean open, boolean holds) {
+        if (open) {
+            return holds ? "closes" : "stays_open";
+        }
+        return holds ? "opens" : "waits";
     }
 
     private static List<Clause> clauses(Map<String, Object> sample, Map<String, PreparedRule> rules) {

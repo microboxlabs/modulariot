@@ -28,6 +28,8 @@ import {
   useSymptomTemplates,
 } from "./maintainer-api";
 import DraftBar from "./draft-bar";
+import { overviewText } from "./overview-text";
+import RuleDescription from "./rule-description";
 import PublishDialog from "./publish-dialog";
 import SheetHeader from "./sheet-header";
 import SymptomRuleSections from "./symptom-rule-sections";
@@ -115,6 +117,9 @@ export default function SymptomDetail({
     if (reordered) paths.delete("activation");
     return paths;
   }, [viewed, published, spec, plan, planIsCurrent]);
+  // The overview describes the version on screen, or the one in force; a draft would rewrite it on every edit.
+  const overviewSpec = viewed?.spec ?? published ?? null;
+  const overview = overviewSpec ? overviewText(overviewSpec) : "";
   const { data: source } = useDataSource(
     shownSpec?.source ?? detail?.definition.sourceKey ?? null
   );
@@ -256,6 +261,15 @@ export default function SymptomDetail({
               setPending({ kind: "fork", version: viewed.version as string });
             }}
             onBack={() => setViewing(null)}
+          />
+        )}
+
+        {overviewSpec && overview && (
+          <RuleDescription
+            section="overview"
+            rule={overview}
+            sourceKey={overviewSpec.source ?? def?.sourceKey ?? null}
+            d={d}
           />
         )}
 

@@ -33,7 +33,12 @@ _SYSTEM_PROMPT = (
     "rule per ICU level: 1 Bajo observación, 2 Comprometida, 3 Crítica, "
     "4 Código negro. For it, say in one or two sentences at what values each "
     "level starts. A rule text for the section lifecycle has two lines: abre "
-    "(when a case opens) and cierra (when it closes)."
+    "(when a case opens) and cierra (when it closes). "
+    "A rule text for the section overview has the whole symptom, one line "
+    "each: activa (when it is evaluated), medida (the measure and its unit), "
+    "one line per level that applies with its threshold and who responds, "
+    "abre and cierra. For it, write one sentence that says what the symptom "
+    "watches and from which level an operator acts, with the key values."
 )
 
 _SECTION_HINTS = {
@@ -43,6 +48,7 @@ _SECTION_HINTS = {
     "lifecycle.close": "decides when an open case is closed",
     "levels": "defines the measure and the condition for each severity level",
     "lifecycle": "decides when a case opens and when it closes",
+    "overview": "is the whole symptom, summarized in one sentence",
 }
 
 

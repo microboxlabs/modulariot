@@ -46,6 +46,10 @@ export interface LevelResponse {
   notices: Notice[];
   evidence: string[];
   ignorable: boolean;
+  /** Who is told when the SLA runs out, e.g. "Jefe de torre". */
+  escalateTo?: string | null;
+  /** The case counts in consequence management. */
+  consequence?: boolean;
 }
 
 export interface Level {
@@ -65,12 +69,19 @@ export interface SymptomSpec {
     unit: string | null;
   } | null;
   levels: Level[] | null;
-  lifecycle: { open: string | null; close: string | null } | null;
+  lifecycle: {
+    open: string | null;
+    close: string | null;
+    /** An open case's level follows the measure down. */
+    levelDown?: boolean;
+  } | null;
   recurrence: {
     enabled: boolean;
     count: number;
     days: number;
     raiseLevels: number;
+    /** "patente" (default) or "conductor". */
+    entity?: string | null;
   } | null;
   /** A symptom_families value; null or missing keeps the symptom's. */
   family?: string | null;

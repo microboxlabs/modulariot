@@ -100,6 +100,7 @@ export default function CatalogStats({
   d,
   onFilter,
   onOpen,
+  onEditTeam,
 }: Readonly<{
   loading: boolean;
   all: SymptomSummary[];
@@ -108,6 +109,8 @@ export default function CatalogStats({
   d: I18nRecord;
   onFilter: (key: CatalogFilterKey, value: string) => void;
   onOpen: (id: string) => void;
+  /** Owners only: opens the operator team editor. */
+  onEditTeam?: () => void;
 }>) {
   if (loading) return <LoadingStats />;
   const filterHint = tr("statFilterHint", d);
@@ -217,9 +220,11 @@ export default function CatalogStats({
         <div className="flex-1 px-4 py-3">
           <Big
             value={noEngine || !totals ? "—" : totals.perShift}
-            unit={tr("perShiftOf", d, {
-              n: String(op?.capacityPerShift ?? "—"),
-            })}
+            unit={
+              op?.capacityPerShift == null
+                ? tr("perShift", d)
+                : tr("perShiftOf", d, { n: String(op.capacityPerShift) })
+            }
             title={filterHint}
             onClick={
               noEngine || !totals
@@ -243,7 +248,18 @@ export default function CatalogStats({
               ? "—"
               : `${Math.round(op.slaMetLastWeek * 100)}%`}
           </b>{" "}
-          · {tr("operatorsCapacity", d, { n: String(op?.operators ?? "—") })}
+          ·{" "}
+          {op?.operators == null
+            ? tr("teamNotSet", d)
+            : tr("operatorsCapacity", d, { n: String(op.operators) })}
+          {onEditTeam && (
+            <>
+              {" · "}
+              <button type="button" onClick={onEditTeam} className={LINK}>
+                {tr("teamEdit", d)}
+              </button>
+            </>
+          )}
         </CardFooter>
       </Card>
 

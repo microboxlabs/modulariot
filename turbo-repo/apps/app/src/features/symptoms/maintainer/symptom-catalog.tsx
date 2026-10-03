@@ -17,6 +17,7 @@ import {
 import { levelName } from "./catalog-format";
 import CatalogStats from "./catalog-stats";
 import CreateSymptomModal from "./create-symptom-modal";
+import TeamSettingsModal from "./team-settings-modal";
 import {
   importEngineRules,
   refreshSymptoms,
@@ -84,6 +85,7 @@ export default function SymptomCatalog({
   const [filters, setFilters] = useState<Filters>(EMPTY);
   const [layout, setLayout] = useState<Layout>("cards");
   const [creating, setCreating] = useState(false);
+  const [editingTeam, setEditingTeam] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importNote, setImportNote] = useState<string | null>(null);
 
@@ -93,8 +95,8 @@ export default function SymptomCatalog({
     const byId = new Map(
       (stats?.symptoms ?? []).map((x) => [x.definitionId, x.week])
     );
-    return (id: string) =>
-      stats?.engineAvailable ? (byId.get(id) ?? 0) : null;
+    // No entry: the engine credited no cases to this symptom.
+    return (id: string) => byId.get(id) ?? null;
   }, [stats]);
   const open = (id: string) =>
     router.push(`/${lang}/users/settings/symptoms/${id}`);
@@ -244,6 +246,7 @@ export default function SymptomCatalog({
             d={d}
             onFilter={(key, value) => setFilters({ ...filters, [key]: value })}
             onOpen={open}
+            onEditTeam={isOwner ? () => setEditingTeam(true) : undefined}
           />
 
           <p
@@ -312,6 +315,9 @@ export default function SymptomCatalog({
         </div>
       </div>
 
+      {editingTeam && (
+        <TeamSettingsModal d={d} onClose={() => setEditingTeam(false)} />
+      )}
       <CreateSymptomModal
         open={creating}
         d={d}

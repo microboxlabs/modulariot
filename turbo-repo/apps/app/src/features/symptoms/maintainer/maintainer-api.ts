@@ -119,6 +119,13 @@ export interface SymptomSummary {
 }
 
 /** Catalog numbers: weekly cases from the engine's last 90 days, operator load and recent changes. */
+/** The operator team; null means not set. */
+export interface TowerTeam {
+  operators: number | null;
+  shiftHours: number;
+  capacityPerShift: number | null;
+}
+
 export interface SymptomStats {
   engineAvailable: boolean;
   windowDays: number;
@@ -134,12 +141,7 @@ export interface SymptomStats {
     perShift: number;
     topShare: { definitionIds: string[]; share: number } | null;
   };
-  operators: {
-    operators: number;
-    shiftHours: number;
-    capacityPerShift: number;
-    slaMetLastWeek: number | null;
-  };
+  operators: TowerTeam & { slaMetLastWeek: number | null };
   changes: {
     drafts: number;
     lastPublished: {
@@ -244,7 +246,27 @@ export function useSymptomDefinitions() {
 
 export const statsKey = `${DEFS}/stats`;
 
-/** Null data (not an error) while the modulith has no stats endpoint or no engine. */
+const settingsKey = `${CONTROL_TOWER_BASE}/settings`;
+
+/** The operator team as saved; the editor starts from it. */
+export function useTowerTeam(enabled: boolean) {
+  return useSWR<TowerTeam>(enabled ? settingsKey : null, fetcher, {
+    revalidateOnFocus: false,
+  });
+}
+
+/** Saves the operator team (owners); the stats carry it back. */
+export async function saveTowerTeam(team: TowerTeam) {
+  const saved = await request<TowerTeam>(settingsKey, {
+    method: "PUT",
+    body: team,
+  });
+  await mutate(settingsKey, saved, { revalidate: false });
+  await mutate(statsKey);
+  return saved;
+}
+
+/** Undefined data while loading; an error when the modulith or the engine fails. */
 export function useSymptomStats() {
   return useSWR<SymptomStats>(statsKey, fetcher, {
     shouldRetryOnError: false,
@@ -290,6 +312,7 @@ export function useDataSource(key: string | null) {
 /** Refreshes the list and, when given, one symptom. */
 export async function refreshSymptoms(id?: string) {
   await mutate(definitionsKey);
+  await mutate(statsKey);
   if (id) await mutate(definitionKey(id));
 }
 

@@ -2679,6 +2679,7 @@
         "sourceKindWebhook": "Integración",
         "dragCondition": "Arrastra para cambiar el orden, o usa ↑ ↓. El orden no cambia la versión.",
         "writtenByHarness": "Escrito por Harness",
+        "insertField": "Insertar {path} en la regla",
         "levelApplies": "Aplica",
         "operator": "Operador",
         "levelRule": "Umbral del nivel",

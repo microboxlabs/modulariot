@@ -51,12 +51,18 @@ export function verdict(s: SamplePreview, d: I18nRecord): string {
 /** One sample at a time: each activation condition with ✓ or ✕ and the values it read, then the verdict. */
 export default function ClauseBreakdown({
   preview,
+  index: shown,
   d,
-}: Readonly<{ preview: Preview | undefined; d: I18nRecord }>) {
+}: Readonly<{
+  preview: Preview | undefined;
+  /** The sample to show, when something else picks it; the breakdown then has no ‹ ›. */
+  index?: number;
+  d: I18nRecord;
+}>) {
   const [index, setIndex] = useState(0);
   const samples = preview?.samples ?? [];
   if (samples.length === 0) return null;
-  const at = Math.min(index, samples.length - 1);
+  const at = Math.min(shown ?? index, samples.length - 1);
   const sample = samples[at] as SamplePreview;
   const clauses = sample.clauses ?? [];
   return (
@@ -65,30 +71,34 @@ export default function ClauseBreakdown({
         <span className="font-medium uppercase tracking-wide">
           {tr("clauseByClause", d)}
         </span>
-        <span className="ml-auto">
-          {tr("sampleOf", d, {
-            n: String(at + 1),
-            total: String(samples.length),
-          })}
-        </span>
-        <button
-          type="button"
-          aria-label={tr("previousSample", d)}
-          className={navClass}
-          disabled={at === 0}
-          onClick={() => setIndex(at - 1)}
-        >
-          ‹
-        </button>
-        <button
-          type="button"
-          aria-label={tr("nextSample", d)}
-          className={navClass}
-          disabled={at === samples.length - 1}
-          onClick={() => setIndex(at + 1)}
-        >
-          ›
-        </button>
+        {shown === undefined && (
+          <>
+            <span className="ml-auto">
+              {tr("sampleOf", d, {
+                n: String(at + 1),
+                total: String(samples.length),
+              })}
+            </span>
+            <button
+              type="button"
+              aria-label={tr("previousSample", d)}
+              className={navClass}
+              disabled={at === 0}
+              onClick={() => setIndex(at - 1)}
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              aria-label={tr("nextSample", d)}
+              className={navClass}
+              disabled={at === samples.length - 1}
+              onClick={() => setIndex(at + 1)}
+            >
+              ›
+            </button>
+          </>
+        )}
       </div>
       {clauses.length === 0 ? (
         <p className="text-xs text-gray-500">{tr("noClauses", d)}</p>

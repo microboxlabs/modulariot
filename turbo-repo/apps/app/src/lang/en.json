@@ -2679,6 +2679,7 @@
         "sourceKindWebhook": "Integration",
         "dragCondition": "Drag to reorder, or use ↑ ↓. The order does not change the version.",
         "writtenByHarness": "Written by Harness",
+        "insertField": "Insert {path} into the rule",
         "levelApplies": "Applies",
         "operator": "Operator",
         "levelRule": "Level threshold",

@@ -7,6 +7,7 @@ import type { IntegrationConnection } from "@/features/integration-config/integr
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
 import ClauseBreakdown from "./clause-breakdown";
+import SampleTree from "./sample-tree";
 import { SourceHelp, SourceSelect } from "./source-select";
 import { changedPaths, isChanged } from "./ui/changed";
 import {
@@ -203,6 +204,13 @@ function ActivationSection({
   const [mode, setMode] = useState<EditMode>("form");
   const [sourceHelp, setSourceHelp] = useState(false);
   const { data: sources } = useDataSources();
+  // The tree keeps the last samples while a new preview is on its way.
+  const [cached, setCached] = useState(preview);
+  if (preview && preview !== cached) setCached(preview);
+  // Samples of another source are not shown, even while the new source's preview loads.
+  const samples = cached?.source === spec.source ? cached.samples : [];
+  const [sampleIndex, setSampleIndex] = useState(0);
+  const sampleAt = Math.min(sampleIndex, Math.max(0, samples.length - 1));
   const activation = spec.activation ?? "";
   const { form, update } = useActivationForm(activation, fields, (value) =>
     onChange({ ...spec, activation: value })
@@ -264,15 +272,26 @@ function ActivationSection({
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {tr("activationHint", d)}
           </p>
-          <CelEditor
-            readOnly={readOnly}
-            ariaLabel={tr("sectionActivation", d)}
-            value={activation}
-            fields={sourceFields}
-            problems={problems}
-            onChange={(value) => onChange({ ...spec, activation: value })}
-          />
-          <ClauseBreakdown preview={preview} d={d} />
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+            <SampleTree
+              samples={samples.map((s) => s.sample)}
+              index={sampleAt}
+              readOnly={readOnly}
+              d={d}
+              onIndex={setSampleIndex}
+            />
+            <div className="flex min-w-0 flex-col gap-2">
+              <CelEditor
+                readOnly={readOnly}
+                ariaLabel={tr("sectionActivation", d)}
+                value={activation}
+                fields={sourceFields}
+                problems={problems}
+                onChange={(value) => onChange({ ...spec, activation: value })}
+              />
+              <ClauseBreakdown preview={preview} index={sampleAt} d={d} />
+            </div>
+          </div>
         </>
       )}
       <Problems items={problems} />

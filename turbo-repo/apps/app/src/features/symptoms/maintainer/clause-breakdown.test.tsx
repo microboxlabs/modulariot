@@ -88,6 +88,17 @@ describe("ClauseBreakdown", () => {
     ).toBe(true);
   });
 
+  it("follows the sample picked elsewhere and has no ‹ › of its own", () => {
+    const { rerender } = render(
+      <ClauseBreakdown preview={preview} index={1} d={d} />
+    );
+    expect(screen.getByText("sin desglose")).toBeTruthy();
+    expect(screen.queryByLabelText("Siguiente")).toBeNull();
+    expect(screen.queryByText(/Muestra/)).toBeNull();
+    rerender(<ClauseBreakdown preview={preview} index={5} d={d} />);
+    expect(screen.getByText("sin desglose")).toBeTruthy();
+  });
+
   it("renders nothing without samples", () => {
     const { container } = render(
       <ClauseBreakdown preview={{ source: "x", samples: [] }} d={d} />

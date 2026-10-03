@@ -146,7 +146,10 @@ class SymptomCatalogServiceTest {
         assertEquals(SymptomState.OFF, fork.definition().state());
         assertNull(fork.definition().currentVersion());
         assertEquals(Specs.ACTIVATION, fork.draft().spec().activation());
-        assertNull(fork.forkedFrom().version(), "a draft was copied");
+        assertNull(fork.definition().forkedFromVersionId(), "a draft is no stable source");
+        assertNull(fork.forkedFrom());
+        service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.TEST);
+        assertNull(service.get(TENANT, fork.definition().id()).forkedFrom(), "publishing the source changes nothing");
     }
 
     @Test

@@ -2571,7 +2571,7 @@
         "reasonPlaceholder": "What changes and why",
         "versionBump": "Version type",
         "restoreTitle": "Restore version {version}",
-        "duplicateHint": "From version {version}. The new symptom starts in test, at 0.1.0, and keeps where it came from.",
+        "duplicateHint": "From version {version}. The new symptom starts in test, at 0.1.0, and keeps track of where it came from.",
         "restoreHint": "Publishes these rules as a new version. History is not rewritten.",
         "fieldMeasure": "number · the measure's result",
         "fieldHeld": "number · seconds it has held",

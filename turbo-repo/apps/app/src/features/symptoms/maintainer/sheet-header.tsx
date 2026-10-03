@@ -41,7 +41,6 @@ export function originText(
     return tr("originTemplate", d, { name });
   }
   if (def.forkedFromVersionId) return tr("originFork", d);
-  if (def.forkedFromVersionId) return tr("originFork", d);
   if (def.engineRuleId != null)
     return tr("originEngine", d, { id: String(def.engineRuleId) });
   return tr("originBlank", d);

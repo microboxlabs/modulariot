@@ -290,8 +290,11 @@ public class SymptomCatalogService {
                 throw new IllegalStateException("version " + v + " does not pass its source's checks any more");
             }
         }
+        // A draft has no stable identity: publishing it reuses its row as a version and discarding deletes it.
+        // Only a published version is recorded as the copy's source.
+        UUID copiedVersion = v == null ? null : source.id();
         SymptomDetail created = create(tenantCode, actor, new CreateRequest(key, name, from.family(), from.icon(),
-                from.description(), from.sourceKey(), null, spec), source.id(), from.templateKey());
+                from.description(), from.sourceKey(), null, spec), copiedVersion, from.templateKey());
         audit.log(tenantCode, actor, "symptom.forked", ENTITY, created.definition().id().toString(), null,
                 Map.of("from", from.key(), "version", v == null ? "draft" : v));
         if (v == null) {

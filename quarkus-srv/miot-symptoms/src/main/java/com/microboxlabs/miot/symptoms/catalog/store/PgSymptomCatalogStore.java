@@ -39,7 +39,9 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
             template_key, forked_from_version_id, state, current_version, created_by, created_at,
             updated_by, updated_at""";
 
-    private static final String SELECT_DEFINITIONS = "SELECT " + DEFINITION_COLUMNS
+    private static final String SELECT = "SELECT ";
+
+    private static final String SELECT_DEFINITIONS = SELECT + DEFINITION_COLUMNS
             + " FROM miot_symptoms.symptom_definition WHERE tenant_code = $1 ";
 
     private static final String INSERT_DEFINITION = "INSERT INTO miot_symptoms.symptom_definition ("
@@ -58,7 +60,7 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
             id, definition_id, tenant_code, version, status, spec, bump, reason, rolled_back_from,
             created_by, created_at, published_by, published_at""";
 
-    private static final String SELECT_VERSIONS = "SELECT " + VERSION_COLUMNS
+    private static final String SELECT_VERSIONS = SELECT + VERSION_COLUMNS
             + " FROM miot_symptoms.symptom_version WHERE tenant_code = $1 AND definition_id = $2 ";
 
     private static final String UPSERT_DRAFT = """
@@ -169,7 +171,7 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
 
     @Override
     public Optional<SymptomVersion> findVersionById(String tenantCode, UUID versionId) {
-        return versions(query(pool.get(), "SELECT " + VERSION_COLUMNS
+        return versions(query(pool.get(), SELECT + VERSION_COLUMNS
                 + " FROM miot_symptoms.symptom_version WHERE tenant_code = $1 AND id = $2",
                 Tuple.of(tenantCode, versionId))).stream().findFirst();
     }

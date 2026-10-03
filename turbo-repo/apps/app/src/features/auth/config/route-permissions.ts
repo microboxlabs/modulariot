@@ -21,7 +21,7 @@ export const KANBAN_ACCESS_ROLES = [
 
 // Define groups that should be blocked from certain routes
 const BLOCKED_GROUPS = {
-  GROUP_MINTRAL_REVISOR: ["/symptoms", "/geographic-view"], // Revisors cannot access symptoms and geographic view
+  GROUP_MINTRAL_REVISOR: ["/geographic-view"], // DEMO LOCAL: symptoms destrabado para revisar Tratamiento v2
 };
 
 // Dashboard access roles
@@ -53,6 +53,7 @@ export const ROUTE_PERMISSIONS = {
   "/api/task": FULL_ACCESS_ROLES,
   "/api/geographic": FULL_ACCESS_ROLES,
   "/api/symptoms": FULL_ACCESS_ROLES,
+  "/api/control-tower": FULL_ACCESS_ROLES,
   "/api/admin/logs": ADMIN_ROLES,
   "/api/admin/message-templates": ADMIN_ROLES,
   "/api/admin/webhooks": ADMIN_ROLES,

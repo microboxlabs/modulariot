@@ -1,0 +1,360 @@
+package com.microboxlabs.miot.symptoms.catalog.service;
+
+import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
+import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Finding;
+import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.UnaryOperator;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Checks on an activation written as conditions joined by {@code &&}: two
+ * conditions on the same field that can never both hold, and bounds that
+ * repeat. Parentheses around {@code &&} groups are ignored; rules with a
+ * top-level {@code ||} are left alone.
+ */
+final class ConditionChecks {
+
+    private static final String FIELD = "[A-Za-z_][\\w.]*";
+    private static final Pattern COMPARISON = Pattern.compile(
+            "^(" + FIELD + ")\\s*+(==|!=|>=|<=|>|<)\\s*+(\\S.*)$");
+    /** A string literal; a quote inside it is escaped. */
+    private static final Pattern STRING = Pattern.compile("\"(?:[^\"\\\\]|\\\\.)*+\"");
+    private static final Pattern BARE = Pattern.compile("^(!?)(" + FIELD + ")$");
+    private static final String AND = "&&";
+    private static final String OR = "||";
+    private static final Map<String, String> OPPOSITE = Map.of("==", "!=", "!=", "==", ">", "<=", ">=", "<",
+            "<", ">=", "<=", ">");
+    private static final Pattern NUMBER = Pattern.compile("-?\\d+(?:\\.\\d+)?");
+
+    private ConditionChecks() {
+    }
+
+    /** The conditions of a rule that only joins them with {@code &&}; empty when it uses {@code ||} at the top. */
+    static Optional<List<String>> conjunction(String rule) {
+        if (rule == null || rule.isBlank()) {
+            return Optional.empty();
+        }
+        Optional<List<String>> parts = split(rule, AND, OR);
+        if (parts.isEmpty()) {
+            return parts;
+        }
+        List<String> terms = new ArrayList<>();
+        for (String part : parts.get()) {
+            Optional<List<String>> inner = wrapped(part) ? conjunction(part.substring(1, part.length() - 1))
+                    : Optional.empty();
+            if (inner.isPresent()) {
+                terms.addAll(inner.get());
+            } else {
+                terms.add(SpecDiff.squash(part));
+            }
+        }
+        return Optional.of(terms);
+    }
+
+    /** The rule with the conditions of every {@code &&} and {@code ||} list sorted: the same conditions in another order give the same text. */
+    static String unordered(String rule) {
+        if (rule == null || rule.isBlank()) {
+            return SpecDiff.squash(rule);
+        }
+        String r = rule.strip();
+        if (wrapped(r)) {
+            return unordered(r.substring(1, r.length() - 1));
+        }
+        if (conditional(r)) {
+            return SpecDiff.squash(r);
+        }
+        String negated = r.substring(1).strip();
+        if (r.charAt(0) == '!' && wrapped(negated)) {
+            return "!(" + unordered(negated.substring(1, negated.length() - 1)) + ")";
+        }
+        for (String join : List.of(AND, OR)) {
+            List<String> terms = new ArrayList<>();
+            if (flatten(r, join, terms)) {
+                return "(" + String.join(" " + join + " ", terms.stream().sorted().toList()) + ")";
+            }
+        }
+        return SpecDiff.squash(r);
+    }
+
+    /** True when the rule has a {@code ?} outside quotes and parentheses: a conditional, whose parts keep their order. */
+    private static boolean conditional(String rule) {
+        int depth = 0;
+        boolean quoted = false;
+        int i = 0;
+        while (i < rule.length()) {
+            char c = rule.charAt(i);
+            int step = 1;
+            if (quoted && c == '\\') {
+                step = 2;
+            } else if (c == '"') {
+                quoted = !quoted;
+            } else if (!quoted && (c == '(' || c == '[')) {
+                depth++;
+            } else if (!quoted && (c == ')' || c == ']')) {
+                depth--;
+            } else if (!quoted && depth == 0 && c == '?') {
+                return true;
+            }
+            i += step;
+        }
+        return false;
+    }
+
+    /**
+     * Adds to {@code out} the terms of a {@code join} list, opening nested lists of the same join; false when the
+     * rule is a single term or the other join is at the top.
+     */
+    private static boolean flatten(String rule, String join, List<String> out) {
+        Optional<List<String>> parts = split(rule, join, AND.equals(join) ? OR : AND);
+        if (parts.isEmpty() || parts.get().size() < 2) {
+            return false;
+        }
+        for (String part : parts.get()) {
+            List<String> inner = new ArrayList<>();
+            if (wrapped(part) && flatten(part.substring(1, part.length() - 1), join, inner)) {
+                out.addAll(inner);
+            } else {
+                out.add(unordered(part));
+            }
+        }
+        return true;
+    }
+
+    /** The parts of a rule joined by {@code join} at the top level; empty when {@code other} joins any. */
+    private static Optional<List<String>> split(String rule, String join, String other) {
+        List<String> terms = new ArrayList<>();
+        int depth = 0;
+        boolean quoted = false;
+        int start = 0;
+        int i = 0;
+        while (i < rule.length()) {
+            char c = rule.charAt(i);
+            int step = 1;
+            if (quoted && c == '\\') {
+                step = 2;
+            } else if (c == '"') {
+                quoted = !quoted;
+            } else if (!quoted && (c == '(' || c == '[')) {
+                depth++;
+            } else if (!quoted && (c == ')' || c == ']')) {
+                depth--;
+            } else if (!quoted && depth == 0 && rule.startsWith(other, i)) {
+                return Optional.empty();
+            } else if (!quoted && depth == 0 && rule.startsWith(join, i)) {
+                terms.add(rule.substring(start, i).strip());
+                start = i + 2;
+                step = 2;
+            }
+            i += step;
+        }
+        terms.add(rule.substring(start).strip());
+        return Optional.of(terms);
+    }
+
+    /** True when the whole term sits inside one pair of parentheses. */
+    private static boolean wrapped(String term) {
+        if (term.length() < 2 || term.charAt(0) != '(' || term.charAt(term.length() - 1) != ')') {
+            return false;
+        }
+        int depth = 0;
+        boolean quoted = false;
+        int i = 0;
+        while (i < term.length() - 1) {
+            char c = term.charAt(i);
+            int step = 1;
+            if (quoted && c == '\\') {
+                step = 2;
+            } else if (c == '"') {
+                quoted = !quoted;
+            } else if (!quoted && c == '(') {
+                depth++;
+            } else if (!quoted && c == ')' && --depth == 0) {
+                return false;
+            }
+            i += step;
+        }
+        return true;
+    }
+
+    /** What the conditions on one field say. */
+    private static final class FieldBounds {
+        Boolean truth;
+        boolean truthClash;
+        String equals;
+        boolean equalsClash;
+        Double number;
+        final List<String> notEquals = new ArrayList<>();
+        Double lower;
+        boolean lowerStrict;
+        int lowers;
+        Double upper;
+        boolean upperStrict;
+        int uppers;
+    }
+
+    /** Contradictions (errors) and repeated bounds (warnings) among the activation's conditions. */
+    static List<Finding> check(String rule, UnaryOperator<String> label) {
+        Optional<List<String>> terms = conjunction(rule);
+        if (terms.isEmpty()) {
+            return List.of();
+        }
+        Map<String, FieldBounds> fields = new LinkedHashMap<>();
+        for (String term : terms.get()) {
+            for (String condition : negations(term)) {
+                read(condition, fields);
+            }
+        }
+        List<Finding> out = new ArrayList<>();
+        fields.forEach((field, b) -> report(label.apply(field), b, out));
+        return out;
+    }
+
+    /**
+     * An exception {@code !(a || b)} holds when no condition in it does: the
+     * conditions {@code !a} and {@code !b}. Any other term is itself.
+     */
+    private static List<String> negations(String term) {
+        if (!term.startsWith("!")) {
+            return List.of(term);
+        }
+        String rest = term.substring(1).strip();
+        Optional<List<String>> parts = wrapped(rest)
+                ? split(rest.substring(1, rest.length() - 1), OR, AND)
+                : Optional.empty();
+        if (parts.isEmpty()) {
+            return List.of(term);
+        }
+        List<String> out = new ArrayList<>();
+        for (String part : parts.get()) {
+            String negated = negate(SpecDiff.squash(part));
+            if (negated == null) {
+                return List.of(term);
+            }
+            out.add(negated);
+        }
+        return out;
+    }
+
+    /** The opposite of one plain condition, or null when it is not one. */
+    private static String negate(String condition) {
+        Matcher bare = BARE.matcher(condition);
+        if (bare.matches()) {
+            return bare.group(1).isEmpty() ? "!" + bare.group(2) : bare.group(2);
+        }
+        Matcher m = COMPARISON.matcher(condition);
+        return m.matches() ? m.group(1) + " " + OPPOSITE.get(m.group(2)) + " " + m.group(3) : null;
+    }
+
+    private static void read(String term, Map<String, FieldBounds> fields) {
+        Matcher bare = BARE.matcher(term);
+        if (bare.matches()) {
+            truth(fields.computeIfAbsent(bare.group(2), f -> new FieldBounds()), bare.group(1).isEmpty());
+            return;
+        }
+        Matcher m = COMPARISON.matcher(term);
+        if (!m.matches()) {
+            return;
+        }
+        String op = m.group(2);
+        String raw = m.group(3);
+        boolean numeric = NUMBER.matcher(raw).matches();
+        boolean bool = raw.equals("true") || raw.equals("false");
+        if (!numeric && !bool && !STRING.matcher(raw).matches()) {
+            // Another field or an expression: nothing to compare against.
+            return;
+        }
+        FieldBounds b = fields.computeIfAbsent(m.group(1), f -> new FieldBounds());
+        if (bool) {
+            truth(b, op.equals("==") == Boolean.parseBoolean(raw));
+            return;
+        }
+        String value = numeric ? new BigDecimal(raw).stripTrailingZeros().toPlainString()
+                : RuleText.stringLiteral(raw).map(v -> "\"" + v).orElse(raw);
+        if (op.equals("==")) {
+            b.equalsClash |= b.equals != null && !b.equals.equals(value);
+            b.equals = value;
+            b.number = numeric ? Double.valueOf(value) : null;
+        } else if (op.equals("!=")) {
+            b.notEquals.add(value);
+        } else if (numeric) {
+            // An order on a string is a type error the rule check reports.
+            bound(b, op, Double.parseDouble(value));
+        }
+    }
+
+    private static void bound(FieldBounds b, String op, double value) {
+        switch (op) {
+            case ">", ">=" -> lower(b, value, op.equals(">"));
+            default -> upper(b, value, op.equals("<"));
+        }
+    }
+
+    private static void truth(FieldBounds b, boolean value) {
+        b.truthClash |= b.truth != null && b.truth != value;
+        b.truth = value;
+    }
+
+    private static void lower(FieldBounds b, double value, boolean strict) {
+        b.lowers++;
+        if (b.lower == null || value > b.lower || (value == b.lower && strict)) {
+            b.lower = value;
+            b.lowerStrict = strict;
+        }
+    }
+
+    private static void upper(FieldBounds b, double value, boolean strict) {
+        b.uppers++;
+        if (b.upper == null || value < b.upper || (value == b.upper && strict)) {
+            b.upper = value;
+            b.upperStrict = strict;
+        }
+    }
+
+    private static void report(String name, FieldBounds b, List<Finding> out) {
+        if (b.truthClash) {
+            out.add(error("«" + name + "» no puede ser verdadero y falso a la vez; nunca se cumpliría."));
+        }
+        if (b.equalsClash || (b.equals != null && b.notEquals.contains(b.equals))) {
+            out.add(error("«" + name + "» no puede tener dos valores a la vez; nunca se cumpliría."));
+        }
+        if (b.lower != null && b.upper != null
+                && (b.lower > b.upper || (b.lower.equals(b.upper) && (b.lowerStrict || b.upperStrict)))) {
+            out.add(error("«" + name + "» mayor que " + SpecValidator.number(b.lower) + " y menor que "
+                    + SpecValidator.number(b.upper) + " nunca se cumple."));
+        }
+        if (!b.equalsClash && b.number != null && outside(b)) {
+            out.add(error("«" + name + "» igual a " + SpecValidator.number(b.number)
+                    + " queda fuera de sus otros límites; nunca se cumpliría."));
+        }
+        if (b.lowers > 1) {
+            out.add(warning("Dos mínimos para «" + name + "»; basta el mayor (" + SpecValidator.number(b.lower)
+                    + ")."));
+        }
+        if (b.uppers > 1) {
+            out.add(warning("Dos máximos para «" + name + "»; basta el menor (" + SpecValidator.number(b.upper)
+                    + ")."));
+        }
+    }
+
+    private static boolean outside(FieldBounds b) {
+        double v = b.number;
+        boolean belowLower = b.lower != null && (v < b.lower || (v == b.lower && b.lowerStrict));
+        boolean aboveUpper = b.upper != null && (v > b.upper || (v == b.upper && b.upperStrict));
+        return belowLower || aboveUpper;
+    }
+
+    private static Finding error(String message) {
+        return new Finding("activation", Severity.ERROR, message, -1);
+    }
+
+    private static Finding warning(String message) {
+        return new Finding("activation", Severity.WARNING, message, -1);
+    }
+}

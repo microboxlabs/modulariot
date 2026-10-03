@@ -265,7 +265,7 @@ class SymptomCatalogServiceTest {
         PublishPlan plan = service.plan(TENANT, id);
         assertEquals(VersionBump.PATCH, plan.bump());
         assertEquals(List.of("Cambió la familia", "Estado: Activo → En prueba"),
-                plan.changes().stream().map(c -> c.text()).toList());
+                plan.changes().stream().map(SpecDiff.Change::text).toList());
 
         SymptomVersion v = service.publish(TENANT, OWNER, id, "A prueba", null, null);
         assertEquals("1.0.1", v.version());

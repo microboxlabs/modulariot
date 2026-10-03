@@ -5,12 +5,13 @@ import {
   renderHook,
   screen,
 } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { type Mock, describe, expect, it, vi } from "vitest";
 import ActivationForm, {
   NumberValue,
   opLabel,
   useActivationForm,
 } from "./activation-form";
+import type { Condition, ConditionForm } from "./condition-form";
 import type { SourceField } from "./maintainer-api";
 
 const field = (path: string, type: string): SourceField => ({
@@ -172,5 +173,97 @@ describe("a number input that only accepts some numbers", () => {
     expect(input.value).toBe("30");
     fireEvent.change(input, { target: { value: "45" } });
     expect(onChange).toHaveBeenCalledWith(45);
+  });
+});
+
+describe("reordering conditions", () => {
+  const d = { dragCondition: "Arrastra" };
+  const row = (id: string, value: number): Condition => ({
+    id,
+    path: "signal.gps.speed_kmh",
+    op: ">",
+    value,
+  });
+  const FORM: ConditionForm = {
+    match: "all",
+    rows: [row("a", 1), row("b", 2), row("c", 3)],
+    groups: [{ id: "g", match: "any", rows: [row("x", 8), row("y", 9)] }],
+  };
+  const sent = (onChange: Mock, call: number) =>
+    onChange.mock.calls[call]?.[0] as ConditionForm | undefined;
+  const ids = (rows: Condition[] | undefined) => rows?.map((r) => r.id);
+  const transfer = () => ({
+    dataTransfer: { setData: vi.fn(), setDragImage: vi.fn() },
+  });
+  const renderForm = (onChange: Mock) =>
+    render(
+      <ActivationForm
+        form={FORM}
+        fields={FIELDS}
+        readOnly={false}
+        d={d}
+        onChange={onChange}
+      />
+    );
+
+  it("moves a row with the arrow keys on its handle", () => {
+    const onChange = vi.fn();
+    renderForm(onChange);
+    const handles = screen.getAllByLabelText("Arrastra");
+    expect(handles).toHaveLength(5);
+    fireEvent.keyDown(handles[0]!, { key: "ArrowDown" });
+    expect(ids(sent(onChange, 0)?.rows)).toEqual(["b", "a", "c"]);
+    fireEvent.keyDown(handles[0]!, { key: "ArrowUp" });
+    fireEvent.keyDown(handles[2]!, { key: "ArrowDown" });
+    fireEvent.keyDown(handles[0]!, { key: "Enter" });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(handles[4]!, { key: "ArrowUp" });
+    expect(ids(sent(onChange, 1)?.groups[0]?.rows)).toEqual(["y", "x"]);
+  });
+
+  it("moves a row dropped on another row of its list", () => {
+    const onChange = vi.fn();
+    renderForm(onChange);
+    const handles = screen.getAllByLabelText("Arrastra");
+    const rows = screen.getAllByTestId("condition-row");
+    fireEvent.dragStart(handles[0]!, transfer());
+    fireEvent.dragOver(rows[2]!);
+    fireEvent.drop(rows[2]!);
+    expect(ids(sent(onChange, 0)?.rows)).toEqual(["b", "c", "a"]);
+  });
+
+  it("does not take a row dropped from another list", () => {
+    const onChange = vi.fn();
+    renderForm(onChange);
+    const handles = screen.getAllByLabelText("Arrastra");
+    const rows = screen.getAllByTestId("condition-row");
+    fireEvent.dragStart(handles[3]!, transfer());
+    fireEvent.dragOver(rows[0]!);
+    fireEvent.drop(rows[0]!);
+    fireEvent.dragEnd(handles[3]!);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("has no handle for readers or for a single condition", () => {
+    const { rerender } = render(
+      <ActivationForm
+        form={FORM}
+        fields={FIELDS}
+        readOnly
+        d={d}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.queryAllByLabelText("Arrastra")).toHaveLength(0);
+    rerender(
+      <ActivationForm
+        form={{ match: "all", rows: [row("a", 1)], groups: [] }}
+        fields={FIELDS}
+        readOnly={false}
+        d={d}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.queryAllByLabelText("Arrastra")).toHaveLength(0);
   });
 });

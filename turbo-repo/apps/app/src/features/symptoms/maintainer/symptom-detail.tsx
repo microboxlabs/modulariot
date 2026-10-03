@@ -103,13 +103,14 @@ export default function SymptomDetail({
   const shownSpec = viewed?.spec ?? spec;
   // Amber marks: what the spec on screen changes against the published version; none for an old version or before publishing.
   const published = detail?.current?.spec;
-  const changed = useMemo(
-    () =>
-      viewed || !published || !spec
-        ? new Set<string>()
-        : changedPaths(spec, published),
-    [viewed, published, spec]
-  );
+  const changed = useMemo(() => {
+    if (viewed || !published || !spec) return new Set<string>();
+    const paths = changedPaths(spec, published);
+    // Conditions in another order are no change for the publish plan, so no mark either.
+    if (plan && !plan.changes.some((c) => c.section === "activation"))
+      paths.delete("activation");
+    return paths;
+  }, [viewed, published, spec, plan]);
   const { data: source } = useDataSource(
     shownSpec?.source ?? detail?.definition.sourceKey ?? null
   );

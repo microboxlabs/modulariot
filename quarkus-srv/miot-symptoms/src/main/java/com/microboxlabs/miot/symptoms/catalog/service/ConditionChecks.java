@@ -58,6 +58,48 @@ final class ConditionChecks {
         return Optional.of(terms);
     }
 
+    /** The rule with the conditions of every {@code &&} and {@code ||} list sorted: the same conditions in another order give the same text. */
+    static String unordered(String rule) {
+        if (rule == null || rule.isBlank()) {
+            return SpecDiff.squash(rule);
+        }
+        String r = rule.strip();
+        if (wrapped(r)) {
+            return unordered(r.substring(1, r.length() - 1));
+        }
+        String negated = r.substring(1).strip();
+        if (r.charAt(0) == '!' && wrapped(negated)) {
+            return "!(" + unordered(negated.substring(1, negated.length() - 1)) + ")";
+        }
+        for (String join : List.of(AND, OR)) {
+            List<String> terms = new ArrayList<>();
+            if (flatten(r, join, terms)) {
+                return "(" + String.join(" " + join + " ", terms.stream().sorted().toList()) + ")";
+            }
+        }
+        return SpecDiff.squash(r);
+    }
+
+    /**
+     * Adds to {@code out} the terms of a {@code join} list, opening nested lists of the same join; false when the
+     * rule is a single term or the other join is at the top.
+     */
+    private static boolean flatten(String rule, String join, List<String> out) {
+        Optional<List<String>> parts = split(rule, join, AND.equals(join) ? OR : AND);
+        if (parts.isEmpty() || parts.get().size() < 2) {
+            return false;
+        }
+        for (String part : parts.get()) {
+            List<String> inner = new ArrayList<>();
+            if (wrapped(part) && flatten(part.substring(1, part.length() - 1), join, inner)) {
+                out.addAll(inner);
+            } else {
+                out.add(unordered(part));
+            }
+        }
+        return true;
+    }
+
     /** The parts of a rule joined by {@code join} at the top level; empty when {@code other} joins any. */
     private static Optional<List<String>> split(String rule, String join, String other) {
         List<String> terms = new ArrayList<>();

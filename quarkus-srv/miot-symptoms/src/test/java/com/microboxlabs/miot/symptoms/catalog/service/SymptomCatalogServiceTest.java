@@ -395,6 +395,11 @@ class SymptomCatalogServiceTest {
         service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(),
                 "signal.vehicle.weight_category == \"HEAVY\" || signal.trip.active"));
         assertEquals(VersionBump.MAJOR, service.plan(TENANT, id).bump(), "|| instead of &&: a real change");
+
+        service.publish(TENANT, OWNER, id, "Alguna", null, null);
+        service.saveDraft(TENANT, OWNER, id, Specs.with(Specs.speeding(),
+                "signal.trip.active || signal.vehicle.weight_category == \"HEAVY\""));
+        assertTrue(service.plan(TENANT, id).changes().isEmpty(), "the conditions of an || list in another order");
     }
 
     @Test

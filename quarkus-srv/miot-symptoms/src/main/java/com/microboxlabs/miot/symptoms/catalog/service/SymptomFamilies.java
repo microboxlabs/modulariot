@@ -25,16 +25,22 @@ public class SymptomFamilies implements SelectableDefaults {
     static final String RESOURCE = "/selectables/defaults/symptom-families.json";
 
     private final List<Selectable> lists = SelectableDefaultsFile.read(SymptomFamilies.class, RESOURCE);
-    private final Function<String, Selectable> tenantList;
+    /** The most families the list is read with; the selectable service allows up to 200 options a call. */
+    static final int MAX_FAMILIES = 200;
+
+    private final Function<String, List<SelectableOption>> tenantOptions;
 
     @Inject
     public SymptomFamilies(SelectableService selectables) {
-        this(tenant -> selectables.get(tenant, KEY));
+        this(tenant -> selectables.options(tenant, KEY, null, null, MAX_FAMILIES));
     }
 
-    /** {@code tenantList} returns the organization's list, or throws {@link NoSuchElementException} without one. */
-    public SymptomFamilies(Function<String, Selectable> tenantList) {
-        this.tenantList = tenantList;
+    /**
+     * {@code tenantOptions} returns the options of the organization's list, static or read from its source, or
+     * throws {@link NoSuchElementException} when the organization has no such list.
+     */
+    public SymptomFamilies(Function<String, List<SelectableOption>> tenantOptions) {
+        this.tenantOptions = tenantOptions;
     }
 
     @Override
@@ -45,7 +51,7 @@ public class SymptomFamilies implements SelectableDefaults {
     /** The organization's families, or the defaults when it has no such list. */
     public List<SelectableOption> options(String tenantCode) {
         try {
-            return tenantList.apply(tenantCode).options();
+            return tenantOptions.apply(tenantCode);
         } catch (NoSuchElementException e) {
             return lists.get(0).options();
         }

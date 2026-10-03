@@ -344,6 +344,8 @@ export default function SymptomRuleSections({
 }>) {
   const [levelsMode, setLevelsMode] = useState<EditMode>("form");
   const levelsChanged = changedLevels(spec, published);
+  // Scripts are previewed with the first sample, kept while a new preview is made.
+  const stepSample = useSourceSamples(preview, spec.source)[0]?.sample;
   const [lifeMode, setLifeMode] = useState<EditMode>("form");
   const activation = problemsFor(findings, "activation");
   const measure = problemsFor(findings, "measure");
@@ -428,6 +430,7 @@ export default function SymptomRuleSections({
               changed={levelsChanged.has(meta.icu)}
               spec={spec}
               icu={meta.icu}
+              sample={stepSample}
               mode="form"
               showProblems={levelsMode === "form"}
               fields={levelRuleFields}

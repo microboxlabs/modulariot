@@ -331,11 +331,13 @@ function EvidenceSelect({
 
 function OperatorDetail({
   response,
+  sample,
   readOnly,
   d,
   onChange,
 }: Readonly<{
   response: LevelResponse;
+  sample: Record<string, unknown> | undefined;
   readOnly: boolean;
   d: I18nRecord;
   onChange: (patch: Partial<LevelResponse>) => void;
@@ -381,6 +383,7 @@ function OperatorDetail({
           <LevelSteps
             steps={response.steps ?? []}
             slaMinutes={response.slaMinutes}
+            sample={sample}
             readOnly={readOnly}
             d={d}
             onChange={(steps) => onChange({ steps })}
@@ -410,6 +413,7 @@ function OperatorDetail({
 /** One level: a summary line (icon, thresholds, operator, channels) that opens into notices and operator handling. */
 export default function LevelRow({
   spec,
+  sample,
   changed = false,
   showProblems = true,
   icu,
@@ -423,6 +427,8 @@ export default function LevelRow({
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
+  /** A source sample the step scripts are previewed with. */
+  sample?: Record<string, unknown>;
   /** The level differs from the published version. */
   changed?: boolean;
   /** False when the level's problems are shown elsewhere, as under the { } editors. */
@@ -516,6 +522,7 @@ export default function LevelRow({
           />
           <OperatorDetail
             response={response}
+            sample={sample}
             readOnly={readOnly}
             d={d}
             onChange={setResponse}

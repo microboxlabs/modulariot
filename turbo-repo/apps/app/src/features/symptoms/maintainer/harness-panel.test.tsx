@@ -50,7 +50,7 @@ describe("HarnessPanel", () => {
     vi.advanceTimersByTime(3 * 60_000);
     const calls = swr.mutate.mock.calls.length;
     vi.advanceTimersByTime(60_000);
-    expect(swr.mutate.mock.calls.length).toBe(calls);
+    expect(swr.mutate.mock.calls).toHaveLength(calls);
   });
 
   it("sends nothing for a blank request", () => {

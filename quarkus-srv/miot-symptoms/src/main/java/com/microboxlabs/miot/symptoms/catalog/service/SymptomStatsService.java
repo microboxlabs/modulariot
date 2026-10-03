@@ -16,6 +16,7 @@ import jakarta.inject.Inject;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -103,11 +104,12 @@ public class SymptomStatsService {
         TowerSettings team = settings.get(tenantCode);
         Changes changes = changes(all);
         OffsetDateTime now = clock.get();
-        List<LevelCount> counts = engineCounts(tenantCode, now);
-        if (counts == null) {
+        Optional<List<LevelCount>> read = engineCounts(tenantCode, now);
+        if (read.isEmpty()) {
             return new SymptomStats(false, WINDOW_DAYS, List.of(), new Totals(zeros(), 0, 0, null),
                     operators(team, null), changes);
         }
+        List<LevelCount> counts = read.get();
 
         Map<String, SymptomSummary> owners = new HashMap<>();
         long[] totalRaw = new long[LEVELS];
@@ -131,10 +133,7 @@ public class SymptomStatsService {
                 continue;
             }
             List<Long> week = weekly(levels);
-            long operatorWeek = 0;
-            for (int icu : operatorLevels(s.current())) {
-                operatorWeek += week.get(icu - 1);
-            }
+            long operatorWeek = operatorLevels(s.current()).stream().mapToLong(icu -> week.get(icu - 1)).sum();
             if (s.definition().state() == SymptomState.ACTIVE) {
                 operatorWeekActive += operatorWeek;
             }
@@ -145,20 +144,20 @@ public class SymptomStatsService {
         long total = sum(totalWeek);
         Totals totals = new Totals(totalWeek, total, Math.round(operatorWeekActive / team.shiftsPerWeek()),
                 topShare(perSymptom, total));
-        Double sla = slaMetLastWeek(tenantCode, all, owners, now);
+        Double sla = slaMetLastWeek(tenantCode, owners, now);
         return new SymptomStats(true, WINDOW_DAYS, perSymptom, totals, operators(team, sla), changes);
     }
 
-    /** The engine's counts for the window, or null when it is not connected or fails. */
-    private List<LevelCount> engineCounts(String tenantCode, OffsetDateTime now) {
+    /** The engine's counts for the window; empty when it is not connected or fails. */
+    private Optional<List<LevelCount>> engineCounts(String tenantCode, OffsetDateTime now) {
         if (!engine.available()) {
-            return null;
+            return Optional.empty();
         }
         try {
-            return engine.levelCounts(tenantCode, now.minusDays(WINDOW_DAYS), now);
+            return Optional.of(engine.levelCounts(tenantCode, now.minusDays(WINDOW_DAYS), now));
         } catch (RuntimeException e) {
             LOG.warnf(e, "Engine counts not available for tenant=%s", tenantCode);
-            return null;
+            return Optional.empty();
         }
     }
 
@@ -197,11 +196,7 @@ public class SymptomStatsService {
     }
 
     private static List<Long> weekly(long[] windowCounts) {
-        List<Long> out = new ArrayList<>(LEVELS);
-        for (long n : windowCounts) {
-            out.add(Math.round(n * 7.0 / WINDOW_DAYS));
-        }
-        return out;
+        return Arrays.stream(windowCounts).map(n -> Math.round(n * 7.0 / WINDOW_DAYS)).boxed().toList();
     }
 
     private static List<Long> zeros() {
@@ -233,39 +228,14 @@ public class SymptomStatsService {
      * operator took within the level's SLA. Cases whose SLA has not run out
      * yet are left out; so are levels without an SLA.
      */
-    private Double slaMetLastWeek(String tenantCode, List<SymptomSummary> all, Map<String, SymptomSummary> owners,
-            OffsetDateTime now) {
-        Map<String, SymptomSummary> credited = new LinkedHashMap<>();
-        owners.forEach((name, s) -> {
-            if (s != null && s.definition().state() == SymptomState.ACTIVE) {
-                credited.put(name, s);
-            }
-        });
+    private Double slaMetLastWeek(String tenantCode, Map<String, SymptomSummary> owners, OffsetDateTime now) {
         Map<Long, OffsetDateTime> deadlines = new HashMap<>();
         try {
-            for (Map.Entry<String, SymptomSummary> e : credited.entrySet()) {
-                Map<Integer, Integer> sla = slaByLevel(e.getValue().current());
-                if (sla.isEmpty()) {
-                    continue;
+            owners.forEach((name, s) -> {
+                if (s != null && s.definition().state() == SymptomState.ACTIVE) {
+                    addDueCases(tenantCode, name, slaByLevel(s.current()), now, deadlines);
                 }
-                List<Integer> levels = List.copyOf(sla.keySet());
-                long after = 0;
-                List<EngineCase> page;
-                do {
-                    page = engine.casesPage(tenantCode, e.getKey(), now.minusDays(7), now, levels, after, SLA_PAGE);
-                    for (EngineCase c : page) {
-                        after = Math.max(after, c.id());
-                        Integer minutes = sla.get(c.icu());
-                        if (minutes == null || c.excluded() || c.firstSignalAt() == null) {
-                            continue;
-                        }
-                        OffsetDateTime deadline = c.firstSignalAt().plusMinutes(minutes);
-                        if (!deadline.isAfter(now)) {
-                            deadlines.put(c.id(), deadline);
-                        }
-                    }
-                } while (page.size() == SLA_PAGE);
-            }
+            });
         } catch (RuntimeException e) {
             LOG.warnf(e, "Engine cases not available for the SLA of tenant=%s", tenantCode);
             return null;
@@ -275,12 +245,41 @@ public class SymptomStatsService {
         }
         Map<Long, OffsetDateTime> taken = treatments.firstOpenedAt(tenantCode, deadlines.keySet());
         long met = deadlines.entrySet().stream()
-                .filter(d -> {
-                    OffsetDateTime at = taken.get(d.getKey());
-                    return at != null && !at.isAfter(d.getValue());
-                })
+                .filter(d -> takenInTime(taken.get(d.getKey()), d.getValue()))
                 .count();
         return (double) met / deadlines.size();
+    }
+
+    /** Adds to {@code out} each case of the last 7 days at a level with an SLA, by id, with its deadline. */
+    private void addDueCases(String tenantCode, String engineName, Map<Integer, Integer> sla, OffsetDateTime now,
+            Map<Long, OffsetDateTime> out) {
+        if (sla.isEmpty()) {
+            return;
+        }
+        List<Integer> levels = List.copyOf(sla.keySet());
+        long after = 0;
+        List<EngineCase> page;
+        do {
+            page = engine.casesPage(tenantCode, engineName, now.minusDays(7), now, levels, after, SLA_PAGE);
+            for (EngineCase c : page) {
+                after = Math.max(after, c.id());
+                deadline(c, sla, now).ifPresent(at -> out.put(c.id(), at));
+            }
+        } while (page.size() == SLA_PAGE);
+    }
+
+    /** When an operator had to take the case by; empty when it has no SLA, is excluded or is not due yet. */
+    private static Optional<OffsetDateTime> deadline(EngineCase c, Map<Integer, Integer> sla, OffsetDateTime now) {
+        Integer minutes = sla.get(c.icu());
+        if (minutes == null || c.excluded() || c.firstSignalAt() == null) {
+            return Optional.empty();
+        }
+        OffsetDateTime at = c.firstSignalAt().plusMinutes(minutes);
+        return at.isAfter(now) ? Optional.empty() : Optional.of(at);
+    }
+
+    private static boolean takenInTime(OffsetDateTime takenAt, OffsetDateTime deadline) {
+        return takenAt != null && !takenAt.isAfter(deadline);
     }
 
     private static Map<Integer, Integer> slaByLevel(SymptomVersion current) {

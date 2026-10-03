@@ -56,20 +56,25 @@ function formatMinutes(minutes: number): string {
   return `${minutes} min`;
 }
 
+/** What {@link shortThreshold} returns for a level that opens on the event itself. */
+export const THRESHOLD_FIXED = "fixed";
+/** What {@link shortThreshold} returns for a rule the card cannot summarize. */
+export const THRESHOLD_CUSTOM = "custom";
+
 /**
  * The short threshold a catalog card shows under a level's icon, read from
  * the level's CEL: `medida >= 5 && medida < 11` → "≥ 5 km/h". Null when the
- * level does not apply; "fixed" for a level that opens on the event itself;
- * "custom" when the rule is not one of the shapes the card can summarize.
+ * level does not apply; {@link THRESHOLD_FIXED} or {@link THRESHOLD_CUSTOM}
+ * otherwise when there is no number to show.
  */
 export function shortThreshold(
   level: Level | undefined,
   unit: string | null
-): string | "fixed" | "custom" | null {
+): string | null {
   if (!level?.applies) return null;
   const when = (level.when ?? "").trim();
   if (!when) return null;
-  if (when === "true") return "fixed";
+  if (when === "true") return THRESHOLD_FIXED;
   let m = FIRST_LEVEL.exec(when);
   if (m) return `< ${formatAmount(Number(m[1]), unit)}`;
   m = RANGE.exec(when);
@@ -83,7 +88,7 @@ export function shortThreshold(
     const base = `${op} ${formatAmount(Number(m[2]), unit)}`;
     return m[3] ? `${base} · ${formatAmount(Number(m[3]), "s")}` : base;
   }
-  return "custom";
+  return THRESHOLD_CUSTOM;
 }
 
 /** The four levels in ICU order, missing ones as undefined. */

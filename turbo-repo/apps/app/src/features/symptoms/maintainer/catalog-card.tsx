@@ -8,6 +8,8 @@ import {
   levelsOf,
   operatorLevels,
   shortThreshold,
+  THRESHOLD_CUSTOM,
+  THRESHOLD_FIXED,
   whoActsKind,
   type ChannelGroup,
 } from "./catalog-derive";
@@ -41,8 +43,8 @@ export function whoActs(s: SymptomSummary, d: I18nRecord) {
 }
 
 function thresholdText(t: string | null, d: I18nRecord) {
-  if (t === "fixed") return tr("thresholdFixed", d);
-  if (t === "custom") return tr("thresholdCustom", d);
+  if (t === THRESHOLD_FIXED) return tr("thresholdFixed", d);
+  if (t === THRESHOLD_CUSTOM) return tr("thresholdCustom", d);
   return t ?? tr("notApplicable", d);
 }
 

@@ -13,6 +13,7 @@ import {
 import { useHarnessChatContext } from "@/features/harness-chat/context/harness-chat-context";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { ControlTowerError } from "../control-tower/control-tower-api";
 import SymptomIcon from "../components/symtom-icon";
 import {
   createFromTemplate,
@@ -39,6 +40,16 @@ export function keyFrom(name: string) {
     .replaceAll(/[^a-z0-9]+/g, "-")
     .replaceAll(/^-|-$/g, "")
     .slice(0, 95);
+}
+
+/** The API's longest name. */
+const NAME_MAX = 200;
+
+/** A creation error in the page's language; the API's own messages are in English. */
+function createError(e: unknown, d: I18nRecord) {
+  if (e instanceof ControlTowerError && e.status === 409) return tr("keyTaken", d);
+  if (e instanceof ControlTowerError && e.status === 403) return tr("ownersOnly", d);
+  return tr("createFailed", d);
 }
 
 /** Templates grouped by family, in the order the platform lists them. */
@@ -157,7 +168,7 @@ function BlankForm({
       await refreshSymptoms();
       onCreated(created);
     } catch (e) {
-      setError(e instanceof Error ? e.message : tr("createFailed", d));
+      setError(createError(e, d));
     } finally {
       setBusy(false);
     }
@@ -169,6 +180,7 @@ function BlankForm({
         <Label htmlFor="symptom-name">{tr("name", d)}</Label>
         <TextInput
           id="symptom-name"
+          maxLength={NAME_MAX}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -246,7 +258,11 @@ export default function CreateSymptomModal({
   onCreated: (detail: SymptomDetail) => void;
 }>) {
   const harness = useHarnessChatContext();
-  const { data: templates, error: templatesError } = useSymptomTemplates(open);
+  const {
+    data: templates,
+    error: templatesError,
+    mutate: reloadTemplates,
+  } = useSymptomTemplates(open);
   const [blank, setBlank] = useState(false);
   const [creating, setCreating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -266,7 +282,7 @@ export default function CreateSymptomModal({
       setBlank(false);
       onCreated(created);
     } catch (e) {
-      setError(e instanceof Error ? e.message : tr("createFailed", d));
+      setError(createError(e, d));
     } finally {
       setCreating(null);
     }
@@ -298,7 +314,14 @@ export default function CreateSymptomModal({
             {harnessEnabled && <HarnessBox d={d} onAsk={ask} />}
             {templatesError && (
               <p className="mb-3 text-sm text-red-600 dark:text-red-400">
-                {tr("templatesFailed", d)}
+                {tr("templatesFailed", d)}{" "}
+                <button
+                  type="button"
+                  className="font-medium underline"
+                  onClick={() => void reloadTemplates()}
+                >
+                  {tr("retry", d)}
+                </button>
               </p>
             )}
             {byFamily(templates ?? []).map(([family, list]) => (

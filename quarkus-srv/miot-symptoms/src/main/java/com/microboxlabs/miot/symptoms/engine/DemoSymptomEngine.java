@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -54,6 +55,17 @@ public class DemoSymptomEngine implements SymptomEngine {
                     BigDecimal.valueOf(excess[i]), i == 0, false));
         }
         return out;
+    }
+
+    @Override
+    public List<EngineCase> casesPage(String tenantCode, String symptomName, OffsetDateTime from, OffsetDateTime to,
+            List<Integer> icus, long afterId, int limit) {
+        return recentCases(tenantCode, symptomName, from, Integer.MAX_VALUE).stream()
+                .filter(c -> c.firstSignalAt().isBefore(to) && icus.contains(c.icu()) && !c.excluded())
+                .filter(c -> c.id() > afterId)
+                .sorted(Comparator.comparingLong(EngineCase::id))
+                .limit(limit)
+                .toList();
     }
 
     @Override

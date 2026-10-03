@@ -28,6 +28,12 @@ public class UnavailableSymptomEngine implements SymptomEngine {
     }
 
     @Override
+    public List<EngineCase> casesPage(String tenantCode, String symptomName, OffsetDateTime from, OffsetDateTime to,
+            List<Integer> icus, long afterId, int limit) {
+        return List.of();
+    }
+
+    @Override
     public List<Map<String, Object>> signalSamples(String tenantCode, int limit) {
         return List.of();
     }

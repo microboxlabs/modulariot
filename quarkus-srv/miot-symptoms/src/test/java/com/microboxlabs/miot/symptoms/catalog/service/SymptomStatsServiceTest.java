@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -74,8 +75,24 @@ class SymptomStatsServiceTest {
 
         @Override
         public List<EngineCase> recentCases(String tenantCode, String symptomName, OffsetDateTime since, int limit) {
-            assertEquals(NOW.minusDays(7), since);
-            return cases.stream().filter(c -> c.symptomName().equals(symptomName)).toList();
+            return List.of();
+        }
+
+        int pages;
+
+        @Override
+        public List<EngineCase> casesPage(String tenantCode, String symptomName, OffsetDateTime from,
+                OffsetDateTime to, List<Integer> icus, long afterId, int limit) {
+            assertEquals(NOW.minusDays(7), from);
+            assertEquals(NOW, to);
+            pages++;
+            return cases.stream()
+                    .filter(c -> c.symptomName().equals(symptomName) && icus.contains(c.icu()) && !c.excluded())
+                    .filter(c -> !c.firstSignalAt().isBefore(from) && c.firstSignalAt().isBefore(to))
+                    .filter(c -> c.id() > afterId)
+                    .sorted(Comparator.comparingLong(EngineCase::id))
+                    .limit(limit)
+                    .toList();
         }
 
         @Override
@@ -199,6 +216,26 @@ class SymptomStatsServiceTest {
         // Due: 1 (met at 4 of 5 min), 2 (late), 3 (never taken), 4 (met at 2 of 2 min).
         // Left out: 5 (level 2 needs no operator), 6 (5 minutes not over yet), 7 (excluded).
         assertEquals(0.5, sla, 1e-9);
+    }
+
+    @Test
+    void slaReadsEveryCaseOfTheWeekPageByPage() {
+        symptom("speeding", "Exceso", ENGINE_NAME, SymptomState.ACTIVE);
+        engine.counts.add(new LevelCount(ENGINE_NAME, 3, 7));
+        OffsetDateTime start = NOW.minusDays(2);
+        int total = SymptomStatsService.SLA_PAGE * 2 + 1;
+        for (long id = 1; id <= total; id++) {
+            engine.cases.add(engineCase(id, 3, start));
+            if (id % 2 == 0) {
+                take(id, start.plusMinutes(1));
+            }
+        }
+        engine.cases.add(engineCase(total + 1L, 3, NOW.minusDays(8)));
+
+        Double sla = service().stats(TENANT).operators().slaMetLastWeek();
+
+        assertEquals((double) (total / 2) / total, sla, 1e-9);
+        assertEquals(3, engine.pages, "three pages of " + SymptomStatsService.SLA_PAGE);
     }
 
     @Test

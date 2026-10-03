@@ -43,8 +43,8 @@ public class SymptomStatsService {
     public static final int WINDOW_DAYS = 90;
     static final int LEVELS = 4;
     static final int TOP = 3;
-    /** Cases read per symptom for last week's SLA. */
-    static final int SLA_CASES = 2000;
+    /** Cases read per engine query for last week's SLA. */
+    static final int SLA_PAGE = 2000;
 
     private static final Logger LOG = Logger.getLogger(SymptomStatsService.class);
 
@@ -248,16 +248,23 @@ public class SymptomStatsService {
                 if (sla.isEmpty()) {
                     continue;
                 }
-                for (EngineCase c : engine.recentCases(tenantCode, e.getKey(), now.minusDays(7), SLA_CASES)) {
-                    Integer minutes = sla.get(c.icu());
-                    if (minutes == null || c.excluded() || c.firstSignalAt() == null) {
-                        continue;
+                List<Integer> levels = List.copyOf(sla.keySet());
+                long after = 0;
+                List<EngineCase> page;
+                do {
+                    page = engine.casesPage(tenantCode, e.getKey(), now.minusDays(7), now, levels, after, SLA_PAGE);
+                    for (EngineCase c : page) {
+                        after = Math.max(after, c.id());
+                        Integer minutes = sla.get(c.icu());
+                        if (minutes == null || c.excluded() || c.firstSignalAt() == null) {
+                            continue;
+                        }
+                        OffsetDateTime deadline = c.firstSignalAt().plusMinutes(minutes);
+                        if (!deadline.isAfter(now)) {
+                            deadlines.put(c.id(), deadline);
+                        }
                     }
-                    OffsetDateTime deadline = c.firstSignalAt().plusMinutes(minutes);
-                    if (!deadline.isAfter(now)) {
-                        deadlines.put(c.id(), deadline);
-                    }
-                }
+                } while (page.size() == SLA_PAGE);
             }
         } catch (RuntimeException e) {
             LOG.warnf(e, "Engine cases not available for the SLA of tenant=%s", tenantCode);

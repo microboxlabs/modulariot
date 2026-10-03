@@ -53,6 +53,16 @@ public class GpsSymptomEngine implements SymptomEngine {
             ORDER BY first_signal_timestamp DESC
             LIMIT $4""";
 
+    private static final String CASES_PAGE = """
+            SELECT id, symptom_name, icu_code, trip_id::text AS trip_id, first_signal_timestamp,
+                   last_signal_timestamp, accumulated_value::float8 AS accumulated_value, is_active, excluded
+            FROM public.symptoms
+            WHERE client_id = ANY($1) AND symptom_name = $2 AND excluded = false
+              AND first_signal_timestamp >= $3 AND first_signal_timestamp < $4
+              AND icu_code = ANY($5) AND id > $6
+            ORDER BY id
+            LIMIT $7""";
+
     // accumulated_states has no time index; the newest ids are the newest episodes, so walk the primary key.
     private static final String SIGNAL_SAMPLES = """
             SELECT s.signal_last_speed::float8 AS speed, s.route_max_speed::float8 AS speed_limit,
@@ -102,8 +112,12 @@ public class GpsSymptomEngine implements SymptomEngine {
 
     @Override
     public List<EngineCase> recentCases(String tenantCode, String symptomName, OffsetDateTime since, int limit) {
+        return cases(query(tenantCode, RECENT_CASES, symptomName, since, limit));
+    }
+
+    private static List<EngineCase> cases(RowSet<Row> rows) {
         List<EngineCase> out = new ArrayList<>();
-        for (Row r : query(tenantCode, RECENT_CASES, symptomName, since, limit)) {
+        for (Row r : rows) {
             Double value = r.getDouble("accumulated_value");
             out.add(new EngineCase(r.getLong("id"), r.getString("symptom_name"), r.getInteger("icu_code"),
                     r.getString("trip_id"), r.getOffsetDateTime("first_signal_timestamp"),
@@ -112,6 +126,13 @@ public class GpsSymptomEngine implements SymptomEngine {
                     Boolean.TRUE.equals(r.getBoolean("is_active")), Boolean.TRUE.equals(r.getBoolean("excluded"))));
         }
         return out;
+    }
+
+    @Override
+    public List<EngineCase> casesPage(String tenantCode, String symptomName, OffsetDateTime from, OffsetDateTime to,
+            List<Integer> icus, long afterId, int limit) {
+        return cases(query(tenantCode, CASES_PAGE, symptomName, from, to, icus.toArray(Integer[]::new), afterId,
+                limit));
     }
 
     @Override

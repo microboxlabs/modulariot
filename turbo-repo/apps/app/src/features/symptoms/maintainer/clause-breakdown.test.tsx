@@ -88,6 +88,32 @@ describe("ClauseBreakdown", () => {
     ).toBe(true);
   });
 
+  it("joins the conditions with && and marks an opened case in green", () => {
+    const opens: Preview = {
+      source: "gps_signal",
+      samples: [
+        sample({
+          activates: true,
+          measure: 22,
+          level: 4,
+          clauses: [
+            { text: "a", holds: true, values: {}, error: null },
+            { text: "b", holds: true, values: {}, error: null },
+          ],
+        }),
+      ],
+    };
+    const { container } = render(<ClauseBreakdown preview={opens} d={d} />);
+    const items = [...container.querySelectorAll("li")];
+    expect(items[0]?.firstElementChild?.textContent).toBe("");
+    expect(items[1]?.firstElementChild?.textContent).toBe("&&");
+    expect(container.querySelector("p.text-green-700")).not.toBeNull();
+    const { container: closed } = render(
+      <ClauseBreakdown preview={preview} d={d} />
+    );
+    expect(closed.querySelector("p.text-green-700")).toBeNull();
+  });
+
   it("follows the sample picked elsewhere and has no ‹ › of its own", () => {
     const { rerender } = render(
       <ClauseBreakdown preview={preview} index={1} d={d} />

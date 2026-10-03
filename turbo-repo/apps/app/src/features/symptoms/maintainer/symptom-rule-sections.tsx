@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { IntegrationConnection } from "@/features/integration-config/integration-config.types";
@@ -51,14 +51,19 @@ export function caseFields(d: I18nRecord): CelField[] {
 }
 
 function Section({
+  number,
   title,
+  subtitle,
   describe,
   actions,
   changed = false,
   d,
   children,
 }: Readonly<{
+  /** The card's place on the sheet, shown in a badge before the title. */
+  number: number;
   title: string;
+  subtitle: string;
   describe?: { section: string; rule: string; sourceKey: string | null };
   actions?: React.ReactNode;
   /** Something in the section differs from the published version. */
@@ -73,9 +78,18 @@ function Section({
       data-changed={changed || undefined}
     >
       <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
-          {title}
-        </h2>
+        <span
+          aria-hidden
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 text-xs text-gray-500 dark:border-gray-600 dark:text-gray-400"
+        >
+          {number}
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
+            {title}
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
+        </div>
         {actions && <span className="ml-auto">{actions}</span>}
         {describe && (
           <span className={actions ? "" : "ml-auto"}>
@@ -211,13 +225,19 @@ function ActivationSection({
   const samples = cached?.source === spec.source ? cached.samples : [];
   const [sampleIndex, setSampleIndex] = useState(0);
   const sampleAt = Math.min(sampleIndex, Math.max(0, samples.length - 1));
+  const notInEngine = useMemo(
+    () => new Set(fields.filter((f) => !f.engineSupported).map((f) => f.path)),
+    [fields]
+  );
   const activation = spec.activation ?? "";
   const { form, update } = useActivationForm(activation, fields, (value) =>
     onChange({ ...spec, activation: value })
   );
   return (
     <Section
+      number={1}
       title={tr("sectionActivation", d)}
+      subtitle={tr("sectionActivationSub", d)}
       changed={changed}
       d={d}
       actions={
@@ -269,18 +289,19 @@ function ActivationSection({
       )}
       {mode === "expr" && (
         <>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            {tr("activationHint", d)}
-          </p>
           <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
             <SampleTree
               samples={samples.map((s) => s.sample)}
               index={sampleAt}
+              notInEngine={notInEngine}
               readOnly={readOnly}
               d={d}
               onIndex={setSampleIndex}
             />
             <div className="flex min-w-0 flex-col gap-2">
+              <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                {tr("celLabel", d)}
+              </span>
               <CelEditor
                 readOnly={readOnly}
                 ariaLabel={tr("sectionActivation", d)}
@@ -372,7 +393,9 @@ export default function SymptomRuleSections({
       />
 
       <Section
+        number={2}
         title={tr("sectionLevels", d)}
+        subtitle={tr("sectionLevelsSub", d)}
         changed={isChanged(changed, "measure") || isChanged(changed, "levels")}
         d={d}
         actions={
@@ -426,7 +449,9 @@ export default function SymptomRuleSections({
       </Section>
 
       <Section
+        number={3}
         title={tr("sectionLifecycle", d)}
+        subtitle={tr("sectionLifecycleSub", d)}
         changed={isChanged(changed, "lifecycle")}
         d={d}
         actions={<ModeToggle mode={lifeMode} d={d} onChange={setLifeMode} />}
@@ -506,7 +531,9 @@ export default function SymptomRuleSections({
       </Section>
 
       <Section
+        number={4}
         title={tr("sectionRecurrence", d)}
+        subtitle={tr("sectionRecurrenceSub", d)}
         changed={isChanged(changed, "recurrence")}
         d={d}
       >

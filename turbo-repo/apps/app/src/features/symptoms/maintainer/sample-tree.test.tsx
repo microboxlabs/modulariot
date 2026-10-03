@@ -115,6 +115,23 @@ describe("SampleTree", () => {
     ).toBe(true);
   });
 
+  it("tags the fields the engine cannot read yet", () => {
+    render(
+      <SampleTree
+        samples={SAMPLES}
+        index={0}
+        notInEngine={new Set(["signal.vehicle.weight_kg"])}
+        readOnly={false}
+        d={{ ...d, engineNotYetTag: "motor: aún no" }}
+        onIndex={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByLabelText("Insertar signal.vehicle.weight_kg").textContent
+    ).toBe("weight_kg : 28400motor: aún no");
+    expect(screen.getAllByText("motor: aún no")).toHaveLength(1);
+  });
+
   it("renders nothing without samples", () => {
     const { container } = render(
       <SampleTree

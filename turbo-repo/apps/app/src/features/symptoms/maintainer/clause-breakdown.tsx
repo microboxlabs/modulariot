@@ -104,10 +104,16 @@ export default function ClauseBreakdown({
         <p className="text-xs text-gray-500">{tr("noClauses", d)}</p>
       ) : (
         <ul className="flex flex-col gap-1">
-          {clauses.map((c) => {
+          {clauses.map((c, i) => {
             const m = mark(c.holds);
             return (
               <li key={c.text} className="flex flex-wrap items-baseline gap-2">
+                <span
+                  aria-hidden
+                  className="w-5 font-mono text-xs text-rose-600 dark:text-rose-400"
+                >
+                  {i > 0 ? "&&" : ""}
+                </span>
                 <span
                   aria-hidden
                   className={`w-4 text-center font-semibold ${m.cls}`}
@@ -127,7 +133,9 @@ export default function ClauseBreakdown({
           })}
         </ul>
       )}
-      <p className="rounded bg-gray-50 px-2 py-1 text-xs dark:bg-gray-900/50">
+      <p
+        className={`rounded bg-gray-50 px-2 py-1 text-xs dark:bg-gray-900/50 ${sample.activates && !sample.error ? "font-medium text-green-700 dark:text-green-400" : ""}`}
+      >
         {verdict(sample, d)}
       </p>
     </div>

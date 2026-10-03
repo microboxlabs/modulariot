@@ -7,6 +7,7 @@ import type { IntegrationConnection } from "@/features/integration-config/integr
 import CelEditor, { type CelField, type CelProblem } from "./cel-editor";
 import ActivationForm, { useActivationForm } from "./activation-form";
 import ClauseBreakdown from "./clause-breakdown";
+import { changedPaths, isChanged } from "./ui/changed";
 import type {
   Finding,
   Preview,
@@ -20,6 +21,9 @@ import RecurrenceForm from "./recurrence-form";
 import { Problems, problemsFor } from "./rule-problems";
 import RuleDescription, { RuleDescriptionToggle } from "./rule-description";
 import { ICU_LEVELS } from "./symptom-labels";
+
+/** The prototype's amber border on a card that differs from the published version. */
+const CHANGED_CARD = "!border-amber-300 dark:!border-amber-600/60";
 
 const cardClass =
   "rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800";
@@ -47,18 +51,24 @@ function Section({
   title,
   describe,
   actions,
+  changed = false,
   d,
   children,
 }: Readonly<{
   title: string;
   describe?: { section: string; rule: string; sourceKey: string | null };
   actions?: React.ReactNode;
+  /** Something in the section differs from the published version. */
+  changed?: boolean;
   d: I18nRecord;
   children: React.ReactNode;
 }>) {
   const [open, setOpen] = useState(false);
   return (
-    <section className={cardClass}>
+    <section
+      className={`${cardClass} ${changed ? CHANGED_CARD : ""}`}
+      data-changed={changed || undefined}
+    >
       <div className="flex items-center gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-900 dark:text-white">
           {title}
@@ -119,6 +129,27 @@ function ModeToggle({
   );
 }
 
+const NOTHING_CHANGED: ReadonlySet<string> = new Set();
+
+/**
+ * The ICU levels that differ between the draft and the published spec,
+ * matched by ICU rather than by position: adding or removing one level does
+ * not mark the others.
+ */
+export function changedLevels(
+  draft: SymptomSpec,
+  published: SymptomSpec | null | undefined
+): ReadonlySet<number> {
+  const out = new Set<number>();
+  if (!published) return out;
+  const before = new Map((published.levels ?? []).map((l) => [l.icu, l]));
+  const after = new Map((draft.levels ?? []).map((l) => [l.icu, l]));
+  for (const icu of new Set([...before.keys(), ...after.keys()])) {
+    if (changedPaths(after.get(icu), before.get(icu)).size > 0) out.add(icu);
+  }
+  return out;
+}
+
 /** The measure in form mode: its name, unit and expression, edited under { }. */
 function MeasureText({
   measure,
@@ -148,6 +179,7 @@ function MeasureText({
 /** Cuándo se activa: the conditions as a form, or the CEL expression. */
 function ActivationSection({
   spec,
+  changed,
   preview,
   fields,
   sourceFields,
@@ -157,6 +189,7 @@ function ActivationSection({
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
+  changed: boolean;
   preview: Preview | undefined;
   fields: SourceField[];
   sourceFields: CelField[];
@@ -173,6 +206,7 @@ function ActivationSection({
   return (
     <Section
       title={tr("sectionActivation", d)}
+      changed={changed}
       d={d}
       actions={<ModeToggle mode={mode} d={d} onChange={setMode} />}
       describe={{
@@ -225,6 +259,8 @@ function ActivationSection({
 
 export default function SymptomRuleSections({
   spec,
+  published,
+  changed = NOTHING_CHANGED,
   preview,
   fields,
   sourceFields,
@@ -236,6 +272,10 @@ export default function SymptomRuleSections({
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
+  /** The version in force, for the per-level marks; null before publishing or while viewing an old version. */
+  published?: SymptomSpec | null;
+  /** Paths that differ from the published version (see changedPaths). */
+  changed?: ReadonlySet<string>;
   preview?: Preview;
   fields: SourceField[];
   sourceFields: CelField[];
@@ -247,6 +287,7 @@ export default function SymptomRuleSections({
   onChange: (spec: SymptomSpec) => void;
 }>) {
   const [levelsMode, setLevelsMode] = useState<EditMode>("form");
+  const levelsChanged = changedLevels(spec, published);
   const [lifeMode, setLifeMode] = useState<EditMode>("form");
   const activation = problemsFor(findings, "activation");
   const measure = problemsFor(findings, "measure");
@@ -276,6 +317,7 @@ export default function SymptomRuleSections({
     <div className="flex flex-col gap-4">
       <ActivationSection
         spec={spec}
+        changed={isChanged(changed, "activation")}
         preview={preview}
         fields={fields}
         sourceFields={sourceFields}
@@ -287,6 +329,7 @@ export default function SymptomRuleSections({
 
       <Section
         title={tr("sectionLevels", d)}
+        changed={isChanged(changed, "measure") || isChanged(changed, "levels")}
         d={d}
         actions={
           <ModeToggle mode={levelsMode} d={d} onChange={setLevelsMode} />
@@ -322,6 +365,7 @@ export default function SymptomRuleSections({
           {ICU_LEVELS.map((meta) => (
             <LevelRow
               key={meta.icu}
+              changed={levelsChanged.has(meta.icu)}
               spec={spec}
               icu={meta.icu}
               mode={levelsMode}
@@ -339,6 +383,7 @@ export default function SymptomRuleSections({
 
       <Section
         title={tr("sectionLifecycle", d)}
+        changed={isChanged(changed, "lifecycle")}
         d={d}
         actions={<ModeToggle mode={lifeMode} d={d} onChange={setLifeMode} />}
         describe={{
@@ -416,7 +461,11 @@ export default function SymptomRuleSections({
         <Problems items={close} />
       </Section>
 
-      <Section title={tr("sectionRecurrence", d)} d={d}>
+      <Section
+        title={tr("sectionRecurrence", d)}
+        changed={isChanged(changed, "recurrence")}
+        d={d}
+      >
         <RecurrenceForm
           recurrence={spec.recurrence}
           readOnly={readOnly}

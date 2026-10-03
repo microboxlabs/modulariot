@@ -408,6 +408,7 @@ function OperatorDetail({
 /** One level: a summary line (icon, thresholds, operator, channels) that opens into notices and operator handling. */
 export default function LevelRow({
   spec,
+  changed = false,
   icu,
   mode,
   fields,
@@ -419,6 +420,8 @@ export default function LevelRow({
   onChange,
 }: Readonly<{
   spec: SymptomSpec;
+  /** The level differs from the published version. */
+  changed?: boolean;
   icu: number;
   mode: EditMode;
   fields: CelField[];
@@ -440,7 +443,10 @@ export default function LevelRow({
   const name = trDynamic(`levelName${icu}`, d);
 
   return (
-    <div className={open ? "bg-gray-50 dark:bg-gray-900/40" : ""}>
+    <div
+      className={`${open ? "bg-gray-50 dark:bg-gray-900/40" : ""} ${changed ? "rounded-md bg-amber-50/70 ring-1 ring-amber-300 dark:bg-amber-500/10 dark:ring-amber-600/60" : ""}`}
+      data-changed={changed || undefined}
+    >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-1 py-3">
         <LevelIcon
           icu={icu}

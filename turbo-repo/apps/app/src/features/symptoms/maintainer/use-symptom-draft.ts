@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { mutate as globalMutate } from "swr";
 import {
   discardDraft,
   previewSpec,
+  publishPlanKey,
   refreshSymptoms,
   saveDraft,
   useSymptomDefinition,
@@ -62,6 +64,7 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
             setSaveError(null);
             void mutate();
             void refreshSymptoms();
+            void globalMutate(publishPlanKey(id));
           }
           if (ticket !== latest.current) return;
           const [r, p] = await Promise.all([

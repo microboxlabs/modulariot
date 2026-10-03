@@ -36,7 +36,7 @@ export interface ConditionForm {
 
 const ORDER_OPS: ConditionOp[] = [">", ">=", "<", "<="];
 const NUMBER = /^-?\d+(\.\d+)?$/;
-const STRING = /^"([^"\\]*)"$/;
+const STRING = /^"(?:[^"\\]|\\.)*"$/;
 const COMPARISON = /^([A-Za-z_][\w.]*)\s*(==|!=|>=|<=|>|<)/;
 
 let nextId = 0;
@@ -75,7 +75,8 @@ function split(
     const c = rule[i];
     const pair = rule.slice(i, i + 2);
     let step = 1;
-    if (c === '"') quoted = !quoted;
+    if (quoted && c === "\\") step = 2;
+    else if (c === '"') quoted = !quoted;
     else if (!quoted && c === "(") depth++;
     else if (!quoted && c === ")") depth--;
     else if (!quoted && depth === 0 && (pair === "&&" || pair === "||")) {
@@ -97,11 +98,14 @@ function unwrap(term: string): string | null {
   if (!term.startsWith("(") || !term.endsWith(")")) return null;
   let depth = 0;
   let quoted = false;
-  for (let i = 0; i < term.length - 1; i++) {
+  let i = 0;
+  while (i < term.length - 1) {
     const c = term[i];
-    if (c === '"') quoted = !quoted;
+    if (quoted && c === "\\") i++;
+    else if (c === '"') quoted = !quoted;
     else if (!quoted && c === "(") depth++;
     else if (!quoted && c === ")" && --depth === 0) return null;
+    i++;
   }
   return term.slice(1, -1).trim();
 }
@@ -116,6 +120,16 @@ function boolRow(term: string, field: SourceField): Condition | null {
     op: negated ? "is_false" : "is_true",
     value: null,
   };
+}
+
+/** A CEL string literal's text; null for escapes the form does not write (\\x, \\', octal). */
+function unquote(raw: string): string | null {
+  try {
+    const value: unknown = JSON.parse(raw);
+    return typeof value === "string" ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 function comparisonRow(
@@ -139,9 +153,10 @@ function comparisonRow(
     if (!NUMBER.test(raw)) return null;
     return { id: newId(), path, op: op as ConditionOp, value: Number(raw) };
   }
-  const text = STRING.exec(raw);
-  if (!text || (op !== "==" && op !== "!=")) return null;
-  return { id: newId(), path, op, value: text[1] ?? "" };
+  if (!STRING.test(raw) || (op !== "==" && op !== "!=")) return null;
+  const text = unquote(raw);
+  if (text === null) return null;
+  return { id: newId(), path, op, value: text };
 }
 
 /** One condition from one clause, or null when the clause is not a plain comparison on a known field. */

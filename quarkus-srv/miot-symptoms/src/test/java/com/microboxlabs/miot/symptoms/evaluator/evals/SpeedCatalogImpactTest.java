@@ -21,7 +21,7 @@ class SpeedCatalogImpactTest {
     @Test
     void theTemplateOpensMoreCasesThanProductionOnTheSameTrips() {
         Fixture fixture = EvalTraces.fixture("speed", "production-traces.json");
-        DataSource source = EvalTraces.source(fixture.source());
+        DataSource source = EvalTraces.source(fixture);
         List<Trace> traces = fixture.traces();
         SymptomSpec template = new TemplateService().get("speeding").spec();
 

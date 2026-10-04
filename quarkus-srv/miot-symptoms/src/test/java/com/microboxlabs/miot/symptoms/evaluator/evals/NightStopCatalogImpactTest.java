@@ -20,7 +20,7 @@ class NightStopCatalogImpactTest {
     @Test
     void theTemplateOnTheSameTripsAsProduction() {
         Fixture fixture = EvalTraces.fixture("night-stop-unauthorized", "production-traces.json");
-        DataSource source = EvalTraces.source(fixture.source());
+        DataSource source = EvalTraces.source(fixture);
         List<Trace> traces = fixture.traces();
         SymptomSpec template = new TemplateService().get("night-stop-unauthorized").spec();
 

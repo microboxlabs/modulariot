@@ -25,7 +25,7 @@ final class ParityCheck {
     static void assertParity(String symptom, int trips) {
         SymptomSpec spec = EvalTraces.spec(symptom, "production-rule.json");
         Fixture fixture = EvalTraces.fixture(symptom, "production-traces.json");
-        DataSource source = EvalTraces.source(fixture.source());
+        DataSource source = EvalTraces.source(fixture);
         Map<String, KnownGap> gaps = EvalTraces.knownGaps(symptom, "known-gaps.json");
         List<String> unexpected = new ArrayList<>();
         int transitions = 0;

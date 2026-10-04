@@ -3,6 +3,7 @@ package com.microboxlabs.miot.symptoms.evaluator.evals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
+import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
@@ -29,7 +30,7 @@ import java.util.UUID;
  *
  * <p>A trace file ({@code evals/<symptom>/production-traces.json}) names its source, the field paths of each
  * signal row after the time ({@code columns}), and values shared by every signal ({@code constants}), for
- * the whole file or one trace.
+ * the whole file or one trace. {@code extraFields} adds fields the platform source does not have yet.
  */
 final class EvalTraces {
 
@@ -44,7 +45,7 @@ final class EvalTraces {
     record Trace(String id, List<Signal> signals, List<String> expected) {
     }
 
-    record Fixture(String source, List<Trace> traces) {
+    record Fixture(String source, List<SourceField> extraFields, List<Trace> traces) {
     }
 
     /** A trace production handles differently for a reason a spec cannot express, and what the evaluator gives. */
@@ -85,7 +86,12 @@ final class EvalTraces {
                         e.get(3).asInt(), e.get(2).asInt())));
                 traces.add(new Trace(t.get("id").asText(), signals, expected));
             }
-            return new Fixture(doc.get("source").asText(), traces);
+            List<SourceField> extra = new ArrayList<>();
+            if (doc.has("extraFields")) {
+                doc.get("extraFields").forEach(f -> extra.add(new SourceField(f.get("path").asText(),
+                        f.get("label").asText(), f.get("type").asText(), null, null, true)));
+            }
+            return new Fixture(doc.get("source").asText(), extra, traces);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -103,6 +109,18 @@ final class EvalTraces {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /** The fixture's platform source, with its extra fields. */
+    static DataSource source(Fixture fixture) {
+        DataSource platform = source(fixture.source());
+        if (fixture.extraFields().isEmpty()) {
+            return platform;
+        }
+        List<SourceField> fields = new ArrayList<>(platform.fields());
+        fields.addAll(fixture.extraFields());
+        return new DataSource(platform.id(), platform.tenantCode(), platform.key(), platform.name(),
+                platform.kind(), platform.root(), platform.cadence(), fields, platform.samples());
     }
 
     /** The platform data source with this key, as a new organization gets it. */

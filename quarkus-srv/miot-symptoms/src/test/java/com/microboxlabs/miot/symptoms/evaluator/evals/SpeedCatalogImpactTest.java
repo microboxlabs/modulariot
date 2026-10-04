@@ -29,7 +29,7 @@ class SpeedCatalogImpactTest {
             int top = 0;
             boolean open = false;
             for (String t : run) {
-                int level = Integer.parseInt(t.substring(t.indexOf(':') + 1));
+                int level = Integer.parseInt(t.substring(t.indexOf('>') + 1));
                 if (t.startsWith("OPENED")) {
                     cases++;
                     open = true;

@@ -16,11 +16,12 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 
 /**
  * Speed signals replayed through {@link SignalEvaluator}, with transitions written as
- * {@code KIND@seconds:level} so a trace's result compares with what production did.
+ * {@code KIND@seconds:previous>level} so a trace's result compares with what production did.
  */
 final class SpeedTraces {
 
@@ -37,6 +38,10 @@ final class SpeedTraces {
 
     /** A vehicle's signals on one trip, and the transitions production produced from them. */
     record Trace(String id, List<Signal> signals, List<String> expected) {
+    }
+
+    /** A trace production handles differently for a reason a spec cannot express, and what the evaluator gives. */
+    record KnownGap(String reason, List<String> evaluator) {
     }
 
     private SpeedTraces() {
@@ -59,9 +64,23 @@ final class SpeedTraces {
                         s.get(2).asDouble())));
                 List<String> expected = new ArrayList<>();
                 t.get("expected").forEach(e -> expected.add(transition(e.get(0).asText(), e.get(1).asInt(),
-                        e.get(2).asInt())));
+                        e.get(3).asInt(), e.get(2).asInt())));
                 out.add(new Trace(t.get("id").asText(), signals, expected));
             }
+            return out;
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    static Map<String, KnownGap> knownGaps(String resource) {
+        try (InputStream in = resource(resource)) {
+            Map<String, KnownGap> out = new TreeMap<>();
+            JSON.readTree(in).properties().forEach(e -> {
+                List<String> evaluator = new ArrayList<>();
+                e.getValue().get("evaluator").forEach(t -> evaluator.add(t.asText()));
+                out.put(e.getKey(), new KnownGap(e.getValue().get("reason").asText(), evaluator));
+            });
             return out;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -79,13 +98,14 @@ final class SpeedTraces {
             if (!r.errors().isEmpty()) {
                 throw new AssertionError("rule error at " + s.at() + " s: " + r.errors());
             }
-            r.transitions().forEach(t -> out.add(transition(t.kind().name(), s.at(), t.level())));
+            r.transitions().forEach(t -> out.add(transition(t.kind().name(), s.at(), t.previousLevel(),
+                    t.level())));
         }
         return out;
     }
 
-    static String transition(String kind, int at, int level) {
-        return kind + "@" + at + ":" + level;
+    static String transition(String kind, int at, int previous, int level) {
+        return kind + "@" + at + ":" + previous + ">" + level;
     }
 
     private static Map<String, Object> root(Signal s) {

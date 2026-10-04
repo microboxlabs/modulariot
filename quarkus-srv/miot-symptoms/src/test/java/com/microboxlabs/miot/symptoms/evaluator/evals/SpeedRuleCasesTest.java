@@ -31,8 +31,16 @@ class SpeedRuleCasesTest {
         return SpeedTraces.replay(PRODUCTION, signals);
     }
 
-    private static String t(String kind, int at, int level) {
-        return SpeedTraces.transition(kind, at, level);
+    private static String opened(int at, int level) {
+        return SpeedTraces.transition("OPENED", at, 0, level);
+    }
+
+    private static String changed(int at, int from, int to) {
+        return SpeedTraces.transition("LEVEL_CHANGED", at, from, to);
+    }
+
+    private static String closed(int at, int level) {
+        return SpeedTraces.transition("CLOSED", at, level, level);
     }
 
     @Test
@@ -43,7 +51,7 @@ class SpeedRuleCasesTest {
     @Test
     void speedIsRoundedBeforeComparing() {
         assertEquals(List.of(), run(every30s(90.4, 90.4, 90.4, 90.4)), "90.4 is 90: not over");
-        assertEquals(List.of(t("OPENED", 60, 2)), run(every30s(95.6, 95.6, 95.6)), "95.6 is 96: 6 over");
+        assertEquals(List.of(opened(60, 2)), run(every30s(95.6, 95.6, 95.6)), "95.6 is 96: 6 over");
     }
 
     @Test
@@ -53,32 +61,32 @@ class SpeedRuleCasesTest {
 
     @Test
     void aCaseOpensAfterAMinuteOverAndAtLeastFiveOver() {
-        assertEquals(List.of(t("OPENED", 90, 2)), run(every30s(93, 93, 93, 96)),
+        assertEquals(List.of(opened(90, 2)), run(every30s(93, 93, 93, 96)),
                 "a minute at 3 over is not enough; it opens at the first signal 5 over");
     }
 
     @Test
     void theLevelFollowsEachSignalBothWays() {
-        assertEquals(List.of(t("OPENED", 60, 2), t("LEVEL_CHANGED", 90, 1), t("LEVEL_CHANGED", 120, 3)),
+        assertEquals(List.of(opened(60, 2), changed(90, 2, 1), changed(120, 1, 3)),
                 run(every30s(96, 96, 96, 92, 102)));
     }
 
     @Test
     void theFirstSignalNotOverClosesBelowCodeBlack() {
-        assertEquals(List.of(t("OPENED", 60, 3), t("CLOSED", 90, 3)), run(every30s(102, 102, 102, 85)));
+        assertEquals(List.of(opened(60, 3), closed(90, 3)), run(every30s(102, 102, 102, 85)));
     }
 
     @Test
     void losingTheRoadLimitClosesTheCase() {
         List<Signal> s = new ArrayList<>(every30s(96, 96, 96));
         s.add(new Signal(90, 96, -1));
-        assertEquals(List.of(t("OPENED", 60, 2), t("CLOSED", 90, 2)), run(s));
+        assertEquals(List.of(opened(60, 2), closed(90, 2)), run(s));
     }
 
     @Test
     void codeBlackNeedsAMinuteOver21AndClosesAfterTwoMinutesUnder() {
-        assertEquals(List.of(t("OPENED", 60, 2), t("LEVEL_CHANGED", 90, 3), t("LEVEL_CHANGED", 150, 4),
-                t("CLOSED", 300, 4)),
+        assertEquals(List.of(opened(60, 2), changed(90, 2, 3), changed(150, 3, 4),
+                closed(300, 4)),
                 run(every30s(96, 96, 96, 115, 115, 115, 80, 80, 80, 80, 80)));
     }
 
@@ -89,22 +97,22 @@ class SpeedRuleCasesTest {
         s.add(new Signal(270, 80, 90));
         s.add(new Signal(280, 115, 90));
         s.add(new Signal(310, 80, 90));
-        assertEquals(List.of(t("OPENED", 60, 2), t("LEVEL_CHANGED", 90, 3), t("LEVEL_CHANGED", 150, 4),
-                t("LEVEL_CHANGED", 280, 3), t("CLOSED", 310, 3)), run(s));
+        assertEquals(List.of(opened(60, 2), changed(90, 2, 3), changed(150, 3, 4),
+                changed(280, 4, 3), closed(310, 3)), run(s));
     }
 
     @Test
     void aSignalOlderThanTheLastOneIsIgnored() {
         List<Signal> s = new ArrayList<>(every30s(96, 96, 96));
         s.add(new Signal(45, 130, 90));
-        assertEquals(List.of(t("OPENED", 60, 2)), run(s));
+        assertEquals(List.of(opened(60, 2)), run(s));
     }
 
     @Test
     void gapProductionNeedsASignalPerMinuteToOpen() {
         List<Signal> s = List.of(new Signal(0, 91, 90), new Signal(289, 114, 90));
         List<String> production = List.of();
-        List<String> evaluator = List.of(t("OPENED", 289, 3));
+        List<String> evaluator = List.of(opened(289, 3));
         assertEquals(evaluator, run(s));
         assertNotEquals(production, evaluator);
     }
@@ -112,8 +120,8 @@ class SpeedRuleCasesTest {
     @Test
     void gapProductionStartsTheCodeBlackClockWhenTheCaseOpens() {
         List<Signal> s = every30s(115, 115, 115, 115);
-        List<String> production = List.of(t("OPENED", 60, 3));
-        List<String> evaluator = List.of(t("OPENED", 60, 4));
+        List<String> production = List.of(opened(60, 3));
+        List<String> evaluator = List.of(opened(60, 4));
         assertEquals(evaluator, run(s));
         assertNotEquals(production, evaluator);
     }
@@ -122,9 +130,9 @@ class SpeedRuleCasesTest {
     void gapProductionKeepsCodeBlackThroughADipShorterThan90s() {
         // Code black at 150; under the limit at 180; over again at 210, 60 s after the last signal over.
         List<Signal> s = every30s(96, 96, 96, 115, 115, 115, 80, 115);
-        List<String> production = List.of(t("OPENED", 60, 2), t("LEVEL_CHANGED", 90, 3), t("LEVEL_CHANGED", 150, 4));
-        List<String> evaluator = List.of(t("OPENED", 60, 2), t("LEVEL_CHANGED", 90, 3), t("LEVEL_CHANGED", 150, 4),
-                t("LEVEL_CHANGED", 210, 3));
+        List<String> production = List.of(opened(60, 2), changed(90, 2, 3), changed(150, 3, 4));
+        List<String> evaluator = List.of(opened(60, 2), changed(90, 2, 3), changed(150, 3, 4),
+                changed(210, 4, 3));
         assertEquals(evaluator, run(s));
         assertNotEquals(production, evaluator);
     }
@@ -133,9 +141,9 @@ class SpeedRuleCasesTest {
     void gapProductionClosesAtOnceWhenTheTripEnds() {
         List<Signal> s = new ArrayList<>(every30s(96, 96, 96, 115, 115, 115));
         s.add(new Signal(180, 115, 90, false));
-        List<String> production = List.of(t("OPENED", 60, 2), t("LEVEL_CHANGED", 90, 3), t("LEVEL_CHANGED", 150, 4),
-                t("CLOSED", 180, 4));
-        List<String> evaluator = List.of(t("OPENED", 60, 2), t("LEVEL_CHANGED", 90, 3), t("LEVEL_CHANGED", 150, 4));
+        List<String> production = List.of(opened(60, 2), changed(90, 2, 3), changed(150, 3, 4),
+                closed(180, 4));
+        List<String> evaluator = List.of(opened(60, 2), changed(90, 2, 3), changed(150, 3, 4));
         assertEquals(evaluator, run(s));
         assertNotEquals(production, evaluator);
     }

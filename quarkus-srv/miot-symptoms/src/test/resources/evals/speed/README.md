@@ -6,6 +6,7 @@ Tests in `com.microboxlabs.miot.symptoms.evaluator.evals` run `SignalEvaluator` 
 |---|---|
 | `production-rule.json` | The legacy SQL speed rule (OSM road limit) written as a spec |
 | `production-traces.json` | 59 real trips: signals and the transitions the legacy engine produced from them |
+| `known-gaps.json` | Trips the evaluator cannot match yet: the reason, and the evaluator's current transitions |
 
 ## The production rule
 
@@ -20,11 +21,11 @@ Tests in `com.microboxlabs.miot.symptoms.evaluator.evals` run `SignalEvaluator` 
 
 From one day of a carrier fleet's trips (one trace per vehicle and trip), after the GPS gate that drops signals older than the last accepted one or implying more than 150 km/h. A model of the legacy rule was run on each trace, and a trace was kept only when the model reproduced the legacy engine's recorded episodes and cases exactly. Trips with custom speed limits were left out.
 
-Each signal is `[seconds from the first signal, speed km/h, road limit or -1]`. Each expected transition is `[kind, seconds, level, previous level]`. The files have no plates, coordinates, ids or dates.
+Each signal is `[seconds from the first signal, speed km/h, road limit or -1]`. Each expected transition is `[kind, seconds, level, previous level]`. The tests write transitions as `KIND@seconds:previous>level`. The files have no plates, coordinates, ids or dates.
 
 ## Known gaps
 
-Behaviours a spec cannot express. `SpeedRuleCasesTest` pins each one with a `gap…` case, and `SpeedParityEvalTest` lists the traces they affect.
+Behaviours a spec cannot express. `SpeedRuleCasesTest` pins the first four with a `gap…` case. The last cannot be pinned: the source has no trip id. `known-gaps.json` lists the real trips they affect; `SpeedParityEvalTest` fails if one of them starts matching production or its result changes.
 
 | Gap | Production | Evaluator |
 |---|---|---|

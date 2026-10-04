@@ -25,6 +25,7 @@ import {
   useDataSource,
   usePublishPlan,
   useSymptomFamilies,
+  familiesListMissing,
   useSymptomTemplates,
 } from "./maintainer-api";
 import DraftBar from "./draft-bar";
@@ -98,7 +99,7 @@ export default function SymptomDetail({
     resync,
     planIsCurrent,
   } = useSymptomDraft(id, canWrite);
-  const { data: families } = useSymptomFamilies();
+  const { data: families, error: familiesError } = useSymptomFamilies();
   const { data: templates } = useSymptomTemplates(true);
   const { data: plan, error: planError } = usePublishPlan(
     id,
@@ -227,6 +228,7 @@ export default function SymptomDetail({
             spec={shownSpec}
             canWrite={canWrite && !viewed}
             families={families}
+            familiesMissing={familiesListMissing(familiesError)}
             templates={templates}
             forkedFrom={detail?.forkedFrom ?? null}
             backHref={`/${lang}/users/settings/symptoms`}

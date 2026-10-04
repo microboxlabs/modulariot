@@ -42,6 +42,9 @@ public class JdbcSelectableStore implements SelectableStore {
             + " ON CONFLICT (tenant_code, key) DO NOTHING";
     private static final String MARK_SEEDED = "INSERT INTO miot_core.selectable_seeded_keys (tenant_code, key)"
             + " VALUES (?, ?) ON CONFLICT DO NOTHING";
+    /** Read only by replicas older than V0.1.10, so they do not seed a tenant this version already seeded. */
+    private static final String MARK_TENANT_SEEDED =
+            "INSERT INTO miot_core.selectable_tenants (tenant_code) VALUES (?) ON CONFLICT DO NOTHING";
     private static final String TENANT_LOCK =
             "SELECT pg_advisory_xact_lock(hashtext('miot_core.selectables'), hashtext(?))";
     private static final TypeReference<Map<String, String>> TEXTS = new TypeReference<>() {
@@ -152,6 +155,7 @@ public class JdbcSelectableStore implements SelectableStore {
     @Override
     public void seed(String tenantCode, List<Selectable> defaults) {
         inTransaction(c -> {
+            markTenantSeeded(c, tenantCode);
             for (Selectable s : defaults) {
                 if (markSeeded(c, tenantCode, s.key())) {
                     try (PreparedStatement st = c.prepareStatement(INSERT_IF_ABSENT)) {
@@ -172,6 +176,7 @@ public class JdbcSelectableStore implements SelectableStore {
                 st.setString(1, tenantCode);
                 st.executeUpdate();
             }
+            markTenantSeeded(c, tenantCode);
             for (Selectable s : lists) {
                 upsert(c, s);
                 markSeeded(c, tenantCode, s.key());
@@ -210,6 +215,13 @@ public class JdbcSelectableStore implements SelectableStore {
             st.setString(1, tenantCode);
             st.setString(2, key);
             return st.executeUpdate() > 0;
+        }
+    }
+
+    private static void markTenantSeeded(Connection c, String tenantCode) throws SQLException {
+        try (PreparedStatement st = c.prepareStatement(MARK_TENANT_SEEDED)) {
+            st.setString(1, tenantCode);
+            st.executeUpdate();
         }
     }
 

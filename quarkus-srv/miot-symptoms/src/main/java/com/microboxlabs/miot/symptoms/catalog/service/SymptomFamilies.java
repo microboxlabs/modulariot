@@ -48,12 +48,12 @@ public class SymptomFamilies implements SelectableDefaults {
         return lists;
     }
 
-    /** The organization's families; none when it has no such list. */
+    /** The organization's families. {@link NoSuchElementException} when it has no such list. */
     public List<SelectableOption> options(String tenantCode) {
         try {
             return tenantOptions.apply(tenantCode);
         } catch (NoSuchElementException e) {
-            return List.of();
+            throw new NoSuchElementException("the organization has no " + KEY + " list in its selectables", e);
         }
     }
 }

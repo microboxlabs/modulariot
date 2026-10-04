@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.core.selectable.Selectable;
 import com.microboxlabs.miot.core.selectable.SelectableOption;
@@ -17,11 +18,16 @@ class SymptomFamiliesTest {
     }
 
     @Test
-    void anOrganizationWithoutTheListHasNoFamilies() {
+    void anOrganizationWithoutTheListIsNotFound() {
         SymptomFamilies families = new SymptomFamilies(tenant -> {
             throw new NoSuchElementException("selectable not found");
         });
-        assertEquals(List.of(), families.options("tenant-a"));
+        assertThrows(NoSuchElementException.class, () -> families.options("tenant-a"));
+    }
+
+    @Test
+    void anEmptyListHasNoFamilies() {
+        assertEquals(List.of(), new SymptomFamilies(tenant -> List.of()).options("tenant-a"));
     }
 
     @Test

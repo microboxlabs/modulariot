@@ -45,7 +45,7 @@ public class OrgSymptomFamiliesResource extends ControlTowerResourceSupport {
     @GET
     @Operation(operationId = "listSymptomFamilies",
             summary = "The organization's symptom families: value and label per language, as in its selectable list;"
-                    + " empty when it has no such list")
+                    + " 404 when it has no such list")
     public Uni<Response> list(@PathParam("organizationId") String organizationId) {
         String tenant = tenantCode(organizationId);
         return memberWork(() -> Response.ok(families.options(tenant)).build());

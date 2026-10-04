@@ -143,7 +143,7 @@ public class SymptomTools {
 
     @Tool(name = "symptoms_families", structuredContent = true,
             description = "The families a symptom can belong to (Ajustes › Seleccionables › Familias de"
-                    + " síntomas): each value, which is what a spec's family holds, and its label per language. Empty when"
+                    + " síntomas): each value, which is what a spec's family holds, and its label per language. Fails when"
                     + " the organization has no such list.",
             annotations = @Tool.Annotations(title = "List symptom families", readOnlyHint = true,
                     destructiveHint = false, openWorldHint = false))

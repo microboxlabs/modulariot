@@ -49,7 +49,7 @@ class JdbcSelectableStoreTest {
     @AfterEach
     void removeTenant() throws SQLException {
         try (Connection c = ds.getConnection()) {
-            for (String table : List.of("selectables", "selectable_seeded_keys")) {
+            for (String table : List.of("selectables", "selectable_seeded_keys", "selectable_tenants")) {
                 try (PreparedStatement st = c.prepareStatement(
                         "DELETE FROM miot_core." + table + " WHERE tenant_code LIKE ?")) {
                     st.setString(1, tenant + "%");

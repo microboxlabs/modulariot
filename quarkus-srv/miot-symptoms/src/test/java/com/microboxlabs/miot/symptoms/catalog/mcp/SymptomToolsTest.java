@@ -12,6 +12,7 @@ import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.mcp.McpCaller;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.core.selectable.SelectableOption;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
@@ -34,7 +35,6 @@ import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.core.Response;
 import java.lang.reflect.RecordComponent;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import org.jose4j.jwt.JwtClaims;
@@ -67,9 +67,8 @@ class SymptomToolsTest {
         McpCaller caller = new McpCaller(identity, new FakeAccess(tenant, organization), new FakeRoles(organization),
                 tenant, List.of("azp", "aud"));
         return new SymptomTools(caller, catalog, sources, new PreviewService(catalog, sources),
-                new SymptomFamilies(t -> {
-                    throw new NoSuchElementException("no list");
-                }));
+                new SymptomFamilies(t -> List.of(SelectableOption.of("driving_safety", "Seguridad de conducción",
+                        "Driving safety"))));
     }
 
     private static <T> T await(Uni<T> call) {

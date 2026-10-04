@@ -1,7 +1,9 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.microboxlabs.miot.core.selectable.Selectable;
 import com.microboxlabs.miot.core.selectable.SelectableOption;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -16,14 +18,25 @@ class SymptomFamiliesTest {
     }
 
     @Test
-    void anOrganizationWithoutTheListGetsTheDefaults() {
+    void anOrganizationWithoutTheListIsNotFound() {
         SymptomFamilies families = new SymptomFamilies(tenant -> {
             throw new NoSuchElementException("selectable not found");
         });
-        List<SelectableOption> options = families.options("tenant-a");
-        assertEquals(8, options.size());
-        assertEquals("driving_safety", options.get(0).value());
-        assertEquals("Seguridad de conducción", options.get(0).label().get("es"));
-        assertEquals(SymptomFamilies.KEY, families.forTenant("tenant-a").get(0).key());
+        assertThrows(NoSuchElementException.class, () -> families.options("tenant-a"));
+    }
+
+    @Test
+    void anEmptyListHasNoFamilies() {
+        assertEquals(List.of(), new SymptomFamilies(tenant -> List.of()).options("tenant-a"));
+    }
+
+    @Test
+    void aNewOrganizationIsSeededWithTheDefaultFamilies() {
+        SymptomFamilies families = new SymptomFamilies(tenant -> List.of());
+        Selectable seeded = families.forTenant("tenant-a").get(0);
+        assertEquals(SymptomFamilies.KEY, seeded.key());
+        assertEquals(8, seeded.options().size());
+        assertEquals("driving_safety", seeded.options().get(0).value());
+        assertEquals("Seguridad de conducción", seeded.options().get(0).label().get("es"));
     }
 }

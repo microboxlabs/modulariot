@@ -161,6 +161,7 @@ export default function SheetHeader({
   spec,
   canWrite,
   families,
+  familiesMissing,
   templates,
   forkedFrom,
   backHref,
@@ -175,6 +176,7 @@ export default function SheetHeader({
   spec: SymptomSpec | null;
   canWrite: boolean;
   families: readonly SymptomFamily[] | undefined;
+  familiesMissing: boolean;
   templates: readonly SymptomTemplate[] | undefined;
   forkedFrom: SymptomDetail["forkedFrom"];
   backHref: string;
@@ -248,7 +250,12 @@ export default function SheetHeader({
               {familyLabel(family, families, lang) || "—"}
             </span>
           )}
-          <span>· {tr("familySource", d)}</span>
+          <span>
+            ·{" "}
+            {familiesMissing
+              ? tr("familyListMissing", d)
+              : tr("familySource", d)}
+          </span>
           <span>· {originText(def, templates, d, forkedFrom)}</span>
         </div>
       </div>

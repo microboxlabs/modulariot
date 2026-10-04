@@ -9,6 +9,7 @@
 import useSWR, { mutate } from "swr";
 import {
   CONTROL_TOWER_BASE,
+  ControlTowerError,
   controlTowerRequest as request,
 } from "../control-tower/control-tower-api";
 
@@ -488,6 +489,11 @@ export function useSymptomFamilies() {
     fetcher,
     { revalidateOnFocus: false }
   );
+}
+
+/** Whether {@link useSymptomFamilies} failed because the organization has no families list. */
+export function familiesListMissing(error: unknown) {
+  return error instanceof ControlTowerError && error.status === 404;
 }
 
 export function publishDraft(

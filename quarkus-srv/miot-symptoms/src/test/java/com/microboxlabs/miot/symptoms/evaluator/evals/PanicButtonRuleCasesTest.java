@@ -39,6 +39,8 @@ class PanicButtonRuleCasesTest {
         assertEquals(List.of(EvalTraces.transition("OPENED", 0, 0, 4)),
                 run(event(0, "SOS", true), event(60, "SOS", true), event(3600, "AAS", true)),
                 "more events and other event types do not close it");
+        // The evaluator gets no operator events yet, so the operator close can only be checked in the spec.
+        assertEquals("caso.cerrado_por_operador", TEMPLATE.lifecycle().close());
     }
 
     @Test

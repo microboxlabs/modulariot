@@ -8,6 +8,7 @@ import jakarta.inject.Inject;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -59,16 +60,13 @@ public class OrganizationMembership {
 
     /** The role codes among {@code assignments} held by {@code personId}, compared without case. */
     public static Set<String> heldRoles(List<OrganizationRoleAssignment> assignments, String personId) {
-        Set<String> held = new TreeSet<>();
         if (personId == null || personId.isBlank()) {
-            return held;
+            return new TreeSet<>();
         }
         String person = personId.trim();
-        for (OrganizationRoleAssignment assignment : assignments) {
-            if (person.equalsIgnoreCase(assignment.id.personId)) {
-                held.add(assignment.id.roleCode);
-            }
-        }
-        return held;
+        return assignments.stream()
+                .filter(assignment -> person.equalsIgnoreCase(assignment.id.personId))
+                .map(assignment -> assignment.id.roleCode)
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 }

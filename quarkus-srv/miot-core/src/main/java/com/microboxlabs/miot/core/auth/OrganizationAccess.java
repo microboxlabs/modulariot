@@ -92,16 +92,16 @@ public class OrganizationAccess {
     }
 
     private Uni<Refusal> validateAndApply(Organization org, String email, String m2mClientId) {
-        Uni<Membership> membership;
+        Uni<Membership> checked;
         if (email != null) {
-            membership = validateWebUser(org, email);
+            checked = validateWebUser(org, email);
         } else if (m2mClientId != null) {
-            membership = validateM2mClient(org, m2mClientId);
+            checked = validateM2mClient(org, m2mClientId);
         } else {
             return refuse(Response.Status.UNAUTHORIZED, "Cannot resolve caller identity for organization request");
         }
 
-        return membership.flatMap(result -> {
+        return checked.flatMap(result -> {
             if (result.refusal() != null) {
                 return Uni.createFrom().item(result.refusal());
             }

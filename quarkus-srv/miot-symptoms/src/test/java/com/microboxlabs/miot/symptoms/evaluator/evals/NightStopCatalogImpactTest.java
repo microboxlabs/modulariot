@@ -12,26 +12,25 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
- * What the catalog's speeding template would do on the same real trips, next to production. The template's
- * rules differ on purpose, so this pins the difference: when the template changes, update the numbers here
- * and say why in the change.
+ * What the catalog's night-stop template would do on the same real trips, next to production. When the
+ * template changes, update the numbers here and say why in the change.
  */
-class SpeedCatalogImpactTest {
+class NightStopCatalogImpactTest {
 
     @Test
-    void theTemplateOpensMoreCasesThanProductionOnTheSameTrips() {
-        Fixture fixture = EvalTraces.fixture("speed", "production-traces.json");
+    void theTemplateOnTheSameTripsAsProduction() {
+        Fixture fixture = EvalTraces.fixture("night-stop-unauthorized", "production-traces.json");
         DataSource source = EvalTraces.source(fixture.source());
         List<Trace> traces = fixture.traces();
-        SymptomSpec template = new TemplateService().get("speeding").spec();
+        SymptomSpec template = new TemplateService().get("night-stop-unauthorized").spec();
 
         CaseImpact production = CaseImpact.of(traces.stream().map(Trace::expected).toList());
         CaseImpact catalog = CaseImpact.of(traces.stream()
                 .map(t -> EvalTraces.replay(template, source, t.signals())).toList());
-        System.out.println("speed impact on " + traces.size() + " trips: production " + production
+        System.out.println("night-stop impact on " + traces.size() + " trips: production " + production
                 + ", catalog template " + catalog);
 
-        assertEquals(new CaseImpact(99, Map.of(2, 45, 3, 49, 4, 5), 0), production);
-        assertEquals(new CaseImpact(484, Map.of(1, 222, 2, 76, 3, 177, 4, 9), 278), catalog);
+        assertEquals(new CaseImpact(41, Map.of(1, 25, 2, 1, 3, 1, 4, 14), 41), production);
+        assertEquals(new CaseImpact(30, Map.of(1, 7, 3, 1, 4, 22), 30), catalog);
     }
 }

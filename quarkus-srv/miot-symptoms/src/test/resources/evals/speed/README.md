@@ -21,7 +21,7 @@ Tests in `com.microboxlabs.miot.symptoms.evaluator.evals` run `SignalEvaluator` 
 
 From one day of a carrier fleet's trips (one trace per vehicle and trip), after the GPS gate that drops signals older than the last accepted one or implying more than 150 km/h. A model of the legacy rule was run on each trace, and a trace was kept only when the model reproduced the legacy engine's recorded episodes and cases exactly. Trips with custom speed limits were left out.
 
-Each signal is `[seconds from the first signal, speed km/h, road limit or -1]`. Each expected transition is `[kind, seconds, level, previous level]`. The tests write transitions as `KIND@seconds:previous>level`. The files have no plates, coordinates, ids or dates.
+Each signal is `[seconds from the first signal, speed km/h, road limit or -1]`, the fields named in `columns`; `constants` holds what every signal shares. Each expected transition is `[kind, seconds, level, previous level]`. The tests write transitions as `KIND@seconds:previous>level`. The files have no plates, coordinates, ids or dates.
 
 ## Known gaps
 

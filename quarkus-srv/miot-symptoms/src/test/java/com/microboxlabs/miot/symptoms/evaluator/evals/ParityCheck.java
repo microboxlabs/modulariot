@@ -11,6 +11,8 @@ import com.microboxlabs.miot.symptoms.evaluator.evals.EvalTraces.Trace;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Replays a symptom's real trips ({@code evals/<symptom>/production-traces.json}) with production's rule written
@@ -27,6 +29,9 @@ final class ParityCheck {
         Fixture fixture = EvalTraces.fixture(symptom, "production-traces.json");
         DataSource source = EvalTraces.source(fixture);
         Map<String, KnownGap> gaps = EvalTraces.knownGaps(symptom, "known-gaps.json");
+        Set<String> ids = fixture.traces().stream().map(Trace::id).collect(Collectors.toSet());
+        assertEquals(Set.of(), gaps.keySet().stream().filter(id -> !ids.contains(id)).collect(Collectors.toSet()),
+                "known-gaps.json names trips the fixture does not have");
         List<String> unexpected = new ArrayList<>();
         int transitions = 0;
         for (Trace t : fixture.traces()) {

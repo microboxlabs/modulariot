@@ -4,11 +4,13 @@ import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
 import com.microboxlabs.miot.core.api.dto.OrganizationRoleDto;
 import com.microboxlabs.miot.core.api.dto.SetOrganizationRoleRequest;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
+import com.microboxlabs.miot.core.auth.OrganizationMembership;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationRoleAssignment;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
@@ -16,8 +18,15 @@ import jakarta.ws.rs.NotFoundException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 
-/** Owns application roles and organization-owner authorization. */
+/**
+ * Owns application roles and organization-owner authorization. Roles live in
+ * {@code miot_core.organization_role_assignments}: {@value #OWNER_ROLE_CODE} plus the codes each
+ * {@link OrganizationRoleCatalog} adds. With Alfresco membership, an organization with no owner
+ * assigned yet takes its owners from the Alfresco managers; with native membership it has none until
+ * a platform owner assigns them.
+ */
 @ApplicationScoped
 public class OrganizationRoleService {
 
@@ -30,21 +39,68 @@ public class OrganizationRoleService {
 
     private final IAlfrescoMembershipClient membershipClient;
     private final OrganizationContext organizationContext;
+    private final OrganizationMembership membership;
+    private final Set<String> roleCodes;
 
     @Inject
     public OrganizationRoleService(
             IAlfrescoMembershipClient membershipClient,
-            OrganizationContext organizationContext) {
+            OrganizationContext organizationContext,
+            OrganizationMembership membership,
+            Instance<OrganizationRoleCatalog> catalogs) {
         this.membershipClient = membershipClient;
         this.organizationContext = organizationContext;
+        this.membership = membership;
+        Set<String> codes = new TreeSet<>();
+        codes.add(OWNER_ROLE_CODE);
+        if (catalogs != null) {
+            catalogs.forEach(catalog -> codes.addAll(catalog.roleCodes()));
+        }
+        this.roleCodes = Set.copyOf(codes);
     }
 
+    /** Whether membership comes from the modulith's own role assignments. */
+    public boolean nativeMembership() {
+        return membership != null && membership.isNative();
+    }
+
+    /** {@link #OWNER_ACCESS_ROLE} or {@link #MEMBER_ACCESS_ROLE}. */
     public Uni<String> resolveApplicationRole(Organization organization, String personId) {
+        return roles(organization, personId)
+                .map(roles -> roles.contains(OWNER_ROLE_CODE) ? OWNER_ACCESS_ROLE : MEMBER_ACCESS_ROLE);
+    }
+
+    /** The role codes the caller holds in the organization the request entered; none for an M2M caller. */
+    public Uni<Set<String>> callerRoles(String organizationSlug) {
+        String personId = organizationContext.getUserEmail();
+        if (personId == null || personId.isBlank()) {
+            return Uni.createFrom().item(Set.of());
+        }
+        return Panache.withSession(() -> findOrganization(organizationSlug)
+                .flatMap(organization -> roles(organization, personId)));
+    }
+
+    /**
+     * The role codes {@code personId} holds in {@code organization}. With Alfresco membership and no
+     * owner assigned, an Alfresco manager also holds {@value #OWNER_ROLE_CODE}.
+     */
+    public Uni<Set<String>> roles(Organization organization, String personId) {
         Organization ownerOrganization = ownerOrganization(organization);
-        return OrganizationRoleAssignment.findAssignments(
-                        ownerOrganization.id, OWNER_ROLE_CODE)
-                .flatMap(assignments -> resolveApplicationRole(
-                        ownerOrganization, personId, assignments));
+        return OrganizationRoleAssignment.findForOrganization(ownerOrganization.id)
+                .flatMap(assignments -> {
+                    Set<String> held = OrganizationMembership.heldRoles(assignments, personId);
+                    if (nativeMembership() || held.contains(OWNER_ROLE_CODE)) {
+                        return Uni.createFrom().item(held);
+                    }
+                    List<OrganizationRoleAssignment> owners = assignments.stream()
+                            .filter(a -> OWNER_ROLE_CODE.equals(a.id.roleCode))
+                            .toList();
+                    if (!owners.isEmpty()) {
+                        return Uni.createFrom().item(held);
+                    }
+                    return resolveBootstrapRole(ownerOrganization, personId)
+                            .map(role -> OWNER_ACCESS_ROLE.equals(role) ? withOwner(held) : held);
+                });
     }
 
     public Uni<Void> requireOwner(String organizationSlug) {
@@ -64,35 +120,55 @@ public class OrganizationRoleService {
     }
 
     public Uni<OrganizationRoleDto> get(String organizationSlug, String roleCode) {
-        OrganizationRoleDefinition role = OrganizationRoleDefinition.fromCode(roleCode);
+        String role = knownRole(roleCode);
         return Panache.withSession(() -> findOrganization(organizationSlug)
                 .flatMap(organization -> requireOwner(organization)
-                        .flatMap(ignored -> loadDto(
-                                ownerOrganization(organization).id, role))));
+                        .flatMap(ignored -> loadDto(ownerOrganization(organization).id, role, true))));
     }
 
     public Uni<OrganizationRoleDto> replace(
             String organizationSlug,
             String roleCode,
             SetOrganizationRoleRequest request) {
-        OrganizationRoleDefinition role = OrganizationRoleDefinition.fromCode(roleCode);
-        Set<String> assigneeIds = normalizeAssignees(request);
+        String role = knownRole(roleCode);
+        Set<String> assigneeIds = normalizeAssignees(request, role);
 
         return authorizeAndValidate(organizationSlug, assigneeIds)
                 .flatMap(organizationId -> Panache.withTransaction(() ->
-                        replaceAssignments(organizationId, role.roleCode(), assigneeIds)
-                                .flatMap(ignored -> loadDto(organizationId, role))));
+                        replaceAssignments(organizationId, role, assigneeIds)
+                                .flatMap(ignored -> loadDto(organizationId, role, true))));
     }
 
-    private Uni<String> resolveApplicationRole(
-            Organization ownerOrganization,
-            String personId,
-            List<OrganizationRoleAssignment> assignments) {
-        String assignedRole = resolveAssignedRole(assignments, personId);
-        if (assignedRole != null) {
-            return Uni.createFrom().item(assignedRole);
+    /** {@link #get} for a platform owner, who need not belong to the organization. */
+    public Uni<OrganizationRoleDto> getAsPlatform(String organizationSlug, String roleCode) {
+        String role = knownRole(roleCode);
+        return Panache.withSession(() -> findOrganization(organizationSlug)
+                .flatMap(organization -> loadDto(ownerOrganization(organization).id, role, false)));
+    }
+
+    /**
+     * {@link #replace} for a platform owner: how a new organization gets its first owner. Assignees are not
+     * checked against Alfresco.
+     */
+    public Uni<OrganizationRoleDto> replaceAsPlatform(
+            String organizationSlug,
+            String roleCode,
+            SetOrganizationRoleRequest request) {
+        String role = knownRole(roleCode);
+        Set<String> assigneeIds = normalizeAssignees(request, role);
+        return Panache.withTransaction(() -> findOrganization(organizationSlug)
+                .flatMap(organization -> {
+                    Long organizationId = ownerOrganization(organization).id;
+                    return replaceAssignments(organizationId, role, assigneeIds)
+                            .flatMap(ignored -> loadDto(organizationId, role, false));
+                }));
+    }
+
+    private String knownRole(String roleCode) {
+        if (roleCode == null || !roleCodes.contains(roleCode)) {
+            throw new BadRequestException("Unknown organization role: " + roleCode);
         }
-        return resolveBootstrapRole(ownerOrganization, personId);
+        return roleCode;
     }
 
     private Uni<String> resolveBootstrapRole(
@@ -115,8 +191,12 @@ public class OrganizationRoleService {
                         })));
     }
 
+    /** With native membership a role is what makes someone a member, so there is nothing to check. */
     private Uni<Void> validateMembers(
             Organization ownerOrganization, Set<String> assigneeIds) {
+        if (nativeMembership()) {
+            return Uni.createFrom().voidItem();
+        }
         if (ownerOrganization.alfrescoGroupId == null) {
             return Uni.createFrom().failure(new BadRequestException(
                     "Organization has no Alfresco membership binding"));
@@ -128,7 +208,7 @@ public class OrganizationRoleService {
                     .flatMap(isMember -> Boolean.TRUE.equals(isMember)
                             ? Uni.createFrom().voidItem()
                             : Uni.createFrom().failure(new BadRequestException(
-                                    "Owner must be an organization member: " + personId))));
+                                    "Assignee must be an organization member: " + personId))));
         }
         return chain;
     }
@@ -151,21 +231,23 @@ public class OrganizationRoleService {
         return chain;
     }
 
-    private Uni<OrganizationRoleDto> loadDto(
-            Long organizationId, OrganizationRoleDefinition role) {
-        return OrganizationRoleAssignment.findAssignments(organizationId, role.roleCode())
+    /**
+     * The role's assignees. With Alfresco membership and no owner assigned yet, {@code withBootstrapOwner}
+     * shows the caller, who got this far as an Alfresco manager.
+     */
+    private Uni<OrganizationRoleDto> loadDto(Long organizationId, String roleCode, boolean withBootstrapOwner) {
+        return OrganizationRoleAssignment.findAssignments(organizationId, roleCode)
                 .map(assignments -> {
                     List<String> persistedIds = assignments.stream()
                             .map(assignment -> assignment.id.personId)
                             .sorted()
                             .toList();
-                    if (!persistedIds.isEmpty()) {
-                        return new OrganizationRoleDto(role.roleCode(), persistedIds);
+                    String caller = organizationContext.getUserEmail();
+                    if (persistedIds.isEmpty() && withBootstrapOwner && caller != null
+                            && OWNER_ROLE_CODE.equals(roleCode) && !nativeMembership()) {
+                        return new OrganizationRoleDto(roleCode, List.of(caller));
                     }
-                    String bootstrapOwner = organizationContext.getUserEmail();
-                    return new OrganizationRoleDto(
-                            role.roleCode(),
-                            bootstrapOwner == null ? List.of() : List.of(bootstrapOwner));
+                    return new OrganizationRoleDto(roleCode, persistedIds);
                 });
     }
 
@@ -178,10 +260,17 @@ public class OrganizationRoleService {
     }
 
     private static Organization ownerOrganization(Organization organization) {
-        return organization.parent != null ? organization.parent : organization;
+        return OrganizationMembership.roleOwner(organization);
     }
 
-    private static Set<String> normalizeAssignees(SetOrganizationRoleRequest request) {
+    private static Set<String> withOwner(Set<String> held) {
+        Set<String> roles = new TreeSet<>(held);
+        roles.add(OWNER_ROLE_CODE);
+        return roles;
+    }
+
+    /** Trimmed, blank ids dropped. Only {@value #OWNER_ROLE_CODE} must keep at least one assignee. */
+    static Set<String> normalizeAssignees(SetOrganizationRoleRequest request, String roleCode) {
         if (request == null || request.assigneeIds() == null) {
             throw new BadRequestException("assigneeIds list is required");
         }
@@ -191,7 +280,7 @@ public class OrganizationRoleService {
                 normalized.add(personId.trim());
             }
         }
-        if (normalized.isEmpty()) {
+        if (normalized.isEmpty() && OWNER_ROLE_CODE.equals(roleCode)) {
             throw new BadRequestException("An organization must have at least one owner");
         }
         return normalized;

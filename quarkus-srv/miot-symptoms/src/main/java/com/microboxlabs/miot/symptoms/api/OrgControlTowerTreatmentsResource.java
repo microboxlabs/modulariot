@@ -55,7 +55,7 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
             @PathParam("organizationId") String organizationId,
             @PathParam("symptomId") String symptomId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(treatments.listForSymptom(tenant, parseSymptomId(symptomId))).build());
+        return viewWork(organizationId, () -> Response.ok(treatments.listForSymptom(tenant, parseSymptomId(symptomId))).build());
     }
 
     @POST
@@ -68,7 +68,7 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
             OpenTreatmentRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return memberWork(() -> {
+        return operateWork(organizationId, () -> {
             TreatmentService.OpenResult result = treatments.open(tenant, actor, parseSymptomId(symptomId), body);
             return Response.status(result.created() ? Response.Status.CREATED : Response.Status.OK)
                     .entity(result.treatment())
@@ -83,7 +83,7 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
             @PathParam("organizationId") String organizationId,
             @PathParam("treatmentId") String treatmentId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(treatments.get(tenant, treatmentId)).build());
+        return viewWork(organizationId, () -> Response.ok(treatments.get(tenant, treatmentId)).build());
     }
 
     @POST
@@ -96,7 +96,7 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
             AddActionRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return memberWork(() -> Response.status(Response.Status.CREATED)
+        return operateWork(organizationId, () -> Response.status(Response.Status.CREATED)
                 .entity(treatments.addAction(tenant, actor, treatmentId, body))
                 .build());
     }
@@ -111,7 +111,7 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
             CloseTreatmentRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return memberWork(() -> Response.ok(treatments.close(tenant, actor, treatmentId, body)).build());
+        return operateWork(organizationId, () -> Response.ok(treatments.close(tenant, actor, treatmentId, body)).build());
     }
 
     @POST
@@ -124,6 +124,6 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
         String tenant = tenantCode(organizationId);
         String actor = actor();
         String reason = body == null ? null : body.get("reason");
-        return memberWork(() -> Response.ok(treatments.cancel(tenant, actor, treatmentId, reason)).build());
+        return operateWork(organizationId, () -> Response.ok(treatments.cancel(tenant, actor, treatmentId, reason)).build());
     }
 }

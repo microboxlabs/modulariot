@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
-import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { channelGroupLabel, SymptomCard, SymptomRow } from "./catalog-card";
@@ -23,6 +22,7 @@ import {
   refreshSymptoms,
   useSymptomDefinitions,
   useSymptomFamilies,
+  useControlTowerAccess,
   useSymptomStats,
   type SymptomSummary,
 } from "./maintainer-api";
@@ -87,8 +87,7 @@ export default function SymptomCatalog({
   const { data, error, isLoading } = useSymptomDefinitions();
   const { data: stats } = useSymptomStats();
   const { data: families } = useSymptomFamilies();
-  const { activeOrg } = useOrgScopes();
-  const isOwner = activeOrg?.role === "OWNER";
+  const { canMaintain: isOwner } = useControlTowerAccess();
   const [filters, setFilters] = useState<Filters>(EMPTY);
   const [layout, setLayout] = useState<Layout>("cards");
   const [creating, setCreating] = useState(false);

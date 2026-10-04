@@ -25,6 +25,7 @@ import {
   useDataSource,
   usePublishPlan,
   useSymptomFamilies,
+  useControlTowerAccess,
   familiesListMissing,
   useSymptomTemplates,
 } from "./maintainer-api";
@@ -79,7 +80,7 @@ export default function SymptomDetail({
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
   const { activeOrg } = useOrgScopes();
-  const canWrite = activeOrg?.role === "OWNER";
+  const { canMaintain: canWrite } = useControlTowerAccess();
   const { connections } = useIntegrationConfig(
     // Connections are listed for owners only; others see the saved choice.
     canWrite ? (activeOrg?.slug ?? null) : null

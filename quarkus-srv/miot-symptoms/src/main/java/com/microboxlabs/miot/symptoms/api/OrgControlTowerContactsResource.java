@@ -58,7 +58,7 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             @PathParam("organizationId") String organizationId,
             @QueryParam("active") Boolean active) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(contacts.list(tenant, active)).build());
+        return viewWork(organizationId, () -> Response.ok(contacts.list(tenant, active)).build());
     }
 
     @GET
@@ -68,7 +68,7 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             @PathParam("organizationId") String organizationId,
             @PathParam("contactId") String contactId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(contacts.get(tenant, contactId)).build());
+        return viewWork(organizationId, () -> Response.ok(contacts.get(tenant, contactId)).build());
     }
 
     @POST
@@ -78,7 +78,7 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             ContactRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return memberWork(() -> Response.status(Response.Status.CREATED)
+        return operateWork(organizationId, () -> Response.status(Response.Status.CREATED)
                 .entity(contacts.create(tenant, actor, body))
                 .build());
     }
@@ -93,7 +93,7 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             ContactImportRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return memberWork(() -> Response.ok(
+        return operateWork(organizationId, () -> Response.ok(
                 contacts.importContacts(tenant, actor, body == null ? null : body.contacts())).build());
     }
 
@@ -106,7 +106,7 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             ContactRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return memberWork(() -> Response.ok(contacts.update(tenant, actor, contactId, body)).build());
+        return operateWork(organizationId, () -> Response.ok(contacts.update(tenant, actor, contactId, body)).build());
     }
 
     @DELETE
@@ -118,7 +118,7 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
             @PathParam("contactId") String contactId) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> contacts.delete(tenant, actor, contactId)
+        return maintainWork(organizationId, () -> contacts.delete(tenant, actor, contactId)
                 ? Response.noContent().build()
                 : error(Response.Status.NOT_FOUND, "contact not found"));
     }

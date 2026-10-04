@@ -18,6 +18,7 @@ replaces the `store` package implementations without changing this contract.
 | Tenant | Resolved by `OrganizationRequestFilter` from the org slug in the path. Never read from the body or query |
 | Actor | User email (session) or client id (M2M). Never read from the body |
 | Component | `miot.component.symptoms.enabled=true` (build-time flag, included in CI) |
+| Permissions | VIEW, OPERATE or MAINTAIN, from the caller's organization roles. See [Roles and permissions](#roles-and-permissions) |
 | Code | `quarkus-srv/miot-symptoms`, packages `api`, `service`, `store`, `domain`, `dto` |
 
 ## Treatments
@@ -56,12 +57,12 @@ Action body:
 
 | Operation | Method and path | Who |
 |---|---|---|
-| `listContacts` | `GET /contacts?active` | member |
-| `getContact` | `GET /contacts/{contactId}` | member |
-| `createContact` | `POST /contacts` | member. Operators add contacts from the call panel |
-| `importContacts` | `POST /contacts/import` | member. Body `{contacts: [...]}`, up to 1000 |
-| `updateContact` | `PATCH /contacts/{contactId}` | member |
-| `deleteContact` | `DELETE /contacts/{contactId}` | owner |
+| `listContacts` | `GET /contacts?active` | VIEW |
+| `getContact` | `GET /contacts/{contactId}` | VIEW |
+| `createContact` | `POST /contacts` | OPERATE. Operators add contacts from the call panel |
+| `importContacts` | `POST /contacts/import` | OPERATE. Body `{contacts: [...]}`, up to 1000 |
+| `updateContact` | `PATCH /contacts/{contactId}` | OPERATE |
+| `deleteContact` | `DELETE /contacts/{contactId}` | MAINTAIN |
 
 Contact body:
 
@@ -115,12 +116,47 @@ Newest first, `limit` up to 500. Actions: `treatment.opened`,
 `contact.created`, `contact.updated`, `contact.deleted`, `selectable.replaced`,
 `selectable.deleted`, `selectable.reset`, `selectable.bindings_updated`.
 
+## Roles and permissions
+
+Every endpoint needs one permission. The caller's roles in the organization (`miot_core.organization_role_assignments`) give them:
+
+| Role | Permissions |
+|---|---|
+| `ORGANIZATION_OWNER`, `CONTROL_TOWER_MAINTAINER` | VIEW, OPERATE, MAINTAIN |
+| `CONTROL_TOWER_OPERATOR` | VIEW, OPERATE |
+| `CONTROL_TOWER_VIEWER` | VIEW |
+
+| Permission | Endpoints |
+|---|---|
+| VIEW | Every read, plus `describe`, `validate` and `preview` |
+| OPERATE | Treatments (open, actions, close, cancel) and contacts (create, import, update) |
+| MAINTAIN | Symptom catalog writes, tower settings, contact deletion |
+
+`GET /access` returns the caller's `roles` and `permissions`; the app shows only the actions they allow.
+
+Membership comes from `miot.organizations.membership` (`MIOT_ORGANIZATIONS_MEMBERSHIP`):
+
+| Value | Member | Without a control tower role |
+|---|---|---|
+| `alfresco` (default) | In the organization's Alfresco group | VIEW and OPERATE |
+| `native` | Holds any role in the organization | Nothing |
+
+With `native`, no Alfresco is needed. A platform owner creates the organization and its first roles:
+
+| Operation | Method and path |
+|---|---|
+| Create a top-level organization | `POST /api/v1/platform/orgs` with `slug`, `name`, `tenantClientId`, optional `displayName`, `taxId` |
+| Read a role's assignees | `GET /api/v1/platform/orgs/{slug}/roles/{roleCode}` |
+| Replace a role's assignees | `PUT /api/v1/platform/orgs/{slug}/roles/{roleCode}` with `{"assigneeIds": ["email", ...]}` |
+
+After that, an owner manages roles with `PUT /api/v1/orgs/{slug}/roles/{roleCode}`.
+
 ## Errors
 
 | Status | When |
 |---|---|
 | 400 | Validation. Body `{"error": "..."}` |
-| 403 | Not a member, org path mismatch, or an owner-only write |
+| 403 | Not a member, org path mismatch, or a missing control tower permission |
 | 404 | Treatment or contact not found |
 | 409 | Treatment not `OPEN`, closing one with no actions, or a contact's national id already used |
 

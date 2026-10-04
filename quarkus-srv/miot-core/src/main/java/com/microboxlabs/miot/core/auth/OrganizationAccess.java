@@ -18,8 +18,9 @@ import org.jboss.logging.Logger;
  * {@link TenantContext} and {@link OrganizationContext}.
  *
  * <p>A web user (the token has an email) must be a member of the
- * organization's Alfresco group, and gets their role from there. An M2M client
- * (no email) must be the organization's own tenant client.
+ * organization: of its Alfresco group, or, with native membership (see
+ * {@link OrganizationMembership}), hold a role in it. An M2M client (no email)
+ * must be the organization's own tenant client.
  *
  * <p>A parent organization reads its children's data too: its effective
  * client ids are its own and its direct children's. A child reads only its own.
@@ -39,15 +40,18 @@ public class OrganizationAccess {
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
     private final IAlfrescoMembershipClient alfrescoMembership;
+    private final OrganizationMembership membership;
 
     @Inject
     public OrganizationAccess(
             TenantContext tenantContext,
             OrganizationContext organizationContext,
-            IAlfrescoMembershipClient alfrescoMembership) {
+            IAlfrescoMembershipClient alfrescoMembership,
+            OrganizationMembership membership) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
         this.alfrescoMembership = alfrescoMembership;
+        this.membership = membership;
     }
 
     /**
@@ -123,19 +127,27 @@ public class OrganizationAccess {
     }
 
     private Uni<Membership> validateWebUser(Organization org, String email) {
+        if (membership.isNative()) {
+            return membership.assignedRoles(org, email)
+                    .map(roles -> roles.isEmpty()
+                            ? Membership.deny(notAMember(org))
+                            : Membership.allow(null));
+        }
         if (org.alfrescoGroupId == null) {
             return Uni.createFrom().item(Membership.allow(null));
         }
         return alfrescoMembership.isMember(email, org.alfrescoGroupId)
                 .flatMap(isMember -> {
                     if (!Boolean.TRUE.equals(isMember)) {
-                        return Uni.createFrom().item(Membership.deny(new Refusal(
-                                Response.Status.FORBIDDEN,
-                                "User is not a member of organization: " + org.slug)));
+                        return Uni.createFrom().item(Membership.deny(notAMember(org)));
                     }
                     return alfrescoMembership.getRole(email, org.alfrescoGroupId)
                             .map(Membership::allow);
                 });
+    }
+
+    private static Refusal notAMember(Organization org) {
+        return new Refusal(Response.Status.FORBIDDEN, "User is not a member of organization: " + org.slug);
     }
 
     private static Uni<Membership> validateM2mClient(Organization org, String m2mClientId) {

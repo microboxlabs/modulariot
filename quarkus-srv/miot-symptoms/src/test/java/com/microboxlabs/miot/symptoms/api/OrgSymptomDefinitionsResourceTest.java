@@ -40,6 +40,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,18 +56,18 @@ class OrgSymptomDefinitionsResourceTest {
     private String id;
     private boolean harnessDown;
 
-    /** Owners pass; everyone else gets 403, as the real service does. */
+    /** Owners hold the owner role; everyone else holds none and keeps VIEW and OPERATE. */
     private static final class Roles extends OrganizationRoleService {
         private final boolean owner;
 
         Roles(boolean owner) {
-            super(null, null);
+            super(null, null, null, null);
             this.owner = owner;
         }
 
         @Override
-        public Uni<Void> requireOwner(String organizationSlug) {
-            return owner ? Uni.createFrom().voidItem() : Uni.createFrom().failure(new ForbiddenException());
+        public Uni<Set<String>> callerRoles(String organizationSlug) {
+            return Uni.createFrom().item(owner ? Set.of(OWNER_ROLE_CODE) : Set.of());
         }
     }
 

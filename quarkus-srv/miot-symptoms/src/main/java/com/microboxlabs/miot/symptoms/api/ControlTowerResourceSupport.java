@@ -3,6 +3,8 @@ package com.microboxlabs.miot.symptoms.api;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccess;
+import com.microboxlabs.miot.symptoms.access.ControlTowerPermission;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
@@ -28,7 +30,7 @@ abstract class ControlTowerResourceSupport {
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
-    private final OrganizationRoleService roleService;
+    private final ControlTowerAccess access;
     private final SecurityIdentity identity;
 
     protected ControlTowerResourceSupport(
@@ -38,19 +40,34 @@ abstract class ControlTowerResourceSupport {
             SecurityIdentity identity) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
-        this.roleService = roleService;
+        this.access = new ControlTowerAccess(roleService, organizationContext);
         this.identity = identity;
     }
 
-    /** Any member of the organization (the org filter already checked membership). */
-    protected Uni<Response> memberWork(Supplier<Response> work) {
-        return Uni.createFrom().item(() -> guarded(work))
-                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+    /** Reads: needs {@link ControlTowerPermission#VIEW}. */
+    protected Uni<Response> viewWork(String organizationId, Supplier<Response> work) {
+        return permitted(organizationId, ControlTowerPermission.VIEW, work);
     }
 
-    /** Organization owners only: deleting contacts. */
-    protected Uni<Response> ownerWork(String organizationId, Supplier<Response> work) {
-        return roleService.requireOwner(organizationId).flatMap(ignored -> memberWork(work));
+    /** Treating cases and editing contacts: needs {@link ControlTowerPermission#OPERATE}. */
+    protected Uni<Response> operateWork(String organizationId, Supplier<Response> work) {
+        return permitted(organizationId, ControlTowerPermission.OPERATE, work);
+    }
+
+    /** Catalog, settings and contact deletion: needs {@link ControlTowerPermission#MAINTAIN}. */
+    protected Uni<Response> maintainWork(String organizationId, Supplier<Response> work) {
+        return permitted(organizationId, ControlTowerPermission.MAINTAIN, work);
+    }
+
+    protected ControlTowerAccess access() {
+        return access;
+    }
+
+    private Uni<Response> permitted(String organizationId, ControlTowerPermission permission,
+            Supplier<Response> work) {
+        return access.require(organizationId, permission)
+                .flatMap(ignored -> Uni.createFrom().item(() -> guarded(work))
+                        .runSubscriptionOn(Infrastructure.getDefaultWorkerPool()));
     }
 
     protected String tenantCode(String organizationId) {

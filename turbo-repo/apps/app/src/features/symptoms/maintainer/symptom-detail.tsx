@@ -81,9 +81,10 @@ export default function SymptomDetail({
   const router = useRouter();
   const { activeOrg } = useOrgScopes();
   const { canMaintain: canWrite } = useControlTowerAccess();
+  // The integration API lists connections for organization owners only; others see the saved choice.
+  const listsConnections = activeOrg?.role === "OWNER";
   const { connections } = useIntegrationConfig(
-    // Connections are listed for owners only; others see the saved choice.
-    canWrite ? (activeOrg?.slug ?? null) : null
+    listsConnections ? (activeOrg?.slug ?? null) : null
   );
   const {
     detail,

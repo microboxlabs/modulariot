@@ -31,12 +31,12 @@ public enum ControlTowerPermission {
         if (roles.contains(OrganizationRoleService.OWNER_ROLE_CODE) || roles.contains(ControlTowerRoles.MAINTAINER)) {
             return EnumSet.allOf(ControlTowerPermission.class);
         }
-        if (roles.contains(ControlTowerRoles.OPERATOR) || !nativeMembership) {
+        if (roles.contains(ControlTowerRoles.OPERATOR)) {
             return EnumSet.of(VIEW, OPERATE);
         }
         if (roles.contains(ControlTowerRoles.VIEWER)) {
             return EnumSet.of(VIEW);
         }
-        return EnumSet.noneOf(ControlTowerPermission.class);
+        return nativeMembership ? EnumSet.noneOf(ControlTowerPermission.class) : EnumSet.of(VIEW, OPERATE);
     }
 }

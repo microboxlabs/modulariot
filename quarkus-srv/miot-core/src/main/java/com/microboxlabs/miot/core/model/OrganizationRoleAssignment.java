@@ -31,8 +31,8 @@ public class OrganizationRoleAssignment extends PanacheEntityBase {
         return find("id.organizationId = ?1 and id.roleCode = ?2", organizationId, roleCode).list();
     }
 
-    public static Uni<List<OrganizationRoleAssignment>> findForOrganization(Long organizationId) {
-        return find("id.organizationId = ?1", organizationId).list();
+    public static Uni<List<OrganizationRoleAssignment>> findForOrganizations(List<Long> organizationIds) {
+        return find("id.organizationId in ?1", organizationIds).list();
     }
 
     public static Uni<Boolean> hasAssignment(

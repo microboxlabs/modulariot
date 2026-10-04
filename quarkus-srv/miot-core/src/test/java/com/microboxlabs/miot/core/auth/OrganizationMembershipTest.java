@@ -40,10 +40,14 @@ class OrganizationMembershipTest {
     }
 
     @Test
-    void aSubAccountTakesItsRolesFromItsParent() {
+    void aSubAccountCountsItsOwnAndItsParentsRoles() {
         Organization parent = new Organization();
+        parent.id = 1L;
         Organization child = new Organization();
+        child.id = 2L;
         child.parent = parent;
+        assertEquals(List.of(2L, 1L), OrganizationMembership.roleScope(child));
+        assertEquals(List.of(1L), OrganizationMembership.roleScope(parent));
         assertSame(parent, OrganizationMembership.roleOwner(child));
         assertSame(parent, OrganizationMembership.roleOwner(parent));
     }

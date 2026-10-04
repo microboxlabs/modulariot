@@ -16,7 +16,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  * <ul>
  *   <li>{@code alfresco} (default): the organization's Alfresco group.
  *   <li>{@code native}: the modulith's own role assignments. A person is a member when they hold at least one
- *       role in the organization, or in its parent for a sub-account. No Alfresco is needed.
+ *       role in the organization or, for a sub-account, in its parent. No Alfresco is needed.
  * </ul>
  */
 @ApplicationScoped
@@ -41,10 +41,20 @@ public class OrganizationMembership {
         return organization.parent != null ? organization.parent : organization;
     }
 
-    /** The role codes {@code personId} holds in {@code organization}, from the modulith's assignments. */
+    /**
+     * The role codes {@code personId} holds in {@code organization}, from the modulith's assignments: its own
+     * and, for a sub-account, its parent's.
+     */
     public Uni<Set<String>> assignedRoles(Organization organization, String personId) {
-        return OrganizationRoleAssignment.findForOrganization(roleOwner(organization).id)
+        return OrganizationRoleAssignment.findForOrganizations(roleScope(organization))
                 .map(assignments -> heldRoles(assignments, personId));
+    }
+
+    /** The organizations whose assignments count for {@code organization}: itself, and its parent if any. */
+    public static List<Long> roleScope(Organization organization) {
+        return organization.parent != null
+                ? List.of(organization.id, organization.parent.id)
+                : List.of(organization.id);
     }
 
     /** The role codes among {@code assignments} held by {@code personId}, compared without case. */

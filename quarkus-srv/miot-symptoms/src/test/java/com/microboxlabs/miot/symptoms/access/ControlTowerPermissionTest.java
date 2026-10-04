@@ -41,6 +41,11 @@ class ControlTowerPermissionTest {
     }
 
     @Test
+    void anAlfrescoMemberMadeViewerIsReadOnly() {
+        assertEquals(Set.of(VIEW), ControlTowerPermission.granted(Set.of(ControlTowerRoles.VIEWER), false));
+    }
+
+    @Test
     void theCatalogListsTheThreeRoles() {
         assertEquals(Set.of(ControlTowerRoles.VIEWER, ControlTowerRoles.OPERATOR, ControlTowerRoles.MAINTAINER),
                 new ControlTowerRoles().roleCodes());

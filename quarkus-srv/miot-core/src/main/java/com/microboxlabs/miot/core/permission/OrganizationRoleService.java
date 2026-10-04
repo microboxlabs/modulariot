@@ -81,19 +81,20 @@ public class OrganizationRoleService {
     }
 
     /**
-     * The role codes {@code personId} holds in {@code organization}. With Alfresco membership and no
-     * owner assigned, an Alfresco manager also holds {@value #OWNER_ROLE_CODE}.
+     * The role codes {@code personId} holds in {@code organization} or, for a sub-account, its parent. With
+     * Alfresco membership and no owner assigned, an Alfresco manager also holds {@value #OWNER_ROLE_CODE}.
      */
     public Uni<Set<String>> roles(Organization organization, String personId) {
         Organization ownerOrganization = ownerOrganization(organization);
-        return OrganizationRoleAssignment.findForOrganization(ownerOrganization.id)
+        return OrganizationRoleAssignment.findForOrganizations(OrganizationMembership.roleScope(organization))
                 .flatMap(assignments -> {
                     Set<String> held = OrganizationMembership.heldRoles(assignments, personId);
                     if (nativeMembership() || held.contains(OWNER_ROLE_CODE)) {
                         return Uni.createFrom().item(held);
                     }
                     List<OrganizationRoleAssignment> owners = assignments.stream()
-                            .filter(a -> OWNER_ROLE_CODE.equals(a.id.roleCode))
+                            .filter(a -> OWNER_ROLE_CODE.equals(a.id.roleCode)
+                                    && ownerOrganization.id.equals(a.id.organizationId))
                             .toList();
                     if (!owners.isEmpty()) {
                         return Uni.createFrom().item(held);

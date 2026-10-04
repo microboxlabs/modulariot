@@ -57,9 +57,9 @@ public class PlatformOrganizationsResource {
     @Operation(summary = "Create a top-level organization")
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     public Uni<Response> create(CreateRootOrganizationRequest body) {
-        Organization organization = newOrganization(body);
         return authorizer.requirePlatformOwner()
-                .flatMap(ignored -> Panache.withTransaction(() -> Organization.findBySlug(organization.slug)
+                .map(ignored -> newOrganization(body))
+                .flatMap(organization -> Panache.withTransaction(() -> Organization.findBySlug(organization.slug)
                         .flatMap(existing -> existing != null
                                 ? Uni.createFrom().failure(new WebApplicationException(
                                         "Slug already in use: " + organization.slug, Response.Status.CONFLICT))

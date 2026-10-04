@@ -2881,6 +2881,7 @@
         "duplicateAsNew": "Duplicar como síntoma nuevo",
         "familyWord": "Familia",
         "familySource": "de Ajustes › Seleccionables › Familias de síntomas",
+        "familyListMissing": "la organización no tiene la lista Familias de síntomas en Ajustes › Seleccionables",
         "originTemplate": "Desde la plantilla {name}",
         "variantName": "{name} (variante)",
         "originForkOf": "Copia de {name} {version}",

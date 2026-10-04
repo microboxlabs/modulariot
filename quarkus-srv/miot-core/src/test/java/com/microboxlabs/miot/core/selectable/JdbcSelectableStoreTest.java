@@ -49,7 +49,7 @@ class JdbcSelectableStoreTest {
     @AfterEach
     void removeTenant() throws SQLException {
         try (Connection c = ds.getConnection()) {
-            for (String table : List.of("selectables", "selectable_tenants")) {
+            for (String table : List.of("selectables", "selectable_seeded_keys")) {
                 try (PreparedStatement st = c.prepareStatement(
                         "DELETE FROM miot_core." + table + " WHERE tenant_code LIKE ?")) {
                     st.setString(1, tenant + "%");
@@ -115,14 +115,25 @@ class JdbcSelectableStoreTest {
 
     @Test
     void defaultsAreWrittenOnceEvenAfterEveryListIsDeleted() {
-        assertFalse(store.isSeeded(tenant));
         store.seed(tenant, List.of(list(tenant, "reasons", "Motivos")));
         store.delete(tenant, "reasons");
 
         store.seed(tenant, List.of(list(tenant, "reasons", "Motivos")));
 
-        assertTrue(store.isSeeded(tenant));
         assertTrue(store.list(tenant).isEmpty());
+    }
+
+    @Test
+    void aDefaultListAddedLaterReachesASeededTenantAndKeepsATenantsOwnList() {
+        store.seed(tenant, List.of(list(tenant, "reasons", "Motivos")));
+        store.upsert(list(tenant, "families", "Mías"));
+
+        store.seed(tenant, List.of(list(tenant, "reasons", "Motivos"), list(tenant, "tags", "Etiquetas"),
+                list(tenant, "families", "Familias")));
+
+        assertEquals(List.of("reasons", "families", "tags"),
+                store.list(tenant).stream().map(Selectable::key).toList());
+        assertEquals("Mías", store.find(tenant, "families").orElseThrow().name().get("es"));
     }
 
     @Test
@@ -147,7 +158,9 @@ class JdbcSelectableStoreTest {
 
         assertEquals(List.of("reasons"), store.list(tenant).stream().map(Selectable::key).toList());
         assertTrue(store.bindings(tenant).isEmpty());
-        assertTrue(store.isSeeded(tenant));
+        store.delete(tenant, "reasons");
+        store.seed(tenant, List.of(list(tenant, "reasons", "Motivos")));
+        assertTrue(store.list(tenant).isEmpty());
     }
 
     /** Each call takes its own connection, as two replicas would. */
@@ -207,7 +220,6 @@ class JdbcSelectableStoreTest {
         assertThrows(IllegalArgumentException.class, () -> service.replace(tenant, "o", "sub", onMissing));
 
         assertEquals(List.of("reasons"), service.list(tenant).stream().map(Selectable::key).toList());
-        assertTrue(store.isSeeded(tenant));
     }
 
     @Test
@@ -219,7 +231,6 @@ class JdbcSelectableStoreTest {
         });
 
         assertEquals(List.of("reasons", "extra"), store.list(tenant).stream().map(Selectable::key).toList());
-        assertTrue(store.isSeeded(tenant));
     }
 
     private static void await(CountDownLatch latch) {

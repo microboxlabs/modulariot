@@ -13,9 +13,9 @@ import java.util.NoSuchElementException;
 import java.util.function.Function;
 
 /**
- * The families a symptom can belong to: the organization's
- * {@value #KEY} list in Ajustes › Seleccionables. Organizations whose lists
- * were created before this one existed get the defaults from {@value #RESOURCE}.
+ * The families a symptom can belong to: the organization's {@value #KEY} list in
+ * Ajustes › Seleccionables, and nothing else. {@value #RESOURCE} only seeds that
+ * list for a new organization.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -48,12 +48,12 @@ public class SymptomFamilies implements SelectableDefaults {
         return lists;
     }
 
-    /** The organization's families, or the defaults when it has no such list. */
+    /** The organization's families; none when it has no such list. */
     public List<SelectableOption> options(String tenantCode) {
         try {
             return tenantOptions.apply(tenantCode);
         } catch (NoSuchElementException e) {
-            return lists.get(0).options();
+            return List.of();
         }
     }
 }

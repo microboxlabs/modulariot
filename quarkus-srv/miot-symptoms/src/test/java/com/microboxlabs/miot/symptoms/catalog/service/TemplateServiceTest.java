@@ -8,6 +8,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Report;
 import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import java.util.HashSet;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
@@ -40,9 +41,8 @@ class TemplateServiceTest {
     @Test
     void everyTemplateFamilyIsADefaultFamily() {
         Set<String> families = new HashSet<>();
-        new SymptomFamilies(tenant -> {
-            throw new NoSuchElementException("no list");
-        }).options("tenant-a").forEach(o -> families.add(o.value()));
+        new SymptomFamilies(tenant -> List.of()).forTenant("tenant-a").get(0).options()
+                .forEach(o -> families.add(o.value()));
         for (SymptomTemplate t : templates.list()) {
             assertTrue(families.contains(t.family()), t.key() + ": " + t.family());
         }

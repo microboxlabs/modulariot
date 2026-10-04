@@ -2881,6 +2881,7 @@
         "duplicateAsNew": "Duplicate as a new symptom",
         "familyWord": "Family",
         "familySource": "from Settings › Selectables › Symptom families",
+        "familyListMissing": "the organization has no Symptom families list in Settings › Selectables",
         "originTemplate": "From the {name} template",
         "variantName": "{name} (variant)",
         "originForkOf": "Copy of {name} {version}",

@@ -59,7 +59,7 @@ class McpSelectablesTest {
             for (String sql : List.of(
                     "DELETE FROM miot_core.selectable_bindings WHERE tenant_code = ?",
                     "DELETE FROM miot_core.selectables WHERE tenant_code = ?",
-                    "DELETE FROM miot_core.selectable_tenants WHERE tenant_code = ?")) {
+                    "DELETE FROM miot_core.selectable_seeded_keys WHERE tenant_code = ?")) {
                 try (var st = c.prepareStatement(sql)) {
                     st.setString(1, ORG_TENANT);
                     st.executeUpdate();

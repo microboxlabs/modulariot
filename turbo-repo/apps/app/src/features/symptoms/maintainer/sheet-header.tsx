@@ -248,7 +248,12 @@ export default function SheetHeader({
               {familyLabel(family, families, lang) || "—"}
             </span>
           )}
-          <span>· {tr("familySource", d)}</span>
+          <span>
+            ·{" "}
+            {families && families.length === 0
+              ? tr("familyListMissing", d)
+              : tr("familySource", d)}
+          </span>
           <span>· {originText(def, templates, d, forkedFrom)}</span>
         </div>
       </div>

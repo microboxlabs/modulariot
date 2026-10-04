@@ -16,7 +16,7 @@ RuleDescriber = Callable[[str, str, dict[str, str], str], Awaitable[str]]
 MAX_DESCRIPTION_CHARS = 600
 _ALLOWED_TAGS = frozenset({"b", "i", "mark"})
 _TAG = re.compile(r"<(/?)([a-zA-Z]+)>")
-_ENTITY = re.compile(r"&(?:[a-zA-Z]{2,8}|#[0-9]{1,6}|#x[0-9a-fA-F]{1,6});")
+_ENTITY = re.compile(r"&(?:[a-zA-Z]{2,8}|#\d{1,6}|#x[0-9a-fA-F]{1,6});", re.ASCII)
 
 _SYSTEM_PROMPT = (
     "You explain monitoring rules to the owner of a logistics control tower. "

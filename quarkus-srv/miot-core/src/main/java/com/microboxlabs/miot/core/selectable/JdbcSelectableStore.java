@@ -156,9 +156,9 @@ public class JdbcSelectableStore implements SelectableStore {
     public void seed(String tenantCode, List<Selectable> defaults) {
         inTransaction(c -> {
             markTenantSeeded(c, tenantCode);
-            for (Selectable s : defaults) {
-                if (markSeeded(c, tenantCode, s.key())) {
-                    try (PreparedStatement st = c.prepareStatement(INSERT_IF_ABSENT)) {
+            try (PreparedStatement st = c.prepareStatement(INSERT_IF_ABSENT)) {
+                for (Selectable s : defaults) {
+                    if (markSeeded(c, tenantCode, s.key())) {
                         bind(st, s);
                         st.executeUpdate();
                     }

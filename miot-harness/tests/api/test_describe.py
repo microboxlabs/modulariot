@@ -94,6 +94,10 @@ def test_sanitizer_keeps_character_references() -> None:
     assert sanitize_description(once) == once
 
 
+def test_sanitizer_escapes_numeric_references_with_non_ascii_digits() -> None:
+    assert sanitize_description("&#123; &#١٢٣;") == "&#123; &amp;#١٢٣;"
+
+
 def test_sanitizer_cap_counts_code_points() -> None:
     truck = "\U0001f69a"
     out = sanitize_description("x" * (MAX_DESCRIPTION_CHARS - 1) + truck + "yz")

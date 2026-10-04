@@ -1,5 +1,7 @@
 import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
+import { isCarrierOrg, requireCarrierData } from "@/app/api/utils/carrier-scope";
 
 const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/rpc/api_modular_symptoms_table`;
 
@@ -92,6 +94,15 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url);
   const params = buildApiParams(url.searchParams);
+
+  // PT2: org carrier ⇒ p_carrier_id se fuerza desde el scope (se ignora el
+  // valor del navegador; regla de oro §A.4).
+  const scopeResult = await resolveTenantScope();
+  if (scopeResult.resolved && isCarrierOrg(scopeResult.scope)) {
+    const guard = requireCarrierData(scopeResult.scope);
+    if (guard) return guard;
+    params.set("p_carrier_id", scopeResult.scope.effectiveTaxIds[0]);
+  }
 
   async function fetchSymptomsData(params: URLSearchParams) {
     const token = await authToken.getToken();

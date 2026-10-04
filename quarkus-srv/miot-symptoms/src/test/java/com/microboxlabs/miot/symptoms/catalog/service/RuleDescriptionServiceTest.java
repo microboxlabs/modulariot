@@ -1,0 +1,276 @@
+package com.microboxlabs.miot.symptoms.catalog.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
+import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.Caller;
+import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.Description;
+import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.UnavailableException;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
+import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+class RuleDescriptionServiceTest {
+
+    private static final String TENANT = "tenant-a";
+    private static final Caller CALLER = new Caller("Bearer t", "client-a", "owner@example.com");
+
+    private InMemoryRuleDescriptions store;
+    private DataSourceService sources;
+    private final List<Map<String, Object>> calls = new ArrayList<>();
+    private String answer;
+
+    @BeforeEach
+    void setUp() {
+        store = new InMemoryRuleDescriptions();
+        sources = new DataSourceService(new InMemoryCatalog(), new UnavailableSymptomEngine());
+        answer = "Se activa cuando el camión está <b>en viaje</b>.";
+        calls.clear();
+    }
+
+    private RuleDescriptionService service() {
+        return new RuleDescriptionService(store, sources, (caller, body) -> {
+            assertEquals(CALLER, caller);
+            calls.add(body);
+            return answer;
+        });
+    }
+
+    @Test
+    void writesOnceAndServesSpacingChangesFromTheCache() {
+        RuleDescriptionService service = service();
+
+        Description first = service.describe(TENANT, "activation", "signal.trip.active", "gps_signal", null, CALLER);
+        Description second = service.describe(TENANT, "activation", "  signal.trip.active\n", "gps_signal", "es-CL",
+                CALLER);
+
+        assertFalse(first.cached());
+        assertTrue(second.cached());
+        assertEquals(first.html(), second.html());
+        assertEquals(1, calls.size());
+        assertEquals(1, store.size());
+    }
+
+    @Test
+    void theListReadsEveryActivationTextInOneLookupAndFallsBackToTheDefinitionSource() {
+        RuleDescriptionService service = service();
+        service.describe(TENANT, "activation", "signal.trip.active", "gps_signal", null, CALLER);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        SymptomSpec withSource = new SymptomSpec("gps_signal", "signal.trip.active", null, List.of(), null, null);
+        SymptomSpec sourceless = new SymptomSpec(null, " signal.trip.active ", null, List.of(), null, null);
+        SymptomSpec other = new SymptomSpec("gps_signal", "!signal.trip.active", null, List.of(), null, null);
+        List<SymptomSummary> list = List.of(summary(withSource, now), summary(sourceless, now), summary(other, now),
+                summary(null, now));
+
+        List<String> texts = service.withActivationTexts(list).stream().map(SymptomSummary::activationText).toList();
+
+        assertEquals(Arrays.asList(answer, answer, null, null), texts);
+        assertEquals(1, store.lookups, "one lookup for the whole list");
+        assertEquals(1, calls.size(), "the list never calls the Harness");
+    }
+
+    private static SymptomSummary summary(SymptomSpec spec, OffsetDateTime now) {
+        return new SymptomSummary(new SymptomDefinition(UUID.randomUUID(), TENANT, "k", "n", null, null, null,
+                "gps_signal", null, null, null, SymptomState.ACTIVE, "1.0.0", "o", now, "o", now), false,
+                spec == null ? null : SymptomVersion.draft(UUID.randomUUID(), TENANT, spec, "o", now), null);
+    }
+
+    @Test
+    void eachDistinctRuleSectionOrLocaleCallsTheHarness() {
+        RuleDescriptionService service = service();
+
+        service.describe(TENANT, "activation", "signal.trip.active", "gps_signal", null, CALLER);
+        service.describe(TENANT, "activation", "!signal.trip.active", "gps_signal", null, CALLER);
+        service.describe(TENANT, "measure", "signal.trip.active", "gps_signal", null, CALLER);
+        service.describe(TENANT, "activation", "signal.trip.active", "gps_signal", "en-US", CALLER);
+
+        assertEquals(4, calls.size());
+    }
+
+    @Test
+    void sendsTheSourceLabelsAndTheSectionVariables() {
+        RuleDescriptionService service = service();
+
+        service.describe(TENANT, "activation", "signal.trip.active", "gps_signal", null, CALLER);
+        service.describe(TENANT, "levels.2", "medida >= 11 && sostenido_s > 60", "gps_signal", null, CALLER);
+        service.describe(TENANT, "lifecycle.close", "caso.normal_s >= 120", "gps_signal", null, CALLER);
+
+        Map<?, ?> activation = (Map<?, ?>) calls.get(0).get("fields");
+        assertEquals("En viaje", activation.get("signal.trip.active"));
+        assertFalse(activation.containsKey("medida"));
+        assertEquals("es-CL", calls.get(0).get("locale"));
+
+        Map<?, ?> level = (Map<?, ?>) calls.get(1).get("fields");
+        assertEquals("valor medido", level.get("medida"));
+        assertTrue(level.containsKey("sostenido_s"));
+
+        Map<?, ?> lifecycle = (Map<?, ?>) calls.get(2).get("fields");
+        assertTrue(lifecycle.containsKey("caso.normal_s"));
+        assertFalse(lifecycle.containsKey("signal.trip.active"));
+    }
+
+    @Test
+    void theWholeLevelsSectionIsCachedPerLineAndGetsTheLevelLabels() {
+        RuleDescriptionService service = service();
+        String levels = """
+                medida = signal.gps.speed_kmh - signal.road.maxspeed_osm
+                nivel 1: medida > 0 && medida < 5
+                nivel 4: medida >= 21 && sostenido_s >= 60""";
+        String respaced = """
+
+                  medida =  signal.gps.speed_kmh - signal.road.maxspeed_osm\t
+                nivel 1:   medida > 0 && medida < 5
+
+                nivel 4: medida >= 21   && sostenido_s >= 60
+                """;
+
+        assertFalse(service.describe(TENANT, "levels", levels, "gps_signal", null, CALLER).cached());
+        assertTrue(service.describe(TENANT, "levels", respaced, "gps_signal", null, CALLER).cached());
+        assertFalse(service.describe(TENANT, "levels", levels.replace("< 5", "< 6"), "gps_signal", null, CALLER)
+                .cached());
+
+        assertEquals(2, calls.size());
+        assertEquals("levels", calls.get(0).get("section"));
+        Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
+        assertEquals("Velocidad", fields.get("signal.gps.speed_kmh"));
+        assertEquals("valor medido", fields.get("medida"));
+        assertTrue(fields.containsKey("sostenido_s"));
+        assertFalse(fields.containsKey("caso.nivel"));
+    }
+
+    @Test
+    void theWholeLifecycleSectionIsCachedPerLineAndGetsTheCaseLabels() {
+        RuleDescriptionService service = service();
+        String lifecycle = "abre: caso.condicion_s >= 0\ncierra: caso.normal_s >= 120";
+
+        assertFalse(service.describe(TENANT, "lifecycle", lifecycle, "gps_signal", null, CALLER).cached());
+        String respaced = """
+                  abre:  caso.condicion_s >= 0\s
+
+                cierra: caso.normal_s  >= 120
+                """;
+        assertTrue(service.describe(TENANT, "lifecycle", respaced, "gps_signal", null, CALLER).cached());
+
+        assertEquals(1, calls.size());
+        Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
+        assertEquals("segundos desde que volvió a la normalidad", fields.get("caso.normal_s"));
+        assertFalse(fields.containsKey("signal.trip.active"));
+        assertFalse(fields.containsKey("medida"));
+    }
+
+    @Test
+    void theOverviewIsCachedPerLineAndGetsEveryLabel() {
+        RuleDescriptionService service = service();
+        String overview = """
+                activa: signal.trip.active
+                medida: signal.gps.speed_kmh - 90 (km/h)
+                nivel 3: medida >= 11 · operador 5 min
+                abre: caso.condicion_s >= 0
+                cierra: caso.normal_s >= 120""";
+
+        assertFalse(service.describe(TENANT, "overview", overview, "gps_signal", null, CALLER).cached());
+        assertTrue(service.describe(TENANT, "overview", overview.replace("\n", "\n\n  "), "gps_signal", null,
+                CALLER).cached());
+
+        assertEquals(1, calls.size());
+        Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
+        assertTrue(fields.containsKey("signal.trip.active"));
+        assertTrue(fields.containsKey("medida"));
+        assertTrue(fields.containsKey("caso.normal_s"));
+    }
+
+    @Test
+    void spacesInsideAQuotedValueMakeANewText() {
+        RuleDescriptionService service = service();
+        String yard = "activa: signal.geo.zone == \"North Yard\"\nabre: caso.condicion_s >= 0";
+
+        assertFalse(service.describe(TENANT, "overview", yard, "gps_signal", null, CALLER).cached());
+        assertTrue(service.describe(TENANT, "overview", yard.replace(" == ", "  ==   "), "gps_signal", null,
+                CALLER).cached());
+        assertFalse(service.describe(TENANT, "overview", yard.replace("North Yard", "North  Yard"), "gps_signal",
+                null, CALLER).cached());
+        assertEquals(2, calls.size());
+    }
+
+    @Test
+    void sanitizesTheHarnessAnswerBeforeSaving() {
+        answer = "<b onclick=\"x()\">a</b> <script>alert(1)</script> <i>b</i> <mark>c";
+        RuleDescriptionService service = service();
+
+        String html = service.describe(TENANT, "activation", "signal.trip.active", "gps_signal", null, CALLER)
+                .html();
+
+        assertEquals("&lt;b onclick=\"x()\"&gt;a &lt;script&gt;alert(1)&lt;/script&gt; <i>b</i> <mark>c</mark>",
+                html);
+        assertEquals(html, service.describe(TENANT, "activation", "signal.trip.active", "gps_signal", null, CALLER)
+                .html());
+    }
+
+    @Test
+    void sanitizingTwiceChangesNothingAndLengthIsCapped() {
+        String once = DescriptionHtml.sanitize("a &lt;b&gt; & <b>c</b>");
+        assertEquals("a &lt;b&gt; &amp; <b>c</b>", once);
+        assertEquals(once, DescriptionHtml.sanitize(once));
+        assertEquals("<b>" + "x".repeat(DescriptionHtml.MAX_CHARS) + "</b>",
+                DescriptionHtml.sanitize("<b>" + "x".repeat(1000) + "</b>"));
+    }
+
+    @Test
+    void theCapCountsCodePointsAndKeepsSurrogatePairsWhole() {
+        String truck = "🚚";
+        String atBoundary = "x".repeat(DescriptionHtml.MAX_CHARS - 1) + truck + "yz";
+
+        String out = DescriptionHtml.sanitize(atBoundary);
+
+        assertEquals("x".repeat(DescriptionHtml.MAX_CHARS - 1) + truck, out);
+        assertEquals(DescriptionHtml.MAX_CHARS, out.codePointCount(0, out.length()));
+        assertEquals(DescriptionHtml.MAX_CHARS * 2, DescriptionHtml.sanitize(truck.repeat(700)).length());
+    }
+
+    @Test
+    void anUnavailableHarnessIsReportedAndNothingIsSaved() {
+        RuleDescriptionService down = new RuleDescriptionService(store, sources, (caller, body) -> {
+            throw new IllegalStateException("connection refused");
+        });
+        RuleDescriptionService empty = new RuleDescriptionService(store, sources, (caller, body) -> "  ");
+
+        assertThrows(UnavailableException.class,
+                () -> down.describe(TENANT, "activation", "signal.trip.active", "gps_signal", null, CALLER));
+        assertThrows(UnavailableException.class,
+                () -> empty.describe(TENANT, "activation", "signal.trip.active", "gps_signal", null, CALLER));
+        assertEquals(0, store.size());
+    }
+
+    @Test
+    void badInputIsRefused() {
+        RuleDescriptionService service = service();
+        String tooLong = "x".repeat(4001);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.describe(TENANT, "levels.5", "medida > 1", "gps_signal", null, CALLER));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.describe(TENANT, "activation", " ", "gps_signal", null, CALLER));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.describe(TENANT, "activation", tooLong, "gps_signal", null, CALLER));
+        assertThrows(IllegalArgumentException.class,
+                () -> service.describe(TENANT, "activation", "true", "gps_signal", "<script>", CALLER));
+        assertThrows(NoSuchElementException.class,
+                () -> service.describe(TENANT, "activation", "true", "missing", null, CALLER));
+        assertEquals(0, calls.size());
+    }
+}

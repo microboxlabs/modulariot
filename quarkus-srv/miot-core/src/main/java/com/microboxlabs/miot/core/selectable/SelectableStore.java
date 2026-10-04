@@ -27,13 +27,17 @@ public interface SelectableStore {
      */
     void bindAll(String tenantCode, Map<String, String> fieldToSelectable);
 
-    /** Whether the tenant already got its default lists. */
-    boolean isSeeded(String tenantCode);
-
-    /** Marks the tenant seeded and, only if it was not yet, writes {@code defaults}. All or nothing. */
+    /**
+     * Writes each list of {@code defaults} whose key the tenant was never given, and records the key. A key is
+     * given once: deleting its list does not bring it back. A list the tenant already has under that key is kept.
+     * All or nothing.
+     */
     void seed(String tenantCode, List<Selectable> defaults);
 
-    /** Replaces every list and binding of the tenant with {@code lists}, and marks it seeded. All or nothing. */
+    /**
+     * Replaces every list and binding of the tenant with {@code lists}, and records their keys as given. All or
+     * nothing.
+     */
     void resetTo(String tenantCode, List<Selectable> lists);
 
     /**

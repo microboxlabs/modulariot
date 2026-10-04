@@ -28,6 +28,12 @@
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>
         <dependency>
+            <!-- CEL, the language symptom rules are written in: type-checks them against a source schema. -->
+            <groupId>dev.cel</groupId>
+            <artifactId>cel</artifactId>
+            <version>0.11.1</version>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-reactive-pg-client</artifactId>
         </dependency>

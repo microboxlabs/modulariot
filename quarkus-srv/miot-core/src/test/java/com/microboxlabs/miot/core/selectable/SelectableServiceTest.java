@@ -54,6 +54,20 @@ class SelectableServiceTest {
     }
 
     @Test
+    void aProviderAddedLaterGivesItsListToATenantSeededBefore() {
+        InMemorySelectableStore store = new InMemorySelectableStore();
+        SelectableDefaults reasons = tenant -> List.of(list(tenant, "reason", SelectionMode.SINGLE, "r_1"));
+        SelectableDefaults tags = tenant -> List.of(list(tenant, "tags", SelectionMode.MULTIPLE, "t_1"));
+        SelectableService before = new SelectableService(store, List.of(reasons), events::add);
+        before.list(TENANT);
+        before.delete(TENANT, "o", "reason");
+
+        SelectableService afterDeploy = new SelectableService(store, List.of(reasons, tags), events::add);
+
+        assertEquals(List.of("tags"), afterDeploy.list(TENANT).stream().map(Selectable::key).toList());
+    }
+
+    @Test
     void deletingEverythingDoesNotReseedButResetDoes() {
         service.list(TENANT).forEach(s -> service.delete(TENANT, "o", s.key()));
         assertTrue(service.list(TENANT).isEmpty());

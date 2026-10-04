@@ -19,11 +19,15 @@ class ContinuousDrivingRuleCasesTest {
     private static final SymptomSpec PRODUCTION = EvalTraces.spec("continuous-driving", "production-rule.json");
     private static final DataSource CHECK = EvalTraces.source("trip_check");
 
-    /** One check every 5 minutes with these net driving minutes; one driver unless said otherwise. */
+    /** One check every 5 minutes with these net driving minutes, on a trip. */
     private static List<String> run(boolean doubleDriver, double... minutes) {
+        return run(true, doubleDriver, minutes);
+    }
+
+    private static List<String> run(boolean onTrip, boolean doubleDriver, double... minutes) {
         List<Signal> signals = new ArrayList<>();
         for (int i = 0; i < minutes.length; i++) {
-            signals.add(new Signal(i * 300, EvalTraces.root(Map.of("check.trip.active", true,
+            signals.add(new Signal(i * 300, EvalTraces.root(Map.of("check.trip.active", onTrip,
                     "check.trip.double_driver", doubleDriver, "check.driving_minutes", minutes[i]))));
         }
         return EvalTraces.replay(PRODUCTION, CHECK, signals);
@@ -54,7 +58,18 @@ class ContinuousDrivingRuleCasesTest {
     }
 
     @Test
-    void twoDriversOpenNothing() {
+    void twoDriversOrNoTripOpenNothing() {
         assertEquals(List.of(), run(true, 300, 330, 360));
+        assertEquals(List.of(), run(false, false, 300, 330, 360));
+    }
+
+    @Test
+    void theTripEndingClosesTheCase() {
+        List<Signal> signals = List.of(
+                new Signal(0, EvalTraces.root(Map.of("check.trip.active", true, "check.trip.double_driver", false,
+                        "check.driving_minutes", 300.0))),
+                new Signal(300, EvalTraces.root(Map.of("check.trip.active", false, "check.trip.double_driver", false,
+                        "check.driving_minutes", 300.0))));
+        assertEquals(List.of(opened(0, 2), closed(300, 2)), EvalTraces.replay(PRODUCTION, CHECK, signals));
     }
 }

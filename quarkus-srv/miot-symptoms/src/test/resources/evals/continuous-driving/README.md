@@ -36,3 +36,7 @@ A model of this tracker reproduced 5 of the 6 legacy episodes on the trips that 
 From one day of a carrier fleet's trips, only trips that started inside that day (the tracker needs the whole trip). Kept where the model reproduced the engine's episodes and case levels exactly. Of each run under 4 h 30 min only the first signal is kept. Columns: `[seconds, net driving minutes]`. No plates, coordinates, ids or dates.
 
 Four trips is a small set; a longer export would add more.
+
+## Cadence
+
+The legacy rule checks on every GPS signal, and the traces replay them so. `trip_check` declares one check every 5 minutes. `ContinuousDrivingParityEvalTest.atTheSourcesFiveMinuteCadence` replays the same trips at that cadence: the cases and level sequences are the same, and each transition comes at most 5 minutes later.

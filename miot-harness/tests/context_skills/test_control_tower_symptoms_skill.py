@@ -65,5 +65,6 @@ def test_boot_offers_the_skill_when_the_modulith_is_configured(
 
     assert MCP_CALL_TOOL in registry.names()
     skill = result.bundle.find_mcp_skill("tenant-a", _SKILL)
-    assert skill is not None and skill.mcp is not None
+    assert skill is not None
+    assert skill.mcp is not None
     assert skill.mcp.url == "http://modulith:8180/api/v1/mcp"

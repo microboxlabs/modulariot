@@ -1,0 +1,6 @@
+{
+  "v06" : {
+    "reason" : "level 4 needs 45 min driving: production counts them from the start of the case, the evaluator from when the level's time window starts (02:30)",
+    "evaluator" : [ "OPENED@38343:0>1", "LEVEL_CHANGED@39602:1>2", "LEVEL_CHANGED@41402:2>3", "CLOSED@41523:3>3" ]
+  }
+}

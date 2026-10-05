@@ -1,0 +1,78 @@
+# Consultas y conexiones
+
+Los dashboards leen datos a través de tres capas. Cada capa pertenece a una persona distinta, y eso es lo que mantiene seguros los datos.
+
+| Capa | Responsable | Contiene |
+| --- | --- | --- |
+| **Conexión** | Administrador | Dónde están los datos y la credencial para acceder a ellos |
+| **Operación** | Administrador | Una acción de solo lectura sobre una conexión, y los parámetros que acepta |
+| **Consulta guardada** | Editor del dashboard | Qué operación usa un dashboard, y qué valor recibe cada parámetro |
+
+Quien ve el dashboard solo elige valores de filtros. Un editor solo elige entre operaciones aprobadas. Solo un administrador decide qué hace una operación.
+
+## Una consulta guardada
+
+```json
+{
+  "id": "trips",
+  "variableName": "trips",
+  "connectionId": "fleet-db",
+  "operationId": "trips-by-day",
+  "parameters": {
+    "days": { "kind": "literal", "value": 30 },
+    "vehicle": { "kind": "filter", "key": "vehicle", "omitWhenEmpty": true }
+  }
+}
+```
+
+No contiene URL, SQL ni credenciales. Por eso un documento de dashboard se puede exportar, compartir y revisar sin riesgo.
+
+## Qué ocurre cuando se ejecuta una consulta
+
+1. El navegador envía `POST .../dashboards/{slug}/queries/{queryId}` con los valores actuales de los filtros.
+2. El servidor comprueba que la persona puede leer el dashboard.
+3. Lee la consulta guardada desde el documento **guardado**, no desde la solicitud.
+4. Completa los parámetros: los literales tal como se guardaron, los vínculos a filtros con los valores de filtros de la solicitud. Los filtros que la consulta no declara se ignoran.
+5. Pide al host de datos que resuelva la operación para la organización de la persona.
+6. Ejecuta la operación con un plazo y límites de tamaño, y devuelve `{"data": {"rows": [...]}}`.
+
+Un ID de consulta desconocido, un valor inválido o una llamada fallida al sistema de origen devuelven un error breve. Los detalles del sistema de origen nunca llegan al navegador.
+
+## Mantener separadas las organizaciones
+
+Una operación debe demostrar que solo devuelve datos de la organización. Declara uno de dos métodos:
+
+| Método | Cómo funciona |
+| --- | --- |
+| Parámetro de organización | El host inserta el código de la organización en un parámetro con nombre. Nadie más puede enviar ese parámetro, aunque tenga el valor correcto. |
+| Limitado por credencial | La credencial de la conexión solo puede leer datos de esta organización. El administrador lo declara. |
+
+Un vínculo literal en una consulta guardada **no** es un control de seguridad: un editor puede cambiarlo. Los valores que deben aplicarse a todos van en la operación, como parámetro de organización o como valor fijo `const`.
+
+## Tipos de operación
+
+| Tipo | Llama a | Notas |
+| --- | --- | --- |
+| `HTTP_GET` | Un endpoint HTTP de solo lectura, como una función de PostgREST | Solo `https`. Solo los encabezados `authorization`, `x-api-key` y `apikey`. El origen debe estar aprobado. |
+| `BIGQUERY` | SQL de BigQuery guardado | Antes de cada ejecución, una ejecución de prueba (dry run) comprueba que es un `SELECT` dentro de su tope de facturación |
+
+## Límites
+
+Toda consulta está acotada, sea cual sea la operación:
+
+| Límite | Predeterminado |
+| --- | --- |
+| Tiempo | 20 segundos |
+| Filas | 5.000 |
+| Tamaño del resultado | 2 MiB de JSON |
+| Columnas por fila | 100 |
+| Consultas simultáneas, por servidor | 8 |
+| Consultas simultáneas, por dashboard abierto | 4 |
+
+Los valores de las filas deben ser texto, números, verdadero/falso, null o listas planas de esos tipos. Los objetos anidados hacen fallar la consulta.
+
+## El catálogo de consultas
+
+Durante la edición, la UI pide al servidor el **catálogo de consultas**: las conexiones y operaciones que esta persona puede usar. Contiene solo IDs, etiquetas y nombres de columnas, nunca credenciales, URL ni SQL. Ver una operación en el catálogo no otorga el derecho a ejecutarla; cada ejecución se vuelve a verificar.
+
+Sin catálogo, los editores no pueden elegir operaciones nuevas, pero las consultas guardadas siguen ejecutándose.

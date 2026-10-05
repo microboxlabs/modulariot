@@ -1,0 +1,228 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Incrustar un dashboard en una página web
+
+En este tutorial dibuja un dashboard de su propio servidor en una página HTML simple. No usa ningún framework ni paso de compilación. Al final, la página muestra una tarjeta de texto, una barra de progreso y una tarjeta que lee resultados de una consulta.
+
+Toma unos 20 minutos.
+
+## Antes de empezar
+
+- Node.js 22.13 o posterior.
+- Python 3, o cualquier otra herramienta que sirva archivos estáticos. Los pasos usan `python3 -m http.server`.
+- Complete el [Inicio rápido](/es/products/dashboards/getting-started/quickstart) una vez, para saber cómo responde el servidor.
+
+<Steps>
+
+### Inicie el servidor con acceso desde el navegador
+
+Una página en otra dirección (origen) puede llamar al servidor solo si el servidor permite ese origen. Inícielo con el origen de su página y con el header de desarrollo permitido:
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true \
+MIOT_DASHBOARD_SEED=example \
+MIOT_DASHBOARD_STORE=sqlite \
+MIOT_DASHBOARD_CORS_ORIGINS=http://127.0.0.1:8091 \
+MIOT_DASHBOARD_CORS_HEADERS=x-dev-user \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+### Guarde un dashboard
+
+Guarde este archivo como `sales.json`. Tiene tres widgets y una consulta guardada. Los dos primeros llevan una pequeña muestra de datos en `staticData`; el tercero lee la consulta guardada.
+
+```json filename="sales.json"
+{
+  "version": 2,
+  "name": "Ventas",
+  "preferences": { "editMode": false },
+  "queries": [
+    {
+      "id": "monthly-sales",
+      "variableName": "sales",
+      "connectionId": "crm",
+      "operationId": "monthly-sales",
+      "parameters": {}
+    }
+  ],
+  "widgets": [
+    {
+      "id": "revenue",
+      "componentId": "text_card",
+      "layout": { "i": "revenue", "x": 0, "y": 0, "w": 12, "h": 3 },
+      "config": {
+        "text": "Ingresos de este mes: {{total}}",
+        "italic": false,
+        "staticData": "{\"total\": \"$12,400\"}"
+      },
+      "createdAt": "2026-10-05T00:00:00Z",
+      "updatedAt": "2026-10-05T00:00:00Z"
+    },
+    {
+      "id": "target",
+      "componentId": "percentage_value",
+      "layout": { "i": "target", "x": 12, "y": 0, "w": 12, "h": 3 },
+      "config": {
+        "title": "Meta mensual",
+        "value": "{{sold}}",
+        "max": "{{target}}",
+        "staticData": "{\"target\": 20000, \"sold\": 12400}"
+      },
+      "createdAt": "2026-10-05T00:00:00Z",
+      "updatedAt": "2026-10-05T00:00:00Z"
+    },
+    {
+      "id": "best",
+      "componentId": "text_card",
+      "layout": { "i": "best", "x": 0, "y": 3, "w": 24, "h": 3 },
+      "config": {
+        "text": "Más vendido: {{product}} ({{units}} unidades)",
+        "italic": false,
+        "dataMode": "planner",
+        "plannerVariableName": "sales"
+      },
+      "createdAt": "2026-10-05T00:00:00Z",
+      "updatedAt": "2026-10-05T00:00:00Z"
+    }
+  ]
+}
+```
+
+Envíelo al servidor:
+
+```bash
+curl -X PUT http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards/sales \
+  -H 'x-dev-user: alice' -H 'If-Match: "0"' \
+  -H 'Content-Type: application/json' --data @sales.json
+```
+
+El texto entre llaves dobles, como `{{total}}`, es una plantilla. El widget la completa con sus datos: `staticData` para los dos primeros widgets y el resultado de la consulta `sales` para el tercero.
+
+### Obtenga los archivos para el navegador
+
+La biblioteca de UI incluye una versión autocontenida para el navegador. Cópiela junto con su hoja de estilos en una carpeta nueva:
+
+```bash
+mkdir site && cd site
+npm pack @microboxlabs/miot-dashboard-ui
+tar xzf microboxlabs-miot-dashboard-ui-*.tgz
+cp package/dist/browser/browser.js dashboard-runtime.js
+cp package/styles.css dashboard.css
+```
+
+`dashboard-runtime.js` contiene todo lo que necesita. Su página no instala React.
+
+### Escriba la página
+
+Cree `index.html`:
+
+```html filename="index.html"
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ventas</title>
+    <link rel="stylesheet" href="./dashboard.css" />
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Ventas</h1>
+    <div id="dashboard"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
+```
+
+Cree `app.js`:
+
+```js filename="app.js"
+import {
+  mountDashboard,
+  createTextCardRegistry,
+  createPercentageValueRegistry,
+} from "./dashboard-runtime.js";
+
+const DASHBOARD =
+  "http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards/sales";
+
+// 1. Elija los widgets que esta página puede dibujar.
+const labels = {
+  loadingLabel: "Cargando…",
+  errorLabel: "No se pudieron cargar los datos.",
+  unsupportedDataLabel: "Este widget necesita una consulta guardada.",
+};
+const definitions = [
+  ...createTextCardRegistry({ ...labels, defaultText: "Sin texto" }).all(),
+  ...createPercentageValueRegistry({ ...labels, defaultTitle: "Progreso" }).all(),
+];
+const registry = { get: (id) => definitions.find((d) => d.meta.id === id) };
+
+// 2. Cargue el documento del dashboard desde el servidor.
+const response = await fetch(DASHBOARD, { headers: { "x-dev-user": "alice" } });
+const { data: dashboard } = await response.json();
+
+// 3. Responda las consultas guardadas. Esta página devuelve filas fijas; el paso 6 explica la llamada real.
+const queryClient = {
+  key: () => "sales",
+  query: async () => [{ product: "Panel solar", units: 42 }],
+};
+
+// 4. Dibújelo.
+mountDashboard(document.getElementById("dashboard"), {
+  instanceKey: "alice/sales",
+  registry,
+  widgets: dashboard.widgets,
+  unknownWidgetLabel: "Este widget no está disponible en esta página.",
+  savedQueries: {
+    client: queryClient,
+    slug: "sales",
+    queries: dashboard.queries,
+    filters: {},
+    refreshIntervalMs: 0,
+    paused: false,
+    errorMessage: labels.errorLabel,
+  },
+});
+```
+
+### Ábrala
+
+Sirva la carpeta y ábrala en un navegador:
+
+```bash
+python3 -m http.server 8091 --bind 127.0.0.1
+```
+
+Vaya a `http://127.0.0.1:8091/`. Verá:
+
+- **Ingresos de este mes: $12,400**, desde el `staticData` de la primera tarjeta.
+- **Meta mensual 12400 / 20000 (62%)**, una barra de progreso.
+- **Más vendido: Panel solar (42 unidades)**, desde la consulta `sales`.
+
+Si la página queda vacía, abra la consola del navegador. Un error de CORS significa que el servidor se inició sin `MIOT_DASHBOARD_CORS_ORIGINS` definido con el origen exacto de la página.
+
+### Entienda qué hace cada parte
+
+| Parte | Función |
+| --- | --- |
+| `registry` | Los widgets que esta página sabe dibujar. Un widget cuyo `componentId` no está en él muestra `unknownWidgetLabel`. |
+| `instanceKey` | Identifica a esta persona y este dashboard. Cámbielo cuando cambie la persona con sesión iniciada o el dashboard, para que no se arrastre ningún estado. No es un secreto. |
+| `savedQueries.client` | Obtiene los resultados de las consultas. Los widgets con `dataMode: "planner"` los leen por `variableName`. |
+| `mountDashboard` | Dibuja el dashboard y devuelve `update(options)` y `destroy()`. Llame a `destroy()` antes de quitar el elemento. |
+
+En una página real, `queryClient.query` le pregunta al servidor: `POST /tenants/{tenant}/scopes/{scope}/dashboards/{slug}/queries/{queryId}` con `{"filters": {}}`. El servidor ejecuta la operación con credenciales que el navegador nunca ve y responde `{"data": {"rows": [...]}}`. Para eso, el servidor necesita un ejecutor de consultas; consulte [Consultas y conexiones](/es/products/dashboards/concepts/queries-and-connections).
+
+</Steps>
+
+<Callout type="warning">
+Este tutorial envía el header `x-dev-user`, que solo funciona en un servidor de desarrollo. En producción, su página envía `Authorization: Bearer <token>` desde su proveedor de identidad. Mantenga ese token fuera de los atributos HTML y de los logs.
+</Callout>
+
+## Próximos pasos
+
+- Use un elemento personalizado en lugar de `mountDashboard`: [Usar el Web Component](/es/products/dashboards/how-to/use-web-component).
+- Construya la página en React: [Renderizar con React](/es/products/dashboards/how-to/render-with-react).
+- Vea cada widget y su función de registro: [Catálogo de widgets](/es/products/dashboards/reference/widgets).
+- Configure un inicio de sesión real: [Autenticar usuarios](/es/products/dashboards/how-to/authenticate-users).

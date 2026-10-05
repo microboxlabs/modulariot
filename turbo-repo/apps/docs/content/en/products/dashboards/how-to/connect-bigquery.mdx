@@ -1,0 +1,59 @@
+import { Callout } from 'nextra/components'
+
+# Connect BigQuery
+
+This guide is for administrators. It lets dashboards run saved BigQuery SQL. Viewers and editors never see or send SQL: they pick an operation and supply parameter values.
+
+## What you need
+
+- A Google service account with permission to run jobs and read the datasets the SQL uses. Nothing more.
+- A BigQuery connection whose base URL is `https://bigquery.googleapis.com`, with that service account as its credential.
+- The credential's OAuth scope set to `https://www.googleapis.com/auth/bigquery`. The scope does not grant extra permissions; IAM still decides.
+
+## Define the operation
+
+A BigQuery operation is a POST operation on the connection. Its request schema declares the parameters and, in `x-dashboard`, the SQL and its limits:
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "days": { "type": "integer", "minimum": 1, "maximum": 90 }
+  },
+  "required": ["days"],
+  "x-dashboard": {
+    "readOnly": true,
+    "kind": "BIGQUERY",
+    "credentialScoped": true,
+    "projectId": "my-project",
+    "location": "US",
+    "query": "SELECT day, SUM(trips) AS trips FROM `my-project.fleet.daily` WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY) GROUP BY day ORDER BY day",
+    "maximumBytesBilled": "500000000",
+    "parameterTypes": { "days": "INT64" }
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `query` | The SQL. Parameters are named placeholders such as `@days`. Values are never pasted into the SQL. |
+| `parameterTypes` | The BigQuery type of each parameter: `STRING`, `INT64`, `FLOAT64`, `NUMERIC`, `BIGNUMERIC`, `BOOL`, `DATE`, `DATETIME`, `TIME`, `TIMESTAMP`, or a flat array such as `ARRAY<STRING>`. Use `{}` for none. |
+| `maximumBytesBilled` | The most the query may scan, in bytes, as a decimal string. It cannot exceed the host ceiling (1 GB by default). |
+| `projectId`, `location` | Where the job runs |
+
+## What happens on every run
+
+1. A dry run checks that the statement is a `SELECT` and that its estimated scan fits under `maximumBytesBilled`.
+2. The job runs with the same billing cap and a 20-second timeout.
+3. Only complete, flat results come back: at most 5,000 rows and 2 MiB.
+
+Nested or repeated columns, and results that need more than one page, are refused. Shape the SQL for the dashboard: aggregate, and select only the columns widgets show.
+
+<Callout type="info">
+Each run costs a dry run plus the query. Use the dashboard's automatic refresh sparingly on expensive operations.
+</Callout>
+
+## Without ModularIoT
+
+A standalone server can run BigQuery through `createBigQueryOperationExecutor` from `@microboxlabs/miot-dashboard-server/queries`. You supply a `resolve(request)` function that checks the organization's connection and returns the plan, the parameters and a short-lived access token. See [Server library](/en/products/dashboards/reference/server-library#query-executors).

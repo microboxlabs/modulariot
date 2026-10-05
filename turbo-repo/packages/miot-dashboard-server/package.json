@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/microboxlabs/modulariot",
+    "url": "git+https://github.com/microboxlabs/modulariot.git",
     "directory": "turbo-repo/packages/miot-dashboard-server"
   },
   "description": "Framework-agnostic backend services for MIOT embeddable dashboards: persistence, identity and tenancy, datasource proxying, embed tokens.",

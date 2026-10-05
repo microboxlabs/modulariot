@@ -37,7 +37,7 @@ class StoryToolsTest {
         final OrganizationContext organization;
 
         FakeAccess(TenantContext tenant, OrganizationContext organization) {
-            super(tenant, organization, null);
+            super(tenant, organization, null, null);
             this.tenant = tenant;
             this.organization = organization;
         }

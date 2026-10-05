@@ -26,6 +26,7 @@ import { filterSettings } from "@/features/layout/models/pages";
 import { useSpotlightState } from "./use-spotlight-state";
 import { useHarnessSearch } from "./use-harness-search";
 import { usePagefindSearch } from "./use-pagefind-search";
+import { isSymptomItem, useSymptomSearch } from "./use-symptom-search";
 import { SpotlightBackdrop } from "./spotlight-backdrop";
 import { SpotlightInput } from "./spotlight-input";
 import { SpotlightResults } from "./spotlight-results";
@@ -346,11 +347,22 @@ export default function SpotlightSearch({
   );
 
   // ── Pagefind static search (falls back to fuzzy in dev) ──────────────────
-  const staticResults = usePagefindSearch(
+  const pageResults = usePagefindSearch(
     query,
     navigateItems,
     canAccess,
     onNavigate
+  );
+  // Symptom names are data, so Pagefind does not index them.
+  const symptomResults = useSymptomSearch(
+    query,
+    isOpen,
+    navigateItems,
+    onNavigate
+  );
+  const staticResults = useMemo(
+    () => [...pageResults, ...symptomResults],
+    [pageResults, symptomResults]
   );
 
   // ── Manual harness search — fires only after user commits ─────────────────
@@ -480,7 +492,7 @@ export default function SpotlightSearch({
           payload: { itemId: item.id, itemKind: item.kind },
         });
       }
-      if (item.kind === "navigate") addRecentItem(item);
+      if (item.kind === "navigate" && !isSymptomItem(item)) addRecentItem(item);
       item.onSelect();
       close();
     },

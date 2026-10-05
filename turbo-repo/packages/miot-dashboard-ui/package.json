@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/microboxlabs/modulariot",
+    "url": "git+https://github.com/microboxlabs/modulariot.git",
     "directory": "turbo-repo/packages/miot-dashboard-ui"
   },
   "type": "module",

@@ -40,7 +40,7 @@ class SelectableToolsTest {
         final List<String> asked = new ArrayList<>();
 
         FakeAccess(TenantContext tenant, OrganizationContext organization) {
-            super(tenant, organization, null);
+            super(tenant, organization, null, null);
             this.tenant = tenant;
             this.organization = organization;
         }
@@ -62,7 +62,7 @@ class SelectableToolsTest {
         final OrganizationContext organization;
 
         FakeRoles(OrganizationContext organization) {
-            super(null, organization);
+            super(null, organization, null, null);
             this.organization = organization;
         }
 

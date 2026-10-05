@@ -1,0 +1,78 @@
+# Queries and connections
+
+Dashboards read data through three layers. Each layer is owned by a different person, which is what keeps data safe.
+
+| Layer | Owned by | Holds |
+| --- | --- | --- |
+| **Connection** | Administrator | Where the data lives and the credential to reach it |
+| **Operation** | Administrator | One read-only action on a connection, and the parameters it accepts |
+| **Saved query** | Dashboard editor | Which operation a dashboard uses, and which value each parameter gets |
+
+A viewer only chooses filter values. An editor only chooses among approved operations. Only an administrator decides what an operation does.
+
+## A saved query
+
+```json
+{
+  "id": "trips",
+  "variableName": "trips",
+  "connectionId": "fleet-db",
+  "operationId": "trips-by-day",
+  "parameters": {
+    "days": { "kind": "literal", "value": 30 },
+    "vehicle": { "kind": "filter", "key": "vehicle", "omitWhenEmpty": true }
+  }
+}
+```
+
+It contains no URL, SQL or credential. That is why a dashboard document is safe to export, share and review.
+
+## What happens when a query runs
+
+1. The browser sends `POST .../dashboards/{slug}/queries/{queryId}` with the current filter values.
+2. The server checks that the person may read the dashboard.
+3. It reads the saved query from the **stored** document, not from the request.
+4. It fills the parameters: literals as saved, filter bindings from the request's filter values. Filters the query does not declare are ignored.
+5. It asks the data host to resolve the operation for the person's organization.
+6. It runs the operation with a deadline and size limits, and returns `{"data": {"rows": [...]}}`.
+
+An unknown query ID, an invalid value or a failed upstream call returns a short error. Upstream details never reach the browser.
+
+## Keeping organizations apart
+
+An operation must prove it only returns the organization's data. It declares one of two methods:
+
+| Method | How it works |
+| --- | --- |
+| Tenant parameter | The host inserts the organization's code into a named parameter. Nobody else can send that parameter, even with the right value. |
+| Credential-scoped | The connection's credential can only read this organization's data. The administrator declares it. |
+
+A literal binding in a saved query is **not** a security control: an editor can change it. Values that must hold for everyone belong in the operation, as a tenant parameter or a fixed `const` value.
+
+## Operation types
+
+| Kind | Calls | Notes |
+| --- | --- | --- |
+| `HTTP_GET` | A read-only HTTP endpoint, such as a PostgREST function | `https` only. Only `authorization`, `x-api-key` and `apikey` headers. The origin must be approved. |
+| `BIGQUERY` | Saved BigQuery SQL | A dry run checks it is a `SELECT` within its billing cap before every run |
+
+## Limits
+
+Every query is bounded, whatever the operation:
+
+| Limit | Default |
+| --- | --- |
+| Time | 20 seconds |
+| Rows | 5,000 |
+| Result size | 2 MiB of JSON |
+| Columns per row | 100 |
+| Queries running at once, per server | 8 |
+| Queries running at once, per open dashboard | 4 |
+
+Row values must be text, numbers, true/false, null, or flat lists of those. Nested objects fail the query.
+
+## The query catalog
+
+While editing, the UI asks the server for the **query catalog**: the connections and operations this person may use. It contains IDs, labels and column names only, never credentials, URLs or SQL. Seeing an operation in the catalog does not grant the right to run it; every run is checked again.
+
+Without a catalog, editors cannot pick new operations, but saved queries keep running.

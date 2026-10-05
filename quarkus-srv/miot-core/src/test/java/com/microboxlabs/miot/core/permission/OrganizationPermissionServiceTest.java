@@ -87,7 +87,7 @@ class OrganizationPermissionServiceTest {
         private final Map<String, String> roles;
 
         FakeRoleService(Map<String, String> roles) {
-            super(null, null);
+            super(null, null, null, null);
             this.roles = roles;
         }
 

@@ -9,6 +9,11 @@ import { CARRIER_PORTAL_MODULE } from "@/features/auth/config/carrier-matrix";
  * Regla de oro (diseno_pt1_portal.md §A.4): el tenant JAMÁS viaja desde el
  * cliente y una org carrier NUNCA degrada a "sin filtro": sin tax ids ⇒ 403.
  * (La degradación sin filtro de Phase 1 sigue permitida para orgs de torre.)
+ *
+ * Nota: en esta rama solo viven las guardas de scope puro que usan la vista
+ * de síntomas y el proxy de autogestión. Las variantes que consultan
+ * StreamHub (getCarrierPatentes / assertCarrierTrip) llegan con el portal
+ * completo.
  */
 
 export function isCarrierOrg(scope: TenantScope): boolean {

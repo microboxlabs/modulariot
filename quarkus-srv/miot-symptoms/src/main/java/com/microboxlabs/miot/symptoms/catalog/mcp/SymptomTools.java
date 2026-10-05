@@ -2,8 +2,7 @@ package com.microboxlabs.miot.symptoms.catalog.mcp;
 
 import com.microboxlabs.miot.core.mcp.McpCaller;
 import com.microboxlabs.miot.core.selectable.SelectableOption;
-import com.microboxlabs.miot.symptoms.access.ControlTowerAccess;
-import com.microboxlabs.miot.symptoms.access.ControlTowerPermission;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceKind;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
@@ -27,7 +26,6 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.ForbiddenException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -106,34 +104,20 @@ public class SymptomTools {
     private final DataSourceService sources;
     private final PreviewService previews;
     private final SymptomFamilies families;
-    private final ControlTowerAccess access;
 
     @Inject
     public SymptomTools(McpCaller caller, SymptomCatalogService catalog, DataSourceService sources,
-            PreviewService previews, SymptomFamilies families, ControlTowerAccess access) {
+            PreviewService previews, SymptomFamilies families) {
         this.caller = caller;
         this.catalog = catalog;
         this.sources = sources;
         this.previews = previews;
         this.families = families;
-        this.access = access;
     }
 
-    /** A caller with {@link ControlTowerPermission#VIEW}, as the REST reads require. */
+    /** The same permissions the REST endpoints declare; see {@link ControlTowerAccessCatalog}. */
     private Uni<McpCaller.Entered> viewer(String organization) {
-        return permitted(organization, ControlTowerPermission.VIEW);
-    }
-
-    /** A caller with {@link ControlTowerPermission#MAINTAIN}, as the REST catalog writes require. */
-    private Uni<McpCaller.Entered> maintainer(String organization) {
-        return permitted(organization, ControlTowerPermission.MAINTAIN);
-    }
-
-    private Uni<McpCaller.Entered> permitted(String organization, ControlTowerPermission permission) {
-        return caller.member(organization).flatMap(in -> access.require(organization, permission)
-                .onFailure(ForbiddenException.class)
-                .transform(e -> new ToolCallException(e.getMessage()))
-                .replaceWith(in));
+        return caller.permitted(organization, ControlTowerAccessCatalog.VIEW);
     }
 
     @Tool(name = "symptoms_list", structuredContent = true,
@@ -249,7 +233,7 @@ public class SymptomTools {
             @ToolArg(description = ORGANIZATION) String organization,
             @ToolArg(description = SYMPTOM_ID) String symptomId,
             @ToolArg(description = SPEC) SymptomSpec spec) {
-        return maintainer(organization)
+        return caller.permitted(organization, ControlTowerAccessCatalog.SYMPTOM_EDIT)
                 .flatMap(in -> work(() -> catalog.saveDraft(in.tenantCode(), in.actor(), uuid(symptomId), spec)));
     }
 
@@ -271,7 +255,8 @@ public class SymptomTools {
                     + " draft's state, else the symptom's (TEST for a first version). ACTIVE is refused while the"
                     + " rules use fields the engine does not evaluate yet.", required = false)
             SymptomState state) {
-        return maintainer(organization).flatMap(in -> work(() -> catalog.publish(in.tenantCode(), in.actor(),
+        return caller.permitted(organization, ControlTowerAccessCatalog.SYMPTOM_PUBLISH)
+                .flatMap(in -> work(() -> catalog.publish(in.tenantCode(), in.actor(),
                 uuid(symptomId), reason, bump, state)));
     }
 
@@ -288,12 +273,13 @@ public class SymptomTools {
             @ToolArg(description = "The published version to go back to, e.g. 1.2.0.") String version,
             @ToolArg(description = "Why, in the owner's words. \"Volver a <version>\" when left out.",
                     required = false) String reason) {
-        return maintainer(organization).flatMap(in -> work(() -> {
-            if (version == null || version.isBlank()) {
-                throw new IllegalArgumentException("version is required");
-            }
-            return catalog.rollback(in.tenantCode(), in.actor(), uuid(symptomId), version, reason);
-        }));
+        return caller.permitted(organization, ControlTowerAccessCatalog.SYMPTOM_PUBLISH)
+                .flatMap(in -> work(() -> {
+                    if (version == null || version.isBlank()) {
+                        throw new IllegalArgumentException("version is required");
+                    }
+                    return catalog.rollback(in.tenantCode(), in.actor(), uuid(symptomId), version, reason);
+                }));
     }
 
     @Tool(name = "symptoms_set_state", structuredContent = true,
@@ -307,12 +293,13 @@ public class SymptomTools {
             @ToolArg(description = ORGANIZATION) String organization,
             @ToolArg(description = SYMPTOM_ID) String symptomId,
             @ToolArg(description = "OFF, TEST or ACTIVE.") SymptomState state) {
-        return maintainer(organization).flatMap(in -> work(() -> {
-            if (state == null) {
-                throw new IllegalArgumentException("state is required");
-            }
-            return catalog.setState(in.tenantCode(), in.actor(), uuid(symptomId), state);
-        }));
+        return caller.permitted(organization, ControlTowerAccessCatalog.SYMPTOM_PUBLISH)
+                .flatMap(in -> work(() -> {
+                    if (state == null) {
+                        throw new IllegalArgumentException("state is required");
+                    }
+                    return catalog.setState(in.tenantCode(), in.actor(), uuid(symptomId), state);
+                }));
     }
 
     private static SourceSummary summary(DataSource s) {

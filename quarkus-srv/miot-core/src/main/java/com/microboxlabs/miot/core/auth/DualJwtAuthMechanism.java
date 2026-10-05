@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.auth;
 
+import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import io.quarkus.security.identity.IdentityProviderManager;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.quarkus.security.credential.TokenCredential;
@@ -11,6 +12,7 @@ import io.vertx.ext.web.RoutingContext;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.enterprise.inject.Alternative;
 import jakarta.ws.rs.Path;
 import java.util.ArrayList;
@@ -62,6 +64,10 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     private JwtConsumer hs256Consumer;
     private JwtConsumer rs256Consumer;
     private List<Pattern> m2mPathPatterns;
+
+    /** Adds the organization permission checker; this mechanism skips the identity augmentors. */
+    @Inject
+    IamIdentityAugmentor iam;
 
     DualJwtAuthMechanism(
             @ConfigProperty(name = "miot.auth.hs256-issuer", defaultValue = "https://placeholder.auth0.com/")
@@ -185,7 +191,11 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
                 JwtClaims claims = consumer.processToClaims(token);
                 LOG.debugf("Token verified via %s for path %s. sub=%s",
                         alg, path, claims.getSubject());
-                return createIdentity(token, claims);
+                SecurityIdentity identity = createIdentity(token, claims);
+                return identity == null || iam == null
+                        ? identity
+                        : iam.withOrgPermissions(identity,
+                                context.request().getHeader(IamIdentityAugmentor.DEV_EMAIL_HEADER));
             } catch (Exception e) {
                 LOG.debugf("%s verification failed for path %s: %s",
                         alg, path, e.getMessage());

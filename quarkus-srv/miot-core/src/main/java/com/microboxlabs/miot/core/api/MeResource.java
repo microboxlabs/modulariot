@@ -1,8 +1,8 @@
 package com.microboxlabs.miot.core.api;
 
-import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
 import com.microboxlabs.miot.core.api.dto.OrganizationScopeDto;
-import com.microboxlabs.miot.core.auth.OrganizationMembership;
+import com.microboxlabs.miot.core.iam.AccessEvaluator;
+import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationModule;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
@@ -51,19 +51,12 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class MeResource {
 
     private final SecurityIdentity securityIdentity;
-    private final IAlfrescoMembershipClient membershipClient;
-    private final OrganizationRoleService roleService;
-    private final OrganizationMembership membership;
+    private final AccessEvaluator evaluator;
 
     @Inject
-    public MeResource(SecurityIdentity securityIdentity,
-                      IAlfrescoMembershipClient membershipClient,
-                      OrganizationRoleService roleService,
-                      OrganizationMembership membership) {
+    public MeResource(SecurityIdentity securityIdentity, AccessEvaluator evaluator) {
         this.securityIdentity = securityIdentity;
-        this.membershipClient = membershipClient;
-        this.roleService = roleService;
-        this.membership = membership;
+        this.evaluator = evaluator;
     }
 
     @GET
@@ -88,9 +81,6 @@ public class MeResource {
         // membership check with a single lookup + in-memory filter.
         Uni<List<OrganizationScopeDto>> acc = Uni.createFrom().item(new ArrayList<>());
         for (Organization org : orgs) {
-            if (!membership.isNative() && org.alfrescoGroupId == null) {
-                continue; // orgs without an Alfresco binding are invisible
-            }
             acc = acc.flatMap(list -> buildScopeIfMember(org, email)
                     .map(scope -> {
                         if (scope != null) {
@@ -103,23 +93,21 @@ public class MeResource {
         return acc.map(List::copyOf);
     }
 
+    /**
+     * The org's scope when the caller is a member. With Alfresco membership, an org without an Alfresco group is
+     * left out: every signed-in user would otherwise see it.
+     */
     private Uni<OrganizationScopeDto> buildScopeIfMember(Organization org, String email) {
-        Uni<Boolean> member = membership.isNative()
-                ? membership.assignedRoles(org, email).map(roles -> !roles.isEmpty())
-                : membershipClient.isMember(email, org.alfrescoGroupId);
-        return member
-                .onFailure().recoverWithItem(() -> Boolean.FALSE)
-                .flatMap(isMember -> {
-                    if (!Boolean.TRUE.equals(isMember)) {
-                        return Uni.createFrom().nullItem();
-                    }
-                    return roleService.resolveApplicationRole(org, email)
-                            .onFailure().recoverWithItem(
-                                    OrganizationRoleService.MEMBER_ACCESS_ROLE)
-                            .flatMap(role -> {
-                                return assembleScope(org, role);
-                            });
-                });
+        return evaluator.membershipNative(org).flatMap(nativeMembership -> {
+            if (!nativeMembership && org.alfrescoGroupId == null) {
+                return Uni.createFrom().nullItem();
+            }
+            return evaluator.evaluate(org, Caller.user(email))
+                    .onFailure().recoverWithNull()
+                    .flatMap(access -> access == null || !access.member()
+                            ? Uni.createFrom().<OrganizationScopeDto>nullItem()
+                            : assembleScope(org, OrganizationRoleService.accessRole(access)));
+        });
     }
 
     private Uni<OrganizationScopeDto> assembleScope(Organization org, String role) {

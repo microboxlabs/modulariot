@@ -67,11 +67,13 @@ public class TeamService {
 
     private final AccessEvaluator evaluator;
     private final IamDirectory directory;
+    private final AlfrescoBridge bridge;
 
     @Inject
-    public TeamService(AccessEvaluator evaluator, IamDirectory directory) {
+    public TeamService(AccessEvaluator evaluator, IamDirectory directory, AlfrescoBridge bridge) {
         this.evaluator = evaluator;
         this.directory = directory;
+        this.bridge = bridge;
     }
 
     // --- members ---
@@ -116,6 +118,10 @@ public class TeamService {
                             return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 "
                                             + "and principalId = ?3", root.id, IamRoleBinding.USER, userId.toString())
                                     .flatMap(ignored -> m.delete())
+                                    .flatMap(ignored -> IamUser.<IamUser>findById(userId))
+                                    .flatMap(user -> user == null
+                                            ? Uni.createFrom().voidItem()
+                                            : bridge.memberRemoved(root.id, user.email))
                                     .flatMap(ignored -> directory.audit(root.id, actor.name(), "member.removed",
                                             userId.toString(), Map.of("baseRole", m.baseRole)));
                         }))))));
@@ -247,6 +253,9 @@ public class TeamService {
             m.baseRole = BaseRole.max(BaseRole.valueOf(m.baseRole), invited).name();
             m.status = "ACTIVE";
             return m.<IamMembership>persist()
+                    .flatMap(saved -> existing == null
+                            ? bridge.memberAdded(invitation.organizationId, me)
+                            : Uni.createFrom().voidItem())
                     .flatMap(saved -> addRoles(invitation.organizationId, user.id, invitation.roles(), me))
                     .flatMap(ignored -> {
                         invitation.status = IamInvitation.ACCEPTED;

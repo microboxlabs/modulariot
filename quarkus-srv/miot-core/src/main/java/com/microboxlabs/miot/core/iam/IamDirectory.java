@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.iam.model.IamUser;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +21,10 @@ import java.util.UUID;
  */
 @ApplicationScoped
 public class IamDirectory {
+
+    /** Queues Alfresco projection for memberships created here; absent in unit tests. */
+    @Inject
+    AlfrescoBridge bridge;
 
     /** The organization's owners' emails, sorted. */
     public Uni<List<String>> owners(Long organizationId) {
@@ -110,7 +115,10 @@ public class IamDirectory {
                 .flatMap(existing -> existing != null
                         ? Uni.createFrom().item(existing)
                         : IamMembership.of(organizationId, user.id, baseRole.name(), "NATIVE", actor)
-                                .<IamMembership>persist()));
+                                .<IamMembership>persist()
+                                .call(created -> bridge == null
+                                        ? Uni.createFrom().voidItem()
+                                        : bridge.memberAdded(organizationId, user.email))));
     }
 
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.

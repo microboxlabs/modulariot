@@ -127,6 +127,31 @@ class IamAccessTest {
     }
 
     @Test
+    void aDisabledUserLosesAccessAndEmailsAreMatchedOnce() throws SQLException {
+        given().header("Authorization", bearer(PLATFORM_OWNER)).contentType("application/json")
+                .body("{\"slug\":\"" + NATIVE_ORG + "\",\"name\":\"Native\",\"tenantClientId\":\"iam-native-client\"}")
+                .when().post("/api/v1/platform/orgs").then().statusCode(201);
+        given().header("Authorization", bearer(PLATFORM_OWNER)).contentType("application/json")
+                .body("{\"assigneeIds\":[\"" + ANA + "\"]}")
+                .when().put("/api/v1/platform/orgs/" + NATIVE_ORG + "/roles/ORGANIZATION_OWNER").then().statusCode(200);
+
+        // The same person twice, in different case, is one holder.
+        given().header("Authorization", bearer(ANA)).contentType("application/json")
+                .body("{\"assigneeIds\":[\"Bo@IAM.test\",\"bo@iam.test\"]}")
+                .when().put("/api/v1/orgs/" + NATIVE_ORG + "/roles/" + CoreAccessCatalog.HARNESS_TRAINER)
+                .then().statusCode(200).body("assigneeIds", contains(BO));
+
+        exec("UPDATE miot_iam.iam_user SET status = 'DISABLED' WHERE email = '" + BO + "'");
+        try {
+            given().header("Authorization", bearer(BO))
+                    .when().get("/api/v1/orgs/" + NATIVE_ORG + "/me/access")
+                    .then().statusCode(403);
+        } finally {
+            exec("UPDATE miot_iam.iam_user SET status = 'ACTIVE' WHERE email = '" + BO + "'");
+        }
+    }
+
+    @Test
     void theCatalogListsCorePermissionsAndRoles() {
         given().header("Authorization", bearer(ANA))
                 .when().get("/api/v1/access/catalog")

@@ -110,7 +110,7 @@ class OrganizationPermissionServiceTest {
 
         @Override
         Uni<Boolean> isAllowed(
-                Long organizationId,
+                Organization organization,
                 OrganizationPermissionDefinition permission,
                 String subjectId) {
             assignmentChecks.add(subjectId);

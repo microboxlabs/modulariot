@@ -65,8 +65,8 @@ public class McpCaller {
     /** A member holding {@code permission} in the organization, as the REST endpoints require. */
     public Uni<Entered> permitted(String organization, String permission) {
         return member(organization).flatMap(entered -> roles.access(organization, caller())
-                .map(access -> {
-                    if (!access.can(permission)) {
+                .map(granted -> {
+                    if (!granted.can(permission)) {
                         throw new ToolCallException("Permission required: " + permission);
                     }
                     return entered;

@@ -40,6 +40,7 @@ public class IamMembership extends PanacheEntityBase {
     public String createdBy;
 
     public IamMembership() {
+        // Required by JPA.
     }
 
     public static IamMembership of(Long organizationId, UUID userId, String baseRole, String source, String actor) {

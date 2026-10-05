@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.auth.PlatformTestProfile;
@@ -79,8 +80,8 @@ class IamAccessTest {
                 .body("{\"slug\":\"" + NATIVE_ORG + "\",\"name\":\"Native\",\"tenantClientId\":\"iam-native-client\"}")
                 .when().post("/api/v1/platform/orgs")
                 .then().statusCode(201);
-        assertTrue(scalar("SELECT membership_source FROM miot_core.organizations WHERE slug = '" + NATIVE_ORG + "'")
-                .equals("NATIVE"));
+        assertEquals("NATIVE",
+                scalar("SELECT membership_source FROM miot_core.organizations WHERE slug = '" + NATIVE_ORG + "'"));
 
         // Nobody belongs to it yet, the Alfresco member included.
         given().header("Authorization", bearer(MEMBER))

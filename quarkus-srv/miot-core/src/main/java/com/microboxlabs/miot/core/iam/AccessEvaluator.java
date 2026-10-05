@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * The only place that decides what a caller may do in an organization. The org filter, the permission checks on
@@ -150,6 +151,7 @@ public class AccessEvaluator {
     }
 
     /** The top-level organization of {@code org}: itself, or its parent. Needs an open session. */
+    @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
     public Uni<Organization> root(Organization org) {
         if (org.parent == null) {
             return Uni.createFrom().item(org);
@@ -177,13 +179,10 @@ public class AccessEvaluator {
     public static Set<String> covered(List<IamRoleBinding> bindings, Organization org, Organization root) {
         Instant now = Instant.now();
         Long parentId = org.parent == null ? null : root.id;
-        Set<String> roles = new TreeSet<>();
-        for (IamRoleBinding b : bindings) {
-            if (b.covers(org.id, parentId, now)) {
-                roles.add(b.roleKey);
-            }
-        }
-        return roles;
+        return bindings.stream()
+                .filter(b -> b.covers(org.id, parentId, now))
+                .map(b -> b.roleKey)
+                .collect(Collectors.toCollection(TreeSet::new));
     }
 
     static BaseRole highest(List<IamMembership> memberships) {

@@ -99,7 +99,7 @@ public class MeResource {
      */
     private Uni<OrganizationScopeDto> buildScopeIfMember(Organization org, String email) {
         return evaluator.membershipNative(org).flatMap(nativeMembership -> {
-            if (!nativeMembership && org.alfrescoGroupId == null) {
+            if (!Boolean.TRUE.equals(nativeMembership) && org.alfrescoGroupId == null) {
                 return Uni.createFrom().nullItem();
             }
             return evaluator.evaluate(org, Caller.user(email))

@@ -76,8 +76,9 @@ class TeamApiTest {
                 .body("{\"token\":\"" + token + "\"}")
                 .when().post("/api/v1/me/invitations/accept")
                 .then().statusCode(200)
-                .body("baseRole", is("MEMBER"))
-                .body("roles", contains("HARNESS_TRAINER"));
+                .body("organization", is(ORG))
+                .body("member.baseRole", is("MEMBER"))
+                .body("member.roles", contains("HARNESS_TRAINER"));
 
         given().header("Authorization", bearer(NEWCOMER)).when().get("/api/v1/orgs/" + ORG + "/me/access")
                 .then().statusCode(200).body("roles", contains("HARNESS_TRAINER"));

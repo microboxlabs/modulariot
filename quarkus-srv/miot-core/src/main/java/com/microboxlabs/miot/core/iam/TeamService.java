@@ -52,6 +52,10 @@ public class TeamService {
     public record CreatedInvitation(InvitationView invitation, String token) {
     }
 
+    /** The organization joined (its slug) and the new membership. */
+    public record AcceptedInvitation(String organization, MemberView member) {
+    }
+
     public record InviteRequest(List<String> emails, String baseRole, List<String> roles, Integer expiresInDays) {
     }
 
@@ -202,7 +206,7 @@ public class TeamService {
     }
 
     /** Accepts by token: the signed-in user's email must be the invited one. */
-    public Uni<MemberView> acceptToken(String token, String email, String subject, String name) {
+    public Uni<AcceptedInvitation> acceptToken(String token, String email, String subject, String name) {
         if (token == null || token.isBlank()) {
             throw new IllegalArgumentException("token is required");
         }
@@ -211,12 +215,12 @@ public class TeamService {
     }
 
     /** Accepts one of the caller's own invitations, found by email after sign-in. */
-    public Uni<MemberView> acceptMine(UUID invitationId, String email, String subject, String name) {
+    public Uni<AcceptedInvitation> acceptMine(UUID invitationId, String email, String subject, String name) {
         return Panache.withTransaction(() -> IamInvitation.<IamInvitation>findById(invitationId)
                 .flatMap(invitation -> accept(invitation, email, subject, name)));
     }
 
-    private Uni<MemberView> accept(IamInvitation invitation, String email, String subject, String name) {
+    private Uni<AcceptedInvitation> accept(IamInvitation invitation, String email, String subject, String name) {
         Instant now = Instant.now();
         if (invitation == null || !invitation.open(now)) {
             throw new NoSuchElementException("Invitation not found or expired");
@@ -252,7 +256,9 @@ public class TeamService {
                     })
                     .flatMap(ignored -> directory.audit(invitation.organizationId, me, "invitation.accepted", me,
                             Map.of("baseRole", m.baseRole, "roles", invitation.roles())))
-                    .flatMap(ignored -> view(invitation.organizationId, m));
+                    .flatMap(ignored -> view(invitation.organizationId, m))
+                    .flatMap(member -> Organization.<Organization>findById(invitation.organizationId)
+                            .map(org -> new AcceptedInvitation(org == null ? null : org.slug, member)));
         }));
     }
 

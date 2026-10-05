@@ -77,6 +77,9 @@ public class AccessEvaluator {
                 return Uni.createFrom().item(Access.none(org.id, org.slug));
             }
             return IamUser.findByEmail(caller.email()).flatMap(user -> {
+                if (user != null && !"ACTIVE".equals(user.status)) {
+                    return Uni.createFrom().item(Access.none(org.id, org.slug));
+                }
                 Uni<List<IamMembership>> memberships = user == null
                         ? Uni.createFrom().item(List.of())
                         : IamMembership.findFor(scope, user.id);
@@ -136,7 +139,8 @@ public class AccessEvaluator {
         });
     }
 
-    private Uni<Organization> root(Organization org) {
+    /** The top-level organization of {@code org}: itself, or its parent. Needs an open session. */
+    public Uni<Organization> root(Organization org) {
         if (org.parent == null) {
             return Uni.createFrom().item(org);
         }
@@ -150,7 +154,8 @@ public class AccessEvaluator {
         return IamRoleBinding.findFor(scope, IamRoleBinding.USER, List.of(user.id.toString()));
     }
 
-    static Set<String> covered(List<IamRoleBinding> bindings, Organization org, Organization root) {
+    /** The role keys of the bindings that apply to {@code org}: in scope and not expired. */
+    public static Set<String> covered(List<IamRoleBinding> bindings, Organization org, Organization root) {
         Instant now = Instant.now();
         Long parentId = org.parent == null ? null : root.id;
         Set<String> roles = new TreeSet<>();

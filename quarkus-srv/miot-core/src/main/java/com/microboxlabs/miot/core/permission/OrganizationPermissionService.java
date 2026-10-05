@@ -5,9 +5,8 @@ import com.microboxlabs.miot.core.api.dto.AuthorizationDecisionDto;
 import com.microboxlabs.miot.core.api.dto.OrganizationPermissionDto;
 import com.microboxlabs.miot.core.api.dto.SetOrganizationPermissionRequest;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
+import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.IamDirectory;
-import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
-import com.microboxlabs.miot.core.iam.model.IamUser;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationPermissionSetting;
 import io.quarkus.hibernate.reactive.panache.Panache;
@@ -79,7 +78,7 @@ public class OrganizationPermissionService {
         String subjectId = request.subjectId().trim();
 
         return Panache.withSession(() -> findOrganization(organizationSlug)
-                .flatMap(org -> isAllowed(org.id, permission, subjectId))
+                .flatMap(org -> isAllowed(org, permission, subjectId))
                 .map(allowed -> new AuthorizationDecisionDto(
                         permission.permissionCode(), subjectId, allowed)));
     }
@@ -119,12 +118,12 @@ public class OrganizationPermissionService {
             OrganizationPermissionDefinition permission,
             String personId) {
         if (!permission.grantedToOwners()) {
-            return isAllowed(organization.id, permission, personId);
+            return isAllowed(organization, permission, personId);
         }
         return roleService.resolveApplicationRole(organization, personId)
                 .flatMap(role -> OrganizationRoleService.OWNER_ACCESS_ROLE.equals(role)
                         ? Uni.createFrom().item(true)
-                        : isAllowed(organization.id, permission, personId));
+                        : isAllowed(organization, permission, personId));
     }
 
     private static Uni<Void> forbidden(OrganizationPermissionDefinition permission) {
@@ -180,30 +179,27 @@ public class OrganizationPermissionService {
                                 holders)));
     }
 
+    /**
+     * Whether the organization has the permission switched on and the subject holds its role. A user's roles come from
+     * the evaluator (membership, scope, expiry, parent organization); an M2M client's from its bindings that apply.
+     */
     Uni<Boolean> isAllowed(
-            Long organizationId,
+            Organization organization,
             OrganizationPermissionDefinition permission,
             String subjectId) {
         return OrganizationPermissionSetting
-                .findSetting(organizationId, permission.permissionCode())
+                .findSetting(organization.id, permission.permissionCode())
                 .flatMap(setting -> {
                     if (setting == null || !setting.enabled) {
                         return Uni.createFrom().item(false);
                     }
-                    return holdsRole(organizationId, permission.roleCode(), subjectId);
+                    if (!IamDirectory.isEmail(subjectId)) {
+                        return roleService.clientRoles(organization, subjectId)
+                                .map(roles -> roles.contains(permission.roleCode()));
+                    }
+                    return roleService.access(organization, Caller.user(subjectId))
+                            .map(access -> access.roles().contains(permission.roleCode()));
                 });
-    }
-
-    /** Whether the user with this email, or the client with this id, holds the role on the organization. */
-    private static Uni<Boolean> holdsRole(Long organizationId, String roleCode, String subjectId) {
-        if (!IamDirectory.isEmail(subjectId)) {
-            return IamRoleBinding.findFor(List.of(organizationId), IamRoleBinding.CLIENT, List.of(subjectId))
-                    .map(bindings -> bindings.stream().anyMatch(b -> roleCode.equals(b.roleKey)));
-        }
-        return IamUser.findByEmail(subjectId).flatMap(user -> user == null
-                ? Uni.createFrom().item(false)
-                : IamRoleBinding.findFor(List.of(organizationId), IamRoleBinding.USER, List.of(user.id.toString()))
-                        .map(bindings -> bindings.stream().anyMatch(b -> roleCode.equals(b.roleKey))));
     }
 
     private static Set<String> normalizeAssignees(SetOrganizationPermissionRequest request) {

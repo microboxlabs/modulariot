@@ -6,10 +6,12 @@ import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.iam.model.IamUser;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 /**
@@ -52,12 +54,20 @@ public class IamDirectory {
                 }));
     }
 
-    /** The subjects holding {@code roleKey} on the organization, sorted: emails for users, ids for clients. */
+    /**
+     * The subjects holding {@code roleKey} on the whole organization, sorted: emails for users, ids for clients.
+     * Sub-account, resource and expired bindings are left out.
+     */
     public Uni<List<String>> holders(Long organizationId, String roleKey) {
+        Instant now = Instant.now();
         return IamRoleBinding.findByRole(organizationId, roleKey).flatMap(bindings -> {
             List<UUID> userIds = new ArrayList<>();
             List<String> clients = new ArrayList<>();
             for (IamRoleBinding b : bindings) {
+                if (!IamRoleBinding.ORGANIZATION.equals(b.scopeKind)
+                        || (b.expiresAt != null && !b.expiresAt.isAfter(now))) {
+                    continue;
+                }
                 if (IamRoleBinding.USER.equals(b.principalKind)) {
                     userIds.add(UUID.fromString(b.principalId));
                 } else if (IamRoleBinding.CLIENT.equals(b.principalKind)) {
@@ -74,7 +84,11 @@ public class IamDirectory {
 
     /** Makes exactly {@code subjects} hold {@code roleKey} on the organization. A user gets a membership if needed. */
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
-    public Uni<Void> setHolders(Long organizationId, String roleKey, Set<String> subjects, String actor) {
+    public Uni<Void> setHolders(Long organizationId, String roleKey, Set<String> requested, String actor) {
+        Set<String> subjects = new TreeSet<>();
+        for (String subject : requested) {
+            subjects.add(isEmail(subject) ? IamUser.normalize(subject) : subject.trim());
+        }
         return holders(organizationId, roleKey).flatMap(before -> IamRoleBinding
                 .delete("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3",
                         organizationId, roleKey, IamRoleBinding.ORGANIZATION)

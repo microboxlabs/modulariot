@@ -8,6 +8,7 @@ import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.BaseRole;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.IamDirectory;
+import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
@@ -47,6 +48,19 @@ public class OrganizationRoleService {
     /** {@link #OWNER_ACCESS_ROLE} for an Owner or Admin, else {@link #MEMBER_ACCESS_ROLE}. Needs an open session. */
     public Uni<String> resolveApplicationRole(Organization organization, String personId) {
         return evaluator.evaluate(organization, Caller.user(personId)).map(OrganizationRoleService::accessRole);
+    }
+
+    /** The caller's access to an organization already loaded. Needs an open session. */
+    public Uni<Access> access(Organization organization, Caller caller) {
+        return evaluator.evaluate(organization, caller);
+    }
+
+    /** The bindings of these organizations that apply to {@code organization}, as role keys. */
+    public Uni<Set<String>> clientRoles(Organization organization, String clientId) {
+        return evaluator.root(organization).flatMap(root -> IamRoleBinding.findFor(
+                        organization.parent == null ? List.of(organization.id) : List.of(organization.id, root.id),
+                        IamRoleBinding.CLIENT, List.of(clientId))
+                .map(bindings -> AccessEvaluator.covered(bindings, organization, root)));
     }
 
     /** The caller's access to the organization, for checks outside REST such as MCP tools. */

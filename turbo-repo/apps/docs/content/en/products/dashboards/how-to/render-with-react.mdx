@@ -1,0 +1,143 @@
+import { Callout } from 'nextra/components'
+
+# Render with React
+
+Use the React entry of the UI library when your application already uses React 18 or 19. You get the same widgets as the plain browser build, plus hooks for loading, saving and query results. Your application keeps control of sign-in and routing.
+
+## Install
+
+```bash
+npm install @microboxlabs/miot-dashboard-ui @microboxlabs/miot-dashboard-contract
+```
+
+Add `echarts` 6 if you use chart widgets.
+
+## A dashboard component
+
+This component loads one dashboard, runs its saved queries, draws it, and saves edits once they pause.
+
+```tsx filename="sales-dashboard.tsx"
+"use client";
+import { useMemo } from "react";
+import { DEFAULT_STORAGE } from "@microboxlabs/miot-dashboard-contract/document";
+import { createDashboardClient, createDashboardRoutes } from "@microboxlabs/miot-dashboard-ui/client";
+import { createWidgetRegistry } from "@microboxlabs/miot-dashboard-ui/core";
+import {
+  DashboardCanvas,
+  SavedQueryProvider,
+  createPercentageValueRegistry,
+  createTextCardRegistry,
+  useDashboardAutosave,
+  useDashboardDocument,
+} from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+
+const labels = {
+  loadingLabel: "Loading…",
+  errorLabel: "Could not load the data.",
+  unsupportedDataLabel: "This widget needs a saved query.",
+};
+
+const registry = createWidgetRegistry([
+  ...createTextCardRegistry({ ...labels, defaultText: "No text" }).all(),
+  ...createPercentageValueRegistry({ ...labels, defaultTitle: "Progress" }).all(),
+]);
+
+export function SalesDashboard({
+  userId,
+  getToken,
+}: Readonly<{ userId: string; getToken: (signal?: AbortSignal) => Promise<string | null> }>) {
+  const client = useMemo(
+    () =>
+      createDashboardClient({
+        routes: createDashboardRoutes({
+          baseUrl: "https://dashboards.example.com",
+          tenantId: "acme",
+          scopeId: "ops",
+        }),
+        getToken,
+      }),
+    [getToken],
+  );
+
+  const sessionKey = `${userId}/sales`;
+  const document = useDashboardDocument({
+    client,
+    slug: "sales",
+    sessionKey,
+    emptyDocument: DEFAULT_STORAGE,
+  });
+
+  useDashboardAutosave({ ...document, enabled: !document.readOnly });
+
+  if (!document.isLoaded) return <p>Loading…</p>;
+
+  return (
+    <SavedQueryProvider
+      client={client}
+      sessionKey={sessionKey}
+      slug="sales"
+      queries={document.config.queries ?? []}
+      filters={{}}
+      refreshIntervalMs={(document.config.refreshInterval ?? 0) * 1000}
+      paused={false}
+      errorMessage={labels.errorLabel}
+    >
+      <DashboardCanvas
+        widgets={document.config.widgets}
+        registry={registry}
+        unknownWidgetLabel="This widget is not available here."
+      />
+    </SavedQueryProvider>
+  );
+}
+```
+
+This example type-checks against UI 0.1.0 and contract 0.6.0.
+
+## What each part does
+
+| Part | Job |
+| --- | --- |
+| `createDashboardClient` | Talks to the server with standard `fetch`. `getToken` is called for every request and returns your identity provider's access token. The client never stores it. |
+| `createDashboardRoutes` | Builds the addresses for one organization (`tenantId`) and scope (`scopeId`). |
+| `useDashboardDocument` | Loads the dashboard and the caller's capabilities, tracks the revision, and keeps unsaved edits. It starts read-only and allows edits only when the server says so. |
+| `useDashboardAutosave` | Saves about 1.5 seconds after the last edit. It stops after a failed save, so a conflict never overwrites someone else's work. |
+| `SavedQueryProvider` | Runs the dashboard's saved queries on the server and gives the results to widgets. At most four run at once. |
+| `DashboardCanvas` | Lays out the widgets on the 24-column grid and draws each one from the registry. |
+| `createWidgetRegistry` | Combines the widget types this page supports. See [Widget catalog](/en/products/dashboards/reference/widgets). |
+
+## Rules that keep it correct
+
+- **Change `sessionKey` when the signed-in person changes.** It resets drafts and query results, so nothing from one person reaches the next. Use a non-secret value, never the token.
+- **Keep `client` stable.** Create it with `useMemo`. A new client starts a new session.
+- **Derive edit controls from the server.** Show editing only when `document.readOnly` is false. The server checks every save anyway.
+- **Handle conflicts.** When `document.error` is `409`, someone else saved first. Keep the person's edits and offer `document.discardAndReload()`.
+
+## Editing
+
+`DashboardCanvas` is read-only by default. To let people drag and resize widgets, pass `editMode` and `onLayoutCommit`, and apply the new layout through `useDashboardState`, which also gives you undo and redo:
+
+```tsx
+const editor = useDashboardState({
+  config: document.config,
+  isLoaded: document.isLoaded,
+  readOnly: document.readOnly,
+  onChange: document.onChange,
+});
+```
+
+The library also exports editors for settings (`DashboardGeneralSettings`), filters (`DashboardFilterEditor`), saved queries (`SavedQueryManager`), permissions (`PermissionAssignmentEditor`) and import/export (`DashboardTransfer`). See [UI library](/en/products/dashboards/reference/ui-library).
+
+<Callout type="info">
+In Next.js, mark the component with `"use client"`. Render it only on the client: it measures its container to size the grid.
+</Callout>
+
+## Filters
+
+Wrap the canvas in `DashboardFiltersProvider` with a controller from `useDashboardFilterState`, and pass the same values to `SavedQueryProvider` as `filters`. Your application decides where filter values live, for example in the URL.
+
+## Related
+
+- [Embed a dashboard in a web page](/en/products/dashboards/tutorials/embed-in-a-web-page), without React
+- [Revisions and saving](/en/products/dashboards/concepts/revisions-and-saving)

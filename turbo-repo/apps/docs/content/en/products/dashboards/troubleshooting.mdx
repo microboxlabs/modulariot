@@ -1,0 +1,96 @@
+# Troubleshooting
+
+Find the symptom, then the cause. The server's startup log answers most questions: it states the store, the sign-in method and where memberships come from.
+
+## The server does not start
+
+| Message or symptom | Cause | Fix |
+| --- | --- | --- |
+| `Failed to start: error: database "…" does not exist` | The PostgreSQL URL points at a missing database | Create the database, or fix `MIOT_DASHBOARD_POSTGRES_URL` |
+| Refuses `MIOT_DASHBOARD_INSECURE_AUTH` | `NODE_ENV=production`, a non-loopback `HOST`, or JWT, ticket or proxy settings are also set | Use a real identity provider outside local development |
+| Refuses the credential key | Shorter than 32 characters, or the store is `memory` | Generate one with `openssl rand -base64 32`; use `sqlite` or `postgres` |
+| Refuses the document store | The database was first opened with a different `MIOT_DASHBOARD_DOCUMENTS` | Set it back, or move the documents first |
+| Refuses a lookup URL | A `GET` URL lacks `{userId}`, `{tenantId}` or `{scopeId}` | Add the placeholders |
+| An error naming `jose` or `pg` | An optional package is missing | `npm install jose` or `pg`, or use the container image (it has `jose`) |
+| `ExperimentalWarning: SQLite is an experimental feature` | Normal on Node.js 22 and 24 | Nothing to fix |
+| Fails with a generic module error | The operations module could not load | Check the path is absolute and the file exports `createDashboardOperations()` |
+
+## Every request gets 403
+
+| Check | Means |
+| --- | --- |
+| Startup log says `0 tenants` | No memberships loaded. Fix `MIOT_DASHBOARD_SEED` or the lookup URLs. |
+| The user ID in the token differs from the membership file | `MIOT_DASHBOARD_JWT_USER_CLAIM` picks a different claim than the one you listed. Use the same value in both. |
+| `reason: TENANT_SCOPE` | The person is not in that organization or scope, or the address is wrong |
+| `reason: CAPABILITY` | They are a member, but their role does not allow the action |
+| With ModularIoT, a direct call works nowhere | Expected. Only calls through the modulith carry the proxy key. |
+
+## 401 Unauthenticated
+
+| Cause | Fix |
+| --- | --- |
+| No `Authorization` header | Send `Authorization: Bearer <token>` |
+| Wrong issuer or audience | `iss` and `aud` in the token must match `MIOT_DASHBOARD_JWT_ISSUER` and `_AUDIENCE` exactly, including the trailing slash |
+| Token expired | Refresh it. Clock drift above `MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE` also counts as expired. |
+| Wrong algorithm | The key source decides: JWKS or public key means RS256, a secret means HS256 |
+
+## Saving fails
+
+| Answer | Cause | Fix |
+| --- | --- | --- |
+| 409 `CONFLICT` | Someone saved since you loaded | Reload, compare, and apply your change again. Do not resend with the new revision blindly. |
+| 400 `BAD_REQUEST` | The document does not match the contract | The message names the field, such as `preferences: Required` |
+| 400 with `version` | The document is not version 2 | Export it again from a current version |
+| 413 | The document is over 1 MiB | Remove unused widgets or large `staticData` |
+
+In the web app, a failed save shows **Unsaved changes** and **Reload**. Your edits stay on screen.
+
+## A widget shows no data
+
+| Widget shows | Cause | Fix |
+| --- | --- | --- |
+| "This widget needs a saved query" | It still uses a legacy data mode | Set **Data Source** to **Planner** and choose a saved query |
+| "Could not load the data" | The query failed | See [Queries fail](#queries-fail) |
+| Loading forever | The saved query's result name does not match `plannerVariableName` | Choose the result again in the widget settings |
+| An empty value | The column name in the template is wrong | Use the exact column name: `{{completed}}` |
+| "Widget not available" | The page has no registry for this `componentId` | Add the registry, or replace the widget |
+
+## Queries fail
+
+| Answer or symptom | Cause | Fix |
+| --- | --- | --- |
+| 404 on every query | No query executor configured | Set `MIOT_DASHBOARD_OPERATIONS_MODULE` (or `_URL`) |
+| 502 `UPSTREAM_ERROR` | The data service failed or returned something invalid | Check the next rows |
+| Fails for one function only, with any filter | A column holds a JSON object | Pin `select` to scalar columns |
+| Fails for one origin | It is not in `MIOT_DASHBOARD_DATA_ORIGINS`, or it is not `https` | Add the exact origin |
+| Fails after a while | Over 20 seconds, 5,000 rows or 2 MiB | Aggregate in the function or SQL, or add filters |
+| BigQuery refuses to run | The dry run estimate is over `maximumBytesBilled`, or the statement is not a `SELECT` | Narrow the query or raise the operation's cap within the host ceiling |
+| 400 on a parameter | The value does not match the operation's schema, or a required parameter is missing | Bind it, or give the operation a fixed value |
+
+## The editor's connection list is empty
+
+| Message | Cause | Fix |
+| --- | --- | --- |
+| "The approved query catalog is unavailable or access was denied" | No catalog provider, or no edit rights | Set `MIOT_DASHBOARD_CATALOG_URL` (ModularIoT) or `queryCatalog`, and check the role |
+| The list loads but is empty | The organization has no active connection with eligible operations | Import functions on a tested connection |
+
+## The browser cannot reach the server
+
+| Symptom | Fix |
+| --- | --- |
+| CORS error in the console | Set `MIOT_DASHBOARD_CORS_ORIGINS` to the page's exact origin, with scheme and port |
+| Preflight rejects a header | Add it to `MIOT_DASHBOARD_CORS_HEADERS` |
+| Page blocked by Content Security Policy | Text widgets need `'unsafe-eval'` in `script-src` |
+
+## In the ModularIoT web app
+
+| Symptom | Fix |
+| --- | --- |
+| **Dashboards** is missing from the navigation | Set `ENABLE_DASHBOARD_SERVER=true` on the web app |
+| "Could not load dashboards. Check your organization and access." | The modulith cannot reach the dashboard server, or the proxy key differs. Check `MIOT_DASHBOARD_BASE_URL` and both keys. |
+| No **Create dashboard** button | Your role is Consumer, or the capability check failed |
+| The modulith pod does not start after a deploy | The proxy key secret is missing. Create it before deploying. |
+
+## Still stuck
+
+Open an issue at [github.com/microboxlabs/modulariot](https://github.com/microboxlabs/modulariot/issues) with the server version, the startup log lines, the request, and the full error answer. Remove tokens and keys first.

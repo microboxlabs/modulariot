@@ -1,0 +1,53 @@
+# Contract package
+
+`@microboxlabs/miot-dashboard-contract` defines what the UI and the server agree on: the document, the roles, the errors and the API. Use it directly when you write your own server, tooling or tests.
+
+```bash
+npm install @microboxlabs/miot-dashboard-contract
+```
+
+There is no root import.
+
+| Import | Holds |
+| --- | --- |
+| `/document` | Document types, `GRID_COLS` (24), `DESIGN_WIDTH` (1600), `DEFAULT_STORAGE` |
+| `/schema` | zod schemas, `validateDashboardConfig`, `CURRENT_DASHBOARD_CONFIG_VERSION` |
+| `/roles` | `DashboardRole`, `DashboardCapabilities`, `roleAtLeast`, `highestRole` |
+| `/errors` | `ErrorEnvelope`, `DashboardErrorCode`, `STATUS_BY_CODE` |
+| `/openapi.yaml` | The OpenAPI 3.1 document |
+| `/dashboard-config.schema.json` | The document's JSON Schema |
+
+`/document`, `/roles` and `/errors` are types and constants only. `/schema` loads zod.
+
+## Validate a document
+
+```ts
+import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
+
+const result = validateDashboardConfig(await request.json());
+if (!result.valid) {
+  return Response.json({ error: result.problems.join("; ") }, { status: 400 });
+}
+```
+
+`problems` are plain strings such as `widgets.0.layout.x: Expected number`, so your code does not depend on this package's zod version.
+
+## Compare roles
+
+```ts
+import { roleAtLeast } from "@microboxlabs/miot-dashboard-contract/roles";
+
+roleAtLeast("Editor", "Contributor"); // true
+```
+
+Roles in order: `Consumer`, `Contributor`, `Editor`, `Coordinator`.
+
+## Serve the API documents
+
+`openapi.yaml` refers to `dashboard-config.schema.json` by file name. Serve them side by side, as the server does.
+
+## Compatibility rules
+
+- Unknown fields pass validation and survive a round trip.
+- A `version` other than 2 is refused. Nothing in the package converts documents.
+- A schema can accept a document and still not authorize anything: permission checks belong to the server.

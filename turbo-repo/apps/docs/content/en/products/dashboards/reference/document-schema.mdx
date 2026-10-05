@@ -1,0 +1,124 @@
+# Document schema
+
+A dashboard document is JSON, version 2. The machine-readable definition is the JSON Schema at `/dashboard-config.schema.json` on the server, also shipped as `@microboxlabs/miot-dashboard-contract/dashboard-config.schema.json`.
+
+Fields not listed here are kept as they are on every save.
+
+## Document
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `version` | `2` | Yes | Document version. Any other value is refused. |
+| `name` | string | Yes | Title |
+| `widgets` | [Widget](#widget)[] | Yes | Root widgets |
+| `preferences` | object | Yes | `{ "editMode": boolean }`. `editMode` is not saved by the UI. |
+| `queries` | [Saved query](#saved-query)[] | No | At most 50 |
+| `filters` | [Filter](#filters)[] | No | The filter bar |
+| `refreshInterval` | `0`, `10`, `30`, `60`, `300` | No | Seconds between refreshes. `0` is off. |
+| `order` | number | No | Navigation position. Lower first; unset last. |
+| `allowedGroups` | string[] | No | Only members of these groups may see it. Empty or absent: no restriction. |
+| `requestPlanner` | object[] | No | Legacy request planner. Convert it with [Migrate planner dashboards](/en/products/dashboards/how-to/migrate-planner-dashboards). |
+
+## Widget
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `id` | string | Yes | Unique in the document |
+| `componentId` | string | Yes | Widget type. See [Widget catalog](/en/products/dashboards/reference/widgets). |
+| `layout` | [Layout](#layout) | Yes | Position and size |
+| `config` | object | Yes | The widget type's settings |
+| `children` | Widget[] | No | Widgets inside a container |
+| `createdAt` | string | Yes | ISO 8601 date and time |
+| `updatedAt` | string | Yes | ISO 8601 date and time |
+
+### Common `config` fields
+
+| Field | Meaning |
+| --- | --- |
+| `dataMode` | `static` (default) or `planner` |
+| `staticData` | JSON text with one row of sample or fixed data, for `static` |
+| `plannerVariableName` | The saved query result to read, for `planner` |
+| `dataProvider` | `[{ "key": "...", "value": "..." }]` values available as `{{data_provider.key}}` |
+
+Each widget type adds its own fields. See [Widget catalog](/en/products/dashboards/reference/widgets).
+
+## Layout
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `i` | string | Same as the widget `id` |
+| `x` | integer | Column, 0 to 23 |
+| `y` | integer | Row, from 0 |
+| `w` | integer | Width in columns, 1 to 24. `x + w` is at most 24. |
+| `h` | integer | Height in rows, at least 1 |
+| `minW`, `minH`, `maxW`, `maxH` | integer | Optional size limits |
+
+## Saved query
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `id` | string | Yes | Unique. Used in `.../queries/{id}`. |
+| `variableName` | string | Yes | Unique result name widgets read |
+| `connectionId` | string | Yes | Host connection |
+| `operationId` | string | Yes | Approved operation |
+| `parameters` | object | Yes | Parameter name to [binding](#parameter-binding). At most 100. |
+| `schema` | string[] | No | Known result columns |
+
+Identifiers have at most 128 characters.
+
+### Parameter binding
+
+```json
+{ "kind": "literal", "value": 30 }
+{ "kind": "filter", "key": "vehicle", "defaultValue": null, "omitWhenEmpty": true }
+```
+
+| Field | Applies to | Meaning |
+| --- | --- | --- |
+| `kind` | both | `literal` or `filter` |
+| `value` | literal | The value |
+| `key` | filter | The filter value to use. A date range filter `k` provides `k_from` and `k_to`. |
+| `defaultValue` | filter | Used when the filter is missing. Not used for an explicit empty string. |
+| `omitWhenEmpty` | filter | Leave the parameter out when the value is missing or empty |
+
+Values are text (at most 2,048 characters), finite numbers, booleans, `null`, or lists of at most 100 of those.
+
+## Filters
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `key` | string | Yes | Unique name queries and templates use |
+| `label` | string | Yes | What viewers read |
+| `type` | `text`, `date_range`, `select` | Yes | The control |
+| `options` | `[{label, value}]` | No | Static options, for `select` |
+| `optionsSource` | object | No | Options from a saved query result, for `select` |
+| `single` | boolean | No | Allow one selection only |
+| `unique` | boolean | No | Setting a value clears this filter's other values |
+
+`optionsSource`:
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `variableName` | Yes | Saved query result name |
+| `valueField` | Yes | Column for the value |
+| `labelField` | No | Column for the label. Defaults to `valueField`. |
+
+## Minimal valid document
+
+```json
+{
+  "version": 2,
+  "name": "Empty",
+  "widgets": [],
+  "preferences": { "editMode": false }
+}
+```
+
+## Validate a document in code
+
+```ts
+import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
+
+const result = validateDashboardConfig(json);
+if (!result.valid) console.error(result.problems); // ["widgets.0.layout.x: ..."]
+```

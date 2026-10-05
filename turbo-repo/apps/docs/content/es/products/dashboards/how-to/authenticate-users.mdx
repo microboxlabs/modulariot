@@ -1,0 +1,139 @@
+import { Callout, Tabs } from 'nextra/components'
+
+# Autenticar usuarios
+
+Un servidor independiente responde tres preguntas en cada solicitud:
+
+1. **¿Quién llama?** Lo dice un JWT o un ticket.
+2. **¿Puede actuar en esta organización?** Lo dice una lista de membresías o un servicio de directorio.
+3. **¿Cuál es su rol en este ámbito?** Lo dice la misma lista o el mismo servicio.
+
+Esta guía configura las tres. En la aplicación web de ModularIoT, ModularIoT las responde por usted; omita esta guía.
+
+## 1. Verificar quién llama
+
+<Tabs items={['JWT', 'Ticket opaco']}>
+<Tabs.Tab>
+
+La mayoría de los proveedores de identidad emiten JWT: Auth0, Microsoft Entra ID, Keycloak, Okta, Google. Instale `jose` junto al servidor (la imagen de contenedor ya lo trae) y luego defina el emisor, la audiencia y una fuente de claves:
+
+```bash
+MIOT_DASHBOARD_JWT_ISSUER=https://your-company.auth0.com/
+MIOT_DASHBOARD_JWT_AUDIENCE=miot-dashboards
+MIOT_DASHBOARD_JWT_JWKS_URL=https://your-company.auth0.com/.well-known/jwks.json
+MIOT_DASHBOARD_JWT_USER_CLAIM=email
+```
+
+| Fuente de claves | Algoritmo | Úsela cuando |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_JWT_JWKS_URL` | RS256 | El proveedor publica sus claves. La opción habitual. |
+| `MIOT_DASHBOARD_JWT_PUBLIC_KEY` | RS256 | Tiene la clave pública en formato PEM |
+| `MIOT_DASHBOARD_JWT_SECRET` | HS256 | Comparte con el emisor un secreto de al menos 32 bytes |
+
+Defina exactamente una. El servidor acepta solo ese algoritmo.
+
+`MIOT_DASHBOARD_JWT_USER_CLAIM` indica el claim que identifica a la persona. Por defecto es `sub`. Su contenido es el ID que usa en las membresías y en los permisos de los dashboards, así que elija uno legible y estable, como `email`.
+
+Quienes llaman envían el token como `Authorization: Bearer <token>`.
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+Si su sistema emite tickets opacos, el servidor puede verificar cada uno con el emisor y guardar la respuesta en caché:
+
+```bash
+MIOT_DASHBOARD_TICKET_HEADER=x-ticket
+MIOT_DASHBOARD_TICKET_VALIDATE_URL=https://auth.internal/tickets/{ticket}
+MIOT_DASHBOARD_TICKET_USER_PATH=entry.id
+```
+
+| Variable | Significado |
+| --- | --- |
+| `MIOT_DASHBOARD_TICKET_HEADER` | El encabezado de la solicitud que lleva el ticket |
+| `MIOT_DASHBOARD_TICKET_VALIDATE_URL` | El endpoint de verificación del emisor. Use `{ticket}` o `{ticketBase64}` en él. |
+| `MIOT_DASHBOARD_TICKET_USER_PATH` | Ruta con puntos hasta el ID de usuario en la respuesta del emisor |
+
+Los demás ajustes de tickets, como la caché y cómo presentar el ticket, están en [Configuración](/es/products/dashboards/reference/configuration#tickets). JWT y tickets pueden funcionar juntos porque leen encabezados distintos.
+
+</Tabs.Tab>
+</Tabs>
+
+## 2 y 3. Indique quién pertenece a dónde
+
+<Tabs items={['Archivo de membresías', 'Servicio de directorio']}>
+<Tabs.Tab>
+
+Para unas pocas decenas de personas, inclúyalas en un archivo JSON y apunte `MIOT_DASHBOARD_SEED` a él. La estructura es organización, luego ámbito, luego persona, luego rol:
+
+```json filename="seed.json"
+{
+  "memberships": {
+    "acme": {
+      "operations": {
+        "ana@acme.example": "Coordinator",
+        "luis@acme.example": "Editor",
+        "sofia@acme.example": "Consumer"
+      },
+      "finance": {
+        "ana@acme.example": "Consumer"
+      }
+    }
+  }
+}
+```
+
+Una persona puede actuar en una organización cuando aparece en cualquiera de sus ámbitos. El servidor lee el archivo al iniciar, así que un cambio requiere reiniciar.
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+Si un directorio ya sabe quién pertenece a dónde, el servidor puede consultarlo en cada solicitud. Un cambio ahí se aplica de inmediato, sin reiniciar y sin un token nuevo.
+
+```bash
+MIOT_DASHBOARD_TENANTS_URL='https://directory.internal/people/{userId}/organizations/{tenantId}'
+MIOT_DASHBOARD_SCOPES_URL='https://directory.internal/people/{userId}/groups/{scopeId}'
+MIOT_DASHBOARD_SCOPES_ROLE_PATH=role
+MIOT_DASHBOARD_SCOPES_ROLE_MAP='admin=Coordinator,editor=Editor,reader=Consumer'
+MIOT_DASHBOARD_SCOPES_SERVICE_HEADER=authorization
+MIOT_DASHBOARD_SCOPES_SERVICE_VALUE="Bearer $DIRECTORY_TOKEN"
+```
+
+| El directorio responde | El servidor lo interpreta como |
+| --- | --- |
+| 200 | Miembro. Para los ámbitos, el rol está en `ROLE_PATH`, traducido con `ROLE_MAP`. |
+| 404 (o los estados en `*_ABSENT_STATUS`) | No es miembro |
+| 401 | Falló la credencial propia del servidor. Responde 500, no 403, para que una caída nunca parezca que todos perdieron el acceso. |
+
+Una URL `GET` debe contener `{userId}` y el marcador de la organización o del ámbito. De lo contrario, una sola respuesta se aplicaría a todos, y el servidor no inicia. Las respuestas se guardan en caché: sí por 60 segundos, no por 30, por defecto.
+
+La lista completa de ajustes `TENANTS_*` y `SCOPES_*` está en [Configuración](/es/products/dashboards/reference/configuration#membresías).
+
+</Tabs.Tab>
+</Tabs>
+
+## Verificar
+
+Reinicie el servidor y lea su log de inicio:
+
+```text
+{"msg":"identity","auth":"RS256 bearer tokens from https://your-company.auth0.com/ ..."}
+{"msg":"tenants","entitlement":"the seed file (1 tenants)"}
+{"msg":"scopes","membership":"the seed file (1 tenants)"}
+```
+
+Si `tenants` o `scopes` dice `0 tenants`, el servidor no conoce a nadie y responde 403 a todo.
+
+Luego llámelo con un token real:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://dashboards.example.com/tenants/acme/scopes/operations/dashboards
+```
+
+<Callout type="warning">
+Nunca combine `MIOT_DASHBOARD_INSECURE_AUTH` con un despliegue real. El servidor no inicia con esa variable cuando `NODE_ENV=production`, cuando escucha más allá de `localhost`, o cuando también hay ajustes de JWT o de tickets.
+</Callout>
+
+## Grupos
+
+Para usar `allowedGroups` en los dashboards, el servidor debe conocer los grupos de cada persona. Defina `MIOT_DASHBOARD_JWT_GROUPS_CLAIM` con el claim del token que los lista, o `MIOT_DASHBOARD_TICKET_GROUPS_PATH` para tickets. Use ID que sean únicos entre organizaciones. Consulte [Compartir y definir permisos](/es/products/dashboards/how-to/share-and-permissions#restringir-un-dashboard-a-grupos).

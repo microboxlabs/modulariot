@@ -1,0 +1,95 @@
+import { Callout } from 'nextra/components'
+
+# Catálogo de widgets
+
+Cada tipo de widget tiene un `componentId`, guardado en el documento, y una función de registro en la biblioteca de UI que le enseña a una página a dibujarlo. Una página dibuja solo los tipos cuyos registros incluye.
+
+Todas las funciones de registro están disponibles desde `@microboxlabs/miot-dashboard-ui/react`, `/embed` y el build autocontenido `/browser`, excepto los gráficos, que tienen sus propias entradas.
+
+## Texto y tarjetas
+
+| `componentId` | Muestra | Registro | Ajustes principales |
+| --- | --- | --- | --- |
+| `text_card` | Texto, con plantillas | `createTextCardRegistry` | `text`, `align`, `italic` |
+| `info_card` | Una tarjeta con un valor y un descriptor, que puede contener widgets anidados | `createInfoCardRegistry` | `title`, `value`, `descriptor`, `icon`, `viewMoreUrl`, `viewMoreLabel` |
+
+## Estadísticas
+
+| `componentId` | Muestra | Registro | Ajustes principales |
+| --- | --- | --- | --- |
+| `percentage_value` | Una barra con etiqueta, un valor sobre un máximo | `createPercentageValueRegistry` | `title`, `value`, `max`, `barColor`, `barColorRules` |
+| `stat_circular` | Un anillo, un valor sobre un máximo | `createCircularStatRegistry` | `title`, `value`, `maxValue`, `unit`, `ringColor`, `ringColorRules` |
+| `stat_progress` | El avance hacia una meta, con marcas en cada cuarto | `createProgressStatRegistry` | `title`, `value`, `target`, `unit`, `thresholds`, `barColorRules` |
+| `stat_status` | Un valor de estado con un ícono opcional y un borde de color | `createStatusStatRegistry` | `title`, `value`, `subtitle`, `icon`, `color`, `valueColorRules` |
+| `stat_icon` | Un valor junto a un ícono, con una descripción opcional | `createIconStatRegistry` | `title`, `subtitle`, `value`, `unit`, `icon`, `cardVariant`, `goToUrl` |
+| `stat_sensitive` | Un valor oculto hasta que el usuario lo revela | `createSensitiveStatRegistry` | `title`, `value`, `unit`, `isSensitive`, `thresholds` |
+| `stat_stacked` | Las partes de un total, como barra apilada o dona | `createStackedStatRegistry` | `title`, `items`, `chartType`, `unit`, `showHeader` |
+| `stat_expandable` | Un valor con detalles que se abren a pedido | `createExpandableStatRegistry` | `title`, `value`, `unit`, `details`, `valueColorRules` |
+| `stat_detailed` | Un valor con una comparación, una tendencia y el avance hacia una meta | `createDetailedStatRegistry` | `title`, `value`, `unit`, `description`, `previousValue`, `target` |
+| `stat_sparkline` | Un valor con una pequeña línea de tendencia | `createSparklineStatRegistry` | `title`, `value`, `unit`, `sparkline`, `thresholds` |
+
+`stat_sensitive` oculta el valor solo en pantalla. No reemplaza el control de acceso: cualquier persona que pueda cargar el dashboard puede cargar sus datos.
+
+## Tablas y listas
+
+| `componentId` | Muestra | Registro |
+| --- | --- | --- |
+| `data_table` | Filas en una tabla con plantillas, filtros, ordenamiento, acciones y exportación a CSV | `createDataTableRegistry` |
+| `data_table_v2` | Lo mismo, con columnas redimensionables y enlaces en las filas | `createResizableDataTableRegistry` |
+| `data_list` | Filas como tarjetas con insignias y métricas | `createDataListRegistry` |
+
+Los usuarios pueden filtrar, ordenar y redimensionar de forma local. Sus cambios no se guardan en el dashboard.
+
+## Gráficos
+
+| `componentId` | Muestra | Registro |
+| --- | --- | --- |
+| `chart` | Gráficos de líneas, barras, dispersión, torta e indicador | `createChartRegistry` |
+| `chart_v2` | Lo mismo, con series mixtas y doble eje | `createChartRegistry` |
+
+Los gráficos necesitan ECharts 6, que su página carga y entrega mediante `createEngine`. Importe `createChartRegistry` desde `@microboxlabs/miot-dashboard-ui/react-charts` en React, o desde `/browser-charts` en lugar de `/browser` en HTML simple. El build por defecto para navegador excluye los gráficos para mantener un tamaño pequeño.
+
+## Widgets del host
+
+Estos tipos existen en la aplicación web de ModularIoT, pero no están en la biblioteca. Una página que no los provee muestra "no disponible" en su lugar:
+
+| `componentId` | Muestra |
+| --- | --- |
+| `container` | Una grilla o un grupo con etiqueta de otros widgets |
+| `geographic_map` | Un mapa |
+| `fileUpload`, `batchImport` | Herramientas de carga e importación |
+
+## Datos para cualquier widget
+
+Cada widget con datos lee `staticData` o el resultado de una consulta guardada, según `dataMode`:
+
+```json
+{ "dataMode": "planner", "plannerVariableName": "trips" }
+```
+
+Los widgets de un solo valor usan la primera fila. Las tablas, listas y gráficos usan todas las filas. Los ajustes de texto aceptan [plantillas](/es/products/dashboards/concepts/documents-and-widgets#plantillas).
+
+## Registrar widgets
+
+```js
+const labels = {
+  loadingLabel: "Cargando…",
+  errorLabel: "No se pudieron cargar los datos.",
+  unsupportedDataLabel: "Este widget necesita una consulta guardada.",
+};
+const definitions = [
+  ...createTextCardRegistry({ ...labels, defaultText: "" }).all(),
+  ...createCircularStatRegistry({
+    ...labels,
+    defaultTitle: "Valor",
+    defaultUnit: "",
+    formatTotal: (max) => `de ${max}`,
+  }).all(),
+];
+```
+
+Cada registro recibe sus etiquetas traducidas, de modo que los widgets usan el idioma de su página. Combínelos con `createWidgetRegistry` de `/core`, o con un objeto que tenga un método `get(id)`.
+
+<Callout type="info">
+La lista completa de opciones de cada registro está en el [README de la biblioteca de UI](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-ui/README.md).
+</Callout>

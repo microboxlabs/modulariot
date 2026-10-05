@@ -8,13 +8,25 @@ import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
  * one, resolved here on the server (the browser never names it), and the
  * user's session token is forwarded so the modulith checks membership and
  * records the actor. `allowRoot` lets a request with no path segments reach
- * the resource itself, for APIs that list at their root.
+ * the resource itself, for APIs that list at their root. `forward` picks the
+ * modulith: the coordinator one by default.
  */
 type Params = { params: Promise<{ path?: string[] }> };
 
 const SEGMENT = /^[A-Za-z0-9_-]+$/;
 
-export function orgApiProxy(resource: string, { allowRoot = false }: { allowRoot?: boolean } = {}) {
+type Forward = (
+  path: string,
+  init: { method: string; body: unknown }
+) => Promise<NextResponse>;
+
+export function orgApiProxy(
+  resource: string,
+  {
+    allowRoot = false,
+    forward: send = forwardToQuarkus,
+  }: { allowRoot?: boolean; forward?: Forward } = {}
+) {
   async function forward(req: NextRequest, { params }: Params, method: string) {
     const path = (await params).path ?? [];
     if ((!allowRoot && !path.length) || !path.every((s) => SEGMENT.test(s))) {
@@ -30,7 +42,10 @@ export function orgApiProxy(resource: string, { allowRoot = false }: { allowRoot
         try {
           body = JSON.parse(text);
         } catch {
-          return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+          return NextResponse.json(
+            { error: "Invalid JSON body" },
+            { status: 400 }
+          );
         }
       } else {
         body = {};
@@ -39,7 +54,10 @@ export function orgApiProxy(resource: string, { allowRoot = false }: { allowRoot
 
     const org = encodeURIComponent(scope.scope.activeOrg.slug);
     const suffix = path.length ? `/${path.join("/")}` : "";
-    return forwardToQuarkus(`/api/v1/orgs/${org}/${resource}${suffix}${req.nextUrl.search}`, { method, body });
+    return send(
+      `/api/v1/orgs/${org}/${resource}${suffix}${req.nextUrl.search}`,
+      { method, body }
+    );
   }
 
   return {

@@ -13,6 +13,7 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.mcp.McpCaller;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.core.selectable.SelectableOption;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccess;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
@@ -31,7 +32,6 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.security.runtime.QuarkusSecurityIdentity;
 import io.smallrye.jwt.auth.principal.DefaultJWTCallerPrincipal;
 import io.smallrye.mutiny.Uni;
-import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.core.Response;
 import java.lang.reflect.RecordComponent;
 import java.util.List;
@@ -64,11 +64,12 @@ class SymptomToolsTest {
                 .build();
         TenantContext tenant = new TenantContext();
         OrganizationContext organization = new OrganizationContext();
-        McpCaller caller = new McpCaller(identity, new FakeAccess(tenant, organization), new FakeRoles(organization),
+        FakeRoles roles = new FakeRoles(organization);
+        McpCaller caller = new McpCaller(identity, new FakeAccess(tenant, organization), roles,
                 tenant, List.of("azp", "aud"));
         return new SymptomTools(caller, catalog, sources, new PreviewService(catalog, sources),
                 new SymptomFamilies(t -> List.of(SelectableOption.of("driving_safety", "Seguridad de conducción",
-                        "Driving safety"))));
+                        "Driving safety"))), new ControlTowerAccess(roles, organization));
     }
 
     private static <T> T await(Uni<T> call) {
@@ -121,11 +122,11 @@ class SymptomToolsTest {
     void aMemberCannotChangeTheCatalog() {
         SymptomTools tools = toolsFor(MEMBER);
 
-        assertEquals("Organization owner access required",
+        assertEquals("Control tower permission required: MAINTAIN",
                 failure(tools.saveDraft(ORG, speeding, raisedCodigoNegro())).getMessage());
-        assertEquals("Organization owner access required",
+        assertEquals("Control tower permission required: MAINTAIN",
                 failure(tools.publish(ORG, speeding, "Primera", null, null)).getMessage());
-        assertEquals("Organization owner access required",
+        assertEquals("Control tower permission required: MAINTAIN",
                 failure(tools.setState(ORG, speeding, SymptomState.OFF)).getMessage());
     }
 
@@ -211,7 +212,7 @@ class SymptomToolsTest {
         final OrganizationContext organization;
 
         FakeAccess(TenantContext tenant, OrganizationContext organization) {
-            super(tenant, organization, null);
+            super(tenant, organization, null, null);
             this.tenant = tenant;
             this.organization = organization;
         }
@@ -232,15 +233,13 @@ class SymptomToolsTest {
         final OrganizationContext organization;
 
         FakeRoles(OrganizationContext organization) {
-            super(null, organization);
+            super(null, organization, null, null);
             this.organization = organization;
         }
 
         @Override
-        public Uni<Void> requireOwner(String organizationSlug) {
-            return OWNER.equals(organization.getUserEmail())
-                    ? Uni.createFrom().voidItem()
-                    : Uni.createFrom().failure(new ForbiddenException("Organization owner access required"));
+        public Uni<Set<String>> callerRoles(String organizationSlug) {
+            return Uni.createFrom().item(OWNER.equals(organization.getUserEmail()) ? Set.of(OWNER_ROLE_CODE) : Set.of());
         }
     }
 }

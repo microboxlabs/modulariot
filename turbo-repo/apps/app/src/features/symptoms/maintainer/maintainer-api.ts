@@ -298,6 +298,28 @@ export const statsKey = `${DEFS}/stats`;
 
 const settingsKey = `${CONTROL_TOWER_BASE}/settings`;
 
+export type ControlTowerPermission = "VIEW" | "OPERATE" | "MAINTAIN";
+
+export interface ControlTowerAccess {
+  roles: string[];
+  permissions: ControlTowerPermission[];
+}
+
+/** What the caller may do in the control tower, from the backend that serves it. */
+export function useControlTowerAccess() {
+  const { data } = useSWR<ControlTowerAccess>(
+    `${CONTROL_TOWER_BASE}/access`,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+    }
+  );
+  return {
+    canOperate: data?.permissions.includes("OPERATE") ?? false,
+    canMaintain: data?.permissions.includes("MAINTAIN") ?? false,
+  };
+}
+
 /** The operator team as saved; the editor starts from it. */
 export function useTowerTeam(enabled: boolean) {
   return useSWR<TowerTeam>(enabled ? settingsKey : null, fetcher, {

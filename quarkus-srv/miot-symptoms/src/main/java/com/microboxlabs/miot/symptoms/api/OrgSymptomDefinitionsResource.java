@@ -39,8 +39,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
  * The organization's symptoms: what each one detects, at which levels, and
- * its version history. Members read; owners edit drafts, publish, roll back,
- * duplicate and turn symptoms on or off.
+ * its version history. VIEW reads; MAINTAIN edits drafts, publishes, rolls back,
+ * duplicates and turns symptoms on or off (see ControlTowerPermission).
  */
 @Path("/api/v1/orgs/{organizationId}/control-tower/symptom-definitions")
 @Produces(MediaType.APPLICATION_JSON)
@@ -117,7 +117,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
                     + " recent changes. engineAvailable is false when the engine is not connected")
     public Uni<Response> stats(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(stats.stats(tenant)).build());
+        return viewWork(organizationId, () -> Response.ok(stats.stats(tenant)).build());
     }
 
     @POST
@@ -129,7 +129,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             @HeaderParam("Authorization") String authorization, DescribeRequest body) {
         String tenant = tenantCode(organizationId);
         RuleDescriptionService.Caller caller = harnessCaller(authorization);
-        return memberWork(() -> {
+        return viewWork(organizationId, () -> {
             if (body == null) {
                 throw new IllegalArgumentException("section, rule and sourceKey are required");
             }
@@ -145,14 +145,14 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public Uni<Response> importEngine(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> Response.ok(importer.importRules(tenant, actor)).build());
+        return maintainWork(organizationId, () -> Response.ok(importer.importRules(tenant, actor)).build());
     }
 
     @GET
     @Operation(operationId = "listSymptomDefinitions", summary = "List the organization's symptoms")
     public Uni<Response> list(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(descriptions.withActivationTexts(catalog.list(tenant))).build());
+        return viewWork(organizationId, () -> Response.ok(descriptions.withActivationTexts(catalog.list(tenant))).build());
     }
 
     @GET
@@ -160,7 +160,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     @Operation(operationId = "listSymptomTemplates", summary = "The platform templates a symptom can start from")
     public Uni<Response> templates(@PathParam(ORG) String organizationId) {
         tenantCode(organizationId); // refuses an organization other than the caller's; templates are global
-        return memberWork(() -> Response.ok(templates.list()).build());
+        return viewWork(organizationId, () -> Response.ok(templates.list()).build());
     }
 
     @POST
@@ -170,7 +170,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public Uni<Response> fromTemplate(@PathParam(ORG) String organizationId, FromTemplateRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> {
+        return maintainWork(organizationId, () -> {
             if (body == null || body.templateKey() == null || body.templateKey().isBlank()) {
                 throw new IllegalArgumentException("templateKey is required");
             }
@@ -185,7 +185,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public Uni<Response> create(@PathParam(ORG) String organizationId, CreateRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> Response.status(Response.Status.CREATED)
+        return maintainWork(organizationId, () -> Response.status(Response.Status.CREATED)
                 .entity(catalog.create(tenant, actor, body)).build());
     }
 
@@ -196,7 +196,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public Uni<Response> levelResponse(@PathParam(ORG) String organizationId, @QueryParam("symptom") String symptom,
             @QueryParam("icu") int icu) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(catalog.responseFor(tenant, symptom, icu)).build());
+        return viewWork(organizationId, () -> Response.ok(catalog.responseFor(tenant, symptom, icu)).build());
     }
 
     @GET
@@ -205,7 +205,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             summary = "A symptom with its version in force, its draft and its published versions")
     public Uni<Response> get(@PathParam(ORG) String organizationId, @PathParam(ID) String id) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(catalog.get(tenant, uuid(id))).build());
+        return viewWork(organizationId, () -> Response.ok(catalog.get(tenant, uuid(id))).build());
     }
 
     @PATCH
@@ -215,7 +215,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             IdentityRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> Response.ok(catalog.updateIdentity(tenant, actor, uuid(id),
+        return maintainWork(organizationId, () -> Response.ok(catalog.updateIdentity(tenant, actor, uuid(id),
                 body == null ? new IdentityRequest(null, null, null, null) : body)).build());
     }
 
@@ -226,7 +226,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             SymptomSpec spec) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId,
+        return maintainWork(organizationId,
                 () -> Response.ok(catalog.saveDraft(tenant, actor, uuid(id), spec)).build());
     }
 
@@ -236,7 +236,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public Uni<Response> discardDraft(@PathParam(ORG) String organizationId, @PathParam(ID) String id) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> {
+        return maintainWork(organizationId, () -> {
             catalog.discardDraft(tenant, actor, uuid(id));
             return Response.noContent().build();
         });
@@ -249,7 +249,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public Uni<Response> validate(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
             SymptomSpec spec) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(catalog.validate(tenant, uuid(id), spec)).build());
+        return viewWork(organizationId, () -> Response.ok(catalog.validate(tenant, uuid(id), spec)).build());
     }
 
     @POST
@@ -259,7 +259,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public Uni<Response> preview(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
             SymptomSpec spec) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(previews.preview(tenant, uuid(id), spec)).build());
+        return viewWork(organizationId, () -> Response.ok(previews.preview(tenant, uuid(id), spec)).build());
     }
 
     @GET
@@ -268,7 +268,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             summary = "What publishing the draft would do: changes, bump, next version and checks")
     public Uni<Response> plan(@PathParam(ORG) String organizationId, @PathParam(ID) String id) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(catalog.plan(tenant, uuid(id))).build());
+        return viewWork(organizationId, () -> Response.ok(catalog.plan(tenant, uuid(id))).build());
     }
 
     @POST
@@ -279,7 +279,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
         String tenant = tenantCode(organizationId);
         String actor = actor();
         PublishRequest req = body == null ? new PublishRequest(null, null, null) : body;
-        return ownerWork(organizationId, () -> Response.ok(
+        return maintainWork(organizationId, () -> Response.ok(
                 catalog.publish(tenant, actor, uuid(id), req.reason(), req.bump(), req.state())).build());
     }
 
@@ -290,7 +290,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             RollbackRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> {
+        return maintainWork(organizationId, () -> {
             if (body == null || body.version() == null) {
                 throw new IllegalArgumentException("version is required");
             }
@@ -304,7 +304,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public Uni<Response> fork(@PathParam(ORG) String organizationId, @PathParam(ID) String id, ForkRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> {
+        return maintainWork(organizationId, () -> {
             if (body == null) {
                 throw new IllegalArgumentException("key and name are required");
             }
@@ -320,7 +320,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
             StateRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> {
+        return maintainWork(organizationId, () -> {
             if (body == null || body.state() == null) {
                 throw new IllegalArgumentException("state is required");
             }
@@ -334,7 +334,7 @@ public class OrgSymptomDefinitionsResource extends ControlTowerResourceSupport {
     public Uni<Response> compare(@PathParam(ORG) String organizationId, @PathParam(ID) String id,
             @QueryParam("from") String from, @QueryParam("to") String to) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> {
+        return viewWork(organizationId, () -> {
             if (from == null || to == null) {
                 throw new IllegalArgumentException("from and to are required");
             }

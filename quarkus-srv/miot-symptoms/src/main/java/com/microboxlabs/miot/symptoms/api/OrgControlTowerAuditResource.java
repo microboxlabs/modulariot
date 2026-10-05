@@ -59,7 +59,7 @@ public class OrgControlTowerAuditResource extends ControlTowerResourceSupport {
                     String beforeId,
             @QueryParam("limit") Integer limit) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(
+        return viewWork(organizationId, () -> Response.ok(
                 audit.list(tenant, entityType, entityId, symptomId, parseBefore(before), beforeId, limit)).build());
     }
 

@@ -22,7 +22,7 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-/** The organization's operator team, used for the operator load card. Members read; owners save. */
+/** The organization's operator team, used for the operator load card. VIEW reads; MAINTAIN saves. */
 @Path("/api/v1/orgs/{organizationId}/control-tower/settings")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -52,7 +52,7 @@ public class OrgControlTowerSettingsResource extends ControlTowerResourceSupport
             summary = "The operator team; defaults (8-hour shifts, nothing else set) when never saved")
     public Uni<Response> get(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(settings.get(tenant)).build());
+        return viewWork(organizationId, () -> Response.ok(settings.get(tenant)).build());
     }
 
     @PUT
@@ -62,6 +62,6 @@ public class OrgControlTowerSettingsResource extends ControlTowerResourceSupport
     public Uni<Response> save(@PathParam(ORG) String organizationId, SettingsRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> Response.ok(settings.save(tenant, actor, body)).build());
+        return maintainWork(organizationId, () -> Response.ok(settings.save(tenant, actor, body)).build());
     }
 }

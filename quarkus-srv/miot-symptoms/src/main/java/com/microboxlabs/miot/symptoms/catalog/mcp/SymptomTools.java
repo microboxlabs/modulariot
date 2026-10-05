@@ -2,6 +2,8 @@ package com.microboxlabs.miot.symptoms.catalog.mcp;
 
 import com.microboxlabs.miot.core.mcp.McpCaller;
 import com.microboxlabs.miot.core.selectable.SelectableOption;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccess;
+import com.microboxlabs.miot.symptoms.access.ControlTowerPermission;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceKind;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
@@ -25,6 +27,7 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.ForbiddenException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -103,15 +106,34 @@ public class SymptomTools {
     private final DataSourceService sources;
     private final PreviewService previews;
     private final SymptomFamilies families;
+    private final ControlTowerAccess access;
 
     @Inject
     public SymptomTools(McpCaller caller, SymptomCatalogService catalog, DataSourceService sources,
-            PreviewService previews, SymptomFamilies families) {
+            PreviewService previews, SymptomFamilies families, ControlTowerAccess access) {
         this.caller = caller;
         this.catalog = catalog;
         this.sources = sources;
         this.previews = previews;
         this.families = families;
+        this.access = access;
+    }
+
+    /** A caller with {@link ControlTowerPermission#VIEW}, as the REST reads require. */
+    private Uni<McpCaller.Entered> viewer(String organization) {
+        return permitted(organization, ControlTowerPermission.VIEW);
+    }
+
+    /** A caller with {@link ControlTowerPermission#MAINTAIN}, as the REST catalog writes require. */
+    private Uni<McpCaller.Entered> maintainer(String organization) {
+        return permitted(organization, ControlTowerPermission.MAINTAIN);
+    }
+
+    private Uni<McpCaller.Entered> permitted(String organization, ControlTowerPermission permission) {
+        return caller.member(organization).flatMap(in -> access.require(organization, permission)
+                .onFailure(ForbiddenException.class)
+                .transform(e -> new ToolCallException(e.getMessage()))
+                .replaceWith(in));
     }
 
     @Tool(name = "symptoms_list", structuredContent = true,
@@ -121,7 +143,7 @@ public class SymptomTools {
             annotations = @Tool.Annotations(title = "List symptoms", readOnlyHint = true,
                     destructiveHint = false, openWorldHint = false))
     public Uni<Symptoms> list(@ToolArg(description = ORGANIZATION) String organization) {
-        return caller.member(organization)
+        return viewer(organization)
                 .flatMap(in -> work(() -> new Symptoms(catalog.list(in.tenantCode()).stream()
                         .map(s -> new SymptomItem(s.definition(), s.hasDraft()))
                         .toList())));
@@ -137,7 +159,7 @@ public class SymptomTools {
     public Uni<SymptomDetail> get(
             @ToolArg(description = ORGANIZATION) String organization,
             @ToolArg(description = SYMPTOM_ID) String symptomId) {
-        return caller.member(organization)
+        return viewer(organization)
                 .flatMap(in -> work(() -> catalog.get(in.tenantCode(), uuid(symptomId))));
     }
 
@@ -148,7 +170,7 @@ public class SymptomTools {
             annotations = @Tool.Annotations(title = "List symptom families", readOnlyHint = true,
                     destructiveHint = false, openWorldHint = false))
     public Uni<Families> families(@ToolArg(description = ORGANIZATION) String organization) {
-        return caller.member(organization)
+        return viewer(organization)
                 .flatMap(in -> work(() -> new Families(families.options(in.tenantCode()))));
     }
 
@@ -163,7 +185,7 @@ public class SymptomTools {
             @ToolArg(description = ORGANIZATION) String organization,
             @ToolArg(description = "A source's key, e.g. gps_signal. Leave it out to list the sources.",
                     required = false) String key) {
-        return caller.member(organization).flatMap(in -> work(() -> key == null || key.isBlank()
+        return viewer(organization).flatMap(in -> work(() -> key == null || key.isBlank()
                 ? new Sources(sources.list(in.tenantCode()).stream().map(SymptomTools::summary).toList(), null)
                 : new Sources(null, sources.get(in.tenantCode(), key))));
     }
@@ -181,7 +203,7 @@ public class SymptomTools {
             @ToolArg(description = SYMPTOM_ID) String symptomId,
             @ToolArg(description = SPEC + " Leave it out to check the saved draft.", required = false)
             SymptomSpec spec) {
-        return caller.member(organization)
+        return viewer(organization)
                 .flatMap(in -> work(() -> catalog.validate(in.tenantCode(), uuid(symptomId), spec)));
     }
 
@@ -197,7 +219,7 @@ public class SymptomTools {
             @ToolArg(description = SYMPTOM_ID) String symptomId,
             @ToolArg(description = SPEC + " Leave it out to preview the saved draft.", required = false)
             SymptomSpec spec) {
-        return caller.member(organization)
+        return viewer(organization)
                 .flatMap(in -> work(() -> previews.preview(in.tenantCode(), uuid(symptomId), spec)));
     }
 
@@ -212,7 +234,7 @@ public class SymptomTools {
     public Uni<PublishPlan> plan(
             @ToolArg(description = ORGANIZATION) String organization,
             @ToolArg(description = SYMPTOM_ID) String symptomId) {
-        return caller.member(organization)
+        return viewer(organization)
                 .flatMap(in -> work(() -> catalog.plan(in.tenantCode(), uuid(symptomId))));
     }
 
@@ -227,7 +249,7 @@ public class SymptomTools {
             @ToolArg(description = ORGANIZATION) String organization,
             @ToolArg(description = SYMPTOM_ID) String symptomId,
             @ToolArg(description = SPEC) SymptomSpec spec) {
-        return caller.owner(organization)
+        return maintainer(organization)
                 .flatMap(in -> work(() -> catalog.saveDraft(in.tenantCode(), in.actor(), uuid(symptomId), spec)));
     }
 
@@ -249,7 +271,7 @@ public class SymptomTools {
                     + " draft's state, else the symptom's (TEST for a first version). ACTIVE is refused while the"
                     + " rules use fields the engine does not evaluate yet.", required = false)
             SymptomState state) {
-        return caller.owner(organization).flatMap(in -> work(() -> catalog.publish(in.tenantCode(), in.actor(),
+        return maintainer(organization).flatMap(in -> work(() -> catalog.publish(in.tenantCode(), in.actor(),
                 uuid(symptomId), reason, bump, state)));
     }
 
@@ -266,7 +288,7 @@ public class SymptomTools {
             @ToolArg(description = "The published version to go back to, e.g. 1.2.0.") String version,
             @ToolArg(description = "Why, in the owner's words. \"Volver a <version>\" when left out.",
                     required = false) String reason) {
-        return caller.owner(organization).flatMap(in -> work(() -> {
+        return maintainer(organization).flatMap(in -> work(() -> {
             if (version == null || version.isBlank()) {
                 throw new IllegalArgumentException("version is required");
             }
@@ -285,7 +307,7 @@ public class SymptomTools {
             @ToolArg(description = ORGANIZATION) String organization,
             @ToolArg(description = SYMPTOM_ID) String symptomId,
             @ToolArg(description = "OFF, TEST or ACTIVE.") SymptomState state) {
-        return caller.owner(organization).flatMap(in -> work(() -> {
+        return maintainer(organization).flatMap(in -> work(() -> {
             if (state == null) {
                 throw new IllegalArgumentException("state is required");
             }

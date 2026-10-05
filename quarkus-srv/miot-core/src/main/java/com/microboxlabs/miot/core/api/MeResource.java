@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.api;
 
 import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
 import com.microboxlabs.miot.core.api.dto.OrganizationScopeDto;
+import com.microboxlabs.miot.core.auth.OrganizationMembership;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationModule;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
@@ -52,14 +53,17 @@ public class MeResource {
     private final SecurityIdentity securityIdentity;
     private final IAlfrescoMembershipClient membershipClient;
     private final OrganizationRoleService roleService;
+    private final OrganizationMembership membership;
 
     @Inject
     public MeResource(SecurityIdentity securityIdentity,
                       IAlfrescoMembershipClient membershipClient,
-                      OrganizationRoleService roleService) {
+                      OrganizationRoleService roleService,
+                      OrganizationMembership membership) {
         this.securityIdentity = securityIdentity;
         this.membershipClient = membershipClient;
         this.roleService = roleService;
+        this.membership = membership;
     }
 
     @GET
@@ -84,7 +88,7 @@ public class MeResource {
         // membership check with a single lookup + in-memory filter.
         Uni<List<OrganizationScopeDto>> acc = Uni.createFrom().item(new ArrayList<>());
         for (Organization org : orgs) {
-            if (org.alfrescoGroupId == null) {
+            if (!membership.isNative() && org.alfrescoGroupId == null) {
                 continue; // orgs without an Alfresco binding are invisible
             }
             acc = acc.flatMap(list -> buildScopeIfMember(org, email)
@@ -100,7 +104,10 @@ public class MeResource {
     }
 
     private Uni<OrganizationScopeDto> buildScopeIfMember(Organization org, String email) {
-        return membershipClient.isMember(email, org.alfrescoGroupId)
+        Uni<Boolean> member = membership.isNative()
+                ? membership.assignedRoles(org, email).map(roles -> !roles.isEmpty())
+                : membershipClient.isMember(email, org.alfrescoGroupId);
+        return member
                 .onFailure().recoverWithItem(() -> Boolean.FALSE)
                 .flatMap(isMember -> {
                     if (!Boolean.TRUE.equals(isMember)) {

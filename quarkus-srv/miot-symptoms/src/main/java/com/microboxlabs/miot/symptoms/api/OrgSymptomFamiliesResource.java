@@ -48,6 +48,6 @@ public class OrgSymptomFamiliesResource extends ControlTowerResourceSupport {
                     + " 404 when it has no such list")
     public Uni<Response> list(@PathParam("organizationId") String organizationId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(families.options(tenant)).build());
+        return viewWork(organizationId, () -> Response.ok(families.options(tenant)).build());
     }
 }

@@ -45,7 +45,7 @@ public class OrgDataSourcesResource extends ControlTowerResourceSupport {
     @Operation(operationId = "listDataSources", summary = "Data sources: the platform's and the organization's")
     public Uni<Response> list(@PathParam("organizationId") String organizationId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(sources.list(tenant)).build());
+        return viewWork(organizationId, () -> Response.ok(sources.list(tenant)).build());
     }
 
     @GET
@@ -54,6 +54,6 @@ public class OrgDataSourcesResource extends ControlTowerResourceSupport {
             summary = "A data source with its fields and samples (recent engine values for the GPS signal)")
     public Uni<Response> get(@PathParam("organizationId") String organizationId, @PathParam("key") String key) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(sources.get(tenant, key)).build());
+        return viewWork(organizationId, () -> Response.ok(sources.get(tenant, key)).build());
     }
 }

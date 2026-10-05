@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
 import com.microboxlabs.miot.core.auth.OrganizationMembership;
 import com.microboxlabs.miot.core.iam.model.IamMembership;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
+import com.microboxlabs.miot.core.iam.model.IamTeamMember;
 import com.microboxlabs.miot.core.iam.model.IamUser;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.arc.Arc;
@@ -13,6 +14,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -71,6 +73,14 @@ public class AccessEvaluator {
                 return IamRoleBinding.findFor(scope, IamRoleBinding.CLIENT, List.of(caller.clientId()))
                         .map(bindings -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
                                 nativeMembership, null, false, false, caller.clientId().equals(org.tenantClientId),
+                                covered(bindings, org, root), null), registry));
+            }
+            if (caller.isServiceAccount()) {
+                boolean own = scope.contains(caller.serviceAccountOrganizationId());
+                return IamRoleBinding.findFor(scope, IamRoleBinding.SERVICE_ACCOUNT,
+                                List.of(caller.serviceAccountId().toString()))
+                        .map(bindings -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
+                                true, own ? BaseRole.MEMBER : null, false, false, false,
                                 covered(bindings, org, root), null), registry));
             }
             if (!caller.isUser()) {
@@ -143,11 +153,20 @@ public class AccessEvaluator {
         return Organization.<Organization>findById(org.parent.id);
     }
 
+    /** The user's own bindings plus those of the teams they belong to in these organizations. */
     private static Uni<List<IamRoleBinding>> bindingsOf(IamUser user, List<Long> scope) {
         if (user == null) {
             return Uni.createFrom().item(List.of());
         }
-        return IamRoleBinding.findFor(scope, IamRoleBinding.USER, List.of(user.id.toString()));
+        return IamRoleBinding.findFor(scope, IamRoleBinding.USER, List.of(user.id.toString()))
+                .flatMap(own -> IamTeamMember.findByUser(user.id).flatMap(memberships -> {
+                    List<String> teamIds = memberships.stream().map(m -> m.id.teamId.toString()).toList();
+                    return IamRoleBinding.findFor(scope, IamRoleBinding.TEAM, teamIds).map(teams -> {
+                        List<IamRoleBinding> all = new ArrayList<>(own);
+                        all.addAll(teams);
+                        return all;
+                    });
+                }));
     }
 
     static Set<String> covered(List<IamRoleBinding> bindings, Organization org, Organization root) {

@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.mcp;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -73,10 +74,7 @@ public class McpCaller {
     }
 
     private Caller caller() {
-        String email = OrganizationAccess.email(identity);
-        return email != null
-                ? Caller.user(email)
-                : Caller.client(OrganizationAccess.clientId(identity, clientIdClaims));
+        return IamIdentityAugmentor.callerOf(identity, null, clientIdClaims);
     }
 
     /** An owner of the organization, as the REST writes require. */

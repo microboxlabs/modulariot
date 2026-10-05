@@ -53,8 +53,12 @@ public class OrganizationAccess {
      * Hibernate Reactive.
      */
     public Uni<Refusal> enter(String slug, String email, String m2mClientId) {
-        Caller caller = email != null ? Caller.user(email) : Caller.client(m2mClientId);
-        if (!caller.isUser() && !caller.isClient()) {
+        return enter(slug, email != null ? Caller.user(email) : Caller.client(m2mClientId));
+    }
+
+    /** {@link #enter(String, String, String)} for any kind of caller, service accounts included. */
+    public Uni<Refusal> enter(String slug, Caller caller) {
+        if (!caller.isUser() && !caller.isClient() && !caller.isServiceAccount()) {
             return refuse(Response.Status.UNAUTHORIZED, "Cannot resolve caller identity for organization request");
         }
         return Panache.withSession(() -> Organization.findBySlug(slug)
@@ -91,9 +95,9 @@ public class OrganizationAccess {
 
     private Uni<Refusal> admit(Organization org, Caller caller, Access access) {
         if (!access.member()) {
-            String message = caller.isClient()
-                    ? "M2M client is not authorized for organization: " + org.slug
-                    : "User is not a member of organization: " + org.slug;
+            String message = caller.isUser()
+                    ? "User is not a member of organization: " + org.slug
+                    : "Caller is not authorized for organization: " + org.slug;
             return refuse(Response.Status.FORBIDDEN, message);
         }
         return effectiveClientIds(org)

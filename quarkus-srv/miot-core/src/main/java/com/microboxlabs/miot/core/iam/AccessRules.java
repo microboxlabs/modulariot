@@ -12,7 +12,7 @@ import java.util.TreeSet;
  *   <li>Alfresco membership: the caller must be in the org's Alfresco group (or the org has none); the base role is
  *       the membership's, else Member, or Owner when no owner is assigned yet and the caller manages the Alfresco
  *       site or group.</li>
- *   <li>The organization's own M2M client is a Member.</li>
+ *   <li>The organization's own M2M client is a Member; so is a service account of the organization.</li>
  *   <li>Outside native membership, a caller holding no role of a module gets that module's legacy-default role.</li>
  * </ul>
  */
@@ -49,6 +49,9 @@ public final class AccessRules {
     }
 
     static BaseRole baseRole(Caller caller, Facts facts) {
+        if (caller.isServiceAccount()) {
+            return facts.membershipRole();
+        }
         if (caller.isClient()) {
             return facts.tenantClient() ? BaseRole.MEMBER : null;
         }

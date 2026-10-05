@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.auth;
 
+import com.microboxlabs.miot.core.iam.ApiKeyService;
 import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import io.quarkus.security.identity.IdentityProviderManager;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -68,6 +69,10 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     /** Adds the organization permission checker; this mechanism skips the identity augmentors. */
     @Inject
     IamIdentityAugmentor iam;
+
+    /** API keys ({@code miot_sk_...}) authenticate service accounts. */
+    @Inject
+    ApiKeyService apiKeys;
 
     DualJwtAuthMechanism(
             @ConfigProperty(name = "miot.auth.hs256-issuer", defaultValue = "https://placeholder.auth0.com/")
@@ -175,6 +180,12 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
         }
 
         String token = authHeader.substring(BEARER_PREFIX.length()).trim();
+        if (ApiKeyService.looksLikeKey(token)) {
+            return apiKeys == null || iam == null
+                    ? Uni.createFrom().nullItem()
+                    : apiKeys.authenticate(token).map(holder -> holder == null ? null : iam.withOrgPermissions(
+                            IamIdentityAugmentor.serviceAccountIdentity(holder), null));
+        }
         String path = context.request().path();
         boolean isM2m = isM2mPath(path);
 

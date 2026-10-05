@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.core.auth;
 
+import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
@@ -50,8 +52,11 @@ public class OrganizationRequestFilter {
             return Uni.createFrom().nullItem();
         }
 
-        return organizationAccess.enter(orgSlug, resolveEmail(requestContext), resolveM2mClientId())
-                .map(refusal -> refusal == null ? null : jsonResponse(refusal.status(), refusal.message()));
+        Caller serviceAccount = IamIdentityAugmentor.serviceAccountOf(securityIdentity);
+        Uni<OrganizationAccess.Refusal> entered = serviceAccount != null
+                ? organizationAccess.enter(orgSlug, serviceAccount)
+                : organizationAccess.enter(orgSlug, resolveEmail(requestContext), resolveM2mClientId());
+        return entered.map(refusal -> refusal == null ? null : jsonResponse(refusal.status(), refusal.message()));
     }
 
     private Response jsonResponse(Response.Status status, String error) {

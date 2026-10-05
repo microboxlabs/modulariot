@@ -88,7 +88,7 @@ public class TeamService {
                             TeamRules.checkBaseRoleChange(access, current, next, owners);
                             m.baseRole = next.name();
                             return m.<IamMembership>persist()
-                                    .flatMap(saved -> directory.audit(root.id, actorName(actor), "member.role",
+                                    .flatMap(saved -> directory.audit(root.id, actor.name(), "member.role",
                                             userId.toString(), Map.of("from", current.name(), "to", next.name())))
                                     .flatMap(ignored -> view(root.id, m));
                         }))))));
@@ -99,7 +99,7 @@ public class TeamService {
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 evaluator.evaluate(org, actor).flatMap(access -> membership(root.id, userId).flatMap(m -> {
                     TeamRules.checkGrant(access, wanted, evaluator.registry());
-                    return replaceRoles(root.id, userId, wanted, actorName(actor))
+                    return replaceRoles(root.id, userId, wanted, actor.name())
                             .flatMap(ignored -> view(root.id, m));
                 })))));
     }
@@ -112,7 +112,7 @@ public class TeamService {
                             return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 "
                                             + "and principalId = ?3", root.id, IamRoleBinding.USER, userId.toString())
                                     .flatMap(ignored -> m.delete())
-                                    .flatMap(ignored -> directory.audit(root.id, actorName(actor), "member.removed",
+                                    .flatMap(ignored -> directory.audit(root.id, actor.name(), "member.removed",
                                             userId.toString(), Map.of("baseRole", m.baseRole)));
                         }))))));
     }
@@ -145,7 +145,7 @@ public class TeamService {
                     TeamRules.checkInvite(access, base, roles, evaluator.registry());
                     Uni<List<CreatedInvitation>> chain = Uni.createFrom().item(new ArrayList<>());
                     for (String email : emails) {
-                        chain = chain.flatMap(list -> inviteOne(root, email, base, roles, ttl, actorName(actor))
+                        chain = chain.flatMap(list -> inviteOne(root, email, base, roles, ttl, actor.name())
                                 .map(created -> {
                                     list.add(created);
                                     return list;
@@ -163,7 +163,7 @@ public class TeamService {
                     invitation.expiresAt = Instant.now().plus(DEFAULT_INVITATION_TTL);
                     invitation.updatedAt = Instant.now();
                     return invitation.<IamInvitation>persist()
-                            .flatMap(saved -> directory.audit(root.id, actorName(actor), "invitation.resent",
+                            .flatMap(saved -> directory.audit(root.id, actor.name(), "invitation.resent",
                                     saved.email, Map.of()))
                             .map(ignored -> new CreatedInvitation(view(invitation, root.slug), token));
                 }))));
@@ -175,7 +175,7 @@ public class TeamService {
                     invitation.status = IamInvitation.REVOKED;
                     invitation.updatedAt = Instant.now();
                     return invitation.<IamInvitation>persist()
-                            .flatMap(saved -> directory.audit(root.id, actorName(actor), "invitation.revoked",
+                            .flatMap(saved -> directory.audit(root.id, actor.name(), "invitation.revoked",
                                     saved.email, Map.of()));
                 }))));
     }
@@ -419,9 +419,5 @@ public class TeamService {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }
-    }
-
-    private static String actorName(Caller actor) {
-        return actor.isUser() ? actor.email() : actor.clientId();
     }
 }

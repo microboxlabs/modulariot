@@ -26,14 +26,15 @@ class AccessRegistryTest {
 
     @Test
     void aRoleNamingAnUnknownPermissionFailsAtStartup() {
-        AccessCatalog broken = catalog(List.of(), List.of(RoleDef.of("X_VIEWER", "x", "x", "x", Set.of("x:view"))));
-        assertThrows(IllegalStateException.class, () -> new AccessRegistry(List.of(broken)));
+        List<AccessCatalog> broken = List.of(
+                catalog(List.of(), List.of(RoleDef.of("X_VIEWER", "x", "x", "x", Set.of("x:view")))));
+        assertThrows(IllegalStateException.class, () -> new AccessRegistry(broken));
     }
 
     @Test
     void aKeyDeclaredTwiceFailsAtStartup() {
-        assertThrows(IllegalStateException.class,
-                () -> new AccessRegistry(List.of(new CoreAccessCatalog(), new CoreAccessCatalog())));
+        List<AccessCatalog> twice = List.of(new CoreAccessCatalog(), new CoreAccessCatalog());
+        assertThrows(IllegalStateException.class, () -> new AccessRegistry(twice));
     }
 
     @Test

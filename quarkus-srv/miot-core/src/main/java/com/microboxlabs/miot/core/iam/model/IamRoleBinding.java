@@ -53,6 +53,7 @@ public class IamRoleBinding extends PanacheEntityBase {
     public String createdBy;
 
     public IamRoleBinding() {
+        // Required by JPA.
     }
 
     public static IamRoleBinding of(Long organizationId, String principalKind, String principalId, String roleKey,

@@ -36,6 +36,7 @@ public class IamUser extends PanacheEntityBase {
     public Instant lastSeenAt;
 
     public IamUser() {
+        // Required by JPA.
     }
 
     public static IamUser forEmail(String email) {

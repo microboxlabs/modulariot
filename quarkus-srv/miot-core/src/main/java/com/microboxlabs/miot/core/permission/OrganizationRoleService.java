@@ -138,9 +138,8 @@ public class OrganizationRoleService {
             return directory.holders(organizationId, role).map(ids -> new OrganizationRoleDto(role, ids));
         }
         String caller = organizationContext.getUserEmail();
-        return directory.owners(organizationId).map(owners -> owners.isEmpty() && withBootstrapOwner && caller != null
-                ? new OrganizationRoleDto(role, List.of(caller))
-                : new OrganizationRoleDto(role, owners));
+        return directory.owners(organizationId).map(owners -> new OrganizationRoleDto(role,
+                owners.isEmpty() && withBootstrapOwner && caller != null ? List.of(caller) : owners));
     }
 
     private String knownRole(String roleCode) {

@@ -44,6 +44,7 @@ public class IamAuditEvent extends PanacheEntityBase {
     public Instant createdAt = Instant.now();
 
     public IamAuditEvent() {
+        // Required by JPA.
     }
 
     public static IamAuditEvent of(Long organizationId, String actor, String action, String target,

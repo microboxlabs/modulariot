@@ -12,7 +12,6 @@ import io.vertx.ext.web.RoutingContext;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.enterprise.inject.Alternative;
 import jakarta.ws.rs.Path;
 import java.util.ArrayList;
@@ -66,8 +65,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     private List<Pattern> m2mPathPatterns;
 
     /** Adds the organization permission checker; this mechanism skips the identity augmentors. */
-    @Inject
-    IamIdentityAugmentor iam;
+    private final IamIdentityAugmentor iam;
 
     DualJwtAuthMechanism(
             @ConfigProperty(name = "miot.auth.hs256-issuer", defaultValue = "https://placeholder.auth0.com/")
@@ -81,7 +79,9 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
             @ConfigProperty(name = "miot.auth.hs256-audience", defaultValue = NOT_CONFIGURED)
                     String hs256Audience,
             @ConfigProperty(name = "miot.auth.rs256-audience", defaultValue = NOT_CONFIGURED)
-                    String rs256Audience) {
+                    String rs256Audience,
+            IamIdentityAugmentor iam) {
+        this.iam = iam;
         this.hs256Issuer = hs256Issuer;
         this.rs256Issuer = rs256Issuer;
         this.jwksUrl = jwksUrl;

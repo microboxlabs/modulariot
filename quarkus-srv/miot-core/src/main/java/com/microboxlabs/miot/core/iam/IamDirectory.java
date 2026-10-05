@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import java.util.UUID;
 
 /**
@@ -27,7 +28,8 @@ public class IamDirectory {
     }
 
     /** Makes exactly {@code emails} the owners. Previous owners stay members. */
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    // Reactive Panache: persist overloads are ambiguous; finders are generated per entity.
+    @SuppressWarnings({"java:S1612", "java:S3252"})
     public Uni<Void> setOwners(Long organizationId, Set<String> emails, String actor) {
         Set<String> wanted = normalized(emails);
         return IamMembership.findByRole(organizationId, BaseRole.OWNER.name())
@@ -83,12 +85,12 @@ public class IamDirectory {
     }
 
     /** Makes exactly {@code subjects} hold {@code roleKey} on the organization. A user gets a membership if needed. */
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    // Reactive Panache: persist overloads are ambiguous; finders are generated per entity.
+    @SuppressWarnings({"java:S1612", "java:S3252"})
     public Uni<Void> setHolders(Long organizationId, String roleKey, Set<String> requested, String actor) {
-        Set<String> subjects = new TreeSet<>();
-        for (String subject : requested) {
-            subjects.add(isEmail(subject) ? IamUser.normalize(subject) : subject.trim());
-        }
+        Set<String> subjects = requested.stream()
+                .map(subject -> isEmail(subject) ? IamUser.normalize(subject) : subject.trim())
+                .collect(Collectors.toCollection(TreeSet::new));
         return holders(organizationId, roleKey).flatMap(before -> IamRoleBinding
                 .delete("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3",
                         organizationId, roleKey, IamRoleBinding.ORGANIZATION)

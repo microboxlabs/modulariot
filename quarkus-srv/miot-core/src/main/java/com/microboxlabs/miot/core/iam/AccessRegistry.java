@@ -31,25 +31,8 @@ public class AccessRegistry {
     public AccessRegistry(Iterable<AccessCatalog> catalogs) {
         List<AccessCatalog> all = new ArrayList<>();
         catalogs.forEach(all::add);
-        for (AccessCatalog catalog : all) {
-            for (PermissionDef p : catalog.permissions()) {
-                if (permissions.putIfAbsent(p.key(), p) != null) {
-                    throw new IllegalStateException("permission declared twice: " + p.key());
-                }
-            }
-        }
-        for (AccessCatalog catalog : all) {
-            for (RoleDef r : catalog.roles()) {
-                for (String p : r.permissions()) {
-                    if (!permissions.containsKey(p)) {
-                        throw new IllegalStateException("role " + r.key() + " names unknown permission " + p);
-                    }
-                }
-                if (roles.putIfAbsent(r.key(), r) != null) {
-                    throw new IllegalStateException("role declared twice: " + r.key());
-                }
-            }
-        }
+        all.forEach(catalog -> catalog.permissions().forEach(this::addPermission));
+        all.forEach(catalog -> catalog.roles().forEach(this::addRole));
         Set<String> owner = new TreeSet<>();
         Set<String> admin = new TreeSet<>();
         for (PermissionDef p : permissions.values()) {
@@ -64,6 +47,23 @@ public class AccessRegistry {
                 BaseRole.OWNER, Set.copyOf(owner),
                 BaseRole.ADMIN, Set.copyOf(admin),
                 BaseRole.MEMBER, Set.of(CoreAccessCatalog.ORG_READ, CoreAccessCatalog.MEMBERS_READ));
+    }
+
+    private void addPermission(PermissionDef p) {
+        if (permissions.putIfAbsent(p.key(), p) != null) {
+            throw new IllegalStateException("permission declared twice: " + p.key());
+        }
+    }
+
+    private void addRole(RoleDef r) {
+        for (String p : r.permissions()) {
+            if (!permissions.containsKey(p)) {
+                throw new IllegalStateException("role " + r.key() + " names unknown permission " + p);
+            }
+        }
+        if (roles.putIfAbsent(r.key(), r) != null) {
+            throw new IllegalStateException("role declared twice: " + r.key());
+        }
     }
 
     public Collection<PermissionDef> permissions() {

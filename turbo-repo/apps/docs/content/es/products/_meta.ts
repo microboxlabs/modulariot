@@ -13,7 +13,8 @@ export default {
     title: 'Productos',
     type: 'menu',
     items: {
-      dashboards: { title: 'Dashboards', href: '/es/products/dashboards' }
+      dashboards: { title: 'Dashboards', href: '/es/products/dashboards' },
+      all: { title: 'Todos los productos', href: '/es/products' }
     }
   }
 }

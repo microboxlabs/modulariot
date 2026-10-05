@@ -23,9 +23,12 @@ import java.util.UUID;
 @ApplicationScoped
 public class IamDirectory {
 
-    /** Queues Alfresco projection for memberships created here; absent in unit tests. */
+    private final AlfrescoBridge bridge;
+
     @Inject
-    AlfrescoBridge bridge;
+    public IamDirectory(AlfrescoBridge bridge) {
+        this.bridge = bridge;
+    }
 
     /** The organization's owners' emails, sorted. */
     public Uni<List<String>> owners(Long organizationId) {
@@ -118,9 +121,7 @@ public class IamDirectory {
                         ? Uni.createFrom().item(existing)
                         : IamMembership.of(organizationId, user.id, baseRole.name(), "NATIVE", actor)
                                 .<IamMembership>persist()
-                                .call(created -> bridge == null
-                                        ? Uni.createFrom().voidItem()
-                                        : bridge.memberAdded(organizationId, user.email))));
+                                .call(created -> bridge.memberAdded(organizationId, user.email))));
     }
 
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.

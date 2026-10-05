@@ -69,8 +69,7 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     private final IamIdentityAugmentor iam;
 
     /** API keys ({@code miot_sk_...}) authenticate service accounts. */
-    @Inject
-    ApiKeyService apiKeys;
+    private final ApiKeyService apiKeys;
 
     DualJwtAuthMechanism(
             @ConfigProperty(name = "miot.auth.hs256-issuer", defaultValue = "https://placeholder.auth0.com/")
@@ -85,8 +84,10 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
                     String hs256Audience,
             @ConfigProperty(name = "miot.auth.rs256-audience", defaultValue = NOT_CONFIGURED)
                     String rs256Audience,
-            IamIdentityAugmentor iam) {
+            IamIdentityAugmentor iam,
+            ApiKeyService apiKeys) {
         this.iam = iam;
+        this.apiKeys = apiKeys;
         this.hs256Issuer = hs256Issuer;
         this.rs256Issuer = rs256Issuer;
         this.jwksUrl = jwksUrl;

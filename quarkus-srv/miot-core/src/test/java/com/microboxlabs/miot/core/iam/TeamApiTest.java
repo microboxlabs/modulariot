@@ -127,6 +127,16 @@ class TeamApiTest {
     }
 
     @Test
+    void ownersAndAdminsRenameANativeOrganization() {
+        given().header("Authorization", bearer(ADMIN)).contentType("application/json")
+                .body("{\"displayName\":\"Equipo Norte\"}").when().patch("/api/v1/orgs/" + ORG)
+                .then().statusCode(200).body("displayName", is("Equipo Norte"));
+        // Deleting is for owners only.
+        given().header("Authorization", bearer(ADMIN)).when().delete("/api/v1/orgs/" + ORG)
+                .then().statusCode(403);
+    }
+
+    @Test
     void anInvitationIsResentRevokedAndNotDuplicated() {
         String body = "{\"emails\":[\"" + NEWCOMER + "\"]}";
         String id = given().header("Authorization", bearer(OWNER)).contentType("application/json").body(body)

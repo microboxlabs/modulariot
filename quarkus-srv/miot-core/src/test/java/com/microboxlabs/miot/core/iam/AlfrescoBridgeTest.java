@@ -3,9 +3,12 @@ package com.microboxlabs.miot.core.iam;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 
 import com.microboxlabs.miot.core.auth.PlatformTestProfile;
+import com.microboxlabs.miot.core.auth.StubAlfrescoMembershipClient;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -38,6 +41,40 @@ class AlfrescoBridgeTest {
     @AfterEach
     void clean() throws SQLException {
         exec("DELETE FROM miot_core.organizations WHERE slug = '" + ORG + "'");
+    }
+
+    @Test
+    void anAlfrescoMemberIsRecordedAtSignIn() {
+        String member = StubAlfrescoMembershipClient.MEMBER_EMAIL;
+        given().header("Authorization", bearer(member)).when().get("/api/v1/me/scopes")
+                .then().statusCode(200).body("slug", hasItem(ORG));
+
+        given().header("Authorization", bearer(member)).when().get("/api/v1/orgs/" + ORG + "/team/members")
+                .then().statusCode(200)
+                .body("membershipSource", is("ALFRESCO"))
+                .body("members.find { it.email == '" + member + "' }.baseRole", is("ADMIN"))
+                .body("members.find { it.email == '" + member + "' }.source", is("ALFRESCO"))
+                .body("members.find { it.email == '" + member + "' }.lastSeenAt", notNullValue());
+
+        // Alfresco decides who belongs, so the Team page cannot invite.
+        given().header("Authorization", bearer(member)).contentType("application/json")
+                .body("{\"emails\":[\"someone@bridge.test\"],\"baseRole\":\"MEMBER\"}")
+                .when().post("/api/v1/orgs/" + ORG + "/team/invitations")
+                .then().statusCode(409);
+
+        // An Admin can rename the organization.
+        given().header("Authorization", bearer(member)).contentType("application/json")
+                .body("{\"displayName\":\"Puente\"}")
+                .when().patch("/api/v1/orgs/" + ORG)
+                .then().statusCode(200).body("displayName", is("Puente"));
+    }
+
+    @Test
+    void anAdminImportsTheGroupFromTheTeamPage() {
+        given().header("Authorization", bearer(StubAlfrescoMembershipClient.MEMBER_EMAIL))
+                .when().post("/api/v1/orgs/" + ORG + "/team/alfresco-import")
+                .then().statusCode(200)
+                .body("added", is(3));
     }
 
     @Test

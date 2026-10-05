@@ -115,6 +115,7 @@ public class TeamService {
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 evaluator.evaluate(org, actor).flatMap(access -> membership(root.id, userId).flatMap(m ->
                         lockedOwnerCount(root.id).flatMap(owners -> {
+                            requireNative(root);
                             TeamRules.checkRemoval(access, BaseRole.valueOf(m.baseRole), owners);
                             return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 "
                                             + "and principalId = ?3", root.id, IamRoleBinding.USER, userId.toString())
@@ -153,6 +154,7 @@ public class TeamService {
         }
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 evaluator.evaluate(org, actor).flatMap(access -> {
+                    requireNative(root);
                     TeamRules.checkInvite(access, base, roles, evaluator.registry());
                     Uni<List<CreatedInvitation>> chain = Uni.createFrom().item(new ArrayList<>());
                     for (String email : emails) {
@@ -374,6 +376,14 @@ public class TeamService {
             }
             return org;
         });
+    }
+
+    /** Alfresco decides who belongs to an ALFRESCO organization, so members are added and removed there. */
+    private void requireNative(Organization root) {
+        if (!evaluator.isNative(root)) {
+            throw new IllegalStateException(
+                    "Members of this organization come from Alfresco; add or remove them in its Alfresco group");
+        }
     }
 
     private static Uni<Organization> root(Organization org) {

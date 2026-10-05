@@ -65,15 +65,13 @@ export function AcceptInvitation({ token, lang, d }: AcceptInvitationProps) {
       )}
       {state.kind === "accepted" && (
         <>
-          <Alert color="success">{tr("accepted", d)}</Alert>
+          <Alert color="gray">{tr("accepted", d)}</Alert>
           <Button color="blue" href={`/app/${lang}`}>
             {tr("openOrganization", d)}
           </Button>
         </>
       )}
-      {state.kind === "failed" && (
-        <Alert color="failure">{state.message}</Alert>
-      )}
+      {state.kind === "failed" && <Alert color="gray">{state.message}</Alert>}
     </div>
   );
 }

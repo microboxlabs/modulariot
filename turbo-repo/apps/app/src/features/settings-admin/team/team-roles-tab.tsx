@@ -63,12 +63,12 @@ export function TeamRolesTab({ catalog, lang, d }: TeamRolesTabProps) {
                     <td className="px-4 py-2 text-gray-900 dark:text-white">
                       {labelOf(permission, lang)}
                       {permission.ownerOnly && (
-                        <Badge color="warning" className="ml-2 inline-flex">
+                        <Badge color="gray" className="ml-2 inline-flex">
                           {tr("ownerOnly", d)}
                         </Badge>
                       )}
                       {permission.explicitOnly && (
-                        <Badge color="purple" className="ml-2 inline-flex">
+                        <Badge color="gray" className="ml-2 inline-flex">
                           {tr("explicitOnly", d)}
                         </Badge>
                       )}
@@ -77,7 +77,7 @@ export function TeamRolesTab({ catalog, lang, d }: TeamRolesTabProps) {
                       <td key={column.key} className="px-3 py-2 text-center">
                         {column.permissions.has(permission.key) && (
                           <HiCheck
-                            className="mx-auto h-4 w-4 text-green-600"
+                            className="mx-auto h-4 w-4 text-blue-600"
                             aria-label={column.label}
                           />
                         )}

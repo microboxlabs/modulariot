@@ -174,11 +174,29 @@ export function setTeamRoles(teamId: string, roles: string[]) {
   );
 }
 
+/** Adds every member of the organization's Alfresco group. */
+export function importAlfrescoMembers() {
+  return sendJson<{ seen: number; added: number }>(
+    "POST",
+    `${TEAM}/alfresco-import`,
+    {}
+  );
+}
+
 export function acceptInvitation(token: string) {
   return sendJson<AcceptedInvitation>(
     "POST",
     "/app/api/me/invitations/accept",
     { token }
+  );
+}
+
+/** Accepts one of the signed-in user's pending invitations. */
+export function acceptInvitationById(id: string) {
+  return sendJson<AcceptedInvitation>(
+    "POST",
+    `/app/api/me/invitations/${encodeURIComponent(id)}/accept`,
+    {}
   );
 }
 

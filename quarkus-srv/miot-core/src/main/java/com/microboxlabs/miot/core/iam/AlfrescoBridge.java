@@ -64,15 +64,17 @@ public class AlfrescoBridge {
 
     // --- import ---
 
-    /** Copies the org's Alfresco group into memberships. Run it before switching the org to NATIVE. */
+    /**
+     * Copies the Alfresco group of {@code slug}'s top-level organization into memberships. Run it before switching
+     * the organization to NATIVE.
+     */
     public Uni<ImportResult> importMembers(String slug, String actor) {
-        return Panache.withTransaction(() -> Organization.findBySlug(slug).flatMap(org -> {
-            if (org == null) {
+        return Panache.withTransaction(() -> Organization.findBySlug(slug).flatMap(found -> {
+            if (found == null) {
                 throw new NoSuchElementException("Organization not found: " + slug);
             }
-            if (org.parent != null) {
-                throw new IllegalArgumentException("Import the top-level organization; sub-accounts share it");
-            }
+            return evaluator.root(found);
+        }).flatMap(org -> {
             if (org.alfrescoGroupId == null) {
                 throw new IllegalStateException("The organization has no Alfresco group");
             }

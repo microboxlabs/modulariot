@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.core.api;
 
+import com.microboxlabs.miot.core.iam.AccessEvaluator;
+import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.alfresco.IAlfrescoGroupAdminClient;
 import com.microboxlabs.miot.core.api.dto.CreateOrganizationRequest;
 import com.microboxlabs.miot.core.api.dto.OrganizationDto;
@@ -38,12 +40,8 @@ import org.jboss.logging.Logger;
  *   <li>{@code DELETE /api/v1/orgs/{slug}}               — soft delete ({@code active=false}).</li>
  * </ul>
  *
- * <p>All operations require {@code SITE_MANAGER} on the parent of
- * the target org (see {@link WriteAuthorizer}). The URL is still
- * {@code /api/v1/orgs/{slug}/...}, so the existing
- * {@code OrganizationRequestFilter} first ensures the caller is a
- * member of the target; the write authorizer then enforces the
- * stronger parent-manager rule.
+ * <p>Creating a sub-account and editing need {@code org:update}, deleting needs {@code org:delete}, both on the
+ * top-level organization (see {@link WriteAuthorizer}).
  *
  * <p>All multi-step flows chain sequentially via {@code flatMap} to
  * respect the Hibernate Reactive one-session-no-parallel-queries rule.
@@ -63,14 +61,17 @@ public class OrgAdminResource {
     private final IAlfrescoGroupAdminClient groupAdmin;
     private final TaxIdValidator taxIdValidator;
     private final WriteAuthorizer writeAuthorizer;
+    private final AccessEvaluator evaluator;
 
     @Inject
     public OrgAdminResource(IAlfrescoGroupAdminClient groupAdmin,
                             @ActiveTaxIdValidator TaxIdValidator taxIdValidator,
-                            WriteAuthorizer writeAuthorizer) {
+                            WriteAuthorizer writeAuthorizer,
+                            AccessEvaluator evaluator) {
         this.groupAdmin = groupAdmin;
         this.taxIdValidator = taxIdValidator;
         this.writeAuthorizer = writeAuthorizer;
+        this.evaluator = evaluator;
     }
 
     @POST
@@ -104,13 +105,17 @@ public class OrgAdminResource {
                                 return Uni.createFrom().failure(new BadRequestException(
                                         "Cannot nest sub-accounts beyond 2 levels"));
                             }
-                            return writeAuthorizer.requireParentSiteManager(parent)
+                            // A native organization's sub-accounts get no Alfresco group.
+                            String groupId = evaluator.isNative(parent) ? null : derivedGroupId;
+                            return writeAuthorizer.require(parent, CoreAccessCatalog.ORG_UPDATE)
                                     .flatMap(ignored -> assertSlugAvailable(newSlug))
                                     .flatMap(ignored -> assertTaxIdAvailable(normalizedTaxId))
                                     .flatMap(ignored -> persistNewChild(
                                             parent, newSlug, newName, newDisplayName,
-                                            normalizedTaxId, derivedGroupId))
-                                    .flatMap(child -> groupAdmin
+                                            normalizedTaxId, groupId))
+                                    .flatMap(child -> groupId == null
+                                            ? Uni.createFrom().item(child)
+                                            : groupAdmin
                                             .createGroup(derivedGroupId, newDisplayName)
                                             .onFailure().invoke(err ->
                                                     LOG.errorf(err,
@@ -138,7 +143,7 @@ public class OrgAdminResource {
                                 return Uni.createFrom().failure(new NotFoundException(
                                         "Organization not found: " + slug));
                             }
-                            return writeAuthorizer.requireParentSiteManager(org)
+                            return writeAuthorizer.require(org, CoreAccessCatalog.ORG_UPDATE)
                                     .flatMap(ignored -> assertUpdatedTaxIdAvailable(org, normalizedTaxId))
                                     .map(ignored -> applyPatch(org, body, normalizedTaxId))
                                     .flatMap(updated -> updated.<Organization>persist());
@@ -157,7 +162,7 @@ public class OrgAdminResource {
                                 return Uni.createFrom().failure(new NotFoundException(
                                         "Organization not found: " + slug));
                             }
-                            return writeAuthorizer.requireParentSiteManager(org)
+                            return writeAuthorizer.require(org, CoreAccessCatalog.ORG_DELETE)
                                     .flatMap(ignored -> {
                                         org.active = false;
                                         return org.<Organization>persist();

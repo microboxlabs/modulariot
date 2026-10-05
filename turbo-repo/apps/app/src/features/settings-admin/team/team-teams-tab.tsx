@@ -84,7 +84,7 @@ function TeamRow({
             <span className="text-xs text-gray-400">{tr("noAccess", d)}</span>
           )}
           {team.roles.map((key) => (
-            <Badge key={key} color="indigo">
+            <Badge key={key} color="gray">
               {labelOf(
                 roles.find((r) => r.key === key),
                 lang,
@@ -119,7 +119,11 @@ function TeamRow({
             </Button>
           )}
           {allowed.canManage && (
-            <Button size="xs" color="red" onClick={() => onDelete(team)}>
+            <Button
+              size="xs"
+              color="alternative"
+              onClick={() => onDelete(team)}
+            >
               <HiOutlineTrash className="mr-1 h-4 w-4" />
               {tr("delete", d)}
             </Button>
@@ -196,11 +200,11 @@ export function TeamTeamsTab({
         </div>
       )}
       {error && (
-        <Alert color="failure" onDismiss={() => setError(null)}>
+        <Alert color="gray" onDismiss={() => setError(null)}>
           {error}
         </Alert>
       )}
-      {teams.error && <Alert color="failure">{tr("loadFailed", d)}</Alert>}
+      {teams.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
       {teams.isLoading && <Spinner className="mx-auto" />}
       {teams.data && list.length === 0 && (
         <p className="py-10 text-center text-sm text-gray-500">

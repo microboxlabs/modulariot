@@ -28,8 +28,8 @@ const CELL = "px-4 py-2 align-middle";
 const HEAD = "px-4 py-2 text-left text-xs font-medium uppercase text-gray-500";
 
 const STATE_COLOR: Record<KeyState, string> = {
-  active: "success",
-  expired: "warning",
+  active: "blue",
+  expired: "gray",
   revoked: "gray",
 };
 
@@ -94,7 +94,11 @@ function KeyRow({ apiKey, lang, d, onRevoke }: KeyRowProps) {
       </td>
       <td className={`${CELL} text-right`}>
         {state !== "revoked" && (
-          <Button size="xs" color="red" onClick={() => onRevoke(apiKey)}>
+          <Button
+            size="xs"
+            color="alternative"
+            onClick={() => onRevoke(apiKey)}
+          >
             {tr("revoke", d)}
           </Button>
         )}
@@ -152,7 +156,7 @@ function AccountCard({
               <span className="text-xs text-gray-400">{tr("noAccess", d)}</span>
             )}
             {account.roles.map((key) => (
-              <Badge key={key} color="indigo">
+              <Badge key={key} color="gray">
                 {labelOf(
                   roles.find((r) => r.key === key),
                   lang,
@@ -179,7 +183,11 @@ function AccountCard({
             <HiOutlineKey className="mr-1 h-4 w-4" />
             {tr("tabRoles", d)}
           </Button>
-          <Button size="xs" color="red" onClick={() => onDelete(account)}>
+          <Button
+            size="xs"
+            color="alternative"
+            onClick={() => onDelete(account)}
+          >
             <HiOutlineTrash className="mr-1 h-4 w-4" />
             {tr("delete", d)}
           </Button>
@@ -267,11 +275,11 @@ export function TeamKeysTab({ roles, lang, d }: TeamKeysTabProps) {
         </Button>
       </div>
       {error && (
-        <Alert color="failure" onDismiss={() => setError(null)}>
+        <Alert color="gray" onDismiss={() => setError(null)}>
           {error}
         </Alert>
       )}
-      {accounts.error && <Alert color="failure">{tr("loadFailed", d)}</Alert>}
+      {accounts.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
       {accounts.isLoading && <Spinner className="mx-auto" />}
       {accounts.data && list.length === 0 && (
         <p className="py-10 text-center text-sm text-gray-500">

@@ -41,7 +41,7 @@ function InvitationRow({
       <td className={CELL}>
         <div className="flex flex-wrap gap-1">
           {invitation.roles.map((key) => (
-            <Badge key={key} color="indigo">
+            <Badge key={key} color="gray">
               {labelOf(
                 roles.find((r) => r.key === key),
                 lang,
@@ -55,7 +55,7 @@ function InvitationRow({
       <td className={`${CELL} text-gray-500`}>
         {formatDate(invitation.expiresAt, lang)}
         {invitation.expired && (
-          <Badge color="failure" className="ml-2 inline-flex">
+          <Badge color="gray" className="ml-2 inline-flex">
             {tr("expired", d)}
           </Badge>
         )}
@@ -71,7 +71,11 @@ function InvitationRow({
               <HiOutlineMail className="mr-1 h-4 w-4" />
               {tr("resend", d)}
             </Button>
-            <Button size="xs" color="red" onClick={() => onRevoke(invitation)}>
+            <Button
+              size="xs"
+              color="alternative"
+              onClick={() => onRevoke(invitation)}
+            >
               <HiOutlineXCircle className="mr-1 h-4 w-4" />
               {tr("revoke", d)}
             </Button>

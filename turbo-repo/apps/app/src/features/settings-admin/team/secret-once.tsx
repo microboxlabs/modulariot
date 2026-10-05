@@ -20,7 +20,7 @@ export function SecretOnce({ secret, d }: SecretOnceProps) {
   };
   return (
     <div className="flex flex-col gap-3">
-      <Alert color="warning" icon={HiExclamation}>
+      <Alert color="gray" icon={HiExclamation}>
         {tr("secretOnce", d)}
       </Alert>
       <div className="flex gap-2">

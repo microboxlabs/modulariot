@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.api;
 
+import com.microboxlabs.miot.core.iam.AlfrescoBridge;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
@@ -48,16 +49,29 @@ public class OrgTeamResource {
     private static final String ORG = "organizationId";
 
     private final TeamService team;
+    private final AlfrescoBridge bridge;
     private final SecurityIdentity identity;
     private final List<String> clientIdClaims;
 
     @Inject
-    public OrgTeamResource(TeamService team, SecurityIdentity identity,
+    public OrgTeamResource(TeamService team, AlfrescoBridge bridge, SecurityIdentity identity,
             @ConfigProperty(name = "miot.auth.client-id-claims", defaultValue = "aud,azp")
             List<String> clientIdClaims) {
         this.team = team;
+        this.bridge = bridge;
         this.identity = identity;
         this.clientIdClaims = clientIdClaims;
+    }
+
+    @POST
+    @Path("/alfresco-import")
+    @Consumes(MediaType.WILDCARD)
+    @Operation(operationId = "importAlfrescoMembers",
+            summary = "Add every member of the organization's Alfresco group (managers as Admin)")
+    @PermissionsAllowed(value = CoreAccessCatalog.MEMBERS_INVITE, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> importAlfresco(@PathParam(ORG) String organizationId,
+            @HeaderParam(IamIdentityAugmentor.DEV_EMAIL_HEADER) String devEmail) {
+        return IamResponses.ok(() -> bridge.importMembers(organizationId, caller(devEmail).name()));
     }
 
     @GET

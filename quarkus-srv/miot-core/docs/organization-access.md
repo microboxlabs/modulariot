@@ -33,9 +33,24 @@ Each top-level organization has `membership_source`; its sub-accounts follow it.
 
 With `ALFRESCO`, and for the organization's own M2M client, a caller holding no role of a module gets that module's legacy-default role (control tower: Operator).
 
+With `ALFRESCO`, people are added and removed in the Alfresco group. The Team page cannot invite or remove (409). An Alfresco member is recorded as a membership the first time they sign in (`GET /api/v1/me/scopes`): site and group managers as `ADMIN`, everyone else `MEMBER`. A membership row only raises the base role; it never grants access on its own.
+
+## Signing in
+
+Sign-in proves who the user is; there is no sign-up. A user with no organization sees a "no access yet" page listing their pending invitations. Every sign-in updates `last_seen_at`, at most every 5 minutes.
+
 ## Invitations
 
-An invitation names an email, a base role and optional module roles. It lasts 30 days by default, 90 at most. The link `/app/{lang}/invite/{token}` is shown once; only the token's SHA-256 is stored. The invitee must sign in with the invited email. One pending invitation per email and organization.
+An invitation names an email, a base role and optional module roles. It lasts 30 days by default, 90 at most. The link `/app/{lang}/invite/{token}` is shown once; only the token's SHA-256 is stored. The invitee must sign in with the invited email. One pending invitation per email and organization. Native organizations only.
+
+## Organization settings
+
+| Action | Permission, on the top-level organization |
+|---|---|
+| Rename, change tax id, change modules, create a sub-account | `org:update` (Owner, Admin) |
+| Delete | `org:delete` (Owner) |
+
+A native organization's sub-accounts get no Alfresco group. Creating a top-level organization is for platform owners.
 
 ## Rules for changing members
 
@@ -55,7 +70,7 @@ Its keys look like `miot_sk_<id>_<secret>` and go in `Authorization: Bearer`. Th
 
 ## Moving an organization off Alfresco
 
-1. `POST /api/v1/platform/orgs/{slug}/alfresco-import` copies the Alfresco group into memberships. Site and group managers become `ADMIN`; everyone else `MEMBER`. Running it again adds only new people.
+1. "Import from Alfresco" on the Team page (`POST /api/v1/orgs/{org}/team/alfresco-import`, needs `members:invite`), or `POST /api/v1/platform/orgs/{slug}/alfresco-import`, copies the Alfresco group into memberships. Site and group managers become `ADMIN`; everyone else `MEMBER`. Running it again adds only new people.
 2. Assign at least one `OWNER`.
 3. `PATCH /api/v1/platform/orgs/{slug}/membership-source` with `{"membershipSource": "NATIVE"}`.
 

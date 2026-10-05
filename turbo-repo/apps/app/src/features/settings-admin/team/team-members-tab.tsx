@@ -80,7 +80,7 @@ function MemberRow({
           {member.name ?? member.email}
         </span>
         {isMe && (
-          <Badge color="info" className="ml-2 inline-flex">
+          <Badge color="blue" className="ml-2 inline-flex">
             {tr("you", d)}
           </Badge>
         )}
@@ -102,7 +102,7 @@ function MemberRow({
             <span className="text-xs text-gray-400">{tr("noAccess", d)}</span>
           )}
           {member.roles.map((key) => (
-            <Badge key={key} color="indigo">
+            <Badge key={key} color="gray">
               {labelOf(
                 roles.find((r) => r.key === key),
                 lang,
@@ -131,7 +131,11 @@ function MemberRow({
             </Button>
           )}
           {allowed.canRemove && !isMe && (
-            <Button size="xs" color="red" onClick={() => onRemove(member)}>
+            <Button
+              size="xs"
+              color="alternative"
+              onClick={() => onRemove(member)}
+            >
               <HiOutlineTrash className="mr-1 h-4 w-4" />
               {tr("remove", d)}
             </Button>

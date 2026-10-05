@@ -26,6 +26,10 @@
             {
               "label": "Live Video / HLS",
               "desc": "Continuous streaming from cameras and dashcams"
+            },
+            {
+              "label": "Dashboards",
+              "desc": "Dashboards on approved data, for your team or your product"
             }
           ]
         },
@@ -984,6 +988,137 @@
             {
               "title": "Your storage",
               "body": "Frames and video live in your bucket. No external video-surveillance licenses."
+            }
+          ]
+        }
+      ]
+    },
+    "producto/dashboards": {
+      "eyebrow": "Product · Dashboards",
+      "title": "Operational dashboards your team builds in minutes",
+      "subtitle": "Build, share and embed dashboards on approved data. Data and credentials stay on your server: a dashboard names a query, never a password or SQL.",
+      "blocks": [
+        {
+          "kicker": "What it is",
+          "title": "Every team with its own dashboard and the right data",
+          "body": "Drag widgets onto a grid, connect them to queries an administrator approved, and decide who can see or change each dashboard. Use it inside ModularIoT or embed it in your own product.",
+          "bullets": [
+            "Grid editor with automatic saving",
+            "Text, statistics, tables, lists and charts",
+            "Date, text and selection filters",
+            "Four roles and per-dashboard permissions",
+            "Open source under Apache 2.0"
+          ]
+        },
+        {
+          "kicker": "Capabilities",
+          "title": "Everything an operational dashboard needs",
+          "cards": [
+            {
+              "title": "Visual editor",
+              "body": "Move and resize widgets on a 24-column grid. Changes save on their own and nobody overwrites anyone else's work."
+            },
+            {
+              "title": "Saved queries",
+              "body": "Widgets read named results. An administrator decides which operations exist on PostgREST or BigQuery."
+            },
+            {
+              "title": "Data kept apart by organization",
+              "body": "Each organization sees only its own. The browser never receives a credential, a data URL or SQL."
+            },
+            {
+              "title": "Roles and permissions",
+              "body": "Consumer, Contributor, Editor and Coordinator per scope, plus extra permissions per dashboard for people or groups."
+            },
+            {
+              "title": "Embeddable in your product",
+              "body": "Draw dashboards with React, with a Web Component or in plain HTML, without installing React."
+            },
+            {
+              "title": "Deploy your way",
+              "body": "npm, Docker or Helm, with SQLite or PostgreSQL. In your cloud or inside ModularIoT."
+            }
+          ]
+        },
+        {
+          "kicker": "Get started",
+          "title": "From data to dashboard in three steps",
+          "steps": [
+            {
+              "n": "01",
+              "title": "Connect your data",
+              "body": "Create a PostgREST or BigQuery connection and choose which functions dashboards may use."
+            },
+            {
+              "n": "02",
+              "title": "Build the dashboard",
+              "body": "Add widgets, saved queries and filters in the editor. No code needed."
+            },
+            {
+              "n": "03",
+              "title": "Share or embed",
+              "body": "Give your team roles, or show the dashboard inside your own application."
+            }
+          ]
+        },
+        {
+          "kicker": "Plans",
+          "title": "Start free, grow with support",
+          "subtitle": "The server and the UI library are open source. Choose how you want to run them.",
+          "plans": [
+            {
+              "name": "Open source",
+              "price": "Free",
+              "body": "Install the server and the UI library on your infrastructure.",
+              "bullets": [
+                "Apache 2.0 license",
+                "npm, Docker or Helm",
+                "Complete documentation in English and Spanish",
+                "Community support on GitHub"
+              ],
+              "cta": "Read the guide"
+            },
+            {
+              "name": "Included in ModularIoT",
+              "price": "In your plan",
+              "body": "Dashboards comes built into the ModularIoT platform.",
+              "bullets": [
+                "No servers to manage",
+                "Uses your organization's connections",
+                "Same ModularIoT users and roles",
+                "Updates included"
+              ],
+              "cta": "See pricing"
+            },
+            {
+              "name": "Enterprise",
+              "price": "Custom",
+              "body": "For teams that need dedicated operations and support.",
+              "bullets": [
+                "Hosted and run by MicroboxLabs",
+                "SSO with your identity provider",
+                "Support with a service-level agreement",
+                "Help migrating your dashboards"
+              ],
+              "cta": "Request a quote"
+            }
+          ]
+        },
+        {
+          "kicker": "Documentation",
+          "title": "Everything you need to start",
+          "links": [
+            {
+              "title": "Dashboards guide",
+              "body": "Installation, tutorials, how-to guides and the complete reference."
+            },
+            {
+              "title": "Embed a dashboard",
+              "body": "A step-by-step tutorial to show a dashboard in a web page."
+            },
+            {
+              "title": "Code on GitHub",
+              "body": "The server, the UI library and the contract, under Apache 2.0."
             }
           ]
         }

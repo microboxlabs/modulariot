@@ -2,16 +2,22 @@ import { describe, expect, it } from "vitest";
 import {
   assignableBaseRoles,
   basePermissions,
+  expiryDays,
   groupByModule,
   invalidEmails,
   inviteLink,
+  keyDisplay,
+  keyState,
   labelOf,
   matrixColumns,
+  memberLabels,
   parseEmails,
   rolesByModule,
   selectedRoles,
+  teamOrganizationRoles,
+  teamRoleChanges,
 } from "./team-model";
-import type { AccessCatalog } from "./team.types";
+import type { AccessCatalog, ApiKey, Binding, TeamMember } from "./team.types";
 
 const catalog: AccessCatalog = {
   baseRoles: ["MEMBER", "ADMIN", "OWNER"],
@@ -162,5 +168,116 @@ describe("role selection", () => {
     expect(inviteLink("https://x.test", "es", "a/b")).toBe(
       "https://x.test/app/es/invite/a%2Fb"
     );
+  });
+});
+
+function binding(over: Partial<Binding>): Binding {
+  return {
+    id: "b1",
+    principalKind: "TEAM",
+    principalId: "t1",
+    role: "CONTROL_TOWER_VIEWER",
+    scopeKind: "ORGANIZATION",
+    subAccount: null,
+    expiresAt: null,
+    createdAt: "2026-01-01T00:00:00Z",
+    createdBy: null,
+    ...over,
+  };
+}
+
+function key(over: Partial<ApiKey>): ApiKey {
+  return {
+    id: "k1",
+    keyId: "abc123",
+    name: null,
+    createdAt: "2026-01-01T00:00:00Z",
+    createdBy: null,
+    expiresAt: null,
+    lastUsedAt: null,
+    revokedAt: null,
+    ...over,
+  };
+}
+
+describe("teams and API keys", () => {
+  const bindings = [
+    binding({ id: "b1", role: "CONTROL_TOWER_VIEWER" }),
+    binding({ id: "b2", role: "HARNESS_TRAINER" }),
+    binding({
+      id: "b3",
+      role: "CONTENT_EDITOR",
+      scopeKind: "SUB_ACCOUNT",
+      subAccount: "child",
+    }),
+    binding({ id: "b4", principalId: "t2", role: "CONTENT_EDITOR" }),
+    binding({ id: "b5", principalKind: "USER", principalId: "t1" }),
+  ];
+
+  it("binds the new roles and unbinds the dropped ones, organization-wide only", () => {
+    expect(
+      teamRoleChanges(
+        "t1",
+        ["CONTROL_TOWER_VIEWER", "CONTENT_EDITOR"],
+        bindings
+      )
+    ).toEqual({ add: ["CONTENT_EDITOR"], remove: ["b2"] });
+    expect(teamRoleChanges("t1", [], bindings)).toEqual({
+      add: [],
+      remove: ["b1", "b2"],
+    });
+  });
+
+  it("reads a team's organization roles from its bindings", () => {
+    expect(teamOrganizationRoles("t1", bindings)).toEqual([
+      "CONTROL_TOWER_VIEWER",
+      "HARNESS_TRAINER",
+    ]);
+  });
+
+  it("labels members by email, then name, then id", () => {
+    const members = [
+      { userId: "u1", email: "a@x.test", name: "Ana" },
+      { userId: "u2", email: null, name: "Bo" },
+    ] as TeamMember[];
+    expect(memberLabels(["u1", "u2", "u3"], members)).toEqual([
+      "a@x.test",
+      "Bo",
+      "u3",
+    ]);
+  });
+
+  it("shows only the public part of a key", () => {
+    expect(keyDisplay("abc123")).toBe("miot_sk_abc123_…");
+  });
+
+  it("tells revoked and expired keys from active ones", () => {
+    const now = new Date("2026-06-01T00:00:00Z");
+    expect(keyState(key({}), now)).toBe("active");
+    expect(keyState(key({ expiresAt: "2026-07-01T00:00:00Z" }), now)).toBe(
+      "active"
+    );
+    expect(keyState(key({ expiresAt: "2026-05-01T00:00:00Z" }), now)).toBe(
+      "expired"
+    );
+    expect(
+      keyState(
+        key({
+          expiresAt: "2026-05-01T00:00:00Z",
+          revokedAt: "2026-04-01T00:00:00Z",
+        }),
+        now
+      )
+    ).toBe("revoked");
+  });
+
+  it("reads the key lifetime: blank never expires, 1 to 365 days", () => {
+    expect(expiryDays("")).toBeUndefined();
+    expect(expiryDays(" 30 ")).toBe(30);
+    expect(expiryDays("365")).toBe(365);
+    expect(expiryDays("0")).toBeNull();
+    expect(expiryDays("366")).toBeNull();
+    expect(expiryDays("1.5")).toBeNull();
+    expect(expiryDays("abc")).toBeNull();
   });
 });

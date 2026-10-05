@@ -25,12 +25,14 @@ import {
 } from "./team-api";
 import { TeamInvitationsTab } from "./team-invitations-tab";
 import { TeamInviteModal } from "./team-invite-modal";
+import { TeamKeysTab } from "./team-keys-tab";
 import { TeamMembersTab } from "./team-members-tab";
 import { inviteLink } from "./team-model";
 import { TeamRolesTab } from "./team-roles-tab";
+import { TeamTeamsTab } from "./team-teams-tab";
 import type { BaseRole, Invitation, TeamMember } from "./team.types";
 
-type Tab = "members" | "invitations" | "roles";
+type Tab = "members" | "invitations" | "teams" | "keys" | "roles";
 
 type Confirm =
   | { kind: "remove"; member: TeamMember }
@@ -75,6 +77,11 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
     canRemove: can("members:remove"),
     canManageOwners: can("owners:manage"),
   };
+  const teamsAllowed = {
+    canManage: can("teams:manage"),
+    canBind: allowed.canUpdate,
+  };
+  const canManageKeys = can("apikeys:manage");
 
   const team = useTeam();
   const invitations = useInvitations(can("members:read"));
@@ -164,12 +171,16 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
 
         <TabButtons<Tab>
           pill
-          className="max-w-md"
+          className="max-w-2xl"
           activeTab={tab}
           onTabChange={setTab}
           tabs={[
             { id: "members", label: tr("tabMembers", d) },
             { id: "invitations", label: tr("tabInvitations", d) },
+            { id: "teams", label: tr("tabTeams", d) },
+            ...(canManageKeys
+              ? [{ id: "keys" as const, label: tr("tabKeys", d) }]
+              : []),
             { id: "roles", label: tr("tabRoles", d) },
           ]}
         />
@@ -210,6 +221,18 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
               setConfirm({ kind: "revoke", invitation })
             }
           />
+        )}
+        {tab === "teams" && (
+          <TeamTeamsTab
+            members={team.data?.members ?? []}
+            roles={roles}
+            allowed={teamsAllowed}
+            lang={lang}
+            d={d}
+          />
+        )}
+        {tab === "keys" && canManageKeys && (
+          <TeamKeysTab roles={roles} lang={lang} d={d} />
         )}
         {tab === "roles" && catalog && (
           <TeamRolesTab catalog={catalog} lang={lang} d={d} />

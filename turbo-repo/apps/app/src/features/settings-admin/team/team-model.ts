@@ -1,8 +1,11 @@
 import type {
   AccessCatalog,
+  ApiKey,
   BaseRole,
+  Binding,
   CatalogPermission,
   CatalogRole,
+  TeamMember,
 } from "./team.types";
 
 export const BASE_ROLES: BaseRole[] = ["OWNER", "ADMIN", "MEMBER"];
@@ -124,4 +127,79 @@ export function rolesByModule(
 
 export function inviteLink(origin: string, lang: string, token: string) {
   return `${origin}/app/${lang}/invite/${encodeURIComponent(token)}`;
+}
+
+/** How a key is shown after creation: its public id, the secret elided. */
+export function keyDisplay(keyId: string): string {
+  return `miot_sk_${keyId}_…`;
+}
+
+export type KeyState = "active" | "revoked" | "expired";
+
+export function keyState(key: ApiKey, now: Date): KeyState {
+  if (key.revokedAt) return "revoked";
+  if (key.expiresAt && new Date(key.expiresAt) <= now) return "expired";
+  return "active";
+}
+
+/** Each user id as the member's email, else name, else the id itself. */
+export function memberLabels(
+  userIds: readonly string[],
+  members: readonly TeamMember[]
+): string[] {
+  return userIds.map((id) => {
+    const member = members.find((m) => m.userId === id);
+    return member?.email ?? member?.name ?? id;
+  });
+}
+
+/**
+ * What to bind and unbind so the team holds exactly `roles` on the whole
+ * organization. Sub-account bindings are not touched.
+ */
+export function teamRoleChanges(
+  teamId: string,
+  roles: readonly string[],
+  bindings: readonly Binding[]
+): { add: string[]; remove: string[] } {
+  const current = bindings.filter(
+    (b) =>
+      b.principalKind === "TEAM" &&
+      b.principalId === teamId &&
+      b.scopeKind === "ORGANIZATION"
+  );
+  return {
+    add: roles.filter((role) => !current.some((b) => b.role === role)),
+    remove: current.filter((b) => !roles.includes(b.role)).map((b) => b.id),
+  };
+}
+
+/** The team's roles on the whole organization, from its bindings. */
+export function teamOrganizationRoles(
+  teamId: string,
+  bindings: readonly Binding[]
+): string[] {
+  return bindings
+    .filter(
+      (b) =>
+        b.principalKind === "TEAM" &&
+        b.principalId === teamId &&
+        b.scopeKind === "ORGANIZATION"
+    )
+    .map((b) => b.role);
+}
+
+export const MAX_KEY_DAYS = 365;
+
+/**
+ * The key lifetime typed in a form: blank means it never expires (undefined),
+ * a whole number from 1 to 365 is kept, anything else is invalid (null).
+ */
+export function expiryDays(text: string): number | undefined | null {
+  const trimmed = text.trim();
+  if (trimmed === "") return undefined;
+  const days = Number(trimmed);
+  return Number.isInteger(days) && days >= 1 && days <= MAX_KEY_DAYS
+    ? days
+    : null;
 }

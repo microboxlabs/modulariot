@@ -1,6 +1,6 @@
 import { orgApiProxy } from "@/app/api/utils/org-api-proxy";
 
-/** Proxy to the modulith Team API (`/api/v1/orgs/{org}/team/...`): members and invitations. */
+/** Proxy to the modulith Team API (`/api/v1/orgs/{org}/team/...`): members, invitations, teams, bindings, service accounts and keys. */
 const proxy = orgApiProxy("team");
 
 export const GET = proxy.GET;

@@ -7,6 +7,7 @@ import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.iam.TeamsService;
 import com.microboxlabs.miot.core.iam.TeamsService.TeamMembersRequest;
 import com.microboxlabs.miot.core.iam.TeamsService.TeamRequest;
+import com.microboxlabs.miot.core.iam.TeamsService.TeamRolesRequest;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.PermissionsAllowed;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -88,6 +89,15 @@ public class OrgTeamsResource {
             @HeaderParam(IamIdentityAugmentor.DEV_EMAIL_HEADER) String devEmail) {
         return IamResponses.respond(() -> teams.delete(organizationId, caller(devEmail), teamId),
                 Response.Status.NO_CONTENT);
+    }
+
+    @PUT
+    @Path("/{teamId}/roles")
+    @Operation(operationId = "setTeamRoles", summary = "Replace a team's organization-wide roles")
+    @PermissionsAllowed(value = CoreAccessCatalog.MEMBERS_UPDATE, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> setRoles(@PathParam(ORG) String organizationId, @PathParam("teamId") UUID teamId,
+            @HeaderParam(IamIdentityAugmentor.DEV_EMAIL_HEADER) String devEmail, TeamRolesRequest body) {
+        return IamResponses.ok(() -> teams.setRoles(organizationId, caller(devEmail), teamId, body));
     }
 
     @PUT

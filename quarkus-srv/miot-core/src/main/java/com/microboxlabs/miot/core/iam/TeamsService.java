@@ -19,6 +19,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 /**
@@ -36,6 +37,9 @@ public class TeamsService {
     }
 
     public record TeamMembersRequest(List<UUID> userIds) {
+    }
+
+    public record TeamRolesRequest(List<String> roles) {
     }
 
     public record BindingView(UUID id, String principalKind, String principalId, String role, String scopeKind,
@@ -124,6 +128,30 @@ public class TeamsService {
                 }))));
     }
 
+    /** Replaces the team's organization-wide roles in one transaction. Sub-account bindings stay. */
+    @SuppressWarnings({"java:S1612", "java:S3252"}) // Reactive Panache: persist overloads; finders per entity.
+    public Uni<TeamView> setRoles(String slug, Caller actor, UUID teamId, TeamRolesRequest request) {
+        Set<String> wanted = new TreeSet<>(request == null || request.roles() == null ? List.of() : request.roles());
+        return Panache.withTransaction(() -> root(slug).flatMap(root -> evaluator.evaluate(slug, actor)
+                .flatMap(access -> team(root.id, teamId).flatMap(team -> {
+                    TeamRules.checkGrant(access, wanted, evaluator.registry());
+                    return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 and principalId = ?3 "
+                                    + "and scopeKind = ?4", root.id, IamRoleBinding.TEAM, team.id.toString(),
+                                    IamRoleBinding.ORGANIZATION)
+                            .flatMap(ignored -> {
+                                Uni<Void> chain = Uni.createFrom().voidItem();
+                                for (String role : wanted) {
+                                    chain = chain.flatMap(i -> IamRoleBinding.of(root.id, IamRoleBinding.TEAM,
+                                            team.id.toString(), role, actor.name()).persist().replaceWithVoid());
+                                }
+                                return chain;
+                            })
+                            .flatMap(ignored -> directory.audit(root.id, actor.name(), "team.roles", team.name,
+                                    Map.of("roles", List.copyOf(wanted))))
+                            .flatMap(ignored -> view(root.id, team));
+                }))));
+    }
+
     // --- bindings ---
 
     public Uni<List<BindingView>> bindings(String slug) {
@@ -192,11 +220,13 @@ public class TeamsService {
 
     private Uni<List<TeamView>> views(Long orgId, List<IamTeam> teams) {
         List<UUID> ids = teams.stream().map(t -> t.id).toList();
+        Instant now = Instant.now();
         return IamTeamMember.findByTeams(ids).flatMap(members -> IamRoleBinding.findByOrganization(orgId)
                 .map(bindings -> teams.stream().map(t -> new TeamView(t.id, t.name, t.description, t.source,
                         members.stream().filter(m -> m.id.teamId.equals(t.id)).map(m -> m.id.userId).toList(),
                         bindings.stream().filter(b -> IamRoleBinding.TEAM.equals(b.principalKind)
-                                && b.principalId.equals(t.id.toString())).map(b -> b.roleKey).sorted().toList(),
+                                && b.principalId.equals(t.id.toString()) && b.organizationWide(now))
+                                .map(b -> b.roleKey).sorted().toList(),
                         t.createdAt)).toList()));
     }
 

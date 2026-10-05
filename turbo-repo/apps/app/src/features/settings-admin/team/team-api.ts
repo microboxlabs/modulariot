@@ -2,7 +2,6 @@
 
 import useSWR from "swr";
 import { getJson, sendEmpty, sendJson } from "../data/json-client";
-import { teamRoleChanges } from "./team-model";
 import type {
   AccessCatalog,
   BaseRole,
@@ -166,22 +165,13 @@ export function revokeKey(accountId: string, id: string) {
   );
 }
 
-/**
- * Makes the team hold exactly `roles` on the whole organization: binds the
- * new ones, then removes the dropped ones. Sub-account bindings stay.
- */
-export async function setTeamRoles(
-  teamId: string,
-  roles: string[],
-  bindings: readonly Binding[]
-) {
-  const { add, remove } = teamRoleChanges(teamId, roles, bindings);
-  for (const role of add) {
-    await createBinding({ principalKind: "TEAM", principalId: teamId, role });
-  }
-  for (const id of remove) {
-    await deleteBinding(id);
-  }
+/** Replaces the team's organization-wide roles. Sub-account bindings stay. */
+export function setTeamRoles(teamId: string, roles: string[]) {
+  return sendJson<Team>(
+    "PUT",
+    `${teamsKey}/${encodeURIComponent(teamId)}/roles`,
+    { roles }
+  );
 }
 
 export function acceptInvitation(token: string) {

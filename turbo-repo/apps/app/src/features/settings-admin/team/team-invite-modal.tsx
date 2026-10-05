@@ -46,14 +46,12 @@ export function TeamInviteModal({
   const [links, setLinks] = useState<InviteLink[] | null>(null);
 
   useEffect(() => {
-    if (show) {
-      setEmailsText("");
-      setBaseRole("MEMBER");
-      setByModule({});
-      setDays(30);
-      setError(null);
-      setLinks(null);
-    }
+    setEmailsText("");
+    setBaseRole("MEMBER");
+    setByModule({});
+    setDays(30);
+    setError(null);
+    setLinks(null);
   }, [show]);
 
   const submit = async () => {

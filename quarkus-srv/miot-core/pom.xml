@@ -59,7 +59,7 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-vertx</artifactId>
         </dependency>
-        <!-- The IAM projection worker (core.iam.AlfrescoProjectionJob). -->
+        <!-- The IAM projection worker (core.iam.AlfrescoBridge). -->
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-scheduler</artifactId>

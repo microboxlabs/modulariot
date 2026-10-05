@@ -31,12 +31,10 @@ export function ApiKeyModal({
   const [secret, setSecret] = useState<string | null>(null);
 
   useEffect(() => {
-    if (account) {
-      setName("");
-      setDays("");
-      setError(null);
-      setSecret(null);
-    }
+    setName("");
+    setDays("");
+    setError(null);
+    setSecret(null);
   }, [account]);
 
   const submit = async () => {

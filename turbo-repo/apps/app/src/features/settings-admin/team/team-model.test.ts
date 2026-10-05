@@ -14,10 +14,8 @@ import {
   parseEmails,
   rolesByModule,
   selectedRoles,
-  teamOrganizationRoles,
-  teamRoleChanges,
 } from "./team-model";
-import type { AccessCatalog, ApiKey, Binding, TeamMember } from "./team.types";
+import type { AccessCatalog, ApiKey, TeamMember } from "./team.types";
 
 const catalog: AccessCatalog = {
   baseRoles: ["MEMBER", "ADMIN", "OWNER"],
@@ -171,21 +169,6 @@ describe("role selection", () => {
   });
 });
 
-function binding(over: Partial<Binding>): Binding {
-  return {
-    id: "b1",
-    principalKind: "TEAM",
-    principalId: "t1",
-    role: "CONTROL_TOWER_VIEWER",
-    scopeKind: "ORGANIZATION",
-    subAccount: null,
-    expiresAt: null,
-    createdAt: "2026-01-01T00:00:00Z",
-    createdBy: null,
-    ...over,
-  };
-}
-
 function key(over: Partial<ApiKey>): ApiKey {
   return {
     id: "k1",
@@ -201,40 +184,6 @@ function key(over: Partial<ApiKey>): ApiKey {
 }
 
 describe("teams and API keys", () => {
-  const bindings = [
-    binding({ id: "b1", role: "CONTROL_TOWER_VIEWER" }),
-    binding({ id: "b2", role: "HARNESS_TRAINER" }),
-    binding({
-      id: "b3",
-      role: "CONTENT_EDITOR",
-      scopeKind: "SUB_ACCOUNT",
-      subAccount: "child",
-    }),
-    binding({ id: "b4", principalId: "t2", role: "CONTENT_EDITOR" }),
-    binding({ id: "b5", principalKind: "USER", principalId: "t1" }),
-  ];
-
-  it("binds the new roles and unbinds the dropped ones, organization-wide only", () => {
-    expect(
-      teamRoleChanges(
-        "t1",
-        ["CONTROL_TOWER_VIEWER", "CONTENT_EDITOR"],
-        bindings
-      )
-    ).toEqual({ add: ["CONTENT_EDITOR"], remove: ["b2"] });
-    expect(teamRoleChanges("t1", [], bindings)).toEqual({
-      add: [],
-      remove: ["b1", "b2"],
-    });
-  });
-
-  it("reads a team's organization roles from its bindings", () => {
-    expect(teamOrganizationRoles("t1", bindings)).toEqual([
-      "CONTROL_TOWER_VIEWER",
-      "HARNESS_TRAINER",
-    ]);
-  });
-
   it("labels members by email, then name, then id", () => {
     const members = [
       { userId: "u1", email: "a@x.test", name: "Ana" },

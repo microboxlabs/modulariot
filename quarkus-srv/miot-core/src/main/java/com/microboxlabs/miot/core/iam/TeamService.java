@@ -9,6 +9,7 @@ import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.persistence.LockModeType;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -89,7 +90,7 @@ public class TeamService {
         BaseRole next = baseRole(request == null ? null : request.baseRole());
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 evaluator.evaluate(org, actor).flatMap(access -> membership(root.id, userId).flatMap(m ->
-                        ownerCount(root.id).flatMap(owners -> {
+                        lockedOwnerCount(root.id).flatMap(owners -> {
                             BaseRole current = BaseRole.valueOf(m.baseRole);
                             TeamRules.checkBaseRoleChange(access, current, next, owners);
                             m.baseRole = next.name();
@@ -113,7 +114,7 @@ public class TeamService {
     public Uni<Void> remove(String slug, Caller actor, UUID userId) {
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 evaluator.evaluate(org, actor).flatMap(access -> membership(root.id, userId).flatMap(m ->
-                        ownerCount(root.id).flatMap(owners -> {
+                        lockedOwnerCount(root.id).flatMap(owners -> {
                             TeamRules.checkRemoval(access, BaseRole.valueOf(m.baseRole), owners);
                             return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 "
                                             + "and principalId = ?3", root.id, IamRoleBinding.USER, userId.toString())
@@ -336,13 +337,14 @@ public class TeamService {
 
     private Uni<List<MemberView>> views(Long orgId, List<IamMembership> rows) {
         List<UUID> ids = rows.stream().map(m -> m.userId).toList();
+        Instant now = Instant.now();
         return IamUser.findByIds(ids).flatMap(users -> IamRoleBinding.findByOrganization(orgId).map(bindings -> {
             List<MemberView> out = new ArrayList<>();
             for (IamMembership m : rows) {
                 IamUser u = users.stream().filter(x -> x.id.equals(m.userId)).findFirst().orElse(null);
                 List<String> roles = bindings.stream()
                         .filter(b -> IamRoleBinding.USER.equals(b.principalKind)
-                                && b.principalId.equals(m.userId.toString()))
+                                && b.principalId.equals(m.userId.toString()) && b.organizationWide(now))
                         .map(b -> b.roleKey).sorted().toList();
                 out.add(view(m, u, roles));
             }
@@ -394,6 +396,15 @@ public class TeamService {
             }
             return i;
         });
+    }
+
+    /**
+     * Locks the organization row, then counts owners, so two concurrent demotions cannot both see a second owner.
+     */
+    @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
+    private static Uni<Long> lockedOwnerCount(Long orgId) {
+        return Organization.<Organization>findById(orgId, LockModeType.PESSIMISTIC_WRITE)
+                .flatMap(locked -> ownerCount(orgId));
     }
 
     private static Uni<Long> ownerCount(Long orgId) {

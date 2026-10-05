@@ -153,42 +153,6 @@ export function memberLabels(
   });
 }
 
-/**
- * What to bind and unbind so the team holds exactly `roles` on the whole
- * organization. Sub-account bindings are not touched.
- */
-export function teamRoleChanges(
-  teamId: string,
-  roles: readonly string[],
-  bindings: readonly Binding[]
-): { add: string[]; remove: string[] } {
-  const current = bindings.filter(
-    (b) =>
-      b.principalKind === "TEAM" &&
-      b.principalId === teamId &&
-      b.scopeKind === "ORGANIZATION"
-  );
-  return {
-    add: roles.filter((role) => !current.some((b) => b.role === role)),
-    remove: current.filter((b) => !roles.includes(b.role)).map((b) => b.id),
-  };
-}
-
-/** The team's roles on the whole organization, from its bindings. */
-export function teamOrganizationRoles(
-  teamId: string,
-  bindings: readonly Binding[]
-): string[] {
-  return bindings
-    .filter(
-      (b) =>
-        b.principalKind === "TEAM" &&
-        b.principalId === teamId &&
-        b.scopeKind === "ORGANIZATION"
-    )
-    .map((b) => b.role);
-}
-
 export const MAX_KEY_DAYS = 365;
 
 /**

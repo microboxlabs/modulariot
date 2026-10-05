@@ -156,36 +156,44 @@ public class AlfrescoBridge {
         if (!projection) {
             return Uni.createFrom().voidItem();
         }
-        return Panache.withTransaction(() -> IamProjectionChange.pending(50).flatMap(changes -> {
+        return Panache.withSession(() -> IamProjectionChange.pending(50)).flatMap(changes -> {
             Uni<Void> chain = Uni.createFrom().voidItem();
             for (IamProjectionChange change : changes) {
                 chain = chain.flatMap(i -> send(change));
             }
             return chain;
-        }));
+        });
     }
 
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    /** Calls Alfresco with no transaction open, then records the outcome in a short one. */
     private Uni<Void> send(IamProjectionChange change) {
-        Uni<Void> call = IamProjectionChange.MEMBER_ADDED.equals(change.kind)
-                ? groups.addGroupMember(change.groupId, change.subject)
-                : groups.removeGroupMember(change.groupId, change.subject);
-        return call.map(ok -> {
-            change.status = IamProjectionChange.SYNCED;
-            change.lastError = null;
-            return change;
-        }).onFailure().recoverWithItem(e -> {
-            change.attempts++;
-            change.lastError = truncate(e.getMessage());
-            if (change.attempts >= MAX_ATTEMPTS) {
-                change.status = IamProjectionChange.FAILED;
-                LOG.warnf("Alfresco projection %d gave up after %d attempts: %s", change.id, change.attempts,
-                        change.lastError);
+        return Uni.createFrom().deferred(() -> IamProjectionChange.MEMBER_ADDED.equals(change.kind)
+                        ? groups.addGroupMember(change.groupId, change.subject)
+                        : groups.removeGroupMember(change.groupId, change.subject))
+                .map(ok -> (String) null)
+                .onFailure().recoverWithItem(e -> truncate(e.getMessage()))
+                .flatMap(error -> Panache.withTransaction(() -> record(change.id, error)));
+    }
+
+    @SuppressWarnings({"java:S1612", "java:S3252"}) // Reactive Panache: persist overloads; finders per entity.
+    private static Uni<Void> record(Long id, String error) {
+        return IamProjectionChange.<IamProjectionChange>findById(id).flatMap(row -> {
+            if (row == null) {
+                return Uni.createFrom().voidItem();
             }
-            return change;
-        }).flatMap(updated -> {
-            updated.updatedAt = Instant.now();
-            return updated.persist().replaceWithVoid();
+            if (error == null) {
+                row.status = IamProjectionChange.SYNCED;
+                row.lastError = null;
+            } else {
+                row.attempts++;
+                row.lastError = error;
+                if (row.attempts >= MAX_ATTEMPTS) {
+                    row.status = IamProjectionChange.FAILED;
+                    LOG.warnf("Alfresco projection %d gave up after %d attempts: %s", row.id, row.attempts, error);
+                }
+            }
+            row.updatedAt = Instant.now();
+            return row.<IamProjectionChange>persist().replaceWithVoid();
         });
     }
 

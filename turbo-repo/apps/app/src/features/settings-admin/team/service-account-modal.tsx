@@ -38,14 +38,12 @@ export function ServiceAccountModal({
   const [secret, setSecret] = useState<string | null>(null);
 
   useEffect(() => {
-    if (show) {
-      setName("");
-      setDescription("");
-      setByModule({});
-      setDays("");
-      setError(null);
-      setSecret(null);
-    }
+    setName("");
+    setDescription("");
+    setByModule({});
+    setDays("");
+    setError(null);
+    setSecret(null);
   }, [show]);
 
   const submit = async () => {

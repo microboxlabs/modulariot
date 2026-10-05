@@ -153,8 +153,9 @@ public class ApiKeyService {
         return Panache.withTransaction(() -> root(slug).flatMap(root -> access(slug, actor).flatMap(access ->
                 account(root.id, accountId).flatMap(account -> {
                     TeamRules.checkGrant(access, roles, evaluator.registry());
-                    return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 and principalId = ?3",
-                                    root.id, IamRoleBinding.SERVICE_ACCOUNT, account.id.toString())
+                    return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 and principalId = ?3 "
+                                    + "and scopeKind = ?4", root.id, IamRoleBinding.SERVICE_ACCOUNT,
+                                    account.id.toString(), IamRoleBinding.ORGANIZATION)
                             .flatMap(ignored -> bind(root.id, account.id, roles, actor.name()))
                             .flatMap(ignored -> directory.audit(root.id, actor.name(), "service-account.roles",
                                     account.name, Map.of("roles", List.copyOf(roles))))
@@ -210,12 +211,13 @@ public class ApiKeyService {
 
     private Uni<List<ServiceAccountView>> views(Long orgId, List<IamServiceAccount> accounts) {
         List<UUID> ids = accounts.stream().map(a -> a.id).toList();
+        Instant now = Instant.now();
         return IamApiKey.findByAccounts(ids).flatMap(keys -> IamRoleBinding.findByOrganization(orgId).map(bindings -> {
             List<ServiceAccountView> out = new ArrayList<>();
             for (IamServiceAccount a : accounts) {
                 List<String> roles = bindings.stream()
                         .filter(b -> IamRoleBinding.SERVICE_ACCOUNT.equals(b.principalKind)
-                                && b.principalId.equals(a.id.toString()))
+                                && b.principalId.equals(a.id.toString()) && b.organizationWide(now))
                         .map(b -> b.roleKey).sorted().toList();
                 List<KeyView> own = keys.stream().filter(k -> k.serviceAccountId.equals(a.id))
                         .map(ApiKeyService::view).toList();

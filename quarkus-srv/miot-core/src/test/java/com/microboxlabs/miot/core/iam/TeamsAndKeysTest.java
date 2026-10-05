@@ -86,11 +86,46 @@ class TeamsAndKeysTest {
                 .then().statusCode(200).body("roles", contains("HARNESS_TRAINER"));
         given().header("Authorization", bearer(ANA)).when().get("/api/v1/orgs/" + ORG + "/me/access")
                 .then().statusCode(200).body("roles", empty());
+        // The member list shows organization-wide roles only.
+        given().header("Authorization", bearer(OWNER)).when().get(BASE + "/members")
+                .then().statusCode(200).body("members.find { it.email == '" + ANA + "' }.roles", empty());
 
         // A member without members:update cannot grant.
         given().header("Authorization", bearer(ANA)).contentType("application/json")
                 .body("{\"principalKind\":\"USER\",\"principalId\":\"" + ana + "\",\"role\":\"HARNESS_TRAINER\"}")
                 .when().post(BASE + "/bindings").then().statusCode(403);
+    }
+
+    @Test
+    void replacingRolesKeepsSubAccountBindings() {
+        String team = given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body("{\"name\":\"Turno B\"}").when().post(BASE + "/teams")
+                .then().statusCode(201).extract().path("id");
+        String account = given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body("{\"name\":\"Integrador\",\"roles\":[]}").when().post(BASE + "/service-accounts")
+                .then().statusCode(201).extract().path("serviceAccount.id");
+        for (String[] p : new String[][] {{"TEAM", team}, {"SERVICE_ACCOUNT", account}}) {
+            given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                    .body("{\"principalKind\":\"" + p[0] + "\",\"principalId\":\"" + p[1]
+                            + "\",\"role\":\"CONTENT_REVIEW_AUTO_APPROVER\",\"subAccount\":\"" + SUB + "\"}")
+                    .when().post(BASE + "/bindings").then().statusCode(201);
+        }
+
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body("{\"roles\":[\"HARNESS_TRAINER\"]}").when().put(BASE + "/teams/" + team + "/roles")
+                .then().statusCode(200).body("roles", contains("HARNESS_TRAINER"));
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body("{\"roles\":[\"HARNESS_TRAINER\"]}")
+                .when().put(BASE + "/service-accounts/" + account + "/roles")
+                .then().statusCode(200).body("roles", contains("HARNESS_TRAINER"));
+
+        given().header("Authorization", bearer(OWNER)).when().get(BASE + "/bindings")
+                .then().statusCode(200)
+                .body("findAll { it.subAccount == '" + SUB + "' }.size()", is(2));
+        // A member cannot change a team's roles.
+        given().header("Authorization", bearer(ANA)).contentType("application/json")
+                .body("{\"roles\":[]}").when().put(BASE + "/teams/" + team + "/roles")
+                .then().statusCode(403);
     }
 
     @Test

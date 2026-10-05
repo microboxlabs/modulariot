@@ -13,10 +13,10 @@ import ConfirmationModal from "@/features/common/components/confirmation-modal/c
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { RolesModal } from "./roles-modal";
-import { deleteTeam, setTeamRoles, useBindings, useTeams } from "./team-api";
+import { deleteTeam, setTeamRoles, useTeams } from "./team-api";
 import { TeamFormModal } from "./team-form-modal";
 import { TeamMembersModal } from "./team-members-modal";
-import { labelOf, memberLabels, teamOrganizationRoles } from "./team-model";
+import { labelOf, memberLabels } from "./team-model";
 import type { CatalogRole, Team, TeamMember } from "./team.types";
 
 const CELL = "px-4 py-3 align-middle";
@@ -147,7 +147,6 @@ export function TeamTeamsTab({
   d,
 }: TeamTeamsTabProps) {
   const teams = useTeams(true);
-  const bindings = useBindings(allowed.canBind);
 
   const [form, setForm] = useState<{ team: Team | null } | null>(null);
   const [editingMembers, setEditingMembers] = useState<Team | null>(null);
@@ -158,7 +157,6 @@ export function TeamTeamsTab({
 
   const reload = () => {
     void teams.mutate();
-    void bindings.mutate();
   };
 
   const confirmDelete = async () => {
@@ -179,11 +177,8 @@ export function TeamTeamsTab({
   const list = teams.data ?? [];
   // Stable while the modal is open, so a re-render does not reset the form.
   const currentRoles = useMemo(
-    () =>
-      editingRoles && bindings.data
-        ? teamOrganizationRoles(editingRoles.id, bindings.data)
-        : null,
-    [editingRoles, bindings.data]
+    () => editingRoles?.roles ?? null,
+    [editingRoles]
   );
 
   return (
@@ -261,9 +256,7 @@ export function TeamTeamsTab({
       <RolesModal
         current={currentRoles}
         title={tr("rolesTitle", d, { name: editingRoles?.name ?? "" })}
-        onSave={(selected) =>
-          setTeamRoles(editingRoles?.id ?? "", selected, bindings.data ?? [])
-        }
+        onSave={(selected) => setTeamRoles(editingRoles?.id ?? "", selected)}
         onClose={() => setEditingRoles(null)}
         onSaved={reload}
         roles={roles}

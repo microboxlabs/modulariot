@@ -1,0 +1,89 @@
+import { Callout, Tabs } from 'nextra/components'
+
+# Share and set permissions
+
+Who can see a dashboard comes from two places:
+
+1. **The scope role.** Everyone in a scope has a role there: Consumer, Contributor, Editor or Coordinator. Your identity provider or membership service decides it.
+2. **Dashboard permissions.** A dashboard can give extra roles to named people or groups. They add to the scope role; they never take it away.
+
+To share a dashboard with someone outside the scope's normal access, add a dashboard permission. You need the **Coordinator** role, or the right to manage permissions on that dashboard.
+
+| Role | Can |
+| --- | --- |
+| Consumer | View the dashboard and use its filters |
+| Contributor | View; create dashboards; edit the dashboards they created |
+| Editor | Edit and share any dashboard |
+| Coordinator | Everything, including delete and permissions |
+
+<Tabs items={['In the web app', 'With the API']}>
+<Tabs.Tab>
+
+1. Open the dashboard. Open the settings menu (the gear) and select **Manage permissions**.
+2. In **Authority ID**, type the exact user or group ID your identity provider uses. Spelling and case must match; the form does not search a directory.
+3. Choose a **Role** and add it to the list.
+4. Review the full list, then select **Save changes** and confirm.
+
+Saving replaces the dashboard's list with the one on screen. After saving, the list reloads from the server. If saving fails, select **Reload permissions** before trying again: the save may have worked before the reload failed.
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+Read the current list:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://dashboards.example.com/tenants/acme/scopes/ops/dashboards/sales/permissions
+```
+
+```json
+{"assignments":[{"authorityId":"connie","role":"Editor"}]}
+```
+
+Replace it:
+
+```bash
+curl -X PUT https://dashboards.example.com/tenants/acme/scopes/ops/dashboards/sales/permissions \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"assignments":[{"authorityId":"connie","role":"Editor"},{"authorityId":"ops-team","role":"Consumer"}]}'
+```
+
+The `PUT` replaces every assignment. To add one, read the list, add to it, and send it all back.
+
+</Tabs.Tab>
+</Tabs>
+
+## Check what someone can do
+
+`GET .../dashboards/{slug}/capabilities` answers for the person who calls it:
+
+```json
+{"readOnly":false,"canEdit":true,"canShare":true,"canManagePermissions":false,"canDelete":false}
+```
+
+Use it to decide which buttons to show. The server checks again on every request, so hiding a button is a convenience, not a control.
+
+## Restrict a dashboard to groups
+
+The document field `allowedGroups` limits a dashboard to members of named groups:
+
+```json
+{ "allowedGroups": ["finance", "auditors"] }
+```
+
+| `allowedGroups` | Who can see it |
+| --- | --- |
+| Absent, `null` or `[]` | Anyone with access to the scope |
+| `["finance", "auditors"]` | Only people in at least one of those groups |
+| Anything else | Nobody. A malformed value never opens access. |
+
+Groups come from the identity provider: set `MIOT_DASHBOARD_JWT_GROUPS_CLAIM` for JWTs or `MIOT_DASHBOARD_TICKET_GROUPS_PATH` for tickets. Without a group source, restricted dashboards stay hidden.
+
+<Callout type="info">
+Removing a dashboard permission does not remove access the person has through their scope role, or through being the dashboard's creator.
+</Callout>
+
+## Related
+
+- [Organizations, scopes and roles](/en/products/dashboards/concepts/access-model)
+- [Authenticate users](/en/products/dashboards/how-to/authenticate-users)

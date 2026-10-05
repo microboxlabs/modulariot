@@ -1,0 +1,70 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Upgrades and backups
+
+## Upgrade order
+
+The three packages depend on each other through the contract. Upgrade in this order:
+
+1. **Contract**, in anything that validates documents.
+2. **Server**.
+3. **UI**, in the pages that draw dashboards.
+
+A newer UI against an older server keeps working for features both know: unknown document fields pass through every save. Features that need a new route, such as the query catalog, stay unavailable until the server is upgraded.
+
+Check [Releases and versions](/en/products/dashboards/releases) for the versions that work together and for notes on each release.
+
+## Upgrade the server
+
+<Steps>
+
+### Back up
+
+Back up the store, and the document store if it is separate. See [Back up](#back-up) below.
+
+### Read the release notes
+
+Look for a database migration or a changed default. Migrations run on their own at startup.
+
+### Stop writers during a migration
+
+When a release adds a migration, stop every server, upgrade, then start them again. Do not run an old and a new version against the same database at the same time: old versions do not maintain what the migration adds.
+
+### Deploy the new version
+
+Change the pinned image tag or npm version, then deploy. With Helm:
+
+```bash
+helm upgrade dashboards microboxlabs/miot-dashboard-server \
+  --namespace dashboards --values values.yaml --set image.tag=sha-<new>
+```
+
+### Check the startup log
+
+The server logs its configuration and starts listening only after migrations finish. If it exits instead, the log says why.
+
+</Steps>
+
+## Roll back
+
+| Situation | Do |
+| --- | --- |
+| The release added no migration | Deploy the previous version |
+| The release added a migration | Restore the backup taken before the upgrade, then deploy the previous version |
+| Helm release | `helm rollback dashboards <revision>` restores the deployment; restore the data separately if a migration ran |
+
+## Back up
+
+| Store | How |
+| --- | --- |
+| SQLite | Stop the server, or use `sqlite3 dashboards.db ".backup backup.db"`, then copy the file. Copying a live database file without the `-wal` file can lose recent saves. |
+| PostgreSQL | `pg_dump` the server's database, or rely on your managed database's backups |
+| `fs` documents | Copy the documents directory together with the database |
+| `s3` / `gcs` documents | Turn on bucket versioning, or copy the prefix together with the database |
+| Credential key | Store it with your other secrets. Without it, stored credentials cannot be read. |
+
+Keep the `dashboard_revisions` table when you clean up deleted dashboards. It stops a recreated dashboard from reusing old revision numbers.
+
+<Callout type="info">
+A dashboard export from the web app is a useful extra copy of one dashboard, but it is not a backup: it has no permissions and no revision history.
+</Callout>

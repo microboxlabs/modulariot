@@ -1,0 +1,106 @@
+# REST API
+
+The server's full API definition is the OpenAPI 3.1 document at `/openapi.yaml`, with Swagger UI at `/docs` when `MIOT_DASHBOARD_DOCS` is on. It also ships in the contract package as `@microboxlabs/miot-dashboard-contract/openapi.yaml`. This page summarizes it.
+
+## Conventions
+
+| Topic | Rule |
+| --- | --- |
+| Base address | `/tenants/{tenantId}/scopes/{scopeId}`, after `MIOT_DASHBOARD_BASE_PATH` if set |
+| Authentication | `Authorization: Bearer <JWT>`, or the configured ticket header |
+| Body | JSON, at most 1 MiB |
+| Success | Most answers wrap the result in `{"data": ...}` |
+| Caching | Capability, catalog and credential answers carry `Cache-Control: no-store` |
+
+## Dashboards
+
+| Method | Path | Does | Needs |
+| --- | --- | --- | --- |
+| `GET` | `/dashboards` | List the dashboards the caller may see, as `{slug, name, order?}` | Scope member |
+| `GET` | `/dashboards/{slug}` | Load one. `data` is the document, or `null` if none. `ETag` holds the revision. | View |
+| `PUT` | `/dashboards/{slug}` | Create or replace. Send `If-Match`. Answers `{revision, updatedAt}` and the new `ETag`. | Edit, or create |
+| `DELETE` | `/dashboards/{slug}` | Delete | Delete |
+| `GET` | `/dashboards/{slug}/capabilities` | The caller's five capability flags | View |
+| `GET` | `/dashboards/{slug}/permissions` | `{assignments: [{authorityId, role}]}` | Manage permissions |
+| `PUT` | `/dashboards/{slug}/permissions` | Replace every assignment | Manage permissions |
+| `GET` | `/capabilities` | `{canCreate}` for this scope | Scope member |
+
+A dashboard `slug` is the address of the dashboard inside its scope.
+
+## Queries
+
+| Method | Path | Does | Needs |
+| --- | --- | --- | --- |
+| `POST` | `/dashboards/{slug}/queries/{queryId}` | Run a saved query. Body `{"filters": {...}}`. Answers `{"data": {"rows": [...]}}`. | View. Needs a query executor, otherwise 404. |
+| `GET` | `/dashboards/{slug}/query-catalog` | `{connections: [{id, label, operations: [{id, label, schema?}]}]}` | Edit. Needs a catalog provider, otherwise 404. |
+
+## Datasources and credentials
+
+Available when the server stores credentials itself.
+
+| Method | Path | Does |
+| --- | --- | --- |
+| `GET`, `POST` | `/datasources` | List, or create |
+| `GET`, `PUT`, `DELETE` | `/datasources/{dataSourceId}` | Read, create or replace, delete |
+| `POST` | `/datasources/test` | Test values before saving |
+| `POST` | `/datasources/{dataSourceId}/test` | Test a stored datasource |
+| `GET` | `/credentials` | List credentials as summaries |
+| `GET`, `PUT`, `DELETE` | `/credentials/{credentialRef}` | Read a summary, store a secret, delete |
+
+With `MIOT_DASHBOARD_CREDENTIALS_URL` set, the `/credentials` routes answer 404: credentials are managed where they live.
+
+## Server routes
+
+These sit outside the API, before authentication.
+
+| Path | Answers |
+| --- | --- |
+| `/livez`, `/health` | `{"status":"ok"}` |
+| `/readyz` | `{"status":"ready"}` |
+| `/openapi.yaml` | The API definition |
+| `/dashboard-config.schema.json` | The document's JSON Schema |
+| `/docs` | Swagger UI |
+
+## Errors
+
+Every error has the same shape:
+
+```json
+{ "error": "…", "status": 403, "code": "FORBIDDEN", "reason": "TENANT_SCOPE" }
+```
+
+| Status | `code` | Meaning |
+| --- | --- | --- |
+| 400 | `BAD_REQUEST` | The body does not match the contract. `error` names the field. |
+| 401 | `UNAUTHENTICATED` | No credential, or it could not be verified |
+| 403 | `FORBIDDEN` | See `reason` below |
+| 404 | `NOT_FOUND` | No such dashboard, query or datasource, or the feature is not configured |
+| 409 | `CONFLICT` | `If-Match` no longer matches the current revision |
+| 413 | `PAYLOAD_TOO_LARGE` | The body is over 1 MiB |
+| 502 | `UPSTREAM_ERROR` | A query's data service failed or returned something invalid |
+| 500 | `INTERNAL_ERROR` | A service the server depends on did not answer, such as the directory |
+
+| `reason` (403 only) | Meaning |
+| --- | --- |
+| `TENANT_SCOPE` | Not a member of the organization or the scope, or they do not exist |
+| `CAPABILITY` | A member, but the role does not allow this action |
+| `EMBED_SCOPE` | An embed token used outside the one dashboard it allows |
+
+Error messages never contain upstream bodies, stack traces or credentials.
+
+## Example: load and save
+
+```bash
+# Load
+curl -i -H "Authorization: Bearer $TOKEN" \
+  https://dashboards.example.com/tenants/acme/scopes/ops/dashboards/sales
+# HTTP/1.1 200 OK
+# etag: "3"
+# {"data":{"version":2,"name":"Sales",...}}
+
+# Save with the revision you loaded
+curl -X PUT https://dashboards.example.com/tenants/acme/scopes/ops/dashboards/sales \
+  -H "Authorization: Bearer $TOKEN" -H 'If-Match: "3"' \
+  -H 'Content-Type: application/json' --data @sales.json
+# {"data":{"revision":4,"updatedAt":"2026-10-05T12:00:00.000Z"}}
+```

@@ -1,0 +1,124 @@
+# Esquema del documento
+
+Un documento de dashboard es JSON, versión 2. La definición legible por máquina es el JSON Schema en `/dashboard-config.schema.json` del servidor, que también se distribuye como `@microboxlabs/miot-dashboard-contract/dashboard-config.schema.json`.
+
+Los campos que no aparecen aquí se conservan tal como están en cada guardado.
+
+## Documento
+
+| Campo | Tipo | Obligatorio | Significado |
+| --- | --- | --- | --- |
+| `version` | `2` | Sí | Versión del documento. Cualquier otro valor se rechaza. |
+| `name` | string | Sí | Título |
+| `widgets` | [Widget](#widget)[] | Sí | Widgets raíz |
+| `preferences` | object | Sí | `{ "editMode": boolean }`. La UI no guarda `editMode`. |
+| `queries` | [Consulta guardada](#consulta-guardada)[] | No | Como máximo 50 |
+| `filters` | [Filtro](#filtros)[] | No | La barra de filtros |
+| `refreshInterval` | `0`, `10`, `30`, `60`, `300` | No | Segundos entre actualizaciones. `0` es desactivado. |
+| `order` | number | No | Posición en la navegación. Menor primero; sin valor al final. |
+| `allowedGroups` | string[] | No | Solo los miembros de estos grupos pueden verlo. Vacío o ausente: sin restricción. |
+| `requestPlanner` | object[] | No | Planificador de solicitudes heredado. Conviértalo con [Migrar dashboards del planificador](/es/products/dashboards/how-to/migrate-planner-dashboards). |
+
+## Widget
+
+| Campo | Tipo | Obligatorio | Significado |
+| --- | --- | --- | --- |
+| `id` | string | Sí | Único en el documento |
+| `componentId` | string | Sí | Tipo de widget. Vea el [Catálogo de widgets](/es/products/dashboards/reference/widgets). |
+| `layout` | [Diseño](#diseño) | Sí | Posición y tamaño |
+| `config` | object | Sí | La configuración del tipo de widget |
+| `children` | Widget[] | No | Widgets dentro de un contenedor |
+| `createdAt` | string | Sí | Fecha y hora ISO 8601 |
+| `updatedAt` | string | Sí | Fecha y hora ISO 8601 |
+
+### Campos comunes de `config`
+
+| Campo | Significado |
+| --- | --- |
+| `dataMode` | `static` (por defecto) o `planner` |
+| `staticData` | Texto JSON con una fila de datos de ejemplo o fijos, para `static` |
+| `plannerVariableName` | El resultado de consulta guardada que se lee, para `planner` |
+| `dataProvider` | Valores `[{ "key": "...", "value": "..." }]` disponibles como `{{data_provider.key}}` |
+
+Cada tipo de widget agrega sus propios campos. Vea el [Catálogo de widgets](/es/products/dashboards/reference/widgets).
+
+## Diseño
+
+| Campo | Tipo | Significado |
+| --- | --- | --- |
+| `i` | string | Igual al `id` del widget |
+| `x` | integer | Columna, de 0 a 23 |
+| `y` | integer | Fila, desde 0 |
+| `w` | integer | Ancho en columnas, de 1 a 24. `x + w` es como máximo 24. |
+| `h` | integer | Alto en filas, al menos 1 |
+| `minW`, `minH`, `maxW`, `maxH` | integer | Límites de tamaño opcionales |
+
+## Consulta guardada
+
+| Campo | Tipo | Obligatorio | Significado |
+| --- | --- | --- | --- |
+| `id` | string | Sí | Único. Se usa en `.../queries/{id}`. |
+| `variableName` | string | Sí | Nombre único del resultado que leen los widgets |
+| `connectionId` | string | Sí | Conexión del host |
+| `operationId` | string | Sí | Operación aprobada |
+| `parameters` | object | Sí | Nombre del parámetro a [vínculo](#vínculo-de-parámetros). Como máximo 100. |
+| `schema` | string[] | No | Columnas conocidas del resultado |
+
+Los identificadores tienen como máximo 128 caracteres.
+
+### Vínculo de parámetros
+
+```json
+{ "kind": "literal", "value": 30 }
+{ "kind": "filter", "key": "vehicle", "defaultValue": null, "omitWhenEmpty": true }
+```
+
+| Campo | Se aplica a | Significado |
+| --- | --- | --- |
+| `kind` | ambos | `literal` o `filter` |
+| `value` | literal | El valor |
+| `key` | filter | El valor de filtro que se usa. Un filtro de rango de fechas `k` entrega `k_from` y `k_to`. |
+| `defaultValue` | filter | Se usa cuando falta el filtro. No se usa para un texto vacío explícito. |
+| `omitWhenEmpty` | filter | Omite el parámetro cuando el valor falta o está vacío |
+
+Los valores son texto (como máximo 2.048 caracteres), números finitos, booleanos, `null`, o listas de como máximo 100 de ellos.
+
+## Filtros
+
+| Campo | Tipo | Obligatorio | Significado |
+| --- | --- | --- | --- |
+| `key` | string | Sí | Nombre único que usan las consultas y las plantillas |
+| `label` | string | Sí | Lo que leen los usuarios |
+| `type` | `text`, `date_range`, `select` | Sí | El control |
+| `options` | `[{label, value}]` | No | Opciones estáticas, para `select` |
+| `optionsSource` | object | No | Opciones desde el resultado de una consulta guardada, para `select` |
+| `single` | boolean | No | Permite una sola selección |
+| `unique` | boolean | No | Establecer un valor limpia los demás valores de este filtro |
+
+`optionsSource`:
+
+| Campo | Obligatorio | Significado |
+| --- | --- | --- |
+| `variableName` | Sí | Nombre del resultado de la consulta guardada |
+| `valueField` | Sí | Columna para el valor |
+| `labelField` | No | Columna para la etiqueta. Por defecto es `valueField`. |
+
+## Documento válido mínimo
+
+```json
+{
+  "version": 2,
+  "name": "Empty",
+  "widgets": [],
+  "preferences": { "editMode": false }
+}
+```
+
+## Validar un documento en código
+
+```ts
+import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
+
+const result = validateDashboardConfig(json);
+if (!result.valid) console.error(result.problems); // ["widgets.0.layout.x: ..."]
+```

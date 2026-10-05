@@ -1,0 +1,102 @@
+import { Callout, Tabs } from 'nextra/components'
+
+# Agregar consultas guardadas
+
+Una consulta guardada entrega datos a los widgets. Indica una conexión y una operación que un administrador aprobó, y define qué valor recibe cada parámetro de la operación. Los widgets leen el resultado por su **nombre del resultado** (`variableName`).
+
+Necesita permisos de edición sobre el dashboard (Contributor en sus propios dashboards; Editor o Coordinator en cualquiera).
+
+<Tabs items={['En la aplicación web', 'En el documento']}>
+<Tabs.Tab>
+
+1. Abra el dashboard y active **Modo Edición**.
+2. Abra el menú de ajustes (el engranaje en el encabezado del dashboard) y elija **Consultas guardadas**.
+3. Seleccione **Agregar consulta**.
+4. Escriba un **Nombre del resultado**, por ejemplo `trips`. Debe ser único en el dashboard. Un nombre corto y sin espacios es más fácil de usar después.
+5. Elija la **Conexión** y la **Operación**. Las listas muestran solo las operaciones activas, de solo lectura, que usted puede usar.
+6. Complete **Parámetros (JSON)**. Consulte [Valores de los parámetros](#valores-de-los-parámetros) más abajo.
+7. Seleccione **Aplicar al borrador**. El dashboard se guarda solo.
+
+Si las listas muestran **El catálogo autorizado no está disponible o se denegó el acceso**, el servidor no tiene un catálogo de consultas configurado o usted no tiene permisos de edición. Las consultas guardadas que ya existen siguen funcionando.
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+Agregue una entrada al arreglo `queries` del documento:
+
+```json
+{
+  "id": "trips",
+  "variableName": "trips",
+  "connectionId": "fleet-db",
+  "operationId": "trips-by-day",
+  "parameters": {
+    "days": { "kind": "literal", "value": 30 },
+    "vehicle": { "kind": "filter", "key": "vehicle", "omitWhenEmpty": true }
+  },
+  "schema": ["day", "completed", "cancelled"]
+}
+```
+
+| Campo | Obligatorio | Significado |
+| --- | --- | --- |
+| `id` | Sí | Identifica la consulta en la ruta de la API `.../queries/{id}`. Único en el dashboard. |
+| `variableName` | Sí | El nombre del resultado que usan los widgets. Único en el dashboard. |
+| `connectionId` | Sí | La conexión, tal como la conoce el host. |
+| `operationId` | Sí | La operación aprobada en esa conexión. |
+| `parameters` | Sí | Un vínculo por cada parámetro de la operación. Use `{}` si no hay ninguno. |
+| `schema` | No | Nombres de columnas, para que los editores puedan ofrecerlos antes de la primera ejecución. |
+
+</Tabs.Tab>
+</Tabs>
+
+## Valores de los parámetros
+
+Cada parámetro es un valor fijo o un valor de un filtro del dashboard.
+
+| Tipo | Forma | Úselo para |
+| --- | --- | --- |
+| Literal | `{ "kind": "literal", "value": 30 }` | Un valor que nunca cambia |
+| Filtro | `{ "kind": "filter", "key": "vehicle" }` | El valor actual del filtro `vehicle` |
+
+Un vínculo de filtro acepta dos campos opcionales:
+
+| Campo | Efecto |
+| --- | --- |
+| `defaultValue` | Se usa cuando el filtro no tiene valor. Una cadena vacía explícita no lo usa. |
+| `omitWhenEmpty` | Omite el parámetro cuando el valor falta o es una cadena vacía, después de aplicar el valor por defecto. Úselo para parámetros opcionales de la operación. |
+
+Los valores son escalares JSON (texto, número, true, false, null) o listas planas de escalares. Nunca son expresiones, objetos ni SQL.
+
+<Callout type="info">
+Un literal no es un control de seguridad. Un editor puede cambiarlo. Todo lo que deba cumplirse para cada usuario, como el ID de la organización, va en la operación misma, que solo un administrador puede cambiar. Consulte [Consultas y conexiones](/es/products/dashboards/concepts/queries-and-connections).
+</Callout>
+
+## Usar el resultado en un widget
+
+En **Settings** (el engranaje del widget), establezca **Fuente de Datos** en **Planificador** y elija el nombre del resultado como **Variable**. En los campos de texto, escriba la columna entre llaves dobles: `{{completed}}`. Los widgets que muestran un solo valor leen la primera fila; las tablas y listas leen todas las filas.
+
+En el documento, el mismo vínculo son dos campos en el `config` del widget:
+
+```json
+{ "dataMode": "planner", "plannerVariableName": "trips" }
+```
+
+## Límites
+
+| Límite | Valor |
+| --- | --- |
+| Consultas guardadas por dashboard | 50 |
+| Largo de un identificador | 128 caracteres |
+| Largo de un valor de texto | 2.048 caracteres |
+| Valores en una lista | 100 |
+| Filas por resultado | 5.000 |
+| Tamaño del resultado | 2 MiB |
+| Tiempo por consulta | 20 segundos |
+
+Todos los límites están en [Límites](/es/products/dashboards/reference/limits).
+
+## Relacionado
+
+- [Agregar filtros](/es/products/dashboards/how-to/add-filters)
+- [Conectar PostgREST](/es/products/dashboards/how-to/connect-postgrest) y [Conectar BigQuery](/es/products/dashboards/how-to/connect-bigquery), para administradores

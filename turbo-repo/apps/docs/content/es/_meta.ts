@@ -21,5 +21,17 @@ export default {
   },
   reference: {
     title: 'Reference'
+  },
+  products: {
+    title: 'Productos',
+    type: 'page',
+    display: 'hidden'
+  },
+  menu: {
+    title: 'Productos',
+    type: 'menu',
+    items: {
+      dashboards: { title: 'Dashboards', href: '/es/products/dashboards' }
+    }
   }
 }

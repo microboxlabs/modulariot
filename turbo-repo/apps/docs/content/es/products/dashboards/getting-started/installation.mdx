@@ -1,0 +1,149 @@
+import { Callout, Tabs } from 'nextra/components'
+
+# Instalación
+
+El servidor de dashboards se ejecuta como un solo proceso Node.js. Instálelo desde npm, ejecute la imagen de contenedor o despliegue el chart de Helm. Las tres opciones leen las mismas [variables de entorno](/es/products/dashboards/reference/configuration).
+
+La biblioteca de UI y el contrato son paquetes npm que usted agrega a su aplicación web.
+
+## Requisitos
+
+| Componente | Versión | Notas |
+| --- | --- | --- |
+| Node.js | 22.13 o posterior | SQLite viene incluido en Node desde la 22.13. De la 22.5 a la 22.12 necesita `--experimental-sqlite`; las versiones anteriores solo pueden usar el almacenamiento en memoria. |
+| Docker | Cualquier versión reciente | Imagen `ghcr.io/microboxlabs/miot-dashboard-server` |
+| Kubernetes | Cualquier versión con soporte, con Helm 3 | Chart `miot-dashboard-server` en `https://microboxlabs.github.io/helm-charts` |
+| PostgreSQL | Probado con la 17 | Opcional. Sin PostgreSQL, el servidor usa un archivo SQLite. |
+| Navegador | Chrome, Edge, Firefox o Safari actuales | Para la biblioteca de UI |
+
+## Instalar el servidor
+
+<Tabs items={['npm', 'Docker', 'Helm']}>
+<Tabs.Tab>
+
+Agréguelo a un proyecto Node.js:
+
+```bash
+npm install @microboxlabs/miot-dashboard-server
+npx miot-dashboard-server
+```
+
+O ejecútelo una vez sin un proyecto:
+
+```bash
+npx @microboxlabs/miot-dashboard-server
+```
+
+El paquete npm instala solo lo que necesita cualquier configuración. Agregue los paquetes de las funciones que use:
+
+| Función | Agregue |
+| --- | --- |
+| Inicio de sesión con JWT (cualquier proveedor de identidad real) | `jose` |
+| Almacenamiento en PostgreSQL | `pg` |
+| Swagger UI en `/docs` | `swagger-ui-dist` |
+| Documentos en Amazon S3 | `@aws-sdk/client-s3` |
+| Documentos en Google Cloud Storage | `@google-cloud/storage` |
+
+```bash
+npm install @microboxlabs/miot-dashboard-server jose pg
+```
+
+Con `npx`, nombre los paquetes adicionales con `-p`:
+
+```bash
+npx -p @microboxlabs/miot-dashboard-server -p jose miot-dashboard-server
+```
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+```bash
+docker run --rm -p 3070:3070 -v dashboards:/data \
+  -e MIOT_DASHBOARD_STORE=sqlite \
+  -e MIOT_DASHBOARD_JWT_ISSUER=https://your-company.auth0.com/ \
+  -e MIOT_DASHBOARD_JWT_AUDIENCE=miot-dashboards \
+  -e MIOT_DASHBOARD_JWT_JWKS_URL=https://your-company.auth0.com/.well-known/jwks.json \
+  -e MIOT_DASHBOARD_SEED=/data/seed.json \
+  ghcr.io/microboxlabs/miot-dashboard-server:sha-6fb37c8
+```
+
+La imagen escucha en `0.0.0.0:3070`, guarda sus datos en `/data` y se ejecuta como un usuario sin privilegios. Incluye `jose` y `swagger-ui-dist`. No incluye `pg` ni los SDK de almacenamiento en la nube; consulte [Docker](/es/products/dashboards/deployment/docker) para agregarlos.
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+```bash
+helm repo add microboxlabs https://microboxlabs.github.io/helm-charts
+helm repo update
+helm install dashboards microboxlabs/miot-dashboard-server \
+  --namespace dashboards --create-namespace \
+  --values values.yaml
+```
+
+Consulte [Kubernetes con Helm](/es/products/dashboards/deployment/kubernetes) para ver un `values.yaml` que funciona.
+
+</Tabs.Tab>
+</Tabs>
+
+<Callout type="info">
+Fije un tag de imagen como `sha-6fb37c8` en producción. `latest` cambia con cada publicación, así que un reinicio podría cambiar el código que escribe sus dashboards.
+</Callout>
+
+## Comprobar que responde
+
+```bash
+curl http://127.0.0.1:3070/readyz
+```
+
+```json
+{"status":"ready"}
+```
+
+| Ruta | Responde | Uso |
+| --- | --- | --- |
+| `/livez` o `/health` | `{"status":"ok"}` | Sonda de vida (liveness) |
+| `/readyz` | `{"status":"ready"}` | Sonda de disponibilidad (readiness) |
+| `/openapi.yaml` | La definición de la API | Generar clientes |
+| `/docs` | Swagger UI | Probar la API desde un navegador |
+
+Las sondas no tocan la base de datos. En cambio, el servidor comprueba su base de datos al iniciar: ejecuta las migraciones antes de abrir el puerto y termina con un error si no puede conectarse.
+
+## Instalar la biblioteca de UI
+
+```bash
+npm install @microboxlabs/miot-dashboard-ui @microboxlabs/miot-dashboard-contract
+```
+
+Luego agregue lo que necesita su página:
+
+| Su página usa | Instale también |
+| --- | --- |
+| React 18 o 19 | `react` y `react-dom`, que ya tiene |
+| Gráficos | `echarts` 6 |
+| HTML simple, sin paso de compilación | Nada. Copie `dist/browser/browser.js` y `styles.css` desde el paquete. |
+
+Cargue la hoja de estilos una vez:
+
+```ts
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+```
+
+El tutorial [Incrustar un dashboard en una página web](/es/products/dashboards/tutorials/embed-in-a-web-page) usa la versión para HTML simple. [Renderizar con React](/es/products/dashboards/how-to/render-with-react) cubre React.
+
+## Instalar solo el contrato
+
+Use el contrato por sí solo cuando construya su propio servidor o sus propias herramientas y quiera la misma validación de documentos:
+
+```bash
+npm install @microboxlabs/miot-dashboard-contract
+```
+
+Consulte [Paquete de contrato](/es/products/dashboards/reference/contract).
+
+## Versiones que funcionan juntas
+
+| Servidor | Contrato | UI |
+| --- | --- | --- |
+| 0.6.0 | 0.6.0 | 0.1.0 |
+
+Actualice primero el contrato, luego el servidor y después la UI. La tabla completa está en [Versiones y compatibilidad](/es/products/dashboards/releases).

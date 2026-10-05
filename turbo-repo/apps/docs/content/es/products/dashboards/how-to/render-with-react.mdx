@@ -1,0 +1,143 @@
+import { Callout } from 'nextra/components'
+
+# Renderizar con React
+
+Use la entrada React de la biblioteca de UI cuando su aplicación ya usa React 18 o 19. Obtiene los mismos widgets que la versión para navegador sin framework, más hooks para cargar, guardar y leer resultados de consultas. Su aplicación mantiene el control del inicio de sesión y del enrutamiento.
+
+## Instalar
+
+```bash
+npm install @microboxlabs/miot-dashboard-ui @microboxlabs/miot-dashboard-contract
+```
+
+Agregue `echarts` 6 si usa widgets de gráficos.
+
+## Un componente de dashboard
+
+Este componente carga un dashboard, ejecuta sus consultas guardadas, lo dibuja y guarda las ediciones cuando se detienen.
+
+```tsx filename="sales-dashboard.tsx"
+"use client";
+import { useMemo } from "react";
+import { DEFAULT_STORAGE } from "@microboxlabs/miot-dashboard-contract/document";
+import { createDashboardClient, createDashboardRoutes } from "@microboxlabs/miot-dashboard-ui/client";
+import { createWidgetRegistry } from "@microboxlabs/miot-dashboard-ui/core";
+import {
+  DashboardCanvas,
+  SavedQueryProvider,
+  createPercentageValueRegistry,
+  createTextCardRegistry,
+  useDashboardAutosave,
+  useDashboardDocument,
+} from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+
+const labels = {
+  loadingLabel: "Cargando…",
+  errorLabel: "No se pudieron cargar los datos.",
+  unsupportedDataLabel: "Este widget necesita una consulta guardada.",
+};
+
+const registry = createWidgetRegistry([
+  ...createTextCardRegistry({ ...labels, defaultText: "Sin texto" }).all(),
+  ...createPercentageValueRegistry({ ...labels, defaultTitle: "Progreso" }).all(),
+]);
+
+export function SalesDashboard({
+  userId,
+  getToken,
+}: Readonly<{ userId: string; getToken: (signal?: AbortSignal) => Promise<string | null> }>) {
+  const client = useMemo(
+    () =>
+      createDashboardClient({
+        routes: createDashboardRoutes({
+          baseUrl: "https://dashboards.example.com",
+          tenantId: "acme",
+          scopeId: "ops",
+        }),
+        getToken,
+      }),
+    [getToken],
+  );
+
+  const sessionKey = `${userId}/sales`;
+  const document = useDashboardDocument({
+    client,
+    slug: "sales",
+    sessionKey,
+    emptyDocument: DEFAULT_STORAGE,
+  });
+
+  useDashboardAutosave({ ...document, enabled: !document.readOnly });
+
+  if (!document.isLoaded) return <p>Cargando…</p>;
+
+  return (
+    <SavedQueryProvider
+      client={client}
+      sessionKey={sessionKey}
+      slug="sales"
+      queries={document.config.queries ?? []}
+      filters={{}}
+      refreshIntervalMs={(document.config.refreshInterval ?? 0) * 1000}
+      paused={false}
+      errorMessage={labels.errorLabel}
+    >
+      <DashboardCanvas
+        widgets={document.config.widgets}
+        registry={registry}
+        unknownWidgetLabel="Este widget no está disponible aquí."
+      />
+    </SavedQueryProvider>
+  );
+}
+```
+
+Este ejemplo pasa la verificación de tipos con UI 0.1.0 y contract 0.6.0.
+
+## Qué hace cada parte
+
+| Parte | Función |
+| --- | --- |
+| `createDashboardClient` | Se comunica con el servidor con `fetch` estándar. `getToken` se llama en cada solicitud y devuelve el token de acceso de su proveedor de identidad. El cliente nunca lo guarda. |
+| `createDashboardRoutes` | Construye las direcciones para una organización (`tenantId`) y un ámbito (`scopeId`). |
+| `useDashboardDocument` | Carga el dashboard y las capacidades de quien llama, sigue la revisión y conserva las ediciones sin guardar. Comienza en solo lectura y permite editar solo cuando el servidor lo indica. |
+| `useDashboardAutosave` | Guarda cerca de 1,5 segundos después de la última edición. Se detiene después de un guardado fallido, para que un conflicto nunca sobrescriba el trabajo de otra persona. |
+| `SavedQueryProvider` | Ejecuta las consultas guardadas del dashboard en el servidor y entrega los resultados a los widgets. Como máximo se ejecutan cuatro a la vez. |
+| `DashboardCanvas` | Distribuye los widgets en la grilla de 24 columnas y dibuja cada uno desde el registro. |
+| `createWidgetRegistry` | Combina los tipos de widget que admite esta página. Consulte [Catálogo de widgets](/es/products/dashboards/reference/widgets). |
+
+## Reglas para que funcione bien
+
+- **Cambie `sessionKey` cuando cambia la persona que inició sesión.** Reinicia los borradores y los resultados de las consultas, para que nada de una persona llegue a la siguiente. Use un valor no secreto, nunca el token.
+- **Mantenga estable `client`.** Créelo con `useMemo`. Un cliente nuevo inicia una sesión nueva.
+- **Derive los controles de edición del servidor.** Muestre la edición solo cuando `document.readOnly` es false. El servidor verifica cada guardado de todas formas.
+- **Maneje los conflictos.** Cuando `document.error` es `409`, otra persona guardó primero. Conserve las ediciones de la persona y ofrezca `document.discardAndReload()`.
+
+## Edición
+
+`DashboardCanvas` es de solo lectura por defecto. Para que las personas puedan arrastrar y cambiar el tamaño de los widgets, pase `editMode` y `onLayoutCommit`, y aplique el nuevo diseño con `useDashboardState`, que además le da deshacer y rehacer:
+
+```tsx
+const editor = useDashboardState({
+  config: document.config,
+  isLoaded: document.isLoaded,
+  readOnly: document.readOnly,
+  onChange: document.onChange,
+});
+```
+
+La biblioteca también exporta editores para ajustes (`DashboardGeneralSettings`), filtros (`DashboardFilterEditor`), consultas guardadas (`SavedQueryManager`), permisos (`PermissionAssignmentEditor`) e importación/exportación (`DashboardTransfer`). Consulte [Biblioteca de UI](/es/products/dashboards/reference/ui-library).
+
+<Callout type="info">
+En Next.js, marque el componente con `"use client"`. Renderícelo solo en el cliente: mide su contenedor para dimensionar la grilla.
+</Callout>
+
+## Filtros
+
+Envuelva el canvas en `DashboardFiltersProvider` con un controlador de `useDashboardFilterState`, y pase los mismos valores a `SavedQueryProvider` como `filters`. Su aplicación decide dónde se guardan los valores de los filtros, por ejemplo en la URL.
+
+## Relacionado
+
+- [Incrustar un dashboard en una página web](/es/products/dashboards/tutorials/embed-in-a-web-page), sin React
+- [Revisiones y guardado](/es/products/dashboards/concepts/revisions-and-saving)

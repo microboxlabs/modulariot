@@ -1,5 +1,6 @@
 import "server-only";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
+import { getDictionary } from "@/features/i18n/i18n.service";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 import PlacesPageContent from "@/features/settings-admin/components/places-page-content";
 
@@ -13,12 +14,13 @@ import PlacesPageContent from "@/features/settings-admin/components/places-page-
  */
 export default async function PlacesPage({ params }: ParamsWithLang) {
   const { lang } = await params;
+  const [, dictionary] = await getDictionary(lang);
   return (
     <RouteGuard
       path="/users/settings/places"
       fallbackPath={`/${lang}/shipping`}
     >
-      <PlacesPageContent />
+      <PlacesPageContent dict={dictionary} />
     </RouteGuard>
   );
 }

@@ -2,11 +2,16 @@
 
 import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
-import Map, { useControl, MapRef } from "react-map-gl";
+import Map, {
+  useControl,
+  MapRef,
+  type MapLayerMouseEvent,
+  type ViewState,
+} from "react-map-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { DeckProps } from "@deck.gl/core";
 import { Spinner } from "flowbite-react";
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import type {
   MapDataProvider,
   MapDataProviderDefaults,
@@ -23,13 +28,23 @@ import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-conte
 // Constants / helpers
 // ============================================================================
 
-const mapStyles = {
+export const mapStyles = {
   streets: "mapbox://styles/mapbox/streets-v9",
   satellite: "mapbox://styles/mapbox/satellite-streets-v11",
   dark: "mapbox://styles/mapbox/dark-v10",
   light: "mapbox://styles/mapbox/light-v10",
   outdoors: "mapbox://styles/mapbox/outdoors-v11",
   hybrid: "mapbox://styles/mapbox/hybrid-v10",
+};
+
+export type MapStyleName = keyof typeof mapStyles;
+
+const DEFAULT_INITIAL_VIEW_STATE: Partial<ViewState> = {
+  longitude: -62.136105,
+  latitude: -21.756514,
+  zoom: 2,
+  pitch: 45,
+  bearing: 45,
 };
 
 // Matches the UUID segment in named-layer IDs like "named-layer-{uuid}-points-scatterplot"
@@ -56,10 +71,7 @@ function findNamedLayerId(
   return null;
 }
 
-function resolvePathValue(
-  obj: Record<string, unknown>,
-  path: string
-): unknown {
+function resolvePathValue(obj: Record<string, unknown>, path: string): unknown {
   let current: unknown = obj;
   for (const segment of path.split(".")) {
     if (current === null || current === undefined) return undefined;
@@ -122,9 +134,14 @@ export default function MapVisualization({
   onFeatureHover,
   onFeatureClick,
   onLayerClick,
+  onMapClick,
+  onMapContextMenu,
+  idleCursor,
+  initialViewState = DEFAULT_INITIAL_VIEW_STATE,
   rounded = true,
+  children,
 }: {
-  mapStyle: keyof typeof mapStyles;
+  mapStyle: MapStyleName;
   layers: LayersList;
   isLoading?: boolean;
   mapRef: RefObject<MapRef | null>;
@@ -136,7 +153,16 @@ export default function MapVisualization({
   onFeatureClick?: (info: FeatureHoverInfo | null) => void;
   /** Raw pick callback for any layer click (used by custom layers passed via `layers`) */
   onLayerClick?: (info: PickingInfo) => void;
+  /** Click anywhere on the base map (fires alongside deck.gl picking) */
+  onMapClick?: (e: MapLayerMouseEvent) => void;
+  /** Right click on the base map. */
+  onMapContextMenu?: (e: MapLayerMouseEvent) => void;
+  /** Cursor when not dragging, replacing the default grab/pointer (e.g. "crosshair" while drawing). */
+  idleCursor?: string;
+  initialViewState?: Partial<ViewState>;
   rounded?: boolean;
+  /** Native react-map-gl children (Source/Layer/Marker) rendered on the map */
+  children?: ReactNode;
 }) {
   const runtimeConfig = useRuntimeConfig();
   const mapboxAccessToken = runtimeConfig?.MAPBOX_API_KEY ?? "";
@@ -204,8 +230,7 @@ export default function MapVisualization({
       const obj = info.object as Record<string, unknown>;
       const objProps =
         (obj?.properties as Record<string, unknown> | undefined) ?? {};
-      const isCluster =
-        Boolean(obj.cluster) || Boolean(objProps.cluster);
+      const isCluster = Boolean(obj.cluster) || Boolean(objProps.cluster);
       const props = { ...obj, ...objProps };
 
       // Track path selection for highlight
@@ -214,8 +239,7 @@ export default function MapVisualization({
       if (featureIndex >= 0) {
         const pathLayerId = `named-layer-${layerId}-lines`;
         setSelectedPath((prev) =>
-          prev?.layerId === pathLayerId &&
-          prev?.featureIndex === featureIndex
+          prev?.layerId === pathLayerId && prev?.featureIndex === featureIndex
             ? null
             : { layerId: pathLayerId, featureIndex }
         );
@@ -341,14 +365,10 @@ export default function MapVisualization({
           }}
           onDragStart={() => setIsMapDragging(true)}
           onDragEnd={() => setIsMapDragging(false)}
-          cursor={cursor}
-          initialViewState={{
-            longitude: -62.136105,
-            latitude: -21.756514,
-            zoom: 2,
-            pitch: 45,
-            bearing: 45,
-          }}
+          onClick={onMapClick}
+          onContextMenu={onMapContextMenu}
+          cursor={!isMapDragging && idleCursor ? idleCursor : cursor}
+          initialViewState={initialViewState}
           preserveDrawingBuffer={true}
           antialias={true}
         >
@@ -357,6 +377,7 @@ export default function MapVisualization({
               <Spinner />
             </div>
           )}
+          {children}
           <DeckGLOverlay
             layers={mergedLayers}
             onHover={handleHover}
@@ -365,6 +386,8 @@ export default function MapVisualization({
               let newCursor: string;
               if (isMapDragging) {
                 newCursor = "grabbing";
+              } else if (idleCursor) {
+                newCursor = idleCursor;
               } else if (isHovering) {
                 newCursor = "pointer";
               } else {

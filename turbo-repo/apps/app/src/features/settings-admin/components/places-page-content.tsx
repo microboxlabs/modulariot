@@ -8,14 +8,77 @@
 // de lugares por referencia, cerrado, ajustado) e IMPORTACIÓN MASIVA
 // (csv/kml/kmz). Crear y editar son EL MISMO formulario. Carrier: capa
 // global punteada read-only + cuotas 600/9. Tenant SIEMPRE server-side.
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import useSWR from "swr";
-import MapboxMap, { Source, Layer, Marker, type MapRef } from "react-map-gl";
+import {
+  Source,
+  Layer,
+  type MapRef,
+  type MapLayerMouseEvent,
+} from "react-map-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import type { Feature, FeatureCollection, Polygon, LineString } from "geojson";
 import JSZip from "jszip";
+import type { LayersList } from "@deck.gl/core";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
+import MapVisualization, {
+  type MapStyleName,
+} from "@/features/map-visualization/map-visualization";
+import MapStyleSelector from "@/features/geographic-view/components/map-style-selector";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { ConfirmModal } from "@/features/dashboard/components/confirm-modal";
+import PlaceForm from "../places/place-form";
+import PlaceList from "../places/place-list";
+import { CircuitoList, TrayectoList } from "../places/route-lists";
+import PlaceLabels, {
+  PlaceLabelPreview,
+  anclaLugar,
+} from "../places/place-labels";
+import {
+  GeofenceHandles,
+  RouteEndpoints,
+  RoutePointHandles,
+} from "../places/geofence-editor";
+import { nombreRecorrido, puntosRecorrido } from "../places/recorrido";
+import TrayectoForm from "../places/trayecto-form";
+import MapCreateMenu from "../places/map-create-menu";
+import PolygonDrawToolbar from "../places/polygon-draw-toolbar";
+import { CURSOR_AGREGAR } from "../places/cursors";
+import {
+  agregarVertice,
+  anilloGeoJSON,
+  cancelarDibujo,
+  deshacer,
+  puedeDeshacer,
+  puedeRehacer,
+  puedeTerminar,
+  rehacer,
+  seguirDibujando,
+  terminar,
+} from "../places/polygon-draw";
+import {
+  FORM_VACIO,
+  TRAY_VACIO,
+  type Categoria,
+  type Circuito,
+  type FormLugar,
+  type FormTrayecto,
+  type MetodoTrayecto,
+  type Lugar,
+  type Trayecto,
+  iconoDeLugar,
+  metadataAFilas,
+  metadataParaGuardar,
+} from "../places/places.types";
+import {
+  fusionarPorId,
+  isLocalId,
+  lugarDesdeForm,
+  newLocalId,
+  trayectoDesdeForm,
+  useLocalPlaces,
+} from "../places/local-store";
 
 const fetcher = (url: string) =>
   fetch(url).then((r) => {
@@ -28,50 +91,37 @@ const post = (fn: string, body: Record<string, unknown>) =>
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   }).then((r) => r.json());
+// Como post, pero null cuando el backend no responde (red caída o HTTP != 2xx):
+// el llamador cae al respaldo local.
+const tryPost = async (fn: string, body: Record<string, unknown>) => {
+  try {
+    const r = await fetch(`/app/api/atc/rpc/${fn}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+};
+// Resultado de un borrado en el servidor; null = el servidor no respondió.
+function mensajeBorrado(
+  res: { ok?: boolean; detalle?: string; error?: string } | null,
+  que: "Lugar" | "Trayecto",
+  habiaCopiaLocal: boolean
+): string {
+  if (res === null)
+    return habiaCopiaLocal
+      ? `${que} quitado de este navegador; el servidor no respondió, puede volver a aparecer.`
+      : "No se pudo eliminar: el servidor no respondió.";
+  if (res.ok === false) return `No eliminado — ${res.detalle ?? res.error}`;
+  return `${que} eliminado.`;
+}
 
-type Lugar = {
-  place_id: string;
-  name: string;
-  address: string | null;
-  category: string | null;
-  category_id: number | null;
-  geometry_type: string | null;
-  color: string | null;
-  center: [number, number] | null; // [lat, lon] (lab)
-  polygon: [number, number][] | null;
-  radius_m: number | null;
-  metadata: Record<string, string> | null;
-  external_id: string | null;
-  active_from: string | null;
-  active_until: string | null;
-};
-type Trayecto = {
-  trayecto_id: string;
-  name: string;
-  kind: string;
-  width_m: number | null;
-  points: [number, number][];
-  waypoints: [number, number][] | null;
-  parent_name: string | null;
-  ajustado: boolean | null;
-  external_id: string | null;
-};
-type Stop = {
-  place_id: string;
-  name: string | null;
-  stop_kind: string;
-  center: [number, number] | null;
-};
-type Circuito = {
-  route_id: string;
-  name: string;
-  via_label: string | null;
-  cerrado: boolean;
-  ajustado: boolean;
-  path_points: [number, number][] | null;
-  stops: Stop[];
-};
-type Categoria = { category_id: number; name: string; color: string };
+const MSG_LOCAL =
+  "Servidor no disponible — guardado localmente en este navegador.";
+
 type Cuota = { usadas: number; limite: number };
 
 function circuloPoly(
@@ -89,12 +139,37 @@ function circuloPoly(
   return pts;
 }
 
+// Tope del acercamiento al crear un lugar: barrio visible, no nivel edificio.
+const MAX_ZOOM_CREAR = 15;
+
+// Ancho que ocupa la ventana flotante del formulario (340 px + margen).
+const ANCHO_VENTANA_FLOTANTE = 356;
+
+// El tipo guardado manda: un círculo puede venir del servidor con su
+// polígono proyectado y no debe abrirse como polígono de 48 vértices.
+const esPoligono = (l: Lugar) =>
+  l.geometry_type ? l.geometry_type === "polygon" : !!l.polygon;
+
+// Caja [[oeste, sur], [este, norte]] que contiene el círculo del lugar.
+function cajaCirculo(
+  lat: number,
+  lon: number,
+  radioM: number
+): [[number, number], [number, number]] {
+  const dLat = radioM / 111_320;
+  const dLon = radioM / (111_320 * Math.cos((lat * Math.PI) / 180));
+  return [
+    [lon - dLon, lat - dLat],
+    [lon + dLon, lat + dLat],
+  ];
+}
+
 function fcLugares(lugares: Lugar[], propios: boolean): FeatureCollection {
   const features: Feature[] = [];
   for (const l of lugares) {
     if (!l.center && !l.polygon) continue;
     const ring: [number, number][] = l.polygon
-      ? l.polygon.map(([la, lo]) => [lo, la] as [number, number])
+      ? anilloGeoJSON(l.polygon)
       : circuloPoly(l.center![0], l.center![1], l.radius_m ?? 250);
     features.push({
       type: "Feature",
@@ -216,28 +291,21 @@ async function parsearArchivo(
   return { formato: "csv", filas };
 }
 
-const FORM_VACIO = {
-  place_id: null as string | null,
-  name: "",
-  category_id: "",
-  address: "",
-  external_id: "",
-  radius_m: 250,
-  lat: null as number | null,
-  lon: null as number | null,
-  geom: "circle" as "circle" | "polygon",
-  vertices: [] as [number, number][], // [lat,lon]
-  metadata: [] as { k: string; v: string }[],
-  active_from: "",
-  active_until: "",
-};
-type FormLugar = typeof FORM_VACIO;
+// Mapbox simplifica GeoJSON al alejar el zoom (tolerance 0.375 por defecto):
+// círculos chicos y polígonos detallados pierden vértices y dejan de coincidir
+// con la geocerca real. 0 = dibujar siempre los vértices exactos.
+const GEOJSON_EXACTO = 0;
 
-export default function PlacesPageContent() {
+const PLACES_INITIAL_VIEW = { longitude: -70.9, latitude: -33.3, zoom: 6.5 };
+// Everything is drawn with native Source/Layer children; no deck.gl layers.
+const NO_DECK_LAYERS: LayersList = [];
+
+export default function PlacesPageContent({ dict }: { dict: I18nRecord }) {
   const runtimeConfig = useRuntimeConfig();
   const MAPBOX_TOKEN = runtimeConfig?.MAPBOX_API_KEY;
   const { carrierMode } = useCarrierMode();
   const mapRef = useRef<MapRef | null>(null);
+  const [mapStyle, setMapStyle] = useState<MapStyleName>("streets");
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const [busca, setBusca] = useState("");
@@ -245,19 +313,15 @@ export default function PlacesPageContent() {
     "ver" | "lugar" | "trayecto" | "circuito" | "import"
   >("ver");
   const [form, setForm] = useState<FormLugar>({ ...FORM_VACIO });
-  const [mk, setMk] = useState("");
-  const [mv, setMv] = useState("");
   // trayecto
-  const [tray, setTray] = useState({
-    id: null as string | null,
-    name: "",
-    kind: "vial" as "vial" | "interno",
-    width_m: 30,
-    external_id: "",
-    pts: [] as [number, number][],
-    ajustado: false,
-    vias: [] as string[],
-  });
+  const [tray, setTray] = useState({ ...TRAY_VACIO });
+  // menú "crear aquí" al hacer clic en el mapa en modo ver
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    lat: number;
+    lon: number;
+  } | null>(null);
   // circuito
   const [circ, setCirc] = useState({
     id: null as string | null,
@@ -282,6 +346,17 @@ export default function PlacesPageContent() {
     [number, number][] | null
   >(null);
   const [msg, setMsg] = useState<string | null>(null);
+  // confirmación de borrado con el modal del sistema (no window.confirm)
+  const [confirmacion, setConfirmacion] = useState<{
+    titulo: string;
+    descripcion: ReactNode;
+    accion: () => void;
+  } | null>(null);
+  const confirmar = (
+    titulo: string,
+    descripcion: ReactNode,
+    accion: () => void
+  ) => setConfirmacion({ titulo, descripcion, accion });
   const [guardando, setGuardando] = useState(false);
 
   const { data: propios, mutate: refP } = useSWR<Lugar[]>(
@@ -308,6 +383,15 @@ export default function PlacesPageContent() {
     lugares: Cuota;
     trayectos: Cuota;
   }>(carrierMode ? "/app/api/atc/rpc/fn_pt4_quota_status" : null, fetcher);
+  const local = useLocalPlaces();
+  const todosLugares = useMemo(
+    () => fusionarPorId(propios ?? [], local.lugares, (l) => l.place_id),
+    [propios, local.lugares]
+  );
+  const todosTrayectos = useMemo(
+    () => fusionarPorId(trayectos ?? [], local.trayectos, (t) => t.trayecto_id),
+    [trayectos, local.trayectos]
+  );
   const refrescarTodo = () => {
     void refP();
     void refT();
@@ -317,7 +401,7 @@ export default function PlacesPageContent() {
 
   const lugares = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    const xs = propios ?? [];
+    const xs = todosLugares;
     return q
       ? xs.filter(
           (l) =>
@@ -326,16 +410,32 @@ export default function PlacesPageContent() {
             (l.external_id ?? "").toLowerCase().includes(q)
         )
       : xs;
-  }, [propios, busca]);
+  }, [todosLugares, busca]);
 
-  const fcPropios = useMemo(() => fcLugares(propios ?? [], true), [propios]);
+  // El lugar/trayecto en edición se dibuja solo como vista previa editable;
+  // si también se dibujara el guardado, quedarían dos formas superpuestas.
+  const editandoLugarId = modo === "lugar" ? form.place_id : null;
+  const editandoTrayId = modo === "trayecto" ? tray.id : null;
+  const fcPropios = useMemo(
+    () =>
+      fcLugares(
+        todosLugares.filter((l) => l.place_id !== editandoLugarId),
+        true
+      ),
+    [todosLugares, editandoLugarId]
+  );
   const fcGlobales = useMemo(
     () => fcLugares(globales ?? [], false),
     [globales]
   );
   const fcTray = useMemo(
-    () => fcLineas((trayectos ?? []).map((t) => ({ pts: t.points }))),
-    [trayectos]
+    () =>
+      fcLineas(
+        todosTrayectos
+          .filter((t) => t.trayecto_id !== editandoTrayId)
+          .map((t) => ({ pts: t.points }))
+      ),
+    [todosTrayectos, editandoTrayId]
   );
   const fcCirc = useMemo(
     () =>
@@ -393,17 +493,7 @@ export default function PlacesPageContent() {
             properties: {},
             geometry: {
               type: "Polygon",
-              coordinates: [
-                [
-                  ...form.vertices.map(
-                    ([la, lo]) => [lo, la] as [number, number]
-                  ),
-                  [form.vertices[0][1], form.vertices[0][0]] as [
-                    number,
-                    number,
-                  ],
-                ],
-              ],
+              coordinates: [anilloGeoJSON(form.vertices)],
             } as Polygon,
           },
         ],
@@ -433,24 +523,131 @@ export default function PlacesPageContent() {
     [modo, circ.path]
   );
 
-  const onMapClick = (e: { lngLat: { lng: number; lat: number } }) => {
+  // Clic derecho en modo ver: menú para crear un lugar o trayecto en ese punto.
+  const onMapContextMenu = (e: MapLayerMouseEvent) => {
+    e.originalEvent.preventDefault(); // sin el menú del navegador
+    if (modo !== "ver") return;
+    setMenu({
+      x: e.point.x,
+      y: e.point.y,
+      lat: e.lngLat.lat,
+      lon: e.lngLat.lng,
+    });
+  };
+
+  const onMapClick = (e: MapLayerMouseEvent) => {
     const la = e.lngLat.lat,
       lo = e.lngLat.lng;
-    if (modo === "lugar") {
-      if (form.geom === "circle") setForm((f) => ({ ...f, lat: la, lon: lo }));
-      else
-        setForm((f) => ({
-          ...f,
-          vertices: [...f.vertices, [la, lo]],
-          lat: f.lat ?? la,
-          lon: f.lon ?? lo,
-        }));
+    if (modo === "ver") {
+      // el menú "crear aquí" se abre con clic derecho; un clic normal lo cierra
+      setMenu(null);
+      return;
     }
-    if (modo === "trayecto")
+    if (modo === "lugar") {
+      // círculo ya ubicado: se mueve arrastrando su centro, no con clic
+      if (form.geom === "circle")
+        setForm((f) => (f.lat == null ? { ...f, lat: la, lon: lo } : f));
+      else setForm((f) => agregarVertice(f, [la, lo]));
+    }
+    if (modo === "trayecto" && tray.metodo === "manual")
       setTray((t) => ({ ...t, pts: [...t.pts, [la, lo]], ajustado: false }));
   };
 
+  // Acerca el mapa al círculo nuevo para dibujar con precisión: el radio
+  // ocupa buena parte de la vista, dejando libre el lado de la ventana flotante.
+  const encuadrarCirculo = (lat: number, lon: number, radioM: number) => {
+    const map = mapRef.current;
+    if (!map) return;
+    const ancho = map.getContainer().clientWidth;
+    const margen = 80;
+    map.fitBounds(cajaCirculo(lat, lon, radioM), {
+      padding: {
+        top: margen,
+        bottom: margen,
+        left: margen,
+        right: Math.min(380, Math.max(margen, ancho * 0.45)),
+      },
+      maxZoom: MAX_ZOOM_CREAR,
+      duration: 800,
+    });
+  };
+
+  const crearLugarAqui = () => {
+    if (!menu) return;
+    encuadrarCirculo(menu.lat, menu.lon, FORM_VACIO.radius_m);
+    setForm({ ...FORM_VACIO, lat: menu.lat, lon: menu.lon });
+    setMsg(null);
+    setModo("lugar");
+    setMenu(null);
+  };
+  const crearTrayectoAqui = () => {
+    if (!menu) return;
+    setTray({ ...TRAY_VACIO, pts: [[menu.lat, menu.lon]] });
+    setTrayPathAjustado(null);
+    setMsg(null);
+    setModo("trayecto");
+    setMenu(null);
+  };
+  const cerrarMenu = useCallback(() => setMenu(null), []);
+  // cuando un clic en el mapa agrega algo, el cursor es "+"
+  const clicAgrega =
+    (modo === "trayecto" && tray.metodo === "manual") ||
+    (modo === "lugar" &&
+      (form.geom === "polygon" ? !form.cerrado : form.lat == null));
+  const terminarPoligono = useCallback(() => setForm(terminar), []);
+  const deshacerPunto = useCallback(() => setForm(deshacer), []);
+  const rehacerPunto = useCallback(() => setForm(rehacer), []);
+  const seguirPoligono = useCallback(() => setForm(seguirDibujando), []);
+  const cancelarPoligono = useCallback(() => setForm(cancelarDibujo), []);
+  const cerrarForm = () => {
+    setForm({ ...FORM_VACIO });
+    setTray({ ...TRAY_VACIO });
+    setTrayPathAjustado(null);
+    setMsg(null);
+    setModo("ver");
+  };
+  const moverPuntoTray = useCallback((i: number, p: [number, number]) => {
+    setTray((t) => ({
+      ...t,
+      pts: t.pts.map((q, j) => (j === i ? p : q)),
+      ajustado: false,
+    }));
+    setTrayPathAjustado(null);
+  }, []);
+  const deshacerPuntoTray = () => {
+    setTray((t) => ({ ...t, pts: t.pts.slice(0, -1), ajustado: false }));
+    setTrayPathAjustado(null);
+  };
+
+  // Al abrir algo para editar: centrarlo sin tocar el zoom. El centro es el
+  // del área libre a la izquierda de la ventana flotante, no el del mapa.
+  const centrarEnVista = (p: [number, number] | null) => {
+    if (!p) return;
+    mapRef.current?.easeTo({
+      center: [p[1], p[0]],
+      offset: [-ANCHO_VENTANA_FLOTANTE / 2, 0],
+      duration: 600,
+    });
+  };
+
+  // Clic en el nombre de la lista: ir al lugar (con zoom de ciudad).
+  const irALugar = (l: Lugar) => {
+    const p = anclaLugar(l);
+    if (p) mapRef.current?.flyTo({ center: [p[1], p[0]], zoom: 13 });
+  };
+
+  // Clic en el nombre de un trayecto o circuito: ir a él en el mapa.
+  const irATrayecto = (t: Trayecto) => {
+    const p = t.points[0];
+    if (p) mapRef.current?.flyTo({ center: [p[1], p[0]], zoom: 11 });
+  };
+  const irACircuito = (c: Circuito) => {
+    const p = c.stops[0]?.center;
+    if (p) mapRef.current?.flyTo({ center: [p[1], p[0]], zoom: 10 });
+  };
+
   const editarLugar = (l: Lugar) => {
+    setMenu(null);
     setModo("lugar");
     setMsg(null);
     setForm({
@@ -462,17 +659,17 @@ export default function PlacesPageContent() {
       radius_m: l.radius_m ?? 250,
       lat: l.center?.[0] ?? null,
       lon: l.center?.[1] ?? null,
-      geom: l.polygon ? "polygon" : "circle",
-      vertices: l.polygon ?? [],
-      metadata: Object.entries(l.metadata ?? {}).map(([k, v]) => ({
-        k,
-        v: String(v),
-      })),
+      geom: esPoligono(l) ? "polygon" : "circle",
+      cerrado: esPoligono(l),
+      pasado: [],
+      futuro: [],
+      vertices: esPoligono(l) ? (l.polygon ?? []) : [],
+      icon: iconoDeLugar(l),
+      metadata: metadataAFilas(l.metadata),
       active_from: l.active_from?.slice(0, 10) ?? "",
       active_until: l.active_until?.slice(0, 10) ?? "",
     });
-    if (l.center)
-      mapRef.current?.flyTo({ center: [l.center[1], l.center[0]], zoom: 13 });
+    centrarEnVista(anclaLugar(l));
   };
 
   const guardarLugar = async () => {
@@ -488,9 +685,13 @@ export default function PlacesPageContent() {
       setMsg("El polígono necesita al menos 3 vértices.");
       return;
     }
+    if (isLocalId(form.place_id)) {
+      guardarLugarLocal(form.place_id!, "Lugar local actualizado.");
+      return;
+    }
     setGuardando(true);
     setMsg(null);
-    const metadata = Object.fromEntries(form.metadata.map((m) => [m.k, m.v]));
+    const metadata = metadataParaGuardar(form);
     const base = {
       p_name: form.name,
       p_geometry_type: form.geom,
@@ -505,11 +706,16 @@ export default function PlacesPageContent() {
       p_actor: "app-settings",
     };
     const res = form.place_id
-      ? await post("fn_pt4_update_place", {
+      ? await tryPost("fn_pt4_update_place", {
           p_place_id: form.place_id,
           ...base,
         })
-      : await post("fn_pt4_create_place", base);
+      : await tryPost("fn_pt4_create_place", base);
+    if (res === null) {
+      setGuardando(false);
+      guardarLugarLocal(form.place_id ?? newLocalId(), MSG_LOCAL);
+      return;
+    }
     if (res?.ok === false) {
       setGuardando(false);
       setMsg(`No guardado — ${res?.detalle ?? res?.error}`);
@@ -535,27 +741,56 @@ export default function PlacesPageContent() {
     refrescarTodo();
   };
 
-  const borrarLugar = async (l: Lugar) => {
-    if (!window.confirm(`¿Eliminar «${l.name}»? Se retira su geocerca.`))
+  const guardarLugarLocal = (placeId: string, okMsg: string) => {
+    const ok = local.saveLugar(lugarDesdeForm(form, cats ?? [], placeId));
+    setMsg(
+      ok
+        ? okMsg
+        : "No se pudo guardar localmente (almacenamiento lleno o bloqueado)."
+    );
+    if (!ok) return;
+    setForm({ ...FORM_VACIO });
+    setModo("ver");
+  };
+
+  const borrarLugar = (l: Lugar) =>
+    confirmar(
+      "Eliminar lugar",
+      <>
+        ¿Eliminar <b>{l.name}</b>? Se retira su geocerca.
+      </>,
+      () => void eliminarLugar(l)
+    );
+
+  const eliminarLugar = async (l: Lugar) => {
+    // si estaba abierto en la ventana flotante, cerrarla
+    if (modo === "lugar" && form.place_id === l.place_id) cerrarForm();
+    // siempre quitar la copia local (lugar local o edición guardada offline)
+    const habiaCopiaLocal = local.lugares.some(
+      (x) => x.place_id === l.place_id
+    );
+    local.deleteLugar(l.place_id);
+    if (isLocalId(l.place_id)) {
+      setMsg("Lugar local eliminado.");
       return;
-    const res = await post("fn_pt4_delete_place", {
+    }
+    const res = await tryPost("fn_pt4_delete_place", {
       p_place_id: l.place_id,
       p_actor: "app-settings",
     });
-    setMsg(
-      res?.ok === false
-        ? `No eliminado — ${res?.detalle ?? res?.error}`
-        : "Lugar eliminado."
-    );
+    setMsg(mensajeBorrado(res, "Lugar", habiaCopiaLocal));
     refrescarTodo();
   };
 
   const editarTrayecto = (t: Trayecto) => {
+    setMenu(null);
     setModo("trayecto");
     setMsg(null);
     setTray({
+      ...TRAY_VACIO,
       id: t.trayecto_id,
       name: t.name,
+      icon: t.icon ?? "",
       kind: (t.kind as "vial" | "interno") ?? "vial",
       width_m: t.width_m ?? 30,
       external_id: t.external_id ?? "",
@@ -563,11 +798,8 @@ export default function PlacesPageContent() {
       ajustado: !!t.ajustado,
       vias: [],
     });
-    if (t.points[0])
-      mapRef.current?.flyTo({
-        center: [t.points[0][1], t.points[0][0]],
-        zoom: 11,
-      });
+    // punto medio del recorrido, no su inicio
+    centrarEnVista(t.points[Math.floor(t.points.length / 2)] ?? null);
   };
 
   const ajustarTray = async () => {
@@ -586,13 +818,116 @@ export default function PlacesPageContent() {
     setTrayPathAjustado(aj.pts);
   };
 
+  // ── Trayecto por dirección: A → B escritos, ruta por calles automática ──
+  const centroMapa = useCallback((): [number, number] | null => {
+    const c = mapRef.current?.getCenter();
+    return c ? [c.lat, c.lng] : null;
+  }, []);
+
+  const encuadrarRuta = (pts: [number, number][]) => {
+    const map = mapRef.current;
+    if (!map || pts.length === 0) return;
+    const lats = pts.map((p) => p[0]);
+    const lons = pts.map((p) => p[1]);
+    const margen = 60;
+    map.fitBounds(
+      [
+        [Math.min(...lons), Math.min(...lats)],
+        [Math.max(...lons), Math.max(...lats)],
+      ],
+      {
+        padding: {
+          top: margen,
+          bottom: margen,
+          left: margen,
+          right: ANCHO_VENTANA_FLOTANTE + margen,
+        },
+        maxZoom: MAX_ZOOM_CREAR,
+        duration: 800,
+      }
+    );
+  };
+
+  /** Cambiar de método empieza el recorrido de cero (conserva los datos). */
+  const cambiarMetodo = (metodo: MetodoTrayecto) => {
+    if (metodo === tray.metodo) return;
+    setTray((t) => ({
+      ...TRAY_VACIO,
+      id: t.id,
+      name: t.name,
+      icon: t.icon,
+      kind: t.kind,
+      width_m: t.width_m,
+      external_id: t.external_id,
+      metodo,
+    }));
+    setTrayPathAjustado(null);
+    setMsg(null);
+  };
+
+  // Las respuestas de Directions pueden llegar fuera de orden: solo vale la
+  // de la última petición.
+  const rutaSeq = useRef(0);
+
+  const trazarRuta = async (pts: [number, number][], nombre: string) => {
+    const seq = ++rutaSeq.current;
+    setTray((t) => ({ ...t, pts, ajustado: false, name: t.name || nombre }));
+    setTrayPathAjustado(null);
+    if (tray.kind !== "vial" || !MAPBOX_TOKEN) {
+      encuadrarRuta(pts);
+      return;
+    }
+    setGuardando(true);
+    const aj = await ajustarACalles(pts, MAPBOX_TOKEN);
+    if (seq !== rutaSeq.current) return;
+    setGuardando(false);
+    if (!aj) {
+      setMsg("No se encontró ruta por calles; queda la línea recta.");
+      encuadrarRuta(pts);
+      return;
+    }
+    setTray((t) => ({ ...t, ajustado: true, vias: aj.vias }));
+    setTrayPathAjustado(aj.pts);
+    setMsg(
+      `Ruta por: ${aj.vias.slice(0, 4).join(", ")}${aj.vias.length > 4 ? "…" : ""}`
+    );
+    encuadrarRuta(aj.pts);
+  };
+
+  /**
+   * Aplica un cambio al recorrido A → paradas → B. Con el recorrido completo
+   * traza la ruta; si no, descarta la anterior y centra `foco` si lo hay.
+   */
+  const aplicarRecorrido = (
+    cambio: (t: FormTrayecto) => FormTrayecto,
+    foco?: [number, number]
+  ) => {
+    const next = cambio(tray);
+    if (next === tray) return;
+    setTray(next);
+    setMsg(null);
+    const pts = puntosRecorrido(next);
+    if (pts) {
+      void trazarRuta(pts, nombreRecorrido(next));
+      return;
+    }
+    rutaSeq.current++; // ignora una ruta que estuviera en camino
+    setGuardando(false);
+    setTrayPathAjustado(null);
+    if (foco) centrarEnVista(foco);
+  };
+
   const guardarTrayecto = async () => {
     if (!tray.name || tray.pts.length < 2) {
       setMsg("Falta nombre o al menos 2 puntos.");
       return;
     }
+    if (isLocalId(tray.id)) {
+      guardarTrayectoLocal(tray.id!, "Trayecto local actualizado.");
+      return;
+    }
     setGuardando(true);
-    const res = await post("fn_pt4_save_trayecto", {
+    const res = await tryPost("fn_pt4_save_trayecto", {
       p_name: tray.name,
       p_kind: tray.kind,
       p_width_m: tray.width_m,
@@ -604,37 +939,60 @@ export default function PlacesPageContent() {
       p_actor: "app-settings",
     });
     setGuardando(false);
+    if (res === null) {
+      guardarTrayectoLocal(tray.id ?? newLocalId(), MSG_LOCAL);
+      return;
+    }
     if (res?.ok === false) {
       setMsg(`No guardado — ${res?.detalle ?? res?.error}`);
       return;
     }
     setMsg(tray.id ? "Trayecto actualizado." : "Trayecto guardado.");
-    setTray({
-      id: null,
-      name: "",
-      kind: "vial",
-      width_m: 30,
-      external_id: "",
-      pts: [],
-      ajustado: false,
-      vias: [],
-    });
+    setTray({ ...TRAY_VACIO });
     setTrayPathAjustado(null);
     setModo("ver");
     refrescarTodo();
   };
 
-  const borrarTrayecto = async (t: Trayecto) => {
-    if (!window.confirm(`¿Eliminar trayecto «${t.name}»?`)) return;
-    const res = await post("fn_pt4_delete_trayecto", {
+  const guardarTrayectoLocal = (trayectoId: string, okMsg: string) => {
+    const ok = local.saveTrayecto(
+      trayectoDesdeForm(tray, trayPathAjustado, trayectoId)
+    );
+    setMsg(
+      ok
+        ? okMsg
+        : "No se pudo guardar localmente (almacenamiento lleno o bloqueado)."
+    );
+    if (!ok) return;
+    setTray({ ...TRAY_VACIO });
+    setTrayPathAjustado(null);
+    setModo("ver");
+  };
+
+  const borrarTrayecto = (t: Trayecto) =>
+    confirmar(
+      "Eliminar trayecto",
+      <>
+        ¿Eliminar el trayecto <b>{t.name}</b>?
+      </>,
+      () => void eliminarTrayecto(t)
+    );
+
+  const eliminarTrayecto = async (t: Trayecto) => {
+    if (modo === "trayecto" && tray.id === t.trayecto_id) cerrarForm();
+    const habiaCopiaLocal = local.trayectos.some(
+      (x) => x.trayecto_id === t.trayecto_id
+    );
+    local.deleteTrayecto(t.trayecto_id);
+    if (isLocalId(t.trayecto_id)) {
+      setMsg("Trayecto local eliminado.");
+      return;
+    }
+    const res = await tryPost("fn_pt4_delete_trayecto", {
       p_trayecto_id: t.trayecto_id,
       p_actor: "app-settings",
     });
-    setMsg(
-      res?.ok === false
-        ? `No eliminado — ${res?.detalle ?? res?.error}`
-        : "Trayecto eliminado."
-    );
+    setMsg(mensajeBorrado(res, "Trayecto", habiaCopiaLocal));
     refrescarTodo();
   };
 
@@ -746,8 +1104,16 @@ export default function PlacesPageContent() {
     setModo("ver");
     refrescarTodo();
   };
-  const borrarCircuito = async (c: Circuito) => {
-    if (!window.confirm(`¿Eliminar circuito «${c.name}»?`)) return;
+  const borrarCircuito = (c: Circuito) =>
+    confirmar(
+      "Eliminar circuito",
+      <>
+        ¿Eliminar el circuito <b>{c.name}</b>?
+      </>,
+      () => void eliminarCircuito(c)
+    );
+
+  const eliminarCircuito = async (c: Circuito) => {
     const res = await post("fn_pt4_delete_route", {
       p_route_id: c.route_id,
       p_actor: "app-settings",
@@ -820,131 +1186,248 @@ export default function PlacesPageContent() {
     <div className="flex h-full w-full overflow-hidden">
       {/* mapa: columna flexible; el panel vive AL LADO, no encima */}
       <div className="relative flex-1 min-w-0 h-full">
-        {MAPBOX_TOKEN ? (
-          <MapboxMap
-            ref={mapRef}
-            mapboxAccessToken={MAPBOX_TOKEN}
-            initialViewState={{ longitude: -70.9, latitude: -33.3, zoom: 6.5 }}
-            mapStyle="mapbox://styles/mapbox/streets-v9"
-            onClick={onMapClick}
-            style={{ width: "100%", height: "100%" }}
-          >
-            {carrierMode && (
-              <Source id="globales" type="geojson" data={fcGlobales}>
-                <Layer
-                  id="glob-fill"
-                  type="fill"
-                  paint={{
-                    "fill-color": ["get", "color"],
-                    "fill-opacity": 0.12,
-                  }}
-                />
-                <Layer
-                  id="glob-line"
-                  type="line"
-                  paint={{
-                    "line-color": ["get", "color"],
-                    "line-width": 1,
-                    "line-dasharray": [2, 2],
-                  }}
-                />
-              </Source>
-            )}
-            <Source id="propios" type="geojson" data={fcPropios}>
+        <MapVisualization
+          rounded={false}
+          mapStyle={mapStyle}
+          layers={NO_DECK_LAYERS}
+          mapRef={mapRef}
+          initialViewState={PLACES_INITIAL_VIEW}
+          onMapClick={onMapClick}
+          onMapContextMenu={onMapContextMenu}
+          idleCursor={clicAgrega ? CURSOR_AGREGAR : undefined}
+        >
+          {carrierMode && (
+            <Source
+              id="globales"
+              type="geojson"
+              tolerance={GEOJSON_EXACTO}
+              data={fcGlobales}
+            >
               <Layer
-                id="prop-fill"
+                id="glob-fill"
                 type="fill"
-                paint={{ "fill-color": ["get", "color"], "fill-opacity": 0.22 }}
-              />
-              <Layer
-                id="prop-line"
-                type="line"
-                paint={{ "line-color": ["get", "color"], "line-width": 1.5 }}
-              />
-            </Source>
-            <Source id="tray" type="geojson" data={fcTray}>
-              <Layer
-                id="tray-line"
-                type="line"
                 paint={{
-                  "line-color": "#7E3AF2",
-                  "line-width": 2.5,
-                  "line-opacity": 0.8,
+                  "fill-color": ["get", "color"],
+                  "fill-opacity": 0.12,
                 }}
               />
-            </Source>
-            <Source id="circ" type="geojson" data={fcCirc}>
               <Layer
-                id="circ-line"
+                id="glob-line"
                 type="line"
                 paint={{
-                  "line-color": "#0E9F6E",
-                  "line-width": 2.5,
-                  "line-opacity": 0.8,
-                  "line-dasharray": [3, 1.5],
-                }}
-              />
-            </Source>
-
-            {/* previews en edición — Sources SIEMPRE montados (react-map-gl no
-              permite que un Source cambie de id entre renders); cuando no
-              aplican, llevan colección vacía */}
-            <Source id="prev-lugar" type="geojson" data={prevLugarFC}>
-              <Layer
-                id="prev-lugar-f"
-                type="fill"
-                paint={{ "fill-color": "#1C64F2", "fill-opacity": 0.22 }}
-              />
-              <Layer
-                id="prev-lugar-l"
-                type="line"
-                paint={{ "line-color": "#1C64F2", "line-width": 2 }}
-              />
-            </Source>
-            <Source id="prev-tray-raw" type="geojson" data={prevTrayRawFC}>
-              <Layer
-                id="prev-tray-raw-l"
-                type="line"
-                paint={{
-                  "line-color": "#7E3AF2",
-                  "line-width": 2,
+                  "line-color": ["get", "color"],
+                  "line-width": 1,
                   "line-dasharray": [2, 2],
                 }}
               />
             </Source>
-            <Source id="prev-tray-adj" type="geojson" data={prevTrayAdjFC}>
-              <Layer
-                id="prev-tray-adj-l"
-                type="line"
-                paint={{ "line-color": "#7E3AF2", "line-width": 3 }}
-              />
-            </Source>
-            <Source id="prev-circ" type="geojson" data={prevCircFC}>
-              <Layer
-                id="prev-circ-l"
-                type="line"
-                paint={{ "line-color": "#0E9F6E", "line-width": 3 }}
-              />
-            </Source>
-            {modo === "lugar" &&
-              form.geom === "polygon" &&
-              form.vertices.map((v, i) => (
-                <Marker key={i} longitude={v[1]} latitude={v[0]}>
-                  <span className="block w-2 h-2 rounded-full bg-blue-600 border border-white" />
-                </Marker>
-              ))}
-            {modo === "trayecto" &&
-              tray.pts.map((p, i) => (
-                <Marker key={i} longitude={p[1]} latitude={p[0]}>
-                  <span className="block w-2.5 h-2.5 rounded-full bg-purple-600 border-2 border-white" />
-                </Marker>
-              ))}
-          </MapboxMap>
-        ) : (
-          <div className="h-full flex items-center justify-center text-sm text-gray-500">
-            Falta MAPBOX_API_KEY en la configuración de runtime.
-          </div>
+          )}
+          <Source
+            id="propios"
+            type="geojson"
+            tolerance={GEOJSON_EXACTO}
+            data={fcPropios}
+          >
+            <Layer
+              id="prop-fill"
+              type="fill"
+              paint={{ "fill-color": ["get", "color"], "fill-opacity": 0.22 }}
+            />
+            <Layer
+              id="prop-line"
+              type="line"
+              paint={{ "line-color": ["get", "color"], "line-width": 1.5 }}
+            />
+          </Source>
+          <Source
+            id="tray"
+            type="geojson"
+            tolerance={GEOJSON_EXACTO}
+            data={fcTray}
+          >
+            <Layer
+              id="tray-line"
+              type="line"
+              paint={{
+                "line-color": "#7E3AF2",
+                "line-width": 2.5,
+                "line-opacity": 0.8,
+              }}
+            />
+          </Source>
+          <Source
+            id="circ"
+            type="geojson"
+            tolerance={GEOJSON_EXACTO}
+            data={fcCirc}
+          >
+            <Layer
+              id="circ-line"
+              type="line"
+              paint={{
+                "line-color": "#0E9F6E",
+                "line-width": 2.5,
+                "line-opacity": 0.8,
+                "line-dasharray": [3, 1.5],
+              }}
+            />
+          </Source>
+
+          {/* previews en edición — Sources SIEMPRE montados (react-map-gl no
+              permite que un Source cambie de id entre renders); cuando no
+              aplican, llevan colección vacía */}
+          <Source
+            id="prev-lugar"
+            type="geojson"
+            tolerance={GEOJSON_EXACTO}
+            data={prevLugarFC}
+          >
+            <Layer
+              id="prev-lugar-f"
+              type="fill"
+              paint={{ "fill-color": "#1C64F2", "fill-opacity": 0.22 }}
+            />
+            <Layer
+              id="prev-lugar-l"
+              type="line"
+              paint={{ "line-color": "#1C64F2", "line-width": 2 }}
+            />
+          </Source>
+          <Source
+            id="prev-tray-raw"
+            type="geojson"
+            tolerance={GEOJSON_EXACTO}
+            data={prevTrayRawFC}
+          >
+            <Layer
+              id="prev-tray-raw-l"
+              type="line"
+              paint={{
+                "line-color": "#7E3AF2",
+                "line-width": 2,
+                "line-dasharray": [2, 2],
+              }}
+            />
+          </Source>
+          <Source
+            id="prev-tray-adj"
+            type="geojson"
+            tolerance={GEOJSON_EXACTO}
+            data={prevTrayAdjFC}
+          >
+            <Layer
+              id="prev-tray-adj-l"
+              type="line"
+              paint={{ "line-color": "#7E3AF2", "line-width": 3 }}
+            />
+          </Source>
+          <Source
+            id="prev-circ"
+            type="geojson"
+            tolerance={GEOJSON_EXACTO}
+            data={prevCircFC}
+          >
+            <Layer
+              id="prev-circ-l"
+              type="line"
+              paint={{ "line-color": "#0E9F6E", "line-width": 3 }}
+            />
+          </Source>
+          <PlaceLabels
+            lugares={todosLugares}
+            ocultarId={editandoLugarId}
+            interactivo={modo === "ver"}
+            onSelect={editarLugar}
+          />
+          {modo === "lugar" && (
+            <PlaceLabelPreview
+              ancla={anclaLugar({
+                polygon: form.geom === "polygon" ? form.vertices : null,
+                center:
+                  form.geom === "circle" && form.lat != null && form.lon != null
+                    ? [form.lat, form.lon]
+                    : null,
+              })}
+              icon={form.icon}
+              name={form.name}
+              color={
+                cats?.find((c) => String(c.category_id) === form.category_id)
+                  ?.color ?? "#1C64F2"
+              }
+            />
+          )}
+          {modo === "lugar" && (
+            <GeofenceHandles form={form} setForm={setForm} />
+          )}
+          {modo === "trayecto" &&
+            (tray.metodo === "manual" ? (
+              <RoutePointHandles pts={tray.pts} onMove={moverPuntoTray} />
+            ) : (
+              <RouteEndpoints puntos={tray.recorrido.map((p) => p.punto)} />
+            ))}
+        </MapVisualization>
+        {menu && (
+          <MapCreateMenu
+            x={menu.x}
+            y={menu.y}
+            onCrearLugar={crearLugarAqui}
+            onCrearTrayecto={crearTrayectoAqui}
+            onClose={cerrarMenu}
+          />
         )}
+        {modo === "lugar" &&
+          form.geom === "polygon" &&
+          // también sin puntos si queda algo por deshacer/rehacer
+          (form.vertices.length > 0 ||
+            puedeDeshacer(form) ||
+            puedeRehacer(form)) && (
+            <PolygonDrawToolbar
+              puntos={form.vertices.length}
+              cerrado={form.cerrado}
+              onSeguir={seguirPoligono}
+              puedeTerminar={puedeTerminar(form)}
+              onTerminar={terminarPoligono}
+              puedeDeshacer={puedeDeshacer(form)}
+              puedeRehacer={puedeRehacer(form)}
+              onDeshacer={deshacerPunto}
+              onRehacer={rehacerPunto}
+              onCancelar={cancelarPoligono}
+            />
+          )}
+        {modo === "lugar" && (
+          <PlaceForm
+            form={form}
+            setForm={setForm}
+            cats={cats ?? []}
+            guardando={guardando}
+            msg={msg}
+            onSave={() => void guardarLugar()}
+            onClose={cerrarForm}
+          />
+        )}
+        {modo === "trayecto" && (
+          <TrayectoForm
+            token={MAPBOX_TOKEN}
+            cerca={centroMapa}
+            onMetodo={cambiarMetodo}
+            onRecorrido={aplicarRecorrido}
+            tray={tray}
+            setTray={setTray}
+            guardando={guardando}
+            msg={msg}
+            onUndoPoint={deshacerPuntoTray}
+            onAjustar={() => void ajustarTray()}
+            onSave={() => void guardarTrayecto()}
+            onClose={cerrarForm}
+          />
+        )}
+        <div className="absolute bottom-5 left-5 z-40">
+          <MapStyleSelector
+            dict={dict}
+            selectedStyle={mapStyle}
+            setSelectedStyle={(style) => setMapStyle(style as MapStyleName)}
+          />
+        </div>
       </div>
 
       {/* Panel lateral a la DERECHA del mapa (columna propia, no flotante) */}
@@ -972,40 +1455,16 @@ export default function PlacesPageContent() {
           </div>
         )}
 
+        <p className="rounded-lg bg-gray-50 dark:bg-gray-800 px-2.5 py-1.5 text-[11px] text-gray-600 dark:text-gray-400">
+          Haz clic derecho en el mapa para crear un lugar o un trayecto en ese
+          punto.
+        </p>
+
         <div className="flex gap-1.5">
-          <button
-            className={btnTab(modo === "lugar")}
-            onClick={() => {
-              setModo(modo === "lugar" ? "ver" : "lugar");
-              setForm({ ...FORM_VACIO });
-              setMsg(null);
-            }}
-          >
-            + Lugar
-          </button>
-          <button
-            className={btnTab(modo === "trayecto", "bg-purple-600")}
-            onClick={() => {
-              setModo(modo === "trayecto" ? "ver" : "trayecto");
-              setTray({
-                id: null,
-                name: "",
-                kind: "vial",
-                width_m: 30,
-                external_id: "",
-                pts: [],
-                ajustado: false,
-                vias: [],
-              });
-              setTrayPathAjustado(null);
-              setMsg(null);
-            }}
-          >
-            + Trayecto
-          </button>
           <button
             className={btnTab(modo === "circuito", "bg-green-600")}
             onClick={() => {
+              setMenu(null);
               setModo(modo === "circuito" ? "ver" : "circuito");
               setCirc({
                 id: null,
@@ -1025,6 +1484,7 @@ export default function PlacesPageContent() {
           <button
             className={btnTab(modo === "import", "bg-amber-600")}
             onClick={() => {
+              setMenu(null);
               setModo(modo === "import" ? "ver" : "import");
               setMsg(null);
             }}
@@ -1032,263 +1492,6 @@ export default function PlacesPageContent() {
             Importar
           </button>
         </div>
-
-        {/* ── Formulario de LUGAR (crear = editar) ── */}
-        {modo === "lugar" && (
-          <div className="space-y-2 rounded-lg border border-blue-300 dark:border-blue-800 p-3">
-            <div className="text-xs font-semibold text-gray-900 dark:text-white">
-              {form.place_id ? "Editar lugar" : "Nuevo lugar"}
-            </div>
-            <div className="flex gap-1.5">
-              <button
-                className={btnTab(form.geom === "circle")}
-                onClick={() =>
-                  setForm({ ...form, geom: "circle", vertices: [] })
-                }
-              >
-                Círculo
-              </button>
-              <button
-                className={btnTab(form.geom === "polygon")}
-                onClick={() => setForm({ ...form, geom: "polygon" })}
-              >
-                Polígono
-              </button>
-            </div>
-            <div className="text-[11px] text-gray-500">
-              {form.geom === "circle"
-                ? form.lat != null
-                  ? `centro: ${form.lat.toFixed(4)}, ${form.lon!.toFixed(4)}`
-                  : "clic en el mapa = centro"
-                : `clic en el mapa agrega vértices (${form.vertices.length}/40)`}
-              {form.geom === "polygon" && form.vertices.length > 0 && (
-                <button
-                  className="ml-2 text-blue-600 hover:underline"
-                  onClick={() =>
-                    setForm({ ...form, vertices: form.vertices.slice(0, -1) })
-                  }
-                >
-                  deshacer
-                </button>
-              )}
-            </div>
-            <input
-              className={inp}
-              placeholder="Nombre *"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <select
-              className={inp}
-              value={form.category_id}
-              onChange={(e) =>
-                setForm({ ...form, category_id: e.target.value })
-              }
-            >
-              <option value="">Sin categoría (sin alertas)</option>
-              {(cats ?? []).map((c) => (
-                <option key={c.category_id} value={c.category_id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <input
-              className={inp}
-              placeholder="Dirección"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-            />
-            <input
-              className={inp}
-              placeholder="External ID (dedup por organización)"
-              value={form.external_id}
-              onChange={(e) =>
-                setForm({ ...form, external_id: e.target.value })
-              }
-            />
-            {form.geom === "circle" && (
-              <label className="block text-xs text-gray-500">
-                Radio: <b>{form.radius_m} m</b>
-                <input
-                  type="range"
-                  min={50}
-                  max={5000}
-                  step={50}
-                  value={form.radius_m}
-                  className="w-full"
-                  onChange={(e) =>
-                    setForm({ ...form, radius_m: Number(e.target.value) })
-                  }
-                />
-              </label>
-            )}
-            {/* metadata key=value */}
-            <div className="space-y-1">
-              <div className="text-[11px] text-gray-500">
-                Metadata (clave = valor)
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {form.metadata.map((m, i) => (
-                  <span
-                    key={`${m.k}-${i}`}
-                    className="inline-flex items-center gap-1 rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-0.5 text-[11px] text-gray-800 dark:text-gray-200"
-                  >
-                    {m.k}={m.v}
-                    <button
-                      onClick={() =>
-                        setForm({
-                          ...form,
-                          metadata: form.metadata.filter((_, j) => j !== i),
-                        })
-                      }
-                    >
-                      ✕
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-1">
-                <input
-                  className={inp}
-                  placeholder="clave"
-                  value={mk}
-                  onChange={(e) => setMk(e.target.value)}
-                />
-                <input
-                  className={inp}
-                  placeholder="valor"
-                  value={mv}
-                  onChange={(e) => setMv(e.target.value)}
-                />
-                <button
-                  className="rounded-lg border border-gray-300 dark:border-gray-600 px-2 text-sm text-gray-900 dark:text-white"
-                  onClick={() => {
-                    if (mk && mv) {
-                      setForm({
-                        ...form,
-                        metadata: [...form.metadata, { k: mk, v: mv }],
-                      });
-                      setMk("");
-                      setMv("");
-                    }
-                  }}
-                >
-                  +
-                </button>
-              </div>
-            </div>
-            {/* vigencia */}
-            <div className="flex gap-1.5 items-center text-[11px] text-gray-500">
-              <span>Vigencia</span>
-              <input
-                type="date"
-                className={inp}
-                value={form.active_from}
-                onChange={(e) =>
-                  setForm({ ...form, active_from: e.target.value })
-                }
-              />
-              <input
-                type="date"
-                className={inp}
-                value={form.active_until}
-                onChange={(e) =>
-                  setForm({ ...form, active_until: e.target.value })
-                }
-              />
-            </div>
-            <button
-              onClick={() => void guardarLugar()}
-              disabled={guardando}
-              className="w-full rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-1.5 disabled:opacity-50"
-            >
-              {guardando ? "Guardando…" : "Guardar lugar"}
-            </button>
-          </div>
-        )}
-
-        {/* ── Formulario de TRAYECTO ── */}
-        {modo === "trayecto" && (
-          <div className="space-y-2 rounded-lg border border-purple-300 dark:border-purple-800 p-3">
-            <div className="text-xs font-semibold text-gray-900 dark:text-white">
-              {tray.id ? "Editar trayecto" : "Nuevo trayecto"} — clic en el mapa
-              agrega puntos ({tray.pts.length})
-            </div>
-            <input
-              className={inp}
-              placeholder="Nombre *"
-              value={tray.name}
-              onChange={(e) => setTray({ ...tray, name: e.target.value })}
-            />
-            <div className="flex gap-1.5">
-              <button
-                className={btnTab(tray.kind === "vial", "bg-purple-600")}
-                onClick={() => setTray({ ...tray, kind: "vial" })}
-              >
-                Vial (ruta)
-              </button>
-              <button
-                className={btnTab(tray.kind === "interno", "bg-purple-600")}
-                onClick={() => setTray({ ...tray, kind: "interno" })}
-              >
-                Interno (faena)
-              </button>
-            </div>
-            <label className="block text-xs text-gray-500">
-              Ancho del corredor: <b>{tray.width_m} m</b>
-              <input
-                type="range"
-                min={10}
-                max={200}
-                step={10}
-                value={tray.width_m}
-                className="w-full"
-                onChange={(e) =>
-                  setTray({ ...tray, width_m: Number(e.target.value) })
-                }
-              />
-            </label>
-            <input
-              className={inp}
-              placeholder="External ID"
-              value={tray.external_id}
-              onChange={(e) =>
-                setTray({ ...tray, external_id: e.target.value })
-              }
-            />
-            <div className="flex gap-1.5">
-              <button
-                className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 text-xs py-1.5 text-gray-900 dark:text-white"
-                onClick={() => {
-                  setTray({
-                    ...tray,
-                    pts: tray.pts.slice(0, -1),
-                    ajustado: false,
-                  });
-                  setTrayPathAjustado(null);
-                }}
-              >
-                Deshacer punto
-              </button>
-              {tray.kind === "vial" && (
-                <button
-                  className="flex-1 rounded-lg border border-purple-400 text-xs py-1.5 text-purple-700 dark:text-purple-300 disabled:opacity-50"
-                  disabled={tray.pts.length < 2 || guardando}
-                  onClick={() => void ajustarTray()}
-                >
-                  {tray.ajustado ? "✓ Ajustado a calles" : "Ajustar a calles"}
-                </button>
-              )}
-            </div>
-            <button
-              onClick={() => void guardarTrayecto()}
-              disabled={guardando}
-              className="w-full rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-1.5 disabled:opacity-50"
-            >
-              {guardando ? "Guardando…" : "Guardar trayecto"}
-            </button>
-          </div>
-        )}
 
         {/* ── Formulario de CIRCUITO ── */}
         {modo === "circuito" && (
@@ -1453,7 +1656,8 @@ export default function PlacesPageContent() {
           </div>
         )}
 
-        {msg && (
+        {/* con la ventana flotante abierta, el mensaje vive en ella */}
+        {msg && modo !== "lugar" && modo !== "trayecto" && (
           <div className="text-xs text-gray-700 dark:text-gray-300">{msg}</div>
         )}
 
@@ -1464,164 +1668,44 @@ export default function PlacesPageContent() {
           onChange={(e) => setBusca(e.target.value)}
         />
 
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-          Lugares {propios && <>({lugares.length})</>}
-        </div>
-        <div className="space-y-1">
-          {lugares.map((l) => (
-            <div
-              key={l.place_id}
-              className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 flex items-center gap-2"
-            >
-              <span
-                className="w-2.5 h-2.5 rounded-full flex-none"
-                style={{ background: l.color ?? "#1C64F2" }}
-              />
-              <button
-                className="min-w-0 flex-1 text-left"
-                onClick={() =>
-                  l.center &&
-                  mapRef.current?.flyTo({
-                    center: [l.center[1], l.center[0]],
-                    zoom: 13,
-                  })
-                }
-              >
-                <div className="text-sm text-gray-900 dark:text-white truncate">
-                  {l.name}
-                </div>
-                <div className="text-[11px] text-gray-500 truncate">
-                  {l.category ?? "sin categoría"}
-                  {l.address ? ` · ${l.address}` : ""}
-                </div>
-              </button>
-              {modo === "circuito" && (
-                <button
-                  className="text-[13px] text-green-600 font-bold flex-none"
-                  title="Agregar al circuito"
-                  onClick={() => agregarStop(l)}
-                >
-                  +
-                </button>
-              )}
-              <button
-                className="text-[11px] text-blue-600 hover:underline flex-none"
-                onClick={() => editarLugar(l)}
-              >
-                editar
-              </button>
-              <button
-                className="text-[11px] text-rose-600 hover:underline flex-none"
-                onClick={() => void borrarLugar(l)}
-              >
-                eliminar
-              </button>
-            </div>
-          ))}
-          {propios && lugares.length === 0 && (
-            <div className="text-xs text-gray-500">
-              Sin lugares{busca ? ` para «${busca}»` : " — crea el primero"}.
-            </div>
-          )}
-        </div>
+        <PlaceList
+          lugares={lugares}
+          busqueda={busca}
+          seleccionadoId={editandoLugarId}
+          modoCircuito={modo === "circuito"}
+          onIr={irALugar}
+          onEditar={editarLugar}
+          onEliminar={(l) => void borrarLugar(l)}
+          onAgregarAlCircuito={agregarStop}
+        />
 
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 pt-1">
-          Trayectos {trayectos && <>({trayectos.length})</>}
-        </div>
-        <div className="space-y-1">
-          {(trayectos ?? []).map((t) => (
-            <div
-              key={t.trayecto_id}
-              className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 flex items-center gap-2"
-            >
-              <span className="w-2.5 h-2.5 rounded-sm flex-none bg-purple-600" />
-              <button
-                className="min-w-0 flex-1 text-left"
-                onClick={() =>
-                  t.points[0] &&
-                  mapRef.current?.flyTo({
-                    center: [t.points[0][1], t.points[0][0]],
-                    zoom: 11,
-                  })
-                }
-              >
-                <div className="text-sm text-gray-900 dark:text-white truncate">
-                  {t.name}
-                </div>
-                <div className="text-[11px] text-gray-500">
-                  {t.kind}
-                  {t.ajustado ? " · ajustado" : ""}
-                  {t.width_m ? ` · ${t.width_m} m` : ""} · {t.points.length} pts
-                </div>
-              </button>
-              <button
-                className="text-[11px] text-blue-600 hover:underline flex-none"
-                onClick={() => editarTrayecto(t)}
-              >
-                editar
-              </button>
-              <button
-                className="text-[11px] text-rose-600 hover:underline flex-none"
-                onClick={() => void borrarTrayecto(t)}
-              >
-                eliminar
-              </button>
-            </div>
-          ))}
-          {trayectos && trayectos.length === 0 && (
-            <div className="text-xs text-gray-500">Sin trayectos.</div>
-          )}
-        </div>
+        <TrayectoList
+          trayectos={todosTrayectos}
+          seleccionadoId={editandoTrayId}
+          onIr={irATrayecto}
+          onEditar={editarTrayecto}
+          onEliminar={(t) => void borrarTrayecto(t)}
+        />
 
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 pt-1">
-          Circuitos {circuitos && <>({circuitos.length})</>}
-        </div>
-        <div className="space-y-1 pb-2">
-          {(circuitos ?? []).map((c) => (
-            <div
-              key={c.route_id}
-              className="rounded-lg border border-gray-200 dark:border-gray-700 px-2.5 py-1.5 flex items-center gap-2"
-            >
-              <span className="w-2.5 h-2.5 rounded-sm flex-none bg-green-600" />
-              <button
-                className="min-w-0 flex-1 text-left"
-                onClick={() => {
-                  const ctr = c.stops[0]?.center;
-                  if (ctr)
-                    mapRef.current?.flyTo({
-                      center: [ctr[1], ctr[0]],
-                      zoom: 10,
-                    });
-                }}
-              >
-                <div className="text-sm text-gray-900 dark:text-white truncate">
-                  {c.name}
-                </div>
-                <div className="text-[11px] text-gray-500 truncate">
-                  {c.stops.map((s) => s.name ?? "?").join(" → ")}
-                  {c.cerrado ? " (cerrado)" : ""}
-                  {c.ajustado ? " · ajustado" : ""}
-                </div>
-              </button>
-              <button
-                className="text-[11px] text-blue-600 hover:underline flex-none"
-                onClick={() => editarCircuito(c)}
-              >
-                editar
-              </button>
-              <button
-                className="text-[11px] text-rose-600 hover:underline flex-none"
-                onClick={() => void borrarCircuito(c)}
-              >
-                eliminar
-              </button>
-            </div>
-          ))}
-          {circuitos && circuitos.length === 0 && (
-            <div className="text-xs text-gray-500">Sin circuitos.</div>
-          )}
+        <div className="pb-2">
+          <CircuitoList
+            circuitos={circuitos ?? []}
+            seleccionadoId={modo === "circuito" ? circ.id : null}
+            onIr={irACircuito}
+            onEditar={editarCircuito}
+            onEliminar={(c) => void borrarCircuito(c)}
+          />
         </div>
       </div>
+      <ConfirmModal
+        isOpen={confirmacion !== null}
+        onClose={() => setConfirmacion(null)}
+        onConfirm={() => confirmacion?.accion()}
+        title={confirmacion?.titulo ?? ""}
+        description={confirmacion?.descripcion}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 }

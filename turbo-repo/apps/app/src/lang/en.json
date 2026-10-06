@@ -1630,8 +1630,7 @@
           }
         },
         "organizations": {
-          "title": "Organizations",
-          "menuHint": "Create an organization and its first owner",
+          "title": "New organization",
           "description": "Creates an organization whose members are managed here, not in Alfresco. The owner you name can then invite the rest from Settings › Team.",
           "fields": {
             "name": "Name",
@@ -1647,6 +1646,7 @@
           },
           "create": "Create organization",
           "creating": "Creating…",
+          "cancel": "Cancel",
           "created": "Organization {slug} created.",
           "createError": "Could not create the organization.",
           "ownerError": "The organization was created, but its owner could not be set.",
@@ -1666,6 +1666,27 @@
         "empty": "No organizations available for your account.",
         "loading": "Loading…",
         "listTitle": "Your organizations",
+        "newOrganization": "New organization",
+        "otherOrgsTitle": "Other organizations",
+        "otherOrgsHint": "You see these as a platform owner. You are not a member.",
+        "otherOrgsError": "Could not load the other organizations.",
+        "platformView": {
+          "readOnly": "Read-only. Managing members and integrations needs a role in this organization.",
+          "parentOwners": "Owners (from {parent})",
+          "alfrescoOwners": "No owner assigned. The Alfresco managers of the organization act as owners.",
+          "slug": "Identifier",
+          "tenantClientId": "Tenant client ID",
+          "membershipSource": "Members managed in",
+          "parent": "Parent organization",
+          "taxId": "Tax ID",
+          "owners": "Owners",
+          "noOwners": "This organization has no owner yet. Until a platform owner assigns one, nobody can manage its members.",
+          "ownersError": "Could not load the owners.",
+          "sources": {
+            "NATIVE": "ModularIoT",
+            "ALFRESCO": "Alfresco"
+          }
+        },
         "parentAccount": "Primary account",
         "noSelection": "Select an organization to view details.",
         "membersTitle": "Members",

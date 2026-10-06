@@ -53,8 +53,7 @@ export type PlatformSection =
   | "superusers"
   | "models"
   | "plan"
-  | "usage"
-  | "organizations";
+  | "usage";
 
 /** The providers the harness can call. Mirrors `ModelProviderService.KNOWN`. */
 export const MODEL_PROVIDERS = [
@@ -144,6 +143,19 @@ export interface PlatformOrganization {
   displayName: string;
   tenantClientId: string;
   active: boolean;
+}
+
+/** Mirrors `PlatformOrganizationsResource.PlatformOrganizationView`. */
+export interface PlatformOrganizationListItem {
+  slug: string;
+  name: string;
+  displayName: string | null;
+  tenantClientId: string;
+  /** In effect for this organization: its top-level organization's, or NATIVE on a native deployment. */
+  membershipSource: "NATIVE" | "ALFRESCO";
+  taxId: string | null;
+  /** Null for a top-level organization. */
+  parentSlug: string | null;
 }
 
 /** Mirrors `HarnessPlanDtos.SetPlanRequest`. */

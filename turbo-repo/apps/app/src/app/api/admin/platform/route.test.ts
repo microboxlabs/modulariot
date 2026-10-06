@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { forwardToQuarkus } = vi.hoisted(() => ({ forwardToQuarkus: vi.fn() }));
 vi.mock("@/app/api/utils/quarkus-proxy", () => ({ forwardToQuarkus }));
+const { evictAllScopeCaches } = vi.hoisted(() => ({
+  evictAllScopeCaches: vi.fn(),
+}));
+vi.mock("@/app/api/utils/tenant-scope", () => ({ evictAllScopeCaches }));
 
 import { GET as getMyRoles } from "./roles/me/route";
 import { GET as getRole, PUT as putRole } from "./roles/[roleCode]/route";
@@ -11,14 +15,18 @@ import {
   GET as getDomain,
   PUT as putDomain,
 } from "./branding/domains/[domain]/route";
-import { POST as createOrg } from "./orgs/route";
-import { PUT as putOrgRole } from "./orgs/[slug]/roles/[roleCode]/route";
+import { GET as listOrgs, POST as createOrg } from "./orgs/route";
+import {
+  GET as getOrgRole,
+  PUT as putOrgRole,
+} from "./orgs/[slug]/roles/[roleCode]/route";
 
 const FORWARDED = { ok: true };
 
 beforeEach(() => {
   forwardToQuarkus.mockReset();
   forwardToQuarkus.mockResolvedValue(FORWARDED);
+  evictAllScopeCaches.mockReset();
 });
 
 function jsonRequest(body: unknown): Request {
@@ -75,6 +83,22 @@ describe("platform roles proxy", () => {
 });
 
 describe("platform organizations proxy", () => {
+  it("forwards the organization list", async () => {
+    await listOrgs();
+
+    expect(forwardToQuarkus).toHaveBeenCalledWith("/api/v1/platform/orgs");
+  });
+
+  it("forwards an organization role read with the slug encoded", async () => {
+    await getOrgRole(new Request("http://localhost"), {
+      params: Promise.resolve({ slug: "a/b", roleCode: "ORGANIZATION_OWNER" }),
+    });
+
+    expect(forwardToQuarkus).toHaveBeenCalledWith(
+      "/api/v1/platform/orgs/a%2Fb/roles/ORGANIZATION_OWNER",
+    );
+  });
+
   it("forwards an organization creation with its body", async () => {
     const body = { slug: "acme", name: "Acme", tenantClientId: "client-1" };
 
@@ -97,6 +121,16 @@ describe("platform organizations proxy", () => {
       "/api/v1/platform/orgs/a%2Fb/roles/ORGANIZATION_OWNER",
       { method: "PUT", body },
     );
+    // The new owner must see the organization on the next scopes read.
+    expect(evictAllScopeCaches).toHaveBeenCalled();
+  });
+
+  it("keeps cached scopes when a role other than owner changes", async () => {
+    await putOrgRole(jsonRequest({ assigneeIds: [] }), {
+      params: Promise.resolve({ slug: "acme", roleCode: "HARNESS_TRAINER" }),
+    });
+
+    expect(evictAllScopeCaches).not.toHaveBeenCalled();
   });
 
   it("answers 400 to an unparseable body rather than forwarding it", async () => {

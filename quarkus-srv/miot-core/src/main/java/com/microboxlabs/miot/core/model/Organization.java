@@ -78,4 +78,9 @@ public class Organization extends PanacheEntityBase {
     public static Uni<List<Organization>> listAllActive() {
         return find("active = true").list();
     }
+
+    /** Every active organization with its parent loaded, by slug. */
+    public static Uni<List<Organization>> listAllActiveWithParent() {
+        return find("from Organization o left join fetch o.parent where o.active = true order by o.slug").list();
+    }
 }

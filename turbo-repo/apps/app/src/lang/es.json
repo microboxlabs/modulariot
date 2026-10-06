@@ -1630,8 +1630,7 @@
           }
         },
         "organizations": {
-          "title": "Organizaciones",
-          "menuHint": "Crear una organización y su primer dueño",
+          "title": "Nueva organización",
           "description": "Crea una organización cuyos miembros se administran aquí, no en Alfresco. El dueño que indiques podrá invitar al resto desde Ajustes › Equipo.",
           "fields": {
             "name": "Nombre",
@@ -1647,6 +1646,7 @@
           },
           "create": "Crear organización",
           "creating": "Creando…",
+          "cancel": "Cancelar",
           "created": "Organización {slug} creada.",
           "createError": "No se pudo crear la organización.",
           "ownerError": "La organización se creó, pero no se pudo asignar su dueño.",
@@ -1666,6 +1666,27 @@
         "empty": "No hay organizaciones disponibles para tu cuenta.",
         "loading": "Cargando…",
         "listTitle": "Tus organizaciones",
+        "newOrganization": "Nueva organización",
+        "otherOrgsTitle": "Otras organizaciones",
+        "otherOrgsHint": "Las ves como dueño de la plataforma. No eres miembro.",
+        "otherOrgsError": "No se pudieron cargar las otras organizaciones.",
+        "platformView": {
+          "readOnly": "Solo lectura. Para administrar miembros e integraciones necesitas un rol en esta organización.",
+          "parentOwners": "Dueños (de {parent})",
+          "alfrescoOwners": "Sin dueño asignado. Los administradores de la organización en Alfresco actúan como dueños.",
+          "slug": "Identificador",
+          "tenantClientId": "Client ID del tenant",
+          "membershipSource": "Miembros administrados en",
+          "parent": "Organización padre",
+          "taxId": "RUT",
+          "owners": "Dueños",
+          "noOwners": "Esta organización aún no tiene dueño. Hasta que un dueño de la plataforma asigne uno, nadie puede administrar sus miembros.",
+          "ownersError": "No se pudieron cargar los dueños.",
+          "sources": {
+            "NATIVE": "ModularIoT",
+            "ALFRESCO": "Alfresco"
+          }
+        },
         "parentAccount": "Cuenta principal",
         "noSelection": "Selecciona una organización para ver el detalle.",
         "membersTitle": "Miembros",

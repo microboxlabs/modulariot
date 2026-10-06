@@ -10,6 +10,7 @@ import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { getJson } from "../data/json-client";
+import { useIsPlatformOwner } from "../platform/use-platform-membership";
 import { acceptInvitationById, switchOrganization } from "./team-api";
 import type { Invitation } from "./team.types";
 
@@ -23,10 +24,21 @@ async function hasNoOrganization(url: string): Promise<boolean> {
   return res.status === 403;
 }
 
+/** SWR key of the gate's check; revalidate it when the caller gains an organization. */
+export const NO_ORGANIZATION_GATE_KEY = "/app/api/user/scopes#gate";
+
+/** Pages that need no organization: a platform owner creates organizations there. */
+const PLATFORM_OWNER_PATHS = ["/users/settings/organizations"];
+
+function isPlatformOwnerPath(pathname: string): boolean {
+  return PLATFORM_OWNER_PATHS.some((path) => pathname.endsWith(path));
+}
+
 /**
  * Replaces the page with a "no access yet" screen when the signed-in user
  * belongs to no organization, listing their pending invitations. The
- * invitation link page is always shown.
+ * invitation link page is always shown, and so is Settings › Organizations to
+ * a platform owner.
  */
 export function NoOrganizationGate({
   d,
@@ -34,12 +46,18 @@ export function NoOrganizationGate({
 }: PropsWithChildren<NoOrganizationGateProps>) {
   const pathname = usePathname() ?? "";
   const onInvite = pathname.includes("/invite/");
+  const { isPlatformOwner, isLoading: ownerLoading } = useIsPlatformOwner();
   const { data: noOrganization } = useSWR(
-    onInvite ? null : "/app/api/user/scopes#gate",
+    onInvite ? null : NO_ORGANIZATION_GATE_KEY,
     () => hasNoOrganization("/app/api/user/scopes"),
     { revalidateOnFocus: false }
   );
   if (!noOrganization) return <>{children}</>;
+  if (isPlatformOwnerPath(pathname)) {
+    // Wait for the platform role rather than flash the no-access screen.
+    if (ownerLoading) return <Spinner className="mx-auto mt-16" />;
+    if (isPlatformOwner) return <>{children}</>;
+  }
   return <NoAccess d={d} />;
 }
 

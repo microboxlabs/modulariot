@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.api;
 import jakarta.ws.rs.PATCH;
 import com.microboxlabs.miot.core.iam.model.IamProjectionChange;
 import com.microboxlabs.miot.core.iam.model.IamAuditEvent;
+import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.AlfrescoBridge;
 import com.microboxlabs.miot.core.api.dto.CreateRootOrganizationRequest;
 import com.microboxlabs.miot.core.api.dto.OrganizationDto;
@@ -29,6 +30,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -48,9 +50,20 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class PlatformOrganizationsResource {
 
     static final String SLUG = "[a-z0-9][a-z0-9-]{1,98}[a-z0-9]";
+    private static final String NATIVE = "NATIVE";
+    private static final String ALFRESCO = "ALFRESCO";
 
     /** {@code membershipSource}: ALFRESCO or NATIVE. */
     public record MembershipSourceRequest(String membershipSource) {
+    }
+
+    /**
+     * One organization in the platform-wide list. {@code membershipSource} is the one in effect: the
+     * top-level organization's, or NATIVE for a native deployment. {@code parentSlug} is null for a
+     * top-level organization.
+     */
+    public record PlatformOrganizationView(String slug, String name, String displayName, String tenantClientId,
+            String membershipSource, String taxId, String parentSlug) {
     }
 
     public record ProjectionView(Long id, String kind, String subject, String status, int attempts, String lastError,
@@ -61,14 +74,16 @@ public class PlatformOrganizationsResource {
     private final OrganizationRoleService roles;
     private final TaxIdValidator taxIdValidator;
     private final AlfrescoBridge bridge;
+    private final AccessEvaluator access;
 
     @Inject
     public PlatformOrganizationsResource(PlatformAuthorizer authorizer, OrganizationRoleService roles,
-            @ActiveTaxIdValidator TaxIdValidator taxIdValidator, AlfrescoBridge bridge) {
+            @ActiveTaxIdValidator TaxIdValidator taxIdValidator, AlfrescoBridge bridge, AccessEvaluator access) {
         this.authorizer = authorizer;
         this.roles = roles;
         this.taxIdValidator = taxIdValidator;
         this.bridge = bridge;
+        this.access = access;
     }
 
     @POST
@@ -85,6 +100,22 @@ public class PlatformOrganizationsResource {
                 .map(created -> Response.status(Response.Status.CREATED)
                         .entity(OrganizationDto.from(created))
                         .build());
+    }
+
+    @GET
+    @Operation(summary = "List every active organization")
+    public Uni<List<PlatformOrganizationView>> list() {
+        return authorizer.requirePlatformOwner()
+                .flatMap(ignored -> Panache.withSession(Organization::listAllActiveWithParent))
+                .map(organizations -> organizations.stream().map(this::view).toList());
+    }
+
+    private PlatformOrganizationView view(Organization org) {
+        // Organizations are at most two levels deep, so the parent is the top-level one.
+        Organization root = org.parent == null ? org : org.parent;
+        String source = access.isNative(root) ? NATIVE : ALFRESCO;
+        return new PlatformOrganizationView(org.slug, org.name, org.displayName, org.tenantClientId, source,
+                org.taxId, org.parent == null ? null : org.parent.slug);
     }
 
     @GET
@@ -189,7 +220,7 @@ public class PlatformOrganizationsResource {
         if (source != null) {
             return source;
         }
-        return isBlank(body.alfrescoGroupId()) ? "NATIVE" : "ALFRESCO";
+        return isBlank(body.alfrescoGroupId()) ? NATIVE : ALFRESCO;
     }
 
     /** ALFRESCO or NATIVE, upper-cased; null when blank. */
@@ -198,7 +229,7 @@ public class PlatformOrganizationsResource {
             return null;
         }
         String source = raw.trim().toUpperCase(Locale.ROOT);
-        if (!source.equals("ALFRESCO") && !source.equals("NATIVE")) {
+        if (!source.equals(ALFRESCO) && !source.equals(NATIVE)) {
             throw new BadRequestException("membershipSource must be ALFRESCO or NATIVE");
         }
         return source;

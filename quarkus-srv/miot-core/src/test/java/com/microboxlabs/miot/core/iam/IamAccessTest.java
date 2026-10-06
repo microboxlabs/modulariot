@@ -88,6 +88,16 @@ class IamAccessTest {
                 .when().get("/api/v1/orgs/" + NATIVE_ORG + "/me/access")
                 .then().statusCode(403);
 
+        // Only a platform owner lists every organization, members of none included.
+        given().header("Authorization", bearer(PLATFORM_OWNER))
+                .when().get("/api/v1/platform/orgs")
+                .then().statusCode(200)
+                .body("find { it.slug == '" + NATIVE_ORG + "' }.membershipSource", is("NATIVE"))
+                .body("find { it.slug == '" + NATIVE_ORG + "' }.parentSlug", nullValue());
+        given().header("Authorization", bearer(MEMBER))
+                .when().get("/api/v1/platform/orgs")
+                .then().statusCode(403);
+
         given().header("Authorization", bearer(PLATFORM_OWNER)).contentType("application/json")
                 .body("{\"assigneeIds\":[\"Ana@IAM.test\"]}")
                 .when().put("/api/v1/platform/orgs/" + NATIVE_ORG + "/roles/ORGANIZATION_OWNER")

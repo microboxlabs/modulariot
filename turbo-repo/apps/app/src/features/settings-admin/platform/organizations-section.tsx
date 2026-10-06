@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Button, Label, TextInput } from "flowbite-react";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { toast } from "sonner";
+import { mutate } from "swr";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
@@ -20,9 +21,17 @@ import {
   createPlatformOrganization,
   setOrganizationOwners,
 } from "./platform-data-service";
+import {
+  PLATFORM_ORGANIZATIONS_KEY,
+  organizationOwnersKey,
+} from "./use-platform-organizations";
 
 interface OrganizationsSectionProps {
   readonly dict: I18nRecord;
+  /** Called with the slug once the organization exists and has its owner. */
+  readonly onCreated?: (slug: string) => void | Promise<void>;
+  /** When set, a Cancel button closes the form. */
+  readonly onCancel?: () => void;
 }
 
 type Field = keyof OrganizationDraft;
@@ -62,6 +71,8 @@ function reportFailure(
  */
 export default function OrganizationsSection({
   dict,
+  onCreated,
+  onCancel,
 }: Readonly<OrganizationsSectionProps>) {
   const [draft, setDraft] = useState<OrganizationDraft>(
     EMPTY_ORGANIZATION_DRAFT
@@ -92,10 +103,15 @@ export default function OrganizationsSection({
       CALLS
     );
     setIsSaving(false);
+    if (outcome.kind === "created" || outcome.kind === "ownerFailed") {
+      void mutate(PLATFORM_ORGANIZATIONS_KEY);
+    }
     if (outcome.kind === "created") {
       toast.success(tr("created", dict, { slug: organization.slug }));
+      void mutate(organizationOwnersKey(organization.slug));
       setDraft(EMPTY_ORGANIZATION_DRAFT);
       setOwnerPendingFor(null);
+      void onCreated?.(organization.slug);
       return;
     }
     if (outcome.kind === "ownerFailed") setOwnerPendingFor(organization.slug);
@@ -138,7 +154,12 @@ export default function OrganizationsSection({
           </p>
         )}
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-end gap-2">
+          {onCancel && (
+            <Button size="sm" color="alternative" onClick={onCancel}>
+              {tr("cancel", dict)}
+            </Button>
+          )}
           <Button type="submit" size="sm" color="blue" disabled={isSaving}>
             {isSaving ? tr("creating", dict) : tr("create", dict)}
           </Button>

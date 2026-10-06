@@ -25,10 +25,7 @@ async function hasNoOrganization(url: string): Promise<boolean> {
 }
 
 /** Pages that need no organization: a platform owner creates organizations there. */
-const PLATFORM_OWNER_PATHS = [
-  "/users/settings/platform",
-  "/users/settings/organizations",
-];
+const PLATFORM_OWNER_PATHS = ["/users/settings/platform"];
 
 export function isPlatformOwnerPath(pathname: string): boolean {
   return PLATFORM_OWNER_PATHS.some((path) => pathname.endsWith(path));

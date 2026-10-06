@@ -469,7 +469,10 @@ function ModuleCard({
       key: role.key,
       label: labelOf(role, lang),
       description: textOf(role.description, lang),
-      permissions: role.permissions,
+      // In catalog order, so the lists read the same in every role.
+      permissions: catalog.permissions
+        .map((p) => p.key)
+        .filter((key) => role.permissions.includes(key)),
     })),
   ];
   return (

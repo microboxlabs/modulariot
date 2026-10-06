@@ -125,6 +125,14 @@ describe("platform organizations proxy", () => {
     expect(evictAllScopeCaches).toHaveBeenCalled();
   });
 
+  it("keeps cached scopes when a role other than owner changes", async () => {
+    await putOrgRole(jsonRequest({ assigneeIds: [] }), {
+      params: Promise.resolve({ slug: "acme", roleCode: "HARNESS_TRAINER" }),
+    });
+
+    expect(evictAllScopeCaches).not.toHaveBeenCalled();
+  });
+
   it("answers 400 to an unparseable body rather than forwarding it", async () => {
     const created = await createOrg(
       new Request("http://localhost", { method: "POST", body: "not json" }),

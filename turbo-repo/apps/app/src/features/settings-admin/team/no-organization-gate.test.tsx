@@ -6,6 +6,7 @@ const { state } = vi.hoisted(() => ({
   state: {
     pathname: "/app/es/users/settings/organizations",
     isPlatformOwner: false,
+    ownerLoading: false,
   },
 }));
 
@@ -14,7 +15,7 @@ vi.mock("next-auth/react", () => ({ signOut: vi.fn() }));
 vi.mock("../platform/use-platform-membership", () => ({
   useIsPlatformOwner: () => ({
     isPlatformOwner: state.isPlatformOwner,
-    isLoading: false,
+    isLoading: state.ownerLoading,
   }),
 }));
 
@@ -44,6 +45,7 @@ beforeEach(() => {
   );
   state.pathname = "/app/es/users/settings/organizations";
   state.isPlatformOwner = false;
+  state.ownerLoading = false;
 });
 
 afterEach(() => {
@@ -74,5 +76,16 @@ describe("NoOrganizationGate without an organization", () => {
     renderGate();
 
     expect(await screen.findByText("No access yet")).toBeInTheDocument();
+  });
+
+  it("shows no 'no access' screen while the platform role is still loading", async () => {
+    state.ownerLoading = true;
+
+    renderGate();
+
+    // Let the scopes 403 resolve, then check nothing was denied.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByText("No access yet")).not.toBeInTheDocument();
+    expect(screen.queryByText("page content")).not.toBeInTheDocument();
   });
 });

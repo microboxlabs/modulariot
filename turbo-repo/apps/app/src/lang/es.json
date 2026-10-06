@@ -1646,6 +1646,7 @@
           },
           "create": "Crear organización",
           "creating": "Creando…",
+          "cancel": "Cancelar",
           "created": "Organización {slug} creada.",
           "createError": "No se pudo crear la organización.",
           "ownerError": "La organización se creó, pero no se pudo asignar su dueño.",

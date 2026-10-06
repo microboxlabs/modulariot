@@ -40,9 +40,24 @@ const getErrorMessage = async (response: Response) => {
   }
 };
 
+/** A failed scopes read; 403 means the caller belongs to no organization. */
+export class OrgScopesError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`Failed to fetch: ${status}`);
+    this.name = "OrgScopesError";
+    this.status = status;
+  }
+}
+
+export function isNoOrganizationError(error: unknown): boolean {
+  return error instanceof OrgScopesError && error.status === 403;
+}
+
 const fetcher = async (url: string) => {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+  if (!res.ok) throw new OrgScopesError(res.status);
   return res.json() as Promise<OrgScopesResponse>;
 };
 
@@ -54,6 +69,8 @@ export function useOrgScopes() {
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       dedupingInterval: 60_000,
+      // Belonging to no organization is an answer, not a failure to retry.
+      shouldRetryOnError: (err) => !isNoOrganizationError(err),
     }
   );
 

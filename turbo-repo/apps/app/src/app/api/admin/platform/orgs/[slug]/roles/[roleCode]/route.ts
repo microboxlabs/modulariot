@@ -11,6 +11,9 @@ import { evictAllScopeCaches } from "@/app/api/utils/tenant-scope";
  * requires platform ownership. A platform owner uses it to name the first
  * owner of an organization nobody belongs to yet.
  */
+/** The modulith's `OrganizationRoleService.OWNER_ROLE_CODE`. */
+const ORGANIZATION_OWNER_ROLE_CODE = "ORGANIZATION_OWNER";
+
 interface RouteParams {
   params: Promise<{ slug: string; roleCode: string }>;
 }
@@ -37,6 +40,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
     body,
   });
   // A new owner gains the organization: cached scopes would hide it.
-  if (response.ok) evictAllScopeCaches();
+  if (response.ok && roleCode === ORGANIZATION_OWNER_ROLE_CODE) {
+    evictAllScopeCaches();
+  }
   return response;
 }

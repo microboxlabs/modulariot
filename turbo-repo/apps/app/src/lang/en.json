@@ -1646,6 +1646,7 @@
           },
           "create": "Create organization",
           "creating": "Creating…",
+          "cancel": "Cancel",
           "created": "Organization {slug} created.",
           "createError": "Could not create the organization.",
           "ownerError": "The organization was created, but its owner could not be set.",

@@ -7,9 +7,15 @@ import { mutate } from "swr";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
+import {
+  isNoOrganizationError,
+  useOrgScopes,
+} from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { useIsPlatformOwner } from "../platform/use-platform-membership";
-import { usePlatformOrganizations } from "../platform/use-platform-organizations";
+import {
+  PLATFORM_ORGANIZATIONS_KEY,
+  usePlatformOrganizations,
+} from "../platform/use-platform-organizations";
 import OrganizationsSection from "../platform/organizations-section";
 import { NO_ORGANIZATION_GATE_KEY } from "../team/no-organization-gate";
 import type { PlatformOrganizationListItem } from "../platform/platform.types";
@@ -22,11 +28,6 @@ import PlatformOrgDetailPanel from "./platform-org-detail-panel";
 interface OrganizationsPageContentProps {
   readonly dict: I18nRecord;
   readonly lang: string;
-}
-
-/** The scopes route answers 403 to someone who belongs to no organization. */
-function isNoOrganization(error: unknown): boolean {
-  return error instanceof Error && error.message.includes("403");
 }
 
 /** Platform-wide organizations the caller is not a member of. */
@@ -58,21 +59,33 @@ export default function OrganizationsPageContent({
     refresh,
   } = useOrgScopes();
   // Belonging to no organization is a state, not a failure.
-  const noOrganization = isNoOrganization(scopesError);
-  const error = noOrganization ? undefined : scopesError;
+  const error = isNoOrganizationError(scopesError) ? undefined : scopesError;
 
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  // Once opened, the form stays mounted (hidden) so a pending owner retry
+  // survives looking at another organization.
+  const [formOpened, setFormOpened] = useState(false);
+
+  const openForm = () => {
+    setFormOpened(true);
+    setCreating(true);
+  };
 
   const select = (slug: string) => {
     setCreating(false);
     setSelectedSlug(slug);
   };
 
-  const created = (slug: string) => {
-    void refresh();
-    // The caller may have named themselves owner: the gate must look again.
-    void mutate(NO_ORGANIZATION_GATE_KEY);
+  const created = async (slug: string) => {
+    // The caller may have named themselves owner: every view of membership
+    // must look again before the new organization is selected.
+    await Promise.all([
+      refresh(),
+      mutate(PLATFORM_ORGANIZATIONS_KEY),
+      mutate(NO_ORGANIZATION_GATE_KEY),
+    ]);
+    setFormOpened(false);
     select(slug);
   };
 
@@ -97,16 +110,7 @@ export default function OrganizationsPageContent({
     otherOrgs.find((org) => org.slug === selectedSlug) ?? null;
 
   const detail = () => {
-    if (creating) {
-      return (
-        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-          <OrganizationsSection
-            dict={(dict?.platform as I18nRecord)?.organizations as I18nRecord}
-            onCreated={created}
-          />
-        </div>
-      );
-    }
+    if (creating) return null;
     if (selectedOtherOrg) {
       return (
         <PlatformOrgDetailPanel
@@ -153,7 +157,7 @@ export default function OrganizationsPageContent({
             </div>
           </div>
           {isPlatformOwner && (
-            <Button size="sm" color="blue" onClick={() => setCreating(true)}>
+            <Button size="sm" color="blue" onClick={openForm}>
               <HiPlus className="mr-1 h-4 w-4" />
               {tr("newOrganization", orgsDict)}
             </Button>
@@ -183,7 +187,26 @@ export default function OrganizationsPageContent({
               dict={orgsDict}
             />
           </div>
-          {detail()}
+          <div className="flex min-h-0 flex-col">
+            {formOpened && (
+              <div
+                className={
+                  creating
+                    ? "flex min-h-0 flex-col gap-4 overflow-y-auto pr-1"
+                    : "hidden"
+                }
+              >
+                <OrganizationsSection
+                  dict={
+                    (dict?.platform as I18nRecord)?.organizations as I18nRecord
+                  }
+                  onCreated={created}
+                  onCancel={() => setCreating(false)}
+                />
+              </div>
+            )}
+            {detail()}
+          </div>
         </div>
       </div>
     </div>

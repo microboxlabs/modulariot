@@ -30,7 +30,7 @@ export const NO_ORGANIZATION_GATE_KEY = "/app/api/user/scopes#gate";
 /** Pages that need no organization: a platform owner creates organizations there. */
 const PLATFORM_OWNER_PATHS = ["/users/settings/organizations"];
 
-export function isPlatformOwnerPath(pathname: string): boolean {
+function isPlatformOwnerPath(pathname: string): boolean {
   return PLATFORM_OWNER_PATHS.some((path) => pathname.endsWith(path));
 }
 
@@ -46,14 +46,18 @@ export function NoOrganizationGate({
 }: PropsWithChildren<NoOrganizationGateProps>) {
   const pathname = usePathname() ?? "";
   const onInvite = pathname.includes("/invite/");
-  const { isPlatformOwner } = useIsPlatformOwner();
+  const { isPlatformOwner, isLoading: ownerLoading } = useIsPlatformOwner();
   const { data: noOrganization } = useSWR(
     onInvite ? null : NO_ORGANIZATION_GATE_KEY,
     () => hasNoOrganization("/app/api/user/scopes"),
     { revalidateOnFocus: false }
   );
   if (!noOrganization) return <>{children}</>;
-  if (isPlatformOwner && isPlatformOwnerPath(pathname)) return <>{children}</>;
+  if (isPlatformOwnerPath(pathname)) {
+    // Wait for the platform role rather than flash the no-access screen.
+    if (ownerLoading) return <Spinner className="mx-auto mt-16" />;
+    if (isPlatformOwner) return <>{children}</>;
+  }
   return <NoAccess d={d} />;
 }
 

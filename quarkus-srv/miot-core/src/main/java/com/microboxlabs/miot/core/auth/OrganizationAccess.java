@@ -95,14 +95,22 @@ public class OrganizationAccess {
 
     private Uni<Refusal> admit(Organization org, Caller caller, Access access) {
         if (!access.member()) {
-            String message = caller.isUser()
-                    ? "User is not a member of organization: " + org.slug
-                    : "Caller is not authorized for organization: " + org.slug;
+            String message = refusalOf(caller) + org.slug;
             return refuse(Response.Status.FORBIDDEN, message);
         }
         return effectiveClientIds(org)
                 .invoke(ids -> apply(org, caller.email(), access.alfrescoRole(), ids))
                 .replaceWith((Refusal) null);
+    }
+
+    private static String refusalOf(Caller caller) {
+        if (caller.isUser()) {
+            return "User is not a member of organization: ";
+        }
+        if (caller.isClient()) {
+            return "M2M client is not authorized for organization: ";
+        }
+        return "Service account is not authorized for organization: ";
     }
 
     private Uni<List<String>> effectiveClientIds(Organization org) {

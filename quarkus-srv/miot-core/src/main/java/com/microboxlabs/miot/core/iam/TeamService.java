@@ -36,7 +36,6 @@ public class TeamService {
 
     static final Duration DEFAULT_INVITATION_TTL = Duration.ofDays(30);
     static final int MAX_INVITATION_DAYS = 90;
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     public record MemberView(UUID userId, String email, String name, String baseRole, String status, String source,
             List<String> roles, Instant joinedAt, Instant lastSeenAt) {
@@ -444,7 +443,7 @@ public class TeamService {
 
     static String newToken() {
         byte[] bytes = new byte[32];
-        RANDOM.nextBytes(bytes);
+        new SecureRandom().nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 

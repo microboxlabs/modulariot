@@ -36,7 +36,6 @@ public class ApiKeyService {
     static final Pattern FORMAT = Pattern.compile("miot_sk_([A-Za-z0-9]{12})_([A-Za-z0-9]{40})");
     static final Duration LAST_USED_RESOLUTION = Duration.ofMinutes(5);
     private static final String ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    private static final SecureRandom RANDOM = new SecureRandom();
     private static final Logger LOG = Logger.getLogger(ApiKeyService.class);
 
     public record KeyView(UUID id, String keyId, String name, Instant createdAt, String createdBy, Instant expiresAt,
@@ -298,9 +297,10 @@ public class ApiKeyService {
     }
 
     static String random(int length) {
+        SecureRandom random = new SecureRandom();
         StringBuilder out = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
-            out.append(ALPHABET.charAt(RANDOM.nextInt(ALPHABET.length())));
+            out.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
         }
         return out.toString();
     }

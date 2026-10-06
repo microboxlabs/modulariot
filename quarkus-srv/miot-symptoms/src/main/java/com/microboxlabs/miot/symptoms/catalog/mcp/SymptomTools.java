@@ -36,7 +36,7 @@ import java.util.function.Supplier;
  * {@code /api/v1/orgs/{org}/control-tower/symptom-definitions} and
  * {@code .../data-sources}, under the same rules. Any member reads, checks
  * and previews; saving a draft, publishing, rolling back and changing the
- * state need an organization owner. Creating, forking and discarding are
+ * state need controltower:symptom.edit or controltower:symptom.publish. Creating, forking and discarding are
  * left to the screen.
  */
 @ApplicationScoped
@@ -225,8 +225,8 @@ public class SymptomTools {
     @Tool(name = "symptoms_save_draft", structuredContent = true,
             description = "Saves a spec as the symptom's draft, replacing any draft already there. This is how"
                     + " to propose a change: nothing is evaluated differently until the draft is published. The"
-                    + " draft may have errors; run symptoms_validate and symptoms_plan_publish next. Needs an"
-                    + " organization owner.",
+                    + " draft may have errors; run symptoms_validate and symptoms_plan_publish next. Needs the"
+                    + " controltower:symptom.edit permission.",
             annotations = @Tool.Annotations(title = "Save a symptom draft", readOnlyHint = false,
                     destructiveHint = true, idempotentHint = true, openWorldHint = false))
     public Uni<SymptomVersion> saveDraft(
@@ -241,7 +241,8 @@ public class SymptomTools {
             description = "Publishes the saved draft as a new version, which is then in force. Published"
                     + " versions are never edited. Refused when the draft has errors or nothing changed." + BUMPS
                     + " bump may raise the computed bump, never lower it. Only call it after the owner has seen"
-                    + " the plan and explicitly confirmed. Needs an organization owner.",
+                    + " the plan and explicitly confirmed. Needs the"
+                    + " controltower:symptom.publish permission.",
             annotations = @Tool.Annotations(title = "Publish a symptom draft", readOnlyHint = false,
                     destructiveHint = true, idempotentHint = false, openWorldHint = false))
     public Uni<SymptomVersion> publish(
@@ -263,8 +264,8 @@ public class SymptomTools {
     @Tool(name = "symptoms_rollback", structuredContent = true,
             description = "Publishes an earlier version's spec as a new version; history is never rewritten."
                     + " The new number follows the same bump rules against the version in force, and the state"
-                    + " is kept. Only call it after the owner has explicitly confirmed. Needs an organization"
-                    + " owner.",
+                    + " is kept. Only call it after the owner has explicitly confirmed. Needs the"
+                    + " controltower:symptom.publish permission.",
             annotations = @Tool.Annotations(title = "Roll back a symptom", readOnlyHint = false,
                     destructiveHint = true, idempotentHint = false, openWorldHint = false))
     public Uni<SymptomVersion> rollback(
@@ -286,7 +287,8 @@ public class SymptomTools {
             description = "Turns a symptom OFF (not evaluated), to TEST (evaluated, shown as \"En prueba\", not"
                     + " sent to operators) or ACTIVE (in force). A symptom needs a published version to leave"
                     + " OFF, and ACTIVE is refused while its rules use fields the engine does not evaluate yet."
-                    + " Only call it after the owner has explicitly confirmed. Needs an organization owner.",
+                    + " Only call it after the owner has explicitly confirmed. Needs the"
+                    + " controltower:symptom.publish permission.",
             annotations = @Tool.Annotations(title = "Set a symptom's state", readOnlyHint = false,
                     destructiveHint = true, idempotentHint = true, openWorldHint = false))
     public Uni<SymptomDefinition> setState(

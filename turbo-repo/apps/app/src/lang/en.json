@@ -1630,8 +1630,7 @@
           }
         },
         "organizations": {
-          "title": "Organizations",
-          "menuHint": "Create an organization and its first owner",
+          "title": "New organization",
           "description": "Creates an organization whose members are managed here, not in Alfresco. The owner you name can then invite the rest from Settings › Team.",
           "fields": {
             "name": "Name",
@@ -1666,6 +1665,7 @@
         "empty": "No organizations available for your account.",
         "loading": "Loading…",
         "listTitle": "Your organizations",
+        "newOrganization": "New organization",
         "otherOrgsTitle": "Other organizations",
         "otherOrgsHint": "You see these as a platform owner. You are not a member.",
         "otherOrgsError": "Could not load the other organizations.",

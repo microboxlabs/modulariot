@@ -1630,8 +1630,7 @@
           }
         },
         "organizations": {
-          "title": "Organizaciones",
-          "menuHint": "Crear una organización y su primer dueño",
+          "title": "Nueva organización",
           "description": "Crea una organización cuyos miembros se administran aquí, no en Alfresco. El dueño que indiques podrá invitar al resto desde Ajustes › Equipo.",
           "fields": {
             "name": "Nombre",
@@ -1666,6 +1665,7 @@
         "empty": "No hay organizaciones disponibles para tu cuenta.",
         "loading": "Cargando…",
         "listTitle": "Tus organizaciones",
+        "newOrganization": "Nueva organización",
         "otherOrgsTitle": "Otras organizaciones",
         "otherOrgsHint": "Las ves como dueño de la plataforma. No eres miembro.",
         "otherOrgsError": "No se pudieron cargar las otras organizaciones.",

@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { forwardToQuarkus } = vi.hoisted(() => ({ forwardToQuarkus: vi.fn() }));
 vi.mock("@/app/api/utils/quarkus-proxy", () => ({ forwardToQuarkus }));
+const { evictAllScopeCaches } = vi.hoisted(() => ({
+  evictAllScopeCaches: vi.fn(),
+}));
+vi.mock("@/app/api/utils/tenant-scope", () => ({ evictAllScopeCaches }));
 
 import { GET as getMyRoles } from "./roles/me/route";
 import { GET as getRole, PUT as putRole } from "./roles/[roleCode]/route";
@@ -22,6 +26,7 @@ const FORWARDED = { ok: true };
 beforeEach(() => {
   forwardToQuarkus.mockReset();
   forwardToQuarkus.mockResolvedValue(FORWARDED);
+  evictAllScopeCaches.mockReset();
 });
 
 function jsonRequest(body: unknown): Request {
@@ -116,6 +121,8 @@ describe("platform organizations proxy", () => {
       "/api/v1/platform/orgs/a%2Fb/roles/ORGANIZATION_OWNER",
       { method: "PUT", body },
     );
+    // The new owner must see the organization on the next scopes read.
+    expect(evictAllScopeCaches).toHaveBeenCalled();
   });
 
   it("answers 400 to an unparseable body rather than forwarding it", async () => {

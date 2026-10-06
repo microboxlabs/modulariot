@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { forwardToQuarkus } from "@/app/api/utils/quarkus-proxy";
+import { evictAllScopeCaches } from "@/app/api/utils/tenant-scope";
 
 /**
  * GET /api/admin/platform/orgs/[slug]/roles/[roleCode] — who holds an
@@ -31,5 +32,11 @@ export async function PUT(request: Request, { params }: RouteParams) {
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
-  return forwardToQuarkus(rolePath(slug, roleCode), { method: "PUT", body });
+  const response = await forwardToQuarkus(rolePath(slug, roleCode), {
+    method: "PUT",
+    body,
+  });
+  // A new owner gains the organization: cached scopes would hide it.
+  if (response.ok) evictAllScopeCaches();
+  return response;
 }

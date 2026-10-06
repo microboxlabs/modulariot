@@ -53,8 +53,7 @@ export type PlatformSection =
   | "superusers"
   | "models"
   | "plan"
-  | "usage"
-  | "organizations";
+  | "usage";
 
 /** The providers the harness can call. Mirrors `ModelProviderService.KNOWN`. */
 export const MODEL_PROVIDERS = [

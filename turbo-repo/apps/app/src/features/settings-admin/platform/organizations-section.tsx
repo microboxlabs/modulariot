@@ -28,6 +28,8 @@ import {
 
 interface OrganizationsSectionProps {
   readonly dict: I18nRecord;
+  /** Called with the slug once the organization exists and has its owner. */
+  readonly onCreated?: (slug: string) => void;
 }
 
 type Field = keyof OrganizationDraft;
@@ -67,6 +69,7 @@ function reportFailure(
  */
 export default function OrganizationsSection({
   dict,
+  onCreated,
 }: Readonly<OrganizationsSectionProps>) {
   const [draft, setDraft] = useState<OrganizationDraft>(
     EMPTY_ORGANIZATION_DRAFT
@@ -105,6 +108,7 @@ export default function OrganizationsSection({
       void mutate(organizationOwnersKey(organization.slug));
       setDraft(EMPTY_ORGANIZATION_DRAFT);
       setOwnerPendingFor(null);
+      onCreated?.(organization.slug);
       return;
     }
     if (outcome.kind === "ownerFailed") setOwnerPendingFor(organization.slug);

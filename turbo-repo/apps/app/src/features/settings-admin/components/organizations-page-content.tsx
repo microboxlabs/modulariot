@@ -1,13 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HiOfficeBuilding } from "react-icons/hi";
+import { Button } from "flowbite-react";
+import { HiOfficeBuilding, HiPlus } from "react-icons/hi";
+import { mutate } from "swr";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import { useIsPlatformOwner } from "../platform/use-platform-membership";
 import { usePlatformOrganizations } from "../platform/use-platform-organizations";
+import OrganizationsSection from "../platform/organizations-section";
+import { NO_ORGANIZATION_GATE_KEY } from "../team/no-organization-gate";
 import type { PlatformOrganizationListItem } from "../platform/platform.types";
 import type { OrgSummary } from "../types";
 import OrgListPanel from "./org-list-panel";
@@ -18,6 +22,11 @@ import PlatformOrgDetailPanel from "./platform-org-detail-panel";
 interface OrganizationsPageContentProps {
   readonly dict: I18nRecord;
   readonly lang: string;
+}
+
+/** The scopes route answers 403 to someone who belongs to no organization. */
+function isNoOrganization(error: unknown): boolean {
+  return error instanceof Error && error.message.includes("403");
 }
 
 /** Platform-wide organizations the caller is not a member of. */
@@ -34,15 +43,38 @@ function othersThan(
  *
  * All members can inspect their organization roster. Owners additionally
  * receive the application-role, permission, and integration controls. A
- * platform owner also sees every other organization, read-only.
+ * platform owner also sees every other organization, read-only, and creates
+ * new ones here.
  */
 export default function OrganizationsPageContent({
   dict,
   lang,
 }: OrganizationsPageContentProps) {
-  const { activeOrg, availableOrgs, isLoading, error } = useOrgScopes();
+  const {
+    activeOrg,
+    availableOrgs,
+    isLoading,
+    error: scopesError,
+    refresh,
+  } = useOrgScopes();
+  // Belonging to no organization is a state, not a failure.
+  const noOrganization = isNoOrganization(scopesError);
+  const error = noOrganization ? undefined : scopesError;
 
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const select = (slug: string) => {
+    setCreating(false);
+    setSelectedSlug(slug);
+  };
+
+  const created = (slug: string) => {
+    void refresh();
+    // The caller may have named themselves owner: the gate must look again.
+    void mutate(NO_ORGANIZATION_GATE_KEY);
+    select(slug);
+  };
 
   // Default the selection to the active org once scopes load.
   useEffect(() => {
@@ -64,6 +96,34 @@ export default function OrganizationsPageContent({
   const selectedOtherOrg =
     otherOrgs.find((org) => org.slug === selectedSlug) ?? null;
 
+  const detail = () => {
+    if (creating) {
+      return (
+        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+          <OrganizationsSection
+            dict={(dict?.platform as I18nRecord)?.organizations as I18nRecord}
+            onCreated={created}
+          />
+        </div>
+      );
+    }
+    if (selectedOtherOrg) {
+      return (
+        <PlatformOrgDetailPanel
+          organization={selectedOtherOrg}
+          dict={orgsDict}
+        />
+      );
+    }
+    return (
+      <OrgDetailPanel
+        organization={selectedOrganization}
+        dict={orgsDict}
+        credentialsDict={dict?.credentials as I18nRecord}
+      />
+    );
+  };
+
   return (
     // Same shell as Settings > Credentials / Data sources / Connections: a
     // full-width breadcrumb bar (outside the scroll container, so it never
@@ -80,16 +140,24 @@ export default function OrganizationsPageContent({
       </div>
 
       <div className="mx-auto flex w-full max-w-screen-2xl flex-1 flex-col gap-4 px-4 pt-2 pb-6 min-h-0 dark:bg-gray-900">
-        <div className="flex items-center gap-3">
-          <HiOfficeBuilding className="h-6 w-6 text-gray-500 dark:text-gray-400" />
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              {tr("title", orgsDict)}
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {tr("description", orgsDict)}
-            </p>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <HiOfficeBuilding className="h-6 w-6 text-gray-500 dark:text-gray-400" />
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {tr("title", orgsDict)}
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {tr("description", orgsDict)}
+              </p>
+            </div>
           </div>
+          {isPlatformOwner && (
+            <Button size="sm" color="blue" onClick={() => setCreating(true)}>
+              <HiPlus className="mr-1 h-4 w-4" />
+              {tr("newOrganization", orgsDict)}
+            </Button>
+          )}
         </div>
 
         {error && (
@@ -103,30 +171,19 @@ export default function OrganizationsPageContent({
             <OrgListPanel
               orgs={availableOrgs}
               isLoading={isLoading}
-              selectedSlug={selectedSlug}
-              onSelect={setSelectedSlug}
+              selectedSlug={creating ? null : selectedSlug}
+              onSelect={select}
               dict={orgsDict}
             />
             <PlatformOrgListPanel
               orgs={otherOrgs}
               failed={platformOrgsError !== undefined}
-              selectedSlug={selectedSlug}
-              onSelect={setSelectedSlug}
+              selectedSlug={creating ? null : selectedSlug}
+              onSelect={select}
               dict={orgsDict}
             />
           </div>
-          {selectedOtherOrg ? (
-            <PlatformOrgDetailPanel
-              organization={selectedOtherOrg}
-              dict={orgsDict}
-            />
-          ) : (
-            <OrgDetailPanel
-              organization={selectedOrganization}
-              dict={orgsDict}
-              credentialsDict={dict?.credentials as I18nRecord}
-            />
-          )}
+          {detail()}
         </div>
       </div>
     </div>

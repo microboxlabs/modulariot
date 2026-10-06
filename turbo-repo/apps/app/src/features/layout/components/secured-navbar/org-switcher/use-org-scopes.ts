@@ -2,7 +2,6 @@
 
 import { confirmNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 
-
 import useSWR from "swr";
 
 interface OrgScopeItem {
@@ -93,5 +92,7 @@ export function useOrgScopes() {
     isLoading,
     error,
     switchOrg,
+    /** Re-reads the scopes, e.g. after the caller gains an organization. */
+    refresh: mutate,
   };
 }

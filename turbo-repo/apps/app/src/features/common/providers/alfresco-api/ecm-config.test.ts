@@ -20,6 +20,14 @@ describe("ecm-config", () => {
     expect(homePath()).toBe("/symptoms");
   });
 
+  it("ignores an APP_HOME_PATH that would land on itself", () => {
+    vi.stubEnv("ECM_API_URL", "");
+    vi.stubEnv("APP_HOME_PATH", "/");
+    expect(homePath()).toBe("/symptoms");
+    vi.stubEnv("APP_HOME_PATH", "symptoms");
+    expect(homePath()).toBe("/symptoms");
+  });
+
   it("APP_HOME_PATH wins", () => {
     vi.stubEnv("ECM_API_URL", "");
     vi.stubEnv("APP_HOME_PATH", "/integrations");

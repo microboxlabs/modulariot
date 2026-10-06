@@ -78,13 +78,27 @@ public class IamIdentityAugmentor implements SecurityIdentityAugmentor {
      * token's client id.
      */
     public static Caller callerOf(SecurityIdentity identity, String headerEmail, List<String> clientIdClaims) {
+        return callerOf(identity, headerEmail, clientIdClaims, LaunchMode.current());
+    }
+
+    /** {@code headerEmail} when the dev header may name a user in this launch mode, else null. */
+    public static String devHeaderEmail(String headerEmail) {
+        return devHeaderEmail(headerEmail, LaunchMode.current());
+    }
+
+    static String devHeaderEmail(String headerEmail, LaunchMode mode) {
+        return devHeaderAllowed(mode) && headerEmail != null && !headerEmail.isBlank() ? headerEmail : null;
+    }
+
+    static Caller callerOf(SecurityIdentity identity, String headerEmail, List<String> clientIdClaims,
+            LaunchMode mode) {
         Caller serviceAccount = serviceAccountOf(identity);
         if (serviceAccount != null) {
             return serviceAccount;
         }
         String email = OrganizationAccess.email(identity);
-        if (email == null && headerEmail != null && !headerEmail.isBlank() && devHeaderAllowed()) {
-            email = headerEmail;
+        if (email == null) {
+            email = devHeaderEmail(headerEmail, mode);
         }
         if (email != null) {
             return Caller.user(email);

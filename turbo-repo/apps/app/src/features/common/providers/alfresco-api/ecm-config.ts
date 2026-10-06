@@ -10,6 +10,7 @@ export function isEcmConfigured(): boolean {
 /** Where `/app` lands: `APP_HOME_PATH`, else the kanban with Alfresco, else the control tower. */
 export function homePath(): string {
   const configured = process.env.APP_HOME_PATH?.trim();
-  if (configured) return configured;
+  // "/" is the landing request itself; using it would redirect forever.
+  if (configured?.startsWith("/") && configured.length > 1) return configured;
   return isEcmConfigured() ? "/shipping" : "/symptoms";
 }

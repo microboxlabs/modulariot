@@ -1,4 +1,5 @@
 import { getUserStates } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { isEcmConfigured } from "@/features/common/providers/alfresco-api/ecm-config";
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { logError } from "@/lib/logger";
@@ -11,6 +12,8 @@ export async function GET(_request: Request) {
     });
   }
 
+  // Operator states come from Alfresco tasks; without Alfresco there are none.
+  if (!isEcmConfigured()) return NextResponse.json({ userStates: [] });
   try {
     const userStates = await getUserStates(session);
     return NextResponse.json({ userStates });

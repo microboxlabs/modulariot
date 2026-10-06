@@ -6,6 +6,7 @@ import { useOrgMembers } from "../hooks/use-org-members";
 import { useOrgModules } from "../hooks/use-org-modules";
 import ModulesList from "./modules-list";
 import GpsWebhookCard from "../gps-webhooks/gps-webhook-card";
+import EmailChannelCard from "../email/email-channel-card";
 import WhatsAppChannelCard from "../whatsapp/whatsapp-channel-card";
 import ContentReviewPermissionCard from "./content-review-permission-card";
 import HarnessTrainerPermissionCard from "./harness-trainer-permission-card";
@@ -84,6 +85,7 @@ export default function OrgDetailPanel({
       {isOwner && (
         <>
           <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
+          <EmailChannelCard orgSlug={orgSlug} dict={dict} />
           <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
         </>
       )}

@@ -31,12 +31,21 @@ export interface Invitation {
 }
 
 /** `token` is returned only when the invitation is created or resent. */
+/** Whether the link was emailed. SENT means the mail provider accepted it. */
+export interface MailDelivery {
+  status: "SENT" | "FAILED" | "NOT_CONFIGURED";
+  detail: string | null;
+}
+
 export interface CreatedInvitation {
   invitation: Invitation;
   token: string;
+  delivery?: MailDelivery | null;
 }
 
 export interface InviteRequest {
+  /** The email's language. */
+  lang?: string;
   emails: string[];
   baseRole: BaseRole;
   roles: string[];

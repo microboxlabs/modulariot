@@ -90,10 +90,10 @@ export function invite(request: InviteRequest) {
   return sendJson<CreatedInvitation[]>("POST", invitationsKey, request);
 }
 
-export function resendInvitation(id: string) {
+export function resendInvitation(id: string, lang: string) {
   return sendJson<CreatedInvitation>(
     "POST",
-    `${invitationsKey}/${encodeURIComponent(id)}/resend`,
+    `${invitationsKey}/${encodeURIComponent(id)}/resend?lang=${encodeURIComponent(lang)}`,
     {}
   );
 }

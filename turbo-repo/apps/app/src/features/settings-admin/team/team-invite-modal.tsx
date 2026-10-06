@@ -12,7 +12,7 @@ import {
   BASE_ROLES,
   invalidEmails,
   NON_OWNER_ROLES,
-  inviteLink,
+  inviteLinkOf,
   parseEmails,
   selectedRoles,
 } from "./team-model";
@@ -72,16 +72,14 @@ export function TeamInviteModal({
     setError(null);
     try {
       const created = await invite({
+        lang,
         emails,
         baseRole,
         roles: selectedRoles(byModule),
         expiresInDays: days,
       });
       setLinks(
-        created.map((c) => ({
-          email: c.invitation.email,
-          url: inviteLink(window.location.origin, lang, c.token),
-        }))
+        created.map((c) => inviteLinkOf(c, window.location.origin, lang))
       );
       onInvited();
     } catch (e) {

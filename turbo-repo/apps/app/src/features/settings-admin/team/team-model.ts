@@ -5,9 +5,11 @@ import type {
   CatalogModule,
   CatalogPermission,
   CatalogRole,
+  CreatedInvitation,
   ServiceAccount,
   TeamMember,
 } from "./team.types";
+import type { InviteLink } from "./invite-links";
 
 export const BASE_ROLES: BaseRole[] = ["OWNER", "ADMIN", "MEMBER"];
 
@@ -130,6 +132,19 @@ export function rolesByModule(
     if (role) out[role.module] = key;
   }
   return out;
+}
+
+/** What the invite dialog shows for one created invitation. */
+export function inviteLinkOf(
+  created: CreatedInvitation,
+  origin: string,
+  lang: string
+): InviteLink {
+  return {
+    email: created.invitation.email,
+    url: inviteLink(origin, lang, created.token),
+    delivery: created.delivery ?? null,
+  };
 }
 
 export function inviteLink(origin: string, lang: string, token: string) {

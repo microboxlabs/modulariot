@@ -1752,6 +1752,53 @@
           },
           "testModeBadge": "Modo prueba"
         },
+        "emailChannel": {
+          "title": "Canal de correo",
+          "description": "Envía las invitaciones al equipo por correo, con tu cuenta de Resend. Sin este canal se usa el de la plataforma, si existe; si no, el enlace se copia a mano.",
+          "loadError": "No se pudo cargar la conexión de correo.",
+          "fromLabel": "Remitente",
+          "configureButton": "Configurar",
+          "testButton": "Probar",
+          "editButton": "Editar",
+          "status": {
+            "active": "Activo",
+            "draft": "Borrador",
+            "inactive": "Inactivo",
+            "failed": "Prueba fallida"
+          },
+          "modal": {
+            "addTitle": "Configurar canal de correo",
+            "subtitle": "Guarda la clave API de Resend de forma segura y crea la conexión. Pruébala para empezar a usarla.",
+            "editTitle": "Editar canal de correo",
+            "editSubtitle": "Actualiza los datos de la conexión. Deja la clave en blanco para mantener la actual.",
+            "defaultName": "Correo",
+            "name": "Nombre de la conexión",
+            "from": "Remitente",
+            "fromPlaceholder": "Equipo <no-reply@tu-dominio.com>",
+            "fromHelp": "Debe ser de un dominio verificado en Resend.",
+            "token": "Clave API de Resend",
+            "tokenPlaceholder": "re_...",
+            "tokenEditPlaceholder": "Déjala en blanco para mantener la clave actual",
+            "baseUrl": "URL base",
+            "cancel": "Cancelar",
+            "saving": "Guardando...",
+            "createButton": "Crear",
+            "saveButton": "Guardar"
+          },
+          "toast": {
+            "created": "Canal de correo configurado",
+            "updated": "Canal de correo actualizado",
+            "testSuccess": "Prueba de conexión exitosa",
+            "testFailed": "La prueba de conexión falló",
+            "error": "Ocurrió un error"
+          },
+          "validation": {
+            "nameRequired": "El nombre de la conexión es obligatorio",
+            "fromInvalid": "Ingresa un remitente como Equipo <no-reply@tu-dominio.com>",
+            "baseUrlInvalid": "Ingresa una URL válida",
+            "tokenRequired": "La clave API es obligatoria"
+          }
+        },
         "gpsWebhooks": {
           "title": "Webhooks GPS",
           "description": "Reenvía posiciones GPS validadas a sistemas externos con criterios de filtro.",
@@ -1861,6 +1908,8 @@
         "send": "Invitar",
         "linksTitle": "Enlaces de invitación",
         "linksBody": "Cada enlace se muestra una sola vez. Cópialo y envíalo a la persona.",
+        "emailSent": "Enviado por correo.",
+        "emailFailed": "No se pudo enviar el correo ({reason}). Copia el enlace y envíalo tú.",
         "copy": "Copiar",
         "copied": "Copiado",
         "close": "Cerrar",

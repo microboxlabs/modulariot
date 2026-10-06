@@ -10,6 +10,7 @@ import {
   initials,
   invalidEmails,
   inviteLink,
+  inviteLinkOf,
   keyDisplay,
   keyState,
   labelOf,
@@ -28,6 +29,7 @@ import {
 import type {
   AccessCatalog,
   ApiKey,
+  CreatedInvitation,
   ServiceAccount,
   TeamMember,
 } from "./team.types";
@@ -181,6 +183,23 @@ describe("role selection", () => {
     expect(inviteLink("https://x.test", "es", "a/b")).toBe(
       "https://x.test/app/es/invite/a%2Fb"
     );
+  });
+
+  it("keeps whether each invitation was emailed", () => {
+    const created = {
+      invitation: { email: "ana@x.test" },
+      token: "t1",
+      delivery: { status: "SENT", detail: null },
+    } as CreatedInvitation;
+    expect(inviteLinkOf(created, "https://x.test", "en")).toEqual({
+      email: "ana@x.test",
+      url: "https://x.test/app/en/invite/t1",
+      delivery: { status: "SENT", detail: null },
+    });
+    expect(
+      inviteLinkOf({ ...created, delivery: undefined }, "https://x.test", "en")
+        .delivery
+    ).toBeNull();
   });
 });
 

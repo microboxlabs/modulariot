@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { Button, TextInput } from "flowbite-react";
-import { HiCheck, HiClipboardCopy } from "react-icons/hi";
+import { HiCheck, HiClipboardCopy, HiOutlineMail } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import type { MailDelivery } from "./team.types";
 
 export interface InviteLink {
   email: string;
   url: string;
+  delivery: MailDelivery | null;
 }
 
 interface InviteLinkRowProps {
@@ -27,6 +29,7 @@ function InviteLinkRow({ link, d }: InviteLinkRowProps) {
       <span className="text-sm font-medium text-gray-900 dark:text-white">
         {link.email}
       </span>
+      <DeliveryNote delivery={link.delivery} d={d} />
       <div className="flex gap-2">
         <TextInput
           readOnly
@@ -46,6 +49,31 @@ function InviteLinkRow({ link, d }: InviteLinkRowProps) {
       </div>
     </div>
   );
+}
+
+interface DeliveryNoteProps {
+  readonly delivery: MailDelivery | null;
+  readonly d: I18nRecord;
+}
+
+/** Whether the link went out by email; nothing when no email channel is set up. */
+function DeliveryNote({ delivery, d }: DeliveryNoteProps) {
+  if (delivery?.status === "SENT") {
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300">
+        <HiOutlineMail className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        {tr("emailSent", d)}
+      </span>
+    );
+  }
+  if (delivery?.status === "FAILED") {
+    return (
+      <span className="text-xs text-gray-600 dark:text-gray-300">
+        {tr("emailFailed", d, { reason: delivery.detail ?? "" })}
+      </span>
+    );
+  }
+  return null;
 }
 
 interface InviteLinksProps {

@@ -44,7 +44,11 @@ public class ApiKeyService {
     }
 
     public record ServiceAccountView(UUID id, String name, String description, boolean disabled, List<String> roles,
-            List<KeyView> keys, Instant createdAt, String createdBy) {
+            List<KeyView> keys, Instant createdAt, String createdBy, String tokenCredentialRef) {
+    }
+
+    /** {@code credentialRef}: a stored OAuth2 client_credentials credential of the organization, or null to unlink. */
+    public record TokenCredentialRequest(String credentialRef) {
     }
 
     /** {@code secret} is the whole key, returned once. */
@@ -67,11 +71,13 @@ public class ApiKeyService {
 
     private final AccessEvaluator evaluator;
     private final IamDirectory directory;
+    private final TokenExchange tokens;
 
     @Inject
-    public ApiKeyService(AccessEvaluator evaluator, IamDirectory directory) {
+    public ApiKeyService(AccessEvaluator evaluator, IamDirectory directory, TokenExchange tokens) {
         this.evaluator = evaluator;
         this.directory = directory;
+        this.tokens = tokens;
     }
 
     public static boolean looksLikeKey(String token) {
@@ -163,6 +169,26 @@ public class ApiKeyService {
                 }))));
     }
 
+    /** Links the credential whose token the account's API keys are exchanged for, or unlinks it. */
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    public Uni<ServiceAccountView> setTokenCredential(String slug, Caller actor, UUID accountId,
+            TokenCredentialRequest request) {
+        String ref = request == null || request.credentialRef() == null || request.credentialRef().isBlank()
+                ? null : request.credentialRef().trim();
+        if (ref != null && !ref.matches("[A-Za-z0-9._:-]{1,255}")) {
+            throw new IllegalArgumentException("Invalid credential reference");
+        }
+        return Panache.withTransaction(() -> root(slug).flatMap(root -> account(root.id, accountId)
+                .flatMap(account -> {
+                    account.tokenCredentialRef = ref;
+                    tokens.forget(account.id);
+                    return account.<IamServiceAccount>persist()
+                            .flatMap(saved -> directory.audit(root.id, actor.name(), "service-account.token-credential",
+                                    account.name, Map.of("credentialRef", ref == null ? "" : ref)))
+                            .flatMap(ignored -> view(root.id, account));
+                })));
+    }
+
     public Uni<CreatedKey> createKey(String slug, Caller actor, UUID accountId, CreateKeyRequest request) {
         Duration ttl = ttl(request == null ? null : request.expiresInDays());
         String name = request == null || request.name() == null ? null : request.name().trim();
@@ -222,7 +248,7 @@ public class ApiKeyService {
                 List<KeyView> own = keys.stream().filter(k -> k.serviceAccountId.equals(a.id))
                         .map(ApiKeyService::view).toList();
                 out.add(new ServiceAccountView(a.id, a.name, a.description, a.disabled, roles, own, a.createdAt,
-                        a.createdBy));
+                        a.createdBy, a.tokenCredentialRef));
             }
             return out;
         }));

@@ -29,6 +29,10 @@ public class IamServiceAccount extends PanacheEntityBase {
     @Column(nullable = false)
     public boolean disabled;
 
+    /** The stored credential whose token this account's API keys are exchanged for; null for none. */
+    @Column(name = "token_credential_ref")
+    public String tokenCredentialRef;
+
     @Column(name = "created_at", nullable = false)
     public Instant createdAt = Instant.now();
 

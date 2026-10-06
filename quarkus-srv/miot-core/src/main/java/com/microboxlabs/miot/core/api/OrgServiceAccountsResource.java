@@ -4,6 +4,7 @@ import com.microboxlabs.miot.core.iam.ApiKeyService;
 import com.microboxlabs.miot.core.iam.ApiKeyService.CreateKeyRequest;
 import com.microboxlabs.miot.core.iam.ApiKeyService.CreateServiceAccountRequest;
 import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.ApiKeyService.TokenCredentialRequest;
 import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -93,6 +94,17 @@ public class OrgServiceAccountsResource {
             @HeaderParam(IamIdentityAugmentor.DEV_EMAIL_HEADER) String devEmail, RolesRequest body) {
         return IamResponses.ok(() -> keys.setRoles(organizationId, caller(devEmail), accountId,
                 body == null ? null : body.roles()));
+    }
+
+    @PUT
+    @Path("/{accountId}/token-credential")
+    @Operation(operationId = "setServiceAccountTokenCredential",
+            summary = "Link the OAuth2 credential whose token this account's API keys are exchanged for")
+    @PermissionsAllowed(value = CoreAccessCatalog.APIKEYS_MANAGE, permission = OrgPermission.class, params = ORG)
+    public Uni<Response> setTokenCredential(@PathParam(ORG) String organizationId,
+            @PathParam("accountId") UUID accountId,
+            @HeaderParam(IamIdentityAugmentor.DEV_EMAIL_HEADER) String devEmail, TokenCredentialRequest body) {
+        return IamResponses.ok(() -> keys.setTokenCredential(organizationId, caller(devEmail), accountId, body));
     }
 
     @POST

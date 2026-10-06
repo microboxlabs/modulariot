@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.iam;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 
@@ -31,6 +32,41 @@ class TeamsAndKeysTest {
 
     @Inject
     AgroalDataSource ds;
+
+    @Inject
+    FakeTokenIssuer issuer;
+
+    @Test
+    void anApiKeyIsExchangedForItsLinkedCredentialsToken() {
+        var created = given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body("{\"name\":\"Zonar\",\"roles\":[]}").when().post(BASE + "/service-accounts")
+                .then().statusCode(201).extract();
+        String key = "Bearer " + created.path("secret");
+        String account = created.path("serviceAccount.id");
+
+        // No credential linked yet.
+        given().header("Authorization", key).when().post("/api/v1/iam/token").then().statusCode(409);
+
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body("{\"credentialRef\":\"cred-zonar\"}")
+                .when().put(BASE + "/service-accounts/" + account + "/token-credential")
+                .then().statusCode(200).body("tokenCredentialRef", is("cred-zonar"));
+
+        int before = issuer.calls();
+        for (int i = 0; i < 2; i++) {
+            given().header("Authorization", key).when().post("/api/v1/iam/token")
+                    .then().statusCode(200)
+                    .header("Cache-Control", "no-store")
+                    .body("access_token", is("token-cred-zonar"))
+                    .body("token_type", is("Bearer"))
+                    .body("expires_in", greaterThan(3000));
+        }
+        // The second call is served from the cache.
+        org.junit.jupiter.api.Assertions.assertEquals(before + 1, issuer.calls());
+
+        // A signed-in user has no key to exchange.
+        given().header("Authorization", bearer(OWNER)).when().post("/api/v1/iam/token").then().statusCode(403);
+    }
 
     @BeforeEach
     void seed() throws SQLException {

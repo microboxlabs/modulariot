@@ -68,6 +68,30 @@ A service account belongs to one organization and acts as `MEMBER` there, plus t
 
 Its keys look like `miot_sk_<id>_<secret>` and go in `Authorization: Bearer`. The secret is shown once; only its SHA-256 is stored. `last_used_at` is updated at most every 5 minutes.
 
+### Exchanging a key for an OAuth token
+
+For services that accept only OAuth tokens, link the service account to one of the organization's stored OAuth2 client_credentials credentials:
+
+```
+PUT /api/v1/orgs/{org}/team/service-accounts/{id}/token-credential   {"credentialRef": "<credential id>"}
+```
+
+A caller holding the key then gets that credential's token:
+
+```
+POST /api/v1/iam/token
+Authorization: Bearer miot_sk_...
+→ 200 {"access_token": "...", "token_type": "Bearer", "expires_in": 3540}
+```
+
+| Status | When |
+|---|---|
+| 401 | The key is unknown, revoked or expired |
+| 403 | The caller did not authenticate with a key, or the account is disabled |
+| 409 | No credential is linked |
+
+The token is reused until a minute before it expires. Needs a build with `miot.component.integrations.enabled=true`.
+
 ## Moving an organization off Alfresco
 
 1. "Import from Alfresco" on the Team page (`POST /api/v1/orgs/{org}/team/alfresco-import`, needs `members:invite`), or `POST /api/v1/platform/orgs/{slug}/alfresco-import`, copies the Alfresco group into memberships. Site and group managers become `ADMIN`; everyone else `MEMBER`. Running it again adds only new people.

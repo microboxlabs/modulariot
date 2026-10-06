@@ -100,7 +100,7 @@ public class AlfrescoBridge {
             String email = emailOf(person);
             if (email != null) {
                 chain = chain.flatMap(i -> importOne(org, person, email, actor)
-                        .invoke(isNew -> (isNew ? added : existing)[0]++)
+                        .invoke(isNew -> (Boolean.TRUE.equals(isNew) ? added : existing)[0]++)
                         .replaceWithVoid());
             }
         }

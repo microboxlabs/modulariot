@@ -53,7 +53,8 @@ export type PlatformSection =
   | "superusers"
   | "models"
   | "plan"
-  | "usage";
+  | "usage"
+  | "organizations";
 
 /** The providers the harness can call. Mirrors `ModelProviderService.KNOWN`. */
 export const MODEL_PROVIDERS = [
@@ -126,6 +127,26 @@ export interface HarnessPlan {
   updatedBy: string | null;
   updatedAt: string | null;
 }
+
+/** Mirrors `CreateRootOrganizationRequest`, with the fields this form sets. */
+export interface CreatePlatformOrganization {
+  slug: string;
+  name: string;
+  tenantClientId: string;
+  membershipSource: "NATIVE";
+}
+
+/** Mirrors `OrganizationDto`. */
+export interface PlatformOrganization {
+  id: number;
+  slug: string;
+  name: string;
+  displayName: string;
+  tenantClientId: string;
+  active: boolean;
+}
+
+export const ORGANIZATION_OWNER_ROLE = "ORGANIZATION_OWNER";
 
 /** Mirrors `HarnessPlanDtos.SetPlanRequest`. */
 export interface SetHarnessPlan {

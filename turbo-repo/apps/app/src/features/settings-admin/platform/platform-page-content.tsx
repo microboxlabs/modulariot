@@ -7,6 +7,7 @@ import {
   HiOutlineChip,
   HiOutlineCreditCard,
   HiOutlineKey,
+  HiOutlineOfficeBuilding,
   HiOutlinePhotograph,
   HiServer,
 } from "react-icons/hi";
@@ -17,6 +18,7 @@ import BrandingSection from "./branding-section";
 import HarnessPlanSection from "./harness-plan-section";
 import ModelProvidersSection from "./model-providers-section";
 import ModelUsageCard from "./model-usage-card";
+import OrganizationsSection from "./organizations-section";
 import PlatformOwnersCard from "./platform-owners-card";
 import PlatformSectionList, {
   type PlatformSectionEntry,
@@ -56,12 +58,19 @@ export default function PlatformPageContent({
   const modelsDict = (platformDict?.models as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
   const usageDict = (platformDict?.usage as I18nRecord) ?? {};
+  const organizationsDict = (platformDict?.organizations as I18nRecord) ?? {};
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
 
   const { isPlatformOwner, isLoading } = useIsPlatformOwner();
   const [selected, setSelected] = useState<PlatformSection>("branding");
 
   const sections: readonly PlatformSectionEntry[] = [
+    {
+      id: "organizations",
+      label: tr("title", organizationsDict),
+      description: tr("menuHint", organizationsDict),
+      icon: HiOutlineOfficeBuilding,
+    },
     {
       id: "branding",
       label: tr("title", brandingDict),
@@ -100,6 +109,7 @@ export default function PlatformPageContent({
     models: <ModelProvidersSection dict={modelsDict} />,
     plan: <HarnessPlanSection dict={planDict} />,
     usage: <ModelUsageCard dict={usageDict} lang={lang} />,
+    organizations: <OrganizationsSection dict={organizationsDict} />,
   };
 
   return (

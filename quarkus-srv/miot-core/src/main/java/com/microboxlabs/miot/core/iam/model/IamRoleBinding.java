@@ -86,6 +86,11 @@ public class IamRoleBinding extends PanacheEntityBase {
         return find("organizationId = ?1", organizationId).list();
     }
 
+    /** Granted on the whole organization and not expired. */
+    public boolean organizationWide(Instant now) {
+        return ORGANIZATION.equals(scopeKind) && (expiresAt == null || expiresAt.isAfter(now));
+    }
+
     /** Whether this binding applies to {@code organizationId}, given the organization's parent. */
     public boolean covers(Long organizationId, Long parentId, Instant now) {
         if (expiresAt != null && !expiresAt.isAfter(now)) {

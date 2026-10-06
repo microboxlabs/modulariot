@@ -11,4 +11,9 @@ public interface AccessCatalog {
     List<PermissionDef> permissions();
 
     List<RoleDef> roles();
+
+    /** Names and descriptions of the modules this catalog's roles belong to. */
+    default List<ModuleDef> modules() {
+        return List.of();
+    }
 }

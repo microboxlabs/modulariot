@@ -5,7 +5,11 @@ import com.microboxlabs.miot.core.iam.model.IamMembership;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.iam.model.IamUser;
 import io.smallrye.mutiny.Uni;
+import com.microboxlabs.miot.core.model.Organization;
+import io.quarkus.hibernate.reactive.panache.Panache;
+import java.time.Duration;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,6 +25,15 @@ import java.util.UUID;
  */
 @ApplicationScoped
 public class IamDirectory {
+
+    private static final Duration SEEN_EVERY = Duration.ofMinutes(5);
+
+    private final AlfrescoBridge bridge;
+
+    @Inject
+    public IamDirectory(AlfrescoBridge bridge) {
+        this.bridge = bridge;
+    }
 
     /** The organization's owners' emails, sorted. */
     public Uni<List<String>> owners(Long organizationId) {
@@ -112,7 +125,39 @@ public class IamDirectory {
                 .flatMap(existing -> existing != null
                         ? Uni.createFrom().item(existing)
                         : IamMembership.of(organizationId, user.id, baseRole.name(), "NATIVE", actor)
-                                .<IamMembership>persist()));
+                                .<IamMembership>persist()
+                                .call(created -> bridge.memberAdded(organizationId, user.email))));
+    }
+
+    /**
+     * Notes that a member of {@code root} signed in: updates when the user was last seen and, when Alfresco decides
+     * membership, records the person as a member so the Team page lists them. Alfresco site and group managers are
+     * recorded as Admin. Needs an open session.
+     */
+    public Uni<Void> signedIn(Organization root, String email, boolean nativeMembership, String alfrescoRole) {
+        Instant now = Instant.now();
+        boolean fromAlfresco = !nativeMembership && root.alfrescoGroupId != null;
+        return Panache.withTransaction(() -> IamUser.findOrCreate(email)
+                .flatMap(user -> seen(user, now))
+                .flatMap(user -> fromAlfresco
+                        ? recordAlfrescoMember(root, user, alfrescoRole)
+                        : Uni.createFrom().voidItem()));
+    }
+
+    private static Uni<IamUser> seen(IamUser user, Instant now) {
+        if (user.lastSeenAt != null && !user.lastSeenAt.isBefore(now.minus(SEEN_EVERY))) {
+            return Uni.createFrom().item(user);
+        }
+        user.lastSeenAt = now;
+        return user.persist();
+    }
+
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private static Uni<Void> recordAlfrescoMember(Organization root, IamUser user, String alfrescoRole) {
+        return IamMembership.findOne(root.id, user.id).flatMap(existing -> existing != null
+                ? Uni.createFrom().voidItem()
+                : IamMembership.of(root.id, user.id, AccessEvaluator.alfrescoBaseRole(alfrescoRole).name(),
+                        "ALFRESCO", "alfresco").persist().replaceWithVoid());
     }
 
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.

@@ -33,6 +33,73 @@ Each top-level organization has `membership_source`; its sub-accounts follow it.
 
 With `ALFRESCO`, and for the organization's own M2M client, a caller holding no role of a module gets that module's legacy-default role (control tower: Operator).
 
+With `ALFRESCO`, people are added and removed in the Alfresco group. The Team page cannot invite or remove (409). An Alfresco member is recorded as a membership the first time they sign in (`GET /api/v1/me/scopes`): site and group managers as `ADMIN`, everyone else `MEMBER`. A membership row only raises the base role; it never grants access on its own.
+
+## Signing in
+
+Sign-in proves who the user is; there is no sign-up. A user with no organization sees a "no access yet" page listing their pending invitations. Every sign-in updates `last_seen_at`, at most every 5 minutes.
+
+## Invitations
+
+An invitation names an email, a base role and optional module roles. It lasts 30 days by default, 90 at most. The link `/app/{lang}/invite/{token}` is shown once; only the token's SHA-256 is stored. The invitee must sign in with the invited email. One pending invitation per email and organization. Native organizations only.
+
+## Organization settings
+
+| Action | Permission, on the top-level organization |
+|---|---|
+| Rename, change tax id, change modules, create a sub-account | `org:update` (Owner, Admin) |
+| Delete | `org:delete` (Owner) |
+
+A native organization's sub-accounts get no Alfresco group. Creating a top-level organization is for platform owners.
+
+## Rules for changing members
+
+- Only an owner can make or remove an owner.
+- The last owner cannot be removed or demoted.
+- A caller cannot grant a role holding permissions the caller lacks. Explicit-only permissions are exempt.
+
+## Teams
+
+A team is a named set of members. A role bound to a team applies to each of its members.
+
+## Service accounts and API keys
+
+A service account belongs to one organization and acts as `MEMBER` there, plus the roles bound to it. It has no access to other organizations.
+
+Its keys look like `miot_sk_<id>_<secret>` and go in `Authorization: Bearer`. The secret is shown once; only its SHA-256 is stored. `last_used_at` is updated at most every 5 minutes.
+
+### Exchanging a key for an OAuth token
+
+For services that accept only OAuth tokens, link the service account to one of the organization's stored OAuth2 client_credentials credentials:
+
+```
+PUT /api/v1/orgs/{org}/team/service-accounts/{id}/token-credential   {"credentialRef": "<credential id>"}
+```
+
+A caller holding the key then gets that credential's token:
+
+```
+POST /api/v1/iam/token
+Authorization: Bearer miot_sk_...
+→ 200 {"access_token": "...", "token_type": "Bearer", "expires_in": 3540}
+```
+
+| Status | When |
+|---|---|
+| 401 | The key is unknown, revoked or expired |
+| 403 | The caller did not authenticate with a key, or the account is disabled |
+| 409 | No credential is linked |
+
+The token is reused until a minute before it expires. Needs a build with `miot.component.integrations.enabled=true`.
+
+## Moving an organization off Alfresco
+
+1. A platform owner calls `POST /api/v1/platform/orgs/{slug}/alfresco-import`. It copies the Alfresco group into memberships. Site and group managers become `ADMIN`; everyone else `MEMBER`. Running it again adds only new people.
+2. Assign at least one `OWNER`.
+3. `PATCH /api/v1/platform/orgs/{slug}/membership-source` with `{"membershipSource": "NATIVE"}`.
+
+To keep the Alfresco group in step afterwards (BPM pooled tasks, document permissions), set `miot.iam.alfresco-projection.enabled=true`. Adding or removing a member then queues a change in `miot_iam.iam_projection_outbox`. A job sends pending changes every `miot.iam.alfresco-projection.every` (default `30s`) and gives up after 10 failures.
+
 ## Declaring permissions in a module
 
 1. Add an `AccessCatalog` bean with the module's `PermissionDef`s and `RoleDef`s. Keys are validated at startup.
@@ -53,7 +120,17 @@ With `ALFRESCO`, and for the organization's own M2M client, a caller holding no 
 | `GET /api/v1/orgs/{org}/me/access` | member | The caller's base role, module roles and permissions |
 | `GET /api/v1/access/catalog` | signed in | Every permission and role, with labels |
 | `GET`, `PUT /api/v1/orgs/{org}/roles/{roleCode}` | Owner or Admin (Owner for `ORGANIZATION_OWNER`) | Who holds a role; replace them |
+| `GET`, `PATCH`, `DELETE /api/v1/orgs/{org}/team/members[/{userId}]` | `members:read`, `members:update`, `members:remove` | List members; change base role; remove |
+| `PUT /api/v1/orgs/{org}/team/members/{userId}/roles` | `members:update` | Replace a member's module roles |
+| `GET`, `POST`, `DELETE /api/v1/orgs/{org}/team/invitations[/{id}]`, `POST .../{id}/resend` | `members:invite` (`members:read` to list) | Manage invitations |
+| `GET /api/v1/me/invitations`, `POST .../accept`, `POST .../{id}/accept` | signed in | The caller's pending invitations; accept by token or id |
+| `/api/v1/orgs/{org}/team/teams[/{teamId}[/members]]` | `teams:manage` (`members:read` to list) | Teams and their members |
+| `/api/v1/orgs/{org}/team/bindings[/{bindingId}]` | `members:update` (`members:read` to list) | Role bindings, optionally scoped to a sub-account |
+| `/api/v1/orgs/{org}/team/service-accounts[/{id}[/roles\|/keys[/{keyId}]]]` | `apikeys:manage` | Service accounts, their roles and keys |
 | `POST /api/v1/platform/orgs` | platform owner | Create a top-level organization (`membershipSource` optional) |
 | `GET`, `PUT /api/v1/platform/orgs/{slug}/roles/{roleCode}` | platform owner | Give a new organization its first owner |
+| `POST /api/v1/platform/orgs/{slug}/alfresco-import` | platform owner | Copy the Alfresco group into memberships |
+| `PATCH /api/v1/platform/orgs/{slug}/membership-source` | platform owner | Switch between `ALFRESCO` and `NATIVE` |
+| `GET /api/v1/platform/orgs/{slug}/alfresco-projection` | platform owner | The latest 100 projection changes |
 
 Every change writes `miot_iam.iam_audit_event`.

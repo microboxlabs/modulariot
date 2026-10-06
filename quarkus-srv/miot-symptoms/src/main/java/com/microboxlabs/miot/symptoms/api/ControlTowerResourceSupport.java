@@ -5,6 +5,7 @@ import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.Access;
 import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -61,8 +62,12 @@ abstract class ControlTowerResourceSupport {
         return roleService.access(organizationId, caller());
     }
 
-    /** The caller as {@code @PermissionsAllowed} sees it: the user, else the token's client id. */
+    /** The caller as {@code @PermissionsAllowed} sees it: API key account, user, else the token's client id. */
     private Caller caller() {
+        Caller serviceAccount = IamIdentityAugmentor.serviceAccountOf(identity);
+        if (serviceAccount != null) {
+            return serviceAccount;
+        }
         String email = organizationContext.getUserEmail();
         if (email != null && !email.isBlank()) {
             return Caller.user(email);

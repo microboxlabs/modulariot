@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.api;
 import com.microboxlabs.miot.core.api.dto.OrganizationScopeDto;
 import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.IamDirectory;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationModule;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
@@ -24,6 +25,7 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.logging.Logger;
 
 /**
  * "Who am I, and what can I see?" — resolves the caller's Alfresco memberships
@@ -50,13 +52,17 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @SecurityRequirement(name = "oidc")
 public class MeResource {
 
+    private static final Logger LOG = Logger.getLogger(MeResource.class);
+
     private final SecurityIdentity securityIdentity;
     private final AccessEvaluator evaluator;
+    private final IamDirectory directory;
 
     @Inject
-    public MeResource(SecurityIdentity securityIdentity, AccessEvaluator evaluator) {
+    public MeResource(SecurityIdentity securityIdentity, AccessEvaluator evaluator, IamDirectory directory) {
         this.securityIdentity = securityIdentity;
         this.evaluator = evaluator;
+        this.directory = directory;
     }
 
     @GET
@@ -106,8 +112,21 @@ public class MeResource {
                     .onFailure().recoverWithNull()
                     .flatMap(access -> access == null || !access.member()
                             ? Uni.createFrom().<OrganizationScopeDto>nullItem()
-                            : assembleScope(org, OrganizationRoleService.accessRole(access)));
+                            : signedIn(org, email, nativeMembership, access.alfrescoRole())
+                                    .flatMap(ignored -> assembleScope(org, OrganizationRoleService.accessRole(access))));
         });
+    }
+
+    /** Members are recorded on the top-level organization; a failure here never hides the organization. */
+    private Uni<Void> signedIn(Organization org, String email, Boolean nativeMembership, String alfrescoRole) {
+        if (org.parent != null) {
+            return Uni.createFrom().voidItem();
+        }
+        return directory.signedIn(org, email, Boolean.TRUE.equals(nativeMembership), alfrescoRole)
+                .onFailure().recoverWithItem(e -> {
+                    LOG.warnf("Could not record sign-in of %s in %s: %s", email, org.slug, e.getMessage());
+                    return null;
+                });
     }
 
     private Uni<OrganizationScopeDto> assembleScope(Organization org, String role) {

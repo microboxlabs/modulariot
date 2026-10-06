@@ -83,6 +83,7 @@ describe("filterSettings", () => {
 
     expect(settingsHrefs(filtered)).toEqual([
       "/users/settings/organizations",
+      "/users/settings/team",
       "/users/settings/symptoms",
       "/users/settings/selectables",
       "/users/settings/contact-book",
@@ -114,10 +115,10 @@ describe("filterSettings", () => {
   it("offers the learning workspace to trainers only", () => {
     const gates = { harness: true, platformOwner: true };
     expect(
-      settingsHrefs(filterSettings(pages, { ...gates, trainer: true })),
+      settingsHrefs(filterSettings(pages, { ...gates, trainer: true }))
     ).toContain("/harness/learning");
     expect(
-      settingsHrefs(filterSettings(pages, { ...gates, trainer: false })),
+      settingsHrefs(filterSettings(pages, { ...gates, trainer: false }))
     ).not.toContain("/harness/learning");
   });
 
@@ -129,7 +130,7 @@ describe("filterSettings", () => {
     });
 
     expect(filtered.map((page) => page.label)).toEqual(
-      pages.map((page) => page.label),
+      pages.map((page) => page.label)
     );
   });
 });

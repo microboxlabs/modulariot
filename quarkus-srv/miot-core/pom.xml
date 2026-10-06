@@ -59,6 +59,11 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-vertx</artifactId>
         </dependency>
+        <!-- The IAM projection worker (core.iam.AlfrescoBridge). -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-scheduler</artifactId>
+        </dependency>
         <!-- MCP endpoint for the tools in core.mcp; configured in miot-cli. -->
         <dependency>
             <groupId>io.quarkiverse.mcp</groupId>

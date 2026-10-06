@@ -59,6 +59,7 @@ public class IamInvitation extends PanacheEntityBase {
     public Instant updatedAt = Instant.now();
 
     public IamInvitation() {
+        // Required by JPA.
     }
 
     public List<String> roles() {

@@ -116,26 +116,30 @@ public class PlatformOrganizationsResource {
     @PATCH
     @Path("/{slug}/membership-source")
     @Operation(summary = "Switch a top-level organization between ALFRESCO and NATIVE membership")
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     public Uni<Response> setMembershipSource(@PathParam("slug") String slug, MembershipSourceRequest body) {
         return authorizer.requirePlatformOwner().flatMap(actor -> IamResponses.ok(() -> {
             String source = parseMembershipSource(body == null ? null : body.membershipSource());
             if (source == null) {
                 throw new IllegalArgumentException("membershipSource is required");
             }
-            return Panache.withTransaction(() -> Organization.findBySlug(slug).flatMap(org -> {
-                if (org == null) {
-                    throw new NoSuchElementException("Organization not found: " + slug);
-                }
-                if (org.parent != null) {
-                    throw new IllegalArgumentException("Set it on the top-level organization");
-                }
-                org.membershipSource = source;
-                return org.<Organization>persist()
-                        .flatMap(saved -> IamAuditEvent.of(org.id, actor, "membership-source", source, Map.of())
-                                .persist())
-                        .map(ignored -> Map.of("organization", org.slug, "membershipSource", source));
-            }));
+            return switchMembershipSource(slug, source, actor);
+        }));
+    }
+
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private static Uni<Map<String, String>> switchMembershipSource(String slug, String source, String actor) {
+        return Panache.withTransaction(() -> Organization.findBySlug(slug).flatMap(org -> {
+            if (org == null) {
+                throw new NoSuchElementException("Organization not found: " + slug);
+            }
+            if (org.parent != null) {
+                throw new IllegalArgumentException("Set it on the top-level organization");
+            }
+            org.membershipSource = source;
+            return org.<Organization>persist()
+                    .flatMap(saved -> IamAuditEvent.of(org.id, actor, "membership-source", source, Map.of())
+                            .persist())
+                    .map(ignored -> Map.of("organization", org.slug, "membershipSource", source));
         }));
     }
 

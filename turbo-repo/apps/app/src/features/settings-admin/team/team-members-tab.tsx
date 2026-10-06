@@ -5,7 +5,7 @@ import { Badge, Button, Select } from "flowbite-react";
 import { HiOutlineKey, HiOutlineTrash } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { assignableBaseRoles, labelOf } from "./team-model";
+import { BASE_ROLES, labelOf, NON_OWNER_ROLES } from "./team-model";
 import type { BaseRole, CatalogRole, TeamMember } from "./team.types";
 
 const CELL = "px-4 py-3 align-middle";
@@ -52,7 +52,7 @@ function BaseRoleCell({
       aria-label={tr("colRole", d)}
       onChange={(e) => onBaseRole(member, e.target.value as BaseRole)}
     >
-      {assignableBaseRoles(allowed.canManageOwners).map((role) => (
+      {(allowed.canManageOwners ? BASE_ROLES : NON_OWNER_ROLES).map((role) => (
         <option key={role} value={role}>
           {tr(`base${role}`, d)}
         </option>

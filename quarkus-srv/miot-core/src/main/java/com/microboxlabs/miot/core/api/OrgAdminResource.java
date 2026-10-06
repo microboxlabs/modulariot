@@ -80,30 +80,19 @@ public class OrgAdminResource {
     public Uni<Response> createChild(@PathParam("parentSlug") String parentSlug,
                                      CreateOrganizationRequest body) {
         validateCreatePayload(body);
-        String normalizedTaxId;
-        try {
-            normalizedTaxId = taxIdValidator.normalize(body.taxId());
-        } catch (InvalidTaxIdException e) {
-            throw new BadRequestException("Invalid tax id: " + e.getMessage());
-        }
+        String normalizedTaxId = normalizeCreateTaxId(body.taxId());
         String newSlug = body.slug().trim();
         String newName = body.name().trim();
         String newDisplayName = (body.displayName() == null || body.displayName().isBlank())
                 ? newName : body.displayName().trim();
-        String derivedGroupId = body.alfrescoGroupId() != null && !body.alfrescoGroupId().isBlank()
-                ? body.alfrescoGroupId().trim()
-                : "GROUP_" + newSlug.toUpperCase().replace('-', '_');
+        String derivedGroupId = groupIdFor(body.alfrescoGroupId(), newSlug);
 
         return Panache.withTransaction(() ->
                 Organization.findBySlug(parentSlug)
                         .flatMap(parent -> {
-                            if (parent == null) {
-                                return Uni.createFrom().failure(new NotFoundException(
-                                        "Parent organization not found: " + parentSlug));
-                            }
-                            if (parent.parent != null) {
-                                return Uni.createFrom().failure(new BadRequestException(
-                                        "Cannot nest sub-accounts beyond 2 levels"));
+                            Throwable refusal = parentRefusal(parent, parentSlug);
+                            if (refusal != null) {
+                                return Uni.createFrom().failure(refusal);
                             }
                             // A native organization's sub-accounts get no Alfresco group.
                             String groupId = evaluator.isNative(parent) ? null : derivedGroupId;
@@ -126,6 +115,32 @@ public class OrgAdminResource {
                 .map(org -> Response.status(Response.Status.CREATED)
                         .entity(OrganizationDto.from(org))
                         .build());
+    }
+
+    private String normalizeCreateTaxId(String taxId) {
+        try {
+            return taxIdValidator.normalize(taxId);
+        } catch (InvalidTaxIdException e) {
+            throw new BadRequestException("Invalid tax id: " + e.getMessage());
+        }
+    }
+
+    /** The requested Alfresco group, else one named after the slug. */
+    private static String groupIdFor(String requested, String slug) {
+        return requested != null && !requested.isBlank()
+                ? requested.trim()
+                : "GROUP_" + slug.toUpperCase().replace('-', '_');
+    }
+
+    /** Why a sub-account cannot be created under {@code parent}, or null when it can. */
+    private static Throwable parentRefusal(Organization parent, String parentSlug) {
+        if (parent == null) {
+            return new NotFoundException("Parent organization not found: " + parentSlug);
+        }
+        if (parent.parent != null) {
+            return new BadRequestException("Cannot nest sub-accounts beyond 2 levels");
+        }
+        return null;
     }
 
     @PATCH

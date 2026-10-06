@@ -26,10 +26,11 @@ import {
   useTeam,
 } from "./team-api";
 import {
-  assignableBaseRoles,
+  BASE_ROLES,
   catalogModules,
   effectivePermissions,
   initials,
+  NON_OWNER_ROLES,
   rolesByModule,
   sameRoles,
   selectedRoles,
@@ -311,11 +312,13 @@ function MemberHeader({
                 value={base}
                 onChange={(e) => onBase(e.target.value as BaseRole)}
               >
-                {assignableBaseRoles(canManageOwners).map((role) => (
-                  <option key={role} value={role}>
-                    {trDynamic(`base${role}`, d)}
-                  </option>
-                ))}
+                {(canManageOwners ? BASE_ROLES : NON_OWNER_ROLES).map(
+                  (role) => (
+                    <option key={role} value={role}>
+                      {trDynamic(`base${role}`, d)}
+                    </option>
+                  )
+                )}
               </Select>
             ) : (
               <Badge color="gray" size="sm" className="w-fit">

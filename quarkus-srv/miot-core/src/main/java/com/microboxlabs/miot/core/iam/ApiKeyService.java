@@ -30,6 +30,7 @@ import org.jboss.logging.Logger;
  * to it; it can never be Owner or Admin.
  */
 @ApplicationScoped
+@SuppressWarnings("java:S3252") // Reactive Panache generates finders and delete per entity.
 public class ApiKeyService {
 
     public static final String PREFIX = "miot_sk_";
@@ -71,6 +72,8 @@ public class ApiKeyService {
     private final AccessEvaluator evaluator;
     private final IamDirectory directory;
     private final TokenExchange tokens;
+    // Per bean, not static: a static SecureRandom would be built into the native image with a fixed seed.
+    private final SecureRandom random = new SecureRandom();
 
     @Inject
     public ApiKeyService(AccessEvaluator evaluator, IamDirectory directory, TokenExchange tokens) {
@@ -92,26 +95,33 @@ public class ApiKeyService {
         String keyId = m.group(1);
         String secretHash = sha256(m.group(2));
         Instant now = Instant.now();
-        return Panache.withTransaction(() -> IamApiKey.byKeyId(keyId).flatMap(key -> {
-            if (key == null || !key.usable(now)
-                    || !MessageDigest.isEqual(key.secretHash.getBytes(StandardCharsets.US_ASCII),
-                            secretHash.getBytes(StandardCharsets.US_ASCII))) {
+        return Panache.withTransaction(() -> IamApiKey.byKeyId(keyId).flatMap(key -> matches(key, secretHash, now)
+                ? holderOf(key, now)
+                : Uni.createFrom().<Holder>nullItem()))
+                .onFailure().recoverWithItem(e -> {
+                    LOG.warnf(e, "API key %s could not be checked", keyId);
+                    return null;
+                });
+    }
+
+    private static boolean matches(IamApiKey key, String secretHash, Instant now) {
+        return key != null && key.usable(now)
+                && MessageDigest.isEqual(key.secretHash.getBytes(StandardCharsets.US_ASCII),
+                        secretHash.getBytes(StandardCharsets.US_ASCII));
+    }
+
+    /** The key's enabled account as a holder, recording the key's last use at most every few minutes. */
+    private static Uni<Holder> holderOf(IamApiKey key, Instant now) {
+        return IamServiceAccount.<IamServiceAccount>findById(key.serviceAccountId).flatMap(account -> {
+            if (account == null || account.disabled) {
                 return Uni.createFrom().nullItem();
             }
-            return IamServiceAccount.<IamServiceAccount>findById(key.serviceAccountId).flatMap(account -> {
-                if (account == null || account.disabled) {
-                    return Uni.createFrom().nullItem();
-                }
-                Holder holder = new Holder(account.id, account.organizationId, account.name);
-                if (key.lastUsedAt != null && key.lastUsedAt.isAfter(now.minus(LAST_USED_RESOLUTION))) {
-                    return Uni.createFrom().item(holder);
-                }
-                key.lastUsedAt = now;
-                return key.<IamApiKey>persist().replaceWith(holder);
-            });
-        })).onFailure().recoverWithItem(e -> {
-            LOG.warnf(e, "API key %s could not be checked", keyId);
-            return null;
+            Holder holder = new Holder(account.id, account.organizationId, account.name);
+            if (key.lastUsedAt != null && key.lastUsedAt.isAfter(now.minus(LAST_USED_RESOLUTION))) {
+                return Uni.createFrom().item(holder);
+            }
+            key.lastUsedAt = now;
+            return key.<IamApiKey>persist().replaceWith(holder);
         });
     }
 
@@ -211,8 +221,8 @@ public class ApiKeyService {
     }
 
     private Uni<CreatedKey> newKey(UUID accountId, String name, Duration ttl, String actor) {
-        String keyId = random(12);
-        String secret = random(40);
+        String keyId = random(random, 12);
+        String secret = random(random, 40);
         IamApiKey key = new IamApiKey();
         key.id = UUID.randomUUID();
         key.serviceAccountId = accountId;
@@ -296,8 +306,7 @@ public class ApiKeyService {
         return Duration.ofDays(days);
     }
 
-    static String random(int length) {
-        SecureRandom random = new SecureRandom();
+    static String random(SecureRandom random, int length) {
         StringBuilder out = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
             out.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));

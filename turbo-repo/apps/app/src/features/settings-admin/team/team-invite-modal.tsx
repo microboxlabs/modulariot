@@ -9,8 +9,9 @@ import { InviteLinks, type InviteLink } from "./invite-links";
 import { ModuleRoleSelects } from "./module-role-selects";
 import { invite } from "./team-api";
 import {
-  assignableBaseRoles,
+  BASE_ROLES,
   invalidEmails,
+  NON_OWNER_ROLES,
   inviteLink,
   parseEmails,
   selectedRoles,
@@ -129,11 +130,13 @@ export function TeamInviteModal({
                 value={baseRole}
                 onChange={(e) => setBaseRole(e.target.value as BaseRole)}
               >
-                {assignableBaseRoles(canManageOwners).map((role) => (
-                  <option key={role} value={role}>
-                    {tr(`base${role}`, d)}
-                  </option>
-                ))}
+                {(canManageOwners ? BASE_ROLES : NON_OWNER_ROLES).map(
+                  (role) => (
+                    <option key={role} value={role}>
+                      {tr(`base${role}`, d)}
+                    </option>
+                  )
+                )}
               </Select>
             </div>
             <div className="flex flex-col gap-1">

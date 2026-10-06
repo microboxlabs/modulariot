@@ -29,6 +29,19 @@ interface AcceptInvitationProps {
   readonly d: I18nRecord;
 }
 
+/** Accepts the invitation and switches to the organization joined, if any. */
+async function accept(token: string): Promise<string | null> {
+  const { organization } = await acceptInvitation(token);
+  if (organization) {
+    try {
+      await switchOrganization(organization);
+    } catch {
+      // The invitation is accepted; the user can switch organization by hand.
+    }
+  }
+  return organization;
+}
+
 /**
  * Accepts the invitation in the link once the user is signed in, and makes
  * the organization joined the active one.
@@ -40,16 +53,11 @@ export function AcceptInvitation({ token, lang, d }: AcceptInvitationProps) {
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    acceptInvitation(token)
-      .then(async ({ organization }) => {
-        if (organization) {
-          await switchOrganization(organization).catch(() => undefined);
-        }
-        setState({ kind: "accepted", organization });
-      })
-      .catch((e: unknown) =>
+    void accept(token).then(
+      (organization) => setState({ kind: "accepted", organization }),
+      (e: unknown) =>
         setState({ kind: "failed", message: failureMessage(e, d) })
-      );
+    );
   }, [token, d]);
 
   return (

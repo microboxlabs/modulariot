@@ -17,7 +17,7 @@ final class IamResponses {
     }
 
     static Uni<Response> respond(Supplier<Uni<?>> call, Response.Status success) {
-        return Uni.createFrom().<Object>deferred(() -> call.get().map(body -> (Object) body))
+        return Uni.createFrom().<Object>deferred(() -> call.get().map(Object.class::cast))
                 .map(body -> body == null
                         ? Response.status(success).build()
                         : Response.status(success).entity(body).build())

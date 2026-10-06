@@ -134,31 +134,30 @@ public class IamDirectory {
      * membership, records the person as a member so the Team page lists them. Alfresco site and group managers are
      * recorded as Admin. Needs an open session.
      */
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     public Uni<Void> signedIn(Organization root, String email, boolean nativeMembership, String alfrescoRole) {
         Instant now = Instant.now();
-        return Panache.withTransaction(() -> IamUser.findOrCreate(email).flatMap(user -> {
-            Uni<IamUser> touched = user.lastSeenAt == null || user.lastSeenAt.isBefore(now.minus(SEEN_EVERY))
-                    ? touch(user, now)
-                    : Uni.createFrom().item(user);
-            if (nativeMembership || root.alfrescoGroupId == null) {
-                return touched.replaceWithVoid();
-            }
-            return touched.flatMap(u -> IamMembership.findOne(root.id, u.id)).flatMap(existing -> {
-                if (existing != null) {
-                    return Uni.createFrom().voidItem();
-                }
-                BaseRole base = alfrescoRole != null && AccessEvaluator.BOOTSTRAP_MANAGER_ROLES.contains(alfrescoRole)
-                        ? BaseRole.ADMIN : BaseRole.MEMBER;
-                return IamMembership.of(root.id, user.id, base.name(), "ALFRESCO", "alfresco").persist()
-                        .replaceWithVoid();
-            });
-        }));
+        boolean fromAlfresco = !nativeMembership && root.alfrescoGroupId != null;
+        return Panache.withTransaction(() -> IamUser.findOrCreate(email)
+                .flatMap(user -> seen(user, now))
+                .flatMap(user -> fromAlfresco
+                        ? recordAlfrescoMember(root, user, alfrescoRole)
+                        : Uni.createFrom().voidItem()));
     }
 
-    private static Uni<IamUser> touch(IamUser user, Instant now) {
+    private static Uni<IamUser> seen(IamUser user, Instant now) {
+        if (user.lastSeenAt != null && !user.lastSeenAt.isBefore(now.minus(SEEN_EVERY))) {
+            return Uni.createFrom().item(user);
+        }
         user.lastSeenAt = now;
         return user.persist();
+    }
+
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private static Uni<Void> recordAlfrescoMember(Organization root, IamUser user, String alfrescoRole) {
+        return IamMembership.findOne(root.id, user.id).flatMap(existing -> existing != null
+                ? Uni.createFrom().voidItem()
+                : IamMembership.of(root.id, user.id, AccessEvaluator.alfrescoBaseRole(alfrescoRole).name(),
+                        "ALFRESCO", "alfresco").persist().replaceWithVoid());
     }
 
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.

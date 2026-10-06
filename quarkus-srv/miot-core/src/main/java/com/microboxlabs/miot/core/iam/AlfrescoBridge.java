@@ -92,37 +92,46 @@ public class AlfrescoBridge {
         });
     }
 
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     private Uni<ImportResult> addAll(Organization org, List<AlfrescoPerson> people, String actor) {
         int[] added = {0};
         int[] existing = {0};
         Uni<Void> chain = Uni.createFrom().voidItem();
         for (AlfrescoPerson person : people) {
-            String email = IamUser.normalize(person.email() != null && !person.email().isBlank()
-                    ? person.email() : person.id());
-            if (email == null || !email.contains("@")) {
-                continue;
+            String email = emailOf(person);
+            if (email != null) {
+                chain = chain.flatMap(i -> importOne(org, person, email, actor)
+                        .invoke(isNew -> (isNew ? added : existing)[0]++)
+                        .replaceWithVoid());
             }
-            chain = chain.flatMap(i -> membership.getRole(email, org.alfrescoGroupId)
-                    .flatMap(role -> IamUser.findOrCreate(email).flatMap(user -> {
-                        if (person.displayName() != null && user.name == null) {
-                            user.name = person.displayName();
-                        }
-                        return user.<IamUser>persist();
-                    }).flatMap(user -> IamMembership.findOne(org.id, user.id).flatMap(m -> {
-                        if (m != null) {
-                            existing[0]++;
-                            return Uni.createFrom().voidItem();
-                        }
-                        added[0]++;
-                        BaseRole base = role != null && AccessEvaluator.BOOTSTRAP_MANAGER_ROLES.contains(role)
-                                ? BaseRole.ADMIN : BaseRole.MEMBER;
-                        return IamMembership.of(org.id, user.id, base.name(), "ALFRESCO", actor).persist()
-                                .replaceWithVoid();
-                    }))));
         }
         return chain.map(i -> new ImportResult(org.slug, org.alfrescoGroupId, people.size(), added[0],
                 existing[0]));
+    }
+
+    /** The person's email, from the email field or the user id; null when neither is an email. */
+    private static String emailOf(AlfrescoPerson person) {
+        String email = IamUser.normalize(person.email() != null && !person.email().isBlank()
+                ? person.email() : person.id());
+        return email != null && email.contains("@") ? email : null;
+    }
+
+    /** Adds the person as a member unless they already are; true when added. */
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private Uni<Boolean> importOne(Organization org, AlfrescoPerson person, String email, String actor) {
+        return membership.getRole(email, org.alfrescoGroupId)
+                .flatMap(role -> IamUser.findOrCreate(email)
+                        .flatMap(user -> named(user, person))
+                        .flatMap(user -> IamMembership.findOne(org.id, user.id).flatMap(m -> m != null
+                                ? Uni.createFrom().item(false)
+                                : IamMembership.of(org.id, user.id, AccessEvaluator.alfrescoBaseRole(role).name(),
+                                        "ALFRESCO", actor).persist().replaceWith(true))));
+    }
+
+    private static Uni<IamUser> named(IamUser user, AlfrescoPerson person) {
+        if (person.displayName() != null && user.name == null) {
+            user.name = person.displayName();
+        }
+        return user.persist();
     }
 
     // --- projection ---
@@ -137,7 +146,7 @@ public class AlfrescoBridge {
         return queue(organizationId, IamProjectionChange.MEMBER_REMOVED, email);
     }
 
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    @SuppressWarnings({"java:S1612", "java:S3252"}) // Reactive Panache: persist overloads; finders per entity.
     private Uni<Void> queue(Long organizationId, String kind, String email) {
         if (!projection || email == null) {
             return Uni.createFrom().voidItem();
@@ -158,7 +167,7 @@ public class AlfrescoBridge {
         if (!projection) {
             return Uni.createFrom().voidItem();
         }
-        return Panache.withSession(() -> IamProjectionChange.pending(50)).flatMap(changes -> {
+        return Panache.withSession(() -> IamProjectionChange.findPending(50)).flatMap(changes -> {
             Uni<Void> chain = Uni.createFrom().voidItem();
             for (IamProjectionChange change : changes) {
                 chain = chain.flatMap(i -> send(change));
@@ -172,13 +181,13 @@ public class AlfrescoBridge {
         return Uni.createFrom().deferred(() -> IamProjectionChange.MEMBER_ADDED.equals(change.kind)
                         ? groups.addGroupMember(change.groupId, change.subject)
                         : groups.removeGroupMember(change.groupId, change.subject))
-                .map(ok -> (String) null)
+                .<String>map(ok -> null)
                 .onFailure().recoverWithItem(e -> truncate(e.getMessage()))
-                .flatMap(error -> Panache.withTransaction(() -> record(change.id, error)));
+                .flatMap(error -> Panache.withTransaction(() -> recordOutcome(change.id, error)));
     }
 
     @SuppressWarnings({"java:S1612", "java:S3252"}) // Reactive Panache: persist overloads; finders per entity.
-    private static Uni<Void> record(Long id, String error) {
+    private static Uni<Void> recordOutcome(Long id, String error) {
         return IamProjectionChange.<IamProjectionChange>findById(id).flatMap(row -> {
             if (row == null) {
                 return Uni.createFrom().voidItem();

@@ -62,7 +62,7 @@ public class IamProjectionChange extends PanacheEntityBase {
         return c;
     }
 
-    public static Uni<List<IamProjectionChange>> pending(int limit) {
+    public static Uni<List<IamProjectionChange>> findPending(int limit) {
         return find("status = ?1 order by id", PENDING).page(0, limit).list();
     }
 

@@ -32,10 +32,13 @@ import java.util.UUID;
  * parent's. Endpoints check the permission first; this service applies {@link TeamRules} with the actor's access.
  */
 @ApplicationScoped
+@SuppressWarnings("java:S3252") // Reactive Panache generates finders and delete per entity.
 public class TeamService {
 
     static final Duration DEFAULT_INVITATION_TTL = Duration.ofDays(30);
     static final int MAX_INVITATION_DAYS = 90;
+    private static final String BASE_ROLE = "baseRole";
+    private static final String ROLES = "roles";
 
     public record MemberView(UUID userId, String email, String name, String baseRole, String status, String source,
             List<String> roles, Instant joinedAt, Instant lastSeenAt) {
@@ -68,6 +71,8 @@ public class TeamService {
     private final AccessEvaluator evaluator;
     private final IamDirectory directory;
     private final AlfrescoBridge bridge;
+    // Per bean, not static: a static SecureRandom would be built into the native image with a fixed seed.
+    private final SecureRandom random = new SecureRandom();
 
     @Inject
     public TeamService(AccessEvaluator evaluator, IamDirectory directory, AlfrescoBridge bridge) {
@@ -86,7 +91,10 @@ public class TeamService {
     }
 
     public Uni<MemberView> setBaseRole(String slug, Caller actor, UUID userId, BaseRoleRequest request) {
-        BaseRole next = baseRole(request == null ? null : request.baseRole());
+        if (request == null) {
+            throw new IllegalArgumentException("baseRole is required");
+        }
+        BaseRole next = baseRole(request.baseRole());
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 evaluator.evaluate(org, actor).flatMap(access -> membership(root.id, userId).flatMap(m ->
                         lockedOwnerCount(root.id).flatMap(owners -> {
@@ -124,7 +132,7 @@ public class TeamService {
                                             ? Uni.createFrom().voidItem()
                                             : bridge.memberRemoved(root.id, user.email))
                                     .flatMap(ignored -> directory.audit(root.id, actor.name(), "member.removed",
-                                            userId.toString(), Map.of("baseRole", m.baseRole)));
+                                            userId.toString(), Map.of(BASE_ROLE, m.baseRole)));
                         }))))));
     }
 
@@ -146,7 +154,7 @@ public class TeamService {
         Set<String> emails = new LinkedHashSet<>();
         for (String email : request.emails()) {
             String normalized = IamUser.normalize(email);
-            if (normalized == null || !normalized.matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+")) {
+            if (!isEmail(normalized)) {
                 throw new IllegalArgumentException("Not an email: " + email);
             }
             emails.add(normalized);
@@ -170,7 +178,7 @@ public class TeamService {
     public Uni<CreatedInvitation> resend(String slug, Caller actor, UUID invitationId) {
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 invitation(root.id, invitationId).flatMap(invitation -> {
-                    String token = newToken();
+                    String token = newToken(random);
                     invitation.tokenHash = hash(token);
                     invitation.expiresAt = Instant.now().plus(DEFAULT_INVITATION_TTL);
                     invitation.updatedAt = Instant.now();
@@ -230,6 +238,14 @@ public class TeamService {
 
     private Uni<AcceptedInvitation> accept(IamInvitation invitation, String email, String subject, String name) {
         Instant now = Instant.now();
+        String me = invitee(invitation, email, now);
+        return IamUser.findOrCreate(me)
+                .flatMap(user -> signedInAs(user, subject, name, now))
+                .flatMap(user -> join(invitation, user, me, now));
+    }
+
+    /** The caller's normalized email, when the invitation is open and addressed to it. */
+    private static String invitee(IamInvitation invitation, String email, Instant now) {
         if (invitation == null || !invitation.open(now)) {
             throw new NoSuchElementException("Invitation not found or expired");
         }
@@ -237,16 +253,22 @@ public class TeamService {
         if (me == null || !me.equals(IamUser.normalize(invitation.email))) {
             throw new SecurityException("This invitation is for another email");
         }
-        return IamUser.findOrCreate(me).flatMap(user -> {
-            if (subject != null && user.subject == null) {
-                user.subject = subject;
-            }
-            if (name != null && !name.isBlank()) {
-                user.name = name;
-            }
-            user.lastSeenAt = now;
-            return user.<IamUser>persist();
-        }).flatMap(user -> IamMembership.findOne(invitation.organizationId, user.id).flatMap(existing -> {
+        return me;
+    }
+
+    private static Uni<IamUser> signedInAs(IamUser user, String subject, String name, Instant now) {
+        if (subject != null && user.subject == null) {
+            user.subject = subject;
+        }
+        if (name != null && !name.isBlank()) {
+            user.name = name;
+        }
+        user.lastSeenAt = now;
+        return user.persist();
+    }
+
+    private Uni<AcceptedInvitation> join(IamInvitation invitation, IamUser user, String me, Instant now) {
+        return IamMembership.findOne(invitation.organizationId, user.id).flatMap(existing -> {
             BaseRole invited = BaseRole.valueOf(invitation.baseRole);
             IamMembership m = existing != null
                     ? existing
@@ -266,11 +288,11 @@ public class TeamService {
                         return invitation.<IamInvitation>persist();
                     })
                     .flatMap(ignored -> directory.audit(invitation.organizationId, me, "invitation.accepted", me,
-                            Map.of("baseRole", m.baseRole, "roles", invitation.roles())))
+                            Map.of(BASE_ROLE, m.baseRole, ROLES, invitation.roles())))
                     .flatMap(ignored -> view(invitation.organizationId, m))
                     .flatMap(member -> Organization.<Organization>findById(invitation.organizationId)
                             .map(org -> new AcceptedInvitation(org == null ? null : org.slug, member)));
-        }));
+        });
     }
 
     // --- helpers ---
@@ -288,7 +310,7 @@ public class TeamService {
                     return IamInvitation.pendingFor(root.id, email);
                 })
                 .flatMap(pending -> {
-                    String token = newToken();
+                    String token = newToken(random);
                     IamInvitation invitation = pending != null ? pending : new IamInvitation();
                     if (pending == null) {
                         invitation.id = UUID.randomUUID();
@@ -303,7 +325,7 @@ public class TeamService {
                     invitation.updatedAt = Instant.now();
                     return invitation.<IamInvitation>persist()
                             .flatMap(saved -> directory.audit(root.id, actor, "invitation.created", email,
-                                    Map.of("baseRole", base.name(), "roles", List.copyOf(roles))))
+                                    Map.of(BASE_ROLE, base.name(), ROLES, List.copyOf(roles))))
                             .map(ignored -> new CreatedInvitation(view(invitation, root.slug), token));
                 });
     }
@@ -315,7 +337,7 @@ public class TeamService {
                         IamRoleBinding.ORGANIZATION)
                 .flatMap(ignored -> addRoles(orgId, userId, List.copyOf(wanted), actor))
                 .flatMap(ignored -> directory.audit(orgId, actor, "member.roles", userId.toString(),
-                        Map.of("roles", List.copyOf(wanted))));
+                        Map.of(ROLES, List.copyOf(wanted))));
     }
 
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
@@ -441,9 +463,22 @@ public class TeamService {
         return Duration.ofDays(days);
     }
 
-    static String newToken() {
+    /** One {@code @}, no whitespace, and a dot inside the domain; checked without a backtracking pattern. */
+    static boolean isEmail(String value) {
+        if (value == null || value.chars().anyMatch(Character::isWhitespace)) {
+            return false;
+        }
+        int at = value.indexOf('@');
+        if (at <= 0 || at != value.lastIndexOf('@')) {
+            return false;
+        }
+        int dot = value.indexOf('.', at + 2);
+        return dot > 0 && dot < value.length() - 1;
+    }
+
+    static String newToken(SecureRandom random) {
         byte[] bytes = new byte[32];
-        new SecureRandom().nextBytes(bytes);
+        random.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 

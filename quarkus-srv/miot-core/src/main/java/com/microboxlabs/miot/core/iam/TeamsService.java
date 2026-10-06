@@ -27,6 +27,7 @@ import java.util.UUID;
  * team; a binding scoped to a sub-account applies to that sub-account only.
  */
 @ApplicationScoped
+@SuppressWarnings("java:S3252") // Reactive Panache generates finders and delete per entity.
 public class TeamsService {
 
     public record TeamView(UUID id, String name, String description, String source, List<UUID> members,
@@ -109,23 +110,33 @@ public class TeamsService {
                 ? List.of() : request.userIds());
         return Panache.withTransaction(() -> root(slug).flatMap(root -> team(root.id, teamId).flatMap(team ->
                 IamMembership.findByOrganization(root.id).flatMap(memberships -> {
-                    Set<UUID> members = new HashSet<>();
-                    memberships.forEach(m -> members.add(m.userId));
-                    for (UUID id : wanted) {
-                        if (!members.contains(id)) {
-                            throw new IllegalArgumentException("Not a member of the organization: " + id);
-                        }
-                    }
-                    return IamTeamMember.delete("id.teamId = ?1", team.id).flatMap(ignored -> {
-                        Uni<Void> chain = Uni.createFrom().voidItem();
-                        for (UUID id : wanted) {
-                            chain = chain.flatMap(i -> new IamTeamMember(team.id, id).persist().replaceWithVoid());
-                        }
-                        return chain;
-                    }).flatMap(ignored -> directory.audit(root.id, actor.name(), "team.members", team.name,
-                            Map.of("members", wanted.stream().map(UUID::toString).toList())))
+                    requireMembers(memberships, wanted);
+                    return replaceMembers(team, wanted)
+                            .flatMap(ignored -> directory.audit(root.id, actor.name(), "team.members", team.name,
+                                    Map.of("members", wanted.stream().map(UUID::toString).toList())))
                             .flatMap(ignored -> view(root.id, team));
                 }))));
+    }
+
+    private static void requireMembers(List<IamMembership> memberships, Set<UUID> wanted) {
+        Set<UUID> members = new HashSet<>();
+        memberships.forEach(m -> members.add(m.userId));
+        for (UUID id : wanted) {
+            if (!members.contains(id)) {
+                throw new IllegalArgumentException("Not a member of the organization: " + id);
+            }
+        }
+    }
+
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private static Uni<Void> replaceMembers(IamTeam team, Set<UUID> wanted) {
+        return IamTeamMember.delete("id.teamId = ?1", team.id).flatMap(ignored -> {
+            Uni<Void> chain = Uni.createFrom().voidItem();
+            for (UUID id : wanted) {
+                chain = chain.flatMap(i -> new IamTeamMember(team.id, id).persist().replaceWithVoid());
+            }
+            return chain;
+        });
     }
 
     /** Replaces the team's organization-wide roles in one transaction. Sub-account bindings stay. */
@@ -170,8 +181,20 @@ public class TeamsService {
                 }))));
     }
 
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     public Uni<BindingView> bind(String slug, Caller actor, BindingRequest request) {
+        String kind = principalKind(request);
+        UUID principal = uuid(request.principalId());
+        return Panache.withTransaction(() -> root(slug).flatMap(root -> evaluator.evaluate(slug, actor)
+                .flatMap(access -> {
+                    TeamRules.checkGrant(access, List.of(request.role()), evaluator.registry());
+                    return principalExists(root.id, kind, principal)
+                            .flatMap(ignored -> subAccount(root, request.subAccount()))
+                            .flatMap(sub -> saveBinding(root, kind, principal, request, sub, actor.name()));
+                })));
+    }
+
+    /** The request's principal kind, upper-cased; the request must name a principal and a role. */
+    private static String principalKind(BindingRequest request) {
         if (request == null || request.principalKind() == null || request.principalId() == null
                 || request.role() == null) {
             throw new IllegalArgumentException("principalKind, principalId and role are required");
@@ -180,29 +203,24 @@ public class TeamsService {
         if (!Set.of(IamRoleBinding.USER, IamRoleBinding.TEAM, IamRoleBinding.SERVICE_ACCOUNT).contains(kind)) {
             throw new IllegalArgumentException("principalKind must be USER, TEAM or SERVICE_ACCOUNT");
         }
-        UUID principal = uuid(request.principalId());
-        return Panache.withTransaction(() -> root(slug).flatMap(root -> evaluator.evaluate(slug, actor)
-                .flatMap(access -> {
-                    TeamRules.checkGrant(access, List.of(request.role()), evaluator.registry());
-                    return principalExists(root.id, kind, principal)
-                            .flatMap(ignored -> subAccount(root, request.subAccount()))
-                            .flatMap(sub -> {
-                                IamRoleBinding b = IamRoleBinding.of(root.id, kind, principal.toString(),
-                                        request.role(), actor.name());
-                                if (sub != null) {
-                                    b.scopeKind = IamRoleBinding.SUB_ACCOUNT;
-                                    b.scopeId = String.valueOf(sub.id);
-                                }
-                                b.expiresAt = request.expiresAt();
-                                return b.<IamRoleBinding>persist()
-                                        .flatMap(saved -> directory.audit(root.id, actor.name(), "binding.created",
-                                                kind + ":" + principal, Map.of("role", request.role(),
-                                                        "subAccount", sub == null ? "" : sub.slug)))
-                                        .map(ignored -> new BindingView(b.id, b.principalKind, b.principalId,
-                                                b.roleKey, b.scopeKind, sub == null ? null : sub.slug, b.expiresAt,
-                                                b.createdAt, b.createdBy));
-                            });
-                })));
+        return kind;
+    }
+
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private Uni<BindingView> saveBinding(Organization root, String kind, UUID principal, BindingRequest request,
+            Organization sub, String actor) {
+        IamRoleBinding b = IamRoleBinding.of(root.id, kind, principal.toString(), request.role(), actor);
+        if (sub != null) {
+            b.scopeKind = IamRoleBinding.SUB_ACCOUNT;
+            b.scopeId = String.valueOf(sub.id);
+        }
+        b.expiresAt = request.expiresAt();
+        String subSlug = sub == null ? null : sub.slug;
+        return b.<IamRoleBinding>persist()
+                .flatMap(saved -> directory.audit(root.id, actor, "binding.created", kind + ":" + principal,
+                        Map.of("role", request.role(), "subAccount", subSlug == null ? "" : subSlug)))
+                .map(ignored -> new BindingView(b.id, b.principalKind, b.principalId, b.roleKey, b.scopeKind,
+                        subSlug, b.expiresAt, b.createdAt, b.createdBy));
     }
 
     public Uni<Void> unbind(String slug, Caller actor, UUID bindingId) {

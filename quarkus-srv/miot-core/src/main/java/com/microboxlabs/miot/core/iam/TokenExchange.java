@@ -38,6 +38,7 @@ public class TokenExchange {
      * @throws SecurityException when the caller is not a service account, or it is disabled or gone
      * @throws IllegalStateException when the account has no linked credential
      */
+    @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
     public Uni<IssuedToken> exchange(Caller caller) {
         if (caller == null || !caller.isServiceAccount()) {
             return Uni.createFrom().failure(new SecurityException("Authenticate with an API key"));

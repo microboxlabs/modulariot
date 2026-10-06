@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   activeKeyCount,
-  assignableBaseRoles,
   basePermissions,
+  BASE_ROLES,
   catalogModules,
   effectivePermissions,
   expiryDays,
@@ -15,6 +15,7 @@ import {
   labelOf,
   lastKeyUse,
   matrixColumns,
+  NON_OWNER_ROLES,
   memberLabels,
   parseEmails,
   permissionsByModule,
@@ -161,8 +162,8 @@ describe("emails", () => {
 
 describe("role selection", () => {
   it("offers Owner only with owners:manage", () => {
-    expect(assignableBaseRoles(false)).toEqual(["ADMIN", "MEMBER"]);
-    expect(assignableBaseRoles(true)).toEqual(["OWNER", "ADMIN", "MEMBER"]);
+    expect(NON_OWNER_ROLES).toEqual(["ADMIN", "MEMBER"]);
+    expect(BASE_ROLES).toEqual(["OWNER", "ADMIN", "MEMBER"]);
   });
 
   it("maps held roles to one per module and back", () => {

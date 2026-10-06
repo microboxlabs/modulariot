@@ -2,7 +2,6 @@ import type {
   AccessCatalog,
   ApiKey,
   BaseRole,
-  Binding,
   CatalogModule,
   CatalogPermission,
   CatalogRole,
@@ -98,16 +97,22 @@ export function parseEmails(text: string): string[] {
   return out;
 }
 
-const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+/** One "@", something before it, and a dot inside the domain; no spaces. */
+function isEmail(text: string): boolean {
+  const at = text.indexOf("@");
+  if (at < 1 || at !== text.lastIndexOf("@") || /\s/.test(text)) return false;
+  const dot = text.lastIndexOf(".");
+  return dot > at + 1 && dot < text.length - 1;
+}
 
 export function invalidEmails(emails: readonly string[]): string[] {
-  return emails.filter((e) => !EMAIL.test(e));
+  return emails.filter((e) => !isEmail(e));
 }
 
-/** The base roles the caller may give: Owner only with owners:manage. */
-export function assignableBaseRoles(canManageOwners: boolean): BaseRole[] {
-  return canManageOwners ? BASE_ROLES : BASE_ROLES.filter((r) => r !== "OWNER");
-}
+/** The base roles a caller without owners:manage may give. */
+export const NON_OWNER_ROLES: BaseRole[] = BASE_ROLES.filter(
+  (r) => r !== "OWNER"
+);
 
 /** One chosen role per module (or none) flattened to the role keys sent. */
 export function selectedRoles(byModule: Record<string, string>): string[] {

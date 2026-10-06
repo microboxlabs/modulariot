@@ -5,8 +5,13 @@ import { auth } from "./auth";
 // Type for Next.js middleware to avoid phantom dependency type inference issues
 type NextMiddlewareFunction = (
   request: NextRequest,
-  event: NextFetchEvent,
-) => NextResponse | Response | Promise<NextResponse | Response> | null | undefined;
+  event: NextFetchEvent
+) =>
+  | NextResponse
+  | Response
+  | Promise<NextResponse | Response>
+  | null
+  | undefined;
 import { getLocaleFromHeaders } from "./features/i18n/i18n.service";
 import { locales } from "./features/i18n/tr.service";
 import {
@@ -14,6 +19,7 @@ import {
   defaultServiceTypeFor,
 } from "./features/layout/services/kanban-default-filters";
 import { createManagedLogger } from "./lib/logger";
+import { homePath } from "@/features/common/providers/alfresco-api/ecm-config";
 // import { logger } from "./lib/logger";
 // import {
 //   buildAccessLogFields,
@@ -78,7 +84,7 @@ const middleware = auth(async function middleware(request: NextRequest) {
   }
 
   if (/^\/[a-z]{0,2}\/{0,1}$/.test(pathname)) {
-    pathname = "/shipping";
+    pathname = homePath();
   }
 
   // const startTime = Date.now();

@@ -7,7 +7,11 @@ import {
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getDomainBranding } from "@/features/branding/domain-branding.service";
 import type { UserSiteResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
-import { handleApiError, unauthorizedResponse } from "@/app/api/utils/api-error-handler";
+import {
+  handleApiError,
+  unauthorizedResponse,
+} from "@/app/api/utils/api-error-handler";
+import { isEcmConfigured } from "@/features/common/providers/alfresco-api/ecm-config";
 
 export async function GET() {
   const session = await auth();
@@ -17,7 +21,7 @@ export async function GET() {
 
   try {
     // Get user's sites
-    const sites = await getUserSites(session);
+    const sites = isEcmConfigured() ? await getUserSites(session) : [];
 
     // Per-domain logo, used when the site has no branding of its own. A domain
     // that ships only one logo uses it on both grounds, which is what this

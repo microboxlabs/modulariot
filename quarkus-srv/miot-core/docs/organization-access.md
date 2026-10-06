@@ -43,6 +43,17 @@ Sign-in proves who the user is; there is no sign-up. A user with no organization
 
 An invitation names an email, a base role and optional module roles. It lasts 30 days by default, 90 at most. The link `/app/{lang}/invite/{token}` is shown once; only the token's SHA-256 is stored. The invitee must sign in with the invited email. One pending invitation per email and organization. Native organizations only.
 
+### Emailing the link
+
+Creating or resending an invitation emails the link, in the request's `lang` (`es` default, or `en`). The email goes through the organization's `RESEND` connection, else through the platform organization's. The link is still returned once, so the admin can copy it when the email was not sent.
+
+| Setting | Purpose |
+|---|---|
+| `miot.app.public-url` | The app's public address including its base path, e.g. `https://app.example.com/app`. Without it no email is sent. |
+| `miot.mail.platform-organization` | Slug of the organization whose `RESEND` connection sends for organizations without their own. Optional. |
+
+Each created invitation carries `delivery`: `SENT` (the provider accepted it), `FAILED` (with `detail`), or `NOT_CONFIGURED`. Emails are sent after the invitation is saved; a failed email does not undo the invitation. Resend again to retry. See `miot-integrations/docs/email-channel.md`.
+
 ## Organization settings
 
 | Action | Permission, on the top-level organization |
@@ -122,7 +133,7 @@ To keep the Alfresco group in step afterwards (BPM pooled tasks, document permis
 | `GET`, `PUT /api/v1/orgs/{org}/roles/{roleCode}` | Owner or Admin (Owner for `ORGANIZATION_OWNER`) | Who holds a role; replace them |
 | `GET`, `PATCH`, `DELETE /api/v1/orgs/{org}/team/members[/{userId}]` | `members:read`, `members:update`, `members:remove` | List members; change base role; remove |
 | `PUT /api/v1/orgs/{org}/team/members/{userId}/roles` | `members:update` | Replace a member's module roles |
-| `GET`, `POST`, `DELETE /api/v1/orgs/{org}/team/invitations[/{id}]`, `POST .../{id}/resend` | `members:invite` (`members:read` to list) | Manage invitations |
+| `GET`, `POST`, `DELETE /api/v1/orgs/{org}/team/invitations[/{id}]`, `POST .../{id}/resend?lang=` | `members:invite` (`members:read` to list) | Manage invitations |
 | `GET /api/v1/me/invitations`, `POST .../accept`, `POST .../{id}/accept` | signed in | The caller's pending invitations; accept by token or id |
 | `/api/v1/orgs/{org}/team/teams[/{teamId}[/members]]` | `teams:manage` (`members:read` to list) | Teams and their members |
 | `/api/v1/orgs/{org}/team/bindings[/{bindingId}]` | `members:update` (`members:read` to list) | Role bindings, optionally scoped to a sub-account |

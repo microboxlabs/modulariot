@@ -78,7 +78,9 @@ public class OrganizationRequestFilter {
         String email = OrganizationAccess.email(securityIdentity);
         if (email != null) return email;
         // Dev-only impersonation header — distinct from the org-slug header
-        return requestContext.getHeaderString("X-Dev-User-Email");
+        return IamIdentityAugmentor.devHeaderAllowed()
+                ? requestContext.getHeaderString(IamIdentityAugmentor.DEV_EMAIL_HEADER)
+                : null;
     }
 
     private String resolveM2mClientId() {

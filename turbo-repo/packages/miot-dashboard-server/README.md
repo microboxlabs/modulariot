@@ -835,7 +835,7 @@ schemas, server-side credentials, bounded upstream reads and datasource cost lim
 Editors' literal bindings are not trusted tenant predicates. Defaults: 8 concurrent
 operations, 20 seconds, 5,000 rows and 2 MiB JSON. Cancellation-ignoring adapters
 retain their slot until they settle. See the
-[query integration guide](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/apps/docs/content/en/operations/dashboard-server/queries.mdx)
+[queries and connections guide](https://docs.modulariot.com/en/products/dashboards/concepts/queries-and-connections)
 for the contract and configurable limits.
 
 ## Embedded request limits

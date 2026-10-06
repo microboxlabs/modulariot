@@ -1,0 +1,142 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Kubernetes with Helm
+
+The `miot-dashboard-server` chart deploys the server with a persistent volume, probes, a hardened security context, and secrets for every sensitive value.
+
+<Steps>
+
+### Add the chart repository
+
+```bash
+helm repo add microboxlabs https://microboxlabs.github.io/helm-charts
+helm repo update
+helm search repo microboxlabs/miot-dashboard-server
+```
+
+### Create the secrets
+
+Keep secrets out of `values.yaml`. Create them first and reference them by name:
+
+```bash
+kubectl create namespace dashboards
+kubectl -n dashboards create secret generic dashboards-credentials-key \
+  --from-literal=MIOT_DASHBOARD_CREDENTIALS_KEY="$(openssl rand -base64 32)"
+```
+
+### Write `values.yaml`
+
+```yaml filename="values.yaml"
+image:
+  tag: sha-6fb37c8
+  pullPolicy: IfNotPresent
+
+auth:
+  jwt:
+    issuer: https://your-company.auth0.com/
+    audience: miot-dashboards
+    jwksUrl: https://your-company.auth0.com/.well-known/jwks.json
+    claims:
+      user: email
+
+store:
+  kind: sqlite
+
+persistence:
+  enabled: true
+  size: 1Gi
+
+seed:
+  path: /data/seed.json
+
+docs: true
+
+extraEnvFrom:
+  - secretRef:
+      name: dashboards-credentials-key
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: dashboards.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: dashboards-tls
+      hosts: [dashboards.example.com]
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { memory: 512Mi }
+```
+
+### Install
+
+```bash
+helm install dashboards microboxlabs/miot-dashboard-server \
+  --namespace dashboards --values values.yaml
+kubectl -n dashboards rollout status deploy/dashboards-miot-dashboard-server
+```
+
+### Check it
+
+```bash
+kubectl -n dashboards logs deploy/dashboards-miot-dashboard-server | head
+kubectl -n dashboards port-forward svc/dashboards-miot-dashboard-server 3070:3070
+curl http://127.0.0.1:3070/readyz
+```
+
+</Steps>
+
+## What the chart creates
+
+| Object | Notes |
+| --- | --- |
+| Deployment | One replica, `Recreate` strategy, so two pods never write one SQLite file |
+| PersistentVolumeClaim | `ReadWriteOnce`, mounted at `/data` |
+| Service | `ClusterIP` on port 3070 |
+| Secret | Only for values you pass as literals. Prefer `existingSecret`. |
+| Ingress | Optional |
+| ServiceAccount | Optional |
+
+The pod runs as UID 1001 with a read-only root filesystem, no privilege escalation, and all capabilities dropped. Liveness uses `/livez`, readiness `/readyz`.
+
+## Scaling
+
+<Callout type="warning">
+With `store.kind: sqlite`, keep `replicaCount: 1`. To run more replicas, switch to PostgreSQL with a derived image that includes `pg` (see [Docker](/en/products/dashboards/deployment/docker#add-postgresql-or-cloud-storage)), and set `persistence.enabled: false` with documents in the database (`documents.kind: inline`) or in S3 or Google Cloud Storage.
+</Callout>
+
+```yaml
+replicaCount: 2
+strategy:
+  type: RollingUpdate
+image:
+  repository: registry.example.com/miot-dashboard-server-pg
+  tag: "1.0.0"
+store:
+  kind: postgres
+  postgres:
+    existingSecret: dashboards-postgres
+    existingSecretKey: url
+documents:
+  kind: inline
+persistence:
+  enabled: false
+```
+
+Several servers can start at once against one PostgreSQL database. Migrations take a lock, so they do not collide.
+
+## Settings the chart does not name
+
+Any setting without a chart value goes in `extraEnv` or `extraEnvFrom`, for example the credential key, the query module or the CORS settings for a browser on another domain:
+
+```yaml
+extraEnv:
+  - name: MIOT_DASHBOARD_OPERATIONS_MODULE
+    value: /app/examples/modulariot-operations.mjs
+```
+
+Every chart value is listed in [Helm values](/en/products/dashboards/reference/helm-values).

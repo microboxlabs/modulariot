@@ -1,0 +1,89 @@
+import { Callout, Tabs } from 'nextra/components'
+
+# Compartir y definir permisos
+
+Quién puede ver un dashboard depende de dos cosas:
+
+1. **El rol en el ámbito.** Cada persona en un ámbito tiene un rol ahí: Consumer, Contributor, Editor o Coordinator. Lo decide su proveedor de identidad o su servicio de membresías.
+2. **Los permisos del dashboard.** Un dashboard puede dar roles adicionales a personas o grupos con nombre. Se suman al rol en el ámbito; nunca lo quitan.
+
+Para compartir un dashboard con alguien fuera del acceso normal del ámbito, agregue un permiso del dashboard. Necesita el rol **Coordinator**, o el derecho de gestionar permisos en ese dashboard.
+
+| Rol | Puede |
+| --- | --- |
+| Consumer | Ver el dashboard y usar sus filtros |
+| Contributor | Ver; crear dashboards; editar los dashboards que creó |
+| Editor | Editar y compartir cualquier dashboard |
+| Coordinator | Todo, incluido eliminar y gestionar permisos |
+
+<Tabs items={['En la aplicación web', 'Con la API']}>
+<Tabs.Tab>
+
+1. Abra el dashboard. Abra el menú de ajustes (el engranaje) y seleccione **Gestionar permisos**.
+2. En **ID de autoridad**, escriba el ID exacto del usuario o grupo que usa su proveedor de identidad. La ortografía y las mayúsculas deben coincidir; el formulario no busca en un directorio.
+3. Elija un **Rol** y agréguelo a la lista.
+4. Revise la lista completa, luego seleccione **Guardar cambios** y confirme.
+
+Guardar reemplaza la lista del dashboard por la que se ve en pantalla. Después de guardar, la lista se vuelve a cargar desde el servidor. Si el guardado falla, seleccione **Recargar permisos** antes de intentarlo de nuevo: el guardado puede haber funcionado antes de que fallara la recarga.
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+Lea la lista actual:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://dashboards.example.com/tenants/acme/scopes/ops/dashboards/sales/permissions
+```
+
+```json
+{"assignments":[{"authorityId":"connie","role":"Editor"}]}
+```
+
+Reemplácela:
+
+```bash
+curl -X PUT https://dashboards.example.com/tenants/acme/scopes/ops/dashboards/sales/permissions \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"assignments":[{"authorityId":"connie","role":"Editor"},{"authorityId":"ops-team","role":"Consumer"}]}'
+```
+
+El `PUT` reemplaza todas las asignaciones. Para agregar una, lea la lista, agréguela y envíe la lista completa.
+
+</Tabs.Tab>
+</Tabs>
+
+## Verificar qué puede hacer alguien
+
+`GET .../dashboards/{slug}/capabilities` responde para la persona que lo llama:
+
+```json
+{"readOnly":false,"canEdit":true,"canShare":true,"canManagePermissions":false,"canDelete":false}
+```
+
+Úselo para decidir qué botones mostrar. El servidor vuelve a verificar en cada solicitud, así que ocultar un botón es una comodidad, no un control.
+
+## Restringir un dashboard a grupos
+
+El campo del documento `allowedGroups` limita un dashboard a los miembros de grupos con nombre:
+
+```json
+{ "allowedGroups": ["finance", "auditors"] }
+```
+
+| `allowedGroups` | Quién puede verlo |
+| --- | --- |
+| Ausente, `null` o `[]` | Cualquiera con acceso al ámbito |
+| `["finance", "auditors"]` | Solo las personas que están en al menos uno de esos grupos |
+| Cualquier otro valor | Nadie. Un valor mal formado nunca abre el acceso. |
+
+Los grupos vienen del proveedor de identidad: defina `MIOT_DASHBOARD_JWT_GROUPS_CLAIM` para JWT o `MIOT_DASHBOARD_TICKET_GROUPS_PATH` para tickets. Sin una fuente de grupos, los dashboards restringidos permanecen ocultos.
+
+<Callout type="info">
+Quitar un permiso del dashboard no quita el acceso que la persona tiene por su rol en el ámbito, ni por ser quien creó el dashboard.
+</Callout>
+
+## Relacionado
+
+- [Organizaciones, ámbitos y roles](/es/products/dashboards/concepts/access-model)
+- [Autenticar usuarios](/es/products/dashboards/how-to/authenticate-users)

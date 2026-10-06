@@ -1,0 +1,39 @@
+# Choose a setup
+
+There are three ways to use Dashboards. They differ in who signs people in, where credentials live, and how much you build yourself.
+
+| Setup | Pick it when | Sign-in | Credentials | You build |
+| --- | --- | --- | --- | --- |
+| **ModularIoT web app** | Your team already uses ModularIoT | ModularIoT | ModularIoT connections | Nothing |
+| **Standalone server** | You want dashboards in your own product, without ModularIoT | Your identity provider (JWT) | The server's database, encrypted | The page that shows the dashboards |
+| **Library in your backend** | You already run a Node.js backend and want one process | Your code | Your code | Adapters for identity, storage and data |
+
+## ModularIoT web app
+
+Dashboards is part of the web app. An administrator turns it on, and people open **Dashboards** in the navigation. Data comes from the organization's connections, which administrators manage on the connections screen.
+
+- Start with [Build your first dashboard](/en/products/dashboards/tutorials/first-dashboard).
+- Operators read [Deploy with ModularIoT](/en/products/dashboards/deployment/with-modulariot).
+
+## Standalone server
+
+Run the server next to your product with npm, Docker or Helm. Your identity provider signs people in; the server checks their tokens and decides what they can do. Your web page uses the UI library to draw dashboards.
+
+- Try it with the [Quickstart](/en/products/dashboards/getting-started/quickstart).
+- Then follow [Embed a dashboard in a web page](/en/products/dashboards/tutorials/embed-in-a-web-page).
+- Set up sign-in with [Authenticate users](/en/products/dashboards/how-to/authenticate-users).
+- Deploy with [Docker](/en/products/dashboards/deployment/docker) or [Kubernetes](/en/products/dashboards/deployment/kubernetes).
+
+## Library in your backend
+
+Mount the server's request handler in your own Node.js backend, for example in a Next.js route. You implement a few interfaces: who is calling, which organizations and scopes they belong to, and where dashboards are stored. The access rules stay the same.
+
+- Read [Server library](/en/products/dashboards/reference/server-library).
+
+## What stays the same
+
+Whichever setup you pick:
+
+- The dashboard document is the same, so a dashboard exported from one setup imports into another.
+- Every request is checked in the same order: identity, organization, scope, then the action.
+- The browser never receives a credential, a data URL or SQL.

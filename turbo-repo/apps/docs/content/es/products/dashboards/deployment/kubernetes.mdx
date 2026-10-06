@@ -1,0 +1,142 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Kubernetes con Helm
+
+El chart `miot-dashboard-server` despliega el servidor con un volumen persistente, probes, un contexto de seguridad reforzado y secretos para cada valor sensible.
+
+<Steps>
+
+### Agregar el repositorio del chart
+
+```bash
+helm repo add microboxlabs https://microboxlabs.github.io/helm-charts
+helm repo update
+helm search repo microboxlabs/miot-dashboard-server
+```
+
+### Crear los secretos
+
+No ponga secretos en `values.yaml`. Créelos primero y haga referencia a ellos por nombre:
+
+```bash
+kubectl create namespace dashboards
+kubectl -n dashboards create secret generic dashboards-credentials-key \
+  --from-literal=MIOT_DASHBOARD_CREDENTIALS_KEY="$(openssl rand -base64 32)"
+```
+
+### Escribir `values.yaml`
+
+```yaml filename="values.yaml"
+image:
+  tag: sha-6fb37c8
+  pullPolicy: IfNotPresent
+
+auth:
+  jwt:
+    issuer: https://your-company.auth0.com/
+    audience: miot-dashboards
+    jwksUrl: https://your-company.auth0.com/.well-known/jwks.json
+    claims:
+      user: email
+
+store:
+  kind: sqlite
+
+persistence:
+  enabled: true
+  size: 1Gi
+
+seed:
+  path: /data/seed.json
+
+docs: true
+
+extraEnvFrom:
+  - secretRef:
+      name: dashboards-credentials-key
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: dashboards.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: dashboards-tls
+      hosts: [dashboards.example.com]
+
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits: { memory: 512Mi }
+```
+
+### Instalar
+
+```bash
+helm install dashboards microboxlabs/miot-dashboard-server \
+  --namespace dashboards --values values.yaml
+kubectl -n dashboards rollout status deploy/dashboards-miot-dashboard-server
+```
+
+### Verificar
+
+```bash
+kubectl -n dashboards logs deploy/dashboards-miot-dashboard-server | head
+kubectl -n dashboards port-forward svc/dashboards-miot-dashboard-server 3070:3070
+curl http://127.0.0.1:3070/readyz
+```
+
+</Steps>
+
+## Qué crea el chart
+
+| Objeto | Notas |
+| --- | --- |
+| Deployment | Una réplica, estrategia `Recreate`, para que dos pods nunca escriban en un mismo archivo SQLite |
+| PersistentVolumeClaim | `ReadWriteOnce`, montado en `/data` |
+| Service | `ClusterIP` en el puerto 3070 |
+| Secret | Solo para valores que usted pasa como literales. Prefiera `existingSecret`. |
+| Ingress | Opcional |
+| ServiceAccount | Opcional |
+
+El pod se ejecuta como UID 1001 con un sistema de archivos raíz de solo lectura, sin escalamiento de privilegios y con todas las capabilities eliminadas. La probe de liveness usa `/livez` y la de readiness `/readyz`.
+
+## Escalamiento
+
+<Callout type="warning">
+Con `store.kind: sqlite`, mantenga `replicaCount: 1`. Para ejecutar más réplicas, cambie a PostgreSQL con una imagen derivada que incluya `pg` (consulte [Docker](/es/products/dashboards/deployment/docker#agregar-postgresql-o-almacenamiento-en-la-nube)) y configure `persistence.enabled: false` con los documentos en la base de datos (`documents.kind: inline`) o en S3 o Google Cloud Storage.
+</Callout>
+
+```yaml
+replicaCount: 2
+strategy:
+  type: RollingUpdate
+image:
+  repository: registry.example.com/miot-dashboard-server-pg
+  tag: "1.0.0"
+store:
+  kind: postgres
+  postgres:
+    existingSecret: dashboards-postgres
+    existingSecretKey: url
+documents:
+  kind: inline
+persistence:
+  enabled: false
+```
+
+Varios servidores pueden iniciar a la vez contra una misma base de datos PostgreSQL. Las migraciones toman un bloqueo, así que no chocan entre sí.
+
+## Configuraciones que el chart no nombra
+
+Cualquier configuración sin un valor en el chart va en `extraEnv` o `extraEnvFrom`; por ejemplo, la clave de credenciales, el módulo de consultas o la configuración de CORS para un navegador en otro dominio:
+
+```yaml
+extraEnv:
+  - name: MIOT_DASHBOARD_OPERATIONS_MODULE
+    value: /app/examples/modulariot-operations.mjs
+```
+
+Todos los valores del chart están en [Valores de Helm](/es/products/dashboards/reference/helm-values).

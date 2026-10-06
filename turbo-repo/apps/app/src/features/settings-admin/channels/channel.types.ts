@@ -33,8 +33,8 @@ export interface ConnectionTestResult {
 export interface ChannelCreate {
   name: string;
   baseUrl: string;
-  token: string;
-  credentialName: string;
+  token?: string;
+  credentialName?: string;
   /** Non-secret config for the new credential, e.g. a provider tag. */
   credentialPublicConfig?: Record<string, unknown>;
   credentialProfileId?: string;

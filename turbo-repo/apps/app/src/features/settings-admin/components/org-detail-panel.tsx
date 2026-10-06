@@ -16,6 +16,8 @@ import type { OrgSummary } from "../types";
 interface OrgDetailPanelProps {
   readonly organization: OrgSummary | null;
   readonly dict: I18nRecord;
+  /** Settings › Credentials text, for the credential forms the channel cards open. */
+  readonly credentialsDict?: I18nRecord;
 }
 
 /**
@@ -26,6 +28,7 @@ interface OrgDetailPanelProps {
 export default function OrgDetailPanel({
   organization,
   dict,
+  credentialsDict = {},
 }: OrgDetailPanelProps) {
   const orgSlug = organization?.slug ?? null;
   const {
@@ -85,7 +88,11 @@ export default function OrgDetailPanel({
       {isOwner && (
         <>
           <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
-          <EmailChannelCard orgSlug={orgSlug} dict={dict} />
+          <EmailChannelCard
+            orgSlug={orgSlug}
+            dict={dict}
+            credentialsDict={credentialsDict}
+          />
           <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
         </>
       )}

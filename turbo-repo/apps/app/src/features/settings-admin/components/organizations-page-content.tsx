@@ -81,7 +81,11 @@ export default function OrganizationsPageContent({
             onSelect={setSelectedSlug}
             dict={orgsDict}
           />
-          <OrgDetailPanel organization={selectedOrganization} dict={orgsDict} />
+          <OrgDetailPanel
+            organization={selectedOrganization}
+            dict={orgsDict}
+            credentialsDict={dict?.credentials as I18nRecord}
+          />
         </div>
       </div>
     </div>

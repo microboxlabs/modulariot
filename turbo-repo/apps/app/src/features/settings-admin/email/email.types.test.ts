@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   EmailConnectionSchema,
-  EmailEditSchema,
   emailCreate,
   emailToForm,
   emailUpdate,
   isSender,
-  NEW_KEY,
   RESEND_BASE_URL,
 } from "./email.types";
 import type { IntegrationConnection } from "../channels/channel.types";
@@ -25,56 +23,36 @@ describe("isSender", () => {
   });
 });
 
-describe("email connection forms", () => {
+describe("email connection form", () => {
   const form = {
     name: "Correo",
     from: " Team <no-reply@example.test> ",
     baseUrl: RESEND_BASE_URL,
-    credentialId: NEW_KEY,
-    token: "re_123",
+    credentialId: "cred-1",
   };
 
-  it("needs an API key to create, not to edit", () => {
+  it("needs a Resend credential", () => {
+    expect(EmailConnectionSchema.safeParse(form).success).toBe(true);
     expect(
-      EmailConnectionSchema.safeParse({ ...form, token: "" }).success
+      EmailConnectionSchema.safeParse({ ...form, credentialId: "" }).success
     ).toBe(false);
-    expect(EmailEditSchema.safeParse({ ...form, token: "" }).success).toBe(
-      true
-    );
   });
 
-  it("saves a new key as a Resend credential, or links a stored one", () => {
+  it("links the chosen credential and keeps the sender as metadata", () => {
     expect(emailCreate(form)).toEqual({
       name: "Correo",
       baseUrl: RESEND_BASE_URL,
-      token: "re_123",
-      credentialName: "Resend · Team <no-reply@example.test>",
-      credentialPublicConfig: { provider: "resend" },
+      credentialProfileId: "cred-1",
       metadata: { from: "Team <no-reply@example.test>" },
     });
-    expect(
-      emailCreate({ ...form, credentialId: "cred-1", token: "" })
-        .credentialProfileId
-    ).toBe("cred-1");
-    expect(
-      EmailConnectionSchema.safeParse({
-        ...form,
-        credentialId: "cred-1",
-        token: "",
-      }).success
-    ).toBe(true);
   });
 
-  it("swaps the credential, or rotates the key of the current one", () => {
-    const swap = emailUpdate({ ...form, credentialId: "cred-2" }, "cred-1");
-    expect(swap.credentialProfileId).toBe("cred-2");
-    expect(swap.token).toBeUndefined();
-    const rotate = emailUpdate({ ...form, credentialId: "cred-1" }, "cred-1");
-    expect(rotate.credentialProfileId).toBeUndefined();
-    expect(rotate.token).toBe("re_123");
+  it("sends the credential only when it changed", () => {
+    expect(emailUpdate(form, "cred-1").credentialProfileId).toBeUndefined();
+    expect(emailUpdate(form, "cred-0").credentialProfileId).toBe("cred-1");
   });
 
-  it("reads a stored connection back into the form without the key", () => {
+  it("reads a stored connection back into the form", () => {
     const connection = {
       name: "Correo",
       baseUrl: "",
@@ -86,7 +64,6 @@ describe("email connection forms", () => {
       from: "Team <no-reply@example.test>",
       baseUrl: RESEND_BASE_URL,
       credentialId: "cred-1",
-      token: "",
     });
   });
 });

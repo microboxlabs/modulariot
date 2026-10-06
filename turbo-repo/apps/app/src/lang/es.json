@@ -1768,20 +1768,17 @@
           },
           "modal": {
             "addTitle": "Configurar canal de correo",
-            "subtitle": "Guarda la clave API de Resend de forma segura y crea la conexión. Pruébala para empezar a usarla.",
+            "subtitle": "Elige la credencial de Resend y el remitente. Pruébala para empezar a usarla.",
             "editTitle": "Editar canal de correo",
-            "editSubtitle": "Actualiza los datos de la conexión. Deja la clave en blanco para mantener la actual.",
+            "editSubtitle": "Actualiza el remitente o la credencial.",
             "defaultName": "Correo",
             "name": "Nombre de la conexión",
             "from": "Remitente",
             "fromPlaceholder": "Equipo <no-reply@tu-dominio.com>",
             "fromHelp": "Debe ser de un dominio verificado en Resend.",
             "credential": "Credencial",
-            "credentialNew": "Nueva clave API",
-            "credentialCurrent": "Credencial actual",
-            "token": "Clave API de Resend",
-            "tokenPlaceholder": "re_...",
-            "tokenEditPlaceholder": "Déjala en blanco para mantener la clave actual",
+            "credentialPick": "Elige una credencial de Resend",
+            "credentialNew": "Nueva",
             "baseUrl": "URL base",
             "cancel": "Cancelar",
             "saving": "Guardando...",
@@ -1797,9 +1794,9 @@
           },
           "validation": {
             "nameRequired": "El nombre de la conexión es obligatorio",
+            "credentialRequired": "Elige o crea una credencial de Resend",
             "fromInvalid": "Ingresa un remitente como Equipo <no-reply@tu-dominio.com>",
-            "baseUrlInvalid": "Ingresa una URL válida",
-            "tokenRequired": "La clave API es obligatoria"
+            "baseUrlInvalid": "Ingresa una URL válida"
           }
         },
         "gpsWebhooks": {

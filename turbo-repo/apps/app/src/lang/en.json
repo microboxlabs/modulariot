@@ -1768,20 +1768,17 @@
           },
           "modal": {
             "addTitle": "Configure email channel",
-            "subtitle": "Stores the Resend API key securely and creates the connection. Test it to start using it.",
+            "subtitle": "Choose the Resend credential and the sender. Test it to start using it.",
             "editTitle": "Edit email channel",
-            "editSubtitle": "Update the connection. Leave the key blank to keep the current one.",
+            "editSubtitle": "Update the sender or the credential.",
             "defaultName": "Email",
             "name": "Connection name",
             "from": "Sender",
             "fromPlaceholder": "Team <no-reply@your-domain.com>",
             "fromHelp": "Must be on a domain verified in Resend.",
             "credential": "Credential",
-            "credentialNew": "New API key",
-            "credentialCurrent": "Current credential",
-            "token": "Resend API key",
-            "tokenPlaceholder": "re_...",
-            "tokenEditPlaceholder": "Leave blank to keep the current key",
+            "credentialPick": "Choose a Resend credential",
+            "credentialNew": "New",
             "baseUrl": "Base URL",
             "cancel": "Cancel",
             "saving": "Saving...",
@@ -1797,9 +1794,9 @@
           },
           "validation": {
             "nameRequired": "The connection name is required",
+            "credentialRequired": "Choose or create a Resend credential",
             "fromInvalid": "Enter a sender like Team <no-reply@your-domain.com>",
-            "baseUrlInvalid": "Enter a valid URL",
-            "tokenRequired": "The API key is required"
+            "baseUrlInvalid": "Enter a valid URL"
           }
         },
         "gpsWebhooks": {

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { RESEND_PROVIDER as RESEND_CREDENTIAL } from "@/features/credentials/credential.types";
 import type {
   ChannelCreate,
   ChannelUpdate,
@@ -24,69 +23,43 @@ export function isSender(value: string): boolean {
   );
 }
 
-/** The credential select's value for "enter a new API key". */
-export const NEW_KEY = "";
-
-const emailBaseShape = {
+/** The channel links a stored Resend credential; the key itself lives in Credentials. */
+export const EmailConnectionSchema = z.object({
   name: z.string().min(1, "validation.nameRequired"),
   from: z.string().refine(isSender, "validation.fromInvalid"),
   baseUrl: z.string().url("validation.baseUrlInvalid"),
-  credentialId: z.string(),
-};
-
-/** Create form: a stored Resend credential, or a new key. Messages are dictionary keys. */
-export const EmailConnectionSchema = z
-  .object({ ...emailBaseShape, token: z.string() })
-  .refine((form) => form.credentialId !== NEW_KEY || form.token.trim() !== "", {
-    path: ["token"],
-    message: "validation.tokenRequired",
-  });
+  credentialId: z.string().min(1, "validation.credentialRequired"),
+});
 
 export type EmailFormData = z.infer<typeof EmailConnectionSchema>;
-
-/** Edit form: a blank API key keeps the stored one. */
-export const EmailEditSchema = z.object({
-  ...emailBaseShape,
-  token: z.string().optional(),
-});
 
 export const EMAIL_DEFAULTS: EmailFormData = {
   name: "",
   from: "",
   baseUrl: RESEND_BASE_URL,
-  credentialId: NEW_KEY,
-  token: "",
+  credentialId: "",
 };
 
-/** A stored credential is linked as is; a new key is saved as a Resend credential. */
 export function emailCreate(form: EmailFormData): ChannelCreate {
-  const from = form.from.trim();
   return {
     name: form.name,
     baseUrl: form.baseUrl,
-    token: form.token,
-    credentialName: `Resend · ${from}`,
-    credentialPublicConfig: { provider: RESEND_CREDENTIAL },
-    ...(form.credentialId === NEW_KEY
-      ? {}
-      : { credentialProfileId: form.credentialId }),
-    metadata: { from },
+    credentialProfileId: form.credentialId,
+    metadata: { from: form.from.trim() },
   };
 }
 
-/** `current`: the credential linked now. A key only rotates that one. */
+/** `current`: the credential linked now; only a different one is sent. */
 export function emailUpdate(
   form: EmailFormData,
   current: string | null
 ): ChannelUpdate {
-  const swapped =
-    form.credentialId !== NEW_KEY && form.credentialId !== current;
   return {
     name: form.name,
     baseUrl: form.baseUrl,
-    ...(swapped
-      ? { credentialProfileId: form.credentialId }
-      : { token: form.token }),
+    ...(form.credentialId === current
+      ? {}
+      : { credentialProfileId: form.credentialId }),
     metadata: { from: form.from.trim() },
   };
 }
@@ -101,7 +74,6 @@ export function emailToForm(connection: IntegrationConnection): EmailFormData {
     name: connection.name,
     from: emailSender(connection),
     baseUrl: connection.baseUrl || RESEND_BASE_URL,
-    credentialId: connection.credentialProfileId ?? NEW_KEY,
-    token: "",
+    credentialId: connection.credentialProfileId ?? "",
   };
 }

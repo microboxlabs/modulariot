@@ -7,6 +7,8 @@ import {
   PLATFORM_OWNER_ROLE,
   type CreatePlatformOrganization,
   type PlatformOrganization,
+  type PlatformOrganizationListItem,
+  type PlatformOrganizationRole,
   type DomainBrandingAdmin,
   type HarnessPlan,
   type ModelProviderAdmin,
@@ -145,6 +147,20 @@ export function fetchHarnessPlan(): Promise<HarnessPlan> {
 
 export function saveHarnessPlan(value: SetHarnessPlan): Promise<HarnessPlan> {
   return sendJson<HarnessPlan>("PUT", `${PLATFORM_BASE}/harness-plan`, value);
+}
+
+export function fetchPlatformOrganizations(): Promise<
+  PlatformOrganizationListItem[]
+> {
+  return getJson<PlatformOrganizationListItem[]>(`${PLATFORM_BASE}/orgs`);
+}
+
+export function fetchOrganizationOwners(
+  slug: string
+): Promise<PlatformOrganizationRole> {
+  return getJson<PlatformOrganizationRole>(
+    `${PLATFORM_BASE}/orgs/${encodeURIComponent(slug)}/roles/${ORGANIZATION_OWNER_ROLE_CODE}`
+  );
 }
 
 export function createPlatformOrganization(

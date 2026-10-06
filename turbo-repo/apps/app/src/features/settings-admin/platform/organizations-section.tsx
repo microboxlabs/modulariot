@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Button, Label, TextInput } from "flowbite-react";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { toast } from "sonner";
+import { mutate } from "swr";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
@@ -20,6 +21,7 @@ import {
   createPlatformOrganization,
   setOrganizationOwners,
 } from "./platform-data-service";
+import { PLATFORM_ORGANIZATIONS_KEY } from "./use-platform-organizations";
 
 interface OrganizationsSectionProps {
   readonly dict: I18nRecord;
@@ -94,6 +96,7 @@ export default function OrganizationsSection({
     setIsSaving(false);
     if (outcome.kind === "created") {
       toast.success(tr("created", dict, { slug: organization.slug }));
+      void mutate(PLATFORM_ORGANIZATIONS_KEY);
       setDraft(EMPTY_ORGANIZATION_DRAFT);
       setOwnerPendingFor(null);
       return;

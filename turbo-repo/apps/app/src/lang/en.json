@@ -1666,6 +1666,23 @@
         "empty": "No organizations available for your account.",
         "loading": "Loading…",
         "listTitle": "Your organizations",
+        "otherOrgsTitle": "Other organizations",
+        "otherOrgsHint": "You see these as a platform owner. You are not a member.",
+        "platformView": {
+          "readOnly": "Read-only. Managing members and integrations needs a role in this organization.",
+          "slug": "Identifier",
+          "tenantClientId": "Tenant client ID",
+          "membershipSource": "Members managed in",
+          "parent": "Parent organization",
+          "taxId": "Tax ID",
+          "owners": "Owners",
+          "noOwners": "This organization has no owner. Nobody can manage it.",
+          "ownersError": "Could not load the owners.",
+          "sources": {
+            "NATIVE": "ModularIoT",
+            "ALFRESCO": "Alfresco"
+          }
+        },
         "parentAccount": "Primary account",
         "noSelection": "Select an organization to view details.",
         "membersTitle": "Members",

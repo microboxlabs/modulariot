@@ -6,19 +6,35 @@ import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
+import { useIsPlatformOwner } from "../platform/use-platform-membership";
+import { usePlatformOrganizations } from "../platform/use-platform-organizations";
+import type { PlatformOrganizationListItem } from "../platform/platform.types";
+import type { OrgSummary } from "../types";
 import OrgListPanel from "./org-list-panel";
 import OrgDetailPanel from "./org-detail-panel";
+import PlatformOrgListPanel from "./platform-org-list-panel";
+import PlatformOrgDetailPanel from "./platform-org-detail-panel";
 
 interface OrganizationsPageContentProps {
   readonly dict: I18nRecord;
   readonly lang: string;
 }
 
+/** Platform-wide organizations the caller is not a member of. */
+function othersThan(
+  all: PlatformOrganizationListItem[],
+  mine: OrgSummary[]
+): PlatformOrganizationListItem[] {
+  const memberOf = new Set(mine.map((org) => org.slug));
+  return all.filter((org) => !memberOf.has(org.slug));
+}
+
 /**
  * Settings › Organizations.
  *
  * All members can inspect their organization roster. Owners additionally
- * receive the application-role, permission, and integration controls.
+ * receive the application-role, permission, and integration controls. A
+ * platform owner also sees every other organization, read-only.
  */
 export default function OrganizationsPageContent({
   dict,
@@ -38,6 +54,13 @@ export default function OrganizationsPageContent({
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
   const selectedOrganization =
     availableOrgs.find((org) => org.slug === selectedSlug) ?? null;
+
+  const { isPlatformOwner } = useIsPlatformOwner();
+  const { organizations: platformOrgs } =
+    usePlatformOrganizations(isPlatformOwner);
+  const otherOrgs = othersThan(platformOrgs, availableOrgs);
+  const selectedOtherOrg =
+    otherOrgs.find((org) => org.slug === selectedSlug) ?? null;
 
   return (
     // Same shell as Settings > Credentials / Data sources / Connections: a
@@ -74,18 +97,33 @@ export default function OrganizationsPageContent({
         )}
 
         <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
-          <OrgListPanel
-            orgs={availableOrgs}
-            isLoading={isLoading}
-            selectedSlug={selectedSlug}
-            onSelect={setSelectedSlug}
-            dict={orgsDict}
-          />
-          <OrgDetailPanel
-            organization={selectedOrganization}
-            dict={orgsDict}
-            credentialsDict={dict?.credentials as I18nRecord}
-          />
+          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+            <OrgListPanel
+              orgs={availableOrgs}
+              isLoading={isLoading}
+              selectedSlug={selectedSlug}
+              onSelect={setSelectedSlug}
+              dict={orgsDict}
+            />
+            <PlatformOrgListPanel
+              orgs={otherOrgs}
+              selectedSlug={selectedSlug}
+              onSelect={setSelectedSlug}
+              dict={orgsDict}
+            />
+          </div>
+          {selectedOtherOrg ? (
+            <PlatformOrgDetailPanel
+              organization={selectedOtherOrg}
+              dict={orgsDict}
+            />
+          ) : (
+            <OrgDetailPanel
+              organization={selectedOrganization}
+              dict={orgsDict}
+              credentialsDict={dict?.credentials as I18nRecord}
+            />
+          )}
         </div>
       </div>
     </div>

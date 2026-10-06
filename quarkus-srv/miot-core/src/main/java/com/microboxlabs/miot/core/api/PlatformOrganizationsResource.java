@@ -29,6 +29,7 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -51,6 +52,16 @@ public class PlatformOrganizationsResource {
 
     /** {@code membershipSource}: ALFRESCO or NATIVE. */
     public record MembershipSourceRequest(String membershipSource) {
+    }
+
+    /** One organization in the platform-wide list; {@code parentSlug} is null for a top-level one. */
+    public record PlatformOrganizationView(String slug, String name, String displayName, String tenantClientId,
+            String membershipSource, String taxId, String parentSlug) {
+
+        static PlatformOrganizationView from(Organization org) {
+            return new PlatformOrganizationView(org.slug, org.name, org.displayName, org.tenantClientId,
+                    org.membershipSource, org.taxId, org.parent == null ? null : org.parent.slug);
+        }
     }
 
     public record ProjectionView(Long id, String kind, String subject, String status, int attempts, String lastError,
@@ -85,6 +96,16 @@ public class PlatformOrganizationsResource {
                 .map(created -> Response.status(Response.Status.CREATED)
                         .entity(OrganizationDto.from(created))
                         .build());
+    }
+
+    @GET
+    @Operation(summary = "List every active organization")
+    public Uni<List<PlatformOrganizationView>> list() {
+        return authorizer.requirePlatformOwner()
+                .flatMap(ignored -> Panache.withSession(() -> Organization.<Organization>find(
+                        "from Organization o left join fetch o.parent where o.active = true order by o.slug")
+                        .list()))
+                .map(organizations -> organizations.stream().map(PlatformOrganizationView::from).toList());
     }
 
     @GET

@@ -11,8 +11,11 @@ import {
   GET as getDomain,
   PUT as putDomain,
 } from "./branding/domains/[domain]/route";
-import { POST as createOrg } from "./orgs/route";
-import { PUT as putOrgRole } from "./orgs/[slug]/roles/[roleCode]/route";
+import { GET as listOrgs, POST as createOrg } from "./orgs/route";
+import {
+  GET as getOrgRole,
+  PUT as putOrgRole,
+} from "./orgs/[slug]/roles/[roleCode]/route";
 
 const FORWARDED = { ok: true };
 
@@ -75,6 +78,22 @@ describe("platform roles proxy", () => {
 });
 
 describe("platform organizations proxy", () => {
+  it("forwards the organization list", async () => {
+    await listOrgs();
+
+    expect(forwardToQuarkus).toHaveBeenCalledWith("/api/v1/platform/orgs");
+  });
+
+  it("forwards an organization role read with the slug encoded", async () => {
+    await getOrgRole(new Request("http://localhost"), {
+      params: Promise.resolve({ slug: "a/b", roleCode: "ORGANIZATION_OWNER" }),
+    });
+
+    expect(forwardToQuarkus).toHaveBeenCalledWith(
+      "/api/v1/platform/orgs/a%2Fb/roles/ORGANIZATION_OWNER",
+    );
+  });
+
   it("forwards an organization creation with its body", async () => {
     const body = { slug: "acme", name: "Acme", tenantClientId: "client-1" };
 

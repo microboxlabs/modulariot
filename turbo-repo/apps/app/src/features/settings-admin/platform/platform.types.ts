@@ -146,6 +146,24 @@ export interface PlatformOrganization {
   active: boolean;
 }
 
+/** Mirrors `PlatformOrganizationsResource.PlatformOrganizationView`. */
+export interface PlatformOrganizationListItem {
+  slug: string;
+  name: string;
+  displayName: string | null;
+  tenantClientId: string;
+  membershipSource: string;
+  taxId: string | null;
+  /** Null for a top-level organization. */
+  parentSlug: string | null;
+}
+
+/** Mirrors `OrganizationRoleDto`, the part the platform view reads. */
+export interface PlatformOrganizationRole {
+  roleCode: string;
+  assigneeIds: string[];
+}
+
 /** Mirrors `HarnessPlanDtos.SetPlanRequest`. */
 export interface SetHarnessPlan {
   seatPriceUsd: number;

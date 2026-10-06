@@ -187,14 +187,6 @@ export function setTeamRoles(teamId: string, roles: string[]) {
 }
 
 /** Adds every member of the organization's Alfresco group. */
-export function importAlfrescoMembers() {
-  return sendJson<{ seen: number; added: number }>(
-    "POST",
-    `${TEAM}/alfresco-import`,
-    {}
-  );
-}
-
 export function acceptInvitation(token: string) {
   return sendJson<AcceptedInvitation>(
     "POST",

@@ -70,14 +70,6 @@ class AlfrescoBridgeTest {
     }
 
     @Test
-    void anAdminImportsTheGroupFromTheTeamPage() {
-        given().header("Authorization", bearer(StubAlfrescoMembershipClient.MEMBER_EMAIL))
-                .when().post("/api/v1/orgs/" + ORG + "/team/alfresco-import")
-                .then().statusCode(200)
-                .body("added", is(3));
-    }
-
-    @Test
     void importCopiesTheGroupAndIsIdempotent() {
         given().header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
                 .when().post(PLATFORM + "/alfresco-import")

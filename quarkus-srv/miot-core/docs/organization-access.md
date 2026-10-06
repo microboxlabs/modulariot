@@ -94,7 +94,7 @@ The token is reused until a minute before it expires. Needs a build with `miot.c
 
 ## Moving an organization off Alfresco
 
-1. "Import from Alfresco" on the Team page (`POST /api/v1/orgs/{org}/team/alfresco-import`, needs `members:invite`), or `POST /api/v1/platform/orgs/{slug}/alfresco-import`, copies the Alfresco group into memberships. Site and group managers become `ADMIN`; everyone else `MEMBER`. Running it again adds only new people.
+1. A platform owner calls `POST /api/v1/platform/orgs/{slug}/alfresco-import`. It copies the Alfresco group into memberships. Site and group managers become `ADMIN`; everyone else `MEMBER`. Running it again adds only new people.
 2. Assign at least one `OWNER`.
 3. `PATCH /api/v1/platform/orgs/{slug}/membership-source` with `{"membershipSource": "NATIVE"}`.
 

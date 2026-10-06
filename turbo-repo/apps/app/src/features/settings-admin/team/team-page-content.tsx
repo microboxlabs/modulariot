@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Alert, Button, Spinner } from "flowbite-react";
-import { HiDownload, HiOutlineUserGroup, HiUserAdd } from "react-icons/hi";
+import { HiOutlineUserGroup, HiUserAdd } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
 import FormModal from "@/features/common/components/form-modal/form-modal";
@@ -14,7 +14,6 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { InviteLinks, type InviteLink } from "./invite-links";
 import {
-  importAlfrescoMembers,
   removeMember,
   resendInvitation,
   revokeInvitation,
@@ -81,7 +80,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
   // Alfresco decides who belongs to an ALFRESCO organization: no invites or removals here.
   const fromAlfresco = team.data?.membershipSource === "ALFRESCO";
   const canInvite = can("members:invite") && !fromAlfresco;
-  const canImport = can("members:invite") && fromAlfresco;
   const allowed = {
     canUpdate: can("members:update"),
     canRemove: can("members:remove") && !fromAlfresco,
@@ -104,7 +102,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resent, setResent] = useState<InviteLink[] | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const reload = () => {
     void team.mutate();
@@ -171,24 +168,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
               </p>
             </div>
           </div>
-          {canImport && (
-            <Button
-              color="alternative"
-              size="sm"
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  const result = await importAlfrescoMembers();
-                  setNotice(
-                    tr("alfrescoImported", d, { added: String(result.added) })
-                  );
-                })
-              }
-            >
-              <HiDownload className="mr-1.5 h-4 w-4" />
-              {tr("alfrescoImport", d)}
-            </Button>
-          )}
           {canInvite && (
             <Button color="blue" size="sm" onClick={() => setInviting(true)}>
               <HiUserAdd className="mr-1.5 h-4 w-4" />
@@ -219,11 +198,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
           </Alert>
         )}
         {team.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
-        {notice && (
-          <Alert color="gray" onDismiss={() => setNotice(null)}>
-            {notice}
-          </Alert>
-        )}
         {fromAlfresco && tab === "members" && (
           <Alert color="gray">{tr("alfrescoNote", d)}</Alert>
         )}

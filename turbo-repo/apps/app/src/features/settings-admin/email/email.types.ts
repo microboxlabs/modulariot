@@ -6,28 +6,37 @@ import type {
 } from "../channels/channel.types";
 
 export const RESEND_PROVIDER = "RESEND";
+/** The backend only sends to its configured Resend API; this is its default. */
 export const RESEND_BASE_URL = "https://api.resend.com";
 
-/** `Name <address@domain>` or a bare address. */
-export function isSender(value: string): boolean {
-  const trimmed = value.trim();
-  const open = trimmed.lastIndexOf("<");
-  const address =
-    open >= 0 && trimmed.endsWith(">") ? trimmed.slice(open + 1, -1) : trimmed;
+function isAddress(address: string): boolean {
   const at = address.indexOf("@");
+  const dot = address.lastIndexOf(".");
   return (
+    !/[\s<>]/.test(address) &&
     at > 0 &&
     at === address.lastIndexOf("@") &&
-    address.lastIndexOf(".") > at + 1 &&
-    !address.includes(" ")
+    dot > at + 1 &&
+    dot < address.length - 1
   );
+}
+
+/** `address@domain.tld` or `Name <address@domain.tld>`, as the backend accepts. */
+export function isSender(value: string): boolean {
+  const sender = value.trim();
+  const open = sender.indexOf("<");
+  if (open < 0 && !sender.includes(">")) return isAddress(sender);
+  const named =
+    open >= 0 &&
+    open === sender.lastIndexOf("<") &&
+    sender.indexOf(">") === sender.length - 1;
+  return named && isAddress(sender.slice(open + 1, -1));
 }
 
 /** The channel links a stored Resend credential; the key itself lives in Credentials. */
 export const EmailConnectionSchema = z.object({
   name: z.string().min(1, "validation.nameRequired"),
   from: z.string().refine(isSender, "validation.fromInvalid"),
-  baseUrl: z.string().url("validation.baseUrlInvalid"),
   credentialId: z.string().min(1, "validation.credentialRequired"),
 });
 
@@ -36,14 +45,13 @@ export type EmailFormData = z.infer<typeof EmailConnectionSchema>;
 export const EMAIL_DEFAULTS: EmailFormData = {
   name: "",
   from: "",
-  baseUrl: RESEND_BASE_URL,
   credentialId: "",
 };
 
 export function emailCreate(form: EmailFormData): ChannelCreate {
   return {
     name: form.name,
-    baseUrl: form.baseUrl,
+    baseUrl: RESEND_BASE_URL,
     credentialProfileId: form.credentialId,
     metadata: { from: form.from.trim() },
   };
@@ -56,7 +64,7 @@ export function emailUpdate(
 ): ChannelUpdate {
   return {
     name: form.name,
-    baseUrl: form.baseUrl,
+    baseUrl: RESEND_BASE_URL,
     ...(form.credentialId === current
       ? {}
       : { credentialProfileId: form.credentialId }),
@@ -73,7 +81,6 @@ export function emailToForm(connection: IntegrationConnection): EmailFormData {
   return {
     name: connection.name,
     from: emailSender(connection),
-    baseUrl: connection.baseUrl || RESEND_BASE_URL,
     credentialId: connection.credentialProfileId ?? "",
   };
 }

@@ -1779,7 +1779,6 @@
             "credential": "Credential",
             "credentialPick": "Choose a Resend credential",
             "credentialNew": "New",
-            "baseUrl": "Base URL",
             "cancel": "Cancel",
             "saving": "Saving...",
             "createButton": "Create",
@@ -1795,8 +1794,7 @@
           "validation": {
             "nameRequired": "The connection name is required",
             "credentialRequired": "Choose or create a Resend credential",
-            "fromInvalid": "Enter a sender like Team <no-reply@your-domain.com>",
-            "baseUrlInvalid": "Enter a valid URL"
+            "fromInvalid": "Enter a sender like Team <no-reply@your-domain.com>"
           }
         },
         "gpsWebhooks": {

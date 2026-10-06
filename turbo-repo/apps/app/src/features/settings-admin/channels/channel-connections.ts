@@ -73,20 +73,37 @@ export async function createChannelConnection(
   provider: string,
   input: ChannelCreate
 ): Promise<IntegrationConnection> {
-  const credentialProfileId =
-    input.credentialProfileId ??
-    (
-      await sendJson<CredentialProfileResponse>(
-        "POST",
-        `${integrationsBase(orgSlug)}/credential-profiles`,
-        {
-          displayName: input.credentialName,
-          authType: "BEARER_TOKEN",
-          publicConfig: input.credentialPublicConfig ?? {},
-          secretConfig: { token: input.token },
-        }
-      )
-    ).id;
+  if (input.credentialProfileId) {
+    return postConnection(orgSlug, provider, input, input.credentialProfileId);
+  }
+  const credential = await sendJson<CredentialProfileResponse>(
+    "POST",
+    `${integrationsBase(orgSlug)}/credential-profiles`,
+    {
+      displayName: input.credentialName,
+      authType: "BEARER_TOKEN",
+      publicConfig: input.credentialPublicConfig ?? {},
+      secretConfig: { token: input.token },
+    }
+  );
+  try {
+    return await postConnection(orgSlug, provider, input, credential.id);
+  } catch (cause) {
+    // Don't leave a credential behind for a connection that was not created.
+    await fetch(
+      `${integrationsBase(orgSlug)}/credential-profiles/${encodeURIComponent(credential.id)}`,
+      { method: "DELETE" }
+    ).catch(() => undefined);
+    throw cause;
+  }
+}
+
+function postConnection(
+  orgSlug: string,
+  provider: string,
+  input: ChannelCreate,
+  credentialProfileId: string
+): Promise<IntegrationConnection> {
   return sendJson<IntegrationConnection>(
     "POST",
     `${integrationsBase(orgSlug)}/connections`,

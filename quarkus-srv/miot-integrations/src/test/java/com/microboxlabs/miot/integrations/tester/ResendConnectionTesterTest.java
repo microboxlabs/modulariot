@@ -2,6 +2,7 @@ package com.microboxlabs.miot.integrations.tester;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,13 +29,16 @@ class ResendConnectionTesterTest {
     private static final Map<String, Object> SENDER = Map.of("from", "Team <no-reply@example.test>");
 
     private final IntegrationSecretCipher cipher = new IntegrationSecretCipher(new ObjectMapper(), "unit-test-key");
-    private final ResendConnectionTester tester = new ResendConnectionTester(new ResendClient(new ObjectMapper()), cipher);
     private final ConnectionTestRequest request = new ConnectionTestRequest("GET", null);
+
+    private ResendConnectionTester tester(URI api) {
+        return new ResendConnectionTester(new ResendClient(new ObjectMapper(), api), cipher);
+    }
 
     @Test
     void aFullAccessKeyPasses() throws IOException {
         try (FakeResend resend = new FakeResend().reply("/domains", 200, "{\"data\":[]}")) {
-            ConnectionTestResponse response = tester.test(connection(resend.baseUrl(), SENDER), credential("re_full"), request);
+            ConnectionTestResponse response = tester(resend.baseUrl()).test(connection(resend.baseUrl(), SENDER), credential("re_full"), request);
 
             assertTrue(response.success(), response.message());
             assertEquals("Bearer re_full", resend.last().headers().get("authorization"));
@@ -45,7 +49,7 @@ class ResendConnectionTesterTest {
     void aSendOnlyKeyPasses() throws IOException {
         try (FakeResend resend = new FakeResend().reply("/domains", 401,
                 "{\"statusCode\":401,\"name\":\"restricted_api_key\",\"message\":\"This API key is restricted\"}")) {
-            ConnectionTestResponse response = tester.test(connection(resend.baseUrl(), SENDER), credential("re_send"), request);
+            ConnectionTestResponse response = tester(resend.baseUrl()).test(connection(resend.baseUrl(), SENDER), credential("re_send"), request);
 
             assertTrue(response.success(), response.message());
         }
@@ -55,7 +59,7 @@ class ResendConnectionTesterTest {
     void aRejectedKeyFails() throws IOException {
         try (FakeResend resend = new FakeResend().reply("/domains", 401,
                 "{\"statusCode\":401,\"name\":\"validation_error\",\"message\":\"API key is invalid\"}")) {
-            ConnectionTestResponse response = tester.test(connection(resend.baseUrl(), SENDER), credential("re_bad"), request);
+            ConnectionTestResponse response = tester(resend.baseUrl()).test(connection(resend.baseUrl(), SENDER), credential("re_bad"), request);
 
             assertFalse(response.success());
             assertTrue(response.message().contains("401"));
@@ -65,9 +69,24 @@ class ResendConnectionTesterTest {
     @Test
     void aSenderAndAKeyAreRequired() {
         URI base = URI.create("http://127.0.0.1:1");
+        ResendConnectionTester tester = tester(base);
         assertFalse(tester.test(connection(base, Map.of()), credential("re_x"), request).success());
+        assertFalse(tester.test(connection(base, Map.of("from", "not-an-address@")), credential("re_x"), request)
+                .success());
         assertFalse(tester.test(connection(base, SENDER), null, request).success());
         assertFalse(tester.test(connection(base, SENDER), credential(""), request).success());
+    }
+
+    @Test
+    void theKeyIsNeverSentToAnotherHost() throws IOException {
+        try (FakeResend elsewhere = new FakeResend().reply("/domains", 200, "{\"data\":[]}")) {
+            ConnectionTestResponse response = tester(URI.create("https://api.resend.com"))
+                    .test(connection(elsewhere.baseUrl(), SENDER), credential("re_full"), request);
+
+            assertFalse(response.success());
+            assertTrue(response.message().contains("https://api.resend.com"));
+            assertNull(elsewhere.last());
+        }
     }
 
     private static IntegrationConnection connection(URI baseUrl, Map<String, Object> metadata) {

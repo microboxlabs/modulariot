@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Button, Select, TextInput } from "flowbite-react";
 import { HiPlus } from "react-icons/hi";
 import type { CredentialListItem } from "@/features/credentials/credential.types";
@@ -57,11 +57,16 @@ export function EmailConnectionModal({
     defaultValues: EMAIL_DEFAULTS,
   });
 
+  // A credential created from this form stays chosen when the form reopens.
+  const defaults = useMemo(
+    () => ({ ...EMAIL_DEFAULTS, credentialId: selectCredential ?? "" }),
+    [selectCredential]
+  );
   useSettingsModalFormOpenReset({
     show,
     isEdit,
     initial,
-    defaults: EMAIL_DEFAULTS,
+    defaults,
     dict,
     reset,
   });
@@ -141,18 +146,6 @@ export function EmailConnectionModal({
               {tr("modal.credentialNew", dict)}
             </Button>
           </div>
-        </SettingsFormField>
-
-        <SettingsFormField
-          id="email-base"
-          label={tr("modal.baseUrl", dict)}
-          error={trDynamic(errors.baseUrl?.message ?? "", dict)}
-        >
-          <TextInput
-            id="email-base"
-            {...register("baseUrl")}
-            color={errors.baseUrl ? "failure" : undefined}
-          />
         </SettingsFormField>
       </div>
     </FormModal>

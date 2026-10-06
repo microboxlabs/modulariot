@@ -215,6 +215,31 @@ class TeamApiTest {
     }
 
     @Test
+    void aMailerFailureIsReportedAndTheInvitationKept() {
+        mailer.breakFor("team-client");
+
+        given().header("Authorization", bearer(ADMIN)).contentType("application/json")
+                .body("{\"emails\":[\"" + NEWCOMER + "\"]}")
+                .when().post(BASE + "/invitations")
+                .then().statusCode(201)
+                .body("[0].delivery.status", is("FAILED"))
+                .body("[0].token", notNullValue());
+    }
+
+    @Test
+    void oneRequestInvitesAtMostTwentyPeople() {
+        StringBuilder emails = new StringBuilder();
+        for (int i = 0; i < 21; i++) {
+            emails.append(i == 0 ? "" : ",").append("\"p").append(i).append("@team.test\"");
+        }
+        given().header("Authorization", bearer(ADMIN)).contentType("application/json")
+                .body("{\"emails\":[" + emails + "]}")
+                .when().post(BASE + "/invitations")
+                .then().statusCode(400);
+        assertTrue(mailer.sent().isEmpty());
+    }
+
+    @Test
     void withoutAConnectionTheLinkIsReturnedToCopy() {
         given().header("Authorization", bearer(ADMIN)).contentType("application/json")
                 .body("{\"emails\":[\"" + NEWCOMER + "\"]}")

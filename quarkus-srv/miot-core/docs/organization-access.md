@@ -52,7 +52,7 @@ Creating or resending an invitation emails the link, in the request's `lang` (`e
 | `miot.app.public-url` | The app's public address including its base path, e.g. `https://app.example.com/app`. Without it no email is sent. |
 | `miot.mail.platform-organization` | Slug of the organization whose `RESEND` connection sends for organizations without their own. Optional. |
 
-Each created invitation carries `delivery`: `SENT` (the provider accepted it), `FAILED` (with `detail`), or `NOT_CONFIGURED`. Emails are sent after the invitation is saved; a failed email does not undo the invitation. Resend again to retry. See `miot-integrations/docs/email-channel.md`.
+One request invites at most 20 people, because each email is sent while the request waits. Each created invitation carries `delivery`: `SENT` (the provider accepted it), `FAILED` (with `detail`), or `NOT_CONFIGURED`. Emails are sent after the invitation is saved; a failed email does not undo the invitation. Resend again to retry. See `miot-integrations/docs/email-channel.md`.
 
 ## Organization settings
 

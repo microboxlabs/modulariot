@@ -12,7 +12,7 @@ import { createCredential } from "@/features/credentials/credentials-data-servic
 import { useCredentials } from "@/features/credentials/use-credentials";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { ChannelCard } from "../channels/channel-card";
+import { ChannelCard, type ChannelPartProps } from "../channels/channel-card";
 import { EmailConnectionModal } from "./email-connection-modal";
 import {
   emailCreate,
@@ -20,7 +20,6 @@ import {
   emailToForm,
   emailUpdate,
   RESEND_PROVIDER,
-  type EmailFormData,
 } from "./email.types";
 
 interface EmailChannelCardProps {
@@ -70,7 +69,7 @@ export default function EmailChannelCard({
 
   return (
     <>
-      <ChannelCard<EmailFormData>
+      <ChannelCard
         orgSlug={orgSlug}
         provider={RESEND_PROVIDER}
         dict={emailDict}
@@ -78,21 +77,14 @@ export default function EmailChannelCard({
         toCreate={emailCreate}
         toUpdate={emailUpdate}
         toForm={emailToForm}
-        detail={(connection) => (
-          <>
-            <span className="font-medium">{tr("fromLabel", emailDict)}:</span>{" "}
-            {emailSender(connection) || "—"}
-          </>
-        )}
-        renderModal={(modal) => (
-          <EmailConnectionModal
-            {...modal}
-            credentials={resendKeys}
-            selectCredential={created}
-            onNewCredential={() => setCreatingKey(true)}
-            dict={emailDict}
-          />
-        )}
+        Detail={EmailDetail}
+        Modal={EmailConnectionModal}
+        modalProps={{
+          credentials: resendKeys,
+          selectCredential: created,
+          onNewCredential: () => setCreatingKey(true),
+          dict: emailDict,
+        }}
       />
       <ResendCredentialModal
         show={creatingKey}
@@ -102,6 +94,15 @@ export default function EmailChannelCard({
         loading={savingKey}
         dict={credentialsDict}
       />
+    </>
+  );
+}
+
+function EmailDetail({ connection, dict }: ChannelPartProps) {
+  return (
+    <>
+      <span className="font-medium">{tr("fromLabel", dict)}:</span>{" "}
+      {emailSender(connection) || "—"}
     </>
   );
 }

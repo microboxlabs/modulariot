@@ -52,8 +52,10 @@ public class TeamService {
             Instant createdAt, Instant expiresAt, boolean expired, String organization) {
     }
 
-    /** {@code token} is returned once; the app builds the link from it. */
-    /** {@code delivery} says whether the link was emailed; null until delivery is attempted. */
+    /**
+     * {@code token} is returned once, so the admin can copy the link. {@code delivery} says
+     * whether the link was emailed; null until delivery is attempted.
+     */
     public record CreatedInvitation(InvitationView invitation, String token, MailDelivery delivery) {
 
         CreatedInvitation(InvitationView invitation, String token) {
@@ -86,6 +88,9 @@ public class TeamService {
     private final AccessEvaluator evaluator;
     private final IamDirectory directory;
     private final AlfrescoBridge bridge;
+    /** Each invitation is emailed while the request waits, so a request invites a bounded number. */
+    static final int MAX_INVITES = 20;
+
     // Per bean, not static: a static SecureRandom would be built into the native image with a fixed seed.
     private final SecureRandom random = new SecureRandom();
     private final InvitationMail mail;
@@ -165,6 +170,9 @@ public class TeamService {
     public Uni<List<CreatedInvitation>> invite(String slug, Caller actor, InviteRequest request) {
         if (request == null || request.emails() == null || request.emails().isEmpty()) {
             throw new IllegalArgumentException("emails is required");
+        }
+        if (request.emails().size() > MAX_INVITES) {
+            throw new IllegalArgumentException("At most " + MAX_INVITES + " emails per request");
         }
         BaseRole base = request.baseRole() == null ? BaseRole.MEMBER : baseRole(request.baseRole());
         Set<String> roles = new TreeSet<>(request.roles() == null ? List.of() : request.roles());

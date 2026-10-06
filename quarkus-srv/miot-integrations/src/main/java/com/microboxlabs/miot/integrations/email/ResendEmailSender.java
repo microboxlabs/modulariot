@@ -48,9 +48,38 @@ public class ResendEmailSender {
             return SendResult.failed(0, "The RESEND connection's credential has no API key");
         }
         String from = message.from() != null ? message.from() : connection.metadataString(FROM);
-        if (from == null || from.isBlank()) {
-            return SendResult.failed(0, "The RESEND connection has no sender (metadata.from)");
+        if (!validSender(from)) {
+            return SendResult.failed(0, "The RESEND connection has no valid sender (metadata.from)");
         }
-        return client.send(connection.baseUrl(), apiKey, message.withFrom(from), idempotencyKey);
+        if (!client.serves(connection.baseUrl())) {
+            return SendResult.failed(0, "The RESEND connection must use " + client.baseUrl());
+        }
+        return client.send(apiKey, message.withFrom(from), idempotencyKey);
+    }
+
+    /** {@code address@domain.tld} or {@code Name <address@domain.tld>}. */
+    public static boolean validSender(String value) {
+        if (value == null) {
+            return false;
+        }
+        String sender = value.trim();
+        int open = sender.indexOf('<');
+        if (open < 0 && sender.indexOf('>') < 0) {
+            return validAddress(sender);
+        }
+        boolean named = open >= 0 && open == sender.lastIndexOf('<') && sender.endsWith(">")
+                && sender.indexOf('>') == sender.length() - 1;
+        return named && validAddress(sender.substring(open + 1, sender.length() - 1));
+    }
+
+    private static boolean validAddress(String address) {
+        for (char c : address.toCharArray()) {
+            if (Character.isWhitespace(c) || c == '<' || c == '>') {
+                return false;
+            }
+        }
+        int at = address.indexOf('@');
+        int dot = address.lastIndexOf('.');
+        return at > 0 && at == address.lastIndexOf('@') && dot > at + 1 && dot < address.length() - 1;
     }
 }

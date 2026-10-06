@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 /**
  * Emails an invitation link. Uses the organization's own mail connection, else the platform
@@ -21,6 +22,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
  */
 @ApplicationScoped
 public class InvitationMail {
+
+    private static final Logger LOG = Logger.getLogger(InvitationMail.class);
 
     private final OrganizationMailer mailer;
     private final Optional<String> publicUrl;
@@ -69,20 +72,34 @@ public class InvitationMail {
         // A resend makes a new token, so it gets a new key; a retry of the same send does not.
         String key = "invitation-" + created.invitation().id() + "-"
                 + TeamService.hash(created.token()).substring(0, 16);
-        return mailer.send(root, mail, key)
+        return send(root, mail, key)
                 .flatMap(delivery -> delivery.isNotConfigured() && platform != null
-                        ? mailer.send(platform, mail, key)
+                        ? send(platform, mail, key)
                         : Uni.createFrom().item(delivery))
                 .map(created::withDelivery);
     }
 
+    /** The invitation is already saved, so a mailer failure becomes a FAILED delivery. */
+    private Uni<MailDelivery> send(Organization organization, Mail mail, String key) {
+        return mailer.send(organization, mail, key)
+                .onFailure().recoverWithItem(e -> {
+                    LOG.warnf(e, "Sending an invitation email for organization %s failed", organization.slug);
+                    return MailDelivery.failed("Could not send the email");
+                });
+    }
+
     /** The platform organization that sends when the organization cannot, or null. */
+    @SuppressWarnings("java:S3252") // Panache's static finder, called through the entity as elsewhere.
     private Uni<Organization> platform(Organization root) {
         if (platformOrganization.isEmpty() || platformOrganization.get().equals(root.slug)) {
             return Uni.createFrom().nullItem();
         }
         return Panache.withSession(() -> Organization.<Organization>find("slug", platformOrganization.get())
-                .firstResult());
+                        .firstResult())
+                .onFailure().recoverWithItem(e -> {
+                    LOG.warnf(e, "Could not load the platform organization %s", platformOrganization.get());
+                    return null;
+                });
     }
 
     static String link(String publicUrl, String lang, String token) {

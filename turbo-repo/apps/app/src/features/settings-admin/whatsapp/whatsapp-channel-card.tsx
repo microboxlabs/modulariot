@@ -4,7 +4,7 @@ import { Badge } from "flowbite-react";
 import { FaWhatsapp } from "react-icons/fa";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { ChannelCard } from "../channels/channel-card";
+import { ChannelCard, type ChannelPartProps } from "../channels/channel-card";
 import type { IntegrationConnection } from "../channels/channel.types";
 import { WhatsAppConnectionModal } from "./whatsapp-connection-modal";
 import {
@@ -29,7 +29,7 @@ export default function WhatsAppChannelCard({
 }: WhatsAppChannelCardProps) {
   const waDict = (dict?.whatsappChannel as I18nRecord) ?? {};
   return (
-    <ChannelCard<WhatsAppFormData>
+    <ChannelCard
       orgSlug={orgSlug}
       provider={WHATSAPP_PROVIDER}
       dict={waDict}
@@ -37,26 +37,32 @@ export default function WhatsAppChannelCard({
       toCreate={whatsAppCreate}
       toUpdate={whatsAppUpdate}
       toForm={connectionToForm}
-      detail={(connection) => (
-        <>
-          <span className="font-medium">{tr("phoneLabel", waDict)}:</span>{" "}
-          {typeof connection.metadata?.phone_number_id === "string"
-            ? connection.metadata.phone_number_id
-            : "—"}
-        </>
-      )}
-      badges={(connection) =>
-        isTruthyFlag(connection.metadata?.test_mode_enabled) && (
-          <Badge color="gray">
-            {tr("testModeBadge", waDict)} ·{" "}
-            {recipientCount(connection.metadata?.test_recipients)}
-          </Badge>
-        )
-      }
-      renderModal={(modal) => (
-        <WhatsAppConnectionModal {...modal} dict={waDict} />
-      )}
+      Detail={WhatsAppDetail}
+      Badges={WhatsAppBadges}
+      Modal={WhatsAppConnectionModal}
+      modalProps={{ dict: waDict }}
     />
+  );
+}
+
+function WhatsAppDetail({ connection, dict }: ChannelPartProps) {
+  const phone = connection.metadata?.phone_number_id;
+  return (
+    <>
+      <span className="font-medium">{tr("phoneLabel", dict)}:</span>{" "}
+      {typeof phone === "string" ? phone : "—"}
+    </>
+  );
+}
+
+/** The test-mode badge with how many recipients are allowed. */
+function WhatsAppBadges({ connection, dict }: ChannelPartProps) {
+  if (!isTruthyFlag(connection.metadata?.test_mode_enabled)) return null;
+  return (
+    <Badge color="gray">
+      {tr("testModeBadge", dict)} ·{" "}
+      {recipientCount(connection.metadata?.test_recipients)}
+    </Badge>
   );
 }
 

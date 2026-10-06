@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Spinner } from "flowbite-react";
-import { useState, type ReactNode } from "react";
+import { useState, type ComponentType, type ReactNode } from "react";
 import { toast } from "sonner";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -24,7 +24,13 @@ export interface ChannelModalProps<F> {
   readonly error: Error | null;
 }
 
-interface ChannelCardProps<F> {
+/** What the card hands to the detail line and the badges. */
+export interface ChannelPartProps {
+  readonly connection: IntegrationConnection;
+  readonly dict: I18nRecord;
+}
+
+interface ChannelCardProps<F, E extends object> {
   readonly orgSlug: string | null;
   readonly provider: string;
   /** The channel's dictionary: title, description, loadError, buttons, `status.*`, `toast.*`. */
@@ -35,17 +41,19 @@ interface ChannelCardProps<F> {
   readonly toUpdate: (form: F, current: string | null) => ChannelUpdate;
   readonly toForm: (connection: IntegrationConnection) => F;
   /** One line about the configured connection, under its name. */
-  readonly detail: (connection: IntegrationConnection) => ReactNode;
+  readonly Detail: ComponentType<ChannelPartProps>;
   /** Extra badges next to the status. */
-  readonly badges?: (connection: IntegrationConnection) => ReactNode;
-  readonly renderModal: (props: ChannelModalProps<F>) => ReactNode;
+  readonly Badges?: ComponentType<ChannelPartProps>;
+  /** The channel's form; it gets the card's modal props plus {@link modalProps}. */
+  readonly Modal: ComponentType<ChannelModalProps<F> & E>;
+  readonly modalProps: E;
 }
 
 /**
  * An organization's connection for one channel provider: Configure when there is none;
  * otherwise its status, Edit and a live Test.
  */
-export function ChannelCard<F>({
+export function ChannelCard<F, E extends object>({
   orgSlug,
   provider,
   dict,
@@ -53,10 +61,11 @@ export function ChannelCard<F>({
   toCreate,
   toUpdate,
   toForm,
-  detail,
-  badges,
-  renderModal,
-}: Readonly<ChannelCardProps<F>>) {
+  Detail,
+  Badges,
+  Modal,
+  modalProps,
+}: Readonly<ChannelCardProps<F, E>>) {
   const { connection, isLoading, error, actionLoading, create, update, test } =
     useOrgChannel(orgSlug, provider);
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
@@ -117,7 +126,7 @@ export function ChannelCard<F>({
         </div>
         {connection && (
           <div className="flex items-center gap-2">
-            {badges?.(connection)}
+            {Badges && <Badges connection={connection} dict={dict} />}
             <ChannelStatusBadge status={connection.status} dict={dict} />
           </div>
         )}
@@ -135,22 +144,23 @@ export function ChannelCard<F>({
           failed={error !== null}
           busy={actionLoading}
           dict={dict}
-          detail={detail}
+          Detail={Detail}
           onConfigure={() => openModal("create")}
           onEdit={() => openModal("edit")}
           onTest={handleTest}
         />
       </div>
 
-      {renderModal({
-        show: modalMode !== null,
-        mode: modalMode ?? "create",
-        initial: modalMode === "edit" && connection ? toForm(connection) : null,
-        onClose: () => setModalMode(null),
-        onSubmit,
-        loading: actionLoading,
-        error: submitError,
-      })}
+      <Modal
+        {...modalProps}
+        show={modalMode !== null}
+        mode={modalMode ?? "create"}
+        initial={modalMode === "edit" && connection ? toForm(connection) : null}
+        onClose={() => setModalMode(null)}
+        onSubmit={onSubmit}
+        loading={actionLoading}
+        error={submitError}
+      />
     </div>
   );
 }
@@ -162,7 +172,7 @@ interface CardBodyProps {
   readonly failed: boolean;
   readonly busy: boolean;
   readonly dict: I18nRecord;
-  readonly detail: (connection: IntegrationConnection) => ReactNode;
+  readonly Detail: ComponentType<ChannelPartProps>;
   readonly onConfigure: () => void;
   readonly onEdit: () => void;
   readonly onTest: () => void;
@@ -175,7 +185,7 @@ function CardBody({
   failed,
   busy,
   dict,
-  detail,
+  Detail,
   onConfigure,
   onEdit,
   onTest,
@@ -203,7 +213,9 @@ function CardBody({
         <div className="font-medium text-gray-900 dark:text-gray-100">
           {connection.name}
         </div>
-        <div>{detail(connection)}</div>
+        <div>
+          <Detail connection={connection} dict={dict} />
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <Button size="xs" color="light" disabled={busy} onClick={onEdit}>

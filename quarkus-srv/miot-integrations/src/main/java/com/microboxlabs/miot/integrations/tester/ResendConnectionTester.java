@@ -44,9 +44,11 @@ public class ResendConnectionTester implements ConnectionTester {
     public ConnectionTestResponse test(IntegrationConnection connection, CredentialProfile credential,
             ConnectionTestRequest request) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        String from = sender(connection);
-        if (from == null || !from.contains("@")) {
+        if (!ResendEmailSender.validSender(sender(connection))) {
             return fail(now, "metadata.from must be a sender address, e.g. Team <no-reply@example.com>");
+        }
+        if (!client.serves(connection.baseUrl())) {
+            return fail(now, "The base URL must be " + client.baseUrl());
         }
         if (credential == null) {
             return fail(now, "No credential profile is linked to this connection");
@@ -57,7 +59,7 @@ public class ResendConnectionTester implements ConnectionTester {
         }
         HttpResponse<String> response;
         try {
-            response = client.listDomains(connection.baseUrl(), apiKey);
+            response = client.listDomains(apiKey);
         } catch (IOException e) {
             return fail(now, "Could not reach Resend: " + e.getMessage());
         } catch (InterruptedException e) {

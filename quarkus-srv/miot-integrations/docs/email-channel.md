@@ -4,13 +4,14 @@ A `RESEND` connection sends email through the [Resend](https://resend.com) API. 
 
 ## Setting it up
 
-An organization owner configures it in Settings › Organizations › the organization › Email channel. Over the API:
+An organization owner adds a Resend credential in Settings › Credentials, then picks it in Settings › Organizations › the organization › Email channel. Over the API:
 
-1. Store the API key as a bearer credential:
+1. Store the API key as a bearer credential tagged as Resend. The app lists a credential as Resend only with this tag:
 
    ```
    POST /api/v1/orgs/{org}/integrations/credential-profiles
-   {"displayName": "Resend", "authType": "BEARER_TOKEN", "publicConfig": {}, "secretConfig": {"token": "re_..."}}
+   {"displayName": "Resend", "authType": "BEARER_TOKEN", "publicConfig": {"provider": "resend"},
+    "secretConfig": {"token": "re_..."}}
    ```
 
 2. Create the connection on it:
@@ -27,7 +28,9 @@ An organization owner configures it in Settings › Organizations › the organi
 |---|---|
 | `metadata.from` | The sender. Its domain must be verified in Resend. |
 | credential `token` | The Resend API key. A send-only key works. |
-| `baseUrl` | `https://api.resend.com` |
+| `baseUrl` | `https://api.resend.com`. Any other value is refused. |
+
+The key is only ever sent to `miot.integrations.resend.base-url` (default `https://api.resend.com`), which is server configuration. A connection whose `baseUrl` names another host fails its test and sends nothing.
 
 The test checks the sender, then calls `GET /domains` with the key. It sends no email. A send-only key answers 401 `restricted_api_key`, which counts as a pass. A connection is used only once it is `ACTIVE`, that is, after a passing test.
 

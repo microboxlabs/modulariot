@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -15,32 +16,43 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Calls the Resend HTTP API. Blocking; run it off the event loop. */
+/**
+ * Calls the Resend HTTP API. Blocking; run it off the event loop. The API's address is server
+ * configuration ({@code miot.integrations.resend.base-url}), never a connection's, so a stored
+ * key is only ever sent to Resend.
+ */
 @ApplicationScoped
 public class ResendClient {
-
-    public static final URI DEFAULT_BASE_URL = URI.create("https://api.resend.com");
 
     private static final Duration TIMEOUT = Duration.ofSeconds(15);
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private final URI baseUrl;
 
     @Inject
-    public ResendClient(ObjectMapper objectMapper) {
-        this(HttpClient.newBuilder().connectTimeout(TIMEOUT).build(), objectMapper);
+    public ResendClient(ObjectMapper objectMapper,
+            @ConfigProperty(name = "miot.integrations.resend.base-url", defaultValue = "https://api.resend.com")
+            URI baseUrl) {
+        this.httpClient = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
+        this.objectMapper = objectMapper;
+        this.baseUrl = baseUrl;
     }
 
-    ResendClient(HttpClient httpClient, ObjectMapper objectMapper) {
-        this.httpClient = httpClient;
-        this.objectMapper = objectMapper;
+    public URI baseUrl() {
+        return baseUrl;
+    }
+
+    /** Whether a connection's base URL names this client's Resend API (unset counts). */
+    public boolean serves(URI connectionBaseUrl) {
+        return connectionBaseUrl == null || trim(connectionBaseUrl.toString()).equals(trim(baseUrl.toString()));
     }
 
     /**
      * {@code POST /emails}. Resend keeps an {@code idempotencyKey} for 24 hours, so a retry with
      * the same key does not send twice.
      */
-    public SendResult send(URI baseUrl, String apiKey, EmailMessage message, String idempotencyKey) {
+    public SendResult send(String apiKey, EmailMessage message, String idempotencyKey) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("from", message.from());
         body.put("to", List.of(message.to()));
@@ -58,7 +70,7 @@ public class ResendClient {
         } catch (JsonProcessingException e) {
             return SendResult.failed(0, "Could not build the email request");
         }
-        HttpRequest.Builder request = HttpRequest.newBuilder(endpoint(baseUrl, "/emails"))
+        HttpRequest.Builder request = HttpRequest.newBuilder(endpoint("/emails"))
                 .timeout(TIMEOUT)
                 .header("Authorization", "Bearer " + apiKey)
                 .header("Content-Type", "application/json")
@@ -84,8 +96,8 @@ public class ResendClient {
     }
 
     /** {@code GET /domains}: proves the key is accepted. A send-only key gets 401 restricted_api_key. */
-    public HttpResponse<String> listDomains(URI baseUrl, String apiKey) throws IOException, InterruptedException {
-        HttpRequest request = HttpRequest.newBuilder(endpoint(baseUrl, "/domains"))
+    public HttpResponse<String> listDomains(String apiKey) throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(endpoint("/domains"))
                 .timeout(TIMEOUT)
                 .header("Authorization", "Bearer " + apiKey)
                 .GET()
@@ -111,8 +123,11 @@ public class ResendClient {
         return "Resend returned HTTP " + status + (message.isBlank() ? "" : ": " + message);
     }
 
-    private static URI endpoint(URI baseUrl, String path) {
-        String base = (baseUrl == null ? DEFAULT_BASE_URL : baseUrl).toString();
-        return URI.create((base.endsWith("/") ? base.substring(0, base.length() - 1) : base) + path);
+    private URI endpoint(String path) {
+        return URI.create(trim(baseUrl.toString()) + path);
+    }
+
+    private static String trim(String url) {
+        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 }

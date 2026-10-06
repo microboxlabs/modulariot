@@ -23,10 +23,16 @@ public class FakeMailer implements OrganizationMailer {
     }
 
     private final Set<String> configured = ConcurrentHashMap.newKeySet();
+    private final Set<String> broken = ConcurrentHashMap.newKeySet();
     private final List<Sent> sent = new CopyOnWriteArrayList<>();
 
     public void configure(String tenantClientId) {
         configured.add(tenantClientId);
+    }
+
+    /** Sending for this tenant fails the Uni, as a database error would. */
+    public void breakFor(String tenantClientId) {
+        broken.add(tenantClientId);
     }
 
     public List<Sent> sent() {
@@ -35,11 +41,15 @@ public class FakeMailer implements OrganizationMailer {
 
     public void reset() {
         configured.clear();
+        broken.clear();
         sent.clear();
     }
 
     @Override
     public Uni<MailDelivery> send(Organization organization, Mail mail, String idempotencyKey) {
+        if (broken.contains(organization.tenantClientId)) {
+            return Uni.createFrom().failure(new IllegalStateException("connection lookup failed"));
+        }
         if (!configured.contains(organization.tenantClientId)) {
             return Uni.createFrom().item(MailDelivery.notConfigured("No mail connection"));
         }

@@ -20,6 +20,9 @@ describe("isSender", () => {
     expect(isSender("a@b")).toBe(false);
     expect(isSender("a@@b.test")).toBe(false);
     expect(isSender("Team <no reply@example.test>")).toBe(false);
+    expect(isSender("not-an-address@")).toBe(false);
+    expect(isSender("Team<no-reply@example.test")).toBe(false);
+    expect(isSender("Team <a@b.test> x")).toBe(false);
   });
 });
 
@@ -27,7 +30,6 @@ describe("email connection form", () => {
   const form = {
     name: "Correo",
     from: " Team <no-reply@example.test> ",
-    baseUrl: RESEND_BASE_URL,
     credentialId: "cred-1",
   };
 
@@ -62,7 +64,6 @@ describe("email connection form", () => {
     expect(emailToForm(connection)).toEqual({
       name: "Correo",
       from: "Team <no-reply@example.test>",
-      baseUrl: RESEND_BASE_URL,
       credentialId: "cred-1",
     });
   });

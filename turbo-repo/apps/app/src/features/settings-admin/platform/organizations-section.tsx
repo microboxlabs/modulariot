@@ -122,6 +122,7 @@ export default function OrganizationsSection({
               <TextInput
                 id={id}
                 value={draft[field]}
+                disabled={ownerPendingFor !== null && field !== "ownerEmail"}
                 onChange={(e) => changeField(field, e.target.value)}
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">

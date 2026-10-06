@@ -37,7 +37,7 @@ describe("toOrganizationRequest", () => {
     }
   );
 
-  it("names the first missing field", () => {
+  it("names the first bad field, in the order the form shows them", () => {
     expect(toOrganizationRequest({ ...valid, name: " " })).toEqual({
       ok: false,
       error: "name",
@@ -52,7 +52,19 @@ describe("toOrganizationRequest", () => {
     });
     expect(toOrganizationRequest(EMPTY_ORGANIZATION_DRAFT)).toEqual({
       ok: false,
-      error: "slug",
+      error: "name",
+    });
+  });
+
+  it("refuses a name or client id longer than its column", () => {
+    const long = "x".repeat(256);
+    expect(toOrganizationRequest({ ...valid, name: long })).toEqual({
+      ok: false,
+      error: "name",
+    });
+    expect(toOrganizationRequest({ ...valid, tenantClientId: long })).toEqual({
+      ok: false,
+      error: "tenantClientId",
     });
   });
 });

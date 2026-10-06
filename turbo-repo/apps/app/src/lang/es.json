@@ -1654,7 +1654,8 @@
             "slug": "El identificador debe tener de 3 a 100 caracteres: minúsculas, dígitos y guiones, sin empezar ni terminar en guion.",
             "name": "Ingresa un nombre.",
             "tenantClientId": "Ingresa el client ID del tenant.",
-            "ownerEmail": "Ingresa un email válido para el dueño."
+            "ownerEmail": "Ingresa un email válido para el dueño.",
+            "slugTaken": "Otra organización ya usa este identificador."
           }
         }
       },

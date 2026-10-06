@@ -79,7 +79,7 @@ export function updateHarnessTrainerPermission(
   );
 }
 
-const ORGANIZATION_OWNER_ROLE_CODE = "ORGANIZATION_OWNER";
+export const ORGANIZATION_OWNER_ROLE_CODE = "ORGANIZATION_OWNER";
 
 function organizationRoleUrl(orgSlug: string, roleCode: string): string {
   return `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/roles/${encodeURIComponent(roleCode)}`;

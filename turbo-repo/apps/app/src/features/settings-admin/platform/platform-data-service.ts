@@ -2,8 +2,8 @@
 
 import { ApiError, getJson, sendEmpty, sendJson } from "../data/json-client";
 import { readLogoDataUrl } from "./domain-branding-form";
+import { ORGANIZATION_OWNER_ROLE_CODE } from "../data/settings-admin-data-service";
 import {
-  ORGANIZATION_OWNER_ROLE,
   PLATFORM_OWNER_ROLE,
   type CreatePlatformOrganization,
   type PlatformOrganization,
@@ -160,7 +160,7 @@ export async function setOrganizationOwners(
 ): Promise<void> {
   await sendJson<unknown>(
     "PUT",
-    `${PLATFORM_BASE}/orgs/${encodeURIComponent(slug)}/roles/${ORGANIZATION_OWNER_ROLE}`,
+    `${PLATFORM_BASE}/orgs/${encodeURIComponent(slug)}/roles/${ORGANIZATION_OWNER_ROLE_CODE}`,
     { assigneeIds }
   );
 }

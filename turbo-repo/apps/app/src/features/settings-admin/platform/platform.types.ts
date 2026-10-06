@@ -146,8 +146,6 @@ export interface PlatformOrganization {
   active: boolean;
 }
 
-export const ORGANIZATION_OWNER_ROLE = "ORGANIZATION_OWNER";
-
 /** Mirrors `HarnessPlanDtos.SetPlanRequest`. */
 export interface SetHarnessPlan {
   seatPriceUsd: number;

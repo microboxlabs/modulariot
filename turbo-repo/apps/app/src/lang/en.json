@@ -1654,7 +1654,8 @@
             "slug": "The identifier must be 3 to 100 characters: lowercase letters, digits and hyphens, not starting or ending with a hyphen.",
             "name": "Enter a name.",
             "tenantClientId": "Enter the tenant client ID.",
-            "ownerEmail": "Enter a valid email for the owner."
+            "ownerEmail": "Enter a valid email for the owner.",
+            "slugTaken": "Another organization already uses this identifier."
           }
         }
       },

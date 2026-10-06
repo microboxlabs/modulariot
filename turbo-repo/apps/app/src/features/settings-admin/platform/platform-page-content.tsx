@@ -66,12 +66,6 @@ export default function PlatformPageContent({
 
   const sections: readonly PlatformSectionEntry[] = [
     {
-      id: "organizations",
-      label: tr("title", organizationsDict),
-      description: tr("menuHint", organizationsDict),
-      icon: HiOutlineOfficeBuilding,
-    },
-    {
       id: "branding",
       label: tr("title", brandingDict),
       description: tr("menuHint", brandingDict),
@@ -100,6 +94,12 @@ export default function PlatformPageContent({
       label: tr("title", usageDict),
       description: tr("menuHint", usageDict),
       icon: HiOutlineChartBar,
+    },
+    {
+      id: "organizations",
+      label: tr("title", organizationsDict),
+      description: tr("menuHint", organizationsDict),
+      icon: HiOutlineOfficeBuilding,
     },
   ];
 

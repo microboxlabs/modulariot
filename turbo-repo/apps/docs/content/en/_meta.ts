@@ -21,5 +21,26 @@ export default {
   },
   reference: {
     title: 'Reference'
+  },
+  '--products': {
+    type: 'separator',
+    title: 'Products'
+  },
+  'products-dashboards': {
+    title: 'Dashboards',
+    href: '/en/products/dashboards'
+  },
+  products: {
+    title: 'Products',
+    type: 'page',
+    display: 'hidden'
+  },
+  menu: {
+    title: 'Products',
+    type: 'menu',
+    items: {
+      dashboards: { title: 'Dashboards', href: '/en/products/dashboards' },
+      all: { title: 'All products', href: '/en/products' }
+    }
   }
 }

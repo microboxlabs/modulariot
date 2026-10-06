@@ -24,6 +24,7 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import type { CalendarGroupResponse } from "@microboxlabs/miot-calendar-client";
 import { useDashboardDynamicItems } from "@/features/dashboard/hooks/use-dashboard-dynamic-items";
+import { useServerDashboardDynamicItems } from "@/features/dashboard/hooks/use-server-dashboard-dynamic-items";
 import { DEFAULT_SERVICE_TYPE } from "@/features/calendar/services/service-types";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
@@ -169,6 +170,9 @@ export function SidebarNavigationProvider({
   const taskDynamicItems = useTaskDynamicItems();
   const calendarDynamicItems = useCalendarDynamicItems();
   const dashboardDynamicItems = useDashboardDynamicItems();
+  const serverDashboardDynamicItems = useServerDashboardDynamicItems(
+    isDashboardServerEnabled
+  );
   const pages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
   const { isTrainer } = useKnowledgeTrainer();
@@ -233,6 +237,7 @@ export function SidebarNavigationProvider({
       tasks: taskDynamicItems,
       calendars: calendarDynamicItems,
       dashboards: dashboardDynamicItems,
+      serverDashboards: serverDashboardDynamicItems,
     };
 
     const resolvedItems = filterSettings(pages, {
@@ -253,6 +258,7 @@ export function SidebarNavigationProvider({
     taskDynamicItems,
     calendarDynamicItems,
     dashboardDynamicItems,
+    serverDashboardDynamicItems,
     data,
     historicInstances,
     mapCount,

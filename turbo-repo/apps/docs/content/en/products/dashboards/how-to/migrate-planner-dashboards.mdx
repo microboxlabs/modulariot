@@ -1,0 +1,107 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Migrate planner dashboards
+
+Older ModularIoT dashboards load data with a **request planner**: each request calls a PostgREST path through a legacy data source. The dashboard server uses **saved queries** instead, which name an operation an administrator approved. This guide converts the first into the second without changing the widgets.
+
+Widgets keep working because each saved query keeps its planner request's result name (`variableName`).
+
+## How the pieces map
+
+| Planner dashboard | Dashboard server |
+| --- | --- |
+| Data source | One PostgREST connection with its credential |
+| PostgREST path, such as `rpc/fn_summary` | One read-only `HTTP_GET` operation on that connection |
+| Planner request | One saved query |
+| Parameter value `{{filter.key}}` | Filter binding, left out when the filter is empty |
+| Any other parameter value | Literal binding |
+| The implicit date filter | A declared `date_range` filter with key `date_range` |
+
+One operation serves every dashboard that calls the same path on the same data source.
+
+<Steps>
+
+### List the operations you need
+
+Pass the planner dashboards to `plannerOperationContracts`. It returns one operation contract per data source and path, with every parameter any dashboard sends:
+
+```ts
+import { plannerOperationContracts } from "@microboxlabs/miot-dashboard-server";
+
+const result = plannerOperationContracts(legacyConfigsBySlug, {
+  pinnedParameters: ["p_client_id"],
+});
+if (!result.ok) console.error(result.problems);
+```
+
+A pinned parameter is fixed with `const`, so no dashboard can change it. It must have the same literal value everywhere it is used. `problems` lists POST requests, unsupported paths and pinned parameters with conflicting values.
+
+### Create the connections and operations
+
+For each data source, create a PostgREST connection and import its functions. Use the **Functions** dialog, with each pinned parameter as a **Fixed value** ([Connect PostgREST](/en/products/dashboards/how-to/connect-postgrest)). Or create each contract with the CLI:
+
+```bash
+miot connections operations create <connectionId> \
+  --name fn_summary --method GET --path /rpc/fn_summary \
+  --request-schema-json "$SCHEMA" --response-schema-json '{}' --output json
+```
+
+Record each operation's `id`.
+
+### Convert each dashboard
+
+Give `migratePlannerQueries` one mapping per planner request. Leave out `parameters` and the bindings are derived from the old values:
+
+```ts
+import { migratePlannerQueries } from "@microboxlabs/miot-dashboard-server";
+
+const converted = migratePlannerQueries(
+  legacyConfig,
+  legacyConfig.requestPlanner.map((r) => ({
+    plannerId: r.id,
+    connectionId,
+    operationId: operationIds[r.pgrestFunctionName],
+  })),
+  { dateFilterLabel: "Date" },
+);
+```
+
+The result is `{ ok: true, config }` or `{ ok: false, problems }`. A converted document has no `requestPlanner`, and keeps widgets, filters, settings and extension fields. It makes no network calls and writes nothing.
+
+| Old parameter value | Becomes |
+| --- | --- |
+| `{{filter.key}}` | `{ "kind": "filter", "key": "key", "omitWhenEmpty": true }` |
+| Other text | `{ "kind": "literal", "value": "..." }` |
+| Empty | Left out, as the planner did |
+| Any other template | Refused |
+
+### Import with a dry run first
+
+Load the converted documents with `importDashboards`. It defaults to a dry run, validates every document against the contract, and never overwrites:
+
+```ts
+import { importDashboards } from "@microboxlabs/miot-dashboard-server";
+
+const report = await importDashboards({ source, store, dryRun: true });
+// report.imported, report.skipped, report.refused, report.failed
+```
+
+Run it again with `dryRun: false` when the report is clean.
+
+### Compare with the old dashboards
+
+Open each new dashboard next to the old one, with the same filters. Check that every widget shows the same values. Keep the old dashboards until you have compared them all.
+
+</Steps>
+
+## Common problems
+
+| Problem | Fix |
+| --- | --- |
+| A query fails with every filter | A column returns a JSON object. Add a fixed `select` value with the scalar columns only. |
+| The data origin is refused | Add the PostgREST origin to `MIOT_DASHBOARD_DATA_ORIGINS` on the dashboard server |
+| A widget shows no data | Its `plannerVariableName` must match a saved query's `variableName` |
+
+<Callout type="info">
+The conversion does not rewrite widget settings. Widgets that called a data source directly, rather than through the planner, need their own review.
+</Callout>

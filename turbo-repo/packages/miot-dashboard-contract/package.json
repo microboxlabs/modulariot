@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/microboxlabs/modulariot",
+    "url": "git+https://github.com/microboxlabs/modulariot.git",
     "directory": "turbo-repo/packages/miot-dashboard-contract"
   },
   "description": "The wire contract for MIOT embeddable dashboards: the persisted document's schema, the role and capability vocabulary, and the OpenAPI specification. Depends on neither the UI nor the server.",

@@ -179,4 +179,18 @@ public interface HarnessClient {
             @HeaderParam("X-Miot-User-Email") String userEmail,
             @HeaderParam("X-Miot-Auth-Mode") String authMode,
             Map<String, Object> body);
+
+    /**
+     * A short plain-language description of a symptom rule. Body:
+     * {@code section}, {@code rule}, {@code fields} (path to label) and
+     * {@code locale}. Answers {@code {"html": "..."}}.
+     */
+    @POST
+    @Path("/describe")
+    Uni<Map<String, Object>> describe(
+            @HeaderParam("Authorization") String authorization,
+            @HeaderParam("X-Miot-Tenant-Client-Id") String tenantClientId,
+            @HeaderParam("X-Miot-User-Email") String userEmail,
+            @HeaderParam("X-Miot-Auth-Mode") String authMode,
+            Map<String, Object> body);
 }

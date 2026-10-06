@@ -39,6 +39,8 @@ export async function loadConfiguredOperations(
     if (typeof module.createDashboardQueryCatalog !== "function")
       throw new Error("Invalid catalog module factory");
     const catalog: unknown = await module.createDashboardQueryCatalog();
+    // null: the module supports a catalog but this deployment does not configure one.
+    if (catalog === null) return operations;
     if (!catalog || typeof catalog !== "object" || !("list" in catalog) || typeof catalog.list !== "function")
       throw new Error("Invalid query catalog provider");
     return {

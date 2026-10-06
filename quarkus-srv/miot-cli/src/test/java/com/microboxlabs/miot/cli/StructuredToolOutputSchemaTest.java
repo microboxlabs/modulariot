@@ -29,6 +29,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -98,7 +99,7 @@ class StructuredToolOutputSchemaTest {
         return structuredTools().stream().flatMap(tool -> Stream.of(Mode.values()).map(mode ->
                 DynamicTest.dynamicTest(tool.name() + " " + mode, () -> {
                     JsonNode schema = (JsonNode) GENERATOR.generate(tool.output());
-                    JsonNode result = MAPPER.valueToTree(sample(tool.output(), mode, true, 0));
+                    JsonNode result = MAPPER.valueToTree(sample(tool.output(), mode, true, Set.of()));
                     Set<ValidationMessage> errors = SCHEMAS.getSchema(schema).validate(result);
                     assertEquals(Set.of(), errors, () -> "result " + result + "\nschema " + schema);
                 })));
@@ -144,13 +145,15 @@ class StructuredToolOutputSchemaTest {
         }
     }
 
-    private static Object sample(Type type, Mode mode, boolean top, int depth) throws ReflectiveOperationException {
+    /** {@code path}: the records being built above this one, so a type that contains itself stops there. */
+    private static Object sample(Type type, Mode mode, boolean top, Set<Class<?>> path)
+            throws ReflectiveOperationException {
         Class<?> raw = type instanceof ParameterizedType p ? (Class<?>) p.getRawType() : (Class<?>) type;
         if (raw.isPrimitive()) {
             return Array.get(Array.newInstance(raw, 1), 0);
         }
         boolean scalar = raw.isEnum() || SCALARS.containsKey(raw);
-        if ((mode == Mode.EMPTY && !top) || (mode == Mode.NULLS && scalar) || depth > 4) {
+        if ((mode == Mode.EMPTY && !top) || (mode == Mode.NULLS && scalar) || path.contains(raw)) {
             return null;
         }
         if (raw.isEnum()) {
@@ -162,20 +165,22 @@ class StructuredToolOutputSchemaTest {
         Type[] args = type instanceof ParameterizedType p ? p.getActualTypeArguments() : new Type[0];
         if (Collection.class.isAssignableFrom(raw)) {
             List<Object> list = new ArrayList<>();
-            list.add(sample(args[0], element(args[0], mode), false, depth + 1));
+            list.add(sample(args[0], element(args[0], mode), false, path));
             return list;
         }
         if (Map.class.isAssignableFrom(raw)) {
             Map<Object, Object> map = new LinkedHashMap<>();
-            map.put("k", sample(args[1], element(args[1], mode), false, depth + 1));
+            map.put("k", sample(args[1], element(args[1], mode), false, path));
             return map;
         }
         if (raw.isRecord()) {
+            Set<Class<?>> inner = new HashSet<>(path);
+            inner.add(raw);
             RecordComponent[] components = raw.getRecordComponents();
             Object[] values = new Object[components.length];
             Class<?>[] types = new Class<?>[components.length];
             for (int i = 0; i < components.length; i++) {
-                values[i] = sample(components[i].getGenericType(), mode, false, depth + 1);
+                values[i] = sample(components[i].getGenericType(), mode, false, inner);
                 types[i] = components[i].getType();
             }
             return raw.getDeclaredConstructor(types).newInstance(values);

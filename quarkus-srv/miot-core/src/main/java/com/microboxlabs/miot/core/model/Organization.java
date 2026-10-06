@@ -61,6 +61,10 @@ public class Organization extends PanacheEntityBase {
     @Column(nullable = false)
     public boolean active = true;
 
+    /** Where membership comes from: ALFRESCO (the org's Alfresco group) or NATIVE (the modulith's memberships). */
+    @Column(name = "membership_source", nullable = false)
+    public String membershipSource = "ALFRESCO";
+
     // --- Named finders (avoids static access via inherited PanacheEntityBase) ---
 
     public static Uni<Organization> findBySlug(String slug) {

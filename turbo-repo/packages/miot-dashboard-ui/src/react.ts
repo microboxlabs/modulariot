@@ -48,6 +48,10 @@ export { DashboardCanvas, type DashboardCanvasProps } from "./react/dashboard-ca
 export { FlexContainer, type FlexContainerProps, type FlexLayout } from "./react/flex-container";
 
 export { useDashboardDocument } from "./react/use-dashboard-document";
+export {
+  useDashboardAutosave,
+  type DashboardAutosaveOptions,
+} from "./react/use-dashboard-autosave";
 
 export { PercentageValue, type PercentageValueProps } from "./react/percentage-value";
 

@@ -1,0 +1,88 @@
+import { Callout } from 'nextra/components'
+
+# Usar el Web Component
+
+`<miot-dashboard>` es un elemento personalizado. Úselo en cualquier página o framework que pueda alojar un elemento personalizado: HTML sin framework, Vue, Angular, Svelte, Phoenix LiveView, plantillas renderizadas en el servidor. Acepta las mismas opciones que `mountDashboard`.
+
+## Registrar el elemento
+
+Importe el elemento desde la misma versión que usa para los widgets. Para una página sin bundler, es la versión autocontenida para navegador (consulte [Incrustar un dashboard en una página web](/es/products/dashboards/tutorials/embed-in-a-web-page#obtenga-los-archivos-para-el-navegador)):
+
+```js
+import {
+  defineDashboardElement,
+  createTextCardRegistry,
+} from "./dashboard-runtime.js";
+
+defineDashboardElement(); // registra <miot-dashboard>
+```
+
+El registro es explícito: importar el archivo no registra nada. Llamar de nuevo a `defineDashboardElement()` no causa problemas. Pase un nombre, como `defineDashboardElement("acme-dashboard")`, para usar su propia etiqueta.
+
+## Entregarle opciones
+
+```html
+<miot-dashboard id="sales"></miot-dashboard>
+```
+
+```js
+const element = document.getElementById("sales");
+element.dashboardOptions = {
+  instanceKey: "alice/sales",
+  registry,
+  widgets: dashboard.widgets,
+  unknownWidgetLabel: "Este widget no está disponible en esta página.",
+};
+```
+
+Las opciones son una propiedad de JavaScript, nunca un atributo HTML. Así los tokens y los datos quedan fuera del código fuente de la página.
+
+| Usted | El elemento |
+| --- | --- |
+| Define `dashboardOptions` | Dibuja el dashboard |
+| La define de nuevo | Reemplaza todas las opciones. El estado de los widgets se conserva mientras `instanceKey` no cambie. |
+| La define como `undefined` | Limpia el dashboard |
+| Quita el elemento de la página | Se destruye |
+| Lo vuelve a poner | Dibuja de nuevo con las últimas opciones, con estado nuevo |
+
+## Reglas
+
+- **Comience con un elemento vacío.** El elemento dibuja dentro de su propio contenido.
+- **Cargue la hoja de estilos una sola vez** en la página.
+- **Cambie `instanceKey`** cuando cambia la persona que inició sesión o el dashboard.
+- **Use una sola versión por página.** No mezcle `browser.js` con widgets construidos contra otra copia de React.
+
+## Phoenix LiveView
+
+LiveView modifica la página en cada actualización. Manténgalo fuera del contenido del dashboard:
+
+```html
+<div id="sales-dashboard" phx-hook="Dashboard" phx-update="ignore"></div>
+```
+
+```js
+import { mountDashboard } from "./dashboard-runtime.js";
+
+export const Dashboard = {
+  mounted() {
+    this.handle = mountDashboard(this.el, optionsFrom(this.el));
+  },
+  updated() {
+    this.handle.update(optionsFrom(this.el));
+  },
+  destroyed() {
+    this.handle.destroy();
+  },
+};
+```
+
+`optionsFrom` es su función que construye las opciones a partir del estado de su página.
+
+<Callout type="info">
+Los widgets de texto compilan plantillas en el navegador, lo que requiere `'unsafe-eval'` en una Content Security Policy estricta. Revise su política antes de incrustar.
+</Callout>
+
+## Relacionado
+
+- [Catálogo de widgets](/es/products/dashboards/reference/widgets)
+- [Biblioteca de UI](/es/products/dashboards/reference/ui-library)

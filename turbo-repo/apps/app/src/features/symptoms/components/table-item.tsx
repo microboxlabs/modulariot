@@ -1,6 +1,6 @@
 "use client";
 
-import { TableRow, TableCell, Button } from "flowbite-react";
+import { TableRow, TableCell, Button, Badge } from "flowbite-react";
 import ConditionIcon from "./condition-icon";
 import { Conditions, TableItemType } from "./table-item.type";
 import { HiArrowRight } from "react-icons/hi";
@@ -10,16 +10,45 @@ import { FormattedDate } from "@/features/common/components/formatted-date";
 import icu_condition from "@/features/symptoms/model/icu_condition.json";
 import { FaChevronRight } from "react-icons/fa6";
 
+// SLA declarado por nivel (min) — demo local: espejo de la parametrización
+const SLA_MIN: Record<string, number> = { "4": 10, "3": 15, "2": 30 };
+
 export default function TableItem({
   data,
   dict,
   compact = false,
+  recurrenceCount = 1,
 }: {
   data: TableItemType;
   dict: I18nRecord;
   compact?: boolean;
+  recurrenceCount?: number;
 }) {
   const searchParams = new URLSearchParams(window.location.search);
+
+  const slaMin = SLA_MIN[data.icu_code] ?? null;
+  // A badge, not plain colored text: the row itself is already tinted by
+  // condition (`Conditions[...].bgColor` below), and a saturated row color —
+  // red especially — could wash out same-colored text with no background of
+  // its own to stand on.
+  let slaCell: { texto: string; color: "warning" | "success" | "failure" } | null =
+    null;
+  if (slaMin != null) {
+    const transc = (Date.now() - new Date(data.date).getTime()) / 60000;
+    const resto = slaMin - transc;
+    const fmt = (m: number) =>
+      m >= 90 ? `${Math.round(m / 60)} h` : `${Math.max(1, Math.round(m))} min`;
+    slaCell =
+      resto >= 0
+        ? {
+            texto: `⏱ ${(dict.symptoms as I18nRecord).sla_left as string} ${fmt(resto)}`,
+            color: resto <= slaMin * 0.3 ? "warning" : "success",
+          }
+        : {
+            texto: `⏱ ${(dict.symptoms as I18nRecord).sla_overdue as string} ${fmt(-resto)}`,
+            color: "failure",
+          };
+  }
 
   if (!compact) {
     return (
@@ -67,6 +96,22 @@ export default function TableItem({
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}
         >
           {data.time} {/* {(dict.symptoms as I18nRecord).sec as string}. */}
+        </TableCell>
+        <TableCell className="text-xs text-nowrap">
+          {slaCell ? (
+            <Badge color={slaCell.color} className="w-fit">
+              {slaCell.texto}
+            </Badge>
+          ) : (
+            <span className="text-gray-400">—</span>
+          )}
+        </TableCell>
+        <TableCell className="text-xs text-nowrap">
+          {recurrenceCount > 1 ? (
+            <Badge color="purple" className="w-fit">×{recurrenceCount}</Badge>
+          ) : (
+            <span className="text-gray-400">—</span>
+          )}
         </TableCell>
         <TableCell
           className={`text-xs text-nowrap ${Conditions[data.condition as keyof typeof Conditions]?.textColor}`}

@@ -14,7 +14,11 @@ import type {
 } from "@microboxlabs/miot-dashboard-contract/document";
 import { DASHBOARD_ROLES } from "@microboxlabs/miot-dashboard-contract/roles";
 
-const summarySchema = z.object({ slug: z.string(), name: z.string() });
+const summarySchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  order: z.number().int().nonnegative().optional(),
+});
 const permissionSchema = z.object({
   authorityId: z.string().min(1),
   role: z.enum(DASHBOARD_ROLES),

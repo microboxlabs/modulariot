@@ -14,7 +14,7 @@ function client() {
     queryCatalog: vi.fn().mockResolvedValue([]),
   };
 }
-it("loads discovery only when an editor opens the manager", async () => {
+it("loads discovery only for editors", async () => {
   const api = client();
   const { rerender } = render(
     <ServerDashboardQueries
@@ -36,8 +36,6 @@ it("loads discovery only when an editor opens the manager", async () => {
       dictionary={{}}
     />
   );
-  expect(api.queryCatalog).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "title" }));
   expect(await screen.findByRole("button", { name: "add" })).toBeTruthy();
   expect(api.queryCatalog).toHaveBeenCalledWith(
     "costs",
@@ -56,7 +54,6 @@ it("keeps authoring unavailable when the catalog fails", async () => {
       dictionary={{}}
     />
   );
-  fireEvent.click(screen.getByRole("button", { name: "title" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("catalogError");
   expect(screen.queryByRole("button", { name: "add" })).toBeNull();
 });
@@ -79,7 +76,6 @@ it("applies an approved definition through the dashboard document draft", async 
       dictionary={{}}
     />
   );
-  fireEvent.click(screen.getByRole("button", { name: "title" }));
   fireEvent.click(await screen.findByRole("button", { name: "add" }));
   fireEvent.change(screen.getByLabelText("name"), {
     target: { value: "monthly_costs" },

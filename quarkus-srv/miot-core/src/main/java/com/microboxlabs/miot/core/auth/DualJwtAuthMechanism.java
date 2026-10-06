@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.auth;
 
+import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import io.quarkus.security.identity.IdentityProviderManager;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.quarkus.security.credential.TokenCredential;
@@ -63,6 +64,9 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     private JwtConsumer rs256Consumer;
     private List<Pattern> m2mPathPatterns;
 
+    /** Adds the organization permission checker; this mechanism skips the identity augmentors. */
+    private final IamIdentityAugmentor iam;
+
     DualJwtAuthMechanism(
             @ConfigProperty(name = "miot.auth.hs256-issuer", defaultValue = "https://placeholder.auth0.com/")
                     String hs256Issuer,
@@ -75,7 +79,9 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
             @ConfigProperty(name = "miot.auth.hs256-audience", defaultValue = NOT_CONFIGURED)
                     String hs256Audience,
             @ConfigProperty(name = "miot.auth.rs256-audience", defaultValue = NOT_CONFIGURED)
-                    String rs256Audience) {
+                    String rs256Audience,
+            IamIdentityAugmentor iam) {
+        this.iam = iam;
         this.hs256Issuer = hs256Issuer;
         this.rs256Issuer = rs256Issuer;
         this.jwksUrl = jwksUrl;
@@ -185,7 +191,11 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
                 JwtClaims claims = consumer.processToClaims(token);
                 LOG.debugf("Token verified via %s for path %s. sub=%s",
                         alg, path, claims.getSubject());
-                return createIdentity(token, claims);
+                SecurityIdentity identity = createIdentity(token, claims);
+                return identity == null || iam == null
+                        ? identity
+                        : iam.withOrgPermissions(identity,
+                                context.request().getHeader(IamIdentityAugmentor.DEV_EMAIL_HEADER));
             } catch (Exception e) {
                 LOG.debugf("%s verification failed for path %s: %s",
                         alg, path, e.getMessage());

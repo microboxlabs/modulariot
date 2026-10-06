@@ -18,6 +18,7 @@ class InMemorySelectableStore implements SelectableStore {
 
     private final Map<String, Map<String, Selectable>> byTenant = new LinkedHashMap<>();
     private final Map<String, Map<String, String>> bindingsByTenant = new LinkedHashMap<>();
+    /** {@code tenant/key} of every default list a tenant was given. */
     private final Set<String> seeded = new HashSet<>();
     private final Map<String, ReentrantLock> tenantLocks = new ConcurrentHashMap<>();
 
@@ -69,14 +70,11 @@ class InMemorySelectableStore implements SelectableStore {
     }
 
     @Override
-    public synchronized boolean isSeeded(String tenantCode) {
-        return seeded.contains(tenantCode);
-    }
-
-    @Override
     public synchronized void seed(String tenantCode, List<Selectable> defaults) {
-        if (seeded.add(tenantCode)) {
-            defaults.forEach(this::upsert);
+        for (Selectable s : defaults) {
+            if (seeded.add(tenantCode + "/" + s.key()) && find(tenantCode, s.key()).isEmpty()) {
+                upsert(s);
+            }
         }
     }
 
@@ -96,7 +94,9 @@ class InMemorySelectableStore implements SelectableStore {
     public synchronized void resetTo(String tenantCode, List<Selectable> lists) {
         byTenant.remove(tenantCode);
         bindingsByTenant.remove(tenantCode);
-        lists.forEach(this::upsert);
-        seeded.add(tenantCode);
+        lists.forEach(s -> {
+            upsert(s);
+            seeded.add(tenantCode + "/" + s.key());
+        });
     }
 }

@@ -111,7 +111,7 @@ class OrgHarnessLearningGateTest {
     }
 
     private OrganizationPermissionService permissions(boolean allowed) {
-        return new OrganizationPermissionService(null, null) {
+        return new OrganizationPermissionService(null, null, null) {
             @Override
             public Uni<Void> requirePermission(
                     String organizationSlug, OrganizationPermissionDefinition permission) {

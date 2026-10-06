@@ -1,0 +1,101 @@
+import { Callout } from 'nextra/components'
+
+# Docker
+
+La imagen `ghcr.io/microboxlabs/miot-dashboard-server` ejecuta el servidor en Node.js 24 como usuario sin privilegios (UID 1001).
+
+| Dato de la imagen | Valor |
+| --- | --- |
+| Puerto | `3070`, en `0.0.0.0` |
+| Datos | `/data`: la base de datos SQLite en `/data/dashboards.db`, los documentos en `/data/documents` |
+| `NODE_ENV` | `production`, por lo que se rechaza el inicio de sesión de desarrollo |
+| Extras incluidos | `jose` (JWT), `swagger-ui-dist` (`/docs`) |
+| Ejemplo incluido | `/app/examples/modulariot-operations.mjs`, el módulo de consultas de ModularIoT |
+| Etiquetas | `sha-<commit>` para cada build; `latest` cambia |
+
+## Ejecutarlo
+
+```bash
+docker run -d --name dashboards -p 3070:3070 \
+  -v dashboards-data:/data \
+  -e MIOT_DASHBOARD_STORE=sqlite \
+  -e MIOT_DASHBOARD_JWT_ISSUER=https://your-company.auth0.com/ \
+  -e MIOT_DASHBOARD_JWT_AUDIENCE=miot-dashboards \
+  -e MIOT_DASHBOARD_JWT_JWKS_URL=https://your-company.auth0.com/.well-known/jwks.json \
+  -e MIOT_DASHBOARD_JWT_USER_CLAIM=email \
+  -e MIOT_DASHBOARD_SEED=/data/seed.json \
+  ghcr.io/microboxlabs/miot-dashboard-server:sha-6fb37c8
+```
+
+Antes de iniciar, copie su [archivo de membresías](/es/products/dashboards/how-to/authenticate-users#2-y-3-indique-quién-pertenece-a-dónde) en el volumen como `seed.json`. Sin un volumen en `/data`, los dashboards se pierden junto con el contenedor.
+
+## Docker Compose
+
+```yaml filename="compose.yaml"
+services:
+  dashboards:
+    image: ghcr.io/microboxlabs/miot-dashboard-server:sha-6fb37c8
+    ports:
+      - "3070:3070"
+    volumes:
+      - dashboards-data:/data
+      - ./seed.json:/config/seed.json:ro
+    environment:
+      MIOT_DASHBOARD_STORE: sqlite
+      MIOT_DASHBOARD_SEED: /config/seed.json
+      MIOT_DASHBOARD_JWT_ISSUER: https://your-company.auth0.com/
+      MIOT_DASHBOARD_JWT_AUDIENCE: miot-dashboards
+      MIOT_DASHBOARD_JWT_JWKS_URL: https://your-company.auth0.com/.well-known/jwks.json
+      MIOT_DASHBOARD_JWT_USER_CLAIM: email
+      MIOT_DASHBOARD_CORS_ORIGINS: https://app.example.com
+    env_file:
+      - dashboards.secrets.env   # MIOT_DASHBOARD_CREDENTIALS_KEY, nunca se sube al repositorio
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3070/readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  dashboards-data:
+```
+
+## Agregar PostgreSQL o almacenamiento en la nube
+
+La imagen no incluye `pg` ni los SDK de la nube. Construya una imagen pequeña sobre ella:
+
+```dockerfile filename="Dockerfile"
+FROM ghcr.io/microboxlabs/miot-dashboard-server:sha-6fb37c8
+USER root
+RUN npm install --omit=dev --no-audit --no-fund pg@8 \
+    && npm cache clean --force
+USER dashboards
+```
+
+Agregue `@aws-sdk/client-s3` o `@google-cloud/storage` de la misma forma para guardar documentos en S3 o Google Cloud Storage. Luego configure:
+
+```bash
+MIOT_DASHBOARD_STORE=postgres
+MIOT_DASHBOARD_POSTGRES_URL=postgres://dashboards:...@db:5432/dashboards
+```
+
+La URL contiene una contraseña. Pásela desde un secreto, no desde un archivo del repositorio.
+
+## Leer el log de inicio
+
+```bash
+docker logs dashboards
+```
+
+Las primeras líneas confirman el almacén, el método de inicio de sesión y el origen de las membresías. Si muestran `0 tenants`, el archivo de membresías no se encontró o está vacío, y todas las solicitudes reciben 403.
+
+<Callout type="info">
+Con SQLite, ejecute un contenedor por volumen. Dos procesos no pueden escribir en un mismo archivo SQLite. Para ejecutar más de uno, cambie a PostgreSQL.
+</Callout>
+
+## Relacionado
+
+- [Kubernetes con Helm](/es/products/dashboards/deployment/kubernetes)
+- [Lista de verificación para producción](/es/products/dashboards/deployment/production-checklist)
+- [Configuración](/es/products/dashboards/reference/configuration)

@@ -25,7 +25,10 @@
  * is the operation's own event.
  */
 
-import { dashboardDisplayName } from "../store/display-name";
+import {
+  dashboardDisplayName,
+  dashboardSortOrder,
+} from "../store/display-name";
 import type { AuditAction, AuditSink } from "../seams/audit";
 import { noopAuditSink } from "../seams/audit";
 import type {
@@ -419,13 +422,22 @@ export function createAccessControl<TRequest>(
       );
       batch.forEach((summary, index) => {
         const record = access[index]?.record;
-        if (record)
-          visible.push({
-            slug: summary.slug,
-            name: dashboardDisplayName(record.config, summary.slug),
-          });
+        if (!record) return;
+        const order = dashboardSortOrder(record.config);
+        visible.push({
+          slug: summary.slug,
+          name: dashboardDisplayName(record.config, summary.slug),
+          ...(order === undefined ? {} : { order }),
+        });
       });
     }
+    // Stable: equal orders, and unordered dashboards, keep the store's name order.
+    visible.sort((a, b) => {
+      if (a.order === b.order) return 0;
+      if (a.order === undefined) return 1;
+      if (b.order === undefined) return -1;
+      return a.order - b.order;
+    });
     return visible;
   }
 

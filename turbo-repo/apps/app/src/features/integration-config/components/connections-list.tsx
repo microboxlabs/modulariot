@@ -1,7 +1,13 @@
 "use client";
 
 import { Badge, DropdownItem, Spinner } from "flowbite-react";
-import { HiOutlineLink, HiPencil, HiPlay, HiTrash } from "react-icons/hi";
+import {
+  HiOutlineDatabase,
+  HiOutlineLink,
+  HiPencil,
+  HiPlay,
+  HiTrash,
+} from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { CredentialListItem } from "@/features/credentials/credential.types";
@@ -26,6 +32,8 @@ interface ConnectionsListProps {
   readonly onOpen: (connection: IntegrationConnection) => void;
   readonly onTest: (connection: IntegrationConnection) => void;
   readonly onDelete: (connection: IntegrationConnection) => void;
+  /** Pick the functions a PostgREST connection exposes to dashboards. */
+  readonly onFunctions: (connection: IntegrationConnection) => void;
   /** Id of the connection currently being exercised, if any. */
   readonly testing: string | null;
   readonly emptyMessage: string;
@@ -45,10 +53,11 @@ export function ConnectionsList({
   onOpen,
   onTest,
   onDelete,
+  onFunctions,
   testing,
   emptyMessage,
   dict,
-}: ConnectionsListProps) {
+}: Readonly<ConnectionsListProps>) {
   if (connections.length === 0) {
     return <EmptyRow message={emptyMessage} />;
   }
@@ -62,7 +71,7 @@ export function ConnectionsList({
             templateName={
               templates.find(
                 (template) => template.id === connection.templateId
-              )?.name ?? connection.providerType
+              )?.name ?? providerLabel(connection.providerType)
             }
             credentialName={
               credentials.find(
@@ -72,6 +81,11 @@ export function ConnectionsList({
             onOpen={() => onOpen(connection)}
             onTest={() => onTest(connection)}
             onDelete={() => onDelete(connection)}
+            onFunctions={
+              connection.providerType === "POSTGREST"
+                ? () => onFunctions(connection)
+                : undefined
+            }
             testing={testing === connection.id}
             dict={dict}
           />
@@ -88,6 +102,7 @@ interface ConnectionRowProps {
   readonly onOpen: () => void;
   readonly onTest: () => void;
   readonly onDelete: () => void;
+  readonly onFunctions?: () => void;
   readonly testing: boolean;
   readonly dict: I18nRecord;
 }
@@ -99,9 +114,10 @@ function ConnectionRow({
   onOpen,
   onTest,
   onDelete,
+  onFunctions,
   testing,
   dict,
-}: ConnectionRowProps) {
+}: Readonly<ConnectionRowProps>) {
   return (
     <div className={ROW}>
       <RowIcon>
@@ -148,6 +164,11 @@ function ConnectionRow({
             <DropdownItem icon={HiPlay} onClick={onTest}>
               {tr("connections.test", dict)}
             </DropdownItem>
+            {onFunctions && (
+              <DropdownItem icon={HiOutlineDatabase} onClick={onFunctions}>
+                {tr("postgrest.functions", dict)}
+              </DropdownItem>
+            )}
             <DropdownItem icon={HiTrash} onClick={onDelete}>
               {tr("common.delete", dict)}
             </DropdownItem>
@@ -180,4 +201,8 @@ function testLine(connection: IntegrationConnection, dict: I18nRecord): string {
   return tr("connections.testedOn", dict, {
     date: new Date(connection.lastTestedAt).toLocaleDateString(),
   });
+}
+
+function providerLabel(providerType: string): string {
+  return providerType === "POSTGREST" ? "PostgREST" : providerType;
 }

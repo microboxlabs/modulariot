@@ -60,7 +60,7 @@ The other ticket settings, such as caching and how to present the ticket, are in
 
 ## 2 and 3. Say who belongs where
 
-<Tabs items={['Membership file', 'Directory service']}>
+<Tabs items={['Membership file', 'Directory service', 'Groups']}>
 <Tabs.Tab>
 
 For a few dozen people, list them in a JSON file and point `MIOT_DASHBOARD_SEED` at it. The shape is organization, then scope, then person, then role:
@@ -107,6 +107,29 @@ MIOT_DASHBOARD_SCOPES_SERVICE_VALUE="Bearer $DIRECTORY_TOKEN"
 A `GET` URL must contain `{userId}` and the organization or scope placeholder. Otherwise one answer would apply to everyone, and the server refuses to start. Answers are cached: yes for 60 seconds, no for 30, by default.
 
 The full list of `TENANTS_*` and `SCOPES_*` settings is in [Configuration](/en/products/dashboards/reference/configuration#memberships).
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+If the identity provider already puts the organization and the role in a group name, such as `GROUP_DHB_ACME_EDITOR`, the server reads both from the groups it already has. Nothing is looked up and no file is maintained.
+
+```bash
+MIOT_DASHBOARD_TICKET_GROUPS_PATH=user.data.groups   # or MIOT_DASHBOARD_JWT_GROUPS_CLAIM
+MIOT_DASHBOARD_GROUP_ROLES_PATTERN='GROUP_DHB_{tenant}_{role}'
+MIOT_DASHBOARD_GROUP_ROLES_MAP='CONSUMER=Consumer,COLLABORATOR=Contributor,EDITOR=Editor,COORDINATOR=Coordinator'
+```
+
+| Groups | Organization `acme` | Organization `globex` |
+| --- | --- | --- |
+| `GROUP_DHB_ACME_EDITOR` | Editor, in every scope | No access |
+| `GROUP_DHB_ACME_CONSUMER`, `GROUP_DHB_ACME_COORDINATOR` | Coordinator: the highest role wins | No access |
+| `GROUP_UNRELATED` | No access | No access |
+
+The server fills the organization from the address into the pattern and compares the result with each group. Case and surrounding spaces do not matter. Because it fills the organization in rather than reading it out, an organization id that contains the separator, such as `north_zone`, cannot be confused with `north`.
+
+Add `{scope}` to the pattern, such as `GROUP_DHB_{tenant}_{scope}_{role}`, to give a role in one scope only. Scope ids then cannot contain the character next to `{scope}` (here `_`): otherwise `GROUP_DHB_ACME_X_OPS_EDITOR` could mean organization `acme_x`, scope `ops`, or organization `acme`, scope `x_ops`. Without `{scope}`, a role applies in every scope of the organization.
+
+The settings are in [Configuration](/en/products/dashboards/reference/configuration#roles-from-groups).
 
 </Tabs.Tab>
 </Tabs>

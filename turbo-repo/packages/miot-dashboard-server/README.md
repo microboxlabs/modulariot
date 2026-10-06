@@ -520,6 +520,27 @@ Per-dashboard permissions stay in this server's store. Cached results follow
 `MIOT_DASHBOARD_SCOPES_CACHE` and `MIOT_DASHBOARD_SCOPES_NEGATIVE_CACHE`. A
 host `401` means this server's credential failed — not "not a member".
 
+### Roles from groups (v0.7.0)
+
+When the identity provider already names the tenant and the role in a group,
+the server answers both questions from the caller's groups, with no seed file
+and no lookup:
+
+```bash
+MIOT_DASHBOARD_TICKET_GROUPS_PATH=user.data.groups \
+MIOT_DASHBOARD_GROUP_ROLES_PATTERN='GROUP_DHB_{tenant}_{role}' \
+MIOT_DASHBOARD_GROUP_ROLES_MAP='CONSUMER=Consumer,COLLABORATOR=Contributor,EDITOR=Editor,COORDINATOR=Coordinator' \
+  npx miot-dashboard-server
+```
+
+The tenant (and `{scope}`, when the pattern has one) comes from the request
+and is filled into the pattern before matching, so `north_zone` and `north`
+stay apart. Matching ignores case and surrounding spaces, and the highest
+matching role wins. With `{scope}`, scope ids cannot contain the characters
+next to it. The pattern cannot be combined with `MIOT_DASHBOARD_TENANTS_URL`
+or `MIOT_DASHBOARD_SCOPES_URL`, and needs a group source. Library users call
+`createGroupRoleAuthorities` from `@microboxlabs/miot-dashboard-server/identity`.
+
 ### Try the API
 
 | Path                            | Is                                                            |

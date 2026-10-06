@@ -127,7 +127,7 @@ MIOT_DASHBOARD_GROUP_ROLES_MAP='CONSUMER=Consumer,COLLABORATOR=Contributor,EDITO
 
 The server fills the organization from the address into the pattern and compares the result with each group. Case and surrounding spaces do not matter. Because it fills the organization in rather than reading it out, an organization id that contains the separator, such as `north_zone`, cannot be confused with `north`.
 
-Add `{scope}` to the pattern, such as `GROUP_DHB_{tenant}_{scope}_{role}`, to give a role in one scope only. Without it, a role applies in every scope of the organization.
+Add `{scope}` to the pattern, such as `GROUP_DHB_{tenant}_{scope}_{role}`, to give a role in one scope only. Scope ids then cannot contain the character next to `{scope}` (here `_`): otherwise `GROUP_DHB_ACME_X_OPS_EDITOR` could mean organization `acme_x`, scope `ops`, or organization `acme`, scope `x_ops`. Without `{scope}`, a role applies in every scope of the organization.
 
 The settings are in [Configuration](/en/products/dashboards/reference/configuration#roles-from-groups).
 

@@ -113,6 +113,31 @@ describe("createGroupRoleAuthorities", () => {
       expect(await scoped.scopes.resolveScopeRole(ana, "finance")).toBeNull();
     });
 
+    it("keeps a tenant whose id extends another's apart from it", async () => {
+      // `DHB_ACME_X_OPS_EDITOR` is tenant `acme_x`, scope `ops`. It must not
+      // also read as tenant `acme`, scope `x_ops`.
+      const ana = person(["DHB_ACME_X_OPS_EDITOR"]);
+      expect(await scoped.tenants.mayActAs(ana, "acme_x")).toBe(true);
+      expect(await scoped.tenants.mayActAs(ana, "acme")).toBe(false);
+      expect(
+        await scoped.scopes.resolveScopeRole(
+          inTenant(ana.groups ?? [], "acme"),
+          "x_ops",
+        ),
+      ).toBeNull();
+      expect(
+        await scoped.scopes.resolveScopeRole(
+          inTenant(ana.groups ?? [], "acme_x"),
+          "ops",
+        ),
+      ).toBe("Editor");
+    });
+
+    it("refuses a scope id that contains the separator", async () => {
+      const ana = inTenant(["DHB_ACME_EAST_OPS_EDITOR"], "acme");
+      expect(await scoped.scopes.resolveScopeRole(ana, "east_ops")).toBeNull();
+    });
+
     it("lets a person into the tenant through a group for any of its scopes", async () => {
       const ana = person(["DHB_ACME_FINANCE_CONSUMER"]);
       expect(await scoped.tenants.mayActAs(ana, "acme")).toBe(true);
@@ -130,6 +155,14 @@ describe("groupPatternProblem", () => {
     [
       "{tenant}_{site}_{role}",
       "may only use the placeholders {tenant}, {scope} and {role}",
+    ],
+    [
+      "{tenant}{scope}_{role}",
+      "must separate {scope} from the other placeholders with text",
+    ],
+    [
+      "{tenant}_{scope}{role}",
+      "must separate {scope} from the other placeholders with text",
     ],
   ])("refuses %s", (pattern, problem) => {
     expect(groupPatternProblem(pattern)).toBe(problem);

@@ -127,7 +127,7 @@ MIOT_DASHBOARD_GROUP_ROLES_MAP='CONSUMER=Consumer,COLLABORATOR=Contributor,EDITO
 
 El servidor completa el patrón con la organización de la dirección y compara el resultado con cada grupo. No importan las mayúsculas ni los espacios alrededor. Como completa la organización en lugar de extraerla, una organización cuyo id contiene el separador, como `north_zone`, no se confunde con `north`.
 
-Agregue `{scope}` al patrón, como `GROUP_DHB_{tenant}_{scope}_{role}`, para dar un rol en un solo ámbito. Sin él, el rol se aplica en todos los ámbitos de la organización.
+Agregue `{scope}` al patrón, como `GROUP_DHB_{tenant}_{scope}_{role}`, para dar un rol en un solo ámbito. En ese caso, los ids de ámbito no pueden contener el carácter junto a `{scope}` (aquí `_`): de lo contrario, `GROUP_DHB_ACME_X_OPS_EDITOR` podría significar la organización `acme_x`, ámbito `ops`, o la organización `acme`, ámbito `x_ops`. Sin `{scope}`, el rol se aplica en todos los ámbitos de la organización.
 
 Los ajustes están en [Configuración](/es/products/dashboards/reference/configuration#roles-desde-grupos).
 

@@ -60,14 +60,40 @@ export function groupPatternProblem(pattern: string): string | undefined {
   if (names.filter((name) => name === "scope").length > 1) {
     return "may contain {scope} at most once";
   }
-  if (/\{(?!tenant\}|scope\}|role\})[^}]*\}/.test(pattern)) {
+  const used = [...pattern.matchAll(/\{([^{}]*)\}/g)].map((match) => match[1]);
+  if (used.some((name) => !KNOWN_PLACEHOLDERS.has(name ?? ""))) {
     return "may only use the placeholders {tenant}, {scope} and {role}";
+  }
+  const parts = pattern.split(PLACEHOLDER);
+  const scope = parts.indexOf("scope");
+  if (scope !== -1 && (parts[scope - 1] === "" || parts[scope + 1] === "")) {
+    return "must separate {scope} from the other placeholders with text";
   }
   return undefined;
 }
 
+const KNOWN_PLACEHOLDERS = new Set(["tenant", "scope", "role"]);
+
 function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+}
+
+/**
+ * The characters next to `{scope}`, which a scope id may not contain.
+ *
+ * Without this rule `DHB_{tenant}_{scope}_{role}` is ambiguous whenever ids
+ * contain `_`: `DHB_ACME_X_OPS_EDITOR` reads as tenant `acme_x`, scope `ops`
+ * and as tenant `acme`, scope `x_ops`. Keeping the separator out of scope ids
+ * leaves only the first reading.
+ */
+function scopeSeparators(parts: string[]): string {
+  const scope = parts.indexOf("scope");
+  if (scope === -1) return "";
+  const before = parts[scope - 1] ?? "";
+  const after = parts[scope + 1] ?? "";
+  return [...new Set([before.slice(-1), after.slice(0, 1)])]
+    .filter((character) => character !== "")
+    .join("");
 }
 
 export function createGroupRoleAuthorities(
@@ -85,18 +111,22 @@ export function createGroupRoleAuthorities(
     ),
   );
   const roleAlternatives = [...roles.keys()].map(escapeRegExp).join("|");
-  const hasScope = options.pattern.includes("{scope}");
+  const parts = options.pattern.split(PLACEHOLDER);
+  const hasScope = parts.includes("scope");
+  const separators = scopeSeparators(parts);
+  const anyScope = separators === "" ? ".+" : `[^${escapeRegExp(separators)}]+`;
+  const isScopeId = (scopeId: string): boolean =>
+    ![...separators].some((character) => scopeId.includes(character));
 
   // Group names are matched case-insensitively: identity providers tend to
   // upper-case them while tenant ids are lower case.
   const matcher = (tenantId: string, scopeId: string | undefined): RegExp => {
-    const source = options.pattern
-      .split(PLACEHOLDER)
+    const source = parts
       .map((part, index) => {
         if (index % 2 === 0) return escapeRegExp(part);
         if (part === "tenant") return escapeRegExp(tenantId);
         if (part === "scope") {
-          return scopeId === undefined ? ".+" : escapeRegExp(scopeId);
+          return scopeId === undefined ? anyScope : escapeRegExp(scopeId);
         }
         return `(${roleAlternatives})`;
       })
@@ -130,6 +160,7 @@ export function createGroupRoleAuthorities(
     },
     scopes: {
       resolveScopeRole(identity: DashboardIdentity, scopeId: string) {
+        if (hasScope && !isScopeId(scopeId)) return Promise.resolve(null);
         const found = rolesIn(
           identity,
           identity.tenantId,

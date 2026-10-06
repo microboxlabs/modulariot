@@ -118,7 +118,7 @@ Organization and scope membership read from the caller's groups. It replaces the
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `MIOT_DASHBOARD_GROUP_ROLES_PATTERN` | off | The group name with `{tenant}` and `{role}`, and optionally `{scope}`, such as `GROUP_DHB_{tenant}_{role}`. Matched without regard to case or surrounding spaces. |
+| `MIOT_DASHBOARD_GROUP_ROLES_PATTERN` | off | The group name with `{tenant}` and `{role}`, and optionally `{scope}`, such as `GROUP_DHB_{tenant}_{role}`. Matched without regard to case or surrounding spaces. With `{scope}`, scope ids cannot contain the characters next to it. |
 | `MIOT_DASHBOARD_GROUP_ROLES_MAP` | `CONSUMER=Consumer,CONTRIBUTOR=Contributor,EDITOR=Editor,COORDINATOR=Coordinator` | `theirs=ours` pairs for the `{role}` part |
 
 Needs `MIOT_DASHBOARD_TICKET_GROUPS_PATH` or `MIOT_DASHBOARD_JWT_GROUPS_CLAIM`. The server refuses to start with the pattern and `MIOT_DASHBOARD_TENANTS_URL` or `MIOT_DASHBOARD_SCOPES_URL` together.

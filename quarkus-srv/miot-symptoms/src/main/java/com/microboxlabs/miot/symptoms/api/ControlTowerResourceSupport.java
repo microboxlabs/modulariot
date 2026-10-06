@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.Access;
@@ -12,6 +13,8 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.config.ConfigProvider;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -55,11 +58,20 @@ abstract class ControlTowerResourceSupport {
 
     /** The caller's access to the organization the request entered. */
     protected Uni<Access> access(String organizationId) {
+        return roleService.access(organizationId, caller());
+    }
+
+    /** The caller as {@code @PermissionsAllowed} sees it: the user, else the token's client id. */
+    private Caller caller() {
         String email = organizationContext.getUserEmail();
-        Caller caller = email != null && !email.isBlank()
-                ? Caller.user(email)
-                : Caller.client(tenantContext.getClientId());
-        return roleService.access(organizationId, caller);
+        if (email != null && !email.isBlank()) {
+            return Caller.user(email);
+        }
+        List<String> claims = ConfigProvider.getConfig()
+                .getOptionalValues("miot.auth.client-id-claims", String.class)
+                .orElse(List.of("aud", "azp"));
+        String clientId = OrganizationAccess.clientId(identity, claims);
+        return Caller.client(clientId != null ? clientId : tenantContext.getClientId());
     }
 
     protected String tenantCode(String organizationId) {

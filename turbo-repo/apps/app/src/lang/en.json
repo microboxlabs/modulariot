@@ -5802,68 +5802,6 @@
     "view_on_maps": "View on Google Maps",
     "distance": "Distance"
   },
-  "new_functionality": {
-    "new": "New",
-    "try_it_now": "Try it now!",
-    "i_want_to_try": "I want to try this functionality!",
-    "not_interested": "I'm not interested in this functionality.",
-    "dont_show_again": "Don't show me this message again.",
-    "continue": "Continue",
-    "next": "Next",
-    "previous": "Previous",
-    "done": "Done",
-    "symptom_historic": {
-      "title": "Try the new filter by conditions.",
-      "we_added_a_new_functionality_for": "We have implemented a new functionality to",
-      "filter_by_condition": "filter by condition.",
-      "second_paragraph": "Now you can filter directly from the condition counters, without needing to navigate to another page.",
-      "for_now": "For now",
-      "its_optional": "its optional",
-      "but": ", but",
-      "in_the_future": "in the future it will be the only way to filter by conditions."
-    },
-    "signal_historic": {
-      "title": "Try the new Signal Historic Feature!",
-      "we_added_a_new_functionality_for": "We have implemented a new functionality to",
-      "search_historic_pulses": "search historic pulses.",
-      "second_paragraph": "Now you can search specific pulses filtering by",
-      "license_plate_and_date_range": "license plate and date range."
-    },
-    "slider": {
-      "kanban": {
-        "slide1_title": "Renewed Kanban Board",
-        "slide1_subtitle": "Cleaner lanes, faster controls.",
-        "slide2_title": "Per-Lane Actions",
-        "slide2_lane": "Start trip",
-        "slide2_density": "Density",
-        "slide2_sort": "Sort",
-        "slide2_filter": "Filter",
-        "slide2_collapse": "Collapse",
-        "slide3_title": "Search with ⌘K / Ctrl+K",
-        "slide3_placeholder": "Search trip, plate or driver…",
-        "slide3_desc": "Press ⌘K / Ctrl+K anywhere to jump straight to the search box.",
-        "slide4_title": "Your View, Remembered",
-        "slide4_desc": "Density, sorting, filters and collapsed lanes persist across reloads."
-      },
-      "new_features_appeared": "A new feature has appeared.",
-      "test_pulse_historic_feature": "Test the new Pulse Historic feature!!!",
-      "description": "Filter pulses by license plate and date range to get a downloadable report based by past positions of the vehicles.",
-      "learn_more": "Learn more about what was changed in this update.",
-      "sidebar": {
-        "slide1_title": "New Sidebar",
-        "slide1_subtitle": "We redesigned the navigation experience.",
-        "slide2_title": "Two-Level Navigation",
-        "slide2_icon_bar": "Icon Bar",
-        "slide2_icon_bar_desc": "Quick access to every section with a single tap.",
-        "slide2_secondary_panel": "Detail Panel",
-        "slide2_secondary_panel_desc": "Expand any section to see its pages, search, and create.",
-        "slide3_title": "Search & Create",
-        "slide3_desc": "Find dashboards instantly and create new ones without leaving the sidebar.",
-        "slide4_title": "Works Everywhere",
-        "slide4_desc": "The same experience on desktop and mobile — icons first, details on demand."
-      }
-    }
-  },
   "calendar": {
     "landing": {
       "title": "Calendar",

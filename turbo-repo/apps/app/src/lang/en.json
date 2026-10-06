@@ -1679,7 +1679,7 @@
           "parent": "Parent organization",
           "taxId": "Tax ID",
           "owners": "Owners",
-          "noOwners": "This organization has no owner. Nobody can manage it.",
+          "noOwners": "This organization has no owner yet. Until a platform owner assigns one, nobody can manage its members.",
           "ownersError": "Could not load the owners.",
           "sources": {
             "NATIVE": "ModularIoT",

@@ -1679,7 +1679,7 @@
           "parent": "Organización padre",
           "taxId": "RUT",
           "owners": "Dueños",
-          "noOwners": "Esta organización no tiene dueño. Nadie puede administrarla.",
+          "noOwners": "Esta organización aún no tiene dueño. Hasta que un dueño de la plataforma asigne uno, nadie puede administrar sus miembros.",
           "ownersError": "No se pudieron cargar los dueños.",
           "sources": {
             "NATIVE": "ModularIoT",

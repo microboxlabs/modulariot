@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  activeKeyCount,
   assignableBaseRoles,
   basePermissions,
   catalogModules,
@@ -12,6 +13,7 @@ import {
   keyDisplay,
   keyState,
   labelOf,
+  lastKeyUse,
   matrixColumns,
   memberLabels,
   parseEmails,
@@ -22,7 +24,12 @@ import {
   sourceKey,
   textOf,
 } from "./team-model";
-import type { AccessCatalog, ApiKey, TeamMember } from "./team.types";
+import type {
+  AccessCatalog,
+  ApiKey,
+  ServiceAccount,
+  TeamMember,
+} from "./team.types";
 
 const catalog: AccessCatalog = {
   baseRoles: ["MEMBER", "ADMIN", "OWNER"],
@@ -235,6 +242,22 @@ describe("teams and API keys", () => {
     expect(expiryDays("366")).toBeNull();
     expect(expiryDays("1.5")).toBeNull();
     expect(expiryDays("abc")).toBeNull();
+  });
+  it("counts an account's active keys and finds its latest use", () => {
+    const now = new Date("2026-06-01T00:00:00Z");
+    const account = {
+      keys: [
+        key({ lastUsedAt: "2026-05-02T00:00:00Z" }),
+        key({
+          lastUsedAt: "2026-05-20T00:00:00Z",
+          revokedAt: "2026-05-21T00:00:00Z",
+        }),
+        key({ expiresAt: "2026-05-01T00:00:00Z" }),
+      ],
+    } as ServiceAccount;
+    expect(activeKeyCount(account, now)).toBe(1);
+    expect(lastKeyUse(account)).toBe("2026-05-20T00:00:00Z");
+    expect(lastKeyUse({ keys: [key({})] } as ServiceAccount)).toBeNull();
   });
 });
 

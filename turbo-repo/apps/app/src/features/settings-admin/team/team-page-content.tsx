@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Alert, Button, Spinner } from "flowbite-react";
 import { HiDownload, HiOutlineUserGroup, HiUserAdd } from "react-icons/hi";
@@ -32,7 +33,12 @@ import { TeamRolesTab } from "./team-roles-tab";
 import { TeamTeamsTab } from "./team-teams-tab";
 import type { BaseRole, Invitation, TeamMember } from "./team.types";
 
-type Tab = "members" | "invitations" | "teams" | "keys" | "roles";
+const TABS = ["members", "invitations", "teams", "keys", "roles"] as const;
+type Tab = (typeof TABS)[number];
+
+function tabOf(value: string | null): Tab {
+  return TABS.find((t) => t === value) ?? "members";
+}
 
 type Confirm =
   | { kind: "remove"; member: TeamMember }
@@ -91,7 +97,8 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
   const { data: catalog } = useAccessCatalog();
   const roles = catalog?.roles ?? [];
 
-  const [tab, setTab] = useState<Tab>("members");
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => tabOf(searchParams.get("tab")));
   const [inviting, setInviting] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
@@ -257,12 +264,7 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
           />
         )}
         {tab === "keys" && canManageKeys && (
-          <TeamKeysTab
-            organization={team.data?.organization}
-            roles={roles}
-            lang={lang}
-            d={d}
-          />
+          <TeamKeysTab roles={roles} lang={lang} d={d} />
         )}
         {tab === "roles" && catalog && (
           <TeamRolesTab catalog={catalog} lang={lang} d={d} />

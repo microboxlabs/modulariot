@@ -6,6 +6,7 @@ import type {
   CatalogModule,
   CatalogPermission,
   CatalogRole,
+  ServiceAccount,
   TeamMember,
 } from "./team.types";
 
@@ -217,6 +218,20 @@ export function permissionsByModule(
 /** Two role lists hold the same keys, in any order. */
 export function sameRoles(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((key) => b.includes(key));
+}
+
+/** Keys of the account that are neither revoked nor expired. */
+export function activeKeyCount(account: ServiceAccount, now: Date): number {
+  return account.keys.filter((key) => keyState(key, now) === "active").length;
+}
+
+/** The latest use of any of the account's keys, or null when none was used. */
+export function lastKeyUse(account: ServiceAccount): string | null {
+  const used = account.keys
+    .map((key) => key.lastUsedAt)
+    .filter((at): at is string => at !== null)
+    .sort((a, b) => a.localeCompare(b));
+  return used.at(-1) ?? null;
 }
 
 /** Up to two letters for an avatar: from the name, else the email. */

@@ -10,6 +10,7 @@ import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { getJson } from "../data/json-client";
+import { useIsPlatformOwner } from "../platform/use-platform-membership";
 import { acceptInvitationById, switchOrganization } from "./team-api";
 import type { Invitation } from "./team.types";
 
@@ -23,10 +24,21 @@ async function hasNoOrganization(url: string): Promise<boolean> {
   return res.status === 403;
 }
 
+/** Pages that need no organization: a platform owner creates organizations there. */
+const PLATFORM_OWNER_PATHS = [
+  "/users/settings/platform",
+  "/users/settings/organizations",
+];
+
+export function isPlatformOwnerPath(pathname: string): boolean {
+  return PLATFORM_OWNER_PATHS.some((path) => pathname.endsWith(path));
+}
+
 /**
  * Replaces the page with a "no access yet" screen when the signed-in user
  * belongs to no organization, listing their pending invitations. The
- * invitation link page is always shown.
+ * invitation link page is always shown, and so are the platform settings
+ * pages to a platform owner.
  */
 export function NoOrganizationGate({
   d,
@@ -34,12 +46,14 @@ export function NoOrganizationGate({
 }: PropsWithChildren<NoOrganizationGateProps>) {
   const pathname = usePathname() ?? "";
   const onInvite = pathname.includes("/invite/");
+  const { isPlatformOwner } = useIsPlatformOwner();
   const { data: noOrganization } = useSWR(
     onInvite ? null : "/app/api/user/scopes#gate",
     () => hasNoOrganization("/app/api/user/scopes"),
     { revalidateOnFocus: false }
   );
   if (!noOrganization) return <>{children}</>;
+  if (isPlatformOwner && isPlatformOwnerPath(pathname)) return <>{children}</>;
   return <NoAccess d={d} />;
 }
 

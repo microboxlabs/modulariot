@@ -60,7 +60,7 @@ Los demás ajustes de tickets, como la caché y cómo presentar el ticket, está
 
 ## 2 y 3. Indique quién pertenece a dónde
 
-<Tabs items={['Archivo de membresías', 'Servicio de directorio']}>
+<Tabs items={['Archivo de membresías', 'Servicio de directorio', 'Grupos']}>
 <Tabs.Tab>
 
 Para unas pocas decenas de personas, inclúyalas en un archivo JSON y apunte `MIOT_DASHBOARD_SEED` a él. La estructura es organización, luego ámbito, luego persona, luego rol:
@@ -107,6 +107,29 @@ MIOT_DASHBOARD_SCOPES_SERVICE_VALUE="Bearer $DIRECTORY_TOKEN"
 Una URL `GET` debe contener `{userId}` y el marcador de la organización o del ámbito. De lo contrario, una sola respuesta se aplicaría a todos, y el servidor no inicia. Las respuestas se guardan en caché: sí por 60 segundos, no por 30, por defecto.
 
 La lista completa de ajustes `TENANTS_*` y `SCOPES_*` está en [Configuración](/es/products/dashboards/reference/configuration#membresías).
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+Si el proveedor de identidad ya incluye la organización y el rol en el nombre de un grupo, como `GROUP_DHB_ACME_EDITOR`, el servidor lee ambos de los grupos que ya tiene. No se consulta nada y no se mantiene ningún archivo.
+
+```bash
+MIOT_DASHBOARD_TICKET_GROUPS_PATH=user.data.groups   # o MIOT_DASHBOARD_JWT_GROUPS_CLAIM
+MIOT_DASHBOARD_GROUP_ROLES_PATTERN='GROUP_DHB_{tenant}_{role}'
+MIOT_DASHBOARD_GROUP_ROLES_MAP='CONSUMER=Consumer,COLLABORATOR=Contributor,EDITOR=Editor,COORDINATOR=Coordinator'
+```
+
+| Grupos | Organización `acme` | Organización `globex` |
+| --- | --- | --- |
+| `GROUP_DHB_ACME_EDITOR` | Editor, en todos los ámbitos | Sin acceso |
+| `GROUP_DHB_ACME_CONSUMER`, `GROUP_DHB_ACME_COORDINATOR` | Coordinator: gana el rol más alto | Sin acceso |
+| `GROUP_UNRELATED` | Sin acceso | Sin acceso |
+
+El servidor completa el patrón con la organización de la dirección y compara el resultado con cada grupo. No importan las mayúsculas ni los espacios alrededor. Como completa la organización en lugar de extraerla, una organización cuyo id contiene el separador, como `north_zone`, no se confunde con `north`.
+
+Agregue `{scope}` al patrón, como `GROUP_DHB_{tenant}_{scope}_{role}`, para dar un rol en un solo ámbito. Sin él, el rol se aplica en todos los ámbitos de la organización.
+
+Los ajustes están en [Configuración](/es/products/dashboards/reference/configuration#roles-desde-grupos).
 
 </Tabs.Tab>
 </Tabs>

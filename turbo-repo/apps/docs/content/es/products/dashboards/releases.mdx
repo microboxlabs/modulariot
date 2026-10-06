@@ -22,6 +22,12 @@ Dashboards sigue [Versionado Semántico](https://semver.org). Mientras las versi
 
 Actualice el contrato, luego el servidor y luego la UI. Vea [Actualizaciones y respaldos](/es/products/dashboards/deployment/upgrades).
 
+## Sin publicar
+
+Agregado:
+
+- Servidor: `MIOT_DASHBOARD_GROUP_ROLES_PATTERN` y `MIOT_DASHBOARD_GROUP_ROLES_MAP` leen los roles de organización y ámbito desde los grupos de quien llama, como `GROUP_DHB_{tenant}_{role}`. Vea [Autenticar usuarios](/es/products/dashboards/how-to/authenticate-users). Quienes usan la biblioteca obtienen lo mismo con `createGroupRoleAuthorities`.
+
 ## 0.6.0 y UI 0.1.0 — 2026-10-05
 
 **Primera versión de la UI.** Dibujo del catálogo de widgets con React, Web Component y navegador sin framework, y editores para ajustes, consultas guardadas, permisos, filtros e importación/exportación.

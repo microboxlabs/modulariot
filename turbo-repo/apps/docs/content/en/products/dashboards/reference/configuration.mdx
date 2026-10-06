@@ -112,6 +112,17 @@ Set exactly one key source. JWT verification needs the `jose` package.
 | `MIOT_DASHBOARD_SCOPES_NEGATIVE_CACHE` | `30` | Seconds a non-membership is reused |
 | `MIOT_DASHBOARD_SCOPES_TIMEOUT` | `5000` | Milliseconds to wait |
 
+### Roles from groups
+
+Organization and scope membership read from the caller's groups. It replaces the two lookups above and the seed file's memberships.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_GROUP_ROLES_PATTERN` | off | The group name with `{tenant}` and `{role}`, and optionally `{scope}`, such as `GROUP_DHB_{tenant}_{role}`. Matched without regard to case or surrounding spaces. |
+| `MIOT_DASHBOARD_GROUP_ROLES_MAP` | `CONSUMER=Consumer,CONTRIBUTOR=Contributor,EDITOR=Editor,COORDINATOR=Coordinator` | `theirs=ours` pairs for the `{role}` part |
+
+Needs `MIOT_DASHBOARD_TICKET_GROUPS_PATH` or `MIOT_DASHBOARD_JWT_GROUPS_CLAIM`. The server refuses to start with the pattern and `MIOT_DASHBOARD_TENANTS_URL` or `MIOT_DASHBOARD_SCOPES_URL` together.
+
 ### Trusted proxy
 
 | Variable | Default | Meaning |

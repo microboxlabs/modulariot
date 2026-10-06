@@ -853,3 +853,76 @@ it("refuses an unbounded PostgreSQL connection wait", () => {
     }),
   ).toThrow("must be at least 1");
 });
+
+describe("roles from groups", () => {
+  const groupsEnv = {
+    ...ticketBase,
+    MIOT_DASHBOARD_TICKET_GROUPS_PATH: "user.data.groups",
+    MIOT_DASHBOARD_GROUP_ROLES_PATTERN: "GROUP_DHB_{tenant}_{role}",
+  };
+
+  it("answers tenants and scopes from the same pattern", () => {
+    const config = readServerConfig({
+      ...groupsEnv,
+      MIOT_DASHBOARD_GROUP_ROLES_MAP: "COLLABORATOR=Contributor,EDITOR=Editor",
+    });
+    const expected = {
+      kind: "groups",
+      pattern: "GROUP_DHB_{tenant}_{role}",
+      roleMap: { COLLABORATOR: "Contributor", EDITOR: "Editor" },
+    };
+    expect(config.tenants).toEqual(expected);
+    expect(config.scopes).toEqual(expected);
+  });
+
+  it("leaves the role map to the defaults when it is not set", () => {
+    expect(readServerConfig(groupsEnv).scopes).toMatchObject({
+      roleMap: undefined,
+    });
+  });
+
+  it("refuses a pattern without {tenant} or {role}", () => {
+    expect(() =>
+      readServerConfig({
+        ...groupsEnv,
+        MIOT_DASHBOARD_GROUP_ROLES_PATTERN: "GROUP_{role}",
+      }),
+    ).toThrow(/must contain \{tenant\} exactly once/);
+  });
+
+  it("refuses a pattern next to a lookup URL, which it would replace", () => {
+    expect(() =>
+      readServerConfig({
+        ...groupsEnv,
+        MIOT_DASHBOARD_SCOPES_URL: "https://host.test/{userId}/{scopeId}",
+      }),
+    ).toThrow(/remove MIOT_DASHBOARD_SCOPES_URL/);
+  });
+
+  it("refuses a pattern when no identity scheme carries groups", () => {
+    // Every request would be refused.
+    const { MIOT_DASHBOARD_TICKET_GROUPS_PATH: _unused, ...withoutGroups } =
+      groupsEnv;
+    expect(() => readServerConfig(withoutGroups)).toThrow(
+      /MIOT_DASHBOARD_TICKET_GROUPS_PATH or MIOT_DASHBOARD_JWT_GROUPS_CLAIM/,
+    );
+  });
+
+  it("refuses a role map without a pattern", () => {
+    expect(() =>
+      readServerConfig({
+        ...base,
+        MIOT_DASHBOARD_GROUP_ROLES_MAP: "EDITOR=Editor",
+      }),
+    ).toThrow(/has no effect without MIOT_DASHBOARD_GROUP_ROLES_PATTERN/);
+  });
+
+  it("refuses a role map naming an unknown role", () => {
+    expect(() =>
+      readServerConfig({
+        ...groupsEnv,
+        MIOT_DASHBOARD_GROUP_ROLES_MAP: "ADMIN=Admin",
+      }),
+    ).toThrow(/not one of/);
+  });
+});

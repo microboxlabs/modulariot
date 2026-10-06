@@ -2,8 +2,11 @@
 
 import { ApiError, getJson, sendEmpty, sendJson } from "../data/json-client";
 import { readLogoDataUrl } from "./domain-branding-form";
+import { ORGANIZATION_OWNER_ROLE_CODE } from "../data/settings-admin-data-service";
 import {
   PLATFORM_OWNER_ROLE,
+  type CreatePlatformOrganization,
+  type PlatformOrganization,
   type DomainBrandingAdmin,
   type HarnessPlan,
   type ModelProviderAdmin,
@@ -142,4 +145,22 @@ export function fetchHarnessPlan(): Promise<HarnessPlan> {
 
 export function saveHarnessPlan(value: SetHarnessPlan): Promise<HarnessPlan> {
   return sendJson<HarnessPlan>("PUT", `${PLATFORM_BASE}/harness-plan`, value);
+}
+
+export function createPlatformOrganization(
+  value: CreatePlatformOrganization
+): Promise<PlatformOrganization> {
+  return sendJson<PlatformOrganization>("POST", `${PLATFORM_BASE}/orgs`, value);
+}
+
+/** Replaces the organization's owners; used to name the first one. */
+export async function setOrganizationOwners(
+  slug: string,
+  assigneeIds: string[]
+): Promise<void> {
+  await sendJson<unknown>(
+    "PUT",
+    `${PLATFORM_BASE}/orgs/${encodeURIComponent(slug)}/roles/${ORGANIZATION_OWNER_ROLE_CODE}`,
+    { assigneeIds }
+  );
 }

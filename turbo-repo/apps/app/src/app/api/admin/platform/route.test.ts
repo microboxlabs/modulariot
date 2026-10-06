@@ -11,6 +11,8 @@ import {
   GET as getDomain,
   PUT as putDomain,
 } from "./branding/domains/[domain]/route";
+import { POST as createOrg } from "./orgs/route";
+import { PUT as putOrgRole } from "./orgs/[slug]/roles/[roleCode]/route";
 
 const FORWARDED = { ok: true };
 
@@ -68,6 +70,51 @@ describe("platform roles proxy", () => {
     });
 
     expect(response.status).toBe(400);
+    expect(forwardToQuarkus).not.toHaveBeenCalled();
+  });
+});
+
+describe("platform organizations proxy", () => {
+  it("forwards an organization creation with its body", async () => {
+    const body = { slug: "acme", name: "Acme", tenantClientId: "client-1" };
+
+    await createOrg(jsonRequest(body));
+
+    expect(forwardToQuarkus).toHaveBeenCalledWith("/api/v1/platform/orgs", {
+      method: "POST",
+      body,
+    });
+  });
+
+  it("encodes the slug and role code of an organization role replacement", async () => {
+    const body = { assigneeIds: ["owner@example.test"] };
+
+    await putOrgRole(jsonRequest(body), {
+      params: Promise.resolve({ slug: "a/b", roleCode: "ORGANIZATION_OWNER" }),
+    });
+
+    expect(forwardToQuarkus).toHaveBeenCalledWith(
+      "/api/v1/platform/orgs/a%2Fb/roles/ORGANIZATION_OWNER",
+      { method: "PUT", body },
+    );
+  });
+
+  it("answers 400 to an unparseable body rather than forwarding it", async () => {
+    const created = await createOrg(
+      new Request("http://localhost", { method: "POST", body: "not json" }),
+    );
+    const replaced = await putOrgRole(
+      new Request("http://localhost", { method: "PUT", body: "not json" }),
+      {
+        params: Promise.resolve({
+          slug: "acme",
+          roleCode: "ORGANIZATION_OWNER",
+        }),
+      },
+    );
+
+    expect(created.status).toBe(400);
+    expect(replaced.status).toBe(400);
     expect(forwardToQuarkus).not.toHaveBeenCalled();
   });
 });

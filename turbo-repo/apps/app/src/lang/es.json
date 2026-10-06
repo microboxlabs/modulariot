@@ -1628,6 +1628,35 @@
             "output": "Tokens de salida",
             "cost": "Costo (USD)"
           }
+        },
+        "organizations": {
+          "title": "Organizaciones",
+          "menuHint": "Crear una organización y su primer dueño",
+          "description": "Crea una organización cuyos miembros se administran aquí, no en Alfresco. El dueño que indiques podrá invitar al resto desde Ajustes › Equipo.",
+          "fields": {
+            "name": "Nombre",
+            "slug": "Identificador",
+            "tenantClientId": "Client ID del tenant",
+            "ownerEmail": "Email del dueño"
+          },
+          "hints": {
+            "name": "Lo ven los miembros, por ejemplo Acme Logística.",
+            "slug": "Se usa en las direcciones. Minúsculas, dígitos y guiones. No se puede cambiar después.",
+            "tenantClientId": "Client ID de la aplicación machine-to-machine de Auth0 de la organización. No se puede cambiar después.",
+            "ownerEmail": "El email con el que esta persona inicia sesión."
+          },
+          "create": "Crear organización",
+          "creating": "Creando…",
+          "created": "Organización {slug} creada.",
+          "createError": "No se pudo crear la organización.",
+          "ownerError": "La organización se creó, pero no se pudo asignar su dueño.",
+          "errors": {
+            "slug": "El identificador debe tener de 3 a 100 caracteres: minúsculas, dígitos y guiones, sin empezar ni terminar en guion.",
+            "name": "Ingresa un nombre.",
+            "tenantClientId": "Ingresa el client ID del tenant.",
+            "ownerEmail": "Ingresa un email válido para el dueño.",
+            "slugTaken": "Otra organización ya usa este identificador."
+          }
         }
       },
       "organizations": {

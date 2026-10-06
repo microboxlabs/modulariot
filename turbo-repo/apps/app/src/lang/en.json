@@ -1628,6 +1628,35 @@
             "output": "Output tokens",
             "cost": "Cost (USD)"
           }
+        },
+        "organizations": {
+          "title": "Organizations",
+          "menuHint": "Create an organization and its first owner",
+          "description": "Creates an organization whose members are managed here, not in Alfresco. The owner you name can then invite the rest from Settings › Team.",
+          "fields": {
+            "name": "Name",
+            "slug": "Identifier",
+            "tenantClientId": "Tenant client ID",
+            "ownerEmail": "Owner email"
+          },
+          "hints": {
+            "name": "Shown to members, e.g. Acme Logistics.",
+            "slug": "Used in addresses. Lowercase letters, digits and hyphens. Cannot be changed later.",
+            "tenantClientId": "Client ID of the organization's Auth0 machine-to-machine application. Cannot be changed later.",
+            "ownerEmail": "The email this person signs in with."
+          },
+          "create": "Create organization",
+          "creating": "Creating…",
+          "created": "Organization {slug} created.",
+          "createError": "Could not create the organization.",
+          "ownerError": "The organization was created, but its owner could not be set.",
+          "errors": {
+            "slug": "The identifier must be 3 to 100 characters: lowercase letters, digits and hyphens, not starting or ending with a hyphen.",
+            "name": "Enter a name.",
+            "tenantClientId": "Enter the tenant client ID.",
+            "ownerEmail": "Enter a valid email for the owner.",
+            "slugTaken": "Another organization already uses this identifier."
+          }
         }
       },
       "organizations": {

@@ -55,11 +55,22 @@ export interface CatalogRole {
   key: string;
   module: string;
   label: Record<string, string>;
+  /** What the role is for, per language. Empty when the module gives none. */
+  description?: Record<string, string>;
   permissions: string[];
+}
+
+/** A module that has roles. `ai` marks assistant modules, shown with the AI accent. */
+export interface CatalogModule {
+  key: string;
+  label: Record<string, string>;
+  description: Record<string, string>;
+  ai: boolean;
 }
 
 export interface AccessCatalog {
   baseRoles: BaseRole[];
+  modules?: CatalogModule[];
   permissions: CatalogPermission[];
   roles: CatalogRole[];
 }
@@ -137,6 +148,8 @@ export interface ServiceAccount {
   keys: ApiKey[];
   createdAt: string;
   createdBy: string | null;
+  /** The OAuth credential this account's keys are exchanged for; null for none. */
+  tokenCredentialRef: string | null;
 }
 
 export interface ServiceAccountRequest {

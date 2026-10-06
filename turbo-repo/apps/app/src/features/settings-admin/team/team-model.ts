@@ -3,6 +3,7 @@ import type {
   ApiKey,
   BaseRole,
   Binding,
+  CatalogModule,
   CatalogPermission,
   CatalogRole,
   TeamMember,
@@ -166,4 +167,70 @@ export function expiryDays(text: string): number | undefined | null {
   return Number.isInteger(days) && days >= 1 && days <= MAX_KEY_DAYS
     ? days
     : null;
+}
+
+/**
+ * The modules that have roles, in catalog order. A module the catalog does
+ * not describe still appears, named by its key.
+ */
+export function catalogModules(catalog: AccessCatalog): CatalogModule[] {
+  const out: CatalogModule[] = [...(catalog.modules ?? [])];
+  for (const role of catalog.roles) {
+    if (!out.some((m) => m.key === role.module)) {
+      out.push({ key: role.module, label: {}, description: {}, ai: false });
+    }
+  }
+  return out;
+}
+
+/** A per-language text in the page's language, else Spanish, else empty. */
+export function textOf(
+  text: Record<string, string> | undefined,
+  lang: string
+): string {
+  if (!text) return "";
+  return text[lang] ?? text.es ?? "";
+}
+
+/** The permissions a member ends up with from the base role and module roles. */
+export function effectivePermissions(
+  base: BaseRole,
+  roles: readonly string[],
+  catalog: AccessCatalog
+): Set<string> {
+  const out = basePermissions(base, catalog.permissions);
+  for (const key of roles) {
+    const role = catalog.roles.find((r) => r.key === key);
+    role?.permissions.forEach((p) => out.add(p));
+  }
+  return out;
+}
+
+/** The given permissions grouped by module, in catalog order. */
+export function permissionsByModule(
+  keys: ReadonlySet<string>,
+  catalog: AccessCatalog
+): ModuleGroup<CatalogPermission>[] {
+  return groupByModule(catalog.permissions.filter((p) => keys.has(p.key)));
+}
+
+/** Two role lists hold the same keys, in any order. */
+export function sameRoles(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((key) => b.includes(key));
+}
+
+/** Up to two letters for an avatar: from the name, else the email. */
+export function initials(name: string | null, email: string | null): string {
+  const source = (name ?? "").trim() || (email ?? "").split("@")[0];
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  const letters =
+    parts.length > 1 ? parts[0][0] + parts[1][0] : source.slice(0, 2);
+  return letters.toUpperCase();
+}
+
+/** The dictionary key for where a membership came from. */
+export function sourceKey(source: string): string {
+  if (source === "ALFRESCO") return "sourceALFRESCO";
+  if (source === "INVITE") return "sourceINVITE";
+  return "sourceNATIVE";
 }

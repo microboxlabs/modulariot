@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Alert, Badge, Button, Spinner } from "flowbite-react";
+import useSWR from "swr";
+import { Alert, Badge, Button, Select, Spinner } from "flowbite-react";
 import {
   HiOutlineKey,
   HiOutlineTrash,
@@ -11,6 +12,8 @@ import {
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import { fetchCredentials } from "@/features/credentials/credentials-data-service";
+import type { CredentialListItem } from "@/features/credentials/credential.types";
 import { ApiKeyModal } from "./api-key-modal";
 import { RolesModal } from "./roles-modal";
 import { ServiceAccountModal } from "./service-account-modal";
@@ -19,6 +22,7 @@ import {
   revokeKey,
   setServiceAccountRoles,
   useServiceAccounts,
+  setServiceAccountTokenCredential,
 } from "./team-api";
 import { formatDate } from "./team-members-tab";
 import { keyDisplay, keyState, labelOf, type KeyState } from "./team-model";
@@ -107,8 +111,68 @@ function KeyRow({ apiKey, lang, d, onRevoke }: KeyRowProps) {
   );
 }
 
+/** The OAuth credentials an account's keys can be exchanged for; null when the caller cannot list them. */
+type TokenCredentials = readonly CredentialListItem[] | null;
+
+const OAUTH_TYPES = new Set(["AUTH0_M2M", "OAUTH2_CLIENT_CREDENTIALS"]);
+
+interface TokenCredentialRowProps {
+  readonly account: ServiceAccount;
+  readonly credentials: TokenCredentials;
+  readonly d: I18nRecord;
+  readonly onChange: (account: ServiceAccount, ref: string | null) => void;
+}
+
+function TokenCredentialRow({
+  account,
+  credentials,
+  d,
+  onChange,
+}: TokenCredentialRowProps) {
+  const current = account.tokenCredentialRef;
+  const linked = credentials?.find((c) => c.id === current);
+  return (
+    <div className="flex flex-col gap-2 border-t border-gray-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-gray-700">
+      <div className="text-sm">
+        <p className="font-medium text-gray-900 dark:text-white">
+          {tr("tokenCredential", d)}
+        </p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {tr("tokenCredentialHint", d)}
+        </p>
+      </div>
+      {credentials ? (
+        <Select
+          sizing="sm"
+          className="sm:w-72"
+          value={current ?? ""}
+          aria-label={tr("tokenCredential", d)}
+          onChange={(e) => onChange(account, e.target.value || null)}
+        >
+          <option value="">{tr("tokenCredentialNone", d)}</option>
+          {current && !linked && <option value={current}>{current}</option>}
+          {credentials.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </Select>
+      ) : (
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          {current ?? tr("tokenCredentialNone", d)}
+        </span>
+      )}
+    </div>
+  );
+}
+
 interface AccountCardProps {
   readonly account: ServiceAccount;
+  readonly credentials: TokenCredentials;
+  readonly onTokenCredential: (
+    account: ServiceAccount,
+    ref: string | null
+  ) => void;
   readonly roles: CatalogRole[];
   readonly lang: string;
   readonly d: I18nRecord;
@@ -120,6 +184,8 @@ interface AccountCardProps {
 
 function AccountCard({
   account,
+  credentials,
+  onTokenCredential,
   roles,
   lang,
   d,
@@ -193,6 +259,12 @@ function AccountCard({
           </Button>
         </div>
       </div>
+      <TokenCredentialRow
+        account={account}
+        credentials={credentials}
+        d={d}
+        onChange={onTokenCredential}
+      />
       {account.keys.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -226,14 +298,29 @@ function AccountCard({
 }
 
 interface TeamKeysTabProps {
+  readonly organization: string | undefined;
   readonly roles: CatalogRole[];
   readonly lang: string;
   readonly d: I18nRecord;
 }
 
 /** Service accounts and their API keys, for calls made without a person. */
-export function TeamKeysTab({ roles, lang, d }: TeamKeysTabProps) {
+export function TeamKeysTab({
+  organization,
+  roles,
+  lang,
+  d,
+}: TeamKeysTabProps) {
   const accounts = useServiceAccounts(true);
+  // Listing credentials is for organization owners; anyone else sees the linked id only.
+  const credentials = useSWR(
+    organization ? ["team-token-credentials", organization] : null,
+    () => fetchCredentials(organization ?? ""),
+    { shouldRetryOnError: false, revalidateOnFocus: false }
+  );
+  const tokenCredentials: TokenCredentials = credentials.data
+    ? credentials.data.filter((c) => OAUTH_TYPES.has(c.typeId))
+    : null;
   const [creating, setCreating] = useState(false);
   const [addingKey, setAddingKey] = useState<ServiceAccount | null>(null);
   const [editingRoles, setEditingRoles] = useState<ServiceAccount | null>(null);
@@ -257,6 +344,19 @@ export function TeamKeysTab({ roles, lang, d }: TeamKeysTabProps) {
     } finally {
       setBusy(false);
       setConfirm(null);
+    }
+  };
+
+  const changeTokenCredential = async (
+    account: ServiceAccount,
+    ref: string | null
+  ) => {
+    setError(null);
+    try {
+      await setServiceAccountTokenCredential(account.id, ref);
+      reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : tr("saveFailed", d));
     }
   };
 
@@ -290,6 +390,8 @@ export function TeamKeysTab({ roles, lang, d }: TeamKeysTabProps) {
         <AccountCard
           key={account.id}
           account={account}
+          credentials={tokenCredentials}
+          onTokenCredential={changeTokenCredential}
           roles={roles}
           lang={lang}
           d={d}

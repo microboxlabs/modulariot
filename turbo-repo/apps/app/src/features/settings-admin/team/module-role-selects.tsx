@@ -3,7 +3,8 @@
 import { Label, Select } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { groupByModule, labelOf } from "./team-model";
+import { useAccessCatalog } from "./team-api";
+import { groupByModule, labelOf, textOf } from "./team-model";
 import type { CatalogRole } from "./team.types";
 
 interface ModuleRoleSelectsProps {
@@ -24,13 +25,20 @@ export function ModuleRoleSelects({
   d,
   disabled = false,
 }: ModuleRoleSelectsProps) {
+  const { data: catalog } = useAccessCatalog();
+  const modules = catalog?.modules ?? [];
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {groupByModule(roles).map((group) => {
         const id = `module-role-${group.module}`;
         return (
           <div key={group.module} className="flex flex-col gap-1">
-            <Label htmlFor={id}>{group.module}</Label>
+            <Label htmlFor={id}>
+              {textOf(
+                modules.find((m) => m.key === group.module)?.label,
+                lang
+              ) || group.module}
+            </Label>
             <Select
               id={id}
               sizing="sm"

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Badge, Button, Select } from "flowbite-react";
 import { HiOutlineKey, HiOutlineTrash } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -28,7 +29,6 @@ interface MemberRowProps {
   readonly lang: string;
   readonly d: I18nRecord;
   readonly onBaseRole: (member: TeamMember, role: BaseRole) => void;
-  readonly onEditAccess: (member: TeamMember) => void;
   readonly onRemove: (member: TeamMember) => void;
 }
 
@@ -69,7 +69,6 @@ function MemberRow({
   lang,
   d,
   onBaseRole,
-  onEditAccess,
   onRemove,
 }: MemberRowProps) {
   const isMe = me !== undefined && member.email === me;
@@ -120,16 +119,15 @@ function MemberRow({
       </td>
       <td className={`${CELL} text-right`}>
         <div className="flex justify-end gap-1">
-          {allowed.canUpdate && (
-            <Button
-              size="xs"
-              color="alternative"
-              onClick={() => onEditAccess(member)}
-            >
-              <HiOutlineKey className="mr-1 h-4 w-4" />
-              {tr("editAccess", d)}
-            </Button>
-          )}
+          <Button
+            size="xs"
+            color="alternative"
+            as={Link}
+            href={`/${lang}/users/settings/team/members/${encodeURIComponent(member.userId)}`}
+          >
+            <HiOutlineKey className="mr-1 h-4 w-4" />
+            {allowed.canUpdate ? tr("editAccess", d) : tr("viewAccess", d)}
+          </Button>
           {allowed.canRemove && !isMe && (
             <Button
               size="xs"
@@ -154,7 +152,6 @@ interface TeamMembersTabProps {
   readonly lang: string;
   readonly d: I18nRecord;
   readonly onBaseRole: (member: TeamMember, role: BaseRole) => void;
-  readonly onEditAccess: (member: TeamMember) => void;
   readonly onRemove: (member: TeamMember) => void;
 }
 

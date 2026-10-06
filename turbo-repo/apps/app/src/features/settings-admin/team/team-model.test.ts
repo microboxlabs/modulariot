@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   assignableBaseRoles,
   basePermissions,
+  catalogModules,
+  effectivePermissions,
   expiryDays,
   groupByModule,
+  initials,
   invalidEmails,
   inviteLink,
   keyDisplay,
@@ -12,8 +15,12 @@ import {
   matrixColumns,
   memberLabels,
   parseEmails,
+  permissionsByModule,
   rolesByModule,
+  sameRoles,
   selectedRoles,
+  sourceKey,
+  textOf,
 } from "./team-model";
 import type { AccessCatalog, ApiKey, TeamMember } from "./team.types";
 
@@ -228,5 +235,77 @@ describe("teams and API keys", () => {
     expect(expiryDays("366")).toBeNull();
     expect(expiryDays("1.5")).toBeNull();
     expect(expiryDays("abc")).toBeNull();
+  });
+});
+
+describe("member access page", () => {
+  const described: AccessCatalog = {
+    ...catalog,
+    modules: [
+      {
+        key: "controltower",
+        label: { es: "Torre de control" },
+        description: { es: "Casos" },
+        ai: false,
+      },
+    ],
+  };
+
+  it("lists described modules first and names the rest by key", () => {
+    expect(catalogModules(described).map((m) => m.key)).toEqual([
+      "controltower",
+      "content",
+    ]);
+    expect(catalogModules(catalog)[0].label).toEqual({});
+  });
+
+  it("reads texts in the page language, falling back to Spanish", () => {
+    expect(textOf({ es: "Hola", en: "Hi" }, "en")).toBe("Hi");
+    expect(textOf({ es: "Hola" }, "en")).toBe("Hola");
+    expect(textOf(undefined, "es")).toBe("");
+  });
+
+  it("adds module role permissions to the base role's", () => {
+    const member = effectivePermissions(
+      "MEMBER",
+      ["CONTROL_TOWER_VIEWER"],
+      catalog
+    );
+    expect([...member].sort()).toEqual([
+      "controltower:view",
+      "members:read",
+      "org:read",
+    ]);
+    // Explicit-only permissions come only from a role, even for owners.
+    expect(
+      effectivePermissions("OWNER", [], catalog).has(
+        "content:review.autoapprove"
+      )
+    ).toBe(false);
+  });
+
+  it("groups permissions by module in catalog order", () => {
+    const groups = permissionsByModule(
+      new Set(["controltower:view", "org:read"]),
+      catalog
+    );
+    expect(groups.map((g) => g.module)).toEqual(["org", "controltower"]);
+  });
+
+  it("compares role lists ignoring order", () => {
+    expect(sameRoles(["A", "B"], ["B", "A"])).toBe(true);
+    expect(sameRoles(["A"], ["A", "B"])).toBe(false);
+  });
+
+  it("builds avatar initials from the name or the email", () => {
+    expect(initials("Ana Soto", null)).toBe("AS");
+    expect(initials(null, "erick.perez@example.com")).toBe("EP");
+    expect(initials(null, "michel@example.com")).toBe("MI");
+  });
+
+  it("names where a membership came from", () => {
+    expect(sourceKey("ALFRESCO")).toBe("sourceALFRESCO");
+    expect(sourceKey("INVITE")).toBe("sourceINVITE");
+    expect(sourceKey("NATIVE")).toBe("sourceNATIVE");
   });
 });

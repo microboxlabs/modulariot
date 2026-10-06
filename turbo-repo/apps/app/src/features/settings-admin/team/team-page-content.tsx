@@ -12,7 +12,6 @@ import { TabButtons } from "@/features/common/components/tab-buttons/tab-buttons
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { InviteLinks, type InviteLink } from "./invite-links";
-import { TeamAccessModal } from "./team-access-modal";
 import {
   importAlfrescoMembers,
   removeMember,
@@ -94,7 +93,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
 
   const [tab, setTab] = useState<Tab>("members");
   const [inviting, setInviting] = useState(false);
-  const [editing, setEditing] = useState<TeamMember | null>(null);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -233,7 +231,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
             lang={lang}
             d={d}
             onBaseRole={onBaseRole}
-            onEditAccess={setEditing}
             onRemove={(member) => setConfirm({ kind: "remove", member })}
           />
         )}
@@ -260,7 +257,12 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
           />
         )}
         {tab === "keys" && canManageKeys && (
-          <TeamKeysTab roles={roles} lang={lang} d={d} />
+          <TeamKeysTab
+            organization={team.data?.organization}
+            roles={roles}
+            lang={lang}
+            d={d}
+          />
         )}
         {tab === "roles" && catalog && (
           <TeamRolesTab catalog={catalog} lang={lang} d={d} />
@@ -276,14 +278,7 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
         lang={lang}
         d={d}
       />
-      <TeamAccessModal
-        member={editing}
-        onClose={() => setEditing(null)}
-        onSaved={reload}
-        roles={roles}
-        lang={lang}
-        d={d}
-      />
+
       <FormModal
         isOpen={resent !== null}
         onClose={() => setResent(null)}

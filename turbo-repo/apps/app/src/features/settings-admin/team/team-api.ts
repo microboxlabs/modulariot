@@ -150,6 +150,18 @@ export function setServiceAccountRoles(id: string, roles: string[]) {
   );
 }
 
+/** Links the OAuth credential whose token the account's keys are exchanged for; null unlinks. */
+export function setServiceAccountTokenCredential(
+  id: string,
+  credentialRef: string | null
+) {
+  return sendJson<ServiceAccount>(
+    "PUT",
+    `${serviceAccountsKey}/${encodeURIComponent(id)}/token-credential`,
+    { credentialRef }
+  );
+}
+
 export function createKey(accountId: string, request: KeyRequest) {
   return sendJson<CreatedKey>(
     "POST",

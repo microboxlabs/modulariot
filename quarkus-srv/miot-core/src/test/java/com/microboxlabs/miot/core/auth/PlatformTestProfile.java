@@ -39,6 +39,8 @@ public class PlatformTestProfile implements QuarkusTestProfile {
         overrides.put("miot.auth.hs256-audience", TestTokenFactory.M2M_AUDIENCE);
 
         overrides.put("miot.platform.owner-emails", OWNER_EMAIL);
+        overrides.put("miot.app.public-url", "https://app.example.test/app/");
+        overrides.put("miot.mail.platform-organization", "mail-platform");
 
         overrides.put("miot.alfresco.auth", "stub");
         overrides.put("quarkus.arc.exclude-types",

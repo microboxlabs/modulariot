@@ -50,6 +50,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class PlatformOrganizationsResource {
 
     static final String SLUG = "[a-z0-9][a-z0-9-]{1,98}[a-z0-9]";
+    private static final String NATIVE = "NATIVE";
+    private static final String ALFRESCO = "ALFRESCO";
 
     /** {@code membershipSource}: ALFRESCO or NATIVE. */
     public record MembershipSourceRequest(String membershipSource) {
@@ -111,7 +113,7 @@ public class PlatformOrganizationsResource {
     private PlatformOrganizationView view(Organization org) {
         // Organizations are at most two levels deep, so the parent is the top-level one.
         Organization root = org.parent == null ? org : org.parent;
-        String source = access.isNative(root) ? "NATIVE" : "ALFRESCO";
+        String source = access.isNative(root) ? NATIVE : ALFRESCO;
         return new PlatformOrganizationView(org.slug, org.name, org.displayName, org.tenantClientId, source,
                 org.taxId, org.parent == null ? null : org.parent.slug);
     }
@@ -218,7 +220,7 @@ public class PlatformOrganizationsResource {
         if (source != null) {
             return source;
         }
-        return isBlank(body.alfrescoGroupId()) ? "NATIVE" : "ALFRESCO";
+        return isBlank(body.alfrescoGroupId()) ? NATIVE : ALFRESCO;
     }
 
     /** ALFRESCO or NATIVE, upper-cased; null when blank. */
@@ -227,7 +229,7 @@ public class PlatformOrganizationsResource {
             return null;
         }
         String source = raw.trim().toUpperCase(Locale.ROOT);
-        if (!source.equals("ALFRESCO") && !source.equals("NATIVE")) {
+        if (!source.equals(ALFRESCO) && !source.equals(NATIVE)) {
             throw new BadRequestException("membershipSource must be ALFRESCO or NATIVE");
         }
         return source;

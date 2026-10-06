@@ -16,7 +16,7 @@ interface FactProps {
   readonly value: string | null;
 }
 
-function Fact({ label, value }: FactProps) {
+function Fact({ label, value }: Readonly<FactProps>) {
   return (
     <div>
       <dt className="text-xs text-gray-500 dark:text-gray-400">{label}</dt>
@@ -27,13 +27,33 @@ function Fact({ label, value }: FactProps) {
   );
 }
 
-interface OwnersProps {
-  readonly slug: string;
+interface NoOwnersProps {
+  readonly organization: PlatformOrganizationListItem;
   readonly dict: I18nRecord;
 }
 
-function Owners({ slug, dict }: OwnersProps) {
-  const { owners, isLoading, error } = useOrganizationOwners(slug);
+/**
+ * With Alfresco membership, the Alfresco managers of the top-level
+ * organization act as its owners until one is assigned, so an empty list is
+ * normal there. With native membership nobody can manage the organization.
+ */
+function NoOwners({ organization, dict }: Readonly<NoOwnersProps>) {
+  if (organization.membershipSource === "ALFRESCO") {
+    return (
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        {tr("platformView.alfrescoOwners", dict)}
+      </p>
+    );
+  }
+  return (
+    <p className="text-sm text-amber-700 dark:text-amber-300">
+      {tr("platformView.noOwners", dict)}
+    </p>
+  );
+}
+
+function Owners({ organization, dict }: Readonly<NoOwnersProps>) {
+  const { owners, isLoading, error } = useOrganizationOwners(organization.slug);
   if (isLoading) return <Spinner size="sm" />;
   if (error) {
     return (
@@ -43,11 +63,7 @@ function Owners({ slug, dict }: OwnersProps) {
     );
   }
   if (owners.length === 0) {
-    return (
-      <p className="text-sm text-amber-700 dark:text-amber-300">
-        {tr("platformView.noOwners", dict)}
-      </p>
-    );
+    return <NoOwners organization={organization} dict={dict} />;
   }
   return (
     <ul className="text-sm text-gray-900 dark:text-white">
@@ -56,6 +72,16 @@ function Owners({ slug, dict }: OwnersProps) {
       ))}
     </ul>
   );
+}
+
+function ownersTitle(
+  organization: PlatformOrganizationListItem,
+  dict: I18nRecord
+): string {
+  if (organization.parentSlug === null) return tr("platformView.owners", dict);
+  return tr("platformView.parentOwners", dict, {
+    parent: organization.parentSlug,
+  });
 }
 
 /**
@@ -71,7 +97,7 @@ export default function PlatformOrgDetailPanel({
     <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
       <section className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-          {organization.displayName ?? organization.name}
+          {organization.displayName || organization.name}
         </h2>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
           {tr("platformView.readOnly", dict)}
@@ -104,9 +130,9 @@ export default function PlatformOrgDetailPanel({
       </section>
       <section className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
         <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-white">
-          {tr("platformView.owners", dict)}
+          {ownersTitle(organization, dict)}
         </h3>
-        <Owners slug={organization.slug} dict={dict} />
+        <Owners organization={organization} dict={dict} />
       </section>
     </div>
   );

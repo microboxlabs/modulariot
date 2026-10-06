@@ -1668,8 +1668,11 @@
         "listTitle": "Your organizations",
         "otherOrgsTitle": "Other organizations",
         "otherOrgsHint": "You see these as a platform owner. You are not a member.",
+        "otherOrgsError": "Could not load the other organizations.",
         "platformView": {
           "readOnly": "Read-only. Managing members and integrations needs a role in this organization.",
+          "parentOwners": "Owners (from {parent})",
+          "alfrescoOwners": "No owner assigned. The Alfresco managers of the organization act as owners.",
           "slug": "Identifier",
           "tenantClientId": "Tenant client ID",
           "membershipSource": "Members managed in",

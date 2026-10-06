@@ -1668,8 +1668,11 @@
         "listTitle": "Tus organizaciones",
         "otherOrgsTitle": "Otras organizaciones",
         "otherOrgsHint": "Las ves como dueño de la plataforma. No eres miembro.",
+        "otherOrgsError": "No se pudieron cargar las otras organizaciones.",
         "platformView": {
           "readOnly": "Solo lectura. Para administrar miembros e integraciones necesitas un rol en esta organización.",
+          "parentOwners": "Dueños (de {parent})",
+          "alfrescoOwners": "Sin dueño asignado. Los administradores de la organización en Alfresco actúan como dueños.",
           "slug": "Identificador",
           "tenantClientId": "Client ID del tenant",
           "membershipSource": "Miembros administrados en",

@@ -21,7 +21,10 @@ import {
   createPlatformOrganization,
   setOrganizationOwners,
 } from "./platform-data-service";
-import { PLATFORM_ORGANIZATIONS_KEY } from "./use-platform-organizations";
+import {
+  PLATFORM_ORGANIZATIONS_KEY,
+  organizationOwnersKey,
+} from "./use-platform-organizations";
 
 interface OrganizationsSectionProps {
   readonly dict: I18nRecord;
@@ -94,9 +97,12 @@ export default function OrganizationsSection({
       CALLS
     );
     setIsSaving(false);
+    if (outcome.kind === "created" || outcome.kind === "ownerFailed") {
+      void mutate(PLATFORM_ORGANIZATIONS_KEY);
+    }
     if (outcome.kind === "created") {
       toast.success(tr("created", dict, { slug: organization.slug }));
-      void mutate(PLATFORM_ORGANIZATIONS_KEY);
+      void mutate(organizationOwnersKey(organization.slug));
       setDraft(EMPTY_ORGANIZATION_DRAFT);
       setOwnerPendingFor(null);
       return;

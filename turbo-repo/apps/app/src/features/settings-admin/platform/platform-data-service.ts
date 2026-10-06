@@ -3,12 +3,12 @@
 import { ApiError, getJson, sendEmpty, sendJson } from "../data/json-client";
 import { readLogoDataUrl } from "./domain-branding-form";
 import { ORGANIZATION_OWNER_ROLE_CODE } from "../data/settings-admin-data-service";
+import type { OrganizationRole } from "../types";
 import {
   PLATFORM_OWNER_ROLE,
   type CreatePlatformOrganization,
   type PlatformOrganization,
   type PlatformOrganizationListItem,
-  type PlatformOrganizationRole,
   type DomainBrandingAdmin,
   type HarnessPlan,
   type ModelProviderAdmin,
@@ -155,12 +155,15 @@ export function fetchPlatformOrganizations(): Promise<
   return getJson<PlatformOrganizationListItem[]>(`${PLATFORM_BASE}/orgs`);
 }
 
+function organizationOwnersUrl(slug: string): string {
+  return `${PLATFORM_BASE}/orgs/${encodeURIComponent(slug)}/roles/${ORGANIZATION_OWNER_ROLE_CODE}`;
+}
+
+/** For a sub-account these are its top-level organization's owners. */
 export function fetchOrganizationOwners(
   slug: string
-): Promise<PlatformOrganizationRole> {
-  return getJson<PlatformOrganizationRole>(
-    `${PLATFORM_BASE}/orgs/${encodeURIComponent(slug)}/roles/${ORGANIZATION_OWNER_ROLE_CODE}`
-  );
+): Promise<OrganizationRole> {
+  return getJson<OrganizationRole>(organizationOwnersUrl(slug));
 }
 
 export function createPlatformOrganization(
@@ -174,9 +177,5 @@ export async function setOrganizationOwners(
   slug: string,
   assigneeIds: string[]
 ): Promise<void> {
-  await sendJson<unknown>(
-    "PUT",
-    `${PLATFORM_BASE}/orgs/${encodeURIComponent(slug)}/roles/${ORGANIZATION_OWNER_ROLE_CODE}`,
-    { assigneeIds }
-  );
+  await sendJson<unknown>("PUT", organizationOwnersUrl(slug), { assigneeIds });
 }

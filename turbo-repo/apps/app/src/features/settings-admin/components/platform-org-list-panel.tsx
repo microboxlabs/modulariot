@@ -7,6 +7,8 @@ import type { PlatformOrganizationListItem } from "../platform/platform.types";
 
 interface PlatformOrgListPanelProps {
   readonly orgs: PlatformOrganizationListItem[];
+  /** The platform list could not be loaded. */
+  readonly failed: boolean;
   readonly selectedSlug: string | null;
   readonly onSelect: (slug: string) => void;
   readonly dict: I18nRecord;
@@ -26,10 +28,18 @@ function rowClasses(isSelected: boolean, isLast: boolean): string {
  */
 export default function PlatformOrgListPanel({
   orgs,
+  failed,
   selectedSlug,
   onSelect,
   dict,
 }: PlatformOrgListPanelProps) {
+  if (failed) {
+    return (
+      <aside className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-900/20 dark:text-red-300">
+        {tr("otherOrgsError", dict)}
+      </aside>
+    );
+  }
   if (orgs.length === 0) return null;
 
   return (
@@ -56,7 +66,7 @@ export default function PlatformOrgListPanel({
               <HiOutlineOfficeBuilding className="h-5 w-5 shrink-0 text-gray-400 dark:text-gray-500" />
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium truncate text-gray-900 dark:text-white">
-                  {org.displayName ?? org.name}
+                  {org.displayName || org.name}
                 </span>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {org.slug}

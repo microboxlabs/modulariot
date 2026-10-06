@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.api;
 import jakarta.ws.rs.PATCH;
 import com.microboxlabs.miot.core.iam.model.IamProjectionChange;
 import com.microboxlabs.miot.core.iam.model.IamAuditEvent;
+import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.AlfrescoBridge;
 import com.microboxlabs.miot.core.api.dto.CreateRootOrganizationRequest;
 import com.microboxlabs.miot.core.api.dto.OrganizationDto;
@@ -54,14 +55,13 @@ public class PlatformOrganizationsResource {
     public record MembershipSourceRequest(String membershipSource) {
     }
 
-    /** One organization in the platform-wide list; {@code parentSlug} is null for a top-level one. */
+    /**
+     * One organization in the platform-wide list. {@code membershipSource} is the one in effect: the
+     * top-level organization's, or NATIVE for a native deployment. {@code parentSlug} is null for a
+     * top-level organization.
+     */
     public record PlatformOrganizationView(String slug, String name, String displayName, String tenantClientId,
             String membershipSource, String taxId, String parentSlug) {
-
-        static PlatformOrganizationView from(Organization org) {
-            return new PlatformOrganizationView(org.slug, org.name, org.displayName, org.tenantClientId,
-                    org.membershipSource, org.taxId, org.parent == null ? null : org.parent.slug);
-        }
     }
 
     public record ProjectionView(Long id, String kind, String subject, String status, int attempts, String lastError,
@@ -72,14 +72,16 @@ public class PlatformOrganizationsResource {
     private final OrganizationRoleService roles;
     private final TaxIdValidator taxIdValidator;
     private final AlfrescoBridge bridge;
+    private final AccessEvaluator access;
 
     @Inject
     public PlatformOrganizationsResource(PlatformAuthorizer authorizer, OrganizationRoleService roles,
-            @ActiveTaxIdValidator TaxIdValidator taxIdValidator, AlfrescoBridge bridge) {
+            @ActiveTaxIdValidator TaxIdValidator taxIdValidator, AlfrescoBridge bridge, AccessEvaluator access) {
         this.authorizer = authorizer;
         this.roles = roles;
         this.taxIdValidator = taxIdValidator;
         this.bridge = bridge;
+        this.access = access;
     }
 
     @POST
@@ -102,10 +104,16 @@ public class PlatformOrganizationsResource {
     @Operation(summary = "List every active organization")
     public Uni<List<PlatformOrganizationView>> list() {
         return authorizer.requirePlatformOwner()
-                .flatMap(ignored -> Panache.withSession(() -> Organization.<Organization>find(
-                        "from Organization o left join fetch o.parent where o.active = true order by o.slug")
-                        .list()))
-                .map(organizations -> organizations.stream().map(PlatformOrganizationView::from).toList());
+                .flatMap(ignored -> Panache.withSession(Organization::listAllActiveWithParent))
+                .map(organizations -> organizations.stream().map(this::view).toList());
+    }
+
+    private PlatformOrganizationView view(Organization org) {
+        // Organizations are at most two levels deep, so the parent is the top-level one.
+        Organization root = org.parent == null ? org : org.parent;
+        String source = access.isNative(root) ? "NATIVE" : "ALFRESCO";
+        return new PlatformOrganizationView(org.slug, org.name, org.displayName, org.tenantClientId, source,
+                org.taxId, org.parent == null ? null : org.parent.slug);
     }
 
     @GET

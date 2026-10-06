@@ -56,9 +56,11 @@ export default function OrganizationsPageContent({
     availableOrgs.find((org) => org.slug === selectedSlug) ?? null;
 
   const { isPlatformOwner } = useIsPlatformOwner();
-  const { organizations: platformOrgs } =
+  const { organizations: platformOrgs, error: platformOrgsError } =
     usePlatformOrganizations(isPlatformOwner);
-  const otherOrgs = othersThan(platformOrgs, availableOrgs);
+  // Until the caller's own organizations are known, every one would look foreign.
+  const scopesKnown = !isLoading && !error;
+  const otherOrgs = scopesKnown ? othersThan(platformOrgs, availableOrgs) : [];
   const selectedOtherOrg =
     otherOrgs.find((org) => org.slug === selectedSlug) ?? null;
 
@@ -97,7 +99,7 @@ export default function OrganizationsPageContent({
         )}
 
         <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
-          <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
+          <div className="grid min-h-0 content-start gap-4 overflow-y-auto">
             <OrgListPanel
               orgs={availableOrgs}
               isLoading={isLoading}
@@ -107,6 +109,7 @@ export default function OrganizationsPageContent({
             />
             <PlatformOrgListPanel
               orgs={otherOrgs}
+              failed={platformOrgsError !== undefined}
               selectedSlug={selectedSlug}
               onSelect={setSelectedSlug}
               dict={orgsDict}

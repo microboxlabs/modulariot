@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.access;
 
 import com.microboxlabs.miot.core.iam.AccessCatalog;
 import com.microboxlabs.miot.core.iam.PermissionDef;
+import com.microboxlabs.miot.core.iam.ModuleDef;
 import com.microboxlabs.miot.core.iam.RoleDef;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -55,10 +56,23 @@ public class ControlTowerAccessCatalog implements AccessCatalog {
     @Override
     public List<RoleDef> roles() {
         return List.of(
-                RoleDef.of(VIEWER, MODULE, "Lector", "Viewer", Set.of(VIEW)),
+                RoleDef.of(VIEWER, MODULE, "Lector", "Viewer", Set.of(VIEW))
+                        .describedAs("Ve los casos y síntomas sin cambiar nada.",
+                                "Sees cases and symptoms without changing anything."),
                 RoleDef.of(OPERATOR, MODULE, "Operador", "Operator", Set.of(VIEW, CASE_TREAT, CONTACT_WRITE))
-                        .asLegacyDefault(),
+                        .asLegacyDefault()
+                        .describedAs("Atiende los casos y mantiene los contactos.",
+                                "Handles cases and keeps contacts up to date."),
                 RoleDef.of(MAINTAINER, MODULE, "Mantenedor", "Maintainer", Set.of(VIEW, CASE_TREAT, CONTACT_WRITE,
-                        CONTACT_DELETE, SYMPTOM_EDIT, SYMPTOM_PUBLISH, SETTINGS_UPDATE)));
+                        CONTACT_DELETE, SYMPTOM_EDIT, SYMPTOM_PUBLISH, SETTINGS_UPDATE))
+                        .describedAs("Además define los síntomas, los publica y configura el equipo de operadores.",
+                                "Also defines and publishes symptoms and sets up the operator team."));
+    }
+
+    @Override
+    public List<ModuleDef> modules() {
+        return List.of(ModuleDef.of(MODULE, "Torre de control", "Control tower",
+                "Detecta síntomas en los viajes y organiza su atención.",
+                "Detects symptoms in trips and organizes how they are handled."));
     }
 }

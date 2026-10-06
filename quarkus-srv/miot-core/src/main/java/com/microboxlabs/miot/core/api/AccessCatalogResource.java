@@ -30,10 +30,15 @@ public class AccessCatalogResource {
             boolean ownerOnly) {
     }
 
-    public record RoleDto(String key, String module, Map<String, String> label, Set<String> permissions) {
+    public record ModuleDto(String key, Map<String, String> label, Map<String, String> description, boolean ai) {
     }
 
-    public record CatalogDto(List<String> baseRoles, List<PermissionDto> permissions, List<RoleDto> roles) {
+    public record RoleDto(String key, String module, Map<String, String> label, Map<String, String> description,
+            Set<String> permissions) {
+    }
+
+    public record CatalogDto(List<String> baseRoles, List<ModuleDto> modules, List<PermissionDto> permissions,
+            List<RoleDto> roles) {
     }
 
     private final AccessRegistry registry;
@@ -49,6 +54,8 @@ public class AccessCatalogResource {
     public CatalogDto catalog() {
         return new CatalogDto(
                 Arrays.stream(BaseRole.values()).map(Enum::name).toList(),
+                registry.modules().stream()
+                        .map(m -> new ModuleDto(m.key(), m.label(), m.description(), m.ai())).toList(),
                 registry.permissions().stream().map(AccessCatalogResource::toDto).toList(),
                 registry.roles().stream().map(AccessCatalogResource::toDto).toList());
     }
@@ -58,6 +65,6 @@ public class AccessCatalogResource {
     }
 
     private static RoleDto toDto(RoleDef r) {
-        return new RoleDto(r.key(), r.module(), r.label(), r.permissions());
+        return new RoleDto(r.key(), r.module(), r.label(), r.description(), r.permissions());
     }
 }

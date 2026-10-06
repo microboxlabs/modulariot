@@ -21,6 +21,7 @@ public class AccessRegistry {
 
     private final Map<String, PermissionDef> permissions = new LinkedHashMap<>();
     private final Map<String, RoleDef> roles = new LinkedHashMap<>();
+    private final Map<String, ModuleDef> modules = new LinkedHashMap<>();
     private final Map<BaseRole, Set<String>> basePermissions;
 
     @Inject
@@ -33,6 +34,7 @@ public class AccessRegistry {
         catalogs.forEach(all::add);
         all.forEach(catalog -> catalog.permissions().forEach(this::addPermission));
         all.forEach(catalog -> catalog.roles().forEach(this::addRole));
+        all.forEach(catalog -> catalog.modules().forEach(m -> modules.putIfAbsent(m.key(), m)));
         Set<String> owner = new TreeSet<>();
         Set<String> admin = new TreeSet<>();
         for (PermissionDef p : permissions.values()) {
@@ -72,6 +74,14 @@ public class AccessRegistry {
 
     public Collection<RoleDef> roles() {
         return roles.values();
+    }
+
+    /** The modules that have roles, in declaration order; a module without a {@link ModuleDef} is named by its key. */
+    public List<ModuleDef> modules() {
+        Map<String, ModuleDef> out = new LinkedHashMap<>();
+        roles.values().forEach(r -> out.computeIfAbsent(r.module(),
+                key -> modules.getOrDefault(key, new ModuleDef(key, Map.of(), Map.of(), false))));
+        return List.copyOf(out.values());
     }
 
     public Optional<RoleDef> role(String key) {

@@ -50,8 +50,23 @@ public class CoreAccessCatalog implements AccessCatalog {
     public List<RoleDef> roles() {
         return List.of(
                 RoleDef.of(HARNESS_TRAINER, "harness", "Entrenador del asistente", "Assistant trainer",
-                        Set.of(HARNESS_TRAIN)),
+                        Set.of(HARNESS_TRAIN))
+                        .describedAs("Enseña al asistente: edita su conocimiento y ejecuta evaluaciones.",
+                                "Teaches the assistant: edits its knowledge and runs evaluations."),
                 RoleDef.of(CONTENT_REVIEW_AUTO_APPROVER, "content", "Aprobador automático", "Auto-approver",
-                        Set.of(CONTENT_AUTO_APPROVE)));
+                        Set.of(CONTENT_AUTO_APPROVE))
+                        .describedAs("Las fotos y documentos que sube se aprueban sin revisión.",
+                                "Photos and documents this person uploads are approved without review."));
+    }
+
+    @Override
+    public List<ModuleDef> modules() {
+        return List.of(
+                ModuleDef.of("harness", "Asistente", "Assistant",
+                        "El asistente de IA que responde preguntas sobre la operación.",
+                        "The AI assistant that answers questions about the operation.").asAi(),
+                ModuleDef.of("content", "Revisión de contenido", "Content review",
+                        "Revisión de fotos y documentos subidos en terreno.",
+                        "Review of photos and documents uploaded in the field."));
     }
 }

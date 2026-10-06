@@ -225,6 +225,29 @@ describe("credentials data service", () => {
     });
   });
 
+  it("stores a Resend key as a tagged bearer token and reads it back as Resend", async () => {
+    const fetchMock = stubFetch({
+      body: apiCredential({
+        credentialType: "BEARER_TOKEN",
+        publicConfig: { provider: "resend" },
+      }),
+    });
+
+    const created = await createCredential(ORG, "RESEND", {
+      name: "Resend",
+      environment: "PRODUCTION",
+      token: "re_123",
+      provider: "resend",
+    });
+
+    expect(bodyOf(fetchMock)).toMatchObject({
+      credentialType: "BEARER_TOKEN",
+      publicConfig: { provider: "resend" },
+      secretConfig: { token: "re_123" },
+    });
+    expect(created.typeId).toBe("RESEND");
+  });
+
   /**
    * The edit form cannot show a stored secret, so it submits an empty one. Sending that
    * through would overwrite a working credential with nothing.

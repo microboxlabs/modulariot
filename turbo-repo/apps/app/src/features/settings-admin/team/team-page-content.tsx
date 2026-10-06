@@ -27,7 +27,7 @@ import { TeamInvitationsTab } from "./team-invitations-tab";
 import { TeamInviteModal } from "./team-invite-modal";
 import { TeamKeysTab } from "./team-keys-tab";
 import { TeamMembersTab } from "./team-members-tab";
-import { inviteLink } from "./team-model";
+import { inviteLinkOf } from "./team-model";
 import { TeamRolesTab } from "./team-roles-tab";
 import { TeamTeamsTab } from "./team-teams-tab";
 import type { BaseRole, Invitation, TeamMember } from "./team.types";
@@ -123,13 +123,8 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
 
   const onResend = (invitation: Invitation) =>
     run(async () => {
-      const created = await resendInvitation(invitation.id);
-      setResent([
-        {
-          email: created.invitation.email,
-          url: inviteLink(window.location.origin, lang, created.token),
-        },
-      ]);
+      const created = await resendInvitation(invitation.id, lang);
+      setResent([inviteLinkOf(created, window.location.origin, lang)]);
     });
 
   const runConfirmed = async () => {

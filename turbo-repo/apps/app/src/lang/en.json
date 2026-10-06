@@ -1752,6 +1752,51 @@
           },
           "testModeBadge": "Test mode"
         },
+        "emailChannel": {
+          "title": "Email channel",
+          "description": "Sends team invitations by email, with your Resend account. Without it, the platform's channel is used if there is one; otherwise the link is copied by hand.",
+          "loadError": "Could not load the email connection.",
+          "fromLabel": "Sender",
+          "configureButton": "Configure",
+          "testButton": "Test",
+          "editButton": "Edit",
+          "status": {
+            "active": "Active",
+            "draft": "Draft",
+            "inactive": "Inactive",
+            "failed": "Test failed"
+          },
+          "modal": {
+            "addTitle": "Configure email channel",
+            "subtitle": "Choose the Resend credential and the sender. Test it to start using it.",
+            "editTitle": "Edit email channel",
+            "editSubtitle": "Update the sender or the credential.",
+            "defaultName": "Email",
+            "name": "Connection name",
+            "from": "Sender",
+            "fromPlaceholder": "Team <no-reply@your-domain.com>",
+            "fromHelp": "Must be on a domain verified in Resend.",
+            "credential": "Credential",
+            "credentialPick": "Choose a Resend credential",
+            "credentialNew": "New",
+            "cancel": "Cancel",
+            "saving": "Saving...",
+            "createButton": "Create",
+            "saveButton": "Save"
+          },
+          "toast": {
+            "created": "Email channel configured",
+            "updated": "Email channel updated",
+            "testSuccess": "Connection test passed",
+            "testFailed": "Connection test failed",
+            "error": "Something went wrong"
+          },
+          "validation": {
+            "nameRequired": "The connection name is required",
+            "credentialRequired": "Choose or create a Resend credential",
+            "fromInvalid": "Enter a sender like Team <no-reply@your-domain.com>"
+          }
+        },
         "gpsWebhooks": {
           "title": "GPS webhooks",
           "description": "Forward validated GPS positions to external systems with filter criteria.",
@@ -1861,6 +1906,8 @@
         "send": "Invite",
         "linksTitle": "Invitation links",
         "linksBody": "Each link is shown once. Copy it and send it to the person.",
+        "emailSent": "Sent by email.",
+        "emailFailed": "The email could not be sent ({reason}). Copy the link and send it yourself.",
         "copy": "Copy",
         "copied": "Copied",
         "close": "Close",
@@ -2269,6 +2316,10 @@
             "name": "Bearer token",
             "description": "A long-lived token sent in the Authorization header."
           },
+          "resend": {
+            "name": "Resend",
+            "description": "A Resend API key, for sending email such as team invitations."
+          },
           "basic": {
             "name": "Basic auth",
             "description": "Username and password sent as HTTP basic authentication."
@@ -2382,7 +2433,11 @@
           "token": "Token",
           "tokenPlaceholder": "Paste the token",
           "tokenEditPlaceholder": "Leave blank to keep the current token",
-          "tokenHelp": "Without the \"Bearer\" prefix. Stored encrypted and never returned."
+          "tokenHelp": "Without the \"Bearer\" prefix. Stored encrypted and never returned.",
+          "resendAddTitle": "New Resend key",
+          "resendEditTitle": "Edit Resend key",
+          "resendSubtitle": "The key the email channel sends with. A send-only key is enough.",
+          "resendTokenHelp": "Starts with re_. Stored encrypted and never returned."
         },
         "delete": {
           "title": "Delete this credential?",

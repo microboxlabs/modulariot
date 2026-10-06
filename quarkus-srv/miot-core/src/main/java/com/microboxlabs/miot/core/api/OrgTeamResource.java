@@ -22,6 +22,7 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -121,9 +122,9 @@ public class OrgTeamResource {
     @Operation(operationId = "resendInvitation", summary = "A new token and expiry for a pending invitation")
     @PermissionsAllowed(value = CoreAccessCatalog.MEMBERS_INVITE, permission = OrgPermission.class, params = ORG)
     public Uni<Response> resend(@PathParam(ORG) String organizationId,
-            @PathParam("invitationId") UUID invitationId,
+            @PathParam("invitationId") UUID invitationId, @QueryParam("lang") String lang,
             @HeaderParam(IamIdentityAugmentor.DEV_EMAIL_HEADER) String devEmail) {
-        return IamResponses.ok(() -> team.resend(organizationId, caller(devEmail), invitationId));
+        return IamResponses.ok(() -> team.resend(organizationId, caller(devEmail), invitationId, lang));
     }
 
     @DELETE

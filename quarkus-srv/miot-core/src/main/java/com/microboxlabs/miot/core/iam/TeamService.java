@@ -13,6 +13,7 @@ import jakarta.persistence.LockModeType;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import com.microboxlabs.miot.core.mail.MailDelivery;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -51,15 +52,31 @@ public class TeamService {
             Instant createdAt, Instant expiresAt, boolean expired, String organization) {
     }
 
-    /** {@code token} is returned once; the app builds the link from it. */
-    public record CreatedInvitation(InvitationView invitation, String token) {
+    /**
+     * {@code token} is returned once, so the admin can copy the link. {@code delivery} says
+     * whether the link was emailed; null until delivery is attempted.
+     */
+    public record CreatedInvitation(InvitationView invitation, String token, MailDelivery delivery) {
+
+        CreatedInvitation(InvitationView invitation, String token) {
+            this(invitation, token, null);
+        }
+
+        CreatedInvitation withDelivery(MailDelivery result) {
+            return new CreatedInvitation(invitation, token, result);
+        }
+    }
+
+    private record Invited(Organization root, List<CreatedInvitation> created) {
     }
 
     /** The organization joined (its slug) and the new membership. */
     public record AcceptedInvitation(String organization, MemberView member) {
     }
 
-    public record InviteRequest(List<String> emails, String baseRole, List<String> roles, Integer expiresInDays) {
+    /** {@code lang}: the email's language, {@code es} (default) or {@code en}. */
+    public record InviteRequest(List<String> emails, String baseRole, List<String> roles, Integer expiresInDays,
+            String lang) {
     }
 
     public record BaseRoleRequest(String baseRole) {
@@ -71,14 +88,20 @@ public class TeamService {
     private final AccessEvaluator evaluator;
     private final IamDirectory directory;
     private final AlfrescoBridge bridge;
+    /** Each invitation is emailed while the request waits, so a request invites a bounded number. */
+    static final int MAX_INVITES = 20;
+
     // Per bean, not static: a static SecureRandom would be built into the native image with a fixed seed.
     private final SecureRandom random = new SecureRandom();
+    private final InvitationMail mail;
 
     @Inject
-    public TeamService(AccessEvaluator evaluator, IamDirectory directory, AlfrescoBridge bridge) {
+    public TeamService(AccessEvaluator evaluator, IamDirectory directory, AlfrescoBridge bridge,
+            InvitationMail mail) {
         this.evaluator = evaluator;
         this.directory = directory;
         this.bridge = bridge;
+        this.mail = mail;
     }
 
     // --- members ---
@@ -148,6 +171,9 @@ public class TeamService {
         if (request == null || request.emails() == null || request.emails().isEmpty()) {
             throw new IllegalArgumentException("emails is required");
         }
+        if (request.emails().size() > MAX_INVITES) {
+            throw new IllegalArgumentException("At most " + MAX_INVITES + " emails per request");
+        }
         BaseRole base = request.baseRole() == null ? BaseRole.MEMBER : baseRole(request.baseRole());
         Set<String> roles = new TreeSet<>(request.roles() == null ? List.of() : request.roles());
         Duration ttl = ttl(request.expiresInDays());
@@ -171,11 +197,12 @@ public class TeamService {
                                     return list;
                                 }));
                     }
-                    return chain;
-                }))));
+                    return chain.map(list -> new Invited(root, list));
+                }))))
+                .flatMap(invited -> mail.deliverAll(invited.root(), invited.created(), actor.name(), request.lang()));
     }
 
-    public Uni<CreatedInvitation> resend(String slug, Caller actor, UUID invitationId) {
+    public Uni<CreatedInvitation> resend(String slug, Caller actor, UUID invitationId, String lang) {
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 invitation(root.id, invitationId).flatMap(invitation -> {
                     String token = newToken(random);
@@ -185,8 +212,10 @@ public class TeamService {
                     return invitation.<IamInvitation>persist()
                             .flatMap(saved -> directory.audit(root.id, actor.name(), "invitation.resent",
                                     saved.email, Map.of()))
-                            .map(ignored -> new CreatedInvitation(view(invitation, root.slug), token));
-                }))));
+                            .map(ignored -> new Invited(root,
+                                    List.of(new CreatedInvitation(view(invitation, root.slug), token))));
+                }))))
+                .flatMap(invited -> mail.deliver(invited.root(), invited.created().get(0), actor.name(), lang));
     }
 
     public Uni<Void> revoke(String slug, Caller actor, UUID invitationId) {

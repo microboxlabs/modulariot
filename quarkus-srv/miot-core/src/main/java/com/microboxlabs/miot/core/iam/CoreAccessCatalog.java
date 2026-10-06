@@ -41,7 +41,7 @@ public class CoreAccessCatalog implements AccessCatalog {
                 PermissionDef.of(APIKEYS_MANAGE, "Administrar claves API", "Manage API keys"),
                 PermissionDef.of(AUDIT_READ, "Ver auditoría", "View the audit log"),
                 PermissionDef.of(BILLING_MANAGE, "Administrar facturación", "Manage billing").forOwnersOnly(),
-                PermissionDef.of(HARNESS_TRAIN, "Entrenar el asistente", "Train the assistant"),
+                PermissionDef.of(HARNESS_TRAIN, "Entrenar Harness", "Train Harness"),
                 PermissionDef.of(CONTENT_AUTO_APPROVE, "Aprobar contenido automáticamente",
                         "Approve content automatically").explicit());
     }
@@ -49,10 +49,10 @@ public class CoreAccessCatalog implements AccessCatalog {
     @Override
     public List<RoleDef> roles() {
         return List.of(
-                RoleDef.of(HARNESS_TRAINER, "harness", "Entrenador del asistente", "Assistant trainer",
+                RoleDef.of(HARNESS_TRAINER, "harness", "Entrenador de Harness", "Harness trainer",
                         Set.of(HARNESS_TRAIN))
-                        .describedAs("Enseña al asistente: edita su conocimiento y ejecuta evaluaciones.",
-                                "Teaches the assistant: edits its knowledge and runs evaluations."),
+                        .describedAs("Enseña a Harness: edita su conocimiento y ejecuta evaluaciones.",
+                                "Teaches Harness: edits its knowledge and runs evaluations."),
                 RoleDef.of(CONTENT_REVIEW_AUTO_APPROVER, "content", "Aprobador automático", "Auto-approver",
                         Set.of(CONTENT_AUTO_APPROVE))
                         .describedAs("Las fotos y documentos que sube se aprueban sin revisión.",
@@ -62,7 +62,7 @@ public class CoreAccessCatalog implements AccessCatalog {
     @Override
     public List<ModuleDef> modules() {
         return List.of(
-                ModuleDef.of("harness", "Asistente", "Assistant",
+                ModuleDef.of("harness", "Harness", "Harness",
                         "El asistente de IA que responde preguntas sobre la operación.",
                         "The AI assistant that answers questions about the operation.").asAi(),
                 ModuleDef.of("content", "Revisión de contenido", "Content review",

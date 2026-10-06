@@ -1,6 +1,8 @@
 package com.microboxlabs.miot.core.auth;
 
-import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
+import com.microboxlabs.miot.core.iam.Access;
+import com.microboxlabs.miot.core.iam.AccessEvaluator;
+import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -14,19 +16,14 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.jboss.logging.Logger;
 
 /**
- * Lets a caller into an organization and fills the request's
- * {@link TenantContext} and {@link OrganizationContext}.
+ * Lets a caller into an organization and fills the request's {@link TenantContext} and
+ * {@link OrganizationContext}. Membership is decided by {@link AccessEvaluator}.
  *
- * <p>A web user (the token has an email) must be a member of the
- * organization: of its Alfresco group, or, with native membership (see
- * {@link OrganizationMembership}), hold a role in it. An M2M client (no email)
- * must be the organization's own tenant client.
+ * <p>A parent organization reads its children's data too: its effective client ids are its own and its direct
+ * children's. A child reads only its own.
  *
- * <p>A parent organization reads its children's data too: its effective
- * client ids are its own and its direct children's. A child reads only its own.
- *
- * <p>{@link OrganizationRequestFilter} uses this for the org-scoped REST paths;
- * the MCP tools use it for the organization named in their arguments.
+ * <p>{@link OrganizationRequestFilter} uses this for the org-scoped REST paths; the MCP tools use it for the
+ * organization named in their arguments.
  */
 @ApplicationScoped
 public class OrganizationAccess {
@@ -39,30 +36,31 @@ public class OrganizationAccess {
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
-    private final IAlfrescoMembershipClient alfrescoMembership;
-    private final OrganizationMembership membership;
+    private final AccessEvaluator evaluator;
 
     @Inject
     public OrganizationAccess(
             TenantContext tenantContext,
             OrganizationContext organizationContext,
-            IAlfrescoMembershipClient alfrescoMembership,
-            OrganizationMembership membership) {
+            AccessEvaluator evaluator) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
-        this.alfrescoMembership = alfrescoMembership;
-        this.membership = membership;
+        this.evaluator = evaluator;
     }
 
     /**
-     * Null when the caller is let in, a refusal otherwise. Needs a Vert.x
-     * context: it reads the organization through Hibernate Reactive.
+     * Null when the caller is let in, a refusal otherwise. Needs a Vert.x context: it reads the organization through
+     * Hibernate Reactive.
      */
     public Uni<Refusal> enter(String slug, String email, String m2mClientId) {
+        Caller caller = email != null ? Caller.user(email) : Caller.client(m2mClientId);
+        if (!caller.isUser() && !caller.isClient()) {
+            return refuse(Response.Status.UNAUTHORIZED, "Cannot resolve caller identity for organization request");
+        }
         return Panache.withSession(() -> Organization.findBySlug(slug)
                 .flatMap(org -> org == null
                         ? refuse(Response.Status.FORBIDDEN, "Access denied")
-                        : validateAndApply(org, email, m2mClientId)));
+                        : evaluator.evaluate(slug, caller).flatMap(access -> admit(org, caller, access))));
     }
 
     /** The email claim of the caller's token, if it has one. */
@@ -91,24 +89,16 @@ public class OrganizationAccess {
         return null;
     }
 
-    private Uni<Refusal> validateAndApply(Organization org, String email, String m2mClientId) {
-        Uni<Membership> checked;
-        if (email != null) {
-            checked = validateWebUser(org, email);
-        } else if (m2mClientId != null) {
-            checked = validateM2mClient(org, m2mClientId);
-        } else {
-            return refuse(Response.Status.UNAUTHORIZED, "Cannot resolve caller identity for organization request");
+    private Uni<Refusal> admit(Organization org, Caller caller, Access access) {
+        if (!access.member()) {
+            String message = caller.isClient()
+                    ? "M2M client is not authorized for organization: " + org.slug
+                    : "User is not a member of organization: " + org.slug;
+            return refuse(Response.Status.FORBIDDEN, message);
         }
-
-        return checked.flatMap(result -> {
-            if (result.refusal() != null) {
-                return Uni.createFrom().item(result.refusal());
-            }
-            return effectiveClientIds(org)
-                    .invoke(ids -> apply(org, email, result.role(), ids))
-                    .replaceWith((Refusal) null);
-        });
+        return effectiveClientIds(org)
+                .invoke(ids -> apply(org, caller.email(), access.alfrescoRole(), ids))
+                .replaceWith((Refusal) null);
     }
 
     private Uni<List<String>> effectiveClientIds(Organization org) {
@@ -124,39 +114,6 @@ public class OrganizationAccess {
                     children.forEach(child -> ids.add(child.tenantClientId));
                     return ids;
                 });
-    }
-
-    private Uni<Membership> validateWebUser(Organization org, String email) {
-        if (membership.isNative()) {
-            return membership.assignedRoles(org, email)
-                    .map(roles -> roles.isEmpty()
-                            ? Membership.deny(notAMember(org))
-                            : Membership.allow(null));
-        }
-        if (org.alfrescoGroupId == null) {
-            return Uni.createFrom().item(Membership.allow(null));
-        }
-        return alfrescoMembership.isMember(email, org.alfrescoGroupId)
-                .flatMap(isMember -> {
-                    if (!Boolean.TRUE.equals(isMember)) {
-                        return Uni.createFrom().item(Membership.deny(notAMember(org)));
-                    }
-                    return alfrescoMembership.getRole(email, org.alfrescoGroupId)
-                            .map(Membership::allow);
-                });
-    }
-
-    private static Refusal notAMember(Organization org) {
-        return new Refusal(Response.Status.FORBIDDEN, "User is not a member of organization: " + org.slug);
-    }
-
-    private static Uni<Membership> validateM2mClient(Organization org, String m2mClientId) {
-        if (!m2mClientId.equals(org.tenantClientId)) {
-            return Uni.createFrom().item(Membership.deny(new Refusal(
-                    Response.Status.FORBIDDEN,
-                    "M2M client is not authorized for organization: " + org.slug)));
-        }
-        return Uni.createFrom().item(Membership.allow(null));
     }
 
     private void apply(Organization org, String userEmail, String role, List<String> effectiveClientIds) {
@@ -180,15 +137,5 @@ public class OrganizationAccess {
             return list.get(0).toString();
         }
         return val != null ? val.toString() : null;
-    }
-
-    private record Membership(String role, Refusal refusal) {
-        private static Membership allow(String role) {
-            return new Membership(role, null);
-        }
-
-        private static Membership deny(Refusal refusal) {
-            return new Membership(null, refusal);
-        }
     }
 }

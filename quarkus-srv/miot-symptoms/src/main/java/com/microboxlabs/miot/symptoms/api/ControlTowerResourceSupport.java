@@ -1,10 +1,11 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.iam.Access;
+import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
-import com.microboxlabs.miot.symptoms.access.ControlTowerAccess;
-import com.microboxlabs.miot.symptoms.access.ControlTowerPermission;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
@@ -12,6 +13,8 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.config.ConfigProvider;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -30,7 +33,7 @@ abstract class ControlTowerResourceSupport {
 
     private final TenantContext tenantContext;
     private final OrganizationContext organizationContext;
-    private final ControlTowerAccess access;
+    private final OrganizationRoleService roleService;
     private final SecurityIdentity identity;
 
     protected ControlTowerResourceSupport(
@@ -40,34 +43,35 @@ abstract class ControlTowerResourceSupport {
             SecurityIdentity identity) {
         this.tenantContext = tenantContext;
         this.organizationContext = organizationContext;
-        this.access = new ControlTowerAccess(roleService, organizationContext);
+        this.roleService = roleService;
         this.identity = identity;
     }
 
-    /** Reads: needs {@link ControlTowerPermission#VIEW}. */
-    protected Uni<Response> viewWork(String organizationId, Supplier<Response> work) {
-        return permitted(organizationId, ControlTowerPermission.VIEW, work);
+    /**
+     * Runs the blocking service call on the worker pool. Each endpoint declares the permission it needs with
+     * {@code @PermissionsAllowed}; see {@code ControlTowerAccessCatalog}.
+     */
+    protected Uni<Response> work(Supplier<Response> work) {
+        return Uni.createFrom().item(() -> guarded(work))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
-    /** Treating cases and editing contacts: needs {@link ControlTowerPermission#OPERATE}. */
-    protected Uni<Response> operateWork(String organizationId, Supplier<Response> work) {
-        return permitted(organizationId, ControlTowerPermission.OPERATE, work);
+    /** The caller's access to the organization the request entered. */
+    protected Uni<Access> access(String organizationId) {
+        return roleService.access(organizationId, caller());
     }
 
-    /** Catalog, settings and contact deletion: needs {@link ControlTowerPermission#MAINTAIN}. */
-    protected Uni<Response> maintainWork(String organizationId, Supplier<Response> work) {
-        return permitted(organizationId, ControlTowerPermission.MAINTAIN, work);
-    }
-
-    protected ControlTowerAccess access() {
-        return access;
-    }
-
-    private Uni<Response> permitted(String organizationId, ControlTowerPermission permission,
-            Supplier<Response> work) {
-        return access.require(organizationId, permission)
-                .flatMap(ignored -> Uni.createFrom().item(() -> guarded(work))
-                        .runSubscriptionOn(Infrastructure.getDefaultWorkerPool()));
+    /** The caller as {@code @PermissionsAllowed} sees it: the user, else the token's client id. */
+    private Caller caller() {
+        String email = organizationContext.getUserEmail();
+        if (email != null && !email.isBlank()) {
+            return Caller.user(email);
+        }
+        List<String> claims = ConfigProvider.getConfig()
+                .getOptionalValues("miot.auth.client-id-claims", String.class)
+                .orElse(List.of("aud", "azp"));
+        String clientId = OrganizationAccess.clientId(identity, claims);
+        return Caller.client(clientId != null ? clientId : tenantContext.getClientId());
     }
 
     protected String tenantCode(String organizationId) {

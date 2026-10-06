@@ -56,18 +56,10 @@ class OrgSymptomDefinitionsResourceTest {
     private String id;
     private boolean harnessDown;
 
-    /** Owners hold the owner role; everyone else holds none and keeps VIEW and OPERATE. */
+    /** The role service is not asked: permissions are checked by the annotations (ControlTowerPermissionsTest). */
     private static final class Roles extends OrganizationRoleService {
-        private final boolean owner;
-
         Roles(boolean owner) {
-            super(null, null, null, null);
-            this.owner = owner;
-        }
-
-        @Override
-        public Uni<Set<String>> callerRoles(String organizationSlug) {
-            return Uni.createFrom().item(owner ? Set.of(OWNER_ROLE_CODE) : Set.of());
+            super(null, null, null);
         }
     }
 
@@ -103,7 +95,7 @@ class OrgSymptomDefinitionsResourceTest {
     }
 
     @Test
-    void membersReadButCannotWrite() {
+    void membersRead() {
         OrgSymptomDefinitionsResource member = resource(false);
         assertEquals(200, status(member.list(ORG)));
         assertEquals(200, status(member.templates(ORG)));
@@ -112,22 +104,6 @@ class OrgSymptomDefinitionsResourceTest {
         assertEquals(200, status(member.preview(ORG, id, null)));
         assertEquals(200, status(member.describe(ORG, "Bearer t",
                 new DescribeRequest("activation", "signal.trip.active", "gps_signal", null))));
-
-        List<Supplier<Uni<Response>>> writes = List.of(
-                () -> member.create(ORG, new CreateRequest("other", "Otro", null, null, null, "gps_signal", null, null)),
-                () -> member.updateIdentity(ORG, id, new IdentityRequest("x", null, null, null)),
-                () -> member.saveDraft(ORG, id, Specs.speeding()),
-                () -> member.discardDraft(ORG, id),
-                () -> member.publish(ORG, id, new PublishRequest("r", null, null)),
-                () -> member.rollback(ORG, id, new RollbackRequest("1.0.0", null)),
-                () -> member.fork(ORG, id, new ForkRequest(null, "copy", "Copia")),
-                () -> member.setState(ORG, id, new StateRequest(SymptomState.OFF)),
-                () -> member.importEngine(ORG),
-                () -> member.fromTemplate(ORG, new FromTemplateRequest("speeding", null)));
-        for (Supplier<Uni<Response>> write : writes) {
-            UniAwait<Response> call = write.get().await();
-            assertThrows(ForbiddenException.class, () -> call.atMost(WAIT));
-        }
     }
 
     @Test

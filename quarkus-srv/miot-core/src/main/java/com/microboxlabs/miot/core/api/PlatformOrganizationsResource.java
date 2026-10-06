@@ -24,6 +24,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.Locale;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -81,7 +82,8 @@ public class PlatformOrganizationsResource {
     @Operation(summary = "Replace an organization role's assignees")
     public Uni<OrganizationRoleDto> replaceRole(@PathParam("slug") String slug,
             @PathParam("roleCode") String roleCode, SetOrganizationRoleRequest request) {
-        return authorizer.requirePlatformOwner().flatMap(ignored -> roles.replaceAsPlatform(slug, roleCode, request));
+        return authorizer.requirePlatformOwner()
+                .flatMap(actor -> roles.replaceAsPlatform(slug, roleCode, request, actor));
     }
 
     private Organization newOrganization(CreateRootOrganizationRequest body) {
@@ -104,8 +106,21 @@ public class PlatformOrganizationsResource {
         organization.tenantClientId = body.tenantClientId().trim();
         organization.alfrescoGroupId = isBlank(body.alfrescoGroupId()) ? null : body.alfrescoGroupId().trim();
         organization.taxId = isBlank(body.taxId()) ? null : normalizeTaxId(body.taxId());
+        organization.membershipSource = membershipSource(body);
         organization.active = true;
         return organization;
+    }
+
+    /** As requested; otherwise ALFRESCO when the organization names an Alfresco group, else NATIVE. */
+    static String membershipSource(CreateRootOrganizationRequest body) {
+        if (!isBlank(body.membershipSource())) {
+            String source = body.membershipSource().trim().toUpperCase(Locale.ROOT);
+            if (!source.equals("ALFRESCO") && !source.equals("NATIVE")) {
+                throw new BadRequestException("membershipSource must be ALFRESCO or NATIVE");
+            }
+            return source;
+        }
+        return isBlank(body.alfrescoGroupId()) ? "NATIVE" : "ALFRESCO";
     }
 
     private String normalizeTaxId(String taxId) {

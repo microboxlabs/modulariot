@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.mcp;
 
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -58,6 +59,24 @@ public class McpCaller {
                     }
                     return new Entered(tenantContext.getTenantCode(), actor(email));
                 });
+    }
+
+    /** A member holding {@code permission} in the organization, as the REST endpoints require. */
+    public Uni<Entered> permitted(String organization, String permission) {
+        return member(organization).flatMap(entered -> roles.access(organization, caller())
+                .map(granted -> {
+                    if (!granted.can(permission)) {
+                        throw new ToolCallException("Permission required: " + permission);
+                    }
+                    return entered;
+                }));
+    }
+
+    private Caller caller() {
+        String email = OrganizationAccess.email(identity);
+        return email != null
+                ? Caller.user(email)
+                : Caller.client(OrganizationAccess.clientId(identity, clientIdClaims));
     }
 
     /** An owner of the organization, as the REST writes require. */

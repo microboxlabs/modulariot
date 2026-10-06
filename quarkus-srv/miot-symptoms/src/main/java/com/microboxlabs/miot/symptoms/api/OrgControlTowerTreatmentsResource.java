@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import io.quarkus.security.PermissionsAllowed;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
+import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
@@ -51,24 +54,28 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     @GET
     @Path("/symptoms/{symptomId}/treatments")
     @Operation(operationId = "listSymptomTreatments", summary = "Treatments of one symptom, oldest first, with their actions")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> listForSymptom(
             @PathParam("organizationId") String organizationId,
             @PathParam("symptomId") String symptomId) {
         String tenant = tenantCode(organizationId);
-        return viewWork(organizationId, () -> Response.ok(treatments.listForSymptom(tenant, parseSymptomId(symptomId))).build());
+        return work(() -> Response.ok(treatments.listForSymptom(tenant, parseSymptomId(symptomId))).build());
     }
 
     @POST
     @Path("/symptoms/{symptomId}/treatments")
     @Operation(operationId = "openTreatment", summary = "Open a treatment on a symptom, or resume yours",
             description = "201 with a new episode, or 200 with the episode the caller already has open on this symptom.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> open(
             @PathParam("organizationId") String organizationId,
             @PathParam("symptomId") String symptomId,
             OpenTreatmentRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return operateWork(organizationId, () -> {
+        return work(() -> {
             TreatmentService.OpenResult result = treatments.open(tenant, actor, parseSymptomId(symptomId), body);
             return Response.status(result.created() ? Response.Status.CREATED : Response.Status.OK)
                     .entity(result.treatment())
@@ -79,24 +86,28 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     @GET
     @Path("/treatments/{treatmentId}")
     @Operation(operationId = "getTreatment", summary = "Get a treatment with its actions")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> get(
             @PathParam("organizationId") String organizationId,
             @PathParam("treatmentId") String treatmentId) {
         String tenant = tenantCode(organizationId);
-        return viewWork(organizationId, () -> Response.ok(treatments.get(tenant, treatmentId)).build());
+        return work(() -> Response.ok(treatments.get(tenant, treatmentId)).build());
     }
 
     @POST
     @Path("/treatments/{treatmentId}/actions")
     @Operation(operationId = "addTreatmentAction", summary = "Append an action to an open treatment",
             description = "A call attempt, the ignore or invalidate decision with its reason, or a note.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> addAction(
             @PathParam("organizationId") String organizationId,
             @PathParam("treatmentId") String treatmentId,
             AddActionRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return operateWork(organizationId, () -> Response.status(Response.Status.CREATED)
+        return work(() -> Response.status(Response.Status.CREATED)
                 .entity(treatments.addAction(tenant, actor, treatmentId, body))
                 .build());
     }
@@ -105,18 +116,22 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
     @Path("/treatments/{treatmentId}/close")
     @Operation(operationId = "closeTreatment", summary = "Finish a treatment",
             description = "Needs at least one action. 409 when the treatment is not open or has no actions.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> close(
             @PathParam("organizationId") String organizationId,
             @PathParam("treatmentId") String treatmentId,
             CloseTreatmentRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return operateWork(organizationId, () -> Response.ok(treatments.close(tenant, actor, treatmentId, body)).build());
+        return work(() -> Response.ok(treatments.close(tenant, actor, treatmentId, body)).build());
     }
 
     @POST
     @Path("/treatments/{treatmentId}/cancel")
     @Operation(operationId = "cancelTreatment", summary = "Abandon an open treatment")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CASE_TREAT, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> cancel(
             @PathParam("organizationId") String organizationId,
             @PathParam("treatmentId") String treatmentId,
@@ -124,6 +139,6 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
         String tenant = tenantCode(organizationId);
         String actor = actor();
         String reason = body == null ? null : body.get("reason");
-        return operateWork(organizationId, () -> Response.ok(treatments.cancel(tenant, actor, treatmentId, reason)).build());
+        return work(() -> Response.ok(treatments.cancel(tenant, actor, treatmentId, reason)).build());
     }
 }

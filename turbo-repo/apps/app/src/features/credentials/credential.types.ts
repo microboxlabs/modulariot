@@ -257,6 +257,11 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     descriptionKey: "types.resend.description",
     available: true,
     supportsTest: false,
+    // Monochrome mark, so it needs per-theme ink.
+    logo: {
+      light: "/credential-logos/resend-light.svg",
+      dark: "/credential-logos/resend-dark.svg",
+    },
   },
   {
     id: "BASIC_AUTH",

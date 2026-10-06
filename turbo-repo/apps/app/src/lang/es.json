@@ -5802,68 +5802,6 @@
     "view_on_maps": "Ver en Google Maps",
     "distance": "Distancia"
   },
-  "new_functionality": {
-    "new": "NUEVO",
-    "try_it_now": "¡Anímate a probarla!",
-    "i_want_to_try": "¡Quiero probar esta funcionalidad!",
-    "not_interested": "No me interesa esta funcionalidad.",
-    "dont_show_again": "No mostrarme este mensaje nuevamente.",
-    "continue": "Continuar",
-    "next": "Siguiente",
-    "previous": "Anterior",
-    "done": "Finalizar",
-    "symptom_historic": {
-      "title": "Prueba el nuevo filtro por condiciones.",
-      "we_added_a_new_functionality_for": "Hemos implementado una nueva funcionalidad para",
-      "filter_by_condition": "filtrar por condición.",
-      "second_paragraph": "Ahora puedes filtrar directamente desde los contadores de condición, sin necesidad de navegar a otra página.",
-      "for_now": "Por ahora",
-      "its_optional": "es opcional",
-      "but": ", pero",
-      "in_the_future": "en el futuro será la única forma de filtrar por condiciones."
-    },
-    "signal_historic": {
-      "title": "Prueba el nuevo Histórico de Señales.",
-      "we_added_a_new_functionality_for": "Hemos implementado una nueva funcionalidad para",
-      "search_historic_pulses": "buscar pulsos de forma Histórica.",
-      "second_paragraph": "Ahora puedes buscar pulsos especificos filtrando por",
-      "license_plate_and_date_range": "patente y rango de fechas."
-    },
-    "slider": {
-      "kanban": {
-        "slide1_title": "Tablero Kanban Renovado",
-        "slide1_subtitle": "Columnas más limpias, controles más rápidos.",
-        "slide2_title": "Acciones por Columna",
-        "slide2_lane": "Iniciar viaje",
-        "slide2_density": "Densidad",
-        "slide2_sort": "Orden",
-        "slide2_filter": "Filtro",
-        "slide2_collapse": "Contraer",
-        "slide3_title": "Busca con ⌘K / Ctrl+K",
-        "slide3_placeholder": "Buscar viaje, patente o conductor…",
-        "slide3_desc": "Presiona ⌘K / Ctrl+K en cualquier momento para ir directo a la búsqueda.",
-        "slide4_title": "Tu Vista, Recordada",
-        "slide4_desc": "Densidad, orden, filtros y columnas contraídas persisten al recargar."
-      },
-      "new_features_appeared": "Hay nuevas funcionalidades.",
-      "test_pulse_historic_feature": "¡Prueba el nuevo Histórico de pulsos!",
-      "description": "Filtra pulsos por patente y rango de fechas para obtener un reporte descargable basado en posiciones pasadas de los vehículos.",
-      "learn_more": "Aprende más sobre lo que se cambió en esta última actualización.",
-      "sidebar": {
-        "slide1_title": "Nueva Barra Lateral",
-        "slide1_subtitle": "Rediseñamos la experiencia de navegación.",
-        "slide2_title": "Navegación en Dos Niveles",
-        "slide2_icon_bar": "Barra de Íconos",
-        "slide2_icon_bar_desc": "Acceso rápido a cada sección con un solo toque.",
-        "slide2_secondary_panel": "Panel de Detalle",
-        "slide2_secondary_panel_desc": "Expande cualquier sección para ver sus páginas, buscar y crear.",
-        "slide3_title": "Buscar y Crear",
-        "slide3_desc": "Encuentra dashboards al instante y crea nuevos sin salir de la barra lateral.",
-        "slide4_title": "Funciona en Todas Partes",
-        "slide4_desc": "La misma experiencia en escritorio y móvil — íconos primero, detalles a demanda."
-      }
-    }
-  },
   "calendar": {
     "landing": {
       "title": "Calendarios",

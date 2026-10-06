@@ -26,12 +26,18 @@ export interface ConnectionTestResult {
   message: string;
 }
 
-/** A channel connection to create: the token is stored as a bearer credential profile. */
+/**
+ * A channel connection to create. With `credentialProfileId` it uses that stored
+ * credential; otherwise `token` is stored as a new bearer credential.
+ */
 export interface ChannelCreate {
   name: string;
   baseUrl: string;
   token: string;
   credentialName: string;
+  /** Non-secret config for the new credential, e.g. a provider tag. */
+  credentialPublicConfig?: Record<string, unknown>;
+  credentialProfileId?: string;
   metadata: Record<string, unknown>;
 }
 
@@ -39,6 +45,9 @@ export interface ChannelCreate {
 export interface ChannelUpdate {
   name: string;
   baseUrl: string;
+  /** Rotates the key of the credential linked now. */
   token?: string;
+  /** Links another stored credential. */
+  credentialProfileId?: string;
   metadata: Record<string, unknown>;
 }

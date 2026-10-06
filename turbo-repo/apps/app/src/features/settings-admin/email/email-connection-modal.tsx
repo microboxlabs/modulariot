@@ -1,6 +1,8 @@
 "use client";
 
-import { TextInput } from "flowbite-react";
+import { Select, TextInput } from "flowbite-react";
+import useSWR from "swr";
+import { fetchCredentials } from "@/features/credentials/credentials-data-service";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import FormModal from "@/features/common/components/form-modal/form-modal";
@@ -14,6 +16,7 @@ import {
 } from "@/features/settings-admin/hooks/use-settings-modal-form";
 import type { ChannelModalProps } from "../channels/channel-card";
 import {
+  NEW_KEY,
   EMAIL_DEFAULTS,
   EmailConnectionSchema,
   EmailEditSchema,
@@ -21,6 +24,7 @@ import {
 } from "./email.types";
 
 interface EmailConnectionModalProps extends ChannelModalProps<EmailFormData> {
+  readonly orgSlug: string | null;
   readonly dict: I18nRecord;
 }
 
@@ -33,6 +37,7 @@ export function EmailConnectionModal({
   onSubmit,
   loading,
   error,
+  orgSlug,
   dict,
 }: EmailConnectionModalProps) {
   const isEdit = mode === "edit";
@@ -40,6 +45,7 @@ export function EmailConnectionModal({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<EmailFormData>({
     resolver: zodResolver(isEdit ? EmailEditSchema : EmailConnectionSchema),
@@ -56,6 +62,19 @@ export function EmailConnectionModal({
   });
 
   const chrome = settingsModalChrome(isEdit, dict);
+  const credentials = useSWR(
+    show && orgSlug ? ["resend-credentials", orgSlug] : null,
+    () => fetchCredentials(orgSlug ?? ""),
+    { revalidateOnFocus: false }
+  );
+  const resendKeys = (credentials.data ?? []).filter(
+    (c) => c.typeId === "RESEND"
+  );
+  const credentialId = watch("credentialId");
+  // A key goes into a new credential, or rotates the one linked now.
+  const showKey =
+    credentialId === NEW_KEY ||
+    (isEdit && credentialId === initial?.credentialId);
 
   return (
     <FormModal
@@ -101,23 +120,48 @@ export function EmailConnectionModal({
         </SettingsFormField>
 
         <SettingsFormField
-          id="email-token"
-          label={tr("modal.token", dict)}
-          error={trDynamic(errors.token?.message ?? "", dict)}
+          id="email-credential"
+          label={tr("modal.credential", dict)}
         >
-          <TextInput
-            id="email-token"
-            type="password"
-            autoComplete="off"
-            placeholder={
-              isEdit
-                ? tr("modal.tokenEditPlaceholder", dict)
-                : tr("modal.tokenPlaceholder", dict)
-            }
-            {...register("token")}
-            color={errors.token ? "failure" : undefined}
-          />
+          <Select id="email-credential" {...register("credentialId")}>
+            {!isEdit && (
+              <option value={NEW_KEY}>{tr("modal.credentialNew", dict)}</option>
+            )}
+            {isEdit &&
+              initial?.credentialId &&
+              !resendKeys.some((c) => c.id === initial.credentialId) && (
+                <option value={initial.credentialId}>
+                  {tr("modal.credentialCurrent", dict)}
+                </option>
+              )}
+            {resendKeys.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
         </SettingsFormField>
+
+        {showKey && (
+          <SettingsFormField
+            id="email-token"
+            label={tr("modal.token", dict)}
+            error={trDynamic(errors.token?.message ?? "", dict)}
+          >
+            <TextInput
+              id="email-token"
+              type="password"
+              autoComplete="off"
+              placeholder={
+                isEdit
+                  ? tr("modal.tokenEditPlaceholder", dict)
+                  : tr("modal.tokenPlaceholder", dict)
+              }
+              {...register("token")}
+              color={errors.token ? "failure" : undefined}
+            />
+          </SettingsFormField>
+        )}
 
         <SettingsFormField
           id="email-base"

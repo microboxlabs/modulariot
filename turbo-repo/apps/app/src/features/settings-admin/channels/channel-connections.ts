@@ -73,16 +73,20 @@ export async function createChannelConnection(
   provider: string,
   input: ChannelCreate
 ): Promise<IntegrationConnection> {
-  const credential = await sendJson<CredentialProfileResponse>(
-    "POST",
-    `${integrationsBase(orgSlug)}/credential-profiles`,
-    {
-      displayName: input.credentialName,
-      authType: "BEARER_TOKEN",
-      publicConfig: {},
-      secretConfig: { token: input.token },
-    }
-  );
+  const credentialProfileId =
+    input.credentialProfileId ??
+    (
+      await sendJson<CredentialProfileResponse>(
+        "POST",
+        `${integrationsBase(orgSlug)}/credential-profiles`,
+        {
+          displayName: input.credentialName,
+          authType: "BEARER_TOKEN",
+          publicConfig: input.credentialPublicConfig ?? {},
+          secretConfig: { token: input.token },
+        }
+      )
+    ).id;
   return sendJson<IntegrationConnection>(
     "POST",
     `${integrationsBase(orgSlug)}/connections`,
@@ -90,7 +94,7 @@ export async function createChannelConnection(
       name: input.name,
       providerType: provider,
       baseUrl: input.baseUrl,
-      credentialProfileId: credential.id,
+      credentialProfileId,
       metadata: input.metadata,
     }
   );
@@ -110,6 +114,9 @@ export async function updateChannelConnection(
   const token = input.token?.trim();
   if (token) {
     body.token = token;
+  }
+  if (input.credentialProfileId) {
+    body.credentialProfileId = input.credentialProfileId;
   }
   return sendJson<IntegrationConnection>(
     "PATCH",

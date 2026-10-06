@@ -17,6 +17,7 @@ export type CredentialTypeId =
   | "GOOGLE_SERVICE_ACCOUNT"
   | "API_KEY"
   | "BEARER_TOKEN"
+  | "RESEND"
   | "BASIC_AUTH";
 
 /** Where a credential is referenced from — the "configure once, reuse" payoff. */
@@ -246,6 +247,14 @@ export const CREDENTIAL_TYPES: readonly CredentialTypeDescriptor[] = [
     id: "BEARER_TOKEN",
     nameKey: "types.bearer.name",
     descriptionKey: "types.bearer.description",
+    available: true,
+    supportsTest: false,
+  },
+  {
+    // A bearer token tagged with RESEND_PROVIDER; tested through its email connection.
+    id: "RESEND",
+    nameKey: "types.resend.name",
+    descriptionKey: "types.resend.description",
     available: true,
     supportsTest: false,
   },
@@ -497,7 +506,26 @@ export const BearerTokenCredentialEditSchema =
     token: z.string().optional(),
   });
 
-export type BearerTokenFormData = z.infer<typeof BearerTokenCredentialSchema>;
+export type BearerTokenFormData = z.infer<
+  typeof BearerTokenCredentialSchema
+> & {
+  /** {@link RESEND_PROVIDER} on a Resend API key; absent on a plain bearer token. */
+  provider?: string;
+};
+
+/**
+ * Marks a bearer credential as a Resend API key. Lives in `publicConfig`, like
+ * {@link AUTH0_M2M_PROVIDER}, because upstream it is an ordinary bearer token.
+ */
+export const RESEND_PROVIDER = "resend";
+
+const providerField = { provider: z.literal(RESEND_PROVIDER) };
+
+export const ResendCredentialSchema =
+  BearerTokenCredentialSchema.extend(providerField);
+
+export const ResendCredentialEditSchema =
+  BearerTokenCredentialEditSchema.extend(providerField);
 
 /**
  * Any credential form's data. The list/create/update paths are type-agnostic —

@@ -1776,6 +1776,9 @@
             "from": "Remitente",
             "fromPlaceholder": "Equipo <no-reply@tu-dominio.com>",
             "fromHelp": "Debe ser de un dominio verificado en Resend.",
+            "credential": "Credencial",
+            "credentialNew": "Nueva clave API",
+            "credentialCurrent": "Credencial actual",
             "token": "Clave API de Resend",
             "tokenPlaceholder": "re_...",
             "tokenEditPlaceholder": "Déjala en blanco para mantener la clave actual",
@@ -2318,6 +2321,10 @@
             "name": "Token Bearer",
             "description": "Un token de larga duración enviado en el header Authorization."
           },
+          "resend": {
+            "name": "Resend",
+            "description": "Una clave API de Resend, para enviar correos como las invitaciones al equipo."
+          },
           "basic": {
             "name": "Autenticación básica",
             "description": "Usuario y contraseña enviados como HTTP basic."
@@ -2431,7 +2438,11 @@
           "token": "Token",
           "tokenPlaceholder": "Pega el token",
           "tokenEditPlaceholder": "Déjalo en blanco para mantener el token actual",
-          "tokenHelp": "Sin el prefijo \"Bearer\". Se guarda cifrado y nunca se devuelve."
+          "tokenHelp": "Sin el prefijo \"Bearer\". Se guarda cifrado y nunca se devuelve.",
+          "resendAddTitle": "Nueva clave de Resend",
+          "resendEditTitle": "Editar clave de Resend",
+          "resendSubtitle": "La clave con la que el canal de correo envía. Basta una clave de solo envío.",
+          "resendTokenHelp": "Empieza con re_. Se guarda cifrada y nunca se devuelve."
         },
         "delete": {
           "title": "¿Eliminar esta credencial?",

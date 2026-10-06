@@ -41,7 +41,7 @@ export default function EmailChannelCard({
         </>
       )}
       renderModal={(modal) => (
-        <EmailConnectionModal {...modal} dict={emailDict} />
+        <EmailConnectionModal {...modal} orgSlug={orgSlug} dict={emailDict} />
       )}
     />
   );

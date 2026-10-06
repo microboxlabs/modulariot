@@ -31,7 +31,8 @@ interface ChannelCardProps<F> {
   readonly dict: I18nRecord;
   readonly icon: ReactNode;
   readonly toCreate: (form: F) => ChannelCreate;
-  readonly toUpdate: (form: F) => ChannelUpdate;
+  /** `current`: the credential linked to the connection now. */
+  readonly toUpdate: (form: F, current: string | null) => ChannelUpdate;
   readonly toForm: (connection: IntegrationConnection) => F;
   /** One line about the configured connection, under its name. */
   readonly detail: (connection: IntegrationConnection) => ReactNode;
@@ -95,7 +96,11 @@ export function ChannelCard<F>({
 
   const onSubmit = (form: F) => {
     if (modalMode === "edit" && connection) {
-      void submit(() => update(connection.id, toUpdate(form)), "toast.updated");
+      void submit(
+        () =>
+          update(connection.id, toUpdate(form, connection.credentialProfileId)),
+        "toast.updated"
+      );
     } else {
       void submit(() => create(toCreate(form)), "toast.created");
     }

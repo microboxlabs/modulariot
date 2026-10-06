@@ -1776,6 +1776,9 @@
             "from": "Sender",
             "fromPlaceholder": "Team <no-reply@your-domain.com>",
             "fromHelp": "Must be on a domain verified in Resend.",
+            "credential": "Credential",
+            "credentialNew": "New API key",
+            "credentialCurrent": "Current credential",
             "token": "Resend API key",
             "tokenPlaceholder": "re_...",
             "tokenEditPlaceholder": "Leave blank to keep the current key",
@@ -2318,6 +2321,10 @@
             "name": "Bearer token",
             "description": "A long-lived token sent in the Authorization header."
           },
+          "resend": {
+            "name": "Resend",
+            "description": "A Resend API key, for sending email such as team invitations."
+          },
           "basic": {
             "name": "Basic auth",
             "description": "Username and password sent as HTTP basic authentication."
@@ -2431,7 +2438,11 @@
           "token": "Token",
           "tokenPlaceholder": "Paste the token",
           "tokenEditPlaceholder": "Leave blank to keep the current token",
-          "tokenHelp": "Without the \"Bearer\" prefix. Stored encrypted and never returned."
+          "tokenHelp": "Without the \"Bearer\" prefix. Stored encrypted and never returned.",
+          "resendAddTitle": "New Resend key",
+          "resendEditTitle": "Edit Resend key",
+          "resendSubtitle": "The key the email channel sends with. A send-only key is enough.",
+          "resendTokenHelp": "Starts with re_. Stored encrypted and never returned."
         },
         "delete": {
           "title": "Delete this credential?",

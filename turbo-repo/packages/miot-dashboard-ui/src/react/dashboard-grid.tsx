@@ -236,7 +236,14 @@ export function DashboardGrid({
   );
 
   return (
-    <div ref={containerRef} className="miot-dashboard-grid">
+    <div
+      ref={containerRef}
+      className={
+        editMode
+          ? "miot-dashboard-grid miot-dashboard-grid--editing"
+          : "miot-dashboard-grid"
+      }
+    >
       <div ref={clipRef} className="miot-dashboard-grid__clip">
         <div
           ref={gridRef}

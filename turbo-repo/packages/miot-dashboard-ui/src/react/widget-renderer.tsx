@@ -72,6 +72,10 @@ function WidgetNode({
     else onAction?.(widget, action, componentId);
   };
   const Component = definition?.Component;
+  // While editing, a leaf widget's content is only something to move: a table must not scroll and
+  // a chart must not take the pointer when the drag starts on it. Containers keep their content
+  // interactive, since it holds child widgets and add-child controls.
+  const inert = editable && !definition?.meta.hasChildren;
   const children = widget.children?.map((child) => (
     <div key={child.id} className="miot-widget-child h-full">
       <WidgetNode
@@ -97,30 +101,38 @@ function WidgetNode({
         editMode={editable}
         onAction={act}
       >
-        {Component ? (
-          <Component
-            widget={widget}
-            editMode={editable}
-            isRoot={isRoot}
-            onAddChild={
-              editable && definition.meta.hasChildren
-                ? (componentId) => act("add", componentId)
-                : undefined
-            }
-            onOpenSettings={
-              editable && definition.meta.hasSettings
-                ? () => act("settings")
-                : undefined
-            }
-            onDelete={editable ? () => act("delete") : undefined}
-          >
-            {children}
-          </Component>
-        ) : (
-          <span>
-            {unknownWidgetLabel} ({widget.componentId})
-          </span>
-        )}
+        <div
+          className={
+            inert
+              ? "miot-widget__content miot-widget__content--editing"
+              : "miot-widget__content"
+          }
+        >
+          {Component ? (
+            <Component
+              widget={widget}
+              editMode={editable}
+              isRoot={isRoot}
+              onAddChild={
+                editable && definition.meta.hasChildren
+                  ? (componentId) => act("add", componentId)
+                  : undefined
+              }
+              onOpenSettings={
+                editable && definition.meta.hasSettings
+                  ? () => act("settings")
+                  : undefined
+              }
+              onDelete={editable ? () => act("delete") : undefined}
+            >
+              {children}
+            </Component>
+          ) : (
+            <span>
+              {unknownWidgetLabel} ({widget.componentId})
+            </span>
+          )}
+        </div>
       </Frame>
     </div>
   );

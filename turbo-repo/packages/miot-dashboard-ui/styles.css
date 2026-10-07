@@ -58,6 +58,12 @@
 .miot-dashboard-grid__layout > .react-grid-item {
   transition: transform 200ms ease;
 }
+/* While editing, a cell is a move handle: no text selection, which could start a native drag that
+   swallows the release and leaves the widget stuck to the pointer. */
+.miot-dashboard-grid--editing .miot-dashboard-grid__layout > .react-grid-item {
+  cursor: move;
+  user-select: none;
+}
 .miot-dashboard-grid__layout > .react-grid-item.resizing,
 .miot-dashboard-grid__layout > .react-draggable-dragging {
   transition: none;
@@ -120,6 +126,11 @@
 /* Portable renderer sizing does not depend on host Tailwind utilities. */
 .miot-widget { position: relative; height: 100%; }
 .miot-widget-child { height: 100%; }
+/* A box-less wrapper, so widget sizing is unchanged. In edit mode the content under it takes no
+   pointer, scroll or selection: a drag that starts anywhere on the widget moves it. */
+.miot-widget__content { display: contents; }
+.miot-widget__content--editing { pointer-events: none; user-select: none; }
+.miot-widget__content.miot-widget__content--editing * { overflow: hidden; }
 
 .miot-dashboard-element { display: block; }
 

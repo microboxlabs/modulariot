@@ -386,6 +386,13 @@ render controls around each widget. Its `onAction` is gated by the same rules.
 The host owns dialogs and applies confirmed edits through its document controller.
 The renderer does not fetch data, persist changes, or open global portals.
 
+While editing, the content of a widget without children is wrapped in
+`.miot-widget__content--editing`, which takes no pointer events, scrolling or text
+selection. A drag that starts on a table or a chart moves the widget instead of
+scrolling the table. The wrapper has no box of its own (`display: contents`), so
+sizing is unchanged. Controls rendered by the `Frame`, and container widgets with
+their children, stay interactive.
+
 Each mounted root generates its own widget ID namespace. `widgetDomId(widget)`
 is an optional compatibility override for host anchor links; its returned IDs
 must be unique across all mounted dashboards. `isRoot` is passed only to the
@@ -1085,6 +1092,9 @@ text and accessible custom controls from widget dragging. Nested grid items and
 when the host authorizes edit mode. Hosts embedding their own nested grid can
 reuse `DASHBOARD_DRAG_CANCEL_SELECTOR` from `./core`; Next.js container widgets
 use the same selector for both container layouts.
+
+While editing, the grid root also carries `miot-dashboard-grid--editing`, and its
+cells show a move cursor and do not select text.
 
 ### Status statistic
 

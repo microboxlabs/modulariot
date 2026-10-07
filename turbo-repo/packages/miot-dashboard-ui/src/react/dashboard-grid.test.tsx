@@ -185,6 +185,31 @@ describe("DashboardGrid", () => {
     );
     expect(grid.resizeConfig?.enabled).toBe(false);
   });
+  it("marks the grid as editing only while gestures are enabled", () => {
+    const editing = (container: HTMLElement) =>
+      container
+        .querySelector(".miot-dashboard-grid")
+        ?.classList.contains("miot-dashboard-grid--editing");
+    const view = render(
+      <DashboardGrid
+        widgets={[widget]}
+        registry={registry}
+        renderWidget={renderWidget}
+        editMode
+      />,
+    );
+    expect(editing(view.container)).toBe(false);
+    view.rerender(
+      <DashboardGrid
+        widgets={[widget]}
+        registry={registry}
+        renderWidget={renderWidget}
+        editMode
+        onLayoutCommit={() => {}}
+      />,
+    );
+    expect(editing(view.container)).toBe(true);
+  });
   it("commits user gestures preserving document constraints, and stops after revocation", () => {
     const commit = vi.fn();
     const view = render(

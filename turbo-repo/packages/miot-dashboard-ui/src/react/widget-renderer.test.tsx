@@ -137,4 +137,46 @@ describe("portable widget renderer", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(screen.getByText("Desconocido (missing)")).toBeTruthy();
   });
+
+  it("makes leaf widget content inert while editing, but not containers or the frame", () => {
+    const { container } = render(
+      <WidgetRenderer
+        widget={widget}
+        registry={registry}
+        editMode
+        onAction={vi.fn()}
+        Frame={ActionFrame}
+        unknownWidgetLabel="Unknown"
+      />,
+    );
+    const content = (id: string) =>
+      screen.getByRole("region", { name: id }).parentElement;
+    expect([...(content("child")?.classList ?? [])]).toEqual([
+      "miot-widget__content",
+      "miot-widget__content--editing",
+    ]);
+    expect([...(content("parent")?.classList ?? [])]).toEqual([
+      "miot-widget__content",
+    ]);
+    for (const button of screen.getAllByRole("button", { name: "Settings" })) {
+      expect(button.closest(".miot-widget__content--editing")).toBeNull();
+    }
+    expect(
+      container.querySelectorAll(".miot-widget__content--editing"),
+    ).toHaveLength(1);
+  });
+
+  it("leaves content interactive outside edit mode", () => {
+    const { container } = render(
+      <WidgetRenderer
+        widget={widget}
+        registry={registry}
+        unknownWidgetLabel="Unknown"
+      />,
+    );
+    expect(container.querySelectorAll(".miot-widget__content")).toHaveLength(2);
+    expect(
+      container.querySelector(".miot-widget__content--editing"),
+    ).toBeNull();
+  });
 });

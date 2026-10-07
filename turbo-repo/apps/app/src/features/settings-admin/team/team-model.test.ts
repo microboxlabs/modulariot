@@ -10,8 +10,7 @@ import {
   initials,
   invalidEmails,
   inviteLink,
-  inviteGroups,
-  repeatedEmails,
+  inviteBatches,
   MAX_INVITES_PER_REQUEST,
   inviteLinkOf,
   keyDisplay,
@@ -164,39 +163,13 @@ describe("emails", () => {
     ]);
   });
 
-  it("groups invite rows by base role, first role wins for a repeat", () => {
-    expect(
-      inviteGroups([
-        { email: "Ana@ex.cl, bo@ex.cl", baseRole: "MEMBER" },
-        { email: "", baseRole: "ADMIN" },
-        { email: "cy@ex.cl", baseRole: "ADMIN" },
-        { email: "ana@ex.cl", baseRole: "ADMIN" },
-      ])
-    ).toEqual([
-      { baseRole: "MEMBER", emails: ["ana@ex.cl", "bo@ex.cl"] },
-      { baseRole: "ADMIN", emails: ["cy@ex.cl"] },
-    ]);
-  });
-
-  it("splits a role's emails into requests the backend accepts", () => {
+  it("splits emails into requests the backend accepts", () => {
     const emails = Array.from({ length: 25 }, (_, i) => `p${i}@ex.cl`);
-    const groups = inviteGroups([
-      { email: emails.join(" "), baseRole: "MEMBER" },
-    ]);
-    expect(groups.map((g) => g.emails.length)).toEqual([
+    expect(inviteBatches(emails).map((b) => b.length)).toEqual([
       MAX_INVITES_PER_REQUEST,
       5,
     ]);
-  });
-
-  it("reports emails repeated across rows", () => {
-    expect(
-      repeatedEmails([
-        { email: "ana@ex.cl", baseRole: "MEMBER" },
-        { email: "Ana@ex.cl", baseRole: "ADMIN" },
-        { email: "bo@ex.cl", baseRole: "ADMIN" },
-      ])
-    ).toEqual(["ana@ex.cl"]);
+    expect(inviteBatches([])).toEqual([]);
   });
 });
 

@@ -111,57 +111,16 @@ export function invalidEmails(emails: readonly string[]): string[] {
   return emails.filter((e) => !isEmail(e));
 }
 
-/** One row of the invite form. */
-export interface InviteRow {
-  email: string;
-  baseRole: BaseRole;
-}
-
 /** The most emails the backend accepts in one invite request. */
 export const MAX_INVITES_PER_REQUEST = 20;
 
-/**
- * The rows' emails grouped by base role, in requests of at most
- * MAX_INVITES_PER_REQUEST emails. Emails are lower-cased and blanks dropped;
- * an email repeated across rows keeps its first role.
- */
-export function inviteGroups(
-  rows: readonly InviteRow[]
-): { baseRole: BaseRole; emails: string[] }[] {
-  const seen = new Set<string>();
-  const groups = new Map<BaseRole, string[]>();
-  for (const row of rows) {
-    for (const email of parseEmails(row.email)) {
-      if (seen.has(email)) continue;
-      seen.add(email);
-      const group = groups.get(row.baseRole) ?? [];
-      group.push(email);
-      groups.set(row.baseRole, group);
-    }
+/** The emails in requests of at most MAX_INVITES_PER_REQUEST each. */
+export function inviteBatches(emails: readonly string[]): string[][] {
+  const batches: string[][] = [];
+  for (let i = 0; i < emails.length; i += MAX_INVITES_PER_REQUEST) {
+    batches.push(emails.slice(i, i + MAX_INVITES_PER_REQUEST));
   }
-  return [...groups].flatMap(([baseRole, emails]) => {
-    const requests = [];
-    for (let i = 0; i < emails.length; i += MAX_INVITES_PER_REQUEST) {
-      requests.push({
-        baseRole,
-        emails: emails.slice(i, i + MAX_INVITES_PER_REQUEST),
-      });
-    }
-    return requests;
-  });
-}
-
-/** Emails that appear in more than one row. */
-export function repeatedEmails(rows: readonly InviteRow[]): string[] {
-  const seen = new Set<string>();
-  const repeated = new Set<string>();
-  for (const row of rows) {
-    for (const email of parseEmails(row.email)) {
-      if (seen.has(email)) repeated.add(email);
-      seen.add(email);
-    }
-  }
-  return [...repeated];
+  return batches;
 }
 
 /** The base roles a caller without owners:manage may give. */

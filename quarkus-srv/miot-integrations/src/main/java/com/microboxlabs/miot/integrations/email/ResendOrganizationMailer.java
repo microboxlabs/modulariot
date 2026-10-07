@@ -35,14 +35,14 @@ public class ResendOrganizationMailer implements OrganizationMailer {
     }
 
     private MailDelivery deliver(String tenantCode, Mail mail, String idempotencyKey) {
-        String from = sender.configured(tenantCode) ? tenantCode : null;
-        if (from == null && sender.configured(PlatformMailService.PLATFORM_TENANT)) {
-            from = PlatformMailService.PLATFORM_TENANT;
+        String sendingTenant = sender.configured(tenantCode) ? tenantCode : null;
+        if (sendingTenant == null && sender.configured(PlatformMailService.PLATFORM_TENANT)) {
+            sendingTenant = PlatformMailService.PLATFORM_TENANT;
         }
-        if (from == null) {
+        if (sendingTenant == null) {
             return MailDelivery.notConfigured(NOT_CONFIGURED);
         }
-        SendResult result = sender.send(from,
+        SendResult result = sender.send(sendingTenant,
                 new EmailMessage(null, mail.to(), mail.subject(), mail.text(), mail.html(), null), idempotencyKey);
         return result.accepted() ? MailDelivery.sent() : MailDelivery.failed(result.error());
     }

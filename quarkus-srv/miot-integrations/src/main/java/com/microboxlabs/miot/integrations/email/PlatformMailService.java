@@ -9,6 +9,7 @@ import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
 import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
+import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.service.CredentialProfileService;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,7 +24,10 @@ import java.util.Map;
 @ApplicationScoped
 public class PlatformMailService {
 
-    /** Not a valid Auth0 client id, so no organization can own it. */
+    /**
+     * Starts with "_", which organizations may not use as their tenant client id
+     * ({@code PlatformOrganizationsResource}), so no organization can own it.
+     */
     public static final String PLATFORM_TENANT = "_platform";
     static final String NAME = "Platform email";
 
@@ -41,13 +45,15 @@ public class PlatformMailService {
     }
 
     private final IntegrationConnectionService connections;
+    private final IntegrationConnectionRepository repository;
     private final CredentialProfileService credentials;
     private final ResendClient client;
 
     @Inject
-    public PlatformMailService(IntegrationConnectionService connections, CredentialProfileService credentials,
-            ResendClient client) {
+    public PlatformMailService(IntegrationConnectionService connections, IntegrationConnectionRepository repository,
+            CredentialProfileService credentials, ResendClient client) {
         this.connections = connections;
+        this.repository = repository;
         this.credentials = credentials;
         this.client = client;
     }
@@ -57,7 +63,12 @@ public class PlatformMailService {
         return connection == null ? PlatformMailView.none() : view(connection);
     }
 
-    /** @throws IllegalArgumentException for an invalid sender, or a missing key on first save */
+    /**
+     * Saves the sender. A new key is tested with Resend right away, so the status always describes
+     * the key in use.
+     *
+     * @throws IllegalArgumentException for an invalid sender, or a missing key on first save
+     */
     public PlatformMailView put(SetPlatformMailRequest body, String actor) {
         String from = body == null || body.from() == null ? "" : body.from().trim();
         String apiKey = body == null || body.apiKey() == null ? "" : body.apiKey().trim();
@@ -65,24 +76,33 @@ public class PlatformMailService {
             throw new IllegalArgumentException("from must be address@domain.tld or Name <address@domain.tld>");
         }
         IntegrationConnection existing = connection();
+        String connectionId = existing == null ? create(from, apiKey, actor) : existing.id();
         if (existing != null) {
-            connections.updateConnection(PLATFORM_TENANT, existing.id(), new UpdateIntegrationConnectionRequest(
+            connections.updateConnection(PLATFORM_TENANT, connectionId, new UpdateIntegrationConnectionRequest(
                     null, client.baseUrl(), Map.of(ResendEmailSender.FROM, from), null,
                     apiKey.isEmpty() ? null : apiKey));
-            return get();
         }
+        if (!apiKey.isEmpty()) {
+            connections.testConnection(PLATFORM_TENANT, connectionId, new ConnectionTestRequest(null, null));
+        }
+        return get();
+    }
+
+    private String create(String from, String apiKey, String actor) {
         if (apiKey.isEmpty()) {
             throw new IllegalArgumentException("apiKey is required");
         }
+        // With no connection, any platform credential is left over from a failed save or removal.
+        removeCredentials(actor);
         CredentialProfileResponse credential = credentials.create(PLATFORM_TENANT, actor,
                 new CreateCredentialProfileRequest(NAME, null, AuthType.BEARER_TOKEN, null, Map.of(),
                         Map.of(ResendEmailSender.TOKEN, apiKey)));
         try {
-            return view(connections.createConnection(PLATFORM_TENANT, new CreateIntegrationConnectionRequest(
+            return connections.createConnection(PLATFORM_TENANT, new CreateIntegrationConnectionRequest(
                     NAME, ProviderType.RESEND, client.baseUrl(), credential.id(),
-                    Map.of(ResendEmailSender.FROM, from), null)));
+                    Map.of(ResendEmailSender.FROM, from), null)).id();
         } catch (RuntimeException e) {
-            credentials.delete(PLATFORM_TENANT, actor, credential.id(), true);
+            removeCredentials(actor);
             throw e;
         }
     }
@@ -94,13 +114,11 @@ public class PlatformMailService {
             return false;
         }
         connections.deleteConnection(PLATFORM_TENANT, existing.id());
-        if (existing.credentialProfileId() != null) {
-            credentials.delete(PLATFORM_TENANT, actor, existing.credentialProfileId(), true);
-        }
+        removeCredentials(actor);
         return true;
     }
 
-    /** Checks the key with Resend; null when no sender is set. */
+    /** Checks the stored key with Resend; null when no sender is set. */
     public ConnectionTestResponse test() {
         IntegrationConnection existing = connection();
         return existing == null
@@ -108,11 +126,15 @@ public class PlatformMailService {
                 : connections.testConnection(PLATFORM_TENANT, existing.id(), new ConnectionTestRequest(null, null));
     }
 
+    /** The connection the mailer sends through. */
     private IntegrationConnection connection() {
-        return connections.listConnections(PLATFORM_TENANT).stream()
-                .filter(c -> c.providerType() == ProviderType.RESEND)
-                .findFirst()
-                .orElse(null);
+        return repository.findActiveByProvider(PLATFORM_TENANT, ProviderType.RESEND);
+    }
+
+    private void removeCredentials(String actor) {
+        for (CredentialProfileResponse credential : credentials.list(PLATFORM_TENANT)) {
+            credentials.delete(PLATFORM_TENANT, actor, credential.id(), true);
+        }
     }
 
     private PlatformMailView view(IntegrationConnection connection) {

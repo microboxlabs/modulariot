@@ -59,6 +59,8 @@ public class PlatformMailResource {
                 return Response.ok(service.put(body, actor)).build();
             } catch (IllegalArgumentException e) {
                 return error(Response.Status.BAD_REQUEST, e.getMessage());
+            } catch (IllegalStateException e) {
+                return error(Response.Status.CONFLICT, e.getMessage());
             }
         }));
     }
@@ -66,9 +68,15 @@ public class PlatformMailResource {
     @DELETE
     @Operation(summary = "Remove the platform email sender and its key")
     public Uni<Response> delete() {
-        return authorizer.requirePlatformOwner().flatMap(actor -> onWorker(() -> service.delete(actor)
-                ? Response.noContent().build()
-                : error(Response.Status.NOT_FOUND, "No platform email sender")));
+        return authorizer.requirePlatformOwner().flatMap(actor -> onWorker(() -> {
+            try {
+                return service.delete(actor)
+                        ? Response.noContent().build()
+                        : error(Response.Status.NOT_FOUND, "No platform email sender");
+            } catch (IllegalStateException e) {
+                return error(Response.Status.CONFLICT, e.getMessage());
+            }
+        }));
     }
 
     @POST

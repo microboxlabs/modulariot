@@ -76,7 +76,7 @@ function DeliveryNote({ delivery, d }: DeliveryNoteProps) {
   if (delivery?.status === "NOT_CONFIGURED") {
     return (
       <span className="text-xs text-gray-600 dark:text-gray-300">
-        {tr("emailNotConfigured", d)}
+        {tr("emailNotConfigured", d, { reason: delivery.detail ?? "" })}
       </span>
     );
   }

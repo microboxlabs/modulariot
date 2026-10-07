@@ -32,10 +32,13 @@ export default function PlatformMailSection({
   const [busy, setBusy] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
 
+  // Reset only when what is stored changes, so a test does not wipe unsaved edits.
+  const storedFrom = mail?.from ?? "";
+  const storedKey = mail?.keyPreview ?? null;
   useEffect(() => {
-    setFrom(mail?.from ?? "");
+    setFrom(storedFrom);
     setApiKey("");
-  }, [mail]);
+  }, [storedFrom, storedKey]);
 
   const configured = mail?.configured ?? false;
   const fromValid = isSender(from);
@@ -78,7 +81,7 @@ export default function PlatformMailSection({
         setConfirmRemove(false);
         toast.success(tr("removed", dict));
       } catch (err) {
-        toast.error(errorMessage(err, tr("saveError", dict)));
+        toast.error(errorMessage(err, tr("removeError", dict)));
       }
     });
 

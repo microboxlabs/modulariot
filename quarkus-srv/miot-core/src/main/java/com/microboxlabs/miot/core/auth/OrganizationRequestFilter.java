@@ -47,12 +47,16 @@ public class OrganizationRequestFilter {
     public Uni<Response> filter(ContainerRequestContext requestContext) {
         String path = requestContext.getUriInfo().getPath();
         String orgSlug = extractOrgSlug(path);
+        Caller serviceAccount = IamIdentityAugmentor.serviceAccountOf(securityIdentity);
 
         if (orgSlug == null) {
-            return Uni.createFrom().nullItem();
+            // An API key on a path without an organization, such as the GPS ingest, acts in its own organization.
+            return serviceAccount != null && path.startsWith("/api/")
+                    ? organizationAccess.enterOwn(serviceAccount)
+                            .map(refusal -> refusal == null ? null : jsonResponse(refusal.status(), refusal.message()))
+                    : Uni.createFrom().nullItem();
         }
 
-        Caller serviceAccount = IamIdentityAugmentor.serviceAccountOf(securityIdentity);
         Uni<OrganizationAccess.Refusal> entered = serviceAccount != null
                 ? organizationAccess.enter(orgSlug, serviceAccount)
                 : organizationAccess.enter(orgSlug, resolveEmail(requestContext), resolveM2mClientId());

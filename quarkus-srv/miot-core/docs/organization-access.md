@@ -121,6 +121,36 @@ Authorization: Bearer miot_sk_...
 
 The token is reused until a minute before it expires. Needs a build with `miot.component.integrations.enabled=true`.
 
+## Auth0 applications and GPS
+
+Each top-level organization stores its data under an Auth0 machine-to-machine client id (`tenant_client_id`). Sub-accounts use their parent's. One top-level organization per client id.
+
+**New organization.** `POST /api/v1/platform/orgs` without `tenantClientId` creates an M2M application named `<prefix><slug>` and grants it the GPS API. If saving the organization fails, the application is deleted.
+
+**Existing application.** `GET /api/v1/platform/auth0-clients` lists the M2M applications with the organization using each (`organization` is null when none does). Create the organization with that `tenantClientId`.
+
+**GPS page.** `/api/v1/orgs/{org}/gps/integration`:
+
+| Call | Permission | Returns |
+|---|---|---|
+| `GET` | `gps:view` | client id, audience, token and position endpoints |
+| `POST /secret` | `gps:secret.read` (Owner) | the client secret, read from Auth0 |
+| `POST /secret/rotate` | `gps:secret.rotate` (Owner) | a new secret; the old one stops working |
+
+Reading and rotating the secret are recorded in the audit log.
+
+**API keys on the ingest.** A key on a path without an organization, such as `POST /api/v1/asset/track`, acts in its service account's organization and stores positions under its client id. The ingest needs the `GPS_PUBLISHER` role (`gps:track.write`) on the service account. Tokens issued for the Auth0 client work as before.
+
+| Variable | Purpose |
+|---|---|
+| `AUTH0_MANAGEMENT_DOMAIN`, `AUTH0_MANAGEMENT_CLIENT_ID`, `AUTH0_MANAGEMENT_CLIENT_SECRET` | Management API application. Scopes: `create:clients`, `read:clients`, `read:client_keys`, `update:client_keys`, `delete:clients`, `create:client_grants` |
+| `AUTH0_MANAGEMENT_CLIENT_NAME_PREFIX` | Prefix of new application names |
+| `MIOT_GPS_AUDIENCE` | API granted to new applications. Default: `AUTH0_HS256_AUDIENCE` |
+| `MIOT_GPS_SCOPES` | Scopes granted. Default: `asset:track:write` |
+| `MIOT_GPS_TOKEN_URL`, `MIOT_GPS_TRACK_URL`, `MIOT_GPS_KEY_TRACK_URL` | Endpoints shown on the GPS page |
+
+Without the Management variables, organizations need a `tenantClientId` and the secret cannot be read or rotated.
+
 ## Moving an organization off Alfresco
 
 1. A platform owner calls `POST /api/v1/platform/orgs/{slug}/alfresco-import`. It copies the Alfresco group into memberships. Site and group managers become `ADMIN`; everyone else `MEMBER`. Running it again adds only new people.

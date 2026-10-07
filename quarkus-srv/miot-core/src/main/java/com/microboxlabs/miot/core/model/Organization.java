@@ -75,6 +75,11 @@ public class Organization extends PanacheEntityBase {
         return find("parent.id = ?1 and active = true", parentId).list();
     }
 
+    /** The active top-level organization whose data is stored under {@code tenantClientId}, or null. */
+    public static Uni<Organization> findTopLevelByClientId(String tenantClientId) {
+        return find("tenantClientId = ?1 and parent is null and active = true", tenantClientId).firstResult();
+    }
+
     public static Uni<List<Organization>> listAllActive() {
         return find("active = true").list();
     }

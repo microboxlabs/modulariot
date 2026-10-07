@@ -72,11 +72,14 @@ const mustaches = ViewPlugin.fromClass(
 );
 
 /**
- * Inserts the name and adds `}}` unless the closing braces are already there.
- * The caret lands after the braces, or after `{{#if ` to type the condition.
+ * Inserts the name over the whole name under the caret, and adds `}}` unless
+ * the closing braces are already there. The caret lands after the braces, or
+ * after `{{#if ` to type the condition.
  */
 function applyName(name: string, opensBlock: boolean) {
-  return (view: EditorView, _c: Completion, from: number, to: number) => {
+  return (view: EditorView, _c: Completion, from: number, typedTo: number) => {
+    const rest = /^\w*/.exec(view.state.sliceDoc(typedTo, typedTo + 100));
+    const to = typedTo + (rest?.[0].length ?? 0);
     const closed = view.state.sliceDoc(to, to + 2) === "}}";
     const head = opensBlock ? `${name} ` : name;
     view.dispatch({

@@ -75,7 +75,7 @@ final class MailText {
                 href = attribute(tag, "href");
                 linkStart = out.length();
             } else if ("/a".equals(name)) {
-                appendTarget(out, linkStart, href);
+                appendTarget();
                 href = null;
             } else if (CELL_ENDS.contains(name)
                     || BLOCKS.contains(name.startsWith("/") ? name.substring(1) : name)) {
@@ -83,17 +83,17 @@ final class MailText {
             }
             return next;
         }
-    }
 
-    /** Appends " (href)" after a link whose text is not already the address. */
-    private static void appendTarget(StringBuilder out, int linkStart, String href) {
-        if (href == null || href.isBlank() || linkStart < 0) {
-            return;
-        }
-        String label = decode(out.substring(linkStart)).strip();
-        String target = decode(href).strip();
-        if (!label.equals(target)) {
-            out.append(" (").append(href.strip()).append(')');
+        /** Appends " (href)" after a link whose text is not already the address. */
+        private void appendTarget() {
+            if (href == null || href.isBlank() || linkStart < 0) {
+                return;
+            }
+            String label = decode(out.substring(linkStart)).strip();
+            String target = decode(href).strip();
+            if (!label.equals(target)) {
+                out.append(" (").append(href.strip()).append(')');
+            }
         }
     }
 

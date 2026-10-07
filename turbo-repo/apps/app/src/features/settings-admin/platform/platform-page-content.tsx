@@ -7,6 +7,7 @@ import {
   HiOutlineChip,
   HiOutlineCreditCard,
   HiOutlineKey,
+  HiOutlineMail,
   HiOutlinePhotograph,
   HiServer,
 } from "react-icons/hi";
@@ -17,6 +18,7 @@ import BrandingSection from "./branding-section";
 import HarnessPlanSection from "./harness-plan-section";
 import ModelProvidersSection from "./model-providers-section";
 import ModelUsageCard from "./model-usage-card";
+import PlatformMailSection from "./platform-mail-section";
 import PlatformOwnersCard from "./platform-owners-card";
 import PlatformSectionList, {
   type PlatformSectionEntry,
@@ -54,6 +56,7 @@ export default function PlatformPageContent({
   const brandingDict = (platformDict?.branding as I18nRecord) ?? {};
   const superusersDict = (platformDict?.superusers as I18nRecord) ?? {};
   const modelsDict = (platformDict?.models as I18nRecord) ?? {};
+  const mailDict = (platformDict?.mail as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
   const usageDict = (platformDict?.usage as I18nRecord) ?? {};
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
@@ -81,6 +84,12 @@ export default function PlatformPageContent({
       icon: HiOutlineChip,
     },
     {
+      id: "mail",
+      label: tr("title", mailDict),
+      description: tr("menuHint", mailDict),
+      icon: HiOutlineMail,
+    },
+    {
       id: "plan",
       label: tr("title", planDict),
       description: tr("menuHint", planDict),
@@ -98,6 +107,7 @@ export default function PlatformPageContent({
     branding: <BrandingSection dict={brandingDict} lang={lang} />,
     superusers: <PlatformOwnersCard dict={superusersDict} />,
     models: <ModelProvidersSection dict={modelsDict} />,
+    mail: <PlatformMailSection dict={mailDict} />,
     plan: <HarnessPlanSection dict={planDict} />,
     usage: <ModelUsageCard dict={usageDict} lang={lang} />,
   };

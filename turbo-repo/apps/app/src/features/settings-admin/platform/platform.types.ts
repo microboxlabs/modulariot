@@ -52,6 +52,7 @@ export type PlatformSection =
   | "branding"
   | "superusers"
   | "models"
+  | "mail"
   | "plan"
   | "usage";
 

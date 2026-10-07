@@ -202,6 +202,10 @@ public class PlatformOrganizationsResource {
         if (isBlank(body.tenantClientId())) {
             throw new BadRequestException("tenantClientId is required");
         }
+        // Tenant codes starting with "_" are reserved for the platform (e.g. its email sender).
+        if (body.tenantClientId().trim().startsWith("_")) {
+            throw new BadRequestException("tenantClientId may not start with _");
+        }
         Organization organization = new Organization();
         organization.slug = body.slug().trim();
         organization.name = body.name().trim();

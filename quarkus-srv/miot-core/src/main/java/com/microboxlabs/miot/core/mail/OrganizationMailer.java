@@ -4,8 +4,8 @@ import com.microboxlabs.miot.core.model.Organization;
 import io.smallrye.mutiny.Uni;
 
 /**
- * Sends email through the organization's own mail connection. Returns {@code NOT_CONFIGURED}
- * when the organization has none; never fails the Uni for a provider error.
+ * Sends email through the organization's own mail connection, else the platform's. Returns
+ * {@code NOT_CONFIGURED} when neither exists; never fails the Uni for a provider error.
  */
 public interface OrganizationMailer {
 

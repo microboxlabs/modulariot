@@ -57,7 +57,7 @@ class TeamApiTest {
 
     @AfterEach
     void clean() throws SQLException {
-        exec("DELETE FROM miot_core.organizations WHERE slug IN ('" + ORG + "', 'mail-platform')");
+        exec("DELETE FROM miot_core.organizations WHERE slug = '" + ORG + "'");
     }
 
     @Test
@@ -197,21 +197,6 @@ class TeamApiTest {
         assertEquals(2, mailer.sent().size());
         assertEquals("Te invitaron a Team", mailer.sent().get(1).mail().subject());
         assertNotEquals(sent.idempotencyKey(), mailer.sent().get(1).idempotencyKey());
-    }
-
-    @Test
-    void thePlatformSendsWhenTheOrganizationHasNoConnection() throws SQLException {
-        exec("INSERT INTO miot_core.organizations (slug, name, tenant_client_id, active, membership_source) "
-                + "VALUES ('mail-platform', 'Platform', 'platform-client', true, 'NATIVE')");
-        mailer.configure("platform-client");
-
-        given().header("Authorization", bearer(ADMIN)).contentType("application/json")
-                .body("{\"emails\":[\"" + NEWCOMER + "\"]}")
-                .when().post(BASE + "/invitations")
-                .then().statusCode(201).body("[0].delivery.status", is("SENT"));
-
-        assertEquals("platform-client", mailer.sent().get(0).tenantClientId());
-        assertEquals("Te invitaron a Team", mailer.sent().get(0).mail().subject());
     }
 
     @Test

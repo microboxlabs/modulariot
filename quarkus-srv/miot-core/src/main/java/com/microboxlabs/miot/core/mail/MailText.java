@@ -8,8 +8,10 @@ import java.util.Set;
 final class MailText {
 
     private static final Set<String> HIDDEN = Set.of("head", "style", "script", "title");
-    private static final Set<String> BLOCKS = Set.of("br", "p", "div", "tr", "td", "th", "table", "li", "ul",
-            "ol", "h1", "h2", "h3", "h4", "h5", "h6", "hr");
+    private static final Set<String> BLOCKS =
+            Set.of("br", "p", "div", "tr", "table", "li", "ul", "ol", "h1", "h2", "h3", "h4", "h5", "h6", "hr");
+    /** Table cells end a line when they close, so neighbouring cells do not leave a blank line. */
+    private static final Set<String> CELL_ENDS = Set.of("/td", "/th");
     private static final Map<String, String> ENTITIES = Map.ofEntries(
             Map.entry("nbsp", " "), Map.entry("amp", "&"), Map.entry("lt", "<"), Map.entry("gt", ">"),
             Map.entry("quot", "\""), Map.entry("apos", "'"), Map.entry("copy", "©"), Map.entry("reg", "®"),
@@ -59,7 +61,8 @@ final class MailText {
             } else if ("/a".equals(name)) {
                 appendTarget(out, linkStart, href);
                 href = null;
-            } else if (BLOCKS.contains(name.startsWith("/") ? name.substring(1) : name)) {
+            } else if (CELL_ENDS.contains(name)
+                    || BLOCKS.contains(name.startsWith("/") ? name.substring(1) : name)) {
                 out.append('\n');
             }
         }

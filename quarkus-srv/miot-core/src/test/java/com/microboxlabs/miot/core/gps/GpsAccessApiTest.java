@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.core.gps;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
@@ -41,6 +42,9 @@ class GpsAccessApiTest {
     @Inject
     FakeAuth0Management auth0;
 
+    @Inject
+    FakeGpsTokenSource gpsTokens;
+
     private FakeAuth0Api api;
 
     @BeforeEach
@@ -48,6 +52,7 @@ class GpsAccessApiTest {
         api = auth0.api();
         api.reset();
         api.add(CLIENT, "test:gps-org", "non_interactive");
+        gpsTokens.api().reset();
         exec("INSERT INTO miot_core.organizations (slug, name, tenant_client_id, active, membership_source) "
                 + "VALUES ('" + ORG + "', 'GPS Org', '" + CLIENT + "', true, 'NATIVE')");
         for (String[] m : new String[][] {{OWNER, "OWNER"}, {ADMIN, "ADMIN"}, {MEMBER, "MEMBER"}}) {
@@ -146,6 +151,28 @@ class GpsAccessApiTest {
         // Paths that are not listed get no tenant from an API key.
         given().header("Authorization", publisher).when().post("/api/v1/gps-test/other")
                 .then().statusCode(200).body(is("null"));
+    }
+
+    @Test
+    void aPublisherKeyIsExchangedForItsOrganizationsApplicationToken() {
+        String publisher = key("[\"GPS_PUBLISHER\"]");
+        String other = key("[]");
+        var tokenApi = gpsTokens.api();
+
+        for (int i = 0; i < 2; i++) {
+            given().header("Authorization", publisher).when().post("/api/v1/iam/token")
+                    .then().statusCode(200)
+                    .header("Cache-Control", "no-store")
+                    .body("access_token", is(FakeGpsTokenApi.jwt(CLIENT, tokenApi.expiresAt)))
+                    .body("expires_in", greaterThan(3000));
+        }
+        // One request to the token endpoint, with the application's current secret; the second is cached.
+        assertEquals(1, tokenApi.requests.size());
+        assertEquals(CLIENT, tokenApi.requests.get(0).clientId());
+        assertEquals("secret-" + CLIENT, tokenApi.requests.get(0).clientSecret());
+
+        given().header("Authorization", other).when().post("/api/v1/iam/token").then().statusCode(409);
+        assertEquals(1, tokenApi.requests.size());
     }
 
     @Test

@@ -4,11 +4,11 @@
      Eyes at (+/-a, 0): ring a/phi, iris a/phi^2 (amber), pupil a/phi^3 (ink).
      Beak: vesica w=a/phi^3 h=a/phi, tip at -a/phi^2; mouth line = chevron
      ribbon, slope 1:2 to vertex (0, a/2), thickness a/16.
-     Tufts: polygons on the a/4 lattice, mirrored. a=48.
+     Tufts: "Lynx", tip at (phi - 2*sqrt5)a, outer corner at sqrt5*a. a=48.
      Regenerate with: node scripts/generate-logo.mjs -->
   <style>.ink{fill:#072444}@media (prefers-color-scheme:dark){.ink{fill:#E9F0F7}}</style>
   <g transform="translate(146,140)">
-    <path class="ink" fill-rule="nonzero" d="M0 -71.78 A77.67 77.67 0 1 1 0 71.78 A77.67 77.67 0 1 1 0 -71.78 Z M48 -72 L108 -96 L84 -60 L132 -36 L84 -24 Z M-84 -24 L-132 -36 L-84 -60 L-108 -96 L-48 -72 Z M-77.67 0 A29.67 29.67 0 1 0 -18.33 0 A29.67 29.67 0 1 0 -77.67 0 Z M18.33 0 A29.67 29.67 0 1 0 77.67 0 A29.67 29.67 0 1 0 18.33 0 Z M0 -18.33 A44.5 44.5 0 0 0 0 41 A44.5 44.5 0 0 0 0 -18.33 Z"/>
+    <path class="ink" fill-rule="nonzero" d="M0 -71.78 A77.67 77.67 0 1 1 0 71.78 A77.67 77.67 0 1 1 0 -71.78 Z M12 -72 L96 -137 L84 -60 L107.33 -60 L84 -36 Z M-84 -36 L-107.33 -60 L-84 -60 L-96 -137 L-12 -72 Z M-77.67 0 A29.67 29.67 0 1 0 -18.33 0 A29.67 29.67 0 1 0 -77.67 0 Z M18.33 0 A29.67 29.67 0 1 0 77.67 0 A29.67 29.67 0 1 0 18.33 0 Z M0 -18.33 A44.5 44.5 0 0 0 0 41 A44.5 44.5 0 0 0 0 -18.33 Z"/>
     <circle cx="-48" cy="0" r="18.33" fill="#FAB55E"/>
     <circle cx="48" cy="0" r="18.33" fill="#FAB55E"/>
     <circle class="ink" cx="-48" cy="0" r="11.33"/>

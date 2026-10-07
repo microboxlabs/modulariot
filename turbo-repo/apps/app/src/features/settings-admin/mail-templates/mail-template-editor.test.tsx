@@ -122,13 +122,16 @@ describe("MailTemplateEditor", () => {
     expect(screen.getByText("Reset")).toBeInTheDocument();
   });
 
-  it("inserts a variable into the body", async () => {
+  it("inserts a variable at the editor's cursor and saves it", async () => {
     renderEditor();
-    const body = (await screen.findByLabelText("Body")) as HTMLTextAreaElement;
-    body.setSelectionRange(0, 0);
+    await screen.findByLabelText("Body");
 
     fireEvent.click(screen.getByText("{{organization}}"));
+    fireEvent.click(screen.getByText("Save"));
 
-    expect(body.value).toBe("{{organization}}<p>{{link}}</p>");
+    await waitFor(() => expect(calls("PUT", URL)).toHaveLength(1));
+    expect(JSON.parse(String(calls("PUT", URL)[0]?.[1]?.body)).html).toBe(
+      "{{organization}}<p>{{link}}</p>"
+    );
   });
 });

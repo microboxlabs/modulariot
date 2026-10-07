@@ -7,15 +7,16 @@ import {
   ButtonGroup,
   Label,
   Spinner,
-  Textarea,
   TextInput,
 } from "flowbite-react";
+import type { EditorView } from "@codemirror/view";
 import { HiOutlineTemplate } from "react-icons/hi";
 import { toast } from "sonner";
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ApiError } from "../data/json-client";
+import HtmlTemplateEditor from "./html-template-editor";
 import {
   insertVariable,
   isOwnTemplate,
@@ -142,7 +143,7 @@ function TemplateForm({
   const [confirmReset, setConfirmReset] = useState(false);
   const [rendered, setRendered] = useState<MailTemplatePreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
-  const body = useRef<HTMLTextAreaElement>(null);
+  const body = useRef<EditorView | null>(null);
 
   const own = isOwnTemplate(scope, template);
   const dirty = subject !== template.subject || html !== template.html;
@@ -168,19 +169,20 @@ function TemplateForm({
     };
   }, [subject, html, preview, dict]);
 
+  // Into the editor at its cursor; its change listener updates `html`.
   const insert = (name: string) => {
-    const el = body.current;
-    const next = insertVariable(
-      html,
-      name,
-      el?.selectionStart ?? html.length,
-      el?.selectionEnd ?? html.length
-    );
-    setHtml(next.text);
-    requestAnimationFrame(() => {
-      el?.focus();
-      el?.setSelectionRange(next.caret, next.caret);
+    const view = body.current;
+    if (!view) {
+      setHtml(insertVariable(html, name, html.length, html.length).text);
+      return;
+    }
+    const { from, to } = view.state.selection.main;
+    const token = `{{${name}}}`;
+    view.dispatch({
+      changes: { from, to, insert: token },
+      selection: { anchor: from + token.length },
     });
+    view.focus();
   };
 
   const submit = async () => {
@@ -246,16 +248,20 @@ function TemplateForm({
             </span>
           </div>
           <div className="flex flex-col gap-1">
-            <Label htmlFor="mail-template-body">{tr("body", dict)}</Label>
-            <Textarea
-              id="mail-template-body"
-              ref={body}
-              rows={22}
-              spellCheck={false}
-              disabled={busy}
-              className="font-mono text-xs"
+            <span className="text-sm font-medium text-gray-900 dark:text-white">
+              {tr("body", dict)}
+            </span>
+            <HtmlTemplateEditor
               value={html}
-              onChange={(e) => setHtml(e.target.value)}
+              onChange={setHtml}
+              variables={template.variables}
+              describe={(name) => trDynamic(`variable_${name}`, dict)}
+              problem={previewError ? { message: previewError } : null}
+              readOnly={busy}
+              ariaLabel={tr("body", dict)}
+              onReady={(view) => {
+                body.current = view;
+              }}
             />
             <span className="text-xs text-gray-500 dark:text-gray-400">
               {tr("bodyHint", dict)}

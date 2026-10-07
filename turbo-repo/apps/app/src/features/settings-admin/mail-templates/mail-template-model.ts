@@ -69,3 +69,52 @@ export function insertVariable(
     caret: start + token.length,
   };
 }
+
+/** Block helpers a template can open with `{{#name}}` and close with `{{/name}}`. */
+export const BLOCK_HELPERS = ["if", "unless", "each", "with"];
+
+/** What to complete after `{{`: a variable, a block to open or a block to close. */
+export interface HandlebarsCompletion {
+  /** Offset in the typed text where the name being typed starts. */
+  offset: number;
+  kind: "variable" | "open" | "close";
+  names: string[];
+}
+
+/**
+ * Completions for the text typed since `{{`, e.g. `{{or`, `{{#i`, `{{/`.
+ * Null when the text does not start a mustache.
+ */
+export function handlebarsCompletions(
+  typed: string,
+  variables: readonly string[]
+): HandlebarsCompletion | null {
+  if (!typed.startsWith("{{")) return null;
+  let offset = 2;
+  const marker = typed.charAt(offset);
+  if (marker === "#" || marker === "/" || marker === "^" || marker === "~") {
+    offset += 1;
+  }
+  while (typed.charAt(offset) === " ") offset += 1;
+  if (marker === "#") return { offset, kind: "open", names: BLOCK_HELPERS };
+  if (marker === "/") return { offset, kind: "close", names: BLOCK_HELPERS };
+  return { offset, kind: "variable", names: [...variables] };
+}
+
+/**
+ * Where Handlebars says the error is. Its messages carry `:line:column:`
+ * (line from 1, column from 0); without them, the start of the template.
+ */
+export function problemOffset(message: string, doc: string): number {
+  const match = /:(\d+):(\d+)/.exec(message);
+  if (!match) return 0;
+  const line = Number.parseInt(match[1] ?? "1", 10);
+  const column = Number.parseInt(match[2] ?? "0", 10);
+  let start = 0;
+  for (let n = 1; n < line; n++) {
+    const next = doc.indexOf("\n", start);
+    if (next < 0) return doc.length;
+    start = next + 1;
+  }
+  return Math.min(doc.length, start + column);
+}

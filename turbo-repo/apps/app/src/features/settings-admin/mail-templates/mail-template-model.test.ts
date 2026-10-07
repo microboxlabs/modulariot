@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  handlebarsCompletions,
   insertVariable,
   isOwnTemplate,
+  problemOffset,
   sourceKey,
   templateUrl,
   type MailTemplate,
@@ -53,5 +55,35 @@ describe("insertVariable", () => {
       text: "Hola {{inviter}}!",
       caret: 16,
     });
+  });
+});
+
+describe("handlebarsCompletions", () => {
+  const vars = ["organization", "link"];
+
+  it("offers variables after {{ and blocks after {{# or {{/", () => {
+    expect(handlebarsCompletions("{{or", vars)).toEqual({
+      offset: 2,
+      kind: "variable",
+      names: vars,
+    });
+    expect(handlebarsCompletions("{{# i", vars)?.kind).toBe("open");
+    expect(handlebarsCompletions("{{# i", vars)?.offset).toBe(4);
+    expect(handlebarsCompletions("{{/", vars)?.kind).toBe("close");
+  });
+
+  it("offers nothing outside a mustache", () => {
+    expect(handlebarsCompletions("<div", vars)).toBeNull();
+  });
+});
+
+describe("problemOffset", () => {
+  it("finds the line and column Handlebars reports", () => {
+    const doc = "<p>\n  {{#if x}}\n</p>";
+    expect(problemOffset("inline@1a2b:2:2: missing {{/if}}", doc)).toBe(6);
+  });
+
+  it("falls back to the start without a position", () => {
+    expect(problemOffset("subject is required", "abc")).toBe(0);
   });
 });

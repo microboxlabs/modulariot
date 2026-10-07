@@ -53,6 +53,25 @@ Creating or resending an invitation emails the link, in the request's `lang` (`e
 
 One request invites at most 20 people, because each email is sent while the request waits. Each created invitation carries `delivery`: `SENT` (the provider accepted it), `FAILED` (with `detail`), or `NOT_CONFIGURED`. Emails are sent after the invitation is saved; a failed email does not undo the invitation. Resend again to retry. See `miot-integrations/docs/email-channel.md`.
 
+### Invitation template
+
+The email is written from a Handlebars template, one per language (`es`, `en`). The first that exists is used:
+
+1. The organization's own template (Settings › Team › Invitation email). Sub-accounts use their top-level organization's.
+2. The platform's template (Settings › Platform › Invitation email).
+3. The built-in template, with the ModularIoT logo.
+
+| Variable | Value |
+|---|---|
+| `organization` | The organization's name |
+| `inviter` | Who invited |
+| `email` | The invited email |
+| `link` | The link that accepts the invitation. Required. |
+| `expiresAt` | The expiry date, written in the template's language |
+| `logoUrl` | `{miot.app.public-url}/email/modulariot-logo.png` |
+
+`{{value}}` is HTML-escaped in the body and not in the subject. Templates cannot load partials or call methods. A template is saved only when it renders and includes `{{link}}`. If a saved template fails to render when sending, the next one in the list is used. The plain-text part is made from the HTML.
+
 ## Organization settings
 
 | Action | Permission, on the top-level organization |
@@ -134,6 +153,8 @@ To keep the Alfresco group in step afterwards (BPM pooled tasks, document permis
 | `PUT /api/v1/orgs/{org}/team/members/{userId}/roles` | `members:update` | Replace a member's module roles |
 | `GET`, `POST`, `DELETE /api/v1/orgs/{org}/team/invitations[/{id}]`, `POST .../{id}/resend?lang=` | `members:invite` (`members:read` to list) | Manage invitations |
 | `GET /api/v1/me/invitations`, `POST .../accept`, `POST .../{id}/accept` | signed in | The caller's pending invitations; accept by token or id |
+| `GET`, `PUT`, `DELETE /api/v1/orgs/{org}/mail-templates/invitation/{lang}`, `POST .../preview` | `org:update` | The organization's invitation template. `GET` returns the one in use and its `source`. 409 on a sub-account |
+| `GET`, `PUT`, `DELETE /api/v1/platform/mail-templates/invitation/{lang}`, `POST .../preview` | platform owner | The platform's invitation template |
 | `/api/v1/orgs/{org}/team/teams[/{teamId}[/members]]` | `teams:manage` (`members:read` to list) | Teams and their members |
 | `/api/v1/orgs/{org}/team/bindings[/{bindingId}]` | `members:update` (`members:read` to list) | Role bindings, optionally scoped to a sub-account |
 | `/api/v1/orgs/{org}/team/service-accounts[/{id}[/roles\|/keys[/{keyId}]]]` | `apikeys:manage` | Service accounts, their roles and keys |

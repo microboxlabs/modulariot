@@ -45,12 +45,11 @@ An invitation names an email, a base role and optional module roles. It lasts 30
 
 ### Emailing the link
 
-Creating or resending an invitation emails the link, in the request's `lang` (`es` default, or `en`). The email goes through the organization's `RESEND` connection, else through the platform organization's. The link is still returned once, so the admin can copy it when the email was not sent.
+Creating or resending an invitation emails the link, in the request's `lang` (`es` default, or `en`). The email goes through the organization's `RESEND` connection, else through the platform sender (`/api/v1/platform/mail`). The link is still returned once, so the admin can copy it when the email was not sent.
 
 | Setting | Purpose |
 |---|---|
 | `miot.app.public-url` | The app's public address including its base path, e.g. `https://app.example.com/app`. Without it no email is sent. |
-| `miot.mail.platform-organization` | Slug of the organization whose `RESEND` connection sends for organizations without their own. Optional. |
 
 One request invites at most 20 people, because each email is sent while the request waits. Each created invitation carries `delivery`: `SENT` (the provider accepted it), `FAILED` (with `detail`), or `NOT_CONFIGURED`. Emails are sent after the invitation is saved; a failed email does not undo the invitation. Resend again to retry. See `miot-integrations/docs/email-channel.md`.
 

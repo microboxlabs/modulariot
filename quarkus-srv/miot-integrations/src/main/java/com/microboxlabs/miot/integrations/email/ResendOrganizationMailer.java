@@ -10,10 +10,15 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
-/** Sends an organization's email through its active RESEND connection. */
+/**
+ * Sends an organization's email through its RESEND connection, else through the platform's
+ * ({@link PlatformMailService}).
+ */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.integrations.enabled", stringValue = "true")
 public class ResendOrganizationMailer implements OrganizationMailer {
+
+    static final String NOT_CONFIGURED = "No email sender: set one in Settings › Platform";
 
     private final ResendEmailSender sender;
 
@@ -30,10 +35,14 @@ public class ResendOrganizationMailer implements OrganizationMailer {
     }
 
     private MailDelivery deliver(String tenantCode, Mail mail, String idempotencyKey) {
-        if (!sender.configured(tenantCode)) {
-            return MailDelivery.notConfigured("No active RESEND connection");
+        String from = sender.configured(tenantCode) ? tenantCode : null;
+        if (from == null && sender.configured(PlatformMailService.PLATFORM_TENANT)) {
+            from = PlatformMailService.PLATFORM_TENANT;
         }
-        SendResult result = sender.send(tenantCode,
+        if (from == null) {
+            return MailDelivery.notConfigured(NOT_CONFIGURED);
+        }
+        SendResult result = sender.send(from,
                 new EmailMessage(null, mail.to(), mail.subject(), mail.text(), mail.html(), null), idempotencyKey);
         return result.accepted() ? MailDelivery.sent() : MailDelivery.failed(result.error());
     }

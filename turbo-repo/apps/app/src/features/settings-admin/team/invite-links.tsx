@@ -56,7 +56,7 @@ interface DeliveryNoteProps {
   readonly d: I18nRecord;
 }
 
-/** Whether the link went out by email; nothing when no email channel is set up. */
+/** Whether the link went out by email, and why not when it did not. */
 function DeliveryNote({ delivery, d }: DeliveryNoteProps) {
   if (delivery?.status === "SENT") {
     return (
@@ -70,6 +70,13 @@ function DeliveryNote({ delivery, d }: DeliveryNoteProps) {
     return (
       <span className="text-xs text-gray-600 dark:text-gray-300">
         {tr("emailFailed", d, { reason: delivery.detail ?? "" })}
+      </span>
+    );
+  }
+  if (delivery?.status === "NOT_CONFIGURED") {
+    return (
+      <span className="text-xs text-gray-600 dark:text-gray-300">
+        {tr("emailNotConfigured", d)}
       </span>
     );
   }

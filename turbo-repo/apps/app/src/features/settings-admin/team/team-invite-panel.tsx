@@ -190,7 +190,7 @@ export function TeamInvitePanel({
                   <TextInput
                     type="email"
                     sizing="sm"
-                    autoFocus={index === 0}
+                    autoFocus={index === rows.length - 1}
                     aria-label={tr("colEmail", d)}
                     placeholder={tr("emailPlaceholder", d)}
                     color={invalid ? "failure" : undefined}

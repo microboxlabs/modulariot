@@ -36,6 +36,14 @@ export function useTeam() {
   return useSWR<TeamView>(membersKey, getJson);
 }
 
+/** The pending invitations' emails, lower-cased. */
+export async function pendingInvitationEmails(): Promise<Set<string>> {
+  const invitations = await getJson<Invitation[]>(invitationsKey);
+  return new Set(
+    invitations.filter((i) => !i.expired).map((i) => i.email.toLowerCase())
+  );
+}
+
 export function useInvitations(enabled: boolean) {
   return useSWR<Invitation[]>(enabled ? invitationsKey : null, getJson);
 }

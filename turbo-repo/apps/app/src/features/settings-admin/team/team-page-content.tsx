@@ -27,7 +27,7 @@ import {
 import { TeamInvitationsTab } from "./team-invitations-tab";
 import { TeamKeysTab } from "./team-keys-tab";
 import { TeamMembersTab } from "./team-members-tab";
-import { inviteLinkOf } from "./team-model";
+import { inviteLinkOf, invitesAllowed } from "./team-model";
 import { TeamRolesTab } from "./team-roles-tab";
 import { TeamTeamsTab } from "./team-teams-tab";
 import type { BaseRole, Invitation, TeamMember } from "./team.types";
@@ -81,7 +81,9 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
   const fromAlfresco = team.data?.membershipSource === "ALFRESCO";
   // Wait for the membership source: an ALFRESCO organization cannot invite.
   const nativeMembers = team.data?.membershipSource === "NATIVE";
-  const canInvite = can("members:invite") && nativeMembers;
+  const canInvite = invitesAllowed(can, team.data?.membershipSource);
+  // Pending invitations can still be resent or revoked while members load.
+  const canManageInvitations = can("members:invite") && !fromAlfresco;
   const allowed = {
     canUpdate: can("members:update"),
     canRemove: can("members:remove") && nativeMembers,
@@ -220,7 +222,7 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
           <TeamInvitationsTab
             invitations={invitations.data ?? []}
             roles={roles}
-            canInvite={canInvite}
+            canInvite={canManageInvitations}
             lang={lang}
             d={d}
             onResend={onResend}

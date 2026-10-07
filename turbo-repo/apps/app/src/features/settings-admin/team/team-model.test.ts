@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   activeKeyCount,
   basePermissions,
@@ -10,7 +10,9 @@ import {
   initials,
   invalidEmails,
   inviteLink,
+  inviteAll,
   inviteBatches,
+  invitesAllowed,
   MAX_INVITES_PER_REQUEST,
   inviteLinkOf,
   keyDisplay,
@@ -170,6 +172,71 @@ describe("emails", () => {
       5,
     ]);
     expect(inviteBatches([])).toEqual([]);
+  });
+
+  it("sends each batch once when every request succeeds", async () => {
+    const send = vi.fn(async (emails: string[]) => emails);
+    const emails = Array.from({ length: 25 }, (_, i) => `p${i}@ex.cl`);
+
+    const outcome = await inviteAll(emails, {
+      send,
+      pendingEmails: async () => new Set(),
+      keepGoing: () => true,
+    });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(outcome).toEqual({
+      created: emails,
+      failures: [],
+      alreadyPending: [],
+    });
+  });
+
+  it("after a failed batch, skips saved emails and retries the rest one by one", async () => {
+    const send = vi.fn(async (emails: string[]) => {
+      if (emails.length > 1) throw new Error("timeout");
+      if (emails[0] === "member@ex.cl") throw new Error("already a member");
+      return emails;
+    });
+
+    const outcome = await inviteAll(
+      ["saved@ex.cl", "member@ex.cl", "new@ex.cl"],
+      {
+        send,
+        pendingEmails: async () => new Set(["saved@ex.cl"]),
+        keepGoing: () => true,
+      }
+    );
+
+    expect(outcome).toEqual({
+      created: ["new@ex.cl"],
+      failures: [{ email: "member@ex.cl", message: "already a member" }],
+      alreadyPending: ["saved@ex.cl"],
+    });
+  });
+
+  it("stops before the next batch once told to", async () => {
+    const send = vi.fn(async (emails: string[]) => emails);
+    let calls = 0;
+
+    await inviteAll(
+      Array.from({ length: 45 }, (_, i) => `p${i}@ex.cl`),
+      {
+        send,
+        pendingEmails: async () => new Set(),
+        keepGoing: () => calls++ < 1,
+      }
+    );
+
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows invites only into a native organization", () => {
+    const can = (p: string) => p === "members:invite";
+    expect(invitesAllowed(can, "NATIVE")).toBe(true);
+    expect(invitesAllowed(can, "ALFRESCO")).toBe(false);
+    expect(invitesAllowed(can, undefined)).toBe(false);
+    expect(invitesAllowed(() => false, "NATIVE")).toBe(false);
   });
 });
 

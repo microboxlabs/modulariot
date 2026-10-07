@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { mutate } from "swr";
 import {
   Alert,
   Badge,
@@ -22,14 +23,23 @@ import {
   ModuleCard,
   SectionTitle,
 } from "./module-access";
-import { invite, useAccessCatalog, useMyAccess, useTeam } from "./team-api";
+import {
+  invitationsKey,
+  invite,
+  pendingInvitationEmails,
+  useAccessCatalog,
+  useMyAccess,
+  useTeam,
+} from "./team-api";
 import {
   BASE_ROLES,
   catalogModules,
   effectivePermissions,
   invalidEmails,
-  inviteBatches,
+  inviteAll,
   inviteLinkOf,
+  invitesAllowed,
+  type InviteOutcome,
   NON_OWNER_ROLES,
   parseEmails,
   selectedRoles,
@@ -53,7 +63,7 @@ export default function InviteMembersPage({
   lang,
 }: InviteMembersPageProps) {
   const d = dict?.team as I18nRecord;
-  const { can } = useMyAccess();
+  const { access, can } = useMyAccess();
   const team = useTeam();
   const { data: catalog, error } = useAccessCatalog();
   const teamPath = `/${lang}/users/settings/team`;
@@ -61,9 +71,8 @@ export default function InviteMembersPage({
   const [formKey, setFormKey] = useState(0);
 
   const fromAlfresco = team.data?.membershipSource === "ALFRESCO";
-  const allowed =
-    can("members:invite") && team.data?.membershipSource === "NATIVE";
-  const loading = (!catalog && !error) || team.isLoading;
+  const allowed = invitesAllowed(can, team.data?.membershipSource);
+  const loading = (!catalog && !error) || team.isLoading || !access;
 
   return (
     <DetailShell
@@ -91,7 +100,7 @@ export default function InviteMembersPage({
           d={d}
           onSent={(sent) => {
             setLinks(sent);
-            void team.mutate();
+            void mutate(invitationsKey);
           }}
         />
       )}
@@ -138,6 +147,22 @@ interface InviteFormProps {
   readonly onSent: (links: InviteLink[]) => void;
 }
 
+/** What went wrong, one line per refused email and one for those already invited. */
+function outcomeError(
+  outcome: InviteOutcome<InviteLink>,
+  d: I18nRecord
+): string | null {
+  const lines = outcome.failures.map((f) => `${f.email}: ${f.message}`);
+  if (outcome.alreadyPending.length > 0) {
+    lines.push(
+      tr("emailsAlreadyPending", d, {
+        emails: outcome.alreadyPending.join(", "),
+      })
+    );
+  }
+  return lines.length > 0 ? lines.join("\n") : null;
+}
+
 function InviteForm({
   catalog,
   canManageOwners,
@@ -153,6 +178,14 @@ function InviteForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<InviteLink[]>([]);
+  // Leaving the page stops the remaining batches.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const emails = parseEmails(emailsText);
   const invalid = invalidEmails(emails);
@@ -171,37 +204,33 @@ function InviteForm({
     }
     setBusy(true);
     setError(null);
-    const done = [...sent];
-    let pending: string[] = [];
-    for (const batch of inviteBatches(emails)) {
-      if (pending.length > 0) {
-        pending.push(...batch);
-        continue;
-      }
-      try {
-        const created = await invite({
-          lang,
-          emails: batch,
-          baseRole: base,
-          roles: fullAccess ? [] : roles,
-          expiresInDays: days,
-        });
-        done.push(
-          ...created.map((c) => inviteLinkOf(c, window.location.origin, lang))
-        );
-      } catch (e) {
-        setError(e instanceof Error ? e.message : tr("saveFailed", d));
-        pending = [...batch];
-      }
-    }
+    const outcome = await inviteAll(emails, {
+      send: async (batch) =>
+        (
+          await invite({
+            lang,
+            emails: batch,
+            baseRole: base,
+            roles,
+            expiresInDays: days,
+          })
+        ).map((c) => inviteLinkOf(c, window.location.origin, lang)),
+      pendingEmails: pendingInvitationEmails,
+      keepGoing: () => mounted.current,
+    });
+    if (!mounted.current) return;
     setBusy(false);
-    if (pending.length === 0) {
-      onSent(done);
+    const links = [...sent, ...outcome.created];
+    const problem = outcomeError(outcome, d);
+    if (problem === null) {
+      onSent(links);
       return;
     }
-    // Keep only the emails not invited yet, so a retry does not invite twice.
-    setSent(done);
-    setEmailsText(pending.join("\n"));
+    // Only the refused emails stay, so a retry does not invite anyone twice.
+    setSent(links);
+    setEmailsText(outcome.failures.map((f) => f.email).join("\n"));
+    setError(problem);
+    void mutate(invitationsKey);
   };
 
   return (
@@ -273,7 +302,7 @@ function InviteForm({
       </div>
       {error && (
         <Alert color="gray" onDismiss={() => setError(null)}>
-          {error}
+          <span className="whitespace-pre-line">{error}</span>
         </Alert>
       )}
       {sent.length > 0 && (
@@ -349,9 +378,15 @@ function InviteForm({
         </aside>
       </div>
       <div className="sticky bottom-0 z-10 -mx-4 mt-2 flex justify-end gap-2 border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
-        <Button as={Link} href={teamPath} color="alternative" size="sm">
-          {tr("cancel", d)}
-        </Button>
+        {busy ? (
+          <Button color="alternative" size="sm" disabled>
+            {tr("cancel", d)}
+          </Button>
+        ) : (
+          <Button as={Link} href={teamPath} color="alternative" size="sm">
+            {tr("cancel", d)}
+          </Button>
+        )}
         <Button
           color="blue"
           size="sm"

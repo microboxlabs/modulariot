@@ -123,6 +123,86 @@ export function inviteBatches(emails: readonly string[]): string[][] {
   return batches;
 }
 
+/** One email the backend refused, and why. */
+export interface InviteFailure {
+  email: string;
+  message: string;
+}
+
+export interface InviteOutcome<T> {
+  created: T[];
+  failures: InviteFailure[];
+  /** Emails that already had a pending invitation after a failed request. */
+  alreadyPending: string[];
+}
+
+interface InviteAllOptions<T> {
+  /** Creates the invitations for these emails. */
+  send: (emails: string[]) => Promise<T[]>;
+  /** The emails with a pending invitation now. */
+  pendingEmails: () => Promise<Set<string>>;
+  /** False stops before the next request. */
+  keepGoing: () => boolean;
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Sends the emails in batches. When a batch fails, the backend may have saved
+ * it before failing, so emails that now have a pending invitation are left
+ * out; the rest are sent one by one, so one refused email does not block the
+ * others.
+ */
+export async function inviteAll<T>(
+  emails: readonly string[],
+  { send, pendingEmails, keepGoing }: InviteAllOptions<T>
+): Promise<InviteOutcome<T>> {
+  const outcome: InviteOutcome<T> = {
+    created: [],
+    failures: [],
+    alreadyPending: [],
+  };
+  for (const batch of inviteBatches(emails)) {
+    if (!keepGoing()) break;
+    try {
+      outcome.created.push(...(await send(batch)));
+    } catch {
+      await retryOneByOne(batch, send, pendingEmails, outcome);
+    }
+  }
+  return outcome;
+}
+
+async function retryOneByOne<T>(
+  batch: string[],
+  send: (emails: string[]) => Promise<T[]>,
+  pendingEmails: () => Promise<Set<string>>,
+  outcome: InviteOutcome<T>
+) {
+  const pending = await pendingEmails().catch(() => new Set<string>());
+  for (const email of batch) {
+    if (pending.has(email)) {
+      outcome.alreadyPending.push(email);
+      continue;
+    }
+    try {
+      outcome.created.push(...(await send([email])));
+    } catch (e) {
+      outcome.failures.push({ email, message: messageOf(e) });
+    }
+  }
+}
+
+/** Whether the caller may invite people into this organization. */
+export function invitesAllowed(
+  can: (permission: string) => boolean,
+  membershipSource: string | undefined
+): boolean {
+  return can("members:invite") && membershipSource === "NATIVE";
+}
+
 /** The base roles a caller without owners:manage may give. */
 export const NON_OWNER_ROLES: BaseRole[] = BASE_ROLES.filter(
   (r) => r !== "OWNER"

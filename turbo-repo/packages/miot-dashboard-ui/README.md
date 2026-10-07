@@ -6,7 +6,7 @@ frameworks can use `./embed`, `./web-component` or the self-contained `./browser
 runtime. `./core`, `./client`, `./document` and `./templates` expose the lower-level
 APIs. Import `./styles.css` for the scoped presentation styles.
 
-Version 0.1.0 is the first release. It requires
+Version 0.1.1 lets an editor drag a widget from its content. It requires
 `@microboxlabs/miot-dashboard-contract` 0.6.0 or later and a dashboard server 0.6.0 or
 later for query catalogs. The portable catalog covers text, statistic, card, table, list
 and chart widgets, plus authoring for settings, saved queries, permissions, filters and

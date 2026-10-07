@@ -10,6 +10,7 @@ import {
   initials,
   invalidEmails,
   inviteLink,
+  inviteGroups,
   inviteLinkOf,
   keyDisplay,
   keyState,
@@ -158,6 +159,20 @@ describe("emails", () => {
     expect(invalidEmails(["ana@ex.cl", "nope", "x@y"])).toEqual([
       "nope",
       "x@y",
+    ]);
+  });
+
+  it("groups invite rows by base role, first role wins for a repeat", () => {
+    expect(
+      inviteGroups([
+        { email: "Ana@ex.cl, bo@ex.cl", baseRole: "MEMBER" },
+        { email: "", baseRole: "ADMIN" },
+        { email: "cy@ex.cl", baseRole: "ADMIN" },
+        { email: "ana@ex.cl", baseRole: "ADMIN" },
+      ])
+    ).toEqual([
+      { baseRole: "MEMBER", emails: ["ana@ex.cl", "bo@ex.cl"] },
+      { baseRole: "ADMIN", emails: ["cy@ex.cl"] },
     ]);
   });
 });

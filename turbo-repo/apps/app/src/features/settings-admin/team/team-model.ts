@@ -111,6 +111,32 @@ export function invalidEmails(emails: readonly string[]): string[] {
   return emails.filter((e) => !isEmail(e));
 }
 
+/** One row of the invite form. */
+export interface InviteRow {
+  email: string;
+  baseRole: BaseRole;
+}
+
+/**
+ * The rows' emails grouped by base role, one invite request each. Pasted lists
+ * are split, emails lower-cased, blanks dropped, and an email repeated across
+ * rows keeps its first role.
+ */
+export function inviteGroups(
+  rows: readonly InviteRow[]
+): { baseRole: BaseRole; emails: string[] }[] {
+  const seen = new Set<string>();
+  const groups = new Map<BaseRole, string[]>();
+  for (const row of rows) {
+    for (const email of parseEmails(row.email)) {
+      if (seen.has(email)) continue;
+      seen.add(email);
+      groups.set(row.baseRole, [...(groups.get(row.baseRole) ?? []), email]);
+    }
+  }
+  return [...groups].map(([baseRole, emails]) => ({ baseRole, emails }));
+}
+
 /** The base roles a caller without owners:manage may give. */
 export const NON_OWNER_ROLES: BaseRole[] = BASE_ROLES.filter(
   (r) => r !== "OWNER"

@@ -24,7 +24,7 @@ import {
   useTeam,
 } from "./team-api";
 import { TeamInvitationsTab } from "./team-invitations-tab";
-import { TeamInviteModal } from "./team-invite-modal";
+import { TeamInvitePanel } from "./team-invite-panel";
 import { TeamKeysTab } from "./team-keys-tab";
 import { TeamMembersTab } from "./team-members-tab";
 import { inviteLinkOf } from "./team-model";
@@ -163,13 +163,24 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
               </p>
             </div>
           </div>
-          {canInvite && (
+          {canInvite && !inviting && (
             <Button color="blue" size="sm" onClick={() => setInviting(true)}>
               <HiUserAdd className="mr-1.5 h-4 w-4" />
               {tr("invite", d)}
             </Button>
           )}
         </div>
+
+        {canInvite && inviting && (
+          <TeamInvitePanel
+            onClose={() => setInviting(false)}
+            onInvited={reload}
+            roles={roles}
+            canManageOwners={allowed.canManageOwners}
+            lang={lang}
+            d={d}
+          />
+        )}
 
         <TabButtons<Tab>
           pill
@@ -239,16 +250,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
           <TeamRolesTab catalog={catalog} lang={lang} d={d} />
         )}
       </div>
-
-      <TeamInviteModal
-        show={inviting}
-        onClose={() => setInviting(false)}
-        onInvited={reload}
-        roles={roles}
-        canManageOwners={allowed.canManageOwners}
-        lang={lang}
-        d={d}
-      />
 
       <FormModal
         isOpen={resent !== null}

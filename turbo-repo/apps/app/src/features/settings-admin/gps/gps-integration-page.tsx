@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Alert, Badge, Button, Spinner } from "flowbite-react";
 import {
@@ -27,6 +27,9 @@ import {
   useGpsIntegration,
   type GpsIntegration,
 } from "./gps-integration";
+
+/** How long a revealed secret stays on screen. */
+const SECRET_VISIBLE_MS = 5 * 60 * 1000;
 
 interface GpsIntegrationPageProps {
   /** `pages.userSettings` subtree. */
@@ -103,6 +106,13 @@ function TokenCard({
   const [secret, setSecret] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmRotate, setConfirmRotate] = useState(false);
+
+  // A revealed secret is hidden again after a while; Show secret reads it again.
+  useEffect(() => {
+    if (secret === null) return undefined;
+    const timer = setTimeout(() => setSecret(null), SECRET_VISIBLE_MS);
+    return () => clearTimeout(timer);
+  }, [secret]);
 
   const run = async (call: () => Promise<string>, done?: string) => {
     setBusy(true);

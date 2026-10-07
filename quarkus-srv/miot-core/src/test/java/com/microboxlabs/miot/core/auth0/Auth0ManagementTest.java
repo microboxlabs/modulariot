@@ -64,6 +64,18 @@ class Auth0ManagementTest {
     }
 
     @Test
+    void aRejectedManagementTokenIsReplaced() {
+        api.add("c1", "corp:acme", "non_interactive");
+        auth0.secret("c1").await().indefinitely();
+        api.revokeTokens();
+
+        Uni<?> rejected = auth0.secret("c1");
+        assertThrows(IllegalStateException.class, () -> await(rejected));
+        assertEquals("secret-c1", auth0.secret("c1").await().indefinitely());
+        assertEquals(2, api.tokenCalls.get());
+    }
+
+    @Test
     void theSecretCanBeReadAndRotated() {
         api.add("c1", "corp:acme", "non_interactive");
 

@@ -200,7 +200,19 @@ public class Auth0Management {
         if (!configured()) {
             return Uni.createFrom().failure(new IllegalStateException("Auth0 management is not configured"));
         }
-        return bearer().flatMap(call).onFailure(WebApplicationException.class).transform(Auth0Management::failure);
+        return bearer()
+                .<T>flatMap(bearer -> this.<T>forgetTokenOnUnauthorized(call.apply(bearer)))
+                .onFailure(WebApplicationException.class).transform(Auth0Management::failure);
+    }
+
+    private <T> Uni<T> forgetTokenOnUnauthorized(Uni<? extends T> call) {
+        return call.onFailure(Auth0Management::unauthorized).invoke(e -> token.set(null))
+                .map(Function.<T>identity());
+    }
+
+    /** A 401 from a Management API call: the cached token is no longer valid, so the next call gets a new one. */
+    private static boolean unauthorized(Throwable e) {
+        return e instanceof WebApplicationException w && w.getResponse().getStatus() == 401;
     }
 
     private Uni<String> bearer() {

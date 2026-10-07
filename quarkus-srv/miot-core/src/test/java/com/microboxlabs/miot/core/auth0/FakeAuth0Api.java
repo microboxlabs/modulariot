@@ -13,13 +13,19 @@ import java.util.function.Supplier;
 /** An Auth0 tenant in memory. Checks the bearer token and records grants. */
 public class FakeAuth0Api implements Auth0ManagementApi {
 
-    static final String TOKEN = "mgmt-token";
+    static final String TOKEN = "mgmt-token-";
 
     final Map<String, Client> clients = new LinkedHashMap<>();
     final List<ClientGrant> grants = new ArrayList<>();
     final AtomicInteger tokenCalls = new AtomicInteger();
     final List<Integer> pagesRead = new ArrayList<>();
     volatile boolean failGrants;
+    private final AtomicInteger generation = new AtomicInteger();
+
+    /** Tokens issued so far stop working. */
+    public void revokeTokens() {
+        generation.incrementAndGet();
+    }
 
     public void failGrants(boolean fail) {
         failGrants = fail;
@@ -55,7 +61,7 @@ public class FakeAuth0Api implements Auth0ManagementApi {
         if (!"client_credentials".equals(request.grantType()) || !request.audience().endsWith("/api/v2/")) {
             return Uni.createFrom().failure(new WebApplicationException(401));
         }
-        return Uni.createFrom().item(new TokenResponse(TOKEN, 86400));
+        return Uni.createFrom().item(new TokenResponse(TOKEN + generation.get(), 86400));
     }
 
     @Override
@@ -124,8 +130,8 @@ public class FakeAuth0Api implements Auth0ManagementApi {
         return client;
     }
 
-    private static <T> Uni<T> authorized(String authorization, Supplier<T> call) {
-        if (!("Bearer " + TOKEN).equals(authorization)) {
+    private <T> Uni<T> authorized(String authorization, Supplier<T> call) {
+        if (!("Bearer " + TOKEN + generation.get()).equals(authorization)) {
             return Uni.createFrom().failure(new WebApplicationException(401));
         }
         return Uni.createFrom().item(call);

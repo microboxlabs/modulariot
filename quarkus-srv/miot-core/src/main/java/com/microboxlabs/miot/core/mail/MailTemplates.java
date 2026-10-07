@@ -1,0 +1,232 @@
+package com.microboxlabs.miot.core.mail;
+
+import com.microboxlabs.miot.core.mail.MailTemplateEngine.Rendered;
+import com.microboxlabs.miot.core.model.MailTemplate;
+import io.quarkus.hibernate.reactive.panache.Panache;
+import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+
+/**
+ * Email templates, in Handlebars. An organization's template is used first, then the platform's, then the
+ * built-in one. Organization ids are those of top-level organizations; null means the platform.
+ */
+@ApplicationScoped
+public class MailTemplates {
+
+    private static final Logger LOG = Logger.getLogger(MailTemplates.class);
+
+    public static final String INVITATION = "invitation";
+    public static final List<String> LANGS = List.of("es", "en");
+    public static final List<String> INVITATION_VARIABLES =
+            List.of("organization", "inviter", "email", "link", "expiresAt", "logoUrl");
+
+    static final String LOGO_PATH = "/email/modulariot-logo.png";
+
+    private static final Map<String, String> DEFAULT_SUBJECTS = Map.of(
+            "es", "Te invitaron a {{organization}}",
+            "en", "You're invited to {{organization}}");
+
+    /** Where a template comes from. */
+    public enum Source {
+        ORGANIZATION, PLATFORM, DEFAULT
+    }
+
+    public record TemplateView(String kind, String lang, Source source, String subject, String html,
+            Instant updatedAt, String updatedBy, List<String> variables) {
+    }
+
+    public record SaveTemplateRequest(String subject, String html) {
+    }
+
+    public record PreviewView(String subject, String html) {
+    }
+
+    private final MailTemplateEngine engine = new MailTemplateEngine();
+    private final Map<String, String> defaultHtml = new HashMap<>();
+    private final String logoUrl;
+
+    @Inject
+    public MailTemplates(@ConfigProperty(name = "miot.app.public-url") Optional<String> publicUrl) {
+        this.logoUrl = publicUrl.map(String::trim).filter(s -> !s.isEmpty())
+                .map(url -> (url.endsWith("/") ? url.substring(0, url.length() - 1) : url) + LOGO_PATH)
+                .orElse("");
+        for (String lang : LANGS) {
+            defaultHtml.put(lang, resource("mail-templates/" + INVITATION + "." + lang + ".hbs"));
+        }
+    }
+
+    /** The ModularIoT logo served by the app, or empty without {@code miot.app.public-url}. */
+    public String logoUrl() {
+        return logoUrl;
+    }
+
+    /** The template used for this scope: its own, else the one it inherits. */
+    public Uni<TemplateView> get(Long organizationId, String kind, String lang) {
+        check(kind, lang);
+        return Panache.withSession(() -> effective(organizationId, kind, lang));
+    }
+
+    public Uni<TemplateView> put(Long organizationId, String kind, String lang, SaveTemplateRequest request,
+            String actor) {
+        check(kind, lang);
+        validate(request);
+        return Panache.withTransaction(() -> MailTemplate.findFor(organizationId, kind, lang).flatMap(found -> {
+            MailTemplate row = found == null ? new MailTemplate() : found;
+            row.organizationId = organizationId;
+            row.kind = kind;
+            row.lang = lang;
+            row.subject = request.subject().strip();
+            row.html = request.html();
+            row.updatedBy = actor;
+            row.updatedAt = Instant.now();
+            return row.<MailTemplate>persist();
+        })).flatMap(saved -> get(organizationId, kind, lang));
+    }
+
+    /** Removes this scope's own template, so it inherits again. False when it had none. */
+    public Uni<Boolean> delete(Long organizationId, String kind, String lang) {
+        check(kind, lang);
+        return Panache.withTransaction(() -> MailTemplate.findFor(organizationId, kind, lang)
+                .flatMap(found -> found == null
+                        ? Uni.createFrom().item(false)
+                        : found.delete().replaceWith(true)));
+    }
+
+    /** Renders an unsaved template with sample values. */
+    public PreviewView preview(String kind, String lang, SaveTemplateRequest request, String organization) {
+        check(kind, lang);
+        validate(request);
+        Rendered rendered = engine.render(request.subject(), request.html(), sample(lang, organization));
+        return new PreviewView(rendered.subject(), rendered.html());
+    }
+
+    /**
+     * Renders the template that applies to the organization. A template that fails to render falls back to the
+     * next one, so an invitation is always sent.
+     */
+    public Uni<Rendered> render(Long organizationId, String kind, String lang, Map<String, String> values) {
+        check(kind, lang);
+        Map<String, String> all = withLogo(values);
+        return Panache.withSession(() -> MailTemplate.findFor(organizationId, kind, lang)
+                .flatMap(own -> MailTemplate.findFor(null, kind, lang).map(platform -> {
+                    for (MailTemplate row : new MailTemplate[] {own, platform}) {
+                        if (row == null) {
+                            continue;
+                        }
+                        try {
+                            return engine.render(row.subject, row.html, all);
+                        } catch (IllegalArgumentException e) {
+                            LOG.warnf("The %s template %d does not render, using the next one: %s", kind, row.id,
+                                    e.getMessage());
+                        }
+                    }
+                    return builtIn(lang, all);
+                })));
+    }
+
+    /** The built-in template, rendered. */
+    Rendered builtIn(String lang, Map<String, String> values) {
+        return engine.render(DEFAULT_SUBJECTS.get(lang), defaultHtml.get(lang), withLogo(values));
+    }
+
+    private Map<String, String> withLogo(Map<String, String> values) {
+        Map<String, String> all = new HashMap<>(values);
+        all.putIfAbsent("logoUrl", logoUrl);
+        return all;
+    }
+
+    private Uni<TemplateView> effective(Long organizationId, String kind, String lang) {
+        Uni<MailTemplate> own = organizationId == null
+                ? Uni.createFrom().nullItem()
+                : MailTemplate.findFor(organizationId, kind, lang);
+        return own.flatMap(row -> row == null
+                ? MailTemplate.findFor(null, kind, lang).map(platform -> platform == null
+                        ? new TemplateView(kind, lang, Source.DEFAULT, DEFAULT_SUBJECTS.get(lang),
+                                defaultHtml.get(lang), null, null, INVITATION_VARIABLES)
+                        : view(platform, Source.PLATFORM))
+                : Uni.createFrom().item(view(row, Source.ORGANIZATION)));
+    }
+
+    private static TemplateView view(MailTemplate row, Source source) {
+        return new TemplateView(row.kind, row.lang, source, row.subject, row.html, row.updatedAt, row.updatedBy,
+                INVITATION_VARIABLES);
+    }
+
+    /** Parses and renders the template with sample values. It has to contain the invitation link. */
+    private void validate(SaveTemplateRequest request) {
+        if (request == null || request.subject() == null || request.subject().isBlank()) {
+            throw new IllegalArgumentException("subject is required");
+        }
+        if (request.html() == null || request.html().isBlank()) {
+            throw new IllegalArgumentException("html is required");
+        }
+        if (request.subject().strip().length() > MailTemplateEngine.MAX_SUBJECT) {
+            throw new IllegalArgumentException(
+                    "The subject is longer than " + MailTemplateEngine.MAX_SUBJECT + " characters");
+        }
+        if (request.html().length() > MailTemplateEngine.MAX_HTML) {
+            throw new IllegalArgumentException(
+                    "The body is longer than " + MailTemplateEngine.MAX_HTML + " characters");
+        }
+        Map<String, String> values = sample("es", "Acme");
+        Rendered rendered = engine.render(request.subject(), request.html(), values);
+        if (!rendered.html().contains(values.get("link"))) {
+            throw new IllegalArgumentException("The body has to include the invitation link: {{link}}");
+        }
+    }
+
+    private Map<String, String> sample(String lang, String organization) {
+        boolean english = "en".equals(lang);
+        return Map.of(
+                "organization", organization == null || organization.isBlank() ? "Acme" : organization,
+                "inviter", english ? "Jane Doe" : "Ana Pérez",
+                "email", english ? "jane@example.com" : "ana@example.com",
+                "link", "https://example.com/" + lang + "/invite/sample-token",
+                "expiresAt", date(lang, Instant.now().plus(Duration.ofDays(30))),
+                "logoUrl", logoUrl);
+    }
+
+    /** A date as invitations show it: "5 de noviembre de 2026", "November 5, 2026". */
+    public static String date(String lang, Instant instant) {
+        Locale locale = "en".equals(lang) ? Locale.ENGLISH : Locale.forLanguageTag("es");
+        return DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(locale)
+                .format(instant.atZone(ZoneOffset.UTC));
+    }
+
+    private static void check(String kind, String lang) {
+        if (!INVITATION.equals(kind)) {
+            throw new IllegalArgumentException("Unknown template: " + kind);
+        }
+        if (!LANGS.contains(lang)) {
+            throw new IllegalArgumentException("Unknown language: " + lang);
+        }
+    }
+
+    private static String resource(String path) {
+        try (InputStream in = MailTemplates.class.getClassLoader().getResourceAsStream(path)) {
+            if (in == null) {
+                throw new IllegalStateException("Missing " + path);
+            }
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+}

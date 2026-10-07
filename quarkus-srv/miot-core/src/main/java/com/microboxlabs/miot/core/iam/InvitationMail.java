@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.iam;
 import com.microboxlabs.miot.core.iam.TeamService.CreatedInvitation;
 import com.microboxlabs.miot.core.mail.Mail;
 import com.microboxlabs.miot.core.mail.MailDelivery;
+import com.microboxlabs.miot.core.mail.MailTemplates;
 import com.microboxlabs.miot.core.mail.OrganizationMailer;
 import com.microboxlabs.miot.core.model.Organization;
 import io.smallrye.mutiny.Uni;
@@ -10,13 +11,14 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
- * Emails an invitation link through the {@link OrganizationMailer}. Without
- * {@code miot.app.public-url} there is no link to send, so nothing is sent.
+ * Emails an invitation link through the {@link OrganizationMailer}, written with the organization's invitation
+ * template ({@link MailTemplates}). Without {@code miot.app.public-url} there is no link to send, so nothing is sent.
  */
 @ApplicationScoped
 public class InvitationMail {
@@ -24,12 +26,14 @@ public class InvitationMail {
     private static final Logger LOG = Logger.getLogger(InvitationMail.class);
 
     private final OrganizationMailer mailer;
+    private final MailTemplates templates;
     private final Optional<String> publicUrl;
 
     @Inject
-    public InvitationMail(OrganizationMailer mailer,
+    public InvitationMail(OrganizationMailer mailer, MailTemplates templates,
             @ConfigProperty(name = "miot.app.public-url") Optional<String> publicUrl) {
         this.mailer = mailer;
+        this.templates = templates;
         this.publicUrl = publicUrl.map(String::trim).filter(s -> !s.isEmpty());
     }
 
@@ -53,12 +57,20 @@ public class InvitationMail {
         }
         String language = "en".equals(lang) ? "en" : "es";
         String link = link(publicUrl.get(), language, created.token());
-        Mail mail = InvitationEmail.of(language, created.invitation().email(), root.name, inviter, link,
-                created.invitation().expiresAt());
+        String to = created.invitation().email();
+        Map<String, String> values =
+                InvitationEmail.values(language, to, root.name, inviter, link, created.invitation().expiresAt());
         // A resend makes a new token, so it gets a new key; a retry of the same send does not.
         String key = "invitation-" + created.invitation().id() + "-"
                 + TeamService.hash(created.token()).substring(0, 16);
-        return send(root, mail, key).map(created::withDelivery);
+        return templates.render(root.id, MailTemplates.INVITATION, language, values)
+                .map(rendered -> new Mail(to, rendered.subject(), rendered.text(), rendered.html()))
+                .flatMap(mail -> send(root, mail, key))
+                .onFailure().recoverWithItem(e -> {
+                    LOG.warnf(e, "Writing an invitation email for organization %s failed", root.slug);
+                    return MailDelivery.failed("Could not write the email");
+                })
+                .map(created::withDelivery);
     }
 
     /** The invitation is already saved, so a mailer failure becomes a FAILED delivery. */

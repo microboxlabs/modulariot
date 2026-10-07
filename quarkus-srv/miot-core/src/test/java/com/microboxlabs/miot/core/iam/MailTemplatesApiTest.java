@@ -4,6 +4,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -54,7 +55,31 @@ class MailTemplatesApiTest {
     @AfterEach
     void clean() throws SQLException {
         exec("DELETE FROM miot_core.mail_template WHERE organization_id IS NULL");
+        exec("DELETE FROM miot_core.organizations WHERE slug = '" + ORG + "-child'");
         exec("DELETE FROM miot_core.organizations WHERE slug = '" + ORG + "'");
+    }
+
+    @Test
+    void aSubAccountUsesItsParentsTemplate() throws SQLException {
+        exec("INSERT INTO miot_core.organizations (slug, name, tenant_client_id, active, membership_source, parent_id) "
+                + "SELECT '" + ORG + "-child', 'Child', 'mail-tpl-client', true, 'NATIVE', id "
+                + "FROM miot_core.organizations WHERE slug = '" + ORG + "'");
+        given().header("Authorization", bearer(OWNER))
+                .when().get("/api/v1/orgs/" + ORG + "-child/mail-templates/invitation/es")
+                .then().statusCode(409);
+    }
+
+    @Test
+    void anOrganizationDoesNotSeeWhoSavedThePlatformTemplate() {
+        given().header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL)).contentType("application/json")
+                .body(template("Plataforma", "{{link}}"))
+                .when().put(PLATFORM_TEMPLATE)
+                .then().statusCode(200).body("updatedBy", is(PlatformTestProfile.OWNER_EMAIL));
+        given().header("Authorization", bearer(OWNER)).when().get(ORG_TEMPLATE)
+                .then().statusCode(200)
+                .body("source", is("PLATFORM"))
+                .body("updatedBy", nullValue())
+                .body("updatedAt", nullValue());
     }
 
     @Test

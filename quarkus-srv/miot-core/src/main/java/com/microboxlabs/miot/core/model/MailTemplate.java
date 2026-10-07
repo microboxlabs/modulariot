@@ -31,7 +31,7 @@ public class MailTemplate extends PanacheEntityBase {
     @Column(nullable = false)
     public String subject;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "text")
     public String html;
 
     @Column(name = "updated_by")

@@ -25,5 +25,24 @@ class MailTextTest {
     @Test
     void entitiesAreDecoded() {
         assertEquals("Tom & Jerry's <b>\n", MailText.of("Tom &amp; Jerry&#39;s &lt;b&gt;"));
+        assertEquals("Invitación ñ ó © &unknown; & x\n",
+                MailText.of("Invitaci&oacute;n &ntilde; &#243; &copy; &unknown; & x"));
+    }
+
+    @Test
+    void commentsAreDropped() {
+        assertEquals("Visible\n", MailText.of("<!-- <p>Old promo</p> --><p>Visible</p><!--[if mso]>Outlook<![endif]-->"));
+    }
+
+    @Test
+    void tableCellsAreSeparated() {
+        assertEquals("Name\nValue\n", MailText.of("<table><tr><td>Name</td><td>Value</td></tr></table>"));
+    }
+
+    @Test
+    void attributesAreReadInOrder() {
+        assertEquals("https://x.test/a", MailText.attribute("a data-href=\"no\" href = \"https://x.test/a\"", "href"));
+        assertEquals("u", MailText.attribute("a href=u class=x", "href"));
+        assertEquals(null, MailText.attribute("a data-href=\"no\"", "href"));
     }
 }

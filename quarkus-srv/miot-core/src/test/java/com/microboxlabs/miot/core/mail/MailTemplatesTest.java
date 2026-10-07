@@ -56,6 +56,14 @@ class MailTemplatesTest {
     }
 
     @Test
+    void theLinkHasToComeFromTheTemplateAndBeVisible() {
+        assertThrows(IllegalArgumentException.class, () -> templates.preview(MailTemplates.INVITATION, "es",
+                new SaveTemplateRequest("s", "https://example.com/es/invite/sample-token"), null));
+        assertThrows(IllegalArgumentException.class, () -> templates.preview(MailTemplates.INVITATION, "es",
+                new SaveTemplateRequest("s", "<!-- {{link}} -->"), null));
+    }
+
+    @Test
     void unknownKindsAndLanguagesAreRefused() {
         SaveTemplateRequest request = new SaveTemplateRequest("s", "{{link}}");
         assertThrows(IllegalArgumentException.class, () -> templates.preview("welcome", "es", request, null));

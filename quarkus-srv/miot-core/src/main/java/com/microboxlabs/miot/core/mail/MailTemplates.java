@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -97,7 +98,20 @@ public class MailTemplates {
             row.updatedBy = actor;
             row.updatedAt = Instant.now();
             return row.<MailTemplate>persist();
-        })).flatMap(saved -> get(organizationId, kind, lang));
+        }))
+                .onFailure(MailTemplates::isScopeConflict)
+                .transform(e -> new IllegalStateException("The template was saved at the same time; try again"))
+                .flatMap(saved -> get(organizationId, kind, lang));
+    }
+
+    /** Two first saves of one scope at once: the second breaks the unique index. */
+    private static boolean isScopeConflict(Throwable e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            if (cause.getMessage() != null && cause.getMessage().contains("ux_mail_template_scope")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Removes this scope's own template, so it inherits again. False when it had none. */
@@ -117,28 +131,49 @@ public class MailTemplates {
         return new PreviewView(rendered.subject(), rendered.html());
     }
 
+    /** Writes one email from the values, using the templates loaded for an organization. */
+    public interface Renderer {
+        Rendered render(Map<String, String> values);
+    }
+
     /**
-     * Renders the template that applies to the organization. A template that fails to render falls back to the
-     * next one, so an invitation is always sent.
+     * Loads the templates that apply to the organization, once for any number of emails. A template that fails to
+     * render falls back to the next one, and a failed lookup to the built-in one, so an invitation is always sent.
      */
-    public Uni<Rendered> render(Long organizationId, String kind, String lang, Map<String, String> values) {
+    public Uni<Renderer> renderer(Long organizationId, String kind, String lang) {
         check(kind, lang);
+        Uni<Renderer> loaded = Panache.withSession(() -> MailTemplate.findFor(organizationId, kind, lang)
+                .flatMap(own -> MailTemplate.findFor(null, kind, lang)
+                        .map(platform -> rendererOf(own, platform, lang))));
+        return loaded.onFailure().recoverWithUni(e -> {
+            LOG.warnf(e, "Could not load the %s templates of organization %s, using the built-in one", kind,
+                    organizationId);
+            return Uni.createFrom().item(builtInRenderer(lang));
+        });
+    }
+
+    private Renderer rendererOf(MailTemplate own, MailTemplate platform, String lang) {
+        return values -> renderFirst(own, platform, lang, values);
+    }
+
+    private Renderer builtInRenderer(String lang) {
+        return values -> builtIn(lang, values);
+    }
+
+    private Rendered renderFirst(MailTemplate own, MailTemplate platform, String lang, Map<String, String> values) {
         Map<String, String> all = withLogo(values);
-        return Panache.withSession(() -> MailTemplate.findFor(organizationId, kind, lang)
-                .flatMap(own -> MailTemplate.findFor(null, kind, lang).map(platform -> {
-                    for (MailTemplate row : new MailTemplate[] {own, platform}) {
-                        if (row == null) {
-                            continue;
-                        }
-                        try {
-                            return engine.render(row.subject, row.html, all);
-                        } catch (IllegalArgumentException e) {
-                            LOG.warnf("The %s template %d does not render, using the next one: %s", kind, row.id,
-                                    e.getMessage());
-                        }
-                    }
-                    return builtIn(lang, all);
-                })));
+        for (MailTemplate row : new MailTemplate[] {own, platform}) {
+            if (row == null) {
+                continue;
+            }
+            try {
+                return engine.render(row.subject, row.html, all);
+            } catch (IllegalArgumentException e) {
+                LOG.warnf("The %s template %d does not render, using the next one: %s", row.kind, row.id,
+                        e.getMessage());
+            }
+        }
+        return builtIn(lang, all);
     }
 
     /** The built-in template, rendered. */
@@ -160,13 +195,14 @@ public class MailTemplates {
                 ? MailTemplate.findFor(null, kind, lang).map(platform -> platform == null
                         ? new TemplateView(kind, lang, Source.DEFAULT, DEFAULT_SUBJECTS.get(lang),
                                 defaultHtml.get(lang), null, null, INVITATION_VARIABLES)
-                        : view(platform, Source.PLATFORM))
-                : Uni.createFrom().item(view(row, Source.ORGANIZATION)));
+                        : view(platform, Source.PLATFORM, organizationId == null))
+                : Uni.createFrom().item(view(row, Source.ORGANIZATION, true)));
     }
 
-    private static TemplateView view(MailTemplate row, Source source) {
-        return new TemplateView(row.kind, row.lang, source, row.subject, row.html, row.updatedAt, row.updatedBy,
-                INVITATION_VARIABLES);
+    /** Who saved it and when, only when the caller's scope saved it: an organization does not see platform staff. */
+    private static TemplateView view(MailTemplate row, Source source, boolean own) {
+        return new TemplateView(row.kind, row.lang, source, row.subject, row.html, own ? row.updatedAt : null,
+                own ? row.updatedBy : null, INVITATION_VARIABLES);
     }
 
     /** Parses and renders the template with sample values. It has to contain the invitation link. */
@@ -185,9 +221,12 @@ public class MailTemplates {
             throw new IllegalArgumentException(
                     "The body is longer than " + MailTemplateEngine.MAX_HTML + " characters");
         }
-        Map<String, String> values = sample("es", "Acme");
+        // A link nobody could write into the template, looked for in the text a reader sees.
+        String link = "https://example.com/es/invite/" + UUID.randomUUID();
+        Map<String, String> values = new HashMap<>(sample("es", "Acme"));
+        values.put("link", link);
         Rendered rendered = engine.render(request.subject(), request.html(), values);
-        if (!rendered.html().contains(values.get("link"))) {
+        if (!rendered.text().contains(link)) {
             throw new IllegalArgumentException("The body has to include the invitation link: {{link}}");
         }
     }

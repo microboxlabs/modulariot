@@ -67,7 +67,7 @@ public class OrgMailTemplatesResource {
     @PermissionsAllowed(value = CoreAccessCatalog.ORG_UPDATE, permission = OrgPermission.class, params = ORG)
     public Uni<Response> get(@PathParam(ORG) String organizationId, @PathParam("kind") String kind,
             @PathParam("lang") String lang) {
-        return IamResponses.ok(() -> root(organizationId).flatMap(root -> templates.get(root.id, kind, lang)));
+        return IamResponses.ok(() -> topLevel(organizationId).flatMap(root -> templates.get(root.id, kind, lang)));
     }
 
     @PUT
@@ -102,7 +102,7 @@ public class OrgMailTemplatesResource {
     @PermissionsAllowed(value = CoreAccessCatalog.ORG_UPDATE, permission = OrgPermission.class, params = ORG)
     public Uni<Response> preview(@PathParam(ORG) String organizationId, @PathParam("kind") String kind,
             @PathParam("lang") String lang, SaveTemplateRequest body) {
-        return IamResponses.ok(() -> root(organizationId)
+        return IamResponses.ok(() -> topLevel(organizationId)
                 .map(root -> templates.preview(kind, lang, body, root.name)));
     }
 

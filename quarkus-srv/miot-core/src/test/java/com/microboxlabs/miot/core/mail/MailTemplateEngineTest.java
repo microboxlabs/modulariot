@@ -54,6 +54,29 @@ class MailTemplateEngineTest {
     }
 
     @Test
+    void valuesCannotBeWrittenUnescapedInTheBody() {
+        Map<String, String> values = Map.of("organization", "<b>x</b>");
+        assertThrows(IllegalArgumentException.class, () -> engine.render("s", "{{{organization}}}", values));
+        assertThrows(IllegalArgumentException.class, () -> engine.render("s", "{{& organization}}", values));
+        assertEquals("<b>x</b>", engine.render("{{{organization}}}", "x", values).subject());
+    }
+
+    @Test
+    void inlinePartialsAreRefused() {
+        Map<String, String> values = Map.of();
+        assertThrows(IllegalArgumentException.class,
+                () -> engine.render("s", "{{#*inline \"a\"}}x{{/inline}}{{> a}}", values));
+    }
+
+    @Test
+    void theOutputIsCapped() {
+        String big = "x".repeat(MailTemplateEngine.MAX_OUTPUT / 4);
+        Map<String, String> values = Map.of("big", big);
+        assertThrows(IllegalArgumentException.class,
+                () -> engine.render("s", "{{big}}{{big}}{{big}}{{big}}{{big}}", values));
+    }
+
+    @Test
     void aTemplateThatDoesNotParseIsRefused() {
         Map<String, String> values = Map.of();
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,

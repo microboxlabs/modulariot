@@ -96,7 +96,9 @@ export default function MailTemplateEditor({
       {isLoading && <Spinner size="sm" className="mt-3" />}
       {error && (
         <p className="mt-3 text-sm text-red-600 dark:text-red-400">
-          {tr("loadError", dict)}
+          {error.status === 409
+            ? tr("subAccount", dict)
+            : tr("loadError", dict)}
         </p>
       )}
       {template && (
@@ -364,7 +366,7 @@ function PreviewPane({ rendered, error, dict }: PreviewPaneProps) {
             title={tr("preview", dict)}
             sandbox=""
             srcDoc={rendered.html}
-            className="h-[560px] w-full bg-white"
+            className={`h-[560px] w-full bg-white ${error ? "opacity-40" : ""}`}
           />
         ) : (
           <div className="flex h-[560px] items-center justify-center bg-white">

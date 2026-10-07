@@ -20,9 +20,10 @@ export default function InvitationEmailPage({
 }: InvitationEmailPageProps) {
   const d = dict?.team as I18nRecord;
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
-  const { access, can } = useMyAccess();
+  const { access, accessError, can } = useMyAccess();
   const team = useTeam();
-  const loading = !access || team.isLoading;
+  const failed = Boolean(accessError || team.error);
+  const loading = !failed && (!access || team.isLoading);
   const allowed = can("org:update") && team.data?.membershipSource === "NATIVE";
 
   return (
@@ -33,11 +34,11 @@ export default function InvitationEmailPage({
       backLabel={tr("backToTeam", d)}
     >
       {loading && <Spinner className="mx-auto" />}
-      {team.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
-      {!loading && team.data && !allowed && (
+      {failed && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
+      {!loading && !failed && team.data && !allowed && (
         <Alert color="gray">{tr("notAllowed", templatesDict)}</Alert>
       )}
-      {!loading && allowed && (
+      {!loading && !failed && allowed && (
         <MailTemplateEditor
           scope="organization"
           dict={templatesDict}

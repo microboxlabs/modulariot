@@ -1667,21 +1667,24 @@
           "hints": {
             "name": "Lo ven los miembros, por ejemplo Acme Logística.",
             "slug": "Se usa en las direcciones. Minúsculas, dígitos y guiones. No se puede cambiar después.",
-            "tenantClientId": "Client ID de la aplicación machine-to-machine de Auth0 de la organización. No se puede cambiar después.",
+            "tenantClientId": "Client ID de la aplicación machine-to-machine de Auth0 de la organización. Déjalo vacío para crear una aplicación nueva. No se puede cambiar después.",
             "ownerEmail": "El email con el que esta persona inicia sesión."
           },
           "create": "Crear organización",
           "creating": "Creando…",
           "cancel": "Cancelar",
+          "application": "Aplicación de Auth0",
+          "applicationNew": "Crear una aplicación nueva",
+          "applicationHint": "Aplicaciones que ninguna organización usa todavía. Elige una para vincularla, por ejemplo un proveedor GPS existente.",
           "created": "Organización {slug} creada.",
           "createError": "No se pudo crear la organización.",
           "ownerError": "La organización se creó, pero no se pudo asignar su dueño.",
           "errors": {
             "slug": "El identificador debe tener de 3 a 100 caracteres: minúsculas, dígitos y guiones, sin empezar ni terminar en guion.",
             "name": "Ingresa un nombre.",
-            "tenantClientId": "Ingresa el client ID del tenant.",
+            "tenantClientId": "El client ID del tenant puede tener hasta 255 caracteres.",
             "ownerEmail": "Ingresa un email válido para el dueño.",
-            "slugTaken": "Otra organización ya usa este identificador."
+            "slugTaken": "Otra organización ya usa este identificador o client ID."
           }
         }
       },
@@ -2240,7 +2243,8 @@
         "platform": "Plataforma",
         "selectables": "Seleccionables",
         "contactBook": "Libreta de contactos",
-        "symptomCatalog": "Síntomas"
+        "symptomCatalog": "Síntomas",
+        "gps": "GPS"
       },
       "symptoms": {
         "config": {
@@ -2370,7 +2374,8 @@
         "selectables": "Seleccionables",
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
-        "team": "Equipo"
+        "team": "Equipo",
+        "gps": "GPS"
       },
       "credentials": {
         "title": "Credenciales",
@@ -3267,6 +3272,39 @@
         "colScale": "Escala",
         "colVersion": "Versión",
         "colPerWeek": "Casos/sem"
+      },
+      "gps": {
+        "title": "Integración GPS",
+        "description": "Cómo tu proveedor GPS envía las posiciones a la plataforma.",
+        "loadFailed": "No se pudo cargar la integración GPS.",
+        "notAllowed": "Necesitas el rol Lector de GPS, o ser Administrador o Dueño, para ver esta página.",
+        "tokenTitle": "Con un token de acceso",
+        "tokenDescription": "El proveedor obtiene un token con su client ID y su secreto, y envía las posiciones con ese token.",
+        "clientId": "Client ID",
+        "clientSecret": "Secreto del cliente",
+        "audience": "Audience",
+        "tokenUrl": "Endpoint de token",
+        "trackUrl": "Endpoint de posiciones",
+        "reveal": "Ver secreto",
+        "rotate": "Renovar secreto",
+        "secretShown": "Secreto visible en los ejemplos",
+        "secretUnavailable": "El secreto no se puede ver aquí. Pídelo al equipo de la plataforma.",
+        "secretError": "No se pudo obtener el secreto.",
+        "rotated": "Secreto renovado. Entrega el nuevo al proveedor.",
+        "rotateTitle": "¿Renovar el secreto del cliente?",
+        "rotateDescription": "El secreto actual deja de funcionar de inmediato. El proveedor debe usar el nuevo para obtener tokens.",
+        "credentials": "Credenciales",
+        "loginExample": "Obtener un token",
+        "trackExample": "Enviar una posición",
+        "keyTitle": "Con una clave de API",
+        "keyStep1": "Crea una cuenta de servicio con el rol Emisor de GPS, y una clave para ella, en",
+        "keyStep1Link": "Configuración › Equipo › Claves",
+        "keyStep2": "Entrega la clave al proveedor. Se muestra una sola vez.",
+        "keyStep3": "El proveedor envía las posiciones con la clave en el encabezado Authorization. No necesita pedir un token.",
+        "keyUnavailable": "Esta plataforma todavía no acepta claves de API para las posiciones. Usa un token de acceso.",
+        "copy": "Copiar",
+        "copied": "Copiado",
+        "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo."
       }
     },
     "integrationJobs": {
@@ -3772,7 +3810,8 @@
         "harnessLearning": "Aprendizaje del asistente",
         "dashboardServer": "Dashboards",
         "contactBook": "Libreta de contactos",
-        "symptomCatalog": "Síntomas"
+        "symptomCatalog": "Síntomas",
+        "gps": "GPS"
       }
     },
     "calendar": {

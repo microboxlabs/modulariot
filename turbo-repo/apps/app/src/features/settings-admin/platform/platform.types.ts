@@ -130,11 +130,20 @@ export interface HarnessPlan {
 }
 
 /** Mirrors `CreateRootOrganizationRequest`, with the fields this form sets. */
+/** Without `tenantClientId`, the platform creates a new Auth0 M2M application. */
 export interface CreatePlatformOrganization {
   slug: string;
   name: string;
-  tenantClientId: string;
+  tenantClientId?: string;
   membershipSource: "NATIVE";
+}
+
+/** Mirrors `PlatformAuth0ClientsResource.Auth0ClientView`. */
+export interface Auth0Client {
+  clientId: string;
+  name: string | null;
+  /** Slug of the top-level organization using it, or null. */
+  organization: string | null;
 }
 
 /** Mirrors `OrganizationDto`. */

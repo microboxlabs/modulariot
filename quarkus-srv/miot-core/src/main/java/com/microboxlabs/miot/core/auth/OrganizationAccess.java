@@ -67,6 +67,15 @@ public class OrganizationAccess {
                         : evaluator.evaluate(slug, caller).flatMap(access -> admit(org, caller, access))));
     }
 
+    /** Lets a service account into its own organization, for paths that do not name one. */
+    public Uni<Refusal> enterOwn(Caller serviceAccount) {
+        return Panache.withSession(() -> Organization.byId(serviceAccount.serviceAccountOrganizationId())
+                .flatMap(org -> org == null || !org.active
+                        ? refuse(Response.Status.FORBIDDEN, "Access denied")
+                        : evaluator.evaluate(org, serviceAccount).flatMap(access -> admit(org, serviceAccount,
+                                access))));
+    }
+
     /** The email claim of the caller's token, if it has one. */
     public static String email(SecurityIdentity identity) {
         if (identity != null && !identity.isAnonymous()

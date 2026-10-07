@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useVisiblePages } from "../hooks/use-visible-pages";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import { useKnowledgeTrainer } from "@/features/knowledge/hooks/use-knowledge-trainer";
+import { useMyAccess } from "@/features/settings-admin/team/team-api";
 import { filterSettings } from "../models/pages";
 import { SidebarItem } from "../types/common.types";
 import {
@@ -176,6 +177,7 @@ export function SidebarNavigationProvider({
   const pages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
   const { isTrainer } = useKnowledgeTrainer();
+  const canViewGps = useMyAccess().can("gps:view");
 
   useEffect(() => {
     if (error && (error.status === 401 || error.status === 403)) {
@@ -244,6 +246,7 @@ export function SidebarNavigationProvider({
       harness: isHarnessSettingsEnabled,
       platformOwner: isPlatformOwner,
       trainer: isTrainer,
+      gps: canViewGps,
     }).map((page) => {
       const dynamic = page.dynamicItemsSource
         ? (dynamicMap[page.dynamicItemsSource] ?? [])
@@ -267,6 +270,7 @@ export function SidebarNavigationProvider({
     isHarnessSettingsEnabled,
     isPlatformOwner,
     isTrainer,
+    canViewGps,
   ]);
 
   return (

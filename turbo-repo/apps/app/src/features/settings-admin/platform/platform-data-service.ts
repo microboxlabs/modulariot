@@ -6,6 +6,7 @@ import { ORGANIZATION_OWNER_ROLE_CODE } from "../data/settings-admin-data-servic
 import type { OrganizationRole } from "../types";
 import {
   PLATFORM_OWNER_ROLE,
+  type Auth0Client,
   type CreatePlatformOrganization,
   type PlatformOrganization,
   type PlatformOrganizationListItem,
@@ -164,6 +165,11 @@ export function fetchOrganizationOwners(
   slug: string
 ): Promise<OrganizationRole> {
   return getJson<OrganizationRole>(organizationOwnersUrl(slug));
+}
+
+/** The Auth0 M2M applications; 409 when Auth0 management is not set up. */
+export function fetchAuth0Clients(): Promise<Auth0Client[]> {
+  return getJson<Auth0Client[]>(`${PLATFORM_BASE}/auth0-clients`);
 }
 
 export function createPlatformOrganization(

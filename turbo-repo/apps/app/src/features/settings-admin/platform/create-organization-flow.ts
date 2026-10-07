@@ -8,7 +8,7 @@ export interface CreateOrganizationCalls {
 
 export type CreateOrganizationOutcome =
   | { kind: "created" }
-  | { kind: "slugTaken" }
+  | { kind: "slugTaken"; detail: string | null }
   | { kind: "createFailed"; detail: string | null }
   | { kind: "ownerFailed"; detail: string | null };
 
@@ -32,7 +32,7 @@ export async function createOrganizationWithOwner(
       await calls.create(organization);
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        return { kind: "slugTaken" };
+        return { kind: "slugTaken", detail: detailOf(err) };
       }
       return { kind: "createFailed", detail: detailOf(err) };
     }

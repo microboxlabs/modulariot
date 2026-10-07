@@ -117,10 +117,13 @@ export interface InviteRow {
   baseRole: BaseRole;
 }
 
+/** The most emails the backend accepts in one invite request. */
+export const MAX_INVITES_PER_REQUEST = 20;
+
 /**
- * The rows' emails grouped by base role, one invite request each. Pasted lists
- * are split, emails lower-cased, blanks dropped, and an email repeated across
- * rows keeps its first role.
+ * The rows' emails grouped by base role, in requests of at most
+ * MAX_INVITES_PER_REQUEST emails. Emails are lower-cased and blanks dropped;
+ * an email repeated across rows keeps its first role.
  */
 export function inviteGroups(
   rows: readonly InviteRow[]
@@ -131,10 +134,34 @@ export function inviteGroups(
     for (const email of parseEmails(row.email)) {
       if (seen.has(email)) continue;
       seen.add(email);
-      groups.set(row.baseRole, [...(groups.get(row.baseRole) ?? []), email]);
+      const group = groups.get(row.baseRole) ?? [];
+      group.push(email);
+      groups.set(row.baseRole, group);
     }
   }
-  return [...groups].map(([baseRole, emails]) => ({ baseRole, emails }));
+  return [...groups].flatMap(([baseRole, emails]) => {
+    const requests = [];
+    for (let i = 0; i < emails.length; i += MAX_INVITES_PER_REQUEST) {
+      requests.push({
+        baseRole,
+        emails: emails.slice(i, i + MAX_INVITES_PER_REQUEST),
+      });
+    }
+    return requests;
+  });
+}
+
+/** Emails that appear in more than one row. */
+export function repeatedEmails(rows: readonly InviteRow[]): string[] {
+  const seen = new Set<string>();
+  const repeated = new Set<string>();
+  for (const row of rows) {
+    for (const email of parseEmails(row.email)) {
+      if (seen.has(email)) repeated.add(email);
+      seen.add(email);
+    }
+  }
+  return [...repeated];
 }
 
 /** The base roles a caller without owners:manage may give. */

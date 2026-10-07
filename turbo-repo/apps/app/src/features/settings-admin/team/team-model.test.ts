@@ -11,6 +11,8 @@ import {
   invalidEmails,
   inviteLink,
   inviteGroups,
+  repeatedEmails,
+  MAX_INVITES_PER_REQUEST,
   inviteLinkOf,
   keyDisplay,
   keyState,
@@ -174,6 +176,27 @@ describe("emails", () => {
       { baseRole: "MEMBER", emails: ["ana@ex.cl", "bo@ex.cl"] },
       { baseRole: "ADMIN", emails: ["cy@ex.cl"] },
     ]);
+  });
+
+  it("splits a role's emails into requests the backend accepts", () => {
+    const emails = Array.from({ length: 25 }, (_, i) => `p${i}@ex.cl`);
+    const groups = inviteGroups([
+      { email: emails.join(" "), baseRole: "MEMBER" },
+    ]);
+    expect(groups.map((g) => g.emails.length)).toEqual([
+      MAX_INVITES_PER_REQUEST,
+      5,
+    ]);
+  });
+
+  it("reports emails repeated across rows", () => {
+    expect(
+      repeatedEmails([
+        { email: "ana@ex.cl", baseRole: "MEMBER" },
+        { email: "Ana@ex.cl", baseRole: "ADMIN" },
+        { email: "bo@ex.cl", baseRole: "ADMIN" },
+      ])
+    ).toEqual(["ana@ex.cl"]);
   });
 });
 

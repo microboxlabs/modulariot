@@ -1957,6 +1957,7 @@
         "sendCount": "Invite {count}",
         "inviteMore": "Invite more",
         "emailsInvalid": "Invalid emails: {emails}",
+        "emailsRepeated": "Repeated emails: {emails}. Keep each in one row.",
         "baseRole": "Organization role",
         "moduleAccess": "Access per module",
         "send": "Invite",

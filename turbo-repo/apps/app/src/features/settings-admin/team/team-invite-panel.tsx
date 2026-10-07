@@ -15,6 +15,7 @@ import {
   inviteLinkOf,
   NON_OWNER_ROLES,
   parseEmails,
+  repeatedEmails,
   selectedRoles,
   type InviteRow,
 } from "./team-model";
@@ -51,9 +52,9 @@ export function TeamInvitePanel({
     email,
     baseRole,
   });
-  const [rows, setRows] = useState<Row[]>(() => [
-    { id: 0, email: "", baseRole: "MEMBER" },
-  ]);
+  const [rows, setRows] = useState<Row[]>(() => [row()]);
+  // The row whose input takes focus when it mounts.
+  const [focusId, setFocusId] = useState(rows[0].id);
   const [byModule, setByModule] = useState<Record<string, string>>({});
   const [days, setDays] = useState(30);
   const [checked, setChecked] = useState(false);
@@ -70,26 +71,46 @@ export function TeamInvitePanel({
   const update = (index: number, change: Partial<InviteRow>) =>
     setRows(rows.map((r, i) => (i === index ? { ...r, ...change } : r)));
 
-  // A pasted list becomes one row per email, all with this row's role.
+  const addRow = () => {
+    const added = row("", rows.at(-1)?.baseRole);
+    setRows([...rows, added]);
+    setFocusId(added.id);
+  };
+
+  // A pasted list becomes one row per email, all with this row's role. What
+  // the row already held is kept as the first of them.
   const onPaste = (index: number, e: ClipboardEvent<HTMLInputElement>) => {
-    const emails = parseEmails(e.clipboardData.getData("text"));
-    if (emails.length < 2) return;
+    const pastedText = e.clipboardData.getData("text");
+    if (parseEmails(pastedText).length < 2) return;
     e.preventDefault();
-    const role = rows[index].baseRole;
-    const pasted = emails.map((email) => row(email, role));
+    const current = rows[index];
+    const pasted = parseEmails(`${current.email} ${pastedText}`).map((email) =>
+      row(email, current.baseRole)
+    );
     setRows([...rows.slice(0, index), ...pasted, ...rows.slice(index + 1)]);
+    setFocusId(pasted[pasted.length - 1].id);
+  };
+
+  const validationError = (): string | null => {
+    const all = groups.flatMap((g) => g.emails);
+    if (all.length === 0) return tr("emailsMissing", d);
+    const invalid = invalidEmails(all);
+    if (invalid.length > 0) {
+      return tr("emailsInvalid", d, { emails: invalid.join(", ") });
+    }
+    const repeated = repeatedEmails(rows);
+    if (repeated.length > 0) {
+      return tr("emailsRepeated", d, { emails: repeated.join(", ") });
+    }
+    return null;
   };
 
   const submit = async () => {
+    if (busy) return;
     setChecked(true);
-    const all = groups.flatMap((g) => g.emails);
-    if (all.length === 0) {
-      setError(tr("emailsMissing", d));
-      return;
-    }
-    const invalid = invalidEmails(all);
-    if (invalid.length > 0) {
-      setError(tr("emailsInvalid", d, { emails: invalid.join(", ") }));
+    const invalid = validationError();
+    if (invalid) {
+      setError(invalid);
       return;
     }
     setBusy(true);
@@ -115,7 +136,7 @@ export function TeamInvitePanel({
       }
     }
     setBusy(false);
-    setLinks([...links, ...sent]);
+    setLinks((previous) => [...previous, ...sent]);
     if (sent.length > 0) onInvited();
     if (failedAt === groups.length) {
       setDone(true);
@@ -130,7 +151,9 @@ export function TeamInvitePanel({
   };
 
   const inviteMore = () => {
-    setRows([row()]);
+    const first = row();
+    setRows([first]);
+    setFocusId(first.id);
     setLinks([]);
     setChecked(false);
     setDone(false);
@@ -152,8 +175,9 @@ export function TeamInvitePanel({
         <button
           type="button"
           onClick={onClose}
+          disabled={busy}
           aria-label={tr("close", d)}
-          className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-700 dark:hover:text-white"
+          className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-900 disabled:opacity-50 dark:hover:bg-gray-700 dark:hover:text-white"
         >
           <HiX className="h-5 w-5" />
         </button>
@@ -190,7 +214,7 @@ export function TeamInvitePanel({
                   <TextInput
                     type="email"
                     sizing="sm"
-                    autoFocus={index === rows.length - 1}
+                    autoFocus={current.id === focusId}
                     aria-label={tr("colEmail", d)}
                     placeholder={tr("emailPlaceholder", d)}
                     color={invalid ? "failure" : undefined}
@@ -198,7 +222,9 @@ export function TeamInvitePanel({
                     onChange={(e) => update(index, { email: e.target.value })}
                     onPaste={(e) => onPaste(index, e)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") void submit();
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                        void submit();
+                      }
                     }}
                   />
                   <Select
@@ -230,7 +256,7 @@ export function TeamInvitePanel({
             })}
             <button
               type="button"
-              onClick={() => setRows([...rows, row("", rows.at(-1)?.baseRole)])}
+              onClick={addRow}
               className="flex w-fit items-center gap-1 text-sm font-medium text-blue-700 hover:underline dark:text-blue-400"
             >
               <HiPlus className="h-4 w-4" />
@@ -279,7 +305,12 @@ export function TeamInvitePanel({
               </Select>
             </div>
             <div className="flex justify-end gap-2">
-              <Button color="alternative" size="sm" onClick={onClose}>
+              <Button
+                color="alternative"
+                size="sm"
+                disabled={busy}
+                onClick={onClose}
+              >
                 {tr("cancel", d)}
               </Button>
               <Button

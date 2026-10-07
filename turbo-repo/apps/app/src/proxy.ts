@@ -46,10 +46,12 @@ function hasRequiredGroups(
 const logger = createManagedLogger("middleware", "Middleware", "error");
 
 // Static files served from public/ that must skip auth and the locale
-// rewrite (e.g. /app/pdf.worker.min.mjs — the pdf.js worker). Lives here as
-// a regex literal instead of in `config.matcher`, whose entries Next
-// statically analyses and so can only be plain (unescaped) string literals.
-const STATIC_ASSET_PATH = /\.(?:png|svg|mjs)$|^\/autentia\/.+\.js$/;
+// rewrite (e.g. /app/pdf.worker.min.mjs — the pdf.js worker, and map
+// models under /app/models/*.glb). Lives here as a regex literal instead
+// of in `config.matcher`, whose entries Next statically analyses and so
+// can only be plain (unescaped) string literals.
+const STATIC_ASSET_PATH =
+  /\.(?:png|svg|mjs|glb|gltf)$|^\/autentia\/.+\.js$/;
 
 // Type annotation to avoid npm phantom dependency type inference issues
 const middleware = auth(async function middleware(request: NextRequest) {

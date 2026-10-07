@@ -4,7 +4,12 @@ import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import Map, { useControl, MapRef } from "react-map-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { DeckProps } from "@deck.gl/core";
+import {
+  AmbientLight,
+  DeckProps,
+  DirectionalLight,
+  LightingEffect,
+} from "@deck.gl/core";
 import { Spinner } from "flowbite-react";
 import type { RefObject } from "react";
 import type {
@@ -56,10 +61,7 @@ function findNamedLayerId(
   return null;
 }
 
-function resolvePathValue(
-  obj: Record<string, unknown>,
-  path: string
-): unknown {
+function resolvePathValue(obj: Record<string, unknown>, path: string): unknown {
   let current: unknown = obj;
   for (const segment of path.split(".")) {
     if (current === null || current === undefined) return undefined;
@@ -84,15 +86,29 @@ function applyTemplate(
 // DeckGL overlay bridge
 // ============================================================================
 
+const mapLighting = new LightingEffect({
+  ambient: new AmbientLight({ color: [255, 255, 255], intensity: 0.7 }),
+  sun: new DirectionalLight({
+    color: [255, 255, 255],
+    intensity: 1,
+    direction: [-1, -2, -1],
+  }),
+});
+
 function DeckGLOverlay(props: DeckProps) {
   const overlay = useControl<MapboxOverlay>(
     () =>
       new MapboxOverlay({
         ...props,
+        effects: props.effects ?? [mapLighting],
         parameters: { ...props.parameters },
       })
   );
-  overlay.setProps({ ...props, parameters: { ...props.parameters } });
+  overlay.setProps({
+    ...props,
+    effects: props.effects ?? [mapLighting],
+    parameters: { ...props.parameters },
+  });
   return null;
 }
 
@@ -204,8 +220,7 @@ export default function MapVisualization({
       const obj = info.object as Record<string, unknown>;
       const objProps =
         (obj?.properties as Record<string, unknown> | undefined) ?? {};
-      const isCluster =
-        Boolean(obj.cluster) || Boolean(objProps.cluster);
+      const isCluster = Boolean(obj.cluster) || Boolean(objProps.cluster);
       const props = { ...obj, ...objProps };
 
       // Track path selection for highlight
@@ -214,8 +229,7 @@ export default function MapVisualization({
       if (featureIndex >= 0) {
         const pathLayerId = `named-layer-${layerId}-lines`;
         setSelectedPath((prev) =>
-          prev?.layerId === pathLayerId &&
-          prev?.featureIndex === featureIndex
+          prev?.layerId === pathLayerId && prev?.featureIndex === featureIndex
             ? null
             : { layerId: pathLayerId, featureIndex }
         );

@@ -40,6 +40,23 @@ export const EMPTY_ORGANIZATION_DRAFT: OrganizationDraft = {
   ownerEmail: "",
 };
 
+/**
+ * A slug for an Auth0 application name: the part after the last `:`, in
+ * lowercase letters, digits and hyphens. Empty when nothing usable is left.
+ */
+export function slugFromClientName(name: string | null): string {
+  const base = (name ?? "").split(":").pop() ?? "";
+  const slug = base
+    .toLowerCase()
+    .normalize("NFD")
+    .replaceAll(/[\u0300-\u036f]/g, "")
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "")
+    .slice(0, 100)
+    .replaceAll(/-+$/g, "");
+  return SLUG.test(slug) ? slug : "";
+}
+
 /** The request bodies for a draft, or the first problem with it. */
 export function toOrganizationRequest(
   draft: OrganizationDraft
@@ -49,13 +66,20 @@ export function toOrganizationRequest(
   const slug = draft.slug.trim();
   if (!SLUG.test(slug)) return { ok: false, error: "slug" };
   const tenantClientId = draft.tenantClientId.trim();
-  if (!fits(tenantClientId)) return { ok: false, error: "tenantClientId" };
+  if (tenantClientId.length > MAX_LENGTH) {
+    return { ok: false, error: "tenantClientId" };
+  }
   const ownerEmail = draft.ownerEmail.trim().toLowerCase();
   if (!isPlausibleEmail(ownerEmail)) return { ok: false, error: "ownerEmail" };
   return {
     ok: true,
     value: {
-      organization: { slug, name, tenantClientId, membershipSource: "NATIVE" },
+      organization: {
+        slug,
+        name,
+        ...(tenantClientId ? { tenantClientId } : {}),
+        membershipSource: "NATIVE",
+      },
       ownerEmail,
     },
   };

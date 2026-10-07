@@ -48,7 +48,10 @@ describe("createOrganizationWithOwner", () => {
       c
     );
 
-    expect(outcome).toEqual({ kind: "slugTaken" });
+    expect(outcome).toEqual({
+      kind: "slugTaken",
+      detail: "Slug already in use: acme",
+    });
     expect(c.setOwners).not.toHaveBeenCalled();
   });
 

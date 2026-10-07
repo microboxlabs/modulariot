@@ -7,6 +7,7 @@ import type { IconType } from "react-icons";
 import {
   HiArrowLeft,
   HiOutlineCheck,
+  HiOutlineLocationMarker,
   HiOutlinePhotograph,
   HiOutlineShieldCheck,
   HiOutlineSparkles,
@@ -20,6 +21,7 @@ import type { AccessCatalog, CatalogModule, CatalogRole } from "./team.types";
 
 const MODULE_ICONS: Record<string, IconType> = {
   controltower: HiOutlineShieldCheck,
+  gps: HiOutlineLocationMarker,
   harness: HiOutlineSparkles,
   content: HiOutlinePhotograph,
 };

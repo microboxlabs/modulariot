@@ -1667,21 +1667,24 @@
           "hints": {
             "name": "Shown to members, e.g. Acme Logistics.",
             "slug": "Used in addresses. Lowercase letters, digits and hyphens. Cannot be changed later.",
-            "tenantClientId": "Client ID of the organization's Auth0 machine-to-machine application. Cannot be changed later.",
+            "tenantClientId": "Client ID of the organization's Auth0 machine-to-machine application. Leave it empty to create a new application. Cannot be changed later.",
             "ownerEmail": "The email this person signs in with."
           },
           "create": "Create organization",
           "creating": "Creating…",
           "cancel": "Cancel",
+          "application": "Auth0 application",
+          "applicationNew": "Create a new application",
+          "applicationHint": "Applications that no organization uses yet. Pick one to link it, for example an existing GPS provider.",
           "created": "Organization {slug} created.",
           "createError": "Could not create the organization.",
           "ownerError": "The organization was created, but its owner could not be set.",
           "errors": {
             "slug": "The identifier must be 3 to 100 characters: lowercase letters, digits and hyphens, not starting or ending with a hyphen.",
             "name": "Enter a name.",
-            "tenantClientId": "Enter the tenant client ID.",
+            "tenantClientId": "The tenant client ID can have at most 255 characters.",
             "ownerEmail": "Enter a valid email for the owner.",
-            "slugTaken": "Another organization already uses this identifier."
+            "slugTaken": "Another organization already uses this identifier or client ID."
           }
         }
       },
@@ -2240,7 +2243,8 @@
         "platform": "Platform",
         "selectables": "Selectables",
         "contactBook": "Contact book",
-        "symptomCatalog": "Symptoms"
+        "symptomCatalog": "Symptoms",
+        "gps": "GPS"
       },
       "symptoms": {
         "config": {
@@ -2370,7 +2374,8 @@
         "selectables": "Selectables",
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms",
-        "team": "Team"
+        "team": "Team",
+        "gps": "GPS"
       },
       "credentials": {
         "title": "Credentials",
@@ -3267,6 +3272,37 @@
         "colScale": "Scale",
         "colVersion": "Version",
         "colPerWeek": "Cases/wk"
+      },
+      "gps": {
+        "title": "GPS integration",
+        "description": "How your GPS provider sends positions to the platform.",
+        "loadFailed": "Could not load the GPS integration.",
+        "notAllowed": "You need the GPS Viewer role, or to be an Admin or Owner, to see this page.",
+        "tokenTitle": "With an access token",
+        "tokenDescription": "The provider gets a token with its client ID and secret, then sends positions with that token.",
+        "clientId": "Client ID",
+        "audience": "Audience",
+        "tokenUrl": "Token endpoint",
+        "trackUrl": "Position endpoint",
+        "reveal": "Show secret",
+        "rotate": "Rotate secret",
+        "secretShown": "Secret shown in the examples",
+        "secretUnavailable": "The secret cannot be shown here. Ask the platform team for it.",
+        "secretError": "Could not get the secret.",
+        "rotated": "Secret rotated. Give the provider the new one.",
+        "rotateTitle": "Rotate the client secret?",
+        "rotateDescription": "The current secret stops working at once. The provider must use the new one to get tokens.",
+        "credentials": "Credentials",
+        "loginExample": "Get a token",
+        "trackExample": "Send a position",
+        "keyTitle": "With an API key",
+        "keyStep1": "Create a service account with the GPS Publisher role, and a key for it, in",
+        "keyStep1Link": "Settings › Team › Keys",
+        "keyStep2": "Give the key to the provider. It is shown only once.",
+        "keyStep3": "The provider sends positions with the key in the Authorization header. No token request is needed.",
+        "keyUnavailable": "This platform does not take API keys for positions yet. Use an access token.",
+        "copy": "Copy",
+        "copied": "Copied"
       }
     },
     "integrationJobs": {
@@ -3772,7 +3808,8 @@
         "harnessLearning": "Assistant learning",
         "dashboardServer": "Dashboards",
         "contactBook": "Contact book",
-        "symptomCatalog": "Symptoms"
+        "symptomCatalog": "Symptoms",
+        "gps": "GPS"
       }
     },
     "calendar": {

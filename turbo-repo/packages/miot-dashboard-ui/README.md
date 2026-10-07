@@ -386,12 +386,13 @@ render controls around each widget. Its `onAction` is gated by the same rules.
 The host owns dialogs and applies confirmed edits through its document controller.
 The renderer does not fetch data, persist changes, or open global portals.
 
-While editing, the content of a widget without children is wrapped in
-`.miot-widget__content--editing`, which takes no pointer events, scrolling or text
-selection. A drag that starts on a table or a chart moves the widget instead of
-scrolling the table. The wrapper has no box of its own (`display: contents`), so
-sizing is unchanged. Controls rendered by the `Frame`, and container widgets with
-their children, stay interactive.
+The content of a widget without children is wrapped in `.miot-widget__content--leaf`.
+The wrapper has no box of its own (`display: contents`), so sizing is unchanged. Inside a
+`DashboardGrid` that can drag (`editMode` and `onLayoutCommit`), that content takes no
+pointer events, scrolling or text selection, so a drag that starts on a table or a
+chart moves the widget instead of scrolling the table. Put editing controls in the
+`Frame`: it sits outside the wrapper, as do container widgets and their add-child
+controls, and stays interactive.
 
 Each mounted root generates its own widget ID namespace. `widgetDomId(widget)`
 is an optional compatibility override for host anchor links; its returned IDs

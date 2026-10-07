@@ -138,45 +138,36 @@ describe("portable widget renderer", () => {
     expect(screen.getByText("Desconocido (missing)")).toBeTruthy();
   });
 
-  it("makes leaf widget content inert while editing, but not containers or the frame", () => {
-    const { container } = render(
-      <WidgetRenderer
-        widget={widget}
-        registry={registry}
-        editMode
-        onAction={vi.fn()}
-        Frame={ActionFrame}
-        unknownWidgetLabel="Unknown"
-      />,
-    );
-    const content = (id: string) =>
-      screen.getByRole("region", { name: id }).parentElement;
-    expect([...(content("child")?.classList ?? [])]).toEqual([
-      "miot-widget__content",
-      "miot-widget__content--editing",
-    ]);
-    expect([...(content("parent")?.classList ?? [])]).toEqual([
-      "miot-widget__content",
-    ]);
-    for (const button of screen.getAllByRole("button", { name: "Settings" })) {
-      expect(button.closest(".miot-widget__content--editing")).toBeNull();
+  it("marks leaf content for the grid's edit mode, outside frames and containers", () => {
+    for (const editMode of [false, true]) {
+      const { container, unmount } = render(
+        <WidgetRenderer
+          widget={widget}
+          registry={registry}
+          editMode={editMode}
+          onAction={vi.fn()}
+          Frame={ActionFrame}
+          unknownWidgetLabel="Unknown"
+        />,
+      );
+      const classes = (id: string) => [
+        ...(screen.getByRole("region", { name: id }).parentElement?.classList ??
+          []),
+      ];
+      expect(classes("child")).toEqual([
+        "miot-widget__content",
+        "miot-widget__content--leaf",
+      ]);
+      expect(classes("parent")).toEqual(["miot-widget__content"]);
+      expect(
+        container.querySelectorAll(".miot-widget__content--leaf button"),
+      ).toHaveLength(editMode ? 1 : 0);
+      for (const button of screen.queryAllByRole("button", {
+        name: "Settings",
+      })) {
+        expect(button.closest(".miot-widget__content--leaf")).toBeNull();
+      }
+      unmount();
     }
-    expect(
-      container.querySelectorAll(".miot-widget__content--editing"),
-    ).toHaveLength(1);
-  });
-
-  it("leaves content interactive outside edit mode", () => {
-    const { container } = render(
-      <WidgetRenderer
-        widget={widget}
-        registry={registry}
-        unknownWidgetLabel="Unknown"
-      />,
-    );
-    expect(container.querySelectorAll(".miot-widget__content")).toHaveLength(2);
-    expect(
-      container.querySelector(".miot-widget__content--editing"),
-    ).toBeNull();
   });
 });

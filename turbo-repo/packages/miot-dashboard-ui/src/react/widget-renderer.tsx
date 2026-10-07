@@ -72,10 +72,9 @@ function WidgetNode({
     else onAction?.(widget, action, componentId);
   };
   const Component = definition?.Component;
-  // While editing, a leaf widget's content is only something to move: a table must not scroll and
-  // a chart must not take the pointer when the drag starts on it. Containers keep their content
-  // interactive, since it holds child widgets and add-child controls.
-  const inert = editable && !definition?.meta.hasChildren;
+  // Leaf content is made inert by the grid while it can drag (see styles.css), so a drag that starts
+  // on a table or a chart moves the widget. Containers hold child widgets and add-child controls.
+  const leaf = !definition?.meta.hasChildren;
   const children = widget.children?.map((child) => (
     <div key={child.id} className="miot-widget-child h-full">
       <WidgetNode
@@ -103,8 +102,8 @@ function WidgetNode({
       >
         <div
           className={
-            inert
-              ? "miot-widget__content miot-widget__content--editing"
+            leaf
+              ? "miot-widget__content miot-widget__content--leaf"
               : "miot-widget__content"
           }
         >

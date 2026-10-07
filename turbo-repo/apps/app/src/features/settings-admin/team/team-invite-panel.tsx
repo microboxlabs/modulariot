@@ -155,6 +155,9 @@ export function TeamInvitePanel({
     setRows([first]);
     setFocusId(first.id);
     setLinks([]);
+    setByModule({});
+    setDays(30);
+    setError(null);
     setChecked(false);
     setDone(false);
   };

@@ -60,7 +60,8 @@ class GpsAccessApiTest {
 
     @AfterEach
     void clean() throws SQLException {
-        exec("DELETE FROM miot_core.organizations WHERE slug IN ('" + ORG + "', 'gps-new', 'gps-dup')");
+        exec("DELETE FROM miot_core.organizations WHERE slug IN ('gps-org-child', 'gps-new', 'gps-dup')");
+        exec("DELETE FROM miot_core.organizations WHERE slug = '" + ORG + "'");
     }
 
     @Test
@@ -139,9 +140,45 @@ class GpsAccessApiTest {
         String publisher = key("[\"GPS_PUBLISHER\"]");
         String other = key("[]");
 
-        given().header("Authorization", publisher).when().post("/api/v1/gps-probe")
+        given().header("Authorization", publisher).when().post("/api/v1/gps-test/probe")
                 .then().statusCode(200).body(is(CLIENT));
-        given().header("Authorization", other).when().post("/api/v1/gps-probe").then().statusCode(403);
+        given().header("Authorization", other).when().post("/api/v1/gps-test/probe").then().statusCode(403);
+        // Paths that are not listed get no tenant from an API key.
+        given().header("Authorization", publisher).when().post("/api/v1/gps-test/other")
+                .then().statusCode(200).body(is("null"));
+    }
+
+    @Test
+    void aSubAccountCannotTouchItsParentsSecret() throws SQLException {
+        exec("INSERT INTO miot_core.organizations (slug, name, tenant_client_id, active, membership_source, parent_id) "
+                + "SELECT 'gps-org-child', 'Child', '" + CLIENT + "', true, 'NATIVE', id "
+                + "FROM miot_core.organizations WHERE slug = '" + ORG + "'");
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role) "
+                + "SELECT o.id, u.id, 'OWNER' FROM miot_core.organizations o, miot_iam.iam_user u "
+                + "WHERE o.slug = 'gps-org-child' AND u.email = '" + MEMBER + "'");
+
+        given().header("Authorization", bearer(MEMBER))
+                .when().post("/api/v1/orgs/gps-org-child/gps/integration/secret")
+                .then().statusCode(409);
+        given().header("Authorization", bearer(MEMBER))
+                .when().post("/api/v1/orgs/gps-org-child/gps/integration/secret/rotate")
+                .then().statusCode(409);
+        assertEquals("secret-" + CLIENT, api.client(CLIENT).clientSecret());
+    }
+
+    @Test
+    void theManagementApplicationBelongsToNoOrganization() {
+        api.add(FakeAuth0Management.MANAGEMENT_CLIENT, "platform management", "non_interactive");
+
+        given().header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                .when().get("/api/v1/platform/auth0-clients")
+                .then().statusCode(200)
+                .body("find { it.clientId == '" + FakeAuth0Management.MANAGEMENT_CLIENT + "' }", nullValue());
+        given().header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL)).contentType("application/json")
+                .body("{\"slug\":\"gps-dup\",\"name\":\"Dup\",\"tenantClientId\":\""
+                        + FakeAuth0Management.MANAGEMENT_CLIENT + "\"}")
+                .when().post(PLATFORM_ORGS)
+                .then().statusCode(400);
     }
 
     private String key(String roles) {

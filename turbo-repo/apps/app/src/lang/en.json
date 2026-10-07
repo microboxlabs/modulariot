@@ -3281,6 +3281,7 @@
         "tokenTitle": "With an access token",
         "tokenDescription": "The provider gets a token with its client ID and secret, then sends positions with that token.",
         "clientId": "Client ID",
+        "clientSecret": "Client secret",
         "audience": "Audience",
         "tokenUrl": "Token endpoint",
         "trackUrl": "Position endpoint",
@@ -3302,7 +3303,8 @@
         "keyStep3": "The provider sends positions with the key in the Authorization header. No token request is needed.",
         "keyUnavailable": "This platform does not take API keys for positions yet. Use an access token.",
         "copy": "Copy",
-        "copied": "Copied"
+        "copied": "Copied",
+        "copyFailed": "Could not copy. Select the text and copy it."
       }
     },
     "integrationJobs": {

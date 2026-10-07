@@ -3281,6 +3281,7 @@
         "tokenTitle": "Con un token de acceso",
         "tokenDescription": "El proveedor obtiene un token con su client ID y su secreto, y envía las posiciones con ese token.",
         "clientId": "Client ID",
+        "clientSecret": "Secreto del cliente",
         "audience": "Audience",
         "tokenUrl": "Endpoint de token",
         "trackUrl": "Endpoint de posiciones",
@@ -3302,7 +3303,8 @@
         "keyStep3": "El proveedor envía las posiciones con la clave en el encabezado Authorization. No necesita pedir un token.",
         "keyUnavailable": "Esta plataforma todavía no acepta claves de API para las posiciones. Usa un token de acceso.",
         "copy": "Copiar",
-        "copied": "Copiado"
+        "copied": "Copiado",
+        "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo."
       }
     },
     "integrationJobs": {

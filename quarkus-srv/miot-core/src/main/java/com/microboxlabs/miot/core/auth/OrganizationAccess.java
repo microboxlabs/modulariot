@@ -69,7 +69,7 @@ public class OrganizationAccess {
 
     /** Lets a service account into its own organization, for paths that do not name one. */
     public Uni<Refusal> enterOwn(Caller serviceAccount) {
-        return Panache.withSession(() -> Organization.<Organization>findById(serviceAccount.serviceAccountOrganizationId())
+        return Panache.withSession(() -> Organization.byId(serviceAccount.serviceAccountOrganizationId())
                 .flatMap(org -> org == null || !org.active
                         ? refuse(Response.Status.FORBIDDEN, "Access denied")
                         : evaluator.evaluate(org, serviceAccount).flatMap(access -> admit(org, serviceAccount,

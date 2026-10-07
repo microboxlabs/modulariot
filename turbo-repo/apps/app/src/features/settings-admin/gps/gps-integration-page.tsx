@@ -43,8 +43,12 @@ function CopyBlock({
 }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      toast.error(tr("copyFailed", d));
+    }
   };
   return (
     <div className="relative">
@@ -156,6 +160,14 @@ function TokenCard({
             </Button>
           )}
           {secret && <Badge color="warning">{tr("secretShown", d)}</Badge>}
+        </div>
+      )}
+      {secret && (
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+            {tr("clientSecret", d)}
+          </h3>
+          <CopyBlock text={secret} d={d} />
         </div>
       )}
       {!integration.secretAvailable && (

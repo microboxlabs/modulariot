@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -52,7 +53,7 @@ public class Auth0Management {
     private final String namePrefix;
     private final Supplier<Auth0ManagementApi> apiFactory;
     private Auth0ManagementApi api;
-    private volatile CachedToken token;
+    private final AtomicReference<CachedToken> token = new AtomicReference<>();
 
     private record CachedToken(String value, Instant refreshAt) {
     }
@@ -84,7 +85,10 @@ public class Auth0Management {
 
     /** {@code https://<domain>}; the domain may be given with or without the scheme and trailing slash. */
     static String baseUrl(String domain) {
-        String trimmed = domain.trim().replaceAll("/+$", "");
+        String trimmed = domain.trim();
+        while (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
         return trimmed.startsWith("https://") || trimmed.startsWith("http://") ? trimmed : "https://" + trimmed;
     }
 
@@ -101,6 +105,11 @@ public class Auth0Management {
     /** The Auth0 endpoint that issues tokens for a client id and secret. */
     public Optional<String> tokenUrl() {
         return domain.map(d -> baseUrl(d) + "/oauth/token");
+    }
+
+    /** Whether {@code id} is the platform's own Management API application, which no organization may use. */
+    public boolean isManagementClient(String id) {
+        return clientId.isPresent() && clientId.get().equals(id);
     }
 
     /** The name a new application gets for an organization. */
@@ -130,15 +139,30 @@ public class Auth0Management {
         return withToken(bearer -> api().deleteClient(bearer, id));
     }
 
-    /** The application's current secret. */
+    /** The current secret of an M2M application other than the Management API one. */
     public Uni<String> secret(String id) {
-        return withToken(bearer -> api().client(bearer, id, "client_id,client_secret", true))
+        return withToken(bearer -> requireTenantClient(bearer, id)
+                .flatMap(ignored -> api().client(bearer, id, "client_id,client_secret", true)))
                 .map(Client::clientSecret);
     }
 
-    /** Replaces the application's secret; the old one stops working at once. */
+    /** Replaces the secret of an M2M application other than the Management API one; the old one stops working. */
     public Uni<String> rotateSecret(String id) {
-        return withToken(bearer -> api().rotateSecret(bearer, id)).map(Client::clientSecret);
+        return withToken(bearer -> requireTenantClient(bearer, id)
+                .flatMap(ignored -> api().rotateSecret(bearer, id)))
+                .map(Client::clientSecret);
+    }
+
+    private Uni<Client> requireTenantClient(String bearer, String id) {
+        if (isManagementClient(id)) {
+            return Uni.createFrom().failure(new IllegalStateException("This application is not a tenant's"));
+        }
+        return api().client(bearer, id, "client_id,app_type", true).map(client -> {
+            if (!M2M.equals(client.appType())) {
+                throw new IllegalStateException("This application is not a tenant's");
+            }
+            return client;
+        });
     }
 
     /** Every M2M application in the tenant, by name. */
@@ -152,7 +176,7 @@ public class Auth0Management {
     private Uni<List<M2mClient>> page(String bearer, int page, List<M2mClient> found) {
         return api().clients(bearer, M2M, "client_id,name,app_type", true, page, PAGE_SIZE).flatMap(rows -> {
             rows.stream()
-                    .filter(row -> M2M.equals(row.appType()))
+                    .filter(row -> M2M.equals(row.appType()) && !isManagementClient(row.clientId()))
                     .forEach(row -> found.add(new M2mClient(row.clientId(), row.name())));
             if (rows.size() < PAGE_SIZE || page + 1 >= MAX_PAGES) {
                 return Uni.createFrom().item(found);
@@ -180,7 +204,7 @@ public class Auth0Management {
     }
 
     private Uni<String> bearer() {
-        CachedToken cached = token;
+        CachedToken cached = token.get();
         if (cached != null && Instant.now().isBefore(cached.refreshAt())) {
             return Uni.createFrom().item(cached.value());
         }
@@ -188,8 +212,8 @@ public class Auth0Management {
                 baseUrl(domain.orElseThrow()) + "/api/v2/", "client_credentials");
         return api().token(request).map(response -> {
             String value = "Bearer " + response.accessToken();
-            token = new CachedToken(value,
-                    Instant.now().plusSeconds(response.expiresIn()).minus(TOKEN_MARGIN));
+            token.set(new CachedToken(value,
+                    Instant.now().plusSeconds(response.expiresIn()).minus(TOKEN_MARGIN)));
             return value;
         });
     }

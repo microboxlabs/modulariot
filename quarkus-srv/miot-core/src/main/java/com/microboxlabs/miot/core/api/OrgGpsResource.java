@@ -115,13 +115,21 @@ public class OrgGpsResource {
         return secret(organizationId, devEmail, "gps-secret-rotate", auth0::rotateSecret);
     }
 
+    /**
+     * Records the action, then calls Auth0. A sub-account uses its parent's application, so only the parent's Owners
+     * may touch the secret: 409 for a sub-account.
+     */
     private Uni<Response> secret(String slug, String devEmail, String action, Function<String, Uni<String>> call) {
         String actor = IamIdentityAugmentor.callerOf(identity, devEmail, clientIdClaims).name();
-        return IamResponses.ok(() -> organization(slug).flatMap(org -> call.apply(org.tenantClientId)
-                .call(ignored -> Panache.withTransaction(() -> IamAuditEvent
-                        .of(org.id, actor, action, org.tenantClientId, Map.of()).persist()))
-                .map(SecretView::new)))
-                .map(response -> Response.fromResponse(response).header("Cache-Control", "no-store").build());
+        return IamResponses.ok(() -> organization(slug).flatMap(org -> {
+            if (org.parent != null) {
+                throw new IllegalStateException("The secret belongs to the parent organization");
+            }
+            return Panache.withTransaction(() -> IamAuditEvent
+                            .of(org.id, actor, action, org.tenantClientId, Map.of()).persist())
+                    .flatMap(ignored -> call.apply(org.tenantClientId))
+                    .map(SecretView::new);
+        })).map(response -> Response.fromResponse(response).header("Cache-Control", "no-store").build());
     }
 
     private static Uni<Organization> organization(String slug) {

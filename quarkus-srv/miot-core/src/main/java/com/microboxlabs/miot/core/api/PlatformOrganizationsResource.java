@@ -110,9 +110,9 @@ public class PlatformOrganizationsResource {
     }
 
     private Uni<Organization> provisionAndSave(Organization organization) {
-        if (!auth0.configured()) {
+        if (!auth0.configured() || auth0.audience().isEmpty()) {
             return Uni.createFrom().failure(new BadRequestException(
-                    "tenantClientId is required: Auth0 management is not configured"));
+                    "tenantClientId is required: Auth0 management or the GPS audience is not configured"));
         }
         return auth0.createM2mClient(organization.slug, organization.name)
                 .onFailure().transform(e -> new WebApplicationException(e.getMessage(), e,
@@ -246,6 +246,9 @@ public class PlatformOrganizationsResource {
             throw new BadRequestException("name is required");
         }
         // Tenant codes starting with "_" are reserved for the platform (e.g. its email sender).
+        if (!isBlank(body.tenantClientId()) && auth0.isManagementClient(body.tenantClientId().trim())) {
+            throw new BadRequestException("tenantClientId may not be the platform's Auth0 management application");
+        }
         if (!isBlank(body.tenantClientId()) && body.tenantClientId().trim().startsWith("_")) {
             throw new BadRequestException("tenantClientId may not start with _");
         }

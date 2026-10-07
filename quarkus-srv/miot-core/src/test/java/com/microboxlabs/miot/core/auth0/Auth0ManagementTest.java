@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.auth0.Auth0Management.M2mClient;
 import com.microboxlabs.miot.core.auth0.Auth0ManagementApi.ClientGrant;
+import io.smallrye.mutiny.Uni;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -17,6 +18,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class Auth0ManagementTest {
+
+    private static Object await(Uni<?> call) {
+        return call.await().indefinitely();
+    }
 
     private final FakeAuth0Api api = new FakeAuth0Api();
     private Auth0Management auth0;
@@ -45,7 +50,8 @@ class Auth0ManagementTest {
     void aClientWhoseGrantFailsIsDeleted() {
         api.failGrants = true;
 
-        assertThrows(IllegalStateException.class, () -> auth0.createM2mClient("acme", "Acme").await().indefinitely());
+        Uni<?> call1 = auth0.createM2mClient("acme", "Acme");
+        assertThrows(IllegalStateException.class, () -> await(call1));
         assertTrue(api.clients.isEmpty());
     }
 
@@ -68,8 +74,24 @@ class Auth0ManagementTest {
     }
 
     @Test
+    void theManagementApplicationsSecretIsNeverReadOrRotated() {
+        api.add("id", "management", "non_interactive");
+        api.add("spa", "web", "spa");
+
+        Uni<?> call2 = auth0.secret("id");
+        assertThrows(IllegalStateException.class, () -> await(call2));
+        Uni<?> call3 = auth0.rotateSecret("id");
+        assertThrows(IllegalStateException.class, () -> await(call3));
+        Uni<?> call4 = auth0.secret("spa");
+        assertThrows(IllegalStateException.class, () -> await(call4));
+        // Neither the management application nor a non-M2M one is listed.
+        assertTrue(auth0.m2mClients().await().indefinitely().isEmpty());
+    }
+
+    @Test
     void anUnknownClientIsNotFound() {
-        assertThrows(NoSuchElementException.class, () -> auth0.secret("missing").await().indefinitely());
+        Uni<?> call5 = auth0.secret("missing");
+        assertThrows(NoSuchElementException.class, () -> await(call5));
     }
 
     @Test
@@ -89,7 +111,8 @@ class Auth0ManagementTest {
         Auth0Management unset = management(Optional.empty(), Optional.of("https://gps.test/track"));
 
         assertFalse(unset.configured());
-        assertThrows(IllegalStateException.class, () -> unset.secret("c1").await().indefinitely());
+        Uni<?> call6 = unset.secret("c1");
+        assertThrows(IllegalStateException.class, () -> await(call6));
         assertEquals(0, api.tokenCalls.get());
     }
 
@@ -97,8 +120,8 @@ class Auth0ManagementTest {
     void withoutAnAudienceNoClientIsCreated() {
         Auth0Management noAudience = management(Optional.of("tenant.auth0.test"), Optional.empty());
 
-        assertThrows(IllegalStateException.class,
-                () -> noAudience.createM2mClient("acme", "Acme").await().indefinitely());
+        Uni<?> call7 = noAudience.createM2mClient("acme", "Acme");
+        assertThrows(IllegalStateException.class, () -> await(call7));
         assertTrue(api.clients.isEmpty());
     }
 

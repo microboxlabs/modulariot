@@ -12,8 +12,11 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-/** Test-only stand-in for the GPS ingest: a path without an organization that an API key may call. */
-@Path("/api/v1/gps-probe")
+/**
+ * Test-only stand-ins: {@code probe} for the GPS ingest, a listed path without an organization, and
+ * {@code other} for any other.
+ */
+@Path("/api/v1/gps-test")
 @Produces(MediaType.TEXT_PLAIN)
 public class GpsProbeResource {
 
@@ -27,11 +30,19 @@ public class GpsProbeResource {
     OrganizationContext organization;
 
     @POST
+    @Path("/probe")
     public Uni<Response> track() {
         return identity.checkPermission(OrgPermission.of(GpsAccessCatalog.TRACK_WRITE,
                         organization.getOrganizationId()))
                 .map(allowed -> Boolean.TRUE.equals(allowed)
                         ? Response.ok(tenant.getClientId()).build()
                         : Response.status(Response.Status.FORBIDDEN).build());
+    }
+
+    /** A path that is not on the list: an API key gets no tenant here. */
+    @POST
+    @Path("/other")
+    public Uni<String> unlisted() {
+        return Uni.createFrom().item(String.valueOf(tenant.getClientId()));
     }
 }

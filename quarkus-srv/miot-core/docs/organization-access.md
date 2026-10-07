@@ -137,9 +137,9 @@ Each top-level organization stores its data under an Auth0 machine-to-machine cl
 | `POST /secret` | `gps:secret.read` (Owner) | the client secret, read from Auth0 |
 | `POST /secret/rotate` | `gps:secret.rotate` (Owner) | a new secret; the old one stops working |
 
-Reading and rotating the secret are recorded in the audit log.
+Reading and rotating the secret are recorded in the audit log. A sub-account uses its parent's application, so its secret is managed from the parent (409 on a sub-account). The platform's own Management API application is never listed, linked, revealed or rotated.
 
-**API keys on the ingest.** A key on a path without an organization, such as `POST /api/v1/asset/track`, acts in its service account's organization and stores positions under its client id. The ingest needs the `GPS_PUBLISHER` role (`gps:track.write`) on the service account. Tokens issued for the Auth0 client work as before.
+**API keys on the ingest.** On the paths in `miot.iam.api-key-own-organization-paths` (default `/api/v1/asset/track`), a key acts in its service account's organization and stores positions under its client id. The ingest needs the `GPS_PUBLISHER` role (`gps:track.write`) on the service account. Tokens issued for the Auth0 client work as before.
 
 | Variable | Purpose |
 |---|---|

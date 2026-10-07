@@ -13,10 +13,9 @@
  *            the eyes; the mouth line is a chevron ribbon across it —
  *            half a cell down per cell toward the center, vertex (0, a/2),
  *            a quarter-cell (a/16) thick.
- *   Tufts  — the fish owl's wind-blown ear tufts; square-drawn polygons with
- *            every vertex on the a/4 lattice ("celled canvas"):
- *            (1, −1.5) (2.25, −2) (1.75, −1.25) (2.75, −0.75) (1.75, −0.5) · a,
- *            mirrored.
+ *   Tufts  — the "Lynx" ear tufts, mirrored:
+ *            (0.25, −1.5) (2, φ − 2√5) (1.75, −1.25) (√5, −1.25) (1.75, −0.75) · a.
+ *            Same geometry as packages/ui/src/brand/lynx-geometry.ts.
  *
  * Regenerates three artifacts:
  *   public/logo2.svg                 square mark
@@ -48,11 +47,11 @@ const G = {
   bH: a / PHI, // beak vesica half-height
   bTip: -a / PHI ** 2, // beak tip y
   tuft: [
-    [1.0, -1.5],
-    [2.25, -2.0],
+    [0.25, -1.5],
+    [2, PHI - 2 * Math.sqrt(5)],
     [1.75, -1.25],
-    [2.75, -0.75],
-    [1.75, -0.5],
+    [Math.sqrt(5), -1.25],
+    [1.75, -0.75],
   ],
 };
 const bY = G.bTip + G.bH;
@@ -120,7 +119,7 @@ const geomComment =
   `     Eyes at (+/-a, 0): ring a/phi, iris a/phi^2 (amber), pupil a/phi^3 (ink).\n` +
   `     Beak: vesica w=a/phi^3 h=a/phi, tip at -a/phi^2; mouth line = chevron\n` +
   `     ribbon, slope 1:2 to vertex (0, a/2), thickness a/16.\n` +
-  `     Tufts: polygons on the a/4 lattice, mirrored. a=${a}.\n` +
+  `     Tufts: "Lynx", tip at (phi - 2*sqrt5)a, outer corner at sqrt5*a. a=${a}.\n` +
   `     Regenerate with: node scripts/generate-logo.mjs -->\n`;
 
 const adaptiveStyle = `  <style>.ink{fill:${NAVY}}@media (prefers-color-scheme:dark){.ink{fill:${PORCELAIN}}}</style>\n`;
@@ -216,6 +215,6 @@ writeFileSync(join(pub, "logo.svg"), logo);
 writeFileSync(authLogoPath, authLogoTs);
 console.log(
   "Regenerated public/logo2.svg, public/logo.svg and",
-  "packages/miot-auth/src/logo.ts (Golden Owl, a =",
+  "packages/miot-auth/src/logo.ts (Golden Owl, Lynx tufts, a =",
   a + ")"
 );

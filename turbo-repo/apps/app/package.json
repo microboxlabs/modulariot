@@ -33,6 +33,7 @@
     "@auth/core": "0.41.3",
     "@codemirror/autocomplete": "6.20.3",
     "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-html": "6.4.12",
     "@codemirror/language": "6.12.4",
     "@codemirror/lint": "6.9.7",
     "@codemirror/state": "6.7.6",

@@ -38,6 +38,7 @@
         <!-- Keep on the release built against quarkus.platform.version. -->
         <quarkus-mcp-server.version>2.0.1</quarkus-mcp-server.version>
         <json-schema-validator.version>1.5.9</json-schema-validator.version>
+        <handlebars.version>4.5.5</handlebars.version>
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.4</surefire-plugin.version>
     </properties>
@@ -60,6 +61,11 @@
                 <groupId>com.networknt</groupId>
                 <artifactId>json-schema-validator</artifactId>
                 <version>${json-schema-validator.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.github.jknack</groupId>
+                <artifactId>handlebars</artifactId>
+                <version>${handlebars.version}</version>
             </dependency>
             <!-- Internal modules -->
             <dependency>

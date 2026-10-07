@@ -1,36 +1,20 @@
 package com.microboxlabs.miot.core.iam;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.microboxlabs.miot.core.mail.Mail;
 import java.time.Instant;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class InvitationEmailTest {
 
-    private static final Instant EXPIRES = Instant.parse("2026-11-05T12:00:00Z");
-
     @Test
-    void namesAreEscapedInTheHtmlButNotInTheText() {
-        Mail mail = InvitationEmail.of("es", "ana@example.test", "<b>Acme</b> & Co", "admin@example.test",
-                "https://app.example.test/app/es/invite/abc", EXPIRES);
+    void theValuesATemplateCanUse() {
+        Map<String, String> values = InvitationEmail.values("en", "ana@example.test", "Acme", "admin@example.test",
+                "https://x.test/l", Instant.parse("2026-11-05T12:00:00Z"));
 
-        assertEquals("Te invitaron a <b>Acme</b> & Co", mail.subject());
-        assertTrue(mail.text().contains("admin@example.test te invitó a unirte a <b>Acme</b> & Co."));
-        assertTrue(mail.html().contains("&lt;b&gt;Acme&lt;/b&gt; &amp; Co"));
-        assertFalse(mail.html().contains("<b>Acme</b>"));
-        assertTrue(mail.html().contains("href=\"https://app.example.test/app/es/invite/abc\""));
-    }
-
-    @Test
-    void englishAndTheExpiryDate() {
-        Mail mail = InvitationEmail.of("en", "ana@example.test", "Acme", "admin@example.test", "https://x.test/l",
-                EXPIRES);
-
-        assertEquals("You're invited to Acme", mail.subject());
-        assertTrue(mail.text().contains("November 5, 2026"), mail.text());
+        assertEquals(Map.of("organization", "Acme", "inviter", "admin@example.test", "email", "ana@example.test",
+                "link", "https://x.test/l", "expiresAt", "November 5, 2026"), values);
     }
 
     @Test

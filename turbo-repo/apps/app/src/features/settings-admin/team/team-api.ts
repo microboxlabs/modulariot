@@ -58,12 +58,12 @@ export function useAccessCatalog() {
 
 /** The caller's permissions in the active organization. */
 export function useMyAccess() {
-  const { data } = useSWR<MyAccess>(MY_ACCESS, getJson, {
+  const { data, error } = useSWR<MyAccess>(MY_ACCESS, getJson, {
     revalidateOnFocus: false,
   });
   const can = (permission: string) =>
     data?.permissions.includes(permission) ?? false;
-  return { access: data, can };
+  return { access: data, accessError: error, can };
 }
 
 export function setBaseRole(userId: string, baseRole: BaseRole) {

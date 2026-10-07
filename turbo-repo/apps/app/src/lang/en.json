@@ -1958,6 +1958,7 @@
         "inviteMore": "Invite more",
         "emailsInvalid": "Invalid emails: {emails}",
         "emailsAlreadyPending": "Already invited, see Invitations: {emails}",
+        "emailsUnchecked": "Could not check whether these were invited. Look in Invitations before trying again: {emails}",
         "baseRole": "Organization role",
         "send": "Invite",
         "linksTitle": "Invitation links",

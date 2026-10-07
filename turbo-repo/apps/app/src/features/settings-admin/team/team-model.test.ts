@@ -189,6 +189,7 @@ describe("emails", () => {
       created: emails,
       failures: [],
       alreadyPending: [],
+      unchecked: [],
     });
   });
 
@@ -212,7 +213,25 @@ describe("emails", () => {
       created: ["new@ex.cl"],
       failures: [{ email: "member@ex.cl", message: "already a member" }],
       alreadyPending: ["saved@ex.cl"],
+      unchecked: [],
     });
+  });
+
+  it("does not retry when the pending invitations cannot be read", async () => {
+    const send = vi.fn(async (): Promise<string[]> => {
+      throw new Error("timeout");
+    });
+
+    const outcome = await inviteAll(["a@ex.cl", "b@ex.cl"], {
+      send,
+      pendingEmails: async () => {
+        throw new Error("offline");
+      },
+      keepGoing: () => true,
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(outcome.unchecked).toEqual(["a@ex.cl", "b@ex.cl"]);
   });
 
   it("stops before the next batch once told to", async () => {

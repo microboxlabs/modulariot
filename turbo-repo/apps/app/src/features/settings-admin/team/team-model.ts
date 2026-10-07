@@ -134,6 +134,8 @@ export interface InviteOutcome<T> {
   failures: InviteFailure[];
   /** Emails that already had a pending invitation after a failed request. */
   alreadyPending: string[];
+  /** Emails of a failed request whose pending invitations could not be checked. */
+  unchecked: string[];
 }
 
 interface InviteAllOptions<T> {
@@ -157,42 +159,61 @@ function messageOf(error: unknown): string {
  */
 export async function inviteAll<T>(
   emails: readonly string[],
-  { send, pendingEmails, keepGoing }: InviteAllOptions<T>
+  options: InviteAllOptions<T>
 ): Promise<InviteOutcome<T>> {
   const outcome: InviteOutcome<T> = {
     created: [],
     failures: [],
     alreadyPending: [],
+    unchecked: [],
   };
-  for (const batch of inviteBatches(emails)) {
-    if (!keepGoing()) break;
+  await inSequence(inviteBatches(emails), async (batch) => {
+    if (!options.keepGoing()) return;
     try {
-      outcome.created.push(...(await send(batch)));
+      outcome.created.push(...(await options.send(batch)));
     } catch {
-      await retryOneByOne(batch, send, pendingEmails, outcome);
+      await retryOneByOne(batch, options, outcome);
     }
-  }
+  });
   return outcome;
+}
+
+/** Runs the step for each item, one after another. */
+function inSequence<I>(
+  items: readonly I[],
+  step: (item: I) => Promise<void>
+): Promise<void> {
+  return items.reduce<Promise<void>>(
+    (previous, item) => previous.then(() => step(item)),
+    Promise.resolve()
+  );
 }
 
 async function retryOneByOne<T>(
   batch: string[],
-  send: (emails: string[]) => Promise<T[]>,
-  pendingEmails: () => Promise<Set<string>>,
+  { send, pendingEmails, keepGoing }: InviteAllOptions<T>,
   outcome: InviteOutcome<T>
 ) {
-  const pending = await pendingEmails().catch(() => new Set<string>());
-  for (const email of batch) {
+  let pending: Set<string>;
+  try {
+    pending = await pendingEmails();
+  } catch {
+    // Without the list, a retry could invite someone twice.
+    outcome.unchecked.push(...batch);
+    return;
+  }
+  await inSequence(batch, async (email) => {
+    if (!keepGoing()) return;
     if (pending.has(email)) {
       outcome.alreadyPending.push(email);
-      continue;
+      return;
     }
     try {
       outcome.created.push(...(await send([email])));
     } catch (e) {
       outcome.failures.push({ email, message: messageOf(e) });
     }
-  }
+  });
 }
 
 /** Whether the caller may invite people into this organization. */

@@ -153,6 +153,11 @@ function outcomeError(
   d: I18nRecord
 ): string | null {
   const lines = outcome.failures.map((f) => `${f.email}: ${f.message}`);
+  if (outcome.unchecked.length > 0) {
+    lines.push(
+      tr("emailsUnchecked", d, { emails: outcome.unchecked.join(", ") })
+    );
+  }
   if (outcome.alreadyPending.length > 0) {
     lines.push(
       tr("emailsAlreadyPending", d, {
@@ -228,7 +233,9 @@ function InviteForm({
     }
     // Only the refused emails stay, so a retry does not invite anyone twice.
     setSent(links);
-    setEmailsText(outcome.failures.map((f) => f.email).join("\n"));
+    setEmailsText(
+      [...outcome.failures.map((f) => f.email), ...outcome.unchecked].join("\n")
+    );
     setError(problem);
     void mutate(invitationsKey);
   };

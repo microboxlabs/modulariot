@@ -1958,6 +1958,7 @@
         "inviteMore": "Invitar más",
         "emailsInvalid": "Emails no válidos: {emails}",
         "emailsAlreadyPending": "Ya tenían una invitación pendiente, revísala en Invitaciones: {emails}",
+        "emailsUnchecked": "No se pudo comprobar si se invitó a estas personas. Revisa Invitaciones antes de reintentar: {emails}",
         "baseRole": "Rol en la organización",
         "send": "Invitar",
         "linksTitle": "Enlaces de invitación",

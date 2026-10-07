@@ -176,6 +176,25 @@ class GpsAccessApiTest {
     }
 
     @Test
+    void aRevokedRoleStopsTheExchangeEvenWithACachedToken() {
+        var created = given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body("{\"name\":\"Feed revoked\",\"roles\":[\"GPS_PUBLISHER\"]}")
+                .when().post("/api/v1/orgs/" + ORG + "/team/service-accounts")
+                .then().statusCode(201).extract();
+        String key = "Bearer " + created.path("secret");
+        String account = created.path("serviceAccount.id");
+
+        given().header("Authorization", key).when().post("/api/v1/iam/token").then().statusCode(200);
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body("{\"roles\":[]}")
+                .when().put("/api/v1/orgs/" + ORG + "/team/service-accounts/" + account + "/roles")
+                .then().statusCode(200);
+
+        given().header("Authorization", key).when().post("/api/v1/iam/token").then().statusCode(409);
+        assertEquals(1, gpsTokens.api().requests.size());
+    }
+
+    @Test
     void aSubAccountCannotTouchItsParentsSecret() throws SQLException {
         exec("INSERT INTO miot_core.organizations (slug, name, tenant_client_id, active, membership_source, parent_id) "
                 + "SELECT 'gps-org-child', 'Child', '" + CLIENT + "', true, 'NATIVE', id "

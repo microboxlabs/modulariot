@@ -64,13 +64,21 @@ public class GpsTokenSource {
                     new IllegalStateException("The organization's Auth0 application cannot be used here"));
         }
         String clientId = organization.tenantClientId;
+        if (clientId == null || clientId.isBlank()) {
+            return Uni.createFrom().failure(new IllegalStateException("The organization has no Auth0 application"));
+        }
         return auth0.secret(clientId)
                 .flatMap(secret -> api().token(
                         new GpsTokenApi.TokenRequest(clientId, secret, audience.get(), "client_credentials")))
-                .onFailure(WebApplicationException.class).transform(e -> new IllegalStateException(
-                        "The token endpoint refused the organization's application: HTTP "
-                                + ((WebApplicationException) e).getResponse().getStatus()))
+                .onFailure().transform(GpsTokenSource::refusal)
                 .map(GpsTokenSource::issued);
+    }
+
+    private static Throwable refusal(Throwable e) {
+        return e instanceof WebApplicationException w
+                ? new IllegalStateException("The token endpoint refused the organization's application: HTTP "
+                        + w.getResponse().getStatus())
+                : e;
     }
 
     private synchronized GpsTokenApi api() {

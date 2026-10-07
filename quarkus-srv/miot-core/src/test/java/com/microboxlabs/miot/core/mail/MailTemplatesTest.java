@@ -57,10 +57,12 @@ class MailTemplatesTest {
 
     @Test
     void theLinkHasToComeFromTheTemplateAndBeVisible() {
-        assertThrows(IllegalArgumentException.class, () -> templates.preview(MailTemplates.INVITATION, "es",
-                new SaveTemplateRequest("s", "https://example.com/es/invite/sample-token"), null));
-        assertThrows(IllegalArgumentException.class, () -> templates.preview(MailTemplates.INVITATION, "es",
-                new SaveTemplateRequest("s", "<!-- {{link}} -->"), null));
+        SaveTemplateRequest pasted = new SaveTemplateRequest("s", "https://example.com/es/invite/sample-token");
+        SaveTemplateRequest hidden = new SaveTemplateRequest("s", "<!-- {{link}} -->");
+        assertThrows(IllegalArgumentException.class,
+                () -> templates.preview(MailTemplates.INVITATION, "es", pasted, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> templates.preview(MailTemplates.INVITATION, "es", hidden, null));
     }
 
     @Test

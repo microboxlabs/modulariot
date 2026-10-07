@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.mail;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntPredicate;
 
 /** The plain-text part of an HTML email: its visible text, one line per block, with link targets after links. */
 final class MailText {
@@ -28,34 +29,49 @@ final class MailText {
     }
 
     static String of(String html) {
-        StringBuilder out = new StringBuilder();
-        int linkStart = -1;
-        String href = null;
+        Scan scan = new Scan(html);
         int i = 0;
         while (i < html.length()) {
+            i = scan.step(i);
+        }
+        return tidy(decode(scan.out.toString()));
+    }
+
+    /** Copies visible text from {@code html} into {@code out}, one tag at a time. */
+    private static final class Scan {
+        private final String html;
+        private final StringBuilder out = new StringBuilder();
+        private int linkStart = -1;
+        private String href;
+
+        Scan(String html) {
+            this.html = html;
+        }
+
+        /** Copies the text up to the next tag, handles the tag, and returns where to continue. */
+        int step(int i) {
             int open = html.indexOf('<', i);
             if (open < 0) {
                 out.append(html, i, html.length());
-                break;
+                return html.length();
             }
             out.append(html, i, open);
             if (html.startsWith("<!--", open)) {
                 int end = html.indexOf("-->", open + 4);
-                i = end < 0 ? html.length() : end + 3;
-                continue;
+                return end < 0 ? html.length() : end + 3;
             }
             int close = html.indexOf('>', open);
-            if (close < 0) {
-                break;
-            }
-            String tag = html.substring(open + 1, close);
+            return close < 0 ? html.length() : tag(html.substring(open + 1, close), close + 1);
+        }
+
+        private int tag(String tag, int next) {
             String name = tagName(tag);
-            i = close + 1;
             if (HIDDEN.contains(name)) {
-                int end = html.toLowerCase(Locale.ROOT).indexOf("</" + name, i);
+                int end = html.toLowerCase(Locale.ROOT).indexOf("</" + name, next);
                 int endClose = end < 0 ? -1 : html.indexOf('>', end);
-                i = endClose < 0 ? html.length() : endClose + 1;
-            } else if ("a".equals(name)) {
+                return endClose < 0 ? html.length() : endClose + 1;
+            }
+            if ("a".equals(name)) {
                 href = attribute(tag, "href");
                 linkStart = out.length();
             } else if ("/a".equals(name)) {
@@ -65,8 +81,8 @@ final class MailText {
                     || BLOCKS.contains(name.startsWith("/") ? name.substring(1) : name)) {
                 out.append('\n');
             }
+            return next;
         }
-        return tidy(decode(out.toString()));
     }
 
     /** Appends " (href)" after a link whose text is not already the address. */
@@ -93,36 +109,32 @@ final class MailText {
     static String attribute(String tag, String wanted) {
         int i = tagName(tag).length();
         while (i < tag.length()) {
-            while (i < tag.length() && (Character.isWhitespace(tag.charAt(i)) || tag.charAt(i) == '/')) {
-                i++;
-            }
-            int nameStart = i;
-            while (i < tag.length() && !Character.isWhitespace(tag.charAt(i)) && tag.charAt(i) != '='
-                    && tag.charAt(i) != '/') {
-                i++;
-            }
+            int nameStart = skip(tag, i, c -> Character.isWhitespace(c) || c == '/');
+            i = skip(tag, nameStart, c -> !Character.isWhitespace(c) && c != '=' && c != '/');
             String name = tag.substring(nameStart, i);
             if (name.isEmpty()) {
                 return null;
             }
-            while (i < tag.length() && Character.isWhitespace(tag.charAt(i))) {
-                i++;
-            }
+            i = skip(tag, i, Character::isWhitespace);
             String value = "";
             if (i < tag.length() && tag.charAt(i) == '=') {
-                i++;
-                while (i < tag.length() && Character.isWhitespace(tag.charAt(i))) {
-                    i++;
-                }
-                int valueEnd = valueEnd(tag, i);
-                value = unquote(tag.substring(i, valueEnd));
-                i = valueEnd;
+                int valueStart = skip(tag, i + 1, Character::isWhitespace);
+                i = valueEnd(tag, valueStart);
+                value = unquote(tag.substring(valueStart, i));
             }
             if (name.equalsIgnoreCase(wanted)) {
                 return value;
             }
         }
         return null;
+    }
+
+    private static int skip(String text, int from, IntPredicate test) {
+        int i = from;
+        while (i < text.length() && test.test(text.charAt(i))) {
+            i++;
+        }
+        return i;
     }
 
     private static int valueEnd(String tag, int start) {

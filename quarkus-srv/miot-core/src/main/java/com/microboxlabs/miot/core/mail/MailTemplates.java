@@ -35,8 +35,11 @@ public class MailTemplates {
 
     public static final String INVITATION = "invitation";
     public static final List<String> LANGS = List.of("es", "en");
+    private static final String ORGANIZATION = "organization";
+    private static final String LINK = "link";
+    private static final String LOGO_URL = "logoUrl";
     public static final List<String> INVITATION_VARIABLES =
-            List.of("organization", "inviter", "email", "link", "expiresAt", "logoUrl");
+            List.of(ORGANIZATION, "inviter", "email", LINK, "expiresAt", LOGO_URL);
 
     static final String LOGO_PATH = "/email/modulariot-logo.png";
 
@@ -183,7 +186,7 @@ public class MailTemplates {
 
     private Map<String, String> withLogo(Map<String, String> values) {
         Map<String, String> all = new HashMap<>(values);
-        all.putIfAbsent("logoUrl", logoUrl);
+        all.putIfAbsent(LOGO_URL, logoUrl);
         return all;
     }
 
@@ -192,11 +195,18 @@ public class MailTemplates {
                 ? Uni.createFrom().nullItem()
                 : MailTemplate.findFor(organizationId, kind, lang);
         return own.flatMap(row -> row == null
-                ? MailTemplate.findFor(null, kind, lang).map(platform -> platform == null
-                        ? new TemplateView(kind, lang, Source.DEFAULT, DEFAULT_SUBJECTS.get(lang),
-                                defaultHtml.get(lang), null, null, INVITATION_VARIABLES)
-                        : view(platform, Source.PLATFORM, organizationId == null))
+                ? MailTemplate.findFor(null, kind, lang)
+                        .map(platform -> inherited(platform, kind, lang, organizationId == null))
                 : Uni.createFrom().item(view(row, Source.ORGANIZATION, true)));
+    }
+
+    /** The platform's template, or the built-in one when the platform has none. */
+    private TemplateView inherited(MailTemplate platform, String kind, String lang, boolean platformScope) {
+        if (platform == null) {
+            return new TemplateView(kind, lang, Source.DEFAULT, DEFAULT_SUBJECTS.get(lang), defaultHtml.get(lang),
+                    null, null, INVITATION_VARIABLES);
+        }
+        return view(platform, Source.PLATFORM, platformScope);
     }
 
     /** Who saved it and when, only when the caller's scope saved it: an organization does not see platform staff. */
@@ -224,7 +234,7 @@ public class MailTemplates {
         // A link nobody could write into the template, looked for in the text a reader sees.
         String link = "https://example.com/es/invite/" + UUID.randomUUID();
         Map<String, String> values = new HashMap<>(sample("es", "Acme"));
-        values.put("link", link);
+        values.put(LINK, link);
         Rendered rendered = engine.render(request.subject(), request.html(), values);
         if (!rendered.text().contains(link)) {
             throw new IllegalArgumentException("The body has to include the invitation link: {{link}}");
@@ -234,12 +244,12 @@ public class MailTemplates {
     private Map<String, String> sample(String lang, String organization) {
         boolean english = "en".equals(lang);
         return Map.of(
-                "organization", organization == null || organization.isBlank() ? "Acme" : organization,
+                ORGANIZATION, organization == null || organization.isBlank() ? "Acme" : organization,
                 "inviter", english ? "Jane Doe" : "Ana Pérez",
                 "email", english ? "jane@example.com" : "ana@example.com",
-                "link", "https://example.com/" + lang + "/invite/sample-token",
+                LINK, "https://example.com/" + lang + "/invite/sample-token",
                 "expiresAt", date(lang, Instant.now().plus(Duration.ofDays(30))),
-                "logoUrl", logoUrl);
+                LOGO_URL, logoUrl);
     }
 
     /** A date as invitations show it: "5 de noviembre de 2026", "November 5, 2026". */

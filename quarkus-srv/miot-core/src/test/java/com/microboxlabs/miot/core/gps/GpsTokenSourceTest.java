@@ -84,4 +84,37 @@ class GpsTokenSourceTest {
         IllegalStateException e = assertThrows(IllegalStateException.class, () -> await(call));
         assertTrue(e.getMessage().contains("401"));
     }
+
+    @Test
+    void currentReusesATokenUntilAMinuteBeforeItExpires() {
+        GpsTokenSource source = source(Optional.of("http://token.test"));
+        IssuedToken first = source.current(CLIENT).await().indefinitely();
+        assertEquals(first, source.current(CLIENT).await().indefinitely());
+        assertEquals(1, api.requests.size());
+
+        api.expiresAt = Instant.now().plusSeconds(30);
+        GpsTokenSource soon = source(Optional.of("http://token.test"));
+        soon.current(CLIENT).await().indefinitely();
+        soon.current(CLIENT).await().indefinitely();
+        assertEquals(3, api.requests.size());
+    }
+
+    @Test
+    void currentDoesNotKeepARefusal() {
+        GpsTokenSource source = source(Optional.of("http://token.test"));
+        api.refuseWith = 401;
+        Uni<?> refused = source.current(CLIENT);
+        assertThrows(IllegalStateException.class, () -> await(refused));
+
+        api.refuseWith = 0;
+        assertTrue(source.current(CLIENT).await().indefinitely().accessToken().contains("."));
+        assertEquals(2, api.requests.size());
+    }
+
+    @Test
+    void currentRefusesABlankClientId() {
+        Uni<?> blank = source(Optional.of("http://token.test")).current(" ");
+        assertThrows(IllegalStateException.class, () -> await(blank));
+        assertTrue(api.requests.isEmpty());
+    }
 }

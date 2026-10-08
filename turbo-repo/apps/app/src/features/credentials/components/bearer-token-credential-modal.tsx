@@ -6,6 +6,9 @@ import { SettingsFormField } from "@/features/settings-admin/components/settings
 import {
   BearerTokenCredentialEditSchema,
   BearerTokenCredentialSchema,
+  RESEND_PROVIDER,
+  ResendCredentialEditSchema,
+  ResendCredentialSchema,
   type BearerTokenFormData,
   type CredentialListItem,
 } from "../credential.types";
@@ -18,7 +21,7 @@ import {
   type CredentialFormChrome,
 } from "./credential-form-shell";
 
-const CHROME: CredentialFormChrome = {
+const BEARER_CHROME: CredentialFormChrome = {
   typeId: "BEARER_TOKEN",
   idPrefix: "bearer",
   addTitleKey: "modal.bearerAddTitle",
@@ -27,27 +30,74 @@ const CHROME: CredentialFormChrome = {
   logoAltKey: "types.bearer.name",
 };
 
-const DEFAULTS: BearerTokenFormData = {
-  name: "",
-  environment: "DEVELOPMENT",
-  token: "",
+const RESEND_CHROME: CredentialFormChrome = {
+  typeId: "RESEND",
+  idPrefix: "resend",
+  addTitleKey: "modal.resendAddTitle",
+  editTitleKey: "modal.resendEditTitle",
+  subtitleKey: "modal.resendSubtitle",
+  logoAltKey: "types.resend.name",
 };
 
-function toFormValues(editing: CredentialListItem): BearerTokenFormData {
-  return { name: editing.name, environment: editing.environment, token: "" };
+interface TokenVariant {
+  readonly chrome: CredentialFormChrome;
+  readonly provider?: string;
+  readonly schema: typeof BearerTokenCredentialSchema;
+  readonly editSchema: typeof BearerTokenCredentialEditSchema;
+  readonly helpKey: "modal.tokenHelp" | "modal.resendTokenHelp";
 }
+
+const BEARER: TokenVariant = {
+  chrome: BEARER_CHROME,
+  schema: BearerTokenCredentialSchema,
+  editSchema: BearerTokenCredentialEditSchema,
+  helpKey: "modal.tokenHelp",
+};
+
+const RESEND: TokenVariant = {
+  chrome: RESEND_CHROME,
+  provider: RESEND_PROVIDER,
+  schema: ResendCredentialSchema,
+  editSchema: ResendCredentialEditSchema,
+  helpKey: "modal.resendTokenHelp",
+};
 
 /** Create/edit form for a static bearer token. The token is write-only. */
 export function BearerTokenCredentialModal(
   props: CredentialModalProps<BearerTokenFormData>
 ) {
-  const { dict } = props;
+  return <TokenCredentialModal {...props} variant={BEARER} />;
+}
+
+/** Create/edit form for a Resend API key: a bearer token tagged as Resend. */
+export function ResendCredentialModal(
+  props: CredentialModalProps<BearerTokenFormData>
+) {
+  return <TokenCredentialModal {...props} variant={RESEND} />;
+}
+
+function TokenCredentialModal(
+  props: CredentialModalProps<BearerTokenFormData> & {
+    readonly variant: TokenVariant;
+  }
+) {
+  const { dict, variant } = props;
+  const defaults: BearerTokenFormData = {
+    name: "",
+    environment: "DEVELOPMENT",
+    token: "",
+    ...(variant.provider ? { provider: variant.provider } : {}),
+  };
   const state = useCredentialForm<BearerTokenFormData>({
     ...props,
-    defaults: DEFAULTS,
-    schema: BearerTokenCredentialSchema,
-    editSchema: BearerTokenCredentialEditSchema,
-    toFormValues,
+    defaults,
+    schema: variant.schema,
+    editSchema: variant.editSchema,
+    toFormValues: (editing: CredentialListItem) => ({
+      ...defaults,
+      name: editing.name,
+      environment: editing.environment,
+    }),
   });
 
   const {
@@ -56,14 +106,14 @@ export function BearerTokenCredentialModal(
   } = state.form;
 
   return (
-    <CredentialFormShell {...props} chrome={CHROME} state={state}>
+    <CredentialFormShell {...props} chrome={variant.chrome} state={state}>
       <SettingsFormField
-        id="bearer-token"
+        id={`${variant.chrome.idPrefix}-token`}
         label={tr("modal.token", dict)}
         error={trDynamic(errors.token?.message ?? "", dict)}
       >
         <TextInput
-          id="bearer-token"
+          id={`${variant.chrome.idPrefix}-token`}
           type="password"
           autoComplete="off"
           spellCheck={false}
@@ -76,7 +126,7 @@ export function BearerTokenCredentialModal(
           color={errors.token ? "failure" : undefined}
         />
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {tr("modal.tokenHelp", dict)}
+          {trDynamic(variant.helpKey, dict)}
         </p>
       </SettingsFormField>
     </CredentialFormShell>

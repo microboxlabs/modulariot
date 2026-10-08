@@ -18,6 +18,7 @@ import {
   buildNamedMapLayers,
 } from "./layers/build-layers";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
+import { attachBoxZoom } from "./box-zoom";
 
 // ============================================================================
 // Constants / helpers
@@ -307,6 +308,10 @@ export default function MapVisualization({
     return () => resizeObserver.disconnect();
   }, [mapRef]);
 
+  // Custom Shift + drag box zoom, attached in onLoad (see box-zoom.ts)
+  const detachBoxZoomRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => detachBoxZoomRef.current?.(), []);
+
   const mapboxStyles = useMemo(
     () => (
       <style>
@@ -334,7 +339,10 @@ export default function MapVisualization({
             const z = e.target.getZoom();
             setInternalZoom(z);
             onZoomChange?.(z);
+            detachBoxZoomRef.current?.();
+            detachBoxZoomRef.current = attachBoxZoom(e.target);
           }}
+          boxZoom={false}
           onZoom={(e) => {
             setInternalZoom(e.viewState.zoom);
             onZoomChange?.(e.viewState.zoom);

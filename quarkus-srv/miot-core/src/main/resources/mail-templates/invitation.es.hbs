@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Te invitaron a {{organization}}</title>
+</head>
+<body style="margin:0;padding:0;background:#f3f4f6">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6">
+<tr><td align="center" style="padding:32px 16px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:12px;font-family:Arial,Helvetica,sans-serif;color:#111827">
+<tr><td style="padding:32px 32px 8px">
+<img src="{{logoUrl}}" width="160" height="39" alt="ModularIoT" style="display:block;border:0">
+</td></tr>
+<tr><td style="padding:16px 32px 0;font-size:22px;font-weight:bold;line-height:1.3">
+Te invitaron a {{organization}}
+</td></tr>
+<tr><td style="padding:12px 32px 0;font-size:15px;line-height:1.6;color:#374151">
+{{inviter}} te invitó a unirte a <strong>{{organization}}</strong>. Para aceptar, abre el enlace e inicia sesión con <strong>{{email}}</strong>.
+</td></tr>
+<tr><td style="padding:24px 32px">
+<a href="{{link}}" style="display:inline-block;padding:12px 22px;background:#072444;color:#ffffff;font-size:15px;font-weight:bold;text-decoration:none;border-radius:8px">Aceptar la invitación</a>
+</td></tr>
+<tr><td style="padding:0 32px 32px;font-size:13px;line-height:1.6;color:#6b7280">
+La invitación vence el {{expiresAt}}. Si no esperabas este correo, puedes ignorarlo.<br>
+Si el botón no funciona, copia este enlace en tu navegador:<br>
+<span style="word-break:break-all">{{link}}</span>
+</td></tr>
+</table>
+<p style="margin:16px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9ca3af">Enviado con ModularIoT</p>
+</td></tr>
+</table>
+</body>
+</html>

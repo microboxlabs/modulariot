@@ -2,8 +2,7 @@ package com.microboxlabs.miot.symptoms.catalog.mcp;
 
 import com.microboxlabs.miot.core.mcp.McpCaller;
 import com.microboxlabs.miot.core.selectable.SelectableOption;
-import com.microboxlabs.miot.symptoms.access.ControlTowerAccess;
-import com.microboxlabs.miot.symptoms.access.ControlTowerPermission;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceKind;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
@@ -27,7 +26,6 @@ import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.ForbiddenException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -38,7 +36,7 @@ import java.util.function.Supplier;
  * {@code /api/v1/orgs/{org}/control-tower/symptom-definitions} and
  * {@code .../data-sources}, under the same rules. Any member reads, checks
  * and previews; saving a draft, publishing, rolling back and changing the
- * state need an organization owner. Creating, forking and discarding are
+ * state need controltower:symptom.edit or controltower:symptom.publish. Creating, forking and discarding are
  * left to the screen.
  */
 @ApplicationScoped
@@ -106,34 +104,20 @@ public class SymptomTools {
     private final DataSourceService sources;
     private final PreviewService previews;
     private final SymptomFamilies families;
-    private final ControlTowerAccess access;
 
     @Inject
     public SymptomTools(McpCaller caller, SymptomCatalogService catalog, DataSourceService sources,
-            PreviewService previews, SymptomFamilies families, ControlTowerAccess access) {
+            PreviewService previews, SymptomFamilies families) {
         this.caller = caller;
         this.catalog = catalog;
         this.sources = sources;
         this.previews = previews;
         this.families = families;
-        this.access = access;
     }
 
-    /** A caller with {@link ControlTowerPermission#VIEW}, as the REST reads require. */
+    /** The same permissions the REST endpoints declare; see {@link ControlTowerAccessCatalog}. */
     private Uni<McpCaller.Entered> viewer(String organization) {
-        return permitted(organization, ControlTowerPermission.VIEW);
-    }
-
-    /** A caller with {@link ControlTowerPermission#MAINTAIN}, as the REST catalog writes require. */
-    private Uni<McpCaller.Entered> maintainer(String organization) {
-        return permitted(organization, ControlTowerPermission.MAINTAIN);
-    }
-
-    private Uni<McpCaller.Entered> permitted(String organization, ControlTowerPermission permission) {
-        return caller.member(organization).flatMap(in -> access.require(organization, permission)
-                .onFailure(ForbiddenException.class)
-                .transform(e -> new ToolCallException(e.getMessage()))
-                .replaceWith(in));
+        return caller.permitted(organization, ControlTowerAccessCatalog.VIEW);
     }
 
     @Tool(name = "symptoms_list", structuredContent = true,
@@ -241,15 +225,15 @@ public class SymptomTools {
     @Tool(name = "symptoms_save_draft", structuredContent = true,
             description = "Saves a spec as the symptom's draft, replacing any draft already there. This is how"
                     + " to propose a change: nothing is evaluated differently until the draft is published. The"
-                    + " draft may have errors; run symptoms_validate and symptoms_plan_publish next. Needs an"
-                    + " organization owner.",
+                    + " draft may have errors; run symptoms_validate and symptoms_plan_publish next. Needs the"
+                    + " controltower:symptom.edit permission.",
             annotations = @Tool.Annotations(title = "Save a symptom draft", readOnlyHint = false,
                     destructiveHint = true, idempotentHint = true, openWorldHint = false))
     public Uni<SymptomVersion> saveDraft(
             @ToolArg(description = ORGANIZATION) String organization,
             @ToolArg(description = SYMPTOM_ID) String symptomId,
             @ToolArg(description = SPEC) SymptomSpec spec) {
-        return maintainer(organization)
+        return caller.permitted(organization, ControlTowerAccessCatalog.SYMPTOM_EDIT)
                 .flatMap(in -> work(() -> catalog.saveDraft(in.tenantCode(), in.actor(), uuid(symptomId), spec)));
     }
 
@@ -257,7 +241,8 @@ public class SymptomTools {
             description = "Publishes the saved draft as a new version, which is then in force. Published"
                     + " versions are never edited. Refused when the draft has errors or nothing changed." + BUMPS
                     + " bump may raise the computed bump, never lower it. Only call it after the owner has seen"
-                    + " the plan and explicitly confirmed. Needs an organization owner.",
+                    + " the plan and explicitly confirmed. Needs the"
+                    + " controltower:symptom.publish permission.",
             annotations = @Tool.Annotations(title = "Publish a symptom draft", readOnlyHint = false,
                     destructiveHint = true, idempotentHint = false, openWorldHint = false))
     public Uni<SymptomVersion> publish(
@@ -271,15 +256,16 @@ public class SymptomTools {
                     + " draft's state, else the symptom's (TEST for a first version). ACTIVE is refused while the"
                     + " rules use fields the engine does not evaluate yet.", required = false)
             SymptomState state) {
-        return maintainer(organization).flatMap(in -> work(() -> catalog.publish(in.tenantCode(), in.actor(),
+        return caller.permitted(organization, ControlTowerAccessCatalog.SYMPTOM_PUBLISH)
+                .flatMap(in -> work(() -> catalog.publish(in.tenantCode(), in.actor(),
                 uuid(symptomId), reason, bump, state)));
     }
 
     @Tool(name = "symptoms_rollback", structuredContent = true,
             description = "Publishes an earlier version's spec as a new version; history is never rewritten."
                     + " The new number follows the same bump rules against the version in force, and the state"
-                    + " is kept. Only call it after the owner has explicitly confirmed. Needs an organization"
-                    + " owner.",
+                    + " is kept. Only call it after the owner has explicitly confirmed. Needs the"
+                    + " controltower:symptom.publish permission.",
             annotations = @Tool.Annotations(title = "Roll back a symptom", readOnlyHint = false,
                     destructiveHint = true, idempotentHint = false, openWorldHint = false))
     public Uni<SymptomVersion> rollback(
@@ -288,31 +274,34 @@ public class SymptomTools {
             @ToolArg(description = "The published version to go back to, e.g. 1.2.0.") String version,
             @ToolArg(description = "Why, in the owner's words. \"Volver a <version>\" when left out.",
                     required = false) String reason) {
-        return maintainer(organization).flatMap(in -> work(() -> {
-            if (version == null || version.isBlank()) {
-                throw new IllegalArgumentException("version is required");
-            }
-            return catalog.rollback(in.tenantCode(), in.actor(), uuid(symptomId), version, reason);
-        }));
+        return caller.permitted(organization, ControlTowerAccessCatalog.SYMPTOM_PUBLISH)
+                .flatMap(in -> work(() -> {
+                    if (version == null || version.isBlank()) {
+                        throw new IllegalArgumentException("version is required");
+                    }
+                    return catalog.rollback(in.tenantCode(), in.actor(), uuid(symptomId), version, reason);
+                }));
     }
 
     @Tool(name = "symptoms_set_state", structuredContent = true,
             description = "Turns a symptom OFF (not evaluated), to TEST (evaluated, shown as \"En prueba\", not"
                     + " sent to operators) or ACTIVE (in force). A symptom needs a published version to leave"
                     + " OFF, and ACTIVE is refused while its rules use fields the engine does not evaluate yet."
-                    + " Only call it after the owner has explicitly confirmed. Needs an organization owner.",
+                    + " Only call it after the owner has explicitly confirmed. Needs the"
+                    + " controltower:symptom.publish permission.",
             annotations = @Tool.Annotations(title = "Set a symptom's state", readOnlyHint = false,
                     destructiveHint = true, idempotentHint = true, openWorldHint = false))
     public Uni<SymptomDefinition> setState(
             @ToolArg(description = ORGANIZATION) String organization,
             @ToolArg(description = SYMPTOM_ID) String symptomId,
             @ToolArg(description = "OFF, TEST or ACTIVE.") SymptomState state) {
-        return maintainer(organization).flatMap(in -> work(() -> {
-            if (state == null) {
-                throw new IllegalArgumentException("state is required");
-            }
-            return catalog.setState(in.tenantCode(), in.actor(), uuid(symptomId), state);
-        }));
+        return caller.permitted(organization, ControlTowerAccessCatalog.SYMPTOM_PUBLISH)
+                .flatMap(in -> work(() -> {
+                    if (state == null) {
+                        throw new IllegalArgumentException("state is required");
+                    }
+                    return catalog.setState(in.tenantCode(), in.actor(), uuid(symptomId), state);
+                }));
     }
 
     private static SourceSummary summary(DataSource s) {

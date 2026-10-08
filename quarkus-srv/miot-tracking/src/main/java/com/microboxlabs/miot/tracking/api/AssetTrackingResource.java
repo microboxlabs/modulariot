@@ -5,14 +5,20 @@ import cl.streamhub.gps.model.metrics.MetricItem;
 import cl.streamhub.gps.model.metrics.MetricRegistry;
 import cl.streamhub.gps.model.metrics.MetricValidationResult;
 import com.microboxlabs.miot.core.auth.M2MAuth;
+import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.gps.GpsAccessCatalog;
+import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
+import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.tracking.errors.PublishPulsarError;
 import com.microboxlabs.miot.tracking.service.AssetTrackingService;
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.HeaderParam;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -52,12 +58,16 @@ public class AssetTrackingResource {
     private final AssetTrackingService trackingService;
     private final TenantContext tenantContext;
     private final Validator validator;
+    private final SecurityIdentity identity;
+    private final OrganizationContext organizationContext;
 
     AssetTrackingResource(AssetTrackingService trackingService, TenantContext tenantContext,
-            Validator validator) {
+            Validator validator, SecurityIdentity identity, OrganizationContext organizationContext) {
         this.trackingService = trackingService;
         this.tenantContext = tenantContext;
         this.validator = validator;
+        this.identity = identity;
+        this.organizationContext = organizationContext;
     }
 
     @POST
@@ -73,7 +83,23 @@ public class AssetTrackingResource {
             @Parameter(description = "Request timestamp in Unix epoch seconds", required = true)
                     @HeaderParam("X-Request-Timestamp")
                     Double requestTimestamp) {
+        if (IamIdentityAugmentor.serviceAccountOf(identity) == null) {
+            return publish(assetTrackingData, requestId, requestTimestamp);
+        }
+        // An API key sends positions for its own organization, and only with the GPS publisher permission.
+        return identity.checkPermission(OrgPermission.of(GpsAccessCatalog.TRACK_WRITE,
+                        organizationContext.getOrganizationId()))
+                .subscribeAsCompletionStage()
+                .thenCompose(allowed -> Boolean.TRUE.equals(allowed)
+                        ? publish(assetTrackingData, requestId, requestTimestamp)
+                        : CompletableFuture.completedFuture(Response.status(Response.Status.FORBIDDEN)
+                                .entity(createErrorResponse("Forbidden",
+                                        "The API key needs the " + GpsAccessCatalog.TRACK_WRITE + " permission"))
+                                .build()));
+    }
 
+    private CompletionStage<Response> publish(AssetTrackingData assetTrackingData, String requestId,
+            Double requestTimestamp) {
         String clientId = tenantContext.getClientId();
 
         try {
@@ -84,7 +110,7 @@ public class AssetTrackingResource {
             Optional<Response> validationError =
                     validateRequest(assetTrackingData, requestTimestamp, clientId, requestId);
             if (validationError.isPresent()) {
-                return java.util.concurrent.CompletableFuture.completedFuture(
+                return CompletableFuture.completedFuture(
                         validationError.get());
             }
 
@@ -109,7 +135,7 @@ public class AssetTrackingResource {
                     "Pulsar publishing failed for Client ID: %s, Request ID: %s",
                     clientId,
                     requestId);
-            return java.util.concurrent.CompletableFuture.completedFuture(
+            return CompletableFuture.completedFuture(
                     Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                             .entity(createErrorResponse("Failed to publish message", e.getMessage()))
                             .build());
@@ -118,7 +144,7 @@ public class AssetTrackingResource {
             logger.warnf(
                     "Invalid request data for Client ID: %s, Request ID: %s, Error: %s",
                     clientId, requestId, e.getMessage());
-            return java.util.concurrent.CompletableFuture.completedFuture(
+            return CompletableFuture.completedFuture(
                     Response.status(Response.Status.BAD_REQUEST)
                             .entity(createErrorResponse("Invalid request data", e.getMessage()))
                             .build());
@@ -129,7 +155,7 @@ public class AssetTrackingResource {
                     "Unexpected error for Client ID: %s, Request ID: %s",
                     clientId,
                     requestId);
-            return java.util.concurrent.CompletableFuture.completedFuture(
+            return CompletableFuture.completedFuture(
                     Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                             .entity(createErrorResponse("Internal server error", "An unexpected error occurred"))
                             .build());

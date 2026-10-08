@@ -21,6 +21,24 @@ Features and improvements in development:
 
 ## Recent Releases
 
+### Dashboard UI v0.1.2 (2026-10-08)
+
+Published the [dashboard UI](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui) v0.1.2:
+
+- A widget dragged in edit mode stays under the pointer. Before, the first move threw it away by the grid's distance from the page corner, such as a sidebar and header.
+
+### Dashboard UI v0.1.1 (2026-10-07)
+
+Published the [dashboard UI](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui) v0.1.1:
+
+- In edit mode, a widget can be dragged from anywhere on it, including the middle of a table or a chart. While the grid can drag, a widget's content no longer scrolls, takes the pointer or selects text. Controls in the host's `Frame` and container widgets stay interactive.
+
+### Dashboard server v0.7.0 (2026-10-06)
+
+Published the [server](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) v0.7.0:
+
+- `MIOT_DASHBOARD_GROUP_ROLES_PATTERN` and `MIOT_DASHBOARD_GROUP_ROLES_MAP` read organization and scope roles from the caller's groups, such as `GROUP_DHB_{tenant}_{role}`, with no seed file or lookup service ([guide](/en/products/dashboards/how-to/authenticate-users)). `createGroupRoleAuthorities` does the same for library users. Requires contract `^0.6.0`.
+
 ### Dashboard packages v0.6.0 and dashboard UI v0.1.0 (2026-10-05)
 
 Published [contract](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract) and [server](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) v0.6.0, and the first release of the [dashboard UI](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui), v0.1.0:

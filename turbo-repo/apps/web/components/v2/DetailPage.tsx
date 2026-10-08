@@ -3,7 +3,7 @@ import { Reveal } from "./Reveal";
 import { ConceptGraphic } from "./ConceptGraphic";
 import { StatsGrid } from "./StatsGrid";
 import { FinalCta } from "./sections/FinalCta";
-import { Section, btnPrimary, btnLg, type Tone } from "./sections/shared";
+import { Section, btnPrimary, btnSecondary, btnLg, type Tone } from "./sections/shared";
 
 // ============================================================
 // Renderizador de páginas de detalle basado en datos.
@@ -43,6 +43,22 @@ export type Block =
       cards: { title: string; code: string }[];
     }
   | { type: "stats"; items: { value: string; label: string }[] }
+  | {
+      type: "plans";
+      kicker?: string;
+      title: string;
+      subtitle?: string;
+      plans: {
+        name: string;
+        price: string;
+        body: string;
+        bullets: string[];
+        cta: string;
+        href: string;
+        external?: boolean;
+        featured?: boolean;
+      }[];
+    }
   | {
       type: "linkgrid";
       kicker?: string;
@@ -369,6 +385,52 @@ function BlockView({
           <StatsGrid items={block.items} tone="dark" align="center" />
         </div>
       </section>
+    );
+  }
+
+  if (block.type === "plans") {
+    return (
+      <Section tone={tone}>
+        <Header
+          kicker={block.kicker}
+          title={block.title}
+          subtitle={block.subtitle}
+        />
+        <div className="mt-14 grid gap-6 lg:grid-cols-3">
+          {block.plans.map((plan, i) => (
+            <Reveal
+              key={plan.name}
+              delay={i * 0.07}
+              className={`bg-surface flex flex-col rounded-xl border p-8 ${
+                plan.featured ? "border-ink-1 shadow-md" : "border-hairline"
+              }`}
+            >
+              <h3 className="text-ink-1 text-lg font-semibold">{plan.name}</h3>
+              <p className="text-ink-1 mt-3 text-3xl font-semibold tracking-[-0.02em]">
+                {plan.price}
+              </p>
+              <p className="text-ink-2 mt-3 leading-relaxed">{plan.body}</p>
+              <ul className="mt-6 flex-1 space-y-3">
+                {plan.bullets.map((b) => (
+                  <li key={b} className="text-ink-2 flex items-start gap-3 text-sm">
+                    <Check />
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+              <a
+                href={plan.external ? plan.href : `${base}${plan.href}`}
+                {...(plan.external
+                  ? { target: "_blank", rel: "noopener noreferrer" }
+                  : {})}
+                className={`mt-8 text-center ${plan.featured ? btnPrimary : btnSecondary} ${btnLg}`}
+              >
+                {plan.cta}
+              </a>
+            </Reveal>
+          ))}
+        </div>
+      </Section>
     );
   }
 

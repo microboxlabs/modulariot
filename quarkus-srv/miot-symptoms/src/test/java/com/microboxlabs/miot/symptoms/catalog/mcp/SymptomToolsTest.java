@@ -13,7 +13,13 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.mcp.McpCaller;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.core.selectable.SelectableOption;
-import com.microboxlabs.miot.symptoms.access.ControlTowerAccess;
+import com.microboxlabs.miot.core.iam.Access;
+import com.microboxlabs.miot.core.iam.BaseRole;
+import com.microboxlabs.miot.core.iam.AccessRegistry;
+import com.microboxlabs.miot.core.iam.AccessRules;
+import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
@@ -69,7 +75,7 @@ class SymptomToolsTest {
                 tenant, List.of("azp", "aud"));
         return new SymptomTools(caller, catalog, sources, new PreviewService(catalog, sources),
                 new SymptomFamilies(t -> List.of(SelectableOption.of("driving_safety", "Seguridad de conducción",
-                        "Driving safety"))), new ControlTowerAccess(roles, organization));
+                        "Driving safety"))));
     }
 
     private static <T> T await(Uni<T> call) {
@@ -122,11 +128,11 @@ class SymptomToolsTest {
     void aMemberCannotChangeTheCatalog() {
         SymptomTools tools = toolsFor(MEMBER);
 
-        assertEquals("Control tower permission required: MAINTAIN",
+        assertEquals("Permission required: controltower:symptom.edit",
                 failure(tools.saveDraft(ORG, speeding, raisedCodigoNegro())).getMessage());
-        assertEquals("Control tower permission required: MAINTAIN",
+        assertEquals("Permission required: controltower:symptom.publish",
                 failure(tools.publish(ORG, speeding, "Primera", null, null)).getMessage());
-        assertEquals("Control tower permission required: MAINTAIN",
+        assertEquals("Permission required: controltower:symptom.publish",
                 failure(tools.setState(ORG, speeding, SymptomState.OFF)).getMessage());
     }
 
@@ -212,7 +218,7 @@ class SymptomToolsTest {
         final OrganizationContext organization;
 
         FakeAccess(TenantContext tenant, OrganizationContext organization) {
-            super(tenant, organization, null, null);
+            super(tenant, organization, null);
             this.tenant = tenant;
             this.organization = organization;
         }
@@ -229,17 +235,23 @@ class SymptomToolsTest {
         }
     }
 
+    static final AccessRegistry REGISTRY =
+            new AccessRegistry(List.of(new CoreAccessCatalog(), new ControlTowerAccessCatalog()));
+
     static final class FakeRoles extends OrganizationRoleService {
         final OrganizationContext organization;
 
         FakeRoles(OrganizationContext organization) {
-            super(null, organization, null, null);
+            super(organization, null, null);
             this.organization = organization;
         }
 
+        /** The real rules: the owner is an Owner; anyone else an Alfresco member with the legacy Operator role. */
         @Override
-        public Uni<Set<String>> callerRoles(String organizationSlug) {
-            return Uni.createFrom().item(OWNER.equals(organization.getUserEmail()) ? Set.of(OWNER_ROLE_CODE) : Set.of());
+        public Uni<Access> access(String organizationSlug, Caller caller) {
+            AccessRules.Facts facts = new AccessRules.Facts(false, OWNER.equals(caller.email()) ? BaseRole.OWNER : null,
+                    true, false, false, Set.of(), null);
+            return Uni.createFrom().item(AccessRules.resolve(1L, organizationSlug, caller, facts, REGISTRY));
         }
     }
 }

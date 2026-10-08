@@ -59,6 +59,22 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-vertx</artifactId>
         </dependency>
+        <!-- The IAM projection worker (core.iam.AlfrescoBridge). -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-scheduler</artifactId>
+        </dependency>
+        <!-- Email templates (core.mail.MailTemplates). Nashorn is only for precompiling to JavaScript. -->
+        <dependency>
+            <groupId>com.github.jknack</groupId>
+            <artifactId>handlebars</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.openjdk.nashorn</groupId>
+                    <artifactId>nashorn-core</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
         <!-- MCP endpoint for the tools in core.mcp; configured in miot-cli. -->
         <dependency>
             <groupId>io.quarkiverse.mcp</groupId>

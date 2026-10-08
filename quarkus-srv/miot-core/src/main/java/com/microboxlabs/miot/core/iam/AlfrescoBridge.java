@@ -1,0 +1,217 @@
+package com.microboxlabs.miot.core.iam;
+
+import com.microboxlabs.miot.core.alfresco.AlfrescoPerson;
+import com.microboxlabs.miot.core.alfresco.IAlfrescoDirectoryClient;
+import com.microboxlabs.miot.core.alfresco.IAlfrescoGroupAdminClient;
+import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
+import com.microboxlabs.miot.core.iam.model.IamAuditEvent;
+import com.microboxlabs.miot.core.iam.model.IamMembership;
+import com.microboxlabs.miot.core.iam.model.IamProjectionChange;
+import com.microboxlabs.miot.core.iam.model.IamUser;
+import com.microboxlabs.miot.core.model.Organization;
+import io.quarkus.hibernate.reactive.panache.Panache;
+import io.quarkus.scheduler.Scheduled;
+import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
+
+/**
+ * Moves an organization from Alfresco membership to native membership without losing anyone, and keeps its Alfresco
+ * group in step afterwards.
+ *
+ * <ul>
+ *   <li>{@link #importMembers}: every member of the org's Alfresco group becomes a membership (site and group
+ *       managers as Admin, everyone else as Member). Existing memberships keep their role.</li>
+ *   <li>Projection, when {@value #PROJECTION_PROPERTY} is true: adding or removing a member of a native
+ *       organization with an Alfresco group writes an outbox row in the same transaction; {@link #sendPending}
+ *       applies it to Alfresco and retries failures, so BPM pooled tasks and document permissions follow.</li>
+ * </ul>
+ */
+@ApplicationScoped
+public class AlfrescoBridge {
+
+    public static final String PROJECTION_PROPERTY = "miot.iam.alfresco-projection.enabled";
+    static final int MAX_ATTEMPTS = 10;
+    static final int PAGE = 100;
+    private static final Logger LOG = Logger.getLogger(AlfrescoBridge.class);
+
+    public record ImportResult(String organization, String groupId, int seen, int added, int alreadyMembers) {
+    }
+
+    private final boolean projection;
+    private final AccessEvaluator evaluator;
+    private final IAlfrescoDirectoryClient directory;
+    private final IAlfrescoMembershipClient membership;
+    private final IAlfrescoGroupAdminClient groups;
+
+    @Inject
+    public AlfrescoBridge(@ConfigProperty(name = PROJECTION_PROPERTY, defaultValue = "false") boolean projection,
+            AccessEvaluator evaluator, IAlfrescoDirectoryClient directory, IAlfrescoMembershipClient membership,
+            IAlfrescoGroupAdminClient groups) {
+        this.projection = projection;
+        this.evaluator = evaluator;
+        this.directory = directory;
+        this.membership = membership;
+        this.groups = groups;
+    }
+
+    // --- import ---
+
+    /**
+     * Copies the Alfresco group of {@code slug}'s top-level organization into memberships. Run it before switching
+     * the organization to NATIVE.
+     */
+    public Uni<ImportResult> importMembers(String slug, String actor) {
+        return Panache.withTransaction(() -> Organization.findBySlug(slug).flatMap(found -> {
+            if (found == null) {
+                throw new NoSuchElementException("Organization not found: " + slug);
+            }
+            return evaluator.root(found);
+        }).flatMap(org -> {
+            if (org.alfrescoGroupId == null) {
+                throw new IllegalStateException("The organization has no Alfresco group");
+            }
+            return people(org.alfrescoGroupId, 0, new ArrayList<>())
+                    .flatMap(people -> addAll(org, people, actor))
+                    .flatMap(result -> IamAuditEvent.of(org.id, actor, "alfresco.imported", org.alfrescoGroupId,
+                            Map.of("seen", result.seen(), "added", result.added())).persist().replaceWith(result));
+        }));
+    }
+
+    private Uni<List<AlfrescoPerson>> people(String groupId, int skip, List<AlfrescoPerson> acc) {
+        return directory.listGroupMembers(groupId, PAGE, skip).flatMap(page -> {
+            acc.addAll(page);
+            return page.size() < PAGE ? Uni.createFrom().item(acc) : people(groupId, skip + PAGE, acc);
+        });
+    }
+
+    private Uni<ImportResult> addAll(Organization org, List<AlfrescoPerson> people, String actor) {
+        int[] added = {0};
+        int[] existing = {0};
+        Uni<Void> chain = Uni.createFrom().voidItem();
+        for (AlfrescoPerson person : people) {
+            String email = emailOf(person);
+            if (email != null) {
+                chain = chain.flatMap(i -> importOne(org, person, email, actor)
+                        .invoke(isNew -> (Boolean.TRUE.equals(isNew) ? added : existing)[0]++)
+                        .replaceWithVoid());
+            }
+        }
+        return chain.map(i -> new ImportResult(org.slug, org.alfrescoGroupId, people.size(), added[0],
+                existing[0]));
+    }
+
+    /** The person's email, from the email field or the user id; null when neither is an email. */
+    private static String emailOf(AlfrescoPerson person) {
+        String email = IamUser.normalize(person.email() != null && !person.email().isBlank()
+                ? person.email() : person.id());
+        return email != null && email.contains("@") ? email : null;
+    }
+
+    /** Adds the person as a member unless they already are; true when added. */
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private Uni<Boolean> importOne(Organization org, AlfrescoPerson person, String email, String actor) {
+        return membership.getRole(email, org.alfrescoGroupId)
+                .flatMap(role -> IamUser.findOrCreate(email)
+                        .flatMap(user -> named(user, person))
+                        .flatMap(user -> IamMembership.findOne(org.id, user.id).flatMap(m -> m != null
+                                ? Uni.createFrom().item(false)
+                                : IamMembership.of(org.id, user.id, AccessEvaluator.alfrescoBaseRole(role).name(),
+                                        "ALFRESCO", actor).persist().replaceWith(true))));
+    }
+
+    private static Uni<IamUser> named(IamUser user, AlfrescoPerson person) {
+        if (person.displayName() != null && user.name == null) {
+            user.name = person.displayName();
+        }
+        return user.persist();
+    }
+
+    // --- projection ---
+
+    /** Queues adding {@code email} to the org's Alfresco group, when projection applies. Needs an open session. */
+    public Uni<Void> memberAdded(Long organizationId, String email) {
+        return queue(organizationId, IamProjectionChange.MEMBER_ADDED, email);
+    }
+
+    /** Queues removing {@code email} from the org's Alfresco group, when projection applies. */
+    public Uni<Void> memberRemoved(Long organizationId, String email) {
+        return queue(organizationId, IamProjectionChange.MEMBER_REMOVED, email);
+    }
+
+    @SuppressWarnings({"java:S1612", "java:S3252"}) // Reactive Panache: persist overloads; finders per entity.
+    private Uni<Void> queue(Long organizationId, String kind, String email) {
+        if (!projection || email == null) {
+            return Uni.createFrom().voidItem();
+        }
+        return Organization.<Organization>findById(organizationId).flatMap(org -> {
+            if (org == null || org.alfrescoGroupId == null || !evaluator.isNative(org)) {
+                return Uni.createFrom().voidItem();
+            }
+            return IamProjectionChange.of(org.id, kind, org.alfrescoGroupId, IamUser.normalize(email)).persist()
+                    .replaceWithVoid();
+        });
+    }
+
+    /** Sends pending changes to Alfresco, oldest first; a failure is retried up to {@value #MAX_ATTEMPTS} times. */
+    @Scheduled(every = "${miot.iam.alfresco-projection.every:30s}",
+            concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    Uni<Void> sendPending() {
+        if (!projection) {
+            return Uni.createFrom().voidItem();
+        }
+        return Panache.withSession(() -> IamProjectionChange.findPending(50)).flatMap(changes -> {
+            Uni<Void> chain = Uni.createFrom().voidItem();
+            for (IamProjectionChange change : changes) {
+                chain = chain.flatMap(i -> send(change));
+            }
+            return chain;
+        });
+    }
+
+    /** Calls Alfresco with no transaction open, then records the outcome in a short one. */
+    private Uni<Void> send(IamProjectionChange change) {
+        return Uni.createFrom().deferred(() -> IamProjectionChange.MEMBER_ADDED.equals(change.kind)
+                        ? groups.addGroupMember(change.groupId, change.subject)
+                        : groups.removeGroupMember(change.groupId, change.subject))
+                .<String>map(ok -> null)
+                .onFailure().recoverWithItem(e -> truncate(e.getMessage()))
+                .flatMap(error -> Panache.withTransaction(() -> recordOutcome(change.id, error)));
+    }
+
+    @SuppressWarnings({"java:S1612", "java:S3252"}) // Reactive Panache: persist overloads; finders per entity.
+    private static Uni<Void> recordOutcome(Long id, String error) {
+        return IamProjectionChange.<IamProjectionChange>findById(id).flatMap(row -> {
+            if (row == null) {
+                return Uni.createFrom().voidItem();
+            }
+            if (error == null) {
+                row.status = IamProjectionChange.SYNCED;
+                row.lastError = null;
+            } else {
+                row.attempts++;
+                row.lastError = error;
+                if (row.attempts >= MAX_ATTEMPTS) {
+                    row.status = IamProjectionChange.FAILED;
+                    LOG.warnf("Alfresco projection %d gave up after %d attempts: %s", row.id, row.attempts, error);
+                }
+            }
+            row.updatedAt = Instant.now();
+            return row.<IamProjectionChange>persist().replaceWithVoid();
+        });
+    }
+
+    private static String truncate(String message) {
+        if (message == null) {
+            return "unknown error";
+        }
+        return message.length() > 1000 ? message.substring(0, 1000) : message;
+    }
+}

@@ -52,6 +52,8 @@ export type PlatformSection =
   | "branding"
   | "superusers"
   | "models"
+  | "mail"
+  | "templates"
   | "plan"
   | "usage";
 
@@ -125,6 +127,46 @@ export interface HarnessPlan {
   yearlyDiscountPct: number;
   updatedBy: string | null;
   updatedAt: string | null;
+}
+
+/** Mirrors `CreateRootOrganizationRequest`, with the fields this form sets. */
+/** Without `tenantClientId`, the platform creates a new Auth0 M2M application. */
+export interface CreatePlatformOrganization {
+  slug: string;
+  name: string;
+  tenantClientId?: string;
+  membershipSource: "NATIVE";
+}
+
+/** Mirrors `PlatformAuth0ClientsResource.Auth0ClientView`. */
+export interface Auth0Client {
+  clientId: string;
+  name: string | null;
+  /** Slug of the top-level organization using it, or null. */
+  organization: string | null;
+}
+
+/** Mirrors `OrganizationDto`. */
+export interface PlatformOrganization {
+  id: number;
+  slug: string;
+  name: string;
+  displayName: string;
+  tenantClientId: string;
+  active: boolean;
+}
+
+/** Mirrors `PlatformOrganizationsResource.PlatformOrganizationView`. */
+export interface PlatformOrganizationListItem {
+  slug: string;
+  name: string;
+  displayName: string | null;
+  tenantClientId: string;
+  /** In effect for this organization: its top-level organization's, or NATIVE on a native deployment. */
+  membershipSource: "NATIVE" | "ALFRESCO";
+  taxId: string | null;
+  /** Null for a top-level organization. */
+  parentSlug: string | null;
 }
 
 /** Mirrors `HarnessPlanDtos.SetPlanRequest`. */

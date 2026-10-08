@@ -73,3 +73,10 @@ export {
   createHttpTenantAuthority,
   type HttpTenantAuthorityOptions,
 } from "./identity/tenant-http";
+
+export {
+  createGroupRoleAuthorities,
+  DEFAULT_GROUP_ROLE_MAP,
+  type GroupRoleAuthorities,
+  type GroupRoleOptions,
+} from "./identity/group-roles";

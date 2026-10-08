@@ -36,6 +36,7 @@ import {
   center_in_bounds,
   flyTo,
   panTo,
+  zoomToVehicle,
 } from "@/features/map-visualization/map-view-utils";
 import { haversineKm, type LngLat } from "@/features/calendar/utils/distance";
 import {
@@ -504,8 +505,9 @@ export default function MapVisualizationTrip({
             };
 
             setHoverInfo(formattedInfo as any);
-            if (camera_movement && mapRef.current) {
-              panTo(mapRef.current, [
+            // The trip map only ever shows this one vehicle
+            if (mapRef.current) {
+              zoomToVehicle(mapRef.current, [
                 info.object?.longitude ?? 0,
                 info.object?.latitude ?? 0,
               ]);

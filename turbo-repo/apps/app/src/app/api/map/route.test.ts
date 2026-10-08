@@ -1,251 +1,98 @@
-/**
- * Regression coverage for the map-positions BFF.
- *
- * The upstream gateway rate-limits this RPC by concurrency and rejects bursts
- * with `429 "Spike arrest: too many concurrent requests"`. The route must:
- *   - never surface that retryable backpressure as a hard 500,
- *   - collapse concurrent callers into a single upstream request, and
- *   - fall back to the last-known payload when the upstream is spiking.
- *
- * The route keeps module-level single-flight + cache state, so each test loads
- * a fresh copy via `vi.resetModules()` + dynamic import.
- */
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest, NextResponse } from "next/server";
 
-const authMock = vi.fn();
+const scopeMock = vi.fn();
+const forwardMock = vi.fn();
 
-vi.mock("@/auth", () => ({
-  auth: (...args: unknown[]) => authMock(...args),
+vi.mock("@/app/api/utils/tenant-scope", () => ({
+  resolveTenantScope: () => scopeMock(),
+}));
+vi.mock("@/app/api/utils/streamhub-modulith-proxy", () => ({
+  forwardToStreamhubModulith: (...args: unknown[]) => forwardMock(...args),
 }));
 
-// Stub the M2M token client so the route does not hit the real login endpoint.
-vi.mock("@/features/common/providers/sreamhub-api/streamhub-api.provider", () => ({
-  AuthToken: class {
-    async getToken(): Promise<string> {
-      return "test-token";
-    }
-  },
-}));
+import { GET as positions } from "./route";
+import { GET as summary } from "./resume/route";
+import { GET as dashboard } from "../symptoms/dashboard/route";
 
-type ResponseInit = {
-  ok: boolean;
-  status: number;
-  jsonData?: unknown;
-  text?: string;
-  headers?: Record<string, string>;
-};
+const req = (url: string) => new NextRequest(url);
 
-function makeResponse({
-  ok,
-  status,
-  jsonData,
-  text = "",
-  headers = {},
-}: ResponseInit) {
-  const lower = Object.fromEntries(
-    Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v])
-  );
-  return {
-    ok,
-    status,
-    json: async () => jsonData,
-    text: async () => text,
-    headers: { get: (name: string) => lower[name.toLowerCase()] ?? null },
-  };
-}
-
-async function loadRoute() {
-  vi.resetModules();
-  return import("./route");
-}
-
-const fetchMock = vi.fn();
-
-describe("GET /api/map", () => {
+describe("map and dashboard routes", () => {
   beforeEach(() => {
-    vi.stubGlobal("fetch", fetchMock);
-    fetchMock.mockReset();
-    authMock.mockReset();
-    authMock.mockResolvedValue({ user: { email: "u@example.com" } });
-    process.env.STREAMHUB_URL = "https://gateway.example.com";
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
-
-  it("returns 401 without surfacing upstream when unauthenticated", async () => {
-    authMock.mockResolvedValue(null);
-    const { GET } = await loadRoute();
-
-    const response = await GET();
-
-    expect(response.status).toBe(401);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("returns the upstream positions on success", async () => {
-    const positions = [{ id: "asset-1", location: "0101000000" }];
-    fetchMock.mockResolvedValue(
-      makeResponse({ ok: true, status: 200, jsonData: { data: positions } })
-    );
-    const { GET } = await loadRoute();
-
-    const response = await GET();
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body).toEqual(positions);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("does NOT turn a 429 spike-arrest into a 500 (regression)", async () => {
-    fetchMock.mockResolvedValue(
-      makeResponse({
-        ok: false,
-        status: 429,
-        text: "Spike arrest: too many concurrent requests, slow down.",
-      })
-    );
-    const { GET } = await loadRoute();
-
-    const response = await GET();
-
-    // The bug: any non-OK upstream became a hard 500. A 429 is retryable
-    // backpressure and must surface as a retryable status instead.
-    expect(response.status).not.toBe(500);
-    expect(response.status).toBe(503);
-    expect(response.headers.get("Retry-After")).toBe("5");
-  });
-
-  it("retries a 429 with backoff before giving up", async () => {
-    fetchMock
-      .mockResolvedValueOnce(makeResponse({ ok: false, status: 429, text: "slow down" }))
-      .mockResolvedValueOnce(makeResponse({ ok: false, status: 429, text: "slow down" }))
-      .mockResolvedValueOnce(
-        makeResponse({ ok: true, status: 200, jsonData: { data: [{ id: "a" }] } })
-      );
-    const { GET } = await loadRoute();
-
-    const response = await GET();
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body).toEqual([{ id: "a" }]);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-  });
-
-  it("coalesces concurrent callers into a single upstream request", async () => {
-    // A single pending upstream response both callers must share.
-    let resolveFetch: (value: unknown) => void = () => {};
-    const pending = new Promise((resolve) => {
-      resolveFetch = resolve;
+    vi.clearAllMocks();
+    scopeMock.mockResolvedValue({
+      resolved: true,
+      scope: { activeOrg: { slug: "acme org" } },
     });
-    fetchMock.mockReturnValue(pending);
-    const { GET } = await loadRoute();
-
-    const first = GET();
-    const second = GET();
-    // Wait until the single upstream call is actually in flight before settling.
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    resolveFetch(
-      makeResponse({ ok: true, status: 200, jsonData: { data: [{ id: "x" }] } })
-    );
-
-    const [r1, r2] = await Promise.all([first, second]);
-
-    expect(await r1.json()).toEqual([{ id: "x" }]);
-    expect(await r2.json()).toEqual([{ id: "x" }]);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    forwardMock.mockResolvedValue(NextResponse.json([]));
   });
 
-  it("falls back to the last-known positions when the upstream starts spiking", async () => {
-    const nowSpy = vi.spyOn(Date, "now");
-    let clock = 1_000_000;
-    nowSpy.mockImplementation(() => clock);
-
-    const positions = [{ id: "asset-1" }];
-    fetchMock.mockResolvedValueOnce(
-      makeResponse({ ok: true, status: 200, jsonData: { data: positions } })
-    );
-    const { GET } = await loadRoute();
-
-    // Warm the cache.
-    const ok = await GET();
-    expect(await ok.json()).toEqual(positions);
-
-    // Advance past the TTL so the next call revalidates, but now the gateway
-    // is rejecting with 429. The map keeps its last-known positions.
-    clock += 60_000;
-    fetchMock.mockResolvedValue(
-      makeResponse({ ok: false, status: 429, text: "Spike arrest" })
-    );
-
-    const stale = await GET();
-
-    expect(stale.status).toBe(200);
-    expect(await stale.json()).toEqual(positions);
-    expect(stale.headers.get("x-map-stale")).toBe("1");
+  it("reads positions and the summary of the active organization", async () => {
+    await positions();
+    await summary();
+    expect(forwardMock.mock.calls).toEqual([
+      [
+        "/api/v1/orgs/acme%20org/control-tower/map/positions",
+        { method: "GET", sessionOnly: true },
+      ],
+      [
+        "/api/v1/orgs/acme%20org/control-tower/map/summary",
+        { method: "GET", sessionOnly: true },
+      ],
+    ]);
   });
 
-  it("does NOT serve stale cache for a non-retryable (4xx) upstream error", async () => {
-    const nowSpy = vi.spyOn(Date, "now");
-    let clock = 2_000_000;
-    nowSpy.mockImplementation(() => clock);
-
-    fetchMock.mockResolvedValueOnce(
-      makeResponse({ ok: true, status: 200, jsonData: { data: [{ id: "warm" }] } })
-    );
-    const { GET } = await loadRoute();
-    const warm = await GET();
-    expect(await warm.json()).toEqual([{ id: "warm" }]);
-
-    // Past the TTL, the upstream now fails with a non-retryable 400. A hard
-    // contract/auth break must surface, not be masked by stale data.
-    clock += 60_000;
-    fetchMock.mockResolvedValue(
-      makeResponse({ ok: false, status: 400, text: "bad request" })
-    );
-
-    const response = await GET();
-
-    expect(response.status).toBe(500);
-    expect(response.headers.get("x-map-stale")).toBeNull();
+  it("returns the scope's response when there is no active organization", async () => {
+    scopeMock.mockResolvedValue({
+      resolved: false,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    });
+    expect((await positions()).status).toBe(401);
+    expect(forwardMock).not.toHaveBeenCalled();
   });
 
-  it("treats a malformed 200 (no data field) as a fault, not a cached success", async () => {
-    fetchMock.mockResolvedValueOnce(
-      makeResponse({ ok: true, status: 200, jsonData: { unexpected: "shape" } })
-    );
-    const { GET } = await loadRoute();
-
-    const bad = await GET();
-    expect(bad.status).toBe(503); // 502 upstream fault -> retryable, no cache
-
-    // The malformed payload must not have been cached: the next call hits the
-    // upstream again and returns the real data.
-    fetchMock.mockResolvedValue(
-      makeResponse({ ok: true, status: 200, jsonData: { data: [{ id: "real" }] } })
-    );
-    const good = await GET();
-    expect(await good.json()).toEqual([{ id: "real" }]);
-  });
-
-  it("does not leak the upstream error body to the client", async () => {
-    fetchMock.mockResolvedValue(
-      makeResponse({
-        ok: false,
-        status: 500,
-        text: "SECRET pg error: relation private_table does not exist",
+  it("maps condition counts to the dashboard cards", async () => {
+    forwardMock.mockResolvedValue(
+      NextResponse.json({
+        "Critical condition": 2,
+        "Code Black": 1,
+        "Under Treatment": 4,
       })
     );
-    const { GET } = await loadRoute();
+    const res = await dashboard(req("http://x/app/api/symptoms/dashboard"));
+    expect(await res.json()).toEqual({
+      critic: 2,
+      stable: 0,
+      codeBlack: 1,
+      remission: 0,
+      treatment: 4,
+      compromised: 0,
+      observation: 0,
+    });
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme%20org/control-tower/map/conditions",
+      { method: "GET", sessionOnly: true }
+    );
+  });
 
-    const response = await GET();
-    const body = await response.json();
+  it("forwards each date it receives, so the modulith validates the range", async () => {
+    forwardMock.mockImplementation(async () => NextResponse.json({}));
+    await dashboard(req("http://x/d?from=2026-10-01&to=2026-10-07"));
+    await dashboard(req("http://x/d?from=2026-10-01"));
+    expect(forwardMock.mock.calls.map((c) => c[0])).toEqual([
+      "/api/v1/orgs/acme%20org/control-tower/map/conditions?from=2026-10-01&to=2026-10-07",
+      "/api/v1/orgs/acme%20org/control-tower/map/conditions?from=2026-10-01",
+    ]);
+  });
 
-    expect(JSON.stringify(body)).not.toContain("SECRET");
-    expect(body.errorMessage).toBe("Map positions are temporarily unavailable");
+  it("passes a modulith error through", async () => {
+    forwardMock.mockResolvedValue(
+      NextResponse.json(
+        { error: "GPS data is not configured" },
+        { status: 503 }
+      )
+    );
+    const res = await dashboard(req("http://x/d"));
+    expect(res.status).toBe(503);
   });
 });

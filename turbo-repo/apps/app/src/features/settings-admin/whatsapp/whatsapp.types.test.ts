@@ -24,7 +24,7 @@ describe("parseRecipientList", () => {
 describe("formatRecipientList", () => {
   it("renders a JSON array as newline-separated text", () => {
     expect(formatRecipientList(["+56 9 1", " +56 9 2 ", "", 3])).toBe(
-      "+56 9 1\n+56 9 2\n3",
+      "+56 9 1\n+56 9 2\n3"
     );
   });
 
@@ -86,7 +86,7 @@ describe("test-mode validation", () => {
     if (!result.success) {
       expect(result.error.issues[0]?.path).toEqual(["testRecipients"]);
       expect(result.error.issues[0]?.message).toBe(
-        "validation.testRecipientsRequired",
+        "validation.testRecipientsRequired"
       );
     }
   });
@@ -97,13 +97,13 @@ describe("test-mode validation", () => {
         ...base,
         testModeEnabled: true,
         testRecipients: "+56 9 1234 5678",
-      }).success,
+      }).success
     ).toBe(true);
   });
 
   it("edit schema allows a blank token", () => {
     expect(WhatsAppEditSchema.safeParse({ ...base, token: "" }).success).toBe(
-      true,
+      true
     );
   });
 });

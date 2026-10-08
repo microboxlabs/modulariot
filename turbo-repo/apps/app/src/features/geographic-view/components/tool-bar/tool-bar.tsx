@@ -86,21 +86,29 @@ export default function ToolBar({
     }
   }, [selectedTool]);
 
-  const style_bg = mapstyles.find((style) => style.value === selectedStyle)
-    ?.isDark
-    ? "bg-white"
-    : "bg-gray-800";
-
-  const style_theme = mapstyles.find((style) => style.value === selectedStyle)
-    ?.isDark
-    ? "light"
-    : "dark";
+  const isDarkMap = Boolean(
+    mapstyles.find((style) => style.value === selectedStyle)?.isDark
+  );
+  const style_bg = isDarkMap ? "bg-white" : "bg-gray-800";
+  const style_theme = isDarkMap ? "light" : "dark";
+  const inactiveToggleClass = isDarkMap ? "text-gray-500" : "text-gray-300";
+  const appSignalToggleClass = show_app_signal_detail?.showAppSignalDetail
+    ? "bg-blue-500 text-white "
+    : inactiveToggleClass;
+  const geofencesToggleClass = show_geofences?.showGeofences
+    ? "bg-blue-500 text-white "
+    : inactiveToggleClass;
 
   function handleToggleAppSignalDetail() {
     if (!show_app_signal_detail) return;
     show_app_signal_detail.setShowAppSignalDetail(
       !show_app_signal_detail.showAppSignalDetail
     );
+  }
+
+  function handleToggleGeofences() {
+    if (!show_geofences) return;
+    show_geofences.setShowGeofences(!show_geofences.showGeofences);
   }
 
   return (
@@ -216,12 +224,14 @@ export default function ToolBar({
                   content={tr("geographic_view.signal_detail_app", dictionary)}
                   style={style_theme}
                 >
-                  <div
-                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${show_app_signal_detail.showAppSignalDetail ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+                  <button
+                    type="button"
+                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg bg-transparent hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${appSignalToggleClass}`}
                     onClick={handleToggleAppSignalDetail}
+                    aria-pressed={show_app_signal_detail.showAppSignalDetail}
                   >
                     <HiDevicePhoneMobile size={18} />
-                  </div>
+                  </button>
                 </Tooltip>
               )}
               {show_stops && (
@@ -245,16 +255,14 @@ export default function ToolBar({
                   content={tr("symptoms.geofences", dictionary)}
                   style={style_theme}
                 >
-                  <div
-                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${show_geofences.showGeofences ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-                    onClick={() =>
-                      show_geofences.setShowGeofences(
-                        !show_geofences.showGeofences
-                      )
-                    }
+                  <button
+                    type="button"
+                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg bg-transparent hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${geofencesToggleClass}`}
+                    onClick={handleToggleGeofences}
+                    aria-pressed={show_geofences.showGeofences}
                   >
                     <FaMapPin size={20} />
-                  </div>
+                  </button>
                 </Tooltip>
               )}
             </div>

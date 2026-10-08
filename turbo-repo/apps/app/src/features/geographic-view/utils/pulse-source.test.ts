@@ -78,6 +78,13 @@ describe("pulse source", () => {
       signal_detail: "gps",
     });
     expect(mapCsvPulseRecord({}, 1, 2).signal_detail).toBe("unknown");
+    expect(
+      mapCsvPulseRecord({ signal_description: 12 }, 1, 2).signal_description
+    ).toBe("12");
+    expect(
+      mapCsvPulseRecord({ signal_description: { nested: true } }, 1, 2)
+        .signal_description
+    ).toBeNull();
   });
 
   it("normalizes CSV headers before records are mapped", () => {

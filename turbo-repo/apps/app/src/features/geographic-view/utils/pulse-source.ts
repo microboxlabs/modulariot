@@ -65,7 +65,9 @@ function fieldKeyFingerprint(key: string): string {
 }
 
 function coerceSignalDescription(raw: unknown): string | null {
-  if (raw == null) return null;
+  if (typeof raw !== "string" && typeof raw !== "number") {
+    return null;
+  }
   const value = String(raw).trim();
   return value === "" ? null : value;
 }

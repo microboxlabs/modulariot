@@ -73,7 +73,9 @@ function AccountRow({ account, href, roles, lang, d }: AccountRowProps) {
         {formatDate(lastKeyUse(account), lang, tr("never", d))}
       </td>
       <td className={`${CELL} text-gray-500`}>
-        {account.tokenCredentialRef ? tr("linked", d) : "—"}
+        {account.tokenCredentialRef
+          ? tr("linked", d)
+          : tr("tokenCredentialDefaultShort", d)}
       </td>
       <td className={`${CELL} text-right`}>
         <Button as={Link} href={href} size="xs" color="alternative">

@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.core.iam;
 
 import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
+import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.auth.OrganizationMembership;
 import com.microboxlabs.miot.core.iam.model.IamMembership;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
@@ -37,13 +38,15 @@ public class AccessEvaluator {
     private final AccessRegistry registry;
     private final IAlfrescoMembershipClient alfresco;
     private final OrganizationMembership deployment;
+    private final PlatformAuthorizer platform;
 
     @Inject
     public AccessEvaluator(AccessRegistry registry, IAlfrescoMembershipClient alfresco,
-            OrganizationMembership deployment) {
+            OrganizationMembership deployment, PlatformAuthorizer platform) {
         this.registry = registry;
         this.alfresco = alfresco;
         this.deployment = deployment;
+        this.platform = platform;
     }
 
     public AccessRegistry registry() {
@@ -115,9 +118,11 @@ public class AccessEvaluator {
                     : IamMembership.findFor(scope, user.id);
             return memberships.flatMap(rows -> bindingsOf(user, scope)
                     .flatMap(bindings -> directory(org, root, caller, nativeMembership)
-                            .map(dir -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                                    nativeMembership, highest(rows), dir.member(), dir.bootstrapOwner(), false,
-                                    covered(bindings, org, root), dir.role()), registry))));
+                            .flatMap(dir -> platform.isPlatformOwner(caller.email())
+                                    .map(owner -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
+                                            nativeMembership, highest(rows), dir.member(), dir.bootstrapOwner(),
+                                            false, covered(bindings, org, root), dir.role(),
+                                            Boolean.TRUE.equals(owner)), registry)))));
         });
     }
 

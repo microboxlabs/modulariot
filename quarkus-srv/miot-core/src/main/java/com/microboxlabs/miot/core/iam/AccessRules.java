@@ -14,6 +14,7 @@ import java.util.TreeSet;
  *       site or group.</li>
  *   <li>The organization's own M2M client is a Member; so is a service account of the organization.</li>
  *   <li>Outside native membership, a caller holding no role of a module gets that module's legacy-default role.</li>
+ *   <li>A platform owner is Owner of every organization, with or without a membership.</li>
  * </ul>
  */
 public final class AccessRules {
@@ -26,9 +27,17 @@ public final class AccessRules {
      * @param bootstrapOwner    no owner is assigned and the caller manages the org in Alfresco
      * @param tenantClient      the caller is the organization's own M2M client
      * @param boundRoles        role keys of the bindings that cover the org
+     * @param platformOwner     the caller is a platform owner
      */
     public record Facts(boolean nativeMembership, BaseRole membershipRole, boolean directoryMember,
-            boolean bootstrapOwner, boolean tenantClient, Set<String> boundRoles, String alfrescoRole) {
+            boolean bootstrapOwner, boolean tenantClient, Set<String> boundRoles, String alfrescoRole,
+            boolean platformOwner) {
+
+        public Facts(boolean nativeMembership, BaseRole membershipRole, boolean directoryMember,
+                boolean bootstrapOwner, boolean tenantClient, Set<String> boundRoles, String alfrescoRole) {
+            this(nativeMembership, membershipRole, directoryMember, bootstrapOwner, tenantClient, boundRoles,
+                    alfrescoRole, false);
+        }
     }
 
     private AccessRules() {
@@ -57,6 +66,9 @@ public final class AccessRules {
         }
         if (!caller.isUser()) {
             return null;
+        }
+        if (facts.platformOwner()) {
+            return BaseRole.OWNER;
         }
         if (facts.nativeMembership()) {
             return facts.membershipRole();

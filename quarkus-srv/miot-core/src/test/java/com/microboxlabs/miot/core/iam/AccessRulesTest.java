@@ -75,6 +75,24 @@ class AccessRulesTest {
     }
 
     @Test
+    void aPlatformOwnerIsOwnerOfEveryOrganization() {
+        AccessRules.Facts nativeNoMembership = new AccessRules.Facts(true, null, false, false, false, Set.of(), null,
+                true);
+        assertEquals(BaseRole.OWNER, resolve(ANA, nativeNoMembership).baseRole());
+        assertTrue(resolve(ANA, nativeNoMembership).can(CoreAccessCatalog.OWNERS_MANAGE));
+
+        AccessRules.Facts outsideAlfrescoGroup = new AccessRules.Facts(false, null, false, false, false, Set.of(),
+                null, true);
+        assertEquals(BaseRole.OWNER, resolve(ANA, outsideAlfrescoGroup).baseRole());
+    }
+
+    @Test
+    void platformOwnershipGivesAClientNothing() {
+        AccessRules.Facts facts = new AccessRules.Facts(true, null, false, false, false, Set.of(), null, true);
+        assertFalse(resolve(Caller.client("other-client"), facts).member());
+    }
+
+    @Test
     void alfrescoMembershipNeedsTheGroupAndKeepsTheLegacyDefaults() {
         assertFalse(resolve(ANA, alfrescoFacts(BaseRole.OWNER, false, false)).member());
         Access member = resolve(ANA, alfrescoFacts(null, true, false));

@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.api;
 
 import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import com.microboxlabs.miot.core.api.dto.OrganizationScopeDto;
+import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.IamDirectory;
@@ -57,12 +58,15 @@ public class MeResource {
     private final SecurityIdentity securityIdentity;
     private final AccessEvaluator evaluator;
     private final IamDirectory directory;
+    private final PlatformAuthorizer platform;
 
     @Inject
-    public MeResource(SecurityIdentity securityIdentity, AccessEvaluator evaluator, IamDirectory directory) {
+    public MeResource(SecurityIdentity securityIdentity, AccessEvaluator evaluator, IamDirectory directory,
+            PlatformAuthorizer platform) {
         this.securityIdentity = securityIdentity;
         this.evaluator = evaluator;
         this.directory = directory;
+        this.platform = platform;
     }
 
     @GET
@@ -76,18 +80,19 @@ public class MeResource {
         if (email == null) {
             return Uni.createFrom().item(List.of());
         }
-        return Panache.withSession(() ->
+        return platform.isPlatformOwner(email).flatMap(owner -> Panache.withSession(() ->
                 Organization.listAllActive()
-                        .flatMap(orgs -> buildScopesForCaller(orgs, email)));
+                        .flatMap(orgs -> buildScopesForCaller(orgs, email, Boolean.TRUE.equals(owner)))));
     }
 
-    private Uni<List<OrganizationScopeDto>> buildScopesForCaller(List<Organization> orgs, String email) {
+    private Uni<List<OrganizationScopeDto>> buildScopesForCaller(List<Organization> orgs, String email,
+            boolean platformOwner) {
         // Sequential chain: Phase 1 uses the stub client so this is effectively free.
         // A real Alfresco client with getGroupsForPerson will replace this per-org
         // membership check with a single lookup + in-memory filter.
         Uni<List<OrganizationScopeDto>> acc = Uni.createFrom().item(new ArrayList<>());
         for (Organization org : orgs) {
-            acc = acc.flatMap(list -> buildScopeIfMember(org, email)
+            acc = acc.flatMap(list -> buildScopeIfMember(org, email, platformOwner)
                     .map(scope -> {
                         if (scope != null) {
                             list.add(scope);
@@ -101,18 +106,20 @@ public class MeResource {
 
     /**
      * The org's scope when the caller is a member. With Alfresco membership, an org without an Alfresco group is
-     * left out: every signed-in user would otherwise see it.
+     * left out: every signed-in user would otherwise see it. A platform owner sees every organization.
      */
-    private Uni<OrganizationScopeDto> buildScopeIfMember(Organization org, String email) {
+    private Uni<OrganizationScopeDto> buildScopeIfMember(Organization org, String email, boolean platformOwner) {
         return evaluator.membershipNative(org).flatMap(nativeMembership -> {
-            if (!Boolean.TRUE.equals(nativeMembership) && org.alfrescoGroupId == null) {
+            if (!platformOwner && !Boolean.TRUE.equals(nativeMembership) && org.alfrescoGroupId == null) {
                 return Uni.createFrom().nullItem();
             }
+            // A platform owner is not recorded as an Alfresco member of every organization they open.
+            boolean recordAsNative = platformOwner || Boolean.TRUE.equals(nativeMembership);
             return evaluator.evaluate(org, Caller.user(email))
                     .onFailure().recoverWithNull()
                     .flatMap(access -> access == null || !access.member()
                             ? Uni.createFrom().<OrganizationScopeDto>nullItem()
-                            : signedIn(org, email, nativeMembership, access.alfrescoRole())
+                            : signedIn(org, email, recordAsNative, access.alfrescoRole())
                                     .flatMap(ignored -> assembleScope(org, OrganizationRoleService.accessRole(access))));
         });
     }

@@ -31,6 +31,8 @@ Each top-level organization has `membership_source`; its sub-accounts follow it.
 
 `MIOT_ORGANIZATIONS_MEMBERSHIP=native` makes every organization native, for deployments without Alfresco.
 
+A platform owner is `OWNER` of every active organization, with either source and without a membership. `GET /api/v1/me/scopes` lists every active organization for them, so the app's organization switcher shows all of them. No membership row is written for this.
+
 With `ALFRESCO`, and for the organization's own M2M client, a caller holding no role of a module gets that module's legacy-default role (control tower: Operator).
 
 With `ALFRESCO`, people are added and removed in the Alfresco group. The Team page cannot invite or remove (409). An Alfresco member is recorded as a membership the first time they sign in (`GET /api/v1/me/scopes`): site and group managers as `ADMIN`, everyone else `MEMBER`. A membership row only raises the base role; it never grants access on its own.

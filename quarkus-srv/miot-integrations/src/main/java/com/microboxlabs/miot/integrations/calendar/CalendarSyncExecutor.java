@@ -371,9 +371,14 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
                 + (moved ? " [moved]" : "") + (targetStatus == null ? "" : " -> " + targetStatus));
     }
 
+    /**
+     * Moves the booking to the planner's explicit slot. An overbooked (automatic)
+     * booking is also moved when the slot is the same: the move makes it an
+     * ordinary booking, and the calendar checks the slot's capacity.
+     */
     private boolean moveIfNeeded(CalendarBookingsClient.BookingView booking, SlotInfo explicit,
                                  String resourceId) {
-        if (explicit == null || !slotDiffers(booking, explicit)) {
+        if (explicit == null || (!slotDiffers(booking, explicit) && !booking.overbooked())) {
             return false;
         }
         try {

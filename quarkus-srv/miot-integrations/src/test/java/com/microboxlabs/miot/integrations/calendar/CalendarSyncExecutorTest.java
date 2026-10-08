@@ -770,6 +770,48 @@ class CalendarSyncExecutorTest {
     }
 
     @Test
+    void ensureExistingOverbookedWithSameExplicitSlotMovesToCount() {
+        FakeClient client = new FakeClient();
+        var existing = new CalendarBookingsClient.BookingView(
+                UUID.randomUUID(), CAL, LocalDate.of(2026, 7, 16), 9, 0, "PLANNED", true);
+        client.listResult = List.of(existing);
+        var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 16), 9, 0);
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.moveCalls, "the planner's same-slot plan makes the automatic booking count");
+        assertEquals(existing.id(), client.lastMoveBookingId);
+        assertEquals(9, client.lastMoveHour);
+    }
+
+    @Test
+    void ensureExistingOverbookedWithSameSlotButFullIsParked() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(new CalendarBookingsClient.BookingView(
+                UUID.randomUUID(), CAL, LocalDate.of(2026, 7, 16), 9, 0, "PLANNED", true));
+        client.moveThrows = new CalendarBookingsHttpException(409, "Slot is at full capacity");
+        var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 16), 9, 0);
+        var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
+
+        assertThrows(NonRetryableJobException.class, () -> executor.handle("tenant-1", payload));
+    }
+
+    @Test
+    void ensureExistingOverbookedWithEtdOnlyDoesNotMove() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(new CalendarBookingsClient.BookingView(
+                UUID.randomUUID(), CAL, LocalDate.of(2026, 7, 16), 9, 0, "PLANNED", true));
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(0, client.moveCalls, "an automatic push never makes a booking count");
+    }
+
+    @Test
     void ensureExistingWithEtdOnlyDoesNotMove() {
         FakeClient client = new FakeClient();
         client.listResult = List.of(booking(LocalDate.of(2026, 7, 16)));

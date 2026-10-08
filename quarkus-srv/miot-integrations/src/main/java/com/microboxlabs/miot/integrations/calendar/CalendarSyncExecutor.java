@@ -301,7 +301,7 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
      * an out-of-order push converges rather than duplicating.
      *
      * <p>Slot resolution is deliberately asymmetric: a create may auto-pick from the
-     * ETD at <b>execute</b> time (a retry re-picks against fresh availability, so a
+     * ETD at <b>execute</b> time (a retry re-picks against fresh slots, so a
      * transient no-slot self-heals); an existing booking only moves for an
      * <b>explicit</b> slot (a real re-plan), never for the drifting ETD auto-pick.
      */
@@ -324,8 +324,7 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
         SlotInfo slot = resolveSlotForCreate(payload, calendarId, resourceId);
         if (slot == null) {
             // No explicit slot and no ETD (or an unparseable one): there is no slot
-            // intent to act on. An ETD with no real slot in the horizon throws;
-            // exhausted capacity alone is handled by the overbooking fallback.
+            // intent to act on. An ETD with no real slot in the horizon throws.
             return JobOutcome.skipped("No slot intent to create booking for " + resourceId);
         }
         String resourceType = strOr(payload, CalendarSyncFeature.PAYLOAD_RESOURCE_TYPE,
@@ -372,9 +371,14 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
                 + (moved ? " [moved]" : "") + (targetStatus == null ? "" : " -> " + targetStatus));
     }
 
+    /**
+     * Moves the booking to the planner's explicit slot. An overbooked (automatic)
+     * booking is also moved when the slot is the same: the move makes it an
+     * ordinary booking, and the calendar checks the slot's capacity.
+     */
     private boolean moveIfNeeded(CalendarBookingsClient.BookingView booking, SlotInfo explicit,
                                  String resourceId) {
-        if (explicit == null || !slotDiffers(booking, explicit)) {
+        if (explicit == null || (!slotDiffers(booking, explicit) && !booking.overbooked())) {
             return false;
         }
         try {
@@ -434,7 +438,7 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
 
     /**
      * Slot for a create: an explicit slot from the payload wins; otherwise auto-pick
-     * the next-available slot from the ETD at run time. Returns {@code null} when
+     * the next real slot from the ETD at run time, booked as overbooked. Returns {@code null} when
      * there is no slot intent (no explicit slot and no/unparseable ETD); throws
      * (retryable) when an ETD is present but the horizon contains no real slot.
      *
@@ -468,39 +472,26 @@ public class CalendarSyncExecutor implements ModulithJobHandler {
     }
 
     /**
-     * Earliest available slot in {@code [max(now, etd), +48h]}. When ordinary
-     * capacity is exhausted, fall back to the earliest real slot and mark the
-     * create as an explicit overbooking request. CLOSED slots and generated
-     * OVERFLOW placeholders remain non-bookable.
+     * Earliest real slot in {@code [max(now, etd), +48h]}, booked as overbooked. An
+     * automatic booking sits outside capacity, so it never takes a slot a planner
+     * could use. CLOSED slots and generated OVERFLOW placeholders remain
+     * non-bookable.
      */
     private SlotInfo pickSlotFromEtd(LocalDateTime etd, Clock zonedClock, UUID calendarId, String resourceId) {
         LocalDateTime now = LocalDateTime.now(zonedClock);
         LocalDateTime searchStart = etd.isAfter(now) ? etd : now;
         LocalDateTime searchEnd = searchStart.plusHours(SLOT_SEARCH_WINDOW_HOURS);
-        List<CalendarBookingsClient.AvailableSlot> slots =
-                client.listAvailableSlots(calendarId, searchStart.toLocalDate(), searchEnd.toLocalDate());
-        var pick = slots.stream()
-                .filter(s -> s.availableCapacity() > 0)
-                .filter(s -> withinWindow(s, searchStart, searchEnd))
-                .min(SLOT_ORDER);
-        if (pick.isPresent()) {
-            var picked = pick.get();
-            return new SlotInfo(calendarId, picked.date(), picked.hour(), picked.minutes(), false);
-        }
-
-        var overbookPick = client.listSlots(
+        var pick = client.listSlots(
                         calendarId, searchStart.toLocalDate(), searchEnd.toLocalDate()).stream()
                 .filter(CalendarSyncExecutor::isOverbookable)
                 .filter(s -> withinWindow(s, searchStart, searchEnd))
                 .min(SLOT_ORDER);
-        if (overbookPick.isEmpty()) {
+        if (pick.isEmpty()) {
             throw new IllegalStateException(String.format(
                     "No bookable calendar slot for %s in [%s, %s] (etd=%s) — will retry",
                     resourceId, searchStart, searchEnd, etd));
         }
-        var picked = overbookPick.get();
-        LOG.warnf("calendar_sync ensure: capacity exhausted for %s — overbooking %s %02d:%02d",
-                resourceId, picked.date(), picked.hour(), picked.minutes());
+        var picked = pick.get();
         return new SlotInfo(calendarId, picked.date(), picked.hour(), picked.minutes(), true);
     }
 

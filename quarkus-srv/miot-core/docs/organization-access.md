@@ -141,13 +141,16 @@ Reading and rotating the secret are recorded in the audit log. A sub-account use
 
 **API keys on the ingest.** On the paths in `miot.iam.api-key-own-organization-paths` (default `/api/v1/asset/track`), a key acts in its service account's organization and stores positions under its client id. The ingest needs the `GPS_PUBLISHER` role (`gps:track.write`) on the service account. Tokens issued for the Auth0 client work as before.
 
+**API keys on the GPS publisher.** The publisher accepts only tokens, so it exchanges a `miot_sk_` key at `POST /api/v1/iam/token`. A service account with a linked token credential gets that credential's token. One without, that has `gps:track.write`, gets a token for its organization's Auth0 application: the modulith reads the application's secret from Auth0 and asks the caching token endpoint (`MIOT_GPS_EXCHANGE_TOKEN_URL`) for the token, never Auth0 directly. The token is reused until a minute before it expires. Without that permission the exchange returns 409.
+
 | Variable | Purpose |
 |---|---|
 | `AUTH0_MANAGEMENT_DOMAIN`, `AUTH0_MANAGEMENT_CLIENT_ID`, `AUTH0_MANAGEMENT_CLIENT_SECRET` | Management API application. Scopes: `create:clients`, `read:clients`, `read:client_keys`, `update:client_keys`, `delete:clients`, `create:client_grants` |
 | `AUTH0_MANAGEMENT_CLIENT_NAME_PREFIX` | Prefix of new application names |
 | `MIOT_GPS_AUDIENCE` | API granted to new applications. Default: `AUTH0_HS256_AUDIENCE` |
 | `MIOT_GPS_SCOPES` | Scopes granted. Default: `asset:track:write` |
-| `MIOT_GPS_TOKEN_URL`, `MIOT_GPS_TRACK_URL`, `MIOT_GPS_KEY_TRACK_URL` | Endpoints shown on the GPS page |
+| `MIOT_GPS_TOKEN_URL`, `MIOT_GPS_TRACK_URL`, `MIOT_GPS_KEY_TRACK_URL` | Endpoints shown on the GPS page. `MIOT_GPS_KEY_TRACK_URL` defaults to `MIOT_GPS_TRACK_URL` |
+| `MIOT_GPS_EXCHANGE_TOKEN_URL` | Caching token endpoint for API key exchanges. Default: `MIOT_GPS_TOKEN_URL` |
 
 Without the Management variables, organizations need a `tenantClientId` and the secret cannot be read or rotated.
 

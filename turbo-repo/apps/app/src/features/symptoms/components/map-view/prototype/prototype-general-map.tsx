@@ -18,7 +18,10 @@ import type { SelectedOption } from "../../../types/side-info";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
-import { isPastFormsEnabled } from "./past-forms";
+
+/** `NEXT_PUBLIC_SYMPTOMS_PAST_FORMS=true` opens the previous full-screen modal. */
+const pastFormsEnabled =
+  process.env.NEXT_PUBLIC_SYMPTOMS_PAST_FORMS === "true";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -120,7 +123,7 @@ export default function PrototypeGeneralMap({
   // Past forms open as a fixed modal, so the side panel stays at its
   // resting width instead of morphing over the map.
   const { side: sideWidth, map: mapWidth } = panelWidths(
-    isPastFormsEnabled() ? false : isFormOpen,
+    pastFormsEnabled ? false : isFormOpen,
     isCallDriver,
     isCallFormStep
   );

@@ -19,7 +19,10 @@ import { GroupAllowed } from "../../../../common/components/group-allowed/group-
 import PrototypeInlineForm from "./prototype-inline-form";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import SymptomForm from "../../blurrable-stepped-menu/symptom-form";
-import { isPastFormsEnabled } from "./past-forms";
+
+/** `NEXT_PUBLIC_SYMPTOMS_PAST_FORMS=true` opens the previous full-screen modal. */
+const pastFormsEnabled =
+  process.env.NEXT_PUBLIC_SYMPTOMS_PAST_FORMS === "true";
 
 /** Menus the previous full-screen modal still implements. */
 const PAST_FORM_OPTIONS = new Set<SelectedOption>([
@@ -86,8 +89,8 @@ export default function PrototypeSideInfo({
   }
 
   const formReady = !!treatments_templates && !loading;
-  const pastForms = isPastFormsEnabled();
-  const showPastModal = pastForms && PAST_FORM_OPTIONS.has(selectedOption);
+  const showPastModal =
+    pastFormsEnabled && PAST_FORM_OPTIONS.has(selectedOption);
 
   return (
     <div className="relative flex flex-col p-1 h-full overflow-hidden">
@@ -107,7 +110,7 @@ export default function PrototypeSideInfo({
 
       {/* Inline morphed form — replaces the timeline + action buttons in place.
           Fades in after the parent's width transition (~500ms) has mostly run. */}
-      {isFormOpen && formReady && !pastForms && (
+      {isFormOpen && formReady && !pastFormsEnabled && (
         <div
           className="absolute inset-0 z-20 animate-fade-in-opacity"
           style={{ animationDelay: "250ms", opacity: 0 }}
@@ -127,7 +130,7 @@ export default function PrototypeSideInfo({
 
       {/* Timeline view — hidden while the inline form is open. The past
           modal overlays the page, so the timeline stays put. */}
-      {(!isFormOpen || pastForms) && (
+      {(!isFormOpen || pastFormsEnabled) && (
         <>
           <div className="flex flex-col h-full overflow-y-auto pb-20 gap-1">
             <div className="border border-gray-300 dark:border-gray-700 flex flex-row items-center justify-between gap-2 rounded-md transition-all duration-200">

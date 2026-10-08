@@ -52,6 +52,14 @@ class ControlTowerMapServiceTest {
         public Uni<RpcResponse> conditions(String authorization, String from, String to) {
             return answer("conditions " + authorization + " " + from + " " + to);
         }
+
+        @Override
+        public Uni<JsonNode> symptoms(String authorization, java.util.Map<String, String> filters) {
+            calls.add("symptoms " + authorization + " " + new java.util.TreeMap<>(filters));
+            return Uni.createFrom().item(symptomsBody);
+        }
+
+        JsonNode symptomsBody = JSON.createObjectNode().put("status", 200).put("total_rows", 0);
     }
 
     private static final class MutableClock extends Clock {
@@ -184,5 +192,32 @@ class ControlTowerMapServiceTest {
         Uni<JsonNode> call = map.positions("client-a");
         var e = assertThrows(ControlTowerMapService.UnavailableException.class, () -> await(call));
         assertEquals("The GPS database did not answer", e.getMessage());
+    }
+
+    @Test
+    void symptomsTrimFiltersDropBlanksAndKeepTheWholeAnswer() {
+        JsonNode page = await(map.symptoms("client-a",
+                java.util.Map.of("p_asset_id", " AB12 ", "p_trip_id", "", "p_start_date_historic", "2026-10-01")));
+        assertEquals(0, page.get("total_rows").asInt());
+        assertEquals(List.of("symptoms Bearer token-client-a {p_asset_id=AB12, p_start_date_historic=2026-10-01}"),
+                rpc.calls);
+    }
+
+    @Test
+    void symptomsRefuseFiltersTheFunctionDoesNotOffer() {
+        assertThrows(IllegalArgumentException.class,
+                () -> map.symptoms("client-a", java.util.Map.of("p_client_id", "someone-else")));
+        assertThrows(IllegalArgumentException.class,
+                () -> map.symptoms("client-a", java.util.Map.of("p_icu_code", "3 OR 1=1")));
+        assertThrows(IllegalArgumentException.class,
+                () -> map.symptoms("client-a", java.util.Map.of("p_end_date_historic", "tomorrow")));
+        assertTrue(rpc.calls.isEmpty());
+    }
+
+    @Test
+    void aSymptomsFunctionErrorIsUnavailable() {
+        rpc.symptomsBody = JSON.createObjectNode().put("status", 500).put("message", "Unexpected error: boom");
+        Uni<JsonNode> call = map.symptoms("client-a", java.util.Map.of());
+        assertThrows(ControlTowerMapService.UnavailableException.class, () -> await(call));
     }
 }

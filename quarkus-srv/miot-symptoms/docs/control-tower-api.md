@@ -97,9 +97,10 @@ in the request) or `error` (the row is invalid; `reason` says why).
 |---|---|---|
 | `listMapPositions` | `GET /map/positions` | Last position of each of the organization's assets, on a trip or not |
 | `getMapSummary` | `GET /map/summary` | Service, fleet and symptom totals shown beside the map |
+| `listMapSymptoms` | `GET /map/symptoms?p_*` | One page of symptoms with `total_rows`, `total_pages`, `page`, `page_size` and `symptom_name_list`. Filters: `p_asset_id`, `p_trip_id`, `p_driver_id`, `p_carrier_id`, `p_origin`, `p_destination`, `p_symptom_name`, `p_icu_code`, `p_page`, `p_page_size`, `p_start_date_historic`, `p_end_date_historic`. Any other is a 400 |
 | `countSymptomConditions` | `GET /map/conditions?from&to` | Symptom counts by condition name. Active symptoms, or with `from` and `to` (ISO-8601, both or neither) those created in that range |
 
-All three need `controltower:view`. The modulith calls the GPS database
+All of them need `controltower:view`. The modulith calls the GPS database
 functions through PostgREST (`miot.symptoms.gps.rpc-url`) with a token for the
 organization's own Auth0 application, so each organization gets only its own
 data. The token comes from the caching token endpoint and is reused until a
@@ -181,8 +182,8 @@ With Alfresco membership, a member who holds no control tower role is an Operato
 | Settings › Seleccionables | core selectables API |
 
 The Next app reaches these through `/app/api/control-tower/*`, and the map
-endpoints through `/app/api/map`, `/app/api/map/resume` and
-`/app/api/symptoms/dashboard`. The core
+endpoints through `/app/api/map`, `/app/api/map/resume`,
+`/app/api/symptoms/dashboard` and `/app/api/symptoms/table`. The core
 selectables through `/app/api/selectables/*`. Both resolve the active
 organization server-side and forward the user's session token.
 
@@ -198,6 +199,6 @@ organization server-side and forward the user's session token.
 ## Not in this API yet
 
 - Real storage for everything above.
-- Symptom reads (list, detail, ICU summary, map signals). The screen still reads them through the existing pgREST routes; only the map positions, summary and condition counts come from this API.
+- Symptom reads (list, detail, ICU summary, map signals). The screen still reads them through the existing pgREST routes; only the map positions, summary, symptom table and condition counts come from this API.
 - The invalidate webhook, which the app still calls after an invalidate.
 - Symptom rules (`fn_pt4_*`).

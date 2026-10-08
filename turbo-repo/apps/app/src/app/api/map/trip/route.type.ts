@@ -7,4 +7,5 @@ export type MapPosition = {
   timestamp: string;
   assetid: string;
   signal_description?: string | null;
+  signal_detail?: "app" | "gps" | "unknown" | null;
 };

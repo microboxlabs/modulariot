@@ -344,7 +344,7 @@ export default function PrototypeGeneralMap({
               setSelectedTreatment={setSelectedTreatment}
               setSelectedTreatmentIndex={setSelectedTreatmentIndex}
               licensePlate={treatmentData?.trip_info?.asset_id ?? null}
-              showMobilePulsesDefault={false}
+              showAppSignalDetailDefault={false}
             />
           </div>
           {/* Keeps the symptom being called about visible without flipping

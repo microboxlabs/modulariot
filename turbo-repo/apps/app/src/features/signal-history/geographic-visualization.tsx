@@ -14,14 +14,13 @@ import SummaryTooltip from "./summary-tooltip";
 import { Button } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
 import { tr } from "../i18n/tr.service";
-import { convertJSONToCSV } from "./utils/json-to-csv";
 import { handleDownloadCsv } from "./utils/download-csv";
 import CustomCard from "../symptoms/components/card/custom-card";
 import { flyTo } from "../map-visualization/map-view-utils";
 import { PulseSourceLegend } from "../geographic-view/components/pulse-source-indicator";
 import {
+  hasAppSignalDetail,
   isDarkMapStyle,
-  isMobilePulse,
 } from "../geographic-view/utils/pulse-source";
 
 export default function GeographicVisualization({
@@ -51,7 +50,7 @@ export default function GeographicVisualization({
   const [selectedPulse, setSelectedPulse] = useState<HistoricSignal | null>(
     null
   );
-  const [showMobilePulses, setShowMobilePulses] = useState(true);
+  const [showAppSignalDetail, setShowAppSignalDetail] = useState(true);
 
   const [dateRangeDisplayed, setDateRangeDisplayed] = useState<{
     startDate: string;
@@ -90,9 +89,10 @@ export default function GeographicVisualization({
           icu_code: 0,
           asset_id: signal.assetid || 0,
           rotation: 0,
-          speed: 10,
+          speed: signal.speed,
           timestamp: signal.timestamp,
           signal_description: signal.signal_description,
+          signal_detail: signal.signal_detail,
         },
       })),
     };
@@ -204,10 +204,10 @@ export default function GeographicVisualization({
     setSelectedPulse(null);
   }, []);
 
-  const handleShowMobilePulses = useCallback(
+  const handleShowAppSignalDetail = useCallback(
     (show: boolean) => {
-      setShowMobilePulses(show);
-      if (!show && selectedPulse && isMobilePulse(selectedPulse)) {
+      setShowAppSignalDetail(show);
+      if (!show && selectedPulse && hasAppSignalDetail(selectedPulse)) {
         setSelectedPulse(null);
       }
     },
@@ -230,7 +230,7 @@ export default function GeographicVisualization({
         pickable: true,
         onClick: handlePulseClick,
         isDarkMap,
-        showMobilePulses,
+        showAppSignalDetail,
         updateTriggers: {
           displayRange: {
             startDate: new Date(dateRangeDisplayed.startDate),
@@ -238,7 +238,7 @@ export default function GeographicVisualization({
           },
           selectedPulseKey: selectedPulse ? buildPulseKey(selectedPulse) : null,
           isDarkMap,
-          showMobilePulses,
+          showAppSignalDetail,
         },
       }),
     ];
@@ -252,7 +252,7 @@ export default function GeographicVisualization({
     handlePulseClick,
     selectedPulse,
     isDarkMap,
-    showMobilePulses,
+    showAppSignalDetail,
   ]);
 
   useEffect(() => {
@@ -329,9 +329,9 @@ export default function GeographicVisualization({
           selectedStyle: mapStyle,
           setSelectedStyle: setMapStyle,
         }}
-        show_mobile_pulses={{
-          showMobilePulses,
-          setShowMobilePulses: handleShowMobilePulses,
+        show_app_signal_detail={{
+          showAppSignalDetail,
+          setShowAppSignalDetail: handleShowAppSignalDetail,
         }}
         allow_screenshot={false}
       />
@@ -343,8 +343,8 @@ export default function GeographicVisualization({
       mapStyle,
       dateRanges,
       onTimelineChange,
-      showMobilePulses,
-      handleShowMobilePulses,
+      showAppSignalDetail,
+      handleShowAppSignalDetail,
     ]
   );
 

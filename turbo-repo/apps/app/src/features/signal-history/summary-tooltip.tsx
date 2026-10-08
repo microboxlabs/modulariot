@@ -93,6 +93,7 @@ const SummaryTooltip = memo(function SummaryTooltip({
             String(((element.distance || 0) / 1000).toFixed(1)) + " Km",
             `https://www.google.com/maps?q=${element.latitude},${element.longitude}`,
             String(element.assetid || ""),
+            String(element.signal_description || ""),
           ];
         });
 
@@ -143,7 +144,7 @@ const SummaryTooltip = memo(function SummaryTooltip({
             </span>
           </p>
           <PulseSourceIndicator
-            mobileCount={sourceCounts.mobile}
+            appCount={sourceCounts.app}
             gpsCount={sourceCounts.gps}
             dict={dict}
           />
@@ -159,6 +160,7 @@ const SummaryTooltip = memo(function SummaryTooltip({
                   tr("signal_historic.distance_between_signals", dict),
                   tr("signal_historic.location", dict),
                   tr("signal_historic.assetid", dict),
+                  tr("signal_historic.signal_description", dict),
                 ]}
                 content={tableData}
                 hoverable={true}

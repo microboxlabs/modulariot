@@ -43,9 +43,9 @@ type ToolBarProps = {
     showPulse: boolean;
     setShowPulse: (showPulse: boolean) => void;
   };
-  show_mobile_pulses?: {
-    showMobilePulses: boolean;
-    setShowMobilePulses: (showMobilePulses: boolean) => void;
+  show_app_signal_detail?: {
+    showAppSignalDetail: boolean;
+    setShowAppSignalDetail: (showAppSignalDetail: boolean) => void;
   };
   allow_screenshot?: boolean;
   dictionary: I18nRecord;
@@ -61,7 +61,7 @@ export default function ToolBar({
   show_stops,
   show_geofences,
   show_pulse,
-  show_mobile_pulses,
+  show_app_signal_detail,
   allow_screenshot = true,
   dictionary,
   defaultOpenTimeline,
@@ -96,10 +96,10 @@ export default function ToolBar({
     ? "light"
     : "dark";
 
-  function handleToggleMobilePulses() {
-    if (!show_mobile_pulses) return;
-    show_mobile_pulses.setShowMobilePulses(
-      !show_mobile_pulses.showMobilePulses
+  function handleToggleAppSignalDetail() {
+    if (!show_app_signal_detail) return;
+    show_app_signal_detail.setShowAppSignalDetail(
+      !show_app_signal_detail.showAppSignalDetail
     );
   }
 
@@ -192,7 +192,7 @@ export default function ToolBar({
           )}
           {/* Map toggles */}
           {(show_pulse ||
-            show_mobile_pulses ||
+            show_app_signal_detail ||
             show_stops ||
             show_geofences) && (
             <div className="flex flex-row gap-1">
@@ -211,14 +211,14 @@ export default function ToolBar({
                   </div>
                 </Tooltip>
               )}
-              {show_mobile_pulses && (
+              {show_app_signal_detail && (
                 <Tooltip
-                  content={tr("geographic_view.mobile_app", dictionary)}
+                  content={tr("geographic_view.signal_detail_app", dictionary)}
                   style={style_theme}
                 >
                   <div
-                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${show_mobile_pulses.showMobilePulses ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-                    onClick={handleToggleMobilePulses}
+                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${show_app_signal_detail.showAppSignalDetail ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+                    onClick={handleToggleAppSignalDetail}
                   >
                     <HiDevicePhoneMobile size={18} />
                   </div>

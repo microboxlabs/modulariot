@@ -1,8 +1,8 @@
 import { CompositeLayer, Layer, ScatterplotLayer } from "deck.gl";
 import {
-  isMobilePulse,
-  isVisiblePulse,
-  getMobilePulseRingColor,
+  filterVisiblePulses,
+  getAppSignalRingColor,
+  hasAppSignalDetail,
 } from "../../utils/pulse-source";
 
 function getColor(icu_code: number): [number, number, number, number] {
@@ -41,6 +41,7 @@ type PulseData = {
   latitude: number;
   longitude: number;
   signal_description?: string | null;
+  signal_detail?: "app" | "gps" | "unknown" | null;
 };
 
 type DisplayRange = {
@@ -73,33 +74,31 @@ export class PulsePinLayer extends CompositeLayer<any> {
   renderLayers(): Layer[] {
     const displayRange = this.props.displayRange;
     const showStops = this.props.showStops || false;
-    const showMobilePulses = this.props.showMobilePulses ?? true;
+    const showAppSignalDetail = this.props.showAppSignalDetail ?? true;
     const selectedPulseKey: string | null = this.props.selectedPulseKey || null;
-    const ringColor = getMobilePulseRingColor(this.props.isDarkMap ?? true);
+    const ringColor = getAppSignalRingColor(this.props.isDarkMap ?? true);
 
     // Check if data exists and is an array (raw HistoricSignal[])
     if (!this.props.data || !Array.isArray(this.props.data)) {
       return [];
     }
 
-    // Filter valid data points
-    const validData = this.props.data.filter(
-      (d: PulseData) =>
-        isValidCoordinate([d.longitude, d.latitude]) &&
-        isVisiblePulse(d, showMobilePulses)
+    const validData = this.props.data.filter((d: PulseData) =>
+      isValidCoordinate([d.longitude, d.latitude])
     );
-    const mobileData = validData.filter(isMobilePulse);
+    const visibleData = filterVisiblePulses(validData, showAppSignalDetail);
+    const appData = visibleData.filter(hasAppSignalDetail);
     const selectedData = selectedPulseKey
-      ? validData.filter(
+      ? visibleData.filter(
           (d: PulseData) => buildPulseKey(d) === selectedPulseKey
         )
       : [];
-    const selectedMobileData = selectedData.filter(isMobilePulse);
+    const selectedAppData = selectedData.filter(hasAppSignalDetail);
 
     return [
       new ScatterplotLayer({
         id: "pulse-background-layer",
-        data: validData,
+        data: visibleData,
         getFillColor: (d: PulseData): [number, number, number, number] => {
           // When a pulse is selected, only show white border on that pulse
           if (
@@ -110,7 +109,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
           }
           return [255, 255, 255, 255];
         },
-        getRadius: (d: PulseData) => (isMobilePulse(d) ? 9 : 7),
+        getRadius: (d: PulseData) => (hasAppSignalDetail(d) ? 9 : 7),
         getPosition:
           this.props.getPosition ||
           ((d: PulseData) => [d.longitude, d.latitude]),
@@ -131,8 +130,8 @@ export class PulsePinLayer extends CompositeLayer<any> {
       }) as Layer,
 
       new ScatterplotLayer({
-        id: "pulse-mobile-source-ring-layer",
-        data: mobileData,
+        id: "pulse-app-signal-ring-layer",
+        data: appData,
         getFillColor: (d: PulseData) =>
           isWithinDisplayRange(d, displayRange) ? ringColor : [0, 0, 0, 0],
         getRadius: 7,
@@ -149,7 +148,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
 
       new ScatterplotLayer({
         id: "pulse-moving-vehicles-layer",
-        data: validData,
+        data: visibleData,
         getFillColor: (d: PulseData) =>
           isWithinDisplayRange(d, displayRange) ? getColor(0) : [0, 0, 0, 0],
         getRadius: 5,
@@ -186,7 +185,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
                 number,
                 number,
               ],
-              getRadius: (d: PulseData) => (isMobilePulse(d) ? 9 : 7),
+              getRadius: (d: PulseData) => (hasAppSignalDetail(d) ? 9 : 7),
               getPosition:
                 this.props.getPosition ||
                 ((d: PulseData) => [d.longitude, d.latitude]),
@@ -195,8 +194,8 @@ export class PulsePinLayer extends CompositeLayer<any> {
               pickable: false,
             }) as Layer,
             new ScatterplotLayer({
-              id: "pulse-selected-mobile-source-ring",
-              data: selectedMobileData,
+              id: "pulse-selected-app-signal-ring",
+              data: selectedAppData,
               getFillColor: ringColor,
               getRadius: 7,
               getPosition:

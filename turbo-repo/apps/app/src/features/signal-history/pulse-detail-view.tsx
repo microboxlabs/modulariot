@@ -6,7 +6,7 @@ import { memo } from "react";
 import PulseSourceIndicator from "../geographic-view/components/pulse-source-indicator";
 import {
   getSignalDescription,
-  isMobilePulse,
+  hasAppSignalDetail,
 } from "../geographic-view/utils/pulse-source";
 
 type PulseDetailViewProps = {
@@ -70,7 +70,7 @@ const PulseDetailView = memo(function PulseDetailView({
         <span className="font-light">{getSignalDescription(pulse) || "—"}</span>
       </div>
       <PulseSourceIndicator
-        mobileCount={isMobilePulse(pulse) ? 1 : 0}
+        appCount={hasAppSignalDetail(pulse) ? 1 : 0}
         gpsCount={0}
         dict={dict}
       />

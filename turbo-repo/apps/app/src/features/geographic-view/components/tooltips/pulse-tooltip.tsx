@@ -4,11 +4,14 @@ import { pin_conditions } from "@/features/geographic-view/types/pin_conditions"
 import { DescriptionProps } from "@/app/api/treatments/location/route.type";
 import { FormattedDate } from "@/features/common/components/formatted-date";
 import PulseSourceIndicator from "../pulse-source-indicator";
-import { getSignalDescription, isMobilePulse } from "../../utils/pulse-source";
+import {
+  getSignalDescription,
+  hasAppSignalDetail,
+} from "../../utils/pulse-source";
 export type PulseListType = {
   elements: number[];
   description: DescriptionProps;
-  mobileCount: number;
+  appCount: number;
   gpsCount: number;
 };
 
@@ -22,6 +25,7 @@ export type PulseType = {
     speed: number;
     timestamp: string;
     signal_description?: string | null;
+    signal_detail?: "app" | "gps" | "unknown" | null;
   };
 };
 
@@ -230,7 +234,7 @@ export default function PulseTooltip({
           </span>
         </div>
         <PulseSourceIndicator
-          mobileCount={object.mobileCount}
+          appCount={object.appCount}
           gpsCount={object.gpsCount}
           dict={dict}
         />
@@ -320,7 +324,7 @@ export default function PulseTooltip({
           </span>
         </div>
         <PulseSourceIndicator
-          mobileCount={isMobilePulse(object.properties) ? 1 : 0}
+          appCount={hasAppSignalDetail(object.properties) ? 1 : 0}
           gpsCount={0}
           dict={dict}
         />

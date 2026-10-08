@@ -1,8 +1,8 @@
 import { CompositeLayer, Layer, ScatterplotLayer } from "deck.gl";
 import {
-  isMobilePulse,
+  getAppSignalRingColor,
+  hasAppSignalDetail,
   isVisiblePulse,
-  getMobilePulseRingColor,
 } from "../../utils/pulse-source";
 
 export function getColor(icu_code: number): [number, number, number, number] {
@@ -52,7 +52,7 @@ export interface PulseLayerProps {
   zoom: number;
   selectedPulse?: any[];
   showStops?: boolean;
-  showMobilePulses?: boolean;
+  showAppSignalDetail?: boolean;
   isDarkMap?: boolean;
   data?: { features: any[] };
   displayPosition?: number;
@@ -99,7 +99,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
 
   protected isRenderableFeature(d: any): boolean {
     if (!isValidCoordinate(d.geometry?.coordinates)) return false;
-    return isVisiblePulse(d.properties, this.props.showMobilePulses ?? true);
+    return isVisiblePulse(d.properties, this.props.showAppSignalDetail ?? true);
   }
 
   protected filterValidFeatures() {
@@ -161,20 +161,20 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
   renderLayers(): Layer[] {
     const selectedPulse = this.props.selectedPulse || [];
     const showStops = this.props.showStops || false;
-    const ringColor = getMobilePulseRingColor(this.props.isDarkMap ?? true);
+    const ringColor = getAppSignalRingColor(this.props.isDarkMap ?? true);
 
     if (!this.props.data?.features) return [];
 
     const validFeatures = this.filterValidFeatures();
-    const mobileFeatures = validFeatures.filter((d: any) =>
-      isMobilePulse(d.properties)
+    const appFeatures = validFeatures.filter((d: any) =>
+      hasAppSignalDetail(d.properties)
     );
     const movingVehicles = this.filterMovingVehicles();
     const stoppedVehicles = this.filterStoppedVehicles();
     const selectedVehicles = this.filterSelectedVehicles();
     const selectedStoppedVehicles = this.filterSelectedStoppedVehicles();
-    const selectedMobileFeatures = selectedVehicles.filter((d: any) =>
-      isMobilePulse(d.properties)
+    const selectedAppFeatures = selectedVehicles.filter((d: any) =>
+      hasAppSignalDetail(d.properties)
     );
 
     return [
@@ -188,15 +188,15 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
           selectedPulse.length === 0 ? 255 : 0,
         ],
         ...this.getBackgroundLayerProps(),
-        getRadius: (d: any) => (isMobilePulse(d.properties) ? 9 : 7),
+        getRadius: (d: any) => (hasAppSignalDetail(d.properties) ? 9 : 7),
         updateTriggers: { getFillColor: [selectedPulse] },
         pickable: true,
         radiusUnits: "pixels",
       }) as Layer,
 
       new ScatterplotLayer({
-        id: "pulse-mobile-source-ring-layer",
-        data: mobileFeatures,
+        id: "pulse-app-signal-ring-layer",
+        data: appFeatures,
         getFillColor: (d: any) =>
           this.props.displayPosition !== undefined &&
           d.properties.id > this.props.displayPosition
@@ -249,7 +249,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
         data: selectedVehicles,
         getFillColor: () => [255, 255, 255, 255],
         ...this.getBackgroundLayerProps(),
-        getRadius: (d: any) => (isMobilePulse(d.properties) ? 9 : 7),
+        getRadius: (d: any) => (hasAppSignalDetail(d.properties) ? 9 : 7),
         updateTriggers: {
           getFillColor: [selectedPulse],
           getPosition: [showStops],
@@ -258,8 +258,8 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
       }) as Layer,
 
       new ScatterplotLayer({
-        id: "pulse-selected-mobile-source-ring-layer",
-        data: selectedMobileFeatures,
+        id: "pulse-selected-app-signal-ring-layer",
+        data: selectedAppFeatures,
         getFillColor: ringColor,
         ...this.getBackgroundLayerProps(),
         getRadius: 7,

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifySignalDescription,
   countPulseSources,
-  getMobilePulseRingHex,
+  filterVisiblePulses,
+  getAppSignalRingHex,
   getSignalDescription,
+  getSignalDetail,
+  hasAppSignalDetail,
   isDarkMapStyle,
-  isMobilePulse,
   isVisiblePulse,
   mapCsvPulseRecord,
   normalizeCsvColumnName,
@@ -12,16 +15,30 @@ import {
 
 describe("pulse source", () => {
   it.each(["app_gps", "APP_GPS", "app gps", "app-gps", "mobile", "mobile_app"])(
-    "treats %s as a mobile pulse",
+    "classifies %s as app signal_detail",
     (description) => {
-      expect(isMobilePulse({ signal_description: description })).toBe(true);
+      expect(classifySignalDescription(description)).toBe("app");
+      expect(
+        hasAppSignalDetail({
+          signal_detail: classifySignalDescription(description),
+        })
+      ).toBe(true);
     }
   );
 
-  it.each(["gps", "truck", "GPS", "", undefined, null])(
-    "treats %s as a GPS pulse",
+  it.each(["gps", "truck", "GPS"])(
+    "classifies %s as gps signal_detail",
     (description) => {
-      expect(isMobilePulse({ signal_description: description })).toBe(false);
+      expect(classifySignalDescription(description)).toBe("gps");
+    }
+  );
+
+  it.each(["", undefined, null])(
+    "classifies missing %s as unknown, not gps",
+    (description) => {
+      expect(classifySignalDescription(description as string | null)).toBe(
+        "unknown"
+      );
     }
   );
 
@@ -36,7 +53,7 @@ describe("pulse source", () => {
     ).toBe("truck");
   });
 
-  it("maps CSV rows onto signal_description and drops mobile_origin", () => {
+  it("maps CSV rows onto signal_description, signal_detail, and drops mobile_origin", () => {
     expect(
       mapCsvPulseRecord(
         {
@@ -52,10 +69,15 @@ describe("pulse source", () => {
       longitude: -70.6,
       latitude: -33.4,
       signal_description: "app_gps",
+      signal_detail: "app",
     });
     expect(
-      mapCsvPulseRecord({ signal_description: "gps" }, 1, 2).signal_description
-    ).toBe("gps");
+      mapCsvPulseRecord({ signal_description: "gps" }, 1, 2)
+    ).toMatchObject({
+      signal_description: "gps",
+      signal_detail: "gps",
+    });
+    expect(mapCsvPulseRecord({}, 1, 2).signal_detail).toBe("unknown");
   });
 
   it("normalizes CSV headers before records are mapped", () => {
@@ -83,26 +105,50 @@ describe("pulse source", () => {
       longitude: 1,
       latitude: 2,
       signal_description: "truck",
+      signal_detail: "gps",
     });
   });
 
-  it("hides mobile pulses when the toggle is off", () => {
-    expect(isVisiblePulse({ signal_description: "app_gps" }, false)).toBe(
-      false
-    );
-    expect(isVisiblePulse({ signal_description: "gps" }, false)).toBe(true);
-    expect(isVisiblePulse({ signal_description: "app_gps" }, true)).toBe(true);
+  it("hides app pulses when the toggle is off", () => {
+    expect(
+      isVisiblePulse({ signal_detail: "app" }, false)
+    ).toBe(false);
+    expect(isVisiblePulse({ signal_detail: "gps" }, false)).toBe(true);
+    expect(isVisiblePulse({ signal_detail: "unknown" }, false)).toBe(true);
+    expect(isVisiblePulse({ signal_detail: "app" }, true)).toBe(true);
   });
 
-  it("counts mobile and GPS pulses", () => {
+  it("filters visible pulses without re-reading signal_description", () => {
+    const pulses = [
+      { signal_description: "truck", signal_detail: "gps" as const },
+      { signal_description: "app_gps", signal_detail: "app" as const },
+      { signal_description: null, signal_detail: "unknown" as const },
+    ];
+    expect(
+      filterVisiblePulses(pulses, false).map((pulse) => pulse.signal_detail)
+    ).toEqual(["gps", "unknown"]);
+    expect(filterVisiblePulses(pulses, true)).toHaveLength(3);
+  });
+
+  it("reads stored signal_detail instead of reclassifying the description", () => {
+    expect(
+      getSignalDetail({
+        signal_description: "app_gps",
+        signal_detail: "gps",
+      })
+    ).toBe("gps");
+  });
+
+  it("counts app, gps, and unknown pulses", () => {
     expect(
       countPulseSources([
-        { signal_description: "app_gps" },
-        { signal_description: "APP_GPS" },
-        { signal_description: "truck" },
+        { signal_detail: "app" },
+        { signal_detail: "app" },
+        { signal_detail: "gps" },
+        { signal_detail: "unknown" },
         {},
       ])
-    ).toEqual({ mobile: 2, gps: 2 });
+    ).toEqual({ app: 2, gps: 1, unknown: 2 });
   });
 
   it("picks a brighter yellow on dark maps and a deeper yellow on light maps", () => {
@@ -112,7 +158,7 @@ describe("pulse source", () => {
     expect(isDarkMapStyle("streets")).toBe(false);
     expect(isDarkMapStyle("outdoors")).toBe(false);
     expect(isDarkMapStyle("light")).toBe(false);
-    expect(getMobilePulseRingHex(true)).toBe("#FFCE00");
-    expect(getMobilePulseRingHex(false)).toBe("#D18900");
+    expect(getAppSignalRingHex(true)).toBe("#FFCE00");
+    expect(getAppSignalRingHex(false)).toBe("#D18900");
   });
 });

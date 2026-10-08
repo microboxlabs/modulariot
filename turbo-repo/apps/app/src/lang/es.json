@@ -4930,6 +4930,8 @@
     "hide_stops": "Ocultar paradas",
     "pulse_from": "Pulso desde",
     "mobile_app": "Aplicación móvil",
+    "signal_detail": "Detalle de señal",
+    "signal_detail_app": "GPS app",
     "gps": "GPS",
     "signal_description": "Descripción de señal",
     "stopped_pulse": "Detenido",
@@ -5584,7 +5586,8 @@
     "longitude": "Longitud",
     "back_to_summary": "Volver al resumen",
     "view_on_maps": "Ver en Google Maps",
-    "distance": "Distancia"
+    "distance": "Distancia",
+    "signal_description": "Descripción de señal"
   },
   "new_functionality": {
     "new": "NUEVO",

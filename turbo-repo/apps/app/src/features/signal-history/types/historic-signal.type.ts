@@ -11,6 +11,7 @@ export type HistoricSignal = {
   latitude: number;
   longitude: number;
   signal_description?: string | null;
+  signal_detail?: "app" | "gps" | "unknown" | null;
 };
 
 export type HistoricTrip = {

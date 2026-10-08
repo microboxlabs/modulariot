@@ -145,7 +145,7 @@ type MapVisualizationProps = {
   setSelectedTreatmentIndex?: (treatmentIndex: ConditionsAgg | null) => void;
   minimized?: boolean;
   licensePlate?: string | null;
-  showMobilePulsesDefault?: boolean;
+  showAppSignalDetailDefault?: boolean;
 };
 
 type GeometryFeature = {
@@ -170,7 +170,7 @@ export default function MapVisualizationTrip({
   setSelectedTreatmentIndex,
   minimized = false,
   licensePlate,
-  showMobilePulsesDefault = false,
+  showAppSignalDetailDefault = false,
 }: MapVisualizationProps) {
   const pinSelectionCardToCorner = !minimized;
   const [rotation, _] = useState(0);
@@ -212,8 +212,8 @@ export default function MapVisualizationTrip({
   const [showStops, setShowStops] = useState(true);
   const [showGeofences, setShowGeofences] = useState(true);
   const [showPulse, setShowPulse] = useState(true);
-  const [showMobilePulses, setShowMobilePulses] = useState(
-    showMobilePulsesDefault
+  const [showAppSignalDetail, setShowAppSignalDetail] = useState(
+    showAppSignalDetailDefault
   );
 
   // Follow mode: while the camera toggle is on, keep the vehicle centered
@@ -274,6 +274,7 @@ export default function MapVisualizationTrip({
               speed: item.speed,
               timestamp: item.timestamp,
               signal_description: item.signal_description,
+              signal_detail: item.signal_detail,
             },
           };
         }) || [],
@@ -314,7 +315,7 @@ export default function MapVisualizationTrip({
         object: {
           elements: Array.from(matchingIndices),
           description: filteredLocationData?.description,
-          mobileCount: sourceCounts.mobile,
+          appCount: sourceCounts.app,
           gpsCount: sourceCounts.gps,
         },
       } as PickingInfo<PulseListType>);
@@ -440,13 +441,13 @@ export default function MapVisualizationTrip({
           selectedPulse,
           displayPosition,
           showStops,
-          showMobilePulses,
+          showAppSignalDetail,
           isDarkMap,
           updateTriggers: {
             data: positions,
             selectedPulse,
             showStops,
-            showMobilePulses,
+            showAppSignalDetail,
             displayPosition,
             isDarkMap,
           },
@@ -497,6 +498,7 @@ export default function MapVisualizationTrip({
                   speed: info.object?.speed,
                   timestamp: info.object?.timestamp,
                   signal_description: info.object?.signal_description,
+                  signal_detail: info.object?.signal_detail,
                 },
               },
             };
@@ -529,7 +531,7 @@ export default function MapVisualizationTrip({
     showStops,
     showGeofences,
     showPulse,
-    showMobilePulses,
+    showAppSignalDetail,
     isDarkMap,
     pinSelectionCardToCorner,
   ]);
@@ -573,9 +575,9 @@ export default function MapVisualizationTrip({
             showPulse,
             setShowPulse,
           }}
-          show_mobile_pulses={{
-            showMobilePulses,
-            setShowMobilePulses,
+          show_app_signal_detail={{
+            showAppSignalDetail,
+            setShowAppSignalDetail,
           }}
           timelineComponent={
             <PulseRange

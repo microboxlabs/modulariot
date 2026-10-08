@@ -5,7 +5,7 @@ import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
 
 /**
  * Reads the Control Tower map data of the caller's active organization from the
- * StreamHub modulith, with the user's session token. The modulith reads the GPS
+ * StreamHub modulith, always with the user's session token. The modulith reads the GPS
  * database as that organization, so each organization sees only its own assets.
  */
 export async function forwardControlTowerMap(
@@ -17,6 +17,6 @@ export async function forwardControlTowerMap(
   const org = encodeURIComponent(scope.scope.activeOrg.slug);
   return forwardToStreamhubModulith(
     `/api/v1/orgs/${org}/control-tower/map/${resource}${search}`,
-    { method: "GET" }
+    { method: "GET", sessionOnly: true }
   );
 }

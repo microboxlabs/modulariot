@@ -27,9 +27,13 @@ class ControlTowerMapServiceTest {
         final List<String> calls = new ArrayList<>();
         RpcResponse response = new RpcResponse(200, "ok", JSON.createArrayNode().add("row"));
         int failWith;
+        RuntimeException transportFailure;
 
         private Uni<RpcResponse> answer(String call) {
             calls.add(call);
+            if (transportFailure != null) {
+                return Uni.createFrom().failure(transportFailure);
+            }
             return failWith != 0 ? Uni.createFrom().failure(new WebApplicationException(failWith))
                     : Uni.createFrom().item(response);
         }
@@ -172,5 +176,13 @@ class ControlTowerMapServiceTest {
         rpc.failWith = 0;
         assertEquals("row", await(map.summary("client-a")).get(0).asText());
         assertEquals(2, rpc.calls.size());
+    }
+
+    @Test
+    void aTransportFailureIsUnavailable() {
+        rpc.transportFailure = new jakarta.ws.rs.ProcessingException("Connection refused");
+        Uni<JsonNode> call = map.positions("client-a");
+        var e = assertThrows(ControlTowerMapService.UnavailableException.class, () -> await(call));
+        assertEquals("The GPS database did not answer", e.getMessage());
     }
 }

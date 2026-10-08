@@ -13,10 +13,9 @@ import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -132,12 +131,19 @@ public class ControlTowerMapService {
         return tokens.apply(clientId)
                 .onFailure(IllegalStateException.class).transform(e -> new UnavailableException(e.getMessage()))
                 .flatMap(token -> rpc.apply(api(), "Bearer " + token.accessToken()))
-                .onFailure(WebApplicationException.class).transform(e -> {
-                    int status = ((WebApplicationException) e).getResponse().getStatus();
-                    LOG.warnf("GPS database request failed: HTTP %d", status);
-                    return new UnavailableException("The GPS database did not answer: HTTP " + status);
-                })
-                .map(response -> data(response, empty));
+                .map(response -> data(response, empty))
+                .onFailure(e -> !(e instanceof UnavailableException)).transform(ControlTowerMapService::unanswered);
+    }
+
+    /** An HTTP error, or a transport failure such as a refused connection or a timeout. */
+    private static UnavailableException unanswered(Throwable e) {
+        if (e instanceof WebApplicationException w) {
+            int status = w.getResponse().getStatus();
+            LOG.warnf("GPS database request failed: HTTP %d", status);
+            return new UnavailableException("The GPS database did not answer: HTTP " + status);
+        }
+        LOG.warnf("GPS database request failed: %s", e.toString());
+        return new UnavailableException("The GPS database did not answer");
     }
 
     private static JsonNode data(GpsRpcApi.RpcResponse response, JsonNode empty) {
@@ -153,26 +159,26 @@ public class ControlTowerMapService {
         return data == null || data.isNull() ? empty : data;
     }
 
+    /** The trimmed value, when it is an ISO-8601 date-time with or without an offset, or a date. */
     private static String date(String value) {
         String v = value.trim();
-        try {
-            OffsetDateTime.parse(v);
-            return v;
-        } catch (DateTimeParseException e) {
-            // Try the forms without an offset.
-        }
-        try {
-            LocalDateTime.parse(v);
-            return v;
-        } catch (DateTimeParseException e) {
-            // Try a plain date.
-        }
-        try {
-            LocalDate.parse(v);
-            return v;
-        } catch (DateTimeParseException e) {
+        if (!isIsoDate(v)) {
             throw new IllegalArgumentException("Dates must be ISO-8601: " + value);
         }
+        return v;
+    }
+
+    private static boolean isIsoDate(String v) {
+        for (DateTimeFormatter format : List.of(DateTimeFormatter.ISO_OFFSET_DATE_TIME,
+                DateTimeFormatter.ISO_LOCAL_DATE_TIME, DateTimeFormatter.ISO_LOCAL_DATE)) {
+            try {
+                format.parse(v);
+                return true;
+            } catch (DateTimeParseException e) {
+                // Try the next form.
+            }
+        }
+        return false;
     }
 
     private synchronized GpsRpcApi api() {

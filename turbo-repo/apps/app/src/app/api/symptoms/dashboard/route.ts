@@ -4,15 +4,14 @@ import { SymptomsDashboard } from "./route.type";
 
 /**
  * Symptom counts by condition for the active organization: active symptoms, or
- * with `from` and `to` the symptoms created in that range.
+ * with `from` and `to` the symptoms created in that range. The modulith
+ * answers 400 when only one of them is sent.
  */
 export async function GET(req: NextRequest) {
-  const from = req.nextUrl.searchParams.get("from");
-  const to = req.nextUrl.searchParams.get("to");
   const params = new URLSearchParams();
-  if (from && to) {
-    params.set("from", from);
-    params.set("to", to);
+  for (const name of ["from", "to"]) {
+    const value = req.nextUrl.searchParams.get(name);
+    if (value) params.set(name, value);
   }
   const search = params.size ? `?${params}` : "";
 

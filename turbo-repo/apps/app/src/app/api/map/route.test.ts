@@ -33,9 +33,12 @@ describe("map and dashboard routes", () => {
     expect(forwardMock.mock.calls).toEqual([
       [
         "/api/v1/orgs/acme%20org/control-tower/map/positions",
-        { method: "GET" },
+        { method: "GET", sessionOnly: true },
       ],
-      ["/api/v1/orgs/acme%20org/control-tower/map/summary", { method: "GET" }],
+      [
+        "/api/v1/orgs/acme%20org/control-tower/map/summary",
+        { method: "GET", sessionOnly: true },
+      ],
     ]);
   });
 
@@ -68,17 +71,17 @@ describe("map and dashboard routes", () => {
     });
     expect(forwardMock).toHaveBeenCalledWith(
       "/api/v1/orgs/acme%20org/control-tower/map/conditions",
-      { method: "GET" }
+      { method: "GET", sessionOnly: true }
     );
   });
 
-  it("sends the date range only when both dates are given", async () => {
+  it("forwards each date it receives, so the modulith validates the range", async () => {
     forwardMock.mockImplementation(async () => NextResponse.json({}));
     await dashboard(req("http://x/d?from=2026-10-01&to=2026-10-07"));
     await dashboard(req("http://x/d?from=2026-10-01"));
     expect(forwardMock.mock.calls.map((c) => c[0])).toEqual([
       "/api/v1/orgs/acme%20org/control-tower/map/conditions?from=2026-10-01&to=2026-10-07",
-      "/api/v1/orgs/acme%20org/control-tower/map/conditions",
+      "/api/v1/orgs/acme%20org/control-tower/map/conditions?from=2026-10-01",
     ]);
   });
 

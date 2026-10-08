@@ -15,7 +15,7 @@ import {
   type Layout,
   type LayoutItem,
 } from "react-grid-layout";
-import { createScaledStrategy } from "react-grid-layout/core";
+import { setTransform, type PositionStrategy } from "react-grid-layout/core";
 import type {
   Widget,
   GridLayoutItem,
@@ -39,6 +39,18 @@ export interface DashboardGridProps {
   editMode?: boolean;
   /** Called only after a user completes a drag or resize, never on viewport changes. */
   onLayoutCommit?: (layout: GridLayoutItem[]) => void;
+}
+
+/**
+ * Positions items with transforms, with drag and resize maths divided by the board's CSS scale.
+ *
+ * Not react-grid-layout's `createScaledStrategy`: in 2.2.3 its `calcDragPosition` returns the item's
+ * viewport position instead of its position inside the grid, so a drag starts offset by wherever
+ * the grid sits on the page (sidebar, header, scroll). Without that hook the library falls back to
+ * the item's position relative to its offset parent, divided by this scale.
+ */
+function scaledTransformStrategy(scale: number): PositionStrategy {
+  return { type: "transform", scale, calcStyle: setTransform };
 }
 
 function fitLayoutToCols(layout: Layout, cols: number): Layout {
@@ -118,7 +130,10 @@ export function DashboardGrid({
   );
 
   // Keeps drag/resize math correct under the CSS transform.
-  const positionStrategy = useMemo(() => createScaledStrategy(scale), [scale]);
+  const positionStrategy = useMemo(
+    () => scaledTransformStrategy(scale),
+    [scale],
+  );
 
   // Measure the available container width; it drives the column count and scale.
   useEffect(() => {

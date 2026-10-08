@@ -3,6 +3,7 @@ import {
   filterVisiblePulses,
   getAppSignalRingColor,
   hasAppSignalDetail,
+  type PulseSourceData,
 } from "../../utils/pulse-source";
 
 function getColor(icu_code: number): [number, number, number, number] {
@@ -35,13 +36,11 @@ function isValidCoordinate(coords: any): boolean {
   );
 }
 
-type PulseData = {
+type PulseData = PulseSourceData & {
   assetid: string;
   timestamp: string;
   latitude: number;
   longitude: number;
-  signal_description?: string | null;
-  signal_detail?: "app" | "gps" | "unknown" | null;
 };
 
 type DisplayRange = {
@@ -83,15 +82,16 @@ export class PulsePinLayer extends CompositeLayer<any> {
       return [];
     }
 
-    const validData = this.props.data.filter((d: PulseData) =>
+    const validData = (this.props.data as PulseData[]).filter((d) =>
       isValidCoordinate([d.longitude, d.latitude])
     );
-    const visibleData = filterVisiblePulses(validData, showAppSignalDetail);
+    const visibleData = filterVisiblePulses<PulseData>(
+      validData,
+      showAppSignalDetail
+    );
     const appData = visibleData.filter(hasAppSignalDetail);
     const selectedData = selectedPulseKey
-      ? visibleData.filter(
-          (d: PulseData) => buildPulseKey(d) === selectedPulseKey
-        )
+      ? visibleData.filter((d) => buildPulseKey(d) === selectedPulseKey)
       : [];
     const selectedAppData = selectedData.filter(hasAppSignalDetail);
 

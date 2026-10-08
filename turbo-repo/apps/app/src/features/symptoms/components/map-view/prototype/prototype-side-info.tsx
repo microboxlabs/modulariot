@@ -18,6 +18,16 @@ import { ConditionsAgg } from "../../../types/timeline";
 import { GroupAllowed } from "../../../../common/components/group-allowed/group-allowed";
 import PrototypeInlineForm from "./prototype-inline-form";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
+import SymptomForm from "../../blurrable-stepped-menu/symptom-form";
+import { isPastFormsEnabled } from "./past-forms";
+
+/** Menus the previous full-screen modal still implements. */
+const PAST_FORM_OPTIONS = new Set<SelectedOption>([
+  "call_driver",
+  "contact_via_whatsapp",
+  "ignore_condition",
+  "invalidate_symptom",
+]);
 
 /**
  * PROTOTYPE — inline variant of `features/symptoms/side-info.tsx`.
@@ -76,12 +86,28 @@ export default function PrototypeSideInfo({
   }
 
   const formReady = !!treatments_templates && !loading;
+  const pastForms = isPastFormsEnabled();
+  const showPastModal = pastForms && PAST_FORM_OPTIONS.has(selectedOption);
 
   return (
     <div className="relative flex flex-col p-1 h-full overflow-hidden">
+      {/* Previous full-screen modal. Stays mounted while closed so opening
+          it does not replace the timeline. */}
+      {treatments_templates && !loading && showPastModal && (
+        <SymptomForm
+          selectedOption={selectedOption}
+          dict={dict}
+          isMenuOpen={isFormOpen}
+          setIsMenuOpen={setIsFormOpen}
+          treatmentData={treatmentData}
+          treatments_templates={treatments_templates}
+          className={isFormOpen ? "animate-show" : "animate-hide"}
+        />
+      )}
+
       {/* Inline morphed form — replaces the timeline + action buttons in place.
           Fades in after the parent's width transition (~500ms) has mostly run. */}
-      {isFormOpen && formReady && (
+      {isFormOpen && formReady && !pastForms && (
         <div
           className="absolute inset-0 z-20 animate-fade-in-opacity"
           style={{ animationDelay: "250ms", opacity: 0 }}
@@ -99,8 +125,9 @@ export default function PrototypeSideInfo({
         </div>
       )}
 
-      {/* Timeline view — hidden while the inline form is open */}
-      {!isFormOpen && (
+      {/* Timeline view — hidden while the inline form is open. The past
+          modal overlays the page, so the timeline stays put. */}
+      {(!isFormOpen || pastForms) && (
         <>
           <div className="flex flex-col h-full overflow-y-auto pb-20 gap-1">
             <div className="border border-gray-300 dark:border-gray-700 flex flex-row items-center justify-between gap-2 rounded-md transition-all duration-200">

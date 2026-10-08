@@ -18,6 +18,7 @@ import type { SelectedOption } from "../../../types/side-info";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
+import { isPastFormsEnabled } from "./past-forms";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -116,8 +117,10 @@ export default function PrototypeGeneralMap({
   // it's treated the same as reaching "form". Every other menu keeps 62/38.
   const isCallDriver = selectedOption === "call_driver";
   const isCallFormStep = callFlowStep === "form" || callFlowStep === null;
+  // Past forms open as a fixed modal, so the side panel stays at its
+  // resting width instead of morphing over the map.
   const { side: sideWidth, map: mapWidth } = panelWidths(
-    isFormOpen,
+    isPastFormsEnabled() ? false : isFormOpen,
     isCallDriver,
     isCallFormStep
   );

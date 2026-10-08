@@ -60,6 +60,7 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerMapResource.positions", VIEW),
             Map.entry("OrgControlTowerMapResource.summary", VIEW),
             Map.entry("OrgControlTowerMapResource.conditions", VIEW),
+            Map.entry("OrgControlTowerMapResource.symptoms", VIEW),
             Map.entry("OrgControlTowerSettingsResource.get", VIEW),
             Map.entry("OrgControlTowerSettingsResource.save", SETTINGS),
             Map.entry("OrgControlTowerTreatmentsResource.listForSymptom", VIEW),

@@ -18,8 +18,12 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
@@ -84,6 +88,21 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             @QueryParam("to") String to) {
         tenantCode(organizationId);
         return answer(() -> map.conditions(tenantContext.getClientId(), from, to));
+    }
+
+    @GET
+    @Path("/symptoms")
+    @Operation(operationId = "listMapSymptoms", summary = "One page of the organization's symptoms, with totals",
+            description = "Query parameters are the GPS database function's: p_asset_id, p_trip_id, p_driver_id, "
+                    + "p_carrier_id, p_origin, p_destination, p_symptom_name, p_icu_code, p_page, p_page_size, "
+                    + "p_start_date_historic, p_end_date_historic. Any other is a 400.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> symptoms(@PathParam("organizationId") String organizationId, @Context UriInfo uri) {
+        tenantCode(organizationId);
+        Map<String, String> filters = new LinkedHashMap<>();
+        uri.getQueryParameters().forEach((name, values) -> filters.put(name, values.isEmpty() ? null : values.get(0)));
+        return answer(() -> map.symptoms(tenantContext.getClientId(), filters));
     }
 
     private static Uni<Response> answer(Supplier<Uni<JsonNode>> read) {

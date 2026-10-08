@@ -52,6 +52,14 @@ class ControlTowerMapServiceTest {
         public Uni<RpcResponse> conditions(String authorization, String from, String to) {
             return answer("conditions " + authorization + " " + from + " " + to);
         }
+
+        @Override
+        public Uni<JsonNode> symptoms(String authorization, java.util.Map<String, String> filters) {
+            calls.add("symptoms " + authorization + " " + new java.util.TreeMap<>(filters));
+            return Uni.createFrom().item(symptomsBody);
+        }
+
+        JsonNode symptomsBody = JSON.createObjectNode().put("status", 200).put("total_rows", 0);
     }
 
     private static final class MutableClock extends Clock {
@@ -184,5 +192,38 @@ class ControlTowerMapServiceTest {
         Uni<JsonNode> call = map.positions("client-a");
         var e = assertThrows(ControlTowerMapService.UnavailableException.class, () -> await(call));
         assertEquals("The GPS database did not answer", e.getMessage());
+    }
+
+    @Test
+    void symptomsTrimFiltersDropBlanksAndKeepTheWholeAnswer() {
+        JsonNode page = await(map.symptoms("client-a",
+                java.util.Map.of("p_asset_id", " AB12 ", "p_trip_id", "", "p_start_date_historic", "2026-10-01")));
+        assertEquals(0, page.get("total_rows").asInt());
+        assertEquals(List.of("symptoms Bearer token-client-a {p_asset_id=AB12, p_start_date_historic=2026-10-01}"),
+                rpc.calls);
+    }
+
+    @Test
+    void symptomsRefuseFiltersTheFunctionDoesNotOffer() {
+        for (var filters : List.of(java.util.Map.of("p_client_id", "someone-else"),
+                java.util.Map.of("p_client_id", ""), java.util.Map.of("p_icu_code", "3 OR 1=1"),
+                java.util.Map.of("p_end_date_historic", "tomorrow"))) {
+            assertThrows(IllegalArgumentException.class, () -> map.symptoms("client-a", filters), filters.toString());
+        }
+        assertTrue(rpc.calls.isEmpty());
+    }
+
+    @Test
+    void symptomFiltersThatPrintAlikeAreCachedApart() {
+        await(map.symptoms("client-a", java.util.Map.of("p_asset_id", "AB12, p_trip_id=T1")));
+        await(map.symptoms("client-a", java.util.Map.of("p_asset_id", "AB12", "p_trip_id", "T1")));
+        assertEquals(2, rpc.calls.size());
+    }
+
+    @Test
+    void aSymptomsFunctionErrorIsUnavailable() {
+        rpc.symptomsBody = JSON.createObjectNode().put("status", 500).put("message", "Unexpected error: boom");
+        Uni<JsonNode> call = map.symptoms("client-a", java.util.Map.of());
+        assertThrows(ControlTowerMapService.UnavailableException.class, () -> await(call));
     }
 }

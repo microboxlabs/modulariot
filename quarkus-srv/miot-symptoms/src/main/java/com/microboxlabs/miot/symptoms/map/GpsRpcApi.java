@@ -9,6 +9,8 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import java.util.Map;
+import org.jboss.resteasy.reactive.RestQuery;
 
 /**
  * The StreamHub GPS database functions, called through PostgREST. Each function reads the caller's client id from
@@ -34,6 +36,15 @@ public interface GpsRpcApi {
     Uni<RpcResponse> conditions(@HeaderParam("Authorization") String authorization,
             @QueryParam("p_start_date_historic") String from,
             @QueryParam("p_end_date_historic") String to);
+
+    /**
+     * One page of symptoms with their totals: {@code data}, {@code total_rows}, {@code total_pages}, {@code page},
+     * {@code page_size} and {@code symptom_name_list}. {@code filters} are the function's {@code p_*} parameters.
+     */
+    @GET
+    @Path("/api_modular_symptoms_table")
+    Uni<JsonNode> symptoms(@HeaderParam("Authorization") String authorization,
+            @RestQuery Map<String, String> filters);
 
     /** {@code status} is 200 with data, 204 without, or 4xx/5xx when the function failed. */
     @JsonIgnoreProperties(ignoreUnknown = true)

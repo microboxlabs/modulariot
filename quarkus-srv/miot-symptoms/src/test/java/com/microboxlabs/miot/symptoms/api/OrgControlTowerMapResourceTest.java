@@ -48,7 +48,17 @@ class OrgControlTowerMapResourceTest {
         public Uni<RpcResponse> conditions(String authorization, String from, String to) {
             return Uni.createFrom().item(response);
         }
+
+        @Override
+        public Uni<JsonNode> symptoms(String authorization, Map<String, String> filters) {
+            sentFilters.add(filters);
+            JsonNode page = JSON.createObjectNode().put("total_rows", 1).set("data",
+                    JSON.createArrayNode().add(JSON.createObjectNode().put("asset_id", "AB12")));
+            return Uni.createFrom().item(page);
+        }
     };
+
+    private final List<Map<String, String>> sentFilters = new ArrayList<>();
 
     private static final class Roles extends OrganizationRoleService {
         Roles() {
@@ -105,5 +115,127 @@ class OrgControlTowerMapResourceTest {
         WebApplicationException e = assertThrows(WebApplicationException.class, () -> resource.positions("org-b"));
         assertEquals(403, e.getResponse().getStatus());
         assertEquals(List.of(), tokensAskedFor);
+    }
+
+    private static jakarta.ws.rs.core.UriInfo query(String query) {
+        var uri = org.jboss.resteasy.reactive.common.jaxrs.UriBuilderImpl.fromUri("http://x/s?" + query).build();
+        return new jakarta.ws.rs.core.UriInfo() {
+            @Override
+            public String getPath() {
+                return "/s";
+            }
+
+            @Override
+            public String getPath(boolean decode) {
+                return "/s";
+            }
+
+            @Override
+            public List<jakarta.ws.rs.core.PathSegment> getPathSegments() {
+                return List.of();
+            }
+
+            @Override
+            public List<jakarta.ws.rs.core.PathSegment> getPathSegments(boolean decode) {
+                return List.of();
+            }
+
+            @Override
+            public java.net.URI getRequestUri() {
+                return uri;
+            }
+
+            @Override
+            public jakarta.ws.rs.core.UriBuilder getRequestUriBuilder() {
+                return null;
+            }
+
+            @Override
+            public java.net.URI getAbsolutePath() {
+                return uri;
+            }
+
+            @Override
+            public jakarta.ws.rs.core.UriBuilder getAbsolutePathBuilder() {
+                return null;
+            }
+
+            @Override
+            public java.net.URI getBaseUri() {
+                return uri;
+            }
+
+            @Override
+            public jakarta.ws.rs.core.UriBuilder getBaseUriBuilder() {
+                return null;
+            }
+
+            @Override
+            public jakarta.ws.rs.core.MultivaluedMap<String, String> getPathParameters() {
+                return new jakarta.ws.rs.core.MultivaluedHashMap<>();
+            }
+
+            @Override
+            public jakarta.ws.rs.core.MultivaluedMap<String, String> getPathParameters(boolean decode) {
+                return new jakarta.ws.rs.core.MultivaluedHashMap<>();
+            }
+
+            @Override
+            public jakarta.ws.rs.core.MultivaluedMap<String, String> getQueryParameters() {
+                var params = new jakarta.ws.rs.core.MultivaluedHashMap<String, String>();
+                for (String pair : query.split("&")) {
+                    String[] kv = pair.split("=", 2);
+                    params.add(kv[0], kv.length > 1 ? kv[1] : "");
+                }
+                return params;
+            }
+
+            @Override
+            public jakarta.ws.rs.core.MultivaluedMap<String, String> getQueryParameters(boolean decode) {
+                return getQueryParameters();
+            }
+
+            @Override
+            public List<String> getMatchedURIs() {
+                return List.of();
+            }
+
+            @Override
+            public List<String> getMatchedURIs(boolean decode) {
+                return List.of();
+            }
+
+            @Override
+            public List<Object> getMatchedResources() {
+                return List.of();
+            }
+
+            @Override
+            public java.net.URI resolve(java.net.URI u) {
+                return u;
+            }
+
+            @Override
+            public java.net.URI relativize(java.net.URI u) {
+                return u;
+            }
+        };
+    }
+
+    @Test
+    void symptomsPassTheAllowedFiltersAndKeepTheTotals() {
+        Response page = call(resource.symptoms(ORG, query("p_icu_code=3&p_page=1&p_asset_id=AB12")));
+        assertEquals(200, page.getStatus());
+        assertEquals(1, ((JsonNode) page.getEntity()).get("total_rows").asInt());
+        assertEquals(Map.of("p_icu_code", "3", "p_page", "1", "p_asset_id", "AB12"), sentFilters.get(0));
+        assertEquals(List.of("client-a"), tokensAskedFor);
+    }
+
+    @Test
+    void anUnknownOrMalformedSymptomFilterIs400() {
+        assertEquals(400, call(resource.symptoms(ORG, query("p_client_id=other"))).getStatus());
+        assertEquals(400, call(resource.symptoms(ORG, query("p_page=one"))).getStatus());
+        assertEquals(400, call(resource.symptoms(ORG, query("anything="))).getStatus());
+        assertEquals(List.of(), sentFilters);
     }
 }

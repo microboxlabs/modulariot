@@ -16,8 +16,11 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -36,6 +39,10 @@ public class ControlTowerMapService {
 
     private static final Logger LOG = Logger.getLogger(ControlTowerMapService.class);
     static final Duration FRESH = Duration.ofSeconds(5);
+    private static final Set<String> SYMPTOM_TEXT_FILTERS = Set.of("p_asset_id", "p_trip_id", "p_driver_id",
+            "p_carrier_id", "p_origin", "p_destination", "p_symptom_name");
+    private static final Set<String> SYMPTOM_NUMBER_FILTERS = Set.of("p_icu_code", "p_page", "p_page_size");
+    private static final Set<String> SYMPTOM_DATE_FILTERS = Set.of("p_start_date_historic", "p_end_date_historic");
 
     /** The GPS data cannot be read: not configured, no token for the organization, or the database failed. */
     public static class UnavailableException extends RuntimeException {
@@ -78,12 +85,13 @@ public class ControlTowerMapService {
 
     /** Last position of each of the organization's assets, on a trip or not. */
     public Uni<JsonNode> positions(String clientId) {
-        return call(clientId, "positions", (rpc, bearer) -> rpc.positions(bearer, true),
-                JsonNodeFactory.instance.arrayNode());
+        return call(clientId, "positions",
+                (rpc, bearer) -> rpc.positions(bearer, true).map(r -> data(r, JsonNodeFactory.instance.arrayNode())));
     }
 
     public Uni<JsonNode> summary(String clientId) {
-        return call(clientId, "summary", GpsRpcApi::summary, JsonNodeFactory.instance.objectNode());
+        return call(clientId, "summary",
+                (rpc, bearer) -> rpc.summary(bearer).map(r -> data(r, JsonNodeFactory.instance.objectNode())));
     }
 
     /**
@@ -99,12 +107,60 @@ public class ControlTowerMapService {
         }
         String start = hasFrom ? date(from) : null;
         String end = hasTo ? date(to) : null;
-        return call(clientId, "conditions " + start + " " + end,
-                (rpc, bearer) -> rpc.conditions(bearer, start, end), JsonNodeFactory.instance.objectNode());
+        return call(clientId, "conditions " + start + " " + end, (rpc, bearer) -> rpc.conditions(bearer, start, end)
+                .map(r -> data(r, JsonNodeFactory.instance.objectNode())));
     }
 
-    private Uni<JsonNode> call(String clientId, String name,
-            BiFunction<GpsRpcApi, String, Uni<GpsRpcApi.RpcResponse>> rpc, JsonNode empty) {
+    /**
+     * One page of the organization's symptoms, with the function's own totals.
+     *
+     * @param filters the function's parameters: {@code p_asset_id}, {@code p_trip_id}, {@code p_driver_id},
+     *        {@code p_carrier_id}, {@code p_origin}, {@code p_destination}, {@code p_symptom_name},
+     *        {@code p_icu_code}, {@code p_page}, {@code p_page_size}, {@code p_start_date_historic},
+     *        {@code p_end_date_historic}
+     * @throws IllegalArgumentException for any other parameter, a non-numeric number or a non-ISO date
+     */
+    public Uni<JsonNode> symptoms(String clientId, Map<String, String> filters) {
+        Map<String, String> sent = new TreeMap<>();
+        filters.forEach((name, value) -> {
+            if (!SYMPTOM_TEXT_FILTERS.contains(name) && !SYMPTOM_NUMBER_FILTERS.contains(name)
+                    && !SYMPTOM_DATE_FILTERS.contains(name)) {
+                throw new IllegalArgumentException("Unknown filter: " + name);
+            }
+            if (value != null && !value.isBlank()) {
+                sent.put(name, symptomFilter(name, value.trim()));
+            }
+        });
+        Map<String, String> query = new LinkedHashMap<>(sent);
+        return call(clientId, "symptoms " + cacheKey(sent), (rpc, bearer) -> rpc.symptoms(bearer, query)
+                .map(ControlTowerMapService::whole));
+    }
+
+    /** Each name and value prefixed with its length, so no two filter sets share a key. */
+    private static String cacheKey(Map<String, String> sorted) {
+        StringBuilder key = new StringBuilder();
+        sorted.forEach((name, value) -> key.append(name.length()).append(':').append(name)
+                .append(value.length()).append(':').append(value));
+        return key.toString();
+    }
+
+    private static String symptomFilter(String name, String value) {
+        if (SYMPTOM_TEXT_FILTERS.contains(name)) {
+            return value;
+        }
+        if (SYMPTOM_NUMBER_FILTERS.contains(name)) {
+            if (!value.matches("\\d{1,9}")) {
+                throw new IllegalArgumentException(name + " must be a whole number");
+            }
+            return value;
+        }
+        if (SYMPTOM_DATE_FILTERS.contains(name)) {
+            return date(value);
+        }
+        throw new IllegalArgumentException("Unknown filter: " + name);
+    }
+
+    private Uni<JsonNode> call(String clientId, String name, BiFunction<GpsRpcApi, String, Uni<JsonNode>> rpc) {
         if (url.isEmpty()) {
             return Uni.createFrom().failure(new UnavailableException("GPS data is not configured"));
         }
@@ -113,7 +169,7 @@ public class ControlTowerMapService {
         if (answer != null && answer.until().isAfter(clock.instant())) {
             return Uni.createFrom().item(answer.data());
         }
-        return inFlight.computeIfAbsent(key, k -> read(clientId, rpc, empty)
+        return inFlight.computeIfAbsent(key, k -> read(clientId, rpc)
                 .invoke(data -> remember(k, data))
                 .onTermination().invoke(() -> inFlight.remove(k))
                 .memoize().indefinitely());
@@ -126,12 +182,10 @@ public class ControlTowerMapService {
         answers.put(key, new Answer(data, now.plus(FRESH)));
     }
 
-    private Uni<JsonNode> read(String clientId, BiFunction<GpsRpcApi, String, Uni<GpsRpcApi.RpcResponse>> rpc,
-            JsonNode empty) {
+    private Uni<JsonNode> read(String clientId, BiFunction<GpsRpcApi, String, Uni<JsonNode>> rpc) {
         return tokens.apply(clientId)
                 .onFailure(IllegalStateException.class).transform(e -> new UnavailableException(e.getMessage()))
                 .flatMap(token -> rpc.apply(api(), "Bearer " + token.accessToken()))
-                .map(response -> data(response, empty))
                 .onFailure(e -> !(e instanceof UnavailableException)).transform(ControlTowerMapService::unanswered);
     }
 
@@ -157,6 +211,19 @@ public class ControlTowerMapService {
         }
         JsonNode data = response.data();
         return data == null || data.isNull() ? empty : data;
+    }
+
+    /** The whole answer of a function that puts totals beside {@code data}. */
+    private static JsonNode whole(JsonNode body) {
+        if (body == null || body.isNull()) {
+            return JsonNodeFactory.instance.objectNode();
+        }
+        int status = body.path("status").asInt(200);
+        if (status >= 400) {
+            LOG.warnf("GPS database function failed: %d %s", status, body.path("message").asText());
+            throw new UnavailableException("The GPS database could not answer the query");
+        }
+        return body;
     }
 
     /** The trimmed value, when it is an ISO-8601 date-time with or without an offset, or a date. */

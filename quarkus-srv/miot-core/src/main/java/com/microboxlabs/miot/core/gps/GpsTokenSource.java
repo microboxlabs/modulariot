@@ -13,9 +13,12 @@ import jakarta.ws.rs.WebApplicationException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
@@ -29,10 +32,13 @@ public class GpsTokenSource {
 
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final long DEFAULT_LIFETIME_SECONDS = 300;
+    static final Duration EARLY = Duration.ofSeconds(60);
 
     private final Auth0Management auth0;
     private final Optional<String> tokenUrl;
     private final Supplier<GpsTokenApi> apiFactory;
+    private final Map<String, IssuedToken> tokens = new ConcurrentHashMap<>();
+    private final Map<String, Uni<IssuedToken>> inFlight = new ConcurrentHashMap<>();
     private GpsTokenApi api;
 
     @Inject
@@ -54,6 +60,30 @@ public class GpsTokenSource {
      *         or the endpoint refuses the application
      */
     public Uni<IssuedToken> issue(Organization organization) {
+        return issue(organization == null ? null : organization.tenantClientId);
+    }
+
+    /**
+     * A token for the application {@code clientId}, reused until a minute before it expires. Concurrent calls for
+     * the same application share one request.
+     *
+     * @throws IllegalStateException as {@link #issue(Organization)}
+     */
+    public Uni<IssuedToken> current(String clientId) {
+        if (clientId == null || clientId.isBlank()) {
+            return issue(clientId);
+        }
+        IssuedToken token = tokens.get(clientId);
+        if (token != null && token.expiresAt().minus(EARLY).isAfter(Instant.now())) {
+            return Uni.createFrom().item(token);
+        }
+        return inFlight.computeIfAbsent(clientId, id -> issue(id)
+                .invoke(issued -> tokens.put(id, issued))
+                .onTermination().invoke(() -> inFlight.remove(id))
+                .memoize().indefinitely());
+    }
+
+    private Uni<IssuedToken> issue(String clientId) {
         if (tokenUrl.isEmpty()) {
             return Uni.createFrom().failure(
                     new IllegalStateException("No token endpoint is configured for the GPS token exchange"));
@@ -63,7 +93,6 @@ public class GpsTokenSource {
             return Uni.createFrom().failure(
                     new IllegalStateException("The organization's Auth0 application cannot be used here"));
         }
-        String clientId = organization.tenantClientId;
         if (clientId == null || clientId.isBlank()) {
             return Uni.createFrom().failure(new IllegalStateException("The organization has no Auth0 application"));
         }

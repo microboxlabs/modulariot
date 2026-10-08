@@ -1,84 +1,33 @@
-import { auth } from "@/auth";
-import { NextResponse, NextRequest } from "next/server";
-import { SymptomsDashboardResponse, SymptomsDashboard } from "./route.type";
+import { NextRequest, NextResponse } from "next/server";
+import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import { SymptomsDashboard } from "./route.type";
 
-const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/rpc/api_modular_symptoms_dashboard`;
-
-import {
-  AuthToken,
-  AuthTokenConfig,
-} from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
-
-const config: AuthTokenConfig = {
-  clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
-  clientSecret: `${process.env.STREAMHUB_CLIENT_SECRET}`,
-  audience: `${process.env.STREAMHUB_AUDIENCE}`,
-  grantType: "client_credentials",
-};
-
-const authToken = new AuthToken(config);
-
+/**
+ * Symptom counts by condition for the active organization: active symptoms, or
+ * with `from` and `to` the symptoms created in that range.
+ */
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({
-      status: 401,
-    });
-  }
-
-  const url = new URL(req.url);
+  const from = req.nextUrl.searchParams.get("from");
+  const to = req.nextUrl.searchParams.get("to");
   const params = new URLSearchParams();
-
-  if (url.searchParams.get("from")) {
-    params.set("p_start_date_historic", url.searchParams.get("from") ?? "");
+  if (from && to) {
+    params.set("from", from);
+    params.set("to", to);
   }
-  if (url.searchParams.get("to")) {
-    params.set("p_end_date_historic", url.searchParams.get("to") ?? "");
-  }
+  const search = params.size ? `?${params}` : "";
 
-  try {
-    const token = await authToken.getToken();
-    const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
-      headers: {
-        accept: "application/json",
-        Authorization: ` Bearer ${token}`,
-      },
-    });
+  const response = await forwardControlTowerMap("conditions", search);
+  if (!response.ok) return response;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const apiData = (await response.json()) as SymptomsDashboardResponse;
-
-    // Transform API data into our desired structure
-    const formattedResponse: SymptomsDashboard = {
-      critic: apiData.data["Critical condition"] || 0,
-      stable: apiData.data["Stable"] || 0,
-      codeBlack: apiData.data["Code Black"] || 0,
-      remission: apiData.data["Remission"] || 0,
-      treatment: apiData.data["Under Treatment"] || 0,
-      compromised: apiData.data["Compromised condition"] || 0,
-      observation: apiData.data["Under Observation"] || 0,
-    };
-
-    return NextResponse.json(formattedResponse);
-  } catch (error) {
-    return NextResponse.json(
-      {
-        data: {
-          critic: 0,
-          stable: 0,
-          codeBlack: 0,
-          remission: 0,
-          treatment: 0,
-          compromised: 0,
-          observation: 0,
-        },
-        status: 500,
-        message: "Failed to fetch symptoms data",
-      },
-      { status: 500 }
-    );
-  }
+  const counts = (await response.json()) as Record<string, number>;
+  const dashboard: SymptomsDashboard = {
+    critic: counts["Critical condition"] || 0,
+    stable: counts["Stable"] || 0,
+    codeBlack: counts["Code Black"] || 0,
+    remission: counts["Remission"] || 0,
+    treatment: counts["Under Treatment"] || 0,
+    compromised: counts["Compromised condition"] || 0,
+    observation: counts["Under Observation"] || 0,
+  };
+  return NextResponse.json(dashboard);
 }

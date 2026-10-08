@@ -13,6 +13,7 @@ import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerAuditResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerContactsResource;
+import com.microboxlabs.miot.symptoms.api.OrgControlTowerMapResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerSettingsResource;
 import com.microboxlabs.miot.symptoms.api.OrgControlTowerTreatmentsResource;
 import com.microboxlabs.miot.symptoms.api.OrgDataSourcesResource;
@@ -35,7 +36,7 @@ import org.junit.jupiter.api.Test;
 class ControlTowerPermissionsTest {
 
     private static final List<Class<?>> RESOURCES = List.of(OrgControlTowerAuditResource.class,
-            OrgControlTowerContactsResource.class, OrgControlTowerSettingsResource.class,
+            OrgControlTowerContactsResource.class, OrgControlTowerMapResource.class, OrgControlTowerSettingsResource.class,
             OrgControlTowerTreatmentsResource.class, OrgDataSourcesResource.class,
             OrgSymptomDefinitionsResource.class, OrgSymptomFamiliesResource.class);
 
@@ -56,6 +57,9 @@ class ControlTowerPermissionsTest {
             Map.entry("OrgControlTowerContactsResource.importContacts", CONTACT_WRITE),
             Map.entry("OrgControlTowerContactsResource.update", CONTACT_WRITE),
             Map.entry("OrgControlTowerContactsResource.delete", CONTACT_DELETE),
+            Map.entry("OrgControlTowerMapResource.positions", VIEW),
+            Map.entry("OrgControlTowerMapResource.summary", VIEW),
+            Map.entry("OrgControlTowerMapResource.conditions", VIEW),
             Map.entry("OrgControlTowerSettingsResource.get", VIEW),
             Map.entry("OrgControlTowerSettingsResource.save", SETTINGS),
             Map.entry("OrgControlTowerTreatmentsResource.listForSymptom", VIEW),

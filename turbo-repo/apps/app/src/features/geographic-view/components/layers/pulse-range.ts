@@ -1,4 +1,9 @@
 import { CompositeLayer, Layer, ScatterplotLayer } from "deck.gl";
+import {
+  isMobilePulse,
+  isVisiblePulse,
+  getMobilePulseRingColor,
+} from "../../utils/pulse-source";
 
 function getColor(icu_code: number): [number, number, number, number] {
   switch (icu_code) {
@@ -35,7 +40,30 @@ type PulseData = {
   timestamp: string;
   latitude: number;
   longitude: number;
+  signal_description?: string | null;
 };
+
+type DisplayRange = {
+  startDate?: Date;
+  endDate?: Date;
+};
+
+function isWithinDisplayRange(
+  pulse: PulseData,
+  displayRange?: DisplayRange
+): boolean {
+  if (!displayRange?.startDate || !displayRange.endDate) return true;
+
+  const signalTimestamp = new Date(pulse.timestamp);
+  const localSignalTimestamp = new Date(
+    signalTimestamp.getTime() + signalTimestamp.getTimezoneOffset() * 60000
+  );
+
+  return (
+    localSignalTimestamp >= new Date(displayRange.startDate) &&
+    localSignalTimestamp <= new Date(displayRange.endDate)
+  );
+}
 
 export function buildPulseKey(d: PulseData): string {
   return `${d.assetid}:${d.timestamp}:${d.latitude}:${d.longitude}`;
@@ -45,7 +73,9 @@ export class PulsePinLayer extends CompositeLayer<any> {
   renderLayers(): Layer[] {
     const displayRange = this.props.displayRange;
     const showStops = this.props.showStops || false;
+    const showMobilePulses = this.props.showMobilePulses ?? true;
     const selectedPulseKey: string | null = this.props.selectedPulseKey || null;
+    const ringColor = getMobilePulseRingColor(this.props.isDarkMap ?? true);
 
     // Check if data exists and is an array (raw HistoricSignal[])
     if (!this.props.data || !Array.isArray(this.props.data)) {
@@ -53,9 +83,18 @@ export class PulsePinLayer extends CompositeLayer<any> {
     }
 
     // Filter valid data points
-    const validData = this.props.data.filter((d: PulseData) =>
-      isValidCoordinate([d.longitude, d.latitude])
+    const validData = this.props.data.filter(
+      (d: PulseData) =>
+        isValidCoordinate([d.longitude, d.latitude]) &&
+        isVisiblePulse(d, showMobilePulses)
     );
+    const mobileData = validData.filter(isMobilePulse);
+    const selectedData = selectedPulseKey
+      ? validData.filter(
+          (d: PulseData) => buildPulseKey(d) === selectedPulseKey
+        )
+      : [];
+    const selectedMobileData = selectedData.filter(isMobilePulse);
 
     return [
       new ScatterplotLayer({
@@ -71,7 +110,7 @@ export class PulsePinLayer extends CompositeLayer<any> {
           }
           return [255, 255, 255, 255];
         },
-        getRadius: 7,
+        getRadius: (d: PulseData) => (isMobilePulse(d) ? 9 : 7),
         getPosition:
           this.props.getPosition ||
           ((d: PulseData) => [d.longitude, d.latitude]),
@@ -90,42 +129,29 @@ export class PulsePinLayer extends CompositeLayer<any> {
           getFillColor: [selectedPulseKey],
         },
       }) as Layer,
+
+      new ScatterplotLayer({
+        id: "pulse-mobile-source-ring-layer",
+        data: mobileData,
+        getFillColor: (d: PulseData) =>
+          isWithinDisplayRange(d, displayRange) ? ringColor : [0, 0, 0, 0],
+        getRadius: 7,
+        getPosition:
+          this.props.getPosition ||
+          ((d: PulseData) => [d.longitude, d.latitude]),
+        parameters: { depthTest: false },
+        radiusUnits: "pixels",
+        pickable: false,
+        updateTriggers: {
+          getFillColor: [displayRange, this.props.isDarkMap],
+        },
+      }) as Layer,
+
       new ScatterplotLayer({
         id: "pulse-moving-vehicles-layer",
         data: validData,
-        getFillColor: (d: PulseData) => {
-          // If no display range is set, show all elements normally
-          if (
-            !displayRange ||
-            !displayRange.startDate ||
-            !displayRange.endDate
-          ) {
-            return getColor(0);
-          }
-
-          // Handle timezone properly - normalize both timestamps to local timezone for comparison
-          const signalTimestamp = new Date(d.timestamp);
-          const startTime = new Date(displayRange.startDate);
-          const endTime = new Date(displayRange.endDate);
-
-          // If the signal timestamp appears to be in UTC but should be treated as local time,
-          // we need to adjust for timezone offset
-          const localSignalTimestamp = new Date(
-            signalTimestamp.getTime() +
-              signalTimestamp.getTimezoneOffset() * 60000
-          );
-
-          // Show elements that are WITHIN the date range
-          if (
-            localSignalTimestamp >= startTime &&
-            localSignalTimestamp <= endTime
-          ) {
-            return getColor(0);
-          } else {
-            // Hide elements outside the range by making them transparent
-            return [0, 0, 0, 0];
-          }
-        },
+        getFillColor: (d: PulseData) =>
+          isWithinDisplayRange(d, displayRange) ? getColor(0) : [0, 0, 0, 0],
         getRadius: 5,
         getPosition:
           this.props.getPosition ||
@@ -153,16 +179,14 @@ export class PulsePinLayer extends CompositeLayer<any> {
             // White ring behind the selected pulse, rendered on top of everything
             new ScatterplotLayer({
               id: "pulse-selected-background",
-              data: validData.filter(
-                (d: PulseData) => buildPulseKey(d) === selectedPulseKey
-              ),
+              data: selectedData,
               getFillColor: [255, 255, 255, 255] as [
                 number,
                 number,
                 number,
                 number,
               ],
-              getRadius: 7,
+              getRadius: (d: PulseData) => (isMobilePulse(d) ? 9 : 7),
               getPosition:
                 this.props.getPosition ||
                 ((d: PulseData) => [d.longitude, d.latitude]),
@@ -170,12 +194,25 @@ export class PulsePinLayer extends CompositeLayer<any> {
               radiusUnits: "pixels" as const,
               pickable: false,
             }) as Layer,
-            // Blue dot for the selected pulse, on top of its white ring
+            new ScatterplotLayer({
+              id: "pulse-selected-mobile-source-ring",
+              data: selectedMobileData,
+              getFillColor: ringColor,
+              getRadius: 7,
+              getPosition:
+                this.props.getPosition ||
+                ((d: PulseData) => [d.longitude, d.latitude]),
+              parameters: { depthTest: false },
+              radiusUnits: "pixels" as const,
+              pickable: false,
+              updateTriggers: {
+                getFillColor: [this.props.isDarkMap],
+              },
+            }) as Layer,
+            // Original pulse color on top of the selected white ring
             new ScatterplotLayer({
               id: "pulse-selected-foreground",
-              data: validData.filter(
-                (d: PulseData) => buildPulseKey(d) === selectedPulseKey
-              ),
+              data: selectedData,
               getFillColor: getColor(0),
               getRadius: 5,
               getPosition:

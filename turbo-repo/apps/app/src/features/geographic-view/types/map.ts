@@ -67,6 +67,7 @@ export interface MapPosition {
   movement_status: string | null;
   symptom_condition: string | null;
   speed_limit_condition: number | null;
+  signal_description?: string | null;
 }
 
 export interface PulsePropsInfo {
@@ -92,6 +93,7 @@ export interface PulseProps {
     status: string;
     color: string;
     icu_code: number;
+    signal_description?: string | null;
   };
   geometry: {
     type: string;

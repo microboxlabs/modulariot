@@ -10,6 +10,7 @@ export type HistoricSignal = {
   distance: number;
   latitude: number;
   longitude: number;
+  signal_description?: string | null;
 };
 
 export type HistoricTrip = {

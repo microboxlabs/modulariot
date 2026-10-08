@@ -1,4 +1,9 @@
 import { CompositeLayer, Layer, ScatterplotLayer } from "deck.gl";
+import {
+  isMobilePulse,
+  isVisiblePulse,
+  getMobilePulseRingColor,
+} from "../../utils/pulse-source";
 
 export function getColor(icu_code: number): [number, number, number, number] {
   switch (icu_code) {
@@ -17,6 +22,20 @@ export function getColor(icu_code: number): [number, number, number, number] {
   }
 }
 
+function getStoppedPulseColor(): [number, number, number, number] {
+  return [240, 50, 50, 255];
+}
+
+function getSelectedPulseColor(
+  d: any,
+  showStops: boolean
+): [number, number, number, number] {
+  if (d.properties.speed > 0 || !showStops) {
+    return getColor(d.properties.icu_code);
+  }
+  return [240, 50, 50, 255];
+}
+
 export function isValidCoordinate(coords: any): boolean {
   return (
     coords &&
@@ -33,6 +52,8 @@ export interface PulseLayerProps {
   zoom: number;
   selectedPulse?: any[];
   showStops?: boolean;
+  showMobilePulses?: boolean;
+  isDarkMap?: boolean;
   data?: { features: any[] };
   displayPosition?: number;
   displayRange?: { startDate: Date; endDate: Date };
@@ -76,10 +97,15 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
     };
   }
 
+  protected isRenderableFeature(d: any): boolean {
+    if (!isValidCoordinate(d.geometry?.coordinates)) return false;
+    return isVisiblePulse(d.properties, this.props.showMobilePulses ?? true);
+  }
+
   protected filterValidFeatures() {
     if (!this.props.data?.features) return [];
     return this.props.data.features.filter((d: any) =>
-      isValidCoordinate(d.geometry?.coordinates)
+      this.isRenderableFeature(d)
     );
   }
 
@@ -88,7 +114,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
     // The speed filtering is only relevant for the stopped vehicles layer
     return (
       this.props.data?.features?.filter((d: any) =>
-        isValidCoordinate(d.geometry?.coordinates)
+        this.isRenderableFeature(d)
       ) || []
     );
   }
@@ -98,9 +124,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
     return (
       this.props.data?.features?.filter(
         (d: any) =>
-          d.properties?.speed <= 0 &&
-          showStops &&
-          isValidCoordinate(d.geometry?.coordinates)
+          d.properties?.speed <= 0 && showStops && this.isRenderableFeature(d)
       ) || []
     );
   }
@@ -111,7 +135,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
       this.props.data?.features?.filter(
         (d: any) =>
           selectedPulse.includes(d.properties?.id) &&
-          isValidCoordinate(d.geometry?.coordinates)
+          this.isRenderableFeature(d)
       ) || []
     );
   }
@@ -125,7 +149,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
           selectedPulse.includes(d.properties?.id) &&
           d.properties?.speed <= 0 &&
           showStops &&
-          isValidCoordinate(d.geometry?.coordinates)
+          this.isRenderableFeature(d)
       ) || []
     );
   }
@@ -137,14 +161,21 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
   renderLayers(): Layer[] {
     const selectedPulse = this.props.selectedPulse || [];
     const showStops = this.props.showStops || false;
+    const ringColor = getMobilePulseRingColor(this.props.isDarkMap ?? true);
 
     if (!this.props.data?.features) return [];
 
     const validFeatures = this.filterValidFeatures();
+    const mobileFeatures = validFeatures.filter((d: any) =>
+      isMobilePulse(d.properties)
+    );
     const movingVehicles = this.filterMovingVehicles();
     const stoppedVehicles = this.filterStoppedVehicles();
     const selectedVehicles = this.filterSelectedVehicles();
     const selectedStoppedVehicles = this.filterSelectedStoppedVehicles();
+    const selectedMobileFeatures = selectedVehicles.filter((d: any) =>
+      isMobilePulse(d.properties)
+    );
 
     return [
       new ScatterplotLayer({
@@ -157,9 +188,27 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
           selectedPulse.length === 0 ? 255 : 0,
         ],
         ...this.getBackgroundLayerProps(),
+        getRadius: (d: any) => (isMobilePulse(d.properties) ? 9 : 7),
         updateTriggers: { getFillColor: [selectedPulse] },
         pickable: true,
         radiusUnits: "pixels",
+      }) as Layer,
+
+      new ScatterplotLayer({
+        id: "pulse-mobile-source-ring-layer",
+        data: mobileFeatures,
+        getFillColor: (d: any) =>
+          this.props.displayPosition !== undefined &&
+          d.properties.id > this.props.displayPosition
+            ? [0, 0, 0, 0]
+            : ringColor,
+        ...this.getBackgroundLayerProps(),
+        getRadius: 7,
+        pickable: false,
+        radiusUnits: "pixels",
+        updateTriggers: {
+          getFillColor: [this.props.displayPosition, this.props.isDarkMap],
+        },
       }) as Layer,
 
       new ScatterplotLayer({
@@ -182,7 +231,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
       new ScatterplotLayer({
         id: "pulse-stopped-vehicles-layer",
         data: stoppedVehicles,
-        getFillColor: () => [240, 50, 50, 255],
+        getFillColor: getStoppedPulseColor,
         ...this.getCommonLayerProps(),
         updateTriggers: {
           getFillColor: [
@@ -200,6 +249,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
         data: selectedVehicles,
         getFillColor: () => [255, 255, 255, 255],
         ...this.getBackgroundLayerProps(),
+        getRadius: (d: any) => (isMobilePulse(d.properties) ? 9 : 7),
         updateTriggers: {
           getFillColor: [selectedPulse],
           getPosition: [showStops],
@@ -208,12 +258,22 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
       }) as Layer,
 
       new ScatterplotLayer({
+        id: "pulse-selected-mobile-source-ring-layer",
+        data: selectedMobileFeatures,
+        getFillColor: ringColor,
+        ...this.getBackgroundLayerProps(),
+        getRadius: 7,
+        pickable: false,
+        radiusUnits: "pixels",
+        updateTriggers: {
+          getFillColor: [this.props.isDarkMap],
+        },
+      }) as Layer,
+
+      new ScatterplotLayer({
         id: "pulse-selected-vehicles-layer",
         data: selectedVehicles,
-        getFillColor: (d: any) =>
-          d.properties.speed > 0 || !showStops
-            ? getColor(d.properties.icu_code)
-            : [240, 50, 50, 255],
+        getFillColor: (d: any) => getSelectedPulseColor(d, showStops),
         ...this.getCommonLayerProps(),
         updateTriggers: { getFillColor: [selectedPulse, showStops] },
         radiusUnits: "pixels",
@@ -222,7 +282,7 @@ export abstract class BasePulsePinLayer extends CompositeLayer<any> {
       new ScatterplotLayer({
         id: "pulse-selected-stopped-vehicles-layer",
         data: selectedStoppedVehicles,
-        getFillColor: () => [240, 50, 50, 255],
+        getFillColor: getStoppedPulseColor,
         ...this.getCommonLayerProps(),
         updateTriggers: { getFillColor: [selectedPulse, showStops] },
         radiusUnits: "pixels",

@@ -35,6 +35,7 @@ export default function Geographic({
         selectedTreatmentIndex={null}
         minimized={true}
         licensePlate={(task.mintral_truckLicensePlate as string) ?? null}
+        showMobilePulsesDefault={true}
       />
     </div>
   );

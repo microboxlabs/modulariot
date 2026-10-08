@@ -8,6 +8,7 @@ import MapSelector from "./map-selector";
 import { mapstyles } from "../map-style-selector";
 import PulseRange from "./pulse-range";
 import { BsSignStop } from "react-icons/bs";
+import { HiDevicePhoneMobile } from "react-icons/hi2";
 import Screenshot from "./screenshot";
 import { Tooltip } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -42,6 +43,10 @@ type ToolBarProps = {
     showPulse: boolean;
     setShowPulse: (showPulse: boolean) => void;
   };
+  show_mobile_pulses?: {
+    showMobilePulses: boolean;
+    setShowMobilePulses: (showMobilePulses: boolean) => void;
+  };
   allow_screenshot?: boolean;
   dictionary: I18nRecord;
   defaultOpenTimeline?: boolean;
@@ -56,6 +61,7 @@ export default function ToolBar({
   show_stops,
   show_geofences,
   show_pulse,
+  show_mobile_pulses,
   allow_screenshot = true,
   dictionary,
   defaultOpenTimeline,
@@ -89,6 +95,13 @@ export default function ToolBar({
     ?.isDark
     ? "light"
     : "dark";
+
+  function handleToggleMobilePulses() {
+    if (!show_mobile_pulses) return;
+    show_mobile_pulses.setShowMobilePulses(
+      !show_mobile_pulses.showMobilePulses
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none p-5">
@@ -139,7 +152,7 @@ export default function ToolBar({
           }
         />
         <div
-          className={`flex flex-row gap-3 text-sm text-gray-500 transition-all duration-300 overflow-hidden rounded-md ${!open ? "max-w-0 p-0" : "max-w-96 p-1"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}
+          className={`flex flex-row gap-3 text-sm text-gray-500 transition-all duration-300 overflow-hidden rounded-md ${!open ? "max-w-0 p-0" : "max-w-[28rem] p-1"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}
         >
           {selected_style && (
             <div className="flex flex-row gap-1">
@@ -178,7 +191,10 @@ export default function ToolBar({
             </div>
           )}
           {/* Map toggles */}
-          {(show_pulse || show_stops || show_geofences) && (
+          {(show_pulse ||
+            show_mobile_pulses ||
+            show_stops ||
+            show_geofences) && (
             <div className="flex flex-row gap-1">
               {show_pulse && (
                 <Tooltip
@@ -192,6 +208,19 @@ export default function ToolBar({
                     }
                   >
                     <div className="w-5 h-5 bg-blue-500 border-2 border-white rounded-full"></div>
+                  </div>
+                </Tooltip>
+              )}
+              {show_mobile_pulses && (
+                <Tooltip
+                  content={tr("geographic_view.mobile_app", dictionary)}
+                  style={style_theme}
+                >
+                  <div
+                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${show_mobile_pulses.showMobilePulses ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
+                    onClick={handleToggleMobilePulses}
+                  >
+                    <HiDevicePhoneMobile size={18} />
                   </div>
                 </Tooltip>
               )}

@@ -6,4 +6,5 @@ export type MapPosition = {
   heading: string;
   timestamp: string;
   assetid: string;
+  signal_description?: string | null;
 };

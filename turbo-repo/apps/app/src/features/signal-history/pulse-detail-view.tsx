@@ -3,6 +3,11 @@ import { I18nRecord } from "../i18n/i18n.service.types";
 import { tr } from "../i18n/tr.service";
 import FormattedDate from "../common/components/formatted-date";
 import { memo } from "react";
+import PulseSourceIndicator from "../geographic-view/components/pulse-source-indicator";
+import {
+  getSignalDescription,
+  isMobilePulse,
+} from "../geographic-view/utils/pulse-source";
 
 type PulseDetailViewProps = {
   pulse: HistoricSignal;
@@ -60,6 +65,15 @@ const PulseDetailView = memo(function PulseDetailView({
         {tr("signal_historic.longitude", dict)}:{" "}
         <span className="font-light">{pulse.longitude.toFixed(6)}</span>
       </div>
+      <div className="text-sm text-gray-600 dark:text-gray-300">
+        {tr("geographic_view.signal_description", dict)}:{" "}
+        <span className="font-light">{getSignalDescription(pulse) || "—"}</span>
+      </div>
+      <PulseSourceIndicator
+        mobileCount={isMobilePulse(pulse) ? 1 : 0}
+        gpsCount={0}
+        dict={dict}
+      />
       <hr className="my-2 border-gray-200 dark:border-gray-700" />
       <a
         href={googleMapsUrl}

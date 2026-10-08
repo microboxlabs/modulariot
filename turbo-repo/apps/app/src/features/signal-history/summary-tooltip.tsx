@@ -8,6 +8,8 @@ import { tr } from "../i18n/tr.service";
 import FormattedDate from "../common/components/formatted-date";
 import { handleDownloadCsv } from "./utils/download-csv";
 import PulseDetailView from "./pulse-detail-view";
+import PulseSourceIndicator from "../geographic-view/components/pulse-source-indicator";
+import { countPulseSources } from "../geographic-view/utils/pulse-source";
 
 const SummaryTooltip = memo(function SummaryTooltip({
   data,
@@ -111,6 +113,7 @@ const SummaryTooltip = memo(function SummaryTooltip({
   }, [selectedData, dict]);
 
   const hasPulseSelected = selectedPulse !== null;
+  const sourceCounts = countPulseSources(selectedData);
 
   return (
     <MapTooltip
@@ -139,6 +142,11 @@ const SummaryTooltip = memo(function SummaryTooltip({
               {distance.toFixed(1)}km
             </span>
           </p>
+          <PulseSourceIndicator
+            mobileCount={sourceCounts.mobile}
+            gpsCount={sourceCounts.gps}
+            dict={dict}
+          />
           <div className="h-60 w-90 bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg border border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
             {loadingTable ? (
               <div className="bg-gray-500 animate-pulse"></div>

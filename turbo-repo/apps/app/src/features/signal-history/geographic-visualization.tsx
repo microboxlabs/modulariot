@@ -18,6 +18,11 @@ import { convertJSONToCSV } from "./utils/json-to-csv";
 import { handleDownloadCsv } from "./utils/download-csv";
 import CustomCard from "../symptoms/components/card/custom-card";
 import { flyTo } from "../map-visualization/map-view-utils";
+import { PulseSourceLegend } from "../geographic-view/components/pulse-source-indicator";
+import {
+  isDarkMapStyle,
+  isMobilePulse,
+} from "../geographic-view/utils/pulse-source";
 
 export default function GeographicVisualization({
   data,
@@ -41,10 +46,12 @@ export default function GeographicVisualization({
   >([]);
   const [layers, setLayers] = useState<any[]>([]);
   const [mapStyle, setMapStyle] = useState<string>("satellite");
+  const isDarkMap = isDarkMapStyle(mapStyle);
 
   const [selectedPulse, setSelectedPulse] = useState<HistoricSignal | null>(
     null
   );
+  const [showMobilePulses, setShowMobilePulses] = useState(true);
 
   const [dateRangeDisplayed, setDateRangeDisplayed] = useState<{
     startDate: string;
@@ -85,6 +92,7 @@ export default function GeographicVisualization({
           rotation: 0,
           speed: 10,
           timestamp: signal.timestamp,
+          signal_description: signal.signal_description,
         },
       })),
     };
@@ -196,6 +204,16 @@ export default function GeographicVisualization({
     setSelectedPulse(null);
   }, []);
 
+  const handleShowMobilePulses = useCallback(
+    (show: boolean) => {
+      setShowMobilePulses(show);
+      if (!show && selectedPulse && isMobilePulse(selectedPulse)) {
+        setSelectedPulse(null);
+      }
+    },
+    [selectedPulse]
+  );
+
   useEffect(() => {
     const newLayers: any[] = [
       new PulsePinLayer({
@@ -211,12 +229,16 @@ export default function GeographicVisualization({
         },
         pickable: true,
         onClick: handlePulseClick,
+        isDarkMap,
+        showMobilePulses,
         updateTriggers: {
           displayRange: {
             startDate: new Date(dateRangeDisplayed.startDate),
             endDate: new Date(dateRangeDisplayed.endDate),
           },
           selectedPulseKey: selectedPulse ? buildPulseKey(selectedPulse) : null,
+          isDarkMap,
+          showMobilePulses,
         },
       }),
     ];
@@ -229,6 +251,8 @@ export default function GeographicVisualization({
     dateRangeDisplayed,
     handlePulseClick,
     selectedPulse,
+    isDarkMap,
+    showMobilePulses,
   ]);
 
   useEffect(() => {
@@ -305,6 +329,10 @@ export default function GeographicVisualization({
           selectedStyle: mapStyle,
           setSelectedStyle: setMapStyle,
         }}
+        show_mobile_pulses={{
+          showMobilePulses,
+          setShowMobilePulses: handleShowMobilePulses,
+        }}
         allow_screenshot={false}
       />
     ),
@@ -315,6 +343,8 @@ export default function GeographicVisualization({
       mapStyle,
       dateRanges,
       onTimelineChange,
+      showMobilePulses,
+      handleShowMobilePulses,
     ]
   );
 
@@ -368,6 +398,11 @@ export default function GeographicVisualization({
           isLoading={isLoading}
           mapRef={mapRef}
         />
+        {data && data.length > 0 && (
+          <div className="absolute right-2 top-2 z-20">
+            <PulseSourceLegend dict={dict} isDarkMap={isDarkMap} />
+          </div>
+        )}
       </div>
       <CustomCard className="p-4">
         <TimeRangeSelector

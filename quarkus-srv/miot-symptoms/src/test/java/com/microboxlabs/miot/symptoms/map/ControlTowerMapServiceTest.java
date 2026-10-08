@@ -205,13 +205,19 @@ class ControlTowerMapServiceTest {
 
     @Test
     void symptomsRefuseFiltersTheFunctionDoesNotOffer() {
-        assertThrows(IllegalArgumentException.class,
-                () -> map.symptoms("client-a", java.util.Map.of("p_client_id", "someone-else")));
-        assertThrows(IllegalArgumentException.class,
-                () -> map.symptoms("client-a", java.util.Map.of("p_icu_code", "3 OR 1=1")));
-        assertThrows(IllegalArgumentException.class,
-                () -> map.symptoms("client-a", java.util.Map.of("p_end_date_historic", "tomorrow")));
+        for (var filters : List.of(java.util.Map.of("p_client_id", "someone-else"),
+                java.util.Map.of("p_client_id", ""), java.util.Map.of("p_icu_code", "3 OR 1=1"),
+                java.util.Map.of("p_end_date_historic", "tomorrow"))) {
+            assertThrows(IllegalArgumentException.class, () -> map.symptoms("client-a", filters), filters.toString());
+        }
         assertTrue(rpc.calls.isEmpty());
+    }
+
+    @Test
+    void symptomFiltersThatPrintAlikeAreCachedApart() {
+        await(map.symptoms("client-a", java.util.Map.of("p_asset_id", "AB12, p_trip_id=T1")));
+        await(map.symptoms("client-a", java.util.Map.of("p_asset_id", "AB12", "p_trip_id", "T1")));
+        assertEquals(2, rpc.calls.size());
     }
 
     @Test

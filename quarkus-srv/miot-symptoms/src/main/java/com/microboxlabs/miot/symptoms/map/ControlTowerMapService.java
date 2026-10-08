@@ -123,13 +123,25 @@ public class ControlTowerMapService {
     public Uni<JsonNode> symptoms(String clientId, Map<String, String> filters) {
         Map<String, String> sent = new TreeMap<>();
         filters.forEach((name, value) -> {
+            if (!SYMPTOM_TEXT_FILTERS.contains(name) && !SYMPTOM_NUMBER_FILTERS.contains(name)
+                    && !SYMPTOM_DATE_FILTERS.contains(name)) {
+                throw new IllegalArgumentException("Unknown filter: " + name);
+            }
             if (value != null && !value.isBlank()) {
                 sent.put(name, symptomFilter(name, value.trim()));
             }
         });
         Map<String, String> query = new LinkedHashMap<>(sent);
-        return call(clientId, "symptoms " + sent, (rpc, bearer) -> rpc.symptoms(bearer, query)
+        return call(clientId, "symptoms " + cacheKey(sent), (rpc, bearer) -> rpc.symptoms(bearer, query)
                 .map(ControlTowerMapService::whole));
+    }
+
+    /** Each name and value prefixed with its length, so no two filter sets share a key. */
+    private static String cacheKey(Map<String, String> sorted) {
+        StringBuilder key = new StringBuilder();
+        sorted.forEach((name, value) -> key.append(name.length()).append(':').append(name)
+                .append(value.length()).append(':').append(value));
+        return key.toString();
     }
 
     private static String symptomFilter(String name, String value) {

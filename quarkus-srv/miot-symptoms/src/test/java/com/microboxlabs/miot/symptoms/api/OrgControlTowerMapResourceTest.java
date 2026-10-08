@@ -235,6 +235,7 @@ class OrgControlTowerMapResourceTest {
     void anUnknownOrMalformedSymptomFilterIs400() {
         assertEquals(400, call(resource.symptoms(ORG, query("p_client_id=other"))).getStatus());
         assertEquals(400, call(resource.symptoms(ORG, query("p_page=one"))).getStatus());
+        assertEquals(400, call(resource.symptoms(ORG, query("anything="))).getStatus());
         assertEquals(List.of(), sentFilters);
     }
 }

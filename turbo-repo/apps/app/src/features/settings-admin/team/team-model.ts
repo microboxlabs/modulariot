@@ -254,6 +254,20 @@ export function lastKeyUse(account: ServiceAccount): string | null {
   return used.at(-1) ?? null;
 }
 
+/** The modulith's `GpsAccessCatalog.PUBLISHER`: the role the organization's application issues tokens to. */
+export const GPS_PUBLISHER_ROLE = "GPS_PUBLISHER";
+
+/**
+ * The account uses the organization's application (no credential linked) but cannot get a token from it: that
+ * application issues tokens only to accounts that may send GPS positions.
+ */
+export function defaultTokenNeedsGpsRole(account: ServiceAccount): boolean {
+  return (
+    account.tokenCredentialRef === null &&
+    !account.roles.includes(GPS_PUBLISHER_ROLE)
+  );
+}
+
 /** Up to two letters for an avatar: from the name, else the email. */
 export function initials(name: string | null, email: string | null): string {
   const source = (name ?? "").trim() || (email ?? "").split("@")[0];

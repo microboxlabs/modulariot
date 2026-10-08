@@ -31,6 +31,7 @@ import {
 import {
   activeKeyCount,
   catalogModules,
+  defaultTokenNeedsGpsRole,
   effectivePermissions,
   lastKeyUse,
   rolesByModule,
@@ -316,6 +317,7 @@ function TokenCredentialSection({
     : null;
   const current = account.tokenCredentialRef;
   const linked = options?.find((c) => c.id === current);
+  const needsGpsRole = defaultTokenNeedsGpsRole(account);
   const [saving, setSaving] = useState(false);
 
   const change = async (ref: string | null) => {
@@ -354,7 +356,7 @@ function TokenCredentialSection({
             disabled={saving}
             onChange={(e) => change(e.target.value || null)}
           >
-            <option value="">{tr("tokenCredentialNone", d)}</option>
+            <option value="">{tr("tokenCredentialDefault", d)}</option>
             {current && !linked && <option value={current}>{current}</option>}
             {options.map((c) => (
               <option key={c.id} value={c.id}>
@@ -364,10 +366,13 @@ function TokenCredentialSection({
           </Select>
         ) : (
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            {current ?? tr("tokenCredentialNone", d)}
+            {current ?? tr("tokenCredentialDefault", d)}
           </span>
         )}
       </div>
+      {needsGpsRole && (
+        <Alert color="warning">{tr("tokenCredentialNeedsGps", d)}</Alert>
+      )}
     </section>
   );
 }

@@ -47,3 +47,13 @@ export function RuntimeConfigProvider({ children }: Readonly<{ children: React.R
 export function useRuntimeConfig(): RuntimeConfig | null {
   return useContext(RuntimeConfigContext);
 }
+
+/** The loaded config for code outside React, or null before it arrives. */
+export function getRuntimeConfig(): RuntimeConfig | null {
+  return cachedConfig;
+}
+
+/** Renders children only once the runtime config has loaded. */
+export function RuntimeConfigReady({ children }: Readonly<{ children: React.ReactNode }>) {
+  return useRuntimeConfig() ? children : null;
+}

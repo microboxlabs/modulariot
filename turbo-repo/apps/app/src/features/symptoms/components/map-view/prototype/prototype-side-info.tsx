@@ -6,6 +6,7 @@ import BlurrableDropdown from "../blurrable-dropdown";
 import { useState } from "react";
 import type { SelectedOption } from "../../../types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import {
   useTreatmentsTemplates,
   useUserGroups,
@@ -19,10 +20,6 @@ import { GroupAllowed } from "../../../../common/components/group-allowed/group-
 import PrototypeInlineForm from "./prototype-inline-form";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import SymptomForm from "../../blurrable-stepped-menu/symptom-form";
-
-/** `NEXT_PUBLIC_SYMPTOMS_PAST_FORMS=true` opens the previous full-screen modal. */
-const pastFormsEnabled =
-  process.env.NEXT_PUBLIC_SYMPTOMS_PAST_FORMS === "true";
 
 /** Menus the previous full-screen modal still implements. */
 const PAST_FORM_OPTIONS = new Set<SelectedOption>([
@@ -65,6 +62,7 @@ export default function PrototypeSideInfo({
   setSelectedOption: (option: SelectedOption) => void;
   onCallFlowStepChange?: (step: CallCenterReportedStep | null) => void;
 }>) {
+  const pastFormsEnabled = useRuntimeConfig()?.SYMPTOMS_PAST_FORMS === "true";
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const orderLabel =
     order === "asc"

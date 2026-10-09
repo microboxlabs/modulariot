@@ -1,6 +1,7 @@
 "use client";
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { Card } from "flowbite-react";
 import Image from "next/image";
 import PrototypeSideInfo from "./prototype-side-info";
@@ -18,10 +19,6 @@ import type { SelectedOption } from "../../../types/side-info";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
-
-/** `NEXT_PUBLIC_SYMPTOMS_PAST_FORMS=true` opens the previous full-screen modal. */
-const pastFormsEnabled =
-  process.env.NEXT_PUBLIC_SYMPTOMS_PAST_FORMS === "true";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -69,6 +66,7 @@ export default function PrototypeGeneralMap({
   tripId?: string;
   assetId?: string;
 }>) {
+  const pastFormsEnabled = useRuntimeConfig()?.SYMPTOMS_PAST_FORMS === "true";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

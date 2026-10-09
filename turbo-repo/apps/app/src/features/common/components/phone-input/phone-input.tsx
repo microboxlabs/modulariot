@@ -31,6 +31,9 @@ type PhoneInputProps = Readonly<{
   sizing?: "sm" | "md";
   /** Classes for the outer wrapper (country select + number field). */
   className?: string;
+  /** Extra classes for the number field itself (e.g. squaring its right
+   *  corners when something is attached after it). */
+  inputClassName?: string;
   "aria-label"?: string;
 }>;
 
@@ -95,6 +98,7 @@ export default function PhoneInput({
   defaultCountry,
   sizing = "md",
   className,
+  inputClassName,
   "aria-label": ariaLabel,
 }: PhoneInputProps) {
   // `useParams` is null outside a route (e.g. tests) — fall back to English.
@@ -117,7 +121,7 @@ export default function PhoneInput({
       inputComponent={PhoneNumberField}
       numberInputProps={{
         "aria-label": ariaLabel,
-        className: textInputTheme.field.input.sizes[sizing],
+        className: twMerge(textInputTheme.field.input.sizes[sizing], inputClassName),
       }}
     />
   );

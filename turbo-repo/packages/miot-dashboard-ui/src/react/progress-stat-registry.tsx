@@ -5,9 +5,11 @@ import { evaluateRule } from "../core/color-rules";
 import { createTemplateEngine } from "../templates";
 import { ProgressStat } from "./progress-stat";
 import { normalizeScalarColorRules } from "./scalar-color-rules";
+import { normalizeScalarThresholds } from "./scalar-thresholds";
 import { templateField } from "./scalar-template-field";
 import { useWidgetTemplateFields } from "./use-widget-template-fields";
 import type { WidgetComponentProps } from "./widget-renderer";
+import { templateStatusView } from "./widget-template-status";
 export interface ProgressStatRegistryOptions {
   defaultTitle: string;
   defaultUnit: string;
@@ -16,41 +18,6 @@ export interface ProgressStatRegistryOptions {
   errorLabel: string;
   unsupportedDataLabel: string;
   templateEngine?: ReturnType<typeof createTemplateEngine>;
-}
-const namedColors: Record<string, string> = {
-  red: "ef4444",
-  yellow: "eab308",
-  green: "22c55e",
-  blue: "3b82f6",
-  orange: "f97316",
-  purple: "a855f7",
-  gray: "6b7280",
-};
-function thresholdConfig(raw: unknown) {
-  if (!raw || typeof raw !== "object")
-    return { field: "", targets: [], rules: [] };
-  const field =
-    "field" in raw && typeof raw.field === "string" ? raw.field : "";
-  const targets =
-    "applyTo" in raw && Array.isArray(raw.applyTo) ? raw.applyTo : ["text"];
-  const enabled = "enabled" in raw && raw.enabled === true;
-  const entries = "rules" in raw && Array.isArray(raw.rules) ? raw.rules : [];
-  const rules = normalizeScalarColorRules({
-    rules: entries.map((entry: unknown) => {
-      if (
-        !entry ||
-        typeof entry !== "object" ||
-        !("color" in entry) ||
-        typeof entry.color !== "string"
-      )
-        return entry;
-      const color = Object.hasOwn(namedColors, entry.color)
-        ? namedColors[entry.color]
-        : entry.color;
-      return { ...entry, color };
-    }),
-  });
-  return { field: enabled ? field : "", targets, rules };
 }
 function number(value: string | undefined, fallback: number) {
   const parsed = Number(value);
@@ -63,7 +30,7 @@ export function createProgressStatRegistry(
   function RegisteredProgressStat({ widget }: Readonly<WidgetComponentProps>) {
     const config = widget.config;
     const threshold = useMemo(
-      () => thresholdConfig(config.thresholds),
+      () => normalizeScalarThresholds(config.thresholds),
       [config.thresholds],
     );
     const fields = useMemo(
@@ -85,10 +52,8 @@ export function createProgressStatRegistry(
       () => normalizeScalarColorRules(config.barColorRules),
       [config.barColorRules],
     );
-    if (status === "loading") return <output>{options.loadingLabel}</output>;
-    if (status === "error") return <p role="alert">{options.errorLabel}</p>;
-    if (status === "unsupported")
-      return <p role="alert">{options.unsupportedDataLabel}</p>;
+    const pending = templateStatusView(status, options);
+    if (pending) return pending;
     const value = number(resolved.value, 0);
     const match = rules.find((rule) =>
       evaluateRule({ ...rule, column: "" }, String(value)),

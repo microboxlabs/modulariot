@@ -8,7 +8,12 @@ vi.mock("@/app/api/utils/tenant-scope", () => ({
   resolveTenantScope: () => scopeMock(),
 }));
 vi.mock("@/app/api/utils/quarkus-proxy", () => ({
-  forwardToQuarkus: (...args: unknown[]) => forwardMock(...args),
+  forwardToQuarkus: () => {
+    throw new Error("the Control Tower goes to the StreamHub modulith");
+  },
+}));
+vi.mock("@/app/api/utils/streamhub-modulith-proxy", () => ({
+  forwardToStreamhubModulith: (...args: unknown[]) => forwardMock(...args),
 }));
 
 import { DELETE, GET, POST } from "./route";

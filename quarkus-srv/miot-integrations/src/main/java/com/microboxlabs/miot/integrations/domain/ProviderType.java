@@ -9,5 +9,7 @@ public enum ProviderType {
     CUSTOM_HTTP,
     WHATSAPP,
     /** Tenant-owned outbound GPS position webhooks with filter criteria. */
-    GPS_WEBHOOK
+    GPS_WEBHOOK,
+    /** Transactional email through the Resend API. */
+    RESEND
 }

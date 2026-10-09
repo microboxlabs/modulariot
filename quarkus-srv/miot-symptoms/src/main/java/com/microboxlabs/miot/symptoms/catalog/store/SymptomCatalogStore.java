@@ -28,7 +28,13 @@ public interface SymptomCatalogStore {
     /** Ids of the organization's symptoms that have a draft, in one query. */
     Set<UUID> definitionsWithDraft(String tenantCode);
 
+    /** The version in force of each of the organization's published symptoms, in one query. */
+    List<SymptomVersion> currentVersions(String tenantCode);
+
     Optional<SymptomVersion> findVersion(String tenantCode, UUID definitionId, String version);
+
+    /** A version by its id, whatever symptom of the tenant it belongs to. */
+    Optional<SymptomVersion> findVersionById(String tenantCode, UUID versionId);
 
     /** Creates the symptom's draft, or replaces its spec. */
     SymptomVersion saveDraft(SymptomVersion draft);

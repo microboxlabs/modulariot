@@ -1,0 +1,173 @@
+# Configuration
+
+The server reads its configuration from environment variables at startup. All of them start with `MIOT_DASHBOARD_`, except `PORT`, `HOST` and `NODE_ENV`. A change needs a restart.
+
+The server refuses to start on a combination that is unsafe or contradictory, and says which. It never falls back to a weaker setting.
+
+## Network
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `PORT` | `3070` | Port to listen on |
+| `HOST` | `127.0.0.1` | Address to bind. The container image uses `0.0.0.0`. |
+| `MIOT_DASHBOARD_BASE_PATH` | empty | Prefix for every API route, when the server is not at the root |
+| `MIOT_DASHBOARD_DOCS` | on | Serve `/openapi.yaml`, `/dashboard-config.schema.json` and Swagger UI at `/docs` |
+| `MIOT_DASHBOARD_CORS_ORIGINS` | off | Origins allowed to call from a browser, comma-separated and exact. No wildcards. |
+| `MIOT_DASHBOARD_CORS_CREDENTIALS` | `false` | Allow cookies and HTTP authentication from those origins |
+| `MIOT_DASHBOARD_CORS_HEADERS` | empty | Extra request headers to allow, such as a ticket header |
+
+CORS always allows `Authorization`, `Content-Type` and `If-Match`, and exposes `ETag`.
+
+## Storage
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_STORE` | `memory` | `memory`, `sqlite` or `postgres` |
+| `MIOT_DASHBOARD_SQLITE_PATH` | `./data/dashboards.db` | The SQLite file |
+| `MIOT_DASHBOARD_POSTGRES_URL` | none | PostgreSQL connection string. Contains a password. |
+| `MIOT_DASHBOARD_POSTGRES_POOL_SIZE` | `10` | Pooled connections |
+| `MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT` | `5000` | Milliseconds to wait for a connection |
+| `MIOT_DASHBOARD_DOCUMENTS` | `inline` | `inline`, `fs`, `s3` or `gcs` |
+| `MIOT_DASHBOARD_DOCUMENTS_PATH` | `./data/documents` | Directory, with `fs` |
+| `MIOT_DASHBOARD_DOCUMENTS_BUCKET` | none | Bucket, with `s3` or `gcs`. Required for those. |
+| `MIOT_DASHBOARD_DOCUMENTS_PREFIX` | `dashboards/` | Object prefix, with `s3` or `gcs` |
+| `MIOT_DASHBOARD_S3_REGION` | SDK default | AWS region, with `s3` |
+| `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600` | Seconds between leftover-document sweeps. `0` turns them off. |
+| `MIOT_DASHBOARD_ORPHAN_MIN_AGE` | `86400` | Seconds before a leftover document may be removed. At least 1. |
+| `MIOT_DASHBOARD_SEED` | none | Path to a seed file with memberships and starting dashboards, or `example` |
+
+## Identity
+
+### JWT
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_JWT_ISSUER` | none | Required. The exact `iss` tokens must carry. |
+| `MIOT_DASHBOARD_JWT_AUDIENCE` | none | Required. One audience, or several separated by commas. |
+| `MIOT_DASHBOARD_JWT_JWKS_URL` | none | Key source: the provider's JWKS (RS256) |
+| `MIOT_DASHBOARD_JWT_PUBLIC_KEY` | none | Key source: a PEM public key (RS256) |
+| `MIOT_DASHBOARD_JWT_SECRET` | none | Key source: a shared secret of at least 32 bytes (HS256) |
+| `MIOT_DASHBOARD_JWT_USER_CLAIM` | `sub` | Claim holding the user ID |
+| `MIOT_DASHBOARD_JWT_GROUPS_CLAIM` | none | Claim holding the user's groups |
+| `MIOT_DASHBOARD_JWT_NAME_CLAIM` | `name` | Claim holding a display name |
+| `MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE` | `30` | Seconds of clock difference allowed on expiry. At most 300. |
+
+Set exactly one key source. JWT verification needs the `jose` package.
+
+### Tickets
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_TICKET_HEADER` | none | Required. Request header carrying the ticket. |
+| `MIOT_DASHBOARD_TICKET_VALIDATE_URL` | none | Required. The issuer's check endpoint, using `{ticket}` or `{ticketBase64}` |
+| `MIOT_DASHBOARD_TICKET_VALIDATE_METHOD` | `GET` | `GET` or `POST`. `POST` when presenting in the body. |
+| `MIOT_DASHBOARD_TICKET_USER_PATH` | none | Required. Dotted path to the user ID in the answer |
+| `MIOT_DASHBOARD_TICKET_SCHEME` | none | Prefix to strip, for a header like `Ticket <value>` |
+| `MIOT_DASHBOARD_TICKET_PRESENT` | `header` | How to send the ticket to the issuer: `header`, `query` or `body` |
+| `MIOT_DASHBOARD_TICKET_PRESENT_NAME` | none | Header or query parameter name for the issuer |
+| `MIOT_DASHBOARD_TICKET_PRESENT_VALUE` | none | Header value template, such as `Basic {ticketBase64}` |
+| `MIOT_DASHBOARD_TICKET_SERVICE_HEADER` | none | Name of a header with the server's own credential |
+| `MIOT_DASHBOARD_TICKET_SERVICE_VALUE` | none | Its value |
+| `MIOT_DASHBOARD_TICKET_GROUPS_PATH` | none | Dotted path to the groups in the answer |
+| `MIOT_DASHBOARD_TICKET_NAME_PATH` | none | Dotted path to a display name |
+| `MIOT_DASHBOARD_TICKET_INVALID_STATUS` | `401,404` | Statuses that mean "not valid". Required with a service credential. |
+| `MIOT_DASHBOARD_TICKET_CACHE` | `60` | Seconds a valid ticket is reused. `0` checks every request. |
+| `MIOT_DASHBOARD_TICKET_NEGATIVE_CACHE` | `30` | Seconds a rejection is reused |
+| `MIOT_DASHBOARD_TICKET_TIMEOUT` | `5000` | Milliseconds to wait for the issuer |
+
+### Development only
+
+| Variable | Meaning |
+| --- | --- |
+| `MIOT_DASHBOARD_INSECURE_AUTH` | Trust `x-dev-user` and `x-dev-groups` headers without checking. Refused with `NODE_ENV=production`, a non-loopback `HOST`, JWT or ticket settings, or a proxy key. |
+
+## Memberships
+
+### Organizations
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_TENANTS_URL` | none (seed file) | Lookup over `{userId}` and `{tenantId}`. A `GET` URL must contain both. |
+| `MIOT_DASHBOARD_TENANTS_METHOD` | `GET` | `GET`, or `POST` with the question as JSON |
+| `MIOT_DASHBOARD_TENANTS_ENTITLED_PATH` | none | Dotted path to a boolean, for a service that answers 200 either way |
+| `MIOT_DASHBOARD_TENANTS_SERVICE_HEADER` | none | Header with the server's own credential |
+| `MIOT_DASHBOARD_TENANTS_SERVICE_VALUE` | none | Its value |
+| `MIOT_DASHBOARD_TENANTS_ABSENT_STATUS` | `404` | Statuses that mean "not a member" |
+| `MIOT_DASHBOARD_TENANTS_CACHE` | `60` | Seconds a yes is reused |
+| `MIOT_DASHBOARD_TENANTS_NEGATIVE_CACHE` | `30` | Seconds a no is reused |
+| `MIOT_DASHBOARD_TENANTS_TIMEOUT` | `5000` | Milliseconds to wait |
+
+### Scopes
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_SCOPES_URL` | none (seed file) | Lookup over `{tenantId}`, `{scopeId}` and `{userId}`. A `GET` URL must contain `{userId}` and `{scopeId}`. |
+| `MIOT_DASHBOARD_SCOPES_METHOD` | `GET` | `GET` or `POST` |
+| `MIOT_DASHBOARD_SCOPES_ROLE_PATH` | `role` | Dotted path to the role in the answer |
+| `MIOT_DASHBOARD_SCOPES_ROLE_MAP` | none | `theirs=ours` pairs, such as `admin=Coordinator,reader=Consumer` |
+| `MIOT_DASHBOARD_SCOPES_SERVICE_HEADER` | none | Header with the server's own credential |
+| `MIOT_DASHBOARD_SCOPES_SERVICE_VALUE` | none | Its value |
+| `MIOT_DASHBOARD_SCOPES_ABSENT_STATUS` | `404` | Statuses that mean "not a member" |
+| `MIOT_DASHBOARD_SCOPES_CACHE` | `60` | Seconds a membership is reused |
+| `MIOT_DASHBOARD_SCOPES_NEGATIVE_CACHE` | `30` | Seconds a non-membership is reused |
+| `MIOT_DASHBOARD_SCOPES_TIMEOUT` | `5000` | Milliseconds to wait |
+
+### Roles from groups
+
+Organization and scope membership read from the caller's groups. It replaces the two lookups above and the seed file's memberships.
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_GROUP_ROLES_PATTERN` | off | The group name with `{tenant}` and `{role}`, and optionally `{scope}`, such as `GROUP_DHB_{tenant}_{role}`. Matched without regard to case or surrounding spaces. With `{scope}`, scope ids cannot contain the characters next to it. |
+| `MIOT_DASHBOARD_GROUP_ROLES_MAP` | `CONSUMER=Consumer,CONTRIBUTOR=Contributor,EDITOR=Editor,COORDINATOR=Coordinator` | `theirs=ours` pairs for the `{role}` part |
+
+Needs `MIOT_DASHBOARD_TICKET_GROUPS_PATH` or `MIOT_DASHBOARD_JWT_GROUPS_CLAIM`. The server refuses to start with the pattern and `MIOT_DASHBOARD_TENANTS_URL` or `MIOT_DASHBOARD_SCOPES_URL` together.
+
+### Trusted proxy
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_PROXY_KEY` | none | Shared key, at least 32 characters. Requests carrying it may assert organization, scope and role. Also authenticates calls the server makes to the host. |
+
+## Datasource credentials
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_CREDENTIALS_KEY` | off | Store credentials in this server, encrypted with this key. At least 32 characters. Needs `sqlite` or `postgres`. |
+| `MIOT_DASHBOARD_CREDENTIALS_URL` | off | Ask another system for credentials instead. Must contain `{tenantId}` and `{credentialRef}`. Needs the proxy key. |
+| `MIOT_DASHBOARD_CREDENTIALS_ALLOW_HTTP` | `false` | Accept an `http://` URL on a private network |
+| `MIOT_DASHBOARD_CREDENTIALS_TIMEOUT` | `5000` | Milliseconds to wait |
+| `MIOT_DASHBOARD_CREDENTIALS_CACHE` | `60` | Seconds an answer is reused. At most 300. |
+
+Set the key or the URL, never both.
+
+## Saved queries
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_OPERATIONS_MODULE` | off | Absolute path to a trusted `.mjs`, `.js` or `.cjs` file that exports `createDashboardOperations()`, and optionally `createDashboardQueryCatalog()` |
+| `MIOT_DASHBOARD_OPERATIONS_URL` | off | A host endpoint that runs queries itself. Needs the proxy key. |
+| `MIOT_DASHBOARD_OPERATIONS_ALLOW_HTTP` | `false` | Accept an `http://` operations URL on a private network |
+| `MIOT_DASHBOARD_OPERATIONS_TIMEOUT` | `20000` | Milliseconds, from 1 to 20000 |
+
+Set the module or the URL, never both. Without either, query routes answer 404.
+
+### The bundled ModularIoT module
+
+`/app/examples/modulariot-operations.mjs` in the container image reads these:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_PLAN_URL` | none | Required. The host's plan endpoint, such as `.../internal/dashboard-operations/resolve` |
+| `MIOT_DASHBOARD_PLAN_ALLOW_HTTP` | `false` | Accept `http://` for the plan endpoint |
+| `MIOT_DASHBOARD_CATALOG_URL` | off | The host's catalog endpoint. Unset, editors cannot pick operations. |
+| `MIOT_DASHBOARD_DATA_ORIGINS` | empty | Comma-separated data origins queries may call. Empty allows BigQuery only. |
+| `MIOT_DASHBOARD_DATA_ALLOW_HTTP` | `false` | Accept `http://` data origins |
+
+The two `ALLOW_HTTP` flags accept only `true` or `false`.
+
+## Testing
+
+| Variable | Meaning |
+| --- | --- |
+| `MIOT_DASHBOARD_TEST_POSTGRES_URL` | A throwaway PostgreSQL database for the package's own tests. The tests empty it. |

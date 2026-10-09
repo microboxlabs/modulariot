@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import io.quarkus.security.PermissionsAllowed;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
+import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
@@ -49,6 +52,8 @@ public class OrgControlTowerAuditResource extends ControlTowerResourceSupport {
     @Operation(operationId = "listAuditEvents", summary = "List audit events, newest first",
             description = "Page backwards with `before` and `beforeId` set to the createdAt and id of the last "
                     + "event received. `before` alone also works but can skip events that share its timestamp.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> list(
             @PathParam("organizationId") String organizationId,
             @Parameter(description = "treatment, contact or selectable") @QueryParam("entityType") String entityType,
@@ -59,7 +64,7 @@ public class OrgControlTowerAuditResource extends ControlTowerResourceSupport {
                     String beforeId,
             @QueryParam("limit") Integer limit) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(
+        return work(() -> Response.ok(
                 audit.list(tenant, entityType, entityId, symptomId, parseBefore(before), beforeId, limit)).build());
     }
 

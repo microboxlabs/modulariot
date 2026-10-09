@@ -23,7 +23,8 @@ public final class Specs {
                 "Cada pulso", List.of(
                         new SourceField("signal.trip.active", "En viaje", "bool", null, FieldOrigin.TRIP, true),
                         new SourceField("signal.vehicle.weight_category", "Categoría de peso", "list", null,
-                                FieldOrigin.VEHICLE, true),
+                                FieldOrigin.VEHICLE, true, List.of(new SourceField.FieldValue("HEAVY", "Pesado"),
+                                        new SourceField.FieldValue("LIGHT", "Liviano"))),
                         new SourceField("signal.gps.speed_kmh", "Velocidad", "number", "km/h", FieldOrigin.DEVICE, true),
                         new SourceField("signal.road.maxspeed_osm", "Límite", "number", "km/h",
                                 FieldOrigin.ROAD_NETWORK, true),

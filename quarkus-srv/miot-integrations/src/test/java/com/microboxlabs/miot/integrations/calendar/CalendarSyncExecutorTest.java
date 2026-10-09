@@ -241,7 +241,7 @@ class CalendarSyncExecutorTest {
     void patch404WithEtdCreatesThenAppliesStatus() {
         FakeClient client = new FakeClient();
         client.patchThrowsOnce = new CalendarBookingsHttpException(404, "no booking");
-        client.availableSlots = List.of(slot(LocalDate.of(2026, 7, 15), 14, 0, 1));
+        client.allSlots = List.of(slot(LocalDate.of(2026, 7, 15), 14, 0, 1));
         Map<String, Object> payload = patchPayload("IN_TRANSIT");
         payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
                 identityDataWithEtd("2026-07-15T10:00:00Z"));
@@ -262,7 +262,7 @@ class CalendarSyncExecutorTest {
         // now, so an in-flight service lands on the next slot with capacity.
         FakeClient client = new FakeClient();
         client.patchThrowsOnce = new CalendarBookingsHttpException(404, "no booking");
-        client.availableSlots = List.of(
+        client.allSlots = List.of(
                 slot(LocalDate.of(2026, 7, 15), 9, 0, 1),
                 slot(LocalDate.of(2026, 7, 15), 16, 30, 1));
         Map<String, Object> payload = patchPayload("IN_TRANSIT");
@@ -282,7 +282,7 @@ class CalendarSyncExecutorTest {
         // window — a materialized patch must carry it onto the created booking.
         FakeClient client = new FakeClient();
         client.patchThrowsOnce = new CalendarBookingsHttpException(404, "no booking");
-        client.availableSlots = List.of(slot(LocalDate.of(2026, 7, 15), 14, 0, 1));
+        client.allSlots = List.of(slot(LocalDate.of(2026, 7, 15), 14, 0, 1));
         Map<String, Object> payload = patchPayload("ASSIGNED");
         payload.put(CalendarSyncFeature.PAYLOAD_SYNC_STATUS, "PENDING");
         payload.put(CalendarSyncFeature.PAYLOAD_RESOURCE_DATA,
@@ -565,35 +565,16 @@ class CalendarSyncExecutorTest {
         assertEquals(30, client.lastCreateMinutes);
         assertEquals("PLANNED", client.lastPatchStatus, "stage status set after create");
         assertEquals(0, client.listAvailableCalls, "explicit slot needs no availability lookup");
+        assertFalse(client.lastCreateAllowOverbooking, "a planner's slot counts against capacity");
     }
 
     @Test
-    void ensureAbsentWithEtdAutoPicksEarliestAvailableSlot() {
+    void ensureAbsentWithEtdOverbooksEarliestRealSlot() {
         FakeClient client = new FakeClient();
         client.listResult = List.of();
         // window is [etd, etd+48h] = [2026-07-16T13:00, 2026-07-18T13:00]
-        client.availableSlots = List.of(
-                slot(LocalDate.of(2026, 7, 17), 8, 0, 2),
-                slot(LocalDate.of(2026, 7, 16), 15, 0, 1)); // earliest in window
-        var payload = ensurePayload("PLANNED");
-        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
-
-        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
-
-        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
-        assertEquals(1, client.createCalls);
-        assertEquals(LocalDate.of(2026, 7, 16), client.lastCreateDate, "earliest available wins");
-        assertEquals(15, client.lastCreateHour);
-        assertFalse(client.lastCreateAllowOverbooking, "ordinary capacity must not request an override");
-        assertEquals(0, client.listAllSlotsCalls, "fallback query is avoided while capacity exists");
-    }
-
-    @Test
-    void ensureAbsentWithEtdButNoCapacityOverbooksEarliestRealSlot() {
-        FakeClient client = new FakeClient();
-        client.listResult = List.of();
-        client.availableSlots = List.of(); // capacity exhausted
         client.allSlots = List.of(
+                slot(LocalDate.of(2026, 7, 17), 8, 0, 2),
                 new CalendarBookingsClient.AvailableSlot(LocalDate.of(2026, 7, 16), 15, 0, 0, "FULL"),
                 new CalendarBookingsClient.AvailableSlot(LocalDate.of(2026, 7, 16), 14, 0, 0, "OVERFLOW"),
                 new CalendarBookingsClient.AvailableSlot(LocalDate.of(2026, 7, 16), 13, 30, 0, "CLOSED"));
@@ -604,17 +585,30 @@ class CalendarSyncExecutorTest {
 
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(1, client.createCalls);
-        assertEquals(LocalDate.of(2026, 7, 16), client.lastCreateDate);
+        assertEquals(LocalDate.of(2026, 7, 16), client.lastCreateDate, "a full slot is still the earliest real slot");
         assertEquals(15, client.lastCreateHour);
-        assertTrue(client.lastCreateAllowOverbooking);
-        assertEquals(1, client.listAllSlotsCalls);
+        assertTrue(client.lastCreateAllowOverbooking, "an automatic booking never takes capacity");
+        assertEquals(0, client.listAvailableCalls, "free capacity is not consulted");
+    }
+
+    @Test
+    void ensureAbsentWithEtdOverbooksEvenWhenCapacityIsFree() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of();
+        client.allSlots = List.of(slot(LocalDate.of(2026, 7, 16), 15, 0, 1));
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertTrue(client.lastCreateAllowOverbooking, "free capacity is left to the planner");
     }
 
     @Test
     void ensureAbsentWithEtdAndNoRealSlotStillRetries() {
         FakeClient client = new FakeClient();
         client.listResult = List.of();
-        client.availableSlots = List.of();
         client.allSlots = List.of(
                 new CalendarBookingsClient.AvailableSlot(LocalDate.of(2026, 7, 16), 14, 0, 0, "OVERFLOW"),
                 new CalendarBookingsClient.AvailableSlot(LocalDate.of(2026, 7, 16), 15, 0, 0, "CLOSED"));
@@ -644,7 +638,7 @@ class CalendarSyncExecutorTest {
         FakeClient client = new FakeClient();
         client.listResult = List.of();
         client.calendarTimezone = ZoneId.of("-03:00");
-        client.availableSlots = List.of(
+        client.allSlots = List.of(
                 slot(LocalDate.of(2026, 7, 15), 17, 0, 2), // before the departure
                 slot(LocalDate.of(2026, 7, 15), 18, 0, 2),
                 slot(LocalDate.of(2026, 7, 16), 5, 0, 6)); // where the UTC read landed
@@ -668,7 +662,7 @@ class CalendarSyncExecutorTest {
         FakeClient client = new FakeClient();
         client.listResult = List.of();
         client.calendarTimezone = ZoneId.of("-04:00");
-        client.availableSlots = List.of(
+        client.allSlots = List.of(
                 slot(LocalDate.of(2026, 7, 15), 9, 0, 3),
                 slot(LocalDate.of(2026, 7, 15), 14, 0, 3));
         var payload = ensurePayload("PLANNED");
@@ -687,7 +681,7 @@ class CalendarSyncExecutorTest {
         FakeClient client = new FakeClient();
         client.listResult = List.of();
         client.calendarTimezone = null;
-        client.availableSlots = List.of(
+        client.allSlots = List.of(
                 slot(LocalDate.of(2026, 7, 15), 18, 0, 2),
                 slot(LocalDate.of(2026, 7, 15), 21, 0, 2));
         var payload = ensurePayload("PLANNED");
@@ -773,6 +767,48 @@ class CalendarSyncExecutorTest {
         assertEquals(JobOutcome.SUCCEEDED, result.outcome());
         assertEquals(0, client.moveCalls, "same slot → no move");
         assertEquals(1, client.patchCalls);
+    }
+
+    @Test
+    void ensureExistingOverbookedWithSameExplicitSlotMovesToCount() {
+        FakeClient client = new FakeClient();
+        var existing = new CalendarBookingsClient.BookingView(
+                UUID.randomUUID(), CAL, LocalDate.of(2026, 7, 16), 9, 0, "PLANNED", true);
+        client.listResult = List.of(existing);
+        var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 16), 9, 0);
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(1, client.moveCalls, "the planner's same-slot plan makes the automatic booking count");
+        assertEquals(existing.id(), client.lastMoveBookingId);
+        assertEquals(9, client.lastMoveHour);
+    }
+
+    @Test
+    void ensureExistingOverbookedWithSameSlotButFullIsParked() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(new CalendarBookingsClient.BookingView(
+                UUID.randomUUID(), CAL, LocalDate.of(2026, 7, 16), 9, 0, "PLANNED", true));
+        client.moveThrows = new CalendarBookingsHttpException(409, "Slot is at full capacity");
+        var payload = withExplicitSlot(ensurePayload("PLANNED"), LocalDate.of(2026, 7, 16), 9, 0);
+        var executor = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK);
+
+        assertThrows(NonRetryableJobException.class, () -> executor.handle("tenant-1", payload));
+    }
+
+    @Test
+    void ensureExistingOverbookedWithEtdOnlyDoesNotMove() {
+        FakeClient client = new FakeClient();
+        client.listResult = List.of(new CalendarBookingsClient.BookingView(
+                UUID.randomUUID(), CAL, LocalDate.of(2026, 7, 16), 9, 0, "PLANNED", true));
+        var payload = ensurePayload("PLANNED");
+        payload.put(CalendarSyncFeature.PAYLOAD_ETD, "2026-07-16T13:00:00");
+
+        var result = new CalendarSyncExecutor(client, NO_ENRICHMENT, CLOCK).handle("tenant-1", payload);
+
+        assertEquals(JobOutcome.SUCCEEDED, result.outcome());
+        assertEquals(0, client.moveCalls, "an automatic push never makes a booking count");
     }
 
     @Test

@@ -1,0 +1,60 @@
+# Limits
+
+Every limit in one place. Limits keep one dashboard or one person from slowing down everyone else.
+
+## Documents
+
+| Limit | Value |
+| --- | --- |
+| Request body | 1 MiB |
+| Grid width | 24 columns |
+| Saved queries per dashboard | 50 |
+| Parameters per saved query | 100 |
+| Identifier length (query, connection, operation, parameter) | 128 characters |
+| Text value in a parameter | 2,048 characters |
+| Values in one list parameter | 100 |
+| Automatic refresh | 0 (off), 10, 30, 60 or 300 seconds |
+
+## Queries
+
+| Limit | Default | Where |
+| --- | --- | --- |
+| Time per query | 20 seconds | Server. Lower with `MIOT_DASHBOARD_OPERATIONS_TIMEOUT` or `timeoutMs`. |
+| Rows per result | 5,000 | Server and executors |
+| Result size | 2 MiB of JSON | Server and executors |
+| Columns per row | 100 | Server |
+| Filters per request | 32 | Server |
+| Queries running at once | 8 per server | Server |
+| Queries running at once | 4 per open dashboard | UI |
+| BigQuery scan | 1 GB per query, unless the operation sets less | Host ceiling |
+| Plan request and answer | 512 KiB | Remote plan executor |
+
+## Query catalog
+
+| Limit | Value |
+| --- | --- |
+| Connections | 100 |
+| Operations per connection | 100 |
+| Columns per operation | 100 |
+| Total size | 256 KiB |
+
+## Caches
+
+| What | Default |
+| --- | --- |
+| Membership yes | 60 seconds |
+| Membership no | 30 seconds |
+| Valid ticket | 60 seconds |
+| Rejected ticket | 30 seconds |
+| Host-provided credential | 60 seconds, at most 300 |
+| JWT clock tolerance | 30 seconds, at most 300 |
+
+A change in a directory or a revoked credential can take up to the cache time to apply.
+
+## Editing
+
+| Limit | Value |
+| --- | --- |
+| Undo history | 50 steps |
+| Edits merged into one undo step | Within 500 ms |
+| Autosave delay | 1.5 seconds after the last edit |

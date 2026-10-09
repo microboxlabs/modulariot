@@ -3,7 +3,6 @@ export default {
   'mission-control': 'Mission Control',
   deployment: 'Deployment',
   'helm-charts': 'Helm Charts',
-  'dashboard-server': 'Dashboard Server',
   environments: 'Environments',
   monitoring: 'Monitoring',
   'logging-tracing': 'Logging & Tracing',

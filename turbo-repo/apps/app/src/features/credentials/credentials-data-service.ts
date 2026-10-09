@@ -3,9 +3,11 @@
 import { ApiError } from "@/features/settings-admin/data/json-client";
 import {
   AUTH0_M2M_PROVIDER,
+  RESEND_PROVIDER,
   buildAuth0TokenUrl,
   type Auth0M2MFormData,
   type AzureEntraFormData,
+  type BearerTokenFormData,
   type CredentialFormData,
   type CredentialListItem,
   type CredentialTestResult,
@@ -95,7 +97,9 @@ async function sendJson<T>(
  * translation live here so nothing above this layer has to know.
  */
 function toApiCredentialType(typeId: CredentialTypeId): CredentialTypeId {
-  return typeId === "AUTH0_M2M" ? "OAUTH2_CLIENT_CREDENTIALS" : typeId;
+  if (typeId === "AUTH0_M2M") return "OAUTH2_CLIENT_CREDENTIALS";
+  if (typeId === "RESEND") return "BEARER_TOKEN";
+  return typeId;
 }
 
 function fromApiCredentialType(
@@ -106,6 +110,12 @@ function fromApiCredentialType(
     response.publicConfig?.provider === AUTH0_M2M_PROVIDER
   ) {
     return "AUTH0_M2M";
+  }
+  if (
+    response.credentialType === "BEARER_TOKEN" &&
+    response.publicConfig?.provider === RESEND_PROVIDER
+  ) {
+    return "RESEND";
   }
   return response.credentialType;
 }
@@ -160,13 +170,21 @@ function isGoogleForm(
   return "clientEmail" in form;
 }
 
+function isBearerForm(form: CredentialFormData): form is BearerTokenFormData {
+  return "token" in form;
+}
+
 /**
- * The secret half. A service account's secret is its private key; every
- * OAuth2 flavour carries a client secret.
+ * The secret half. A service account's secret is its private key, a bearer
+ * credential's is the token; every OAuth2 flavour carries a client secret.
  */
 function toSecretConfig(
   form: CredentialFormData
 ): Record<string, string> | undefined {
+  if (isBearerForm(form)) {
+    const token = form.token?.trim();
+    return token ? { token } : undefined;
+  }
   const secret = (
     isGoogleForm(form) ? form.privateKey : form.clientSecret
   )?.trim();
@@ -196,6 +214,10 @@ function auth0PublicConfig(form: Auth0M2MFormData): Record<string, string> {
 }
 
 function toPublicConfig(form: CredentialFormData): Record<string, string> {
+  // A bearer credential is all secret; a Resend key keeps only its tag.
+  if (isBearerForm(form)) {
+    return form.provider ? { provider: form.provider } : {};
+  }
   if (isAuth0Form(form)) {
     return auth0PublicConfig(form);
   }

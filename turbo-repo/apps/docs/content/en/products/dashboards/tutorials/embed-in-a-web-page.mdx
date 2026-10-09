@@ -1,0 +1,228 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Embed a dashboard in a web page
+
+In this tutorial you draw a dashboard from your own server in a plain HTML page. You use no framework and no build step. At the end the page shows a text card, a progress bar, and a card that reads query results.
+
+It takes about 20 minutes.
+
+## Before you start
+
+- Node.js 22.13 or later.
+- Python 3, or any other tool that serves static files. The steps use `python3 -m http.server`.
+- Finish the [Quickstart](/en/products/dashboards/getting-started/quickstart) once, so you know how the server answers.
+
+<Steps>
+
+### Start the server with browser access
+
+A page on another address (origin) can call the server only if the server allows that origin. Start it with your page's origin and the development header allowed:
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true \
+MIOT_DASHBOARD_SEED=example \
+MIOT_DASHBOARD_STORE=sqlite \
+MIOT_DASHBOARD_CORS_ORIGINS=http://127.0.0.1:8091 \
+MIOT_DASHBOARD_CORS_HEADERS=x-dev-user \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+### Save a dashboard
+
+Save this file as `sales.json`. It has three widgets and one saved query. The first two carry a small piece of sample data in `staticData`; the third reads the saved query.
+
+```json filename="sales.json"
+{
+  "version": 2,
+  "name": "Sales",
+  "preferences": { "editMode": false },
+  "queries": [
+    {
+      "id": "monthly-sales",
+      "variableName": "sales",
+      "connectionId": "crm",
+      "operationId": "monthly-sales",
+      "parameters": {}
+    }
+  ],
+  "widgets": [
+    {
+      "id": "revenue",
+      "componentId": "text_card",
+      "layout": { "i": "revenue", "x": 0, "y": 0, "w": 12, "h": 3 },
+      "config": {
+        "text": "Revenue this month: {{total}}",
+        "italic": false,
+        "staticData": "{\"total\": \"$12,400\"}"
+      },
+      "createdAt": "2026-10-05T00:00:00Z",
+      "updatedAt": "2026-10-05T00:00:00Z"
+    },
+    {
+      "id": "target",
+      "componentId": "percentage_value",
+      "layout": { "i": "target", "x": 12, "y": 0, "w": 12, "h": 3 },
+      "config": {
+        "title": "Monthly target",
+        "value": "{{sold}}",
+        "max": "{{target}}",
+        "staticData": "{\"target\": 20000, \"sold\": 12400}"
+      },
+      "createdAt": "2026-10-05T00:00:00Z",
+      "updatedAt": "2026-10-05T00:00:00Z"
+    },
+    {
+      "id": "best",
+      "componentId": "text_card",
+      "layout": { "i": "best", "x": 0, "y": 3, "w": 24, "h": 3 },
+      "config": {
+        "text": "Best seller: {{product}} ({{units}} units)",
+        "italic": false,
+        "dataMode": "planner",
+        "plannerVariableName": "sales"
+      },
+      "createdAt": "2026-10-05T00:00:00Z",
+      "updatedAt": "2026-10-05T00:00:00Z"
+    }
+  ]
+}
+```
+
+Send it to the server:
+
+```bash
+curl -X PUT http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards/sales \
+  -H 'x-dev-user: alice' -H 'If-Match: "0"' \
+  -H 'Content-Type: application/json' --data @sales.json
+```
+
+Text in double braces, such as `{{total}}`, is a template. The widget fills it from its data: `staticData` for the first two widgets, and the `sales` query result for the third.
+
+### Get the browser files
+
+The UI library ships a self-contained browser build. Copy it and its stylesheet into a new folder:
+
+```bash
+mkdir site && cd site
+npm pack @microboxlabs/miot-dashboard-ui
+tar xzf microboxlabs-miot-dashboard-ui-*.tgz
+cp package/dist/browser/browser.js dashboard-runtime.js
+cp package/styles.css dashboard.css
+```
+
+`dashboard-runtime.js` contains everything it needs. Your page does not install React.
+
+### Write the page
+
+Create `index.html`:
+
+```html filename="index.html"
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sales</title>
+    <link rel="stylesheet" href="./dashboard.css" />
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Sales</h1>
+    <div id="dashboard"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
+```
+
+Create `app.js`:
+
+```js filename="app.js"
+import {
+  mountDashboard,
+  createTextCardRegistry,
+  createPercentageValueRegistry,
+} from "./dashboard-runtime.js";
+
+const DASHBOARD =
+  "http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards/sales";
+
+// 1. Choose the widgets this page can draw.
+const labels = {
+  loadingLabel: "Loading…",
+  errorLabel: "Could not load the data.",
+  unsupportedDataLabel: "This widget needs a saved query.",
+};
+const definitions = [
+  ...createTextCardRegistry({ ...labels, defaultText: "No text" }).all(),
+  ...createPercentageValueRegistry({ ...labels, defaultTitle: "Progress" }).all(),
+];
+const registry = { get: (id) => definitions.find((d) => d.meta.id === id) };
+
+// 2. Load the dashboard document from the server.
+const response = await fetch(DASHBOARD, { headers: { "x-dev-user": "alice" } });
+const { data: dashboard } = await response.json();
+
+// 3. Answer saved queries. This page returns fixed rows; step 6 explains the real call.
+const queryClient = {
+  key: () => "sales",
+  query: async () => [{ product: "Solar panel", units: 42 }],
+};
+
+// 4. Draw it.
+mountDashboard(document.getElementById("dashboard"), {
+  instanceKey: "alice/sales",
+  registry,
+  widgets: dashboard.widgets,
+  unknownWidgetLabel: "This widget is not available on this page.",
+  savedQueries: {
+    client: queryClient,
+    slug: "sales",
+    queries: dashboard.queries,
+    filters: {},
+    refreshIntervalMs: 0,
+    paused: false,
+    errorMessage: labels.errorLabel,
+  },
+});
+```
+
+### Open it
+
+Serve the folder and open it in a browser:
+
+```bash
+python3 -m http.server 8091 --bind 127.0.0.1
+```
+
+Go to `http://127.0.0.1:8091/`. You see:
+
+- **Revenue this month: $12,400**, from the first card's `staticData`.
+- **Monthly target 12400 / 20000 (62%)**, a progress bar.
+- **Best seller: Solar panel (42 units)**, from the `sales` query.
+
+If the page stays empty, open the browser console. A CORS error means the server was started without `MIOT_DASHBOARD_CORS_ORIGINS` set to the page's exact origin.
+
+### Understand what each part does
+
+| Part | Job |
+| --- | --- |
+| `registry` | The widgets this page knows how to draw. A widget whose `componentId` is not in it shows `unknownWidgetLabel`. |
+| `instanceKey` | Identifies this person and dashboard. Change it when the signed-in person or the dashboard changes, so no state carries over. It is not a secret. |
+| `savedQueries.client` | Fetches query results. Widgets with `dataMode: "planner"` read them by `variableName`. |
+| `mountDashboard` | Draws the dashboard and returns `update(options)` and `destroy()`. Call `destroy()` before you remove the element. |
+
+In a real page, `queryClient.query` asks the server: `POST /tenants/{tenant}/scopes/{scope}/dashboards/{slug}/queries/{queryId}` with `{"filters": {}}`. The server runs the operation with credentials the browser never sees, and answers `{"data": {"rows": [...]}}`. The server needs a query executor for that; see [Queries and connections](/en/products/dashboards/concepts/queries-and-connections).
+
+</Steps>
+
+<Callout type="warning">
+This tutorial sends the `x-dev-user` header, which only works on a development server. In production your page sends `Authorization: Bearer <token>` from your identity provider. Keep that token out of HTML attributes and logs.
+</Callout>
+
+## Next steps
+
+- Use a custom element instead of `mountDashboard`: [Use the Web Component](/en/products/dashboards/how-to/use-web-component).
+- Build the page in React: [Render with React](/en/products/dashboards/how-to/render-with-react).
+- See every widget and its registry function: [Widget catalog](/en/products/dashboards/reference/widgets).
+- Set up real sign-in: [Authenticate users](/en/products/dashboards/how-to/authenticate-users).

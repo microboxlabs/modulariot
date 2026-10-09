@@ -22,3 +22,5 @@ export {
   datePartHelper,
   timeAgoHelper,
 } from "./templates/helpers";
+
+export { createChartTooltipFormatter } from "./templates/chart-tooltip";

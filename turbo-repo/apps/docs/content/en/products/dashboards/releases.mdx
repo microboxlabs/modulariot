@@ -1,0 +1,86 @@
+# Releases and versions
+
+Dashboards follows [Semantic Versioning](https://semver.org). While versions are below 1.0, a minor release (0.**x**.0) may change behavior; each one says so below. Patch releases only fix bugs.
+
+## Current versions
+
+| Package | Version | Released |
+| --- | --- | --- |
+| [`@microboxlabs/miot-dashboard-contract`](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract) | 0.6.0 | 2026-10-05 |
+| [`@microboxlabs/miot-dashboard-server`](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) | 0.7.0 | 2026-10-06 |
+| [`@microboxlabs/miot-dashboard-ui`](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui) | 0.1.0 | 2026-10-05 |
+| Helm chart `miot-dashboard-server` | 0.1.2 | 2026-09-20 |
+
+## Compatibility
+
+| Server | Contract | UI | Notes |
+| --- | --- | --- | --- |
+| 0.7.x | 0.6.x | 0.1.x | Roles from groups |
+| 0.6.x | 0.6.x | 0.1.x | Query catalog, dynamic filter options, sidebar order |
+| 0.5.x | 0.5.x | — | Scope creation check |
+| 0.4.x | 0.4.x | — | Migration tools, optional filter parameters |
+| 0.3.x | 0.3.x | — | Portable query execution |
+
+Upgrade the contract, then the server, then the UI. See [Upgrades and backups](/en/products/dashboards/deployment/upgrades).
+
+## 0.7.0 — 2026-10-06
+
+Added:
+
+- Server: `MIOT_DASHBOARD_GROUP_ROLES_PATTERN` and `MIOT_DASHBOARD_GROUP_ROLES_MAP` read organization and scope roles from the caller's groups, such as `GROUP_DHB_{tenant}_{role}`. See [Authenticate users](/en/products/dashboards/how-to/authenticate-users). Library users get the same from `createGroupRoleAuthorities`.
+
+## 0.6.0 and UI 0.1.0 — 2026-10-05
+
+**First UI release.** React, Web Component and plain-browser rendering of the widget catalog, and editors for settings, saved queries, permissions, filters and import/export.
+
+Added:
+
+- Contract: select filters can allow a single value (`single`) and take their options from a saved query result (`optionsSource`). The OpenAPI document adds the query catalog route. List entries carry the dashboard's `order`.
+- Server: an optional query catalog lists approved connections, operations and result columns to editors, without credentials. `createRemoteQueryCatalog` reads it from a host endpoint. Lists are sorted by `order`. `plannerOperationContracts` and `migratePlannerQueries` convert planner dashboards.
+- UI: `useDashboardAutosave` saves once edits pause.
+
+Requires: contract `^0.6.0` for both server and UI. React 18 or 19 and ECharts 6 are optional peers of the UI.
+
+## 0.5.0 — 2026-09-29
+
+Added:
+
+- `GET /tenants/{t}/scopes/{s}/capabilities` answers `{canCreate}`, so a page can offer creation without reading any dashboard. Embed tokens cannot use it.
+
+Changed:
+
+- Creating a dashboard now checks both the identity's edit ceiling and the document policy. Contributors can still create under the default policy.
+
+## 0.4.0 — 2026-09-29
+
+Added:
+
+- Imports validate every document against the contract before touching the store, dry runs included.
+- `migratePlannerQueries` converts planner requests to saved queries with explicit mappings.
+- Filter bindings accept `omitWhenEmpty`.
+
+Changed:
+
+- **Standalone servers enforce `allowedGroups`.** Configure a group claim or ticket group path before upgrading, or restricted dashboards become hidden.
+
+## 0.3.0 — 2026-09-29
+
+Added:
+
+- The contract defines saved queries with literal and filter bindings.
+- The server ships BigQuery and read-only HTTP executors under `/queries`, with deadlines, cancellation and size limits.
+- The container image includes an operations module for ModularIoT.
+
+Changed:
+
+- Saved queries are off until an operations module or URL is configured.
+
+## 0.1.0 and 0.2.0 — September 2026
+
+First published contract and server: document storage, revisions, roles, organizations and scopes, JWT and ticket sign-in, datasources and encrypted credentials.
+
+## Where releases are announced
+
+- The [platform changelog](/en/reference/changelog) lists every release.
+- Each package's npm page shows its versions.
+- Git tags follow `miot-dashboard-<package>@v<version>`.

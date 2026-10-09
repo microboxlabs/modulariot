@@ -29,6 +29,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -93,6 +94,9 @@ class PgCatalogStoresTest {
         SymptomVersion v1 = store.publish(edited.published("1.0.0", VersionBump.MAJOR, "Primera versión", null,
                 "owner@example.com", now), created.withCurrent("1.0.0", SymptomState.ACTIVE, "owner@example.com", now));
         assertEquals(VersionStatus.PUBLISHED, v1.status());
+        assertEquals("1.0.0", store.findVersionById(TENANT, v1.id()).orElseThrow().version());
+        assertTrue(store.findVersionById("tenant-b", v1.id()).isEmpty(), "another tenant sees nothing");
+        assertTrue(store.findVersionById(TENANT, UUID.randomUUID()).isEmpty());
         assertTrue(store.findDraft(TENANT, created.id()).isEmpty());
         assertEquals("1.0.0", store.findDefinition(TENANT, created.id()).orElseThrow().currentVersion());
 
@@ -106,6 +110,9 @@ class PgCatalogStoresTest {
         assertEquals("1.0.0", store.findVersion(TENANT, created.id(), "1.1.0").orElseThrow().rolledBackFrom());
         assertTrue(store.findDefinition("tenant-b", created.id()).isEmpty(), "other tenants see nothing");
         assertTrue(!store.definitionsWithDraft(TENANT).contains(created.id()), "publishing consumed the draft");
+        assertEquals(List.of("1.1.0"), store.currentVersions(TENANT).stream()
+                .filter(v -> v.definitionId().equals(created.id())).map(SymptomVersion::version).toList());
+        assertTrue(store.currentVersions("tenant-b").isEmpty());
     }
 
     @Test
@@ -115,6 +122,10 @@ class PgCatalogStoresTest {
         SymptomDefinition created = store.insertDefinition(new SymptomDefinition(UUID.randomUUID(), TENANT,
                 "lost-signal", "Pérdida de señal", null, null, null, "trip_check", null, null, null,
                 SymptomState.OFF, null, "owner@example.com", now, "owner@example.com", now));
+        SymptomDefinition sameKey = new SymptomDefinition(UUID.randomUUID(), TENANT, "lost-signal", "Otra", null,
+                null, null, "trip_check", null, null, null, SymptomState.OFF, null, "owner@example.com", now,
+                "owner@example.com", now);
+        assertThrows(DuplicateSymptomKeyException.class, () -> store.insertDefinition(sameKey));
         SymptomSpec spec = new SymptomSpec("trip_check", "true", null, List.of(), null, null);
         SymptomVersion draft = store.saveDraft(SymptomVersion.draft(created.id(), TENANT, spec, "owner@example.com",
                 now));
@@ -149,6 +160,17 @@ class PgCatalogStoresTest {
     }
 
     @Test
+    void fieldValuesAreStoredWithTheSource() {
+        PgDataSourceStore store = new PgDataSourceStore(() -> pool);
+        SourceField weight = new SourceField("signal.vehicle.weight_category", "Categoría de peso", "list", null,
+                FieldOrigin.VEHICLE, true, List.of(new SourceField.FieldValue("HEAVY", "Pesado")));
+        store.upsert(new DataSource(UUID.randomUUID(), null, "weights", "Pesos", SourceKind.SIGNAL, "signal",
+                null, List.of(weight), List.of()));
+
+        assertEquals(weight, store.find(TENANT, "weights").orElseThrow().fields().get(0));
+    }
+
+    @Test
     void descriptionIsStoredByRuleHash() {
         PgRuleDescriptionStore store = new PgRuleDescriptionStore(() -> pool);
         store.save(new RuleDescription("abc", "es-CL", "owner", "<b>Se abre</b> al instante"));
@@ -156,5 +178,12 @@ class PgCatalogStoresTest {
 
         assertEquals("<b>Se abre</b> de inmediato", store.find("abc", "es-CL", "owner").orElseThrow().html());
         assertTrue(store.find("abc", "en", "owner").isEmpty());
+
+        store.save(new RuleDescription("def", "es-CL", "owner", "otra"));
+        store.save(new RuleDescription("def", "en", "owner", "other"));
+        assertEquals(Set.of("abc", "def"),
+                store.findAll(List.of("abc", "def", "nope"), "es-CL", "owner").keySet());
+        assertEquals("other", store.findAll(List.of("def"), "en", "owner").get("def").html());
+        assertTrue(store.findAll(List.of(), "es-CL", "owner").isEmpty());
     }
 }

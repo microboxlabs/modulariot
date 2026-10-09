@@ -55,6 +55,35 @@ class SourcesAndPreviewTest {
     }
 
     @Test
+    void eachConditionOfTheActivationIsRunOnItsOwn() {
+        DataSource gps = new DataSourceService(new InMemoryCatalog(), new DemoSymptomEngine()).get(TENANT, "gps_signal");
+
+        List<SamplePreview> results = PreviewService.run(Specs.speeding(), gps);
+
+        List<PreviewService.Clause> light = results.get(2).clauses();
+        assertEquals(List.of("signal.trip.active", "signal.vehicle.weight_category == \"HEAVY\""),
+                light.stream().map(PreviewService.Clause::text).toList());
+        assertEquals(List.of(true, false), light.stream().map(PreviewService.Clause::holds).toList(),
+                "the light vehicle fails only the weight condition");
+        assertEquals("LIGHT", light.get(1).values().get("signal.vehicle.weight_category"));
+
+        SymptomSpec missing = Specs.with(Specs.speeding(), Specs.ACTIVATION + " && signal.nope == 1");
+        PreviewService.Clause broken = PreviewService.run(missing, gps).get(0).clauses().get(2);
+        assertNull(broken.holds());
+        assertNull(broken.values().get("signal.nope"));
+
+        SymptomSpec or = Specs.with(Specs.speeding(), "signal.trip.active || signal.gps.speed_kmh > 0");
+        assertTrue(PreviewService.run(or, gps).get(0).clauses().isEmpty(), "an || rule has no clause list");
+
+        SymptomSpec ternary = Specs.with(Specs.speeding(),
+                "signal.trip.active ? signal.gps.speed_kmh > 0 && signal.gps.speed_kmh < 200 : false");
+        assertTrue(PreviewService.run(ternary, gps).get(0).clauses().isEmpty(),
+                "&& inside a conditional is not the rule's own conjunction");
+        SymptomSpec grouped = Specs.with(Specs.speeding(), "(signal.trip.active && signal.gps.speed_kmh > 0)");
+        assertEquals(2, PreviewService.run(grouped, gps).get(0).clauses().size(), "parentheses are looked through");
+    }
+
+    @Test
     void wrongResultTypesAndFailingLevelsAreReportedNotThrown() {
         DataSource gps = new DataSourceService(new InMemoryCatalog(), new DemoSymptomEngine()).get(TENANT, "gps_signal");
         SymptomSpec base = Specs.speeding();
@@ -79,5 +108,30 @@ class SourcesAndPreviewTest {
                 sources.get(TENANT, "gps_signal")).get(0);
 
         assertEquals("El campo «activo» no existe en esta fuente.", first.error());
+    }
+
+    @Test
+    void theLifecycleRunsOnEachCaseMoment() {
+        List<PreviewService.CasePreview> cases = PreviewService.cases(new SymptomSpec.Lifecycle(
+                "caso.condicion_s >= 60", "caso.normal_s >= 120 || caso.cerrado_por_operador"));
+
+        assertEquals(List.of("detected", "held", "ongoing", "normal", "closed_by_operator"),
+                cases.stream().map(PreviewService.CasePreview::scenario).toList());
+        assertEquals(List.of("waits", "opens", "stays_open", "closes", "closes"),
+                cases.stream().map(PreviewService.CasePreview::outcome).toList());
+        assertEquals(-1.0, ((java.util.Map<?, ?>) cases.get(2).sample().get("caso")).get("normal_s"),
+                "normal_s is -1 while the condition holds, as the engine writes it");
+    }
+
+    @Test
+    void aLifecycleRuleThatFailsIsReportedPerMoment() {
+        List<PreviewService.CasePreview> cases = PreviewService.cases(
+                new SymptomSpec.Lifecycle("caso.condicion_s", "caso.nope > 1"));
+
+        assertNull(cases.get(0).outcome());
+        assertEquals("La condición debe dar sí o no.", cases.get(0).error());
+        assertNull(cases.get(2).outcome());
+        assertTrue(cases.get(2).error() != null && !cases.get(2).error().isBlank());
+        assertTrue(PreviewService.cases(null).isEmpty());
     }
 }

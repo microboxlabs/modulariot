@@ -21,6 +21,32 @@ Features and improvements in development:
 
 ## Recent Releases
 
+### Dashboard UI v0.1.2 (2026-10-08)
+
+Published the [dashboard UI](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui) v0.1.2:
+
+- A widget dragged in edit mode stays under the pointer. Before, the first move threw it away by the grid's distance from the page corner, such as a sidebar and header.
+
+### Dashboard UI v0.1.1 (2026-10-07)
+
+Published the [dashboard UI](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui) v0.1.1:
+
+- In edit mode, a widget can be dragged from anywhere on it, including the middle of a table or a chart. While the grid can drag, a widget's content no longer scrolls, takes the pointer or selects text. Controls in the host's `Frame` and container widgets stay interactive.
+
+### Dashboard server v0.7.0 (2026-10-06)
+
+Published the [server](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) v0.7.0:
+
+- `MIOT_DASHBOARD_GROUP_ROLES_PATTERN` and `MIOT_DASHBOARD_GROUP_ROLES_MAP` read organization and scope roles from the caller's groups, such as `GROUP_DHB_{tenant}_{role}`, with no seed file or lookup service ([guide](/en/products/dashboards/how-to/authenticate-users)). `createGroupRoleAuthorities` does the same for library users. Requires contract `^0.6.0`.
+
+### Dashboard packages v0.6.0 and dashboard UI v0.1.0 (2026-10-05)
+
+Published [contract](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract) and [server](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) v0.6.0, and the first release of the [dashboard UI](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui), v0.1.0:
+
+- Contract v0.6.0: filters can declare `single` selection and take their options from a saved query result (`optionsSource`). The OpenAPI document adds the query catalog route, and list summaries carry the dashboard's `order`.
+- Server v0.6.0: an optional query catalog provider lists approved connections, operations and result columns to editors, without credentials. `createRemoteQueryCatalog` reads it from a host endpoint. Lists are sorted by `order`. `plannerOperationContracts` and `migratePlannerQueries` convert request-planner dashboards to saved queries ([guide](/en/products/dashboards/how-to/migrate-planner-dashboards)). Requires contract `^0.6.0`.
+- UI v0.1.0, first release: React, Web Component and plain-browser rendering of the dashboard catalog, and authoring for settings, saved queries, permissions, filters and import/export. `useDashboardAutosave` saves a document once edits pause. Requires contract `^0.6.0`; React 18 or 19 and ECharts 6 are peer dependencies.
+
 ### Dashboard packages v0.5.0 — Creation permissions (2026-09-29)
 
 Published compatible [contract](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract) and [server](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) v0.5.0:
@@ -55,7 +81,7 @@ Published `@microboxlabs/miot-dashboard-server` and `@microboxlabs/miot-dashboar
 - Embedded hosts supply a trusted resolver. The standalone image includes an operator module for ModularIoT's private catalog; Java and Alfresco are not query execution requirements.
 - Upgrade both packages together. Existing standalone deployments must explicitly configure an operations module to enable portable saved queries.
 
-See the [query guide](/en/operations/dashboard-server/queries) and [acceptance roadmap](/en/operations/dashboard-server/roadmap).
+See the [query guide](/en/products/dashboards/concepts/queries-and-connections) and [acceptance roadmap](/en/products/dashboards/releases).
 
 ---
 

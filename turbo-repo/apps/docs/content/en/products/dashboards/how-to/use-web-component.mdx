@@ -1,0 +1,88 @@
+import { Callout } from 'nextra/components'
+
+# Use the Web Component
+
+`<miot-dashboard>` is a custom element. Use it in any page or framework that can host a custom element: plain HTML, Vue, Angular, Svelte, Phoenix LiveView, server-rendered templates. It takes the same options as `mountDashboard`.
+
+## Register the element
+
+Import the element from the same build you use for widgets. For a page without a bundler, that is the self-contained browser build (see [Embed a dashboard in a web page](/en/products/dashboards/tutorials/embed-in-a-web-page#get-the-browser-files)):
+
+```js
+import {
+  defineDashboardElement,
+  createTextCardRegistry,
+} from "./dashboard-runtime.js";
+
+defineDashboardElement(); // registers <miot-dashboard>
+```
+
+Registration is explicit: importing the file registers nothing. Calling `defineDashboardElement()` again is safe. Pass a name, such as `defineDashboardElement("acme-dashboard")`, to use your own tag.
+
+## Give it options
+
+```html
+<miot-dashboard id="sales"></miot-dashboard>
+```
+
+```js
+const element = document.getElementById("sales");
+element.dashboardOptions = {
+  instanceKey: "alice/sales",
+  registry,
+  widgets: dashboard.widgets,
+  unknownWidgetLabel: "This widget is not available on this page.",
+};
+```
+
+Options are a JavaScript property, never an HTML attribute. That keeps tokens and data out of the page source.
+
+| You do | The element |
+| --- | --- |
+| Set `dashboardOptions` | Draws the dashboard |
+| Set it again | Replaces every option. Widget state is kept while `instanceKey` stays the same. |
+| Set it to `undefined` | Clears the dashboard |
+| Remove the element from the page | Destroys it |
+| Put it back | Draws again from the last options, with fresh state |
+
+## Rules
+
+- **Start with an empty element.** The element draws into its own content.
+- **Load the stylesheet once** on the page.
+- **Change `instanceKey`** when the signed-in person or the dashboard changes.
+- **Use one build per page.** Do not mix `browser.js` with widgets built against another copy of React.
+
+## Phoenix LiveView
+
+LiveView patches the page on every update. Keep it away from the dashboard's content:
+
+```html
+<div id="sales-dashboard" phx-hook="Dashboard" phx-update="ignore"></div>
+```
+
+```js
+import { mountDashboard } from "./dashboard-runtime.js";
+
+export const Dashboard = {
+  mounted() {
+    this.handle = mountDashboard(this.el, optionsFrom(this.el));
+  },
+  updated() {
+    this.handle.update(optionsFrom(this.el));
+  },
+  destroyed() {
+    this.handle.destroy();
+  },
+};
+```
+
+`optionsFrom` is your function that builds the options from your page's state.
+
+<Callout type="info">
+Text widgets compile templates in the browser, which needs `'unsafe-eval'` in a strict Content Security Policy. Check your policy before you embed.
+</Callout>
+
+## Related
+
+- [Widget catalog](/en/products/dashboards/reference/widgets)
+- [UI library](/en/products/dashboards/reference/ui-library)

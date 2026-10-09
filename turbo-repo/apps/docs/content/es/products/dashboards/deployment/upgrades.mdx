@@ -1,0 +1,70 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Actualizaciones y respaldos
+
+## Orden de actualización
+
+Los tres paquetes dependen entre sí a través del contrato. Actualice en este orden:
+
+1. **Contrato**, en todo lo que valide documentos.
+2. **Servidor**.
+3. **UI**, en las páginas que dibujan dashboards.
+
+Una UI más nueva contra un servidor más antiguo sigue funcionando para las funciones que ambos conocen: los campos desconocidos del documento se conservan en cada guardado. Las funciones que necesitan una ruta nueva, como el catálogo de consultas, no están disponibles hasta que se actualiza el servidor.
+
+Revise [Versiones y compatibilidad](/es/products/dashboards/releases) para ver qué versiones funcionan juntas y las notas de cada versión.
+
+## Actualizar el servidor
+
+<Steps>
+
+### Respaldar
+
+Respalde el almacén, y el almacén de documentos si está separado. Consulte [Respaldo](#respaldo) más abajo.
+
+### Leer las notas de la versión
+
+Busque una migración de base de datos o un valor predeterminado que cambió. Las migraciones se ejecutan solas al iniciar.
+
+### Detener a quienes escriben durante una migración
+
+Cuando una versión agrega una migración, detenga todos los servidores, actualice y vuelva a iniciarlos. No ejecute una versión antigua y una nueva contra la misma base de datos al mismo tiempo: las versiones antiguas no mantienen lo que agrega la migración.
+
+### Desplegar la nueva versión
+
+Cambie la etiqueta de imagen o la versión de npm fijada y despliegue. Con Helm:
+
+```bash
+helm upgrade dashboards microboxlabs/miot-dashboard-server \
+  --namespace dashboards --values values.yaml --set image.tag=sha-<new>
+```
+
+### Revisar el log de inicio
+
+El servidor registra su configuración y empieza a escuchar solo después de que terminan las migraciones. Si en cambio se cierra, el log indica por qué.
+
+</Steps>
+
+## Revertir
+
+| Situación | Qué hacer |
+| --- | --- |
+| La versión no agregó migraciones | Despliegue la versión anterior |
+| La versión agregó una migración | Restaure el respaldo tomado antes de la actualización y luego despliegue la versión anterior |
+| Release de Helm | `helm rollback dashboards <revision>` restaura el despliegue; restaure los datos por separado si se ejecutó una migración |
+
+## Respaldo
+
+| Almacén | Cómo |
+| --- | --- |
+| SQLite | Detenga el servidor, o use `sqlite3 dashboards.db ".backup backup.db"`, y luego copie el archivo. Copiar un archivo de base de datos en uso sin el archivo `-wal` puede perder guardados recientes. |
+| PostgreSQL | Ejecute `pg_dump` sobre la base de datos del servidor, o use los respaldos de su base de datos gestionada |
+| Documentos `fs` | Copie el directorio de documentos junto con la base de datos |
+| Documentos `s3` / `gcs` | Active el versionado del bucket, o copie el prefijo junto con la base de datos |
+| Clave de credenciales | Guárdela con sus otros secretos. Sin ella, las credenciales guardadas no se pueden leer. |
+
+Conserve la tabla `dashboard_revisions` cuando limpie dashboards eliminados. Evita que un dashboard recreado reutilice números de revisión antiguos.
+
+<Callout type="info">
+Una exportación de dashboard desde la aplicación web es una copia adicional útil de un dashboard, pero no es un respaldo: no incluye permisos ni historial de revisiones.
+</Callout>

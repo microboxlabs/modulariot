@@ -1,6 +1,6 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { trDynamic } from "@/features/i18n/tr.service";
-import type { SymptomState } from "./maintainer-api";
+import type { SymptomFamily, SymptomState } from "./maintainer-api";
 
 /** The four ICU levels, with the `Conditions` key `ConditionIcon` draws. */
 export const ICU_LEVELS = [
@@ -14,13 +14,6 @@ export const ICU_LEVELS = [
   { icu: 4, condition: "code black", nameKey: "code_black" },
 ] as const;
 
-const STATE_CLASS: Record<SymptomState, string> = {
-  ACTIVE:
-    "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  TEST: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
-  OFF: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
-};
-
 const STATE_KEY: Record<SymptomState, string> = {
   ACTIVE: "stateActive",
   TEST: "stateTest",
@@ -31,22 +24,36 @@ export function stateLabel(state: SymptomState, d: I18nRecord) {
   return trDynamic(STATE_KEY[state], d);
 }
 
-export function StateBadge({
-  state,
-  d,
-}: Readonly<{ state: SymptomState; d: I18nRecord }>) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${STATE_CLASS[state]}`}
-    >
-      {stateLabel(state, d)}
-    </span>
+/**
+ * The family value a stored family stands for. Older symptoms may hold a
+ * family's label (such as "Seguridad de conducción") instead of its value.
+ */
+export function canonicalFamily(
+  family: string | null | undefined,
+  families?: readonly SymptomFamily[]
+) {
+  if (!family) return null;
+  const known = families?.find(
+    (f) => f.value === family || Object.values(f.label).includes(family)
   );
+  return known?.value ?? family;
 }
 
-/** `driving_safety` → `Driving safety`, until families come from their selectable. */
-export function familyLabel(family: string | null) {
+/**
+ * A family's label in the page's language, from the organization's families.
+ * A value no family has (an older free-text one) reads as itself:
+ * `driving_safety` → `Driving safety`.
+ */
+export function familyLabel(
+  family: string | null | undefined,
+  families?: readonly SymptomFamily[],
+  lang = "es"
+) {
   if (!family) return "";
+  const value = canonicalFamily(family, families);
+  const known = families?.find((f) => f.value === value);
+  const label = known?.label[lang] ?? known?.label.es;
+  if (label) return label;
   const text = family.replaceAll("_", " ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }

@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { useVisiblePages } from "../hooks/use-visible-pages";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import { useKnowledgeTrainer } from "@/features/knowledge/hooks/use-knowledge-trainer";
+import { useMyAccess } from "@/features/settings-admin/team/team-api";
 import { filterSettings } from "../models/pages";
 import { SidebarItem } from "../types/common.types";
 import {
@@ -24,6 +25,7 @@ import {
 } from "@/features/common/providers/client-api.provider";
 import type { CalendarGroupResponse } from "@microboxlabs/miot-calendar-client";
 import { useDashboardDynamicItems } from "@/features/dashboard/hooks/use-dashboard-dynamic-items";
+import { useServerDashboardDynamicItems } from "@/features/dashboard/hooks/use-server-dashboard-dynamic-items";
 import { DEFAULT_SERVICE_TYPE } from "@/features/calendar/services/service-types";
 import {
   DELIVERY_COORDINATOR_PROCESS_TASKS,
@@ -169,9 +171,13 @@ export function SidebarNavigationProvider({
   const taskDynamicItems = useTaskDynamicItems();
   const calendarDynamicItems = useCalendarDynamicItems();
   const dashboardDynamicItems = useDashboardDynamicItems();
+  const serverDashboardDynamicItems = useServerDashboardDynamicItems(
+    isDashboardServerEnabled
+  );
   const pages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
   const { isTrainer } = useKnowledgeTrainer();
+  const canViewGps = useMyAccess().can("gps:view");
 
   useEffect(() => {
     if (error && (error.status === 401 || error.status === 403)) {
@@ -233,12 +239,14 @@ export function SidebarNavigationProvider({
       tasks: taskDynamicItems,
       calendars: calendarDynamicItems,
       dashboards: dashboardDynamicItems,
+      serverDashboards: serverDashboardDynamicItems,
     };
 
     const resolvedItems = filterSettings(pages, {
       harness: isHarnessSettingsEnabled,
       platformOwner: isPlatformOwner,
       trainer: isTrainer,
+      gps: canViewGps,
     }).map((page) => {
       const dynamic = page.dynamicItemsSource
         ? (dynamicMap[page.dynamicItemsSource] ?? [])
@@ -253,6 +261,7 @@ export function SidebarNavigationProvider({
     taskDynamicItems,
     calendarDynamicItems,
     dashboardDynamicItems,
+    serverDashboardDynamicItems,
     data,
     historicInstances,
     mapCount,
@@ -261,6 +270,7 @@ export function SidebarNavigationProvider({
     isHarnessSettingsEnabled,
     isPlatformOwner,
     isTrainer,
+    canViewGps,
   ]);
 
   return (

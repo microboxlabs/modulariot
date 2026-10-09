@@ -1,0 +1,50 @@
+import { Callout } from 'nextra/components'
+
+# Import and export
+
+A dashboard is one JSON document. Export it to keep a copy, review a change, or move it to another environment. Import it to replace a dashboard's content.
+
+## Export
+
+1. Open the dashboard.
+2. Open the settings menu (the gear) and choose **Export Dashboard**.
+3. Select **Download as JSON file**, or **Copy to clipboard**.
+
+The file holds the layout, widgets, filters, saved queries and settings. It holds no data, no credentials and no permissions.
+
+With the API, the same document is the `data` field of a load:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://dashboards.example.com/tenants/acme/scopes/ops/dashboards/sales \
+  | jq '.data' > sales.json
+```
+
+## Import
+
+1. Open the dashboard you want to replace, or create an empty one.
+2. Open the settings menu and choose **Import Dashboard**.
+3. Choose **Upload File** and select the JSON file, or choose **Paste JSON** and paste it.
+4. Select **Import**.
+
+The import replaces the current content, and the dashboard saves on its own. **Undo** restores the previous version until you leave the page.
+
+The server validates the document before it accepts it. A file over 1 MiB, or one whose `version` is not `2`, is refused.
+
+## Moving between environments
+
+Saved queries name connections and operations by ID. Those IDs usually differ between environments, so after importing:
+
+1. Open **Saved queries**.
+2. For each query, choose the matching connection and operation in this environment.
+3. Check that each widget shows data.
+
+Widgets the destination does not know show a "widget not available" message instead of breaking the page.
+
+<Callout type="info">
+Permissions are not part of the document. Set them again in the destination with [Manage permissions](/en/products/dashboards/how-to/share-and-permissions).
+</Callout>
+
+## Import many dashboards at once
+
+To load many existing dashboards into a new server, use `importDashboards` from the server library. It defaults to a dry run, never overwrites, and reports each dashboard as imported, skipped, refused or failed. See [Server library](/en/products/dashboards/reference/server-library#import-existing-dashboards).

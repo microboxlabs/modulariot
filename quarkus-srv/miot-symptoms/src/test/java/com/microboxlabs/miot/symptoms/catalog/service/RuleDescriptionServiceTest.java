@@ -5,14 +5,23 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.Caller;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.Description;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.UnavailableException;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
 import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -55,6 +64,30 @@ class RuleDescriptionServiceTest {
         assertEquals(first.html(), second.html());
         assertEquals(1, calls.size());
         assertEquals(1, store.size());
+    }
+
+    @Test
+    void theListReadsEveryActivationTextInOneLookupAndFallsBackToTheDefinitionSource() {
+        RuleDescriptionService service = service();
+        service.describe(TENANT, "activation", "signal.trip.active", "gps_signal", null, CALLER);
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        SymptomSpec withSource = new SymptomSpec("gps_signal", "signal.trip.active", null, List.of(), null, null);
+        SymptomSpec sourceless = new SymptomSpec(null, " signal.trip.active ", null, List.of(), null, null);
+        SymptomSpec other = new SymptomSpec("gps_signal", "!signal.trip.active", null, List.of(), null, null);
+        List<SymptomSummary> list = List.of(summary(withSource, now), summary(sourceless, now), summary(other, now),
+                summary(null, now));
+
+        List<String> texts = service.withActivationTexts(list).stream().map(SymptomSummary::activationText).toList();
+
+        assertEquals(Arrays.asList(answer, answer, null, null), texts);
+        assertEquals(1, store.lookups, "one lookup for the whole list");
+        assertEquals(1, calls.size(), "the list never calls the Harness");
+    }
+
+    private static SymptomSummary summary(SymptomSpec spec, OffsetDateTime now) {
+        return new SymptomSummary(new SymptomDefinition(UUID.randomUUID(), TENANT, "k", "n", null, null, null,
+                "gps_signal", null, null, null, SymptomState.ACTIVE, "1.0.0", "o", now, "o", now), false,
+                spec == null ? null : SymptomVersion.draft(UUID.randomUUID(), TENANT, spec, "o", now), null);
     }
 
     @Test
@@ -138,6 +171,40 @@ class RuleDescriptionServiceTest {
         assertEquals("segundos desde que volvió a la normalidad", fields.get("caso.normal_s"));
         assertFalse(fields.containsKey("signal.trip.active"));
         assertFalse(fields.containsKey("medida"));
+    }
+
+    @Test
+    void theOverviewIsCachedPerLineAndGetsEveryLabel() {
+        RuleDescriptionService service = service();
+        String overview = """
+                activa: signal.trip.active
+                medida: signal.gps.speed_kmh - 90 (km/h)
+                nivel 3: medida >= 11 · operador 5 min
+                abre: caso.condicion_s >= 0
+                cierra: caso.normal_s >= 120""";
+
+        assertFalse(service.describe(TENANT, "overview", overview, "gps_signal", null, CALLER).cached());
+        assertTrue(service.describe(TENANT, "overview", overview.replace("\n", "\n\n  "), "gps_signal", null,
+                CALLER).cached());
+
+        assertEquals(1, calls.size());
+        Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
+        assertTrue(fields.containsKey("signal.trip.active"));
+        assertTrue(fields.containsKey("medida"));
+        assertTrue(fields.containsKey("caso.normal_s"));
+    }
+
+    @Test
+    void spacesInsideAQuotedValueMakeANewText() {
+        RuleDescriptionService service = service();
+        String yard = "activa: signal.geo.zone == \"North Yard\"\nabre: caso.condicion_s >= 0";
+
+        assertFalse(service.describe(TENANT, "overview", yard, "gps_signal", null, CALLER).cached());
+        assertTrue(service.describe(TENANT, "overview", yard.replace(" == ", "  ==   "), "gps_signal", null,
+                CALLER).cached());
+        assertFalse(service.describe(TENANT, "overview", yard.replace("North Yard", "North  Yard"), "gps_signal",
+                null, CALLER).cached());
+        assertEquals(2, calls.size());
     }
 
     @Test

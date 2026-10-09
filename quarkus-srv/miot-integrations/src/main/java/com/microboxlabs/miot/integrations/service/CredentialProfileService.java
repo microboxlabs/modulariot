@@ -278,7 +278,7 @@ public class CredentialProfileService {
     }
 
     private static CredentialUsageKind usageKind(ProviderType providerType) {
-        return providerType == ProviderType.WHATSAPP
+        return providerType == ProviderType.WHATSAPP || providerType == ProviderType.RESEND
                 ? CredentialUsageKind.CHANNEL
                 : CredentialUsageKind.INTEGRATION;
     }

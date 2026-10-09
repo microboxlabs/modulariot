@@ -9,7 +9,6 @@ import type {
   DataSource,
   FieldOrigin,
   Preview,
-  SymptomVersion,
   ValidationReport,
 } from "./maintainer-api";
 import { ICU_LEVELS } from "./symptom-labels";
@@ -223,72 +222,6 @@ export function FieldsPanel({
           );
         })}
       </ul>
-    </Panel>
-  );
-}
-
-export function VersionsPanel({
-  versions,
-  current,
-  canWrite,
-  d,
-  onRollback,
-  onFork,
-}: Readonly<{
-  versions: SymptomVersion[];
-  current: string | null;
-  canWrite: boolean;
-  d: I18nRecord;
-  onRollback: (version: string) => void;
-  onFork: (version: string) => void;
-}>) {
-  return (
-    <Panel title={tr("sectionVersions", d)}>
-      {versions.length === 0 && (
-        <p className="text-xs text-gray-500">{tr("unpublished", d)}</p>
-      )}
-      <ol className="flex flex-col gap-3">
-        {versions.map((v) => (
-          <li key={v.id} className="text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-sm font-semibold text-gray-900 dark:text-white">
-                v{v.version}
-              </span>
-              <span className="text-gray-500">{v.bump}</span>
-              {v.version === current && (
-                <span className="rounded bg-green-100 px-1.5 text-[10px] text-green-800 dark:bg-green-900/40 dark:text-green-300">
-                  {tr("inForce", d)}
-                </span>
-              )}
-              {canWrite && v.version && (
-                <span className="ml-auto flex gap-2">
-                  {v.version !== current && (
-                    <button
-                      type="button"
-                      className="text-blue-600 hover:underline dark:text-blue-400"
-                      onClick={() => onRollback(v.version as string)}
-                    >
-                      {tr("restore", d)}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="text-blue-600 hover:underline dark:text-blue-400"
-                    onClick={() => onFork(v.version as string)}
-                  >
-                    {tr("duplicate", d)}
-                  </button>
-                </span>
-              )}
-            </div>
-            <p className="text-gray-600 dark:text-gray-300">{v.reason}</p>
-            <p className="text-gray-400">
-              {v.publishedBy} ·{" "}
-              {v.publishedAt ? new Date(v.publishedAt).toLocaleString() : ""}
-            </p>
-          </li>
-        ))}
-      </ol>
     </Panel>
   );
 }

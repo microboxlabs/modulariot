@@ -1,0 +1,86 @@
+# Versiones y lanzamientos
+
+Dashboards sigue [Versionado Semántico](https://semver.org). Mientras las versiones sean menores que 1.0, una versión menor (0.**x**.0) puede cambiar el comportamiento; cada una lo indica más abajo. Las versiones de parche solo corrigen errores.
+
+## Versiones actuales
+
+| Paquete | Versión | Publicada |
+| --- | --- | --- |
+| [`@microboxlabs/miot-dashboard-contract`](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract) | 0.6.0 | 2026-10-05 |
+| [`@microboxlabs/miot-dashboard-server`](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) | 0.7.0 | 2026-10-06 |
+| [`@microboxlabs/miot-dashboard-ui`](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui) | 0.1.0 | 2026-10-05 |
+| Chart de Helm `miot-dashboard-server` | 0.1.2 | 2026-09-20 |
+
+## Compatibilidad
+
+| Servidor | Contrato | UI | Notas |
+| --- | --- | --- | --- |
+| 0.7.x | 0.6.x | 0.1.x | Roles desde grupos |
+| 0.6.x | 0.6.x | 0.1.x | Catálogo de consultas, opciones de filtro dinámicas, orden en la barra lateral |
+| 0.5.x | 0.5.x | — | Verificación de creación por ámbito |
+| 0.4.x | 0.4.x | — | Herramientas de migración, parámetros de filtro opcionales |
+| 0.3.x | 0.3.x | — | Ejecución de consultas portable |
+
+Actualice el contrato, luego el servidor y luego la UI. Vea [Actualizaciones y respaldos](/es/products/dashboards/deployment/upgrades).
+
+## 0.7.0 — 2026-10-06
+
+Agregado:
+
+- Servidor: `MIOT_DASHBOARD_GROUP_ROLES_PATTERN` y `MIOT_DASHBOARD_GROUP_ROLES_MAP` leen los roles de organización y ámbito desde los grupos de quien llama, como `GROUP_DHB_{tenant}_{role}`. Vea [Autenticar usuarios](/es/products/dashboards/how-to/authenticate-users). Quienes usan la biblioteca obtienen lo mismo con `createGroupRoleAuthorities`.
+
+## 0.6.0 y UI 0.1.0 — 2026-10-05
+
+**Primera versión de la UI.** Dibujo del catálogo de widgets con React, Web Component y navegador sin framework, y editores para ajustes, consultas guardadas, permisos, filtros e importación/exportación.
+
+Agregado:
+
+- Contrato: los filtros de selección pueden permitir un solo valor (`single`) y tomar sus opciones del resultado de una consulta guardada (`optionsSource`). El documento OpenAPI agrega la ruta del catálogo de consultas. Las entradas de la lista llevan el `order` del dashboard.
+- Servidor: un catálogo de consultas opcional muestra a los editores las conexiones, operaciones y columnas de resultado aprobadas, sin credenciales. `createRemoteQueryCatalog` lo lee desde un endpoint del host. Las listas se ordenan por `order`. `plannerOperationContracts` y `migratePlannerQueries` convierten dashboards del planificador.
+- UI: `useDashboardAutosave` guarda cuando las ediciones se detienen.
+
+Requiere: contrato `^0.6.0` tanto para el servidor como para la UI. React 18 o 19 y ECharts 6 son dependencias peer opcionales de la UI.
+
+## 0.5.0 — 2026-09-29
+
+Agregado:
+
+- `GET /tenants/{t}/scopes/{s}/capabilities` responde `{canCreate}`, para que una página pueda ofrecer la creación sin leer ningún dashboard. Los tokens de inserción no pueden usarlo.
+
+Cambiado:
+
+- Crear un dashboard ahora verifica tanto el tope de edición de la identidad como la política del documento. Los Contributors aún pueden crear con la política por defecto.
+
+## 0.4.0 — 2026-09-29
+
+Agregado:
+
+- Las importaciones validan cada documento contra el contrato antes de tocar el almacén, incluidas las ejecuciones de prueba.
+- `migratePlannerQueries` convierte las solicitudes del planificador en consultas guardadas con mapeos explícitos.
+- Los vínculos de filtro aceptan `omitWhenEmpty`.
+
+Cambiado:
+
+- **Los servidores independientes aplican `allowedGroups`.** Configure un claim de grupos o una ruta de grupos del ticket antes de actualizar; de lo contrario, los dashboards restringidos quedan ocultos.
+
+## 0.3.0 — 2026-09-29
+
+Agregado:
+
+- El contrato define consultas guardadas con vínculos literales y de filtro.
+- El servidor incluye ejecutores de BigQuery y HTTP de solo lectura en `/queries`, con plazos, cancelación y límites de tamaño.
+- La imagen de contenedor incluye un módulo de operaciones para ModularIoT.
+
+Cambiado:
+
+- Las consultas guardadas están desactivadas hasta que se configure un módulo o una URL de operaciones.
+
+## 0.1.0 y 0.2.0 — septiembre de 2026
+
+Primer contrato y servidor publicados: almacenamiento de documentos, revisiones, roles, organizaciones y ámbitos, inicio de sesión con JWT y tickets, fuentes de datos y credenciales cifradas.
+
+## Dónde se anuncian las versiones
+
+- El [registro de cambios de la plataforma](/es/reference/changelog) lista todas las versiones.
+- La página de npm de cada paquete muestra sus versiones.
+- Las etiquetas de Git siguen el formato `miot-dashboard-<package>@v<version>`.

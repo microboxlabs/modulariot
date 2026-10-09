@@ -2,115 +2,153 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, TextInput } from "flowbite-react";
-import {
-  HiOutlineDownload,
-  HiOutlineSearch,
-  HiOutlineViewGrid,
-  HiOutlineViewList,
-  HiPlus,
-} from "react-icons/hi";
-import { MdOutlineMonitorHeart } from "react-icons/md";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
-import { IconTile } from "@/features/common/components/icon-tile/icon-tile";
-import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-switcher/use-org-scopes";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr, trDynamic } from "@/features/i18n/tr.service";
-import SymptomIcon from "../components/symtom-icon";
+import { tr } from "@/features/i18n/tr.service";
+import { channelGroupLabel, SymptomCard, SymptomRow } from "./catalog-card";
+import {
+  type CatalogFilterKey,
+  CHANNEL_GROUPS,
+  channelGroups,
+  reachableLevels,
+  whoActsKind,
+} from "./catalog-derive";
+import { levelName } from "./catalog-format";
+import CatalogStats from "./catalog-stats";
 import CreateSymptomModal from "./create-symptom-modal";
+import TeamSettingsModal from "./team-settings-modal";
 import {
   importEngineRules,
   refreshSymptoms,
   useSymptomDefinitions,
-  type SymptomState,
+  useSymptomFamilies,
+  useControlTowerAccess,
+  useSymptomStats,
   type SymptomSummary,
 } from "./maintainer-api";
-import { StateBadge, familyLabel } from "./symptom-labels";
+import { familyLabel, stateLabel } from "./symptom-labels";
+import { MUTED, Tile } from "./ui/card";
+import { FilterChip } from "./ui/filter-chip";
+import { STATES } from "./ui/state";
 
-type Filter = "ALL" | SymptomState | "DRAFT";
-type View = "cards" | "list";
+type Filters = Record<CatalogFilterKey, string>;
+type Layout = "cards" | "list";
 
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: "ALL", label: "filterAll" },
-  { key: "ACTIVE", label: "stateActive" },
-  { key: "TEST", label: "stateTest" },
-  { key: "OFF", label: "stateOff" },
-  { key: "DRAFT", label: "withDraft" },
-];
+const EMPTY: Filters = {
+  family: "",
+  state: "",
+  level: "",
+  who: "",
+  channel: "",
+  draft: "",
+};
 
-const cardClass =
-  "flex flex-col rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800";
-
-function matches(s: SymptomSummary, filter: Filter, query: string) {
-  const d = s.definition;
-  if (filter === "DRAFT" && !s.hasDraft) return false;
-  if (filter !== "ALL" && filter !== "DRAFT" && d.state !== filter)
+function passes(
+  s: SymptomSummary,
+  f: Filters,
+  d: I18nRecord,
+  family: (value: string | null) => string
+) {
+  const spec = s.current?.spec ?? null;
+  if (f.draft && !s.hasDraft) return false;
+  if (f.family && family(s.definition.family) !== f.family) return false;
+  if (f.state && stateLabel(s.definition.state, d) !== f.state) return false;
+  if (
+    f.level &&
+    !reachableLevels(spec).some((icu) => levelName(icu, d) === f.level)
+  )
     return false;
-  const q = query.trim().toLowerCase();
-  return (
-    !q ||
-    d.name.toLowerCase().includes(q) ||
-    d.key.includes(q) ||
-    (d.family ?? "").includes(q)
-  );
+  if (f.who) {
+    const wanted = f.who === tr("whoOperator", d) ? "operator" : "notices";
+    if (whoActsKind(spec) !== wanted) return false;
+  }
+  if (
+    f.channel &&
+    !channelGroups(spec).some((g) => channelGroupLabel(g, d) === f.channel)
+  )
+    return false;
+  return true;
 }
 
-function countOf(list: SymptomSummary[], filter: Filter) {
-  return list.filter((s) => matches(s, filter, "")).length;
-}
-
-function Stat({
-  label,
-  value,
-  hint,
-}: Readonly<{ label: string; value: number; hint: string }>) {
-  return (
-    <section className={cardClass}>
-      <div className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        {label}
-      </div>
-      <div className="px-4 pb-1 text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-        {value}
-      </div>
-      <div className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500 dark:border-gray-700/60 dark:text-gray-400">
-        {hint}
-      </div>
-    </section>
-  );
-}
-
-function VersionText({ s, d }: Readonly<{ s: SymptomSummary; d: I18nRecord }>) {
-  const v = s.definition.currentVersion;
-  return (
-    <span className="text-xs text-gray-500 dark:text-gray-400">
-      {v ? `v${v}` : tr("unpublished", d)}
-      {s.hasDraft && (
-        <span className="ml-2 inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-blue-600 dark:bg-blue-400" />
-          {tr("draft", d)}
-        </span>
-      )}
-    </span>
-  );
-}
-
-/** Settings › Síntomas: every symptom of the organization, by state, as cards or a list. */
+/** Settings › Síntomas: every symptom of the organization, with its levels, who acts and how much it fires. */
 export default function SymptomCatalog({
   dict,
   rootDict,
   lang,
-}: Readonly<{ dict: I18nRecord; rootDict: I18nRecord; lang: string }>) {
+  harnessEnabled,
+}: Readonly<{
+  dict: I18nRecord;
+  rootDict: I18nRecord;
+  lang: string;
+  harnessEnabled: boolean;
+}>) {
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
   const { data, error, isLoading } = useSymptomDefinitions();
-  const { activeOrg } = useOrgScopes();
-  const isOwner = activeOrg?.role === "OWNER";
-  const [filter, setFilter] = useState<Filter>("ALL");
-  const [query, setQuery] = useState("");
-  const [view, setView] = useState<View>("cards");
+  const { data: stats } = useSymptomStats();
+  const { data: families } = useSymptomFamilies();
+  const { canMaintain: isOwner } = useControlTowerAccess();
+  const [filters, setFilters] = useState<Filters>(EMPTY);
+  const [layout, setLayout] = useState<Layout>("cards");
   const [creating, setCreating] = useState(false);
+  const [editingTeam, setEditingTeam] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importNote, setImportNote] = useState<string | null>(null);
+
+  const all = useMemo(() => data ?? [], [data]);
+  const family = (value: string | null) => familyLabel(value, families, lang);
+  const shown = all.filter((s) => passes(s, filters, d, family));
+  const weekOf = useMemo(() => {
+    const byId = new Map(
+      (stats?.symptoms ?? []).map((x) => [x.definitionId, x.week])
+    );
+    // No entry: the engine credited no cases to this symptom.
+    return (id: string) => byId.get(id) ?? null;
+  }, [stats]);
+  const open = (id: string) =>
+    router.push(`/${lang}/users/settings/symptoms/${id}`);
+
+  const filterDefs: {
+    key: CatalogFilterKey;
+    label: string;
+    options: string[];
+  }[] = [
+    {
+      key: "family",
+      label: tr("filterFamily", d),
+      options: [
+        ...new Set(all.map((s) => family(s.definition.family)).filter(Boolean)),
+      ],
+    },
+    {
+      key: "state",
+      label: tr("filterState", d),
+      options: [...STATES].reverse().map((s) => stateLabel(s, d)),
+    },
+    {
+      key: "level",
+      label: tr("filterLevel", d),
+      options: [1, 2, 3, 4].map((icu) => levelName(icu, d)),
+    },
+    {
+      key: "who",
+      label: tr("filterWho", d),
+      options: [tr("whoOperator", d), tr("onlyNotices", d)],
+    },
+    {
+      key: "channel",
+      label: tr("filterChannel", d),
+      options: CHANNEL_GROUPS.map((g) => channelGroupLabel(g, d)),
+    },
+  ];
+  // Not in the prototype's bar: the Cambios card sets it, and the chip shows so it can be cleared.
+  if (filters.draft) {
+    filterDefs.push({
+      key: "draft",
+      label: tr("draft", d),
+      options: [tr("withDraft", d)],
+    });
+  }
 
   const runImport = async () => {
     setImporting(true);
@@ -130,13 +168,8 @@ export default function SymptomCatalog({
     }
   };
 
-  const all = useMemo(() => data ?? [], [data]);
-  const shown = all.filter((s) => matches(s, filter, query));
-  const open = (id: string) =>
-    router.push(`/${lang}/users/settings/symptoms/${id}`);
-
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
       <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-900 dark:text-white">
         <Breadcrumb
           dict={dict?.breadcrumb as I18nRecord}
@@ -146,201 +179,163 @@ export default function SymptomCatalog({
         />
       </div>
 
-      <div className="mx-auto flex w-full max-w-screen-2xl min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-2 pb-10 dark:bg-gray-900">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <IconTile icon={MdOutlineMonitorHeart} />
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-gray-200 bg-white px-2 py-2 dark:border-gray-700 dark:bg-gray-900">
+        {filterDefs.map((f) => (
+          <FilterChip
+            key={f.key}
+            label={f.label}
+            value={filters[f.key]}
+            options={f.options}
+            allLabel={tr("filterAll", d)}
+            onChange={(v) => setFilters({ ...filters, [f.key]: v })}
+          />
+        ))}
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 pb-10 pt-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Tile>
+              <svg
+                aria-hidden
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                viewBox="0 0 24 24"
+              >
+                <path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0L7 7Zm10 0-3 7a3 3 0 0 0 6 0l-3-7Z" />
+              </svg>
+            </Tile>
             <div>
               <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
                 {tr("title", d)}
               </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {tr("description", d)}
-              </p>
+              <p className={`text-sm ${MUTED}`}>{tr("description", d)}</p>
+            </div>
+            <div className="ml-auto flex items-center gap-2">
+              <div className="flex rounded-lg border border-gray-300 p-0.5 dark:border-gray-600">
+                {(["cards", "list"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-pressed={layout === v}
+                    onClick={() => setLayout(v)}
+                    className={`rounded-md px-2.5 py-1 text-xs ${
+                      layout === v
+                        ? "bg-gray-100 font-medium text-gray-900 dark:bg-gray-700 dark:text-white"
+                        : MUTED
+                    }`}
+                  >
+                    {v === "cards" ? tr("viewCards", d) : tr("viewList", d)}
+                  </button>
+                ))}
+              </div>
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={() => setCreating(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-2 text-sm font-medium text-white hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-700"
+                >
+                  ＋ {tr("newSymptom", d)}
+                </button>
+              )}
             </div>
           </div>
-          {isOwner && (
-            <div className="flex shrink-0 items-center gap-2">
-              <Button
-                size="sm"
-                color="alternative"
-                disabled={importing}
-                onClick={() => void runImport()}
-              >
-                <HiOutlineDownload className="mr-1 h-4 w-4" />
-                {tr("importEngine", d)}
-              </Button>
-              <Button size="sm" onClick={() => setCreating(true)}>
-                <HiPlus className="mr-1 h-4 w-4" />
-                {tr("newSymptom", d)}
-              </Button>
+
+          <CatalogStats
+            loading={isLoading}
+            all={all}
+            stats={stats}
+            lang={lang}
+            d={d}
+            onFilter={(key, value) => setFilters({ ...filters, [key]: value })}
+            onOpen={open}
+            onEditTeam={isOwner ? () => setEditingTeam(true) : undefined}
+          />
+
+          <p
+            role="status"
+            aria-live="polite"
+            className="text-sm text-gray-600 dark:text-gray-300"
+          >
+            {importNote}
+          </p>
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {tr("loadFailed", d)}
+            </p>
+          )}
+          {!isLoading && !error && shown.length === 0 && (
+            <p className={`py-10 text-center text-sm ${MUTED}`}>
+              {all.length === 0 ? tr("empty", d) : tr("emptyFiltered", d)}
+            </p>
+          )}
+
+          {layout === "cards" ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              {shown.map((s) => (
+                <SymptomCard
+                  key={s.definition.id}
+                  s={s}
+                  family={family(s.definition.family)}
+                  week={weekOf(s.definition.id)}
+                  lang={lang}
+                  d={d}
+                  rootDict={rootDict}
+                  onOpen={() => open(s.definition.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+              <table className="w-full text-left text-xs text-gray-600 dark:text-gray-300">
+                <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+                  <tr>
+                    <th className="px-4 py-2">{tr("colSymptom", d)}</th>
+                    <th className="px-4 py-2">{tr("colScale", d)}</th>
+                    <th className="px-4 py-2">{tr("filterWho", d)}</th>
+                    <th className="px-4 py-2">{tr("filterState", d)}</th>
+                    <th className="px-4 py-2">{tr("colVersion", d)}</th>
+                    <th className="px-4 py-2 text-right">
+                      {tr("colPerWeek", d)}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.map((s) => (
+                    <SymptomRow
+                      key={s.definition.id}
+                      s={s}
+                      family={family(s.definition.family)}
+                      week={weekOf(s.definition.id)}
+                      lang={lang}
+                      d={d}
+                      rootDict={rootDict}
+                      onOpen={() => open(s.definition.id)}
+                    />
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
-
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat
-            label={tr("statActive", d)}
-            value={countOf(all, "ACTIVE")}
-            hint={tr("statActiveHint", d)}
-          />
-          <Stat
-            label={tr("statTest", d)}
-            value={countOf(all, "TEST")}
-            hint={tr("statTestHint", d)}
-          />
-          <Stat
-            label={tr("statOff", d)}
-            value={countOf(all, "OFF")}
-            hint={tr("statOffHint", d)}
-          />
-          <Stat
-            label={tr("statDrafts", d)}
-            value={countOf(all, "DRAFT")}
-            hint={tr("statDraftsHint", d)}
-          />
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                aria-pressed={filter === f.key}
-                onClick={() => setFilter(f.key)}
-                className={`rounded-full border px-3 py-1 text-xs font-medium ${
-                  filter === f.key
-                    ? "border-blue-600 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
-                    : "border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                }`}
-              >
-                {trDynamic(f.label, d)} · {countOf(all, f.key)}
-              </button>
-            ))}
-          </div>
-          <div className="flex items-center gap-2">
-            <TextInput
-              sizing="sm"
-              icon={HiOutlineSearch}
-              placeholder={tr("search", d)}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <div className="flex rounded-lg border border-gray-300 p-0.5 dark:border-gray-600">
-              {(["cards", "list"] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={view === v}
-                  aria-label={
-                    v === "cards" ? tr("viewCards", d) : tr("viewList", d)
-                  }
-                  onClick={() => setView(v)}
-                  className={`rounded-md p-1.5 ${view === v ? "bg-gray-100 dark:bg-gray-700" : "text-gray-500"}`}
-                >
-                  {v === "cards" ? (
-                    <HiOutlineViewGrid className="h-4 w-4" />
-                  ) : (
-                    <HiOutlineViewList className="h-4 w-4" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <p
-          role="status"
-          aria-live="polite"
-          className="text-sm text-gray-600 dark:text-gray-300"
-        >
-          {importNote}
-        </p>
-        {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {tr("loadFailed", d)}
-          </p>
-        )}
-        {!isLoading && !error && shown.length === 0 && (
-          <p className="py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-            {all.length === 0 ? tr("empty", d) : tr("emptyFiltered", d)}
-          </p>
-        )}
-
-        {view === "cards" ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {shown.map((s) => (
-              <button
-                key={s.definition.id}
-                type="button"
-                onClick={() => open(s.definition.id)}
-                className={`${cardClass} gap-3 p-4 text-left transition hover:border-blue-400 hover:shadow-sm`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-200">
-                    <SymptomIcon
-                      type={s.definition.icon ?? s.definition.name}
-                      dict={rootDict}
-                      size="h-9 w-9"
-                      fixed_label={s.definition.name}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold text-gray-900 dark:text-white">
-                      {s.definition.name}
-                    </p>
-                    <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                      {familyLabel(s.definition.family)}
-                    </p>
-                  </div>
-                  <StateBadge state={s.definition.state} d={d} />
-                </div>
-                {s.definition.description && (
-                  <p className="line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
-                    {s.definition.description}
-                  </p>
-                )}
-                <VersionText s={s} d={d} />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div
-            className={`${cardClass} divide-y divide-gray-100 dark:divide-gray-700`}
-          >
-            {shown.map((s) => (
-              <button
-                key={s.definition.id}
-                type="button"
-                onClick={() => open(s.definition.id)}
-                className="flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50"
-              >
-                <SymptomIcon
-                  type={s.definition.icon ?? s.definition.name}
-                  dict={rootDict}
-                  size="h-7 w-7"
-                  fixed_label={s.definition.name}
-                />
-                <span className="min-w-0 flex-1 truncate font-medium text-gray-900 dark:text-white">
-                  {s.definition.name}
-                </span>
-                <span className="hidden w-48 truncate text-xs text-gray-500 md:block">
-                  {familyLabel(s.definition.family)}
-                </span>
-                <span className="w-40">
-                  <VersionText s={s} d={d} />
-                </span>
-                <StateBadge state={s.definition.state} d={d} />
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
+      {editingTeam && (
+        <TeamSettingsModal d={d} onClose={() => setEditingTeam(false)} />
+      )}
       <CreateSymptomModal
         open={creating}
         d={d}
+        rootDict={rootDict}
+        lang={lang}
+        harnessEnabled={harnessEnabled}
+        importing={importing}
+        onImport={() => {
+          setCreating(false);
+          void runImport();
+        }}
         onClose={() => setCreating(false)}
         onCreated={(created) => {
           setCreating(false);

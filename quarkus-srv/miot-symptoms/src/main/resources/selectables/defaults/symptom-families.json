@@ -1,0 +1,12 @@
+[
+  {"key": "symptom_families", "name": {"es": "Familias de síntomas", "en": "Symptom families"}, "description": {"es": "Grupos del catálogo de síntomas. Cada síntoma pertenece a una familia.", "en": "Groups of the symptom catalog. Each symptom belongs to one family."}, "mode": "SINGLE", "options": [
+    {"value": "driving_safety", "label": {"es": "Seguridad de conducción", "en": "Driving safety"}},
+    {"value": "signal_continuity", "label": {"es": "Continuidad de señal", "en": "Signal continuity"}},
+    {"value": "zones_places", "label": {"es": "Zonas y lugares", "en": "Zones and places"}},
+    {"value": "workday_fatigue", "label": {"es": "Jornada y fatiga", "en": "Workday and fatigue"}},
+    {"value": "route_plan", "label": {"es": "Plan de ruta", "en": "Route plan"}},
+    {"value": "site_events", "label": {"es": "Eventos de faena", "en": "Site events"}},
+    {"value": "cargo", "label": {"es": "Carga", "en": "Cargo"}},
+    {"value": "emergencies", "label": {"es": "Emergencias", "en": "Emergencies"}}
+  ]}
+]

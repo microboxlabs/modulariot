@@ -13,6 +13,7 @@ import com.microboxlabs.miot.symptoms.domain.CallMethod;
 import com.microboxlabs.miot.symptoms.domain.Contact;
 import com.microboxlabs.miot.symptoms.domain.ContactCallStats;
 import com.microboxlabs.miot.symptoms.domain.ContactChannels;
+import com.microboxlabs.miot.symptoms.domain.TowerSettings;
 import com.microboxlabs.miot.symptoms.domain.Treatment;
 import com.microboxlabs.miot.symptoms.domain.TreatmentAction;
 import com.microboxlabs.miot.symptoms.domain.TreatmentStatus;
@@ -37,6 +38,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,7 +79,8 @@ class PgTreatmentStoresTest {
                 .using(vertx).build();
         pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
         for (String file : List.of("V0.8.0__create_symptoms_catalog.sql",
-                "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql")) {
+                "V0.8.1__create_control_tower_treatments.sql", "V0.8.2__extend_contacts.sql",
+                "V0.8.3__create_tower_settings.sql")) {
             try (InputStream in = PgTreatmentStoresTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -122,6 +125,38 @@ class PgTreatmentStoresTest {
         assertTrue(treatments.transition("other-tenant", old.id(), TreatmentStatus.CLOSED, ACTOR, null, null)
                 .isEmpty());
         assertTrue(treatments.findOpen(tenant, 7L, ACTOR).isEmpty());
+    }
+
+    @Test
+    void firstOpenedAtIsTheEarliestTreatmentPerCaseInTheTenant() {
+        String tenant = tenant();
+        OffsetDateTime t0 = OffsetDateTime.now(ZoneOffset.UTC).minusHours(2).truncatedTo(ChronoUnit.MILLIS);
+        treatments.insert(new Treatment(null, tenant, 21L, null, null, TreatmentType.CALL, TreatmentStatus.CLOSED,
+                ACTOR, t0.plusMinutes(9), ACTOR, t0.plusMinutes(12), "resolved", null, null));
+        treatments.insert(new Treatment(null, tenant, 21L, null, null, TreatmentType.CALL, TreatmentStatus.CLOSED,
+                "other@example.com", t0.plusMinutes(3), ACTOR, t0.plusMinutes(4), "resolved", null, null));
+        treatments.insert(new Treatment(null, "other-tenant", 22L, null, null, TreatmentType.CALL,
+                TreatmentStatus.OPEN, ACTOR, t0, null, null, null, null, null));
+
+        assertEquals(Map.of(21L, t0.plusMinutes(3)), treatments.firstOpenedAt(tenant, List.of(21L, 22L, 23L)));
+        assertEquals(Map.of(), treatments.firstOpenedAt(tenant, List.of()));
+    }
+
+    @Test
+    void towerSettingsAreOneRowPerOrganization() {
+        PgTowerSettingsStore settings = new PgTowerSettingsStore(() -> pool);
+        String tenant = tenant();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
+        assertTrue(settings.find(tenant).isEmpty());
+
+        TowerSettings saved = settings.save(new TowerSettings(tenant, 3, 8, 150, ACTOR, now));
+        assertEquals(new TowerSettings(tenant, 3, 8, 150, ACTOR, now), saved);
+        settings.save(new TowerSettings(tenant, null, 12, null, "other@example.com", now.plusMinutes(1)));
+        assertEquals(new TowerSettings(tenant, null, 12, null, "other@example.com", now.plusMinutes(1)),
+                settings.find(tenant).orElseThrow());
+        assertTrue(settings.find("other-tenant-" + tenant).isEmpty());
+        TowerSettings badShift = new TowerSettings(tenant, 1, 0, 1, ACTOR, now);
+        assertThrows(RuntimeException.class, () -> settings.save(badShift), "the table checks the shift length");
     }
 
     @Test
@@ -494,6 +529,11 @@ class PgTreatmentStoresTest {
         @Override
         public List<ContactCallStats> contactStats(String tenantCode) {
             return store.contactStats(tenantCode);
+        }
+
+        @Override
+        public Map<Long, OffsetDateTime> firstOpenedAt(String tenantCode, Collection<Long> symptomIds) {
+            return store.firstOpenedAt(tenantCode, symptomIds);
         }
     }
 }

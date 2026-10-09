@@ -1,0 +1,104 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Build your first dashboard
+
+In this tutorial you build a small operations dashboard in the ModularIoT web app. It has a text card, a statistic that reads live data, and a filter. At the end you share it with a colleague.
+
+It takes about 15 minutes.
+
+## Before you start
+
+- You can sign in to the ModularIoT web app and see **Dashboards** in the navigation. If it is missing, ask your administrator to turn it on ([Deploy with ModularIoT](/en/products/dashboards/deployment/with-modulariot)).
+- Your role in the organization is **Contributor** or higher. Consumers can view dashboards but not create them.
+- Your organization has at least one connection with an approved operation, such as a PostgREST function. If not, ask an administrator to follow [Connect PostgREST](/en/products/dashboards/how-to/connect-postgrest). You can still do steps 1 to 3 without one.
+
+<Steps>
+
+### Create the dashboard
+
+1. Open **Dashboards** in the navigation.
+2. In **Dashboard ID**, type `operations-overview`. Use lowercase letters, numbers and hyphens. The ID becomes part of the dashboard's address and cannot change later.
+3. Select **Create dashboard**.
+
+The new dashboard opens empty, and it appears in the navigation under **Dashboards**.
+
+### Add a text card
+
+1. Turn on **Edit Mode** at the top of the dashboard.
+2. Select **Add Widget** and choose the **Text** card.
+3. Hover over the new card and select **Settings** (the gear on the card).
+4. In the text field, type `Welcome to the operations overview.` and apply.
+
+Drag the card by its body to move it. Drag its lower-right corner to resize it. The grid has 24 columns, so a card 12 columns wide fills half the width.
+
+<Callout type="info">
+Changes save automatically about a second and a half after you stop editing. The header shows **Saving…** while it works. If a save fails, it shows **Unsaved changes** with a **Reload** button, and keeps your edits.
+</Callout>
+
+### Add a saved query
+
+A saved query gives widgets data. It names an operation that an administrator approved; you choose it from a list and never type a URL or SQL.
+
+1. Open the settings menu (the gear in the dashboard header) and choose **Saved queries**.
+2. Select **Add query**.
+3. In **Result name**, type `trips`. Widgets will refer to the data by this name.
+4. Choose a **Connection** and an **Operation** from the lists.
+5. Leave **Parameters** as `{}` for now.
+6. Select **Apply to draft**.
+
+The query runs as soon as a widget uses it.
+
+### Show a number from the query
+
+1. Select **Add Widget** and choose a statistic, for example the **Circular** statistic.
+2. Open the widget's **Settings**.
+3. Set **Data Source** to **Planner**, then choose `trips` as the **Variable**.
+4. In the value field, type a template with a column from the result, such as `{{completed}}`. Use `{{row.<column>}}` or `{{<column>}}` for any column the operation returns.
+5. Apply the settings.
+
+The widget shows the value from the first row of the result. When the query is loading, it shows a loading message. If it fails, it shows an error, never the details of the data source.
+
+### Add a filter
+
+Filters let viewers narrow the data without editing the dashboard.
+
+1. Open the settings menu and choose **Filter Bar**.
+2. Select **Add filter**. Set **Filter key** to `date_range`, the label to `Date`, and the type to **Date range**.
+3. Apply the filter.
+4. A date range filter gives two values, named after its key: `date_range_from` and `date_range_to`. Back in **Saved queries**, open `trips` and bind two parameters to them, for example:
+
+   ```json
+   {
+     "from": { "kind": "filter", "key": "date_range_from", "omitWhenEmpty": true },
+     "to": { "kind": "filter", "key": "date_range_to", "omitWhenEmpty": true }
+   }
+   ```
+
+   The parameter names (`from`, `to`) must be ones the operation accepts. `omitWhenEmpty` leaves a parameter out while the filter is empty. [Add filters](/en/products/dashboards/how-to/add-filters) explains the values each filter type provides.
+
+Pick a date range in the filter bar. The statistic reloads with the new range.
+
+### Share it
+
+1. Turn off **Edit Mode**.
+2. Open the settings menu and select **Manage permissions**.
+3. Enter your colleague's user ID exactly as your identity provider knows it, choose the role **Consumer**, and add it.
+4. Select **Save changes**.
+
+Your colleague can now open the dashboard and use its filters, but cannot change it. To let them edit, give them **Editor**.
+
+</Steps>
+
+## What you built
+
+- A dashboard with its own address in your organization.
+- A widget that reads approved data through a saved query.
+- A filter that changes that query's parameters.
+- A permission that shares the dashboard with one person.
+
+## Next steps
+
+- Learn every filter type: [Add filters](/en/products/dashboards/how-to/add-filters).
+- See all widgets: [Widget catalog](/en/products/dashboards/reference/widgets).
+- Copy this dashboard to another environment: [Import and export](/en/products/dashboards/how-to/import-export).
+- Understand roles: [Organizations, scopes and roles](/en/products/dashboards/concepts/access-model).

@@ -22,10 +22,12 @@ import { buildNavigateItems } from "./navigate-actions";
 import { useVisiblePages } from "@/features/layout/hooks/use-visible-pages";
 import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import { useKnowledgeTrainer } from "@/features/knowledge/hooks/use-knowledge-trainer";
+import { useMyAccess } from "@/features/settings-admin/team/team-api";
 import { filterSettings } from "@/features/layout/models/pages";
 import { useSpotlightState } from "./use-spotlight-state";
 import { useHarnessSearch } from "./use-harness-search";
 import { usePagefindSearch } from "./use-pagefind-search";
+import { isSymptomItem, useSymptomSearch } from "./use-symptom-search";
 import { SpotlightBackdrop } from "./spotlight-backdrop";
 import { SpotlightInput } from "./spotlight-input";
 import { SpotlightResults } from "./spotlight-results";
@@ -187,9 +189,12 @@ export default function SpotlightSearch({
   );
 
   // ── Stable nav callbacks ──────────────────────────────────────────────────
-  const onNavigate = useCallback((href: string) => {
-    if (confirmNavigation()) router.push(href);
-  }, [router]);
+  const onNavigate = useCallback(
+    (href: string) => {
+      if (confirmNavigation()) router.push(href);
+    },
+    [router]
+  );
 
   const canAccess = useCallback(
     (requiredGroups: string[], blockedGroups: string[]) => {
@@ -204,6 +209,7 @@ export default function SpotlightSearch({
   const visiblePages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
   const { isTrainer } = useKnowledgeTrainer();
+  const canViewGps = useMyAccess().can("gps:view");
   const navigateItems = useMemo(
     () =>
       buildNavigateItems(
@@ -211,6 +217,7 @@ export default function SpotlightSearch({
           harness: isHarnessSettingsEnabled,
           platformOwner: isPlatformOwner,
           trainer: isTrainer,
+          gps: canViewGps,
         }),
         sidebarLabels ?? {},
         onNavigate,
@@ -221,6 +228,7 @@ export default function SpotlightSearch({
       isHarnessSettingsEnabled,
       isPlatformOwner,
       isTrainer,
+      canViewGps,
       sidebarLabels,
       onNavigate,
       canAccess,
@@ -346,11 +354,22 @@ export default function SpotlightSearch({
   );
 
   // ── Pagefind static search (falls back to fuzzy in dev) ──────────────────
-  const staticResults = usePagefindSearch(
+  const pageResults = usePagefindSearch(
     query,
     navigateItems,
     canAccess,
     onNavigate
+  );
+  // Symptom names are data, so Pagefind does not index them.
+  const symptomResults = useSymptomSearch(
+    query,
+    isOpen,
+    navigateItems,
+    onNavigate
+  );
+  const staticResults = useMemo(
+    () => [...pageResults, ...symptomResults],
+    [pageResults, symptomResults]
   );
 
   // ── Manual harness search — fires only after user commits ─────────────────
@@ -480,7 +499,7 @@ export default function SpotlightSearch({
           payload: { itemId: item.id, itemKind: item.kind },
         });
       }
-      if (item.kind === "navigate") addRecentItem(item);
+      if (item.kind === "navigate" && !isSymptomItem(item)) addRecentItem(item);
       item.onSelect();
       close();
     },

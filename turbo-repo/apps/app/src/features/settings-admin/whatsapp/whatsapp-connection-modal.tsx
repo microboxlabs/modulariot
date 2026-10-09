@@ -61,7 +61,9 @@ export function WhatsAppConnectionModal({
     watch,
     formState: { errors },
   } = useForm<WhatsAppFormData>({
-    resolver: zodResolver(isEdit ? WhatsAppEditSchema : WhatsAppConnectionSchema),
+    resolver: zodResolver(
+      isEdit ? WhatsAppEditSchema : WhatsAppConnectionSchema
+    ),
     defaultValues: DEFAULTS,
   });
 

@@ -5,6 +5,8 @@ import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
 import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.RuleDescription;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
 import com.microboxlabs.miot.symptoms.catalog.store.RuleDescriptionStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -13,11 +15,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -41,10 +45,12 @@ public class RuleDescriptionService {
     /** Whole sections: several lines of text, not one CEL expression. */
     static final String LEVELS = "levels";
     static final String LIFECYCLE = "lifecycle";
+    static final String ACTIVATION = "activation";
+    /** The whole symptom: activation, measure, levels with their response, open and close. */
+    static final String OVERVIEW = "overview";
 
-    private static final Set<String> SECTIONS = Set.of("activation", "measure", "levels.1", "levels.2",
-            "levels.3", "levels.4", "lifecycle.open", "lifecycle.close", LEVELS, LIFECYCLE);
-    private static final Pattern SPACES = Pattern.compile("\\s+");
+    private static final Set<String> SECTIONS = Set.of(ACTIVATION, "measure", "levels.1", "levels.2",
+            "levels.3", "levels.4", "lifecycle.open", "lifecycle.close", LEVELS, LIFECYCLE, OVERVIEW);
     private static final Pattern LOCALE = Pattern.compile("[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})?");
 
     private static final Map<String, String> LEVEL_LABELS = Map.of(
@@ -147,7 +153,36 @@ public class RuleDescriptionService {
         return new Description(html, false);
     }
 
-    /** Field path to label: the source's fields, plus the level or case variables for those sections. */
+    /**
+     * The summaries with the description already written for their activation, read in one lookup and without
+     * calling the Harness. A spec without a source uses its definition's.
+     */
+    public List<SymptomSummary> withActivationTexts(List<SymptomSummary> summaries) {
+        List<String> hashes = summaries.stream()
+                .map(s -> activationHash(s.current() == null ? null : s.current().spec(),
+                        s.definition().sourceKey()))
+                .toList();
+        Map<String, RuleDescription> found = store.findAll(
+                hashes.stream().filter(Objects::nonNull).collect(Collectors.toSet()), DEFAULT_LOCALE, AUDIENCE);
+        List<SymptomSummary> out = new ArrayList<>(summaries.size());
+        for (int i = 0; i < summaries.size(); i++) {
+            RuleDescription d = hashes.get(i) == null ? null : found.get(hashes.get(i));
+            out.add(summaries.get(i).withActivationText(d == null ? null : d.html()));
+        }
+        return out;
+    }
+
+    /** The cache key of a spec's activation, or null when it has none to describe. */
+    static String activationHash(SymptomSpec spec, String fallbackSource) {
+        if (spec == null || spec.activation() == null || spec.activation().isBlank()
+                || spec.activation().length() > MAX_RULE_CHARS) {
+            return null;
+        }
+        String source = spec.source() == null || spec.source().isBlank() ? fallbackSource : spec.source();
+        return source == null ? null : hash(ACTIVATION, canonical(ACTIVATION, spec.activation()), source);
+    }
+
+    /** Field path to label: the source's fields, plus the level or case variables for those sections; all for the overview. */
     static Map<String, String> fields(String section, DataSource source) {
         Map<String, String> out = new LinkedHashMap<>();
         if (section.equals(LIFECYCLE) || section.startsWith("lifecycle.")) {
@@ -157,19 +192,22 @@ public class RuleDescriptionService {
         for (SourceField f : source.fields() == null ? List.<SourceField>of() : source.fields()) {
             out.put(f.path(), f.label() == null || f.label().isBlank() ? f.path() : f.label());
         }
-        if (section.equals(LEVELS) || section.startsWith("levels.")) {
+        if (section.equals(LEVELS) || section.startsWith("levels.") || section.equals(OVERVIEW)) {
             out.putAll(LEVEL_LABELS);
+        }
+        if (section.equals(OVERVIEW)) {
+            out.putAll(CASE_LABELS);
         }
         return out;
     }
 
-    /** The rule text used for the cache key. Whole sections are trimmed per line with spaces collapsed. */
+    /** The rule text used for the cache key. Whole sections are normalized per line; text inside quotes is kept. */
     static String canonical(String section, String rule) {
-        if (!section.equals(LEVELS) && !section.equals(LIFECYCLE)) {
+        if (!section.equals(LEVELS) && !section.equals(LIFECYCLE) && !section.equals(OVERVIEW)) {
             return RuleText.canonical(rule);
         }
         return rule.lines()
-                .map(line -> SPACES.matcher(line.strip()).replaceAll(" "))
+                .map(RuleText::spacing)
                 .filter(line -> !line.isEmpty())
                 .collect(Collectors.joining("\n"));
     }

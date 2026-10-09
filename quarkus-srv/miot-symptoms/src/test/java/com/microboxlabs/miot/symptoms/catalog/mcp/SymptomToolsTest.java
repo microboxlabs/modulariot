@@ -12,6 +12,14 @@ import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.mcp.McpCaller;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
+import com.microboxlabs.miot.core.selectable.SelectableOption;
+import com.microboxlabs.miot.core.iam.Access;
+import com.microboxlabs.miot.core.iam.BaseRole;
+import com.microboxlabs.miot.core.iam.AccessRegistry;
+import com.microboxlabs.miot.core.iam.AccessRules;
+import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
@@ -20,8 +28,9 @@ import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
-import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomFamilies;
 import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
@@ -29,7 +38,6 @@ import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.security.runtime.QuarkusSecurityIdentity;
 import io.smallrye.jwt.auth.principal.DefaultJWTCallerPrincipal;
 import io.smallrye.mutiny.Uni;
-import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.core.Response;
 import java.lang.reflect.RecordComponent;
 import java.util.List;
@@ -62,9 +70,12 @@ class SymptomToolsTest {
                 .build();
         TenantContext tenant = new TenantContext();
         OrganizationContext organization = new OrganizationContext();
-        McpCaller caller = new McpCaller(identity, new FakeAccess(tenant, organization), new FakeRoles(organization),
+        FakeRoles roles = new FakeRoles(organization);
+        McpCaller caller = new McpCaller(identity, new FakeAccess(tenant, organization), roles,
                 tenant, List.of("azp", "aud"));
-        return new SymptomTools(caller, catalog, sources, new PreviewService(catalog, sources));
+        return new SymptomTools(caller, catalog, sources, new PreviewService(catalog, sources),
+                new SymptomFamilies(t -> List.of(SelectableOption.of("driving_safety", "Seguridad de conducción",
+                        "Driving safety"))));
     }
 
     private static <T> T await(Uni<T> call) {
@@ -90,6 +101,7 @@ class SymptomToolsTest {
         assertTrue(list.symptoms().get(0).hasDraft());
         assertEquals("speeding", await(tools.get(ORG, speeding)).definition().key());
 
+        assertEquals("driving_safety", await(tools.families(ORG)).families().get(0).value());
         SymptomTools.Sources all = await(tools.sources(ORG, null));
         assertNull(all.source());
         assertTrue(all.sources().stream().anyMatch(s -> s.key().equals("gps_signal") && s.fieldCount() > 0));
@@ -116,11 +128,11 @@ class SymptomToolsTest {
     void aMemberCannotChangeTheCatalog() {
         SymptomTools tools = toolsFor(MEMBER);
 
-        assertEquals("Organization owner access required",
+        assertEquals("Permission required: controltower:symptom.edit",
                 failure(tools.saveDraft(ORG, speeding, raisedCodigoNegro())).getMessage());
-        assertEquals("Organization owner access required",
+        assertEquals("Permission required: controltower:symptom.publish",
                 failure(tools.publish(ORG, speeding, "Primera", null, null)).getMessage());
-        assertEquals("Organization owner access required",
+        assertEquals("Permission required: controltower:symptom.publish",
                 failure(tools.setState(ORG, speeding, SymptomState.OFF)).getMessage());
     }
 
@@ -223,19 +235,23 @@ class SymptomToolsTest {
         }
     }
 
+    static final AccessRegistry REGISTRY =
+            new AccessRegistry(List.of(new CoreAccessCatalog(), new ControlTowerAccessCatalog()));
+
     static final class FakeRoles extends OrganizationRoleService {
         final OrganizationContext organization;
 
         FakeRoles(OrganizationContext organization) {
-            super(null, organization);
+            super(organization, null, null);
             this.organization = organization;
         }
 
+        /** The real rules: the owner is an Owner; anyone else an Alfresco member with the legacy Operator role. */
         @Override
-        public Uni<Void> requireOwner(String organizationSlug) {
-            return OWNER.equals(organization.getUserEmail())
-                    ? Uni.createFrom().voidItem()
-                    : Uni.createFrom().failure(new ForbiddenException("Organization owner access required"));
+        public Uni<Access> access(String organizationSlug, Caller caller) {
+            AccessRules.Facts facts = new AccessRules.Facts(false, OWNER.equals(caller.email()) ? BaseRole.OWNER : null,
+                    true, false, false, Set.of(), null);
+            return Uni.createFrom().item(AccessRules.resolve(1L, organizationSlug, caller, facts, REGISTRY));
         }
     }
 }

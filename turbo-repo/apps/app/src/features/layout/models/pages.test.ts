@@ -57,6 +57,7 @@ describe("filterSettings", () => {
       harness: true,
       platformOwner: false,
       trainer: true,
+      gps: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/platform");
@@ -68,6 +69,7 @@ describe("filterSettings", () => {
       harness: false,
       platformOwner: true,
       trainer: true,
+      gps: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/harness");
@@ -79,10 +81,12 @@ describe("filterSettings", () => {
       harness: false,
       platformOwner: false,
       trainer: false,
+      gps: false,
     });
 
     expect(settingsHrefs(filtered)).toEqual([
       "/users/settings/organizations",
+      "/users/settings/team",
       "/users/settings/symptoms",
       "/users/settings/selectables",
       "/users/settings/contact-book",
@@ -106,19 +110,30 @@ describe("filterSettings", () => {
       harness: true,
       platformOwner: true,
       trainer: true,
+      gps: true,
     });
 
     expect(settingsHrefs(filtered)).toEqual(settingsHrefs(pages));
   });
 
   it("offers the learning workspace to trainers only", () => {
-    const gates = { harness: true, platformOwner: true };
+    const gates = { harness: true, platformOwner: true, gps: true };
     expect(
-      settingsHrefs(filterSettings(pages, { ...gates, trainer: true })),
+      settingsHrefs(filterSettings(pages, { ...gates, trainer: true }))
     ).toContain("/harness/learning");
     expect(
-      settingsHrefs(filterSettings(pages, { ...gates, trainer: false })),
+      settingsHrefs(filterSettings(pages, { ...gates, trainer: false }))
     ).not.toContain("/harness/learning");
+  });
+
+  it("offers GPS to those who may view it", () => {
+    const gates = { harness: true, platformOwner: true, trainer: true };
+    expect(
+      settingsHrefs(filterSettings(pages, { ...gates, gps: true }))
+    ).toContain("/users/settings/gps");
+    expect(
+      settingsHrefs(filterSettings(pages, { ...gates, gps: false }))
+    ).not.toContain("/users/settings/gps");
   });
 
   it("touches no page outside Settings", () => {
@@ -126,10 +141,11 @@ describe("filterSettings", () => {
       harness: false,
       platformOwner: false,
       trainer: false,
+      gps: false,
     });
 
     expect(filtered.map((page) => page.label)).toEqual(
-      pages.map((page) => page.label),
+      pages.map((page) => page.label)
     );
   });
 });

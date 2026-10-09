@@ -142,6 +142,22 @@ class DashboardProxyResourceTest {
     }
 
     @Test
+    void queryCatalogForwardsMembershipAndNoStoreResponse() {
+        String path = "/tenants/" + SITE_ORG + "/scopes/" + SITE_ID + "/dashboards/costs/query-catalog";
+        String token = "Bearer " + memberToken();
+        DashboardWireMock.server().stubFor(WireMock.get(WireMock.urlEqualTo(path))
+                .willReturn(WireMock.aResponse().withHeader("Content-Type", "application/json")
+                        .withHeader("Cache-Control", "no-store").withBody("{\"connections\":[]}")));
+        Response response = given().header("Authorization", token)
+                .get("/api/v1/orgs/" + SITE_ORG + "/dashboards/costs/query-catalog");
+        assertThat(response.statusCode(), is(200));
+        assertThat(response.jsonPath().getList("connections").size(), is(0));
+        assertThat(response.header("Cache-Control"), containsString("no-store"));
+        DashboardWireMock.server().verify(WireMock.getRequestedFor(WireMock.urlEqualTo(path))
+                .withHeader("Authorization", WireMock.equalTo(token)));
+    }
+
+    @Test
     void scopeCapabilitiesRefuseAnonymousAndForeignUsersBeforeUpstream() {
         String path = "/api/v1/orgs/" + SITE_ORG + "/dashboard-capabilities";
         assertThat(given().get(path).statusCode(), is(401));

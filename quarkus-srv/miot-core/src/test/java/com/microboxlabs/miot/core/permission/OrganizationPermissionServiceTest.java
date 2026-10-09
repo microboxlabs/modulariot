@@ -87,7 +87,7 @@ class OrganizationPermissionServiceTest {
         private final Map<String, String> roles;
 
         FakeRoleService(Map<String, String> roles) {
-            super(null, null);
+            super(null, null, null);
             this.roles = roles;
         }
 
@@ -104,13 +104,13 @@ class OrganizationPermissionServiceTest {
 
         FakePermissionService(
                 OrganizationRoleService roles, OrganizationContext context, Set<String> assigned) {
-            super(roles, context);
+            super(roles, context, null);
             this.assigned = assigned;
         }
 
         @Override
         Uni<Boolean> isAllowed(
-                Long organizationId,
+                Organization organization,
                 OrganizationPermissionDefinition permission,
                 String subjectId) {
             assignmentChecks.add(subjectId);

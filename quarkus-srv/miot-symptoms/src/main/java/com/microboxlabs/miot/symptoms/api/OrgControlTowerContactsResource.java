@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import io.quarkus.security.PermissionsAllowed;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
+import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
@@ -54,31 +57,37 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
 
     @GET
     @Operation(operationId = "listContacts", summary = "List contacts with call statistics")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> list(
             @PathParam("organizationId") String organizationId,
             @QueryParam("active") Boolean active) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(contacts.list(tenant, active)).build());
+        return work(() -> Response.ok(contacts.list(tenant, active)).build());
     }
 
     @GET
     @Path("/{contactId}")
     @Operation(operationId = "getContact", summary = "Get a contact")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> get(
             @PathParam("organizationId") String organizationId,
             @PathParam("contactId") String contactId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(contacts.get(tenant, contactId)).build());
+        return work(() -> Response.ok(contacts.get(tenant, contactId)).build());
     }
 
     @POST
     @Operation(operationId = "createContact", summary = "Create a contact")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CONTACT_WRITE, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> create(
             @PathParam("organizationId") String organizationId,
             ContactRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return memberWork(() -> Response.status(Response.Status.CREATED)
+        return work(() -> Response.status(Response.Status.CREATED)
                 .entity(contacts.create(tenant, actor, body))
                 .build());
     }
@@ -88,37 +97,43 @@ public class OrgControlTowerContactsResource extends ControlTowerResourceSupport
     @Operation(operationId = "importContacts", summary = "Create several contacts",
             description = "Each row is created on its own. A national id already in the book, or repeated in the "
                     + "request, is skipped; an invalid row is an error. Returns the result of every row.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CONTACT_WRITE, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> importContacts(
             @PathParam("organizationId") String organizationId,
             ContactImportRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return memberWork(() -> Response.ok(
+        return work(() -> Response.ok(
                 contacts.importContacts(tenant, actor, body == null ? null : body.contacts())).build());
     }
 
     @PATCH
     @Path("/{contactId}")
     @Operation(operationId = "updateContact", summary = "Update a contact (partial)")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CONTACT_WRITE, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> update(
             @PathParam("organizationId") String organizationId,
             @PathParam("contactId") String contactId,
             ContactRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return memberWork(() -> Response.ok(contacts.update(tenant, actor, contactId, body)).build());
+        return work(() -> Response.ok(contacts.update(tenant, actor, contactId, body)).build());
     }
 
     @DELETE
     @Path("/{contactId}")
     @Operation(operationId = "deleteContact", summary = "Delete a contact",
             description = "Past call actions keep the contact's name and phone as they were at the time.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.CONTACT_DELETE, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> delete(
             @PathParam("organizationId") String organizationId,
             @PathParam("contactId") String contactId) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return ownerWork(organizationId, () -> contacts.delete(tenant, actor, contactId)
+        return work(() -> contacts.delete(tenant, actor, contactId)
                 ? Response.noContent().build()
                 : error(Response.Status.NOT_FOUND, "contact not found"));
     }

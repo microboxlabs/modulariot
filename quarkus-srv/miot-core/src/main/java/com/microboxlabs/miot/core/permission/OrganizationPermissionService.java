@@ -5,9 +5,10 @@ import com.microboxlabs.miot.core.api.dto.AuthorizationDecisionDto;
 import com.microboxlabs.miot.core.api.dto.OrganizationPermissionDto;
 import com.microboxlabs.miot.core.api.dto.SetOrganizationPermissionRequest;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
+import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.IamDirectory;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationPermissionSetting;
-import com.microboxlabs.miot.core.model.OrganizationRoleAssignment;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -21,22 +22,25 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Owns application permissions and role assignments inside the modulith.
- * Alfresco remains an organization directory, but it is not a permission
- * projection target and is never called from this service.
+ * Per-organization switches for the permissions in {@link OrganizationPermissionDefinition}, and who holds each one.
+ * A subject holds a permission when the organization has it switched on and the subject holds its role (an IAM role
+ * binding), or, for permissions granted to owners, when the subject is an Owner or Admin.
  */
 @ApplicationScoped
 public class OrganizationPermissionService {
 
     private final OrganizationRoleService roleService;
     private final OrganizationContext organizationContext;
+    private final IamDirectory directory;
 
     @Inject
     public OrganizationPermissionService(
             OrganizationRoleService roleService,
-            OrganizationContext organizationContext) {
+            OrganizationContext organizationContext,
+            IamDirectory directory) {
         this.roleService = roleService;
         this.organizationContext = organizationContext;
+        this.directory = directory;
     }
 
     public Uni<OrganizationPermissionDto> get(
@@ -59,8 +63,8 @@ public class OrganizationPermissionService {
         return authorizeAndResolve(organizationSlug)
                 .flatMap(organizationId -> Panache.withTransaction(() ->
                         persistSetting(organizationId, permission, request.enabled())
-                                .flatMap(ignored -> replaceAssignments(
-                                        organizationId, permission.roleCode(), assigneeIds))
+                                .flatMap(ignored -> directory.setHolders(organizationId, permission.roleCode(),
+                                        assigneeIds, organizationContext.getUserEmail()))
                                 .flatMap(ignored -> loadDto(organizationId, permission))));
     }
 
@@ -74,7 +78,7 @@ public class OrganizationPermissionService {
         String subjectId = request.subjectId().trim();
 
         return Panache.withSession(() -> findOrganization(organizationSlug)
-                .flatMap(org -> isAllowed(org.id, permission, subjectId))
+                .flatMap(org -> isAllowed(org, permission, subjectId))
                 .map(allowed -> new AuthorizationDecisionDto(
                         permission.permissionCode(), subjectId, allowed)));
     }
@@ -114,12 +118,12 @@ public class OrganizationPermissionService {
             OrganizationPermissionDefinition permission,
             String personId) {
         if (!permission.grantedToOwners()) {
-            return isAllowed(organization.id, permission, personId);
+            return isAllowed(organization, permission, personId);
         }
         return roleService.resolveApplicationRole(organization, personId)
                 .flatMap(role -> OrganizationRoleService.OWNER_ACCESS_ROLE.equals(role)
                         ? Uni.createFrom().item(true)
-                        : isAllowed(organization.id, permission, personId));
+                        : isAllowed(organization, permission, personId));
     }
 
     private static Uni<Void> forbidden(OrganizationPermissionDefinition permission) {
@@ -163,52 +167,38 @@ public class OrganizationPermissionService {
                 });
     }
 
-    @SuppressWarnings("java:S3252")
-    private Uni<Void> replaceAssignments(
-            Long organizationId, String roleCode, Set<String> assigneeIds) {
-        return OrganizationRoleAssignment
-                .delete("id.organizationId = ?1 and id.roleCode = ?2", organizationId, roleCode)
-                .flatMap(ignored -> persistAssignments(organizationId, roleCode, assigneeIds));
-    }
-
-    private Uni<Void> persistAssignments(
-            Long organizationId, String roleCode, Set<String> assigneeIds) {
-        Uni<Void> chain = Uni.createFrom().voidItem();
-        for (String subjectId : assigneeIds) {
-            chain = chain.flatMap(ignored -> new OrganizationRoleAssignment(
-                    organizationId, roleCode, subjectId).persist().replaceWithVoid());
-        }
-        return chain;
-    }
-
     private Uni<OrganizationPermissionDto> loadDto(
             Long organizationId, OrganizationPermissionDefinition permission) {
         return OrganizationPermissionSetting
                 .findSetting(organizationId, permission.permissionCode())
-                .flatMap(setting -> OrganizationRoleAssignment
-                        .findAssignments(organizationId, permission.roleCode())
-                        .map(assignments -> new OrganizationPermissionDto(
+                .flatMap(setting -> directory.holders(organizationId, permission.roleCode())
+                        .map(holders -> new OrganizationPermissionDto(
                                 setting != null && setting.enabled,
                                 permission.permissionCode(),
                                 permission.roleCode(),
-                                assignments.stream()
-                                        .map(assignment -> assignment.id.personId)
-                                        .sorted()
-                                        .toList())));
+                                holders)));
     }
 
+    /**
+     * Whether the organization has the permission switched on and the subject holds its role. A user's roles come from
+     * the evaluator (membership, scope, expiry, parent organization); an M2M client's from its bindings that apply.
+     */
     Uni<Boolean> isAllowed(
-            Long organizationId,
+            Organization organization,
             OrganizationPermissionDefinition permission,
             String subjectId) {
         return OrganizationPermissionSetting
-                .findSetting(organizationId, permission.permissionCode())
+                .findSetting(organization.id, permission.permissionCode())
                 .flatMap(setting -> {
                     if (setting == null || !setting.enabled) {
                         return Uni.createFrom().item(false);
                     }
-                    return OrganizationRoleAssignment.hasAssignment(
-                            organizationId, permission.roleCode(), subjectId);
+                    if (!IamDirectory.isEmail(subjectId)) {
+                        return roleService.clientRoles(organization, subjectId)
+                                .map(roles -> roles.contains(permission.roleCode()));
+                    }
+                    return roleService.access(organization, Caller.user(subjectId))
+                            .map(access -> access.roles().contains(permission.roleCode()));
                 });
     }
 

@@ -1,5 +1,14 @@
 [
-  { "label": "dashboardServer", "href": "/dashboards", "requiredGroups": [], "blockedGroups": [] },
+  {
+    "label": "dashboardServer",
+    "href": "/dashboards",
+    "dynamicItemsSource": "serverDashboards",
+    "searchable": true,
+    "createAction": { "href": "/dashboards", "label": "createDashboard" },
+    "items": [],
+    "requiredGroups": [],
+    "blockedGroups": []
+  },
   {
     "label": "home",
     "dynamicItemsSource": "dashboards",
@@ -96,6 +105,8 @@
     "items": [
       { "href": "/users/settings/platform", "label": "platform", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/organizations", "label": "organizations", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/users/settings/team", "label": "team", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/users/settings/gps", "label": "gps", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/symptoms", "label": "symptomCatalog", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/selectables", "label": "selectables", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/contact-book", "label": "contactBook", "requiredGroups": [], "blockedGroups": [] },

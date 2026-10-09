@@ -9,6 +9,7 @@
 import useSWR, { mutate } from "swr";
 import {
   CONTROL_TOWER_BASE,
+  ControlTowerError,
   controlTowerRequest as request,
 } from "../control-tower/control-tower-api";
 
@@ -46,6 +47,10 @@ export interface LevelResponse {
   notices: Notice[];
   evidence: string[];
   ignorable: boolean;
+  /** Who is told when the SLA runs out, e.g. "Jefe de torre". */
+  escalateTo?: string | null;
+  /** The case counts in consequence management. */
+  consequence?: boolean;
 }
 
 export interface Level {
@@ -65,13 +70,24 @@ export interface SymptomSpec {
     unit: string | null;
   } | null;
   levels: Level[] | null;
-  lifecycle: { open: string | null; close: string | null } | null;
+  lifecycle: {
+    open: string | null;
+    close: string | null;
+    /** An open case's level follows the measure down. */
+    levelDown?: boolean;
+  } | null;
   recurrence: {
     enabled: boolean;
     count: number;
     days: number;
     raiseLevels: number;
+    /** "patente" (default) or "conductor". */
+    entity?: string | null;
   } | null;
+  /** A symptom_families value; null or missing keeps the symptom's. */
+  family?: string | null;
+  /** The state publishing this version sets; null or missing keeps the symptom's. */
+  state?: SymptomState | null;
 }
 
 export interface SymptomDefinition {
@@ -112,6 +128,47 @@ export interface SymptomVersion {
 export interface SymptomSummary {
   definition: SymptomDefinition;
   hasDraft: boolean;
+  /** The version in force; null before the first publish. */
+  current?: SymptomVersion | null;
+  /** Cached Harness description of the published activation (b, i, mark), if any. */
+  activationText?: string | null;
+}
+
+/** Catalog numbers: weekly cases from the engine's last 90 days, operator load and recent changes. */
+/** The operator team; null means not set. */
+export interface TowerTeam {
+  operators: number | null;
+  shiftHours: number;
+  capacityPerShift: number | null;
+}
+
+export interface SymptomStats {
+  engineAvailable: boolean;
+  windowDays: number;
+  symptoms: {
+    definitionId: string;
+    weekByLevel: number[];
+    week: number;
+    operatorWeek: number;
+  }[];
+  totals: {
+    weekByLevel: number[];
+    week: number;
+    perShift: number;
+    topShare: { definitionIds: string[]; share: number } | null;
+  };
+  operators: TowerTeam & { slaMetLastWeek: number | null };
+  changes: {
+    drafts: number;
+    lastPublished: {
+      definitionId: string;
+      name: string;
+      version: string;
+      at: string;
+      by: string;
+      reason: string | null;
+    } | null;
+  };
 }
 
 export interface SymptomDetail {
@@ -119,6 +176,14 @@ export interface SymptomDetail {
   current: SymptomVersion | null;
   draft: SymptomVersion | null;
   versions: SymptomVersion[];
+  /** Per published version, what changed from the one before it; the first has none. */
+  versionChanges?: Record<string, Change[]>;
+  /** The symptom and version this one was copied from; version null when a draft was copied. */
+  forkedFrom: {
+    definitionId: string;
+    name: string;
+    version: string | null;
+  } | null;
 }
 
 export interface Finding {
@@ -154,6 +219,8 @@ export interface SourceField {
   unit: string | null;
   origin: FieldOrigin | null;
   engineSupported: boolean;
+  /** The values a list field takes, as rules write them and as people read them. */
+  values?: { value: string; label: string }[] | null;
 }
 
 export interface DataSource {
@@ -168,17 +235,40 @@ export interface DataSource {
   samples: Record<string, unknown>[];
 }
 
+/** One activation condition run on its own on a sample. */
+export interface ClauseResult {
+  text: string;
+  holds: boolean | null;
+  /** The sample's value for each field the condition reads. */
+  values: Record<string, unknown>;
+  error: string | null;
+}
+
 export interface SamplePreview {
   sample: Record<string, unknown>;
   activates: boolean | null;
   measure: number | null;
   level: number | null;
   error: string | null;
+  /** Each condition of an activation joined by &&; empty otherwise. */
+  clauses?: ClauseResult[];
+}
+
+/** The lifecycle on one fixed case moment: the open rule before a case opens, the close rule after. */
+export interface CasePreview {
+  scenario: string;
+  open: boolean;
+  sample: Record<string, unknown>;
+  /** opens or waits before a case opens; closes or stays_open after; null when the rule could not run. */
+  outcome: "opens" | "waits" | "closes" | "stays_open" | null;
+  error: string | null;
 }
 
 export interface Preview {
   source: string;
   samples: SamplePreview[];
+  /** Absent from servers that do not try the lifecycle yet. */
+  cases?: CasePreview[];
 }
 
 export interface CreateSymptomBody {
@@ -199,8 +289,73 @@ export const definitionKey = (id: string) => `${DEFS}/${id}`;
 
 const fetcher = <T>(url: string) => request<T>(url);
 
-export function useSymptomDefinitions() {
-  return useSWR<SymptomSummary[]>(definitionsKey, fetcher);
+/** The organization's symptoms; nothing is fetched while `enabled` is false. */
+export function useSymptomDefinitions(enabled = true) {
+  return useSWR<SymptomSummary[]>(enabled ? definitionsKey : null, fetcher);
+}
+
+export const statsKey = `${DEFS}/stats`;
+
+const settingsKey = `${CONTROL_TOWER_BASE}/settings`;
+
+/** Permission keys from the backend's access catalog (`ControlTowerAccessCatalog`). */
+export type ControlTowerPermission =
+  | "controltower:view"
+  | "controltower:case.treat"
+  | "controltower:contact.write"
+  | "controltower:contact.delete"
+  | "controltower:symptom.edit"
+  | "controltower:symptom.publish"
+  | "controltower:settings.update";
+
+export interface ControlTowerAccess {
+  baseRole: "OWNER" | "ADMIN" | "MEMBER" | null;
+  roles: string[];
+  permissions: ControlTowerPermission[];
+}
+
+/** What the caller may do in the control tower, from the backend that serves it. */
+export function useControlTowerAccess() {
+  const { data } = useSWR<ControlTowerAccess>(
+    `${CONTROL_TOWER_BASE}/access`,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+    }
+  );
+  const can = (permission: ControlTowerPermission) =>
+    data?.permissions.includes(permission) ?? false;
+  return {
+    can,
+    canOperate: can("controltower:case.treat"),
+    canMaintain: can("controltower:symptom.edit"),
+  };
+}
+
+/** The operator team as saved; the editor starts from it. */
+export function useTowerTeam(enabled: boolean) {
+  return useSWR<TowerTeam>(enabled ? settingsKey : null, fetcher, {
+    revalidateOnFocus: false,
+  });
+}
+
+/** Saves the operator team (owners); the stats carry it back. */
+export async function saveTowerTeam(team: TowerTeam) {
+  const saved = await request<TowerTeam>(settingsKey, {
+    method: "PUT",
+    body: team,
+  });
+  await mutate(settingsKey, saved, { revalidate: false });
+  await mutate(statsKey);
+  return saved;
+}
+
+/** Undefined data while loading; an error when the modulith or the engine fails. */
+export function useSymptomStats() {
+  return useSWR<SymptomStats>(statsKey, fetcher, {
+    shouldRetryOnError: false,
+    revalidateOnFocus: false,
+  });
 }
 
 export function useSymptomDefinition(id: string | null) {
@@ -241,6 +396,7 @@ export function useDataSource(key: string | null) {
 /** Refreshes the list and, when given, one symptom. */
 export async function refreshSymptoms(id?: string) {
   await mutate(definitionsKey);
+  await mutate(statsKey);
   if (id) await mutate(definitionKey(id));
 }
 
@@ -268,6 +424,33 @@ export interface ImportResult {
     pending: string[];
   }[];
   skipped: number;
+}
+
+/** A platform template: a ready symptom the organization copies. */
+export interface SymptomTemplate {
+  key: string;
+  name: string;
+  family: string;
+  icon: string | null;
+  /** When it opens, in words. */
+  description: string;
+  spec: SymptomSpec;
+}
+
+export function useSymptomTemplates(enabled: boolean) {
+  return useSWR<SymptomTemplate[]>(
+    enabled ? `${DEFS}/templates` : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+}
+
+/** Copies a template into the catalog, published as 0.1.0 in TEST. */
+export function createFromTemplate(templateKey: string, name?: string) {
+  return request<SymptomDetail>(`${DEFS}/from-template`, {
+    method: "POST",
+    body: { templateKey, name },
+  });
 }
 
 /** Creates an off draft for each engine rule the organization does not have yet. */
@@ -313,13 +496,43 @@ export function previewSpec(id: string, spec?: SymptomSpec) {
   });
 }
 
+export const publishPlanKey = (id: string) => `${DEFS}/${id}/publish-plan`;
+
 export function publishPlan(id: string) {
-  return request<PublishPlan>(`${DEFS}/${id}/publish-plan`);
+  return request<PublishPlan>(publishPlanKey(id));
+}
+
+/** What publishing the draft would do; null key when there is no draft. */
+export function usePublishPlan(id: string, hasDraft: boolean) {
+  return useSWR<PublishPlan>(hasDraft ? publishPlanKey(id) : null, fetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+  });
+}
+
+/** A family the organization files symptoms under; the label is per language. */
+export interface SymptomFamily {
+  value: string;
+  label: Record<string, string>;
+  disabled: boolean;
+}
+
+export function useSymptomFamilies() {
+  return useSWR<SymptomFamily[]>(
+    `${CONTROL_TOWER_BASE}/symptom-families`,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+}
+
+/** Whether {@link useSymptomFamilies} failed because the organization has no families list. */
+export function familiesListMissing(error: unknown) {
+  return error instanceof ControlTowerError && error.status === 404;
 }
 
 export function publishDraft(
   id: string,
-  body: { reason: string; bump?: VersionBump | null; state?: SymptomState }
+  body: { reason: string; bump?: VersionBump | null }
 ) {
   return request<SymptomVersion>(`${DEFS}/${id}/publish`, {
     method: "POST",
@@ -351,8 +564,18 @@ export function setSymptomState(id: string, state: SymptomState) {
   });
 }
 
-export function compareVersions(id: string, from: string, to: string) {
-  return request<Change[]>(
-    `${DEFS}/${id}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
-  );
+/** What changes from one published version to another; null while either is unknown. */
+export function useVersionCompare(
+  id: string,
+  from: string | null,
+  to: string | null
+) {
+  const key =
+    from && to && from !== to
+      ? `${DEFS}/${id}/compare?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+      : null;
+  return useSWR<Change[]>(key, fetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+  });
 }

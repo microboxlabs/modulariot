@@ -5,6 +5,7 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomDefinition;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomVersion;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionStatus;
 import com.microboxlabs.miot.symptoms.catalog.store.DataSourceStore;
+import com.microboxlabs.miot.symptoms.catalog.store.DuplicateSymptomKeyException;
 import com.microboxlabs.miot.symptoms.catalog.store.SymptomCatalogStore;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -41,6 +42,9 @@ public class InMemoryCatalog implements SymptomCatalogStore, DataSourceStore {
 
     @Override
     public SymptomDefinition insertDefinition(SymptomDefinition definition) {
+        if (findDefinitionByKey(definition.tenantCode(), definition.key()).isPresent()) {
+            throw new DuplicateSymptomKeyException(definition.key());
+        }
         definitions.put(definition.id(), definition);
         return definition;
     }
@@ -74,6 +78,13 @@ public class InMemoryCatalog implements SymptomCatalogStore, DataSourceStore {
     }
 
     @Override
+    public Optional<SymptomVersion> findVersionById(String tenantCode, UUID versionId) {
+        return versions.values().stream()
+                .filter(v -> v.id().equals(versionId) && tenantCode.equals(v.tenantCode()))
+                .findFirst();
+    }
+
+    @Override
     public SymptomVersion saveDraft(SymptomVersion draft) {
         findDefinition(draft.tenantCode(), draft.definitionId()).orElseThrow();
         Optional<SymptomVersion> existing = findDraft(draft.tenantCode(), draft.definitionId());
@@ -89,6 +100,15 @@ public class InMemoryCatalog implements SymptomCatalogStore, DataSourceStore {
                 .filter(v -> v.tenantCode().equals(tenantCode) && v.status() == VersionStatus.DRAFT)
                 .forEach(v -> ids.add(v.definitionId()));
         return ids;
+    }
+
+    @Override
+    public List<SymptomVersion> currentVersions(String tenantCode) {
+        return listDefinitions(tenantCode).stream()
+                .filter(d -> d.currentVersion() != null)
+                .flatMap(d -> findVersion(tenantCode, d.id(), d.currentVersion()).stream())
+                .filter(v -> v.status() == VersionStatus.PUBLISHED)
+                .toList();
     }
 
     @Override

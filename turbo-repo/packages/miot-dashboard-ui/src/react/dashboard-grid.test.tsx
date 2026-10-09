@@ -104,6 +104,64 @@ describe("DashboardGrid", () => {
     expect(commit).not.toHaveBeenCalled();
     expect(screen.getByText("a")).toBeTruthy();
   });
+  it("excludes interactive descendants while preserving draggable backgrounds", () => {
+    render(
+      <DashboardGrid
+        widgets={[widget]}
+        registry={registry}
+        editMode
+        onLayoutCommit={() => {}}
+        renderWidget={() => (
+          <div>
+            <button type="button">
+              <span>Button child</span>
+            </button>
+            <a href="#record">Record link</a>
+            <label>
+              Filter
+              <input aria-label="Filter" />
+            </label>
+            <select aria-label="Choice">
+              <option>A</option>
+            </select>
+            <textarea aria-label="Notes" />
+            <div contentEditable suppressContentEditableWarning>
+              Editable text
+            </div>
+            <div
+              role="slider"
+              aria-label="Width"
+              aria-valuenow={10}
+              tabIndex={0}
+            />
+            <div className="no-drag">Custom control</div>
+            <div className="nested-grid-wrapper">
+              <div className="react-grid-item">Nested widget</div>
+            </div>
+            <p>Draggable background</p>
+          </div>
+        )}
+      />,
+    );
+    const selector = grid.dragConfig?.cancel;
+    expect(selector).toBeTruthy();
+    for (const element of [
+      screen.getByText("Button child"),
+      screen.getByRole("link"),
+      screen.getByRole("textbox", { name: "Filter" }),
+      screen.getByRole("combobox"),
+      screen.getByRole("textbox", { name: "Notes" }),
+      screen.getByText("Editable text"),
+      screen.getByRole("slider"),
+      screen.getByText("Custom control"),
+      screen.getByText("Nested widget"),
+    ]) {
+      expect(element.closest(selector!)).not.toBeNull();
+    }
+    expect(
+      screen.getByText("Draggable background").closest(selector!),
+    ).toBeNull();
+  });
   it("requires both edit intent and a commit handler", () => {
     const commit = vi.fn();
     const view = render(
@@ -126,6 +184,53 @@ describe("DashboardGrid", () => {
       />,
     );
     expect(grid.resizeConfig?.enabled).toBe(false);
+  });
+  it("scales gestures without react-grid-layout's viewport-based drag start", () => {
+    render(
+      <DashboardGrid
+        widgets={[widget]}
+        registry={registry}
+        renderWidget={renderWidget}
+        editMode
+        onLayoutCommit={() => {}}
+      />,
+    );
+    const strategy = grid.positionStrategy;
+    expect(strategy?.type).toBe("transform");
+    expect(strategy?.scale).toBeGreaterThan(0);
+    // createScaledStrategy's calcDragPosition ignores where the grid sits on the page, so a drag
+    // started offset by the sidebar and header. Without it, the item's offset inside the grid is used.
+    expect(strategy?.calcDragPosition).toBeUndefined();
+    expect(
+      strategy?.calcStyle({ left: 10, top: 20, width: 30, height: 40 }),
+    ).toMatchObject({
+      transform: "translate(10px,20px)",
+    });
+  });
+  it("marks the grid as editing only while gestures are enabled", () => {
+    const editing = (container: HTMLElement) =>
+      container
+        .querySelector(".miot-dashboard-grid")
+        ?.classList.contains("miot-dashboard-grid--editing");
+    const view = render(
+      <DashboardGrid
+        widgets={[widget]}
+        registry={registry}
+        renderWidget={renderWidget}
+        editMode
+      />,
+    );
+    expect(editing(view.container)).toBe(false);
+    view.rerender(
+      <DashboardGrid
+        widgets={[widget]}
+        registry={registry}
+        renderWidget={renderWidget}
+        editMode
+        onLayoutCommit={() => {}}
+      />,
+    );
+    expect(editing(view.container)).toBe(true);
   });
   it("commits user gestures preserving document constraints, and stops after revocation", () => {
     const commit = vi.fn();

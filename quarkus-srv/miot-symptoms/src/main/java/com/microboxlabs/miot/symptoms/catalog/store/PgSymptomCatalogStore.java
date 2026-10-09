@@ -14,6 +14,7 @@ import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.SqlClient;
 import io.vertx.mutiny.sqlclient.Tuple;
+import io.vertx.pgclient.PgException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -22,8 +23,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Supplier;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /** {@link SymptomCatalogStore} on the modulith database, schema {@code miot_symptoms}. */
@@ -31,12 +32,16 @@ import java.util.stream.Collectors;
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class PgSymptomCatalogStore implements SymptomCatalogStore {
 
+    private static final String UNIQUE_VIOLATION = "23505";
+
     private static final String DEFINITION_COLUMNS = """
             id, tenant_code, symptom_key, name, family, icon, description, source_key, engine_rule_id,
             template_key, forked_from_version_id, state, current_version, created_by, created_at,
             updated_by, updated_at""";
 
-    private static final String SELECT_DEFINITIONS = "SELECT " + DEFINITION_COLUMNS
+    private static final String SELECT = "SELECT ";
+
+    private static final String SELECT_DEFINITIONS = SELECT + DEFINITION_COLUMNS
             + " FROM miot_symptoms.symptom_definition WHERE tenant_code = $1 ";
 
     private static final String INSERT_DEFINITION = "INSERT INTO miot_symptoms.symptom_definition ("
@@ -55,7 +60,7 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
             id, definition_id, tenant_code, version, status, spec, bump, reason, rolled_back_from,
             created_by, created_at, published_by, published_at""";
 
-    private static final String SELECT_VERSIONS = "SELECT " + VERSION_COLUMNS
+    private static final String SELECT_VERSIONS = SELECT + VERSION_COLUMNS
             + " FROM miot_symptoms.symptom_version WHERE tenant_code = $1 AND definition_id = $2 ";
 
     private static final String UPSERT_DRAFT = """
@@ -70,6 +75,14 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
     private static final String DRAFT_IDS = """
             SELECT definition_id FROM miot_symptoms.symptom_version
             WHERE tenant_code = $1 AND status = 'DRAFT'""";
+
+    private static final String CURRENT_VERSIONS = """
+            SELECT v.id, v.definition_id, v.tenant_code, v.version, v.status, v.spec, v.bump, v.reason,
+                   v.rolled_back_from, v.created_by, v.created_at, v.published_by, v.published_at
+            FROM miot_symptoms.symptom_version v
+            JOIN miot_symptoms.symptom_definition d
+              ON d.id = v.definition_id AND d.tenant_code = v.tenant_code AND d.current_version = v.version
+            WHERE v.tenant_code = $1 AND v.status = 'PUBLISHED'""";
 
     private static final String DELETE_DRAFT = """
             DELETE FROM miot_symptoms.symptom_version
@@ -123,7 +136,14 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
                 .addString(d.state().name()).addString(d.currentVersion())
                 .addString(d.createdBy()).addOffsetDateTime(d.createdAt())
                 .addString(d.updatedBy()).addOffsetDateTime(d.updatedAt());
-        return definitions(query(pool.get(), INSERT_DEFINITION, params)).get(0);
+        try {
+            return definitions(query(pool.get(), INSERT_DEFINITION, params)).get(0);
+        } catch (PgException e) {
+            if (UNIQUE_VIOLATION.equals(e.getSqlState())) {
+                throw new DuplicateSymptomKeyException(d.key());
+            }
+            throw e;
+        }
     }
 
     @Override
@@ -150,6 +170,13 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
     }
 
     @Override
+    public Optional<SymptomVersion> findVersionById(String tenantCode, UUID versionId) {
+        return versions(query(pool.get(), SELECT + VERSION_COLUMNS
+                + " FROM miot_symptoms.symptom_version WHERE tenant_code = $1 AND id = $2",
+                Tuple.of(tenantCode, versionId))).stream().findFirst();
+    }
+
+    @Override
     public SymptomVersion saveDraft(SymptomVersion v) {
         Tuple params = Tuple.tuple()
                 .addUUID(v.id()).addUUID(v.definitionId()).addString(v.tenantCode())
@@ -166,6 +193,11 @@ public class PgSymptomCatalogStore implements SymptomCatalogStore {
         return query(pool.get(), DRAFT_IDS, Tuple.of(tenantCode)).stream()
                 .map(r -> r.getUUID("definition_id"))
                 .collect(Collectors.toSet());
+    }
+
+    @Override
+    public List<SymptomVersion> currentVersions(String tenantCode) {
+        return versions(query(pool.get(), CURRENT_VERSIONS, Tuple.of(tenantCode)));
     }
 
     @Override

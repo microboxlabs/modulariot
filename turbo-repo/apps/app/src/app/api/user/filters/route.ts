@@ -6,14 +6,16 @@ import {
   getUserFilters,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { tryCatch } from "@/utils/tryCatch";
+import { isEcmConfigured } from "@/features/common/providers/alfresco-api/ecm-config";
 
 export async function GET() {
+  // Filters are Alfresco documents; without Alfresco there are none.
+  if (!isEcmConfigured()) return NextResponse.json({ data: [] });
   try {
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
     const response = await tryCatch(getGroupsForPerson(session));
 
     if (response?.error) {

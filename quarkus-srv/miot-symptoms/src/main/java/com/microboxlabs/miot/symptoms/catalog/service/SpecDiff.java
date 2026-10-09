@@ -1,8 +1,9 @@
 package com.microboxlabs.miot.symptoms.catalog.service;
 
 import com.microboxlabs.miot.symptoms.catalog.cel.RuleText;
-import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec.Level;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.VersionBump;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,7 +12,7 @@ import java.util.Objects;
 /**
  * What changed between two specs, in plain Spanish, and the version bump
  * each change needs. MAJOR: source, activation or measure. MINOR:
- * thresholds, a level turned on or off, lifecycle or recurrence. PATCH: the
+ * thresholds, a level turned on or off, lifecycle or recurrence. PATCH: family, state, the
  * response or the measure's label.
  */
 public final class SpecDiff {
@@ -34,21 +35,44 @@ public final class SpecDiff {
         if (!Objects.equals(before.source(), after.source())) {
             out.add(new Change("source", VersionBump.MAJOR, "Cambió la fuente de datos"));
         }
-        if (!sameRule(before.activation(), after.activation())) {
+        if (!sameActivation(before.activation(), after.activation())) {
             out.add(new Change("activation", VersionBump.MAJOR, "Cambió cuándo se activa"));
         }
         measureChanges(before.measure(), after.measure(), out);
         levelChanges(before.levels(), after.levels(), out);
-        if (!Objects.equals(normalized(before.lifecycle()), normalized(after.lifecycle()))) {
+        if (!Objects.equals(rules(before.lifecycle()), rules(after.lifecycle()))) {
             out.add(new Change("lifecycle", VersionBump.MINOR, "Cambió cuándo se abre o se cierra el caso"));
         }
-        if (!Objects.equals(before.recurrence(), after.recurrence())) {
+        if (levelDown(before.lifecycle()) != levelDown(after.lifecycle())) {
+            out.add(new Change("lifecycle", VersionBump.MINOR, levelDown(after.lifecycle())
+                    ? "El nivel ahora baja si baja la medida"
+                    : "El nivel ya no baja si baja la medida"));
+        }
+        if (!Objects.equals(normalized(before.recurrence()), normalized(after.recurrence()))) {
             out.add(new Change("recurrence", VersionBump.MINOR, "Cambió qué pasa si se repite"));
+        }
+        if (after.family() != null && !Objects.equals(before.family(), after.family())) {
+            out.add(new Change("family", VersionBump.PATCH, "Cambió la familia"));
+        }
+        if (after.state() != null && before.state() != after.state()) {
+            out.add(new Change("state", VersionBump.PATCH,
+                    "Estado: " + stateName(before.state()) + " → " + stateName(after.state())));
         }
         return out;
     }
 
     /** The largest bump among the changes, or null when nothing changed. */
+    private static String stateName(SymptomState state) {
+        if (state == null) {
+            return "sin estado";
+        }
+        return switch (state) {
+            case OFF -> "Apagado";
+            case TEST -> "En prueba";
+            case ACTIVE -> "Activo";
+        };
+    }
+
     public static VersionBump bump(List<Change> changes) {
         return changes.stream().map(Change::bump).max(Enum::compareTo).orElse(null);
     }
@@ -104,12 +128,30 @@ public final class SpecDiff {
         return level != null && level.applies();
     }
 
+    /** The same conditions in another order open the same cases, so they are the same rule. */
+    private static boolean sameActivation(String before, String after) {
+        return sameRule(before, after)
+                || Objects.equals(ConditionChecks.unordered(before), ConditionChecks.unordered(after));
+    }
+
     private static boolean sameRule(String before, String after) {
         return Objects.equals(squash(before), squash(after));
     }
 
-    private static SymptomSpec.Lifecycle normalized(SymptomSpec.Lifecycle l) {
+    /** A recurrence without an entity counts per vehicle. */
+    private static SymptomSpec.Recurrence normalized(SymptomSpec.Recurrence r) {
+        return r == null || r.entity() != null ? r
+                : new SymptomSpec.Recurrence(r.enabled(), r.count(), r.days(), r.raiseLevels(),
+                        SymptomSpec.Recurrence.VEHICLE);
+    }
+
+    /** The open and close rules, without formatting. */
+    private static SymptomSpec.Lifecycle rules(SymptomSpec.Lifecycle l) {
         return l == null ? null : new SymptomSpec.Lifecycle(squash(l.open()), squash(l.close()));
+    }
+
+    private static boolean levelDown(SymptomSpec.Lifecycle l) {
+        return l != null && l.levelDown();
     }
 
     /** Formatting does not change a rule; text inside string literals does. */

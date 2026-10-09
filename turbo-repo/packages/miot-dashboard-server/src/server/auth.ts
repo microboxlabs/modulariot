@@ -23,6 +23,7 @@ import {
 } from "../identity";
 import type { KeyRing } from "../identity/jwt";
 import { EndpointError } from "../net/endpoint";
+import { createGroupRoleAuthorities } from "../identity/group-roles";
 import type {
   IdentityResolver,
   ScopeAuthority,
@@ -274,6 +275,16 @@ export function buildScopeAuthority(
         }
       : built;
 
+  if (config.kind === "groups") {
+    return wrap({
+      scopes: createGroupRoleAuthorities({
+        pattern: config.pattern,
+        ...(config.roleMap ? { roleMap: config.roleMap } : {}),
+      }).scopes,
+      describe: `the caller's groups matching ${config.pattern}`,
+    });
+  }
+
   if (config.kind === "seed") {
     const memberships = options.memberships ?? {};
     return wrap({
@@ -318,6 +329,16 @@ export function buildTenantAuthority(
           describe: describeAsserted(built.describe),
         }
       : built;
+
+  if (config.kind === "groups") {
+    return wrap({
+      tenants: createGroupRoleAuthorities({
+        pattern: config.pattern,
+        ...(config.roleMap ? { roleMap: config.roleMap } : {}),
+      }).tenants,
+      describe: `the caller's groups matching ${config.pattern}`,
+    });
+  }
 
   if (config.kind === "seed") {
     const memberships = options.memberships ?? {};

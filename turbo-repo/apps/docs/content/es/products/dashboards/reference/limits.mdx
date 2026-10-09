@@ -1,0 +1,60 @@
+# Límites
+
+Todos los límites en un solo lugar. Los límites evitan que un dashboard o una persona haga más lento el servicio para los demás.
+
+## Documentos
+
+| Límite | Valor |
+| --- | --- |
+| Cuerpo de la solicitud | 1 MiB |
+| Ancho de la grilla | 24 columnas |
+| Consultas guardadas por dashboard | 50 |
+| Parámetros por consulta guardada | 100 |
+| Largo de un identificador (consulta, conexión, operación, parámetro) | 128 caracteres |
+| Valor de texto en un parámetro | 2.048 caracteres |
+| Valores en un parámetro de lista | 100 |
+| Actualización automática | 0 (desactivada), 10, 30, 60 o 300 segundos |
+
+## Consultas
+
+| Límite | Valor por defecto | Dónde |
+| --- | --- | --- |
+| Tiempo por consulta | 20 segundos | Servidor. Se reduce con `MIOT_DASHBOARD_OPERATIONS_TIMEOUT` o `timeoutMs`. |
+| Filas por resultado | 5.000 | Servidor y ejecutores |
+| Tamaño del resultado | 2 MiB de JSON | Servidor y ejecutores |
+| Columnas por fila | 100 | Servidor |
+| Filtros por solicitud | 32 | Servidor |
+| Consultas en ejecución a la vez | 8 por servidor | Servidor |
+| Consultas en ejecución a la vez | 4 por dashboard abierto | UI |
+| Escaneo de BigQuery | 1 GB por consulta, salvo que la operación fije menos | Tope del host |
+| Solicitud y respuesta de plan | 512 KiB | Ejecutor de planes remoto |
+
+## Catálogo de consultas
+
+| Límite | Valor |
+| --- | --- |
+| Conexiones | 100 |
+| Operaciones por conexión | 100 |
+| Columnas por operación | 100 |
+| Tamaño total | 256 KiB |
+
+## Cachés
+
+| Qué | Valor por defecto |
+| --- | --- |
+| Membresía: sí | 60 segundos |
+| Membresía: no | 30 segundos |
+| Ticket válido | 60 segundos |
+| Ticket rechazado | 30 segundos |
+| Credencial entregada por el host | 60 segundos, como máximo 300 |
+| Tolerancia de reloj JWT | 30 segundos, como máximo 300 |
+
+Un cambio en un directorio o una credencial revocada puede tardar hasta el tiempo de caché en aplicarse.
+
+## Edición
+
+| Límite | Valor |
+| --- | --- |
+| Historial para deshacer | 50 pasos |
+| Ediciones agrupadas en un paso de deshacer | Dentro de 500 ms |
+| Retardo del guardado automático | 1,5 segundos después de la última edición |

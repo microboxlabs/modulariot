@@ -1,7 +1,11 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.iam.Access;
+import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -10,6 +14,8 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.config.ConfigProvider;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -42,15 +48,35 @@ abstract class ControlTowerResourceSupport {
         this.identity = identity;
     }
 
-    /** Any member of the organization (the org filter already checked membership). */
-    protected Uni<Response> memberWork(Supplier<Response> work) {
+    /**
+     * Runs the blocking service call on the worker pool. Each endpoint declares the permission it needs with
+     * {@code @PermissionsAllowed}; see {@code ControlTowerAccessCatalog}.
+     */
+    protected Uni<Response> work(Supplier<Response> work) {
         return Uni.createFrom().item(() -> guarded(work))
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
-    /** Organization owners only: deleting contacts. */
-    protected Uni<Response> ownerWork(String organizationId, Supplier<Response> work) {
-        return roleService.requireOwner(organizationId).flatMap(ignored -> memberWork(work));
+    /** The caller's access to the organization the request entered. */
+    protected Uni<Access> access(String organizationId) {
+        return roleService.access(organizationId, caller());
+    }
+
+    /** The caller as {@code @PermissionsAllowed} sees it: API key account, user, else the token's client id. */
+    private Caller caller() {
+        Caller serviceAccount = IamIdentityAugmentor.serviceAccountOf(identity);
+        if (serviceAccount != null) {
+            return serviceAccount;
+        }
+        String email = organizationContext.getUserEmail();
+        if (email != null && !email.isBlank()) {
+            return Caller.user(email);
+        }
+        List<String> claims = ConfigProvider.getConfig()
+                .getOptionalValues("miot.auth.client-id-claims", String.class)
+                .orElse(List.of("aud", "azp"));
+        String clientId = OrganizationAccess.clientId(identity, claims);
+        return Caller.client(clientId != null ? clientId : tenantContext.getClientId());
     }
 
     protected String tenantCode(String organizationId) {

@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import io.quarkus.security.PermissionsAllowed;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
+import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
@@ -43,17 +46,21 @@ public class OrgDataSourcesResource extends ControlTowerResourceSupport {
 
     @GET
     @Operation(operationId = "listDataSources", summary = "Data sources: the platform's and the organization's")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> list(@PathParam("organizationId") String organizationId) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(sources.list(tenant)).build());
+        return work(() -> Response.ok(sources.list(tenant)).build());
     }
 
     @GET
     @Path("/{key}")
     @Operation(operationId = "getDataSource",
             summary = "A data source with its fields and samples (recent engine values for the GPS signal)")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> get(@PathParam("organizationId") String organizationId, @PathParam("key") String key) {
         String tenant = tenantCode(organizationId);
-        return memberWork(() -> Response.ok(sources.get(tenant, key)).build());
+        return work(() -> Response.ok(sources.get(tenant, key)).build());
     }
 }

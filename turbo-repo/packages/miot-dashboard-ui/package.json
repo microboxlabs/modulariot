@@ -1,11 +1,11 @@
 {
   "name": "@microboxlabs/miot-dashboard-ui",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Reusable dashboard UI utilities using the MIOT dashboard contract.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/microboxlabs/modulariot",
+    "url": "git+https://github.com/microboxlabs/modulariot.git",
     "directory": "turbo-repo/packages/miot-dashboard-ui"
   },
   "type": "module",
@@ -46,6 +46,18 @@
     "./browser": {
       "types": "./dist/browser/browser.d.ts",
       "import": "./dist/browser/browser.js"
+    },
+    "./charts": {
+      "types": "./dist/charts.d.ts",
+      "import": "./dist/charts.js"
+    },
+    "./react-charts": {
+      "types": "./dist/react-charts.d.ts",
+      "import": "./dist/react-charts.js"
+    },
+    "./browser-charts": {
+      "types": "./dist/browser/browser-charts.d.ts",
+      "import": "./dist/browser/browser-charts.js"
     }
   },
   "files": [
@@ -61,7 +73,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@microboxlabs/miot-dashboard-contract": "^0.5.0",
+    "@microboxlabs/miot-dashboard-contract": "^0.6.0",
     "zod": "^3.23.8",
     "handlebars": "^4.7.9",
     "react-grid-layout": "2.2.3"
@@ -77,20 +89,26 @@
     "@types/react": "19.2.10",
     "@testing-library/react": "^16.3.0",
     "jsdom": "^24.0.0",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "react-draggable": "4.5.0",
+    "echarts": "6.1.0"
   },
   "publishConfig": {
     "access": "public"
   },
   "peerDependencies": {
     "react": "^18.2.0 || ^19.0.0",
-    "react-dom": "^18.2.0 || ^19.0.0"
+    "react-dom": "^18.2.0 || ^19.0.0",
+    "echarts": "^6.0.0"
   },
   "peerDependenciesMeta": {
     "react": {
       "optional": true
     },
     "react-dom": {
+      "optional": true
+    },
+    "echarts": {
       "optional": true
     }
   }

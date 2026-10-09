@@ -112,6 +112,15 @@ public interface DashboardClient {
             @BeanParam DashboardAssertion assertion);
 
     @GET
+    @Path("/{slug}/query-catalog")
+    Uni<Response> queryCatalog(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("scopeId") String scopeId,
+            @PathParam("slug") String slug,
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion);
+
+    @GET
     @Path("/{slug}/permissions")
     Uni<Response> getPermissions(
             @PathParam("tenantId") String tenantId,

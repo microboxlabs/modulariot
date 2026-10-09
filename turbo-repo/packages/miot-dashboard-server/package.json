@@ -1,10 +1,10 @@
 {
   "name": "@microboxlabs/miot-dashboard-server",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/microboxlabs/modulariot",
+    "url": "git+https://github.com/microboxlabs/modulariot.git",
     "directory": "turbo-repo/packages/miot-dashboard-server"
   },
   "description": "Framework-agnostic backend services for MIOT embeddable dashboards: persistence, identity and tenancy, datasource proxying, embed tokens.",
@@ -87,7 +87,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@microboxlabs/miot-dashboard-contract": "^0.5.0"
+    "@microboxlabs/miot-dashboard-contract": "^0.6.0"
   },
   "peerDependencies": {
     "jose": "^6.0.0",

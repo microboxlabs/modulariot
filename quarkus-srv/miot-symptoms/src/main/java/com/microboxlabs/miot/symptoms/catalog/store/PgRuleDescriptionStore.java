@@ -11,6 +11,9 @@ import io.vertx.mutiny.sqlclient.Tuple;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -22,6 +25,10 @@ public class PgRuleDescriptionStore implements RuleDescriptionStore {
     private static final String SELECT = """
             SELECT rule_hash, locale, audience, html FROM miot_symptoms.rule_description
             WHERE rule_hash = $1 AND locale = $2 AND audience = $3""";
+
+    private static final String SELECT_ALL = """
+            SELECT rule_hash, locale, audience, html FROM miot_symptoms.rule_description
+            WHERE rule_hash = ANY($1) AND locale = $2 AND audience = $3""";
 
     private static final String UPSERT = """
             INSERT INTO miot_symptoms.rule_description (rule_hash, locale, audience, html)
@@ -46,9 +53,26 @@ public class PgRuleDescriptionStore implements RuleDescriptionStore {
         if (!rows.hasNext()) {
             return Optional.empty();
         }
-        Row r = rows.next();
-        return Optional.of(new RuleDescription(r.getString("rule_hash"), r.getString("locale"),
-                r.getString("audience"), r.getString("html")));
+        return Optional.of(description(rows.next()));
+    }
+
+    private static RuleDescription description(Row r) {
+        return new RuleDescription(r.getString("rule_hash"), r.getString("locale"), r.getString("audience"),
+                r.getString("html"));
+    }
+
+    @Override
+    public Map<String, RuleDescription> findAll(Collection<String> ruleHashes, String locale, String audience) {
+        if (ruleHashes.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, RuleDescription> out = new HashMap<>();
+        for (Row r : pool.get().preparedQuery(SELECT_ALL)
+                .execute(Tuple.of(ruleHashes.toArray(String[]::new), locale, audience))
+                .await().atMost(QUERY_TIMEOUT)) {
+            out.put(r.getString("rule_hash"), description(r));
+        }
+        return out;
     }
 
     @Override

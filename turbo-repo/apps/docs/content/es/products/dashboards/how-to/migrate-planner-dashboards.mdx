@@ -1,0 +1,107 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Migrar dashboards con planificador
+
+Los dashboards antiguos de ModularIoT cargan datos con un **planificador de solicitudes**: cada solicitud llama a una ruta de PostgREST a través de una fuente de datos heredada. El servidor de dashboards usa en su lugar **consultas guardadas**, que indican una operación que aprobó un administrador. Esta guía convierte lo primero en lo segundo sin cambiar los widgets.
+
+Los widgets siguen funcionando porque cada consulta guardada conserva el nombre del resultado (`variableName`) de su solicitud del planificador.
+
+## Cómo se corresponden las piezas
+
+| Dashboard con planificador | Servidor de dashboards |
+| --- | --- |
+| Fuente de datos | Una conexión PostgREST con su credencial |
+| Ruta de PostgREST, como `rpc/fn_summary` | Una operación `HTTP_GET` de solo lectura en esa conexión |
+| Solicitud del planificador | Una consulta guardada |
+| Valor de parámetro `{{filter.key}}` | Vínculo de filtro, omitido cuando el filtro está vacío |
+| Cualquier otro valor de parámetro | Vínculo literal |
+| El filtro de fecha implícito | Un filtro `date_range` declarado, con clave `date_range` |
+
+Una operación sirve a todos los dashboards que llaman a la misma ruta en la misma fuente de datos.
+
+<Steps>
+
+### Listar las operaciones que necesita
+
+Pase los dashboards con planificador a `plannerOperationContracts`. Devuelve un contrato de operación por cada fuente de datos y ruta, con todos los parámetros que envía cualquier dashboard:
+
+```ts
+import { plannerOperationContracts } from "@microboxlabs/miot-dashboard-server";
+
+const result = plannerOperationContracts(legacyConfigsBySlug, {
+  pinnedParameters: ["p_client_id"],
+});
+if (!result.ok) console.error(result.problems);
+```
+
+Un parámetro fijado se define con `const`, así que ningún dashboard puede cambiarlo. Debe tener el mismo valor literal en todos los lugares donde se usa. `problems` lista las solicitudes POST, las rutas no admitidas y los parámetros fijados con valores en conflicto.
+
+### Crear las conexiones y las operaciones
+
+Para cada fuente de datos, cree una conexión PostgREST e importe sus funciones. Use el diálogo **Funciones**, con cada parámetro fijado como **Valor fijo** ([Conectar PostgREST](/es/products/dashboards/how-to/connect-postgrest)). O cree cada contrato con la CLI:
+
+```bash
+miot connections operations create <connectionId> \
+  --name fn_summary --method GET --path /rpc/fn_summary \
+  --request-schema-json "$SCHEMA" --response-schema-json '{}' --output json
+```
+
+Anote el `id` de cada operación.
+
+### Convertir cada dashboard
+
+Entregue a `migratePlannerQueries` una correspondencia por cada solicitud del planificador. Omita `parameters` y los vínculos se derivan de los valores antiguos:
+
+```ts
+import { migratePlannerQueries } from "@microboxlabs/miot-dashboard-server";
+
+const converted = migratePlannerQueries(
+  legacyConfig,
+  legacyConfig.requestPlanner.map((r) => ({
+    plannerId: r.id,
+    connectionId,
+    operationId: operationIds[r.pgrestFunctionName],
+  })),
+  { dateFilterLabel: "Fecha" },
+);
+```
+
+El resultado es `{ ok: true, config }` o `{ ok: false, problems }`. Un documento convertido no tiene `requestPlanner`, y conserva los widgets, los filtros, los ajustes y los campos de extensión. No hace llamadas de red y no escribe nada.
+
+| Valor de parámetro antiguo | Pasa a ser |
+| --- | --- |
+| `{{filter.key}}` | `{ "kind": "filter", "key": "key", "omitWhenEmpty": true }` |
+| Otro texto | `{ "kind": "literal", "value": "..." }` |
+| Vacío | Se omite, como hacía el planificador |
+| Cualquier otra plantilla | Se rechaza |
+
+### Importar primero con una ejecución de prueba
+
+Cargue los documentos convertidos con `importDashboards`. Por defecto hace una ejecución de prueba, valida cada documento contra el contrato y nunca sobrescribe:
+
+```ts
+import { importDashboards } from "@microboxlabs/miot-dashboard-server";
+
+const report = await importDashboards({ source, store, dryRun: true });
+// report.imported, report.skipped, report.refused, report.failed
+```
+
+Ejecútelo de nuevo con `dryRun: false` cuando el reporte no tenga problemas.
+
+### Comparar con los dashboards antiguos
+
+Abra cada dashboard nuevo junto al antiguo, con los mismos filtros. Verifique que cada widget muestre los mismos valores. Conserve los dashboards antiguos hasta que los haya comparado todos.
+
+</Steps>
+
+## Problemas comunes
+
+| Problema | Solución |
+| --- | --- |
+| Una consulta falla con cualquier filtro | Una columna devuelve un objeto JSON. Agregue un valor fijo `select` solo con las columnas escalares. |
+| Se rechaza el origen de datos | Agregue el origen de PostgREST a `MIOT_DASHBOARD_DATA_ORIGINS` en el servidor de dashboards |
+| Un widget no muestra datos | Su `plannerVariableName` debe coincidir con el `variableName` de una consulta guardada |
+
+<Callout type="info">
+La conversión no reescribe los ajustes de los widgets. Los widgets que llamaban directamente a una fuente de datos, y no a través del planificador, necesitan su propia revisión.
+</Callout>

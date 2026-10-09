@@ -32,4 +32,15 @@ export interface RuntimeConfig {
    * Anything else, including empty, keeps it off.
    */
   ENABLE_STORYTELLING: string;
+  /**
+   * If "true", the symptoms map-view prototype does not send its saves to the
+   * real backend (treatments and the invalidate-symptom webhook) and shows
+   * mock contact and call data.
+   */
+  SYMPTOMS_PROTOTYPE_DISABLE_API: string;
+  /**
+   * If "true", the symptoms map-view opens the previous full-screen treatment
+   * modal instead of the inline forms.
+   */
+  SYMPTOMS_PAST_FORMS: string;
 }

@@ -5,6 +5,9 @@ import type { RuntimeConfig } from "./runtime-config.types";
 
 const RuntimeConfigContext = createContext<RuntimeConfig | null>(null);
 
+const RETRY_BASE_MS = 1_000;
+const RETRY_MAX_MS = 30_000;
+
 let cachedConfig: RuntimeConfig | null = null;
 let fetchPromise: Promise<RuntimeConfig> | null = null;
 
@@ -31,11 +34,24 @@ function fetchConfig(): Promise<RuntimeConfig> {
 
 export function RuntimeConfigProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [config, setConfig] = useState<RuntimeConfig | null>(cachedConfig);
+  const [attempt, setAttempt] = useState(0);
 
+  // Retry with backoff: pages that wait for the config would stay blank
+  // after a single failed request.
   useEffect(() => {
     if (config) return;
-    fetchConfig().then(setConfig).catch(console.error);
-  }, [config]);
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    fetchConfig()
+      .then(setConfig)
+      .catch((err) => {
+        console.error(err);
+        retry = setTimeout(
+          () => setAttempt((n) => n + 1),
+          Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** attempt)
+        );
+      });
+    return () => clearTimeout(retry);
+  }, [config, attempt]);
 
   return (
     <RuntimeConfigContext.Provider value={config}>

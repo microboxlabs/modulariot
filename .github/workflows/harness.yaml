@@ -66,6 +66,8 @@ jobs:
   # ---------------------------------------------------------------------------
   lint-and-test:
     name: Lint & Test
+    # Release preparation PRs are handled by app-release-train.yml.
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release/miot-v')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -125,7 +127,7 @@ jobs:
     name: SonarCloud
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request' || (!startsWith(github.head_ref, 'release/miot-v') && github.event.pull_request.head.repo.full_name == github.repository)
     permissions:
       contents: read
       pull-requests: read
@@ -420,7 +422,7 @@ jobs:
       - publish-image
       - distribution-evals
       - security-scan
-    if: always()
+    if: always() && (github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release/miot-v'))
     steps:
       - name: Render summary
         run: |

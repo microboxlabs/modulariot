@@ -36,6 +36,8 @@ permissions:
 jobs:
   changes:
     name: Select Languages
+    # Release preparation contains version/notes updates; scan code changes normally.
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release/miot-v')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

@@ -49,6 +49,8 @@ jobs:
   # ===========================================================================
   changes:
     name: Detect Changes
+    # Release preparation PRs are handled by app-release-train.yml.
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release/miot-v')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -77,6 +79,7 @@ jobs:
   # ===========================================================================
   install:
     name: Install Dependencies
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release/miot-v')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -251,7 +254,7 @@ jobs:
     name: CI Summary
     runs-on: ubuntu-latest
     needs: [install, lint, build, changes, dashboard-server-test]
-    if: always()
+    if: always() && (github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release/miot-v'))
     permissions: {}
     steps:
       - name: Create summary

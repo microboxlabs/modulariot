@@ -2,14 +2,13 @@
 
 ### Fecha: 10/10/2026
 
-**Objetivo**: Coordinar la actualización de la plataforma a la versión de stack 0.5.58 y dejar claros los componentes incluidos en el plan de release.
+**Objetivo**: Esta versión corrige el cierre de tratamientos en la vista de mapa de síntomas, para que la atención registrada por el operador quede guardada como finalizada.
 
-## 📊 Beneficios
+## 🐛 Correcciones
 
-- Facilita identificar las versiones de los componentes previstas para esta release.
-- Hace visible qué componentes tienen cambios en el plan y cuáles conservan su versión.
-- Ayuda a mantener alineadas las referencias de versión del stack, la aplicación, la documentación y la web.
-- Permite consultar los digests exactos de las imágenes en la información de compilación de la aplicación y en el artefacto de release `stack-manifest.json`.
+- **🐛 Tratamientos que volvían a quedar pendientes** *(Integración OSS — MIOT-0.5.58)*
+  - **Impacto**: Al guardar una llamada desde el formulario de llamadas, la pantalla no regresaba al listado de síntomas. Si el operador volvía a abrir el formulario, el tratamiento ya guardado pasaba de nuevo a pendiente y el síntoma no se cerraba.
+  - **Solución**: Al guardar, el sistema vuelve al listado de síntomas, y cada apertura del formulario comienza sin datos de un tratamiento anterior. Recargar la página tampoco vuelve a abrir el formulario ni crea un tratamiento nuevo.
 
 ## 🧾 Versiones del stack
 
@@ -21,9 +20,3 @@
 - Harness: `harness@v0.1.12` — sin cambios.
 
 Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de release `stack-manifest.json`.
-
-## 📌 Conclusión
-
-La release 1.31.57 establece el plan de versiones para el stack 0.5.58, con cambios previstos en App, Docs y Web, mientras Modulith y Harness mantienen sus versiones.
-
-No se proporcionaron incidencias para esta release, por lo que estas notas se limitan a resumir el plan de componentes y la información disponible para verificar las imágenes.

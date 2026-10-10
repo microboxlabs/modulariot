@@ -1,0 +1,100 @@
+# 🔔 Release Notes v1.31.56 — ModularIoT
+
+### Fecha: 10/10/2026
+
+**Objetivo**: Esta versión amplía la gestión de organizaciones, equipos y proveedores GPS, y completa herramientas para configurar y evaluar síntomas. También mejora la experiencia de invitaciones, tableros y páginas de producto.
+
+## 🚀 Evolutivos
+
+- **📍 Configuración y versiones de síntomas** *(Integración OSS — MIOT-0.5.57)*
+  - **Punto clave**: La ficha de síntomas incorpora formularios para editar condiciones de activación, niveles de gravedad y ciclo del caso, además de cambios destacados, comparación de versiones, duplicación y restauración.
+  - **Detalle técnico**: Incluye validaciones de reglas, campos de origen con valores permitidos y acceso a versiones anteriores en modo de solo lectura.
+
+- **📍 Evaluación y seguimiento de síntomas** *(Integración OSS — MIOT-0.5.57)*
+  - **Punto clave**: Se incorporan estadísticas del catálogo, métricas de carga operativa y evaluaciones que comparan reglas del motor con reglas heredadas en viajes reales.
+  - **Detalle técnico**: El evaluador ejecuta versiones publicadas de síntomas sobre señales y genera transiciones de casos; se añadieron evaluaciones para velocidad, conducción continua, pérdida de señal y situaciones de riesgo.
+
+- **📍 Gestión de equipos e invitaciones** *(Integración OSS — MIOT-0.5.57)*
+  - **Punto clave**: La configuración de equipo permite invitar a varias personas desde un panel integrado, asignar roles y accesos a módulos, y consultar enlaces y estado de entrega.
+  - **Detalle técnico**: Las invitaciones admiten fechas de expiración y reintentos sin duplicar las ya procesadas.
+
+- **📍 Administración de organizaciones** *(Integración OSS — MIOT-0.5.57)*
+  - **Punto clave**: Los responsables de plataforma pueden crear organizaciones, asignar a su primer propietario y consultar las organizaciones activas.
+  - **Detalle técnico**: Los permisos de plataforma se mantienen separados de los derechos dentro de organizaciones donde la persona no es miembro.
+
+- **📍 Páginas de producto y documentación de Dashboards** *(Integración OSS — MIOT-0.5.57)*
+  - **Punto clave**: Dashboards tiene una página de producto en el sitio y una guía organizada en español e inglés; los productos también son más accesibles desde la página de inicio y la navegación.
+  - **Detalle técnico**: Las direcciones anteriores de documentación redirigen permanentemente a las nuevas páginas.
+
+- **📍 Flujo de atención y edición de operadores** *(Integración OSS — MIOT-0.5.57)*
+  - **Punto clave**: La ficha de síntomas añade una vista de impacto operativo, un resumen del síntoma y un panel de Harness para solicitar cambios; también mejora la edición de pasos del operador.
+  - **Detalle técnico**: Los borradores del Harness pueden reflejarse en la ficha abierta, y los pasos usan identificadores estables.
+
+- **📍 Formularios históricos de llamadas** *(Integración OSS — MIOT-0.5.57)*
+  - **Punto clave**: Se habilita el acceso a versiones anteriores del formulario de llamadas mediante `NEXT_PUBLIC_SYMPTOMS_PAST_FORMS`.
+
+## 🔧 Integraciones
+
+- **🔌 Acceso IAM, roles y cuentas de servicio** *(Integración OSS — MIOT-0.5.57)*
+  - **Alcance**: La gestión de acceso incorpora membresías, roles, permisos, asignaciones y auditoría; las organizaciones pueden usar membresías nativas o Alfresco. Las cuentas de servicio admiten claves API, y el control de plataforma puede funcionar sin Alfresco.
+  - **Alcance**: Los tokens de cuentas de servicio pueden usar por defecto la aplicación de la organización cuando no hay una credencial vinculada.
+
+- **🔌 Acceso GPS para proveedores** *(Integración OSS — MIOT-0.5.57)*
+  - **Alcance**: Cada organización puede disponer de una aplicación Auth0 para proveedores GPS, con roles, permisos, claves API y opciones para consultar o rotar secretos.
+  - **Alcance**: Las claves API autorizadas pueden intercambiarse por un token de la aplicación de la organización para enviar posiciones al servicio de ingestión.
+
+- **🔌 Correo de invitación y plantillas** *(Integración OSS — MIOT-0.5.57)*
+  - **Alcance**: Las organizaciones pueden configurar un canal de correo con Resend; si no tienen uno, las invitaciones pueden usar el remitente de plataforma.
+  - **Alcance**: Las plantillas de invitación editables admiten configuración para toda la plataforma y para cada organización, con vista previa y alternativas integradas en español e inglés.
+
+- **🔌 Roles por grupos en Dashboard Server** *(Integración OSS — MIOT-0.5.57)*
+  - **Alcance**: Dashboard Server puede obtener organización y roles de ámbito desde los grupos del solicitante mediante patrones y equivalencias configurables.
+
+## 🐛 Correcciones
+
+- **🐛 Arrastre de widgets del tablero** *(Integración OSS — MIOT-0.5.57)*
+  - **Impacto**: En modo de edición, la interacción con el contenido de tablas y gráficos impedía iniciar el arrastre desde el widget.
+  - **Solución**: El contenido de los widgets deja de interceptar esa interacción mientras se edita.
+
+- **🐛 Acceso de responsables de plataforma sin organización** *(Integración OSS — MIOT-0.5.57)*
+  - **Impacto**: La pantalla de falta de acceso impedía llegar a la configuración de plataforma y crear la primera organización.
+  - **Solución**: Se permite el acceso a las páginas de plataforma y organizaciones, sin abrir el resto de las páginas protegidas.
+
+- **🐛 Respuestas de la aplicación sin Alfresco** *(Integración OSS — MIOT-0.5.57)*
+  - **Impacto**: Las solicitudes de estados y notificaciones devolvían errores cuando Alfresco no estaba configurado.
+  - **Solución**: Esas rutas responden con colecciones vacías en ese escenario.
+
+- **🐛 Zoom de la vista geográfica** *(Integración OSS — MIOT-0.5.57)*
+  - **Impacto**: Al ampliar demasiado el mapa, algunos elementos dejaban de mostrarse.
+  - **Solución**: Se corrigió el comportamiento del zoom.
+
+- **🐛 Manejo de identidad en solicitudes IAM** *(Integración OSS — MIOT-0.5.57)*
+  - **Impacto**: El encabezado `X-Dev-User-Email` podía influir en la identidad de solicitudes cuyo token no incluía un correo electrónico.
+  - **Solución**: Se corrigió el tratamiento del encabezado en el flujo de identidad.
+
+## 📊 Beneficios
+
+- Administración más autónoma de organizaciones, miembros y permisos.
+- Incorporación más sencilla de proveedores GPS y recepción de posiciones mediante claves API.
+- Mejor visibilidad del estado y el impacto operativo de los síntomas.
+- Menos pasos para editar, comparar y restaurar versiones de síntomas.
+- Mayor control sobre la entrega y personalización de invitaciones por correo.
+- Experiencia más fluida al editar tableros y consultar el mapa geográfico.
+- Documentación de Dashboards más fácil de encontrar y recorrer.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.57`
+- App: `app@v0.5.57` — actualizado.
+- Docs: `docs@v0.5.57` — actualizado.
+- Web: `web@v0.5.57` — actualizado.
+- Modulith: `modulith@v0.5.35` — actualizado.
+- Harness: `harness@v0.1.12` — actualizado.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el recurso de lanzamiento `stack-manifest.json`.
+
+## 📌 Conclusión
+
+La versión 1.31.56 fortalece la administración de accesos y organizaciones, amplía la integración GPS y mejora los flujos de invitación y correo. También da un paso importante en la configuración y evaluación operativa de síntomas.
+
+Las mejoras de navegación, edición y documentación hacen más accesibles las funciones de la plataforma, mientras que las correcciones refuerzan su uso en entornos sin Alfresco y en las vistas de tableros y mapas.

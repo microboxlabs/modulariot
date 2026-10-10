@@ -111,6 +111,138 @@ export function invalidEmails(emails: readonly string[]): string[] {
   return emails.filter((e) => !isEmail(e));
 }
 
+/** The most emails the backend accepts in one invite request. */
+export const MAX_INVITES_PER_REQUEST = 20;
+
+/** The emails in requests of at most MAX_INVITES_PER_REQUEST each. */
+export function inviteBatches(emails: readonly string[]): string[][] {
+  const batches: string[][] = [];
+  for (let i = 0; i < emails.length; i += MAX_INVITES_PER_REQUEST) {
+    batches.push(emails.slice(i, i + MAX_INVITES_PER_REQUEST));
+  }
+  return batches;
+}
+
+/** One email the backend refused, and why. */
+export interface InviteFailure {
+  email: string;
+  message: string;
+}
+
+export interface InviteOutcome<T> {
+  created: T[];
+  failures: InviteFailure[];
+  /** Emails a failed request saved: pending afterwards, not before. Their links were not returned. */
+  alreadyPending: string[];
+  /** Emails of a failed request whose pending invitations could not be checked. */
+  unchecked: string[];
+}
+
+interface InviteAllOptions<T> {
+  /** Creates the invitations for these emails. */
+  send: (emails: string[]) => Promise<T[]>;
+  /** The emails with a pending invitation now. */
+  pendingEmails: () => Promise<Set<string>>;
+  /** Whether a failed request refused one of its emails, so the others can be sent alone. */
+  isRefusal: (error: unknown) => boolean;
+  /** False stops before the next request. */
+  keepGoing: () => boolean;
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Sends the emails in batches. When a batch fails, the backend may have saved
+ * it before failing: emails pending now but not before this call are left
+ * out. When the request was refused, the rest are sent one by one, so one
+ * refused email does not block the others. Any other failure stops, and the
+ * unsent emails are reported as failed.
+ */
+export async function inviteAll<T>(
+  emails: readonly string[],
+  options: InviteAllOptions<T>
+): Promise<InviteOutcome<T>> {
+  const outcome: InviteOutcome<T> = {
+    created: [],
+    failures: [],
+    alreadyPending: [],
+    unchecked: [],
+  };
+  // Read first, so an invitation pending before this call is not taken for one it saved.
+  const before = await options.pendingEmails().catch(() => null);
+  const batches = inviteBatches(emails);
+  for (const [index, batch] of batches.entries()) {
+    if (!options.keepGoing()) break;
+    try {
+      outcome.created.push(...(await options.send(batch)));
+      continue;
+    } catch (e) {
+      const unsaved = await notSaved(batch, before, options, outcome);
+      if (options.isRefusal(e)) {
+        await retryOneByOne(unsaved, options, outcome);
+        continue;
+      }
+      const message = messageOf(e);
+      for (const email of [...unsaved, ...batches.slice(index + 1).flat()]) {
+        outcome.failures.push({ email, message });
+      }
+      break;
+    }
+  }
+  return outcome;
+}
+
+/**
+ * The batch's emails the failed request did not save. Without both lists the
+ * whole batch is reported unchecked, because a retry could invite someone twice.
+ */
+async function notSaved<T>(
+  batch: string[],
+  before: Set<string> | null,
+  { pendingEmails }: InviteAllOptions<T>,
+  outcome: InviteOutcome<T>
+): Promise<string[]> {
+  const now = before && (await pendingEmails().catch(() => null));
+  if (!before || !now) {
+    outcome.unchecked.push(...batch);
+    return [];
+  }
+  const unsaved: string[] = [];
+  for (const email of batch) {
+    if (now.has(email) && !before.has(email)) {
+      outcome.alreadyPending.push(email);
+    } else {
+      unsaved.push(email);
+    }
+  }
+  return unsaved;
+}
+
+async function retryOneByOne<T>(
+  emails: string[],
+  { send, keepGoing }: InviteAllOptions<T>,
+  outcome: InviteOutcome<T>
+) {
+  for (const email of emails) {
+    if (!keepGoing()) return;
+    try {
+      outcome.created.push(...(await send([email])));
+    } catch (e) {
+      outcome.failures.push({ email, message: messageOf(e) });
+    }
+  }
+}
+
+/** Whether the caller may invite people into this organization. */
+export function invitesAllowed(
+  can: (permission: string) => boolean,
+  membershipSource: string | undefined
+): boolean {
+  return can("members:invite") && membershipSource === "NATIVE";
+}
+
 /** The base roles a caller without owners:manage may give. */
 export const NON_OWNER_ROLES: BaseRole[] = BASE_ROLES.filter(
   (r) => r !== "OWNER"

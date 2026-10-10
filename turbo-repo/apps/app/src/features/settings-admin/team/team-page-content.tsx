@@ -29,10 +29,9 @@ import {
   useTeam,
 } from "./team-api";
 import { TeamInvitationsTab } from "./team-invitations-tab";
-import { TeamInviteModal } from "./team-invite-modal";
 import { TeamKeysTab } from "./team-keys-tab";
 import { TeamMembersTab } from "./team-members-tab";
-import { inviteLinkOf } from "./team-model";
+import { inviteLinkOf, invitesAllowed } from "./team-model";
 import { TeamRolesTab } from "./team-roles-tab";
 import { TeamTeamsTab } from "./team-teams-tab";
 import type { BaseRole, Invitation, TeamMember } from "./team.types";
@@ -84,11 +83,15 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
   const team = useTeam();
   // Alfresco decides who belongs to an ALFRESCO organization: no invites or removals here.
   const fromAlfresco = team.data?.membershipSource === "ALFRESCO";
-  const canInvite = can("members:invite") && !fromAlfresco;
+  // Wait for the membership source: an ALFRESCO organization cannot invite.
+  const nativeMembers = team.data?.membershipSource === "NATIVE";
+  const canInvite = invitesAllowed(can, team.data?.membershipSource);
+  // Pending invitations can still be resent or revoked while members load.
+  const canManageInvitations = can("members:invite") && !fromAlfresco;
   const canEditInvitationEmail = can("org:update") && !fromAlfresco;
   const allowed = {
     canUpdate: can("members:update"),
-    canRemove: can("members:remove") && !fromAlfresco,
+    canRemove: can("members:remove") && nativeMembers,
     canManageOwners: can("owners:manage"),
   };
   const teamsAllowed = {
@@ -103,7 +106,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
 
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>(() => tabOf(searchParams.get("tab")));
-  const [inviting, setInviting] = useState(false);
   const [confirm, setConfirm] = useState<Confirm>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -182,7 +184,12 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
               </Button>
             )}
             {canInvite && (
-              <Button color="blue" size="sm" onClick={() => setInviting(true)}>
+              <Button
+                as={Link}
+                href={`/${lang}/users/settings/team/invite`}
+                color="blue"
+                size="sm"
+              >
                 <HiUserAdd className="mr-1.5 h-4 w-4" />
                 {tr("invite", d)}
               </Button>
@@ -233,7 +240,7 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
           <TeamInvitationsTab
             invitations={invitations.data ?? []}
             roles={roles}
-            canInvite={canInvite}
+            canInvite={canManageInvitations}
             lang={lang}
             d={d}
             onResend={onResend}
@@ -258,16 +265,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
           <TeamRolesTab catalog={catalog} lang={lang} d={d} />
         )}
       </div>
-
-      <TeamInviteModal
-        show={inviting}
-        onClose={() => setInviting(false)}
-        onInvited={reload}
-        roles={roles}
-        canManageOwners={allowed.canManageOwners}
-        lang={lang}
-        d={d}
-      />
 
       <FormModal
         isOpen={resent !== null}

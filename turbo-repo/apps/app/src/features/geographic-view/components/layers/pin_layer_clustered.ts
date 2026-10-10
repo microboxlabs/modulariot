@@ -98,6 +98,8 @@ interface ClusterFeature {
 }
 
 export class PinLayer extends CompositeLayer<any> {
+  static readonly layerName = "ClusteredPinLayer";
+
   supercluster: Supercluster;
   state!: {
     clusters: ClusterFeature[];

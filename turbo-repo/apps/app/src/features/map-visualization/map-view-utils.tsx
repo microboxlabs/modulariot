@@ -27,6 +27,18 @@ export function flyTo(
   mapRef.flyTo(flyToOptions);
 }
 
+/**
+ * Returns [lng, lat] when both are finite numbers, otherwise null, so callers
+ * skip the camera move instead of sending the map to [0, 0].
+ */
+export function toLngLat(
+  longitude: number | null | undefined,
+  latitude: number | null | undefined
+): [number, number] | null {
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
+  return [longitude as number, latitude as number];
+}
+
 /** Zoom used when the user clicks a vehicle that is shown on its own. */
 export const VEHICLE_FOCUS_ZOOM = 12;
 

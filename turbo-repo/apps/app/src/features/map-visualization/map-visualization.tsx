@@ -57,10 +57,7 @@ function findNamedLayerId(
   return null;
 }
 
-function resolvePathValue(
-  obj: Record<string, unknown>,
-  path: string
-): unknown {
+function resolvePathValue(obj: Record<string, unknown>, path: string): unknown {
   let current: unknown = obj;
   for (const segment of path.split(".")) {
     if (current === null || current === undefined) return undefined;
@@ -124,6 +121,7 @@ export default function MapVisualization({
   onFeatureClick,
   onLayerClick,
   rounded = true,
+  minZoom,
 }: {
   mapStyle: keyof typeof mapStyles;
   layers: LayersList;
@@ -138,6 +136,8 @@ export default function MapVisualization({
   /** Raw pick callback for any layer click (used by custom layers passed via `layers`) */
   onLayerClick?: (info: PickingInfo) => void;
   rounded?: boolean;
+  /** Lowest zoom the user can reach; Mapbox's default is -2. */
+  minZoom?: number;
 }) {
   const runtimeConfig = useRuntimeConfig();
   const mapboxAccessToken = runtimeConfig?.MAPBOX_API_KEY ?? "";
@@ -205,8 +205,7 @@ export default function MapVisualization({
       const obj = info.object as Record<string, unknown>;
       const objProps =
         (obj?.properties as Record<string, unknown> | undefined) ?? {};
-      const isCluster =
-        Boolean(obj.cluster) || Boolean(objProps.cluster);
+      const isCluster = Boolean(obj.cluster) || Boolean(objProps.cluster);
       const props = { ...obj, ...objProps };
 
       // Track path selection for highlight
@@ -215,8 +214,7 @@ export default function MapVisualization({
       if (featureIndex >= 0) {
         const pathLayerId = `named-layer-${layerId}-lines`;
         setSelectedPath((prev) =>
-          prev?.layerId === pathLayerId &&
-          prev?.featureIndex === featureIndex
+          prev?.layerId === pathLayerId && prev?.featureIndex === featureIndex
             ? null
             : { layerId: pathLayerId, featureIndex }
         );
@@ -343,6 +341,7 @@ export default function MapVisualization({
             detachBoxZoomRef.current = attachBoxZoom(e.target);
           }}
           boxZoom={false}
+          minZoom={minZoom}
           onZoom={(e) => {
             setInternalZoom(e.viewState.zoom);
             onZoomChange?.(e.viewState.zoom);

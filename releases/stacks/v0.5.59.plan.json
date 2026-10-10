@@ -1,0 +1,46 @@
+{
+  "stack_version": "0.5.59",
+  "stack_tag": "miot-stack@v0.5.59",
+  "milestone": "MIOT-0.5.59",
+  "pull_requests": [
+    {
+      "number": 1905,
+      "title": "[app] No-organization gate only without Alfresco",
+      "source_issues": []
+    }
+  ],
+  "milestone_changed_files": [
+    "turbo-repo/apps/app/src/features/layout/components/secured-layout.tsx"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.59",
+      "tag": "app@v0.5.59"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.58",
+      "version": "0.5.58",
+      "tag": "docs@v0.5.58"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.58",
+      "version": "0.5.58",
+      "tag": "web@v0.5.58"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.35",
+      "version": "0.5.35",
+      "tag": "modulith@v0.5.35"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.12",
+      "version": "0.1.12",
+      "tag": "harness@v0.1.12"
+    }
+  }
+}

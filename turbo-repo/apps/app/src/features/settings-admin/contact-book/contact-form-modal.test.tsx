@@ -342,3 +342,83 @@ describe("ContactFormModal — contact channels", () => {
     });
   });
 });
+
+describe("ContactFormModal — organization", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  function renderWithOrganizations(editing: BookContact | null = null) {
+    const onSave = vi.fn();
+    render(
+      <ContactFormModal
+        show
+        onClose={vi.fn()}
+        editing={editing}
+        onSave={onSave}
+        organizations={["Transportes Norte", "Minera Sur"]}
+        dict={dict}
+      />
+    );
+    return onSave;
+  }
+
+  async function startOutsideContact(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: "O ingresa un contacto fuera de la organización" }));
+    await user.type(screen.getByLabelText("Nombre completo"), "Pedro Externo");
+  }
+
+  it("lists the book's organizations, filters them and saves the picked one", async () => {
+    const user = userEvent.setup();
+    const onSave = renderWithOrganizations();
+    await startOutsideContact(user);
+    await user.click(screen.getByLabelText("Empresa"));
+    expect(screen.getByRole("button", { name: "Transportes Norte" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Minera Sur" })).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("Empresa"), "miner");
+    expect(screen.queryByRole("button", { name: "Transportes Norte" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Minera Sur" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({ company: "Minera Sur" });
+  });
+
+  it("creates an organization that isn't in the list", async () => {
+    const user = userEvent.setup();
+    const onSave = renderWithOrganizations();
+    await startOutsideContact(user);
+    await user.type(screen.getByLabelText("Empresa"), "Logística Centro");
+    await user.click(screen.getByRole("button", { name: 'Crear empresa "Logística Centro"' }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({ company: "Logística Centro" });
+  });
+
+  it("clears the contact's organization", async () => {
+    const user = userEvent.setup();
+    const onSave = renderWithOrganizations({
+      id: "c1",
+      name: "Ana Soto",
+      phone: "",
+      role: "",
+      methods: [],
+      company: "Minera Sur",
+    });
+    await user.click(screen.getByRole("button", { name: "Quitar empresa" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave).company).toBeUndefined();
+  });
+
+  it("only asks an outside contact for it, and keeps a member's as it was", async () => {
+    const user = userEvent.setup();
+    const onSave = renderWithOrganizations({
+      id: "c1",
+      name: "Ana Soto",
+      phone: "",
+      role: "",
+      methods: [],
+      orgMemberId: "m1",
+      company: "Minera Sur",
+    });
+    expect(screen.queryByLabelText("Empresa")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
+    expect(saved(onSave)).toMatchObject({ company: "Minera Sur" });
+  });
+});

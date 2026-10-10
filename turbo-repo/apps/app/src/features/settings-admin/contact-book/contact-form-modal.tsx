@@ -36,6 +36,8 @@ import {
 interface ContactDraft {
   person: PersonDraft;
   badgeIds: string[];
+  /** The outside contact's organization (API `company`); "" for none. */
+  company: string;
   channels: ChannelValues;
 }
 
@@ -55,6 +57,7 @@ function draftFromContact(contact: BookContact | null): ContactDraft {
       rut: contact?.rut ?? "",
     },
     badgeIds: contact?.badgeIds ?? [],
+    company: contact?.company ?? "",
     channels: contact
       ? channelValuesFromContact(contact)
       : emptyChannelValues(),
@@ -118,8 +121,9 @@ function SectionCard({
 /**
  * Settings › Libreta de contactos create/edit form: a shaded body with three
  * cards — Persona (pick someone from the organization, or type an outside
- * person's name and RUT) and Agrupación (a badge manager) side by side, and
- * Contacto full width below (each channel activated by configuring it).
+ * person's name, RUT and organization) and Agrupación (a badge manager) side
+ * by side, and Contacto full width below (each channel activated by
+ * configuring it).
  * Only badges are written as they're managed; the contact itself isn't
  * stored until "Guardar", which also completes a provisional contact. The
  * form stays open when `onSave` rejects; the caller says why.
@@ -131,6 +135,7 @@ export default function ContactFormModal({
   onSave,
   onRenameTag,
   onDeleteTag,
+  organizations = [],
   dict,
 }: Readonly<{
   show: boolean;
@@ -141,6 +146,8 @@ export default function ContactFormModal({
    *  When the promise rejects, the badge change is undone here. */
   onRenameTag?: (from: string, to: string) => Promise<void>;
   onDeleteTag?: (name: string) => Promise<void>;
+  /** The organizations already used in the book, offered in Organización. */
+  organizations?: readonly string[];
   /** `pages.userSettings` dictionary. */
   dict: I18nRecord;
 }>) {
@@ -182,6 +189,9 @@ export default function ContactFormModal({
         orgMemberId: external ? undefined : person.orgMemberId,
         role: editing?.role ?? "",
         badgeIds,
+        company: external
+          ? draft.company.trim() || undefined
+          : editing?.company,
         provisional: false,
         ...storedChannels(draft.channels),
       });
@@ -254,6 +264,9 @@ export default function ContactFormModal({
               members={members}
               membersLoading={isLoading}
               rutInvalid={rutInvalid}
+              organization={draft.company}
+              onOrganizationChange={(company) => setDraft({ ...draft, company })}
+              organizations={organizations}
               d={d}
             />
           </SectionCard>

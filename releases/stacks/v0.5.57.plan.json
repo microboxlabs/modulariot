@@ -1,0 +1,779 @@
+{
+  "stack_version": "0.5.57",
+  "stack_tag": "miot-stack@v0.5.57",
+  "milestone": "MIOT-0.5.57",
+  "pull_requests": [
+    {
+      "number": 1605,
+      "title": "docs(dashboard): align server acceptance with agreed scope",
+      "source_issues": [
+        {
+          "number": 1606,
+          "title": "Align dashboard-server acceptance docs with agreed scope"
+        }
+      ]
+    },
+    {
+      "number": 1707,
+      "title": "Fixed zoom in geographic view",
+      "source_issues": [
+        {
+          "number": 1854,
+          "title": "Fix zoom in geographic view: map elements disappear when zooming in too far"
+        }
+      ]
+    },
+    {
+      "number": 1837,
+      "title": "[core][symptoms] Native organization roles; control tower permissions",
+      "source_issues": [
+        {
+          "number": 1838,
+          "title": "Native organization roles and control tower permissions"
+        }
+      ]
+    },
+    {
+      "number": 1839,
+      "title": "docs(dashboard): record the 0.6.0 / UI 0.1.0 release",
+      "source_issues": [
+        {
+          "number": 1840,
+          "title": "Record the dashboard packages 0.6.0 / dashboard UI 0.1.0 release in the changelog"
+        }
+      ]
+    },
+    {
+      "number": 1841,
+      "title": "docs(dashboard): product guide under Products › Dashboards",
+      "source_issues": [
+        {
+          "number": 1842,
+          "title": "Dashboard product guide under Products › Dashboards"
+        }
+      ]
+    },
+    {
+      "number": 1843,
+      "title": "[core][symptoms] Organization access (IAM) core",
+      "source_issues": [
+        {
+          "number": 1844,
+          "title": "Organization access (IAM) core: memberships, module roles and permissions in the modulith"
+        }
+      ]
+    },
+    {
+      "number": 1845,
+      "title": "feat(web): Dashboards product page",
+      "source_issues": [
+        {
+          "number": 1846,
+          "title": "feat(web): Dashboards product page"
+        }
+      ]
+    },
+    {
+      "number": 1847,
+      "title": "[core][app] IAM: team management, API keys and Alfresco bridge",
+      "source_issues": [
+        {
+          "number": 1848,
+          "title": "IAM: team management, API keys and Alfresco bridge"
+        }
+      ]
+    },
+    {
+      "number": 1849,
+      "title": "docs: reach Products from the home page and the sidebar",
+      "source_issues": [
+        {
+          "number": 1850,
+          "title": "Docs: make Products reachable from the home page and the sidebar"
+        }
+      ]
+    },
+    {
+      "number": 1852,
+      "title": "feat(dashboard-server): read organization and scope roles from groups",
+      "source_issues": [
+        {
+          "number": 1851,
+          "title": "Dashboard server: read organization and scope roles from the caller's groups"
+        }
+      ]
+    },
+    {
+      "number": 1855,
+      "title": "[core][integrations][app] Resend email channel; email team invitations",
+      "source_issues": [
+        {
+          "number": 1856,
+          "title": "Resend email channel for organizations and emailed team invitations"
+        }
+      ]
+    },
+    {
+      "number": 1857,
+      "title": "[app][core] Run without Alfresco; dev email header only in dev and test",
+      "source_issues": [
+        {
+          "number": 1853,
+          "title": "[core] X-Dev-User-Email is honoured outside dev mode"
+        }
+      ]
+    },
+    {
+      "number": 1858,
+      "title": "[app] Remove the new-feature announcement modal",
+      "source_issues": [
+        {
+          "number": 1859,
+          "title": "Remove the outdated new-feature announcement modal from the app"
+        }
+      ]
+    },
+    {
+      "number": 1860,
+      "title": "[app] Operator states and notifications answer empty without Alfresco",
+      "source_issues": [
+        {
+          "number": 1861,
+          "title": "[app] Operator states and notifications return 500 without Alfresco"
+        }
+      ]
+    },
+    {
+      "number": 1862,
+      "title": "[app] Create organizations from Settings › Platform",
+      "source_issues": [
+        {
+          "number": 1863,
+          "title": "Create organizations from Settings › Platform"
+        }
+      ]
+    },
+    {
+      "number": 1864,
+      "title": "[core][app] Settings › Organizations: platform owners see and create every organization",
+      "source_issues": [
+        {
+          "number": 1865,
+          "title": "Platform owners see every organization"
+        }
+      ]
+    },
+    {
+      "number": 1868,
+      "title": "fix(dashboard-ui): let widgets be dragged from their content in edit mode",
+      "source_issues": [
+        {
+          "number": 1869,
+          "title": "Dashboard widgets can't be dragged from their content in edit mode"
+        }
+      ]
+    },
+    {
+      "number": 1870,
+      "title": "[app] Invite members on their own page",
+      "source_issues": [
+        {
+          "number": 1871,
+          "title": "Invite team members from an inline panel in Settings › Team"
+        }
+      ]
+    },
+    {
+      "number": 1872,
+      "title": "chore(dashboard-ui): release 0.1.1",
+      "source_issues": [
+        {
+          "number": 1873,
+          "title": "Release miot-dashboard-ui 0.1.1"
+        }
+      ]
+    },
+    {
+      "number": 1874,
+      "title": "Platform email sender for invitations",
+      "source_issues": [
+        {
+          "number": 1875,
+          "title": "Platform email sender for invitations"
+        }
+      ]
+    },
+    {
+      "number": 1876,
+      "title": "[modulith][app] Editable invitation email templates (Handlebars)",
+      "source_issues": [
+        {
+          "number": 1877,
+          "title": "Editable invitation email templates (platform and organization, Handlebars)"
+        }
+      ]
+    },
+    {
+      "number": 1878,
+      "title": "[modulith][app] GPS access: Auth0 M2M application per organization, GPS page, API keys on the ingest",
+      "source_issues": [
+        {
+          "number": 1879,
+          "title": "GPS provider access: Auth0 M2M application per organization, GPS page and API keys on the ingest"
+        }
+      ]
+    },
+    {
+      "number": 1880,
+      "title": "[modulith] GPS: exchange an API key for its organization's Auth0 application token",
+      "source_issues": [
+        {
+          "number": 1881,
+          "title": "GPS: exchange a MIOT API key for its organization's Auth0 application token"
+        }
+      ]
+    },
+    {
+      "number": 1889,
+      "title": "Service accounts: the organization's application is the default token credential",
+      "source_issues": [
+        {
+          "number": 1890,
+          "title": "Service accounts: the organization's application is the default token credential"
+        }
+      ]
+    },
+    {
+      "number": 1893,
+      "title": "Based/enabling past call form",
+      "source_issues": [
+        {
+          "number": 1894,
+          "title": "Enable past call form"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/miot-search/SKILL.md",
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-core/docs/organization-access.md",
+    "quarkus-srv/miot-core/pom.xml",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/AccessCatalogResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/IamResponses.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/IamTokenResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/MeResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/MyInvitationsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgAccessResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgAdminResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgBindingsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgGpsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgMailTemplatesResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgMembersResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgModulesResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgServiceAccountsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgTeamResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgTeamsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/PlatformAuth0ClientsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/PlatformMailTemplatesResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/PlatformOrganizationsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/CreateRootOrganizationRequest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/DualJwtAuthMechanism.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationAccess.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationMembership.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationRequestFilter.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/TenantRequestFilter.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/WriteAuthorizer.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth0/Auth0Management.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth0/Auth0ManagementApi.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/gps/GpsAccessCatalog.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/gps/GpsTokenApi.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/gps/GpsTokenSource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/Access.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AccessCatalog.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AccessContext.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AccessEvaluator.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AccessRegistry.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AccessRules.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/AlfrescoBridge.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/ApiKeyService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/BaseRole.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/Caller.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/CoreAccessCatalog.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/IamAuthentication.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/IamDirectory.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/IamIdentityAugmentor.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/InvitationEmail.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/InvitationMail.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/ModuleDef.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/NoTokenIssuer.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/OrgPermission.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/PermissionDef.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/RoleDef.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/ServiceAccountTokenIssuer.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/TeamRules.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/TeamService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/TeamsService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/TokenExchange.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamApiKey.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamAuditEvent.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamInvitation.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamMembership.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamProjectionChange.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamRoleBinding.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamServiceAccount.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamTeam.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamTeamMember.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/iam/model/IamUser.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mail/Mail.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mail/MailDelivery.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mail/MailTemplateEngine.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mail/MailTemplates.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mail/MailText.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mail/NoOrganizationMailer.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mail/OrganizationMailer.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mcp/McpCaller.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/model/MailTemplate.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/model/Organization.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/model/OrganizationRoleAssignment.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/OrganizationPermissionService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/OrganizationRoleCatalog.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/OrganizationRoleDefinition.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/OrganizationRoleService.java",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.11__create_iam.sql",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.12__create_iam_invitations.sql",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.13__create_iam_teams_and_keys.sql",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.14__create_iam_projection_outbox.sql",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.15__iam_service_account_token_credential.sql",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.16__create_mail_template.sql",
+    "quarkus-srv/miot-core/src/main/resources/mail-templates/invitation.en.hbs",
+    "quarkus-srv/miot-core/src/main/resources/mail-templates/invitation.es.hbs",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceKnowledgeGateTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceLearningTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceTrainerFlagTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/OrganizationMembershipTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth/PlatformTestProfile.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth0/Auth0ManagementTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth0/FakeAuth0Api.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/auth0/FakeAuth0Management.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/gps/FakeGpsTokenApi.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/gps/FakeGpsTokenSource.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/gps/GpsAccessApiTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/gps/GpsProbeResource.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/gps/GpsTokenSourceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/AccessRegistryTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/AccessRulesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/AlfrescoBridgeTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/DevHeaderTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/FakeTokenIssuer.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/IamAccessTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/IamProbeResource.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/IamRoleBindingTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/InvitationEmailTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/MailTemplatesApiTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/TeamApiTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/TeamRulesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/iam/TeamsAndKeysTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/mail/FakeMailer.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/mail/MailTemplateEngineTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/mail/MailTemplatesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/mail/MailTextTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/mcp/SelectableToolsTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/OrganizationPermissionServiceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/OrganizationRoleDefinitionTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/OrganizationRoleServiceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/OrgSelectablesResourceTest.java",
+    "quarkus-srv/miot-integrations/docs/email-channel.md",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/PlatformMailResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/ProviderType.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/email/EmailMessage.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/email/PlatformMailService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/email/ResendClient.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/email/ResendEmailSender.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/email/ResendOrganizationMailer.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/email/SendResult.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/CredentialProfileService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/CredentialTokenIssuer.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/tester/ResendConnectionTester.java",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.26__add_resend_provider_type.sql",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/OrgHarnessLearningGateTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/OrgKnowledgeCandidatesResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/email/FakeResend.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/email/ResendClientTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/email/ResendOrganizationMailerTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/mcp/ConnectionToolsTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/mcp/StoryToolsTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/CredentialTokenIssuerTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/tester/ResendConnectionTesterTest.java",
+    "quarkus-srv/miot-symptoms/docs/control-tower-api.md",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/access/ControlTowerAccess.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/access/ControlTowerAccessCatalog.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/access/ControlTowerPermission.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/access/ControlTowerRoles.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/ControlTowerResourceSupport.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerAccessResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerAuditResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerContactsResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerSettingsResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerTreatmentsResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgDataSourcesResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgSymptomDefinitionsResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgSymptomFamiliesResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/catalog/mcp/SymptomTools.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/access/ControlTowerPermissionTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/access/ControlTowerPermissionsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerSettingsResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgSymptomDefinitionsResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/catalog/mcp/SymptomToolsTest.java",
+    "quarkus-srv/miot-tracking/src/main/java/com/microboxlabs/miot/tracking/api/AssetTrackingResource.java",
+    "quarkus-srv/pom.xml",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/public/credential-logos/resend-dark.svg",
+    "turbo-repo/apps/app/public/credential-logos/resend-light.svg",
+    "turbo-repo/apps/app/public/email/modulariot-logo.png",
+    "turbo-repo/apps/app/public/images/new_features/signal-historic.gif",
+    "turbo-repo/apps/app/public/images/new_features/signal-historica.gif",
+    "turbo-repo/apps/app/public/images/new_features/table-new-functionality.gif",
+    "turbo-repo/apps/app/public/logo.svg",
+    "turbo-repo/apps/app/public/logo2.svg",
+    "turbo-repo/apps/app/scripts/generate-logo.mjs",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/invite/[token]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/layout.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/symptoms/map-view/[id]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/gps/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/invitation-email/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/invite/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/members/[userId]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/service-accounts/[accountId]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/team/service-accounts/new/page.tsx",
+    "turbo-repo/apps/app/src/app/api/access/catalog/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/auth0-clients/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/mail-templates/[kind]/[lang]/preview/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/mail-templates/[kind]/[lang]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/mail-templates/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/mail-templates/template-path.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/mail/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/mail/test/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/[slug]/roles/[roleCode]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/orgs/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/route.ts",
+    "turbo-repo/apps/app/src/app/api/control-tower/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/control-tower/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/dashboard/configs/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/dashboard/configs/route.ts",
+    "turbo-repo/apps/app/src/app/api/gps/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/mail-templates/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/me/access/route.ts",
+    "turbo-repo/apps/app/src/app/api/me/invitations/[id]/accept/route.ts",
+    "turbo-repo/apps/app/src/app/api/me/invitations/accept/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/me/invitations/accept/route.ts",
+    "turbo-repo/apps/app/src/app/api/me/invitations/route.ts",
+    "turbo-repo/apps/app/src/app/api/notifications/route.ts",
+    "turbo-repo/apps/app/src/app/api/runtime-config/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/task/mytasks/count/route.ts",
+    "turbo-repo/apps/app/src/app/api/task/statistics/route.ts",
+    "turbo-repo/apps/app/src/app/api/team/[...path]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/team/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/user/[personId]/avatar/route.ts",
+    "turbo-repo/apps/app/src/app/api/user/filters/route.ts",
+    "turbo-repo/apps/app/src/app/api/user/groups/route.ts",
+    "turbo-repo/apps/app/src/app/api/user/site/route.ts",
+    "turbo-repo/apps/app/src/app/api/user/states/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/org-api-proxy.ts",
+    "turbo-repo/apps/app/src/auth.config.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/assignment/assignment-form.tsx",
+    "turbo-repo/apps/app/src/features/common/components/phone-input/phone-input.tsx",
+    "turbo-repo/apps/app/src/features/common/providers/alfresco-api/ecm-config.test.ts",
+    "turbo-repo/apps/app/src/features/common/providers/alfresco-api/ecm-config.ts",
+    "turbo-repo/apps/app/src/features/credentials/components/bearer-token-credential-modal.tsx",
+    "turbo-repo/apps/app/src/features/credentials/components/credentials-page-content.tsx",
+    "turbo-repo/apps/app/src/features/credentials/credential.types.ts",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.test.ts",
+    "turbo-repo/apps/app/src/features/credentials/credentials-data-service.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/geographic_map/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/fleet-management/components/vehicle-detail/last-signal-map-popover.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/connections-list.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-layout.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/org-switcher/use-org-scopes.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-search.tsx",
+    "turbo-repo/apps/app/src/features/layout/context/sidebar-navigation-context.tsx",
+    "turbo-repo/apps/app/src/features/layout/models/pages-config.json",
+    "turbo-repo/apps/app/src/features/layout/models/pages.test.ts",
+    "turbo-repo/apps/app/src/features/layout/models/pages.ts",
+    "turbo-repo/apps/app/src/features/map-visualization/box-zoom.test.ts",
+    "turbo-repo/apps/app/src/features/map-visualization/box-zoom.ts",
+    "turbo-repo/apps/app/src/features/map-visualization/map-view-utils.test.ts",
+    "turbo-repo/apps/app/src/features/map-visualization/map-view-utils.tsx",
+    "turbo-repo/apps/app/src/features/map-visualization/map-visualization.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/client-notification.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/general-slider.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/new-feature-notification.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/new-features.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/slider-components/fadeable.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/slider-components/kanban-slider.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/slider-components/sidebar-slider.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/slider-components/slider.tsx",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config-context.test.tsx",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config-context.tsx",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config.constants.ts",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/channels/channel-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/channels/channel-connections.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/channels/channel-connections.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/channels/channel-status-badge.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/channels/channel.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/channels/use-org-channel.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/components/contact-book-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/contact-book-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/org-detail-panel.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/organizations-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/platform-org-detail-panel.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/platform-org-list-panel.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-channels-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-form-modal.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-form-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-organization-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-person-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/contact-table.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/hover-tooltip.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/store.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/contact-book/store.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/data/settings-admin-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/email/email-channel-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/email/email-connection-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/email/email.types.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/email/email.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/gps/gps-integration-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/gps/gps-integration.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/gps/gps-integration.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/mail-templates/html-template-editor.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/mail-templates/invitation-email-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/mail-templates/mail-template-editor.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/mail-templates/mail-template-editor.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/mail-templates/mail-template-model.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/mail-templates/mail-template-model.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/mail-templates/use-mail-template.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/create-organization-flow.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/create-organization-flow.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/create-organization-form.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/create-organization-form.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/organizations-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-mail-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-platform-mail.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-platform-organizations.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/accept-invitation.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/invite-links.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/invite-members-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/member-access-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/module-access.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/module-role-selects.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/no-organization-gate.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/no-organization-gate.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/roles-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/secret-once.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/service-account-create-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/service-account-keys.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/service-account-page.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-api.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-form-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-invitations-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-invite-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-keys-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-members-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-members-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-model.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-model.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-roles-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team-teams-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/team/team.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/use-org-whatsapp.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp-channel-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp-connection-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp.types.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/whatsapp/whatsapp.types.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-general-map.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-side-info.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/maintainer-api.ts",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-catalog.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/maintainer/symptom-detail.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/gps-validation-modal/map.tsx",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/app/src/proxy.ts",
+    "turbo-repo/apps/docs/app/[lang]/(platform)/[[...mdxPath]]/page.jsx",
+    "turbo-repo/apps/docs/app/[lang]/(platform)/layout.tsx",
+    "turbo-repo/apps/docs/app/[lang]/docs-layout.tsx",
+    "turbo-repo/apps/docs/app/[lang]/layout.tsx",
+    "turbo-repo/apps/docs/app/[lang]/products/[[...mdxPath]]/page.jsx",
+    "turbo-repo/apps/docs/app/[lang]/products/layout.tsx",
+    "turbo-repo/apps/docs/content/en/_meta.ts",
+    "turbo-repo/apps/docs/content/en/index.mdx",
+    "turbo-repo/apps/docs/content/en/operations/_meta.ts",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/_meta.ts",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/api.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/configuration.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/datasources.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/identity.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/index.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/installation.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/migration.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/queries.mdx",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/roadmap.mdx",
+    "turbo-repo/apps/docs/content/en/products/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/concepts/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/concepts/access-model.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/concepts/architecture.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/concepts/documents-and-widgets.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/concepts/queries-and-connections.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/concepts/revisions-and-saving.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/deployment/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/deployment/docker.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/deployment/kubernetes.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/deployment/production-checklist.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/deployment/storage.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/deployment/upgrades.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/deployment/with-modulariot.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/getting-started/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/getting-started/choose-a-setup.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/getting-started/installation.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/getting-started/quickstart.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/add-filters.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/add-saved-queries.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/authenticate-users.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/connect-bigquery.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/connect-postgrest.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/import-export.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/migrate-planner-dashboards.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/render-with-react.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/share-and-permissions.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/store-credentials.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/how-to/use-web-component.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/index.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/configuration.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/contract.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/document-schema.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/helm-values.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/limits.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/rest-api.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/server-library.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/ui-library.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/reference/widgets.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/releases.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/troubleshooting.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/tutorials/_meta.ts",
+    "turbo-repo/apps/docs/content/en/products/dashboards/tutorials/embed-in-a-web-page.mdx",
+    "turbo-repo/apps/docs/content/en/products/dashboards/tutorials/first-dashboard.mdx",
+    "turbo-repo/apps/docs/content/en/products/index.mdx",
+    "turbo-repo/apps/docs/content/en/reference/changelog.mdx",
+    "turbo-repo/apps/docs/content/en/reference/sdks/_meta.ts",
+    "turbo-repo/apps/docs/content/en/reference/sdks/dashboard-configuration.mdx",
+    "turbo-repo/apps/docs/content/en/reference/sdks/index.mdx",
+    "turbo-repo/apps/docs/content/en/reference/sdks/miot-dashboard-contract.mdx",
+    "turbo-repo/apps/docs/content/en/reference/sdks/miot-dashboard-ui.mdx",
+    "turbo-repo/apps/docs/content/es/_meta.ts",
+    "turbo-repo/apps/docs/content/es/index.mdx",
+    "turbo-repo/apps/docs/content/es/operations/_meta.ts",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/_meta.ts",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/api.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/configuracion.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/fuentes-de-datos.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/identidad.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/index.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/instalacion.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/migracion.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/queries.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/roadmap.mdx",
+    "turbo-repo/apps/docs/content/es/products/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/dashboards/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/dashboards/concepts/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/dashboards/concepts/access-model.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/concepts/architecture.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/concepts/documents-and-widgets.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/concepts/queries-and-connections.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/concepts/revisions-and-saving.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/deployment/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/dashboards/deployment/docker.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/deployment/kubernetes.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/deployment/production-checklist.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/deployment/storage.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/deployment/upgrades.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/deployment/with-modulariot.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/getting-started/_meta.ts",
+    "turbo-repo/apps/docs/content/es/products/dashboards/how-to/authenticate-users.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/reference/configuration.mdx",
+    "turbo-repo/apps/docs/content/es/products/dashboards/releases.mdx",
+    "turbo-repo/apps/docs/content/es/reference/changelog.mdx",
+    "turbo-repo/apps/web/components/v2/DetailPage.tsx",
+    "turbo-repo/apps/web/components/v2/Nav.tsx",
+    "turbo-repo/apps/web/components/v2/detail-content.ts",
+    "turbo-repo/apps/web/components/v2/nav-data.ts",
+    "turbo-repo/apps/web/messages/br.json",
+    "turbo-repo/apps/web/messages/en.json",
+    "turbo-repo/apps/web/messages/es.json",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/package.json",
+    "turbo-repo/packages/miot-auth/src/logo.ts",
+    "turbo-repo/packages/miot-dashboard-contract/package.json",
+    "turbo-repo/packages/miot-dashboard-server/README.md",
+    "turbo-repo/packages/miot-dashboard-server/package.json",
+    "turbo-repo/packages/miot-dashboard-server/src/bin.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/group-roles.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/group-roles.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/auth.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/config.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/config.ts",
+    "turbo-repo/packages/miot-dashboard-ui/README.md",
+    "turbo-repo/packages/miot-dashboard-ui/package.json",
+    "turbo-repo/packages/miot-dashboard-ui/src/react/dashboard-grid.test.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/src/react/dashboard-grid.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/src/react/widget-renderer.test.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/src/react/widget-renderer.tsx",
+    "turbo-repo/packages/miot-dashboard-ui/styles.css"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.57",
+      "tag": "app@v0.5.57"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.56",
+      "version": "0.5.57",
+      "tag": "docs@v0.5.57"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.55",
+      "version": "0.5.57",
+      "tag": "web@v0.5.57"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.34",
+      "version": "0.5.35",
+      "tag": "modulith@v0.5.35"
+    },
+    "harness": {
+      "changed": true,
+      "changed_since": "harness@v0.1.11",
+      "version": "0.1.12",
+      "tag": "harness@v0.1.12"
+    }
+  }
+}

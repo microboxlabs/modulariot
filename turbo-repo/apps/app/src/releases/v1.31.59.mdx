@@ -1,0 +1,22 @@
+# 🔔 Release Notes v1.31.59 — ModularIoT
+
+### Fecha: 10/10/2026
+
+**Objetivo**: Esta versión vuelve a mostrar en la línea de tiempo de síntomas el comentario que registra el operador al gestionar una llamada.
+
+## 🐛 Correcciones
+
+- **🐛 Comentario de las llamadas en la línea de tiempo** *(Integración OSS — MIOT-0.5.60)*
+  - **Impacto**: Al abrir un "Tratamiento" de tipo llamada al conductor, la tarjeta aparecía vacía: no se veían el mensaje comunicado ni el comentario del operador.
+  - **Solución**: Cada tratamiento de llamada muestra el mensaje comunicado y, debajo, la respuesta o comentario registrado por el operador.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.60`
+- App: `app@v0.5.60` — con cambios.
+- Docs: `docs@v0.5.60` — con cambios.
+- Web: `web@v0.5.60` — con cambios.
+- Modulith: `modulith@v0.5.35` — sin cambios.
+- Harness: `harness@v0.1.12` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de release `stack-manifest.json`.

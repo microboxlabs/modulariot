@@ -7,6 +7,7 @@ import InitialIdentifier from "@/features/common/components/user-related/initial
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import type { OrgMember } from "../types";
+import ContactOrganizationSection from "./contact-organization-section";
 import { inputValidationColor } from "./input-validation";
 import { normalizeLabel } from "./taxonomy-store";
 
@@ -96,7 +97,7 @@ function OrgMemberList({
       </div>
       <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
         {emptyText && <p className="px-3 py-4 text-center text-xs text-gray-500 dark:text-gray-400">{emptyText}</p>}
-        <ul className="max-h-64 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-700">
+        <ul className="max-h-40 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-700">
           {shown.map((m) => (
             <MemberRow key={m.id} member={m} selected={selectedId === m.id} onPick={() => onPick(m)} />
           ))}
@@ -109,7 +110,7 @@ function OrgMemberList({
 /**
  * Persona card — by default, the active organization's people to pick from
  * (with a search). "O ingresa un contacto fuera de la organización" switches
- * to typing an outside person's full name and RUT.
+ * to typing an outside person's full name, RUT and organization.
  */
 export default function ContactPersonSection({
   value,
@@ -117,6 +118,9 @@ export default function ContactPersonSection({
   members,
   membersLoading,
   rutInvalid,
+  organization,
+  onOrganizationChange,
+  organizations,
   d,
 }: Readonly<{
   value: PersonDraft;
@@ -124,6 +128,11 @@ export default function ContactPersonSection({
   members: readonly OrgMember[];
   membersLoading: boolean;
   rutInvalid: boolean;
+  /** The outside contact's organization (API `company`); "" for none. */
+  organization: string;
+  onOrganizationChange: (next: string) => void;
+  /** The organizations already used in the book, offered to pick from. */
+  organizations: readonly string[];
   d: I18nRecord;
 }>) {
   if (value.source === "org") {
@@ -173,6 +182,15 @@ export default function ContactPersonSection({
           {tr("rutInvalid", d)}
         </p>
       )}
+      <div className="flex flex-col gap-1">
+        <span className={LABEL_CLASS}>{tr("companyLabel", d)}</span>
+        <ContactOrganizationSection
+          value={organization}
+          onChange={onOrganizationChange}
+          organizations={organizations}
+          d={d}
+        />
+      </div>
       <button
         type="button"
         onClick={() => onChange({ source: "org", name: "", rut: "" })}

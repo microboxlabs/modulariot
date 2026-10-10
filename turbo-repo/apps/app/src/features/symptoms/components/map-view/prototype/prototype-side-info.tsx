@@ -6,6 +6,7 @@ import BlurrableDropdown from "../blurrable-dropdown";
 import { useState } from "react";
 import type { SelectedOption } from "../../../types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import {
   useTreatmentsTemplates,
   useUserGroups,
@@ -18,6 +19,15 @@ import { ConditionsAgg } from "../../../types/timeline";
 import { GroupAllowed } from "../../../../common/components/group-allowed/group-allowed";
 import PrototypeInlineForm from "./prototype-inline-form";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
+import SymptomForm from "../../blurrable-stepped-menu/symptom-form";
+
+/** Menus the previous full-screen modal still implements. */
+const PAST_FORM_OPTIONS = new Set<SelectedOption>([
+  "call_driver",
+  "contact_via_whatsapp",
+  "ignore_condition",
+  "invalidate_symptom",
+]);
 
 /**
  * PROTOTYPE — inline variant of `features/symptoms/side-info.tsx`.
@@ -52,6 +62,7 @@ export default function PrototypeSideInfo({
   setSelectedOption: (option: SelectedOption) => void;
   onCallFlowStepChange?: (step: CallCenterReportedStep | null) => void;
 }>) {
+  const pastFormsEnabled = useRuntimeConfig()?.SYMPTOMS_PAST_FORMS === "true";
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const orderLabel =
     order === "asc"
@@ -76,12 +87,29 @@ export default function PrototypeSideInfo({
   }
 
   const formReady = !!treatments_templates && !loading;
+  const showPastModal =
+    pastFormsEnabled && PAST_FORM_OPTIONS.has(selectedOption);
 
   return (
     <div className="relative flex flex-col p-1 h-full overflow-hidden">
+      {/* Previous full-screen modal, mounted only while open: it keeps the
+          treatment it opened in state, and a reopen would set that saved
+          treatment back to pending. */}
+      {treatments_templates && !loading && showPastModal && isFormOpen && (
+        <SymptomForm
+          selectedOption={selectedOption}
+          dict={dict}
+          isMenuOpen={isFormOpen}
+          setIsMenuOpen={setIsFormOpen}
+          treatmentData={treatmentData}
+          treatments_templates={treatments_templates}
+          className={isFormOpen ? "animate-show" : "animate-hide"}
+        />
+      )}
+
       {/* Inline morphed form — replaces the timeline + action buttons in place.
           Fades in after the parent's width transition (~500ms) has mostly run. */}
-      {isFormOpen && formReady && (
+      {isFormOpen && formReady && !pastFormsEnabled && (
         <div
           className="absolute inset-0 z-20 animate-fade-in-opacity"
           style={{ animationDelay: "250ms", opacity: 0 }}
@@ -99,8 +127,9 @@ export default function PrototypeSideInfo({
         </div>
       )}
 
-      {/* Timeline view — hidden while the inline form is open */}
-      {!isFormOpen && (
+      {/* Timeline view — hidden while the inline form is open. The past
+          modal overlays the page, so the timeline stays put. */}
+      {(!isFormOpen || pastFormsEnabled) && (
         <>
           <div className="flex flex-col h-full overflow-y-auto pb-20 gap-1">
             <div className="border border-gray-300 dark:border-gray-700 flex flex-row items-center justify-between gap-2 rounded-md transition-all duration-200">

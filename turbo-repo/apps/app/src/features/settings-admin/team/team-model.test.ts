@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   activeKeyCount,
   basePermissions,
@@ -11,6 +11,10 @@ import {
   initials,
   invalidEmails,
   inviteLink,
+  inviteAll,
+  inviteBatches,
+  invitesAllowed,
+  MAX_INVITES_PER_REQUEST,
   inviteLinkOf,
   keyDisplay,
   keyState,
@@ -160,6 +164,131 @@ describe("emails", () => {
       "nope",
       "x@y",
     ]);
+  });
+
+  it("splits emails into requests the backend accepts", () => {
+    const emails = Array.from({ length: 25 }, (_, i) => `p${i}@ex.cl`);
+    expect(inviteBatches(emails).map((b) => b.length)).toEqual([
+      MAX_INVITES_PER_REQUEST,
+      5,
+    ]);
+    expect(inviteBatches([])).toEqual([]);
+  });
+
+  it("sends each batch once when every request succeeds", async () => {
+    const send = vi.fn(async (emails: string[]) => emails);
+    const emails = Array.from({ length: 25 }, (_, i) => `p${i}@ex.cl`);
+
+    const outcome = await inviteAll(emails, {
+      send,
+      pendingEmails: async () => new Set(),
+      isRefusal: () => true,
+      keepGoing: () => true,
+    });
+
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(outcome).toEqual({
+      created: emails,
+      failures: [],
+      alreadyPending: [],
+      unchecked: [],
+    });
+  });
+
+  it("after a refused batch, skips what it saved and retries the rest one by one", async () => {
+    const send = vi.fn(async (emails: string[]) => {
+      if (emails.length > 1) throw new Error("refused");
+      if (emails[0] === "member@ex.cl") throw new Error("already a member");
+      return emails;
+    });
+    const pending = [
+      new Set(["old@ex.cl"]),
+      new Set(["old@ex.cl", "saved@ex.cl"]),
+    ];
+
+    const outcome = await inviteAll(
+      ["saved@ex.cl", "member@ex.cl", "new@ex.cl", "old@ex.cl"],
+      {
+        send,
+        pendingEmails: async () => pending.shift() ?? new Set(),
+        isRefusal: () => true,
+        keepGoing: () => true,
+      }
+    );
+
+    // old@ex.cl was pending before this call, so it is sent again to update it.
+    expect(outcome).toEqual({
+      created: ["new@ex.cl", "old@ex.cl"],
+      failures: [{ email: "member@ex.cl", message: "already a member" }],
+      alreadyPending: ["saved@ex.cl"],
+      unchecked: [],
+    });
+  });
+
+  it("stops at a failure that is not a refusal and reports every unsent email", async () => {
+    const send = vi.fn(async (): Promise<string[]> => {
+      throw new Error("unavailable");
+    });
+
+    const outcome = await inviteAll(
+      Array.from({ length: 25 }, (_, i) => `p${i}@ex.cl`),
+      {
+        send,
+        pendingEmails: async () => new Set(),
+        isRefusal: () => false,
+        keepGoing: () => true,
+      }
+    );
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(outcome.failures).toHaveLength(25);
+    expect(outcome.failures[24]).toEqual({
+      email: "p24@ex.cl",
+      message: "unavailable",
+    });
+  });
+
+  it("does not retry when the pending invitations cannot be read", async () => {
+    const send = vi.fn(async (): Promise<string[]> => {
+      throw new Error("refused");
+    });
+
+    const outcome = await inviteAll(["a@ex.cl", "b@ex.cl"], {
+      send,
+      pendingEmails: async () => {
+        throw new Error("offline");
+      },
+      isRefusal: () => true,
+      keepGoing: () => true,
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(outcome.unchecked).toEqual(["a@ex.cl", "b@ex.cl"]);
+  });
+
+  it("stops before the next batch once told to", async () => {
+    const send = vi.fn(async (emails: string[]) => emails);
+    let calls = 0;
+
+    await inviteAll(
+      Array.from({ length: 45 }, (_, i) => `p${i}@ex.cl`),
+      {
+        send,
+        pendingEmails: async () => new Set(),
+        isRefusal: () => true,
+        keepGoing: () => calls++ < 1,
+      }
+    );
+
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows invites only into a native organization", () => {
+    const can = (p: string) => p === "members:invite";
+    expect(invitesAllowed(can, "NATIVE")).toBe(true);
+    expect(invitesAllowed(can, "ALFRESCO")).toBe(false);
+    expect(invitesAllowed(can, undefined)).toBe(false);
+    expect(invitesAllowed(() => false, "NATIVE")).toBe(false);
   });
 });
 

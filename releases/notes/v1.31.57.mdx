@@ -1,0 +1,22 @@
+# 🔔 Release Notes v1.31.57 — ModularIoT
+
+### Fecha: 10/10/2026
+
+**Objetivo**: Esta versión corrige el cierre de tratamientos en la vista de mapa de síntomas, para que la atención registrada por el operador quede guardada como finalizada.
+
+## 🐛 Correcciones
+
+- **🐛 Tratamientos que volvían a quedar pendientes** *(Integración OSS — MIOT-0.5.58)*
+  - **Impacto**: Al guardar una llamada desde el formulario de llamadas, la pantalla no regresaba al listado de síntomas. Si el operador volvía a abrir el formulario, el tratamiento ya guardado pasaba de nuevo a pendiente y el síntoma no se cerraba.
+  - **Solución**: Al guardar, el sistema vuelve al listado de síntomas, y cada apertura del formulario comienza sin datos de un tratamiento anterior. Recargar la página tampoco vuelve a abrir el formulario ni crea un tratamiento nuevo.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.58`
+- App: `app@v0.5.58` — con cambios.
+- Docs: `docs@v0.5.58` — con cambios.
+- Web: `web@v0.5.58` — con cambios.
+- Modulith: `modulith@v0.5.35` — sin cambios.
+- Harness: `harness@v0.1.12` — sin cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de release `stack-manifest.json`.

@@ -4,6 +4,7 @@ import {
   basePermissions,
   BASE_ROLES,
   catalogModules,
+  defaultTokenNeedsGpsRole,
   effectivePermissions,
   expiryDays,
   groupByModule,
@@ -375,6 +376,16 @@ describe("teams and API keys", () => {
     expect(activeKeyCount(account, now)).toBe(1);
     expect(lastKeyUse(account)).toBe("2026-05-20T00:00:00Z");
     expect(lastKeyUse({ keys: [key({})] } as ServiceAccount)).toBeNull();
+  });
+  it("warns only when the organization's application would refuse the account", () => {
+    const account = (roles: string[], tokenCredentialRef: string | null) =>
+      ({ roles, tokenCredentialRef }) as ServiceAccount;
+    expect(defaultTokenNeedsGpsRole(account([], null))).toBe(true);
+    expect(defaultTokenNeedsGpsRole(account(["GPS_VIEWER"], null))).toBe(true);
+    expect(defaultTokenNeedsGpsRole(account(["GPS_PUBLISHER"], null))).toBe(
+      false
+    );
+    expect(defaultTokenNeedsGpsRole(account([], "cred-1"))).toBe(false);
   });
 });
 

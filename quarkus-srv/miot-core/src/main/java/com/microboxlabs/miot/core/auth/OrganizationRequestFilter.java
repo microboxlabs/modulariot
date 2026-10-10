@@ -28,6 +28,7 @@ public class OrganizationRequestFilter {
     private final OrganizationAccess organizationAccess;
     private final List<String> clientIdClaims;
     private final String orgPathPrefix;
+    private final List<String> ownOrganizationPaths;
 
     @Inject
     public OrganizationRequestFilter(
@@ -35,28 +36,41 @@ public class OrganizationRequestFilter {
             SecurityIdentity securityIdentity,
             OrganizationAccess organizationAccess,
             @ConfigProperty(name = "miot.auth.client-id-claims", defaultValue = "aud,azp") List<String> clientIdClaims,
-            @ConfigProperty(name = "miot.auth.org-path-prefix", defaultValue = "/api/v1/orgs/") String orgPathPrefix) {
+            @ConfigProperty(name = "miot.auth.org-path-prefix", defaultValue = "/api/v1/orgs/") String orgPathPrefix,
+            @ConfigProperty(name = "miot.iam.api-key-own-organization-paths", defaultValue = "/api/v1/asset/track")
+            List<String> ownOrganizationPaths) {
         this.tenantContext = tenantContext;
         this.securityIdentity = securityIdentity;
         this.organizationAccess = organizationAccess;
         this.clientIdClaims = clientIdClaims;
         this.orgPathPrefix = orgPathPrefix;
+        this.ownOrganizationPaths = ownOrganizationPaths;
     }
 
     @ServerRequestFilter
     public Uni<Response> filter(ContainerRequestContext requestContext) {
         String path = requestContext.getUriInfo().getPath();
         String orgSlug = extractOrgSlug(path);
+        Caller serviceAccount = IamIdentityAugmentor.serviceAccountOf(securityIdentity);
 
-        if (orgSlug == null) {
+        Uni<OrganizationAccess.Refusal> entered;
+        if (orgSlug != null) {
+            entered = serviceAccount != null
+                    ? organizationAccess.enter(orgSlug, serviceAccount)
+                    : organizationAccess.enter(orgSlug, resolveEmail(requestContext), resolveM2mClientId());
+        } else if (serviceAccount != null && ownOrganizationPath(path)) {
+            // An API key acts in its own organization on the listed paths without one, such as the GPS ingest.
+            entered = organizationAccess.enterOwn(serviceAccount);
+        } else {
             return Uni.createFrom().nullItem();
         }
-
-        Caller serviceAccount = IamIdentityAugmentor.serviceAccountOf(securityIdentity);
-        Uni<OrganizationAccess.Refusal> entered = serviceAccount != null
-                ? organizationAccess.enter(orgSlug, serviceAccount)
-                : organizationAccess.enter(orgSlug, resolveEmail(requestContext), resolveM2mClientId());
         return entered.map(refusal -> refusal == null ? null : jsonResponse(refusal.status(), refusal.message()));
+    }
+
+    private boolean ownOrganizationPath(String path) {
+        return ownOrganizationPaths.stream()
+                .map(String::trim)
+                .anyMatch(p -> !p.isEmpty() && (path.equals(p) || path.startsWith(p + "/")));
     }
 
     private Response jsonResponse(Response.Status status, String error) {

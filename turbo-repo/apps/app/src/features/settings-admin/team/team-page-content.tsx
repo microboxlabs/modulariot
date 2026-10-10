@@ -5,7 +5,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Alert, Button, Spinner } from "flowbite-react";
-import { HiOutlineUserGroup, HiUserAdd } from "react-icons/hi";
+import {
+  HiOutlineTemplate,
+  HiOutlineUserGroup,
+  HiUserAdd,
+} from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
 import FormModal from "@/features/common/components/form-modal/form-modal";
@@ -84,6 +88,7 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
   const canInvite = invitesAllowed(can, team.data?.membershipSource);
   // Pending invitations can still be resent or revoked while members load.
   const canManageInvitations = can("members:invite") && !fromAlfresco;
+  const canEditInvitationEmail = can("org:update") && !fromAlfresco;
   const allowed = {
     canUpdate: can("members:update"),
     canRemove: can("members:remove") && nativeMembers,
@@ -166,17 +171,30 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
               </p>
             </div>
           </div>
-          {canInvite && (
-            <Button
-              as={Link}
-              href={`/${lang}/users/settings/team/invite`}
-              color="blue"
-              size="sm"
-            >
-              <HiUserAdd className="mr-1.5 h-4 w-4" />
-              {tr("invite", d)}
-            </Button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {canEditInvitationEmail && (
+              <Button
+                as={Link}
+                href={`/${lang}/users/settings/team/invitation-email`}
+                color="alternative"
+                size="sm"
+              >
+                <HiOutlineTemplate className="mr-1.5 h-4 w-4" />
+                {tr("invitationEmail", d)}
+              </Button>
+            )}
+            {canInvite && (
+              <Button
+                as={Link}
+                href={`/${lang}/users/settings/team/invite`}
+                color="blue"
+                size="sm"
+              >
+                <HiUserAdd className="mr-1.5 h-4 w-4" />
+                {tr("invite", d)}
+              </Button>
+            )}
+          </div>
         </div>
 
         <TabButtons<Tab>

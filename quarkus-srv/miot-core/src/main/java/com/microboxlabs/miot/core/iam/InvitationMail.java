@@ -3,22 +3,22 @@ package com.microboxlabs.miot.core.iam;
 import com.microboxlabs.miot.core.iam.TeamService.CreatedInvitation;
 import com.microboxlabs.miot.core.mail.Mail;
 import com.microboxlabs.miot.core.mail.MailDelivery;
+import com.microboxlabs.miot.core.mail.MailTemplates;
 import com.microboxlabs.miot.core.mail.OrganizationMailer;
 import com.microboxlabs.miot.core.model.Organization;
-import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
- * Emails an invitation link. Uses the organization's own mail connection, else the platform
- * organization's ({@code miot.mail.platform-organization}). Without {@code miot.app.public-url}
- * there is no link to send, so nothing is sent.
+ * Emails an invitation link through the {@link OrganizationMailer}, written with the organization's invitation
+ * template ({@link MailTemplates}). Without {@code miot.app.public-url} there is no link to send, so nothing is sent.
  */
 @ApplicationScoped
 public class InvitationMail {
@@ -26,27 +26,28 @@ public class InvitationMail {
     private static final Logger LOG = Logger.getLogger(InvitationMail.class);
 
     private final OrganizationMailer mailer;
+    private final MailTemplates templates;
     private final Optional<String> publicUrl;
-    private final Optional<String> platformOrganization;
 
     @Inject
-    public InvitationMail(OrganizationMailer mailer,
-            @ConfigProperty(name = "miot.app.public-url") Optional<String> publicUrl,
-            @ConfigProperty(name = "miot.mail.platform-organization") Optional<String> platformOrganization) {
+    public InvitationMail(OrganizationMailer mailer, MailTemplates templates,
+            @ConfigProperty(name = "miot.app.public-url") Optional<String> publicUrl) {
         this.mailer = mailer;
+        this.templates = templates;
         this.publicUrl = publicUrl.map(String::trim).filter(s -> !s.isEmpty());
-        this.platformOrganization = platformOrganization.map(String::trim).filter(s -> !s.isEmpty());
     }
 
     /** Emails each invitation in turn and returns them with their delivery. Call after the commit. */
     public Uni<List<CreatedInvitation>> deliverAll(Organization root, List<CreatedInvitation> created, String inviter,
             String lang) {
-        // Look the platform organization up first: a send may finish on a worker thread, where
-        // Hibernate Reactive cannot run.
-        return platform(root).flatMap(platform -> {
+        if (publicUrl.isEmpty()) {
+            return Uni.createFrom().item(created.stream().map(InvitationMail::notConfigured).toList());
+        }
+        String language = language(lang);
+        return templates.renderer(root.id, MailTemplates.INVITATION, language).flatMap(renderer -> {
             Uni<List<CreatedInvitation>> chain = Uni.createFrom().item(new ArrayList<>());
             for (CreatedInvitation invitation : created) {
-                chain = chain.flatMap(list -> deliver(root, platform, invitation, inviter, lang).map(sent -> {
+                chain = chain.flatMap(list -> deliver(root, invitation, inviter, language, renderer).map(sent -> {
                     list.add(sent);
                     return list;
                 }));
@@ -56,27 +57,35 @@ public class InvitationMail {
     }
 
     public Uni<CreatedInvitation> deliver(Organization root, CreatedInvitation created, String inviter, String lang) {
-        return platform(root).flatMap(platform -> deliver(root, platform, created, inviter, lang));
+        return deliverAll(root, List.of(created), inviter, lang).map(list -> list.get(0));
     }
 
-    private Uni<CreatedInvitation> deliver(Organization root, Organization platform, CreatedInvitation created,
-            String inviter, String lang) {
-        if (publicUrl.isEmpty()) {
-            return Uni.createFrom().item(created.withDelivery(
-                    MailDelivery.notConfigured("miot.app.public-url is not set")));
-        }
-        String language = "en".equals(lang) ? "en" : "es";
-        String link = link(publicUrl.get(), language, created.token());
-        Mail mail = InvitationEmail.of(language, created.invitation().email(), root.name, inviter, link,
-                created.invitation().expiresAt());
+    private Uni<CreatedInvitation> deliver(Organization root, CreatedInvitation created, String inviter,
+            String language, MailTemplates.Renderer renderer) {
+        String link = link(publicUrl.orElseThrow(), language, created.token());
+        String to = created.invitation().email();
+        Map<String, String> values =
+                InvitationEmail.values(language, to, root.name, inviter, link, created.invitation().expiresAt());
         // A resend makes a new token, so it gets a new key; a retry of the same send does not.
         String key = "invitation-" + created.invitation().id() + "-"
                 + TeamService.hash(created.token()).substring(0, 16);
-        return send(root, mail, key)
-                .flatMap(delivery -> delivery.isNotConfigured() && platform != null
-                        ? send(platform, mail, key)
-                        : Uni.createFrom().item(delivery))
-                .map(created::withDelivery);
+        Mail mail;
+        try {
+            var rendered = renderer.render(values);
+            mail = new Mail(to, rendered.subject(), rendered.text(), rendered.html());
+        } catch (RuntimeException e) {
+            LOG.warnf(e, "Writing an invitation email for organization %s failed", root.slug);
+            return Uni.createFrom().item(created.withDelivery(MailDelivery.failed("Could not write the email")));
+        }
+        return send(root, mail, key).map(created::withDelivery);
+    }
+
+    private static CreatedInvitation notConfigured(CreatedInvitation created) {
+        return created.withDelivery(MailDelivery.notConfigured("miot.app.public-url is not set"));
+    }
+
+    private static String language(String lang) {
+        return "en".equals(lang) ? "en" : "es";
     }
 
     /** The invitation is already saved, so a mailer failure becomes a FAILED delivery. */
@@ -85,20 +94,6 @@ public class InvitationMail {
                 .onFailure().recoverWithItem(e -> {
                     LOG.warnf(e, "Sending an invitation email for organization %s failed", organization.slug);
                     return MailDelivery.failed("Could not send the email");
-                });
-    }
-
-    /** The platform organization that sends when the organization cannot, or null. */
-    @SuppressWarnings("java:S3252") // Panache's static finder, called through the entity as elsewhere.
-    private Uni<Organization> platform(Organization root) {
-        if (platformOrganization.isEmpty() || platformOrganization.get().equals(root.slug)) {
-            return Uni.createFrom().nullItem();
-        }
-        return Panache.withSession(() -> Organization.<Organization>find("slug", platformOrganization.get())
-                        .firstResult())
-                .onFailure().recoverWithItem(e -> {
-                    LOG.warnf(e, "Could not load the platform organization %s", platformOrganization.get());
-                    return null;
                 });
     }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   EMPTY_ORGANIZATION_DRAFT,
+  slugFromClientName,
   toOrganizationRequest,
 } from "./create-organization-form";
 
@@ -42,7 +43,9 @@ describe("toOrganizationRequest", () => {
       ok: false,
       error: "name",
     });
-    expect(toOrganizationRequest({ ...valid, tenantClientId: "" })).toEqual({
+    expect(
+      toOrganizationRequest({ ...valid, tenantClientId: "x".repeat(256) })
+    ).toEqual({
       ok: false,
       error: "tenantClientId",
     });
@@ -66,5 +69,28 @@ describe("toOrganizationRequest", () => {
       ok: false,
       error: "tenantClientId",
     });
+  });
+});
+
+describe("an organization without a client id", () => {
+  it("leaves the client id out, so the platform creates the application", () => {
+    const result = toOrganizationRequest({ ...valid, tenantClientId: "  " });
+    expect(result.ok && result.value.organization).toEqual({
+      slug: "acme-fleet",
+      name: "Acme Fleet",
+      membershipSource: "NATIVE",
+    });
+  });
+});
+
+describe("slugFromClientName", () => {
+  it.each([
+    ["corp:acme-gps", "acme-gps"],
+    ["corp:Acme Tracker", "acme-tracker"],
+    ["Señal_GPS", "senal-gps"],
+    ["corp:ab", ""],
+    [null, ""],
+  ])("turns %j into %j", (name, slug) => {
+    expect(slugFromClientName(name)).toBe(slug);
   });
 });

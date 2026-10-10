@@ -17,6 +17,12 @@ import {
 } from "./branding/domains/[domain]/route";
 import { GET as listOrgs, POST as createOrg } from "./orgs/route";
 import {
+  DELETE as deleteMail,
+  GET as getMail,
+  PUT as putMail,
+} from "./mail/route";
+import { POST as testMail } from "./mail/test/route";
+import {
   GET as getOrgRole,
   PUT as putOrgRole,
 } from "./orgs/[slug]/roles/[roleCode]/route";
@@ -149,6 +155,51 @@ describe("platform organizations proxy", () => {
 
     expect(created.status).toBe(400);
     expect(replaced.status).toBe(400);
+    expect(forwardToQuarkus).not.toHaveBeenCalled();
+  });
+});
+
+describe("platform mail proxy", () => {
+  it("forwards the sender read, save, removal and test", async () => {
+    const body = { from: "Team <no-reply@example.test>", apiKey: "" };
+
+    await getMail();
+    await putMail(jsonRequest(body));
+    await deleteMail();
+    await testMail();
+
+    expect(forwardToQuarkus).toHaveBeenNthCalledWith(
+      1,
+      "/api/v1/platform/mail",
+    );
+    expect(forwardToQuarkus).toHaveBeenNthCalledWith(
+      2,
+      "/api/v1/platform/mail",
+      {
+        method: "PUT",
+        body,
+      },
+    );
+    expect(forwardToQuarkus).toHaveBeenNthCalledWith(
+      3,
+      "/api/v1/platform/mail",
+      {
+        method: "DELETE",
+      },
+    );
+    expect(forwardToQuarkus).toHaveBeenNthCalledWith(
+      4,
+      "/api/v1/platform/mail/test",
+      { method: "POST" },
+    );
+  });
+
+  it("answers 400 to an unparseable body rather than forwarding it", async () => {
+    const response = await putMail(
+      new Request("http://localhost", { method: "PUT", body: "not json" }),
+    );
+
+    expect(response.status).toBe(400);
     expect(forwardToQuarkus).not.toHaveBeenCalled();
   });
 });

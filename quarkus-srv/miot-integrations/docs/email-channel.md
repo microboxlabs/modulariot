@@ -42,6 +42,17 @@ The test checks the sender, then calls `GET /domains` with the key. It sends no 
 |---|---|
 | `SENT` | Resend accepted the email. It does not prove the email reached the inbox. |
 | `FAILED` | Resend refused it, or could not be reached. The reason comes back in `detail`. |
-| `NOT_CONFIGURED` | The organization has no active `RESEND` connection. |
+| `NOT_CONFIGURED` | Neither the organization nor the platform has a `RESEND` connection. |
 
-Invitations fall back to the platform organization's connection; see `miot-core/docs/organization-access.md`.
+## Platform sender
+
+Organizations without their own connection send through the platform sender. A platform owner sets it in Settings › Platform, or through the API:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/platform/mail` | The sender, its key preview and last test |
+| `PUT /api/v1/platform/mail` | `{"from", "apiKey"}`. The key is required the first time; blank keeps it |
+| `POST /api/v1/platform/mail/test` | Check the key with Resend |
+| `DELETE /api/v1/platform/mail` | Remove the sender and its key |
+
+It is stored as a `RESEND` connection under the reserved tenant code `_platform`.

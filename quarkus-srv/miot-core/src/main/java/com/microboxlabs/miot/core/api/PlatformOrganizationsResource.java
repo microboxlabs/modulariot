@@ -10,6 +10,7 @@ import com.microboxlabs.miot.core.api.dto.OrganizationDto;
 import com.microboxlabs.miot.core.api.dto.OrganizationRoleDto;
 import com.microboxlabs.miot.core.api.dto.SetOrganizationRoleRequest;
 import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
+import com.microboxlabs.miot.core.auth0.Auth0Management;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.core.tax.ActiveTaxIdValidator;
@@ -75,31 +76,76 @@ public class PlatformOrganizationsResource {
     private final TaxIdValidator taxIdValidator;
     private final AlfrescoBridge bridge;
     private final AccessEvaluator access;
+    private final Auth0Management auth0;
 
     @Inject
     public PlatformOrganizationsResource(PlatformAuthorizer authorizer, OrganizationRoleService roles,
-            @ActiveTaxIdValidator TaxIdValidator taxIdValidator, AlfrescoBridge bridge, AccessEvaluator access) {
+            @ActiveTaxIdValidator TaxIdValidator taxIdValidator, AlfrescoBridge bridge, AccessEvaluator access,
+            Auth0Management auth0) {
         this.authorizer = authorizer;
         this.roles = roles;
         this.taxIdValidator = taxIdValidator;
         this.bridge = bridge;
         this.access = access;
+        this.auth0 = auth0;
     }
 
+    /**
+     * Without {@code tenantClientId}, creates the organization's Auth0 M2M application and uses its client id. The
+     * application is deleted again if the organization cannot be saved. 409 when the slug, or the client id, is
+     * already used by a top-level organization; 502 when Auth0 refuses.
+     */
     @POST
     @Operation(summary = "Create a top-level organization")
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     public Uni<Response> create(CreateRootOrganizationRequest body) {
         return authorizer.requirePlatformOwner()
                 .map(ignored -> newOrganization(body))
-                .flatMap(organization -> Panache.withTransaction(() -> Organization.findBySlug(organization.slug)
-                        .flatMap(existing -> existing != null
-                                ? Uni.createFrom().failure(new WebApplicationException(
-                                        "Slug already in use: " + organization.slug, Response.Status.CONFLICT))
-                                : organization.<Organization>persistAndFlush())))
+                .flatMap(organization -> Panache.withSession(() -> requireUnused(organization))
+                        .flatMap(ignored -> organization.tenantClientId != null
+                                ? save(organization)
+                                : provisionAndSave(organization)))
                 .map(created -> Response.status(Response.Status.CREATED)
                         .entity(OrganizationDto.from(created))
                         .build());
+    }
+
+    private Uni<Organization> provisionAndSave(Organization organization) {
+        if (!auth0.configured() || auth0.audience().isEmpty()) {
+            return Uni.createFrom().failure(new BadRequestException(
+                    "tenantClientId is required: Auth0 management or the GPS audience is not configured"));
+        }
+        return auth0.createM2mClient(organization.slug, organization.name)
+                .onFailure().transform(e -> new WebApplicationException(e.getMessage(), e,
+                        Response.Status.BAD_GATEWAY))
+                .flatMap(client -> {
+                    organization.tenantClientId = client.clientId();
+                    return save(organization).onFailure().call(e -> auth0.deleteClient(client.clientId())
+                            .onFailure().recoverWithNull());
+                });
+    }
+
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private static Uni<Organization> save(Organization organization) {
+        return Panache.withTransaction(() -> requireUnused(organization)
+                .flatMap(ignored -> organization.<Organization>persistAndFlush()));
+    }
+
+    private static Uni<Void> requireUnused(Organization organization) {
+        return Organization.findBySlug(organization.slug).flatMap(existing -> {
+            if (existing != null) {
+                return conflict("Slug already in use: " + organization.slug);
+            }
+            if (organization.tenantClientId == null) {
+                return Uni.createFrom().voidItem();
+            }
+            return Organization.findTopLevelByClientId(organization.tenantClientId).flatMap(owner -> owner == null
+                    ? Uni.createFrom().voidItem()
+                    : conflict("Client id already used by organization: " + owner.slug));
+        });
+    }
+
+    private static Uni<Void> conflict(String message) {
+        return Uni.createFrom().failure(new WebApplicationException(message, Response.Status.CONFLICT));
     }
 
     @GET
@@ -199,14 +245,18 @@ public class PlatformOrganizationsResource {
         if (isBlank(body.name())) {
             throw new BadRequestException("name is required");
         }
-        if (isBlank(body.tenantClientId())) {
-            throw new BadRequestException("tenantClientId is required");
+        // Tenant codes starting with "_" are reserved for the platform (e.g. its email sender).
+        if (!isBlank(body.tenantClientId()) && auth0.isManagementClient(body.tenantClientId().trim())) {
+            throw new BadRequestException("tenantClientId may not be the platform's Auth0 management application");
+        }
+        if (!isBlank(body.tenantClientId()) && body.tenantClientId().trim().startsWith("_")) {
+            throw new BadRequestException("tenantClientId may not start with _");
         }
         Organization organization = new Organization();
         organization.slug = body.slug().trim();
         organization.name = body.name().trim();
         organization.displayName = isBlank(body.displayName()) ? organization.name : body.displayName().trim();
-        organization.tenantClientId = body.tenantClientId().trim();
+        organization.tenantClientId = isBlank(body.tenantClientId()) ? null : body.tenantClientId().trim();
         organization.alfrescoGroupId = isBlank(body.alfrescoGroupId()) ? null : body.alfrescoGroupId().trim();
         organization.taxId = isBlank(body.taxId()) ? null : normalizeTaxId(body.taxId());
         organization.membershipSource = membershipSource(body);

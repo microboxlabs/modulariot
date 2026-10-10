@@ -80,6 +80,11 @@ class IamAccessTest {
                 .body("{\"slug\":\"" + NATIVE_ORG + "\",\"name\":\"Native\",\"tenantClientId\":\"iam-native-client\"}")
                 .when().post("/api/v1/platform/orgs")
                 .then().statusCode(201);
+        // Tenant codes starting with "_" belong to the platform.
+        given().header("Authorization", bearer(PLATFORM_OWNER)).contentType("application/json")
+                .body("{\"slug\":\"iam-reserved\",\"name\":\"Reserved\",\"tenantClientId\":\"_platform\"}")
+                .when().post("/api/v1/platform/orgs")
+                .then().statusCode(400);
         assertEquals("NATIVE",
                 scalar("SELECT membership_source FROM miot_core.organizations WHERE slug = '" + NATIVE_ORG + "'"));
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { Button, Label, TextInput } from "flowbite-react";
+import { Button, Label, Select, TextInput } from "flowbite-react";
 import { HiOutlineOfficeBuilding } from "react-icons/hi";
 import { toast } from "sonner";
 import { mutate } from "swr";
@@ -9,6 +9,7 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
   EMPTY_ORGANIZATION_DRAFT,
+  slugFromClientName,
   toOrganizationRequest,
   type OrganizationDraft,
   type OrganizationDraftError,
@@ -22,9 +23,12 @@ import {
   setOrganizationOwners,
 } from "./platform-data-service";
 import {
+  AUTH0_CLIENTS_KEY,
   PLATFORM_ORGANIZATIONS_KEY,
   organizationOwnersKey,
+  useUnlinkedAuth0Clients,
 } from "./use-platform-organizations";
+import type { Auth0Client } from "./platform.types";
 
 interface OrganizationsSectionProps {
   readonly dict: I18nRecord;
@@ -48,6 +52,20 @@ const CALLS = {
   setOwners: setOrganizationOwners,
 };
 
+/** The draft with an existing application's client id, and a name and slug taken from it where empty. */
+function withClient(
+  draft: OrganizationDraft,
+  client: Auth0Client | undefined
+): OrganizationDraft {
+  if (!client) return { ...draft, tenantClientId: "" };
+  return {
+    ...draft,
+    tenantClientId: client.clientId,
+    name: draft.name || (client.name?.split(":").pop() ?? ""),
+    slug: draft.slug || slugFromClientName(client.name),
+  };
+}
+
 function withDetail(message: string, detail: string | null): string {
   return detail ? `${message} (${detail})` : message;
 }
@@ -57,7 +75,9 @@ function reportFailure(
   dict: I18nRecord
 ): void {
   if (outcome.kind === "slugTaken") {
-    toast.error(trDynamic("errors.slugTaken", dict));
+    toast.error(
+      withDetail(trDynamic("errors.slugTaken", dict), outcome.detail)
+    );
   } else if (outcome.kind === "ownerFailed") {
     toast.error(withDetail(tr("ownerError", dict), outcome.detail));
   } else {
@@ -81,6 +101,13 @@ export default function OrganizationsSection({
   const [isSaving, setIsSaving] = useState(false);
   // Slug of an organization created by an earlier attempt whose owner failed.
   const [ownerPendingFor, setOwnerPendingFor] = useState<string | null>(null);
+  const unlinked = useUnlinkedAuth0Clients();
+
+  const pickClient = (clientId: string) => {
+    const client = unlinked.find((c) => c.clientId === clientId);
+    setDraft((current) => withClient(current, client));
+    setProblem(null);
+  };
 
   const changeField = (field: Field, value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -105,6 +132,7 @@ export default function OrganizationsSection({
     setIsSaving(false);
     if (outcome.kind === "created" || outcome.kind === "ownerFailed") {
       void mutate(PLATFORM_ORGANIZATIONS_KEY);
+      void mutate(AUTH0_CLIENTS_KEY);
     }
     if (outcome.kind === "created") {
       toast.success(tr("created", dict, { slug: organization.slug }));
@@ -131,6 +159,33 @@ export default function OrganizationsSection({
       </p>
 
       <form onSubmit={(event) => void submit(event)}>
+        {unlinked.length > 0 && (
+          <div className="mt-4">
+            <Label htmlFor="platform-org-application">
+              {tr("application", dict)}
+            </Label>
+            <Select
+              id="platform-org-application"
+              value={
+                unlinked.some((c) => c.clientId === draft.tenantClientId)
+                  ? draft.tenantClientId
+                  : ""
+              }
+              disabled={ownerPendingFor !== null}
+              onChange={(e) => pickClient(e.target.value)}
+            >
+              <option value="">{tr("applicationNew", dict)}</option>
+              {unlinked.map((client) => (
+                <option key={client.clientId} value={client.clientId}>
+                  {client.name ?? client.clientId} ({client.clientId})
+                </option>
+              ))}
+            </Select>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {tr("applicationHint", dict)}
+            </p>
+          </div>
+        )}
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
           {FIELDS.map(({ field, id }) => (
             <div key={field}>

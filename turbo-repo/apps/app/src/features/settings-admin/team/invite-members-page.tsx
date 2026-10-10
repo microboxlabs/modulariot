@@ -13,8 +13,10 @@ import {
   Textarea,
 } from "flowbite-react";
 import { HiUserAdd } from "react-icons/hi";
+import { useUnsavedNavigation } from "@/features/common/hooks/use-unsaved-navigation";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { ApiError } from "../data/json-client";
 import { InviteLinks, type InviteLink } from "./invite-links";
 import {
   CARD,
@@ -48,6 +50,13 @@ import type { AccessCatalog, BaseRole } from "./team.types";
 
 const EXPIRY_DAYS = [7, 30, 90];
 
+/** The backend refused one of the request's emails; sent alone, the others can succeed. */
+function isRefusal(error: unknown): boolean {
+  return (
+    error instanceof ApiError && (error.status === 400 || error.status === 409)
+  );
+}
+
 interface InviteMembersPageProps {
   readonly dict: I18nRecord;
   readonly lang: string;
@@ -63,16 +72,18 @@ export default function InviteMembersPage({
   lang,
 }: InviteMembersPageProps) {
   const d = dict?.team as I18nRecord;
-  const { access, can } = useMyAccess();
+  const { access, accessError, can } = useMyAccess();
   const team = useTeam();
   const { data: catalog, error } = useAccessCatalog();
   const teamPath = `/${lang}/users/settings/team`;
   const [links, setLinks] = useState<InviteLink[] | null>(null);
+  const [savedWithoutLink, setSavedWithoutLink] = useState<string[]>([]);
   const [formKey, setFormKey] = useState(0);
 
   const fromAlfresco = team.data?.membershipSource === "ALFRESCO";
   const allowed = invitesAllowed(can, team.data?.membershipSource);
-  const loading = (!catalog && !error) || team.isLoading || !access;
+  const loading =
+    (!catalog && !error) || team.isLoading || (!access && !accessError);
 
   return (
     <DetailShell
@@ -82,10 +93,10 @@ export default function InviteMembersPage({
       backLabel={tr("backToTeam", d)}
     >
       {loading && <Spinner className="mx-auto" />}
-      {(error || team.error) && (
+      {(error || team.error || accessError) && (
         <Alert color="gray">{tr("loadFailed", d)}</Alert>
       )}
-      {!loading && team.data && !allowed && (
+      {!loading && team.data && access && !allowed && (
         <Alert color="gray">
           {fromAlfresco ? tr("alfrescoNote", d) : tr("inviteNotAllowed", d)}
         </Alert>
@@ -98,8 +109,9 @@ export default function InviteMembersPage({
           teamPath={teamPath}
           lang={lang}
           d={d}
-          onSent={(sent) => {
+          onSent={(sent, saved) => {
             setLinks(sent);
+            setSavedWithoutLink(saved);
             void mutate(invitationsKey);
           }}
         />
@@ -111,6 +123,13 @@ export default function InviteMembersPage({
           <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
             {tr("linksTitle", d)}
           </h1>
+          {savedWithoutLink.length > 0 && (
+            <Alert color="gray">
+              {tr("emailsAlreadyPending", d, {
+                emails: savedWithoutLink.join(", "),
+              })}
+            </Alert>
+          )}
           <InviteLinks links={links} d={d} />
           <div className="flex justify-end gap-2">
             <Button
@@ -118,6 +137,7 @@ export default function InviteMembersPage({
               size="sm"
               onClick={() => {
                 setLinks(null);
+                setSavedWithoutLink([]);
                 setFormKey(formKey + 1);
               }}
             >
@@ -144,10 +164,11 @@ interface InviteFormProps {
   readonly teamPath: string;
   readonly lang: string;
   readonly d: I18nRecord;
-  readonly onSent: (links: InviteLink[]) => void;
+  /** The links created, and the emails saved whose links were not returned. */
+  readonly onSent: (links: InviteLink[], savedWithoutLink: string[]) => void;
 }
 
-/** What went wrong, one line per refused email and one for those already invited. */
+/** What went wrong, one line per refused email and one for those saved without a link. */
 function outcomeError(
   outcome: InviteOutcome<InviteLink>,
   d: I18nRecord
@@ -158,7 +179,7 @@ function outcomeError(
       tr("emailsUnchecked", d, { emails: outcome.unchecked.join(", ") })
     );
   }
-  if (outcome.alreadyPending.length > 0) {
+  if (lines.length > 0 && outcome.alreadyPending.length > 0) {
     lines.push(
       tr("emailsAlreadyPending", d, {
         emails: outcome.alreadyPending.join(", "),
@@ -183,6 +204,7 @@ function InviteForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<InviteLink[]>([]);
+  useUnsavedNavigation(busy, tr("inviteSendingLeave", d));
   // Leaving the page stops the remaining batches.
   const mounted = useRef(true);
   useEffect(() => {
@@ -199,10 +221,6 @@ function InviteForm({
   const fullAccess = base === "OWNER" || base === "ADMIN";
 
   const submit = async () => {
-    if (emails.length === 0) {
-      setError(tr("emailsMissing", d));
-      return;
-    }
     if (invalid.length > 0) {
       setError(tr("emailsInvalid", d, { emails: invalid.join(", ") }));
       return;
@@ -221,6 +239,7 @@ function InviteForm({
           })
         ).map((c) => inviteLinkOf(c, window.location.origin, lang)),
       pendingEmails: pendingInvitationEmails,
+      isRefusal,
       keepGoing: () => mounted.current,
     });
     if (!mounted.current) return;
@@ -228,7 +247,7 @@ function InviteForm({
     const links = [...sent, ...outcome.created];
     const problem = outcomeError(outcome, d);
     if (problem === null) {
-      onSent(links);
+      onSent(links, outcome.alreadyPending);
       return;
     }
     // Only the refused emails stay, so a retry does not invite anyone twice.

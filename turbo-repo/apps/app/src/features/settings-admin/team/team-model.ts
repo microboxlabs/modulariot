@@ -132,7 +132,7 @@ export interface InviteFailure {
 export interface InviteOutcome<T> {
   created: T[];
   failures: InviteFailure[];
-  /** Emails that already had a pending invitation after a failed request. */
+  /** Emails a failed request saved: pending afterwards, not before. Their links were not returned. */
   alreadyPending: string[];
   /** Emails of a failed request whose pending invitations could not be checked. */
   unchecked: string[];
@@ -143,6 +143,8 @@ interface InviteAllOptions<T> {
   send: (emails: string[]) => Promise<T[]>;
   /** The emails with a pending invitation now. */
   pendingEmails: () => Promise<Set<string>>;
+  /** Whether a failed request refused one of its emails, so the others can be sent alone. */
+  isRefusal: (error: unknown) => boolean;
   /** False stops before the next request. */
   keepGoing: () => boolean;
 }
@@ -153,9 +155,10 @@ function messageOf(error: unknown): string {
 
 /**
  * Sends the emails in batches. When a batch fails, the backend may have saved
- * it before failing, so emails that now have a pending invitation are left
- * out; the rest are sent one by one, so one refused email does not block the
- * others.
+ * it before failing: emails pending now but not before this call are left
+ * out. When the request was refused, the rest are sent one by one, so one
+ * refused email does not block the others. Any other failure stops, and the
+ * unsent emails are reported as failed.
  */
 export async function inviteAll<T>(
   emails: readonly string[],
@@ -167,53 +170,69 @@ export async function inviteAll<T>(
     alreadyPending: [],
     unchecked: [],
   };
-  await inSequence(inviteBatches(emails), async (batch) => {
-    if (!options.keepGoing()) return;
+  // Read first, so an invitation pending before this call is not taken for one it saved.
+  const before = await options.pendingEmails().catch(() => null);
+  const batches = inviteBatches(emails);
+  for (const [index, batch] of batches.entries()) {
+    if (!options.keepGoing()) break;
     try {
       outcome.created.push(...(await options.send(batch)));
-    } catch {
-      await retryOneByOne(batch, options, outcome);
+      continue;
+    } catch (e) {
+      const unsaved = await notSaved(batch, before, options, outcome);
+      if (options.isRefusal(e)) {
+        await retryOneByOne(unsaved, options, outcome);
+        continue;
+      }
+      const message = messageOf(e);
+      for (const email of [...unsaved, ...batches.slice(index + 1).flat()]) {
+        outcome.failures.push({ email, message });
+      }
+      break;
     }
-  });
+  }
   return outcome;
 }
 
-/** Runs the step for each item, one after another. */
-function inSequence<I>(
-  items: readonly I[],
-  step: (item: I) => Promise<void>
-): Promise<void> {
-  return items.reduce<Promise<void>>(
-    (previous, item) => previous.then(() => step(item)),
-    Promise.resolve()
-  );
+/**
+ * The batch's emails the failed request did not save. Without both lists the
+ * whole batch is reported unchecked, because a retry could invite someone twice.
+ */
+async function notSaved<T>(
+  batch: string[],
+  before: Set<string> | null,
+  { pendingEmails }: InviteAllOptions<T>,
+  outcome: InviteOutcome<T>
+): Promise<string[]> {
+  const now = before && (await pendingEmails().catch(() => null));
+  if (!before || !now) {
+    outcome.unchecked.push(...batch);
+    return [];
+  }
+  const unsaved: string[] = [];
+  for (const email of batch) {
+    if (now.has(email) && !before.has(email)) {
+      outcome.alreadyPending.push(email);
+    } else {
+      unsaved.push(email);
+    }
+  }
+  return unsaved;
 }
 
 async function retryOneByOne<T>(
-  batch: string[],
-  { send, pendingEmails, keepGoing }: InviteAllOptions<T>,
+  emails: string[],
+  { send, keepGoing }: InviteAllOptions<T>,
   outcome: InviteOutcome<T>
 ) {
-  let pending: Set<string>;
-  try {
-    pending = await pendingEmails();
-  } catch {
-    // Without the list, a retry could invite someone twice.
-    outcome.unchecked.push(...batch);
-    return;
-  }
-  await inSequence(batch, async (email) => {
+  for (const email of emails) {
     if (!keepGoing()) return;
-    if (pending.has(email)) {
-      outcome.alreadyPending.push(email);
-      return;
-    }
     try {
       outcome.created.push(...(await send([email])));
     } catch (e) {
       outcome.failures.push({ email, message: messageOf(e) });
     }
-  });
+  }
 }
 
 /** Whether the caller may invite people into this organization. */

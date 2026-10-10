@@ -182,6 +182,7 @@ describe("emails", () => {
     const outcome = await inviteAll(emails, {
       send,
       pendingEmails: async () => new Set(),
+      isRefusal: () => true,
       keepGoing: () => true,
     });
 
@@ -194,33 +195,62 @@ describe("emails", () => {
     });
   });
 
-  it("after a failed batch, skips saved emails and retries the rest one by one", async () => {
+  it("after a refused batch, skips what it saved and retries the rest one by one", async () => {
     const send = vi.fn(async (emails: string[]) => {
-      if (emails.length > 1) throw new Error("timeout");
+      if (emails.length > 1) throw new Error("refused");
       if (emails[0] === "member@ex.cl") throw new Error("already a member");
       return emails;
     });
+    const pending = [
+      new Set(["old@ex.cl"]),
+      new Set(["old@ex.cl", "saved@ex.cl"]),
+    ];
 
     const outcome = await inviteAll(
-      ["saved@ex.cl", "member@ex.cl", "new@ex.cl"],
+      ["saved@ex.cl", "member@ex.cl", "new@ex.cl", "old@ex.cl"],
       {
         send,
-        pendingEmails: async () => new Set(["saved@ex.cl"]),
+        pendingEmails: async () => pending.shift() ?? new Set(),
+        isRefusal: () => true,
         keepGoing: () => true,
       }
     );
 
+    // old@ex.cl was pending before this call, so it is sent again to update it.
     expect(outcome).toEqual({
-      created: ["new@ex.cl"],
+      created: ["new@ex.cl", "old@ex.cl"],
       failures: [{ email: "member@ex.cl", message: "already a member" }],
       alreadyPending: ["saved@ex.cl"],
       unchecked: [],
     });
   });
 
+  it("stops at a failure that is not a refusal and reports every unsent email", async () => {
+    const send = vi.fn(async (): Promise<string[]> => {
+      throw new Error("unavailable");
+    });
+
+    const outcome = await inviteAll(
+      Array.from({ length: 25 }, (_, i) => `p${i}@ex.cl`),
+      {
+        send,
+        pendingEmails: async () => new Set(),
+        isRefusal: () => false,
+        keepGoing: () => true,
+      }
+    );
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(outcome.failures).toHaveLength(25);
+    expect(outcome.failures[24]).toEqual({
+      email: "p24@ex.cl",
+      message: "unavailable",
+    });
+  });
+
   it("does not retry when the pending invitations cannot be read", async () => {
     const send = vi.fn(async (): Promise<string[]> => {
-      throw new Error("timeout");
+      throw new Error("refused");
     });
 
     const outcome = await inviteAll(["a@ex.cl", "b@ex.cl"], {
@@ -228,6 +258,7 @@ describe("emails", () => {
       pendingEmails: async () => {
         throw new Error("offline");
       },
+      isRefusal: () => true,
       keepGoing: () => true,
     });
 
@@ -244,6 +275,7 @@ describe("emails", () => {
       {
         send,
         pendingEmails: async () => new Set(),
+        isRefusal: () => true,
         keepGoing: () => calls++ < 1,
       }
     );

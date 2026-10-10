@@ -85,8 +85,11 @@ export default function PrototypeGeneralMap({
   // lands back on the right menu — only "which menu is open", not the finer
   // steps inside it (e.g. mid-dial), which is what the leave-page warning is
   // for: those are expected to be lost on an actual reload.
+  // The past forms stay out of the URL: opening one records a treatment, so a
+  // reload must not reopen it, and their save navigates to the symptom list,
+  // which a replace here would undo.
   const [isFormOpen, setIsFormOpen] = useState(
-    () => searchParams.get("open") === "1"
+    () => !pastFormsEnabled && searchParams.get("open") === "1"
   );
   const [selectedOption, setSelectedOption] = useState<SelectedOption>(() => {
     const fromUrl = searchParams.get("menu");
@@ -96,6 +99,7 @@ export default function PrototypeGeneralMap({
     useState<CallCenterReportedStep | null>(null);
 
   useEffect(() => {
+    if (pastFormsEnabled) return;
     const params = new URLSearchParams(searchParams.toString());
     if (isFormOpen) {
       params.set("open", "1");

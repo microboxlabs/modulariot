@@ -12,6 +12,8 @@ type PinPosition = {
 };
 
 export class PinLayer extends CompositeLayer<any> {
+  static readonly layerName = "PinLayer";
+
   renderLayers(): Layer[] {
     const getIconSize = (count: number) => {
       const baseSize = Math.min(70, count) / 70 + 1;

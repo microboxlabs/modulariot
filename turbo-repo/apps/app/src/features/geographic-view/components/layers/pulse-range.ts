@@ -42,6 +42,8 @@ export function buildPulseKey(d: PulseData): string {
 }
 
 export class PulsePinLayer extends CompositeLayer<any> {
+  static readonly layerName = "PulseRangePinLayer";
+
   renderLayers(): Layer[] {
     const displayRange = this.props.displayRange;
     const showStops = this.props.showStops || false;

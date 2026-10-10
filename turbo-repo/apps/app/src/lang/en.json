@@ -5320,6 +5320,13 @@
     "accumulated_time": "Driving time",
     "show_stops": "Show stops",
     "hide_stops": "Hide stops",
+    "pulse_from": "Pulse from",
+    "mobile_app": "Mobile App",
+    "signal_detail": "Signal detail",
+    "signal_detail_app": "App GPS",
+    "gps": "GPS",
+    "signal_description": "Signal description",
+    "stopped_pulse": "Stopped",
     "image_prefix": "image",
     "processing": "Processing...",
     "download_failed": "Download failed — opening in a new tab",
@@ -5971,7 +5978,8 @@
     "longitude": "Longitude",
     "back_to_summary": "Back to summary",
     "view_on_maps": "View on Google Maps",
-    "distance": "Distance"
+    "distance": "Distance",
+    "signal_description": "Signal description"
   },
   "calendar": {
     "landing": {

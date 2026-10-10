@@ -45,6 +45,8 @@ import {
   estimateEtaHours,
   formatEtaHours,
 } from "../utils/vehicle-origin";
+import { countPulseSources, isDarkMapStyle } from "../utils/pulse-source";
+import { PulseSourceLegend } from "./pulse-source-indicator";
 
 // This is defined so i can then try to add a "visualization selector" if the user wants the satelital view or not
 const mapboxStyles = {
@@ -109,10 +111,30 @@ const INITIAL_VIEW_STATE: ViewStateType = {
   height: 100,
 };
 
+const SELECTION_CARD_INSET = 8;
+
+function applySelectionCardPosition(
+  info: {
+    x?: number;
+    y?: number;
+    viewport?: { width: number; height: number } | null;
+  },
+  pinToBottomRight: boolean
+) {
+  if (pinToBottomRight) {
+    info.x = SELECTION_CARD_INSET;
+    info.y = SELECTION_CARD_INSET;
+    return;
+  }
+  if (info.viewport) {
+    info.x = info.viewport.width / 2;
+    info.y = info.viewport.height / 2;
+  }
+}
+
 // The map is tilted, so below this zoom the scroll wheel can pull the camera
 // to the map's edge or to latitude 0, far from the trip.
 const TRIP_MAP_MIN_ZOOM = 2;
-
 /* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
   tripId: string;
@@ -128,6 +150,7 @@ type MapVisualizationProps = {
   setSelectedTreatmentIndex?: (treatmentIndex: ConditionsAgg | null) => void;
   minimized?: boolean;
   licensePlate?: string | null;
+  showAppSignalDetailDefault?: boolean;
 };
 
 type GeometryFeature = {
@@ -152,9 +175,12 @@ export default function MapVisualizationTrip({
   setSelectedTreatmentIndex,
   minimized = false,
   licensePlate,
+  showAppSignalDetailDefault = false,
 }: MapVisualizationProps) {
+  const pinSelectionCardToCorner = !minimized;
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
+  const isDarkMap = isDarkMapStyle(mapStyle);
   const [hoverInfo, setHoverInfo] =
     useState<PickingInfo<PulseProps | PulseListType>>();
   const { geofence_data } = useGeofences(tripId);
@@ -191,6 +217,9 @@ export default function MapVisualizationTrip({
   const [showStops, setShowStops] = useState(true);
   const [showGeofences, setShowGeofences] = useState(true);
   const [showPulse, setShowPulse] = useState(true);
+  const [showAppSignalDetail, setShowAppSignalDetail] = useState(
+    showAppSignalDetailDefault
+  );
 
   // Follow mode: while the camera toggle is on, keep the vehicle centered
   // whenever its displayed position changes, without changing the zoom.
@@ -242,6 +271,8 @@ export default function MapVisualizationTrip({
               longitude: item.longitude,
               speed: item.speed,
               timestamp: item.timestamp,
+              signal_description: item.signal_description,
+              signal_detail: item.signal_detail,
             },
           };
         }) || [],
@@ -272,16 +303,22 @@ export default function MapVisualizationTrip({
     setSelectedPulse(Array.from(matchingIndices));
 
     if (matchingIndices.size > 0) {
+      const matchingPositions = positions.filter((_position, index) =>
+        matchingIndices.has(index)
+      );
+      const sourceCounts = countPulseSources(matchingPositions);
       setHoverInfo({
-        x: 10,
-        y: 10,
+        x: pinSelectionCardToCorner ? SELECTION_CARD_INSET : 10,
+        y: pinSelectionCardToCorner ? SELECTION_CARD_INSET : 10,
         object: {
           elements: Array.from(matchingIndices),
           description: filteredLocationData?.description,
+          appCount: sourceCounts.app,
+          gpsCount: sourceCounts.gps,
         },
       } as PickingInfo<PulseListType>);
     }
-  }, [filteredLocationData, positions]);
+  }, [filteredLocationData, positions, pinSelectionCardToCorner]);
 
   // Memoize the geofence processing
   const processedGeofence = React.useMemo(() => {
@@ -382,10 +419,7 @@ export default function MapVisualizationTrip({
           rotation,
           pickable: true,
           onClick: (info: PickingInfo<PulseProps>) => {
-            if (info.viewport) {
-              info.x = info.viewport.width / 2;
-              info.y = info.viewport.height / 2;
-            }
+            applySelectionCardPosition(info, pinSelectionCardToCorner);
 
             setHoverInfo(info);
             setSelectedPulse(
@@ -404,11 +438,15 @@ export default function MapVisualizationTrip({
           selectedPulse,
           displayPosition,
           showStops,
+          showAppSignalDetail,
+          isDarkMap,
           updateTriggers: {
             data: positions,
             selectedPulse,
             showStops,
+            showAppSignalDetail,
             displayPosition,
+            isDarkMap,
           },
         })
       );
@@ -444,10 +482,7 @@ export default function MapVisualizationTrip({
         new PinLayer({
           data: positions ? [positions[displayPosition]] : [],
           onClick: (info: PickingInfo<any>) => {
-            if (info.viewport) {
-              info.x = info.viewport.width / 2;
-              info.y = info.viewport.height / 2;
-            }
+            applySelectionCardPosition(info, pinSelectionCardToCorner);
 
             // Create a properly typed formatted info object
             const formattedInfo: PickingInfo<PulseType> = {
@@ -461,6 +496,8 @@ export default function MapVisualizationTrip({
                   longitude: info.object?.longitude,
                   speed: info.object?.speed,
                   timestamp: info.object?.timestamp,
+                  signal_description: info.object?.signal_description,
+                  signal_detail: info.object?.signal_detail,
                 },
               },
             };
@@ -495,6 +532,9 @@ export default function MapVisualizationTrip({
     showStops,
     showGeofences,
     showPulse,
+    showAppSignalDetail,
+    isDarkMap,
+    pinSelectionCardToCorner,
   ]);
 
   return (
@@ -536,6 +576,10 @@ export default function MapVisualizationTrip({
             showPulse,
             setShowPulse,
           }}
+          show_app_signal_detail={{
+            showAppSignalDetail,
+            setShowAppSignalDetail,
+          }}
           timelineComponent={
             <PulseRange
               positions={positions ?? []}
@@ -561,11 +605,21 @@ export default function MapVisualizationTrip({
         onZoomChange={() => {}}
         minZoom={TRIP_MAP_MIN_ZOOM}
       />
+      {positions && positions.length > 0 && (
+        <div className="absolute right-2 top-2 z-[600]">
+          <PulseSourceLegend
+            dict={dict}
+            showStops={showStops}
+            isDarkMap={isDarkMap}
+          />
+        </div>
+      )}
       {hoverInfo && (
         <MapTooltip
           start_right={true}
-          left={hoverInfo.x}
-          top={hoverInfo.y}
+          start_bottom={pinSelectionCardToCorner}
+          left={pinSelectionCardToCorner ? SELECTION_CARD_INSET : hoverInfo.x}
+          top={pinSelectionCardToCorner ? SELECTION_CARD_INSET : hoverInfo.y}
           setHoverInfo={setHoverInfo}
           onExitAction={() => {
             setSelectedPulse([]);

@@ -3,9 +3,16 @@ import ConditionIcon from "@/features/symptoms/components/condition-icon";
 import { pin_conditions } from "@/features/geographic-view/types/pin_conditions";
 import { DescriptionProps } from "@/app/api/treatments/location/route.type";
 import { FormattedDate } from "@/features/common/components/formatted-date";
+import PulseSourceIndicator from "../pulse-source-indicator";
+import {
+  getSignalDescription,
+  hasAppSignalDetail,
+} from "../../utils/pulse-source";
 export type PulseListType = {
   elements: number[];
   description: DescriptionProps;
+  appCount: number;
+  gpsCount: number;
 };
 
 export type PulseType = {
@@ -17,6 +24,8 @@ export type PulseType = {
     longitude: number;
     speed: number;
     timestamp: string;
+    signal_description?: string | null;
+    signal_detail?: "app" | "gps" | "unknown" | null;
   };
 };
 
@@ -224,6 +233,11 @@ export default function PulseTooltip({
             {object.elements.length}
           </span>
         </div>
+        <PulseSourceIndicator
+          appCount={object.appCount}
+          gpsCount={object.gpsCount}
+          dict={dict}
+        />
       </div>
     );
   }
@@ -303,6 +317,17 @@ export default function PulseTooltip({
           {(dict.geographic_view as I18nRecord).longitude as string}:{" "}
           <span className="font-light">{object?.properties.longitude}</span>
         </div>
+        <div className="text-sm text-gray-600 dark:text-gray-300">
+          {(dict.geographic_view as I18nRecord).signal_description as string}:{" "}
+          <span className="font-light">
+            {getSignalDescription(object.properties) || "—"}
+          </span>
+        </div>
+        <PulseSourceIndicator
+          appCount={hasAppSignalDetail(object.properties) ? 1 : 0}
+          gpsCount={0}
+          dict={dict}
+        />
         <hr className="my-2 border-gray-200 dark:border-gray-700" />
       </div>
     );

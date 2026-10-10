@@ -5320,6 +5320,13 @@
     "accumulated_time": "Tiempo de conducción",
     "show_stops": "Mostrar paradas",
     "hide_stops": "Ocultar paradas",
+    "pulse_from": "Pulso desde",
+    "mobile_app": "Aplicación móvil",
+    "signal_detail": "Detalle de señal",
+    "signal_detail_app": "GPS app",
+    "gps": "GPS",
+    "signal_description": "Descripción de señal",
+    "stopped_pulse": "Detenido",
     "image_prefix": "imagen",
     "processing": "Procesando...",
     "download_failed": "Descarga fallida — abriendo en nueva pestaña",
@@ -5971,7 +5978,8 @@
     "longitude": "Longitud",
     "back_to_summary": "Volver al resumen",
     "view_on_maps": "Ver en Google Maps",
-    "distance": "Distancia"
+    "distance": "Distancia",
+    "signal_description": "Descripción de señal"
   },
   "calendar": {
     "landing": {

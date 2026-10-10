@@ -15,22 +15,8 @@ export class PulsePinLayer extends BasePulsePinLayer {
     // For pulse.ts, we filter by speed > 0
     return (
       this.props.data?.features?.filter(
-        (d: any) =>
-          d.properties?.speed > 0 &&
-          this.isValidCoordinate(d.geometry?.coordinates)
+        (d: any) => d.properties?.speed > 0 && this.isRenderableFeature(d)
       ) || []
-    );
-  }
-
-  private isValidCoordinate(coords: any): boolean {
-    return (
-      coords &&
-      Array.isArray(coords) &&
-      coords.length >= 2 &&
-      typeof coords[0] === "number" &&
-      typeof coords[1] === "number" &&
-      !isNaN(coords[0]) &&
-      !isNaN(coords[1])
     );
   }
 }

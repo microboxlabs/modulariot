@@ -8,6 +8,7 @@ import MapSelector from "./map-selector";
 import { mapstyles } from "../map-style-selector";
 import PulseRange from "./pulse-range";
 import { BsSignStop } from "react-icons/bs";
+import { HiDevicePhoneMobile } from "react-icons/hi2";
 import Screenshot from "./screenshot";
 import { Tooltip } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -42,6 +43,10 @@ type ToolBarProps = {
     showPulse: boolean;
     setShowPulse: (showPulse: boolean) => void;
   };
+  show_app_signal_detail?: {
+    showAppSignalDetail: boolean;
+    setShowAppSignalDetail: (showAppSignalDetail: boolean) => void;
+  };
   allow_screenshot?: boolean;
   dictionary: I18nRecord;
   defaultOpenTimeline?: boolean;
@@ -56,6 +61,7 @@ export default function ToolBar({
   show_stops,
   show_geofences,
   show_pulse,
+  show_app_signal_detail,
   allow_screenshot = true,
   dictionary,
   defaultOpenTimeline,
@@ -80,15 +86,53 @@ export default function ToolBar({
     }
   }, [selectedTool]);
 
-  const style_bg = mapstyles.find((style) => style.value === selectedStyle)
-    ?.isDark
-    ? "bg-white"
-    : "bg-gray-800";
+  const isDarkMap = Boolean(
+    mapstyles.find((style) => style.value === selectedStyle)?.isDark
+  );
+  const style_bg = isDarkMap ? "bg-white" : "bg-gray-800";
+  const style_theme = isDarkMap ? "light" : "dark";
+  const inactiveToggleClass = isDarkMap ? "text-gray-500" : "text-gray-300";
+  const toggleButtonClass =
+    "border-2 border-gray-400 aspect-square h-8 w-8 hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center p-0";
 
-  const style_theme = mapstyles.find((style) => style.value === selectedStyle)
-    ?.isDark
-    ? "light"
-    : "dark";
+  function toggleStateClass(isActive: boolean): string {
+    return isActive ? "bg-blue-500 text-white" : inactiveToggleClass;
+  }
+
+  function handleToggleMapSelection() {
+    setSelectedTool(selectedTool === "mapSelection" ? null : "mapSelection");
+  }
+
+  function handleToggleTimeline() {
+    setSelectedTool(selectedTool === "timeline" ? null : "timeline");
+  }
+
+  function handleTogglePulse() {
+    if (!show_pulse) return;
+    show_pulse.setShowPulse(!show_pulse.showPulse);
+  }
+
+  function handleToggleAppSignalDetail() {
+    if (!show_app_signal_detail) return;
+    show_app_signal_detail.setShowAppSignalDetail(
+      !show_app_signal_detail.showAppSignalDetail
+    );
+  }
+
+  function handleToggleStops() {
+    if (!show_stops) return;
+    show_stops.setShowStops(!show_stops.showStops);
+  }
+
+  function handleToggleGeofences() {
+    if (!show_geofences) return;
+    show_geofences.setShowGeofences(!show_geofences.showGeofences);
+  }
+
+  function handleToggleCamera() {
+    if (!camera_movement) return;
+    camera_movement.setCameraMovement(!camera_movement.camera_movement);
+  }
 
   return (
     <div className="w-full h-full flex flex-col justify-end items-start gap-2 pointer-events-none p-5">
@@ -139,7 +183,7 @@ export default function ToolBar({
           }
         />
         <div
-          className={`flex flex-row gap-3 text-sm text-gray-500 transition-all duration-300 overflow-hidden rounded-md ${!open ? "max-w-0 p-0" : "max-w-96 p-1"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}
+          className={`flex flex-row gap-3 text-sm text-gray-500 transition-all duration-300 overflow-hidden rounded-md ${!open ? "max-w-0 p-0" : "max-w-[28rem] p-1"} ${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "bg-white" : "bg-gray-800"}`}
         >
           {selected_style && (
             <div className="flex flex-row gap-1">
@@ -147,52 +191,84 @@ export default function ToolBar({
                 content={tr("symptoms.mapSelection", dictionary)}
                 style={style_theme}
               >
-                <div
-                  className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "mapSelection" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-                  onClick={() => {
-                    setSelectedTool(
-                      selectedTool === "mapSelection" ? null : "mapSelection"
-                    );
-                  }}
+                <button
+                  type="button"
+                  className={twMerge(
+                    toggleButtonClass,
+                    "rounded-md",
+                    toggleStateClass(selectedTool === "mapSelection")
+                  )}
+                  onClick={handleToggleMapSelection}
+                  aria-pressed={selectedTool === "mapSelection"}
                 >
                   <FaMap size={20} />
-                </div>
+                </button>
               </Tooltip>
               {timelineComponent && (
                 <Tooltip
                   content={tr("symptoms.timeline", dictionary)}
                   style={style_theme}
                 >
-                  <div
-                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${selectedTool === "timeline" ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-                    onClick={() =>
-                      setSelectedTool(
-                        selectedTool === "timeline" ? null : "timeline"
-                      )
-                    }
+                  <button
+                    type="button"
+                    className={twMerge(
+                      toggleButtonClass,
+                      "rounded-md",
+                      toggleStateClass(selectedTool === "timeline")
+                    )}
+                    onClick={handleToggleTimeline}
+                    aria-pressed={selectedTool === "timeline"}
                   >
                     <MdOutlineTimeline size={20} />
-                  </div>
+                  </button>
                 </Tooltip>
               )}
             </div>
           )}
           {/* Map toggles */}
-          {(show_pulse || show_stops || show_geofences) && (
+          {(show_pulse ||
+            show_app_signal_detail ||
+            show_stops ||
+            show_geofences) && (
             <div className="flex flex-row gap-1">
               {show_pulse && (
                 <Tooltip
                   content={tr("symptoms.pulse", dictionary)}
                   style={style_theme}
                 >
-                  <div
-                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${show_pulse.showPulse ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-                    onClick={() =>
-                      show_pulse.setShowPulse(!show_pulse.showPulse)
-                    }
+                  <button
+                    type="button"
+                    className={twMerge(
+                      toggleButtonClass,
+                      "rounded-lg",
+                      toggleStateClass(show_pulse.showPulse)
+                    )}
+                    onClick={handleTogglePulse}
+                    aria-pressed={show_pulse.showPulse}
                   >
                     <div className="w-5 h-5 bg-blue-500 border-2 border-white rounded-full"></div>
-                  </div>
+                  </button>
+                </Tooltip>
+              )}
+              {show_app_signal_detail && (
+                <Tooltip
+                  content={tr("geographic_view.signal_detail_app", dictionary)}
+                  style={style_theme}
+                >
+                  <button
+                    type="button"
+                    className={twMerge(
+                      toggleButtonClass,
+                      "rounded-lg",
+                      toggleStateClass(
+                        show_app_signal_detail.showAppSignalDetail
+                      )
+                    )}
+                    onClick={handleToggleAppSignalDetail}
+                    aria-pressed={show_app_signal_detail.showAppSignalDetail}
+                  >
+                    <HiDevicePhoneMobile size={18} />
+                  </button>
                 </Tooltip>
               )}
               {show_stops && (
@@ -200,14 +276,18 @@ export default function ToolBar({
                   content={tr("symptoms.stops", dictionary)}
                   style={style_theme}
                 >
-                  <div
-                    className={`flex justify-center items-center border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto ${show_stops.showStops ? "bg-blue-500 text-white" : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-                    onClick={() =>
-                      show_stops.setShowStops(!show_stops.showStops)
-                    }
+                  <button
+                    type="button"
+                    className={twMerge(
+                      toggleButtonClass,
+                      "rounded-lg",
+                      toggleStateClass(show_stops.showStops)
+                    )}
+                    onClick={handleToggleStops}
+                    aria-pressed={show_stops.showStops}
                   >
                     <BsSignStop size={20} />
-                  </div>
+                  </button>
                 </Tooltip>
               )}
 
@@ -216,16 +296,18 @@ export default function ToolBar({
                   content={tr("symptoms.geofences", dictionary)}
                   style={style_theme}
                 >
-                  <div
-                    className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-lg hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${show_geofences.showGeofences ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-                    onClick={() =>
-                      show_geofences.setShowGeofences(
-                        !show_geofences.showGeofences
-                      )
-                    }
+                  <button
+                    type="button"
+                    className={twMerge(
+                      toggleButtonClass,
+                      "rounded-lg",
+                      toggleStateClass(show_geofences.showGeofences)
+                    )}
+                    onClick={handleToggleGeofences}
+                    aria-pressed={show_geofences.showGeofences}
                   >
                     <FaMapPin size={20} />
-                  </div>
+                  </button>
                 </Tooltip>
               )}
             </div>
@@ -239,20 +321,22 @@ export default function ToolBar({
                 content={tr("symptoms.cameraMovement", dictionary)}
                 style={style_theme}
               >
-                <div
-                  className={`border-2 border-gray-400 aspect-square h-8 w-8 rounded-md hover:border-blue-500 cursor-pointer pointer-events-auto flex items-center justify-center ${camera_movement.camera_movement ? "bg-blue-500 text-white " : `${mapstyles.find((style) => style.value === selectedStyle)?.isDark ? "text-gray-500" : "text-gray-300"}`} `}
-                  onClick={() => {
-                    camera_movement.setCameraMovement(
-                      !camera_movement.camera_movement
-                    );
-                  }}
+                <button
+                  type="button"
+                  className={twMerge(
+                    toggleButtonClass,
+                    "rounded-md",
+                    toggleStateClass(camera_movement.camera_movement)
+                  )}
+                  onClick={handleToggleCamera}
+                  aria-pressed={camera_movement.camera_movement}
                 >
                   {camera_movement.camera_movement ? (
                     <MdGpsFixed size={20} />
                   ) : (
                     <MdGpsNotFixed size={20} />
                   )}
-                </div>
+                </button>
               </Tooltip>
             </div>
           )}

@@ -34,17 +34,78 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
-        <quarkus.platform.version>3.33.3.1</quarkus.platform.version>
+        <quarkus.platform.version>3.33.4</quarkus.platform.version>
         <!-- Keep on the release built against quarkus.platform.version. -->
         <quarkus-mcp-server.version>2.0.1</quarkus-mcp-server.version>
         <json-schema-validator.version>1.5.9</json-schema-validator.version>
         <handlebars.version>4.5.5</handlebars.version>
+        <!-- Security fixes not yet managed by the Quarkus 3.33 platform. -->
+        <aircompressor.version>2.0.3</aircompressor.version>
+        <!-- Pulsar 3.3 calls the int timeout setters removed in AHC 3.x. -->
+        <async-http-client.version>2.16.1</async-http-client.version>
+        <bookkeeper.version>4.17.4</bookkeeper.version>
+        <opentelemetry.version>1.62.0</opentelemetry.version>
+        <pulsar.version>3.3.9</pulsar.version>
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.4</surefire-plugin.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- Stay on Pulsar 3.3 while removing its legacy Commons Lang usage. -->
+            <dependency>
+                <groupId>org.apache.pulsar</groupId>
+                <artifactId>pulsar-bom</artifactId>
+                <version>${pulsar.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Keep the OpenTelemetry API and SDK aligned; imported before Quarkus. -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>${opentelemetry.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom-alpha</artifactId>
+                <version>${opentelemetry.version}-alpha</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.airlift</groupId>
+                <artifactId>aircompressor</artifactId>
+                <version>${aircompressor.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.asynchttpclient</groupId>
+                <artifactId>async-http-client</artifactId>
+                <version>${async-http-client.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.asynchttpclient</groupId>
+                <artifactId>async-http-client-netty-utils</artifactId>
+                <version>${async-http-client.version}</version>
+            </dependency>
+            <!-- This maintenance release removes legacy commons-configuration/lang. -->
+            <dependency>
+                <groupId>org.apache.bookkeeper</groupId>
+                <artifactId>cpu-affinity</artifactId>
+                <version>${bookkeeper.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.bookkeeper</groupId>
+                <artifactId>circe-checksum</artifactId>
+                <version>${bookkeeper.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.bookkeeper</groupId>
+                <artifactId>bookkeeper-common-allocator</artifactId>
+                <version>${bookkeeper.version}</version>
+            </dependency>
             <dependency>
                 <groupId>${quarkus.platform.group-id}</groupId>
                 <artifactId>${quarkus.platform.artifact-id}</artifactId>

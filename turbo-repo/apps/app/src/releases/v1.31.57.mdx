@@ -1,0 +1,59 @@
+# 🔔 Release Notes v1.31.57 — ModularIoT
+
+### Fecha: 10/10/2026
+
+**Objetivo**: Esta versión reúne mejoras previstas para la experiencia de acceso y configuración, la visualización geográfica y los flujos de planificación. También contempla retirar una ruta de sincronización heredada y mejorar el registro de errores de acceso a organizaciones.
+
+## 🚀 Evolutivos
+
+- **📍 Nodos GPS y de aplicación en mapas** (#1892)
+  - **Punto clave**: Se contempla representar nodos GPS o de aplicación en los mapas de la vista geográfica.
+  - **Detalle técnico**: La mejora se refiere a la visualización de nodos en los mapas de la plataforma. *(Integración OSS — MIOT-0.5.58)*
+
+- **🔄 Sincronización de calendario y TMS basada en flujos** (#1070)
+  - **Punto clave**: El alcance prevé retirar la ruta heredada de vinculación de calendarios y la lógica de notificación asociada.
+  - **Detalle técnico**: La sincronización entre calendario y TMS queda planteada como responsabilidad de los movimientos de tareas, los listeners de ECM y el registro de trabajos del modulith. *(Integración OSS — MIOT-0.5.58)*
+
+- **👤 Creación de cuenta desde el inicio de sesión** (#896)
+  - **Punto clave**: Se propone permitir la creación de una cuenta con nombre, correo electrónico y contraseña desde la pantalla de inicio de sesión.
+  - **Detalle técnico**: El flujo contempla dirigir al usuario al onboarding, al proceso para propietarios de tenants o a su destino predeterminado, según corresponda. *(Integración OSS — MIOT-0.5.58)*
+
+- **🧭 Onboarding y configuración de signos vitales** (#879)
+  - **Punto clave**: El alcance incluye un asistente inicial para elegir un perfil, revisar signos vitales y activar la configuración, además de un panel de ajustes posterior.
+  - **Detalle técnico**: Los signos vitales que requieran configuración, como geocercas o integraciones externas, se identificarían para facilitar su gestión. *(Integración OSS — MIOT-0.5.58)*
+
+- **🧹 Eliminación de código sin uso en la aplicación** (#473)
+  - **Punto clave**: Se plantea reducir código y dependencias sin uso en `apps/app`, siguiendo los hallazgos de Knip.
+  - **Detalle técnico**: El alcance también contempla revisar exports duplicados y dependencias no declaradas. *(Integración OSS — MIOT-0.5.58)*
+
+## 🐛 Correcciones
+
+- **🐛 Errores de acceso a organizaciones** (#1760)
+  - **Impacto**: Se reportaron solicitudes de escritura que devolvían HTTP 500 sin registrar la causa; el problema podía afectar rutas con alcance de organización.
+  - **Solución**: El alcance pide registrar los errores de comprobación de membresía o consulta de organizaciones, y distinguir una indisponibilidad de Alfresco mediante una respuesta 503. *(Integración OSS — MIOT-0.5.58)*
+
+## 📊 Beneficios
+
+- La visualización geográfica podría ofrecer una representación más completa de los nodos de la plataforma.
+- La retirada del flujo de calendario heredado busca concentrar la sincronización con TMS en los procesos basados en tareas.
+- La creación de cuentas desde el inicio de sesión propone simplificar el acceso inicial y orientar a cada usuario según su contexto.
+- El onboarding y el panel de signos vitales plantean una configuración guiada y una gestión continua desde la plataforma.
+- El registro explícito de errores y la distinción de indisponibilidad de Alfresco facilitarían el diagnóstico operativo.
+- La limpieza de código prevista puede reducir elementos sin uso y aclarar las dependencias de la aplicación.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.58`
+- App: `app@v0.5.58` (cambiada)
+- Docs: `docs@v0.5.57` (sin cambios)
+- Web: `web@v0.5.57` (sin cambios)
+- Modulith: `modulith@v0.5.35` (sin cambios)
+- Harness: `harness@v0.1.12` (sin cambios)
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+El alcance de esta versión combina cambios de experiencia de usuario con ajustes en la arquitectura de sincronización, la observabilidad y el mantenimiento de la aplicación. Los elementos asociados a incidencias abiertas se presentan como trabajo previsto, no como cambios confirmados como completados.
+
+La versión de stack indicada es `0.5.58`; la aplicación figura como componente cambiado, mientras que los demás componentes listados permanecen en sus versiones anteriores.

@@ -2,28 +2,21 @@
 
 ### Fecha: 10/10/2026
 
-**Objetivo**: Publicar el stack 0.5.59 y dejar identificadas las versiones de sus componentes. No se proporcionaron incidencias para detallar cambios funcionales en esta versión.
+**Objetivo**: Esta versión restablece el acceso a la plataforma para las personas que ingresan con su cuenta de la organización pero no pertenecen a un grupo de organización.
 
-## 📊 Beneficios
+## 🐛 Correcciones
 
-- 📋 **Claridad de versiones**: El plan identifica las etiquetas de cada componente y señala que la app tuvo cambios.
-- 🔎 **Trazabilidad de despliegues**: Los digests exactos de las imágenes están disponibles en el diálogo de información de compilación de la app y en el recurso de lanzamiento `stack-manifest.json`.
-- 🧭 **Referencia operativa**: Las etiquetas facilitan identificar las versiones previstas para cada componente.
-- 🛠️ **Seguimiento técnico**: El manifiesto de la versión ofrece un punto de referencia para consultar los artefactos del stack.
+- **🐛 Mensaje "Aún no tienes acceso" al ingresar** *(Integración OSS — MIOT-0.5.59)*
+  - **Impacto**: Desde la versión anterior, las personas de otras áreas que no pertenecen al grupo de la organización veían el mensaje "Aún no tienes acceso" y no podían usar la plataforma, aunque hasta ayer accedían normalmente.
+  - **Solución**: En las instalaciones que usan el gestor documental, el acceso vuelve a funcionar como antes: estas personas ingresan y ven las secciones que sus permisos les habilitan. El mensaje queda solo para instalaciones sin gestor documental.
 
 ## 🧾 Versiones del stack
 
-- **Stack**: `miot-stack@v0.5.59`
-- **App**: `app@v0.5.59` — con cambios.
-- **Docs**: `docs@v0.5.58` — sin cambios.
-- **Web**: `web@v0.5.58` — sin cambios.
-- **Modulith**: `modulith@v0.5.35` — sin cambios.
-- **Harness**: `harness@v0.1.12` — sin cambios.
+- Stack: `miot-stack@v0.5.59`
+- App: `app@v0.5.59` — con cambios.
+- Docs: `docs@v0.5.58` — sin cambios.
+- Web: `web@v0.5.58` — sin cambios.
+- Modulith: `modulith@v0.5.35` — sin cambios.
+- Harness: `harness@v0.1.12` — sin cambios.
 
-Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la app y en el recurso `stack-manifest.json` del lanzamiento.
-
-## 📌 Conclusión
-
-La versión 1.31.58 establece como referencia el stack 0.5.59 y registra las etiquetas previstas para sus componentes. Como no se incluyeron incidencias, estas notas no atribuyen cambios funcionales adicionales.
-
-La app figura con cambios en el plan de lanzamiento, mientras que Docs, Web, Modulith y Harness mantienen las etiquetas indicadas sin cambios. Para identificar los artefactos desplegados, consulta los digests en las fuentes de información señaladas.
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de release `stack-manifest.json`.

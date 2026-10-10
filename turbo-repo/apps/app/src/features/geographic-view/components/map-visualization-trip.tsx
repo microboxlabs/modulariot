@@ -36,6 +36,7 @@ import {
   center_in_bounds,
   flyTo,
   panTo,
+  toLngLat,
   zoomToVehicle,
 } from "@/features/map-visualization/map-view-utils";
 import { haversineKm, type LngLat } from "@/features/calendar/utils/distance";
@@ -131,6 +132,9 @@ function applySelectionCardPosition(
   }
 }
 
+// The map is tilted, so below this zoom the scroll wheel can pull the camera
+// to the map's edge or to latitude 0, far from the trip.
+const TRIP_MAP_MIN_ZOOM = 2;
 /* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
   tripId: string;
@@ -237,19 +241,12 @@ export default function MapVisualizationTrip({
   }, [positions]);
 
   useEffect(() => {
-    if (
-      filteredLocationData &&
-      filteredLocationData.features.length > 0 &&
-      mapRef.current
-    ) {
-      flyTo(
-        mapRef.current,
-        [
-          filteredLocationData.features[0].longitude ?? 0,
-          filteredLocationData.features[0].latitude ?? 0,
-        ],
-        6.5
-      );
+    const first = filteredLocationData?.features[0];
+    const coordinates = first
+      ? toLngLat(first.longitude, first.latitude)
+      : null;
+    if (coordinates && mapRef.current) {
+      flyTo(mapRef.current, coordinates, 6.5);
     }
   }, [filteredLocationData]);
 
@@ -428,11 +425,10 @@ export default function MapVisualizationTrip({
             setSelectedPulse(
               info.object?.properties.id ? [info.object?.properties.id] : []
             );
-            if (camera_movement && mapRef.current) {
-              panTo(
-                mapRef.current,
-                info.object?.geometry.coordinates ?? [0, 0]
-              );
+            const coordinates = info.object?.geometry?.coordinates;
+            if (camera_movement && mapRef.current && coordinates) {
+              const target = toLngLat(coordinates[0], coordinates[1]);
+              if (target) panTo(mapRef.current, target);
             }
             if (setSelectedTreatment && setSelectedTreatmentIndex) {
               setSelectedTreatment(null);
@@ -466,8 +462,10 @@ export default function MapVisualizationTrip({
         new GeofencePinLayer({
           data: processedGeofence,
           onClick: (info: any) => {
-            if (camera_movement && mapRef.current) {
-              panTo(mapRef.current, info.object?.coordinates ?? [0, 0]);
+            const coordinates = info.object?.coordinates;
+            if (camera_movement && mapRef.current && coordinates) {
+              const target = toLngLat(coordinates[0], coordinates[1]);
+              if (target) panTo(mapRef.current, target);
             }
             return true;
           },
@@ -506,11 +504,12 @@ export default function MapVisualizationTrip({
 
             setHoverInfo(formattedInfo as any);
             // The trip map only ever shows this one vehicle
-            if (mapRef.current) {
-              zoomToVehicle(mapRef.current, [
-                info.object?.longitude ?? 0,
-                info.object?.latitude ?? 0,
-              ]);
+            const target = toLngLat(
+              info.object?.longitude,
+              info.object?.latitude
+            );
+            if (mapRef.current && target) {
+              zoomToVehicle(mapRef.current, target);
             }
           },
           updateTriggers: {
@@ -604,6 +603,7 @@ export default function MapVisualizationTrip({
         isLoading={false}
         mapRef={mapRef}
         onZoomChange={() => {}}
+        minZoom={TRIP_MAP_MIN_ZOOM}
       />
       {positions && positions.length > 0 && (
         <div className="absolute right-2 top-2 z-[600]">

@@ -92,9 +92,10 @@ export default function PrototypeSideInfo({
 
   return (
     <div className="relative flex flex-col p-1 h-full overflow-hidden">
-      {/* Previous full-screen modal. Stays mounted while closed so opening
-          it does not replace the timeline. */}
-      {treatments_templates && !loading && showPastModal && (
+      {/* Previous full-screen modal, mounted only while open: it keeps the
+          treatment it opened in state, and a reopen would set that saved
+          treatment back to pending. */}
+      {treatments_templates && !loading && showPastModal && isFormOpen && (
         <SymptomForm
           selectedOption={selectedOption}
           dict={dict}

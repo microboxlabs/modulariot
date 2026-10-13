@@ -177,6 +177,23 @@ describe("calendars", () => {
     });
   });
 
+  describe("getTimeWindowUsage", () => {
+    it("sends GET to calendars/:id/time-windows/usage with the date range", async () => {
+      const { fn, call } = createMockFetch([]);
+      const client = createMiotCalendarClient({ baseUrl: BASE_URL, fetch: fn });
+
+      await client.calendars.getTimeWindowUsage("cal-1", {
+        startDate: "2026-10-12",
+        endDate: "2026-10-18",
+      });
+
+      expect(call.init.method).toBe("GET");
+      expect(call.url).toBe(
+        `${BASE_URL}${CALENDARS_PATH}/cal-1/time-windows/usage?startDate=2026-10-12&endDate=2026-10-18`,
+      );
+    });
+  });
+
   describe("createTimeWindow", () => {
     const twRequest: TimeWindowRequest = {
       name: "Morning",

@@ -2,7 +2,13 @@
 
 ### Fecha: 13/10/2026
 
-**Objetivo**: Reforzar la seguridad de la imagen del servidor Quarkus y actualizar dependencias compatibles. La versión también mejora los controles de escaneo y documenta los hallazgos que aún requieren actualizaciones externas o coordinadas.
+**Objetivo**: Mostrar en el calendario el cupo real de cada ventana horaria, sin contar los servicios asignados automáticamente, y reforzar la seguridad de la imagen del servidor Quarkus. La versión también mejora los controles de escaneo y documenta los hallazgos que aún requieren actualizaciones externas o coordinadas.
+
+## 🐛 Correcciones
+
+- **🐛 Ventanas del calendario ocupadas sin reservas visibles**
+  - **Impacto**: Los servicios asignados automáticamente por las integraciones no consumen cupo, pero el calendario los contaba igual. Una ventana podía mostrarse llena (`0/15`) sin ninguna reserva manual, y con el filtro por defecto esos servicios ni siquiera se veían.
+  - **Solución**: El cupo disponible de cada ventana ahora lo informa el servicio de calendario, con la misma regla que aplica al reservar: los servicios automáticos no se descuentan. *(Integración OSS — MIOT-0.5.62)*
 
 ## 🔧 Integraciones
 
@@ -13,6 +19,7 @@
 
 ## 📊 Beneficios
 
+- 📅 **Cupo confiable**: El calendario muestra el mismo cupo que se valida al planificar, evitando ventanas que parecen llenas sin estarlo.
 - 🔒 **Menor exposición**: La imagen de runtime evita paquetes innecesarios del entorno de compilación.
 - 🧩 **Dependencias más actualizadas**: Se aplicaron correcciones compatibles para Quarkus y componentes del ecosistema Pulsar, BookKeeper y OpenTelemetry.
 - 🔍 **Escaneos más trazables**: Trivy analiza un digest específico y los errores de escaneo o carga se hacen visibles.
@@ -33,6 +40,6 @@ Los digests exactos de las imágenes desplegadas están disponibles en el diálo
 
 ## 📌 Conclusión
 
-Esta versión fortalece la cadena de compilación y el análisis de seguridad del servidor Quarkus, además de incorporar verificaciones para comportamientos clave de sus dependencias. La verificación limpia de Maven y la reconstrucción de la imagen respaldan estos cambios.
+Esta versión corrige el cupo mostrado en las ventanas del calendario, que ahora coincide con el que se valida al planificar. Además, fortalece la cadena de compilación y el análisis de seguridad del servidor Quarkus, además de incorporar verificaciones para comportamientos clave de sus dependencias. La verificación limpia de Maven y la reconstrucción de la imagen respaldan estos cambios.
 
 Persisten hallazgos sin corrección disponible y dependencias que requieren actualizaciones coordinadas; se documentaron para darles seguimiento sin ocultarlos. La compilación nativa y el despliegue con servicios externos no se validaron.

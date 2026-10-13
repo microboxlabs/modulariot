@@ -219,6 +219,7 @@ export function mapBookingToPlannedService(
       ...(booking.syncDetail === undefined
         ? {}
         : { syncDetail: booking.syncDetail }),
+      ...(booking.overbooked ? { overbooked: true } : {}),
     },
   };
 }

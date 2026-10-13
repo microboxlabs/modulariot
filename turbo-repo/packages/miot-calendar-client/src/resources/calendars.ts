@@ -4,6 +4,7 @@ import type {
   CalendarResponse,
   TimeWindowRequest,
   TimeWindowResponse,
+  TimeWindowUsageResponse,
 } from "../types.js";
 
 const BASE = "/api/v1/miot-calendar/calendars";
@@ -36,6 +37,15 @@ export function createCalendarsApi(fetcher: Fetcher) {
 
     listTimeWindows(calendarId: string): Promise<TimeWindowResponse[]> {
       return fetcher("GET", `${BASE}/${calendarId}/time-windows`);
+    },
+
+    getTimeWindowUsage(
+      calendarId: string,
+      params?: { startDate?: string; endDate?: string },
+    ): Promise<TimeWindowUsageResponse[]> {
+      return fetcher("GET", `${BASE}/${calendarId}/time-windows/usage`, {
+        query: params,
+      });
     },
 
     createTimeWindow(

@@ -61,6 +61,7 @@ import type {
   MoveBookingRequest,
   SlotResponse,
   SlotListResponse,
+  TimeWindowUsageResponse,
 } from "@microboxlabs/miot-calendar-client";
 import type { ServiceType } from "./alfresco-api/service-types.types";
 import type { ObservationTypeItem } from "./alfresco-api/observation-types.types";
@@ -1902,6 +1903,30 @@ export function useCalendarSlots(
   };
 }
 
+const EMPTY_WINDOW_USAGE: TimeWindowUsageResponse[] = [];
+
+/**
+ * Booked and remaining capacity of each time window per date, as the calendar
+ * counts it. Returns null SWR key (no fetch) when calendarId is missing.
+ */
+export function useCalendarTimeWindowUsage(
+  calendarId: string | null,
+  startDate: string,
+  endDate: string
+) {
+  const url = calendarId
+    ? `/app/api/calendar/${calendarId}/time-windows/usage?startDate=${startDate}&endDate=${endDate}`
+    : null;
+
+  const { data, mutate } = useSWR<TimeWindowUsageResponse[], FetcherError>(
+    url,
+    fetcher,
+    { keepPreviousData: true, revalidateOnFocus: false }
+  );
+
+  return { usage: data ?? EMPTY_WINDOW_USAGE, refresh: mutate };
+}
+
 // ============================================================================
 // Booking Helpers
 // ============================================================================
@@ -2165,6 +2190,8 @@ const BookingListResponseSchema = z.object({
         .optional(),
       syncStatus: z.enum(["PENDING", "CONFIRMED", "REJECTED"]).optional(),
       syncDetail: z.string().optional(),
+      // Outside capacity: the planner gives back its place only when it counts.
+      overbooked: z.boolean().optional(),
       createdAt: z.string(),
       createdBy: z.string().nullable().optional(),
     })

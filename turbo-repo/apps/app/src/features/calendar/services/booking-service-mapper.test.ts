@@ -83,6 +83,18 @@ describe("mapBookingToPlannedService — sync status", () => {
   });
 });
 
+describe("mapBookingToPlannedService — overbooked", () => {
+  it("marks an overbooked booking", () => {
+    const mapped = mapBookingToPlannedService(booking({ overbooked: true }));
+    expect(mapped?.planned.overbooked).toBe(true);
+  });
+
+  it("leaves an ordinary booking unmarked", () => {
+    const mapped = mapBookingToPlannedService(booking({ overbooked: false }));
+    expect(mapped?.planned.overbooked).toBeUndefined();
+  });
+});
+
 describe("mapBookingToPlannedService — service type recovery", () => {
   // Without this, a task-driven assign silently downgrades to the legacy
   // GET-endTask path: the assigned tuple is dropped and nothing is pushed to

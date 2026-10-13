@@ -302,6 +302,25 @@ export function PlanningSelectionProvider({
     [calendarId]
   );
 
+  // ±30-day window around the URL `date` param — the upstream bookings endpoint
+  // returns empty with no range, and this stays well inside the 90-day cap.
+  const searchParams = useSearchParams();
+  const bookingsRange = useMemo(() => {
+    const anchor = parseUrlDate(searchParams.get("date")) ?? dayjs();
+    return {
+      startDate: anchor.subtract(30, "day").format("YYYY-MM-DD"),
+      endDate: anchor.add(30, "day").format("YYYY-MM-DD"),
+    };
+  }, [searchParams]);
+  // Every quota the grid shows comes from the calendar's own count, so
+  // bookings the calendar leaves out (overbooked) never take a planner's room.
+  const { usage: windowUsage, refresh: refreshWindowUsage } =
+    useCalendarTimeWindowUsage(
+      calendarId ?? null,
+      bookingsRange.startDate,
+      bookingsRange.endDate
+    );
+
   const syncTimeSlots = useCallback(
     async (slots: TimeSlot[]) => {
       if (!calendarId) return;
@@ -311,8 +330,9 @@ export function PlanningSelectionProvider({
         deactivateRemovedWindows(newSlotIds),
         saveLocalSlots(slots, currentIds),
       ]);
-      // Reload from API to replace temp IDs with real server IDs.
-      await refreshTimeWindows();
+      // Reload from API to replace temp IDs with real server IDs, and the
+      // usage, whose capacity follows the saved windows.
+      await Promise.all([refreshTimeWindows(), refreshWindowUsage()]);
       const errors = [...deactivateErrors, ...saveErrors];
       if (errors.length > 0) throw new Error(errors.join("; "));
     },
@@ -322,6 +342,7 @@ export function PlanningSelectionProvider({
       deactivateRemovedWindows,
       saveLocalSlots,
       refreshTimeWindows,
+      refreshWindowUsage,
     ]
   );
 
@@ -356,25 +377,7 @@ export function PlanningSelectionProvider({
     [serviceCodeToLiveTask]
   );
 
-  // ±30-day window around the URL `date` param — the upstream bookings endpoint
-  // returns empty with no range, and this stays well inside the 90-day cap.
-  const searchParams = useSearchParams();
-  const bookingsRange = useMemo(() => {
-    const anchor = parseUrlDate(searchParams.get("date")) ?? dayjs();
-    return {
-      startDate: anchor.subtract(30, "day").format("YYYY-MM-DD"),
-      endDate: anchor.add(30, "day").format("YYYY-MM-DD"),
-    };
-  }, [searchParams]);
   const bookingsKey = `${calendarId ?? ""}:${bookingsRange.startDate}:${bookingsRange.endDate}`;
-  // Every quota the grid shows comes from the calendar's own count, so
-  // bookings the calendar leaves out (overbooked) never take a planner's room.
-  const { usage: windowUsage, refresh: refreshWindowUsage } =
-    useCalendarTimeWindowUsage(
-      calendarId ?? null,
-      bookingsRange.startDate,
-      bookingsRange.endDate
-    );
   const handleBookingChange = useCallback(() => {
     refreshLiveTasks();
     void refreshWindowUsage();

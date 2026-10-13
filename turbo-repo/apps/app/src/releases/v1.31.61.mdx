@@ -1,0 +1,38 @@
+# 🔔 Release Notes v1.31.61 — ModularIoT
+
+### Fecha: 13/10/2026
+
+**Objetivo**: Reforzar la seguridad de la imagen del servidor Quarkus y actualizar dependencias compatibles. La versión también mejora los controles de escaneo y documenta los hallazgos que aún requieren actualizaciones externas o coordinadas.
+
+## 🔧 Integraciones
+
+- **🔌 Seguridad de la imagen Quarkus** *(Integración OSS — MIOT-0.5.62)*
+  - **Alcance**: Se reemplazó la imagen base por la imagen de runtime Java 21 de Red Hat y se aplican erratas UBI actuales en cada compilación de CI.
+  - **Detalle técnico**: Se actualizaron dependencias compatibles; se fijó la versión de la acción Trivy y se escanea el digest publicado, mostrando errores de escaneo y carga. Se añadieron comprobaciones de regresión para búsquedas HTTP de Pulsar, compresión y checksums de BookKeeper.
+  - **Hallazgos**: La imagen reconstruida registró 332 resultados frente a 868 en el escaneo publicado anterior: 327 vulnerabilidades del sistema operativo sin versión corregida disponible y cinco hallazgos de dependencias que requieren actualizaciones mayores. Las cifras corresponden a escaneos de fechas distintas; no quedaron hallazgos críticos ni secretos detectados en la imagen reconstruida.
+
+## 📊 Beneficios
+
+- 🔒 **Menor exposición**: La imagen de runtime evita paquetes innecesarios del entorno de compilación.
+- 🧩 **Dependencias más actualizadas**: Se aplicaron correcciones compatibles para Quarkus y componentes del ecosistema Pulsar, BookKeeper y OpenTelemetry.
+- 🔍 **Escaneos más trazables**: Trivy analiza un digest específico y los errores de escaneo o carga se hacen visibles.
+- ✅ **Regresión controlada**: Las pruebas cubren comportamientos de Pulsar, compresión y checksums de BookKeeper.
+- 📋 **Hallazgos transparentes**: Se documentan los casos pendientes de parches del proveedor o de actualizaciones coordinadas, sin suprimirlos.
+- 🧪 **Verificación de Maven**: La validación limpia completó 1.570 pruebas; 19 se omitieron y no hubo fallos ni errores.
+
+## 🧾 Versiones del stack
+
+- Stack: `miot-stack@v0.5.62`
+- App: `app@v0.5.62` — actualizado
+- Docs: `docs@v0.5.62` — actualizado
+- Web: `web@v0.5.62` — actualizado
+- Modulith: `modulith@v0.5.36` — actualizado
+- Harness: `harness@v0.1.12` — sin cambios
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión fortalece la cadena de compilación y el análisis de seguridad del servidor Quarkus, además de incorporar verificaciones para comportamientos clave de sus dependencias. La verificación limpia de Maven y la reconstrucción de la imagen respaldan estos cambios.
+
+Persisten hallazgos sin corrección disponible y dependencias que requieren actualizaciones coordinadas; se documentaron para darles seguimiento sin ocultarlos. La compilación nativa y el despliegue con servicios externos no se validaron.

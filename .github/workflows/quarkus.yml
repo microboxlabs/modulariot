@@ -220,7 +220,7 @@ jobs:
             type=raw,value=sha-${{ needs.build-jvm.outputs.short_sha }}
           labels: |
             org.opencontainers.image.title=ModularIoT Server
-            org.opencontainers.image.description=Quarkus modulith backend for ModularIoT — fleet, driver and resource management
+            org.opencontainers.image.description=Quarkus modulith backend for ModularIoT
             org.opencontainers.image.vendor=MicroboxLabs
 
       - name: Build and push Docker image

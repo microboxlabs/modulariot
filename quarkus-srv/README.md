@@ -6,7 +6,7 @@ Single Quarkus monorepo that produces one container image containing all Modular
 
 ```
 miot-core/            Shared foundation (config, models, auth, messaging, persistence)
-miot-fleet/           Assets reported by GPS signals and the relationships between organizations
+miot-fleet/           Fleet component (asset network)
 miot-tracking/        Asset tracking (GPS ingestion via Pulsar)
 miot-symptoms/        Symptoms dispatcher (CDC → RouteTable → process_symptoms_* / webhook)
 miot-gateway/         Routing gateway (body-aware traffic forking, canary splits) → README
@@ -34,7 +34,7 @@ miot-cli/             Application entrypoint
 ./start.sh all
 
 # Start specific components
-./start.sh fleet            # fleet, including drivers
+./start.sh fleet            # fleet only
 ./start.sh gateway          # gateway only (no DB required)
 ./start.sh integrations     # integration connections and credential profiles
 ./start.sh symptoms         # symptoms dispatcher (RouteTable + Pulsar; GPS optional for readiness)

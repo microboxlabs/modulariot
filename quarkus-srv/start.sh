@@ -6,7 +6,7 @@ set -euo pipefail
 # Usage:
 #   ./start.sh                       # no components (bare server)
 #   ./start.sh all                   # all components
-#   ./start.sh fleet                 # fleet, including drivers
+#   ./start.sh fleet                 # fleet only
 #   ./start.sh symptoms              # symptoms dispatcher
 #   ./start.sh --profile auth0 tracking  # tracking with Auth0 JWT
 #

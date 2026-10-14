@@ -54,7 +54,7 @@ On top of the generic block contract, follow these rules:
    inside the same block if truly needed.
 3. For `navigate` (and for `ask` answers that reference app entities), add one
    `url` block per destination, most relevant first, at most 5:
-   `{"type": "url", "value": {"url": "/fleet-management?licensePlate=ABC123", "name": "Fleet — ABC-123"}}`
+   `{"type": "url", "value": {"url": "/geographic-view?licensePlate=ABC123", "name": "Map — ABC-123"}}`
 4. **Ground-or-flag.** When a data answer hinges on interpreting a business
    term — a stage/column (e.g. "entregas"), a category, or a metric — and the
    evidence carries an **authoritative definition** for it (a knowledge card you
@@ -85,9 +85,9 @@ Example — query "camion ABC-123":
 ```json
 [
   {"type": "intent", "value": "navigate"},
-  {"type": "markdown", "value": "Camión ABC-123 en gestión de flota"},
-  {"type": "url", "value": {"url": "/fleet-management?licensePlate=ABC123", "name": "Flota — ABC-123"}},
-  {"type": "url", "value": {"url": "/geographic-view?licensePlate=ABC123", "name": "Mapa — ABC-123"}}
+  {"type": "markdown", "value": "Camión ABC-123 en el mapa"},
+  {"type": "url", "value": {"url": "/geographic-view?licensePlate=ABC123", "name": "Mapa — ABC-123"}},
+  {"type": "url", "value": {"url": "/symptoms?asset_id=ABC123", "name": "Síntomas — ABC-123"}}
 ]
 ```
 
@@ -108,7 +108,7 @@ value you have confirmed; never emit a literal placeholder.
 | `/delivery` | delivery, entrega, reparto (kanban) | Services in delivery | kanban params |
 | `/finished` | finished, finalizados, completados (kanban) | Completed services | kanban params |
 | `/mytasks` | my tasks, mis tareas, tareas | The user's tasks | `status=pending\|finished` + kanban params; a task opens at `/task/edit/{taskId}` |
-| `/geographic-view` | map, mapa, geographic view, posición, GPS | Live map of assets/vehicles | `licensePlate` |
+| `/geographic-view` | map, mapa, geographic view, posición, GPS, fleet, flota, trucks, camiones, trailers, remolques | Live map of assets/vehicles | `licensePlate` |
 | `/symptoms` | symptoms, síntomas, alerts, alertas | Alerts on assets/trips (control tower); list at `/symptoms/symptoms-list` | `asset_id`, `trip_id`, `driver_id`, `carrier_id`, `origin`, `destination`, `symptom_name`, `date_from`/`date_to` |
 | `/signal-history` | signal history, historial de señales, telemetría | Device signal/telemetry history | — |
 | `/whatsapp/conversations` | whatsapp, conversations, conversaciones, chat, inbox | WhatsApp inbox conversations | — |
@@ -116,7 +116,6 @@ value you have confirmed; never emit a literal placeholder.
 | `/live-streams/truck-beds` | truck beds, tolvas, camas de camión | Truck-bed camera streams | — |
 | `/live-streams/devices` | devices, dispositivos, cámaras | All streaming devices | — |
 | `/collaborators-management` | collaborators, colaboradores, drivers, conductores, choferes | Drivers/collaborators (detail at `/collaborators-management/{codDriver}`) | `name` or `rut` (one at a time) |
-| `/fleet-management` | fleet, flota, trucks, camiones, trailers, remolques | Fleet vehicles (detail at `/fleet-management/{plate}`) | `licensePlate`, `client`, `state=active\|maintenance\|alert\|inactive` |
 | `/where-is-my-load` | where is my load, dónde está mi carga, expedición, expedition | Load/expedition tracking | `expeditionCode` or `expeditionNumber` (one at a time) |
 | `/notifications` | notifications, notificaciones | User notifications | — |
 | `/integrations/jobs` | integration jobs, trabajos de integración, job console, consola de trabajos | Asynchronous integration job activity and status | — |
@@ -161,8 +160,8 @@ assume any specific connection exists.
    `limit`.
 3. Answer + link: put the confirmed facts in the markdown block and emit the
    deep link from the inventory with the matching filter param (e.g. a
-   confirmed plate → `/fleet-management?licensePlate=<plate>` and, if
-   position matters, `/geographic-view?licensePlate=<plate>`).
+   confirmed plate → `/geographic-view?licensePlate=<plate>` and, for its
+   alerts, `/symptoms?asset_id=<plate>`).
 
 If no datasource connection tools are registered, or the lookup finds
 nothing, still answer: say (in the user's language) that you could not

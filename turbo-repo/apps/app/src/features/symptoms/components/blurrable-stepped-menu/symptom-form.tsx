@@ -11,7 +11,7 @@ import FormIcon from "./form-icon";
 import CallDriver from "./menus/call-driver/call-driver";
 import WhatsAppContact from "./menus/whatsapp-contact/whatsapp-contact";
 import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
-import { requestTreatment } from "@/features/common/providers/client-api.provider";
+import { guardedRequestTreatment } from "@/features/symptoms/components/map-view/prototype/prototype-api-guard";
 import IgnoreCondition from "./menus/ignore-condition/ignore-condition";
 import InvalidateSymptom from "./menus/invalidate-symptom/invalidate-symptom";
 import { TiDelete } from "react-icons/ti";
@@ -83,7 +83,7 @@ export default function SymptomForm({
           treatment_type: "llamar al conductor",
           status: "pending",
         });
-        const response = await requestTreatment({
+        const response = await guardedRequestTreatment({
           ...treatmentRequest,
           treatment_type: "llamar al conductor",
           status: "pending",
@@ -133,7 +133,7 @@ export default function SymptomForm({
           treatment_type: "ignorar condicion",
           status: "pending",
         });
-        const response = await requestTreatment({
+        const response = await guardedRequestTreatment({
           ...treatmentRequest,
           treatment_type: "ignorar condicion",
           status: "pending",
@@ -166,7 +166,7 @@ export default function SymptomForm({
           treatment_type: "invalidar sintoma",
           status: "pending",
         });
-        const response = await requestTreatment({
+        const response = await guardedRequestTreatment({
           ...treatmentRequest,
           treatment_type: "invalidar sintoma",
           status: "pending",

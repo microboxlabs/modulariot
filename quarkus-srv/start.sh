@@ -6,15 +6,14 @@ set -euo pipefail
 # Usage:
 #   ./start.sh                       # no components (bare server)
 #   ./start.sh all                   # all components
-#   ./start.sh fleet                 # fleet only
-#   ./start.sh fleet driver          # fleet + driver
+#   ./start.sh fleet                 # fleet, including drivers
 #   ./start.sh symptoms              # symptoms dispatcher
 #   ./start.sh --profile auth0 tracking  # tracking with Auth0 JWT
 #
 # Extra Maven/Quarkus args can be appended after --:
 #   ./start.sh fleet -- -Dquarkus.http.port=9090
 
-KNOWN_COMPONENTS=(fleet driver tracking symptoms gateway integrations conversational)
+KNOWN_COMPONENTS=(fleet tracking symptoms gateway integrations conversational)
 COMPONENTS=()
 EXTRA_ARGS=()
 PROFILE=""

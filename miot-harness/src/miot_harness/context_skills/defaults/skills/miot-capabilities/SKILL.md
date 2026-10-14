@@ -25,7 +25,7 @@ branch `trunk`). Use them; do not say you have no access to the code.
 
 | Module | What it does | Where to look |
 |---|---|---|
-| Telemetry and metrics | Ingestion from GPS, CAN/OBD, gateways and OEM APIs; drivers normalize data into canonical metrics | `quarkus-srv/miot-driver`, `quarkus-srv/miot-gateway`, `quarkus-srv/miot-tracking`; docs `integration/` |
+| Telemetry and metrics | Ingestion from GPS, CAN/OBD, gateways and OEM APIs; drivers normalize data into canonical metrics | `quarkus-srv/miot-gateway`, `quarkus-srv/miot-tracking`; docs `integration/` |
 | Symptoms | Stateful detection of operational conditions with severity, lifecycle and escalation | `quarkus-srv/miot-symptoms`; docs `concepts/symptoms/`, `platform/symptoms-engine/` |
 | Control tower | Fleet map, active symptoms, asset list, operator worklists and actions | `turbo-repo/apps/app/src/features/symptoms`, `geographic-view`; docs `operations/mission-control/` |
 | Fleet and shipping board | Vehicles, trailers, drivers, trips and shipping tasks on a board | `quarkus-srv/miot-fleet`, `turbo-repo/apps/app/src/features/fleet-management`, `shipping`, `ext-tasks` |

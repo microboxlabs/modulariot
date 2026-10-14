@@ -20,6 +20,15 @@ import { MdBlock } from "react-icons/md";
 const blurred = "opacity-100 visible z-10 backdrop-blur-[10px] bg-black/30";
 const clean = "opacity-0 invisible backdrop-blur-[0px] bg-transparent";
 
+// Treatment recorded as `pending` when each menu opens, so the form's final
+// save updates that same record. WhatsApp is absent: sending one doesn't
+// pre-create a treatment record.
+const PENDING_TREATMENT_TYPES: Record<string, string | undefined> = {
+  call_driver: "llamar al conductor",
+  ignore_condition: "ignorar condicion",
+  invalidate_symptom: "invalidar sintoma",
+};
+
 export default function SymptomForm({
   setIsMenuOpen,
   isMenuOpen,
@@ -77,12 +86,6 @@ export default function SymptomForm({
   const menus = {
     call_driver: {
       title: (dict.symptoms as I18nRecord).call_driver,
-      preactions: () =>
-        startPendingTreatment(
-          treatmentRequest,
-          setTreatmentRequest,
-          "llamar al conductor"
-        ),
       component: (
         <div className="w-full h-full flex flex-row items-center justify-center">
           <CallDriver
@@ -102,8 +105,6 @@ export default function SymptomForm({
     },
     contact_via_whatsapp: {
       title: (dict.symptoms as I18nRecord).contact_via_whatsapp,
-      // No preaction: sending a WhatsApp doesn't pre-create a treatment record.
-      preactions: undefined,
       component: (
         // key by trip so the form re-seeds its defaults if the selected treatment changes.
         <WhatsAppContact
@@ -117,12 +118,6 @@ export default function SymptomForm({
     },
     ignore_condition: {
       title: (dict.symptoms as I18nRecord).ignore_condition,
-      preactions: () =>
-        startPendingTreatment(
-          treatmentRequest,
-          setTreatmentRequest,
-          "ignorar condicion"
-        ),
       component: (
         <IgnoreCondition
           dict={dict as I18nRecord}
@@ -140,12 +135,6 @@ export default function SymptomForm({
     },
     invalidate_symptom: {
       title: (dict.symptoms as I18nRecord).invalidate_symptom,
-      preactions: () =>
-        startPendingTreatment(
-          treatmentRequest,
-          setTreatmentRequest,
-          "invalidar sintoma"
-        ),
       component: (
         <InvalidateSymptom
           dict={dict}
@@ -163,8 +152,14 @@ export default function SymptomForm({
 
   useEffect(() => {
     if (isMenuOpen) {
-      const preaction = menus[selectedOption as keyof typeof menus]?.preactions;
-      preaction && preaction();
+      const treatmentType = PENDING_TREATMENT_TYPES[selectedOption];
+      if (treatmentType) {
+        void startPendingTreatment(
+          treatmentRequest,
+          setTreatmentRequest,
+          treatmentType
+        );
+      }
     }
   }, [isMenuOpen]);
 

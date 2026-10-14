@@ -1,0 +1,74 @@
+{
+  "stack_version": "0.5.62",
+  "stack_tag": "miot-stack@v0.5.62",
+  "milestone": "MIOT-0.5.62",
+  "pull_requests": [
+    {
+      "number": 1898,
+      "title": "fix(quarkus): remediate Trivy image and dependency findings",
+      "source_issues": [
+        {
+          "number": 1897,
+          "title": "fix(quarkus): remediate Trivy image and dependency findings"
+        }
+      ]
+    },
+    {
+      "number": 1911,
+      "title": "[app][calendar] Window quota comes from the calendar, not from counting chips",
+      "source_issues": []
+    }
+  ],
+  "milestone_changed_files": [
+    ".github/workflows/quarkus.yml",
+    "quarkus-srv/Dockerfile",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/PulsarDependencyCompatibilityTest.java",
+    "quarkus-srv/pom.xml",
+    "turbo-repo/apps/app/src/app/api/calendar/[calendarId]/time-windows/usage/route.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-selection-wrapper.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/use-planning-grid.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/booking-service-mapper.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/booking-service-mapper.ts",
+    "turbo-repo/apps/app/src/features/common/providers/client-api.provider.ts",
+    "turbo-repo/packages/miot-calendar-client/src/__tests__/calendars.test.ts",
+    "turbo-repo/packages/miot-calendar-client/src/index.ts",
+    "turbo-repo/packages/miot-calendar-client/src/resources/calendars.ts",
+    "turbo-repo/packages/miot-calendar-client/src/types.ts",
+    "turbo-repo/packages/miot-calendar-ui/src/context/planning-selection-context.tsx",
+    "turbo-repo/packages/miot-calendar-ui/src/index.ts",
+    "turbo-repo/packages/miot-calendar-ui/src/services/window-quota.test.ts",
+    "turbo-repo/packages/miot-calendar-ui/src/services/window-quota.ts",
+    "turbo-repo/packages/miot-calendar-ui/src/types/planning.ts"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.62",
+      "tag": "app@v0.5.62"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.60",
+      "version": "0.5.62",
+      "tag": "docs@v0.5.62"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.60",
+      "version": "0.5.62",
+      "tag": "web@v0.5.62"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.35",
+      "version": "0.5.36",
+      "tag": "modulith@v0.5.36"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.12",
+      "version": "0.1.12",
+      "tag": "harness@v0.1.12"
+    }
+  }
+}

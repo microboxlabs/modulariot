@@ -108,7 +108,7 @@ value you have confirmed; never emit a literal placeholder.
 | `/delivery` | delivery, entrega, reparto (kanban) | Services in delivery | kanban params |
 | `/finished` | finished, finalizados, completados (kanban) | Completed services | kanban params |
 | `/mytasks` | my tasks, mis tareas, tareas | The user's tasks | `status=pending\|finished` + kanban params; a task opens at `/task/edit/{taskId}` |
-| `/geographic-view` | map, mapa, geographic view, posición, GPS | Live map of assets/vehicles | `licensePlate` |
+| `/geographic-view` | map, mapa, geographic view, posición, GPS, fleet, flota, trucks, camiones, trailers, remolques | Live map of assets/vehicles | `licensePlate` |
 | `/symptoms` | symptoms, síntomas, alerts, alertas | Alerts on assets/trips (control tower); list at `/symptoms/symptoms-list` | `asset_id`, `trip_id`, `driver_id`, `carrier_id`, `origin`, `destination`, `symptom_name`, `date_from`/`date_to` |
 | `/signal-history` | signal history, historial de señales, telemetría | Device signal/telemetry history | — |
 | `/whatsapp/conversations` | whatsapp, conversations, conversaciones, chat, inbox | WhatsApp inbox conversations | — |

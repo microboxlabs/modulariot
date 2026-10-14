@@ -167,10 +167,11 @@ describe("SidebarNavigationProvider", () => {
     expect(result.current.totals).toBeDefined();
   });
 
-  it("exposes all pages as items", () => {
+  it("exposes all pages as items, Fleet only with fleet:assets.view", () => {
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
     expect(result.current.items).toHaveLength(
-      visiblePages(false, false, false).length
+      visiblePages(false, false, false).filter((p) => p.label !== "fleet")
+        .length
     );
   });
 
@@ -179,14 +180,18 @@ describe("SidebarNavigationProvider", () => {
     // — the same state as a page before the config fetch resolves. Dev must
     // stay out of navigation in that window.
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
-    expect(result.current.items.some((i) => i.label === DEV_PAGE_LABEL)).toBe(false);
+    expect(result.current.items.some((i) => i.label === DEV_PAGE_LABEL)).toBe(
+      false
+    );
     expect(pages.some((p) => p.label === DEV_PAGE_LABEL)).toBe(true);
   });
 
   it("hides the Storytelling section when the runtime config hasn't enabled it", () => {
     // Same "config not resolved yet" state as the Dev test above.
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
-    expect(result.current.items.some((i) => i.label === STORYTELLING_PAGE_LABEL)).toBe(false);
+    expect(
+      result.current.items.some((i) => i.label === STORYTELLING_PAGE_LABEL)
+    ).toBe(false);
     expect(pages.some((p) => p.label === STORYTELLING_PAGE_LABEL)).toBe(true);
   });
 

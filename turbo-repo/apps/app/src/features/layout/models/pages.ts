@@ -6,7 +6,7 @@ import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
 import VideoCameraIcon from "@/features/icons/video-camera";
 import { FaDev, FaTruckLoading } from "react-icons/fa";
-import { HiCog, HiLightningBolt } from "react-icons/hi";
+import { HiCog, HiLightningBolt, HiOutlineTruck } from "react-icons/hi";
 import { HiSparkles } from "react-icons/hi2";
 import { LuTowerControl } from "react-icons/lu";
 import type { FC, ComponentProps } from "react";
@@ -22,6 +22,7 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   liveStreams: VideoCameraIcon,
   collaboratorsManagement: PeopleIcon,
   whereIsMyLoad: FaTruckLoading as FC<ComponentProps<"svg">>,
+  fleet: HiOutlineTruck as FC<ComponentProps<"svg">>,
   integrations: HiLightningBolt as FC<ComponentProps<"svg">>,
   storytelling: HiSparkles as FC<ComponentProps<"svg">>,
   settings: HiCog as FC<ComponentProps<"svg">>,
@@ -89,7 +90,7 @@ export function visiblePages(
 const HARNESS_SETTINGS_HREF = "/users/settings/harness";
 const PLATFORM_SETTINGS_HREF = "/users/settings/platform";
 const GPS_SETTINGS_HREF = "/users/settings/gps";
-const NETWORK_SETTINGS_HREF = "/users/settings/network";
+const FLEET_HREF = "/fleet";
 export const HARNESS_LEARNING_HREF = "/harness/learning";
 
 /** Which flag decides whether a gated Settings entry is offered. */
@@ -102,12 +103,13 @@ export interface SettingsGates {
   readonly trainer: boolean;
   /** Whether the signed-in user may view the GPS integration (`gps:view`). */
   readonly gps: boolean;
-  /** Whether the signed-in user may view the asset network (`fleet:network.view`). */
-  readonly network: boolean;
+  /** Whether the signed-in user may view the fleet (`fleet:assets.view`). */
+  readonly fleet: boolean;
 }
 
 /**
- * Strips the Settings entries the caller cannot use.
+ * Strips the Settings entries the caller cannot use, and the Fleet page
+ * when the caller cannot view it.
  *
  * Shared by the sidebar and Spotlight so an entry cannot be missing from one
  * nav surface and reachable through the other — which is what would happen if
@@ -122,18 +124,20 @@ export function filterSettings(
     gates.platformOwner &&
     gates.trainer &&
     gates.gps &&
-    gates.network
+    gates.fleet
   ) {
     return input;
   }
 
-  return input.map((page) => ({
+  const pages = gates.fleet
+    ? input
+    : input.filter((page) => page.href !== FLEET_HREF);
+  return pages.map((page) => ({
     ...page,
     items: (page.items ?? []).filter((item) => {
       if (!gates.harness && item.href === HARNESS_SETTINGS_HREF) return false;
       if (!gates.trainer && item.href === HARNESS_LEARNING_HREF) return false;
       if (!gates.gps && item.href === GPS_SETTINGS_HREF) return false;
-      if (!gates.network && item.href === NETWORK_SETTINGS_HREF) return false;
       return gates.platformOwner || item.href !== PLATFORM_SETTINGS_HREF;
     }),
   }));

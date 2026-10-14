@@ -2253,8 +2253,7 @@
         "selectables": "Seleccionables",
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
-        "gps": "GPS",
-        "network": "Red de assets"
+        "gps": "GPS"
       },
       "symptoms": {
         "config": {
@@ -3320,58 +3319,6 @@
         "copy": "Copiar",
         "copied": "Copiado",
         "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo."
-      },
-      "network": {
-        "title": "Red de assets",
-        "description": "Los assets que ve tu organización y las organizaciones con las que los comparte. Las relaciones salen de las señales GPS, los viajes y las acreditaciones, y vencen cuando deja de haber evidencia.",
-        "loadFailed": "No se pudo cargar la red de assets.",
-        "unavailable": "Todavía no hay datos de la red de assets en esta plataforma.",
-        "notAllowed": "Necesitas el rol Lector de Flota, o ser Administrador o Dueño, para ver esta página.",
-        "relationshipsTitle": "Organizaciones relacionadas",
-        "relationshipsDescription": "Con quién trabaja tu organización, según los assets que comparten.",
-        "noRelationships": "Todavía no hay organizaciones relacionadas.",
-        "organization": "Organización",
-        "relationship": "Relación",
-        "evidence": "Evidencia",
-        "assets": "Assets",
-        "firstSeen": "Desde",
-        "lastSeen": "Última evidencia",
-        "expiresAt": "Vence",
-        "status": "Estado",
-        "active": "Activa",
-        "expired": "Vencida",
-        "youAre": "Tu organización es",
-        "assetsTitle": "Assets",
-        "assetsDescription": "Los assets que tu organización ve hoy y por qué los ve.",
-        "searchAssets": "Buscar por asset, tipo o dueño",
-        "noAssets": "No hay assets para mostrar.",
-        "asset": "Asset",
-        "type": "Tipo",
-        "owner": "Dueño",
-        "providers": "Proveedores GPS",
-        "why": "Por qué lo ves",
-        "visibleUntil": "Visible hasta",
-        "unknownOwner": "Sin dueño conocido",
-        "roles": {
-          "CARRIER": "Transportista",
-          "PROVIDER": "Proveedor GPS",
-          "OPERATOR": "Operador logístico"
-        },
-        "kinds": {
-          "OPERATION": "Operación",
-          "GPS_SERVICE": "Servicio GPS"
-        },
-        "sources": {
-          "SIGNAL": "Señal",
-          "TRIP": "Viaje",
-          "ACCREDITATION": "Acreditación"
-        },
-        "reasons": {
-          "REPORTER": "Lo reporta tu GPS",
-          "OWNER": "Es tuyo",
-          "OPERATOR": "Lo operas",
-          "LINKED": "Viaja con uno que operas"
-        }
       }
     },
     "integrationJobs": {
@@ -3805,6 +3752,217 @@
         "title": "Configuración avanzada",
         "description": "Enriquecimiento e integraciones de este calendario"
       }
+    },
+    "fleet": {
+      "title": "Flota",
+      "subtitle": "{assets} assets · {carriers} transportistas",
+      "updated": "Actualizado {ago}",
+      "unavailable": "Los datos de flota no están configurados en este ambiente.",
+      "loadFailed": "No se pudo cargar la flota. Intenta de nuevo.",
+      "notAllowed": "No tienes acceso a la flota de esta organización.",
+      "notFound": "Este asset no existe o tu organización no lo ve.",
+      "breadcrumb": {
+        "fleet": "Flota",
+        "edit": "Editar"
+      },
+      "actions": {
+        "edit": "Editar datos",
+        "viewOnMap": "Ver en el mapa",
+        "save": "Guardar cambios",
+        "cancel": "Cancelar",
+        "back": "Volver"
+      },
+      "kpis": {
+        "assets": "Assets",
+        "withSignal": "{n} con señal ahora",
+        "inTrip": "En viaje",
+        "plannedToday": "{n} con viaje planificado hoy",
+        "noSignal": "Sin señal > 24 h",
+        "noSignalHint": "revisar GPS",
+        "documentsDue": "Documentos por vencer",
+        "documentsDueHint": "próximos 30 días o vencidos",
+        "suggestions": "Sugerencias",
+        "suggestionsHint": "assets con datos por confirmar"
+      },
+      "agent": {
+        "title": "Agente de flota · integraciones",
+        "listHeadline": "{n} assets tienen datos que puedo completar desde sus viajes.",
+        "listBody": "Ramplas y conductores habituales según los viajes de los últimos 30 días.",
+        "listEmpty": "No hay sugerencias pendientes. Los datos de la flota están al día con las integraciones.",
+        "review": "Revisar sugerencias",
+        "showAll": "Ver todos",
+        "USUAL_TRAILER": "{value} viajó con este asset en {count} de {total} viajes.",
+        "USUAL_DRIVER": "{value} manejó este asset en {count} de {total} viajes.",
+        "whyLabel": "De dónde sale",
+        "why": "Viajes de los últimos 30 días.",
+        "effectLabel": "Qué cambia",
+        "effect_USUAL_TRAILER": "Queda como rampla habitual del asset.",
+        "effect_USUAL_DRIVER": "Queda como conductor habitual del asset.",
+        "accept": "Aceptar",
+        "dismiss": "Descartar",
+        "done": "Sin sugerencias pendientes para este asset."
+      },
+      "filters": {
+        "all": "Todos",
+        "status": "Estado",
+        "anyStatus": "Todos los estados",
+        "carrier": "Transportista",
+        "anyCarrier": "Todos los transportistas",
+        "documentsDue": "Documentos por vencer",
+        "withSuggestions": "Con sugerencias",
+        "search": "Patente, IMEI, conductor o transportista",
+        "sort": "Orden",
+        "sortId": "Identificador",
+        "sortSignal": "Última señal",
+        "sortKm": "Km en 30 días"
+      },
+      "kindsPlural": {
+        "TRUCK": "Tractos y camiones",
+        "TRAILER": "Ramplas",
+        "DECOY": "Señuelos",
+        "PERSON": "Personas",
+        "OTHER": "Otros"
+      },
+      "kinds": {
+        "TRUCK": "Tracto o camión",
+        "TRAILER": "Rampla",
+        "DECOY": "Señuelo",
+        "PERSON": "Persona",
+        "OTHER": "Otro"
+      },
+      "status": {
+        "IN_TRIP": "En viaje",
+        "AVAILABLE": "Disponible",
+        "NO_SIGNAL": "Sin señal"
+      },
+      "table": {
+        "asset": "Asset",
+        "carrier": "Transportista",
+        "status": "Estado",
+        "driver": "Conductor",
+        "nextTrip": "Próximo viaje",
+        "accreditation": "Acreditación",
+        "km30d": "Km · 30 d",
+        "lastSignal": "Última señal",
+        "noTrip": "Sin viaje planificado",
+        "inProgress": "en curso",
+        "empty": "No hay assets con estos filtros.",
+        "range": "{from}–{to} de {total}",
+        "previous": "Anterior",
+        "next": "Siguiente"
+      },
+      "documents": {
+        "accreditation": "Acreditación de acceso",
+        "technicalReview": "Revisión técnica",
+        "circulationPermit": "Permiso de circulación",
+        "insurance": "Seguro obligatorio (SOAP)"
+      },
+      "documentStatus": {
+        "MISSING": "Sin fecha",
+        "VALID": "Vigente · {date}",
+        "EXPIRING": "Vence {date}",
+        "EXPIRED": "Vencido · {date}"
+      },
+      "documentState": {
+        "MISSING": "Sin fecha",
+        "VALID": "Vigente",
+        "EXPIRING": "Por vencer",
+        "EXPIRED": "Vencido"
+      },
+      "fields": {
+        "label": "Nombre interno",
+        "kind": "Tipo",
+        "brandModel": "Marca y modelo",
+        "year": "Año",
+        "vin": "VIN",
+        "carrier": "Transportista",
+        "base": "Base",
+        "usualTrailer": "Rampla habitual",
+        "usualDriver": "Conductor habitual",
+        "gpsProvider": "Proveedor GPS"
+      },
+      "sources": {
+        "SIGNAL": "Señal GPS",
+        "TRIP": "Viajes",
+        "MANUAL": "Manual",
+        "NONE": "Sin fuente"
+      },
+      "sourceDetail": {
+        "reported": "el GPS reporta \"{value}\"",
+        "trips": "{count} de {total} viajes · 30 días",
+        "manual": "editado a mano",
+        "none": "Ninguna integración lo informa",
+        "sender": "cliente {value}"
+      },
+      "conflict": {
+        "title": "Dato en conflicto",
+        "body": "{field}: {source} dice {integration}, el valor guardado es {manual}.",
+        "useIntegration": "Usar {value}",
+        "keep": "Mantener {value}"
+      },
+      "indicators": {
+        "km30d": "Km · 30 días",
+        "engineHours": "Horas motor · 30 d",
+        "idle": "{pct}% en ralentí",
+        "utilization": "Utilización · 30 d",
+        "fleet": "flota {pct}%",
+        "trips": "Viajes · 30 d",
+        "avgTrip": "{h} h por viaje",
+        "noData": "sin datos aún"
+      },
+      "chart": {
+        "title": "Horas de motor por día",
+        "subtitle": "Últimos 14 días",
+        "moving": "En movimiento",
+        "idle": "Ralentí",
+        "today": "Hoy",
+        "engine": "Motor encendido",
+        "km": "Distancia",
+        "empty": "Todavía no hay actividad calculada para este asset.",
+        "dayLabel": "{day}: {moving} h en movimiento, {idle} h en ralentí"
+      },
+      "trips": {
+        "title": "Viajes",
+        "current": "En curso",
+        "planned": "Planificado",
+        "done": "Terminado",
+        "count": "{n} en 30 días",
+        "none": "Sin viajes registrados.",
+        "eta": "ETA {time}",
+        "with": "con {trailer}",
+        "starts": "sale {time}"
+      },
+      "live": {
+        "title": "Estado en vivo",
+        "signal": "Señal GPS",
+        "engine": "Motor",
+        "engineOn": "Encendido",
+        "engineOff": "Apagado",
+        "speed": "Velocidad",
+        "speedValue": "{v} km/h",
+        "driver": "Conductor",
+        "unknown": "Sin dato"
+      },
+      "history": {
+        "title": "Historial de cambios",
+        "empty": "Sin cambios todavía.",
+        "suggestion": "sugerencia aceptada",
+        "cleared": "{field} volvió al valor de la integración",
+        "set": "{field} → {value}"
+      },
+      "edit": {
+        "title": "Editar datos",
+        "legend": "Cada dato muestra de dónde viene. Lo que viene de una integración se actualiza solo hasta que lo cambias a mano. Deja un campo vacío para volver al valor de la integración.",
+        "identification": "Identificación",
+        "relations": "Relaciones",
+        "documents": "Documentos",
+        "documentsHint": "Fecha de vencimiento de cada documento.",
+        "readonly": "No editable",
+        "saved": "Cambios guardados.",
+        "saveFailed": "No se pudo guardar: {reason}",
+        "noChanges": "No hay cambios para guardar.",
+        "chooseKind": "Usar el tipo que reporta el GPS"
+      }
     }
   },
   "layout": {
@@ -3878,7 +4036,7 @@
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
         "gps": "GPS",
-        "network": "Red de assets"
+        "fleet": "Flota"
       }
     },
     "calendar": {

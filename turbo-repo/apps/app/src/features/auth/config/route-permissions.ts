@@ -63,6 +63,10 @@ export const ROUTE_PERMISSIONS = {
   // authenticated org member (frontend-only demo for now).
   "/storytelling": [],
 
+  // Fleet (list, /fleet/[assetId] and its edit page, matched by prefix) — any
+  // authenticated member; the modulith checks fleet:assets.view / .edit.
+  "/fleet": [],
+
   // Settings › Connections (templates + connections) — any authenticated member;
   // the backend owner-gates every mutation per request.
   "/users/settings/connections": [],

@@ -101,6 +101,7 @@
       { "href": "/users/settings/organizations", "label": "organizations", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/team", "label": "team", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/gps", "label": "gps", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/users/settings/network", "label": "network", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/symptoms", "label": "symptomCatalog", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/selectables", "label": "selectables", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/contact-book", "label": "contactBook", "requiredGroups": [], "blockedGroups": [] },

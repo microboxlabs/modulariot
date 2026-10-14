@@ -65,11 +65,11 @@ public final class DemoNetworkSource implements NetworkSource {
                 new NetworkOrganization(OTHER_OPERATOR, "Operador Sur (demo)", Set.of(OrgRole.OPERATOR), Set.of()));
 
         List<Asset> assets = List.of(
-                new Asset(ABCD12, TRUCK, "Tracto " + ABCD12),
-                new Asset(EFGH34, TRUCK, "Tracto " + EFGH34),
-                new Asset(IJKL56, "TRACTO", "Tracto " + IJKL56),
-                new Asset(MNOP78, TRUCK, "Tracto " + MNOP78),
-                new Asset(QRST90, TRUCK, "Tracto " + QRST90),
+                tractor(ABCD12, TRUCK),
+                tractor(EFGH34, TRUCK),
+                tractor(IJKL56, "TRACTO"),
+                tractor(MNOP78, TRUCK),
+                tractor(QRST90, TRUCK),
                 new Asset(TRAILER, "Jaula", "Jaula " + TRAILER),
                 new Asset(DECOY, "Señuelo", "Señuelo en carga"));
 
@@ -105,6 +105,10 @@ public final class DemoNetworkSource implements NetworkSource {
                 linked(ABCD12, DECOY, OPEN_TRIP, tripStart, now));
 
         return new NetworkSnapshot(organizations, assets, evidence);
+    }
+
+    private static Asset tractor(String id, String type) {
+        return new Asset(id, type, "Tracto " + id);
     }
 
     private static Evidence reports(String clientId, String assetId, Instant first, Instant last) {

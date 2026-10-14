@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.fleet.directory;
 
+import com.microboxlabs.miot.core.vehicle.VehicleImages;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 import io.vertx.mutiny.core.Vertx;
@@ -36,6 +37,7 @@ public class FleetDirectoryProducer {
 
     private final Vertx vertx;
     private final Instance<Pool> modulithPool;
+    private final VehicleImages images;
     private final String source;
     private final Optional<String> url;
     private final Optional<String> username;
@@ -48,7 +50,7 @@ public class FleetDirectoryProducer {
     private Pool gpsPool;
     private Wiring wiring;
 
-    FleetDirectoryProducer(Vertx vertx, Instance<Pool> modulithPool,
+    FleetDirectoryProducer(Vertx vertx, Instance<Pool> modulithPool, VehicleImages images,
             @ConfigProperty(name = "miot.fleet.source", defaultValue = "none") String source,
             @ConfigProperty(name = "miot.fleet.gps.reactive-url") Optional<String> url,
             @ConfigProperty(name = "miot.fleet.gps.username") Optional<String> username,
@@ -59,6 +61,7 @@ public class FleetDirectoryProducer {
             @ConfigProperty(name = "miot.fleet.activity.backfill-per-run", defaultValue = "8") int backfillPerRun) {
         this.vertx = vertx;
         this.modulithPool = modulithPool;
+        this.images = images;
         this.source = source;
         this.url = url.filter(s -> !s.isBlank());
         this.username = username.filter(s -> !s.isBlank());
@@ -103,15 +106,16 @@ public class FleetDirectoryProducer {
             FleetData data = new DemoFleetData(clock::instant);
             ActivityStore activity = new InMemoryActivityStore();
             wiring = new Wiring(
-                    new FleetDirectoryService(data, new InMemoryProfileStore(), activity, clock, zone, cacheTtl),
+                    new FleetDirectoryService(data, new InMemoryProfileStore(), activity, images, clock, zone,
+                            cacheTtl),
                     new ActivityRollup(data, activity, clock, zone, history, (int) history.toHours()));
         } else if ("gps".equals(source) && url.isPresent() && username.isPresent()) {
             LOG.info("Fleet directory: GPS database, read only; edits in the modulith database");
             FleetData data = new GpsFleetData(this::gpsPool);
             ActivityStore activity = new PgActivityStore(modulithPool::get);
             wiring = new Wiring(
-                    new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity, clock, zone,
-                            cacheTtl),
+                    new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity, images, clock,
+                            zone, cacheTtl),
                     new ActivityRollup(data, activity, clock, zone, history, backfillPerRun));
         } else {
             LOG.infof("Fleet directory: none (miot.fleet.source=%s)", source);

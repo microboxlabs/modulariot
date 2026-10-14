@@ -151,7 +151,9 @@ public class OrgFleetResource {
         if (tenantContext.getClientId() != null) {
             clientIds.addAll(tenantContext.getEffectiveClientIds());
         }
-        return new Viewer(organizationId, clientIds);
+        String tenantCode = tenantContext.getTenantCode() != null ? tenantContext.getTenantCode()
+                : tenantContext.getClientId();
+        return new Viewer(organizationId, clientIds, tenantCode);
     }
 
     /** The user's email for a session token, the client id for an M2M token. */

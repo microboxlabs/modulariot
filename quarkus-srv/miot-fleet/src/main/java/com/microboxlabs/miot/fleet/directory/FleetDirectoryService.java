@@ -6,7 +6,9 @@ import com.microboxlabs.miot.fleet.directory.Views.AssetRow;
 import com.microboxlabs.miot.fleet.directory.Views.AssetUpdate;
 import com.microboxlabs.miot.fleet.directory.Views.DocumentView;
 import com.microboxlabs.miot.fleet.directory.Views.Facet;
+import com.microboxlabs.miot.core.vehicle.VehicleImages;
 import com.microboxlabs.miot.fleet.directory.Views.FieldView;
+import com.microboxlabs.miot.fleet.directory.Views.ImageView;
 import com.microboxlabs.miot.fleet.directory.Views.Indicators;
 import com.microboxlabs.miot.fleet.directory.Views.LiveView;
 import com.microboxlabs.miot.fleet.directory.Views.SuggestionView;
@@ -53,11 +55,13 @@ public class FleetDirectoryService {
     private static final int DUE_DAYS = 30;
     private static final Duration NO_SIGNAL = Duration.ofHours(24);
     private static final int MAX_VALUE = 200;
+    private static final int IMAGE_WIDTH = 800;
 
     /** The editable fields, in display order, with what the integrations say for each. */
     private static final Map<String, Function<AssetFacts, Integration>> FIELDS = fields();
 
     private final FleetData data;
+    private final VehicleImages images;
     private final ProfileStore profiles;
     private final ActivityStore activity;
     private final Clock clock;
@@ -65,8 +69,15 @@ public class FleetDirectoryService {
     private final Duration cacheTtl;
     private final Map<String, Snapshot> snapshots = new ConcurrentHashMap<>();
 
-    /** Who reads: the organization and the GPS clients whose assets it sees. */
-    public record Viewer(String organizationId, Set<String> clientIds) {
+    /**
+     * Who reads: the organization, the GPS clients whose assets it sees, and its tenant code for the integrations it
+     * owns (vehicle images).
+     */
+    public record Viewer(String organizationId, Set<String> clientIds, String tenantCode) {
+
+        public Viewer(String organizationId, Set<String> clientIds) {
+            this(organizationId, clientIds, null);
+        }
     }
 
     private record Integration(String value, FieldSource source, String reported, Integer count, Integer total) {
@@ -80,7 +91,13 @@ public class FleetDirectoryService {
 
     public FleetDirectoryService(FleetData data, ProfileStore profiles, ActivityStore activity, Clock clock,
             ZoneId zone, Duration cacheTtl) {
+        this(data, profiles, activity, (tenantCode, query) -> Optional.empty(), clock, zone, cacheTtl);
+    }
+
+    public FleetDirectoryService(FleetData data, ProfileStore profiles, ActivityStore activity, VehicleImages images,
+            Clock clock, ZoneId zone, Duration cacheTtl) {
         this.data = data;
+        this.images = images;
         this.profiles = profiles;
         this.activity = activity;
         this.clock = clock;
@@ -174,7 +191,7 @@ public class FleetDirectoryService {
         AssetFacts facts = visible(snapshot, assetId);
         Profile profile = profiles.find(viewer.organizationId(), assetId)
                 .orElse(Profile.empty(viewer.organizationId(), assetId));
-        return detail(facts, profile, snapshot, dismissed(viewer, assetId));
+        return detail(viewer, facts, profile, snapshot, dismissed(viewer, assetId));
     }
 
     /** Daily activity for the last {@code days} days, today included; days without signals are zero. */
@@ -238,7 +255,7 @@ public class FleetDirectoryService {
         });
         Profile saved = changes.isEmpty() ? current
                 : profiles.save(new Profile(viewer.organizationId(), assetId, fields, documents, actor, now), changes);
-        return detail(facts, saved, snapshot, dismissed(viewer, assetId));
+        return detail(viewer, facts, saved, snapshot, dismissed(viewer, assetId));
     }
 
     /** Sets the suggested value on the field it belongs to. */
@@ -255,7 +272,7 @@ public class FleetDirectoryService {
         String old = fields.put(suggestion.field(), suggestion.value());
         Profile saved = profiles.save(new Profile(viewer.organizationId(), assetId, fields, current.documents(),
                 actor, now), List.of(new Change(suggestion.field(), old, suggestion.value(), SUGGESTION, actor, now)));
-        return detail(facts, saved, snapshot, dismissed(viewer, assetId));
+        return detail(viewer, facts, saved, snapshot, dismissed(viewer, assetId));
     }
 
     /** Hides the current suggestion of that kind; a different value is suggested again. */
@@ -268,7 +285,7 @@ public class FleetDirectoryService {
                 .filter(s -> s.kind().equals(kind)).findFirst()
                 .orElseThrow(() -> new NoSuchElementException("No suggestion " + kind + " for " + assetId));
         profiles.dismiss(viewer.organizationId(), assetId, key(suggestion.kind(), suggestion.value()), actor);
-        return detail(facts, current, snapshot, dismissed(viewer, assetId));
+        return detail(viewer, facts, current, snapshot, dismissed(viewer, assetId));
     }
 
     // ---- building blocks
@@ -314,7 +331,8 @@ public class FleetDirectoryService {
                 facts.gpsProvider(), suggestions(facts, profile, dismissed).size());
     }
 
-    private AssetDetail detail(AssetFacts facts, Profile profile, Snapshot snapshot, Set<String> dismissed) {
+    private AssetDetail detail(Viewer viewer, AssetFacts facts, Profile profile, Snapshot snapshot,
+            Set<String> dismissed) {
         LocalDate today = today();
         List<FieldView> fields = new ArrayList<>();
         FIELDS.forEach((key, integration) -> fields.add(field(key, integration.apply(facts), profile)));
@@ -332,10 +350,45 @@ public class FleetDirectoryService {
         List<DocumentView> documents = DOCUMENTS.stream().map(key -> document(key, profile, today)).toList();
         LiveView live = new LiveView(facts.lastSignalAt(), facts.lat(), facts.lon(), facts.speed(), facts.engineOn(),
                 facts.gpsProvider(), driver(facts, profile));
-        return new AssetDetail(facts.id(), profile.fields().get("label"), kind(facts, profile), status(facts), fields,
+        return new AssetDetail(facts.id(), profile.fields().get("label"), kind(facts, profile), status(facts),
+                image(viewer, facts, profile, fields), fields,
                 live, indicators, facts.currentTrip(), data.plannedTrips(facts.id()),
                 data.recentTrips(facts.id(), 10), documents, suggestions(facts, profile, dismissed),
                 profiles.changes(profile.organizationId(), facts.id(), 20));
+    }
+
+    /**
+     * A studio image of a truck, from its make and model ("Volvo FH 540": make Volvo, model FH 540) and year.
+     * Null for other kinds, without a make, or when no provider has one.
+     */
+    private ImageView image(Viewer viewer, AssetFacts facts, Profile profile, List<FieldView> fields) {
+        if (kind(facts, profile) != AssetKind.TRUCK) {
+            return null;
+        }
+        String brandModel = value(fields, "brandModel");
+        if (brandModel == null || brandModel.isBlank()) {
+            return null;
+        }
+        String[] parts = brandModel.trim().split("\\s+", 2);
+        Integer year = parseYear(value(fields, "year"));
+        return images.find(viewer.tenantCode(), new VehicleImages.Query(parts[0], parts.length > 1 ? parts[1] : null,
+                year, null, IMAGE_WIDTH)).map(i -> new ImageView(i.url(), i.expiresAt())).orElse(null);
+    }
+
+    private static String value(List<FieldView> fields, String key) {
+        return fields.stream().filter(f -> f.key().equals(key)).map(FieldView::value).filter(Objects::nonNull)
+                .findFirst().orElse(null);
+    }
+
+    private static Integer parseYear(String year) {
+        if (year == null) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(year.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static FieldView field(String key, Integration integration, Profile profile) {

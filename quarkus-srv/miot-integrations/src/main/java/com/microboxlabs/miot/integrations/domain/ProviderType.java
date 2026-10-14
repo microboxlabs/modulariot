@@ -11,5 +11,7 @@ public enum ProviderType {
     /** Tenant-owned outbound GPS position webhooks with filter criteria. */
     GPS_WEBHOOK,
     /** Transactional email through the Resend API. */
-    RESEND
+    RESEND,
+    /** Vehicle studio images through carimagesapi.com. */
+    CAR_IMAGES
 }

@@ -1614,6 +1614,31 @@
           "statusFailed": "Prueba fallida",
           "statusUntested": "Sin probar"
         },
+        "vehicleImages": {
+          "title": "Imágenes de vehículos",
+          "menuHint": "carimagesapi.com para la flota",
+          "description": "La flota muestra la imagen de estudio de cada tracto según su marca, modelo y año. Las organizaciones sin proveedor propio usan esta cuenta de carimagesapi.com.",
+          "apiKey": "Clave de la cuenta",
+          "apiSecret": "Secreto de la API",
+          "apiSecretKeep": "Guardado: {preview}. Déjalo vacío para conservarlo.",
+          "apiSecretHint": "Se envía solo desde el servidor; el navegador recibe URLs firmadas que vencen.",
+          "save": "Guardar",
+          "test": "Probar",
+          "remove": "Quitar",
+          "saved": "Proveedor guardado.",
+          "saveError": "No se pudo guardar el proveedor.",
+          "removed": "Proveedor quitado.",
+          "removeError": "No se pudo quitar el proveedor.",
+          "loadError": "No se pudo cargar el proveedor.",
+          "testOk": "carimagesapi.com aceptó la clave y el secreto.",
+          "testFailed": "carimagesapi.com rechazó la clave o el secreto.",
+          "removeTitle": "Quitar el proveedor de imágenes",
+          "removeBody": "Las organizaciones sin proveedor propio dejarán de ver la imagen de sus vehículos.",
+          "statusNone": "Sin configurar",
+          "statusOk": "Funcionando",
+          "statusFailed": "Prueba fallida",
+          "statusUntested": "Sin probar"
+        },
         "plan": {
           "title": "Plan de asientos",
           "menuHint": "Precio por asiento y tokens incluidos",
@@ -3963,6 +3988,11 @@
         "saveFailed": "No se pudo guardar: {reason}",
         "noChanges": "No hay cambios para guardar.",
         "chooseKind": "Usar el tipo que reporta el GPS"
+      },
+      "image": {
+        "imageAlt": "Imagen de {vehicle}",
+        "imageMissing": "Agrega marca y modelo para ver la imagen del vehículo.",
+        "imageNone": "Sin imagen para este modelo."
       }
     }
   },

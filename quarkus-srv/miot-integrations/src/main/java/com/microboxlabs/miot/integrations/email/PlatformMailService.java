@@ -131,9 +131,12 @@ public class PlatformMailService {
         return repository.findActiveByProvider(PLATFORM_TENANT, ProviderType.RESEND);
     }
 
+    /** The platform's email credentials only: other platform features keep theirs under the same tenant. */
     private void removeCredentials(String actor) {
         for (CredentialProfileResponse credential : credentials.list(PLATFORM_TENANT)) {
-            credentials.delete(PLATFORM_TENANT, actor, credential.id(), true);
+            if (NAME.equals(credential.displayName())) {
+                credentials.delete(PLATFORM_TENANT, actor, credential.id(), true);
+            }
         }
     }
 

@@ -124,6 +124,8 @@ export interface AssetDetail {
   label: string | null;
   kind: AssetKind;
   status: AssetStatus;
+  /** A signed studio image of the make and model; null when there is none. */
+  image: { url: string; expiresAt: string } | null;
   fields: AssetField[];
   live: {
     lastSignalAt: string | null;

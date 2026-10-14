@@ -12,6 +12,7 @@ import {
   HiOutlinePencil,
   HiOutlineShieldCheck,
   HiOutlineSwitchHorizontal,
+  HiOutlineTruck,
 } from "react-icons/hi";
 import { useSWRConfig } from "swr";
 import { KpiStat } from "@/features/common/components/kpi-stat";
@@ -198,8 +199,11 @@ function AssetContent({
       </div>
 
       <div className="flex flex-wrap items-stretch gap-4">
-        <section className={`${CARD} min-w-0 flex-[999_1_640px] p-5`}>
-          <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2">
+        <section
+          className={`${CARD} flex min-w-0 flex-[999_1_640px] flex-wrap gap-5 p-5`}
+        >
+          <VehicleImage asset={asset} brand={brand} d={d} />
+          <div className="grid min-w-0 flex-[1_1_360px] grid-cols-1 gap-x-8 md:grid-cols-2">
             <div>
               <InfoRow label={tr("live.driver", d)}>
                 {live.driver ?? "—"}
@@ -288,6 +292,33 @@ function AssetContent({
         </aside>
       </div>
     </>
+  );
+}
+
+/** The studio image of the truck's make and model, or why there is none. */
+function VehicleImage({
+  asset,
+  brand,
+  d,
+}: Readonly<{ asset: AssetDetail; brand: string; d: I18nRecord }>) {
+  if (asset.kind !== "TRUCK") return null;
+  const vehicle = brand || asset.id;
+  return (
+    <div className="flex aspect-[16/10] w-full shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-50 sm:w-72 dark:bg-gray-700">
+      {asset.image ? (
+        // eslint-disable-next-line @next/next/no-img-element -- signed CDN URL that expires; next/image would cache it
+        <img
+          src={asset.image.url}
+          alt={tr("image.imageAlt", d, { vehicle })}
+          className="h-full w-full object-contain"
+        />
+      ) : (
+        <div className="flex flex-col items-center gap-2 p-4 text-center text-xs text-gray-500 dark:text-gray-400">
+          <HiOutlineTruck className="h-10 w-10" aria-hidden />
+          {brand ? tr("image.imageNone", d) : tr("image.imageMissing", d)}
+        </div>
+      )}
+    </div>
   );
 }
 

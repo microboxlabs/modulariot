@@ -80,7 +80,13 @@ export default function CallDriver({
       color: "blue",
       text: (dict.symptoms as I18nRecord).save_treatment,
       function: async () => {
-        const response = await guardedRequestTreatment(treatmentRequest);
+        // Read both texts from the inputs: the open preaction can reset
+        // treatmentRequest after the operator has started typing.
+        const response = await guardedRequestTreatment({
+          ...treatmentRequest,
+          message: messageToCommunicate,
+          driver_response: driverResponse,
+        });
 
         setTreatmentRequest({
           ...treatmentRequest,

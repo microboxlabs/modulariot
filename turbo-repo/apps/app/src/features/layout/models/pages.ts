@@ -89,6 +89,7 @@ export function visiblePages(
 const HARNESS_SETTINGS_HREF = "/users/settings/harness";
 const PLATFORM_SETTINGS_HREF = "/users/settings/platform";
 const GPS_SETTINGS_HREF = "/users/settings/gps";
+const NETWORK_SETTINGS_HREF = "/users/settings/network";
 export const HARNESS_LEARNING_HREF = "/harness/learning";
 
 /** Which flag decides whether a gated Settings entry is offered. */
@@ -101,6 +102,8 @@ export interface SettingsGates {
   readonly trainer: boolean;
   /** Whether the signed-in user may view the GPS integration (`gps:view`). */
   readonly gps: boolean;
+  /** Whether the signed-in user may view the asset network (`fleet:network.view`). */
+  readonly network: boolean;
 }
 
 /**
@@ -114,7 +117,13 @@ export function filterSettings(
   input: SidebarItem[],
   gates: SettingsGates
 ): SidebarItem[] {
-  if (gates.harness && gates.platformOwner && gates.trainer && gates.gps) {
+  if (
+    gates.harness &&
+    gates.platformOwner &&
+    gates.trainer &&
+    gates.gps &&
+    gates.network
+  ) {
     return input;
   }
 
@@ -124,6 +133,7 @@ export function filterSettings(
       if (!gates.harness && item.href === HARNESS_SETTINGS_HREF) return false;
       if (!gates.trainer && item.href === HARNESS_LEARNING_HREF) return false;
       if (!gates.gps && item.href === GPS_SETTINGS_HREF) return false;
+      if (!gates.network && item.href === NETWORK_SETTINGS_HREF) return false;
       return gates.platformOwner || item.href !== PLATFORM_SETTINGS_HREF;
     }),
   }));

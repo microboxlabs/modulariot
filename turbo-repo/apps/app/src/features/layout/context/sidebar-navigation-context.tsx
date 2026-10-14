@@ -177,7 +177,9 @@ export function SidebarNavigationProvider({
   const pages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
   const { isTrainer } = useKnowledgeTrainer();
-  const canViewGps = useMyAccess().can("gps:view");
+  const { can } = useMyAccess();
+  const canViewGps = can("gps:view");
+  const canViewNetwork = can("fleet:network.view");
 
   useEffect(() => {
     if (error && (error.status === 401 || error.status === 403)) {
@@ -247,6 +249,7 @@ export function SidebarNavigationProvider({
       platformOwner: isPlatformOwner,
       trainer: isTrainer,
       gps: canViewGps,
+      network: canViewNetwork,
     }).map((page) => {
       const dynamic = page.dynamicItemsSource
         ? (dynamicMap[page.dynamicItemsSource] ?? [])
@@ -271,6 +274,7 @@ export function SidebarNavigationProvider({
     isPlatformOwner,
     isTrainer,
     canViewGps,
+    canViewNetwork,
   ]);
 
   return (

@@ -11,6 +11,7 @@ import {
   HiOutlinePhotograph,
   HiOutlineShieldCheck,
   HiOutlineSparkles,
+  HiOutlineTruck,
   HiOutlineViewGrid,
 } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
@@ -22,6 +23,7 @@ import type { AccessCatalog, CatalogModule, CatalogRole } from "./team.types";
 const MODULE_ICONS: Record<string, IconType> = {
   controltower: HiOutlineShieldCheck,
   gps: HiOutlineLocationMarker,
+  fleet: HiOutlineTruck,
   harness: HiOutlineSparkles,
   content: HiOutlinePhotograph,
 };

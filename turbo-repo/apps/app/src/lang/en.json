@@ -2253,7 +2253,8 @@
         "selectables": "Selectables",
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms",
-        "gps": "GPS"
+        "gps": "GPS",
+        "network": "Asset network"
       },
       "symptoms": {
         "config": {
@@ -3319,6 +3320,58 @@
         "copy": "Copy",
         "copied": "Copied",
         "copyFailed": "Could not copy. Select the text and copy it."
+      },
+      "network": {
+        "title": "Asset network",
+        "description": "The assets your organization sees and the organizations it shares them with. Relationships come from GPS signals, trips and accreditations, and expire when the evidence stops.",
+        "loadFailed": "The asset network could not be loaded.",
+        "unavailable": "There is no asset network data on this platform yet.",
+        "notAllowed": "You need the Fleet Viewer role, or to be an Admin or Owner, to view this page.",
+        "relationshipsTitle": "Related organizations",
+        "relationshipsDescription": "Who your organization works with, based on the assets you share.",
+        "noRelationships": "No related organizations yet.",
+        "organization": "Organization",
+        "relationship": "Relationship",
+        "evidence": "Evidence",
+        "assets": "Assets",
+        "firstSeen": "Since",
+        "lastSeen": "Last evidence",
+        "expiresAt": "Expires",
+        "status": "Status",
+        "active": "Active",
+        "expired": "Expired",
+        "youAre": "Your organization is the",
+        "assetsTitle": "Assets",
+        "assetsDescription": "The assets your organization sees today and why.",
+        "searchAssets": "Search by asset, type or owner",
+        "noAssets": "No assets to show.",
+        "asset": "Asset",
+        "type": "Type",
+        "owner": "Owner",
+        "providers": "GPS providers",
+        "why": "Why you see it",
+        "visibleUntil": "Visible until",
+        "unknownOwner": "No known owner",
+        "roles": {
+          "CARRIER": "Carrier",
+          "PROVIDER": "GPS provider",
+          "OPERATOR": "Logistics operator"
+        },
+        "kinds": {
+          "OPERATION": "Operation",
+          "GPS_SERVICE": "GPS service"
+        },
+        "sources": {
+          "SIGNAL": "Signal",
+          "TRIP": "Trip",
+          "ACCREDITATION": "Accreditation"
+        },
+        "reasons": {
+          "REPORTER": "Your GPS reports it",
+          "OWNER": "You own it",
+          "OPERATOR": "You operate it",
+          "LINKED": "Travels with one you operate"
+        }
       }
     },
     "integrationJobs": {
@@ -3824,7 +3877,8 @@
         "dashboardServer": "Dashboards",
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms",
-        "gps": "GPS"
+        "gps": "GPS",
+        "network": "Asset network"
       }
     },
     "calendar": {

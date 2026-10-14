@@ -58,6 +58,7 @@ describe("filterSettings", () => {
       platformOwner: false,
       trainer: true,
       gps: true,
+      network: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/platform");
@@ -70,6 +71,7 @@ describe("filterSettings", () => {
       platformOwner: true,
       trainer: true,
       gps: true,
+      network: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/harness");
@@ -82,6 +84,7 @@ describe("filterSettings", () => {
       platformOwner: false,
       trainer: false,
       gps: false,
+      network: false,
     });
 
     expect(settingsHrefs(filtered)).toEqual([
@@ -111,13 +114,19 @@ describe("filterSettings", () => {
       platformOwner: true,
       trainer: true,
       gps: true,
+      network: true,
     });
 
     expect(settingsHrefs(filtered)).toEqual(settingsHrefs(pages));
   });
 
   it("offers the learning workspace to trainers only", () => {
-    const gates = { harness: true, platformOwner: true, gps: true };
+    const gates = {
+      harness: true,
+      platformOwner: true,
+      gps: true,
+      network: true,
+    };
     expect(
       settingsHrefs(filterSettings(pages, { ...gates, trainer: true }))
     ).toContain("/harness/learning");
@@ -127,7 +136,12 @@ describe("filterSettings", () => {
   });
 
   it("offers GPS to those who may view it", () => {
-    const gates = { harness: true, platformOwner: true, trainer: true };
+    const gates = {
+      harness: true,
+      platformOwner: true,
+      trainer: true,
+      network: true,
+    };
     expect(
       settingsHrefs(filterSettings(pages, { ...gates, gps: true }))
     ).toContain("/users/settings/gps");
@@ -136,12 +150,28 @@ describe("filterSettings", () => {
     ).not.toContain("/users/settings/gps");
   });
 
+  it("offers the asset network to those who may view it", () => {
+    const gates = {
+      harness: true,
+      platformOwner: true,
+      trainer: true,
+      gps: true,
+    };
+    expect(
+      settingsHrefs(filterSettings(pages, { ...gates, network: true }))
+    ).toContain("/users/settings/network");
+    expect(
+      settingsHrefs(filterSettings(pages, { ...gates, network: false }))
+    ).not.toContain("/users/settings/network");
+  });
+
   it("touches no page outside Settings", () => {
     const filtered = filterSettings(pages, {
       harness: false,
       platformOwner: false,
       trainer: false,
       gps: false,
+      network: false,
     });
 
     expect(filtered.map((page) => page.label)).toEqual(

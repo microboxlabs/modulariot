@@ -120,6 +120,7 @@ value you have confirmed; never emit a literal placeholder.
 | `/notifications` | notifications, notificaciones | User notifications | — |
 | `/integrations/jobs` | integration jobs, trabajos de integración, job console, consola de trabajos | Asynchronous integration job activity and status | — |
 | `/users/settings` | settings, configuración, ajustes | User settings; organizations at `/users/settings/organizations`, data sources at `/users/settings/data-sources` | — |
+| `/users/settings/network` | asset network, red de assets, related organizations, organizaciones relacionadas, carriers, transportistas, GPS providers, proveedores GPS | Assets the organization sees and the organizations it shares them with | — |
 | `/users/settings/harness` | Harness settings, configuración de Harness, Harness seats, asientos de Harness, Harness usage, uso de Harness | Harness pricing, seat and token usage, and user access | — |
 | `/harness/learning` | learning workspace, espacio de aprendizaje, train the assistant, entrenar al asistente | Assistant trainers only: teach the assistant facts, rules and procedures, and test them with evaluations | — |
 | `/users/settings/gps` | GPS, integración GPS, GPS integration, client ID, client secret, secreto, token, posiciones, positions, proveedor GPS, GPS provider | How the GPS provider sends positions: client ID, token and position endpoints, examples, and API keys | — |

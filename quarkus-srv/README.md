@@ -112,6 +112,8 @@ Endpoints are grouped by component tag (Asset Tracking, Integration Connections,
 
 | Component | Endpoint | Description |
 |-----------|----------|-------------|
+| Fleet | `GET /api/v1/orgs/{organizationId}/fleet/network/assets[/{assetId}]` | Assets the organization sees, and why |
+| Fleet | `GET /api/v1/orgs/{organizationId}/fleet/network/relationships` | Organizations it works with, inferred from shared assets |
 | Tracking | `POST /api/v1/asset/track` | Ingest GPS position |
 | Integrations | `GET /api/v1/orgs/{organizationId}/integrations/connections` | List integration connections |
 | Integrations | `POST /api/v1/orgs/{organizationId}/integrations/connections` | Create an integration connection |

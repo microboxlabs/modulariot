@@ -2253,7 +2253,8 @@
         "selectables": "Seleccionables",
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
-        "gps": "GPS"
+        "gps": "GPS",
+        "network": "Red de assets"
       },
       "symptoms": {
         "config": {
@@ -3319,6 +3320,58 @@
         "copy": "Copiar",
         "copied": "Copiado",
         "copyFailed": "No se pudo copiar. Selecciona el texto y cópialo."
+      },
+      "network": {
+        "title": "Red de assets",
+        "description": "Los assets que ve tu organización y las organizaciones con las que los comparte. Las relaciones salen de las señales GPS, los viajes y las acreditaciones, y vencen cuando deja de haber evidencia.",
+        "loadFailed": "No se pudo cargar la red de assets.",
+        "unavailable": "Todavía no hay datos de la red de assets en esta plataforma.",
+        "notAllowed": "Necesitas el rol Lector de Flota, o ser Administrador o Dueño, para ver esta página.",
+        "relationshipsTitle": "Organizaciones relacionadas",
+        "relationshipsDescription": "Con quién trabaja tu organización, según los assets que comparten.",
+        "noRelationships": "Todavía no hay organizaciones relacionadas.",
+        "organization": "Organización",
+        "relationship": "Relación",
+        "evidence": "Evidencia",
+        "assets": "Assets",
+        "firstSeen": "Desde",
+        "lastSeen": "Última evidencia",
+        "expiresAt": "Vence",
+        "status": "Estado",
+        "active": "Activa",
+        "expired": "Vencida",
+        "youAre": "Tu organización es",
+        "assetsTitle": "Assets",
+        "assetsDescription": "Los assets que tu organización ve hoy y por qué los ve.",
+        "searchAssets": "Buscar por asset, tipo o dueño",
+        "noAssets": "No hay assets para mostrar.",
+        "asset": "Asset",
+        "type": "Tipo",
+        "owner": "Dueño",
+        "providers": "Proveedores GPS",
+        "why": "Por qué lo ves",
+        "visibleUntil": "Visible hasta",
+        "unknownOwner": "Sin dueño conocido",
+        "roles": {
+          "CARRIER": "Transportista",
+          "PROVIDER": "Proveedor GPS",
+          "OPERATOR": "Operador logístico"
+        },
+        "kinds": {
+          "OPERATION": "Operación",
+          "GPS_SERVICE": "Servicio GPS"
+        },
+        "sources": {
+          "SIGNAL": "Señal",
+          "TRIP": "Viaje",
+          "ACCREDITATION": "Acreditación"
+        },
+        "reasons": {
+          "REPORTER": "Lo reporta tu GPS",
+          "OWNER": "Es tuyo",
+          "OPERATOR": "Lo operas",
+          "LINKED": "Viaja con uno que operas"
+        }
       }
     },
     "integrationJobs": {
@@ -3824,7 +3877,8 @@
         "dashboardServer": "Dashboards",
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
-        "gps": "GPS"
+        "gps": "GPS",
+        "network": "Red de assets"
       }
     },
     "calendar": {

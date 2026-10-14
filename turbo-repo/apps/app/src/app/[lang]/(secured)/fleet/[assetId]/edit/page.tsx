@@ -19,6 +19,7 @@ export default async function FleetAssetEditRoute({
       <AssetEditPage
         assetId={decodeURIComponent(assetId)}
         dict={dict ?? {}}
+        rootDict={dictionary as I18nRecord}
         lang={lang}
       />
     </RouteGuard>

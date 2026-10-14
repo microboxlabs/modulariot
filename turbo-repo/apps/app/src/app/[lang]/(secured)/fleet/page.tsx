@@ -12,7 +12,11 @@ export default async function FleetRoute({ params }: ParamsWithLang) {
 
   return (
     <RouteGuard path="/fleet" fallbackPath={`/${lang}/shipping`}>
-      <FleetPage dict={dict ?? {}} lang={lang} />
+      <FleetPage
+        dict={dict ?? {}}
+        rootDict={dictionary as I18nRecord}
+        lang={lang}
+      />
     </RouteGuard>
   );
 }

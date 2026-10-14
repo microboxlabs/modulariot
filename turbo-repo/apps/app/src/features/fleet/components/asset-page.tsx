@@ -53,6 +53,8 @@ interface AssetPageProps {
   readonly assetId: string;
   /** `pages.fleet` subtree. */
   readonly dict: I18nRecord;
+  /** The whole dictionary, for the section header's filter bar. */
+  readonly rootDict: I18nRecord;
   readonly lang: string;
 }
 
@@ -61,6 +63,7 @@ export default function AssetPage({
   assetId,
   dict,
   lang,
+  rootDict,
 }: Readonly<AssetPageProps>) {
   const d = dict ?? {};
   const { access, accessError, can } = useMyAccess();
@@ -74,7 +77,7 @@ export default function AssetPage({
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
       <FleetHeader
-        filterDict={d}
+        filterDict={rootDict}
         crumbs={[
           { label: tr("title", d), href: fleetHref },
           { label: assetId },

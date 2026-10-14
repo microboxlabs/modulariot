@@ -51,6 +51,8 @@ const STATUSES: AssetStatus[] = ["IN_TRIP", "AVAILABLE", "NO_SIGNAL"];
 interface FleetPageProps {
   /** `pages.fleet` subtree. */
   readonly dict: I18nRecord;
+  /** The whole dictionary, for the section header's filter bar. */
+  readonly rootDict: I18nRecord;
   readonly lang: string;
 }
 
@@ -76,7 +78,7 @@ function useDebounced(value: string, delay = 300): string {
 }
 
 /** Fleet: every asset the organization sees, filled from its integrations. */
-export default function FleetPage({ dict, lang }: FleetPageProps) {
+export default function FleetPage({ dict, lang, rootDict }: FleetPageProps) {
   const d = dict ?? {};
   const { access, accessError, can } = useMyAccess();
   const allowed = can(VIEW);
@@ -98,7 +100,7 @@ export default function FleetPage({ dict, lang }: FleetPageProps) {
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
-      <FleetHeader crumbs={[{ label: tr("title", d) }]} filterDict={d} />
+      <FleetHeader crumbs={[{ label: tr("title", d) }]} filterDict={rootDict} />
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
         {loading && <Spinner className="mx-auto" />}
         {!loading && failure && (

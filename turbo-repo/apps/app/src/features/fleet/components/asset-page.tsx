@@ -142,7 +142,7 @@ function AssetActions({
         <Button
           as={Link}
           href={`/${lang}/fleet/${id}/edit`}
-          color="dark"
+          color="blue"
           size="sm"
         >
           <HiOutlinePencil className="mr-2 h-4 w-4" />
@@ -424,7 +424,7 @@ function Suggestions({
             <div className="flex flex-wrap gap-2">
               <Button
                 size="xs"
-                color="dark"
+                color="blue"
                 disabled={busy !== null}
                 onClick={() => act(s, acceptSuggestion)}
               >

@@ -179,7 +179,7 @@ function EditForm({
           <Button as={Link} href={detailHref} color="light" size="sm">
             {tr("actions.cancel", d)}
           </Button>
-          <Button type="submit" color="dark" size="sm" disabled={saving}>
+          <Button type="submit" color="blue" size="sm" disabled={saving}>
             {saving && <Spinner size="sm" className="mr-2" />}
             {tr("actions.save", d)}
           </Button>
@@ -291,7 +291,7 @@ function ConflictAlert({
       </p>
       <Button
         size="xs"
-        color="dark"
+        color="blue"
         className="mt-3"
         onClick={onUseIntegration}
       >

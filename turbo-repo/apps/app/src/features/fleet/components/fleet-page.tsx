@@ -262,7 +262,7 @@ function FleetContent({
                 <div>
                   <Button
                     size="xs"
-                    color="dark"
+                    color="blue"
                     onClick={() =>
                       onChange({ suggestions: !filters.suggestions })
                     }
@@ -285,7 +285,7 @@ function FleetContent({
       <div className="flex flex-wrap items-center gap-2">
         <Button
           size="xs"
-          color={filters.kind ? "light" : "dark"}
+          color={filters.kind ? "light" : "blue"}
           onClick={() => onChange({ kind: undefined })}
         >
           {tr("filters.all", d)} · {formatNumber(summary.assets, lang)}
@@ -294,7 +294,7 @@ function FleetContent({
           <Button
             key={kind}
             size="xs"
-            color={filters.kind === kind ? "dark" : "light"}
+            color={filters.kind === kind ? "blue" : "light"}
             onClick={() => onChange({ kind })}
           >
             {trDynamic(`kindsPlural.${kind}`, d)} ·{" "}

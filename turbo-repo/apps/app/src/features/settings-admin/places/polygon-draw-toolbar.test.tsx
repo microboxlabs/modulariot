@@ -22,7 +22,7 @@ function setup(puedeTerminar = true, cerrado = false) {
 describe("PolygonDrawToolbar", () => {
   it("runs each action from its button", () => {
     const p = setup();
-    fireEvent.click(screen.getByRole("button", { name: /Terminar/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Cerrar/ }));
     fireEvent.click(screen.getByRole("button", { name: /Deshacer/ }));
     fireEvent.click(screen.getByRole("button", { name: /Rehacer/ }));
     fireEvent.click(screen.getByRole("button", { name: /Cancelar/ }));
@@ -53,7 +53,7 @@ describe("PolygonDrawToolbar", () => {
 
   it("disables finishing below 3 points", () => {
     const p = setup(false);
-    expect(screen.getByRole("button", { name: /Terminar/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Cerrar/ })).toBeDisabled();
     fireEvent.keyDown(window, { key: "Enter" });
     expect(p.onTerminar).not.toHaveBeenCalled();
   });
@@ -72,7 +72,7 @@ describe("PolygonDrawToolbar", () => {
 
   it("once finished, offers to keep drawing and ignores Enter/Esc", () => {
     const p = setup(false, true);
-    expect(screen.queryByRole("button", { name: /Terminar/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Cerrar/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Seguir dibujando/ }));
     fireEvent.keyDown(window, { key: "Escape" });
     fireEvent.keyDown(window, { key: "z", metaKey: true });
@@ -85,5 +85,29 @@ describe("PolygonDrawToolbar", () => {
     const p = setup(false, true);
     fireEvent.keyDown(window, { key: "Backspace" });
     expect(p.onDeshacer).not.toHaveBeenCalled();
+  });
+
+  it("uses route wording for the trayecto variant", () => {
+    render(
+      <PolygonDrawToolbar
+        variante="trayecto"
+        puntos={2}
+        cerrado={false}
+        puedeTerminar
+        puedeDeshacer
+        puedeRehacer={false}
+        onTerminar={vi.fn()}
+        onDeshacer={vi.fn()}
+        onRehacer={vi.fn()}
+        onCancelar={vi.fn()}
+        onSeguir={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByRole("toolbar", { name: "Edición de recorrido" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Confirmar recorrido/ })
+    ).toBeEnabled();
   });
 });

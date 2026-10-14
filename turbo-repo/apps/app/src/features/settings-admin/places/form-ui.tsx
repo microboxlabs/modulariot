@@ -1,11 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Button, ButtonGroup } from "flowbite-react";
 import { HiX } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 
 export const inputCls =
   "w-full rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700/60 dark:text-white dark:placeholder:text-gray-500 dark:focus:bg-gray-700";
+
+export const inputErrorCls =
+  "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 dark:border-rose-500";
 
 /** Floating card over the map: header, optional full-width toolbar, scrollable body, sticky footer. */
 export function FloatingWindow({
@@ -14,18 +18,25 @@ export function FloatingWindow({
   onClose,
   footer,
   children,
+  className,
+  bodyClassName,
 }: {
-  title: string;
+  title: ReactNode;
   /** Rendered edge to edge right under the header (no padding). */
   toolbar?: ReactNode;
   onClose: () => void;
-  footer: ReactNode;
+  footer?: ReactNode;
   children: ReactNode;
+  className?: string;
+  bodyClassName?: string;
 }) {
   return (
     <div
       data-places-form
-      className="absolute top-4 right-4 z-40 flex max-h-[calc(100%-2rem)] w-[340px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white/95 shadow-2xl backdrop-blur dark:border-gray-700 dark:bg-gray-800/95"
+      className={twMerge(
+        "absolute top-4 right-4 z-40 flex max-h-[calc(100%-2rem)] w-[420px] flex-col overflow-visible rounded-xl border border-gray-200 bg-white/95 shadow-2xl backdrop-blur dark:border-gray-700 dark:bg-gray-800/95",
+        className
+      )}
     >
       <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-700">
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900 dark:text-white">
@@ -41,12 +52,19 @@ export function FloatingWindow({
         </button>
       </div>
       {toolbar}
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
+      <div
+        className={twMerge(
+          "min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3",
+          bodyClassName
+        )}
+      >
         {children}
       </div>
-      <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-700">
-        {footer}
-      </div>
+      {footer != null && (
+        <div className="border-t border-gray-100 px-4 py-3 dark:border-gray-700">
+          {footer}
+        </div>
+      )}
     </div>
   );
 }
@@ -55,13 +73,15 @@ export function Field({
   label,
   aside,
   children,
+  className,
 }: {
   label: string;
   aside?: ReactNode;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="block space-y-1">
+    <div className={twMerge("block space-y-1", className)}>
       <div className="flex items-center justify-between text-[11px] font-medium text-gray-600 dark:text-gray-300">
         <span>{label}</span>
         {aside}
@@ -138,39 +158,74 @@ export function FormFooter({
   guardando,
   saveLabel,
   saveCls,
+  cancelLabel = "Cancelar",
   onCancel,
+  altLabel,
+  onAlt,
   onSave,
 }: {
   msg: string | null;
   guardando: boolean;
   saveLabel: string;
   saveCls: string;
-  onCancel: () => void;
+  cancelLabel?: string;
+  onCancel?: () => void;
+  altLabel?: string;
+  onAlt?: () => void;
   onSave: () => void;
 }) {
+  const saveText = guardando ? "Guardando…" : saveLabel;
+  const altText = guardando ? "Guardando…" : altLabel;
+
   return (
     <div className="space-y-2">
       {msg && <p className="text-xs text-gray-600 dark:text-gray-300">{msg}</p>}
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="flex-1 rounded-lg border border-gray-200 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={guardando}
-          className={twMerge(
-            "flex-1 rounded-lg py-1.5 text-sm font-medium text-white disabled:opacity-50",
-            saveCls
+      {onAlt ? (
+        <ButtonGroup className="flex w-full">
+          <Button
+            type="button"
+            color="alternative"
+            disabled={guardando}
+            className="min-w-0 flex-1 whitespace-normal leading-tight"
+            onClick={onAlt}
+          >
+            {altText}
+          </Button>
+          <Button
+            type="button"
+            color="blue"
+            disabled={guardando}
+            className="min-w-0 flex-1 whitespace-normal leading-tight"
+            onClick={onSave}
+          >
+            {saveText}
+          </Button>
+        </ButtonGroup>
+      ) : (
+        <div className={onCancel ? "flex gap-2" : undefined}>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 rounded-lg border border-gray-200 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+            >
+              {cancelLabel}
+            </button>
           )}
-        >
-          {guardando ? "Guardando…" : saveLabel}
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={guardando}
+            className={twMerge(
+              "rounded-lg py-2 text-sm font-medium text-white disabled:opacity-50",
+              onCancel ? "flex-1 py-1.5" : "w-full",
+              saveCls
+            )}
+          >
+            {saveText}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

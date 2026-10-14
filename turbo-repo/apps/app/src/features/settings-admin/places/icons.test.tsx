@@ -1,22 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { IconPicker } from "./icons";
+import { IconPicker, claveIcono } from "./icons";
+
+describe("claveIcono", () => {
+  it("keeps dashboard registry keys and maps legacy place ids", () => {
+    expect(claveIcono("hi2-truck")).toBe("hi2-truck");
+    expect(claveIcono("pin")).toBe("hi2-outline-map-pin");
+    expect(claveIcono("ruta")).toBe("tb-route");
+  });
+});
 
 describe("IconPicker", () => {
-  it("opens the grid and returns the chosen icon", () => {
+  it("opens the dashboard icon grid and returns the chosen registry key", () => {
     const onChange = vi.fn();
-    render(
-      <IconPicker value="" fallback="pin" accentCls="" onChange={onChange} />
-    );
+    render(<IconPicker value="" fallback="pin" onChange={onChange} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Elegir icono" }));
-    expect(screen.getByRole("option", { name: "Ubicación" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-    fireEvent.click(screen.getByRole("option", { name: "Bodega" }));
+    fireEvent.click(screen.getByTitle("Elegir icono"));
+    fireEvent.change(screen.getByPlaceholderText("Buscar iconos…"), {
+      target: { value: "hi2-truck" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Truck" }));
 
-    expect(onChange).toHaveBeenCalledWith("bodega");
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledWith("hi2-truck");
   });
 });

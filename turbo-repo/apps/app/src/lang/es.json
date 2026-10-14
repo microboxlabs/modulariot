@@ -4943,6 +4943,22 @@
       "decodeError": "Error al decodificar imagen",
       "downloadSuccess": "Imagen descargada",
       "downloadError": "Error al descargar imagen"
+    },
+    "profiles": {
+      "label": "Perfil",
+      "admin": "Admin",
+      "other": "Otro",
+      "comingSoon": "próximamente"
+    },
+    "notch": {
+      "label": "Vistas del mapa",
+      "places": "Lugares de interés",
+      "test": "Vista de prueba",
+      "testHint": "Vista de prueba para el selector. Aquí se sumarán más vistas."
+    },
+    "places": {
+      "title": "Lugares de interés",
+      "hint": "Busca en el catálogo o importa. Clic derecho en el mapa para crear un lugar o un trayecto."
     }
   },
   "release": {

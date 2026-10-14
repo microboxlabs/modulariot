@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { CircuitoList, TrayectoList } from "./route-lists";
-import type { Circuito, Trayecto } from "./places.types";
+import { TrayectoList } from "./route-lists";
+import type { Trayecto } from "./places.types";
 
 const trayecto: Trayecto = {
   trayecto_id: "local-t1",
@@ -18,21 +18,8 @@ const trayecto: Trayecto = {
   external_id: null,
 };
 
-const circuito: Circuito = {
-  route_id: "c1",
-  name: "Ronda puerto",
-  via_label: null,
-  cerrado: true,
-  ajustado: false,
-  path_points: null,
-  stops: [
-    { place_id: "a", name: "Planta", stop_kind: "origen", center: [0, 0] },
-    { place_id: "b", name: "Puerto", stop_kind: "destino", center: [1, 1] },
-  ],
-};
-
 describe("route lists", () => {
-  it("routes use the shared card: header, details, local badge and menu", () => {
+  it("routes use the shared card: header, details and menu", () => {
     const onEditar = vi.fn();
     const onEliminar = vi.fn();
     render(
@@ -48,46 +35,27 @@ describe("route lists", () => {
     expect(
       screen.getByText("vial · ajustado · 30 m · 2 pts")
     ).toBeInTheDocument();
-    expect(screen.getByText("local")).toBeInTheDocument();
+    expect(screen.queryByText("local")).toBeNull();
 
     fireEvent.click(screen.getByLabelText("Opciones de Acceso norte"));
     fireEvent.click(screen.getByText("Eliminar"));
     expect(onEliminar).toHaveBeenCalledWith(trayecto);
   });
 
-  it("circuits list their stops and open from the menu", () => {
-    const onEditar = vi.fn();
-    const onIr = vi.fn();
+  it("collapses the Trayectos section from the expandable header", () => {
     render(
-      <CircuitoList
-        circuitos={[circuito]}
-        seleccionadoId="c1"
-        onIr={onIr}
-        onEditar={onEditar}
-        onEliminar={vi.fn()}
-      />
-    );
-    expect(screen.getByText("Planta → Puerto (cerrado)")).toBeInTheDocument();
-    expect(screen.getByRole("listitem")).toHaveClass("bg-blue-50");
-
-    fireEvent.click(screen.getByText("Ronda puerto"));
-    expect(onIr).toHaveBeenCalledWith(circuito);
-    fireEvent.click(screen.getByLabelText("Opciones de Ronda puerto"));
-    fireEvent.click(screen.getByText("Editar"));
-    expect(onEditar).toHaveBeenCalledWith(circuito);
-  });
-
-  it("shows the empty state inside the card", () => {
-    render(
-      <CircuitoList
-        circuitos={[]}
+      <TrayectoList
+        trayectos={[trayecto]}
         seleccionadoId={null}
         onIr={vi.fn()}
         onEditar={vi.fn()}
         onEliminar={vi.fn()}
       />
     );
-    expect(screen.getByText("Sin circuitos.")).toBeInTheDocument();
-    expect(screen.getByText("0")).toBeInTheDocument();
+    expect(screen.getByText("Acceso norte")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Ocultar Trayectos"));
+    expect(screen.queryByText("Acceso norte")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Mostrar Trayectos"));
+    expect(screen.getByText("Acceso norte")).toBeInTheDocument();
   });
 });

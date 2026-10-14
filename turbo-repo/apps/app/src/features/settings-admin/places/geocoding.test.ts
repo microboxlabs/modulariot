@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buscarDirecciones, parsearSugerencias } from "./geocoding";
+import {
+  buscarDirecciones,
+  direccionDesdePunto,
+  parsearSugerencias,
+} from "./geocoding";
 
 const respuesta = {
   features: [
@@ -53,5 +57,31 @@ describe("geocoding", () => {
     expect(await buscarDirecciones("ab", "tok")).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await buscarDirecciones("abcd", "tok")).toEqual([]);
+  });
+
+  it("reverse-geocodes a map click to a street address", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          features: [
+            {
+              properties: {
+                name: "Libertador",
+                full_address: "Av. Libertador 1000, Santiago",
+              },
+            },
+          ],
+        }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await direccionDesdePunto([-33.44, -70.65], "tok")).toBe(
+      "Av. Libertador 1000, Santiago"
+    );
+    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    expect(url.pathname).toBe("/search/geocode/v6/reverse");
+    expect(url.searchParams.get("longitude")).toBe("-70.65");
+    expect(url.searchParams.get("latitude")).toBe("-33.44");
   });
 });

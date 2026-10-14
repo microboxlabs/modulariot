@@ -141,7 +141,8 @@ function claseVertice(
 }
 
 function tituloVertice(i: number, cerrable: boolean): string {
-  if (i === 0 && cerrable) return "Clic para terminar · clic derecho: opciones";
+  if (i === 0 && cerrable)
+    return "Clic para unir con el inicio · clic derecho: opciones";
   return "Arrastra para mover · clic para opciones";
 }
 
@@ -327,11 +328,13 @@ export default function PolygonHandles({
       {!form.cerrado && form.vertices.length > 0 && (
         <PolygonRubberBand vertices={form.vertices} />
       )}
-      <MidpointHandles
-        form={form}
-        setForm={setForm}
-        recienArrastrado={recienArrastrado}
-      />
+      {form.cerrado && (
+        <MidpointHandles
+          form={form}
+          setForm={setForm}
+          recienArrastrado={recienArrastrado}
+        />
+      )}
       {form.vertices.map((v, i) => (
         <Marker
           key={i}
@@ -358,7 +361,7 @@ export default function PolygonHandles({
           onCerrar={() => setSeleccionado(null)}
         />
       )}
-      {centro && (
+      {form.cerrado && centro && (
         <Marker
           longitude={centro[1]}
           latitude={centro[0]}

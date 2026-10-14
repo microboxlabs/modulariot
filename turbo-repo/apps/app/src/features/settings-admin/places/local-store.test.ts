@@ -9,7 +9,7 @@ import {
   trayectoDesdeForm,
   useLocalPlaces,
 } from "./local-store";
-import { FORM_VACIO, TRAY_VACIO } from "./places.types";
+import { COLOR_KEY, FORM_VACIO, TRAY_VACIO } from "./places.types";
 
 describe("local-store", () => {
   beforeEach(() => window.localStorage.clear());
@@ -43,6 +43,23 @@ describe("local-store", () => {
       color: "#FF0000",
       metadata: { turno: "noche" },
     });
+  });
+
+  it("keeps a custom geofence color over the category color", () => {
+    const l = lugarDesdeForm(
+      {
+        ...FORM_VACIO,
+        name: "Planta",
+        category_id: "2",
+        color: "#E02424",
+        lat: -33.4,
+        lon: -70.6,
+      },
+      [{ category_id: 2, name: "Planta", color: "#FF0000" }],
+      "local-1"
+    );
+    expect(l.color).toBe("#E02424");
+    expect(l.metadata).toMatchObject({ [COLOR_KEY]: "#E02424" });
   });
 
   it("uses the street-adjusted path for adjusted routes", () => {

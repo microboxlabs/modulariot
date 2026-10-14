@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import PlaceList from "./place-list";
-import type { Lugar } from "./places.types";
+import { PARENT_KEY, type Lugar } from "./places.types";
 
 const lugar = (over: Partial<Lugar>): Lugar => ({
   place_id: "p1",
@@ -26,11 +26,9 @@ function setup(over: Partial<Parameters<typeof PlaceList>[0]> = {}) {
     lugares: [lugar({}), lugar({ place_id: "local-x", name: "Bodega" })],
     busqueda: "",
     seleccionadoId: null,
-    modoCircuito: false,
     onIr: vi.fn(),
     onEditar: vi.fn(),
     onEliminar: vi.fn(),
-    onAgregarAlCircuito: vi.fn(),
     ...over,
   };
   render(<PlaceList {...props} />);
@@ -43,7 +41,7 @@ describe("PlaceList", () => {
     expect(screen.getByText("Lugares")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
-    expect(screen.getByText("local")).toBeInTheDocument();
+    expect(screen.queryByText("local")).toBeNull();
   });
 
   it("goes to the place when its name is clicked", () => {
@@ -65,15 +63,95 @@ describe("PlaceList", () => {
     expect(p.onEliminar).toHaveBeenCalledOnce();
   });
 
-  it("offers + only for server places while building a circuit", () => {
-    const p = setup({ modoCircuito: true });
-    expect(screen.queryByLabelText("Agregar Bodega al circuito")).toBeNull();
-    fireEvent.click(screen.getByLabelText("Agregar Planta Norte al circuito"));
-    expect(p.onAgregarAlCircuito).toHaveBeenCalledOnce();
-  });
-
   it("shows the empty state with the search term", () => {
     setup({ lugares: [], busqueda: "xyz" });
     expect(screen.getByText("Sin lugares para «xyz».")).toBeInTheDocument();
+  });
+
+  it("nests inner geofences under their parent", () => {
+    setup({
+      lugares: [
+        lugar({ place_id: "park", name: "Estacionamiento" }),
+        lugar({
+          place_id: "lot",
+          name: "Lote VIP",
+          metadata: { [PARENT_KEY]: "park" },
+        }),
+      ],
+    });
+    expect(screen.queryByText("interior · Planta")).toBeNull();
+    expect(screen.getByText(/1 interior/)).toBeInTheDocument();
+    const vip = screen.getByText("Lote VIP");
+    expect(vip.className).toContain("text-xs");
+    expect(vip.closest("ul")?.className).not.toMatch(/border-l/);
+    expect(vip.closest("ul")?.className).toMatch(/bg-gray-100/);
+  });
+
+  it("shows inner rows as name and options only", () => {
+    setup({
+      lugares: [
+        lugar({ place_id: "park", name: "Estacionamiento" }),
+        lugar({
+          place_id: "lot",
+          name: "Lote VIP",
+          metadata: { [PARENT_KEY]: "park" },
+        }),
+      ],
+    });
+    expect(screen.getByText("Lote VIP")).toBeInTheDocument();
+    expect(screen.getByLabelText("Opciones de Lote VIP")).toBeInTheDocument();
+  });
+
+  it("reports hover on compact inner rows", () => {
+    const onHover = vi.fn();
+    setup({
+      onHover,
+      lugares: [
+        lugar({ place_id: "park", name: "Estacionamiento" }),
+        lugar({
+          place_id: "lot",
+          name: "Lote VIP",
+          metadata: { [PARENT_KEY]: "park" },
+        }),
+      ],
+    });
+    const fila = screen.getByText("Lote VIP").closest("li");
+    expect(fila).toBeTruthy();
+    fireEvent.mouseEnter(fila!);
+    expect(onHover).toHaveBeenCalledWith("lot");
+    fireEvent.mouseLeave(fila!);
+    expect(onHover).toHaveBeenCalledWith(null);
+  });
+
+  it("collapses the Lugares section from the expandable header", () => {
+    setup();
+    expect(screen.getByText("Planta Norte")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Ocultar Lugares"));
+    expect(screen.queryByText("Planta Norte")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Mostrar Lugares"));
+    expect(screen.getByText("Planta Norte")).toBeInTheDocument();
+  });
+
+  it("collapses the parent together with its inner geofences", () => {
+    setup({
+      lugares: [
+        lugar({ place_id: "park", name: "Estacionamiento" }),
+        lugar({
+          place_id: "lot",
+          name: "Lote VIP",
+          metadata: { [PARENT_KEY]: "park" },
+        }),
+      ],
+    });
+    expect(screen.getByText("Lote VIP")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByLabelText("Ocultar interiores de Estacionamiento")
+    );
+    expect(screen.queryByText("Lote VIP")).toBeNull();
+    expect(screen.getByText("Estacionamiento")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByLabelText("Mostrar interiores de Estacionamiento")
+    );
+    expect(screen.getByText("Lote VIP")).toBeInTheDocument();
   });
 });

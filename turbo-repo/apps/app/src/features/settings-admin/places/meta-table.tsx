@@ -5,12 +5,10 @@
 // o, si es la última, crea una fila nueva (hasta `max`).
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { HiPlus, HiX } from "react-icons/hi";
+import { twMerge } from "tailwind-merge";
 
 type Fila = { k: string; v: string };
 type Campo = "k" | "v";
-
-// filas visibles antes de "Ver todas"
-const PLEGADA = 3;
 
 const celdaCls =
   "w-full bg-transparent px-2.5 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-inset focus:ring-gray-400 dark:text-white dark:placeholder:text-gray-500 dark:focus:ring-white";
@@ -19,17 +17,16 @@ export default function MetaTable({
   rows,
   max,
   onRowsChange,
+  className,
 }: {
   rows: Fila[];
   max: number;
   onRowsChange: (rows: Fila[]) => void;
+  className?: string;
 }) {
-  const [abierta, setAbierta] = useState(false);
   const [foco, setFoco] = useState<{ i: number; campo: Campo } | null>(null);
   const inputs = useRef(new Map<string, HTMLInputElement>());
 
-  const ocultas = rows.length - PLEGADA;
-  const visibles = abierta || ocultas <= 0 ? rows : rows.slice(0, PLEGADA);
   const lleno = rows.length >= max;
 
   // el foco se aplica después del render que monta la fila/celda destino
@@ -37,12 +34,9 @@ export default function MetaTable({
     if (!foco) return;
     inputs.current.get(`${foco.i}-${foco.campo}`)?.focus();
     setFoco(null);
-  }, [foco, rows.length, abierta]);
+  }, [foco, rows.length]);
 
-  const enfocar = (i: number, campo: Campo) => {
-    if (i >= PLEGADA) setAbierta(true);
-    setFoco({ i, campo });
-  };
+  const enfocar = (i: number, campo: Campo) => setFoco({ i, campo });
 
   const agregar = () => {
     if (lleno) return;
@@ -77,12 +71,10 @@ export default function MetaTable({
     };
 
   return (
-    <div>
-      {/* tabla y botón forman un solo bloque: tabla sin redondeo abajo,
-          botón sin redondeo arriba */}
-      <div className="overflow-hidden rounded-t-md rounded-b-none border border-b-0 border-gray-200 dark:border-gray-600">
+    <div className={twMerge("flex min-h-0 flex-col", className)}>
+      <div className="min-h-0 flex-1 overflow-auto rounded-t-md rounded-b-none border border-b-0 border-gray-200 dark:border-gray-600">
         <table className="w-full table-fixed text-left">
-          <thead className="bg-gray-50 text-[11px] font-medium text-gray-500 dark:bg-gray-700/60 dark:text-gray-300">
+          <thead className="sticky top-0 bg-gray-50 text-[11px] font-medium text-gray-500 dark:bg-gray-700/60 dark:text-gray-300">
             <tr>
               <th className="px-2.5 py-1 font-medium">Clave</th>
               <th className="border-l border-gray-200 px-2.5 py-1 font-medium dark:border-gray-600">
@@ -94,7 +86,7 @@ export default function MetaTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-            {visibles.map((r, i) => (
+            {rows.map((r, i) => (
               <tr key={i} className="group">
                 <td className="p-0">
                   <input
@@ -140,19 +132,6 @@ export default function MetaTable({
                 </td>
               </tr>
             )}
-            {ocultas > 0 && (
-              <tr>
-                <td colSpan={3} className="p-0">
-                  <button
-                    type="button"
-                    onClick={() => setAbierta((o) => !o)}
-                    className="w-full px-2.5 py-1 text-center text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700/60 dark:hover:text-white"
-                  >
-                    {abierta ? "Ver menos" : `Ver todas (+${ocultas})`}
-                  </button>
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
@@ -160,7 +139,7 @@ export default function MetaTable({
         type="button"
         onClick={agregar}
         disabled={lleno}
-        className="inline-flex w-full items-center justify-center gap-1 rounded-t-none rounded-b-md bg-blue-600 py-1.5 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-gray-600"
+        className="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-t-none rounded-b-md bg-blue-600 py-1.5 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-gray-600"
       >
         <HiPlus className="h-3.5 w-3.5" />
         {lleno ? "Máximo alcanzado" : "Agregar campo"}

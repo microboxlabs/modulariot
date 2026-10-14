@@ -134,7 +134,7 @@ export function lugarDesdeForm(
     category: cat?.name ?? null,
     category_id: cat?.category_id ?? null,
     geometry_type: form.geom,
-    color: cat?.color ?? null,
+    color: form.color || cat?.color || null,
     center: form.lat != null && form.lon != null ? [form.lat, form.lon] : null,
     polygon: polygon ? form.vertices : null,
     radius_m: polygon ? null : form.radius_m,

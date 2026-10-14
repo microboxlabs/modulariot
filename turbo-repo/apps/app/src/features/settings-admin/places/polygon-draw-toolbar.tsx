@@ -119,8 +119,34 @@ function GrupoHistorial({
   );
 }
 
+// Textos de la barra según qué se dibuja; el acento es el azul del sistema.
+const terminarCls = "bg-blue-600 text-white hover:bg-blue-700";
+const seguirCls =
+  "text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/30";
+
+const VARIANTES = {
+  poligono: {
+    aria: "Edición de polígono",
+    terminar: "Cerrar",
+    terminarLabel: "Cerrar (unir con el inicio)",
+    terminarMin: "Cerrar (mín. 3 puntos)",
+    seguir: "Seguir dibujando",
+    seguirTecla: "clic en el mapa agrega puntos",
+    cancelarLabel: "Cancelar dibujo",
+  },
+  trayecto: {
+    aria: "Edición de recorrido",
+    terminar: "Listo",
+    terminarLabel: "Confirmar recorrido y trazar la ruta",
+    terminarMin: "Confirmar (ubica origen y destino)",
+    seguir: "Editar puntos",
+    seguirTecla: "arrastra puntos o el medio de un tramo",
+    cancelarLabel: "Borrar recorrido",
+  },
+};
+
 /**
- * Barra sobre el mapa al editar un polígono. Dibujando: terminar,
+ * Barra sobre el mapa al editar un polígono o un recorrido. Dibujando: terminar,
  * deshacer/rehacer o cancelar. Terminado: deshacer/rehacer y seguir dibujando. Atajos: Enter; Backspace o Cmd/Ctrl+Z;
  * Cmd/Ctrl+Shift+Z o Ctrl+Y; Esc (no cuando se escribe en el formulario).
  */
@@ -135,7 +161,9 @@ export default function PolygonDrawToolbar({
   onRehacer,
   onCancelar,
   onSeguir,
+  variante = "poligono",
 }: {
+  variante?: keyof typeof VARIANTES;
   puntos: number;
   cerrado: boolean;
   puedeTerminar: boolean;
@@ -172,11 +200,12 @@ export default function PolygonDrawToolbar({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [cerrado, puedeTerminar, onTerminar, onDeshacer, onRehacer, onCancelar]);
+  const v = VARIANTES[variante];
 
   return (
     <div
       role="toolbar"
-      aria-label="Edición de polígono"
+      aria-label={v.aria}
       className="absolute bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1.5 rounded-lg border border-gray-200 bg-white/95 p-1 shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-800/95"
     >
       <span
@@ -194,30 +223,30 @@ export default function PolygonDrawToolbar({
       {cerrado ? (
         <div role="group" aria-label="Edición" className={grupoCls}>
           <BotonAccion
-            label="Seguir dibujando"
-            texto="Seguir dibujando"
-            tecla="clic en el mapa agrega puntos"
+            label={v.seguir}
+            texto={v.seguir}
+            tecla={v.seguirTecla}
             onClick={onSeguir}
-            className="text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/30"
+            className={seguirCls}
           >
             <HiPencil className="h-3.5 w-3.5" />
           </BotonAccion>
         </div>
       ) : (
-        <div role="group" aria-label="Terminar o cancelar" className={grupoCls}>
+        <div role="group" aria-label="Cerrar o cancelar" className={grupoCls}>
           <BotonAccion
-            label={puedeTerminar ? "Terminar" : "Terminar (mín. 3 puntos)"}
-            texto="Terminar"
+            label={puedeTerminar ? v.terminarLabel : v.terminarMin}
+            texto={v.terminar}
             tecla="Enter"
             disabled={!puedeTerminar}
             onClick={onTerminar}
-            className="bg-blue-600 text-white hover:bg-blue-700"
+            className={terminarCls}
           >
             <HiCheck className="h-3.5 w-3.5" />
           </BotonAccion>
           <span className={separadorCls} />
           <BotonAccion
-            label="Cancelar dibujo"
+            label={v.cancelarLabel}
             texto="Cancelar"
             tecla="Esc"
             onClick={onCancelar}

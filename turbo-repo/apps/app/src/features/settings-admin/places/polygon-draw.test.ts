@@ -4,6 +4,7 @@ import {
   agregarVertice,
   anilloGeoJSON,
   cancelarDibujo,
+  geometriaDibujo,
   deshacer,
   eliminarVertice,
   insertarVertice,
@@ -50,6 +51,25 @@ describe("polygon-draw", () => {
   it("map clicks do not add vertices once finished", () => {
     const f = poly(tri, true);
     expect(agregarVertice(f, [9, 9])).toBe(f);
+  });
+
+  it("turns a rectangle into a free polygon when a vertex is edited", () => {
+    const rect = poly(
+      [
+        [1, 0],
+        [1, 1],
+        [0, 1],
+        [0, 0],
+      ],
+      true
+    );
+    rect.polyBase = "rect";
+    const moved = moverVertice(rect, 0, [1.2, 0]);
+    expect(moved.polyBase).toBe("libre");
+    expect(moved.vertices[0]).toEqual([1.2, 0]);
+    const extra = insertarVertice(rect, 1, [1, 0.5]);
+    expect(extra.polyBase).toBe("libre");
+    expect(extra.vertices).toHaveLength(5);
   });
 
   it("inserts a vertex in the middle of a side", () => {
@@ -161,5 +181,18 @@ describe("polygon-draw", () => {
     // already closed rings are left as they are
     expect(anilloGeoJSON([...tri, [0, 0]])).toHaveLength(4);
     expect(anilloGeoJSON([])).toEqual([]);
+  });
+
+  it("keeps the drawing open until it is closed", () => {
+    expect(geometriaDibujo(tri, false)).toEqual({
+      type: "LineString",
+      coordinates: [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+      ],
+    });
+    expect(geometriaDibujo(tri, true)?.type).toBe("Polygon");
+    expect(geometriaDibujo([[0, 0]], false)).toBeNull();
   });
 });

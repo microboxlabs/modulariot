@@ -52,12 +52,10 @@ describe("MetaTable", () => {
     expect(screen.getByText("Máximo alcanzado")).toBeInTheDocument();
   });
 
-  it("unfolds the list when Enter moves into a hidden row", () => {
+  it("keeps every row visible in the expanded table", () => {
     render(
       <Harness initial={["a", "b", "c", "d"].map((k) => ({ k, v: "1" }))} />
     );
-    expect(screen.queryByLabelText("Clave 4")).not.toBeInTheDocument();
-    enter(screen.getByLabelText("Valor 3"));
-    expect(screen.getByLabelText("Clave 4")).toHaveFocus();
+    expect(screen.getByLabelText("Clave 4")).toBeInTheDocument();
   });
 });

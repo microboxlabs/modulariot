@@ -4943,6 +4943,22 @@
       "decodeError": "Error decoding image",
       "downloadSuccess": "Image downloaded",
       "downloadError": "Error downloading image"
+    },
+    "profiles": {
+      "label": "Profile",
+      "admin": "Admin",
+      "other": "Other",
+      "comingSoon": "coming soon"
+    },
+    "notch": {
+      "label": "Map views",
+      "places": "Places of interest",
+      "test": "Test view",
+      "testHint": "Placeholder view to check the notch selection. More views will land here."
+    },
+    "places": {
+      "title": "Places of interest",
+      "hint": "Search the catalog or import. Right-click the map to create a place or a route."
     }
   },
   "release": {

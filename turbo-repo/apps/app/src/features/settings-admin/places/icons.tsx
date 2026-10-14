@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import type { IconType } from "react-icons";
 import {
   HiOutlineCube,
@@ -16,8 +16,32 @@ import {
   HiOutlineTruck,
   HiOutlineUserGroup,
 } from "react-icons/hi";
-import { twMerge } from "tailwind-merge";
+import { IconPickerDropdown } from "@/features/common/components/icon-picker-dropdown";
+import {
+  ICON_REGISTRY,
+  type IconKey,
+} from "@/features/common/components/icon-picker-dropdown/icon-registry";
+import { useRegistryIcon } from "@/features/common/components/icon-picker-dropdown/use-registry-icon";
 
+/** Ids viejos del picker de lugares → claves del registro del dashboard. */
+export const LEGACY_A_REGISTRY: Record<string, string> = {
+  pin: "hi2-outline-map-pin",
+  edificio: "hi2-outline-building-office-2",
+  bodega: "hi2-cube",
+  casa: "hi2-home",
+  camion: "hi2-truck",
+  comercio: "hi2-shopping-cart",
+  energia: "hi2-bolt",
+  control: "hi2-shield-check",
+  personas: "hi2-outline-user-group",
+  bandera: "hi2-flag",
+  estrella: "hi2-star",
+  ruta: "tb-route",
+};
+
+const FALLBACK_REGISTRY = "hi2-outline-map-pin";
+
+/** Iconos síncronos para ids viejos, mientras carga el registro. */
 export const ICONOS: { id: string; label: string; Icon: IconType }[] = [
   { id: "pin", label: "Ubicación", Icon: HiOutlineLocationMarker },
   { id: "edificio", label: "Edificio", Icon: HiOutlineOfficeBuilding },
@@ -37,6 +61,17 @@ export const ICONOS: { id: string; label: string; Icon: IconType }[] = [
   { id: "ruta", label: "Ruta", Icon: HiOutlineSwitchHorizontal },
 ];
 
+export function claveIcono(
+  id: string | null | undefined,
+  fallback = "pin"
+): IconKey {
+  const raw = id || fallback;
+  if (raw in ICON_REGISTRY) return raw as IconKey;
+  const mapped = LEGACY_A_REGISTRY[raw] ?? LEGACY_A_REGISTRY[fallback];
+  if (mapped && mapped in ICON_REGISTRY) return mapped as IconKey;
+  return FALLBACK_REGISTRY;
+}
+
 export function PlaceIcon({
   id,
   fallback = "pin",
@@ -46,8 +81,17 @@ export function PlaceIcon({
   id: string | null | undefined;
   fallback?: string;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 }) {
+  const key = claveIcono(id, fallback);
+  const RegistryIcon = useRegistryIcon(key);
+  if (RegistryIcon) {
+    return (
+      <span className="inline-flex" style={style}>
+        <RegistryIcon className={className} />
+      </span>
+    );
+  }
   const def =
     ICONOS.find((i) => i.id === id) ??
     ICONOS.find((i) => i.id === fallback) ??
@@ -55,75 +99,24 @@ export function PlaceIcon({
   return <def.Icon className={className} style={style} aria-hidden />;
 }
 
-/** Botón cuadrado con el icono actual; al hacer clic abre la grilla para elegir otro. */
+/** Mismo picker del dashboard: todo el registro de iconos, con búsqueda. */
 export function IconPicker({
   value,
   fallback,
-  accentCls,
   onChange,
 }: {
   value: string;
   fallback: string;
-  accentCls: string;
   onChange: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  const elegir = (id: string) => {
-    onChange(id);
-    setOpen(false);
-  };
-
   return (
-    <div ref={ref} className="relative flex-none">
-      <button
-        type="button"
-        aria-label="Elegir icono"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className={twMerge(
-          "flex h-[34px] w-[34px] items-center justify-center rounded-md border border-gray-200 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700/60 dark:hover:bg-gray-700",
-          accentCls
-        )}
-      >
-        <PlaceIcon id={value} fallback={fallback} className="h-5 w-5" />
-      </button>
-      {open && (
-        <div
-          role="listbox"
-          className="absolute left-0 top-full z-50 mt-1 grid w-max grid-cols-6 gap-1 rounded-lg border border-gray-200 bg-white p-1.5 shadow-xl dark:border-gray-700 dark:bg-gray-800"
-        >
-          {ICONOS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              type="button"
-              role="option"
-              aria-selected={(value || fallback) === id}
-              title={label}
-              aria-label={label}
-              onClick={() => elegir(id)}
-              className={twMerge(
-                "flex h-8 w-8 items-center justify-center rounded-md text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700",
-                (value || fallback) === id &&
-                  "bg-gray-100 ring-1 ring-gray-300 dark:bg-gray-700 dark:ring-gray-500",
-                (value || fallback) === id && accentCls
-              )}
-            >
-              <Icon className="h-4.5 w-4.5" />
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <IconPickerDropdown
+      value={claveIcono(value, fallback)}
+      onChange={onChange}
+      title="Elegir icono"
+      searchPlaceholder="Buscar iconos…"
+      emptyMessage="Sin iconos"
+      className="h-9 w-9 min-h-9 min-w-9 shrink-0 p-0 aspect-square"
+    />
   );
 }

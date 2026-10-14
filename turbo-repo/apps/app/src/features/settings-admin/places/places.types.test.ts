@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   FORM_VACIO,
+  COLOR_KEY,
+  COLOR_LUGAR_DEF,
   ICON_KEY,
+  colorDeFormLugar,
+  colorDeLugar,
   iconoDeLugar,
   metadataAFilas,
   metadataParaGuardar,
@@ -35,5 +39,36 @@ describe("place metadata helpers", () => {
       "bodega"
     );
     expect(iconoDeLugar(base)).toBe("");
+  });
+
+  it("prefers the reserved color metadata over the category color", () => {
+    const base = { metadata: null, color: "#00FF00" } as Lugar;
+    expect(colorDeLugar(base)).toBe("#00FF00");
+    expect(
+      colorDeLugar({ ...base, metadata: { [COLOR_KEY]: "#E02424" } })
+    ).toBe("#E02424");
+    expect(metadataAFilas({ [COLOR_KEY]: "#E02424", a: "1" })).toEqual([
+      { k: "a", v: "1" },
+    ]);
+  });
+
+  it("stores a custom geofence color under the reserved key", () => {
+    expect(
+      metadataParaGuardar({ ...FORM_VACIO, color: "#E02424" })
+    ).toEqual({ [COLOR_KEY]: "#E02424" });
+  });
+
+  it("uses the picked color, then the category, then the default", () => {
+    const cats = [{ category_id: 2, name: "Planta", color: "#00FF00" }];
+    expect(colorDeFormLugar(FORM_VACIO)).toBe(COLOR_LUGAR_DEF);
+    expect(
+      colorDeFormLugar({ ...FORM_VACIO, category_id: "2" }, cats)
+    ).toBe("#00FF00");
+    expect(
+      colorDeFormLugar(
+        { ...FORM_VACIO, category_id: "2", color: "#E02424" },
+        cats
+      )
+    ).toBe("#E02424");
   });
 });

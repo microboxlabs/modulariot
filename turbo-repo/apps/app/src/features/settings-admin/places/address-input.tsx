@@ -5,7 +5,7 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { twMerge } from "tailwind-merge";
 import { buscarDirecciones, type Sugerencia } from "./geocoding";
-import { inputCls } from "./form-ui";
+import { inputCls, inputErrorCls } from "./form-ui";
 import type { LatLon } from "./places.types";
 
 const ESPERA_MS = 300;
@@ -21,11 +21,13 @@ export default function AddressInput({
   cerca,
   onTexto,
   onElegir,
+  placeholder,
+  invalido = false,
 }: {
   label: string;
   /** "A" / "B": mismo distintivo que el marcador en el mapa. */
-  letra: string;
-  colorCls: string;
+  letra?: string;
+  colorCls?: string;
   value: Extremo;
   token: string | undefined;
   /** Centro del mapa al buscar, para priorizar resultados cercanos. */
@@ -33,6 +35,8 @@ export default function AddressInput({
   /** El texto cambió: la dirección elegida deja de valer. */
   onTexto: (texto: string) => void;
   onElegir: (s: Sugerencia) => void;
+  placeholder?: string;
+  invalido?: boolean;
 }) {
   const [sugerencias, setSugerencias] = useState<Sugerencia[]>([]);
   const [activa, setActiva] = useState(0);
@@ -87,19 +91,22 @@ export default function AddressInput({
   return (
     <div className="relative">
       <div className="flex items-center gap-2">
-        <span
-          className={twMerge(
-            "flex h-6 w-6 flex-none items-center justify-center rounded-full text-[11px] font-bold text-white",
-            colorCls
-          )}
-          aria-hidden
-        >
-          {letra}
-        </span>
+        {letra && (
+          <span
+            className={twMerge(
+              "flex h-6 w-6 flex-none items-center justify-center rounded-full text-[11px] font-bold text-white",
+              colorCls
+            )}
+            aria-hidden
+          >
+            {letra}
+          </span>
+        )}
         <input
-          className={inputCls}
-          placeholder={`${label}: calle, número, comuna…`}
+          className={twMerge(inputCls, invalido && inputErrorCls)}
+          placeholder={placeholder ?? `${label}: calle, número, comuna…`}
           aria-label={label}
+          aria-invalid={invalido}
           role="combobox"
           aria-expanded={mostrarLista}
           aria-autocomplete="list"
@@ -117,7 +124,10 @@ export default function AddressInput({
       {mostrarLista && (
         <ul
           role="listbox"
-          className="absolute right-0 left-8 z-50 mt-1 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
+          className={twMerge(
+            "absolute right-0 z-50 mt-1 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800",
+            letra ? "left-8" : "left-0"
+          )}
         >
           {sugerencias.map((s, i) => (
             <li key={s.id} role="option" aria-selected={i === activa}>

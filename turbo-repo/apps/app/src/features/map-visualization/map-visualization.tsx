@@ -39,6 +39,10 @@ export const mapStyles = {
 
 export type MapStyleName = keyof typeof mapStyles;
 
+function zoomUnDecimal(z: number): number {
+  return Math.round(z * 10) / 10;
+}
+
 const DEFAULT_INITIAL_VIEW_STATE: Partial<ViewState> = {
   longitude: -62.136105,
   latitude: -21.756514,
@@ -170,6 +174,8 @@ export default function MapVisualization({
   const hasMapboxAccessToken = mapboxAccessToken.trim().length > 0;
   const shouldRenderMap = !isRuntimeConfigLoading && hasMapboxAccessToken;
   const [cursor, setCursor] = useState<string>("grab");
+  const cursorRef = useRef(cursor);
+  cursorRef.current = cursor;
   const [isMapDragging, setIsMapDragging] = useState(false);
   const [internalZoom, setInternalZoom] = useState(2.5);
   const [selectedPath, setSelectedPath] = useState<{
@@ -338,6 +344,9 @@ export default function MapVisualization({
           .mapboxgl-ctrl-logo { display: none !important; }
           .mapboxgl-ctrl-attrib a { color: #333 !important; text-decoration: none !important; }
           .mapboxgl-ctrl-attrib a:hover { text-decoration: underline !important; }
+          .miot-places-labels .mapboxgl-canvas-container { z-index: 4; }
+          .miot-places-labels .mapboxgl-marker { z-index: 5; }
+          .miot-places-labels .mapboxgl-control-container canvas { pointer-events: none; }
         `}
       </style>
     ),
@@ -355,13 +364,14 @@ export default function MapVisualization({
           mapboxAccessToken={mapboxAccessToken}
           mapStyle={mapStyles[mapStyle]}
           onLoad={(e) => {
-            const z = e.target.getZoom();
-            setInternalZoom(z);
+            const z = zoomUnDecimal(e.target.getZoom());
+            setInternalZoom((prev) => (prev === z ? prev : z));
             onZoomChange?.(z);
           }}
           onZoom={(e) => {
-            setInternalZoom(e.viewState.zoom);
-            onZoomChange?.(e.viewState.zoom);
+            const z = zoomUnDecimal(e.viewState.zoom);
+            setInternalZoom((prev) => (prev === z ? prev : z));
+            onZoomChange?.(z);
           }}
           onDragStart={() => setIsMapDragging(true)}
           onDragEnd={() => setIsMapDragging(false)}
@@ -393,7 +403,10 @@ export default function MapVisualization({
               } else {
                 newCursor = "grab";
               }
-              setCursor(newCursor);
+              if (cursorRef.current !== newCursor) {
+                cursorRef.current = newCursor;
+                queueMicrotask(() => setCursor(newCursor));
+              }
               return newCursor;
             }}
           />

@@ -5,7 +5,7 @@
 // puntos de trayecto.
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { Marker, type MarkerDragEvent } from "react-map-gl";
-import type { FormLugar, LatLon } from "./places.types";
+import type { FormLugar, LatLon, PolyBase } from "./places.types";
 import {
   TOLERANCIA_ARRASTRE,
   aLatLon,
@@ -15,10 +15,17 @@ import {
 } from "./map-handles";
 import { CURSOR_PUNTO_CLS } from "./cursors";
 import PolygonHandles from "./polygon-editor";
-import { etiquetaPunto } from "./recorrido";
 
-export const RADIO_MIN = 50;
-export const RADIO_MAX = 5000;
+export const RADIO_MIN = 1;
+/** Techo de seguridad (~1000 km); el input no está limitado a 5 km. */
+export const RADIO_MAX = 1_000_000;
+export const INNER_RADIO_MIN = 1;
+export const INNER_RADIO_MAX = 1_000_000;
+export const INNER_RADIO_DEFAULT = 40;
+export const RECT_MIN = 1;
+export const RECT_MAX = 1_000_000;
+export const INNER_RECT_W_DEF = 80;
+export const INNER_RECT_H_DEF = 50;
 
 const M_POR_GRADO = 111_320;
 
@@ -41,11 +48,16 @@ function offsetM([lat0, lon0]: LatLon, [lat, lon]: LatLon): [number, number] {
   return [(lon - lon0) * M_POR_GRADO * cos, (lat - lat0) * M_POR_GRADO];
 }
 
-/** Radio en metros a partir de la posición del handle del borde, acotado y redondeado a 10 m. */
-export function radioDesdeBorde(centro: LatLon, borde: LatLon): number {
+/** Radio en metros a partir de la posición del handle del borde, acotado y redondeado a 1 m. */
+export function radioDesdeBorde(
+  centro: LatLon,
+  borde: LatLon,
+  min = RADIO_MIN,
+  max = RADIO_MAX
+): number {
   const [x, y] = offsetM(centro, borde);
-  const m = Math.round(Math.hypot(x, y) / 10) * 10;
-  return Math.min(RADIO_MAX, Math.max(RADIO_MIN, m));
+  const m = Math.round(Math.hypot(x, y));
+  return Math.min(max, Math.max(min, m));
 }
 
 /** Ángulo (radianes, 0 = este, antihorario) del punto visto desde el centro. */
@@ -67,12 +79,172 @@ export function puntoBorde(
   ];
 }
 
+function offsetDesdeCentro(
+  centro: LatLon,
+  anchoM: number,
+  altoM: number
+): { lat: number; lon: number; dLat: number; dLon: number } {
+  const [lat, lon] = centro;
+  const cos = Math.max(Math.cos((lat * Math.PI) / 180), 1e-6);
+  return {
+    lat,
+    lon,
+    dLat: altoM / 2 / M_POR_GRADO,
+    dLon: anchoM / 2 / (M_POR_GRADO * cos),
+  };
+}
+
+/** Cuatro vértices [NW, NE, SE, SW] de un rectángulo centrado en `centro`. */
+export function rectanguloDesdeCentro(
+  centro: LatLon,
+  anchoM: number,
+  altoM: number
+): LatLon[] {
+  const { lat, lon, dLat, dLon } = offsetDesdeCentro(centro, anchoM, altoM);
+  return [
+    [lat + dLat, lon - dLon],
+    [lat + dLat, lon + dLon],
+    [lat - dLat, lon + dLon],
+    [lat - dLat, lon - dLon],
+  ];
+}
+
+/** Tres vértices [cima, SE, SW] de un triángulo isósceles centrado en `centro`. */
+export function trianguloDesdeCentro(
+  centro: LatLon,
+  anchoM: number,
+  altoM: number
+): LatLon[] {
+  const { lat, lon, dLat, dLon } = offsetDesdeCentro(centro, anchoM, altoM);
+  return [
+    [lat + dLat, lon],
+    [lat - dLat, lon + dLon],
+    [lat - dLat, lon - dLon],
+  ];
+}
+
+/** Alto de un equilátero cuya base es `anchoM`. */
+export function altoEquilatero(anchoM: number): number {
+  const h = Math.round((anchoM * Math.sqrt(3)) / 2);
+  return Math.min(RECT_MAX, Math.max(RECT_MIN, h));
+}
+
+export function normalizarPolyBase(polyBase?: string | null): PolyBase {
+  if (polyBase === "rect" || polyBase === "cuadro") return "rect";
+  if (polyBase === "tri") return "tri";
+  return "libre";
+}
+
+export function esRectVinculado(f: {
+  polyBase?: string | null;
+  rectVinculado?: boolean;
+}): boolean {
+  return f.rectVinculado === true || f.polyBase === "cuadro";
+}
+
+export function esPoligonoLibre(f: {
+  geom: FormLugar["geom"];
+  polyBase?: string | null;
+}): boolean {
+  return f.geom === "polygon" && normalizarPolyBase(f.polyBase) === "libre";
+}
+
+export type GeomKind = "circle" | "polygon" | "square" | "tri";
+
+export function esFormaParametrica(kind: GeomKind): boolean {
+  return kind === "square" || kind === "tri";
+}
+
+/** Regenera el polígono si el formulario usa una forma base (rectángulo o triángulo). */
+export function aplicarFormaBase(f: FormLugar): FormLugar {
+  const polyBase = normalizarPolyBase(f.polyBase);
+  const rectVinculado = esRectVinculado(f);
+  const rect_h_m = rectVinculado
+    ? polyBase === "tri"
+      ? altoEquilatero(f.rect_w_m)
+      : f.rect_w_m
+    : f.rect_h_m;
+  const next = { ...f, polyBase, rectVinculado, rect_h_m };
+  if (esPoligonoLibre(next) || next.geom !== "polygon") return next;
+  if (next.lat == null || next.lon == null) {
+    return { ...next, vertices: [], cerrado: false };
+  }
+  const centro: LatLon = [next.lat, next.lon];
+  return {
+    ...next,
+    vertices:
+      polyBase === "tri"
+        ? trianguloDesdeCentro(centro, next.rect_w_m, rect_h_m)
+        : rectanguloDesdeCentro(centro, next.rect_w_m, rect_h_m),
+    cerrado: true,
+  };
+}
+
+export const aplicarRectangulo = aplicarFormaBase;
+
+export function geomKindDe(f: {
+  geom: FormLugar["geom"];
+  polyBase?: string | null;
+  rectVinculado?: boolean;
+}): GeomKind {
+  if (f.geom === "circle") return "circle";
+  const base = normalizarPolyBase(f.polyBase);
+  if (base === "tri") return "tri";
+  if (base === "rect") return "square";
+  return "polygon";
+}
+
+function conCentroSiFalta(f: FormLugar): FormLugar {
+  if (f.lat != null && f.lon != null) return f;
+  if (f.vertices.length < 3) return f;
+  const lat = f.vertices.reduce((s, v) => s + v[0], 0) / f.vertices.length;
+  const lon = f.vertices.reduce((s, v) => s + v[1], 0) / f.vertices.length;
+  return { ...f, lat, lon };
+}
+
+export function aplicarGeomKind(f: FormLugar, kind: GeomKind): FormLugar {
+  if (geomKindDe(f) === kind) return f;
+  if (kind === "circle") {
+    return { ...f, geom: "circle", vertices: [], cerrado: false };
+  }
+  if (kind === "polygon") {
+    if (f.geom === "polygon" && f.vertices.length >= 3) {
+      return { ...f, polyBase: "libre" };
+    }
+    return {
+      ...f,
+      geom: "polygon",
+      polyBase: "libre",
+      cerrado: false,
+      vertices: [],
+    };
+  }
+  const base = conCentroSiFalta(f);
+  return aplicarFormaBase({
+    ...base,
+    geom: "polygon",
+    polyBase: kind === "tri" ? "tri" : "rect",
+    rectVinculado: kind === "square" || kind === "tri",
+  });
+}
+
+/** El próximo clic en el mapa fija el centro o agrega un vértice. */
+export function mapaAgregaPunto(f: FormLugar): boolean {
+  if (f.geom === "circle") return f.lat == null;
+  if (!esPoligonoLibre(f)) return f.lat == null;
+  return !f.cerrado;
+}
+
 function CircleHandles({
   form,
   setForm,
+  radioMin = RADIO_MIN,
+  radioMax = RADIO_MAX,
 }: {
   form: FormLugar;
   setForm: Dispatch<SetStateAction<FormLugar>>;
+  radioMin?: number;
+  radioMax?: number;
 }) {
   // El handle del radio se queda en el ángulo al que se arrastró: si siempre
   // volviera al este, saltaría lejos del cursor en cada movimiento.
@@ -87,7 +259,7 @@ function CircleHandles({
   };
   const cambiarRadio = (e: MarkerDragEvent) => {
     const p = aLatLon(e);
-    const radius_m = radioDesdeBorde(centro, p);
+    const radius_m = radioDesdeBorde(centro, p, radioMin, radioMax);
     setAngulo(anguloDesde(centro, p));
     setForm((f) => ({ ...f, radius_m }));
   };
@@ -129,12 +301,21 @@ function CircleHandles({
 export function GeofenceHandles({
   form,
   setForm,
+  radioMin,
+  radioMax,
 }: {
   form: FormLugar;
   setForm: Dispatch<SetStateAction<FormLugar>>;
+  radioMin?: number;
+  radioMax?: number;
 }) {
   return form.geom === "circle" ? (
-    <CircleHandles form={form} setForm={setForm} />
+    <CircleHandles
+      form={form}
+      setForm={setForm}
+      radioMin={radioMin}
+      radioMax={radioMax}
+    />
   ) : (
     <PolygonHandles form={form} setForm={setForm} />
   );
@@ -165,46 +346,6 @@ export function RoutePointHandles({
           />
         </Marker>
       ))}
-    </>
-  );
-}
-
-function MarcaExtremo({
-  punto,
-  letra,
-  colorCls,
-}: {
-  punto: LatLon | null;
-  letra: string;
-  colorCls: string;
-}) {
-  if (!punto) return null;
-  return (
-    <Marker
-      longitude={punto[1]}
-      latitude={punto[0]}
-      anchor="center"
-      style={{ pointerEvents: "none" }}
-    >
-      <span
-        className={`flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-[11px] font-bold text-white shadow ${colorCls}`}
-      >
-        {letra}
-      </span>
-    </Marker>
-  );
-}
-
-/** Puntos del recorrido por dirección con el mismo distintivo que la lista. */
-export function RouteEndpoints({ puntos }: { puntos: (LatLon | null)[] }) {
-  return (
-    <>
-      {puntos.map((p, i) => {
-        const { letra, colorCls } = etiquetaPunto(i, puntos.length);
-        return (
-          <MarcaExtremo key={i} punto={p} letra={letra} colorCls={colorCls} />
-        );
-      })}
     </>
   );
 }

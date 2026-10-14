@@ -73,3 +73,35 @@ export async function buscarDirecciones(
     return [];
   }
 }
+
+/** Dirección más cercana a un clic en el mapa, o null si no hay resultado. */
+export async function direccionDesdePunto(
+  punto: LatLon,
+  token: string,
+  signal?: AbortSignal
+): Promise<string | null> {
+  const params = new URLSearchParams({
+    longitude: String(punto[1]),
+    latitude: String(punto[0]),
+    country: PAIS,
+    language: "es",
+    limit: "1",
+    access_token: token,
+  });
+  try {
+    const r = await fetch(
+      `https://api.mapbox.com/search/geocode/v6/reverse?${params}`,
+      { signal }
+    );
+    if (!r.ok) return null;
+    const json = (await r.json()) as {
+      features?: {
+        properties?: { name?: string; full_address?: string };
+      }[];
+    };
+    const props = json.features?.[0]?.properties;
+    return props?.full_address ?? props?.name ?? null;
+  } catch {
+    return null;
+  }
+}

@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import MapCreateMenu from "./map-create-menu";
 
 describe("MapCreateMenu", () => {
-  it("offers both create actions and closes on Escape", () => {
+  it("offers create actions for place and route and closes on Escape", () => {
     const onCrearLugar = vi.fn();
     const onCrearTrayecto = vi.fn();
     const onClose = vi.fn();
@@ -19,6 +19,9 @@ describe("MapCreateMenu", () => {
 
     fireEvent.click(screen.getByRole("menuitem", { name: "Crear lugar" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Crear trayecto" }));
+    expect(
+      screen.queryByRole("menuitem", { name: "Crear circuito" })
+    ).toBeNull();
     fireEvent.keyDown(window, { key: "Escape" });
 
     expect(onCrearLugar).toHaveBeenCalledOnce();

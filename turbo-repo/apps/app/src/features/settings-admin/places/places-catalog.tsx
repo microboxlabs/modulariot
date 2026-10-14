@@ -1,0 +1,406 @@
+"use client";
+
+import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
+import { Button, ButtonGroup } from "flowbite-react";
+import { HiTrash } from "react-icons/hi";
+import { MdOutlineFileUpload } from "react-icons/md";
+import { twMerge } from "tailwind-merge";
+import { filtrarLugares, filtrarTrayectos } from "./catalog-search";
+import { ListCard } from "./list-card";
+import PlaceList from "./place-list";
+import { TrayectoList } from "./route-lists";
+import { inputCls } from "./form-ui";
+import {
+  ACCEPT_IMPORT,
+  detalleFilaImport,
+  esArchivoImport,
+  formaFilaImport,
+  type LoteImport,
+} from "./import-places";
+import type { PlacesWorkspace } from "./use-places-workspace";
+
+function TablaLoteImport({
+  lote,
+  onQuitar,
+}: {
+  lote: LoteImport;
+  onQuitar: (filename: string) => void;
+}) {
+  const quitar = () => onQuitar(lote.filename);
+  const filas = lote.filas ?? [];
+  return (
+    <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+      <table className="w-full text-[11px]">
+        <thead>
+          <tr className="bg-gray-100 dark:bg-gray-700">
+            <th colSpan={3} className="px-2 py-1.5 text-left font-semibold">
+              <div className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate text-xs text-gray-900 dark:text-white">
+                  {lote.filename}
+                </span>
+                <span className="shrink-0 font-normal text-gray-500 dark:text-gray-400">
+                  {filas.length}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Quitar ${lote.filename}`}
+                  onClick={quitar}
+                  className="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-rose-600 dark:hover:bg-gray-600 dark:hover:text-rose-400"
+                >
+                  <HiTrash className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </th>
+          </tr>
+          <tr className="border-t border-gray-200 text-left text-gray-500 dark:border-gray-600 dark:text-gray-400">
+            <th className="px-2 py-1 font-medium">Nombre</th>
+            <th className="px-2 py-1 font-medium">Forma</th>
+            <th className="px-2 py-1 font-medium">Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filas.map((f, i) => (
+            <tr
+              key={`${f.name}-${i}`}
+              className="border-t border-gray-100 text-gray-800 dark:border-gray-700 dark:text-gray-200"
+            >
+              <td className="max-w-[8rem] truncate px-2 py-1">{f.name}</td>
+              <td className="whitespace-nowrap px-2 py-1">
+                {formaFilaImport(f)}
+              </td>
+              <td className="truncate px-2 py-1 text-gray-500 dark:text-gray-400">
+                {detalleFilaImport(f)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function PlacesImportCard({
+  ws,
+  className,
+}: {
+  ws: PlacesWorkspace;
+  className?: string;
+}) {
+  const {
+    imp,
+    setImp,
+    cats,
+    fileRef,
+    onArchivos,
+    confirmarImport,
+    guardando,
+    abrirImport,
+  } = ws;
+  const [arrastrando, setArrastrando] = useState(false);
+  const profundidadArrastre = useRef(0);
+  const lotes = imp.lotes ?? [];
+  const hayLotes = lotes.length > 0;
+
+  const tomarArchivos = (lista: FileList | File[] | undefined) => {
+    if (!lista || lista.length === 0) return;
+    const files = [...lista].filter(esArchivoImport);
+    if (!files.length) return;
+    void onArchivos(files);
+  };
+
+  const alElegirArchivo = (e: ChangeEvent<HTMLInputElement>) => {
+    tomarArchivos(e.target.files ?? undefined);
+    e.target.value = "";
+  };
+
+  const alEntrar = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    profundidadArrastre.current += 1;
+    setArrastrando(true);
+  };
+
+  const alArrastrar = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setArrastrando(true);
+  };
+
+  const alSalir = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    profundidadArrastre.current = Math.max(0, profundidadArrastre.current - 1);
+    if (profundidadArrastre.current === 0) setArrastrando(false);
+  };
+
+  const alSoltar = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    profundidadArrastre.current = 0;
+    setArrastrando(false);
+    tomarArchivos(e.dataTransfer.files);
+  };
+
+  const quitarLote = (filename: string) =>
+    setImp({
+      ...imp,
+      lotes: lotes.filter((l) => l.filename !== filename),
+    });
+  const cancelar = () => abrirImport();
+  const importar = () => void confirmarImport();
+
+  return (
+    <div
+      data-places-form
+      className={twMerge("flex min-h-0 flex-1 flex-col gap-3", className)}
+    >
+      <div
+        data-places-import-drop
+        onDragEnter={alEntrar}
+        onDragOver={alArrastrar}
+        onDragLeave={alSalir}
+        onDrop={alSoltar}
+        className={twMerge(
+          "flex min-h-0 flex-1 flex-col rounded-lg border-2 border-dashed transition-all duration-200",
+          hayLotes ? "gap-2 p-2" : "p-6",
+          arrastrando
+            ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20"
+            : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-700"
+        )}
+      >
+        {hayLotes ? (
+          <>
+            <label
+              htmlFor="places-import-file"
+              className="block w-full shrink-0 cursor-pointer"
+            >
+              <span className="flex w-full flex-row items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-800">
+                <MdOutlineFileUpload className="h-4 w-4" />
+                Importar otro archivo
+              </span>
+            </label>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
+              {lotes.map((lote) => (
+                <TablaLoteImport
+                  key={lote.filename}
+                  lote={lote}
+                  onQuitar={quitarLote}
+                />
+              ))}
+            </div>
+            <select
+              aria-label="Categoría"
+              className={inputCls}
+              value={imp.catDef}
+              onChange={(e) => setImp({ ...imp, catDef: e.target.value })}
+            >
+              <option value="">Sin categoría</option>
+              {(cats ?? []).map((c) => (
+                <option key={c.category_id} value={c.category_id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </>
+        ) : (
+          <label
+            htmlFor="places-import-file"
+            aria-label="Arrastra o elige un archivo"
+            className="flex min-h-0 flex-1 cursor-pointer flex-col items-center justify-center"
+          >
+            <div className="flex flex-col items-center justify-center gap-2">
+              <div className="rounded-full bg-gray-200 p-3 dark:bg-gray-600">
+                <MdOutlineFileUpload className="h-6 w-6 text-gray-500 dark:text-gray-300" />
+              </div>
+              <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+                Arrastra CSV, KML o GeoJSON aquí
+              </p>
+              <span className="flex flex-row items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-white hover:bg-blue-800">
+                <MdOutlineFileUpload className="h-4 w-4" />
+                Seleccionar archivo
+              </span>
+            </div>
+          </label>
+        )}
+        <input
+          id="places-import-file"
+          ref={fileRef}
+          type="file"
+          multiple
+          accept={ACCEPT_IMPORT}
+          className="hidden"
+          aria-label="Seleccionar archivo"
+          onChange={alElegirArchivo}
+        />
+      </div>
+      {imp.resultado && (
+        <div className="text-xs text-gray-700 dark:text-gray-300">
+          {imp.resultado}
+        </div>
+      )}
+      <ButtonGroup className="flex w-full shrink-0">
+        <Button
+          type="button"
+          color="alternative"
+          disabled={guardando}
+          className="min-w-0 flex-1 py-2.5 text-sm"
+          onClick={cancelar}
+        >
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          color="blue"
+          disabled={guardando || !hayLotes}
+          className="min-w-0 flex-1 py-2.5 text-sm"
+          onClick={importar}
+        >
+          {guardando ? "Importando…" : "Importar"}
+        </Button>
+      </ButtonGroup>
+    </div>
+  );
+}
+
+export function PlacesCatalogLists({
+  ws,
+  searchAndImport = false,
+  className,
+}: {
+  ws: PlacesWorkspace;
+  searchAndImport?: boolean;
+  className?: string;
+}) {
+  const hayBusca = ws.busca.trim().length > 0;
+  const lugares = filtrarLugares(ws.todosLugares ?? ws.lugares, ws.busca);
+  const trayectos = filtrarTrayectos(ws.todosTrayectos ?? [], ws.busca);
+  const verLugares = !hayBusca || lugares.length > 0;
+  const verTrayectos = !hayBusca || trayectos.length > 0;
+  const sinResultados = hayBusca && !verLugares && !verTrayectos;
+
+  return (
+    <div className={twMerge("flex min-h-0 flex-1 flex-col gap-2", className)}>
+      {searchAndImport ? (
+        <div className="flex shrink-0 gap-1.5">
+          <input
+            className={inputCls}
+            placeholder="Buscar por nombre, dirección o external_id…"
+            value={ws.busca}
+            onChange={(e) => ws.setBusca(e.target.value)}
+          />
+          <button
+            type="button"
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium ${
+              ws.modo === "import"
+                ? "bg-blue-600 text-white"
+                : "border border-gray-300 text-gray-900 dark:border-gray-600 dark:text-white"
+            }`}
+            onClick={ws.abrirImport}
+          >
+            Importar
+          </button>
+        </div>
+      ) : (
+        <input
+          className={`${ws.inp} shrink-0`}
+          placeholder="Buscar por nombre, dirección o external_id…"
+          value={ws.busca}
+          onChange={(e) => ws.setBusca(e.target.value)}
+        />
+      )}
+
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <ListCard>
+          {sinResultados ? (
+            <p className="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">
+              {`Sin resultados para «${ws.busca.trim()}».`}
+            </p>
+          ) : (
+            <>
+              {verLugares && (
+                <PlaceList
+                  sinCard
+                  lugares={lugares}
+                  busqueda={ws.busca}
+                  seleccionadoId={ws.editandoLugarId}
+                  onIr={ws.irALugar}
+                  onEditar={ws.editarLugar}
+                  onEliminar={(l) => void ws.borrarLugar(l)}
+                  onHover={ws.setHoveredPlaceId}
+                />
+              )}
+              {verTrayectos && (
+                <TrayectoList
+                  sinCard
+                  trayectos={trayectos}
+                  busqueda={ws.busca}
+                  seleccionadoId={ws.editandoTrayId}
+                  onIr={ws.irATrayecto}
+                  onEditar={ws.editarTrayecto}
+                  onEliminar={(t) => void ws.borrarTrayecto(t)}
+                />
+              )}
+            </>
+          )}
+        </ListCard>
+      </div>
+    </div>
+  );
+}
+
+export function PlacesSettingsSidebar({ ws }: { ws: PlacesWorkspace }) {
+  if (ws.modo === "import") {
+    return (
+      <div className="flex h-full w-[420px] flex-none flex-col overflow-hidden border-l border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+        <PlacesImportCard ws={ws} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full w-[420px] flex-none flex-col gap-2 overflow-hidden border-l border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-900">
+      <div>
+        <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
+          Lugares de interés
+        </h1>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {ws.carrierMode
+            ? "Tus lugares y trayectos. Lo oficial de la operación se ve punteado (solo lectura)."
+            : "Capa global de la operación: lugares, trayectos e importación masiva."}
+        </p>
+      </div>
+
+      {ws.carrierMode && ws.cuotas && (
+        <div className="flex gap-2 text-[11px]">
+          <span className="rounded-full border border-gray-200 px-2 py-0.5 text-gray-700 dark:border-gray-700 dark:text-gray-300">
+            lugares <b>{ws.cuotas.lugares.usadas}</b>/{ws.cuotas.lugares.limite}
+          </span>
+          <span className="rounded-full border border-gray-200 px-2 py-0.5 text-gray-700 dark:border-gray-700 dark:text-gray-300">
+            trayectos <b>{ws.cuotas.trayectos.usadas}</b>/
+            {ws.cuotas.trayectos.limite}
+          </span>
+        </div>
+      )}
+
+      <p className="rounded-lg bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+        Haz clic derecho en el mapa para crear un lugar o un trayecto.
+      </p>
+
+      <div className="flex gap-1.5">
+        <button
+          type="button"
+          className={ws.btnTab(ws.modo === "import", "bg-blue-600")}
+          onClick={ws.abrirImport}
+        >
+          Importar
+        </button>
+      </div>
+
+      {ws.msg && ws.modo !== "lugar" && ws.modo !== "trayecto" && (
+        <div className="text-xs text-gray-700 dark:text-gray-300">{ws.msg}</div>
+      )}
+
+      {ws.modo !== "trayecto" && <PlacesCatalogLists ws={ws} />}
+    </div>
+  );
+}

@@ -3,18 +3,38 @@
 //
 // Historial por instantáneas: cada edición guarda los vértices previos en
 // `pasado`; deshacer/rehacer mueven instantáneas entre `pasado` y `futuro`.
+import type { LineString, Polygon } from "geojson";
 import type { FormLugar, LatLon } from "./places.types";
 
 export const MIN_VERTICES = 3;
 const MAX_HISTORIAL = 50;
 
-/** Primer vértice como centro de referencia del lugar (p_lat/p_lon). */
-const conCentro = (f: FormLugar, vertices: LatLon[]): FormLugar => ({
-  ...f,
-  vertices,
-  lat: vertices[0]?.[0] ?? null,
-  lon: vertices[0]?.[1] ?? null,
-});
+function centroDe(f: FormLugar, vertices: LatLon[]): LatLon | null {
+  const first = vertices[0];
+  if (!first) return null;
+  if ((f.polyBase ?? "libre") === "libre" || vertices.length < 3) return first;
+  const lat = vertices.reduce((s, v) => s + v[0], 0) / vertices.length;
+  const lon = vertices.reduce((s, v) => s + v[1], 0) / vertices.length;
+  return [lat, lon];
+}
+
+/** Arrastrar un vértice de una forma base la convierte en polígono libre. */
+export function soltarComoPoligono(f: FormLugar): FormLugar {
+  if (f.geom !== "polygon") return f;
+  if ((f.polyBase ?? "libre") === "libre") return f;
+  return { ...f, polyBase: "libre" };
+}
+
+/** Centro de referencia: primer vértice, o el centroide si es un rectángulo. */
+const conCentro = (f: FormLugar, vertices: LatLon[]): FormLugar => {
+  const c = centroDe(f, vertices);
+  return {
+    ...f,
+    vertices,
+    lat: c?.[0] ?? null,
+    lon: c?.[1] ?? null,
+  };
+};
 
 /** Aplica un cambio de vértices que se puede deshacer. */
 const editar = (f: FormLugar, vertices: LatLon[]): FormLugar => ({
@@ -45,13 +65,13 @@ export function agregarVertice(f: FormLugar, p: LatLon): FormLugar {
 export function insertarVertice(f: FormLugar, i: number, p: LatLon): FormLugar {
   const vertices = [...f.vertices];
   vertices.splice(i, 0, p);
-  return editar(f, vertices);
+  return editar(soltarComoPoligono(f), vertices);
 }
 
 export function eliminarVertice(f: FormLugar, i: number): FormLugar {
   if (!puedeEliminar(f) || !f.vertices[i]) return f;
   return editar(
-    f,
+    soltarComoPoligono(f),
     f.vertices.filter((_, j) => j !== i)
   );
 }
@@ -63,7 +83,7 @@ export const marcarHistorial = (f: FormLugar): FormLugar =>
 /** Durante un arrastre: sin historial (ya se marcó al empezar). */
 export function moverVertice(f: FormLugar, i: number, p: LatLon): FormLugar {
   return conCentro(
-    f,
+    soltarComoPoligono(f),
     f.vertices.map((v, j) => (j === i ? p : v))
   );
 }
@@ -105,7 +125,7 @@ export function cancelarDibujo(f: FormLugar): FormLugar {
 }
 
 export function seguirDibujando(f: FormLugar): FormLugar {
-  return { ...f, cerrado: false };
+  return { ...soltarComoPoligono(f), cerrado: false };
 }
 
 /**
@@ -141,4 +161,24 @@ export function anilloGeoJSON(vertices: LatLon[]): [number, number][] {
   )
     ring.push([primero[0], primero[1]]);
   return ring;
+}
+
+/**
+ * Mientras se dibuja: trazo abierto. Al cerrar (clic en el primero): polígono.
+ */
+export function geometriaDibujo(
+  vertices: LatLon[],
+  cerrado: boolean
+): Polygon | LineString | null {
+  if (vertices.length < 2) return null;
+  if (!cerrado) {
+    return {
+      type: "LineString",
+      coordinates: vertices.map(([la, lo]) => [lo, la]),
+    };
+  }
+  return {
+    type: "Polygon",
+    coordinates: [anilloGeoJSON(vertices)],
+  };
 }

@@ -31,18 +31,10 @@ class OrgControlTowerSettingsResourceTest {
 
     private TowerSettingsService settings;
 
-    /** Owners hold the owner role; everyone else holds none and keeps VIEW and OPERATE. */
+    /** The role service is not asked: permissions are checked by the annotations (ControlTowerPermissionsTest). */
     private static final class Roles extends OrganizationRoleService {
-        private final boolean owner;
-
         Roles(boolean owner) {
-            super(null, null, null, null);
-            this.owner = owner;
-        }
-
-        @Override
-        public Uni<Set<String>> callerRoles(String organizationSlug) {
-            return Uni.createFrom().item(owner ? Set.of(OWNER_ROLE_CODE) : Set.of());
+            super(null, null, null);
         }
     }
 
@@ -66,15 +58,11 @@ class OrgControlTowerSettingsResourceTest {
     }
 
     @Test
-    void membersReadButOnlyOwnersSave() {
+    void readAndSave() {
         OrgControlTowerSettingsResource member = resource(false);
         Response read = call(member.get(ORG));
         assertEquals(200, read.getStatus());
         assertNull(((TowerSettings) read.getEntity()).operators());
-
-        UniAwait<Response> denied = member.save(ORG, new SettingsRequest(3, 8, 150)).await();
-        assertThrows(ForbiddenException.class, () -> denied.atMost(WAIT));
-        assertNull(settings.get("tenant-a").operators(), "nothing was saved");
 
         Response saved = call(resource(true).save(ORG, new SettingsRequest(3, 8, 150)));
         assertEquals(200, saved.getStatus());

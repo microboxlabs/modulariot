@@ -1,32 +1,5 @@
 import { z } from "zod";
-
-/** Mirrors the Quarkus `IntegrationConnection` DTO (miot-integrations). */
-export interface IntegrationConnection {
-  id: string;
-  tenantCode: string;
-  name: string;
-  providerType: string;
-  baseUrl: string;
-  credentialProfileId: string | null;
-  status: "DRAFT" | "ACTIVE" | "INACTIVE" | "TEST_FAILED";
-  lastTestedAt: string | null;
-  lastTestResult: boolean | null;
-  metadata: Record<string, unknown>;
-}
-
-/** Mirrors the Quarkus `CredentialProfileResponse` DTO. */
-export interface CredentialProfileResponse {
-  id: string;
-  displayName: string;
-  authType: string;
-}
-
-/** Mirrors the Quarkus `ConnectionTestResponse` DTO. */
-export interface ConnectionTestResult {
-  success: boolean;
-  testedAt: string;
-  message: string;
-}
+import type { ChannelCreate, ChannelUpdate } from "../channels/channel.types";
 
 export const WHATSAPP_PROVIDER = "WHATSAPP";
 export const DEFAULT_GRAPH_VERSION = "v25.0";
@@ -89,9 +62,12 @@ const whatsAppBaseShape = {
  */
 function requireRecipientsWhenTestMode(
   data: { testModeEnabled: boolean; testRecipients: string },
-  ctx: z.RefinementCtx,
+  ctx: z.RefinementCtx
 ): void {
-  if (data.testModeEnabled && parseRecipientList(data.testRecipients).length === 0) {
+  if (
+    data.testModeEnabled &&
+    parseRecipientList(data.testRecipients).length === 0
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["testRecipients"],
@@ -120,3 +96,35 @@ export const WhatsAppEditSchema = z
     token: z.string().optional(),
   })
   .superRefine(requireRecipientsWhenTestMode);
+
+/** Non-secret metadata from the form, shared by create and update. */
+function whatsAppMetadata(form: WhatsAppFormData): Record<string, unknown> {
+  return {
+    phone_number_id: form.phoneNumberId,
+    waba_id: form.wabaId,
+    graph_version: form.graphVersion,
+    test_mode_enabled: form.testModeEnabled,
+    test_recipients: parseRecipientList(form.testRecipients),
+  };
+}
+
+/** The access token becomes a bearer credential; the ids go in the connection metadata. */
+export function whatsAppCreate(form: WhatsAppFormData): ChannelCreate {
+  return {
+    name: form.name,
+    baseUrl: form.baseUrl,
+    token: form.token,
+    credentialName: `WhatsApp token · ${form.phoneNumberId}`,
+    metadata: whatsAppMetadata(form),
+  };
+}
+
+/** A blank token keeps the stored one. */
+export function whatsAppUpdate(form: WhatsAppFormData): ChannelUpdate {
+  return {
+    name: form.name,
+    baseUrl: form.baseUrl,
+    token: form.token,
+    metadata: whatsAppMetadata(form),
+  };
+}

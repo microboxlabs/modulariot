@@ -1,6 +1,7 @@
 "use client";
 
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { Card } from "flowbite-react";
 import Image from "next/image";
 import PrototypeSideInfo from "./prototype-side-info";
@@ -65,6 +66,7 @@ export default function PrototypeGeneralMap({
   tripId?: string;
   assetId?: string;
 }>) {
+  const pastFormsEnabled = useRuntimeConfig()?.SYMPTOMS_PAST_FORMS === "true";
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -83,8 +85,11 @@ export default function PrototypeGeneralMap({
   // lands back on the right menu — only "which menu is open", not the finer
   // steps inside it (e.g. mid-dial), which is what the leave-page warning is
   // for: those are expected to be lost on an actual reload.
+  // The past forms stay out of the URL: opening one records a treatment, so a
+  // reload must not reopen it, and their save navigates to the symptom list,
+  // which a replace here would undo.
   const [isFormOpen, setIsFormOpen] = useState(
-    () => searchParams.get("open") === "1"
+    () => !pastFormsEnabled && searchParams.get("open") === "1"
   );
   const [selectedOption, setSelectedOption] = useState<SelectedOption>(() => {
     const fromUrl = searchParams.get("menu");
@@ -94,6 +99,7 @@ export default function PrototypeGeneralMap({
     useState<CallCenterReportedStep | null>(null);
 
   useEffect(() => {
+    if (pastFormsEnabled) return;
     const params = new URLSearchParams(searchParams.toString());
     if (isFormOpen) {
       params.set("open", "1");
@@ -116,8 +122,10 @@ export default function PrototypeGeneralMap({
   // it's treated the same as reaching "form". Every other menu keeps 62/38.
   const isCallDriver = selectedOption === "call_driver";
   const isCallFormStep = callFlowStep === "form" || callFlowStep === null;
+  // Past forms open as a fixed modal, so the side panel stays at its
+  // resting width instead of morphing over the map.
   const { side: sideWidth, map: mapWidth } = panelWidths(
-    isFormOpen,
+    pastFormsEnabled ? false : isFormOpen,
     isCallDriver,
     isCallFormStep
   );

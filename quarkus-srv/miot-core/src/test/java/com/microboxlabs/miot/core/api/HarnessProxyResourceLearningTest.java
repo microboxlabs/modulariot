@@ -194,7 +194,7 @@ class HarnessProxyResourceLearningTest {
         private final boolean allowed;
 
         FixedPermissionService(boolean allowed) {
-            super(null, null);
+            super(null, null, null);
             this.allowed = allowed;
         }
 

@@ -23,6 +23,7 @@ import {
   buildNamedMapLayers,
 } from "./layers/build-layers";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
+import { attachBoxZoom } from "./box-zoom";
 
 // ============================================================================
 // Constants / helpers
@@ -144,6 +145,7 @@ export default function MapVisualization({
   initialViewState = DEFAULT_INITIAL_VIEW_STATE,
   rounded = true,
   children,
+  minZoom,
 }: {
   mapStyle: MapStyleName;
   layers: LayersList;
@@ -167,6 +169,8 @@ export default function MapVisualization({
   rounded?: boolean;
   /** Native react-map-gl children (Source/Layer/Marker) rendered on the map */
   children?: ReactNode;
+  /** Lowest zoom the user can reach; Mapbox's default is -2. */
+  minZoom?: number;
 }) {
   const runtimeConfig = useRuntimeConfig();
   const mapboxAccessToken = runtimeConfig?.MAPBOX_API_KEY ?? "";
@@ -337,6 +341,10 @@ export default function MapVisualization({
     return () => resizeObserver.disconnect();
   }, [mapRef]);
 
+  // Custom Shift + drag box zoom, attached in onLoad (see box-zoom.ts)
+  const detachBoxZoomRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => detachBoxZoomRef.current?.(), []);
+
   const mapboxStyles = useMemo(
     () => (
       <style>
@@ -367,7 +375,11 @@ export default function MapVisualization({
             const z = zoomUnDecimal(e.target.getZoom());
             setInternalZoom((prev) => (prev === z ? prev : z));
             onZoomChange?.(z);
+            detachBoxZoomRef.current?.();
+            detachBoxZoomRef.current = attachBoxZoom(e.target);
           }}
+          boxZoom={false}
+          minZoom={minZoom}
           onZoom={(e) => {
             const z = zoomUnDecimal(e.viewState.zoom);
             setInternalZoom((prev) => (prev === z ? prev : z));

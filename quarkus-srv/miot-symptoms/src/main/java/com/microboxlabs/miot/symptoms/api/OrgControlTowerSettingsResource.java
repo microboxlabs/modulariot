@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import io.quarkus.security.PermissionsAllowed;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
+import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
@@ -50,18 +53,22 @@ public class OrgControlTowerSettingsResource extends ControlTowerResourceSupport
     @GET
     @Operation(operationId = "getTowerSettings",
             summary = "The operator team; defaults (8-hour shifts, nothing else set) when never saved")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> get(@PathParam(ORG) String organizationId) {
         String tenant = tenantCode(organizationId);
-        return viewWork(organizationId, () -> Response.ok(settings.get(tenant)).build());
+        return work(() -> Response.ok(settings.get(tenant)).build());
     }
 
     @PUT
     @Operation(operationId = "saveTowerSettings",
             summary = "Save the operator team. shiftHours 1-24 (default 8); operators and capacityPerShift may be"
                     + " null to clear them")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.SETTINGS_UPDATE, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> save(@PathParam(ORG) String organizationId, SettingsRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return maintainWork(organizationId, () -> Response.ok(settings.save(tenant, actor, body)).build());
+        return work(() -> Response.ok(settings.save(tenant, actor, body)).build());
     }
 }

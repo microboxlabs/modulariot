@@ -18,7 +18,7 @@ replaces the `store` package implementations without changing this contract.
 | Tenant | Resolved by `OrganizationRequestFilter` from the org slug in the path. Never read from the body or query |
 | Actor | User email (session) or client id (M2M). Never read from the body |
 | Component | `miot.component.symptoms.enabled=true` (build-time flag, included in CI) |
-| Permissions | VIEW, OPERATE or MAINTAIN, from the caller's organization roles. See [Roles and permissions](#roles-and-permissions) |
+| Permissions | One `controltower:*` permission per endpoint. See [Roles and permissions](#roles-and-permissions) |
 | Code | `quarkus-srv/miot-symptoms`, packages `api`, `service`, `store`, `domain`, `dto` |
 
 ## Treatments
@@ -57,12 +57,12 @@ Action body:
 
 | Operation | Method and path | Who |
 |---|---|---|
-| `listContacts` | `GET /contacts?active` | VIEW |
-| `getContact` | `GET /contacts/{contactId}` | VIEW |
-| `createContact` | `POST /contacts` | OPERATE. Operators add contacts from the call panel |
-| `importContacts` | `POST /contacts/import` | OPERATE. Body `{contacts: [...]}`, up to 1000 |
-| `updateContact` | `PATCH /contacts/{contactId}` | OPERATE |
-| `deleteContact` | `DELETE /contacts/{contactId}` | MAINTAIN |
+| `listContacts` | `GET /contacts?active` | `controltower:view` |
+| `getContact` | `GET /contacts/{contactId}` | `controltower:view` |
+| `createContact` | `POST /contacts` | `controltower:contact.write`. Operators add contacts from the call panel |
+| `importContacts` | `POST /contacts/import` | `controltower:contact.write`. Body `{contacts: [...]}`, up to 1000 |
+| `updateContact` | `PATCH /contacts/{contactId}` | `controltower:contact.write` |
+| `deleteContact` | `DELETE /contacts/{contactId}` | `controltower:contact.delete` |
 
 Contact body:
 
@@ -91,6 +91,22 @@ A national id already used by another contact of the organization is a 409.
 `status` is `created`, `skipped` (national id already in the book, or repeated
 in the request) or `error` (the row is invalid; `reason` says why).
 
+## Map
+
+| Operation | Method and path | Returns |
+|---|---|---|
+| `listMapPositions` | `GET /map/positions` | Last position of each of the organization's assets, on a trip or not |
+| `getMapSummary` | `GET /map/summary` | Service, fleet and symptom totals shown beside the map |
+| `listMapSymptoms` | `GET /map/symptoms?p_*` | One page of symptoms with `total_rows`, `total_pages`, `page`, `page_size` and `symptom_name_list`. Filters: `p_asset_id`, `p_trip_id`, `p_driver_id`, `p_carrier_id`, `p_origin`, `p_destination`, `p_symptom_name`, `p_icu_code`, `p_page`, `p_page_size`, `p_start_date_historic`, `p_end_date_historic`. Any other is a 400 |
+| `countSymptomConditions` | `GET /map/conditions?from&to` | Symptom counts by condition name. Active symptoms, or with `from` and `to` (ISO-8601, both or neither) those created in that range |
+
+All of them need `controltower:view`. The modulith calls the GPS database
+functions through PostgREST (`miot.symptoms.gps.rpc-url`) with a token for the
+organization's own Auth0 application, so each organization gets only its own
+data. The token comes from the caching token endpoint and is reused until a
+minute before it expires (see `miot-core/docs/organization-access.md`). Each
+answer is kept for five seconds per organization.
+
 ## Selectables
 
 The option lists behind the forms are not part of this API. They are a core
@@ -118,38 +134,27 @@ Newest first, `limit` up to 500. Actions: `treatment.opened`,
 
 ## Roles and permissions
 
-Every endpoint needs one permission. The caller's roles in the organization (`miot_core.organization_role_assignments`) give them:
-
-| Role | Permissions |
-|---|---|
-| `ORGANIZATION_OWNER`, `CONTROL_TOWER_MAINTAINER` | VIEW, OPERATE, MAINTAIN |
-| `CONTROL_TOWER_OPERATOR` | VIEW, OPERATE |
-| `CONTROL_TOWER_VIEWER` | VIEW |
+Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerAccessCatalog` lists them and the roles that grant them. Owners and Admins hold every permission.
 
 | Permission | Endpoints |
 |---|---|
-| VIEW | Every read, plus `describe`, `validate` and `preview` |
-| OPERATE | Treatments (open, actions, close, cancel) and contacts (create, import, update) |
-| MAINTAIN | Symptom catalog writes, tower settings, contact deletion |
+| `controltower:view` | Every read, plus `describe`, `validate` and `preview` |
+| `controltower:case.treat` | Treatments: open, actions, close, cancel |
+| `controltower:contact.write` | Contacts: create, import, update |
+| `controltower:contact.delete` | Contacts: delete |
+| `controltower:symptom.edit` | Symptoms: create, from template, import, identity, draft, fork |
+| `controltower:symptom.publish` | Symptoms: publish, roll back, change state |
+| `controltower:settings.update` | Tower settings |
 
-`GET /access` returns the caller's `roles` and `permissions`; the app shows only the actions they allow.
-
-Membership comes from `miot.organizations.membership` (`MIOT_ORGANIZATIONS_MEMBERSHIP`):
-
-| Value | Member | Without a control tower role |
-|---|---|---|
-| `alfresco` (default) | In the organization's Alfresco group | VIEW and OPERATE |
-| `native` | Holds any role in the organization | Nothing |
-
-With `native`, no Alfresco is needed. A platform owner creates the organization and its first roles:
-
-| Operation | Method and path |
+| Role | Permissions |
 |---|---|
-| Create a top-level organization | `POST /api/v1/platform/orgs` with `slug`, `name`, `tenantClientId`, optional `displayName`, `taxId` |
-| Read a role's assignees | `GET /api/v1/platform/orgs/{slug}/roles/{roleCode}` |
-| Replace a role's assignees | `PUT /api/v1/platform/orgs/{slug}/roles/{roleCode}` with `{"assigneeIds": ["email", ...]}` |
+| `CONTROL_TOWER_VIEWER` | view |
+| `CONTROL_TOWER_OPERATOR` | view, case.treat, contact.write |
+| `CONTROL_TOWER_MAINTAINER` | all of the above plus contact.delete, symptom.edit, symptom.publish, settings.update |
 
-After that, an owner manages roles with `PUT /api/v1/orgs/{slug}/roles/{roleCode}`.
+With Alfresco membership, a member who holds no control tower role is an Operator, as before the roles existed. The organization's own M2M client is one too.
+
+`GET /access` returns the caller's `baseRole`, `roles` and `controltower:*` permissions; the app shows only the actions they allow. Memberships, base roles and role assignment are described in the core organization access API (`/api/v1/orgs/{org}/me/access`, `/api/v1/access/catalog`, `/api/v1/orgs/{org}/roles/{roleCode}`, `/api/v1/platform/orgs`).
 
 ## Errors
 
@@ -159,6 +164,7 @@ After that, an owner manages roles with `PUT /api/v1/orgs/{slug}/roles/{roleCode
 | 403 | Not a member, org path mismatch, or a missing control tower permission |
 | 404 | Treatment or contact not found |
 | 409 | Treatment not `OPEN`, closing one with no actions, or a contact's national id already used |
+| 503 | Map data cannot be read: `miot.symptoms.gps.rpc-url` unset, the organization has no Auth0 application, or the GPS database failed |
 
 ## Treatment screen flow
 
@@ -175,7 +181,9 @@ After that, an owner manages roles with `PUT /api/v1/orgs/{slug}/roles/{roleCode
 | Timeline and symptom card | `listSymptomTreatments` |
 | Settings › Seleccionables | core selectables API |
 
-The Next app reaches these through `/app/api/control-tower/*`, and the core
+The Next app reaches these through `/app/api/control-tower/*`, and the map
+endpoints through `/app/api/map`, `/app/api/map/resume`,
+`/app/api/symptoms/dashboard` and `/app/api/symptoms/table`. The core
 selectables through `/app/api/selectables/*`. Both resolve the active
 organization server-side and forward the user's session token.
 
@@ -185,11 +193,12 @@ organization server-side and forward the user's session token.
 |---|---|---|---|
 | `miot.component.symptoms.enabled` | `MIOT_COMPONENT_SYMPTOMS_ENABLED` | `${miot.component.all.enabled}` | Turns the module on |
 | `miot.symptoms.cdc.enabled` | `MIOT_SYMPTOMS_CDC_ENABLED` | same as the component | Pulsar dispatcher. Set `false` on a modulith that only serves the API |
+| `miot.symptoms.gps.rpc-url` | `MIOT_SYMPTOMS_GPS_RPC_URL` | none | PostgREST in front of the GPS database, for the map endpoints |
 | `miot.symptoms.control-tower.demo-seed` | `MIOT_SYMPTOMS_CONTROL_TOWER_DEMO_SEED` | `false` (`true` in `quarkus:dev`) | Seed demo contacts and history. Leave off anywhere real symptoms are shown |
 
 ## Not in this API yet
 
 - Real storage for everything above.
-- Symptom reads (list, detail, ICU summary, map signals). The screen still reads them through the existing pgREST routes.
+- Symptom reads (list, detail, ICU summary, map signals). The screen still reads them through the existing pgREST routes; only the map positions, summary, symptom table and condition counts come from this API.
 - The invalidate webhook, which the app still calls after an invalidate.
 - Symptom rules (`fn_pt4_*`).

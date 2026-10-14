@@ -26,6 +26,10 @@
             {
               "label": "Video en Vivo / HLS",
               "desc": "Streaming continuo desde cámaras y dashcams"
+            },
+            {
+              "label": "Dashboards",
+              "desc": "Tableros con datos aprobados, para tu equipo o tu producto"
             }
           ]
         },
@@ -984,6 +988,137 @@
             {
               "title": "Tu almacenamiento",
               "body": "Los frames y el video viven en tu bucket. Sin licencias de videovigilancia externa."
+            }
+          ]
+        }
+      ]
+    },
+    "producto/dashboards": {
+      "eyebrow": "Producto · Dashboards",
+      "title": "Dashboards operacionales que tu equipo arma en minutos",
+      "subtitle": "Construye, comparte e incrusta tableros con datos aprobados. Los datos y las credenciales se quedan en tu servidor: un dashboard nombra una consulta, nunca una contraseña ni SQL.",
+      "blocks": [
+        {
+          "kicker": "Qué es",
+          "title": "Cada equipo con su tablero y los datos correctos",
+          "body": "Arrastra widgets a una grilla, conéctalos a consultas que un administrador aprobó y decide quién puede ver o cambiar cada tablero. Úsalo dentro de ModularIoT o incrústalo en tu propio producto.",
+          "bullets": [
+            "Editor de grilla con guardado automático",
+            "Textos, indicadores, tablas, listas y gráficos",
+            "Filtros por fecha, texto y selección",
+            "Cuatro roles y permisos por dashboard",
+            "Código abierto bajo Apache 2.0"
+          ]
+        },
+        {
+          "kicker": "Capacidades",
+          "title": "Todo lo que un tablero operativo necesita",
+          "cards": [
+            {
+              "title": "Editor visual",
+              "body": "Mueve y redimensiona widgets en una grilla de 24 columnas. Los cambios se guardan solos y nadie pisa el trabajo de otro."
+            },
+            {
+              "title": "Consultas guardadas",
+              "body": "Los widgets leen resultados con nombre. Un administrador decide qué operaciones existen sobre PostgREST o BigQuery."
+            },
+            {
+              "title": "Datos separados por organización",
+              "body": "Cada organización ve solo lo suyo. El navegador nunca recibe una credencial, una URL de datos ni SQL."
+            },
+            {
+              "title": "Roles y permisos",
+              "body": "Consumer, Contributor, Editor y Coordinator por ámbito, más permisos extra por dashboard para personas o grupos."
+            },
+            {
+              "title": "Incrustable en tu producto",
+              "body": "Dibuja dashboards con React, con un Web Component o en HTML simple, sin instalar React."
+            },
+            {
+              "title": "Despliegue a tu medida",
+              "body": "npm, Docker o Helm, con SQLite o PostgreSQL. En tu nube o dentro de ModularIoT."
+            }
+          ]
+        },
+        {
+          "kicker": "Cómo empezar",
+          "title": "De los datos al tablero en tres pasos",
+          "steps": [
+            {
+              "n": "01",
+              "title": "Conecta tus datos",
+              "body": "Crea una conexión PostgREST o BigQuery y elige qué funciones pueden usar los dashboards."
+            },
+            {
+              "n": "02",
+              "title": "Arma el dashboard",
+              "body": "Agrega widgets, consultas guardadas y filtros desde el editor. Sin escribir código."
+            },
+            {
+              "n": "03",
+              "title": "Comparte o incrusta",
+              "body": "Asigna roles a tu equipo o muestra el dashboard dentro de tu propia aplicación."
+            }
+          ]
+        },
+        {
+          "kicker": "Planes",
+          "title": "Empieza gratis, crece con soporte",
+          "subtitle": "El servidor y la librería de UI son código abierto. Elige cómo quieres operarlos.",
+          "plans": [
+            {
+              "name": "Código abierto",
+              "price": "Gratis",
+              "body": "Instala el servidor y la librería de UI en tu infraestructura.",
+              "bullets": [
+                "Licencia Apache 2.0",
+                "npm, Docker o Helm",
+                "Documentación completa en español e inglés",
+                "Soporte de la comunidad en GitHub"
+              ],
+              "cta": "Leer la guía"
+            },
+            {
+              "name": "Incluido en ModularIoT",
+              "price": "En tu plan",
+              "body": "Dashboards viene integrado en la plataforma ModularIoT.",
+              "bullets": [
+                "Sin servidores que administrar",
+                "Usa las conexiones de tu organización",
+                "Mismos usuarios y roles de ModularIoT",
+                "Actualizaciones incluidas"
+              ],
+              "cta": "Ver precios"
+            },
+            {
+              "name": "Enterprise",
+              "price": "A medida",
+              "body": "Para equipos que necesitan operación y soporte dedicados.",
+              "bullets": [
+                "Alojado y operado por MicroboxLabs",
+                "SSO con tu proveedor de identidad",
+                "Soporte con acuerdo de nivel de servicio",
+                "Ayuda para migrar tus tableros"
+              ],
+              "cta": "Solicitar cotización"
+            }
+          ]
+        },
+        {
+          "kicker": "Documentación",
+          "title": "Todo lo que necesitas para empezar",
+          "links": [
+            {
+              "title": "Guía de Dashboards",
+              "body": "Instalación, tutoriales, guías prácticas y referencia completa."
+            },
+            {
+              "title": "Incrusta un dashboard",
+              "body": "Tutorial paso a paso para mostrar un dashboard en una página web."
+            },
+            {
+              "title": "Código en GitHub",
+              "body": "El servidor, la librería de UI y el contrato, bajo Apache 2.0."
             }
           ]
         }

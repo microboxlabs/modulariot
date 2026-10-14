@@ -42,6 +42,7 @@ type MapVisualizationProps = {
 import {
   center_in_bounds,
   flyTo,
+  zoomToVehicle,
 } from "@/features/map-visualization/map-view-utils";
 
 export default function MapVisualization({
@@ -116,10 +117,16 @@ export default function MapVisualization({
     ({ object, viewport }: { object: any; viewport: any }) => {
       // Only show tooltip for non-clustered pins
       if (!object.properties.cluster && mapRef.current) {
-        flyTo(mapRef.current, [
+        const coordinates: [number, number] = [
           object.geometry.coordinates[0],
           object.geometry.coordinates[1],
-        ]);
+        ];
+        // Zoom in only when the filters leave this vehicle on its own
+        if (positions.length === 1) {
+          zoomToVehicle(mapRef.current, coordinates);
+        } else {
+          flyTo(mapRef.current, coordinates);
+        }
         setHoverInfo({
           object,
           x: viewport.width / 2, // Center horizontally
@@ -136,7 +143,7 @@ export default function MapVisualization({
         setHoverInfo(undefined);
       }
     },
-    [setHoverInfo, zoom]
+    [setHoverInfo, zoom, positions.length]
   );
 
   const nombresItems = useMemo(

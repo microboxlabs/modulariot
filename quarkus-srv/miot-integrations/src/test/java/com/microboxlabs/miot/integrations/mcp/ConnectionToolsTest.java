@@ -233,7 +233,7 @@ class ConnectionToolsTest {
         final OrganizationContext organization;
 
         FakeAccess(TenantContext tenant, OrganizationContext organization) {
-            super(tenant, organization, null, null);
+            super(tenant, organization, null);
             this.tenant = tenant;
             this.organization = organization;
         }
@@ -254,7 +254,7 @@ class ConnectionToolsTest {
         final OrganizationContext organization;
 
         FakeRoles(OrganizationContext organization) {
-            super(null, organization, null, null);
+            super(organization, null, null);
             this.organization = organization;
         }
 

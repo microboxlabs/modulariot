@@ -226,6 +226,11 @@ function GenericTreatmentRow({
                 {treatment.description.message}
               </p>
             )}
+            {treatment.description.driver_response && (
+              <p className="wrap-break-word text-[10px] text-gray-500 dark:text-gray-400">
+                {t("response")}: {treatment.description.driver_response}
+              </p>
+            )}
           </div>
           <CopyButton dict={dict} getText={getCopyText} />
         </div>
@@ -275,7 +280,13 @@ export default function TreatmentsTimelineBox({
     const isCallTreatment =
       treatment.treatment_type.toUpperCase() === CALL_TREATMENT_TYPE;
 
-    if (!isCallTreatment) {
+    // Mock call entries exist only with the prototype API off; otherwise
+    // the call is shown from its own record.
+    const entries = isCallTreatment
+      ? mockCallLogForTreatment(`${seed}-${index}`)
+      : [];
+
+    if (entries.length === 0) {
       return (
         <GenericTreatmentRow
           key={index}
@@ -292,9 +303,6 @@ export default function TreatmentsTimelineBox({
     // plausible message/response *per mock call*, not just the one real
     // treatment record's — several calls under one treatment shouldn't all
     // show the same detail on hover.
-    const entrySeed = `${seed}-${index}`;
-    const entries = mockCallLogForTreatment(entrySeed);
-
     return (
       <div
         key={index}

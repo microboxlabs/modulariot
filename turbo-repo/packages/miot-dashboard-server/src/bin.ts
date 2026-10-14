@@ -271,6 +271,13 @@ function warnAboutStartupConfig(
         "MIOT_DASHBOARD_SCOPES_URL to ask the host's own systems.\n",
     );
   }
+  if (config.tenants.kind === "groups" && Object.keys(memberships).length > 0) {
+    process.stderr.write(
+      "WARNING: the seed file's memberships are not used: " +
+        "MIOT_DASHBOARD_GROUP_ROLES_PATTERN answers tenants and scopes from " +
+        "the caller's groups.\n",
+    );
+  }
 }
 
 async function main(): Promise<void> {

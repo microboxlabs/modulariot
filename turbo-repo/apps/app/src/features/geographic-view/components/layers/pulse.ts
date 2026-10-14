@@ -1,6 +1,8 @@
 import { BasePulsePinLayer, getColor } from "./pulse-base";
 
 export class PulsePinLayer extends BasePulsePinLayer {
+  static readonly layerName = "PulsePinLayer";
+
   protected getMovingVehicleColor(d: any): [number, number, number, number] {
     const displayPosition = this.props.displayPosition || 0;
     if (d.properties.id > displayPosition) {

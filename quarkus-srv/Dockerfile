@@ -1,4 +1,9 @@
-FROM registry.access.redhat.com/ubi9/openjdk-21:1.23
+FROM registry.access.redhat.com/ubi9/openjdk-21-runtime:1.24
+
+# Install current UBI security errata without shipping Maven or JDK build tools.
+USER root
+RUN microdnf update -y && microdnf clean all
+USER 185
 
 ENV LANGUAGE='en_US:en'
 

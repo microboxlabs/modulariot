@@ -10,6 +10,7 @@ import {
   type CallMethod,
 } from "@/features/symptoms/components/map-view/prototype/call-center/call-method";
 import { isChannelValueValid } from "./contact-form-fields";
+import HoverTooltip from "./hover-tooltip";
 import { inputValidationColor } from "./input-validation";
 
 export type ChannelValues = Record<CallMethod, string>;
@@ -65,25 +66,66 @@ const LABEL_KEYS: Record<CallMethod, string> = {
   teams: "methodTeams",
 };
 
-const BOX_TONES: Record<ChannelFieldStatus, string> = {
-  empty: "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800",
-  active: "border-green-300 bg-green-50/60 dark:border-green-600/50 dark:bg-green-900/10",
+/** The icon box attached to the input's right edge: gray until the channel
+ *  is configured, green once it is. */
+const ICON_BOX_TONES: Record<ChannelFieldStatus, string> = {
+  empty: "border-gray-300 bg-gray-100 text-gray-400 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-400",
+  active: "border-green-500 bg-green-100 text-green-700 dark:border-green-400 dark:bg-green-500/20 dark:text-green-300",
 };
 
-const ICON_TONES: Record<ChannelFieldStatus, string> = {
-  empty: "bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500",
-  active: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300",
+const STATUS_DOT_TONES: Record<ChannelFieldStatus, string> = {
+  empty: "bg-gray-300 dark:bg-gray-600",
+  active: "bg-green-500 dark:bg-green-400",
 };
 
-const STATUS_TONES: Record<ChannelFieldStatus, string> = {
-  empty: "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400",
-  active: "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300",
+const STATUS_TEXT_TONES: Record<ChannelFieldStatus, string> = {
+  empty: "text-gray-400 dark:text-gray-500",
+  active: "text-green-700 dark:text-green-300",
 };
 
 const STATUS_KEYS: Record<ChannelFieldStatus, string> = {
   empty: "channelInactive",
   active: "channelActive",
 };
+
+/** Squares the input's right corners so the icon box sits flush against it. */
+const INPUT_ATTACHED_RIGHT = "rounded-l-lg rounded-r-none";
+
+/** The phone number sits between the country selector and the icon box, so
+ *  it's square on both sides. */
+const PHONE_INPUT_ATTACHED_BOTH = "rounded-none";
+
+/** Same card as the contact table's method tooltips: the method's icon, its
+ *  name, and whether it's set up. */
+function ChannelTooltipContent({
+  method,
+  label,
+  status,
+  statusLabel,
+}: Readonly<{
+  method: CallMethod;
+  label: string;
+  status: ChannelFieldStatus;
+  statusLabel: string;
+}>) {
+  const Icon = CALL_METHOD_ICONS[method];
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="flex min-w-0 flex-col">
+        <span className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          {label}
+        </span>
+        <span className={`flex items-center gap-1.5 text-xs font-medium ${STATUS_TEXT_TONES[status]}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT_TONES[status]}`} />
+          {statusLabel}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function ChannelField({
   method,
@@ -100,19 +142,15 @@ function ChannelField({
   const status = channelFieldStatus(method, value);
 
   const label = trDynamic(LABEL_KEYS[method], d);
+  const statusLabel = trDynamic(STATUS_KEYS[status], d);
 
   return (
-    <div className={`flex items-center gap-2 rounded-lg border p-1.5 transition-colors ${BOX_TONES[status]}`}>
-      <span
-        title={label}
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors ${ICON_TONES[status]}`}
-      >
-        <Icon className="h-3.5 w-3.5" />
-      </span>
+    <div className="flex min-w-0">
       {isPhoneMethod(method) ? (
         <PhoneInput
           aria-label={label}
           className="min-w-0 flex-1"
+          inputClassName={PHONE_INPUT_ATTACHED_BOTH}
           sizing="sm"
           defaultCountry="CL"
           value={toE164(value)}
@@ -123,6 +161,7 @@ function ChannelField({
           type={INPUT_TYPES[method]}
           aria-label={label}
           className="min-w-0 flex-1"
+          theme={{ field: { input: { withAddon: { off: INPUT_ATTACHED_RIGHT } } } }}
           sizing="sm"
           color={inputValidationColor(value, status === "active")}
           placeholder={PLACEHOLDERS[method]}
@@ -130,16 +169,24 @@ function ChannelField({
           onChange={(e) => onChange(e.target.value)}
         />
       )}
-      <span className={`shrink-0 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-medium ${STATUS_TONES[status]}`}>
-        {trDynamic(STATUS_KEYS[status], d)}
-      </span>
+      <HoverTooltip
+        content={<ChannelTooltipContent method={method} label={label} status={status} statusLabel={statusLabel} />}
+      >
+        <span
+          className={`inline-flex shrink-0 items-center rounded-r-lg border border-l-0 px-2.5 transition-colors ${ICON_BOX_TONES[status]}`}
+        >
+          <Icon className="h-3.5 w-3.5" aria-hidden />
+          <span className="sr-only">{statusLabel}</span>
+        </span>
+      </HoverTooltip>
     </div>
   );
 }
 
 /**
- * Contacto card — every channel shows its configuration field right away;
- * typing a valid number/email is what activates it (no separate switch).
+ * Contacto card — every channel is a single input with its method's icon
+ * attached on the right; typing a valid number/email is what activates it
+ * (the icon turns green — no separate switch).
  * WhatsApp fills itself from the phone number unless given its own.
  */
 export default function ContactChannelsSection({

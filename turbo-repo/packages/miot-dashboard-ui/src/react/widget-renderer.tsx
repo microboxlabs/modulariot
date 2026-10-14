@@ -72,6 +72,9 @@ function WidgetNode({
     else onAction?.(widget, action, componentId);
   };
   const Component = definition?.Component;
+  // Leaf content is made inert by the grid while it can drag (see styles.css), so a drag that starts
+  // on a table or a chart moves the widget. Containers hold child widgets and add-child controls.
+  const leaf = !definition?.meta.hasChildren;
   const children = widget.children?.map((child) => (
     <div key={child.id} className="miot-widget-child h-full">
       <WidgetNode
@@ -97,30 +100,38 @@ function WidgetNode({
         editMode={editable}
         onAction={act}
       >
-        {Component ? (
-          <Component
-            widget={widget}
-            editMode={editable}
-            isRoot={isRoot}
-            onAddChild={
-              editable && definition.meta.hasChildren
-                ? (componentId) => act("add", componentId)
-                : undefined
-            }
-            onOpenSettings={
-              editable && definition.meta.hasSettings
-                ? () => act("settings")
-                : undefined
-            }
-            onDelete={editable ? () => act("delete") : undefined}
-          >
-            {children}
-          </Component>
-        ) : (
-          <span>
-            {unknownWidgetLabel} ({widget.componentId})
-          </span>
-        )}
+        <div
+          className={
+            leaf
+              ? "miot-widget__content miot-widget__content--leaf"
+              : "miot-widget__content"
+          }
+        >
+          {Component ? (
+            <Component
+              widget={widget}
+              editMode={editable}
+              isRoot={isRoot}
+              onAddChild={
+                editable && definition.meta.hasChildren
+                  ? (componentId) => act("add", componentId)
+                  : undefined
+              }
+              onOpenSettings={
+                editable && definition.meta.hasSettings
+                  ? () => act("settings")
+                  : undefined
+              }
+              onDelete={editable ? () => act("delete") : undefined}
+            >
+              {children}
+            </Component>
+          ) : (
+            <span>
+              {unknownWidgetLabel} ({widget.componentId})
+            </span>
+          )}
+        </div>
       </Frame>
     </div>
   );

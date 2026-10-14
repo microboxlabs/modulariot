@@ -185,6 +185,53 @@ describe("DashboardGrid", () => {
     );
     expect(grid.resizeConfig?.enabled).toBe(false);
   });
+  it("scales gestures without react-grid-layout's viewport-based drag start", () => {
+    render(
+      <DashboardGrid
+        widgets={[widget]}
+        registry={registry}
+        renderWidget={renderWidget}
+        editMode
+        onLayoutCommit={() => {}}
+      />,
+    );
+    const strategy = grid.positionStrategy;
+    expect(strategy?.type).toBe("transform");
+    expect(strategy?.scale).toBeGreaterThan(0);
+    // createScaledStrategy's calcDragPosition ignores where the grid sits on the page, so a drag
+    // started offset by the sidebar and header. Without it, the item's offset inside the grid is used.
+    expect(strategy?.calcDragPosition).toBeUndefined();
+    expect(
+      strategy?.calcStyle({ left: 10, top: 20, width: 30, height: 40 }),
+    ).toMatchObject({
+      transform: "translate(10px,20px)",
+    });
+  });
+  it("marks the grid as editing only while gestures are enabled", () => {
+    const editing = (container: HTMLElement) =>
+      container
+        .querySelector(".miot-dashboard-grid")
+        ?.classList.contains("miot-dashboard-grid--editing");
+    const view = render(
+      <DashboardGrid
+        widgets={[widget]}
+        registry={registry}
+        renderWidget={renderWidget}
+        editMode
+      />,
+    );
+    expect(editing(view.container)).toBe(false);
+    view.rerender(
+      <DashboardGrid
+        widgets={[widget]}
+        registry={registry}
+        renderWidget={renderWidget}
+        editMode
+        onLayoutCommit={() => {}}
+      />,
+    );
+    expect(editing(view.container)).toBe(true);
+  });
   it("commits user gestures preserving document constraints, and stops after revocation", () => {
     const commit = vi.fn();
     const view = render(

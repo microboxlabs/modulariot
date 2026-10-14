@@ -112,6 +112,17 @@ Configure exactamente una fuente de claves. La verificación JWT necesita el paq
 | `MIOT_DASHBOARD_SCOPES_NEGATIVE_CACHE` | `30` | Segundos durante los que se reutiliza una no membresía |
 | `MIOT_DASHBOARD_SCOPES_TIMEOUT` | `5000` | Milisegundos de espera |
 
+### Roles desde grupos
+
+Membresía de organizaciones y ámbitos leída de los grupos de quien llama. Reemplaza las dos consultas anteriores y las membresías del archivo semilla.
+
+| Variable | Por defecto | Significado |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_GROUP_ROLES_PATTERN` | desactivado | El nombre del grupo con `{tenant}` y `{role}`, y opcionalmente `{scope}`, como `GROUP_DHB_{tenant}_{role}`. Se compara sin importar mayúsculas ni espacios alrededor. Con `{scope}`, los ids de ámbito no pueden contener los caracteres junto a él. |
+| `MIOT_DASHBOARD_GROUP_ROLES_MAP` | `CONSUMER=Consumer,CONTRIBUTOR=Contributor,EDITOR=Editor,COORDINATOR=Coordinator` | Pares `suyo=nuestro` para la parte `{role}` |
+
+Requiere `MIOT_DASHBOARD_TICKET_GROUPS_PATH` o `MIOT_DASHBOARD_JWT_GROUPS_CLAIM`. El servidor no inicia si el patrón está junto con `MIOT_DASHBOARD_TENANTS_URL` o `MIOT_DASHBOARD_SCOPES_URL`.
+
 ### Proxy de confianza
 
 | Variable | Valor por defecto | Significado |

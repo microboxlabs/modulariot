@@ -1,0 +1,47 @@
+{
+  "stack_version": "0.5.58",
+  "stack_tag": "miot-stack@v0.5.58",
+  "milestone": "MIOT-0.5.58",
+  "pull_requests": [
+    {
+      "number": 1901,
+      "title": "[app] Past treatment forms: saved treatments no longer go back to pending",
+      "source_issues": []
+    }
+  ],
+  "milestone_changed_files": [
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-general-map.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-side-info.tsx"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.58",
+      "tag": "app@v0.5.58"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.57",
+      "version": "0.5.58",
+      "tag": "docs@v0.5.58"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.57",
+      "version": "0.5.58",
+      "tag": "web@v0.5.58"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.35",
+      "version": "0.5.35",
+      "tag": "modulith@v0.5.35"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.12",
+      "version": "0.1.12",
+      "tag": "harness@v0.1.12"
+    }
+  }
+}

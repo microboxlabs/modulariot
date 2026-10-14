@@ -7,7 +7,6 @@ import SecuredLayout from "@/features/layout/components/secured-layout";
 import { ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { AuthProvider } from "@/features/auth/context/auth-context";
-import NewFeatureNotification from "@/features/new-feature-notification/new-feature-notification";
 import { HarnessChatProvider } from "@/features/harness-chat/context/harness-chat-context";
 import { isHarnessUiEnabled } from "@/features/layout/utils/utils";
 import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
@@ -29,7 +28,6 @@ export default async function Layout({
       )}
     >
       <HarnessChatProvider>
-        <NewFeatureNotification lang={lang} />
         <SessionProvider basePath="/app/api/auth">
           <AuthProvider>
             <SecuredLayout params={params}>{children}</SecuredLayout>

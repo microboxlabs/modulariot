@@ -3,6 +3,7 @@
 import { ApiError } from "@/features/settings-admin/data/json-client";
 import {
   AUTH0_M2M_PROVIDER,
+  RESEND_PROVIDER,
   buildAuth0TokenUrl,
   type Auth0M2MFormData,
   type AzureEntraFormData,
@@ -96,7 +97,9 @@ async function sendJson<T>(
  * translation live here so nothing above this layer has to know.
  */
 function toApiCredentialType(typeId: CredentialTypeId): CredentialTypeId {
-  return typeId === "AUTH0_M2M" ? "OAUTH2_CLIENT_CREDENTIALS" : typeId;
+  if (typeId === "AUTH0_M2M") return "OAUTH2_CLIENT_CREDENTIALS";
+  if (typeId === "RESEND") return "BEARER_TOKEN";
+  return typeId;
 }
 
 function fromApiCredentialType(
@@ -107,6 +110,12 @@ function fromApiCredentialType(
     response.publicConfig?.provider === AUTH0_M2M_PROVIDER
   ) {
     return "AUTH0_M2M";
+  }
+  if (
+    response.credentialType === "BEARER_TOKEN" &&
+    response.publicConfig?.provider === RESEND_PROVIDER
+  ) {
+    return "RESEND";
   }
   return response.credentialType;
 }
@@ -205,8 +214,10 @@ function auth0PublicConfig(form: Auth0M2MFormData): Record<string, string> {
 }
 
 function toPublicConfig(form: CredentialFormData): Record<string, string> {
-  // A bearer credential is all secret.
-  if (isBearerForm(form)) return {};
+  // A bearer credential is all secret; a Resend key keeps only its tag.
+  if (isBearerForm(form)) {
+    return form.provider ? { provider: form.provider } : {};
+  }
   if (isAuth0Form(form)) {
     return auth0PublicConfig(form);
   }

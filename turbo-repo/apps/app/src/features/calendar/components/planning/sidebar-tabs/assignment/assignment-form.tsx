@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Checkbox } from "flowbite-react";
 import MapVisualization from "@/features/map-visualization/map-visualization";
+import { zoomToVehicle } from "@/features/map-visualization/map-view-utils";
 import type { MapRef } from "react-map-gl";
 import { PinLayer } from "@/features/geographic-view/components/layers/pin_layer";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -142,6 +143,12 @@ function TruckMapDisplay({
               timestamp: new Date().toISOString(),
             },
           ],
+          onClick: () => {
+            if (mapRef.current) {
+              zoomToVehicle(mapRef.current, [truckLng, truckLat]);
+            }
+            return true;
+          },
         })
       );
     }

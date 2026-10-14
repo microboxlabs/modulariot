@@ -34,7 +34,9 @@ export async function forwardToStreamhubModulith(
   init?: {
     method?: string;
     body?: unknown;
-  },
+    /** Always forward the user's JWT, whatever {@code MIOT_STREAMHUB_AUTH} says. */
+    sessionOnly?: boolean;
+  }
 ): Promise<NextResponse> {
   const session = await auth();
   if (!session?.user?.id) {
@@ -50,18 +52,24 @@ export async function forwardToStreamhubModulith(
         error:
           "MIOT_STREAMHUB_API_URL (or MIOT_MODULITH_URL fallback) is not configured",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 
-  return proxyToUpstream(baseUrl, path, await buildHeaders(session), init, {
+  const headers = await buildHeaders(session, init?.sessionOnly ?? false);
+  return proxyToUpstream(baseUrl, path, headers, init, {
     upstreamErrorMessage: "Upstream StreamHub modulith request failed",
   });
 }
 
-async function buildHeaders(session: Session): Promise<Record<string, string>> {
+async function buildHeaders(
+  session: Session,
+  sessionOnly: boolean
+): Promise<Record<string, string>> {
   const headers: Record<string, string> = { Accept: "application/json" };
-  const mode = (process.env.MIOT_STREAMHUB_AUTH ?? "session").toLowerCase();
+  const mode = sessionOnly
+    ? "session"
+    : (process.env.MIOT_STREAMHUB_AUTH ?? "session").toLowerCase();
 
   if (mode === "m2m") {
     const token = await getSharedAuthToken().getToken();

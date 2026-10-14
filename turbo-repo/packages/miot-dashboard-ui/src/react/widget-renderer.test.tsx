@@ -137,4 +137,37 @@ describe("portable widget renderer", () => {
     expect(new Set(ids).size).toBe(ids.length);
     expect(screen.getByText("Desconocido (missing)")).toBeTruthy();
   });
+
+  it("marks leaf content for the grid's edit mode, outside frames and containers", () => {
+    for (const editMode of [false, true]) {
+      const { container, unmount } = render(
+        <WidgetRenderer
+          widget={widget}
+          registry={registry}
+          editMode={editMode}
+          onAction={vi.fn()}
+          Frame={ActionFrame}
+          unknownWidgetLabel="Unknown"
+        />,
+      );
+      const classes = (id: string) => [
+        ...(screen.getByRole("region", { name: id }).parentElement?.classList ??
+          []),
+      ];
+      expect(classes("child")).toEqual([
+        "miot-widget__content",
+        "miot-widget__content--leaf",
+      ]);
+      expect(classes("parent")).toEqual(["miot-widget__content"]);
+      expect(
+        container.querySelectorAll(".miot-widget__content--leaf button"),
+      ).toHaveLength(editMode ? 1 : 0);
+      for (const button of screen.queryAllByRole("button", {
+        name: "Settings",
+      })) {
+        expect(button.closest(".miot-widget__content--leaf")).toBeNull();
+      }
+      unmount();
+    }
+  });
 });

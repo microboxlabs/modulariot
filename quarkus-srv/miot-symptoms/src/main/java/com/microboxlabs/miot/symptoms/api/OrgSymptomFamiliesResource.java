@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import io.quarkus.security.PermissionsAllowed;
+import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
+import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
@@ -46,8 +49,10 @@ public class OrgSymptomFamiliesResource extends ControlTowerResourceSupport {
     @Operation(operationId = "listSymptomFamilies",
             summary = "The organization's symptom families: value and label per language, as in its selectable list;"
                     + " 404 when it has no such list")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
     public Uni<Response> list(@PathParam("organizationId") String organizationId) {
         String tenant = tenantCode(organizationId);
-        return viewWork(organizationId, () -> Response.ok(families.options(tenant)).build());
+        return work(() -> Response.ok(families.options(tenant)).build());
     }
 }

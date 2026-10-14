@@ -14,6 +14,7 @@ import {
 } from "../queries/http-operations";
 import type { JwtAlgorithm } from "../identity/jwt";
 import type { TicketPresentation } from "../identity/ticket";
+import { groupPatternProblem } from "../identity/group-roles";
 import { MIN_PROXY_KEY_LENGTH } from "../identity/proxy";
 import { MIN_CREDENTIALS_KEY_LENGTH } from "../vault/sql";
 import { DASHBOARD_ROLES, type DashboardRole } from "../access/roles";
@@ -163,7 +164,7 @@ export interface TicketAuthConfig {
   requestTimeoutMs: number;
 }
 
-export type TenantConfig = SeedTenantConfig | HttpTenantConfig;
+export type TenantConfig = SeedTenantConfig | HttpTenantConfig | GroupsConfig;
 
 /**
  * Entitlement from the seed file: a principal may act in a tenant when the
@@ -188,7 +189,19 @@ export interface HttpTenantConfig {
   requestTimeoutMs: number;
 }
 
-export type ScopeConfig = SeedScopeConfig | HttpScopeConfig;
+export type ScopeConfig = SeedScopeConfig | HttpScopeConfig | GroupsConfig;
+
+/**
+ * Tenant entitlement and scope role read from the caller's groups, which name
+ * both, such as `GROUP_DHB_{tenant}_{role}`. One setting answers both
+ * questions, so tenants and scopes always carry the same one.
+ */
+export interface GroupsConfig {
+  kind: "groups";
+  pattern: string;
+  /** The `{role}` part mapped onto this package's roles. Absent means the defaults. */
+  roleMap: Record<string, DashboardRole> | undefined;
+}
 
 /**
  * Membership from the seed file. Correct for a demo and for the tests; in a
@@ -779,7 +792,54 @@ function readPostgres(env: ConfigEnv): PostgresConfig {
   return { url, poolSize, connectionTimeoutMs };
 }
 
+/**
+ * Roles from groups, when a pattern is set. It replaces both lookups, so a
+ * lookup URL next to it is refused rather than silently ignored.
+ */
+function readGroupRoles(env: ConfigEnv): GroupsConfig | undefined {
+  const pattern = trimmed(env.MIOT_DASHBOARD_GROUP_ROLES_PATTERN);
+  if (pattern === undefined) {
+    if (trimmed(env.MIOT_DASHBOARD_GROUP_ROLES_MAP) !== undefined) {
+      throw new ConfigError(
+        "MIOT_DASHBOARD_GROUP_ROLES_MAP has no effect without " +
+          "MIOT_DASHBOARD_GROUP_ROLES_PATTERN",
+      );
+    }
+    return undefined;
+  }
+  const problem = groupPatternProblem(pattern);
+  if (problem !== undefined) {
+    throw new ConfigError(`MIOT_DASHBOARD_GROUP_ROLES_PATTERN ${problem}`);
+  }
+  const lookups = [
+    "MIOT_DASHBOARD_TENANTS_URL",
+    "MIOT_DASHBOARD_SCOPES_URL",
+  ].filter((key) => trimmed(env[key]) !== undefined);
+  if (lookups.length > 0) {
+    throw new ConfigError(
+      `MIOT_DASHBOARD_GROUP_ROLES_PATTERN answers tenants and scopes from the ` +
+        `caller's groups; remove ${lookups.join(" and ")}, or the pattern`,
+    );
+  }
+  return {
+    kind: "groups",
+    pattern,
+    roleMap: readRoleMap(env, "MIOT_DASHBOARD_GROUP_ROLES_MAP"),
+  };
+}
+
+/** Whether some configured identity scheme carries groups. */
+function authReadsGroups(auth: AuthConfig): boolean {
+  if (auth.kind === "insecure") return true;
+  return (
+    auth.jwt?.claims.groups !== undefined ||
+    auth.ticket?.claims.groups !== undefined
+  );
+}
+
 function readTenants(env: ConfigEnv): TenantConfig {
+  const groups = readGroupRoles(env);
+  if (groups !== undefined) return groups;
   const url = trimmed(env.MIOT_DASHBOARD_TENANTS_URL);
   if (url === undefined) return { kind: "seed" };
 
@@ -823,6 +883,8 @@ function readTenants(env: ConfigEnv): TenantConfig {
 }
 
 function readScopes(env: ConfigEnv): ScopeConfig {
+  const groups = readGroupRoles(env);
+  if (groups !== undefined) return groups;
   const url = trimmed(env.MIOT_DASHBOARD_SCOPES_URL);
   if (url === undefined) return { kind: "seed" };
 
@@ -1063,12 +1125,21 @@ export function readServerConfig(env: ConfigEnv): ServerConfig {
     );
   }
 
+  const tenants = readTenants(env);
+  if (tenants.kind === "groups" && !authReadsGroups(auth)) {
+    // Every request would be refused, which looks like a broken server.
+    throw new ConfigError(
+      "MIOT_DASHBOARD_GROUP_ROLES_PATTERN needs the caller's groups: set " +
+        "MIOT_DASHBOARD_TICKET_GROUPS_PATH or MIOT_DASHBOARD_JWT_GROUPS_CLAIM",
+    );
+  }
+
   return {
     port: readPort(env),
     host,
     basePath: env.MIOT_DASHBOARD_BASE_PATH ?? "",
     auth,
-    tenants: readTenants(env),
+    tenants,
     scopes: readScopes(env),
     store: store as StoreKind,
     sqlitePath: env.MIOT_DASHBOARD_SQLITE_PATH ?? DEFAULT_SQLITE_PATH,

@@ -14,6 +14,8 @@ import SseListener from "@/features/sse/components/sse-listener/sse-listener";
 import { getDomainBranding } from "@/features/branding/domain-branding.service";
 import { RuntimeConfigProvider } from "@/features/runtime-config/runtime-config-context";
 import { KioskShell } from "./kiosk-shell";
+import { NoOrganizationGate } from "@/features/settings-admin/team/no-organization-gate";
+import { isEcmConfigured } from "@/features/common/providers/alfresco-api/ecm-config";
 
 const isHarnessSettingsEnabled = process.env.ENABLE_HARNESS_SETTINGS === "true";
 const isDashboardServerEnabled = process.env.ENABLE_DASHBOARD_SERVER === "true";
@@ -64,7 +66,22 @@ export default async function SecuredLayout({
               isDashboardServerEnabled={isDashboardServerEnabled}
             />
             <LayoutContent dict={dictionary as I18nRecord}>
-              {children}
+              {/* With Alfresco, users outside every organization still use
+                  the Alfresco pages, so the gate applies only without it. */}
+              {isEcmConfigured() ? (
+                children
+              ) : (
+                <NoOrganizationGate
+                  d={
+                    (
+                      (dictionary.pages as I18nRecord)
+                        ?.userSettings as I18nRecord
+                    )?.team as I18nRecord
+                  }
+                >
+                  {children}
+                </NoOrganizationGate>
+              )}
             </LayoutContent>
           </div>
           <FooterSecuredLayout messages={dict} />

@@ -1,13 +1,15 @@
 package com.microboxlabs.miot.core.api;
 
-import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
+import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import com.microboxlabs.miot.core.api.dto.OrganizationScopeDto;
-import com.microboxlabs.miot.core.auth.OrganizationMembership;
+import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
+import com.microboxlabs.miot.core.iam.AccessEvaluator;
+import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.IamDirectory;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationModule;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import io.quarkus.hibernate.reactive.panache.Panache;
-import io.quarkus.runtime.LaunchMode;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
@@ -24,6 +26,7 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.logging.Logger;
 
 /**
  * "Who am I, and what can I see?" — resolves the caller's Alfresco memberships
@@ -50,20 +53,20 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @SecurityRequirement(name = "oidc")
 public class MeResource {
 
+    private static final Logger LOG = Logger.getLogger(MeResource.class);
+
     private final SecurityIdentity securityIdentity;
-    private final IAlfrescoMembershipClient membershipClient;
-    private final OrganizationRoleService roleService;
-    private final OrganizationMembership membership;
+    private final AccessEvaluator evaluator;
+    private final IamDirectory directory;
+    private final PlatformAuthorizer platform;
 
     @Inject
-    public MeResource(SecurityIdentity securityIdentity,
-                      IAlfrescoMembershipClient membershipClient,
-                      OrganizationRoleService roleService,
-                      OrganizationMembership membership) {
+    public MeResource(SecurityIdentity securityIdentity, AccessEvaluator evaluator, IamDirectory directory,
+            PlatformAuthorizer platform) {
         this.securityIdentity = securityIdentity;
-        this.membershipClient = membershipClient;
-        this.roleService = roleService;
-        this.membership = membership;
+        this.evaluator = evaluator;
+        this.directory = directory;
+        this.platform = platform;
     }
 
     @GET
@@ -77,21 +80,19 @@ public class MeResource {
         if (email == null) {
             return Uni.createFrom().item(List.of());
         }
-        return Panache.withSession(() ->
+        return platform.isPlatformOwner(email).flatMap(owner -> Panache.withSession(() ->
                 Organization.listAllActive()
-                        .flatMap(orgs -> buildScopesForCaller(orgs, email)));
+                        .flatMap(orgs -> buildScopesForCaller(orgs, email, Boolean.TRUE.equals(owner)))));
     }
 
-    private Uni<List<OrganizationScopeDto>> buildScopesForCaller(List<Organization> orgs, String email) {
+    private Uni<List<OrganizationScopeDto>> buildScopesForCaller(List<Organization> orgs, String email,
+            boolean platformOwner) {
         // Sequential chain: Phase 1 uses the stub client so this is effectively free.
         // A real Alfresco client with getGroupsForPerson will replace this per-org
         // membership check with a single lookup + in-memory filter.
         Uni<List<OrganizationScopeDto>> acc = Uni.createFrom().item(new ArrayList<>());
         for (Organization org : orgs) {
-            if (!membership.isNative() && org.alfrescoGroupId == null) {
-                continue; // orgs without an Alfresco binding are invisible
-            }
-            acc = acc.flatMap(list -> buildScopeIfMember(org, email)
+            acc = acc.flatMap(list -> buildScopeIfMember(org, email, platformOwner)
                     .map(scope -> {
                         if (scope != null) {
                             list.add(scope);
@@ -103,22 +104,35 @@ public class MeResource {
         return acc.map(List::copyOf);
     }
 
-    private Uni<OrganizationScopeDto> buildScopeIfMember(Organization org, String email) {
-        Uni<Boolean> member = membership.isNative()
-                ? membership.assignedRoles(org, email).map(roles -> !roles.isEmpty())
-                : membershipClient.isMember(email, org.alfrescoGroupId);
-        return member
-                .onFailure().recoverWithItem(() -> Boolean.FALSE)
-                .flatMap(isMember -> {
-                    if (!Boolean.TRUE.equals(isMember)) {
-                        return Uni.createFrom().nullItem();
-                    }
-                    return roleService.resolveApplicationRole(org, email)
-                            .onFailure().recoverWithItem(
-                                    OrganizationRoleService.MEMBER_ACCESS_ROLE)
-                            .flatMap(role -> {
-                                return assembleScope(org, role);
-                            });
+    /**
+     * The org's scope when the caller is a member. With Alfresco membership, an org without an Alfresco group is
+     * left out: every signed-in user would otherwise see it. A platform owner sees every organization.
+     */
+    private Uni<OrganizationScopeDto> buildScopeIfMember(Organization org, String email, boolean platformOwner) {
+        return evaluator.membershipNative(org).flatMap(nativeMembership -> {
+            if (!platformOwner && !Boolean.TRUE.equals(nativeMembership) && org.alfrescoGroupId == null) {
+                return Uni.createFrom().nullItem();
+            }
+            // A platform owner is not recorded as an Alfresco member of every organization they open.
+            boolean recordAsNative = platformOwner || Boolean.TRUE.equals(nativeMembership);
+            return evaluator.evaluate(org, Caller.user(email))
+                    .onFailure().recoverWithNull()
+                    .flatMap(access -> access == null || !access.member()
+                            ? Uni.createFrom().<OrganizationScopeDto>nullItem()
+                            : signedIn(org, email, recordAsNative, access.alfrescoRole())
+                                    .flatMap(ignored -> assembleScope(org, OrganizationRoleService.accessRole(access))));
+        });
+    }
+
+    /** Members are recorded on the top-level organization; a failure here never hides the organization. */
+    private Uni<Void> signedIn(Organization org, String email, Boolean nativeMembership, String alfrescoRole) {
+        if (org.parent != null) {
+            return Uni.createFrom().voidItem();
+        }
+        return directory.signedIn(org, email, Boolean.TRUE.equals(nativeMembership), alfrescoRole)
+                .onFailure().recoverWithItem(e -> {
+                    LOG.warnf("Could not record sign-in of %s in %s: %s", email, org.slug, e.getMessage());
+                    return null;
                 });
     }
 
@@ -162,14 +176,10 @@ public class MeResource {
             }
         }
         // Dev fallback — matches OrganizationRequestFilter.resolveEmail()
-        if (isDevImpersonationAllowed()) {
+        if (IamIdentityAugmentor.devHeaderAllowed()) {
             return headers.getHeaderString("X-Dev-User-Email");
         }
         return null;
     }
 
-    private boolean isDevImpersonationAllowed() {
-        LaunchMode launchMode = LaunchMode.current();
-        return launchMode == LaunchMode.DEVELOPMENT || launchMode == LaunchMode.TEST;
-    }
 }

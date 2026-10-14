@@ -1,6 +1,8 @@
 import { CompositeLayer, GeoJsonLayer, Layer } from "deck.gl";
 
 export class GeofenceLayer extends CompositeLayer<any> {
+  static readonly layerName = "GeofenceLayer";
+
   renderLayers(): Layer[] {
     return [
       new GeoJsonLayer({

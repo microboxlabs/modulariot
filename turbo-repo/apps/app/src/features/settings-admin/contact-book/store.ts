@@ -126,6 +126,17 @@ export function toContactBody(
   };
 }
 
+/** The organizations used in the book (each contact's `company`), once
+ *  each (case/accent-insensitive, first spelling wins), sorted by name. */
+export function organizationNames(contacts: readonly BookContact[]): string[] {
+  const byKey = new Map<string, string>();
+  for (const c of contacts) {
+    const name = c.company?.trim();
+    if (name && !byKey.has(normalizeLabel(name))) byKey.set(normalizeLabel(name), name);
+  }
+  return [...byKey.values()].sort((a, b) => a.localeCompare(b, "es"));
+}
+
 /** A tag rename or delete that some contacts did not get. */
 export class TagUpdateError extends Error {
   constructor(

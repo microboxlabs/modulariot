@@ -1,20 +1,17 @@
 package com.microboxlabs.miot.core.permission;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.api.dto.SetOrganizationRoleRequest;
-import com.microboxlabs.miot.core.model.OrganizationRoleAssignment;
+import com.microboxlabs.miot.core.iam.Access;
+import com.microboxlabs.miot.core.iam.BaseRole;
 import jakarta.ws.rs.BadRequestException;
-import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class OrganizationRoleServiceTest {
-
-    private static final Long ORGANIZATION_ID = 1L;
 
     @Test
     void onlyTheOwnerRoleMustKeepAnAssignee() {
@@ -27,38 +24,14 @@ class OrganizationRoleServiceTest {
     }
 
     @Test
-    void resolvesPersistedOwnersAndRegularMembers() {
-        List<OrganizationRoleAssignment> owners = List.of(
-                owner("owner@example.com"));
-
-        assertEquals(OrganizationRoleService.OWNER_ACCESS_ROLE,
-                OrganizationRoleService.resolveAssignedRole(
-                        owners, "owner@example.com"));
-        assertEquals(OrganizationRoleService.MEMBER_ACCESS_ROLE,
-                OrganizationRoleService.resolveAssignedRole(
-                        owners, "member@example.com"));
+    void ownersAndAdminsHaveOwnerAccessForTheApp() {
+        assertEquals("OWNER", OrganizationRoleService.accessRole(access(BaseRole.OWNER)));
+        assertEquals("OWNER", OrganizationRoleService.accessRole(access(BaseRole.ADMIN)));
+        assertEquals("MEMBER", OrganizationRoleService.accessRole(access(BaseRole.MEMBER)));
+        assertEquals("MEMBER", OrganizationRoleService.accessRole(Access.none(1L, "acme")));
     }
 
-    @Test
-    void requestsBootstrapResolutionWhenNoOwnerIsPersisted() {
-        assertNull(OrganizationRoleService.resolveAssignedRole(
-                List.of(), "manager@example.com"));
-    }
-
-    @Test
-    void onlyLegacyManagersBootstrapTheInitialOwner() {
-        assertEquals(OrganizationRoleService.OWNER_ACCESS_ROLE,
-                OrganizationRoleService.resolveBootstrapAccessRole("SITE_MANAGER"));
-        assertEquals(OrganizationRoleService.OWNER_ACCESS_ROLE,
-                OrganizationRoleService.resolveBootstrapAccessRole("GROUP_ADMIN"));
-        assertEquals(OrganizationRoleService.MEMBER_ACCESS_ROLE,
-                OrganizationRoleService.resolveBootstrapAccessRole("SITE_CONSUMER"));
-    }
-
-    private static OrganizationRoleAssignment owner(String personId) {
-        return new OrganizationRoleAssignment(
-                ORGANIZATION_ID,
-                OrganizationRoleService.OWNER_ROLE_CODE,
-                personId);
+    private static Access access(BaseRole base) {
+        return new Access(1L, "acme", base, Set.of(), Set.of(), null);
     }
 }

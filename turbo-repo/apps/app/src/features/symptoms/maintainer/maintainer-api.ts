@@ -298,9 +298,18 @@ export const statsKey = `${DEFS}/stats`;
 
 const settingsKey = `${CONTROL_TOWER_BASE}/settings`;
 
-export type ControlTowerPermission = "VIEW" | "OPERATE" | "MAINTAIN";
+/** Permission keys from the backend's access catalog (`ControlTowerAccessCatalog`). */
+export type ControlTowerPermission =
+  | "controltower:view"
+  | "controltower:case.treat"
+  | "controltower:contact.write"
+  | "controltower:contact.delete"
+  | "controltower:symptom.edit"
+  | "controltower:symptom.publish"
+  | "controltower:settings.update";
 
 export interface ControlTowerAccess {
+  baseRole: "OWNER" | "ADMIN" | "MEMBER" | null;
   roles: string[];
   permissions: ControlTowerPermission[];
 }
@@ -314,9 +323,12 @@ export function useControlTowerAccess() {
       revalidateOnFocus: false,
     }
   );
+  const can = (permission: ControlTowerPermission) =>
+    data?.permissions.includes(permission) ?? false;
   return {
-    canOperate: data?.permissions.includes("OPERATE") ?? false,
-    canMaintain: data?.permissions.includes("MAINTAIN") ?? false,
+    can,
+    canOperate: can("controltower:case.treat"),
+    canMaintain: can("controltower:symptom.edit"),
   };
 }
 

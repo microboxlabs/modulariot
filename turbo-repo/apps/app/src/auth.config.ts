@@ -164,7 +164,9 @@ export const authConfig: NextAuthConfig = {
           nextUrl.pathname.includes("/dev/auth0") ||
           nextUrl.pathname.endsWith("/app/release") ||
           nextUrl.pathname.includes("/release/") ||
-          nextUrl.pathname.includes("/ext/")
+          nextUrl.pathname.includes("/ext/") ||
+          // Images in invitation emails, fetched by mail clients without a session.
+          nextUrl.pathname.startsWith("/app/email/")
         ) {
           authAuthzLogger.debug( { path: nextUrl.pathname }, "Public route access granted");
           return;

@@ -203,6 +203,12 @@ function testLine(connection: IntegrationConnection, dict: I18nRecord): string {
   });
 }
 
+const PROVIDER_LABELS: Record<string, string> = {
+  POSTGREST: "PostgREST",
+  RESEND: "Resend",
+  WHATSAPP: "WhatsApp",
+};
+
 function providerLabel(providerType: string): string {
-  return providerType === "POSTGREST" ? "PostgREST" : providerType;
+  return PROVIDER_LABELS[providerType] ?? providerType;
 }

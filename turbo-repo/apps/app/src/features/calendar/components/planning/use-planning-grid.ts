@@ -123,11 +123,9 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
     andenesCount,
   } = usePlanningSelection();
 
-  // The source filter hides chips; it must not shrink what the calendar
-  // counts. Quota, "window full" and the add affordance all come off the
-  // provider's own full list (`getRemainingQuota`), so filtering here — at
-  // what the grid DRAWS — keeps a filtered board honest about its capacity.
-  // Filtering the load instead would have reported free slots that are taken.
+  // The source filter hides chips only. Quota, "window full" and the add
+  // affordance come from the calendar's window usage (`getRemainingQuota`),
+  // so filtering here — at what the grid DRAWS — never changes capacity.
   const plannerSource = parsePlannerSource(useSearchParams().get("source"));
   const plannedServices = useMemo(
     () =>
@@ -243,9 +241,9 @@ export function usePlanningGrid(options: UsePlanningGridOptions = {}) {
   );
 
   // Lookup TW config by id + a per-shift "is this window at its booking capacity for the day?"
-  // check derived from the planned services. When true, no shift in that window accepts a new
+  // check from the calendar's window usage. When true, no shift in that window accepts a new
   // booking (the empty ones render as muted "spare" slots in the overlay). `getRemainingQuota`
-  // clamps at 0 and already excludes the service being reassigned.
+  // already gives back the place of the service being reassigned.
   const timeWindowById = useMemo(() => {
     const map = new Map<string, TimeWindow>();
     for (const tw of configuredTimeSlots) {

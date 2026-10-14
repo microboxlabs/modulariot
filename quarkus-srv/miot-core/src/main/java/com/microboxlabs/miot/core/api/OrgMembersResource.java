@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.api;
 
+import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.alfresco.AlfrescoPerson;
 import com.microboxlabs.miot.core.alfresco.IAlfrescoDirectoryClient;
 import com.microboxlabs.miot.core.alfresco.IAlfrescoGroupAdminClient;
@@ -31,8 +32,8 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
  * List, add and remove the members of an organization's Alfresco group.
  *
  * <p>Read access is gated by {@code OrganizationRequestFilter}: any
- * member of the org can see the roster. Write access requires
- * {@code SITE_MANAGER} on the parent (see {@link WriteAuthorizer}).
+ * member of the org can see the roster. Adding needs {@code members:invite} and removing
+ * {@code members:remove} on the top-level organization (see {@link WriteAuthorizer}).
  */
 @Path("/api/v1/orgs/{organizationId}/members")
 @Produces(MediaType.APPLICATION_JSON)
@@ -91,7 +92,7 @@ public class OrgMembersResource {
                                 return Uni.createFrom().failure(new BadRequestException(
                                         "Organization has no Alfresco group binding"));
                             }
-                            return writeAuthorizer.requireParentSiteManager(org)
+                            return writeAuthorizer.require(org, CoreAccessCatalog.MEMBERS_INVITE)
                                     .flatMap(ignored -> groupAdmin
                                             .addGroupMember(org.alfrescoGroupId, personId));
                         }))
@@ -114,7 +115,7 @@ public class OrgMembersResource {
                                 return Uni.createFrom().failure(new BadRequestException(
                                         "Organization has no Alfresco group binding"));
                             }
-                            return writeAuthorizer.requireParentSiteManager(org)
+                            return writeAuthorizer.require(org, CoreAccessCatalog.MEMBERS_REMOVE)
                                     .flatMap(ignored -> groupAdmin
                                             .removeGroupMember(org.alfrescoGroupId, personId));
                         }))

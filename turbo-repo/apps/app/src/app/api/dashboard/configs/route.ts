@@ -10,6 +10,7 @@ import {
   unauthorizedResponse,
   badRequestResponse,
 } from "@/app/api/utils/api-error-handler";
+import { isEcmConfigured } from "@/features/common/providers/alfresco-api/ecm-config";
 
 /**
  * GET /api/dashboard/configs?site={siteShortName}
@@ -29,6 +30,9 @@ export async function GET(request: NextRequest) {
 
   if (!site) {
     return badRequestResponse("Missing required query parameter: site");
+  }
+  if (!isEcmConfigured()) {
+    return NextResponse.json({ data: [] });
   }
 
   try {
@@ -52,7 +56,10 @@ export async function GET(request: NextRequest) {
           typeof rawName === "string" && rawName.trim().length > 0
             ? rawName
             : item.slug;
-        const order = typeof item.config?.order === "number" ? item.config.order : undefined;
+        const order =
+          typeof item.config?.order === "number"
+            ? item.config.order
+            : undefined;
         return { slug: item.slug, name, order };
       }),
     };

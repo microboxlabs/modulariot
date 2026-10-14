@@ -12,16 +12,18 @@
  * controlling all of it. It gates ONLY those production writes — nothing
  * else in the prototype (UI, local stores, mock display data) reads it.
  *
- * Opt-OUT: `NEXT_PUBLIC_SYMPTOMS_PROTOTYPE_DISABLE_API=true` disconnects
- * those writes. With the var set to anything else, or not set at all, the
- * prototype writes to the real backend normally.
+ * Opt-OUT: the server env var `SYMPTOMS_PROTOTYPE_DISABLE_API=true`
+ * disconnects those writes. With the var set to anything else, or not set at
+ * all, the prototype writes to the real backend normally. It is read from the
+ * runtime config, so the map-view page renders only after that has loaded.
  */
 
+import { getRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
 
 export function isPrototypeApiDisabled(): boolean {
-  return process.env.NEXT_PUBLIC_SYMPTOMS_PROTOTYPE_DISABLE_API === "true";
+  return getRuntimeConfig()?.SYMPTOMS_PROTOTYPE_DISABLE_API === "true";
 }
 
 /** Same flag as `isPrototypeApiDisabled`, named for the read side: true

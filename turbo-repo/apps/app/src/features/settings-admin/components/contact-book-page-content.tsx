@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { HiOutlineBookOpen, HiOutlineUpload, HiPlus } from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -12,7 +12,11 @@ import ContactTable, {
   type ContactTableLabels,
 } from "../contact-book/contact-table";
 import ImportContactsModal from "../contact-book/import-contacts-modal";
-import { useContactBook, type BookContact } from "../contact-book/store";
+import {
+  organizationNames,
+  useContactBook,
+  type BookContact,
+} from "../contact-book/store";
 import { useContactBadges } from "../contact-book/taxonomy-store";
 import { useIncrementalCount } from "../contact-book/use-incremental-count";
 
@@ -70,6 +74,7 @@ export default function ContactBookPageContent({
     deleteTag,
   } = useContactBook();
   const { badges } = useContactBadges();
+  const organizations = useMemo(() => organizationNames(contacts), [contacts]);
   const [editing, setEditing] = useState<BookContact | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -186,6 +191,7 @@ export default function ContactBookPageContent({
         onSave={saveContact}
         onRenameTag={renameTag}
         onDeleteTag={deleteTag}
+        organizations={organizations}
         dict={dict}
       />
       <ImportContactsModal

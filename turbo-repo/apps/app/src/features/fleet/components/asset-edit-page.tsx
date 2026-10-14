@@ -3,7 +3,15 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, Spinner } from "flowbite-react";
+import {
+  Alert,
+  Button,
+  Label,
+  Select,
+  Spinner,
+  TextInput,
+} from "flowbite-react";
+import { HiOutlineExclamation } from "react-icons/hi";
 import { useSWRConfig } from "swr";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
@@ -17,21 +25,14 @@ import {
   useFleetAsset,
   type AssetDetail,
   type AssetField,
+  type FieldSource,
 } from "../fleet-api";
 import { errorMessage } from "./fleet-page";
-import {
-  PANEL,
-  PageHeader,
-  PRIMARY_BUTTON,
-  SECONDARY_BUTTON,
-  SourceTag,
-} from "./fleet-ui";
+import { CARD, CARD_TITLE, FleetHeader, SourceBadge } from "./fleet-ui";
 
 const EDIT = "fleet:assets.edit";
 const IDENTIFICATION = ["label", "kind", "brandModel", "year", "vin", "base"];
 const RELATIONS = ["carrier", "usualTrailer", "usualDriver"];
-const INPUT =
-  "block min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-blue-600 focus:ring-blue-600 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400";
 
 interface AssetEditPageProps {
   readonly assetId: string;
@@ -60,17 +61,27 @@ export default function AssetEditPage({
   assetId,
   dict,
   lang,
-}: AssetEditPageProps) {
+}: Readonly<AssetEditPageProps>) {
   const d = dict ?? {};
   const { access, accessError, can } = useMyAccess();
   const allowed = can(EDIT);
   const { data, error } = useFleetAsset(assetId, allowed);
   const loading = !accessError && (!access || (allowed && !data && !error));
   const failure = accessError ?? error;
+  const fleetHref = `/${lang}/fleet`;
+  const detailHref = `${fleetHref}/${encodeURIComponent(assetId)}`;
 
   return (
-    <div className="flex h-full w-full flex-col overflow-y-auto bg-white dark:bg-gray-900">
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 px-4 pt-6 pb-12 sm:px-8">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
+      <FleetHeader
+        filterDict={d}
+        crumbs={[
+          { label: tr("title", d), href: fleetHref },
+          { label: assetId, href: detailHref },
+          { label: tr("breadcrumb.edit", d) },
+        ]}
+      />
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
         {loading && <Spinner className="mx-auto" />}
         {!loading && failure && (
           <Alert color="gray">{errorMessage(failure, d)}</Alert>
@@ -79,7 +90,7 @@ export default function AssetEditPage({
           <Alert color="gray">{tr("notAllowed", d)}</Alert>
         )}
         {data && allowed && (
-          <EditForm key={data.id} asset={data} d={d} lang={lang} />
+          <EditForm key={data.id} asset={data} d={d} detailHref={detailHref} />
         )}
       </div>
     </div>
@@ -89,12 +100,8 @@ export default function AssetEditPage({
 function EditForm({
   asset,
   d,
-  lang,
-}: {
-  readonly asset: AssetDetail;
-  readonly d: I18nRecord;
-  readonly lang: string;
-}) {
+  detailHref,
+}: Readonly<{ asset: AssetDetail; d: I18nRecord; detailHref: string }>) {
   const router = useRouter();
   const { mutate } = useSWRConfig();
   const [initial] = useState(() => initialValues(asset));
@@ -102,12 +109,16 @@ function EditForm({
   const [documents, setDocuments] = useState(initial.documents);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const detailHref = `/${lang}/fleet/${encodeURIComponent(asset.id)}`;
   const byKey = new Map(asset.fields.map((f) => [f.key, f]));
   const gpsProvider = byKey.get("gpsProvider");
   const conflicts = asset.fields.filter(
     (f) => f.conflict && fields[f.key] === initial.fields[f.key]
   );
+
+  const setField = (key: string, value: string) =>
+    setFields((current) => ({ ...current, [key]: value }));
+  const setDocument = (key: string, value: string) =>
+    setDocuments((current) => ({ ...current, [key]: value }));
 
   const save = async () => {
     const update = {
@@ -143,125 +154,87 @@ function EditForm({
     }
   };
 
-  const setField = (key: string, value: string) =>
-    setFields((current) => ({ ...current, [key]: value }));
-
   return (
     <form
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-5"
       onSubmit={(e) => {
         e.preventDefault();
         void save();
       }}
     >
-      <PageHeader
-        caption={`${tr("breadcrumb.fleet", d)} / ${asset.id} / ${tr("breadcrumb.edit", d)}`}
-        title={tr("edit.title", d)}
-        backHref={detailHref}
-        backLabel={tr("actions.back", d)}
-        actions={
-          <>
-            <Link className={SECONDARY_BUTTON} href={detailHref}>
-              {tr("actions.cancel", d)}
-            </Link>
-            <button type="submit" className={PRIMARY_BUTTON} disabled={saving}>
-              {saving && <Spinner size="sm" />}
-              {tr("actions.save", d)}
-            </button>
-          </>
-        }
-      />
-      <p className="max-w-3xl text-sm text-gray-600 dark:text-gray-400">
-        {tr("edit.legend", d)}
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {tr("edit.title", d)} ·{" "}
+            <span className="font-mono">{asset.id}</span>
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm text-gray-500 dark:text-gray-400">
+            {tr("edit.legend", d)}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button as={Link} href={detailHref} color="light" size="sm">
+            {tr("actions.cancel", d)}
+          </Button>
+          <Button type="submit" color="dark" size="sm" disabled={saving}>
+            {saving && <Spinner size="sm" className="mr-2" />}
+            {tr("actions.save", d)}
+          </Button>
+        </div>
+      </div>
       {message && <Alert color="gray">{message}</Alert>}
 
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-4">
           <FieldGroup title={tr("edit.identification", d)}>
-            {IDENTIFICATION.map((key) => {
-              const f = byKey.get(key);
-              return f ? (
-                <FieldInput
-                  key={key}
-                  field={f}
-                  value={fields[key] ?? ""}
-                  onChange={(v) => setField(key, v)}
-                  d={d}
-                />
-              ) : null;
-            })}
+            {IDENTIFICATION.map((key) => (
+              <OptionalField
+                key={key}
+                field={byKey.get(key)}
+                value={fields[key] ?? ""}
+                onChange={setField}
+                d={d}
+              />
+            ))}
           </FieldGroup>
           <FieldGroup title={tr("edit.relations", d)}>
-            {RELATIONS.map((key) => {
-              const f = byKey.get(key);
-              return f ? (
-                <FieldInput
-                  key={key}
-                  field={f}
-                  value={fields[key] ?? ""}
-                  onChange={(v) => setField(key, v)}
-                  d={d}
-                />
-              ) : null;
-            })}
+            {RELATIONS.map((key) => (
+              <OptionalField
+                key={key}
+                field={byKey.get(key)}
+                value={fields[key] ?? ""}
+                onChange={setField}
+                d={d}
+              />
+            ))}
             {gpsProvider && <ReadOnlyField field={gpsProvider} d={d} />}
           </FieldGroup>
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_340px] flex-col gap-4">
           {conflicts.map((f) => (
-            <section
+            <ConflictAlert
               key={f.key}
-              className="flex flex-col gap-3 rounded-2xl bg-amber-50 p-5 dark:bg-amber-900/20"
-            >
-              <span className="text-xs font-medium tracking-wide text-amber-800 uppercase dark:text-amber-300">
-                {tr("conflict.title", d)}
-              </span>
-              <p className="text-sm text-gray-900 dark:text-white">
-                {tr("conflict.body", d, {
-                  field: trDynamic(`fields.${f.key}`, d),
-                  source: trDynamic(`sources.${f.integrationSource}`, d),
-                  integration: displayValue(f.key, f.integrationValue, d),
-                  manual: displayValue(f.key, f.value, d),
-                })}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className={PRIMARY_BUTTON}
-                  onClick={() => setField(f.key, "")}
-                >
-                  {tr("conflict.useIntegration", d, {
-                    value: displayValue(f.key, f.integrationValue, d),
-                  })}
-                </button>
-              </div>
-            </section>
+              field={f}
+              d={d}
+              onUseIntegration={() => setField(f.key, "")}
+            />
           ))}
           <FieldGroup title={tr("edit.documents", d)} columns={1}>
-            <p className="-mt-2 text-xs text-gray-600 dark:text-gray-400">
+            <p className="-mt-2 text-sm text-gray-500 dark:text-gray-400">
               {tr("edit.documentsHint", d)}
             </p>
             {DOCUMENT_KEYS.map((key) => (
               <div key={key} className="flex flex-col gap-1.5">
-                <label
-                  htmlFor={`doc-${key}`}
-                  className="text-sm font-medium text-gray-900 dark:text-white"
-                >
+                <Label htmlFor={`doc-${key}`}>
                   {trDynamic(`documents.${key}`, d)}
-                </label>
-                <input
+                </Label>
+                <TextInput
                   id={`doc-${key}`}
                   type="date"
-                  className={INPUT}
+                  sizing="sm"
                   value={documents[key] ?? ""}
-                  onChange={(e) =>
-                    setDocuments((current) => ({
-                      ...current,
-                      [key]: e.target.value,
-                    }))
-                  }
+                  onChange={(e) => setDocument(key, e.target.value)}
                 />
               </div>
             ))}
@@ -276,21 +249,12 @@ function FieldGroup({
   title,
   columns = 2,
   children,
-}: {
-  readonly title: string;
-  readonly columns?: 1 | 2;
-  readonly children: ReactNode;
-}) {
+}: Readonly<{ title: string; columns?: 1 | 2; children: ReactNode }>) {
+  const grid = columns === 2 ? "md:grid-cols-2" : "";
   return (
-    <section className={`${PANEL} p-5`}>
-      <h2 className="mb-4 text-base font-medium text-gray-900 dark:text-white">
-        {title}
-      </h2>
-      <div
-        className={`grid grid-cols-1 gap-4 ${columns === 2 ? "md:grid-cols-2" : ""}`}
-      >
-        {children}
-      </div>
+    <section className={`${CARD} p-5`}>
+      <h3 className={`${CARD_TITLE} mb-4`}>{title}</h3>
+      <div className={`grid grid-cols-1 gap-4 ${grid}`}>{children}</div>
     </section>
   );
 }
@@ -301,37 +265,81 @@ function displayValue(key: string, value: string | null, d: I18nRecord) {
   return key === "kind" ? trDynamic(`kinds.${value}`, d) : value;
 }
 
+function ConflictAlert({
+  field,
+  d,
+  onUseIntegration,
+}: Readonly<{
+  field: AssetField;
+  d: I18nRecord;
+  onUseIntegration: () => void;
+}>) {
+  const integration = displayValue(field.key, field.integrationValue, d);
+  return (
+    <Alert color="warning" icon={HiOutlineExclamation}>
+      <p className="font-medium">{tr("conflict.title", d)}</p>
+      <p className="mt-1">
+        {tr("conflict.body", d, {
+          field: trDynamic(`fields.${field.key}`, d),
+          source: trDynamic(`sources.${field.integrationSource}`, d),
+          integration,
+          manual: displayValue(field.key, field.value, d),
+        })}
+      </p>
+      <Button
+        size="xs"
+        color="dark"
+        className="mt-3"
+        onClick={onUseIntegration}
+      >
+        {tr("conflict.useIntegration", d, { value: integration })}
+      </Button>
+    </Alert>
+  );
+}
+
+function sourceDetail(field: AssetField, source: FieldSource, d: I18nRecord) {
+  if (source === "MANUAL") return tr("sourceDetail.manual", d);
+  if (field.integrationSource === "TRIP" && field.count != null) {
+    return tr("sourceDetail.trips", d, {
+      count: String(field.count),
+      total: String(field.total ?? field.count),
+    });
+  }
+  if (field.reported) {
+    return tr("sourceDetail.reported", d, { value: field.reported });
+  }
+  if (field.integrationSource === "NONE") return tr("sourceDetail.none", d);
+  return "";
+}
+
 function SourceLine({
   field,
   editedNow,
   d,
-}: {
-  readonly field: AssetField;
-  readonly editedNow: boolean;
-  readonly d: I18nRecord;
-}) {
-  const source = editedNow ? "MANUAL" : field.source;
-  let detail: string;
-  if (source === "MANUAL") {
-    detail = tr("sourceDetail.manual", d);
-  } else if (field.integrationSource === "TRIP" && field.count != null) {
-    detail = tr("sourceDetail.trips", d, {
-      count: String(field.count),
-      total: String(field.total ?? field.count),
-    });
-  } else if (field.reported) {
-    detail = tr("sourceDetail.reported", d, { value: field.reported });
-  } else if (field.integrationSource === "NONE") {
-    detail = tr("sourceDetail.none", d);
-  } else {
-    detail = "";
-  }
+}: Readonly<{ field: AssetField; editedNow: boolean; d: I18nRecord }>) {
+  const source: FieldSource = editedNow ? "MANUAL" : field.source;
   return (
-    <span className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-      <SourceTag source={source} d={d} />
-      {detail}
+    <span className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+      <SourceBadge source={source} d={d} />
+      {sourceDetail(field, source, d)}
     </span>
   );
+}
+
+function OptionalField({
+  field,
+  value,
+  onChange,
+  d,
+}: Readonly<{
+  field: AssetField | undefined;
+  value: string;
+  onChange: (key: string, value: string) => void;
+  d: I18nRecord;
+}>) {
+  if (!field) return null;
+  return <FieldInput field={field} value={value} onChange={onChange} d={d} />;
 }
 
 function FieldInput({
@@ -339,29 +347,24 @@ function FieldInput({
   value,
   onChange,
   d,
-}: {
-  readonly field: AssetField;
-  readonly value: string;
-  readonly onChange: (value: string) => void;
-  readonly d: I18nRecord;
-}) {
+}: Readonly<{
+  field: AssetField;
+  value: string;
+  onChange: (key: string, value: string) => void;
+  d: I18nRecord;
+}>) {
   const id = `field-${field.key}`;
   const placeholder = displayValue(field.key, field.integrationValue, d);
-  const editedNow = value.trim() !== "";
+  const mono = field.key === "vin" || field.key === "usualTrailer";
   return (
     <div className="flex flex-col gap-1.5">
-      <label
-        htmlFor={id}
-        className="text-sm font-medium text-gray-900 dark:text-white"
-      >
-        {trDynamic(`fields.${field.key}`, d)}
-      </label>
+      <Label htmlFor={id}>{trDynamic(`fields.${field.key}`, d)}</Label>
       {field.key === "kind" ? (
-        <select
+        <Select
           id={id}
-          className={INPUT}
+          sizing="sm"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(field.key, e.target.value)}
         >
           <option value="">
             {tr("edit.chooseKind", d)}
@@ -372,19 +375,20 @@ function FieldInput({
               {trDynamic(`kinds.${kind}`, d)}
             </option>
           ))}
-        </select>
+        </Select>
       ) : (
-        <input
+        <TextInput
           id={id}
-          className={`${INPUT} ${field.key === "vin" || field.key === "usualTrailer" ? "font-mono" : ""}`}
+          sizing="sm"
+          className={mono ? "font-mono" : undefined}
           value={value}
           placeholder={placeholder === "—" ? "" : placeholder}
           inputMode={field.key === "year" ? "numeric" : undefined}
           maxLength={200}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(field.key, e.target.value)}
         />
       )}
-      <SourceLine field={field} editedNow={editedNow} d={d} />
+      <SourceLine field={field} editedNow={value.trim() !== ""} d={d} />
     </div>
   );
 }
@@ -392,26 +396,26 @@ function FieldInput({
 function ReadOnlyField({
   field,
   d,
-}: {
-  readonly field: AssetField;
-  readonly d: I18nRecord;
-}) {
+}: Readonly<{ field: AssetField; d: I18nRecord }>) {
+  const sender = field.reported
+    ? ` · ${tr("sourceDetail.sender", d, { value: field.reported })}`
+    : "";
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium text-gray-900 dark:text-white">
+      <Label htmlFor="field-gpsProvider">
         {trDynamic(`fields.${field.key}`, d)}
-      </span>
-      <span
-        className={`${INPUT} flex items-center bg-gray-100 dark:bg-gray-700`}
-      >
-        {field.value ?? "—"}
-      </span>
-      <span className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-        <SourceTag source={field.source} d={d} />
+      </Label>
+      <TextInput
+        id="field-gpsProvider"
+        sizing="sm"
+        value={field.value ?? "—"}
+        disabled
+        readOnly
+      />
+      <span className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+        <SourceBadge source={field.source} d={d} />
         {tr("edit.readonly", d)}
-        {field.reported
-          ? ` · ${tr("sourceDetail.sender", d, { value: field.reported })}`
-          : ""}
+        {sender}
       </span>
     </div>
   );

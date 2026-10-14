@@ -2,8 +2,25 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Alert, Spinner } from "flowbite-react";
-import { HiOutlineSearch } from "react-icons/hi";
+import {
+  Alert,
+  Button,
+  Pagination,
+  Select,
+  Spinner,
+  TextInput,
+} from "flowbite-react";
+import type { IconType } from "react-icons";
+import { BsStars } from "react-icons/bs";
+import {
+  HiOutlineDocumentText,
+  HiOutlineMap,
+  HiOutlineSearch,
+  HiOutlineStatusOffline,
+  HiOutlineTruck,
+} from "react-icons/hi";
+import CustomTable from "@/features/common/components/custom-table/custom-table";
+import { KpiStat } from "@/features/common/components/kpi-stat";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import { ApiError } from "@/features/settings-admin/data/json-client";
@@ -21,15 +38,10 @@ import {
   type AssetStatus,
 } from "../fleet-api";
 import {
-  AgentCard,
-  CAPTION,
-  DocumentText,
-  Kpi,
-  PANEL,
-  PageHeader,
-  PRIMARY_BUTTON,
-  SECONDARY_BUTTON,
-  StatusPill,
+  DocumentBadge,
+  FleetHeader,
+  HarnessCard,
+  StatusBadge,
 } from "./fleet-ui";
 
 const VIEW = "fleet:assets.view";
@@ -85,12 +97,9 @@ export default function FleetPage({ dict, lang }: FleetPageProps) {
   const failure = accessError ?? (data ? undefined : error);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-y-auto bg-white dark:bg-gray-900">
-      <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 px-4 pt-6 pb-12 sm:px-8">
-        <PageHeader
-          caption={tr("breadcrumb.fleet", d)}
-          title={tr("title", d)}
-        />
+    <div className="flex h-full w-full flex-col overflow-hidden bg-white dark:bg-gray-900">
+      <FleetHeader crumbs={[{ label: tr("title", d) }]} filterDict={d} />
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
         {loading && <Spinner className="mx-auto" />}
         {!loading && failure && (
           <Alert color="gray">{errorMessage(failure, d)}</Alert>
@@ -126,6 +135,45 @@ interface ContentProps {
   readonly onPage: (page: number) => void;
 }
 
+/** A KPI tile that filters the table when pressed. */
+function KpiFilter({
+  icon,
+  label,
+  value,
+  hint,
+  active,
+  onClick,
+}: {
+  readonly icon: IconType;
+  readonly label: string;
+  readonly value: string;
+  readonly hint: string;
+  readonly active?: boolean;
+  readonly onClick?: () => void;
+}) {
+  const stat = (
+    <KpiStat
+      icon={{ icon }}
+      title={{ text: label, className: "text-xs whitespace-normal" }}
+      value={{ text: value, className: "text-2xl" }}
+      description={{ text: hint, className: "text-xs" }}
+      variant="horizontal"
+      className={`min-h-24 ${active ? "border-blue-600 ring-1 ring-blue-600 dark:border-blue-500" : ""}`}
+    />
+  );
+  if (!onClick) return stat;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={!!active}
+      className="rounded-lg text-left focus:ring-2 focus:ring-blue-300 focus:outline-none dark:focus:ring-blue-800"
+    >
+      {stat}
+    </button>
+  );
+}
+
 function FleetContent({
   data,
   d,
@@ -140,86 +188,87 @@ function FleetContent({
   const kindCount = (kind: AssetKind) =>
     data.kinds.find((k) => k.value === kind)?.count ?? 0;
   const kinds = ASSET_KINDS.filter((k) => kindCount(k) > 0);
+  const toggleStatus = (status: AssetStatus) =>
+    onChange({ status: filters.status === status ? undefined : status });
 
   return (
     <>
-      <p className="-mt-4 text-sm text-gray-600 dark:text-gray-400">
-        {tr("subtitle", d, {
-          assets: formatNumber(summary.assets, lang),
-          carriers: formatNumber(data.carriers.length, lang),
-        })}
-      </p>
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          {tr("title", d)}
+        </h2>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          {tr("subtitle", d, {
+            assets: formatNumber(summary.assets, lang),
+            carriers: formatNumber(data.carriers.length, lang),
+          })}
+        </p>
+      </div>
 
       <div className="flex flex-wrap items-stretch gap-4">
-        <div className="grid min-w-0 flex-[999_1_640px] grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
-          <Kpi
+        <div className="grid min-w-0 flex-[999_1_640px] grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <KpiFilter
+            icon={HiOutlineTruck}
             label={tr("kpis.assets", d)}
             value={formatNumber(summary.assets, lang)}
             hint={tr("kpis.withSignal", d, {
               n: formatNumber(summary.withSignal, lang),
             })}
-            tone="good"
           />
-          <Kpi
+          <KpiFilter
+            icon={HiOutlineMap}
             label={tr("kpis.inTrip", d)}
             value={formatNumber(summary.inTrip, lang)}
             hint={tr("kpis.plannedToday", d, {
               n: formatNumber(summary.plannedToday, lang),
             })}
-            onClick={() =>
-              onChange({
-                status: filters.status === "IN_TRIP" ? undefined : "IN_TRIP",
-              })
-            }
             active={filters.status === "IN_TRIP"}
+            onClick={() => toggleStatus("IN_TRIP")}
           />
-          <Kpi
+          <KpiFilter
+            icon={HiOutlineDocumentText}
             label={tr("kpis.documentsDue", d)}
             value={formatNumber(summary.documentsDue, lang)}
             hint={tr("kpis.documentsDueHint", d)}
-            tone={summary.documentsDue > 0 ? "warn" : "muted"}
-            onClick={() => onChange({ documentsDue: !filters.documentsDue })}
             active={!!filters.documentsDue}
+            onClick={() => onChange({ documentsDue: !filters.documentsDue })}
           />
-          <Kpi
+          <KpiFilter
+            icon={HiOutlineStatusOffline}
             label={tr("kpis.noSignal", d)}
             value={formatNumber(summary.noSignal, lang)}
             hint={tr("kpis.noSignalHint", d)}
-            tone={summary.noSignal > 0 ? "bad" : "muted"}
-            onClick={() =>
-              onChange({
-                status:
-                  filters.status === "NO_SIGNAL" ? undefined : "NO_SIGNAL",
-              })
-            }
             active={filters.status === "NO_SIGNAL"}
+            onClick={() => toggleStatus("NO_SIGNAL")}
           />
         </div>
         <div className="flex min-w-0 flex-[1_1_320px]">
-          <AgentCard title={tr("agent.title", d)}>
+          <HarnessCard
+            title={tr("agent.title", d)}
+            subtitle={tr("agent.subtitle", d)}
+          >
             {summary.suggestions > 0 ? (
               <>
-                <p className="text-base leading-snug font-medium text-gray-900 dark:text-white">
+                <p className="text-sm text-gray-900 dark:text-white">
                   {tr("agent.listHeadline", d, {
                     n: formatNumber(summary.suggestions, lang),
-                  })}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {tr("agent.listBody", d)}
+                  })}{" "}
+                  <span className="text-gray-600 dark:text-gray-300">
+                    {tr("agent.listBody", d)}
+                  </span>
                 </p>
                 <div>
-                  <button
-                    type="button"
-                    className={PRIMARY_BUTTON}
+                  <Button
+                    size="xs"
+                    color="dark"
                     onClick={() =>
                       onChange({ suggestions: !filters.suggestions })
                     }
-                    aria-pressed={!!filters.suggestions}
                   >
                     {filters.suggestions
                       ? tr("agent.showAll", d)
                       : tr("agent.review", d)}
-                  </button>
+                  </Button>
                 </div>
               </>
             ) : (
@@ -227,35 +276,33 @@ function FleetContent({
                 {tr("agent.listEmpty", d)}
               </p>
             )}
-          </AgentCard>
+          </HarnessCard>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <FilterChip
-          label={tr("filters.all", d)}
-          count={summary.assets}
-          active={!filters.kind}
+        <Button
+          size="xs"
+          color={filters.kind ? "light" : "dark"}
           onClick={() => onChange({ kind: undefined })}
-          lang={lang}
-        />
+        >
+          {tr("filters.all", d)} · {formatNumber(summary.assets, lang)}
+        </Button>
         {kinds.map((kind) => (
-          <FilterChip
+          <Button
             key={kind}
-            label={trDynamic(`kindsPlural.${kind}`, d)}
-            count={kindCount(kind)}
-            active={filters.kind === kind}
+            size="xs"
+            color={filters.kind === kind ? "dark" : "light"}
             onClick={() => onChange({ kind })}
-            lang={lang}
-          />
+          >
+            {trDynamic(`kindsPlural.${kind}`, d)} ·{" "}
+            {formatNumber(kindCount(kind), lang)}
+          </Button>
         ))}
         <div className="flex-[1_1_24px]" />
-        <label className="sr-only" htmlFor="fleet-status">
-          {tr("filters.status", d)}
-        </label>
-        <select
-          id="fleet-status"
-          className={`${SECONDARY_BUTTON} pr-8`}
+        <Select
+          sizing="sm"
+          aria-label={tr("filters.status", d)}
           value={filters.status ?? ""}
           onChange={(e) =>
             onChange({ status: (e.target.value || undefined) as AssetStatus })
@@ -267,13 +314,11 @@ function FleetContent({
               {trDynamic(`status.${s}`, d)}
             </option>
           ))}
-        </select>
-        <label className="sr-only" htmlFor="fleet-carrier">
-          {tr("filters.carrier", d)}
-        </label>
-        <select
-          id="fleet-carrier"
-          className={`${SECONDARY_BUTTON} max-w-64 pr-8`}
+        </Select>
+        <Select
+          sizing="sm"
+          className="max-w-64"
+          aria-label={tr("filters.carrier", d)}
           value={filters.carrier ?? ""}
           onChange={(e) => onChange({ carrier: e.target.value || undefined })}
         >
@@ -283,13 +328,10 @@ function FleetContent({
               {c.value} ({formatNumber(c.count, lang)})
             </option>
           ))}
-        </select>
-        <label className="sr-only" htmlFor="fleet-sort">
-          {tr("filters.sort", d)}
-        </label>
-        <select
-          id="fleet-sort"
-          className={`${SECONDARY_BUTTON} pr-8`}
+        </Select>
+        <Select
+          sizing="sm"
+          aria-label={tr("filters.sort", d)}
           value={filters.sort ?? "id"}
           onChange={(e) =>
             onChange({ sort: e.target.value as AssetFilters["sort"] })
@@ -298,54 +340,20 @@ function FleetContent({
           <option value="id">{tr("filters.sortId", d)}</option>
           <option value="signal">{tr("filters.sortSignal", d)}</option>
           <option value="km">{tr("filters.sortKm", d)}</option>
-        </select>
-        <label className="flex min-h-10 flex-[0_1_300px] items-center gap-2 rounded-full border border-gray-300 bg-white px-4 dark:border-gray-600 dark:bg-gray-800">
-          <HiOutlineSearch
-            className="h-4 w-4 shrink-0 text-gray-500"
-            aria-hidden
-          />
-          <input
-            aria-label={tr("filters.search", d)}
-            placeholder={tr("filters.search", d)}
-            value={search}
-            onChange={(e) => onSearch(e.target.value)}
-            className="w-full border-0 bg-transparent p-0 text-sm text-gray-900 focus:ring-0 dark:text-white"
-          />
-        </label>
+        </Select>
+        <TextInput
+          sizing="sm"
+          icon={HiOutlineSearch}
+          className="w-full sm:w-72"
+          aria-label={tr("filters.search", d)}
+          placeholder={tr("filters.search", d)}
+          value={search}
+          onChange={(e) => onSearch(e.target.value)}
+        />
       </div>
 
       <AssetTable data={data} d={d} lang={lang} onPage={onPage} />
     </>
-  );
-}
-
-function FilterChip({
-  label,
-  count,
-  active,
-  onClick,
-  lang,
-}: {
-  readonly label: string;
-  readonly count: number;
-  readonly active: boolean;
-  readonly onClick: () => void;
-  readonly lang: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={
-        active
-          ? "inline-flex min-h-10 items-center gap-2 rounded-full bg-gray-900 px-4 text-sm font-medium text-white dark:bg-white dark:text-gray-900"
-          : SECONDARY_BUTTON
-      }
-    >
-      {label}
-      <span className="opacity-70">{formatNumber(count, lang)}</span>
-    </button>
   );
 }
 
@@ -360,82 +368,61 @@ function AssetTable({
   readonly lang: string;
   readonly onPage: (page: number) => void;
 }) {
+  const totalPages = Math.max(1, Math.ceil(data.total / data.size));
   const from = data.total === 0 ? 0 : data.page * data.size + 1;
   const to = Math.min((data.page + 1) * data.size, data.total);
+  const header = [
+    "asset",
+    "carrier",
+    "status",
+    "driver",
+    "nextTrip",
+    "accreditation",
+    "km30d",
+    "lastSignal",
+  ].map((key) => trDynamic(`table.${key}`, d));
+
   return (
-    <section className={`${PANEL} p-1.5`}>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1040px] border-collapse text-left">
-          <thead>
-            <tr>
-              {[
-                "asset",
-                "carrier",
-                "status",
-                "driver",
-                "nextTrip",
-                "accreditation",
-                "km30d",
-                "lastSignal",
-              ].map((key) => (
-                <th key={key} className={`${CAPTION} px-4 py-3`} scope="col">
-                  {trDynamic(`table.${key}`, d)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-900">
-            {data.items.map((row) => (
-              <AssetTableRow key={row.id} row={row} d={d} lang={lang} />
-            ))}
-          </tbody>
-        </table>
+    <div className="flex flex-col">
+      <div className="min-h-32 max-h-[70vh] w-full overflow-y-auto rounded-lg border-2 border-gray-300 bg-gray-50 shadow-md dark:border-gray-600 dark:bg-gray-700">
+        <CustomTable
+          hoverable
+          header={header}
+          content={data.items.map((row) => cells(row, d, lang))}
+          no_data_message={tr("table.empty", d)}
+        />
       </div>
-      {data.items.length === 0 && (
-        <p className="p-6 text-center text-sm text-gray-600 dark:text-gray-400">
-          {tr("table.empty", d)}
-        </p>
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 text-sm text-gray-600 dark:text-gray-400">
-        <span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-gray-500 dark:text-gray-400">
           {tr("table.range", d, {
             from: formatNumber(from, lang),
             to: formatNumber(to, lang),
             total: formatNumber(data.total, lang),
           })}
-        </span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className={SECONDARY_BUTTON}
-            disabled={data.page === 0}
-            onClick={() => onPage(data.page - 1)}
-          >
-            {tr("table.previous", d)}
-          </button>
-          <button
-            type="button"
-            className={SECONDARY_BUTTON}
-            disabled={to >= data.total}
-            onClick={() => onPage(data.page + 1)}
-          >
-            {tr("table.next", d)}
-          </button>
-        </div>
+        </p>
+        {data.total > data.size && (
+          <Pagination
+            layout="pagination"
+            nextLabel=""
+            previousLabel=""
+            showIcons
+            currentPage={data.page + 1}
+            totalPages={totalPages}
+            onPageChange={(p) => onPage(p - 1)}
+            theme={{
+              pages: {
+                base: "mt-1 mb-1 inline-flex items-center -space-x-px",
+                selector: { active: "bg-blue-100 text-blue-500" },
+              },
+            }}
+          />
+        )}
       </div>
-    </section>
+    </div>
   );
 }
 
-function AssetTableRow({
-  row,
-  d,
-  lang,
-}: {
-  readonly row: AssetRow;
-  readonly d: I18nRecord;
-  readonly lang: string;
-}) {
+function cells(row: AssetRow, d: I18nRecord, lang: string) {
   const trip = row.currentTrip ?? row.nextTrip;
   const route = trip
     ? [trip.origin, trip.destination].filter(Boolean).join(" → ") || trip.id
@@ -446,62 +433,49 @@ function AssetTableRow({
   } else if (row.nextTrip) {
     when = formatDateTime(row.nextTrip.start, lang);
   }
-  return (
-    <tr className="border-t border-gray-200 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800">
-      <td className="px-4 py-3.5">
-        <Link
-          href={`/${lang}/fleet/${encodeURIComponent(row.id)}`}
-          className="flex flex-col gap-0.5 text-gray-900 hover:text-blue-700 dark:text-white dark:hover:text-blue-400"
-          prefetch={false}
-        >
-          <span className="font-mono text-sm font-medium">{row.id}</span>
-          <span className="text-xs text-gray-600 dark:text-gray-400">
-            {row.label ?? trDynamic(`kinds.${row.kind}`, d)}
-            {row.suggestions > 0 && (
-              <span className="ml-2 rounded-full bg-blue-100 px-1.5 text-[11px] font-medium text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
-                {row.suggestions}
-              </span>
-            )}
-          </span>
-        </Link>
-      </td>
-      <td className="px-4 py-3.5 text-gray-900 dark:text-white">
-        {row.carrier ?? "—"}
-      </td>
-      <td className="px-4 py-3.5">
-        <StatusPill status={row.status} d={d} />
-      </td>
-      <td className="px-4 py-3.5 text-gray-900 dark:text-white">
-        {row.driver ?? "—"}
-      </td>
-      <td className="px-4 py-3.5">
-        {route ? (
-          <>
-            <div className="text-gray-900 dark:text-white">{route}</div>
-            <div className="text-xs text-gray-600 dark:text-gray-400">
-              {when}
-            </div>
-          </>
-        ) : (
-          <span className="text-gray-600 dark:text-gray-400">
-            {tr("table.noTrip", d)}
+  return [
+    <Link
+      key="asset"
+      href={`/${lang}/fleet/${encodeURIComponent(row.id)}`}
+      className="flex flex-col"
+      prefetch={false}
+    >
+      <span className="font-mono font-medium text-blue-600 hover:underline dark:text-blue-500">
+        {row.id}
+      </span>
+      <span className="text-xs text-gray-500 dark:text-gray-400">
+        {row.label ?? trDynamic(`kinds.${row.kind}`, d)}
+        {row.suggestions > 0 && (
+          <span className="ml-1.5 inline-flex items-center gap-0.5 font-medium text-amber-700 dark:text-amber-400">
+            <BsStars className="h-3 w-3" aria-hidden />
+            {row.suggestions}
           </span>
         )}
-      </td>
-      <td className="px-4 py-3.5">
-        <DocumentText
-          status={row.accreditation.status}
-          expiresAt={row.accreditation.expiresAt}
-          d={d}
-          lang={lang}
-        />
-      </td>
-      <td className="px-4 py-3.5 text-gray-900 tabular-nums dark:text-white">
-        {formatNumber(row.km30d, lang)}
-      </td>
-      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-400">
-        {ago(row.lastSignalAt, lang)}
-      </td>
-    </tr>
-  );
+      </span>
+    </Link>,
+    <span key="carrier" className="text-gray-900 dark:text-white">
+      {row.carrier ?? "—"}
+    </span>,
+    <StatusBadge key="status" status={row.status} d={d} />,
+    <span key="driver">{row.driver ?? "—"}</span>,
+    route ? (
+      <span key="trip" className="flex flex-col">
+        <span className="text-gray-900 dark:text-white">{route}</span>
+        <span className="text-xs">{when}</span>
+      </span>
+    ) : (
+      <span key="trip">{tr("table.noTrip", d)}</span>
+    ),
+    <DocumentBadge
+      key="accreditation"
+      status={row.accreditation.status}
+      expiresAt={row.accreditation.expiresAt}
+      d={d}
+      lang={lang}
+    />,
+    <span key="km" className="tabular-nums">
+      {formatNumber(row.km30d, lang)}
+    </span>,
+    <span key="signal">{ago(row.lastSignalAt, lang)}</span>,
+  ];
 }

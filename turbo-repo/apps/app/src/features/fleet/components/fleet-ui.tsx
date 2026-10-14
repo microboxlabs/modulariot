@@ -2,52 +2,87 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { HiArrowLeft } from "react-icons/hi";
+import { Badge, Breadcrumb, BreadcrumbItem } from "flowbite-react";
+import { BsStars } from "react-icons/bs";
+import { HiOutlineTruck } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { trDynamic } from "@/features/i18n/tr.service";
+import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 import type { AssetStatus, DocumentStatus, FieldSource } from "../fleet-api";
 import { formatDay } from "../fleet-api";
 
-/** Gray panel used for every block of the fleet pages. */
-export const PANEL = "rounded-2xl bg-gray-50 dark:bg-gray-800";
+/** Same card as the rest of the app's panels. */
+export const CARD =
+  "rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800";
 
-/** Primary action: ink, never the blue accent. */
-export const PRIMARY_BUTTON =
-  "inline-flex min-h-10 items-center gap-2 rounded-full bg-gray-900 px-4 text-sm font-medium text-white hover:bg-gray-700 focus:ring-4 focus:ring-gray-300 focus:outline-none disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200 dark:focus:ring-gray-600";
+export const CARD_TITLE =
+  "text-base font-semibold text-gray-900 dark:text-white";
 
-export const SECONDARY_BUTTON =
-  "inline-flex min-h-10 items-center gap-2 rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-900 hover:bg-gray-100 focus:ring-4 focus:ring-gray-200 focus:outline-none disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700";
-
-export const CAPTION =
-  "text-xs font-medium tracking-wide text-gray-600 uppercase dark:text-gray-400";
-
-const STATUS_DOT: Record<AssetStatus, string> = {
-  IN_TRIP: "bg-blue-600",
-  AVAILABLE: "bg-green-600",
-  NO_SIGNAL: "bg-rose-600",
+const STATUS_COLOR: Record<AssetStatus, string> = {
+  IN_TRIP: "info",
+  AVAILABLE: "success",
+  NO_SIGNAL: "failure",
 };
 
-const STATUS_TEXT: Record<AssetStatus, string> = {
-  IN_TRIP: "text-blue-700 dark:text-blue-400",
-  AVAILABLE: "text-green-700 dark:text-green-400",
-  NO_SIGNAL: "text-rose-700 dark:text-rose-400",
+const DOCUMENT_COLOR: Record<DocumentStatus, string> = {
+  MISSING: "gray",
+  VALID: "success",
+  EXPIRING: "warning",
+  EXPIRED: "failure",
 };
 
-const DOCUMENT_TEXT: Record<DocumentStatus, string> = {
-  MISSING: "text-gray-600 dark:text-gray-400",
-  VALID: "text-green-700 dark:text-green-400",
-  EXPIRING: "text-amber-700 dark:text-amber-400",
-  EXPIRED: "text-rose-700 dark:text-rose-400",
+const SOURCE_COLOR: Record<FieldSource, string> = {
+  SIGNAL: "info",
+  TRIP: "indigo",
+  MANUAL: "dark",
+  NONE: "gray",
 };
 
-const SOURCE_TAG: Record<FieldSource, string> = {
-  SIGNAL: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
-  TRIP: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300",
-  MANUAL: "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
-  NONE: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-};
+export interface Crumb {
+  readonly label: string;
+  readonly href?: string;
+}
 
-export function StatusPill({
+/** The app's section header, with the fleet breadcrumb and the page actions on the right. */
+export function FleetHeader({
+  crumbs,
+  actions,
+  filterDict,
+}: {
+  readonly crumbs: Crumb[];
+  readonly actions?: ReactNode;
+  readonly filterDict: I18nRecord;
+}) {
+  return (
+    <SectionHeader
+      filterDict={filterDict}
+      leftContent={
+        <Breadcrumb aria-label="breadcrumb">
+          {crumbs.map((crumb, i) => (
+            <BreadcrumbItem
+              key={crumb.label}
+              icon={i === 0 ? HiOutlineTruck : undefined}
+            >
+              {crumb.href ? (
+                <Link
+                  href={crumb.href}
+                  className="hover:text-gray-900 dark:hover:text-white"
+                >
+                  {crumb.label}
+                </Link>
+              ) : (
+                crumb.label
+              )}
+            </BreadcrumbItem>
+          ))}
+        </Breadcrumb>
+      }
+      rightContent={actions}
+    />
+  );
+}
+
+export function StatusBadge({
   status,
   d,
 }: {
@@ -55,16 +90,13 @@ export function StatusPill({
   readonly d: I18nRecord;
 }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ${STATUS_TEXT[status]}`}
-    >
-      <span className={`h-2 w-2 rounded-full ${STATUS_DOT[status]}`} />
+    <Badge color={STATUS_COLOR[status]} className="w-fit whitespace-nowrap">
       {trDynamic(`status.${status}`, d)}
-    </span>
+    </Badge>
   );
 }
 
-export function DocumentText({
+export function DocumentBadge({
   status,
   expiresAt,
   d,
@@ -76,15 +108,15 @@ export function DocumentText({
   readonly lang: string;
 }) {
   return (
-    <span className={`text-sm whitespace-nowrap ${DOCUMENT_TEXT[status]}`}>
+    <Badge color={DOCUMENT_COLOR[status]} className="w-fit whitespace-nowrap">
       {trDynamic(`documentStatus.${status}`, d, {
         date: formatDay(expiresAt, lang),
       })}
-    </span>
+    </Badge>
   );
 }
 
-export function SourceTag({
+export function SourceBadge({
   source,
   d,
 }: {
@@ -92,115 +124,46 @@ export function SourceTag({
   readonly d: I18nRecord;
 }) {
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${SOURCE_TAG[source]}`}
-    >
+    <Badge color={SOURCE_COLOR[source]} size="xs" className="w-fit">
       {trDynamic(`sources.${source}`, d)}
+    </Badge>
+  );
+}
+
+/** The Harness mark: stars on the gold gradient. */
+export function HarnessMark() {
+  return (
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-[#D18900] to-[#F1B300] text-white">
+      <BsStars className="h-4 w-4" aria-hidden />
     </span>
   );
 }
 
-export function Kpi({
-  label,
-  value,
-  hint,
-  tone = "muted",
-  onClick,
-  active = false,
-}: {
-  readonly label: string;
-  readonly value: ReactNode;
-  readonly hint?: string;
-  readonly tone?: "muted" | "good" | "warn" | "bad";
-  readonly onClick?: () => void;
-  readonly active?: boolean;
-}) {
-  const hintClass = {
-    muted: "text-gray-600 dark:text-gray-400",
-    good: "text-green-700 dark:text-green-400",
-    warn: "text-amber-700 dark:text-amber-400",
-    bad: "text-rose-700 dark:text-rose-400",
-  }[tone];
-  const body = (
-    <>
-      <span className={CAPTION}>{label}</span>
-      <span className="text-3xl font-medium tracking-tight text-gray-900 dark:text-white">
-        {value}
-      </span>
-      {hint && <span className={`text-xs ${hintClass}`}>{hint}</span>}
-    </>
-  );
-  const shape = `${PANEL} flex min-w-0 flex-col gap-1.5 p-4 text-left`;
-  if (!onClick) return <div className={shape}>{body}</div>;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`${shape} ring-gray-900 hover:bg-gray-100 focus:ring-2 focus:outline-none dark:ring-white dark:hover:bg-gray-700 ${active ? "ring-2" : ""}`}
-    >
-      {body}
-    </button>
-  );
-}
-
-/** Suggestions from the integrations, on the accent's soft tint. */
-export function AgentCard({
+/** What Harness suggests from the integrations. */
+export function HarnessCard({
   title,
+  subtitle,
   children,
 }: {
   readonly title: string;
+  readonly subtitle: string;
   readonly children: ReactNode;
 }) {
   return (
-    <section className="flex min-w-0 flex-col gap-3 rounded-2xl bg-blue-50 p-5 dark:bg-blue-900/20">
-      <div className="flex items-center gap-2">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 dark:bg-white">
-          <span className="h-2 w-2 rounded-full bg-blue-400 dark:bg-blue-600" />
-        </span>
-        <span className="text-xs font-medium tracking-wide text-blue-700 uppercase dark:text-blue-300">
-          {title}
-        </span>
+    <section className="flex min-w-0 flex-1 flex-col gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-700/60 dark:bg-amber-900/20">
+      <div className="flex items-center gap-2.5">
+        <HarnessMark />
+        <div className="leading-tight">
+          <div className="text-sm font-semibold text-gray-900 dark:text-white">
+            {title}
+          </div>
+          <div className="text-xs text-amber-800 dark:text-amber-300">
+            {subtitle}
+          </div>
+        </div>
       </div>
       {children}
     </section>
-  );
-}
-
-export function PageHeader({
-  caption,
-  title,
-  backHref,
-  backLabel,
-  actions,
-}: {
-  readonly caption: string;
-  readonly title: ReactNode;
-  readonly backHref?: string;
-  readonly backLabel?: string;
-  readonly actions?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex min-w-0 items-center gap-4">
-        {backHref && (
-          <Link
-            href={backHref}
-            aria-label={backLabel}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-300 text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:text-white dark:hover:bg-gray-800"
-          >
-            <HiArrowLeft className="h-5 w-5" />
-          </Link>
-        )}
-        <div className="min-w-0">
-          <div className={CAPTION}>{caption}</div>
-          <h1 className="mt-1 truncate text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
-            {title}
-          </h1>
-        </div>
-      </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
-    </div>
   );
 }
 
@@ -214,8 +177,8 @@ export function InfoRow({
 }) {
   return (
     <div className="flex justify-between gap-4 border-b border-gray-200 py-2.5 text-sm last:border-b-0 dark:border-gray-700">
-      <span className="text-gray-600 dark:text-gray-400">{label}</span>
-      <span className="min-w-0 text-right text-gray-900 dark:text-white">
+      <span className="text-gray-500 dark:text-gray-400">{label}</span>
+      <span className="min-w-0 text-right font-medium text-gray-900 dark:text-white">
         {children}
       </span>
     </div>

@@ -3785,7 +3785,8 @@
         "suggestionsHint": "assets con datos por confirmar"
       },
       "agent": {
-        "title": "Agente de flota · integraciones",
+        "title": "Harness",
+        "subtitle": "Sugerencias desde los viajes y las señales",
         "listHeadline": "{n} assets tienen datos que puedo completar desde sus viajes.",
         "listBody": "Ramplas y conductores habituales según los viajes de los últimos 30 días.",
         "listEmpty": "No hay sugerencias pendientes. Los datos de la flota están al día con las integraciones.",

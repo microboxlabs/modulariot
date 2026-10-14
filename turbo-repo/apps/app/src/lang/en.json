@@ -3785,7 +3785,8 @@
         "suggestionsHint": "assets with data to confirm"
       },
       "agent": {
-        "title": "Fleet agent · integrations",
+        "title": "Harness",
+        "subtitle": "Suggestions from trips and signals",
         "listHeadline": "{n} assets have data I can fill in from their trips.",
         "listBody": "Usual trailers and drivers, from the trips of the last 30 days.",
         "listEmpty": "No pending suggestions. The fleet data matches the integrations.",

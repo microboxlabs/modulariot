@@ -46,7 +46,7 @@ public class FleetDirectoryProducer {
     private final int backfillPerRun;
     private final Clock clock = Clock.systemUTC();
     private Pool gpsPool;
-    private ActivityRollup rollup;
+    private Wiring wiring;
 
     FleetDirectoryProducer(Vertx vertx, Instance<Pool> modulithPool,
             @ConfigProperty(name = "miot.fleet.source", defaultValue = "none") String source,
@@ -73,29 +73,13 @@ public class FleetDirectoryProducer {
     @Produces
     @Singleton
     FleetDirectoryService service() {
-        if ("demo".equals(source)) {
-            LOG.info("Fleet directory: demo data, edits in memory");
-            FleetData data = new DemoFleetData(clock::instant);
-            ActivityStore activity = new InMemoryActivityStore();
-            rollup = new ActivityRollup(data, activity, clock, zone, history, (int) history.toHours());
-            return new FleetDirectoryService(data, new InMemoryProfileStore(), activity, clock, zone, cacheTtl);
-        }
-        if ("gps".equals(source) && url.isPresent() && username.isPresent()) {
-            LOG.info("Fleet directory: GPS database, read only; edits in the modulith database");
-            FleetData data = new GpsFleetData(this::gpsPool);
-            ActivityStore activity = new PgActivityStore(modulithPool::get);
-            rollup = new ActivityRollup(data, activity, clock, zone, history, backfillPerRun);
-            return new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity, clock, zone,
-                    cacheTtl);
-        }
-        LOG.infof("Fleet directory: none (miot.fleet.source=%s)", source);
-        return new FleetDirectoryService(new UnavailableFleetData(), new InMemoryProfileStore(),
-                new InMemoryActivityStore(), clock, zone, cacheTtl);
+        return wiring().service();
     }
 
     @Scheduled(every = "${miot.fleet.activity.every:15m}", delayed = "${miot.fleet.activity.delay:30s}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void rollUpActivity() {
+        ActivityRollup rollup = wiring().rollup();
         if (rollup == null) {
             return;
         }
@@ -104,6 +88,37 @@ public class FleetDirectoryProducer {
         } catch (RuntimeException e) {
             LOG.warnf(e, "Fleet activity rollup failed");
         }
+    }
+
+    /** The service and its rollup share the source and stores; whichever runs first builds them. */
+    private record Wiring(FleetDirectoryService service, ActivityRollup rollup) {
+    }
+
+    private synchronized Wiring wiring() {
+        if (wiring != null) {
+            return wiring;
+        }
+        if ("demo".equals(source)) {
+            LOG.info("Fleet directory: demo data, edits in memory");
+            FleetData data = new DemoFleetData(clock::instant);
+            ActivityStore activity = new InMemoryActivityStore();
+            wiring = new Wiring(
+                    new FleetDirectoryService(data, new InMemoryProfileStore(), activity, clock, zone, cacheTtl),
+                    new ActivityRollup(data, activity, clock, zone, history, (int) history.toHours()));
+        } else if ("gps".equals(source) && url.isPresent() && username.isPresent()) {
+            LOG.info("Fleet directory: GPS database, read only; edits in the modulith database");
+            FleetData data = new GpsFleetData(this::gpsPool);
+            ActivityStore activity = new PgActivityStore(modulithPool::get);
+            wiring = new Wiring(
+                    new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity, clock, zone,
+                            cacheTtl),
+                    new ActivityRollup(data, activity, clock, zone, history, backfillPerRun));
+        } else {
+            LOG.infof("Fleet directory: none (miot.fleet.source=%s)", source);
+            wiring = new Wiring(new FleetDirectoryService(new UnavailableFleetData(), new InMemoryProfileStore(),
+                    new InMemoryActivityStore(), clock, zone, cacheTtl), null);
+        }
+        return wiring;
     }
 
     private synchronized Pool gpsPool() {

@@ -60,52 +60,6 @@ export function KpiRow({ label, value, status }: KpiRowProps) {
   );
 }
 
-interface ProgressBarProps {
-  readonly label: string;
-  readonly value: number; // 0-100
-  readonly showPercentage?: boolean;
-}
-
-/**
- * Get occupancy color based on percentage
- */
-function getOccupancyColor(percentage: number): string {
-  if (percentage >= 100) return "bg-yellow-400 dark:bg-yellow-300";
-  return "bg-gray-400";
-}
-
-/**
- * A simple progress bar with label
- */
-export function ProgressBar({
-  label,
-  value,
-  showPercentage = true,
-}: ProgressBarProps) {
-  const clampedValue = Math.min(100, Math.max(0, value));
-
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0 font-light">
-        {label}
-      </span>
-      <div className="flex items-center gap-2 flex-1 max-w-[120px]">
-        <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${getOccupancyColor(clampedValue)}`}
-            style={{ width: `${clampedValue}%` }}
-          />
-        </div>
-        {showPercentage && (
-          <span className="text-xs font-medium text-gray-700 dark:text-gray-300 w-8 text-right">
-            {clampedValue}%
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
 interface LeadTimeDisplayProps {
   readonly leadTime: LeadTimeData;
   /** If true, displays as a compact horizontal row instead of full card layout */

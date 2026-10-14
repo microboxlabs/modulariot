@@ -6,9 +6,7 @@ Single Quarkus monorepo that produces one container image containing all Modular
 
 ```
 miot-core/            Shared foundation (config, models, auth, messaging, persistence)
-miot-resource-core/   Shared SDK (entity events, KPI interfaces, resolution, Alfresco client, metrics)
-miot-fleet/           Fleet directory (vehicles, trucks, trailers, carriers)
-miot-driver/          Driver directory (lifecycle, documents, compliance, scoring)
+miot-fleet/           Fleet component (asset network)
 miot-tracking/        Asset tracking (GPS ingestion via Pulsar)
 miot-symptoms/        Symptoms dispatcher (CDC → RouteTable → process_symptoms_* / webhook)
 miot-gateway/         Routing gateway (body-aware traffic forking, canary splits) → README
@@ -20,7 +18,7 @@ miot-cli/             Application entrypoint
 
 - **Quarkus 3.x** — CDI conditional activation, Kubernetes-native
 - **Java 21**
-- **PostgreSQL** — Schema-per-component via Flyway (`miot_core`, `miot_resource`, `miot_fleet`, `miot_driver`, `miot_tracking`, `miot_integrations`)
+- **PostgreSQL** — Schema-per-component via Flyway (`miot_core`, `miot_tracking`, `miot_integrations`, `miot_conversational`)
 - **Hibernate Reactive + Panache**
 - **Vert.x EventBus** — In-process inter-component messaging
 - **Micrometer + Prometheus** — Per-client metrics with `client_id` tags
@@ -37,8 +35,6 @@ miot-cli/             Application entrypoint
 
 # Start specific components
 ./start.sh fleet            # fleet only
-./start.sh driver           # driver only
-./start.sh fleet driver     # fleet + driver
 ./start.sh gateway          # gateway only (no DB required)
 ./start.sh integrations     # integration connections and credential profiles
 ./start.sh symptoms         # symptoms dispatcher (RouteTable + Pulsar; GPS optional for readiness)
@@ -63,7 +59,6 @@ miot.component.all.enabled=true
 
 # Individual overrides — defaults to master switch value
 miot.component.fleet.enabled=true
-miot.component.driver.enabled=true
 miot.component.tracking.enabled=true
 miot.component.symptoms.enabled=true
 miot.component.gateway.enabled=true
@@ -82,7 +77,7 @@ MIOT_COMPONENT_GATEWAY_ENABLED=true
 MIOT_COMPONENT_INTEGRATIONS_ENABLED=true
 ```
 
-Only the schemas for enabled DB-backed components are created by Flyway. Starting with `./start.sh fleet` will create `miot_core`, `miot_resource`, and `miot_fleet` schemas — but not `miot_driver`. Starting with `./start.sh integrations` creates `miot_core`, `miot_resource`, and `miot_integrations`. The gateway component requires no database.
+Only the schemas for enabled DB-backed components are created by Flyway. Starting with `./start.sh integrations` creates `miot_core` and `miot_integrations`. The gateway component requires no database.
 
 ## Database
 
@@ -90,9 +85,6 @@ Each component owns its schema. Migrations run via Flyway at startup, filtered b
 
 ```
 miot-core/src/main/resources/db/migration/core/             # tenants, assets (always)
-miot-resource-core/src/main/resources/db/migration/resource/ # entity events, scores, sync cursors, links, profiles (always)
-miot-fleet/src/main/resources/db/migration/fleet/            # vehicles, trips, trucks, trailers, carriers
-miot-driver/src/main/resources/db/migration/driver/          # drivers
 miot-tracking/src/main/resources/db/migration/tracking/      # asset data, client maps, metrics, latest snapshot functions
 miot-integrations/src/main/resources/db/migration/integrations/ # credential profiles, connections, operations, test/audit events
 ```
@@ -102,9 +94,7 @@ Migration version ranges are reserved per component so subset deployments can in
 | Component | Schema | Migration range |
 |-----------|--------|-----------------|
 | Core | `miot_core` | `V0.1.x` |
-| Fleet | `miot_fleet` | `V0.2.x` |
-| Resource Core | `miot_resource` | `V0.3.x` |
-| Driver | `miot_driver` | `V0.4.x` |
+| Retired (fleet directory, resource core, drivers) | `miot_fleet`, `miot_resource`, `miot_driver` | `V0.2.x`–`V0.4.x`, do not reuse |
 | Tracking | `miot_tracking` | `V0.5.x` |
 | Integrations | `miot_integrations` | `V0.6.x` |
 | Symptoms | — (uses StreamHub `prod_iot_gps`, no local schema) | — |
@@ -116,17 +106,12 @@ When running in dev mode, Swagger UI is available at:
 - **Swagger UI**: http://localhost:8180/q/swagger-ui/
 - **OpenAPI spec**: http://localhost:8180/q/openapi
 
-Endpoints are grouped by component tag (Fleet, Drivers, Asset Tracking, Integration Connections). Only enabled components appear in the spec.
+Endpoints are grouped by component tag (Asset Tracking, Integration Connections, Control Tower). Only enabled components appear in the spec.
 
 ## Endpoints
 
 | Component | Endpoint | Description |
 |-----------|----------|-------------|
-| Fleet | `GET /api/v1/fleet/vehicles` | List vehicles |
-| Fleet | `GET /api/v1/fleet/trucks[/{id}]` | List/get trucks |
-| Fleet | `GET /api/v1/fleet/trailers[/{id}]` | List/get trailers |
-| Fleet | `GET /api/v1/fleet/carriers[/{id}]` | List/get carriers |
-| Driver | `GET /api/v1/drivers[/{id}]` | List/get drivers |
 | Tracking | `POST /api/v1/asset/track` | Ingest GPS position |
 | Integrations | `GET /api/v1/orgs/{organizationId}/integrations/connections` | List integration connections |
 | Integrations | `POST /api/v1/orgs/{organizationId}/integrations/connections` | Create an integration connection |

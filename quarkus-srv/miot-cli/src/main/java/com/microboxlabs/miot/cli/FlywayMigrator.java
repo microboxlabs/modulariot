@@ -26,9 +26,6 @@ public class FlywayMigrator {
     @ConfigProperty(name = "miot.component.fleet.enabled", defaultValue = "false")
     boolean fleetEnabled;
 
-    @ConfigProperty(name = "miot.component.driver.enabled", defaultValue = "false")
-    boolean driverEnabled;
-
     @ConfigProperty(name = "miot.component.tracking.enabled", defaultValue = "false")
     boolean trackingEnabled;
 
@@ -48,7 +45,7 @@ public class FlywayMigrator {
         // Gateway and other stateless components have no DB schema.
         // Skip migration entirely when no DB-dependent component is active
         // to avoid connecting to (or validating against) a database that isn't needed.
-        if (!fleetEnabled && !driverEnabled && !trackingEnabled && !integrationsEnabled
+        if (!fleetEnabled && !trackingEnabled && !integrationsEnabled
                 && !conversationalEnabled && !symptomsEnabled) {
             LOG.debug("No DB-dependent components enabled — skipping Flyway");
             return;
@@ -66,12 +63,6 @@ public class FlywayMigrator {
 
         List<String> locations = new ArrayList<>(baseLocations);
 
-        if (fleetEnabled) {
-            locations.add("db/migration/fleet");
-        }
-        if (driverEnabled) {
-            locations.add("db/migration/driver");
-        }
         if (trackingEnabled) {
             locations.add("db/migration/tracking");
         }
@@ -103,7 +94,7 @@ public class FlywayMigrator {
                 // locally because the component is disabled (its location isn't
                 // added above). Both buckets matter — mirrors the extension config
                 // from #536 (quarkus.flyway.ignore-migration-patterns=*:missing,*:future):
-                //   *:missing → applied version BELOW the resolved max (e.g. fleet 0.2.x)
+                //   *:missing → applied version BELOW the resolved max (e.g. retired fleet 0.2.x)
                 //   *:future  → applied version ABOVE the resolved max (e.g. integrations 0.6.x)
                 // Without *:future, disabling a component whose migrations are already
                 // applied aborts boot with "applied migration not resolved locally".

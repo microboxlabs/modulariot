@@ -22,7 +22,6 @@ describe("carrierNavAllowed", () => {
       "/gxc/ruta",
       "/gxc/carrier/76091703-6", // su propio perfil (N3) sí entra
       "/collaborators-management",
-      "/fleet-management",
       "/users/settings/organizations",
     ]) {
       expect(carrierNavAllowed(href), href).toBe(true);

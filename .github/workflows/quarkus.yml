@@ -87,7 +87,7 @@ jobs:
           echo "Version: $VERSION"
 
       - name: Build & Test
-        run: ./mvnw clean verify -Dmiot.component.fleet.enabled=true -Dmiot.component.driver.enabled=true -Dmiot.component.tracking.enabled=true -Dmiot.component.gateway.enabled=true -Dmiot.component.integrations.enabled=true -Dmiot.component.conversational.enabled=true -Dmiot.component.symptoms.enabled=true
+        run: ./mvnw clean verify -Dmiot.component.fleet.enabled=true -Dmiot.component.tracking.enabled=true -Dmiot.component.gateway.enabled=true -Dmiot.component.integrations.enabled=true -Dmiot.component.conversational.enabled=true -Dmiot.component.symptoms.enabled=true
         working-directory: quarkus-srv
 
       - name: SonarCloud Scan
@@ -220,7 +220,7 @@ jobs:
             type=raw,value=sha-${{ needs.build-jvm.outputs.short_sha }}
           labels: |
             org.opencontainers.image.title=ModularIoT Server
-            org.opencontainers.image.description=Quarkus modulith backend for ModularIoT — fleet, driver and resource management
+            org.opencontainers.image.description=Quarkus modulith backend for ModularIoT
             org.opencontainers.image.vendor=MicroboxLabs
 
       - name: Build and push Docker image

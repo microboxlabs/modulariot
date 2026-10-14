@@ -28,7 +28,6 @@ const BLOCKED_GROUPS = {
 const DASHBOARD_ROLES = ["GROUP_DASHBOARD"];
 
 // Fleet management access roles
-const FLEET_MANAGEMENT_ROLES = ["GROUP_FLEET_MANAGEMENT"];
 
 export const ROUTE_PERMISSIONS = {
   // Main routes
@@ -59,7 +58,6 @@ export const ROUTE_PERMISSIONS = {
   "/api/admin/webhooks": ADMIN_ROLES,
 
   // Fleet management
-  "/fleet-management": FLEET_MANAGEMENT_ROLES,
 
   // Integrations job console — any authenticated org member; the backend
   // enforces org membership per request.

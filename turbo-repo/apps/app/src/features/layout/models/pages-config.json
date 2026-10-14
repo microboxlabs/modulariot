@@ -77,12 +77,6 @@
     "blockedGroups": []
   },
   {
-    "label": "fleetManagement",
-    "href": "/fleet-management",
-    "requiredGroups": ["GROUP_FLEET_MANAGEMENT"],
-    "blockedGroups": []
-  },
-  {
     "label": "whereIsMyLoad",
     "href": "/where-is-my-load",
     "requiredGroups": ["GROUP_MINTRAL_BUSCADOR_CARGAS"],

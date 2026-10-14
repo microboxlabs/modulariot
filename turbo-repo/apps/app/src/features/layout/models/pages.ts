@@ -1,7 +1,6 @@
 import CalendarIcon from "@/features/icons/calendar";
 import ClipboardIcon from "@/features/icons/clipboard";
 import HomeIcon from "@/features/icons/home";
-import TruckIcon from "@/features/icons/truck";
 import PeopleIcon from "@/features/icons/people";
 import { SidebarItem } from "../types/common.types";
 import FaBookIcon from "@/features/icons/FaBook";
@@ -22,7 +21,6 @@ const PAGE_ICONS: Record<string, FC<ComponentProps<"svg">>> = {
   controlTower: LuTowerControl as FC<ComponentProps<"svg">>,
   liveStreams: VideoCameraIcon,
   collaboratorsManagement: PeopleIcon,
-  fleetManagement: TruckIcon,
   whereIsMyLoad: FaTruckLoading as FC<ComponentProps<"svg">>,
   integrations: HiLightningBolt as FC<ComponentProps<"svg">>,
   storytelling: HiSparkles as FC<ComponentProps<"svg">>,

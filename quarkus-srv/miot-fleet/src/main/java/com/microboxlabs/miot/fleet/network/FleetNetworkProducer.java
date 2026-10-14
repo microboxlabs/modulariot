@@ -26,6 +26,7 @@ public class FleetNetworkProducer {
     @ConfigProperty(name = "miot.fleet.network.ttl.accreditation", defaultValue = "P30D")
     Duration accreditationTtl;
 
+    /** Singleton: the service has no no-args constructor, so it cannot sit behind a client proxy. */
     @Produces
     @Singleton
     FleetNetworkService service() {
@@ -33,7 +34,7 @@ public class FleetNetworkProducer {
         NetworkSource network = switch (source) {
             case "demo" -> new DemoNetworkSource(clock::instant);
             default -> viewer -> {
-                throw new NetworkSource.UnavailableException("Fleet network data is not configured");
+                throw new NetworkUnavailableException("Fleet network data is not configured");
             };
         };
         NetworkPolicy policy = new NetworkPolicy(Map.of(

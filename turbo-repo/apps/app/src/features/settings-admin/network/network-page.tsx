@@ -147,7 +147,7 @@ function RelationshipsSection({
             <TableBody className="divide-y">
               {relationships.map((relationship) => (
                 <RelationshipRow
-                  key={`${relationship.kind}-${relationship.counterpart.id}`}
+                  key={`${relationship.kind}-${relationship.role}-${relationship.counterpart.id}`}
                   relationship={relationship}
                   d={d}
                   lang={lang}
@@ -252,9 +252,11 @@ function AssetsSection({
   );
 }
 
-function errorMessage(error: Error, d: I18nRecord): string {
-  if (error instanceof ApiError && error.status === 503)
+/** A 503 from the network API means no source is configured; anything else is a load failure. */
+function errorMessage(networkError: Error | undefined, d: I18nRecord): string {
+  if (networkError instanceof ApiError && networkError.status === 503) {
     return tr("unavailable", d);
+  }
   return tr("loadFailed", d);
 }
 
@@ -265,7 +267,8 @@ export default function NetworkPage({ dict, lang }: NetworkPageProps) {
   const allowed = can(VIEW);
   const relationships = useNetworkRelationships(allowed);
   const assets = useNetworkAssets(allowed);
-  const error = accessError ?? relationships.error ?? assets.error;
+  const networkError = relationships.error ?? assets.error;
+  const error = accessError ?? networkError;
   const loading =
     !error && (!access || relationships.isLoading || assets.isLoading);
   const ready = !loading && !error && allowed;
@@ -291,7 +294,11 @@ export default function NetworkPage({ dict, lang }: NetworkPageProps) {
             </p>
           </div>
           {loading && <Spinner className="mx-auto" />}
-          {error && <Alert color="gray">{errorMessage(error, d)}</Alert>}
+          {error && (
+            <Alert color="gray">
+              {errorMessage(accessError ? undefined : networkError, d)}
+            </Alert>
+          )}
           {!loading && !error && !allowed && (
             <Alert color="gray">{tr("notAllowed", d)}</Alert>
           )}

@@ -18,16 +18,16 @@ public class FleetNetworkService {
     }
 
     public List<AssetView> assets(Viewer viewer) {
-        return resolver(viewer).assets(viewer.organizationId());
+        return resolver(viewer).assets(viewer);
     }
 
     public AssetView asset(Viewer viewer, String assetId) {
-        return resolver(viewer).asset(viewer.organizationId(), assetId)
+        return resolver(viewer).asset(viewer, assetId)
                 .orElseThrow(() -> new NoSuchElementException("Asset not found: " + assetId));
     }
 
     public List<RelationshipView> relationships(Viewer viewer) {
-        return resolver(viewer).relationships(viewer.organizationId());
+        return resolver(viewer).relationships(viewer);
     }
 
     private NetworkResolver resolver(Viewer viewer) {

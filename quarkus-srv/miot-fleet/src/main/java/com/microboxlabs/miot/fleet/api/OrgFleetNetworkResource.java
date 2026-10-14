@@ -5,7 +5,7 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.fleet.access.FleetAccessCatalog;
 import com.microboxlabs.miot.fleet.network.FleetNetworkService;
-import com.microboxlabs.miot.fleet.network.NetworkSource;
+import com.microboxlabs.miot.fleet.network.NetworkUnavailableException;
 import com.microboxlabs.miot.fleet.network.Viewer;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
@@ -20,9 +20,11 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
@@ -86,7 +88,11 @@ public class OrgFleetNetworkResource {
             throw new WebApplicationException(error(Response.Status.FORBIDDEN,
                     "Organization context does not match request path"));
         }
-        return new Viewer(organizationId, tenantContext.getClientId());
+        Set<String> clientIds = new HashSet<>();
+        if (tenantContext.getClientId() != null) {
+            clientIds.addAll(tenantContext.getEffectiveClientIds());
+        }
+        return new Viewer(organizationId, clientIds);
     }
 
     private static Uni<Response> work(Supplier<Object> read) {
@@ -99,7 +105,7 @@ public class OrgFleetNetworkResource {
             return Response.ok(read.get()).build();
         } catch (NoSuchElementException e) {
             return error(Response.Status.NOT_FOUND, e.getMessage());
-        } catch (NetworkSource.UnavailableException e) {
+        } catch (NetworkUnavailableException e) {
             return error(Response.Status.SERVICE_UNAVAILABLE, e.getMessage());
         }
     }

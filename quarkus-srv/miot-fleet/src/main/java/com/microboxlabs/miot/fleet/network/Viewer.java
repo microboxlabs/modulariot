@@ -1,5 +1,14 @@
 package com.microboxlabs.miot.fleet.network;
 
-/** The organization asking, and the client id its own GPS signals arrive with. */
-public record Viewer(String organizationId, String clientId) {
+import java.util.Set;
+
+/**
+ * The organization asking, and the client ids whose signals count as its own: its credential and, for a parent
+ * organization, its children's.
+ */
+public record Viewer(String organizationId, Set<String> clientIds) {
+
+    public Viewer {
+        clientIds = Set.copyOf(clientIds);
+    }
 }

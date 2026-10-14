@@ -38,14 +38,24 @@ public final class DemoNetworkSource implements NetworkSource {
         this.clock = clock;
     }
 
+    private static final String TRUCK = "Truck";
+    private static final String ABCD12 = "ABCD12";
+    private static final String EFGH34 = "EFGH34";
+    private static final String IJKL56 = "IJKL56";
+    private static final String MNOP78 = "MNOP78";
+    private static final String QRST90 = "QRST90";
+    private static final String TRAILER = "JAULA-01";
+    private static final String DECOY = "SEN-0001";
+    private static final String OPEN_TRIP = "T-1001";
+    private static final String ACCREDITATION = "ACR-2207";
+
     @Override
     public NetworkSnapshot load(Viewer viewer) {
         Instant now = clock.get();
         String me = viewer.organizationId();
-        Set<String> myClients = viewer.clientId() == null ? Set.of() : Set.of(viewer.clientId());
 
         List<NetworkOrganization> organizations = List.of(
-                new NetworkOrganization(me, me, Set.of(OrgRole.OPERATOR), myClients),
+                new NetworkOrganization(me, me, Set.of(OrgRole.OPERATOR), viewer.clientIds()),
                 new NetworkOrganization(ANDES, "Transportes Andes (demo)", Set.of(OrgRole.CARRIER), Set.of()),
                 new NetworkOrganization(PACIFICO, "Transportes Pacífico (demo)", Set.of(OrgRole.CARRIER), Set.of()),
                 new NetworkOrganization(AUSTRAL, "GPS Austral (demo)", Set.of(OrgRole.PROVIDER),
@@ -55,48 +65,44 @@ public final class DemoNetworkSource implements NetworkSource {
                 new NetworkOrganization(OTHER_OPERATOR, "Operador Sur (demo)", Set.of(OrgRole.OPERATOR), Set.of()));
 
         List<Asset> assets = List.of(
-                new Asset("ABCD12", "Truck", "Tracto ABCD12"),
-                new Asset("EFGH34", "Truck", "Tracto EFGH34"),
-                new Asset("IJKL56", "TRACTO", "Tracto IJKL56"),
-                new Asset("MNOP78", "Truck", "Tracto MNOP78"),
-                new Asset("QRST90", "Truck", "Tracto QRST90"),
-                new Asset("JAULA-01", "Jaula", "Jaula JAULA-01"),
-                new Asset("SEN-0001", "Señuelo", "Señuelo en carga"));
+                new Asset(ABCD12, TRUCK, "Tracto " + ABCD12),
+                new Asset(EFGH34, TRUCK, "Tracto " + EFGH34),
+                new Asset(IJKL56, "TRACTO", "Tracto " + IJKL56),
+                new Asset(MNOP78, TRUCK, "Tracto " + MNOP78),
+                new Asset(QRST90, TRUCK, "Tracto " + QRST90),
+                new Asset(TRAILER, "Jaula", "Jaula " + TRAILER),
+                new Asset(DECOY, "Señuelo", "Señuelo en carga"));
 
         Instant monthsAgo = now.minus(Duration.ofDays(180));
         Instant minutesAgo = now.minus(Duration.ofMinutes(2));
+        Instant tripStart = now.minus(Duration.ofHours(6));
         Instant closed3 = now.minus(Duration.ofDays(3));
         Instant closed20 = now.minus(Duration.ofDays(20));
 
         List<Evidence> evidence = List.of(
-                reports(AUSTRAL_CLIENT, "ABCD12", monthsAgo, minutesAgo),
-                reports(RASTREO_CLIENT, "EFGH34", monthsAgo, minutesAgo),
-                reports(AUSTRAL_CLIENT, "IJKL56", monthsAgo, minutesAgo),
-                reports(AUSTRAL_CLIENT, "MNOP78", monthsAgo, minutesAgo),
-                reports(AUSTRAL_CLIENT, "QRST90", monthsAgo, minutesAgo),
-                reports(AUSTRAL_CLIENT, "JAULA-01", monthsAgo, minutesAgo),
-                reports(RASTREO_CLIENT, "SEN-0001", now.minus(Duration.ofDays(1)), minutesAgo),
+                reports(AUSTRAL_CLIENT, ABCD12, monthsAgo, minutesAgo),
+                reports(RASTREO_CLIENT, EFGH34, monthsAgo, minutesAgo),
+                reports(AUSTRAL_CLIENT, IJKL56, monthsAgo, minutesAgo),
+                reports(AUSTRAL_CLIENT, MNOP78, monthsAgo, minutesAgo),
+                reports(AUSTRAL_CLIENT, QRST90, monthsAgo, minutesAgo),
+                reports(AUSTRAL_CLIENT, TRAILER, monthsAgo, minutesAgo),
+                reports(RASTREO_CLIENT, DECOY, now.minus(Duration.ofDays(1)), minutesAgo),
 
-                owns(ANDES, "ABCD12", EvidenceSource.TRIP, "T-1001", monthsAgo, now),
-                owns(ANDES, "EFGH34", EvidenceSource.TRIP, "T-0987", monthsAgo, closed3),
-                owns(ANDES, "JAULA-01", EvidenceSource.TRIP, "T-1001", monthsAgo, now),
-                owns(ANDES, "QRST90", EvidenceSource.TRIP, "T-5501", monthsAgo, now),
-                owns(PACIFICO, "IJKL56", EvidenceSource.ACCREDITATION, "ACR-2207", monthsAgo, now),
-                owns(PACIFICO, "MNOP78", EvidenceSource.TRIP, "T-0901", monthsAgo, closed20),
+                owns(ANDES, ABCD12, EvidenceSource.TRIP, OPEN_TRIP, monthsAgo, now),
+                owns(ANDES, EFGH34, EvidenceSource.TRIP, "T-0987", monthsAgo, closed3),
+                owns(ANDES, TRAILER, EvidenceSource.TRIP, OPEN_TRIP, monthsAgo, now),
+                owns(ANDES, QRST90, EvidenceSource.TRIP, "T-5501", monthsAgo, now),
+                owns(PACIFICO, IJKL56, EvidenceSource.ACCREDITATION, ACCREDITATION, monthsAgo, now),
+                owns(PACIFICO, MNOP78, EvidenceSource.TRIP, "T-0901", monthsAgo, closed20),
 
-                operates(me, "ABCD12", ANDES, EvidenceSource.TRIP, "T-1001", now.minus(Duration.ofHours(6)), now,
-                        null),
-                operates(me, "EFGH34", ANDES, EvidenceSource.TRIP, "T-0987", closed3.minus(Duration.ofHours(9)),
-                        closed3, null),
-                operates(me, "IJKL56", PACIFICO, EvidenceSource.ACCREDITATION, "ACR-2207", monthsAgo, now,
-                        now.plus(Duration.ofDays(60))),
-                operates(me, "MNOP78", PACIFICO, EvidenceSource.TRIP, "T-0901", closed20.minus(Duration.ofHours(7)),
-                        closed20, null),
-                operates(OTHER_OPERATOR, "QRST90", ANDES, EvidenceSource.TRIP, "T-5501",
-                        now.minus(Duration.ofHours(3)), now, null),
+                trip(me, ABCD12, ANDES, OPEN_TRIP, tripStart, now),
+                trip(me, EFGH34, ANDES, "T-0987", closed3.minus(Duration.ofHours(9)), closed3),
+                accredited(me, IJKL56, PACIFICO, monthsAgo, now, now.plus(Duration.ofDays(60))),
+                trip(me, MNOP78, PACIFICO, "T-0901", closed20.minus(Duration.ofHours(7)), closed20),
+                trip(OTHER_OPERATOR, QRST90, ANDES, "T-5501", now.minus(Duration.ofHours(3)), now),
 
-                linked("ABCD12", "JAULA-01", "T-1001", now.minus(Duration.ofHours(6)), now),
-                linked("ABCD12", "SEN-0001", "T-1001", now.minus(Duration.ofHours(6)), now));
+                linked(ABCD12, TRAILER, OPEN_TRIP, tripStart, now),
+                linked(ABCD12, DECOY, OPEN_TRIP, tripStart, now));
 
         return new NetworkSnapshot(organizations, assets, evidence);
     }
@@ -111,10 +117,16 @@ public final class DemoNetworkSource implements NetworkSource {
         return new Evidence(EvidenceKind.OWNS, carrier, assetId, null, source, reference, first, last, null);
     }
 
-    private static Evidence operates(String operator, String assetId, String carrier, EvidenceSource source,
-            String reference, Instant first, Instant last, Instant validUntil) {
-        return new Evidence(EvidenceKind.OPERATES, operator, assetId, carrier, source, reference, first, last,
-                validUntil);
+    private static Evidence trip(String operator, String assetId, String carrier, String trip, Instant first,
+            Instant last) {
+        return new Evidence(EvidenceKind.OPERATES, operator, assetId, carrier, EvidenceSource.TRIP, trip, first, last,
+                null);
+    }
+
+    private static Evidence accredited(String operator, String assetId, String carrier, Instant first, Instant last,
+            Instant until) {
+        return new Evidence(EvidenceKind.OPERATES, operator, assetId, carrier, EvidenceSource.ACCREDITATION,
+                ACCREDITATION, first, last, until);
     }
 
     private static Evidence linked(String withAsset, String assetId, String trip, Instant first, Instant last) {

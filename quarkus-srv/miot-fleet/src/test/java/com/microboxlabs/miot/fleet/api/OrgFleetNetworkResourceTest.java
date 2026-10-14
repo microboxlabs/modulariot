@@ -11,6 +11,7 @@ import com.microboxlabs.miot.fleet.network.EvidenceSource;
 import com.microboxlabs.miot.fleet.network.FleetNetworkService;
 import com.microboxlabs.miot.fleet.network.NetworkPolicy;
 import com.microboxlabs.miot.fleet.network.NetworkSource;
+import com.microboxlabs.miot.fleet.network.NetworkUnavailableException;
 import com.microboxlabs.miot.fleet.network.RelationshipView;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.WebApplicationException;
@@ -42,14 +43,21 @@ class OrgFleetNetworkResourceTest {
         org.setOrganizationId(ORG);
         TenantContext tenant = new TenantContext();
         tenant.setClientId("acme-client");
+        tenant.setEffectiveClientIds(List.of("acme-client", "child-client"));
         NetworkSource recording = viewer -> {
-            viewers.add(viewer.organizationId() + "/" + viewer.clientId());
+            viewers.add(viewer.organizationId() + "/" + viewer.clientIds());
             return source.load(viewer);
         };
         return new OrgFleetNetworkResource(tenant, org, new FleetNetworkService(recording, POLICY, CLOCK));
     }
 
     private final OrgFleetNetworkResource resource = resource(new DemoNetworkSource(CLOCK::instant));
+
+    private static String sorted(String viewer) {
+        int slash = viewer.indexOf('/');
+        String ids = viewer.substring(slash + 2, viewer.length() - 1);
+        return viewer.substring(0, slash) + "/" + java.util.Arrays.stream(ids.split(", ")).sorted().toList();
+    }
 
     private static Response call(Uni<Response> uni) {
         return uni.await().atMost(WAIT);
@@ -68,7 +76,8 @@ class OrgFleetNetworkResourceTest {
         assertEquals(2, ((List<?>) relationships.getEntity()).size());
         assertEquals(RelationshipView.class, ((List<?>) relationships.getEntity()).get(0).getClass());
 
-        assertEquals(List.of("acme/acme-client", "acme/acme-client", "acme/acme-client"), viewers);
+        assertEquals(List.of("acme/[acme-client, child-client]", "acme/[acme-client, child-client]",
+                "acme/[acme-client, child-client]"), viewers.stream().map(OrgFleetNetworkResourceTest::sorted).toList());
     }
 
     @Test
@@ -81,7 +90,7 @@ class OrgFleetNetworkResourceTest {
     @Test
     void anUnsetSourceIs503() {
         OrgFleetNetworkResource unset = resource(viewer -> {
-            throw new NetworkSource.UnavailableException("Fleet network data is not configured");
+            throw new NetworkUnavailableException("Fleet network data is not configured");
         });
         Response response = call(unset.assets(ORG));
         assertEquals(503, response.getStatus());

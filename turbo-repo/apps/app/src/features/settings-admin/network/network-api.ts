@@ -51,11 +51,16 @@ export interface NetworkRelationship {
 
 const NETWORK = "/app/api/fleet/network";
 
+/** Evidence expires over hours and days; refresh an open page so expiries stay current. */
+const REFRESH = { revalidateOnFocus: false, refreshInterval: 5 * 60 * 1000 };
+
 /** Fetches only when `enabled`: the caller may view the network. */
 export function useNetworkAssets(enabled: boolean) {
-  return useSWR<NetworkAsset[]>(enabled ? `${NETWORK}/assets` : null, getJson, {
-    revalidateOnFocus: false,
-  });
+  return useSWR<NetworkAsset[]>(
+    enabled ? `${NETWORK}/assets` : null,
+    getJson,
+    REFRESH
+  );
 }
 
 /** Fetches only when `enabled`: the caller may view the network. */
@@ -63,7 +68,7 @@ export function useNetworkRelationships(enabled: boolean) {
   return useSWR<NetworkRelationship[]>(
     enabled ? `${NETWORK}/relationships` : null,
     getJson,
-    { revalidateOnFocus: false }
+    REFRESH
   );
 }
 

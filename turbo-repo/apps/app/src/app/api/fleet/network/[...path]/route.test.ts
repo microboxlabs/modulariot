@@ -44,11 +44,11 @@ describe("/api/fleet/network/[...path]", () => {
     expect(forwardMock.mock.calls).toEqual([
       [
         "/api/v1/orgs/acme%20org/fleet/network/assets",
-        { method: "GET", body: undefined },
+        { method: "GET", body: undefined, sessionOnly: true },
       ],
       [
         "/api/v1/orgs/acme%20org/fleet/network/assets/JAULA-01",
-        { method: "GET", body: undefined },
+        { method: "GET", body: undefined, sessionOnly: true },
       ],
     ]);
   });

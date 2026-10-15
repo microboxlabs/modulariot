@@ -507,7 +507,7 @@ function ActivityChart({
   );
   const empty = days.every((x) => x.movingSeconds + x.idleSeconds === 0);
   const selected: ActivityDay | undefined =
-    picked == null ? days[days.length - 1] : days[picked];
+    picked == null ? days.at(-1) : days[picked];
   const dayName = (day: string) =>
     new Intl.DateTimeFormat(lang, {
       weekday: "short",

@@ -6,7 +6,6 @@ import com.microboxlabs.miot.integrations.email.PlatformMailService.PlatformMail
 import com.microboxlabs.miot.integrations.email.PlatformMailService.SetPlatformMailRequest;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -17,8 +16,6 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import java.util.Map;
-import java.util.function.Supplier;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -36,47 +33,31 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class PlatformMailResource {
 
     private final PlatformMailService service;
-    private final PlatformAuthorizer authorizer;
+    private final PlatformSettingEndpoints endpoints;
 
     @Inject
     public PlatformMailResource(PlatformMailService service, PlatformAuthorizer authorizer) {
         this.service = service;
-        this.authorizer = authorizer;
+        this.endpoints = new PlatformSettingEndpoints(authorizer, "No platform email sender");
     }
 
     @GET
     @Operation(summary = "Get the platform email sender")
     public Uni<PlatformMailView> get() {
-        return authorizer.requirePlatformOwner().flatMap(ignored -> onWorker(service::get));
+        return endpoints.get(service::get);
     }
 
     @PUT
     @Operation(summary = "Set the platform email sender",
             description = "The API key is required the first time; leave it blank to keep the stored key.")
     public Uni<Response> put(SetPlatformMailRequest body) {
-        return authorizer.requirePlatformOwner().flatMap(actor -> onWorker(() -> {
-            try {
-                return Response.ok(service.put(body, actor)).build();
-            } catch (IllegalArgumentException e) {
-                return error(Response.Status.BAD_REQUEST, e.getMessage());
-            } catch (IllegalStateException e) {
-                return error(Response.Status.CONFLICT, e.getMessage());
-            }
-        }));
+        return endpoints.put(actor -> service.put(body, actor));
     }
 
     @DELETE
     @Operation(summary = "Remove the platform email sender and its key")
     public Uni<Response> delete() {
-        return authorizer.requirePlatformOwner().flatMap(actor -> onWorker(() -> {
-            try {
-                return service.delete(actor)
-                        ? Response.noContent().build()
-                        : error(Response.Status.NOT_FOUND, "No platform email sender");
-            } catch (IllegalStateException e) {
-                return error(Response.Status.CONFLICT, e.getMessage());
-            }
-        }));
+        return endpoints.delete(service::delete);
     }
 
     @POST
@@ -84,19 +65,6 @@ public class PlatformMailResource {
     @Consumes(MediaType.WILDCARD)
     @Operation(summary = "Check the platform sender's API key with Resend")
     public Uni<Response> test() {
-        return authorizer.requirePlatformOwner().flatMap(ignored -> onWorker(() -> {
-            var result = service.test();
-            return result == null
-                    ? error(Response.Status.NOT_FOUND, "No platform email sender")
-                    : Response.ok(result).build();
-        }));
-    }
-
-    private static Response error(Response.Status status, String message) {
-        return Response.status(status).type(MediaType.APPLICATION_JSON).entity(Map.of("error", message)).build();
-    }
-
-    private static <T> Uni<T> onWorker(Supplier<T> work) {
-        return Uni.createFrom().item(work).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+        return endpoints.test(service::test);
     }
 }

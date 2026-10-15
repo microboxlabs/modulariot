@@ -197,7 +197,8 @@ export function assetsUrl(filters: AssetFilters): string {
     params.set(key, String(value));
   }
   const query = params.toString();
-  return `${FLEET}/assets${query ? `?${query}` : ""}`;
+  const base = `${FLEET}/assets`;
+  return query ? `${base}?${query}` : base;
 }
 
 /** Fetches only when `enabled`: the caller may view the fleet. */

@@ -3,15 +3,12 @@ package com.microboxlabs.miot.integrations.vehicleimages;
 import com.microboxlabs.miot.integrations.domain.AuthType;
 import com.microboxlabs.miot.integrations.domain.IntegrationConnection;
 import com.microboxlabs.miot.integrations.domain.ProviderType;
-import com.microboxlabs.miot.integrations.dto.ConnectionTestRequest;
 import com.microboxlabs.miot.integrations.dto.ConnectionTestResponse;
-import com.microboxlabs.miot.integrations.dto.CreateCredentialProfileRequest;
-import com.microboxlabs.miot.integrations.dto.CreateIntegrationConnectionRequest;
-import com.microboxlabs.miot.integrations.dto.CredentialProfileResponse;
 import com.microboxlabs.miot.integrations.dto.UpdateIntegrationConnectionRequest;
 import com.microboxlabs.miot.integrations.persistence.IntegrationConnectionRepository;
 import com.microboxlabs.miot.integrations.service.CredentialProfileService;
 import com.microboxlabs.miot.integrations.service.IntegrationConnectionService;
+import com.microboxlabs.miot.integrations.service.PlatformConnectionStore;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -44,8 +41,7 @@ public class PlatformVehicleImagesService {
     }
 
     private final IntegrationConnectionService connections;
-    private final IntegrationConnectionRepository repository;
-    private final CredentialProfileService credentials;
+    private final PlatformConnectionStore store;
     private final CarImagesClient client;
 
     @Inject
@@ -53,13 +49,13 @@ public class PlatformVehicleImagesService {
             IntegrationConnectionRepository repository, CredentialProfileService credentials,
             CarImagesClient client) {
         this.connections = connections;
-        this.repository = repository;
-        this.credentials = credentials;
+        this.store = new PlatformConnectionStore(connections, repository, credentials, ProviderType.CAR_IMAGES,
+                NAME);
         this.client = client;
     }
 
     public PlatformVehicleImagesView get() {
-        IntegrationConnection connection = connection();
+        IntegrationConnection connection = store.find();
         return connection == null ? PlatformVehicleImagesView.none() : view(connection);
     }
 
@@ -67,6 +63,7 @@ public class PlatformVehicleImagesService {
      * Saves the key and secret and tests them right away, so the status describes what is in use.
      *
      * @throws IllegalArgumentException for a missing key, or a missing secret on first save
+     * @throws IllegalStateException when a new secret has no credential to go to
      */
     public PlatformVehicleImagesView put(SetPlatformVehicleImagesRequest body, String actor) {
         String apiKey = body == null || body.apiKey() == null ? "" : body.apiKey().trim();
@@ -74,17 +71,16 @@ public class PlatformVehicleImagesService {
         if (apiKey.isEmpty()) {
             throw new IllegalArgumentException("apiKey is required");
         }
-        IntegrationConnection existing = connection();
+        IntegrationConnection existing = store.find();
         String connectionId = existing == null ? create(apiKey, secret, actor) : existing.id();
         if (existing != null) {
+            if (!secret.isEmpty()) {
+                store.rotateSecret(existing, Map.of(CarImagesKeys.SECRET, secret));
+            }
             connections.updateConnection(PLATFORM_TENANT, connectionId, new UpdateIntegrationConnectionRequest(
                     null, client.baseUrl(), Map.of(CarImagesKeys.API_KEY, apiKey), null, null));
-            if (!secret.isEmpty() && existing.credentialProfileId() != null) {
-                credentials.rotateSecret(PLATFORM_TENANT, existing.credentialProfileId(),
-                        Map.of(CarImagesKeys.SECRET, secret));
-            }
         }
-        connections.testConnection(PLATFORM_TENANT, connectionId, new ConnectionTestRequest(null, null));
+        store.test(connectionId);
         return get();
     }
 
@@ -92,58 +88,25 @@ public class PlatformVehicleImagesService {
         if (secret.isEmpty()) {
             throw new IllegalArgumentException("apiSecret is required");
         }
-        removeCredentials(actor);
-        CredentialProfileResponse credential = credentials.create(PLATFORM_TENANT, actor,
-                new CreateCredentialProfileRequest(NAME, null, AuthType.API_KEY_HEADER, null,
-                        Map.of("name", CarImagesKeys.SECRET_HEADER), Map.of(CarImagesKeys.SECRET, secret)));
-        try {
-            return connections.createConnection(PLATFORM_TENANT, new CreateIntegrationConnectionRequest(
-                    NAME, ProviderType.CAR_IMAGES, client.baseUrl(), credential.id(),
-                    Map.of(CarImagesKeys.API_KEY, apiKey), null)).id();
-        } catch (RuntimeException e) {
-            removeCredentials(actor);
-            throw e;
-        }
+        return store.create(AuthType.API_KEY_HEADER, Map.of("name", CarImagesKeys.SECRET_HEADER),
+                Map.of(CarImagesKeys.SECRET, secret), client.baseUrl(), Map.of(CarImagesKeys.API_KEY, apiKey),
+                actor);
     }
 
     /** @return false when no provider was set */
     public boolean delete(String actor) {
-        IntegrationConnection existing = connection();
-        if (existing == null) {
-            return false;
-        }
-        connections.deleteConnection(PLATFORM_TENANT, existing.id());
-        removeCredentials(actor);
-        return true;
+        return store.delete(actor);
     }
 
     /** Checks the stored key and secret; null when no provider is set. */
     public ConnectionTestResponse test() {
-        IntegrationConnection existing = connection();
-        return existing == null
-                ? null
-                : connections.testConnection(PLATFORM_TENANT, existing.id(), new ConnectionTestRequest(null, null));
-    }
-
-    private IntegrationConnection connection() {
-        return repository.findActiveByProvider(PLATFORM_TENANT, ProviderType.CAR_IMAGES);
-    }
-
-    private void removeCredentials(String actor) {
-        for (CredentialProfileResponse credential : credentials.list(PLATFORM_TENANT)) {
-            if (NAME.equals(credential.displayName())) {
-                credentials.delete(PLATFORM_TENANT, actor, credential.id(), true);
-            }
-        }
+        return store.test();
     }
 
     private PlatformVehicleImagesView view(IntegrationConnection connection) {
         Object apiKey = connection.metadata() == null ? null : connection.metadata().get(CarImagesKeys.API_KEY);
-        CredentialProfileResponse credential = connection.credentialProfileId() == null
-                ? null
-                : credentials.get(PLATFORM_TENANT, connection.credentialProfileId());
         return new PlatformVehicleImagesView(true, connection.id(), apiKey instanceof String s ? s : null,
-                credential == null ? null : credential.secretPreview(),
+                store.secretPreview(connection),
                 connection.status() == null ? null : connection.status().name(),
                 connection.lastTestedAt(), connection.lastTestResult());
     }

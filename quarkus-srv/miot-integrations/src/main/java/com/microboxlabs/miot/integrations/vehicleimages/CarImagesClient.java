@@ -24,7 +24,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class CarImagesClient {
 
-    private static final Duration TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration TIMEOUT = Duration.ofSeconds(2);
     private static final int MAX_BYTES = 64 * 1024;
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -71,12 +71,18 @@ public class CarImagesClient {
             throws IOException, InterruptedException {
         StringJoiner params = new StringJoiner("&");
         query.forEach((k, v) -> params.add(encode(k) + "=" + encode(v)));
-        HttpRequest request = HttpRequest.newBuilder(baseUrl.resolve(path + "?" + params))
-                .timeout(TIMEOUT)
-                .header(CarImagesKeys.SECRET_HEADER, secret)
-                .header("Accept", "application/json")
-                .GET()
-                .build();
+        HttpRequest request;
+        try {
+            request = HttpRequest.newBuilder(baseUrl.resolve(path + "?" + params))
+                    .timeout(TIMEOUT)
+                    .header(CarImagesKeys.SECRET_HEADER, secret)
+                    .header("Accept", "application/json")
+                    .GET()
+                    .build();
+        } catch (IllegalArgumentException e) {
+            // The JDK's message can quote the header value, which is the secret.
+            throw new IOException("Cannot build the carimagesapi request: invalid key or secret");
+        }
         return BoundedHttpTransport.send(httpClient, request, MAX_BYTES, TIMEOUT);
     }
 

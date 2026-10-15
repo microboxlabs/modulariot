@@ -6,7 +6,6 @@ import com.microboxlabs.miot.integrations.vehicleimages.PlatformVehicleImagesSer
 import com.microboxlabs.miot.integrations.vehicleimages.PlatformVehicleImagesService.SetPlatformVehicleImagesRequest;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -17,8 +16,6 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import java.util.Map;
-import java.util.function.Supplier;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -36,47 +33,31 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class PlatformVehicleImagesResource {
 
     private final PlatformVehicleImagesService service;
-    private final PlatformAuthorizer authorizer;
+    private final PlatformSettingEndpoints endpoints;
 
     @Inject
     public PlatformVehicleImagesResource(PlatformVehicleImagesService service, PlatformAuthorizer authorizer) {
         this.service = service;
-        this.authorizer = authorizer;
+        this.endpoints = new PlatformSettingEndpoints(authorizer, "No platform vehicle image provider");
     }
 
     @GET
     @Operation(summary = "Get the platform vehicle image provider")
     public Uni<PlatformVehicleImagesView> get() {
-        return authorizer.requirePlatformOwner().flatMap(ignored -> onWorker(service::get));
+        return endpoints.get(service::get);
     }
 
     @PUT
     @Operation(summary = "Set the platform vehicle image provider",
             description = "The API secret is required the first time; leave it blank to keep the stored secret.")
     public Uni<Response> put(SetPlatformVehicleImagesRequest body) {
-        return authorizer.requirePlatformOwner().flatMap(actor -> onWorker(() -> {
-            try {
-                return Response.ok(service.put(body, actor)).build();
-            } catch (IllegalArgumentException e) {
-                return error(Response.Status.BAD_REQUEST, e.getMessage());
-            } catch (IllegalStateException e) {
-                return error(Response.Status.CONFLICT, e.getMessage());
-            }
-        }));
+        return endpoints.put(actor -> service.put(body, actor));
     }
 
     @DELETE
     @Operation(summary = "Remove the platform vehicle image provider and its secret")
     public Uni<Response> delete() {
-        return authorizer.requirePlatformOwner().flatMap(actor -> onWorker(() -> {
-            try {
-                return service.delete(actor)
-                        ? Response.noContent().build()
-                        : error(Response.Status.NOT_FOUND, "No platform vehicle image provider");
-            } catch (IllegalStateException e) {
-                return error(Response.Status.CONFLICT, e.getMessage());
-            }
-        }));
+        return endpoints.delete(service::delete);
     }
 
     @POST
@@ -84,19 +65,6 @@ public class PlatformVehicleImagesResource {
     @Consumes(MediaType.WILDCARD)
     @Operation(summary = "Check the platform key and secret with carimagesapi.com")
     public Uni<Response> test() {
-        return authorizer.requirePlatformOwner().flatMap(ignored -> onWorker(() -> {
-            var result = service.test();
-            return result == null
-                    ? error(Response.Status.NOT_FOUND, "No platform vehicle image provider")
-                    : Response.ok(result).build();
-        }));
-    }
-
-    private static Response error(Response.Status status, String message) {
-        return Response.status(status).type(MediaType.APPLICATION_JSON).entity(Map.of("error", message)).build();
-    }
-
-    private static <T> Uni<T> onWorker(Supplier<T> work) {
-        return Uni.createFrom().item(work).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+        return endpoints.test(service::test);
     }
 }

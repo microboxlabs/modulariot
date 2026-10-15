@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.integrations.vehicleimages;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.core.vehicle.VehicleImages;
@@ -16,9 +17,11 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,11 +48,12 @@ class CarImagesVehicleImagesTest {
             String query = exchange.getRequestURI().getRawQuery();
             requests.add(query);
             secrets.add(exchange.getRequestHeaders().getFirst("X-Api-Secret"));
-            boolean known = !query.contains("make=Unknown");
-            byte[] body = (known
-                    ? "{\"url\":\"https://cdn.example/image?" + query + "&expires=" + EXPIRES + "&sig=ab\"}"
-                    : "{\"error\":\"not found\"}").getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(known ? 200 : 404, body.length);
+            int status = query.contains("make=Unknown") ? 404 : query.contains("make=Broken") ? 500 : 200;
+            long expires = query.contains("make=Millis") ? EXPIRES * 1000 : EXPIRES;
+            byte[] body = (status == 200
+                    ? "{\"url\":\"https://cdn.example/image?" + query + "&expires=" + expires + "&sig=ab\"}"
+                    : "{\"error\":\"no\"}").getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(status, body.length);
             exchange.getResponseBody().write(body);
             exchange.close();
         });
@@ -152,5 +156,84 @@ class CarImagesVehicleImagesTest {
                 AuthType.API_KEY_HEADER, null, Map.of());
         assertTrue(images(Map.of("acme", elsewhere)).find("acme", volvo()).isEmpty());
         assertTrue(requests.isEmpty());
+    }
+
+    @Test
+    void aFailureGivesNothingAndIsNotAskedForAgainForTwoMinutes() {
+        VehicleImages images = images(Map.of("acme", connection("c1", "ci_acme", "s3cret")));
+        VehicleImages.Query broken = new VehicleImages.Query("Broken", null, null, null, null);
+        assertTrue(images.find("acme", broken).isEmpty());
+        assertTrue(images.find("acme", broken).isEmpty());
+        assertEquals(1, requests.size());
+
+        now.set(now.get().plusSeconds(121));
+        images.find("acme", broken);
+        assertEquals(2, requests.size());
+    }
+
+    @Test
+    void aSecretAHeaderCannotCarryFailsAsIoAndGivesNothing() {
+        assertThrows(IOException.class, () -> new CarImagesClient(base).checkKey("ci_acme", "bad\r\nsecret"));
+        VehicleImages images = images(Map.of("acme", connection("c1", "ci_acme", "bad\r\nsecret")));
+        assertTrue(images.find("acme", volvo()).isEmpty());
+        assertTrue(requests.isEmpty());
+    }
+
+    @Test
+    void anUnexpectedErrorGivesNothing() {
+        CarImagesClient failing = new CarImagesClient(base) {
+            @Override
+            public SignedUrl signedUrl(String apiKey, String secret, Map<String, String> params) {
+                throw new ArithmeticException("overflow");
+            }
+        };
+        VehicleImages images = new CarImagesVehicleImages(
+                resolver(Map.of("acme", connection("c1", "ci_acme", "s3cret"))), failing, Clock.systemUTC());
+        assertTrue(images.find("acme", volvo()).isEmpty());
+    }
+
+    @Test
+    void aNewAccountKeyDoesNotReuseTheOldAnswers() {
+        Map<String, ResolvedConnection> byTenant = new HashMap<>();
+        byTenant.put("acme", connection("c1", "ci_old", "s3cret"));
+        VehicleImages images = images(byTenant);
+        images.find("acme", volvo());
+        byTenant.put("acme", connection("c1", "ci_new", "s3cret"));
+        images.find("acme", volvo());
+        assertEquals(2, requests.size());
+        assertTrue(requests.get(1).startsWith("api_key=ci_new"));
+    }
+
+    @Test
+    void anExpiryInMillisecondsIsHeldToADay() {
+        VehicleImages images = images(Map.of("acme", connection("c1", "ci_acme", "s3cret")));
+        Optional<VehicleImages.Image> image = images.find("acme", new VehicleImages.Query("Millis", null, null, null,
+                null));
+        assertTrue(image.isPresent());
+        assertEquals(now.get().plus(Duration.ofDays(1)), image.get().expiresAt());
+    }
+
+    @Test
+    void queriesThatPrintAlikeAreKeptApart() {
+        VehicleImages images = images(Map.of("acme", connection("c1", "ci_acme", "s3cret")));
+        images.find("acme", new VehicleImages.Query("Volvo", "FH", 2022, null, null));
+        images.find("acme", new VehicleImages.Query("Volvo", "FH, year=2022", null, null, null));
+        assertEquals(2, requests.size());
+    }
+
+    @Test
+    void usesThePlatformWhenTheOrganizationsProviderCannotBeUsed() {
+        ResolvedConnection elsewhere = new ResolvedConnection("c1", URI.create("https://evil.example"),
+                Map.of(CarImagesKeys.API_KEY, "ci_acme"), Map.of(CarImagesKeys.SECRET, "s3cret"),
+                AuthType.API_KEY_HEADER, null, Map.of());
+        ResolvedConnection noSecret = new ResolvedConnection("c2", base, Map.of(CarImagesKeys.API_KEY, "ci_acme"),
+                Map.of(), AuthType.API_KEY_HEADER, null, Map.of());
+        ResolvedConnection platform = connection("p1", "ci_platform", "platform-secret");
+        for (ResolvedConnection org : List.of(elsewhere, noSecret)) {
+            requests.clear();
+            VehicleImages images = images(Map.of("acme", org, PlatformMailService.PLATFORM_TENANT, platform));
+            assertTrue(images.find("acme", volvo()).isPresent());
+            assertTrue(requests.get(0).startsWith("api_key=ci_platform"));
+        }
     }
 }

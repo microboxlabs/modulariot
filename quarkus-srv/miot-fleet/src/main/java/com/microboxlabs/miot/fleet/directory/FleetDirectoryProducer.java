@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -51,25 +50,18 @@ public class FleetDirectoryProducer {
     private Wiring wiring;
 
     FleetDirectoryProducer(Vertx vertx, Instance<Pool> modulithPool, VehicleImages images,
-            @ConfigProperty(name = "miot.fleet.source", defaultValue = "none") String source,
-            @ConfigProperty(name = "miot.fleet.gps.reactive-url") Optional<String> url,
-            @ConfigProperty(name = "miot.fleet.gps.username") Optional<String> username,
-            @ConfigProperty(name = "miot.fleet.gps.password") Optional<String> password,
-            @ConfigProperty(name = "miot.fleet.zone", defaultValue = "America/Santiago") String zone,
-            @ConfigProperty(name = "miot.fleet.cache-ttl", defaultValue = "PT1M") Duration cacheTtl,
-            @ConfigProperty(name = "miot.fleet.activity.history", defaultValue = "P14D") Duration history,
-            @ConfigProperty(name = "miot.fleet.activity.backfill-per-run", defaultValue = "8") int backfillPerRun) {
+            FleetConfig config) {
         this.vertx = vertx;
         this.modulithPool = modulithPool;
         this.images = images;
-        this.source = source;
-        this.url = url.filter(s -> !s.isBlank());
-        this.username = username.filter(s -> !s.isBlank());
-        this.password = password;
-        this.zone = ZoneId.of(zone);
-        this.cacheTtl = cacheTtl;
-        this.history = history;
-        this.backfillPerRun = backfillPerRun;
+        this.source = config.source();
+        this.url = config.gps().reactiveUrl().filter(s -> !s.isBlank());
+        this.username = config.gps().username().filter(s -> !s.isBlank());
+        this.password = config.gps().password();
+        this.zone = ZoneId.of(config.zone());
+        this.cacheTtl = config.cacheTtl();
+        this.history = config.activity().history();
+        this.backfillPerRun = config.activity().backfillPerRun();
     }
 
     /** Singleton: the service has no no-args constructor, so it cannot sit behind a client proxy. */

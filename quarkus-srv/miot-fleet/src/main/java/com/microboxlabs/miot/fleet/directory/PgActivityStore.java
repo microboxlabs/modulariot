@@ -11,21 +11,21 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+import java.util.stream.StreamSupport;
 
 /** {@link ActivityStore} on the modulith database, schema {@code miot_fleet}. */
 public class PgActivityStore implements ActivityStore {
 
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(60);
 
-    private static final String DELETE_HOURS = """
-            DELETE FROM miot_fleet.asset_activity_hour WHERE hour >= $1 AND hour < $2""";
+    private static final String DELETE_HOURS =
+            "DELETE FROM miot_fleet.asset_activity_hour WHERE hour >= $1 AND hour < $2";
 
     private static final String INSERT_HOUR = """
             INSERT INTO miot_fleet.asset_activity_hour (asset_id, hour, signals, engine_s, idle_s, moving_s, km)
@@ -33,8 +33,8 @@ public class PgActivityStore implements ActivityStore {
             ON CONFLICT (asset_id, hour) DO UPDATE SET signals = EXCLUDED.signals, engine_s = EXCLUDED.engine_s,
                 idle_s = EXCLUDED.idle_s, moving_s = EXCLUDED.moving_s, km = EXCLUDED.km""";
 
-    private static final String DELETE_DAYS = """
-            DELETE FROM miot_fleet.asset_activity_day WHERE day >= $1 AND day <= $2""";
+    private static final String DELETE_DAYS =
+            "DELETE FROM miot_fleet.asset_activity_day WHERE day >= $1 AND day <= $2";
 
     // $1 and $2 bound the local days that contain the saved hours, as UTC instants.
     private static final String REBUILD_DAYS = """
@@ -81,12 +81,11 @@ public class PgActivityStore implements ActivityStore {
         LocalDate lastDay = to.minusSeconds(1).atZone(zone).toLocalDate();
         Instant dayStart = firstDay.atStartOfDay(zone).toInstant();
         Instant dayEnd = lastDay.plusDays(1).atStartOfDay(zone).toInstant();
-        List<Tuple> rows = new ArrayList<>();
-        for (ActivityHour h : hours) {
-            rows.add(Tuple.tuple().addValue(h.assetId()).addValue(time(h.hour())).addValue(h.signals())
-                    .addValue(h.engineSeconds()).addValue(h.idleSeconds()).addValue(h.movingSeconds())
-                    .addValue(h.km()));
-        }
+        List<Tuple> rows = hours.stream()
+                .map(h -> Tuple.tuple().addValue(h.assetId()).addValue(time(h.hour())).addValue(h.signals())
+                        .addValue(h.engineSeconds()).addValue(h.idleSeconds()).addValue(h.movingSeconds())
+                        .addValue(h.km()))
+                .toList();
         pool.get().withTransaction(tx -> {
             Uni<?> chain = tx.preparedQuery(DELETE_HOURS).execute(Tuple.of(time(from), time(to)));
             if (!rows.isEmpty()) {
@@ -102,12 +101,10 @@ public class PgActivityStore implements ActivityStore {
 
     @Override
     public List<ActivityDay> days(String assetId, LocalDate from, LocalDate to) {
-        List<ActivityDay> found = new ArrayList<>();
-        for (Row r : query(DAYS, Tuple.of(assetId, from, to))) {
-            found.add(new ActivityDay(r.getLocalDate("day"), r.getInteger("signals"), r.getInteger("engine_s"),
-                    r.getInteger("idle_s"), r.getInteger("moving_s"), r.getDouble("km")));
-        }
-        return found;
+        return StreamSupport.stream(query(DAYS, Tuple.of(assetId, from, to)).spliterator(), false)
+                .map(r -> new ActivityDay(r.getLocalDate("day"), r.getInteger("signals"), r.getInteger("engine_s"),
+                        r.getInteger("idle_s"), r.getInteger("moving_s"), r.getDouble("km")))
+                .toList();
     }
 
     @Override

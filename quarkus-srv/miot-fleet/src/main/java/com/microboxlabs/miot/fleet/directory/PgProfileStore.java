@@ -14,7 +14,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -23,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.StreamSupport;
 
 /** {@link ProfileStore} on the modulith database, schema {@code miot_fleet}. */
 public class PgProfileStore implements ProfileStore {
@@ -39,11 +39,16 @@ public class PgProfileStore implements ProfileStore {
 
     private static final String FIND = ALL + " AND asset_id = $2";
 
-    private static final String UPSERT = """
-            INSERT INTO miot_fleet.asset_profile (organization_id, asset_id, fields, documents, updated_by, updated_at)
-            VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6)
-            ON CONFLICT (organization_id, asset_id) DO UPDATE SET fields = EXCLUDED.fields,
-                documents = EXCLUDED.documents, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at""";
+    private static final String CREATE = """
+            INSERT INTO miot_fleet.asset_profile (organization_id, asset_id) VALUES ($1, $2)
+            ON CONFLICT DO NOTHING""";
+
+    private static final String LOCK = FIND + " FOR UPDATE";
+
+    private static final String UPDATE = """
+            UPDATE miot_fleet.asset_profile SET fields = $3::jsonb, documents = $4::jsonb, updated_by = $5,
+                updated_at = $6
+            WHERE organization_id = $1 AND asset_id = $2""";
 
     private static final String INSERT_CHANGE = """
             INSERT INTO miot_fleet.asset_change (organization_id, asset_id, field, old_value, new_value, origin,
@@ -56,8 +61,8 @@ public class PgProfileStore implements ProfileStore {
             ORDER BY changed_at DESC, id DESC
             LIMIT $3""";
 
-    private static final String DISMISSED = """
-            SELECT asset_id, suggestion FROM miot_fleet.asset_suggestion_dismissal WHERE organization_id = $1""";
+    private static final String DISMISSED =
+            "SELECT asset_id, suggestion FROM miot_fleet.asset_suggestion_dismissal WHERE organization_id = $1";
 
     private static final String DISMISS = """
             INSERT INTO miot_fleet.asset_suggestion_dismissal (organization_id, asset_id, suggestion, dismissed_by)
@@ -87,32 +92,35 @@ public class PgProfileStore implements ProfileStore {
     }
 
     @Override
-    public Profile save(Profile p, List<Change> changes) {
-        Map<String, String> documents = new LinkedHashMap<>();
-        p.documents().forEach((k, v) -> documents.put(k, v.toString()));
-        Tuple upsert = Tuple.tuple().addValue(p.organizationId()).addValue(p.assetId()).addValue(json(p.fields()))
-                .addValue(json(documents)).addValue(p.updatedBy()).addValue(time(p.updatedAt()));
-        pool.get().withTransaction(tx -> {
-            Uni<?> chain = tx.preparedQuery(UPSERT).execute(upsert);
-            for (Change c : changes) {
-                Tuple change = Tuple.tuple().addValue(p.organizationId()).addValue(p.assetId()).addValue(c.field())
-                        .addValue(c.oldValue()).addValue(c.newValue()).addValue(c.origin()).addValue(c.changedBy())
-                        .addValue(time(c.changedAt()));
-                chain = chain.chain(() -> tx.preparedQuery(INSERT_CHANGE).execute(change));
-            }
-            return chain.replaceWithVoid();
-        }).await().atMost(QUERY_TIMEOUT);
-        return p;
+    public Profile apply(String organizationId, String assetId, List<Change> changes) {
+        Tuple id = Tuple.of(organizationId, assetId);
+        return pool.get().withTransaction(tx -> tx.preparedQuery(CREATE).execute(id)
+                .chain(() -> tx.preparedQuery(LOCK).execute(id))
+                .chain(rows -> {
+                    Profile p = profile(rows.iterator().next()).with(changes);
+                    Map<String, String> documents = new LinkedHashMap<>();
+                    p.documents().forEach((k, v) -> documents.put(k, v.toString()));
+                    Uni<?> chain = tx.preparedQuery(UPDATE).execute(Tuple.tuple().addValue(organizationId)
+                            .addValue(assetId).addValue(json(p.fields())).addValue(json(documents))
+                            .addValue(p.updatedBy()).addValue(time(p.updatedAt())));
+                    for (Change c : changes) {
+                        Tuple change = Tuple.tuple().addValue(organizationId).addValue(assetId).addValue(c.field())
+                                .addValue(c.oldValue()).addValue(c.newValue()).addValue(c.origin())
+                                .addValue(c.changedBy()).addValue(time(c.changedAt()));
+                        chain = chain.chain(() -> tx.preparedQuery(INSERT_CHANGE).execute(change));
+                    }
+                    return chain.replaceWith(p);
+                })).await().atMost(QUERY_TIMEOUT);
     }
 
     @Override
     public List<Change> changes(String organizationId, String assetId, int limit) {
-        List<Change> found = new ArrayList<>();
-        for (Row r : query(pool.get(), CHANGES, Tuple.of(organizationId, assetId, limit))) {
-            found.add(new Change(r.getString("field"), r.getString("old_value"), r.getString("new_value"),
-                    r.getString("origin"), r.getString("changed_by"), r.getOffsetDateTime("changed_at").toInstant()));
-        }
-        return found;
+        RowSet<Row> rows = query(pool.get(), CHANGES, Tuple.of(organizationId, assetId, limit));
+        return StreamSupport.stream(rows.spliterator(), false)
+                .map(r -> new Change(r.getString("field"), r.getString("old_value"), r.getString("new_value"),
+                        r.getString("origin"), r.getString("changed_by"),
+                        r.getOffsetDateTime("changed_at").toInstant()))
+                .toList();
     }
 
     @Override

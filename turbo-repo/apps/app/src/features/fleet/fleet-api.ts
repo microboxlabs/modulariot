@@ -216,7 +216,8 @@ export function useFleetActivity(id: string, days: number, enabled: boolean) {
   return useSWR<ActivityDay[]>(
     enabled ? `${assetPath(id)}/activity?days=${days}` : null,
     getJson,
-    { revalidateOnFocus: false }
+    // The rollup runs every 15 minutes.
+    { revalidateOnFocus: false, refreshInterval: 5 * 60_000 }
   );
 }
 

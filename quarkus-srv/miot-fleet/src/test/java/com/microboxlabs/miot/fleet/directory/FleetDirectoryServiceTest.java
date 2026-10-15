@@ -14,6 +14,7 @@ import com.microboxlabs.miot.fleet.directory.Views.FieldView;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -104,6 +105,23 @@ class FleetDirectoryServiceTest {
     }
 
     @Test
+    void editsOfDifferentFieldsFromTheSameStartBothPersist() {
+        Instant at = CLOCK.instant();
+        profiles.apply("acme", "DEMO-TR2", List.of(new Change("label", null, "Tracto 2", "MANUAL", ACTOR, at)));
+        profiles.apply("acme", "DEMO-TR2", List.of(new Change("carrier", null, "Otra", "MANUAL", ACTOR, at),
+                new Change(Profile.DOCUMENT + "accreditation", null, "2027-01-31", "MANUAL", ACTOR, at)));
+        Profile stored = profiles.find("acme", "DEMO-TR2").orElseThrow();
+        assertEquals(Map.of("label", "Tracto 2", "carrier", "Otra"), stored.fields());
+        assertEquals(LocalDate.of(2027, 1, 31), stored.documents().get("accreditation"));
+    }
+
+    @Test
+    void aPageFarPastTheEndIsEmpty() {
+        AssetPage page = fleet.list(VIEWER, new AssetQuery(null, null, null, null, false, false, null, 50_000_000, 50));
+        assertTrue(page.items().isEmpty());
+    }
+
+    @Test
     void anUnchangedValueRecordsNoChange() {
         fleet.update(VIEWER, "DEMO-TR2", fields(Map.of("label", "Tracto 2")), ACTOR);
         AssetDetail again = fleet.update(VIEWER, "DEMO-TR2", fields(Map.of("label", " Tracto 2 ")), ACTOR);
@@ -113,14 +131,14 @@ class FleetDirectoryServiceTest {
 
     @Test
     void rejectsUnknownFieldsAndBadValues() {
-        assertThrows(IllegalArgumentException.class,
-                () -> fleet.update(VIEWER, "DEMO-TR1", fields(Map.of("owner", "x")), ACTOR));
-        assertThrows(IllegalArgumentException.class,
-                () -> fleet.update(VIEWER, "DEMO-TR1", fields(Map.of("kind", "bus")), ACTOR));
-        assertThrows(IllegalArgumentException.class,
-                () -> fleet.update(VIEWER, "DEMO-TR1", fields(Map.of("year", "1800")), ACTOR));
-        assertThrows(IllegalArgumentException.class, () -> fleet.update(VIEWER, "DEMO-TR1",
-                new AssetUpdate(Map.of(), Map.of("insurance", "31/03/2027")), ACTOR));
+        AssetUpdate unknownField = fields(Map.of("owner", "x"));
+        AssetUpdate badKind = fields(Map.of("kind", "bus"));
+        AssetUpdate badYear = fields(Map.of("year", "1800"));
+        AssetUpdate badDate = new AssetUpdate(Map.of(), Map.of("insurance", "31/03/2027"));
+        assertThrows(IllegalArgumentException.class, () -> fleet.update(VIEWER, "DEMO-TR1", unknownField, ACTOR));
+        assertThrows(IllegalArgumentException.class, () -> fleet.update(VIEWER, "DEMO-TR1", badKind, ACTOR));
+        assertThrows(IllegalArgumentException.class, () -> fleet.update(VIEWER, "DEMO-TR1", badYear, ACTOR));
+        assertThrows(IllegalArgumentException.class, () -> fleet.update(VIEWER, "DEMO-TR1", badDate, ACTOR));
         assertThrows(NoSuchElementException.class, () -> fleet.asset(VIEWER, "OTHER-ASSET"));
     }
 

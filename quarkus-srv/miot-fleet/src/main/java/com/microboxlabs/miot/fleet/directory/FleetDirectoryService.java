@@ -49,6 +49,9 @@ public class FleetDirectoryService {
     static final String MANUAL = "MANUAL";
     static final String SUGGESTION = "SUGGESTION";
 
+    private static final String LABEL_FIELD = "label";
+    private static final String USUAL_DRIVER_FIELD = "usualDriver";
+
     private static final int PERIOD_DAYS = 30;
     private static final int SUGGESTION_MIN_TRIPS = 5;
     private static final double SUGGESTION_MIN_SHARE = 0.6;
@@ -107,7 +110,7 @@ public class FleetDirectoryService {
 
     private static Map<String, Function<AssetFacts, Integration>> fields() {
         Map<String, Function<AssetFacts, Integration>> f = new LinkedHashMap<>();
-        f.put("label", a -> Integration.NONE);
+        f.put(LABEL_FIELD, a -> Integration.NONE);
         f.put("kind", a -> a.reportedType() == null ? Integration.NONE
                 : new Integration(AssetKind.fromReported(a.reportedType()).name(), FieldSource.SIGNAL,
                         a.reportedType(), null, null));
@@ -118,7 +121,7 @@ public class FleetDirectoryService {
         f.put("carrier", a -> trips(a.carrier()));
         f.put("base", a -> trips(a.origin()));
         f.put("usualTrailer", a -> Integration.NONE);
-        f.put("usualDriver", a -> Integration.NONE);
+        f.put(USUAL_DRIVER_FIELD, a -> Integration.NONE);
         return f;
     }
 
@@ -136,11 +139,11 @@ public class FleetDirectoryService {
         LocalDate today = today();
         Instant endOfToday = today.plusDays(1).atStartOfDay(zone).toInstant();
 
-        List<AssetRow> rows = new ArrayList<>();
-        for (AssetFacts facts : snapshot.facts().values()) {
-            Profile profile = stored.getOrDefault(facts.id(), Profile.empty(viewer.organizationId(), facts.id()));
-            rows.add(row(facts, profile, dismissed.getOrDefault(facts.id(), Set.of()), snapshot, today));
-        }
+        List<AssetRow> rows = snapshot.facts().values().stream()
+                .map(facts -> row(facts,
+                        stored.getOrDefault(facts.id(), Profile.empty(viewer.organizationId(), facts.id())),
+                        dismissed.getOrDefault(facts.id(), Set.of()), snapshot, today))
+                .toList();
 
         int withSignal = 0;
         int inTrip = 0;
@@ -159,7 +162,7 @@ public class FleetDirectoryService {
             if (r.status() == AssetStatus.IN_TRIP) {
                 inTrip++;
             }
-            if (r.nextTrip() != null && r.nextTrip().start() != null && r.nextTrip().start().isBefore(endOfToday)) {
+            if (startsBefore(r.nextTrip(), endOfToday)) {
                 plannedToday++;
             }
             if (due(stored.get(r.id()), today)) {
@@ -180,7 +183,7 @@ public class FleetDirectoryService {
                 .filter(r -> matches(r, query, stored.get(r.id()), today))
                 .sorted(order(query.sort()))
                 .toList();
-        int from = Math.min(query.page() * query.size(), matching.size());
+        int from = (int) Math.min((long) query.page() * query.size(), matching.size());
         int to = Math.min(from + query.size(), matching.size());
         return new AssetPage(matching.subList(from, to), matching.size(), query.page(), query.size(), summary,
                 facets(kinds), facets(carriers));
@@ -217,8 +220,6 @@ public class FleetDirectoryService {
         Profile current = profiles.find(viewer.organizationId(), assetId)
                 .orElse(Profile.empty(viewer.organizationId(), assetId));
         Instant now = clock.instant();
-        Map<String, String> fields = new LinkedHashMap<>(current.fields());
-        Map<String, LocalDate> documents = new LinkedHashMap<>(current.documents());
         List<Change> changes = new ArrayList<>();
 
         Map<String, String> requestedFields = update.fields() == null ? Map.of() : update.fields();
@@ -227,13 +228,8 @@ public class FleetDirectoryService {
                 throw new IllegalArgumentException("Unknown field: " + key);
             }
             String value = normalize(key, raw);
-            String old = fields.get(key);
+            String old = current.fields().get(key);
             if (!Objects.equals(old, value)) {
-                if (value == null) {
-                    fields.remove(key);
-                } else {
-                    fields.put(key, value);
-                }
                 changes.add(new Change(key, old, value, MANUAL, actor, now));
             }
         });
@@ -243,18 +239,13 @@ public class FleetDirectoryService {
                 throw new IllegalArgumentException("Unknown document: " + key);
             }
             LocalDate value = date(raw);
-            LocalDate old = documents.get(key);
+            LocalDate old = current.documents().get(key);
             if (!Objects.equals(old, value)) {
-                if (value == null) {
-                    documents.remove(key);
-                } else {
-                    documents.put(key, value);
-                }
-                changes.add(new Change("document." + key, text(old), text(value), MANUAL, actor, now));
+                changes.add(new Change(Profile.DOCUMENT + key, text(old), text(value), MANUAL, actor, now));
             }
         });
         Profile saved = changes.isEmpty() ? current
-                : profiles.save(new Profile(viewer.organizationId(), assetId, fields, documents, actor, now), changes);
+                : profiles.apply(viewer.organizationId(), assetId, changes);
         return detail(viewer, facts, saved, snapshot, dismissed(viewer, assetId));
     }
 
@@ -268,10 +259,9 @@ public class FleetDirectoryService {
                 .filter(s -> s.kind().equals(kind)).findFirst()
                 .orElseThrow(() -> new NoSuchElementException("No suggestion " + kind + " for " + assetId));
         Instant now = clock.instant();
-        Map<String, String> fields = new LinkedHashMap<>(current.fields());
-        String old = fields.put(suggestion.field(), suggestion.value());
-        Profile saved = profiles.save(new Profile(viewer.organizationId(), assetId, fields, current.documents(),
-                actor, now), List.of(new Change(suggestion.field(), old, suggestion.value(), SUGGESTION, actor, now)));
+        String old = current.fields().get(suggestion.field());
+        Profile saved = profiles.apply(viewer.organizationId(), assetId,
+                List.of(new Change(suggestion.field(), old, suggestion.value(), SUGGESTION, actor, now)));
         return detail(viewer, facts, saved, snapshot, dismissed(viewer, assetId));
     }
 
@@ -325,7 +315,7 @@ public class FleetDirectoryService {
     private AssetRow row(AssetFacts facts, Profile profile, Set<String> dismissed, Snapshot snapshot,
             LocalDate today) {
         ActivityTotals totals = snapshot.totals().getOrDefault(facts.id(), ActivityTotals.NONE);
-        return new AssetRow(facts.id(), profile.fields().get("label"), kind(facts, profile), status(facts),
+        return new AssetRow(facts.id(), profile.fields().get(LABEL_FIELD), kind(facts, profile), status(facts),
                 carrier(facts, profile), driver(facts, profile), facts.currentTrip(), facts.nextTrip(),
                 document("accreditation", profile, today), round(totals.km()), facts.lastSignalAt(),
                 facts.gpsProvider(), suggestions(facts, profile, dismissed).size());
@@ -350,7 +340,7 @@ public class FleetDirectoryService {
         List<DocumentView> documents = DOCUMENTS.stream().map(key -> document(key, profile, today)).toList();
         LiveView live = new LiveView(facts.lastSignalAt(), facts.lat(), facts.lon(), facts.speed(), facts.engineOn(),
                 facts.gpsProvider(), driver(facts, profile));
-        return new AssetDetail(facts.id(), profile.fields().get("label"), kind(facts, profile), status(facts),
+        return new AssetDetail(facts.id(), profile.fields().get(LABEL_FIELD), kind(facts, profile), status(facts),
                 image(viewer, facts, profile, fields), fields,
                 live, indicators, facts.currentTrip(), data.plannedTrips(facts.id()),
                 data.recentTrips(facts.id(), 10), documents, suggestions(facts, profile, dismissed),
@@ -406,7 +396,7 @@ public class FleetDirectoryService {
         List<SuggestionView> found = new ArrayList<>();
         if (kind(facts, profile) == AssetKind.TRUCK) {
             suggest(USUAL_TRAILER, "usualTrailer", facts.trailer(), profile, dismissed).ifPresent(found::add);
-            suggest(USUAL_DRIVER, "usualDriver", facts.driver(), profile, dismissed).ifPresent(found::add);
+            suggest(USUAL_DRIVER, USUAL_DRIVER_FIELD, facts.driver(), profile, dismissed).ifPresent(found::add);
         }
         return found;
     }
@@ -458,7 +448,7 @@ public class FleetDirectoryService {
         if (facts.signalDriver() != null) {
             return facts.signalDriver();
         }
-        return profile.fields().get("usualDriver");
+        return profile.fields().get(USUAL_DRIVER_FIELD);
     }
 
     private static DocumentView document(String key, Profile profile, LocalDate today) {
@@ -506,6 +496,10 @@ public class FleetDirectoryService {
         String needle = q.q().trim().toLowerCase(Locale.ROOT);
         return contains(r.id(), needle) || contains(r.label(), needle) || contains(r.driver(), needle)
                 || contains(r.carrier(), needle);
+    }
+
+    private static boolean startsBefore(TripView trip, Instant end) {
+        return trip != null && trip.start() != null && trip.start().isBefore(end);
     }
 
     private static boolean contains(String value, String needle) {

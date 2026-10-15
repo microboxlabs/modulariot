@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.StreamSupport;
 
 /**
  * {@link FleetData} over the GPS database: {@code last_signal_data}, {@code asset_client_map},
@@ -22,6 +23,11 @@ import java.util.function.Supplier;
 public class GpsFleetData implements FleetData {
 
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(60);
+
+    private static final String CARRIER = "carrier";
+    private static final String TRAILER = "trailer";
+    private static final String DRIVER = "driver";
+    private static final String ORIGIN = "origin";
 
     private static final String TRIP_COLUMNS = """
             t.trip_id, t.origin_geofence_label, t.destination_geofence_label, t.status, t.start_time,
@@ -89,8 +95,8 @@ public class GpsFleetData implements FleetData {
             LEFT JOIN carrier ON carrier.asset_id = v.asset_id
             LEFT JOIN trailer ON trailer.asset_id = v.asset_id
             LEFT JOIN driver ON driver.asset_id = v.asset_id
-            LEFT JOIN origin ON origin.asset_id = v.asset_id""".formatted(TRIP_COLUMNS, top("carrier"),
-            top("trailer"), top("driver"), top("origin"));
+            LEFT JOIN origin ON origin.asset_id = v.asset_id""".formatted(TRIP_COLUMNS, top(CARRIER),
+            top(TRAILER), top(DRIVER), top(ORIGIN));
 
     private static final String PLANNED = "SELECT " + TRIP_COLUMNS + """
              FROM public.live_trip t
@@ -108,35 +114,40 @@ public class GpsFleetData implements FleetData {
             ORDER BY t.start_time DESC
             LIMIT $2""";
 
-    // asset_data is indexed on ("timestamp", asset_id). The 15 minutes before the window only give each first
-    // signal its predecessor, so each total is capped at the hour. A gap counts up to 10 minutes; a segment counts
-    // as distance when either end moves and the implied speed stays under 150 km/h.
+    // asset_data is indexed on ("timestamp", asset_id). Each signal covers the time until the next one, at most
+    // 10 minutes, in the state it reported; that interval is clipped to the window, so the 10 minutes on each side
+    // only bring the neighbours of the edge signals. A segment counts as distance when either end moves and the
+    // implied speed stays under 150 km/h; it is split in proportion to the time inside the window.
     private static final String ACTIVITY = """
             WITH pts AS (
                 SELECT asset_id, "timestamp" AS ts, coalesce(speed, 0) AS speed,
                        (sensors ->> 'engine_status')::boolean AS eng, location
                 FROM public.asset_data
-                WHERE "timestamp" >= $1::timestamptz - interval '15 minutes' AND "timestamp" < $2
+                WHERE "timestamp" >= $1::timestamptz - interval '10 minutes'
+                  AND "timestamp" < $2::timestamptz + interval '10 minutes'
             ),
             seq AS (
-                SELECT asset_id, ts, speed, location, lag(ts) OVER w AS prev_ts, lag(eng) OVER w AS prev_eng,
-                       lag(speed) OVER w AS prev_speed, lag(location) OVER w AS prev_loc
+                SELECT asset_id, ts, speed, eng, location, lead(ts) OVER w AS next_ts,
+                       lead(speed) OVER w AS next_speed, lead(location) OVER w AS next_loc
                 FROM pts WINDOW w AS (PARTITION BY asset_id ORDER BY ts)
             ),
-            gaps AS (
-                SELECT asset_id, ts, prev_eng, prev_speed,
-                       least(extract(epoch FROM ts - prev_ts), 600) AS gap,
-                       CASE WHEN ts - prev_ts <= interval '10 minutes' AND (prev_speed >= 3 OR speed >= 3)
-                            THEN ST_Distance(location, prev_loc) / 1000.0 ELSE 0 END AS km
-                FROM seq WHERE ts >= $1 AND prev_ts IS NOT NULL
+            seg AS (
+                SELECT asset_id, ts, speed, eng,
+                       greatest(extract(epoch FROM coalesce(next_ts, ts + interval '10 minutes') - ts), 1) AS span,
+                       greatest(extract(epoch FROM least(next_ts, ts + interval '10 minutes', $2::timestamptz)
+                           - greatest(ts, $1::timestamptz)), 0) AS secs,
+                       CASE WHEN next_ts - ts <= interval '10 minutes' AND (speed >= 3 OR next_speed >= 3)
+                            THEN ST_Distance(location, next_loc) / 1000.0 ELSE 0 END AS km
+                FROM seq WHERE ts < $2
             )
-            SELECT asset_id, date_trunc('hour', ts, 'UTC') AS hour, count(*)::int AS signals,
-                   least(coalesce(sum(gap) FILTER (WHERE prev_eng), 0), 3600)::int AS engine_s,
-                   least(coalesce(sum(gap) FILTER (WHERE prev_eng AND prev_speed < 3), 0), 3600)::int AS idle_s,
-                   least(coalesce(sum(gap) FILTER (WHERE prev_speed >= 3), 0), 3600)::int AS moving_s,
-                   coalesce(sum(km) FILTER (WHERE km / greatest(gap, 1) * 3600 <= 150), 0)::float8 AS km
-            FROM gaps
-            GROUP BY 1, 2""";
+            SELECT asset_id, $1::timestamptz AS hour, count(*) FILTER (WHERE ts >= $1)::int AS signals,
+                   least(coalesce(sum(secs) FILTER (WHERE eng), 0), 3600)::int AS engine_s,
+                   least(coalesce(sum(secs) FILTER (WHERE eng AND speed < 3), 0), 3600)::int AS idle_s,
+                   least(coalesce(sum(secs) FILTER (WHERE speed >= 3), 0), 3600)::int AS moving_s,
+                   coalesce(sum(km * secs / span) FILTER (WHERE km / span * 3600 <= 150), 0)::float8 AS km
+            FROM seg
+            WHERE ts >= $1 OR secs > 0
+            GROUP BY asset_id""";
 
     private final Supplier<Pool> pool;
 
@@ -164,8 +175,8 @@ public class GpsFleetData implements FleetData {
                     instant(r.getOffsetDateTime("signal_at")), r.getDouble("lat"), r.getDouble("lon"),
                     r.getDouble("speed"), r.getBoolean("engine_on"), r.getString("provider"), r.getString("sender"),
                     r.getString("signal_driver"), trip(r, "c_"), trip(r, "n_"), trips, r.getDouble("trip_hours"),
-                    share(r, "carrier", trips), share(r, "trailer", trips), share(r, "driver", trips),
-                    share(r, "origin", trips)));
+                    share(r, CARRIER, trips), share(r, TRAILER, trips), share(r, DRIVER, trips),
+                    share(r, ORIGIN, trips)));
         }
         return assets;
     }
@@ -182,14 +193,13 @@ public class GpsFleetData implements FleetData {
 
     @Override
     public List<ActivityHour> activity(Instant from, Instant to) {
-        List<ActivityHour> hours = new ArrayList<>();
-        for (Row r : query(ACTIVITY, Tuple.of(OffsetDateTime.ofInstant(from, java.time.ZoneOffset.UTC),
-                OffsetDateTime.ofInstant(to, java.time.ZoneOffset.UTC)))) {
-            hours.add(new ActivityHour(r.getString("asset_id"), instant(r.getOffsetDateTime("hour")),
-                    r.getInteger("signals"), r.getInteger("engine_s"), r.getInteger("idle_s"),
-                    r.getInteger("moving_s"), r.getDouble("km")));
-        }
-        return hours;
+        RowSet<Row> rows = query(ACTIVITY, Tuple.of(OffsetDateTime.ofInstant(from, java.time.ZoneOffset.UTC),
+                OffsetDateTime.ofInstant(to, java.time.ZoneOffset.UTC)));
+        return StreamSupport.stream(rows.spliterator(), false)
+                .map(r -> new ActivityHour(r.getString("asset_id"), instant(r.getOffsetDateTime("hour")),
+                        r.getInteger("signals"), r.getInteger("engine_s"), r.getInteger("idle_s"),
+                        r.getInteger("moving_s"), r.getDouble("km")))
+                .toList();
     }
 
     private RowSet<Row> query(String sql, Tuple params) {
@@ -197,11 +207,7 @@ public class GpsFleetData implements FleetData {
     }
 
     private static List<TripView> trips(RowSet<Row> rows) {
-        List<TripView> trips = new ArrayList<>();
-        for (Row r : rows) {
-            trips.add(trip(r, ""));
-        }
-        return trips;
+        return StreamSupport.stream(rows.spliterator(), false).map(r -> trip(r, "")).toList();
     }
 
     private static TripView trip(Row r, String prefix) {

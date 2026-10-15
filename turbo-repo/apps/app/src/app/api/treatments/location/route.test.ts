@@ -81,6 +81,22 @@ describe("GET /api/treatments/location", () => {
     expect(res.status).toBe(404);
   });
 
+  it("answers no features when the signals have no GPS rows", async () => {
+    vi.stubEnv("STREAMHUB_URL", "http://pgrest");
+    vi.stubGlobal("fetch", async () =>
+      Response.json({
+        status: 200,
+        message: "ok",
+        data: { ...collection, features: null },
+      })
+    );
+    const res = await GET(
+      new Request("http://x/l?trip_id=T1&symptom_name=Speed&symptom_id=7")
+    );
+    expect(res.status).toBe(200);
+    expect((await res.json()).features).toEqual([]);
+  });
+
   it("keeps PostgREST when it is configured", async () => {
     vi.stubEnv("STREAMHUB_URL", "http://pgrest");
     const fetchMock = vi.fn<(url: string) => Promise<Response>>(async () =>

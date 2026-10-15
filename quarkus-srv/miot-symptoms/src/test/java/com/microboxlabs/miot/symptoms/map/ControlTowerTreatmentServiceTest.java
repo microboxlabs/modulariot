@@ -19,7 +19,7 @@ class ControlTowerTreatmentServiceTest {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final List<String> CLIENTS = List.of("client-a", "client-child");
 
-    /** Symptom 7 belongs to client-child; trip T1 on asset AB12 is visible. */
+    /** Symptom 7 is client-child's; trip T1 on asset AB12 is visible to it. */
     private static final class FakeReads implements TreatmentReads {
         final List<String> calls = new ArrayList<>();
         Map<Long, String> owners = Map.of(7L, "client-child");
@@ -30,32 +30,29 @@ class ControlTowerTreatmentServiceTest {
                         JSON.createArrayNode().add(JSON.createObjectNode().put("geometry", "0101"))));
         RuntimeException failure;
 
-        @Override
-        public Uni<Optional<String>> symptomClient(long symptomId, List<String> clientIds) {
-            calls.add("owner " + symptomId + " " + clientIds);
+        private Uni<Optional<JsonNode>> owned(String call, String clientId, long symptomId, JsonNode answer) {
+            calls.add(call + " " + clientId + " " + symptomId);
             if (failure != null) {
                 return Uni.createFrom().failure(failure);
             }
-            return Uni.createFrom().item(Optional.ofNullable(owners.get(symptomId)).filter(clientIds::contains));
+            return Uni.createFrom().item(clientId.equals(owners.get(symptomId)) ? Optional.of(answer)
+                    : Optional.empty());
         }
 
         @Override
-        public Uni<JsonNode> treatment(String clientId, long symptomId) {
-            calls.add("treatment " + clientId + " " + symptomId);
-            return Uni.createFrom().item(treatment);
+        public Uni<Optional<JsonNode>> treatment(String clientId, long symptomId) {
+            return owned("treatment", clientId, symptomId, treatment);
         }
 
         @Override
-        public Uni<JsonNode> signals(String clientId, long symptomId) {
-            calls.add("signals " + clientId + " " + symptomId);
-            return Uni.createFrom().item(signals);
+        public Uni<Optional<JsonNode>> signals(String clientId, long symptomId) {
+            return owned("signals", clientId, symptomId, signals);
         }
 
         @Override
-        public Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, List<String> clientIds,
-                int limit) {
-            calls.add("positions " + tripId + " " + assetId + " " + limit);
-            if (!"T1".equals(tripId) || !"AB12".equals(assetId)) {
+        public Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, String clientId, int limit) {
+            calls.add("positions " + tripId + " " + assetId + " " + clientId + " " + limit);
+            if (!"T1".equals(tripId) || !"AB12".equals(assetId) || !"client-child".equals(clientId)) {
                 return Uni.createFrom().item(Optional.empty());
             }
             return Uni.createFrom().item(Optional.of(JSON.createArrayNode().add(JSON.createObjectNode()
@@ -71,10 +68,10 @@ class ControlTowerTreatmentServiceTest {
     }
 
     @Test
-    void theTreatmentIsReadAsTheClientThatHoldsTheSymptom() {
+    void eachClientIsTriedInTurnUntilOneHoldsTheSymptom() {
         JsonNode data = await(service.treatment(CLIENTS, "7"));
         assertEquals(7, data.path("symptom_info").path("id").asInt());
-        assertEquals(List.of("owner 7 [client-a, client-child]", "treatment client-child 7"), reads.calls);
+        assertEquals(List.of("treatment client-a 7", "treatment client-child 7"), reads.calls);
     }
 
     @Test
@@ -83,7 +80,7 @@ class ControlTowerTreatmentServiceTest {
         assertThrows(NoSuchElementException.class, () -> await(call));
         Uni<JsonNode> signals = service.signals(List.of("client-a"), "7");
         assertThrows(NoSuchElementException.class, () -> await(signals));
-        assertEquals(List.of("owner 7 [client-a]", "owner 7 [client-a]"), reads.calls);
+        assertEquals(List.of("treatment client-a 7", "signals client-a 7"), reads.calls);
     }
 
     @Test
@@ -131,14 +128,30 @@ class ControlTowerTreatmentServiceTest {
     }
 
     @Test
+    void signalsWithoutFeaturesHaveAnEmptyList() {
+        reads.signals = JSON.createObjectNode().put("status", 200).set("data",
+                JSON.createObjectNode().put("type", "FeatureCollection").putNull("features"));
+        JsonNode data = await(service.signals(CLIENTS, "7"));
+        assertTrue(data.path("features").isArray() && data.path("features").isEmpty());
+    }
+
+    @Test
     void tripPositionsAreCappedAndAnUnknownTripIsNotFound() {
         JsonNode positions = await(service.tripPositions(CLIENTS, " T1 ", "AB12"));
         assertEquals("AB12", positions.get(0).path("assetid").asText());
-        assertEquals("positions T1 AB12 " + ControlTowerTreatmentService.MAX_POSITIONS, reads.calls.get(0));
+        assertEquals("positions T1 AB12 client-child " + ControlTowerTreatmentService.MAX_POSITIONS,
+                reads.calls.get(1));
 
         Uni<JsonNode> other = service.tripPositions(CLIENTS, "T2", "AB12");
         assertThrows(NoSuchElementException.class, () -> await(other));
         assertThrows(IllegalArgumentException.class, () -> service.tripPositions(CLIENTS, "T1", " "));
+    }
+
+    @Test
+    void withoutClientIdsNothingIsFound() {
+        Uni<JsonNode> call = service.treatment(List.of(), "7");
+        assertThrows(NoSuchElementException.class, () -> await(call));
+        assertTrue(reads.calls.isEmpty());
     }
 
     @Test

@@ -85,32 +85,27 @@ class OrgControlTowerMapResourceTest {
 
     private final List<String> treatmentClients = new ArrayList<>();
 
-    /** Symptom 7 belongs to client-child; trip T1 on asset AB12 is visible. */
+    /** Symptom 7 and trip T1 on asset AB12 are client-a's. */
     private final TreatmentReads treatmentReads = new TreatmentReads() {
         @Override
-        public Uni<Optional<String>> symptomClient(long symptomId, List<String> clientIds) {
-            treatmentClients.addAll(clientIds);
-            return Uni.createFrom().item(symptomId == 7 ? Optional.of("client-child") : Optional.empty());
-        }
-
-        @Override
-        public Uni<JsonNode> treatment(String clientId, long symptomId) {
+        public Uni<Optional<JsonNode>> treatment(String clientId, long symptomId) {
+            treatmentClients.add(clientId);
             JsonNode answer = JSON.createObjectNode().put("status", 200).set("data",
                     JSON.createObjectNode().set("trip_info", JSON.createObjectNode().put("trip_id", "T1")));
-            return Uni.createFrom().item(answer);
+            return Uni.createFrom().item(symptomId == 7 ? Optional.of(answer) : Optional.empty());
         }
 
         @Override
-        public Uni<JsonNode> signals(String clientId, long symptomId) {
+        public Uni<Optional<JsonNode>> signals(String clientId, long symptomId) {
+            treatmentClients.add(clientId);
             JsonNode answer = JSON.createObjectNode().put("status", 200).set("data",
                     JSON.createObjectNode().put("type", "FeatureCollection").set("features", JSON.createArrayNode()));
-            return Uni.createFrom().item(answer);
+            return Uni.createFrom().item(symptomId == 7 ? Optional.of(answer) : Optional.empty());
         }
 
         @Override
-        public Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, List<String> clientIds,
-                int limit) {
-            treatmentClients.addAll(clientIds);
+        public Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, String clientId, int limit) {
+            treatmentClients.add(clientId);
             JsonNode positions = JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId));
             return Uni.createFrom().item("T1".equals(tripId) ? Optional.of(positions) : Optional.empty());
         }
@@ -277,7 +272,7 @@ class OrgControlTowerMapResourceTest {
     }
 
     @Test
-    void theTreatmentPageReadsWithTheOrganizationsClientIds() {
+    void theTreatmentPageReadsAsTheClientIdTheSymptomListUses() {
         Response header = call(resource.symptom(ORG, "7"));
         assertEquals(200, header.getStatus());
         assertEquals("T1", ((JsonNode) header.getEntity()).path("trip_info").path("trip_id").asText());
@@ -285,7 +280,7 @@ class OrgControlTowerMapResourceTest {
         assertEquals("FeatureCollection", ((JsonNode) signals.getEntity()).path("type").asText());
         Response positions = call(resource.tripPositions(ORG, "T1", "AB12"));
         assertEquals("AB12", ((JsonNode) positions.getEntity()).get(0).path("assetid").asText());
-        assertEquals(List.of("client-a", "client-child"), treatmentClients.subList(0, 2));
+        assertEquals(List.of("client-a", "client-a", "client-a"), treatmentClients);
     }
 
     @Test

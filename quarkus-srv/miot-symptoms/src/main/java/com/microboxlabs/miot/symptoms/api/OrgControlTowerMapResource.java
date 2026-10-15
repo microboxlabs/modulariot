@@ -138,8 +138,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     @GET
     @Path("/trips/{tripId}/positions")
     @Operation(operationId = "listMapTripPositions", summary = "The asset's positions during a trip, oldest first",
-            description = "At most 20000. 404 when the trip does not exist for the asset or the asset is not the "
-                    + "organization's.")
+            description = "At most 20000, sampled evenly over the trip. 404 when the trip does not exist for the "
+                    + "asset or the asset was not the organization's when the trip started.")
     @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
             params = "organizationId")
     public Uni<Response> tripPositions(@PathParam("organizationId") String organizationId,
@@ -148,8 +148,9 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         return answer(() -> treatments.tripPositions(clientIds(), tripId, assetId));
     }
 
+    /** The client id the symptom list reads as, so the treatment page shows the symptoms the list shows. */
     private List<String> clientIds() {
-        return tenantContext.getClientId() == null ? List.of() : tenantContext.getEffectiveClientIds();
+        return tenantContext.getClientId() == null ? List.of() : List.of(tenantContext.getClientId());
     }
 
     private static Uni<Response> answer(Supplier<Uni<JsonNode>> read) {

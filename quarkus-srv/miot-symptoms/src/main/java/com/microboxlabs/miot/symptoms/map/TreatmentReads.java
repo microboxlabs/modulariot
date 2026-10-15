@@ -2,24 +2,29 @@ package com.microboxlabs.miot.symptoms.map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.smallrye.mutiny.Uni;
-import java.util.List;
 import java.util.Optional;
 
-/** The GPS database reads behind the treatment page. */
+/**
+ * The GPS database reads behind the treatment page, each as one organization client id. The database maps that id to
+ * the id its symptoms are stored under with {@code api_request_symptoms_client_id()}.
+ */
 public interface TreatmentReads {
 
-    /** The client id that holds the symptom, when it is one of {@code clientIds}. */
-    Uni<Optional<String>> symptomClient(long symptomId, List<String> clientIds);
-
-    /** The whole answer of {@code api_modular_treatments_info_general}: {@code status}, {@code message}, {@code data}. */
-    Uni<JsonNode> treatment(String clientId, long symptomId);
-
-    /** The whole answer of {@code api_modular_treatment_symptoms_signals_map}. */
-    Uni<JsonNode> signals(String clientId, long symptomId);
+    /**
+     * The whole answer of {@code api_modular_treatments_info_general}: {@code status}, {@code message}, {@code data}.
+     * Empty when the symptom is not the client's.
+     */
+    Uni<Optional<JsonNode>> treatment(String clientId, long symptomId);
 
     /**
-     * The asset's positions during the trip, oldest first, at most {@code limit}. Empty when the trip does not
-     * exist for that asset or the asset is not one of {@code clientIds}.
+     * The whole answer of {@code api_modular_treatment_symptoms_signals_map}. Empty when the symptom is not the
+     * client's.
      */
-    Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, List<String> clientIds, int limit);
+    Uni<Optional<JsonNode>> signals(String clientId, long symptomId);
+
+    /**
+     * The asset's positions during the trip, oldest first, at most {@code limit}, sampled evenly over the trip. Empty
+     * when the trip does not exist for that asset or the client may not see it.
+     */
+    Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, String clientId, int limit);
 }

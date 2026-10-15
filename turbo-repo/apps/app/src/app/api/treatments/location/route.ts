@@ -110,13 +110,16 @@ export async function GET(request: Request) {
   }
 }
 
+// The GPS function answers features: null when the symptom has no GPS rows.
 function withCoordinates(
-  data: TreatmentsLocationResponseItem,
+  data: Omit<TreatmentsLocationResponseItem, "features"> & {
+    features: TreatmentsLocationResponseItem["features"] | null;
+  },
   symptom_name: string | null
 ): TreatmentsLocationResponseItem {
   return {
     type: "FeatureCollection",
-    features: data.features.map((feature) => {
+    features: (data.features ?? []).map((feature) => {
       const [longitude, latitude] = parseWKBPoint(feature.geometry);
       return {
         ...feature,

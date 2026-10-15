@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -60,8 +61,7 @@ public class ControlTowerTreatmentService {
     /** The {@code data} of {@code api_modular_treatments_info_general} for the symptom. */
     public Uni<JsonNode> treatment(List<String> clientIds, String symptomId) {
         long id = symptomId(symptomId);
-        return guarded(() -> owner(clientIds, id)
-                .flatMap(client -> reads.treatment(client, id))
+        return guarded(() -> firstFound(clientIds, client -> reads.treatment(client, id), "Symptom not found")
                 .map(answer -> {
                     JsonNode data = checked(answer).path("data");
                     if (status(answer) == 204 || !data.isObject() || data.isEmpty()) {
@@ -74,26 +74,39 @@ public class ControlTowerTreatmentService {
     /** The {@code data} of {@code api_modular_treatment_symptoms_signals_map}: a FeatureCollection. */
     public Uni<JsonNode> signals(List<String> clientIds, String symptomId) {
         long id = symptomId(symptomId);
-        return guarded(() -> owner(clientIds, id)
-                .flatMap(client -> reads.signals(client, id))
+        return guarded(() -> firstFound(clientIds, client -> reads.signals(client, id), "Symptom not found")
                 .map(answer -> {
                     JsonNode data = checked(answer).path("data");
-                    return data.isObject() ? data : emptyFeatures();
+                    if (!data.isObject()) {
+                        return emptyFeatures();
+                    }
+                    if (!data.path("features").isArray()) {
+                        ((ObjectNode) data).putArray("features");
+                    }
+                    return data;
                 }));
     }
 
-    /** The asset's positions during the trip, oldest first, at most {@value #MAX_POSITIONS}. */
+    /** The asset's positions during the trip, oldest first, sampled down to at most {@value #MAX_POSITIONS}. */
     public Uni<JsonNode> tripPositions(List<String> clientIds, String tripId, String assetId) {
         if (tripId == null || tripId.isBlank() || assetId == null || assetId.isBlank()) {
             throw new IllegalArgumentException("tripId and assetId are required");
         }
-        return guarded(() -> reads.tripPositions(tripId.trim(), assetId.trim(), clientIds, MAX_POSITIONS)
-                .map(found -> found.orElseThrow(() -> new NoSuchElementException("Trip not found"))));
+        String trip = tripId.trim();
+        String asset = assetId.trim();
+        return guarded(() -> firstFound(clientIds, client -> reads.tripPositions(trip, asset, client, MAX_POSITIONS),
+                "Trip not found"));
     }
 
-    private Uni<String> owner(List<String> clientIds, long symptomId) {
-        return reads.symptomClient(symptomId, clientIds)
-                .map(client -> client.orElseThrow(() -> new NoSuchElementException("Symptom not found")));
+    /** The first client id, in order and one at a time, for which {@code read} finds something. */
+    private static Uni<JsonNode> firstFound(List<String> clientIds,
+            Function<String, Uni<Optional<JsonNode>>> read, String notFound) {
+        Uni<Optional<JsonNode>> found = Uni.createFrom().item(Optional.empty());
+        for (String client : clientIds) {
+            found = found.flatMap(previous -> previous.isPresent() ? Uni.createFrom().item(previous)
+                    : read.apply(client));
+        }
+        return found.map(answer -> answer.orElseThrow(() -> new NoSuchElementException(notFound)));
     }
 
     private Uni<JsonNode> guarded(Supplier<Uni<? extends JsonNode>> read) {
@@ -150,6 +163,7 @@ public class ControlTowerTreatmentService {
                     .setProperties(Map.of(
                             "application_name", "miot-control-tower",
                             "default_transaction_read_only", "on",
+                            "statement_timeout", "25000",
                             "TimeZone", "UTC"));
             pool = PgBuilder.pool().with(new PoolOptions().setMaxSize(2)).connectingTo(connect).using(vertx).build();
         }

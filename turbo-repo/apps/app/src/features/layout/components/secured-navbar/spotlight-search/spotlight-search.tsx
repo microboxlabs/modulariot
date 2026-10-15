@@ -211,7 +211,7 @@ export default function SpotlightSearch({
   const { isTrainer } = useKnowledgeTrainer();
   const { can } = useMyAccess();
   const canViewGps = can("gps:view");
-  const canViewNetwork = can("fleet:network.view");
+  const canViewFleet = can("fleet:assets.view");
   const navigateItems = useMemo(
     () =>
       buildNavigateItems(
@@ -220,7 +220,7 @@ export default function SpotlightSearch({
           platformOwner: isPlatformOwner,
           trainer: isTrainer,
           gps: canViewGps,
-          network: canViewNetwork,
+          fleet: canViewFleet,
         }),
         sidebarLabels ?? {},
         onNavigate,
@@ -232,7 +232,7 @@ export default function SpotlightSearch({
       isPlatformOwner,
       isTrainer,
       canViewGps,
-      canViewNetwork,
+      canViewFleet,
       sidebarLabels,
       onNavigate,
       canAccess,

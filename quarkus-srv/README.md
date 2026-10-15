@@ -6,7 +6,7 @@ Single Quarkus monorepo that produces one container image containing all Modular
 
 ```
 miot-core/            Shared foundation (config, models, auth, messaging, persistence)
-miot-fleet/           Fleet component (asset network)
+miot-fleet/           Fleet component (fleet directory)
 miot-tracking/        Asset tracking (GPS ingestion via Pulsar)
 miot-symptoms/        Symptoms dispatcher (CDC → RouteTable → process_symptoms_* / webhook)
 miot-gateway/         Routing gateway (body-aware traffic forking, canary splits) → README
@@ -94,10 +94,11 @@ Migration version ranges are reserved per component so subset deployments can in
 | Component | Schema | Migration range |
 |-----------|--------|-----------------|
 | Core | `miot_core` | `V0.1.x` |
-| Retired (fleet directory, resource core, drivers) | `miot_fleet`, `miot_resource`, `miot_driver` | `V0.2.x`–`V0.4.x`, do not reuse |
+| Retired (Alfresco fleet directory, resource core, drivers) | `miot_resource`, `miot_driver` | `V0.2.x`–`V0.4.x`, do not reuse |
 | Tracking | `miot_tracking` | `V0.5.x` |
 | Integrations | `miot_integrations` | `V0.6.x` |
 | Symptoms | — (uses StreamHub `prod_iot_gps`, no local schema) | — |
+| Fleet | `miot_fleet` (reads StreamHub `prod_iot_gps` for signals and trips) | `V0.9.x` |
 
 ## API Documentation
 
@@ -112,8 +113,11 @@ Endpoints are grouped by component tag (Asset Tracking, Integration Connections,
 
 | Component | Endpoint | Description |
 |-----------|----------|-------------|
-| Fleet | `GET /api/v1/orgs/{organizationId}/fleet/network/assets[/{assetId}]` | Assets the organization sees, and why |
-| Fleet | `GET /api/v1/orgs/{organizationId}/fleet/network/relationships` | Organizations it works with, inferred from shared assets |
+| Fleet | `GET /api/v1/orgs/{organizationId}/fleet/assets` | Assets of the organization, with filters and counts |
+| Fleet | `GET /api/v1/orgs/{organizationId}/fleet/assets/{assetId}` | One asset: fields and their source, trips, documents, indicators |
+| Fleet | `GET /api/v1/orgs/{organizationId}/fleet/assets/{assetId}/activity` | Daily engine hours, idle time and distance |
+| Fleet | `PATCH /api/v1/orgs/{organizationId}/fleet/assets/{assetId}` | Set or clear fields and document dates |
+| Fleet | `POST /api/v1/orgs/{organizationId}/fleet/assets/{assetId}/suggestions/{kind}/accept\|dismiss` | Apply or hide a suggestion |
 | Tracking | `POST /api/v1/asset/track` | Ingest GPS position |
 | Integrations | `GET /api/v1/orgs/{organizationId}/integrations/connections` | List integration connections |
 | Integrations | `POST /api/v1/orgs/{organizationId}/integrations/connections` | Create an integration connection |

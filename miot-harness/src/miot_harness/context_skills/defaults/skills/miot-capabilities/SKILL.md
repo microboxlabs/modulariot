@@ -28,6 +28,7 @@ branch `trunk`). Use them; do not say you have no access to the code.
 | Telemetry and metrics | Ingestion from GPS, CAN/OBD, gateways and OEM APIs; drivers normalize data into canonical metrics | `quarkus-srv/miot-gateway`, `quarkus-srv/miot-tracking`; docs `integration/` |
 | Symptoms | Stateful detection of operational conditions with severity, lifecycle and escalation | `quarkus-srv/miot-symptoms`; docs `concepts/symptoms/`, `platform/symptoms-engine/` |
 | Control tower | Fleet map, active symptoms, asset list, operator worklists and actions | `turbo-repo/apps/app/src/features/symptoms`, `geographic-view`; docs `operations/mission-control/` |
+| Fleet | Asset directory filled from GPS signals and trips: carrier, usual trailer and driver, documents, engine hours and distance; people edit any field | `quarkus-srv/miot-fleet`, `apps/app/src/features/fleet` |
 | Shipping board | Trips and shipping tasks on a board | `turbo-repo/apps/app/src/features/shipping`, `ext-tasks` |
 | Calendar | Calendars, time windows, slots and bookings | `turbo-repo/packages/miot-calendar-client`, `miot-calendar-ui`, `apps/app/src/features/calendar`; docs `reference/sdks/miot-calendar-client.mdx` |
 | Dashboards | Dashboards over datasources; UI, server and contract packages | `turbo-repo/packages/miot-dashboard-*`, `apps/app/src/features/dashboard`; docs `operations/dashboard-server/` |

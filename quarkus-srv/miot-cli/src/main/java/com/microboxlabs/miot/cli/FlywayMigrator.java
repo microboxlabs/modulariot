@@ -63,6 +63,9 @@ public class FlywayMigrator {
 
         List<String> locations = new ArrayList<>(baseLocations);
 
+        if (fleetEnabled) {
+            locations.add("db/migration/fleet");
+        }
         if (trackingEnabled) {
             locations.add("db/migration/tracking");
         }

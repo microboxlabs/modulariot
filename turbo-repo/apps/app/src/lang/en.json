@@ -2253,8 +2253,7 @@
         "selectables": "Selectables",
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms",
-        "gps": "GPS",
-        "network": "Asset network"
+        "gps": "GPS"
       },
       "symptoms": {
         "config": {
@@ -3320,58 +3319,6 @@
         "copy": "Copy",
         "copied": "Copied",
         "copyFailed": "Could not copy. Select the text and copy it."
-      },
-      "network": {
-        "title": "Asset network",
-        "description": "The assets your organization sees and the organizations it shares them with. Relationships come from GPS signals, trips and accreditations, and expire when the evidence stops.",
-        "loadFailed": "The asset network could not be loaded.",
-        "unavailable": "There is no asset network data on this platform yet.",
-        "notAllowed": "You need the Fleet Viewer role, or to be an Admin or Owner, to view this page.",
-        "relationshipsTitle": "Related organizations",
-        "relationshipsDescription": "Who your organization works with, based on the assets you share.",
-        "noRelationships": "No related organizations yet.",
-        "organization": "Organization",
-        "relationship": "Relationship",
-        "evidence": "Evidence",
-        "assets": "Assets",
-        "firstSeen": "Since",
-        "lastSeen": "Last evidence",
-        "expiresAt": "Expires",
-        "status": "Status",
-        "active": "Active",
-        "expired": "Expired",
-        "youAre": "Your organization is the",
-        "assetsTitle": "Assets",
-        "assetsDescription": "The assets your organization sees today and why.",
-        "searchAssets": "Search by asset, type or owner",
-        "noAssets": "No assets to show.",
-        "asset": "Asset",
-        "type": "Type",
-        "owner": "Owner",
-        "providers": "GPS providers",
-        "why": "Why you see it",
-        "visibleUntil": "Visible until",
-        "unknownOwner": "No known owner",
-        "roles": {
-          "CARRIER": "Carrier",
-          "PROVIDER": "GPS provider",
-          "OPERATOR": "Logistics operator"
-        },
-        "kinds": {
-          "OPERATION": "Operation",
-          "GPS_SERVICE": "GPS service"
-        },
-        "sources": {
-          "SIGNAL": "Signal",
-          "TRIP": "Trip",
-          "ACCREDITATION": "Accreditation"
-        },
-        "reasons": {
-          "REPORTER": "Your GPS reports it",
-          "OWNER": "You own it",
-          "OPERATOR": "You operate it",
-          "LINKED": "Travels with one you operate"
-        }
       }
     },
     "integrationJobs": {
@@ -3805,6 +3752,218 @@
         "title": "Advanced settings",
         "description": "Enrichment and integration behaviour for this calendar"
       }
+    },
+    "fleet": {
+      "title": "Fleet",
+      "subtitle": "{assets} assets · {carriers} carriers",
+      "updated": "Updated {ago}",
+      "unavailable": "Fleet data is not configured in this environment.",
+      "loadFailed": "The fleet could not be loaded. Try again.",
+      "notAllowed": "You don't have access to this organization's fleet.",
+      "notFound": "This asset does not exist or your organization does not see it.",
+      "breadcrumb": {
+        "fleet": "Fleet",
+        "edit": "Edit"
+      },
+      "actions": {
+        "edit": "Edit data",
+        "viewOnMap": "View on map",
+        "save": "Save changes",
+        "cancel": "Cancel",
+        "back": "Back"
+      },
+      "kpis": {
+        "assets": "Assets",
+        "withSignal": "{n} reporting now",
+        "inTrip": "On a trip",
+        "plannedToday": "{n} with a trip planned today",
+        "noSignal": "No signal > 24 h",
+        "noSignalHint": "check the GPS",
+        "documentsDue": "Documents due",
+        "documentsDueHint": "next 30 days or expired",
+        "suggestions": "Suggestions",
+        "suggestionsHint": "assets with data to confirm"
+      },
+      "agent": {
+        "title": "Harness",
+        "subtitle": "Suggestions from trips and signals",
+        "listHeadline": "{n} assets have data I can fill in from their trips.",
+        "listBody": "Usual trailers and drivers, from the trips of the last 30 days.",
+        "listEmpty": "No pending suggestions. The fleet data matches the integrations.",
+        "review": "Review suggestions",
+        "showAll": "Show all",
+        "USUAL_TRAILER": "{value} travelled with this asset on {count} of {total} trips.",
+        "USUAL_DRIVER": "{value} drove this asset on {count} of {total} trips.",
+        "whyLabel": "Where it comes from",
+        "why": "Trips of the last 30 days.",
+        "effectLabel": "What changes",
+        "effect_USUAL_TRAILER": "It becomes the asset's usual trailer.",
+        "effect_USUAL_DRIVER": "It becomes the asset's usual driver.",
+        "accept": "Accept",
+        "dismiss": "Dismiss",
+        "done": "No pending suggestions for this asset."
+      },
+      "filters": {
+        "all": "All",
+        "status": "Status",
+        "anyStatus": "Any status",
+        "carrier": "Carrier",
+        "anyCarrier": "Any carrier",
+        "documentsDue": "Documents due",
+        "withSuggestions": "With suggestions",
+        "search": "Plate, IMEI, driver or carrier",
+        "sort": "Sort",
+        "sortId": "Identifier",
+        "sortSignal": "Last signal",
+        "sortKm": "Km in 30 days"
+      },
+      "kindsPlural": {
+        "TRUCK": "Trucks",
+        "TRAILER": "Trailers",
+        "DECOY": "Decoys",
+        "PERSON": "People",
+        "OTHER": "Other"
+      },
+      "kinds": {
+        "TRUCK": "Truck",
+        "TRAILER": "Trailer",
+        "DECOY": "Decoy",
+        "PERSON": "Person",
+        "OTHER": "Other"
+      },
+      "status": {
+        "IN_TRIP": "On a trip",
+        "AVAILABLE": "Available",
+        "NO_SIGNAL": "No signal"
+      },
+      "table": {
+        "asset": "Asset",
+        "carrier": "Carrier",
+        "status": "Status",
+        "driver": "Driver",
+        "nextTrip": "Next trip",
+        "accreditation": "Accreditation",
+        "km30d": "Km · 30 d",
+        "lastSignal": "Last signal",
+        "noTrip": "No trip planned",
+        "inProgress": "in progress",
+        "empty": "No assets match these filters.",
+        "range": "{from}–{to} of {total}",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "documents": {
+        "accreditation": "Site accreditation",
+        "technicalReview": "Technical inspection",
+        "circulationPermit": "Road permit",
+        "insurance": "Mandatory insurance"
+      },
+      "documentStatus": {
+        "MISSING": "No date",
+        "VALID": "Valid · {date}",
+        "EXPIRING": "Due {date}",
+        "EXPIRED": "Expired · {date}"
+      },
+      "documentState": {
+        "MISSING": "No date",
+        "VALID": "Valid",
+        "EXPIRING": "Due soon",
+        "EXPIRED": "Expired"
+      },
+      "fields": {
+        "label": "Internal name",
+        "kind": "Type",
+        "brandModel": "Make and model",
+        "year": "Year",
+        "vin": "VIN",
+        "carrier": "Carrier",
+        "base": "Home base",
+        "usualTrailer": "Usual trailer",
+        "usualDriver": "Usual driver",
+        "gpsProvider": "GPS provider"
+      },
+      "sources": {
+        "SIGNAL": "GPS signal",
+        "TRIP": "Trips",
+        "MANUAL": "Manual",
+        "NONE": "No source"
+      },
+      "sourceDetail": {
+        "reported": "the GPS reports \"{value}\"",
+        "trips": "{count} of {total} trips · 30 days",
+        "manual": "edited by hand",
+        "none": "No integration reports it",
+        "sender": "client {value}"
+      },
+      "conflict": {
+        "title": "Conflicting data",
+        "body": "{field}: {source} says {integration}, the saved value is {manual}.",
+        "useIntegration": "Use {value}",
+        "keep": "Keep {value}"
+      },
+      "indicators": {
+        "km30d": "Km · 30 days",
+        "engineHours": "Engine hours · 30 d",
+        "idle": "{pct}% idling",
+        "utilization": "Utilization · 30 d",
+        "fleet": "fleet {pct}%",
+        "trips": "Trips · 30 d",
+        "avgTrip": "{h} h per trip",
+        "noData": "no data yet"
+      },
+      "chart": {
+        "title": "Engine hours per day",
+        "subtitle": "Last 14 days",
+        "moving": "Moving",
+        "idle": "Idling",
+        "today": "Today",
+        "engine": "Engine on",
+        "km": "Distance",
+        "empty": "No activity has been computed for this asset yet.",
+        "dayLabel": "{day}: {moving} h moving, {idle} h idling"
+      },
+      "trips": {
+        "title": "Trips",
+        "current": "In progress",
+        "planned": "Planned",
+        "done": "Finished",
+        "count": "{n} in 30 days",
+        "none": "No trips recorded.",
+        "eta": "ETA {time}",
+        "with": "with {trailer}",
+        "starts": "leaves {time}"
+      },
+      "live": {
+        "title": "Live status",
+        "signal": "GPS signal",
+        "engine": "Engine",
+        "engineOn": "On",
+        "engineOff": "Off",
+        "speed": "Speed",
+        "speedValue": "{v} km/h",
+        "driver": "Driver",
+        "unknown": "No data"
+      },
+      "history": {
+        "title": "Change history",
+        "empty": "No changes yet.",
+        "suggestion": "accepted suggestion",
+        "cleared": "{field} went back to the integration value",
+        "set": "{field} → {value}"
+      },
+      "edit": {
+        "title": "Edit data",
+        "legend": "Each field shows where its value comes from. Values from an integration update on their own until you change them by hand. Leave a field empty to go back to the integration value.",
+        "identification": "Identification",
+        "relations": "Relationships",
+        "documents": "Documents",
+        "documentsHint": "Expiry date of each document.",
+        "readonly": "Not editable",
+        "saved": "Changes saved.",
+        "saveFailed": "Could not save: {reason}",
+        "noChanges": "There are no changes to save.",
+        "chooseKind": "Use the type the GPS reports"
+      }
     }
   },
   "layout": {
@@ -3878,7 +4037,7 @@
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms",
         "gps": "GPS",
-        "network": "Asset network"
+        "fleet": "Fleet"
       }
     },
     "calendar": {

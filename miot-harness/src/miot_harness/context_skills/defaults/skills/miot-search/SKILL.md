@@ -108,7 +108,8 @@ value you have confirmed; never emit a literal placeholder.
 | `/delivery` | delivery, entrega, reparto (kanban) | Services in delivery | kanban params |
 | `/finished` | finished, finalizados, completados (kanban) | Completed services | kanban params |
 | `/mytasks` | my tasks, mis tareas, tareas | The user's tasks | `status=pending\|finished` + kanban params; a task opens at `/task/edit/{taskId}` |
-| `/geographic-view` | map, mapa, geographic view, posición, GPS, fleet, flota, trucks, camiones, trailers, remolques | Live map of assets/vehicles | `licensePlate` |
+| `/geographic-view` | map, mapa, geographic view, posición, GPS, where is, dónde está | Live map of assets/vehicles | `licensePlate` |
+| `/fleet` | fleet, flota, assets, trucks, camiones, tractos, trailers, ramplas, remolques, documentos, acreditación, horas de motor, kilómetros | The organization's assets with their carrier, trips, documents and indicators (one asset at `/fleet/{assetId}`) | — |
 | `/symptoms` | symptoms, síntomas, alerts, alertas | Alerts on assets/trips (control tower); list at `/symptoms/symptoms-list` | `asset_id`, `trip_id`, `driver_id`, `carrier_id`, `origin`, `destination`, `symptom_name`, `date_from`/`date_to` |
 | `/signal-history` | signal history, historial de señales, telemetría | Device signal/telemetry history | — |
 | `/whatsapp/conversations` | whatsapp, conversations, conversaciones, chat, inbox | WhatsApp inbox conversations | — |
@@ -120,7 +121,6 @@ value you have confirmed; never emit a literal placeholder.
 | `/notifications` | notifications, notificaciones | User notifications | — |
 | `/integrations/jobs` | integration jobs, trabajos de integración, job console, consola de trabajos | Asynchronous integration job activity and status | — |
 | `/users/settings` | settings, configuración, ajustes | User settings; organizations at `/users/settings/organizations`, data sources at `/users/settings/data-sources` | — |
-| `/users/settings/network` | asset network, red de assets, related organizations, organizaciones relacionadas, carriers, transportistas, GPS providers, proveedores GPS | Assets the organization sees and the organizations it shares them with | — |
 | `/users/settings/harness` | Harness settings, configuración de Harness, Harness seats, asientos de Harness, Harness usage, uso de Harness | Harness pricing, seat and token usage, and user access | — |
 | `/harness/learning` | learning workspace, espacio de aprendizaje, train the assistant, entrenar al asistente | Assistant trainers only: teach the assistant facts, rules and procedures, and test them with evaluations | — |
 | `/users/settings/gps` | GPS, integración GPS, GPS integration, client ID, client secret, secreto, token, posiciones, positions, proveedor GPS, GPS provider | How the GPS provider sends positions: client ID, token and position endpoints, examples, and API keys | — |

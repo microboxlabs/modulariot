@@ -12,7 +12,7 @@
 
     <artifactId>miot-fleet</artifactId>
     <name>ModularIoT — Fleet</name>
-    <description>Fleet: assets reported by GPS signals and the relationships between organizations</description>
+    <description>Fleet: the organization's assets, filled from GPS signals and trips, and editable</description>
 
     <dependencies>
         <dependency>

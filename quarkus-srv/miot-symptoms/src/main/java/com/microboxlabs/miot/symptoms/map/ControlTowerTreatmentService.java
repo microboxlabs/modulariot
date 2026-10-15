@@ -32,6 +32,7 @@ import org.jboss.logging.Logger;
 public class ControlTowerTreatmentService {
 
     private static final Logger LOG = Logger.getLogger(ControlTowerTreatmentService.class);
+    private static final String FEATURES = "features";
     static final int MAX_POSITIONS = 20_000;
 
     private final TreatmentReads reads;
@@ -80,8 +81,8 @@ public class ControlTowerTreatmentService {
                     if (!data.isObject()) {
                         return emptyFeatures();
                     }
-                    if (!data.path("features").isArray()) {
-                        ((ObjectNode) data).putArray("features");
+                    if (!data.path(FEATURES).isArray()) {
+                        ((ObjectNode) data).putArray(FEATURES);
                     }
                     return data;
                 }));
@@ -147,7 +148,7 @@ public class ControlTowerTreatmentService {
     private static JsonNode emptyFeatures() {
         ObjectNode empty = JsonNodeFactory.instance.objectNode().put("type", "FeatureCollection");
         empty.putObject("description");
-        empty.putArray("features");
+        empty.putArray(FEATURES);
         return empty;
     }
 

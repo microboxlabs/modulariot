@@ -241,7 +241,7 @@ public class FleetDirectoryService {
                 AssetFields.live(facts, profile),
                 AssetFigures.indicators(facts, snapshot.totals().get(facts.id()), snapshot.fleetUtilization()),
                 facts.currentTrip(), data.plannedTrips(facts.id()), data.recentTrips(facts.id(), 10),
-                AssetFields.documents(profile, today()), Suggestions.of(facts, profile, dismissed),
+                AssetFields.documentViews(profile, today()), Suggestions.of(facts, profile, dismissed),
                 profiles.changes(profile.organizationId(), facts.id(), 20));
     }
 

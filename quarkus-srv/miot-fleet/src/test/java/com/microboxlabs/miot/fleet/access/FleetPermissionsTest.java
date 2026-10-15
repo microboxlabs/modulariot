@@ -65,9 +65,25 @@ class FleetPermissionsTest {
         assertTrue(manager.containsAll(Set.of(FleetAccessCatalog.ASSETS_VIEW, FleetAccessCatalog.ASSETS_EDIT)));
     }
 
+    @Test
+    void ownersAndAdminsDoNotSeeTheFleetWithoutAFleetRole() {
+        AccessRegistry registry = new AccessRegistry(List.of(new CoreAccessCatalog(), new FleetAccessCatalog()));
+        for (BaseRole base : List.of(BaseRole.OWNER, BaseRole.ADMIN)) {
+            Set<String> granted = permissions(registry, base, Set.of());
+            assertFalse(granted.contains(FleetAccessCatalog.ASSETS_VIEW), base.name());
+            assertFalse(granted.contains(FleetAccessCatalog.ASSETS_EDIT), base.name());
+        }
+        assertTrue(permissions(registry, BaseRole.OWNER, Set.of(FleetAccessCatalog.VIEWER))
+                .contains(FleetAccessCatalog.ASSETS_VIEW));
+    }
+
     private static Set<String> permissions(AccessRegistry registry, String role) {
+        return permissions(registry, BaseRole.MEMBER, Set.of(role));
+    }
+
+    private static Set<String> permissions(AccessRegistry registry, BaseRole base, Set<String> roles) {
         return AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
-                new AccessRules.Facts(true, BaseRole.MEMBER, false, false, false, Set.of(role), null), registry)
+                new AccessRules.Facts(true, base, false, false, false, roles, null), registry)
                 .permissions();
     }
 }

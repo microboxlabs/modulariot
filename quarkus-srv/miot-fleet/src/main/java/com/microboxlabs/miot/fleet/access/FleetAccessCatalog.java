@@ -22,11 +22,12 @@ public class FleetAccessCatalog implements AccessCatalog {
     public static final String VIEWER = "FLEET_VIEWER";
     public static final String MANAGER = "FLEET_MANAGER";
 
+    /** Only the fleet roles grant these: owners and admins see the fleet once someone assigns them a role. */
     @Override
     public List<PermissionDef> permissions() {
         return List.of(
-                PermissionDef.of(ASSETS_VIEW, "Ver la flota", "View the fleet"),
-                PermissionDef.of(ASSETS_EDIT, "Editar los datos de la flota", "Edit fleet data"));
+                PermissionDef.of(ASSETS_VIEW, "Ver la flota", "View the fleet").explicit(),
+                PermissionDef.of(ASSETS_EDIT, "Editar los datos de la flota", "Edit fleet data").explicit());
     }
 
     @Override

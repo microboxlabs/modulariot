@@ -23,6 +23,12 @@ import {
 } from "./mail/route";
 import { POST as testMail } from "./mail/test/route";
 import {
+  DELETE as deleteVehicleImages,
+  GET as getVehicleImages,
+  PUT as putVehicleImages,
+} from "./vehicle-images/route";
+import { POST as testVehicleImages } from "./vehicle-images/test/route";
+import {
   GET as getOrgRole,
   PUT as putOrgRole,
 } from "./orgs/[slug]/roles/[roleCode]/route";
@@ -155,6 +161,33 @@ describe("platform organizations proxy", () => {
 
     expect(created.status).toBe(400);
     expect(replaced.status).toBe(400);
+    expect(forwardToQuarkus).not.toHaveBeenCalled();
+  });
+});
+
+describe("platform vehicle images proxy", () => {
+  it("forwards the provider read, save, removal and test", async () => {
+    const body = { apiKey: "ci_test", apiSecret: "" };
+
+    await getVehicleImages();
+    await putVehicleImages(jsonRequest(body));
+    await deleteVehicleImages();
+    await testVehicleImages();
+
+    expect(forwardToQuarkus.mock.calls).toEqual([
+      ["/api/v1/platform/vehicle-images"],
+      ["/api/v1/platform/vehicle-images", { method: "PUT", body }],
+      ["/api/v1/platform/vehicle-images", { method: "DELETE" }],
+      ["/api/v1/platform/vehicle-images/test", { method: "POST" }],
+    ]);
+  });
+
+  it("answers 400 to an unparseable body rather than forwarding it", async () => {
+    const response = await putVehicleImages(
+      new Request("http://localhost", { method: "PUT", body: "not json" }),
+    );
+
+    expect(response.status).toBe(400);
     expect(forwardToQuarkus).not.toHaveBeenCalled();
   });
 });

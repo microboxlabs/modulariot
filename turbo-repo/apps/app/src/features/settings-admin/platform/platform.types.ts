@@ -53,6 +53,7 @@ export type PlatformSection =
   | "superusers"
   | "models"
   | "mail"
+  | "vehicleImages"
   | "templates"
   | "plan"
   | "usage";

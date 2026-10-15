@@ -33,6 +33,7 @@ public class FleetDirectoryService {
     static final String SUGGESTION = "SUGGESTION";
 
     private final FleetData data;
+    private final AssetImages images;
     private final ProfileStore profiles;
     private final ActivityStore activity;
     private final Clock clock;
@@ -40,8 +41,15 @@ public class FleetDirectoryService {
     private final Duration cacheTtl;
     private final Map<String, Snapshot> snapshots = new ConcurrentHashMap<>();
 
-    /** Who reads: the organization and the GPS clients whose assets it sees. */
-    public record Viewer(String organizationId, Set<String> clientIds) {
+    /**
+     * Who reads: the organization, the GPS clients whose assets it sees, and its tenant code for the integrations it
+     * owns (vehicle images).
+     */
+    public record Viewer(String organizationId, Set<String> clientIds, String tenantCode) {
+
+        public Viewer(String organizationId, Set<String> clientIds) {
+            this(organizationId, clientIds, null);
+        }
     }
 
     private record Snapshot(Instant at, Map<String, AssetFacts> facts, Map<String, ActivityTotals> totals,
@@ -50,7 +58,13 @@ public class FleetDirectoryService {
 
     public FleetDirectoryService(FleetData data, ProfileStore profiles, ActivityStore activity, Clock clock,
             ZoneId zone, Duration cacheTtl) {
+        this(data, profiles, activity, AssetImages.NONE, clock, zone, cacheTtl);
+    }
+
+    FleetDirectoryService(FleetData data, ProfileStore profiles, ActivityStore activity, AssetImages images,
+            Clock clock, ZoneId zone, Duration cacheTtl) {
         this.data = data;
+        this.images = images;
         this.profiles = profiles;
         this.activity = activity;
         this.clock = clock;
@@ -88,7 +102,7 @@ public class FleetDirectoryService {
         AssetFacts facts = visible(snapshot, assetId);
         Profile profile = profiles.find(viewer.organizationId(), assetId)
                 .orElse(Profile.empty(viewer.organizationId(), assetId));
-        return detail(facts, profile, snapshot, dismissed(viewer, assetId));
+        return detail(viewer, facts, profile, snapshot, dismissed(viewer, assetId));
     }
 
     /** Daily activity for the last {@code days} days, today included; days without signals are zero. */
@@ -141,7 +155,7 @@ public class FleetDirectoryService {
         });
         Profile saved = changes.isEmpty() ? current
                 : profiles.apply(viewer.organizationId(), assetId, changes);
-        return detail(facts, saved, snapshot, dismissed(viewer, assetId));
+        return detail(viewer, facts, saved, snapshot, dismissed(viewer, assetId));
     }
 
     /** Sets the suggested value on the field it belongs to. */
@@ -154,7 +168,7 @@ public class FleetDirectoryService {
         String old = current.fields().get(suggestion.field());
         Profile saved = profiles.apply(viewer.organizationId(), assetId, List.of(
                 new Change(suggestion.field(), old, suggestion.value(), SUGGESTION, actor, clock.instant())));
-        return detail(facts, saved, snapshot, dismissed(viewer, assetId));
+        return detail(viewer, facts, saved, snapshot, dismissed(viewer, assetId));
     }
 
     /** Hides the current suggestion of that kind; a different value is suggested again. */
@@ -166,7 +180,7 @@ public class FleetDirectoryService {
         SuggestionView suggestion = suggestion(facts, current, dismissed(viewer, assetId), kind);
         profiles.dismiss(viewer.organizationId(), assetId, Suggestions.key(suggestion.kind(), suggestion.value()),
                 actor);
-        return detail(facts, current, snapshot, dismissed(viewer, assetId));
+        return detail(viewer, facts, current, snapshot, dismissed(viewer, assetId));
     }
 
     // ---- building blocks
@@ -219,9 +233,11 @@ public class FleetDirectoryService {
                 facts.lastSignalAt(), facts.gpsProvider(), Suggestions.of(facts, profile, dismissed).size());
     }
 
-    private AssetDetail detail(AssetFacts facts, Profile profile, Snapshot snapshot, Set<String> dismissed) {
+    private AssetDetail detail(Viewer viewer, AssetFacts facts, Profile profile, Snapshot snapshot,
+            Set<String> dismissed) {
         return new AssetDetail(facts.id(), profile.fields().get(AssetFields.LABEL), AssetFields.kind(facts, profile),
-                AssetFields.status(facts, clock.instant()), AssetFields.views(facts, profile),
+                AssetFields.status(facts, clock.instant()), images.find(viewer.tenantCode(), facts, profile),
+                AssetFields.views(facts, profile),
                 AssetFields.live(facts, profile),
                 AssetFigures.indicators(facts, snapshot.totals().get(facts.id()), snapshot.fleetUtilization()),
                 facts.currentTrip(), data.plannedTrips(facts.id()), data.recentTrips(facts.id(), 10),

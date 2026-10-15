@@ -1614,6 +1614,31 @@
           "statusFailed": "Test failed",
           "statusUntested": "Not tested"
         },
+        "vehicleImages": {
+          "title": "Vehicle images",
+          "menuHint": "carimagesapi.com for the fleet",
+          "description": "The fleet shows each truck's studio image from its make, model and year. Organizations without their own provider use this carimagesapi.com account.",
+          "apiKey": "Account key",
+          "apiSecret": "API secret",
+          "apiSecretKeep": "Saved: {preview}. Leave it empty to keep it.",
+          "apiSecretHint": "Sent only from the server; the browser gets signed URLs that expire.",
+          "save": "Save",
+          "test": "Test",
+          "remove": "Remove",
+          "saved": "Provider saved.",
+          "saveError": "Could not save the provider.",
+          "removed": "Provider removed.",
+          "removeError": "Could not remove the provider.",
+          "loadError": "Could not load the provider.",
+          "testOk": "carimagesapi.com accepted the key and secret.",
+          "testFailed": "carimagesapi.com rejected the key or secret.",
+          "removeTitle": "Remove the image provider",
+          "removeBody": "Organizations without their own provider will stop seeing their vehicles' images.",
+          "statusNone": "Not set",
+          "statusOk": "Working",
+          "statusFailed": "Test failed",
+          "statusUntested": "Not tested"
+        },
         "plan": {
           "title": "Seat plan",
           "menuHint": "Price per seat and included tokens",
@@ -3963,6 +3988,11 @@
         "saveFailed": "Could not save: {reason}",
         "noChanges": "There are no changes to save.",
         "chooseKind": "Use the type the GPS reports"
+      },
+      "image": {
+        "imageAlt": "Image of {vehicle}",
+        "imageMissing": "Add the make and model to see the vehicle's image.",
+        "imageNone": "No image for this model."
       }
     }
   },

@@ -53,10 +53,14 @@ public final class Views {
             Double fleetUtilizationPct, int trips30d, Double avgTripHours) {
     }
 
-    public record AssetDetail(String id, String label, AssetKind kind, AssetStatus status, List<FieldView> fields,
-            LiveView live, Indicators indicators, TripView currentTrip, List<TripView> plannedTrips,
-            List<TripView> recentTrips, List<DocumentView> documents, List<SuggestionView> suggestions,
-            List<Change> changes) {
+    public record AssetDetail(String id, String label, AssetKind kind, AssetStatus status, ImageView image,
+            List<FieldView> fields, LiveView live, Indicators indicators, TripView currentTrip,
+            List<TripView> plannedTrips, List<TripView> recentTrips, List<DocumentView> documents,
+            List<SuggestionView> suggestions, List<Change> changes) {
+    }
+
+    /** A studio image of the vehicle's make and model; the URL works until {@code expiresAt}. */
+    public record ImageView(String url, Instant expiresAt) {
     }
 
     /** A partial edit. A null or blank value clears the field, so the integrations fill it again. */

@@ -124,6 +124,8 @@ export interface AssetDetail {
   label: string | null;
   kind: AssetKind;
   status: AssetStatus;
+  /** A signed studio image of the make and model; null when there is none. */
+  image: { url: string; expiresAt: string } | null;
   fields: AssetField[];
   live: {
     lastSignalAt: string | null;
@@ -195,7 +197,8 @@ export function assetsUrl(filters: AssetFilters): string {
     params.set(key, String(value));
   }
   const query = params.toString();
-  return `${FLEET}/assets${query ? `?${query}` : ""}`;
+  const base = `${FLEET}/assets`;
+  return query ? `${base}?${query}` : base;
 }
 
 /** Fetches only when `enabled`: the caller may view the fleet. */

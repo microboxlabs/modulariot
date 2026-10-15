@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.fleet.directory;
 
+import com.microboxlabs.miot.core.vehicle.VehicleImages;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 import io.vertx.mutiny.core.Vertx;
@@ -35,6 +36,7 @@ public class FleetDirectoryProducer {
 
     private final Vertx vertx;
     private final Instance<Pool> modulithPool;
+    private final VehicleImages images;
     private final String source;
     private final Optional<String> url;
     private final Optional<String> username;
@@ -47,9 +49,11 @@ public class FleetDirectoryProducer {
     private Pool gpsPool;
     private Wiring wiring;
 
-    FleetDirectoryProducer(Vertx vertx, Instance<Pool> modulithPool, FleetConfig config) {
+    FleetDirectoryProducer(Vertx vertx, Instance<Pool> modulithPool, VehicleImages images,
+            FleetConfig config) {
         this.vertx = vertx;
         this.modulithPool = modulithPool;
+        this.images = images;
         this.source = config.source();
         this.url = config.gps().reactiveUrl().filter(s -> !s.isBlank());
         this.username = config.gps().username().filter(s -> !s.isBlank());
@@ -94,15 +98,16 @@ public class FleetDirectoryProducer {
             FleetData data = new DemoFleetData(clock::instant);
             ActivityStore activity = new InMemoryActivityStore();
             wiring = new Wiring(
-                    new FleetDirectoryService(data, new InMemoryProfileStore(), activity, clock, zone, cacheTtl),
+                    new FleetDirectoryService(data, new InMemoryProfileStore(), activity, new AssetImages(images), clock, zone,
+                            cacheTtl),
                     new ActivityRollup(data, activity, clock, zone, history, (int) history.toHours()));
         } else if ("gps".equals(source) && url.isPresent() && username.isPresent()) {
             LOG.info("Fleet directory: GPS database, read only; edits in the modulith database");
             FleetData data = new GpsFleetData(this::gpsPool);
             ActivityStore activity = new PgActivityStore(modulithPool::get);
             wiring = new Wiring(
-                    new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity, clock, zone,
-                            cacheTtl),
+                    new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity, new AssetImages(images), clock,
+                            zone, cacheTtl),
                     new ActivityRollup(data, activity, clock, zone, history, backfillPerRun));
         } else {
             LOG.infof("Fleet directory: none (miot.fleet.source=%s)", source);

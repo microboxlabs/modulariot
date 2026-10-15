@@ -23,8 +23,10 @@ final class AssetFields {
     static final String USUAL_TRAILER = "usualTrailer";
     static final String USUAL_DRIVER = "usualDriver";
 
+    static final String BRAND_MODEL = "brandModel";
+    static final String YEAR = "year";
+
     private static final String KIND = "kind";
-    private static final String YEAR = "year";
     private static final String CARRIER = "carrier";
     private static final int DUE_DAYS = 30;
     private static final Duration NO_SIGNAL = Duration.ofHours(24);
@@ -47,7 +49,7 @@ final class AssetFields {
         f.put(KIND, a -> a.reportedType() == null ? Integration.NONE
                 : new Integration(AssetKind.fromReported(a.reportedType()).name(), FieldSource.SIGNAL,
                         a.reportedType(), null, null));
-        f.put("brandModel", a -> Integration.NONE);
+        f.put(BRAND_MODEL, a -> Integration.NONE);
         f.put(YEAR, a -> a.year() == null ? Integration.NONE
                 : new Integration(a.year().toString(), FieldSource.SIGNAL, null, null, null));
         f.put("vin", a -> Integration.NONE);

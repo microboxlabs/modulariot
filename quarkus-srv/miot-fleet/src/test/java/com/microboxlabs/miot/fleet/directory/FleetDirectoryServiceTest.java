@@ -176,6 +176,27 @@ class FleetDirectoryServiceTest {
     }
 
     @Test
+    void trucksShowTheImageOfTheirMakeModelAndYear() {
+        List<String> asked = new java.util.ArrayList<>();
+        com.microboxlabs.miot.core.vehicle.VehicleImages images = (tenant, q) -> {
+            asked.add(tenant + "|" + q.make() + "|" + q.model() + "|" + q.year());
+            return java.util.Optional.of(new com.microboxlabs.miot.core.vehicle.VehicleImages.Image(
+                    "https://cdn.example/volvo.webp", Instant.parse("2026-10-14T15:05:00Z")));
+        };
+        FleetDirectoryService withImages = new FleetDirectoryService(new DemoFleetData(CLOCK::instant), profiles,
+                activity, new AssetImages(images), CLOCK, ZONE, Duration.ZERO);
+        Viewer viewer = new Viewer("acme", Set.of("acme-client"), "acme-tenant");
+
+        assertNull(withImages.asset(viewer, "DEMO-TR1").image());
+        AssetDetail truck = withImages.update(viewer, "DEMO-TR1", fields(Map.of("brandModel", "Volvo FH 540")),
+                ACTOR);
+        assertEquals("https://cdn.example/volvo.webp", truck.image().url());
+        withImages.update(viewer, "DEMO-JX1", fields(Map.of("brandModel", "Randon SR")), ACTOR);
+        assertNull(withImages.asset(viewer, "DEMO-JX1").image());
+        assertEquals(List.of("acme-tenant|Volvo|FH 540|2022"), asked);
+    }
+
+    @Test
     void trailersGetNoSuggestions() {
         assertTrue(fleet.asset(VIEWER, "DEMO-JX1").suggestions().isEmpty());
         assertFalse(fleet.asset(VIEWER, "DEMO-TR3").fields().isEmpty());

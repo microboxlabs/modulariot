@@ -129,7 +129,7 @@ final class AssetFields {
         return profile.fields().get(USUAL_DRIVER);
     }
 
-    static List<DocumentView> documents(Profile profile, LocalDate today) {
+    static List<DocumentView> documentViews(Profile profile, LocalDate today) {
         return DOCUMENTS.stream().map(key -> document(key, profile, today)).toList();
     }
 

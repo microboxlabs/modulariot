@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.StreamSupport;
 
 /**
  * {@link FleetData} over the GPS database: {@code last_signal_data}, {@code asset_client_map},
@@ -22,6 +23,11 @@ import java.util.function.Supplier;
 public class GpsFleetData implements FleetData {
 
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(60);
+
+    private static final String CARRIER = "carrier";
+    private static final String TRAILER = "trailer";
+    private static final String DRIVER = "driver";
+    private static final String ORIGIN = "origin";
 
     private static final String TRIP_COLUMNS = """
             t.trip_id, t.origin_geofence_label, t.destination_geofence_label, t.status, t.start_time,
@@ -89,8 +95,8 @@ public class GpsFleetData implements FleetData {
             LEFT JOIN carrier ON carrier.asset_id = v.asset_id
             LEFT JOIN trailer ON trailer.asset_id = v.asset_id
             LEFT JOIN driver ON driver.asset_id = v.asset_id
-            LEFT JOIN origin ON origin.asset_id = v.asset_id""".formatted(TRIP_COLUMNS, top("carrier"),
-            top("trailer"), top("driver"), top("origin"));
+            LEFT JOIN origin ON origin.asset_id = v.asset_id""".formatted(TRIP_COLUMNS, top(CARRIER),
+            top(TRAILER), top(DRIVER), top(ORIGIN));
 
     private static final String PLANNED = "SELECT " + TRIP_COLUMNS + """
              FROM public.live_trip t
@@ -169,8 +175,8 @@ public class GpsFleetData implements FleetData {
                     instant(r.getOffsetDateTime("signal_at")), r.getDouble("lat"), r.getDouble("lon"),
                     r.getDouble("speed"), r.getBoolean("engine_on"), r.getString("provider"), r.getString("sender"),
                     r.getString("signal_driver"), trip(r, "c_"), trip(r, "n_"), trips, r.getDouble("trip_hours"),
-                    share(r, "carrier", trips), share(r, "trailer", trips), share(r, "driver", trips),
-                    share(r, "origin", trips)));
+                    share(r, CARRIER, trips), share(r, TRAILER, trips), share(r, DRIVER, trips),
+                    share(r, ORIGIN, trips)));
         }
         return assets;
     }
@@ -187,14 +193,13 @@ public class GpsFleetData implements FleetData {
 
     @Override
     public List<ActivityHour> activity(Instant from, Instant to) {
-        List<ActivityHour> hours = new ArrayList<>();
-        for (Row r : query(ACTIVITY, Tuple.of(OffsetDateTime.ofInstant(from, java.time.ZoneOffset.UTC),
-                OffsetDateTime.ofInstant(to, java.time.ZoneOffset.UTC)))) {
-            hours.add(new ActivityHour(r.getString("asset_id"), instant(r.getOffsetDateTime("hour")),
-                    r.getInteger("signals"), r.getInteger("engine_s"), r.getInteger("idle_s"),
-                    r.getInteger("moving_s"), r.getDouble("km")));
-        }
-        return hours;
+        RowSet<Row> rows = query(ACTIVITY, Tuple.of(OffsetDateTime.ofInstant(from, java.time.ZoneOffset.UTC),
+                OffsetDateTime.ofInstant(to, java.time.ZoneOffset.UTC)));
+        return StreamSupport.stream(rows.spliterator(), false)
+                .map(r -> new ActivityHour(r.getString("asset_id"), instant(r.getOffsetDateTime("hour")),
+                        r.getInteger("signals"), r.getInteger("engine_s"), r.getInteger("idle_s"),
+                        r.getInteger("moving_s"), r.getDouble("km")))
+                .toList();
     }
 
     private RowSet<Row> query(String sql, Tuple params) {
@@ -202,11 +207,7 @@ public class GpsFleetData implements FleetData {
     }
 
     private static List<TripView> trips(RowSet<Row> rows) {
-        List<TripView> trips = new ArrayList<>();
-        for (Row r : rows) {
-            trips.add(trip(r, ""));
-        }
-        return trips;
+        return StreamSupport.stream(rows.spliterator(), false).map(r -> trip(r, "")).toList();
     }
 
     private static TripView trip(Row r, String prefix) {

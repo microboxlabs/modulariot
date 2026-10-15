@@ -60,7 +60,7 @@ export function FleetHeader({
         <Breadcrumb aria-label="breadcrumb">
           {crumbs.map((crumb, i) => (
             <BreadcrumbItem
-              key={crumb.label}
+              key={`${i}-${crumb.label}`}
               icon={i === 0 ? HiOutlineTruck : undefined}
             >
               {crumb.href ? (

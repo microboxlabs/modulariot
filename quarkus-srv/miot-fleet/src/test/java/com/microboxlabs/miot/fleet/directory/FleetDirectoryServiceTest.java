@@ -131,14 +131,14 @@ class FleetDirectoryServiceTest {
 
     @Test
     void rejectsUnknownFieldsAndBadValues() {
-        assertThrows(IllegalArgumentException.class,
-                () -> fleet.update(VIEWER, "DEMO-TR1", fields(Map.of("owner", "x")), ACTOR));
-        assertThrows(IllegalArgumentException.class,
-                () -> fleet.update(VIEWER, "DEMO-TR1", fields(Map.of("kind", "bus")), ACTOR));
-        assertThrows(IllegalArgumentException.class,
-                () -> fleet.update(VIEWER, "DEMO-TR1", fields(Map.of("year", "1800")), ACTOR));
-        assertThrows(IllegalArgumentException.class, () -> fleet.update(VIEWER, "DEMO-TR1",
-                new AssetUpdate(Map.of(), Map.of("insurance", "31/03/2027")), ACTOR));
+        AssetUpdate unknownField = fields(Map.of("owner", "x"));
+        AssetUpdate badKind = fields(Map.of("kind", "bus"));
+        AssetUpdate badYear = fields(Map.of("year", "1800"));
+        AssetUpdate badDate = new AssetUpdate(Map.of(), Map.of("insurance", "31/03/2027"));
+        assertThrows(IllegalArgumentException.class, () -> fleet.update(VIEWER, "DEMO-TR1", unknownField, ACTOR));
+        assertThrows(IllegalArgumentException.class, () -> fleet.update(VIEWER, "DEMO-TR1", badKind, ACTOR));
+        assertThrows(IllegalArgumentException.class, () -> fleet.update(VIEWER, "DEMO-TR1", badYear, ACTOR));
+        assertThrows(IllegalArgumentException.class, () -> fleet.update(VIEWER, "DEMO-TR1", badDate, ACTOR));
         assertThrows(NoSuchElementException.class, () -> fleet.asset(VIEWER, "OTHER-ASSET"));
     }
 

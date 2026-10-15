@@ -14,7 +14,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -23,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.StreamSupport;
 
 /** {@link ProfileStore} on the modulith database, schema {@code miot_fleet}. */
 public class PgProfileStore implements ProfileStore {
@@ -61,8 +61,8 @@ public class PgProfileStore implements ProfileStore {
             ORDER BY changed_at DESC, id DESC
             LIMIT $3""";
 
-    private static final String DISMISSED = """
-            SELECT asset_id, suggestion FROM miot_fleet.asset_suggestion_dismissal WHERE organization_id = $1""";
+    private static final String DISMISSED =
+            "SELECT asset_id, suggestion FROM miot_fleet.asset_suggestion_dismissal WHERE organization_id = $1";
 
     private static final String DISMISS = """
             INSERT INTO miot_fleet.asset_suggestion_dismissal (organization_id, asset_id, suggestion, dismissed_by)
@@ -115,12 +115,12 @@ public class PgProfileStore implements ProfileStore {
 
     @Override
     public List<Change> changes(String organizationId, String assetId, int limit) {
-        List<Change> found = new ArrayList<>();
-        for (Row r : query(pool.get(), CHANGES, Tuple.of(organizationId, assetId, limit))) {
-            found.add(new Change(r.getString("field"), r.getString("old_value"), r.getString("new_value"),
-                    r.getString("origin"), r.getString("changed_by"), r.getOffsetDateTime("changed_at").toInstant()));
-        }
-        return found;
+        RowSet<Row> rows = query(pool.get(), CHANGES, Tuple.of(organizationId, assetId, limit));
+        return StreamSupport.stream(rows.spliterator(), false)
+                .map(r -> new Change(r.getString("field"), r.getString("old_value"), r.getString("new_value"),
+                        r.getString("origin"), r.getString("changed_by"),
+                        r.getOffsetDateTime("changed_at").toInstant()))
+                .toList();
     }
 
     @Override

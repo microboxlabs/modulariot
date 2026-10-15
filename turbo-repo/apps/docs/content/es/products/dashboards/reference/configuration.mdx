@@ -60,6 +60,7 @@ Configure exactamente una fuente de claves. La verificación JWT necesita el paq
 | --- | --- | --- |
 | `MIOT_DASHBOARD_TICKET_HEADER` | ninguno | Obligatorio. Encabezado de la solicitud que lleva el ticket. |
 | `MIOT_DASHBOARD_TICKET_VALIDATE_URL` | ninguno | Obligatorio. El endpoint de verificación del emisor, con `{ticket}` o `{ticketBase64}` |
+| `MIOT_DASHBOARD_TICKET_ALLOW_HTTP` | `false` | Acepta un endpoint de verificación `http://` en una red privada |
 | `MIOT_DASHBOARD_TICKET_VALIDATE_METHOD` | `GET` | `GET` o `POST`. `POST` cuando se presenta en el cuerpo. |
 | `MIOT_DASHBOARD_TICKET_USER_PATH` | ninguno | Obligatorio. Ruta con puntos al ID del usuario en la respuesta |
 | `MIOT_DASHBOARD_TICKET_SCHEME` | ninguno | Prefijo a quitar, para un encabezado como `Ticket <value>` |

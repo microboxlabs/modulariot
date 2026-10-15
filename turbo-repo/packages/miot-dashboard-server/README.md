@@ -427,6 +427,7 @@ MIOT_DASHBOARD_TICKET_USER_PATH=entry.id \
 | --------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `MIOT_DASHBOARD_TICKET_HEADER`          | required; the request header callers present the ticket in                                     |
 | `MIOT_DASHBOARD_TICKET_VALIDATE_URL`    | required; the emitter's endpoint, over `{ticket}` / `{ticketBase64}`                           |
+| `MIOT_DASHBOARD_TICKET_ALLOW_HTTP`      | `true` accepts a plain `http://` validation URL, for an emitter on the same private network    |
 | `MIOT_DASHBOARD_TICKET_VALIDATE_METHOD` | `GET` (default) or `POST`; `POST` is the default when presenting in the body                   |
 | `MIOT_DASHBOARD_TICKET_USER_PATH`       | required; dotted path to the user id in the answer                                             |
 | `MIOT_DASHBOARD_TICKET_SCHEME`          | a scheme prefix to strip, for a header holding `Ticket <value>`                                |

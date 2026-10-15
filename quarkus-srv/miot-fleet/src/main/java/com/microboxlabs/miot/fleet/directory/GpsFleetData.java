@@ -221,10 +221,10 @@ public class GpsFleetData implements FleetData {
                     instant(r.getOffsetDateTime("end_time")), instant(r.getOffsetDateTime("estimated_arrival_time")),
                     r.getString("carrier_name"), r.getString("driver_name"), r.getString("rampla_plate"));
         }
-        return new TripView(id, r.getString(prefix + "origin"), r.getString(prefix + "dest"),
+        return new TripView(id, r.getString(prefix + ORIGIN), r.getString(prefix + "dest"),
                 r.getString(prefix + "status"), instant(r.getOffsetDateTime(prefix + "start")),
                 instant(r.getOffsetDateTime(prefix + "end")), instant(r.getOffsetDateTime(prefix + "eta")),
-                r.getString(prefix + "carrier"), r.getString(prefix + "driver"), r.getString(prefix + "trailer"));
+                r.getString(prefix + CARRIER), r.getString(prefix + DRIVER), r.getString(prefix + TRAILER));
     }
 
     private static Share share(Row r, String column, int total) {

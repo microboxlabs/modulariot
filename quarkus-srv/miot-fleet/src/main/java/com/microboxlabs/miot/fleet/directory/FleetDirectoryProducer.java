@@ -98,7 +98,7 @@ public class FleetDirectoryProducer {
             FleetData data = new DemoFleetData(clock::instant);
             ActivityStore activity = new InMemoryActivityStore();
             wiring = new Wiring(
-                    new FleetDirectoryService(data, new InMemoryProfileStore(), activity, images, clock, zone,
+                    new FleetDirectoryService(data, new InMemoryProfileStore(), activity, new AssetImages(images), clock, zone,
                             cacheTtl),
                     new ActivityRollup(data, activity, clock, zone, history, (int) history.toHours()));
         } else if ("gps".equals(source) && url.isPresent() && username.isPresent()) {
@@ -106,7 +106,7 @@ public class FleetDirectoryProducer {
             FleetData data = new GpsFleetData(this::gpsPool);
             ActivityStore activity = new PgActivityStore(modulithPool::get);
             wiring = new Wiring(
-                    new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity, images, clock,
+                    new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity, new AssetImages(images), clock,
                             zone, cacheTtl),
                     new ActivityRollup(data, activity, clock, zone, history, backfillPerRun));
         } else {

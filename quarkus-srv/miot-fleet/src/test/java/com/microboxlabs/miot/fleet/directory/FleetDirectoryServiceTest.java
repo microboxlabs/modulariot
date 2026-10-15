@@ -184,7 +184,7 @@ class FleetDirectoryServiceTest {
                     "https://cdn.example/volvo.webp", Instant.parse("2026-10-14T15:05:00Z")));
         };
         FleetDirectoryService withImages = new FleetDirectoryService(new DemoFleetData(CLOCK::instant), profiles,
-                activity, images, CLOCK, ZONE, Duration.ZERO);
+                activity, new AssetImages(images), CLOCK, ZONE, Duration.ZERO);
         Viewer viewer = new Viewer("acme", Set.of("acme-client"), "acme-tenant");
 
         assertNull(withImages.asset(viewer, "DEMO-TR1").image());

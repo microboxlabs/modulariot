@@ -55,7 +55,7 @@ public class FleetDirectoryProducer {
             @ConfigProperty(name = "miot.fleet.gps.password") Optional<String> password,
             @ConfigProperty(name = "miot.fleet.zone", defaultValue = "America/Santiago") String zone,
             @ConfigProperty(name = "miot.fleet.cache-ttl", defaultValue = "PT1M") Duration cacheTtl,
-            @ConfigProperty(name = "miot.fleet.activity.history", defaultValue = "P14D") Duration history,
+            @ConfigProperty(name = "miot.fleet.activity.history", defaultValue = "P30D") Duration history,
             @ConfigProperty(name = "miot.fleet.activity.backfill-per-run", defaultValue = "8") int backfillPerRun) {
         this.vertx = vertx;
         this.modulithPool = modulithPool;

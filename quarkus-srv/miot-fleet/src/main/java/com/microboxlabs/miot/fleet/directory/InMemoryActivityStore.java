@@ -32,6 +32,8 @@ public class InMemoryActivityStore implements ActivityStore {
         }
         touched.add(from.atZone(zone).toLocalDate());
         touched.add(to.minusSeconds(1).atZone(zone).toLocalDate());
+        days.keySet().removeIf(key -> touched.contains(days.get(key).day()));
+        dayAsset.keySet().retainAll(days.keySet());
         Map<String, List<ActivityHour>> byDay = new HashMap<>();
         for (ActivityHour h : hours.values()) {
             LocalDate day = h.hour().atZone(zone).toLocalDate();

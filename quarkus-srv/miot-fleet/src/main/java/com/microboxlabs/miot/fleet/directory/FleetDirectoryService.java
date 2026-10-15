@@ -163,7 +163,7 @@ public class FleetDirectoryService {
                 .filter(r -> matches(r, query, stored.get(r.id()), today))
                 .sorted(order(query.sort()))
                 .toList();
-        int from = Math.min(query.page() * query.size(), matching.size());
+        int from = (int) Math.min((long) query.page() * query.size(), matching.size());
         int to = Math.min(from + query.size(), matching.size());
         return new AssetPage(matching.subList(from, to), matching.size(), query.page(), query.size(), summary,
                 facets(kinds), facets(carriers));
@@ -200,8 +200,6 @@ public class FleetDirectoryService {
         Profile current = profiles.find(viewer.organizationId(), assetId)
                 .orElse(Profile.empty(viewer.organizationId(), assetId));
         Instant now = clock.instant();
-        Map<String, String> fields = new LinkedHashMap<>(current.fields());
-        Map<String, LocalDate> documents = new LinkedHashMap<>(current.documents());
         List<Change> changes = new ArrayList<>();
 
         Map<String, String> requestedFields = update.fields() == null ? Map.of() : update.fields();
@@ -210,13 +208,8 @@ public class FleetDirectoryService {
                 throw new IllegalArgumentException("Unknown field: " + key);
             }
             String value = normalize(key, raw);
-            String old = fields.get(key);
+            String old = current.fields().get(key);
             if (!Objects.equals(old, value)) {
-                if (value == null) {
-                    fields.remove(key);
-                } else {
-                    fields.put(key, value);
-                }
                 changes.add(new Change(key, old, value, MANUAL, actor, now));
             }
         });
@@ -226,18 +219,13 @@ public class FleetDirectoryService {
                 throw new IllegalArgumentException("Unknown document: " + key);
             }
             LocalDate value = date(raw);
-            LocalDate old = documents.get(key);
+            LocalDate old = current.documents().get(key);
             if (!Objects.equals(old, value)) {
-                if (value == null) {
-                    documents.remove(key);
-                } else {
-                    documents.put(key, value);
-                }
-                changes.add(new Change("document." + key, text(old), text(value), MANUAL, actor, now));
+                changes.add(new Change(Profile.DOCUMENT + key, text(old), text(value), MANUAL, actor, now));
             }
         });
         Profile saved = changes.isEmpty() ? current
-                : profiles.save(new Profile(viewer.organizationId(), assetId, fields, documents, actor, now), changes);
+                : profiles.apply(viewer.organizationId(), assetId, changes);
         return detail(facts, saved, snapshot, dismissed(viewer, assetId));
     }
 
@@ -251,10 +239,9 @@ public class FleetDirectoryService {
                 .filter(s -> s.kind().equals(kind)).findFirst()
                 .orElseThrow(() -> new NoSuchElementException("No suggestion " + kind + " for " + assetId));
         Instant now = clock.instant();
-        Map<String, String> fields = new LinkedHashMap<>(current.fields());
-        String old = fields.put(suggestion.field(), suggestion.value());
-        Profile saved = profiles.save(new Profile(viewer.organizationId(), assetId, fields, current.documents(),
-                actor, now), List.of(new Change(suggestion.field(), old, suggestion.value(), SUGGESTION, actor, now)));
+        String old = current.fields().get(suggestion.field());
+        Profile saved = profiles.apply(viewer.organizationId(), assetId,
+                List.of(new Change(suggestion.field(), old, suggestion.value(), SUGGESTION, actor, now)));
         return detail(facts, saved, snapshot, dismissed(viewer, assetId));
     }
 

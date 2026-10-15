@@ -39,11 +39,16 @@ public class PgProfileStore implements ProfileStore {
 
     private static final String FIND = ALL + " AND asset_id = $2";
 
-    private static final String UPSERT = """
-            INSERT INTO miot_fleet.asset_profile (organization_id, asset_id, fields, documents, updated_by, updated_at)
-            VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6)
-            ON CONFLICT (organization_id, asset_id) DO UPDATE SET fields = EXCLUDED.fields,
-                documents = EXCLUDED.documents, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at""";
+    private static final String CREATE = """
+            INSERT INTO miot_fleet.asset_profile (organization_id, asset_id) VALUES ($1, $2)
+            ON CONFLICT DO NOTHING""";
+
+    private static final String LOCK = FIND + " FOR UPDATE";
+
+    private static final String UPDATE = """
+            UPDATE miot_fleet.asset_profile SET fields = $3::jsonb, documents = $4::jsonb, updated_by = $5,
+                updated_at = $6
+            WHERE organization_id = $1 AND asset_id = $2""";
 
     private static final String INSERT_CHANGE = """
             INSERT INTO miot_fleet.asset_change (organization_id, asset_id, field, old_value, new_value, origin,
@@ -87,22 +92,25 @@ public class PgProfileStore implements ProfileStore {
     }
 
     @Override
-    public Profile save(Profile p, List<Change> changes) {
-        Map<String, String> documents = new LinkedHashMap<>();
-        p.documents().forEach((k, v) -> documents.put(k, v.toString()));
-        Tuple upsert = Tuple.tuple().addValue(p.organizationId()).addValue(p.assetId()).addValue(json(p.fields()))
-                .addValue(json(documents)).addValue(p.updatedBy()).addValue(time(p.updatedAt()));
-        pool.get().withTransaction(tx -> {
-            Uni<?> chain = tx.preparedQuery(UPSERT).execute(upsert);
-            for (Change c : changes) {
-                Tuple change = Tuple.tuple().addValue(p.organizationId()).addValue(p.assetId()).addValue(c.field())
-                        .addValue(c.oldValue()).addValue(c.newValue()).addValue(c.origin()).addValue(c.changedBy())
-                        .addValue(time(c.changedAt()));
-                chain = chain.chain(() -> tx.preparedQuery(INSERT_CHANGE).execute(change));
-            }
-            return chain.replaceWithVoid();
-        }).await().atMost(QUERY_TIMEOUT);
-        return p;
+    public Profile apply(String organizationId, String assetId, List<Change> changes) {
+        Tuple id = Tuple.of(organizationId, assetId);
+        return pool.get().withTransaction(tx -> tx.preparedQuery(CREATE).execute(id)
+                .chain(() -> tx.preparedQuery(LOCK).execute(id))
+                .chain(rows -> {
+                    Profile p = profile(rows.iterator().next()).with(changes);
+                    Map<String, String> documents = new LinkedHashMap<>();
+                    p.documents().forEach((k, v) -> documents.put(k, v.toString()));
+                    Uni<?> chain = tx.preparedQuery(UPDATE).execute(Tuple.tuple().addValue(organizationId)
+                            .addValue(assetId).addValue(json(p.fields())).addValue(json(documents))
+                            .addValue(p.updatedBy()).addValue(time(p.updatedAt())));
+                    for (Change c : changes) {
+                        Tuple change = Tuple.tuple().addValue(organizationId).addValue(assetId).addValue(c.field())
+                                .addValue(c.oldValue()).addValue(c.newValue()).addValue(c.origin())
+                                .addValue(c.changedBy()).addValue(time(c.changedAt()));
+                        chain = chain.chain(() -> tx.preparedQuery(INSERT_CHANGE).execute(change));
+                    }
+                    return chain.replaceWith(p);
+                })).await().atMost(QUERY_TIMEOUT);
     }
 
     @Override

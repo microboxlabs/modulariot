@@ -10,12 +10,14 @@ import org.jboss.logging.Logger;
 
 /**
  * Computes hourly activity from GPS signals. Each run recomputes the last {@code RECENT_HOURS} hours, so late
- * signals are counted, and fills up to {@code backfillPerRun} older hours until {@code history} is covered.
+ * signals are counted. It then spends up to {@code backfillPerRun} hours first on hours missed while it was not
+ * running, then on older hours until {@code history} is covered.
  * Writes are idempotent: two replicas running at once only repeat work.
  */
 public class ActivityRollup {
 
     static final String BACKFILL_CURSOR = "backfill";
+    static final String LATEST_CURSOR = "latest";
     static final int RECENT_HOURS = 3;
 
     private static final Logger LOG = Logger.getLogger(ActivityRollup.class);
@@ -44,8 +46,18 @@ public class ActivityRollup {
             compute(hour);
         }
         Instant oldest = current.minus(history);
+        int budget = backfillPerRun;
+        Instant latest = store.cursor(LATEST_CURSOR).orElse(current);
+        Instant gap = latest.isBefore(oldest) ? oldest : latest.plus(1, ChronoUnit.HOURS);
+        for (; gap.isBefore(recentStart) && budget > 0; gap = gap.plus(1, ChronoUnit.HOURS), budget--) {
+            compute(gap);
+            store.cursor(LATEST_CURSOR, gap);
+        }
+        if (!gap.isBefore(recentStart)) {
+            store.cursor(LATEST_CURSOR, current);
+        }
         Instant done = store.cursor(BACKFILL_CURSOR).orElse(recentStart);
-        for (int i = 0; i < backfillPerRun && done.isAfter(oldest); i++) {
+        for (int i = 0; i < budget && done.isAfter(oldest); i++) {
             done = done.minus(1, ChronoUnit.HOURS);
             compute(done);
             store.cursor(BACKFILL_CURSOR, done);

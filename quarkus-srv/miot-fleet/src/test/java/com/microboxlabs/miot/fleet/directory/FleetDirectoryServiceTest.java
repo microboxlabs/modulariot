@@ -14,6 +14,7 @@ import com.microboxlabs.miot.fleet.directory.Views.FieldView;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -101,6 +102,23 @@ class FleetDirectoryServiceTest {
         assertEquals(FieldSource.TRIP, field(cleared, "carrier").source());
         assertEquals("Volvo FH 540", field(cleared, "brandModel").value());
         assertEquals(3, cleared.changes().size());
+    }
+
+    @Test
+    void editsOfDifferentFieldsFromTheSameStartBothPersist() {
+        Instant at = CLOCK.instant();
+        profiles.apply("acme", "DEMO-TR2", List.of(new Change("label", null, "Tracto 2", "MANUAL", ACTOR, at)));
+        profiles.apply("acme", "DEMO-TR2", List.of(new Change("carrier", null, "Otra", "MANUAL", ACTOR, at),
+                new Change(Profile.DOCUMENT + "accreditation", null, "2027-01-31", "MANUAL", ACTOR, at)));
+        Profile stored = profiles.find("acme", "DEMO-TR2").orElseThrow();
+        assertEquals(Map.of("label", "Tracto 2", "carrier", "Otra"), stored.fields());
+        assertEquals(LocalDate.of(2027, 1, 31), stored.documents().get("accreditation"));
+    }
+
+    @Test
+    void aPageFarPastTheEndIsEmpty() {
+        AssetPage page = fleet.list(VIEWER, new AssetQuery(null, null, null, null, false, false, null, 50_000_000, 50));
+        assertTrue(page.items().isEmpty());
     }
 
     @Test

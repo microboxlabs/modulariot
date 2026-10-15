@@ -34,8 +34,9 @@ public class InMemoryProfileStore implements ProfileStore {
     }
 
     @Override
-    public synchronized Profile save(Profile profile, List<Change> made) {
-        String key = key(profile.organizationId(), profile.assetId());
+    public synchronized Profile apply(String organizationId, String assetId, List<Change> made) {
+        String key = key(organizationId, assetId);
+        Profile profile = profiles.getOrDefault(key, Profile.empty(organizationId, assetId)).with(made);
         profiles.put(key, profile);
         changes.computeIfAbsent(key, k -> new ArrayList<>()).addAll(0, made.reversed());
         return profile;

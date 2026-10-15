@@ -16,6 +16,6 @@ public interface FleetData {
     /** Finished trips of one asset, newest first. */
     List<TripView> recentTrips(String assetId, int limit);
 
-    /** Activity of every asset in the hours of [from, to), from its signals. */
+    /** Activity of every asset in the hour [from, to), from its signals. */
     List<ActivityHour> activity(Instant from, Instant to);
 }

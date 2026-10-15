@@ -2,10 +2,13 @@ package com.microboxlabs.miot.fleet.directory;
 
 import java.text.Normalizer;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 /** What an asset is. GPS providers report free text; {@link #fromReported} maps the common values. */
 public enum AssetKind {
     TRUCK, TRAILER, DECOY, PERSON, OTHER;
+
+    private static final Pattern CAR = Pattern.compile("\\bcar\\b");
 
     public static AssetKind fromReported(String reported) {
         if (reported == null || reported.isBlank()) {
@@ -24,7 +27,7 @@ public enum AssetKind {
             return PERSON;
         }
         if (t.contains("truck") || t.contains("camion") || t.contains("tracto") || t.contains("vehic")
-                || t.contains("car") || t.contains("scania") || t.contains("volvo") || t.contains("mercedes")
+                || CAR.matcher(t).find() || t.contains("scania") || t.contains("volvo") || t.contains("mercedes")
                 || t.contains("freightliner") || t.contains("kenworth") || t.contains("international")) {
             return TRUCK;
         }

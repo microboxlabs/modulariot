@@ -12,8 +12,11 @@ public interface ProfileStore {
 
     Optional<Profile> find(String organizationId, String assetId);
 
-    /** Saves the profile and records the changes that led to it. */
-    Profile save(Profile profile, List<Change> changes);
+    /**
+     * Applies the changes to the stored profile and records them. Concurrent edits of different fields both
+     * persist.
+     */
+    Profile apply(String organizationId, String assetId, List<Change> changes);
 
     List<Change> changes(String organizationId, String assetId, int limit);
 

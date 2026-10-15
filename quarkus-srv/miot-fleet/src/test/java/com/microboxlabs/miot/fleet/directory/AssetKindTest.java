@@ -16,6 +16,8 @@ class AssetKindTest {
         assertEquals(AssetKind.TRAILER, AssetKind.fromReported("rampla plana"));
         assertEquals(AssetKind.DECOY, AssetKind.fromReported("Señuelo"));
         assertEquals(AssetKind.PERSON, AssetKind.fromReported("conductor"));
+        assertEquals(AssetKind.TRUCK, AssetKind.fromReported("Car"));
+        assertEquals(AssetKind.OTHER, AssetKind.fromReported("Tarjeta de carga"));
         assertEquals(AssetKind.OTHER, AssetKind.fromReported("NO DEFINIDO"));
         assertEquals(AssetKind.OTHER, AssetKind.fromReported(" "));
     }

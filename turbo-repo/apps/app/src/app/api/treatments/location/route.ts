@@ -13,6 +13,7 @@ import {
   TreatmentsLocationResponseItem,
 } from "./route.type";
 import { parseWKBPoint } from "@/utils/map-conversion";
+import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
@@ -53,6 +54,16 @@ export async function GET(request: Request) {
       { status: 400 }
     );
   }
+  // Without PostgREST, the modulith reads the signals as the active organization.
+  if (!process.env.STREAMHUB_URL) {
+    const response = await forwardControlTowerMap(
+      `symptoms/${encodeURIComponent(symptom_id)}/signals`
+    );
+    if (!response.ok) return response;
+    const data = (await response.json()) as TreatmentsLocationResponseItem;
+    return NextResponse.json(withCoordinates(data, symptom_name));
+  }
+
   try {
     const token = await authToken.getToken();
     const response = await fetch(
@@ -82,22 +93,7 @@ export async function GET(request: Request) {
     }
 
     const apiData = (await response.json()) as TreatmentsLocationResponse;
-    // Transform API data into our desired structure
-    const formattedResponse: TreatmentsLocationResponseItem = {
-      type: "FeatureCollection",
-      features: apiData.data.features.map((feature) => {
-        const [longitude, latitude] = parseWKBPoint(feature.geometry);
-        return {
-          ...feature,
-          longitude,
-          latitude,
-          symptom_name,
-        };
-      }),
-      description: apiData.data.description,
-    };
-
-    return NextResponse.json(formattedResponse);
+    return NextResponse.json(withCoordinates(apiData.data, symptom_name));
   } catch (error: any) {
     return NextResponse.json(
       {
@@ -112,4 +108,23 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
+}
+
+function withCoordinates(
+  data: TreatmentsLocationResponseItem,
+  symptom_name: string | null
+): TreatmentsLocationResponseItem {
+  return {
+    type: "FeatureCollection",
+    features: data.features.map((feature) => {
+      const [longitude, latitude] = parseWKBPoint(feature.geometry);
+      return {
+        ...feature,
+        longitude,
+        latitude,
+        symptom_name,
+      };
+    }),
+    description: data.description,
+  };
 }

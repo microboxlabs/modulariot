@@ -1,0 +1,151 @@
+package com.microboxlabs.miot.symptoms.map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.smallrye.mutiny.Uni;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
+
+class ControlTowerTreatmentServiceTest {
+
+    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final List<String> CLIENTS = List.of("client-a", "client-child");
+
+    /** Symptom 7 belongs to client-child; trip T1 on asset AB12 is visible. */
+    private static final class FakeReads implements TreatmentReads {
+        final List<String> calls = new ArrayList<>();
+        Map<Long, String> owners = Map.of(7L, "client-child");
+        JsonNode treatment = JSON.createObjectNode().put("status", 200)
+                .set("data", JSON.createObjectNode().set("symptom_info", JSON.createObjectNode().put("id", 7)));
+        JsonNode signals = JSON.createObjectNode().put("status", 200)
+                .set("data", JSON.createObjectNode().put("type", "FeatureCollection").set("features",
+                        JSON.createArrayNode().add(JSON.createObjectNode().put("geometry", "0101"))));
+        RuntimeException failure;
+
+        @Override
+        public Uni<Optional<String>> symptomClient(long symptomId, List<String> clientIds) {
+            calls.add("owner " + symptomId + " " + clientIds);
+            if (failure != null) {
+                return Uni.createFrom().failure(failure);
+            }
+            return Uni.createFrom().item(Optional.ofNullable(owners.get(symptomId)).filter(clientIds::contains));
+        }
+
+        @Override
+        public Uni<JsonNode> treatment(String clientId, long symptomId) {
+            calls.add("treatment " + clientId + " " + symptomId);
+            return Uni.createFrom().item(treatment);
+        }
+
+        @Override
+        public Uni<JsonNode> signals(String clientId, long symptomId) {
+            calls.add("signals " + clientId + " " + symptomId);
+            return Uni.createFrom().item(signals);
+        }
+
+        @Override
+        public Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, List<String> clientIds,
+                int limit) {
+            calls.add("positions " + tripId + " " + assetId + " " + limit);
+            if (!"T1".equals(tripId) || !"AB12".equals(assetId)) {
+                return Uni.createFrom().item(Optional.empty());
+            }
+            return Uni.createFrom().item(Optional.of(JSON.createArrayNode().add(JSON.createObjectNode()
+                    .put("assetid", "AB12").put("longitude", -70.6).put("latitude", -33.4))));
+        }
+    }
+
+    private final FakeReads reads = new FakeReads();
+    private final ControlTowerTreatmentService service = new ControlTowerTreatmentService(reads);
+
+    private static JsonNode await(Uni<JsonNode> call) {
+        return call.await().indefinitely();
+    }
+
+    @Test
+    void theTreatmentIsReadAsTheClientThatHoldsTheSymptom() {
+        JsonNode data = await(service.treatment(CLIENTS, "7"));
+        assertEquals(7, data.path("symptom_info").path("id").asInt());
+        assertEquals(List.of("owner 7 [client-a, client-child]", "treatment client-child 7"), reads.calls);
+    }
+
+    @Test
+    void anotherOrganizationsSymptomIsNotFound() {
+        Uni<JsonNode> call = service.treatment(List.of("client-a"), "7");
+        assertThrows(NoSuchElementException.class, () -> await(call));
+        Uni<JsonNode> signals = service.signals(List.of("client-a"), "7");
+        assertThrows(NoSuchElementException.class, () -> await(signals));
+        assertEquals(List.of("owner 7 [client-a]", "owner 7 [client-a]"), reads.calls);
+    }
+
+    @Test
+    void anEmptyTreatmentIsNotFound() {
+        reads.treatment = JSON.createObjectNode().put("status", 204).set("data", JSON.createObjectNode());
+        Uni<JsonNode> call = service.treatment(CLIENTS, "7");
+        assertThrows(NoSuchElementException.class, () -> await(call));
+    }
+
+    @Test
+    void aFunctionErrorIsUnavailable() {
+        reads.treatment = JSON.createObjectNode().put("status", 500).put("message", "Unexpected error: boom");
+        Uni<JsonNode> call = service.treatment(CLIENTS, "7");
+        var e = assertThrows(ControlTowerMapService.UnavailableException.class, () -> await(call));
+        assertTrue(!e.getMessage().contains("boom"));
+    }
+
+    @Test
+    void aDatabaseFailureIsUnavailable() {
+        reads.failure = new IllegalStateException("connection refused");
+        Uni<JsonNode> call = service.signals(CLIENTS, "7");
+        var e = assertThrows(ControlTowerMapService.UnavailableException.class, () -> await(call));
+        assertEquals("The GPS database did not answer", e.getMessage());
+    }
+
+    @Test
+    void aNonNumericSymptomIdIsRefused() {
+        assertThrows(IllegalArgumentException.class, () -> service.treatment(CLIENTS, "7 OR 1=1"));
+        assertTrue(reads.calls.isEmpty());
+    }
+
+    @Test
+    void signalsAreTheFeatureCollection() {
+        JsonNode data = await(service.signals(CLIENTS, "7"));
+        assertEquals("FeatureCollection", data.path("type").asText());
+        assertEquals("0101", data.path("features").get(0).path("geometry").asText());
+    }
+
+    @Test
+    void noSignalsIsAnEmptyFeatureCollection() {
+        reads.signals = JSON.createObjectNode().put("status", 200).put("data", "[]");
+        JsonNode data = await(service.signals(CLIENTS, "7"));
+        assertEquals("FeatureCollection", data.path("type").asText());
+        assertTrue(data.path("features").isArray() && data.path("features").isEmpty());
+    }
+
+    @Test
+    void tripPositionsAreCappedAndAnUnknownTripIsNotFound() {
+        JsonNode positions = await(service.tripPositions(CLIENTS, " T1 ", "AB12"));
+        assertEquals("AB12", positions.get(0).path("assetid").asText());
+        assertEquals("positions T1 AB12 " + ControlTowerTreatmentService.MAX_POSITIONS, reads.calls.get(0));
+
+        Uni<JsonNode> other = service.tripPositions(CLIENTS, "T2", "AB12");
+        assertThrows(NoSuchElementException.class, () -> await(other));
+        assertThrows(IllegalArgumentException.class, () -> service.tripPositions(CLIENTS, "T1", " "));
+    }
+
+    @Test
+    void withoutADatabaseEverythingIsUnavailable() {
+        ControlTowerTreatmentService none = new ControlTowerTreatmentService((TreatmentReads) null);
+        Uni<JsonNode> call = none.treatment(CLIENTS, "7");
+        var e = assertThrows(ControlTowerMapService.UnavailableException.class, () -> await(call));
+        assertEquals("GPS data is not configured", e.getMessage());
+    }
+}

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import {
+  forwardControlTowerMap,
+  isoDate,
+} from "@/app/api/utils/control-tower-map";
 import { SymptomsDashboard } from "./route.type";
 
 /**
@@ -11,7 +14,7 @@ export async function GET(req: NextRequest) {
   const params = new URLSearchParams();
   for (const name of ["from", "to"]) {
     const value = req.nextUrl.searchParams.get(name);
-    if (value) params.set(name, value);
+    if (value) params.set(name, isoDate(value));
   }
   const search = params.size ? `?${params}` : "";
 

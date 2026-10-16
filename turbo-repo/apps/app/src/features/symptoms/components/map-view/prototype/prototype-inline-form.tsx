@@ -19,7 +19,7 @@ import type { CallFormDraft } from "./prototype-call-driver";
 import { useFieldEditorMode } from "./call-center/field-editor-mode";
 import WhatsAppContact from "../../blurrable-stepped-menu/menus/whatsapp-contact/whatsapp-contact";
 import { FaPhoneAlt, FaWhatsapp } from "react-icons/fa";
-import { guardedRequestTreatment } from "./prototype-api-guard";
+import { startPendingTreatment } from "./prototype-api-guard";
 import PrototypeIgnoreCondition from "./prototype-ignore-condition";
 import PrototypeInvalidateSymptom from "./prototype-invalidate-symptom";
 import { TiDelete } from "react-icons/ti";
@@ -228,22 +228,12 @@ export default function PrototypeInlineForm({
   const menus = {
     call_driver: {
       title: (dict.symptoms as I18nRecord).call_driver,
-      preactions: async () => {
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_type: "llamar al conductor",
-          status: "pending",
-        });
-        const response = await guardedRequestTreatment({
-          ...treatmentRequest,
-          treatment_type: "llamar al conductor",
-          status: "pending",
-        });
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_id: response.treatment_id,
-        });
-      },
+      preactions: () =>
+        startPendingTreatment(
+          treatmentRequest,
+          setTreatmentRequest,
+          "llamar al conductor"
+        ),
       component: (
         <div className="w-full h-full flex flex-row items-start justify-center">
           <PrototypeCallCenterFlow
@@ -284,22 +274,12 @@ export default function PrototypeInlineForm({
     },
     ignore_condition: {
       title: (dict.symptoms as I18nRecord).ignore_condition,
-      preactions: async () => {
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_type: "ignorar condicion",
-          status: "pending",
-        });
-        const response = await guardedRequestTreatment({
-          ...treatmentRequest,
-          treatment_type: "ignorar condicion",
-          status: "pending",
-        });
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_id: response.treatment_id,
-        });
-      },
+      preactions: () =>
+        startPendingTreatment(
+          treatmentRequest,
+          setTreatmentRequest,
+          "ignorar condicion"
+        ),
       component: (
         <PrototypeIgnoreCondition
           dict={dict as I18nRecord}
@@ -317,22 +297,12 @@ export default function PrototypeInlineForm({
     },
     invalidate_symptom: {
       title: (dict.symptoms as I18nRecord).invalidate_symptom,
-      preactions: async () => {
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_type: "invalidar sintoma",
-          status: "pending",
-        });
-        const response = await guardedRequestTreatment({
-          ...treatmentRequest,
-          treatment_type: "invalidar sintoma",
-          status: "pending",
-        });
-        setTreatmentRequest({
-          ...treatmentRequest,
-          treatment_id: response.treatment_id,
-        });
-      },
+      preactions: () =>
+        startPendingTreatment(
+          treatmentRequest,
+          setTreatmentRequest,
+          "invalidar sintoma"
+        ),
       component: (
         <PrototypeInvalidateSymptom
           dict={dict}

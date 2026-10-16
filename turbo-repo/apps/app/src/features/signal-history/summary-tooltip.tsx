@@ -8,6 +8,8 @@ import { tr } from "../i18n/tr.service";
 import FormattedDate from "../common/components/formatted-date";
 import { handleDownloadCsv } from "./utils/download-csv";
 import PulseDetailView from "./pulse-detail-view";
+import PulseSourceIndicator from "../geographic-view/components/pulse-source-indicator";
+import { countPulseSources } from "../geographic-view/utils/pulse-source";
 
 const SummaryTooltip = memo(function SummaryTooltip({
   data,
@@ -91,6 +93,7 @@ const SummaryTooltip = memo(function SummaryTooltip({
             String(((element.distance || 0) / 1000).toFixed(1)) + " Km",
             `https://www.google.com/maps?q=${element.latitude},${element.longitude}`,
             String(element.assetid || ""),
+            String(element.signal_description || ""),
           ];
         });
 
@@ -111,6 +114,7 @@ const SummaryTooltip = memo(function SummaryTooltip({
   }, [selectedData, dict]);
 
   const hasPulseSelected = selectedPulse !== null;
+  const sourceCounts = countPulseSources(selectedData);
 
   return (
     <MapTooltip
@@ -139,6 +143,11 @@ const SummaryTooltip = memo(function SummaryTooltip({
               {distance.toFixed(1)}km
             </span>
           </p>
+          <PulseSourceIndicator
+            appCount={sourceCounts.app}
+            gpsCount={sourceCounts.gps}
+            dict={dict}
+          />
           <div className="h-60 w-90 bg-gray-50 dark:bg-gray-700 shadow-md rounded-lg border border-gray-300 dark:border-gray-600 flex flex-col flex-grow overflow-y-auto">
             {loadingTable ? (
               <div className="bg-gray-500 animate-pulse"></div>
@@ -151,6 +160,7 @@ const SummaryTooltip = memo(function SummaryTooltip({
                   tr("signal_historic.distance_between_signals", dict),
                   tr("signal_historic.location", dict),
                   tr("signal_historic.assetid", dict),
+                  tr("signal_historic.signal_description", dict),
                 ]}
                 content={tableData}
                 hoverable={true}

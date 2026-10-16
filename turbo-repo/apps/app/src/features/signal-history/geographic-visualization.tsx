@@ -14,10 +14,14 @@ import SummaryTooltip from "./summary-tooltip";
 import { Button } from "flowbite-react";
 import { useSearchParams } from "next/navigation";
 import { tr } from "../i18n/tr.service";
-import { convertJSONToCSV } from "./utils/json-to-csv";
 import { handleDownloadCsv } from "./utils/download-csv";
 import CustomCard from "../symptoms/components/card/custom-card";
 import { flyTo } from "../map-visualization/map-view-utils";
+import { PulseSourceLegend } from "../geographic-view/components/pulse-source-indicator";
+import {
+  hasAppSignalDetail,
+  isDarkMapStyle,
+} from "../geographic-view/utils/pulse-source";
 
 export default function GeographicVisualization({
   data,
@@ -41,10 +45,12 @@ export default function GeographicVisualization({
   >([]);
   const [layers, setLayers] = useState<any[]>([]);
   const [mapStyle, setMapStyle] = useState<string>("satellite");
+  const isDarkMap = isDarkMapStyle(mapStyle);
 
   const [selectedPulse, setSelectedPulse] = useState<HistoricSignal | null>(
     null
   );
+  const [showAppSignalDetail, setShowAppSignalDetail] = useState(true);
 
   const [dateRangeDisplayed, setDateRangeDisplayed] = useState<{
     startDate: string;
@@ -83,8 +89,10 @@ export default function GeographicVisualization({
           icu_code: 0,
           asset_id: signal.assetid || 0,
           rotation: 0,
-          speed: 10,
+          speed: signal.speed,
           timestamp: signal.timestamp,
+          signal_description: signal.signal_description,
+          signal_detail: signal.signal_detail,
         },
       })),
     };
@@ -196,6 +204,16 @@ export default function GeographicVisualization({
     setSelectedPulse(null);
   }, []);
 
+  const handleShowAppSignalDetail = useCallback(
+    (show: boolean) => {
+      setShowAppSignalDetail(show);
+      if (!show && selectedPulse && hasAppSignalDetail(selectedPulse)) {
+        setSelectedPulse(null);
+      }
+    },
+    [selectedPulse]
+  );
+
   useEffect(() => {
     const newLayers: any[] = [
       new PulsePinLayer({
@@ -211,12 +229,16 @@ export default function GeographicVisualization({
         },
         pickable: true,
         onClick: handlePulseClick,
+        isDarkMap,
+        showAppSignalDetail,
         updateTriggers: {
           displayRange: {
             startDate: new Date(dateRangeDisplayed.startDate),
             endDate: new Date(dateRangeDisplayed.endDate),
           },
           selectedPulseKey: selectedPulse ? buildPulseKey(selectedPulse) : null,
+          isDarkMap,
+          showAppSignalDetail,
         },
       }),
     ];
@@ -229,6 +251,8 @@ export default function GeographicVisualization({
     dateRangeDisplayed,
     handlePulseClick,
     selectedPulse,
+    isDarkMap,
+    showAppSignalDetail,
   ]);
 
   useEffect(() => {
@@ -305,6 +329,10 @@ export default function GeographicVisualization({
           selectedStyle: mapStyle,
           setSelectedStyle: setMapStyle,
         }}
+        show_app_signal_detail={{
+          showAppSignalDetail,
+          setShowAppSignalDetail: handleShowAppSignalDetail,
+        }}
         allow_screenshot={false}
       />
     ),
@@ -315,6 +343,8 @@ export default function GeographicVisualization({
       mapStyle,
       dateRanges,
       onTimelineChange,
+      showAppSignalDetail,
+      handleShowAppSignalDetail,
     ]
   );
 
@@ -368,6 +398,11 @@ export default function GeographicVisualization({
           isLoading={isLoading}
           mapRef={mapRef}
         />
+        {data && data.length > 0 && (
+          <div className="absolute right-2 top-2 z-20">
+            <PulseSourceLegend dict={dict} isDarkMap={isDarkMap} />
+          </div>
+        )}
       </div>
       <CustomCard className="p-4">
         <TimeRangeSelector

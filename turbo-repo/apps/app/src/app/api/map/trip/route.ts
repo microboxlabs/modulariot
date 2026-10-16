@@ -12,6 +12,7 @@ import {
 import { MapPosition } from "./route.type";
 import { parseWKBPoint } from "@/utils/map-conversion";
 import { mapLogger } from "@/lib/logger";
+import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
 
 const config: AuthTokenConfig = {
   clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
@@ -21,6 +22,12 @@ const config: AuthTokenConfig = {
 };
 
 const authToken = new AuthToken(config);
+
+const SSE_HEADERS = {
+  "Content-Type": "text/event-stream",
+  "Cache-Control": "no-cache, no-transform",
+  Connection: "keep-alive",
+};
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -36,22 +43,32 @@ export async function GET(req: NextRequest) {
   if (!assetId)
     return NextResponse.json({ error: "Missing assetId" }, { status: 400 });
 
+  // Without the AVL API, the modulith reads the trip as the active organization.
+  if (!process.env.STREAMHUB_IOT_URL) {
+    const response = await forwardControlTowerMap(
+      `trips/${encodeURIComponent(tripId)}/positions`,
+      `?assetId=${encodeURIComponent(assetId)}`
+    );
+    if (!response.ok) return response;
+    const positions = (await response.json()) as MapPosition[];
+    const events = positions
+      .map((position) => `data: ${JSON.stringify(position)}\n\n`)
+      .join("");
+    return new Response(events, { headers: SSE_HEADERS });
+  }
+
   // Create a TransformStream for CSV processing
   const { readable, writable } = new TransformStream();
   // Start streaming process
   streamPositions(tripId, assetId, writable).catch((error) => {
-    mapLogger.error({ err: error, tripId, assetId }, "Failed to stream trip positions");
+    mapLogger.error(
+      { err: error, tripId, assetId },
+      "Failed to stream trip positions"
+    );
   });
 
   // Return streaming response
-  return new Response(readable, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-      //"Access-Control-Allow-Origin": "*",
-    },
-  });
+  return new Response(readable, { headers: SSE_HEADERS });
 }
 
 async function streamPositions(
@@ -103,7 +120,10 @@ async function streamPositions(
     }
     await writer.close();
   } catch (error) {
-    mapLogger.error({ err: error, tripId, assetId }, "Error streaming trip positions");
+    mapLogger.error(
+      { err: error, tripId, assetId },
+      "Error streaming trip positions"
+    );
     try {
       await writer.write(
         `event: error\ndata: ${JSON.stringify({ error: String(error) })}\n\n`

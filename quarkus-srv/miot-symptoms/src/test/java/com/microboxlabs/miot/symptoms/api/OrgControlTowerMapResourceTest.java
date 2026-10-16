@@ -10,7 +10,9 @@ import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.iam.ServiceAccountTokenIssuer.IssuedToken;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.map.ControlTowerMapService;
+import com.microboxlabs.miot.symptoms.map.ControlTowerTreatmentService;
 import com.microboxlabs.miot.symptoms.map.GpsRpcApi;
+import com.microboxlabs.miot.symptoms.map.TreatmentReads;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
@@ -76,8 +78,38 @@ class OrgControlTowerMapResourceTest {
             tokensAskedFor.add(clientId);
             return Uni.createFrom().item(new IssuedToken("t", Instant.now().plusSeconds(3600)));
         }, url, () -> rpc);
-        return new OrgControlTowerMapResource(tenant, org, new Roles(), null, map);
+        tenant.setEffectiveClientIds(List.of("client-a", "client-child"));
+        return new OrgControlTowerMapResource(tenant, org, new Roles(), null, map,
+                new ControlTowerTreatmentService(treatmentReads));
     }
+
+    private final List<String> treatmentClients = new ArrayList<>();
+
+    /** Symptom 7 and trip T1 on asset AB12 are client-a's. */
+    private final TreatmentReads treatmentReads = new TreatmentReads() {
+        @Override
+        public Uni<Optional<JsonNode>> treatment(String clientId, long symptomId) {
+            treatmentClients.add(clientId);
+            JsonNode answer = JSON.createObjectNode().put("status", 200).set("data",
+                    JSON.createObjectNode().set("trip_info", JSON.createObjectNode().put("trip_id", "T1")));
+            return Uni.createFrom().item(symptomId == 7 ? Optional.of(answer) : Optional.empty());
+        }
+
+        @Override
+        public Uni<Optional<JsonNode>> signals(String clientId, long symptomId) {
+            treatmentClients.add(clientId);
+            JsonNode answer = JSON.createObjectNode().put("status", 200).set("data",
+                    JSON.createObjectNode().put("type", "FeatureCollection").set("features", JSON.createArrayNode()));
+            return Uni.createFrom().item(symptomId == 7 ? Optional.of(answer) : Optional.empty());
+        }
+
+        @Override
+        public Uni<Optional<JsonNode>> tripPositions(String tripId, String assetId, String clientId, int limit) {
+            treatmentClients.add(clientId);
+            JsonNode positions = JSON.createArrayNode().add(JSON.createObjectNode().put("assetid", assetId));
+            return Uni.createFrom().item("T1".equals(tripId) ? Optional.of(positions) : Optional.empty());
+        }
+    };
 
     private final OrgControlTowerMapResource resource = resource(Optional.of("http://pgrest.test"));
 
@@ -237,5 +269,37 @@ class OrgControlTowerMapResourceTest {
         assertEquals(400, call(resource.symptoms(ORG, query("p_page=one"))).getStatus());
         assertEquals(400, call(resource.symptoms(ORG, query("anything="))).getStatus());
         assertEquals(List.of(), sentFilters);
+    }
+
+    @Test
+    void theTreatmentPageReadsAsTheClientIdTheSymptomListUses() {
+        Response header = call(resource.symptom(ORG, "7"));
+        assertEquals(200, header.getStatus());
+        assertEquals("T1", ((JsonNode) header.getEntity()).path("trip_info").path("trip_id").asText());
+        Response signals = call(resource.symptomSignals(ORG, "7"));
+        assertEquals("FeatureCollection", ((JsonNode) signals.getEntity()).path("type").asText());
+        Response positions = call(resource.tripPositions(ORG, "T1", "AB12"));
+        assertEquals("AB12", ((JsonNode) positions.getEntity()).get(0).path("assetid").asText());
+        assertEquals(List.of("client-a", "client-a", "client-a"), treatmentClients);
+    }
+
+    @Test
+    void anotherOrganizationsSymptomOrTripIs404() {
+        assertEquals(404, call(resource.symptom(ORG, "8")).getStatus());
+        assertEquals(404, call(resource.symptomSignals(ORG, "8")).getStatus());
+        assertEquals(404, call(resource.tripPositions(ORG, "T9", "AB12")).getStatus());
+    }
+
+    @Test
+    void aBadSymptomIdOrAMissingAssetIs400() {
+        assertEquals(400, call(resource.symptom(ORG, "abc")).getStatus());
+        assertEquals(400, call(resource.tripPositions(ORG, "T1", null)).getStatus());
+    }
+
+    @Test
+    void theTreatmentPageInAnotherOrganizationIsRefused() {
+        WebApplicationException e = assertThrows(WebApplicationException.class, () -> resource.symptom("org-b", "7"));
+        assertEquals(403, e.getResponse().getStatus());
+        assertEquals(List.of(), treatmentClients);
     }
 }

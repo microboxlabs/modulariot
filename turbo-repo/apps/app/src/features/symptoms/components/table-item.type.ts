@@ -34,6 +34,9 @@ export type TableItemType = {
   alertType: string;
   status: string | null;
   last_assigned_to: string | null;
+  sla_minutes: number | null;
+  // Earlier events of the same symptom on the trip; null when there is no trip.
+  recurrence_events: number | null;
 };
 
 export type Condition = {

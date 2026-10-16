@@ -67,6 +67,8 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       alertType: item?.type_of_incidence,
       status: item?.treatment_count === 0 ? "" : "Tratado",
       last_assigned_to: item?.last_assigned_to,
+      sla_minutes: item?.sla_minutes ?? null,
+      recurrence_events: item?.recurrence_events ?? null,
     })),
     pagination: {
       total_rows: data.total_rows,

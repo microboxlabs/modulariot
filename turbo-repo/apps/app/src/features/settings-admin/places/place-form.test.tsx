@@ -4,6 +4,7 @@ import { useState } from "react";
 import PlaceForm from "./place-form";
 import { FORM_VACIO, type FormLugar } from "./places.types";
 
+vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
 vi.mock("./geocoding", () => ({
   buscarDirecciones: vi.fn(() =>
     Promise.resolve([
@@ -43,7 +44,7 @@ describe("PlaceForm", () => {
     const onUbicar = vi.fn();
     render(<Harness onUbicar={onUbicar} />);
 
-    expect(screen.getByText("Buscar ubicación en el mapa")).toBeInTheDocument();
+    expect(screen.getByText("Posicionar geocerca")).toBeInTheDocument();
     const search = screen.getByLabelText("Ubicar en el mapa");
     const shapes = screen.getByRole("group", { name: "Forma de la geocerca" });
     expect(

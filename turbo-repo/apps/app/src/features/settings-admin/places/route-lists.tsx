@@ -1,8 +1,16 @@
 "use client";
 
 // Lista de trayectos con la misma tarjeta que los lugares.
+import { TbRoute } from "react-icons/tb";
 import { PlaceIcon } from "./icons";
-import { ListCard, ListCardRow, ListSection } from "./list-card";
+import VersionBadge from "./version-badge";
+import {
+  ListCard,
+  ListCardRow,
+  ListSection,
+  marcaDe,
+  type MarcasLista,
+} from "./list-card";
 import type { Trayecto } from "./places.types";
 
 function detalleTrayecto(t: Trayecto): string {
@@ -21,7 +29,13 @@ export function TrayectoList({
   onIr,
   onEditar,
   onEliminar,
+  marcas,
+  versionDe,
 }: {
+  /** Casillas para elegir varios (borrar en lote). */
+  marcas?: MarcasLista;
+  /** Versión vigente de cada trayecto. */
+  versionDe?: (trayectoId: string) => string | null;
   trayectos: Trayecto[];
   busqueda?: string;
   seleccionadoId: string | null;
@@ -33,7 +47,9 @@ export function TrayectoList({
 }) {
   const seccion = (
     <ListSection
+      seleccion={marcas && { ids: trayectos.map((t) => t.trayecto_id), marcas }}
       titulo="Trayectos"
+      icono={<TbRoute className="h-4 w-4 text-gray-500 dark:text-gray-400" />}
       total={trayectos.length}
       vacio={`Sin trayectos${busqueda ? ` para «${busqueda}»` : ""}.`}
     >
@@ -44,7 +60,7 @@ export function TrayectoList({
             <PlaceIcon
               id={t.icon}
               fallback="ruta"
-              className="h-4 w-4 flex-none text-purple-600"
+              className="h-4 w-4 flex-none text-blue-600"
             />
           }
           nombre={t.name}
@@ -53,6 +69,13 @@ export function TrayectoList({
           onIr={() => onIr(t)}
           onEditar={() => onEditar(t)}
           onEliminar={() => onEliminar(t)}
+          marca={marcaDe(marcas, t.trayecto_id)}
+          extras={
+            <VersionBadge
+              version={versionDe?.(t.trayecto_id)}
+              className="mr-1"
+            />
+          }
         />
       ))}
     </ListSection>

@@ -2,7 +2,7 @@
 // primero es el origen (A), el último el destino (B) y los del medio son
 // paradas de paso. Transiciones puras; la página decide cuándo trazar.
 import type { Sugerencia } from "./geocoding";
-import type { FormTrayecto, LatLon, Parada } from "./places.types";
+import type { FormTrayecto, LatLon, Parada, TipoPunto } from "./places.types";
 
 /** Directions acepta 25 coordenadas. */
 export const MAX_PUNTOS = 25;
@@ -15,19 +15,55 @@ export const nuevoPunto = (): Parada => ({
   punto: null,
 });
 
-/** Distintivo del punto según su posición: A, 1, 2, …, B. */
-export function etiquetaPunto(
-  i: number,
-  total: number
-): { letra: string; colorCls: string; label: string } {
-  if (i === 0) return { letra: "A", colorCls: "bg-green-600", label: "Desde" };
-  if (i === total - 1)
-    return { letra: "B", colorCls: "bg-rose-600", label: "Hasta" };
-  return {
-    letra: String(i),
-    colorCls: "bg-blue-600",
-    label: `Parada ${i}`,
-  };
+export type Distintivo = {
+  /** "A", "B", el número de la parada o "" en un desvío. */
+  letra: string;
+  colorCls: string;
+  label: string;
+  /** Qué es el punto: origen, destino, parada o desvío (punto de paso). */
+  rol: "origen" | "destino" | TipoPunto;
+};
+
+/**
+ * Distintivo de cada punto: A, las paradas numeradas en orden (1, 2, …; los
+ * desvíos no cuentan, van sin número) y B.
+ */
+export function distintivos(recorrido: Parada[]): Distintivo[] {
+  const ultimo = recorrido.length - 1;
+  let paradas = 0;
+  let desvios = 0;
+  return recorrido.map((p, i): Distintivo => {
+    if (i === 0)
+      return {
+        letra: "A",
+        colorCls: "bg-green-600",
+        label: "Desde",
+        rol: "origen",
+      };
+    if (i === ultimo)
+      return {
+        letra: "B",
+        colorCls: "bg-rose-600",
+        label: "Hasta",
+        rol: "destino",
+      };
+    if (tipoDe(p) === "desvio") {
+      desvios += 1;
+      return {
+        letra: "",
+        colorCls: "",
+        label: `Desvío ${desvios}`,
+        rol: "desvio",
+      };
+    }
+    paradas += 1;
+    return {
+      letra: String(paradas),
+      colorCls: "bg-red-600",
+      label: `Parada ${paradas}`,
+      rol: "parada",
+    };
+  });
 }
 
 const MAX_HISTORIAL = 50;
@@ -119,12 +155,97 @@ export function elegirPunto(
   );
 }
 
+const RADIO_TIERRA_M = 6_371_000;
+
+/** Largo de un camino [lat, lon][] en metros (suma de tramos, haversine). */
+export function longitudM(pts: LatLon[]): number {
+  const rad = Math.PI / 180;
+  let total = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const [la1, lo1] = pts[i - 1]!;
+    const [la2, lo2] = pts[i]!;
+    const a =
+      Math.sin(((la2 - la1) * rad) / 2) ** 2 +
+      Math.cos(la1 * rad) *
+        Math.cos(la2 * rad) *
+        Math.sin(((lo2 - lo1) * rad) / 2) ** 2;
+    total += 2 * RADIO_TIERRA_M * Math.asin(Math.sqrt(a));
+  }
+  return total;
+}
+
+/** "850 m" o "12,4 km". */
+export function textoDistancia(m: number): string {
+  if (m < 1000) return `${Math.round(m)} m`;
+  const km = m / 1000;
+  return `${km.toLocaleString("es-CL", { maximumFractionDigits: km < 100 ? 1 : 0 })} km`;
+}
+
 export function textoDesdeCoords(punto: LatLon): string {
   return `${punto[0].toFixed(5)}, ${punto[1].toFixed(5)}`;
 }
 
+/** Tipo de un punto; por defecto, parada. */
+export const tipoDe = (p: Parada): TipoPunto => p.tipo ?? "parada";
+
+/** Cambia el tipo sin tocar la geometría: la ruta trazada sigue valiendo. */
+export function cambiarTipoPunto(
+  t: FormTrayecto,
+  id: string,
+  tipo: TipoPunto
+): FormTrayecto {
+  return {
+    ...t,
+    recorrido: t.recorrido.map((p) => (p.id === id ? { ...p, tipo } : p)),
+  };
+}
+
+/**
+ * Parámetro `waypoints` de Mapbox Directions: índices de los puntos que son
+ * paradas (más el origen y el destino). Los demás, los desvíos, quedan como
+ * puntos de paso ("silent waypoints"): la ruta pasa por ahí sin parar.
+ * `null` si todos son paradas (no hace falta el parámetro).
+ */
+export function waypointsDirections(tipos: TipoPunto[]): string | null {
+  const ultimo = tipos.length - 1;
+  const paradas = tipos.flatMap((t, i) =>
+    i === 0 || i === ultimo || t === "parada" ? [i] : []
+  );
+  return paradas.length === tipos.length ? null : paradas.join(";");
+}
+
+/** Categoría de un punto: no cambia la geometría ni la ruta trazada. */
+export function cambiarCategoriaPunto(
+  t: FormTrayecto,
+  id: string,
+  categoria: string | undefined
+): FormTrayecto {
+  return {
+    ...t,
+    recorrido: t.recorrido.map((p) => {
+      if (p.id !== id) return p;
+      if (categoria) return { ...p, categoria };
+      const sin = { ...p };
+      delete sin.categoria;
+      return sin;
+    }),
+  };
+}
+
+/** Categorías de los puntos ubicados, en el orden de los waypoints. */
+export const categoriasUbicadas = (t: FormTrayecto): (string | null)[] =>
+  t.recorrido.filter((p) => p.punto).map((p) => p.categoria ?? null);
+
+/** Tipos de los puntos ubicados, en el orden de los waypoints guardados. */
+export const tiposUbicados = (t: FormTrayecto): TipoPunto[] =>
+  t.recorrido.filter((p) => p.punto).map(tipoDe);
+
 /** Recorre waypoints guardados como filas del formulario A → B. */
-export function recorridoDesdePts(pts: LatLon[]): Parada[] {
+export function recorridoDesdePts(
+  pts: LatLon[],
+  tipos: TipoPunto[] = [],
+  categorias: (string | null)[] = []
+): Parada[] {
   if (pts.length === 0) {
     return [
       { id: "origen", texto: "", punto: null },
@@ -142,6 +263,8 @@ export function recorridoDesdePts(pts: LatLon[]): Parada[] {
     id: i === 0 ? "origen" : i === pts.length - 1 ? "destino" : `wp-${i}`,
     texto: textoDesdeCoords(punto),
     punto,
+    ...(tipos[i] ? { tipo: tipos[i] } : {}),
+    ...(categorias[i] ? { categoria: categorias[i] } : {}),
   }));
 }
 

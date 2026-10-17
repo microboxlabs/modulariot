@@ -33,7 +33,7 @@ export default function MapCreateMenu({
     <div
       role="menu"
       style={{ left: x, top: y }}
-      className="absolute z-40 w-44 -translate-x-1/2 translate-y-2 rounded-lg border border-gray-200 bg-white p-1 shadow-xl dark:border-gray-700 dark:bg-gray-800"
+      className="absolute z-40 w-44 translate-x-1 translate-y-1 rounded-lg border border-gray-200 bg-white p-1 shadow-xl dark:border-gray-700 dark:bg-gray-800"
     >
       <button
         type="button"
@@ -50,7 +50,7 @@ export default function MapCreateMenu({
         className={item}
         onClick={onCrearTrayecto}
       >
-        <HiOutlineSwitchHorizontal className="h-4 w-4 text-purple-600" />
+        <HiOutlineSwitchHorizontal className="h-4 w-4 text-blue-600" />
         Crear trayecto
       </button>
     </div>

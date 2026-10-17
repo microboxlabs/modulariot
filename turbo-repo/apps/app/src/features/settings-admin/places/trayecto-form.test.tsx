@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import TrayectoForm from "./trayecto-form";
+
+vi.mock("next/navigation", () => ({ useParams: () => ({ lang: "es" }) }));
 import {
   TRAY_VACIO,
   type FormTrayecto,
@@ -61,7 +63,7 @@ describe("TrayectoForm", () => {
     expect(screen.getByText("Recorrido")).toBeInTheDocument();
     // complete but not confirmed yet: asks to confirm on the map
     expect(
-      screen.getByText("Confirma con «Listo» en el mapa")
+      screen.getByText("Haz clic en «Listo» para ver cómo quedará el trayecto")
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Desde")).toHaveValue("Uno");
     expect(screen.getByLabelText("Parada 1")).toHaveValue("Dos");
@@ -144,8 +146,12 @@ describe("TrayectoForm", () => {
       expect(screen.getByPlaceholderText("Ej: Acceso norte")).toHaveValue(
         "Acceso norte"
       );
-      expect(screen.getByText("Uno → Tres")).toBeInTheDocument();
-      expect(screen.getByText(/1 parada/)).toBeInTheDocument();
+      // origin and destination, each on its own row with its badge
+      expect(screen.getByText("Uno")).toHaveAttribute("title", "Uno");
+      expect(screen.getByText("Tres")).toHaveAttribute("title", "Tres");
+      expect(screen.getByText("Desde")).toBeInTheDocument();
+      // between A and B: how many intermediate points
+      expect(screen.getByText("1 punto intermedio")).toBeInTheDocument();
       expect(screen.queryByLabelText("Desde")).toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Interno (faena)" }));
       expect(p.onTipo).toHaveBeenCalledWith("interno");
@@ -155,16 +161,115 @@ describe("TrayectoForm", () => {
       });
       const cambio = p.setTray.mock.calls.at(-1)?.[0];
       expect(cambio(p.tray).width_m).toBe(45);
+      // the categories selector, in the info tab
+      expect(
+        screen.getByRole("group", { name: "Categorías" })
+      ).toBeInTheDocument();
       fireEvent.click(screen.getByRole("button", { name: "Trayecto" }));
       expect(p.onPaso).toHaveBeenCalledWith("recorrido");
     });
 
     it("highlights the hovered point", () => {
       const p = setup(tres, { resaltadoId: "m" });
-      const fila = screen.getByLabelText("Parada 1").closest(".px-1\\.5");
+      const fila = screen
+        .getByLabelText("Parada 1")
+        .closest("[data-punto-fila]");
       expect(fila).toHaveClass("bg-blue-50");
       fireEvent.mouseEnter(screen.getByLabelText("Hasta"));
       expect(p.onHoverPunto).toHaveBeenCalledWith("b");
+    });
+
+    it("opens the point category as a dropdown at the bottom of the row", () => {
+      setup(tres);
+      expect(screen.queryByText("Categoría")).toBeNull();
+      const boton = screen.getByRole("button", {
+        name: "Categoría de Parada 1",
+      });
+      expect(boton).toHaveAttribute("aria-expanded", "false");
+      fireEvent.click(boton);
+      expect(boton).toHaveAttribute("aria-expanded", "true");
+      expect(screen.getByText("Categoría")).toBeInTheDocument();
+      // only points between A and B have one
+      expect(
+        screen.queryByRole("button", { name: "Categoría de Desde" })
+      ).toBeNull();
+    });
+
+    it("toggles a point between stop and deviation with one button", () => {
+      const p = setup(tres);
+      // origin and destination have no toggle
+      expect(screen.queryByLabelText(/^Desde:/)).toBeNull();
+      expect(screen.queryByLabelText(/^Hasta:/)).toBeNull();
+      // on by default: a stop, numbered 1
+      const boton = screen.getByRole("button", { name: "Parada 1: parada" });
+      expect(boton).toHaveAttribute("aria-pressed", "true");
+      expect(boton).toHaveTextContent("1");
+      fireEvent.click(boton);
+      const cambio = p.setTray.mock.calls.at(-1)?.[0];
+      expect(cambio(p.tray).recorrido[1].tipo).toBe("desvio");
+    });
+
+    it("shows a deviation as a circle, and numbers only the stops", () => {
+      setup([
+        { id: "a", texto: "Uno", punto: [1, 1] },
+        { id: "d", texto: "Dos", punto: [2, 2], tipo: "desvio" },
+        { id: "m", texto: "Tres", punto: [3, 3] },
+        { id: "b", texto: "Cuatro", punto: [4, 4] },
+      ]);
+      const desvio = screen.getByRole("button", { name: "Desvío 1: desvío" });
+      expect(desvio).toHaveAttribute("aria-pressed", "false");
+      expect(desvio).toHaveTextContent("");
+      // the stop after the deviation is stop 1, not 2
+      expect(
+        screen.getByRole("button", { name: "Parada 1: parada" })
+      ).toBeInTheDocument();
+    });
+
+    it("shows how long the route is, with stops and deviations", () => {
+      render(
+        <TrayectoForm
+          tray={{
+            ...TRAY_VACIO,
+            recorrido: [
+              { id: "a", texto: "Uno", punto: [1, 1] },
+              { id: "d", texto: "Dos", punto: [2, 2], tipo: "desvio" },
+              { id: "b", texto: "Tres", punto: [3, 3] },
+            ],
+          }}
+          setTray={vi.fn()}
+          guardando={false}
+          msg={null}
+          token="tok"
+          cerca={() => null}
+          onRecorrido={vi.fn()}
+          onPaso={vi.fn()}
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+          paso="datos"
+          distanciaM={12_400}
+        />
+      );
+      expect(screen.getByText("12,4 km")).toBeInTheDocument();
+      // a deviation counts as an intermediate point too
+      expect(screen.getByText("1 punto intermedio")).toBeInTheDocument();
+    });
+
+    it("counts the intermediate points between A and B", () => {
+      const medio = Array.from({ length: 6 }, (_, i) => ({
+        id: `m${i}`,
+        texto: `Punto ${i}`,
+        punto: [i + 2, i + 2] as [number, number],
+      }));
+      setup(
+        [
+          { id: "a", texto: "Inicio", punto: [1, 1] },
+          ...medio,
+          { id: "b", texto: "Fin", punto: [9, 9] },
+        ],
+        { paso: "datos" }
+      );
+      expect(screen.getByText("6 puntos intermedios")).toBeInTheDocument();
+      expect(screen.queryByText("Punto 0")).toBeNull();
     });
 
     it("marks and focuses a missing name when saving", () => {

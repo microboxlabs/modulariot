@@ -2,20 +2,32 @@
 
 // Tarjeta del recorrido por dirección: encabezado, lista ordenable de puntos
 // (asa a la izquierda para arrastrar) y botón para agregar un punto.
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ReactSortable } from "react-sortablejs";
-import { HiCursorClick, HiPlus, HiX } from "react-icons/hi";
+import {
+  HiChevronDown,
+  HiCursorClick,
+  HiOutlineTag,
+  HiPlus,
+  HiX,
+} from "react-icons/hi";
 import { MdDragIndicator } from "react-icons/md";
 import { twMerge } from "tailwind-merge";
 import AddressInput from "./address-input";
-import type { FormTrayecto, LatLon, Parada } from "./places.types";
+import PointCategorySelect, {
+  useNombreCategoriaPunto,
+} from "./point-category-select";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import { SimboloDesvio, SimboloParada } from "./point-symbol";
+import type { FormTrayecto, LatLon, Parada, TipoPunto } from "./places.types";
 import {
   MAX_PUNTOS,
   MIN_PUNTOS,
   agregarPunto,
   elegirPunto,
-  etiquetaPunto,
+  distintivos,
   puedeConfirmar,
+  type Distintivo,
   quitarPunto,
   reordenar,
   textoPunto,
@@ -27,9 +39,82 @@ export type OnRecorrido = (
   foco?: LatLon
 ) => void;
 
+/** Abre/cierra la categoría del punto; muestra la elegida, si hay. */
+function BotonCategoriaPunto({
+  label,
+  categoria,
+  abierta,
+  onAlternar,
+}: {
+  label: string;
+  categoria: string | undefined;
+  abierta: boolean;
+  onAlternar: () => void;
+}) {
+  const nombre = useNombreCategoriaPunto(categoria);
+  return (
+    <button
+      type="button"
+      aria-expanded={abierta}
+      aria-label={`Categoría de ${label}`}
+      title={nombre ? `Categoría: ${nombre}` : "Elegir categoría"}
+      onClick={onAlternar}
+      className={twMerge(
+        "flex h-7 max-w-24 flex-none items-center gap-0.5 rounded-md px-1 text-[10px] text-gray-500 hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-gray-700 dark:hover:text-blue-300",
+        abierta &&
+          "bg-gray-100 text-blue-700 dark:bg-gray-700 dark:text-blue-300"
+      )}
+    >
+      <HiOutlineTag className="h-3.5 w-3.5 shrink-0" />
+      {nombre && <span className="truncate">{nombre}</span>}
+      <HiChevronDown
+        className={twMerge(
+          "h-3 w-3 shrink-0 transition-transform",
+          abierta && "rotate-180"
+        )}
+      />
+    </button>
+  );
+}
+
+/**
+ * Parada o desvío con un solo botón: encendido (por defecto) es parada, el
+ * "PARE" con su número; apagado es desvío, un círculo (solo se pasa por ahí).
+ */
+function BotonTipoPunto({
+  distintivo,
+  onCambiar,
+}: {
+  distintivo: Distintivo;
+  onCambiar: (tipo: TipoPunto) => void;
+}) {
+  const esParada = distintivo.rol === "parada";
+  const alternar = () => onCambiar(esParada ? "desvio" : "parada");
+  return (
+    <button
+      type="button"
+      aria-pressed={esParada}
+      aria-label={`${distintivo.label}: ${esParada ? "parada" : "desvío"}`}
+      title={
+        esParada
+          ? "Parada · clic para que sea desvío (solo pasa por ahí)"
+          : "Desvío · clic para que sea parada"
+      }
+      onClick={alternar}
+      className="flex h-7 w-7 flex-none items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
+    >
+      {esParada ? (
+        <SimboloParada numero={distintivo.letra} />
+      ) : (
+        <SimboloDesvio />
+      )}
+    </button>
+  );
+}
+
 function FilaPunto({
   punto,
-  indice,
+  distintivo,
   total,
   token,
   cerca,
@@ -38,11 +123,17 @@ function FilaPunto({
   onRecorrido,
   onElegirEnMapa,
   onHover,
+  onTipoPunto,
+  onCategoriaPunto,
+  dict,
 }: {
+  onTipoPunto: (id: string, tipo: TipoPunto) => void;
+  onCategoriaPunto?: (id: string, categoria: string | undefined) => void;
+  dict?: I18nRecord;
   resaltado: boolean;
   onHover: (id: string | null) => void;
   punto: Parada;
-  indice: number;
+  distintivo: Distintivo;
   total: number;
   token: string | undefined;
   cerca: () => LatLon | null;
@@ -51,74 +142,113 @@ function FilaPunto({
   onElegirEnMapa: (id: string) => void;
 }) {
   const id = punto.id;
-  const { letra, colorCls, label } = etiquetaPunto(indice, total);
+  const { letra, colorCls, label, rol } = distintivo;
+  // A y B son origen y destino; solo los del medio son parada o desvío
+  const intermedio = rol === "parada" || rol === "desvio";
+  const cambiarTipo = (tipo: TipoPunto) => onTipoPunto(id, tipo);
   const marcarEnMapa = () => onElegirEnMapa(id);
   const quitar = () => onRecorrido((x) => quitarPunto(x, id));
+  const conCategoria = intermedio && !!onCategoriaPunto;
+  const [abierta, setAbierta] = useState(false);
   return (
     <div
       className={twMerge(
-        "flex items-center gap-1 bg-white px-1.5 py-1.5 transition-colors dark:bg-gray-800",
+        "bg-white transition-colors dark:bg-gray-800",
         resaltado && "bg-blue-50 dark:bg-blue-900/30"
       )}
+      data-punto-fila={id}
       onMouseEnter={() => onHover(id)}
       onMouseLeave={() => onHover(null)}
     >
-      <span
-        className="drag-handle flex h-7 w-5 flex-none cursor-grab items-center justify-center text-gray-400 hover:text-gray-700 active:cursor-grabbing dark:hover:text-gray-200"
-        title="Arrastra para cambiar el orden"
-        aria-label={`Mover ${label}`}
-      >
-        <MdDragIndicator className="h-4 w-4" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <AddressInput
-          label={label}
-          letra={letra}
-          colorCls={colorCls}
-          value={punto}
-          token={token}
-          cerca={cerca}
-          onTexto={(t) => onRecorrido((x) => textoPunto(x, id, t))}
-          onElegir={(s) => onRecorrido((x) => elegirPunto(x, id, s), s.punto)}
-        />
-      </div>
-      <button
-        type="button"
-        aria-pressed={eligiendo}
-        aria-label={
-          eligiendo
-            ? `Cancelar marcar ${label} en el mapa`
-            : `Marcar ${label} en el mapa`
-        }
-        title={eligiendo ? "Clic en el mapa para ubicar" : "Ubicar en el mapa"}
-        onClick={marcarEnMapa}
-        className={twMerge(
-          "flex h-7 w-7 flex-none items-center justify-center rounded-md",
-          eligiendo
-            ? "bg-blue-100 text-blue-700 ring-1 ring-blue-400 dark:bg-blue-900/40 dark:text-blue-300"
-            : "text-gray-400 hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-gray-700 dark:hover:text-blue-300"
+      <div className="flex items-center gap-1 px-1.5 py-1.5">
+        <span
+          className="drag-handle flex h-7 w-5 flex-none cursor-grab items-center justify-center text-gray-400 hover:text-gray-700 active:cursor-grabbing dark:hover:text-gray-200"
+          title="Arrastra para cambiar el orden"
+          aria-label={`Mover ${label}`}
+        >
+          <MdDragIndicator className="h-4 w-4" />
+        </span>
+        {intermedio && (
+          <BotonTipoPunto distintivo={distintivo} onCambiar={cambiarTipo} />
         )}
-      >
-        <HiCursorClick className="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        aria-label={`Quitar ${label}`}
-        disabled={total <= MIN_PUNTOS}
-        onClick={quitar}
-        className="flex h-7 w-6 flex-none items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-rose-600 disabled:hidden dark:hover:bg-gray-700"
-      >
-        <HiX className="h-3.5 w-3.5" />
-      </button>
+        <div className="min-w-0 flex-1">
+          <AddressInput
+            label={label}
+            letra={intermedio ? undefined : letra}
+            colorCls={colorCls}
+            value={punto}
+            token={token}
+            cerca={cerca}
+            onTexto={(t) => onRecorrido((x) => textoPunto(x, id, t))}
+            onElegir={(s) => onRecorrido((x) => elegirPunto(x, id, s), s.punto)}
+          />
+        </div>
+        {conCategoria && (
+          <BotonCategoriaPunto
+            label={label}
+            categoria={punto.categoria}
+            abierta={abierta}
+            onAlternar={() => setAbierta((x) => !x)}
+          />
+        )}
+        <button
+          type="button"
+          aria-pressed={eligiendo}
+          aria-label={
+            eligiendo
+              ? `Cancelar marcar ${label} en el mapa`
+              : `Marcar ${label} en el mapa`
+          }
+          title={
+            eligiendo ? "Clic en el mapa para ubicar" : "Ubicar en el mapa"
+          }
+          onClick={marcarEnMapa}
+          className={twMerge(
+            "flex h-7 w-7 flex-none items-center justify-center rounded-md",
+            eligiendo
+              ? "bg-blue-100 text-blue-700 ring-1 ring-blue-400 dark:bg-blue-900/40 dark:text-blue-300"
+              : "text-gray-400 hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-gray-700 dark:hover:text-blue-300"
+          )}
+        >
+          <HiCursorClick className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          aria-label={`Quitar ${label}`}
+          disabled={total <= MIN_PUNTOS}
+          onClick={quitar}
+          className="flex h-7 w-6 flex-none items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-rose-600 disabled:hidden dark:hover:bg-gray-700"
+        >
+          <HiX className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {/* desplegable al pie de la fila: la categoría del punto y su lista */}
+      {conCategoria && abierta && (
+        <div className="flex items-center gap-2 border-t border-gray-100 bg-gray-50 px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900/40">
+          <span className="shrink-0 text-[11px] font-medium text-gray-600 dark:text-gray-300">
+            Categoría
+          </span>
+          <div className="min-w-0 flex-1">
+            <PointCategorySelect
+              label={label}
+              value={punto.categoria}
+              onChange={(c) => onCategoriaPunto?.(id, c)}
+              dict={dict ?? {}}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function sinHover() {}
+function sinTipo() {}
 
 function estadoRecorrido(tray: FormTrayecto, calculando: boolean): string {
   if (calculando) return "Calculando ruta…";
-  if (puedeConfirmar(tray)) return "Confirma con «Listo» en el mapa";
+  if (puedeConfirmar(tray))
+    return "Haz clic en «Listo» para ver cómo quedará el trayecto";
   return `${tray.recorrido.length} puntos`;
 }
 
@@ -132,8 +262,17 @@ export default function RecorridoCard({
   onElegirEnMapa,
   resaltadoId = null,
   onHoverPunto = sinHover,
+  onTipoPunto = sinTipo,
+  onCategoriaPunto,
+  dict,
   className,
 }: {
+  /** Parada o desvío de un punto intermedio (no cambia la ruta). */
+  onTipoPunto?: (id: string, tipo: TipoPunto) => void;
+  /** Categoría de un punto intermedio; sin esto no se muestra el selector. */
+  onCategoriaPunto?: (id: string, categoria: string | undefined) => void;
+  /** Diccionario completo (control de la lista de categorías). */
+  dict?: I18nRecord;
   className?: string;
   /** Punto resaltado (hover en la lista o en el mapa). */
   resaltadoId?: string | null;
@@ -147,11 +286,12 @@ export default function RecorridoCard({
   onElegirEnMapa: (id: string) => void;
 }) {
   const total = tray.recorrido.length;
+  const ds = distintivos(tray.recorrido);
   const lleno = total >= MAX_PUNTOS;
   const iEligiendo = tray.recorrido.findIndex((p) => p.id === eligiendoPuntoId);
   const hintMapa =
     iEligiendo >= 0
-      ? `Clic en el mapa para ubicar ${etiquetaPunto(iEligiendo, total).label}`
+      ? `Clic en el mapa para ubicar ${ds[iEligiendo]?.label ?? ""}`
       : null;
 
   useEffect(() => {
@@ -200,7 +340,7 @@ export default function RecorridoCard({
           <FilaPunto
             key={p.id}
             punto={p}
-            indice={i}
+            distintivo={ds[i]!}
             total={total}
             token={token}
             cerca={cerca}
@@ -209,6 +349,9 @@ export default function RecorridoCard({
             onRecorrido={onRecorrido}
             onElegirEnMapa={onElegirEnMapa}
             onHover={onHoverPunto}
+            onTipoPunto={onTipoPunto}
+            onCategoriaPunto={onCategoriaPunto}
+            dict={dict}
           />
         ))}
       </ReactSortable>

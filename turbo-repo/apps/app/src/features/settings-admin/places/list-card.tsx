@@ -3,13 +3,123 @@
 // Tarjeta de lista del panel lateral: un marco y secciones plegables
 // (lugares, trayectos) con encabezado, filas y un menú de tres puntos.
 import { useState, type ReactNode } from "react";
-import { Dropdown, DropdownDivider, DropdownItem } from "flowbite-react";
+import {
+  Checkbox,
+  Dropdown,
+  DropdownDivider,
+  DropdownItem,
+} from "flowbite-react";
 import {
   HiDotsVertical,
   HiOutlinePencil,
   HiOutlineTrash,
 } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
+
+/** Selección de filas para acciones en lote (borrar varios). */
+export type MarcasLista = {
+  marcados: Set<string>;
+  onMarcar: (id: string, marcado: boolean) => void;
+  /** Elegir o soltar varios de una vez (casilla de la sección). */
+  onMarcarVarios: (ids: string[], marcado: boolean) => void;
+  /** Hay algo elegido: todas las filas muestran su casilla. */
+  siempre: boolean;
+};
+
+export type MarcaFila = {
+  marcado: boolean;
+  onMarcar: (marcado: boolean) => void;
+  siempre: boolean;
+};
+
+export function marcaDe(
+  marcas: MarcasLista | undefined,
+  id: string
+): MarcaFila | undefined {
+  if (!marcas) return undefined;
+  return {
+    marcado: marcas.marcados.has(id),
+    onMarcar: (v) => marcas.onMarcar(id, v),
+    siempre: marcas.siempre,
+  };
+}
+
+/**
+ * Casillas de Flowbite sin el anillo al hacer clic: solo con el teclado
+ * (focus-visible), para ver dónde está el foco.
+ */
+export const CASILLA_SIN_ANILLO =
+  "cursor-pointer focus:ring-0 focus:ring-offset-0 focus-visible:ring-2 focus-visible:ring-offset-2";
+
+/**
+ * Lugar del ícono que, al pasar el mouse (o con el teclado), muestra una
+ * casilla en su lugar; con `visible`, la casilla queda fija.
+ */
+function IconoOCasilla({
+  icono,
+  visible,
+  children,
+}: Readonly<{ icono?: ReactNode; visible: boolean; children: ReactNode }>) {
+  const alPasar = "hidden group-has-focus-visible:flex group-hover:flex";
+  return (
+    <span
+      className="flex h-4 w-4 flex-none items-center justify-center"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {icono && !visible && (
+        <span className="flex group-has-focus-visible:hidden group-hover:hidden">
+          {icono}
+        </span>
+      )}
+      <span className={visible ? "flex" : alPasar}>{children}</span>
+    </span>
+  );
+}
+
+/** Casilla del encabezado: elige o suelta todas las filas de la sección. */
+function CasillaSeccion({
+  titulo,
+  icono,
+  ids,
+  marcas,
+}: Readonly<{
+  titulo: string;
+  icono?: ReactNode;
+  ids: string[];
+  marcas: MarcasLista;
+}>) {
+  const todas = ids.length > 0 && ids.every((id) => marcas.marcados.has(id));
+  return (
+    <IconoOCasilla icono={icono} visible={marcas.siempre}>
+      <Checkbox
+        color="blue"
+        aria-label={`Seleccionar todos: ${titulo}`}
+        className={CASILLA_SIN_ANILLO}
+        checked={todas}
+        onChange={() => marcas.onMarcarVarios(ids, !todas)}
+      />
+    </IconoOCasilla>
+  );
+}
+
+/** Casilla de una fila, en el lugar de su ícono. */
+function CasillaFila({
+  marca,
+  nombre,
+  icono,
+}: Readonly<{ marca: MarcaFila; nombre: string; icono?: ReactNode }>) {
+  return (
+    <IconoOCasilla icono={icono} visible={marca.siempre || marca.marcado}>
+      <Checkbox
+        color="blue"
+        aria-label={`Seleccionar ${nombre}`}
+        className={CASILLA_SIN_ANILLO}
+        checked={marca.marcado}
+        onChange={(e) => marca.onMarcar(e.target.checked)}
+      />
+    </IconoOCasilla>
+  );
+}
 
 export function ListCard({ children }: { children: ReactNode }) {
   return (
@@ -24,7 +134,13 @@ export function ListSection({
   total,
   vacio,
   children,
+  seleccion,
+  icono,
 }: {
+  /** Ícono del encabezado; con selección, al pasar el mouse es la casilla. */
+  icono?: ReactNode;
+  /** Casilla en el encabezado para elegir todas sus filas. */
+  seleccion?: { ids: string[]; marcas: MarcasLista };
   titulo: string;
   total: number;
   /** Texto cuando no hay filas. */
@@ -36,20 +152,31 @@ export function ListSection({
 
   return (
     <section>
-      <button
-        type="button"
-        aria-expanded={abierto}
-        aria-label={abierto ? `Ocultar ${titulo}` : `Mostrar ${titulo}`}
-        onClick={plegar}
-        className="flex w-full items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-1 text-left hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-700/50 dark:hover:bg-gray-700"
-      >
-        <h3 className="min-w-0 truncate text-xs font-semibold text-gray-900 dark:text-white">
-          {titulo}
-        </h3>
-        <span className="rounded-full bg-gray-200 px-1.5 py-px text-[10px] font-medium text-gray-700 dark:bg-gray-600 dark:text-gray-200">
-          {total}
-        </span>
-      </button>
+      <div className="group flex items-center gap-2 border-b border-gray-200 bg-gray-50 pl-3 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-700/50 dark:hover:bg-gray-700">
+        {seleccion && total > 0 ? (
+          <CasillaSeccion titulo={titulo} icono={icono} {...seleccion} />
+        ) : (
+          icono && (
+            <span className="flex h-4 w-4 flex-none items-center justify-center">
+              {icono}
+            </span>
+          )
+        )}
+        <button
+          type="button"
+          aria-expanded={abierto}
+          aria-label={abierto ? `Ocultar ${titulo}` : `Mostrar ${titulo}`}
+          onClick={plegar}
+          className="flex min-w-0 flex-1 cursor-pointer items-center justify-between gap-2 py-1 pr-3 text-left"
+        >
+          <h3 className="min-w-0 truncate text-xs font-semibold text-gray-900 dark:text-white">
+            {titulo}
+          </h3>
+          <span className="rounded-full bg-gray-200 px-1.5 py-px text-[10px] font-medium text-gray-700 dark:bg-gray-600 dark:text-gray-200">
+            {total}
+          </span>
+        </button>
+      </div>
       {abierto &&
         (total === 0 ? (
           <p className="px-3 py-3 text-xs text-gray-500 dark:text-gray-400">
@@ -120,7 +247,10 @@ export function ListCardRow({
   onHoverEnd,
   onExpandir,
   expandido,
+  marca,
 }: {
+  /** Casilla para elegir la fila (acciones en lote). */
+  marca?: MarcaFila;
   icono?: ReactNode;
   nombre: string;
   detalle: string;
@@ -154,7 +284,7 @@ export function ListCardRow({
   return (
     <Tag
       className={twMerge(
-        "flex items-center gap-2",
+        "group flex items-center gap-2",
         compact
           ? "gap-1 py-0 pr-0.5 pl-2 hover:bg-gray-200 dark:hover:bg-gray-800"
           : "py-1 pr-1 pl-3 hover:bg-gray-50 dark:hover:bg-gray-700/40",
@@ -166,7 +296,11 @@ export function ListCardRow({
       onMouseLeave={onHoverEnd}
       onClick={onExpandir}
     >
-      {icono}
+      {marca ? (
+        <CasillaFila marca={marca} nombre={nombre} icono={icono} />
+      ) : (
+        icono
+      )}
       <button
         type="button"
         className="min-w-0 flex-1 text-left"

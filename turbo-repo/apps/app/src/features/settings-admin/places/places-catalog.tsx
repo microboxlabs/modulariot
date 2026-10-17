@@ -2,82 +2,22 @@
 
 import { useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import { Button, ButtonGroup } from "flowbite-react";
-import { HiTrash } from "react-icons/hi";
 import { MdOutlineFileUpload } from "react-icons/md";
 import { twMerge } from "tailwind-merge";
 import { filtrarLugares, filtrarTrayectos } from "./catalog-search";
 import { ListCard } from "./list-card";
 import PlaceList from "./place-list";
 import { TrayectoList } from "./route-lists";
+import { SelectionBar, useSeleccionLista } from "./list-selection";
 import { inputCls } from "./form-ui";
+import { ACCEPT_IMPORT, esArchivoImport } from "./import-places";
+import ExportButton from "./export-button";
 import {
-  ACCEPT_IMPORT,
-  detalleFilaImport,
-  esArchivoImport,
-  formaFilaImport,
-  type LoteImport,
-} from "./import-places";
+  ImportLoteTable,
+  ImportSelectionBar,
+  type AccionesImport,
+} from "./import-conflict-table";
 import type { PlacesWorkspace } from "./use-places-workspace";
-
-function TablaLoteImport({
-  lote,
-  onQuitar,
-}: {
-  lote: LoteImport;
-  onQuitar: (filename: string) => void;
-}) {
-  const quitar = () => onQuitar(lote.filename);
-  const filas = lote.filas ?? [];
-  return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-      <table className="w-full text-[11px]">
-        <thead>
-          <tr className="bg-gray-100 dark:bg-gray-700">
-            <th colSpan={3} className="px-2 py-1.5 text-left font-semibold">
-              <div className="flex items-center gap-2">
-                <span className="min-w-0 flex-1 truncate text-xs text-gray-900 dark:text-white">
-                  {lote.filename}
-                </span>
-                <span className="shrink-0 font-normal text-gray-500 dark:text-gray-400">
-                  {filas.length}
-                </span>
-                <button
-                  type="button"
-                  aria-label={`Quitar ${lote.filename}`}
-                  onClick={quitar}
-                  className="rounded p-0.5 text-gray-400 hover:bg-gray-200 hover:text-rose-600 dark:hover:bg-gray-600 dark:hover:text-rose-400"
-                >
-                  <HiTrash className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </th>
-          </tr>
-          <tr className="border-t border-gray-200 text-left text-gray-500 dark:border-gray-600 dark:text-gray-400">
-            <th className="px-2 py-1 font-medium">Nombre</th>
-            <th className="px-2 py-1 font-medium">Forma</th>
-            <th className="px-2 py-1 font-medium">Detalle</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filas.map((f, i) => (
-            <tr
-              key={`${f.name}-${i}`}
-              className="border-t border-gray-100 text-gray-800 dark:border-gray-700 dark:text-gray-200"
-            >
-              <td className="max-w-[8rem] truncate px-2 py-1">{f.name}</td>
-              <td className="whitespace-nowrap px-2 py-1">
-                {formaFilaImport(f)}
-              </td>
-              <td className="truncate px-2 py-1 text-gray-500 dark:text-gray-400">
-                {detalleFilaImport(f)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 export function PlacesImportCard({
   ws,
@@ -100,6 +40,18 @@ export function PlacesImportCard({
   const profundidadArrastre = useRef(0);
   const lotes = imp.lotes ?? [];
   const hayLotes = lotes.length > 0;
+  const acciones: AccionesImport = {
+    conflictos: ws.conflictosImp,
+    decisiones: imp.decisiones,
+    seleccion: imp.seleccion,
+    hoverUid: ws.hoverImportUid,
+    onDecidir: ws.decidirImport,
+    onSeleccionar: ws.alternarSeleccionImport,
+    onMarcarFilas: ws.marcarFilasImport,
+    onQuitarFilas: ws.quitarFilasImport,
+    onHover: ws.hoverFilaImport,
+    onHoverConflicto: ws.hoverConflictoImport,
+  };
 
   const tomarArchivos = (lista: FileList | File[] | undefined) => {
     if (!lista || lista.length === 0) return;
@@ -141,11 +93,6 @@ export function PlacesImportCard({
     tomarArchivos(e.dataTransfer.files);
   };
 
-  const quitarLote = (filename: string) =>
-    setImp({
-      ...imp,
-      lotes: lotes.filter((l) => l.filename !== filename),
-    });
   const cancelar = () => abrirImport();
   const importar = () => void confirmarImport();
 
@@ -165,7 +112,7 @@ export function PlacesImportCard({
           hayLotes ? "gap-2 p-2" : "p-6",
           arrastrando
             ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20"
-            : "border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-700"
+            : "border-gray-300 dark:border-gray-600"
         )}
       >
         {hayLotes ? (
@@ -179,12 +126,17 @@ export function PlacesImportCard({
                 Importar otro archivo
               </span>
             </label>
+            <ImportSelectionBar
+              filas={ws.filasImp}
+              acciones={acciones}
+              onSeleccionarTodo={ws.seleccionarTodoImport}
+            />
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
               {lotes.map((lote) => (
-                <TablaLoteImport
+                <ImportLoteTable
                   key={lote.filename}
                   lote={lote}
-                  onQuitar={quitarLote}
+                  acciones={acciones}
                 />
               ))}
             </div>
@@ -277,6 +229,16 @@ export function PlacesCatalogLists({
   const verLugares = !hayBusca || lugares.length > 0;
   const verTrayectos = !hayBusca || trayectos.length > 0;
   const sinResultados = hayBusca && !verLugares && !verTrayectos;
+  const sel = useSeleccionLista(
+    ws.todosLugares ?? ws.lugares,
+    ws.todosTrayectos ?? []
+  );
+  const todosVisibles =
+    lugares.length + trayectos.length > 0 &&
+    lugares.every((l) => sel.marcasLugares.marcados.has(l.place_id)) &&
+    trayectos.every((t) => sel.marcasTrayectos.marcados.has(t.trayecto_id));
+  const eliminarSeleccion = () =>
+    ws.borrarSeleccion(sel.lugaresSel, sel.trayectosSel, sel.limpiar);
 
   return (
     <div className={twMerge("flex min-h-0 flex-1 flex-col gap-2", className)}>
@@ -299,6 +261,10 @@ export function PlacesCatalogLists({
           >
             Importar
           </button>
+          <ExportButton
+            lugares={ws.todosLugares ?? []}
+            trayectos={ws.todosTrayectos ?? []}
+          />
         </div>
       ) : (
         <input
@@ -306,6 +272,16 @@ export function PlacesCatalogLists({
           placeholder="Buscar por nombre, dirección o external_id…"
           value={ws.busca}
           onChange={(e) => ws.setBusca(e.target.value)}
+        />
+      )}
+
+      {sel.total > 0 && (
+        <SelectionBar
+          total={sel.total}
+          todosVisibles={todosVisibles}
+          onTodos={() => sel.marcarVisibles(lugares, trayectos)}
+          onCancelar={sel.limpiar}
+          onEliminar={eliminarSeleccion}
         />
       )}
 
@@ -327,6 +303,8 @@ export function PlacesCatalogLists({
                   onEditar={ws.editarLugar}
                   onEliminar={(l) => void ws.borrarLugar(l)}
                   onHover={ws.setHoveredPlaceId}
+                  marcas={sel.marcasLugares}
+                  versionDe={(id) => ws.versionDe("lugar", id)}
                 />
               )}
               {verTrayectos && (
@@ -338,6 +316,8 @@ export function PlacesCatalogLists({
                   onIr={ws.irATrayecto}
                   onEditar={ws.editarTrayecto}
                   onEliminar={(t) => void ws.borrarTrayecto(t)}
+                  marcas={sel.marcasTrayectos}
+                  versionDe={(id) => ws.versionDe("trayecto", id)}
                 />
               )}
             </>
@@ -394,6 +374,11 @@ export function PlacesSettingsSidebar({ ws }: { ws: PlacesWorkspace }) {
         >
           Importar
         </button>
+        <ExportButton
+          lugares={ws.todosLugares ?? []}
+          trayectos={ws.todosTrayectos ?? []}
+          className={ws.btnTab(false)}
+        />
       </div>
 
       {ws.msg && ws.modo !== "lugar" && ws.modo !== "trayecto" && (

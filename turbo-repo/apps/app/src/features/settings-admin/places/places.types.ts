@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type LatLon = [number, number];
 
 /** Cómo se dibuja el polígono: a mano o a partir de una forma base. */
@@ -51,6 +53,12 @@ export type Trayecto = {
   external_id: string | null;
   /** Solo se conserva en el respaldo local (el lab no tiene campo icono). */
   icon?: string | null;
+  /** Igual que el icono: el servidor aún no tiene campo para categorías. */
+  categorias?: string[] | null;
+  /** Tipo de cada waypoint, en el mismo orden (también solo local). */
+  tipos_puntos?: TipoPunto[] | null;
+  /** Categoría de cada waypoint (null = sin categoría), también local. */
+  categorias_puntos?: (string | null)[] | null;
 };
 export type Categoria = { category_id: number; name: string; color: string };
 
@@ -60,6 +68,8 @@ export const FORM_VACIO = {
   icon: "",
   color: "",
   category_id: "",
+  /** Categorías (códigos del seleccionable de categorías); se eligen varias. */
+  categorias: [] as string[],
   address: "",
   external_id: "",
   radius_m: 20,
@@ -106,6 +116,8 @@ export const TRAY_VACIO = {
     { id: "origen", texto: "", punto: null },
     { id: "destino", texto: "", punto: null },
   ] as Parada[],
+  /** Categorías (códigos del seleccionable de categorías), como en lugares. */
+  categorias: [] as string[],
   /** Recorrido confirmado: se ve la ruta trazada; si no, la línea entre puntos. */
   confirmado: false,
   /** Historial del recorrido (deshacer/rehacer desde la barra del mapa). */
@@ -113,7 +125,17 @@ export const TRAY_VACIO = {
   futuro: [] as Parada[][],
 };
 export type FormTrayecto = typeof TRAY_VACIO;
-export type Parada = { id: string; texto: string; punto: LatLon | null };
+/** Qué es un punto intermedio: el vehículo se detiene o solo pasa (desvío). */
+export type TipoPunto = "parada" | "desvio";
+export type Parada = {
+  id: string;
+  texto: string;
+  punto: LatLon | null;
+  /** Solo puntos intermedios; sin valor = "parada". */
+  tipo?: TipoPunto;
+  /** Solo puntos intermedios: código del seleccionable de categoría. */
+  categoria?: string;
+};
 
 export const MAX_METADATA = 10;
 /** Clave reservada de metadata donde se guarda el icono del lugar. */
@@ -125,8 +147,30 @@ export const PARENT_KEY = "_parent_place_id";
 /** Color propio de una geocerca (metadata del lugar). */
 export const COLOR_KEY = "_color";
 export const COLOR_LUGAR_DEF = "#1C64F2";
+/** Categorías del lugar (códigos de un seleccionable), como arreglo JSON. */
+export const CATEGORIAS_KEY = "_categorias";
 
-const CLAVES_RESERVADAS = new Set([ICON_KEY, INNER_KEY, PARENT_KEY, COLOR_KEY]);
+const CLAVES_RESERVADAS = new Set([
+  ICON_KEY,
+  INNER_KEY,
+  PARENT_KEY,
+  COLOR_KEY,
+  CATEGORIAS_KEY,
+]);
+
+const codigosSchema = z.array(z.string());
+
+/** Categorías guardadas en la metadata del lugar; ilegibles = ninguna. */
+export function categoriasDeLugar(l: Pick<Lugar, "metadata">): string[] {
+  const raw = l.metadata?.[CATEGORIAS_KEY];
+  if (!raw) return [];
+  try {
+    const parsed = codigosSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : [];
+  } catch {
+    return [];
+  }
+}
 
 /** Filas del formulario → objeto metadata (sin filas vacías), con el icono. */
 export function metadataParaGuardar(form: FormLugar): Record<string, string> {
@@ -137,6 +181,8 @@ export function metadataParaGuardar(form: FormLugar): Record<string, string> {
   }
   if (form.icon) out[ICON_KEY] = form.icon;
   if (form.color) out[COLOR_KEY] = form.color;
+  if (form.categorias.length > 0)
+    out[CATEGORIAS_KEY] = JSON.stringify(form.categorias);
   if (form.inners.length > 0) out[INNER_KEY] = JSON.stringify(form.inners);
   return out;
 }

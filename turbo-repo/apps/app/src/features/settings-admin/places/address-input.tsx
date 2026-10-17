@@ -1,6 +1,6 @@
 "use client";
 
-// Campo de dirección con sugerencias (Mapbox Geocoding). Busca 300 ms después
+// Campo de dirección o Plus Code con sugerencias (Mapbox Geocoding). Busca 300 ms después
 // de dejar de escribir y cancela la búsqueda anterior.
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { twMerge } from "tailwind-merge";
@@ -104,7 +104,7 @@ export default function AddressInput({
         )}
         <input
           className={twMerge(inputCls, invalido && inputErrorCls)}
-          placeholder={placeholder ?? `${label}: calle, número, comuna…`}
+          placeholder={placeholder ?? `${label}: dirección o Plus Code…`}
           aria-label={label}
           aria-invalid={invalido}
           role="combobox"

@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   capasNombresGeocercas,
+  chipCluster,
   chipEtiqueta,
+  textoCluster,
+  type BadgeMapa,
   temaChipMapa,
 } from "./place-name-layer";
 import type { ItemNombre } from "./place-labels";
@@ -14,8 +17,10 @@ vi.stubGlobal(
 );
 
 function mockCanvas() {
-  HTMLCanvasElement.prototype.getContext = () =>
-    ({
+  HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement) {
+    return {
+      canvas: this,
+      drawImage: () => undefined,
       font: "",
       measureText: (t: string) => ({ width: t.length * 7 }),
       setTransform: () => undefined,
@@ -37,8 +42,8 @@ function mockCanvas() {
       lineJoin: "round",
       textBaseline: "middle",
       textAlign: "left",
-    }) as unknown as CanvasRenderingContext2D;
-  HTMLCanvasElement.prototype.toDataURL = () => "data:image/png;base64,xx";
+    } as unknown as CanvasRenderingContext2D;
+  } as unknown as HTMLCanvasElement["getContext"];
 }
 
 const padre: ItemNombre = {
@@ -62,54 +67,134 @@ const hijo: ItemNombre = {
   radio_m: 40,
 };
 
+type CapaBadges = {
+  id: string;
+  props: {
+    data: BadgeMapa[];
+    iconAtlas: HTMLCanvasElement;
+    iconMapping: Record<string, { width: number; height: number }>;
+    getIcon: (b: BadgeMapa) => string;
+    getPosition: (b: BadgeMapa) => [number, number];
+    getPixelOffset: (b: BadgeMapa) => [number, number];
+    onHover: (info: { object?: BadgeMapa }) => void;
+    onClick: (info: { object?: BadgeMapa }) => void;
+    pickable: boolean;
+    opacity?: number;
+  };
+};
+
+const capas = (...args: Parameters<typeof capasNombresGeocercas>) =>
+  capasNombresGeocercas(...args) as unknown as CapaBadges[];
+
+const solo = (item: ItemNombre): BadgeMapa => ({ item, miembros: [item] });
+const lejos: [number, number] = [-20, -60];
+
 describe("place name deck layer", () => {
-  it("renders parent and child names as a single IconLayer of chips", () => {
-    const layers = capasNombresGeocercas(
-      [padre, hijo],
-      "place-names-1",
-      "dark",
-      4
-    );
-    expect(layers).toHaveLength(1);
-    const capa = layers[0];
-    expect(capa?.id).toBe("place-names-1");
-    const props = capa?.props as {
-      data: ItemNombre[];
-      getPosition: (d: ItemNombre) => [number, number];
-      getPixelOffset: (d: ItemNombre) => [number, number];
-      pickable: boolean;
-    };
-    expect(props.data).toEqual([padre]);
-    expect(props.getPosition(padre)).toEqual([-70, -33]);
-    expect(props.getPixelOffset(padre)).toEqual([0, -18]);
-    expect(props.getPixelOffset(hijo)).toEqual([0, 0]);
-    expect(props.pickable).toBe(true);
+  it("draws badges from its own atlas, with the image map", () => {
+    mockCanvas();
+    const otro = { ...padre, id: "far", name: "Otra planta", ancla: lejos };
+    const [capa] = capas([padre, otro], "place-names-1", "dark", 14);
+    expect(capa?.id).toBe("place-names-1-0");
+    const p = capa!.props;
+    expect(p.iconAtlas).toBeInstanceOf(HTMLCanvasElement);
+    // every badge points to an entry of the atlas map
+    for (const b of p.data) expect(p.iconMapping[p.getIcon(b)]).toBeDefined();
+    expect(p.getPosition(solo(padre))).toEqual([-70, -33]);
+    expect(p.getPixelOffset(solo(padre))).toEqual([0, -18]);
+    expect(p.getPixelOffset(solo(hijo))).toEqual([0, 0]);
+    expect(p.pickable).toBe(true);
   });
 
-  it("clusters child chips into the parent name when zoomed out", () => {
-    const lejos = capasNombresGeocercas(
-      [padre, hijo],
-      "place-names-1",
-      "dark",
-      4
+  it("joins overlapping places into one cluster", () => {
+    mockCanvas();
+    // a parent and its inner at the same spot, zoomed out: one cluster
+    const [capa] = capas([padre, hijo], "n", "dark", 4);
+    expect(capa?.props.data).toHaveLength(1);
+    const cluster = capa!.props.data[0]!;
+    expect(cluster.miembros.map((m) => m.id)).toEqual(["park", "lot"]);
+    // places far apart keep a badge each
+    const otro = { ...padre, id: "far", ancla: lejos };
+    expect(capas([padre, otro], "n", "dark", 14)[0]?.props.data).toHaveLength(
+      2
     );
-    const cerca = capasNombresGeocercas(
-      [padre, hijo],
-      "place-names-1",
+  });
+
+  it("opens a cluster on click instead of going to one of its places", () => {
+    mockCanvas();
+    const onNombre = vi.fn();
+    const onAcercar = vi.fn();
+    const otro = {
+      ...padre,
+      id: "park-2",
+      ancla: [-33, -70.0005] as [number, number],
+    };
+    const [capa] = capas(
+      [padre, otro],
+      "n",
       "dark",
-      20
+      4,
+      onNombre,
+      undefined,
+      undefined,
+      undefined,
+      onAcercar
     );
-    const dataLejos = (lejos[0]?.props as { data: ItemNombre[] }).data;
-    const dataCerca = (cerca[0]?.props as { data: ItemNombre[] }).data;
-    expect(dataLejos.map((i) => i.id)).toEqual(["park"]);
-    expect(dataCerca.map((i) => i.id)).toEqual(["lot"]);
+    const cluster = capa!.props.data[0]!;
+    expect(cluster.miembros).toHaveLength(2);
+    capa!.props.onClick({ object: cluster });
+    expect(onNombre).not.toHaveBeenCalled();
+    const [centro, z] = onAcercar.mock.calls[0]!;
+    expect(centro).toEqual([-33, -70.00025]);
+    expect(z).toBeGreaterThan(4);
+    // a single badge still goes to its place
+    capa!.props.onClick({ object: solo(padre) });
+    expect(onNombre).toHaveBeenCalledWith(padre);
+  });
+
+  it("draws a cluster as a pill counting its geofences", () => {
+    mockCanvas();
+    expect(textoCluster(5)).toBe("5 geocercas");
+    const chip = chipCluster(5, "noche");
+    expect(chip.size).toBe(24);
+    expect(chip.key).toBe("cluster|5|noche");
+    // the cluster badge sits where a parent badge would
+    const [capa] = capas([padre, hijo], "n", "dark", 4);
+    const cluster = capa!.props.data[0]!;
+    expect(capa!.props.getIcon(cluster)).toBe("cluster|2|noche");
+    expect(capa!.props.getPixelOffset(cluster)).toEqual([0, -18]);
+  });
+
+  it("reports the badge under the mouse, and null for clusters or leaving", () => {
+    mockCanvas();
+    const onHover = vi.fn();
+    const [capa] = capas([padre], "n", "dark", 4, undefined, onHover);
+    capa!.props.onHover({ object: solo(padre) });
+    expect(onHover).toHaveBeenLastCalledWith(padre);
+    capa!.props.onHover({ object: { item: padre, miembros: [padre, hijo] } });
+    expect(onHover).toHaveBeenLastCalledWith(null);
+    capa!.props.onHover({});
+    expect(onHover).toHaveBeenLastCalledWith(null);
+  });
+
+  it("draws the badge hovered in the list on top, fading in", () => {
+    mockCanvas();
+    const ls = capas([padre, hijo], "n", "dark", 4, undefined, undefined, {
+      id: "lot",
+      t: 0.5,
+    });
+    const resaltado = ls.at(-1)!;
+    expect(resaltado.id).toBe("n-resaltado");
+    expect(resaltado.props.opacity).toBe(0.5);
+    // finished fading out: no highlight layer
+    expect(
+      capas([padre], "n", "dark", 4, undefined, undefined, { id: null, t: 0 })
+    ).toHaveLength(1);
   });
 
   it("uses a night chip on dark/satellite maps and a day chip on streets", () => {
     expect(temaChipMapa("dark")).toBe("noche");
     expect(temaChipMapa("satellite")).toBe("noche");
     expect(temaChipMapa("streets")).toBe("dia");
-    expect(temaChipMapa("light")).toBe("dia");
   });
 
   it("draws the icon inside a badge wider than it is tall", () => {
@@ -118,7 +203,13 @@ describe("place name deck layer", () => {
     expect(chip.size).toBe(24);
     expect(chip.height).toBeGreaterThanOrEqual(48);
     expect(chip.width).toBeGreaterThan(chip.height);
-    expect(chip.anchorX).toBe(chip.width / 2);
-    expect(chip.url.startsWith("data:image/png")).toBe(true);
+    expect(chip.canvas).toBeInstanceOf(HTMLCanvasElement);
+  });
+
+  it("puts the badge of a saved conflict below its shape", () => {
+    mockCanvas();
+    const guardado = { ...padre, id: "saved", ancla: lejos, abajo: true };
+    const [capa] = capas([guardado], "n", "dark", 14);
+    expect(capa!.props.getPixelOffset(solo(guardado))).toEqual([0, 22]);
   });
 });

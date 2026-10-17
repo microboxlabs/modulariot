@@ -2,12 +2,14 @@
 
 import { type Dispatch, type SetStateAction } from "react";
 import { Layer, Source } from "react-map-gl";
+import type { ExpressionSpecification } from "mapbox-gl";
 import {
   GeofenceHandles,
   INNER_RADIO_MAX,
   INNER_RADIO_MIN,
 } from "./geofence-editor";
 import RouteHandles from "./route-editor";
+import { FlechasRuta, useFlechaRuta } from "./route-arrows";
 import {
   actualizarInner,
   innerComoForm,
@@ -15,6 +17,16 @@ import {
 } from "./inner-geofences";
 import { GEOJSON_EXACTO, type PlacesWorkspace } from "./use-places-workspace";
 import type { FormLugar } from "./places.types";
+
+const COLOR_ESTADO_IMPORT: ExpressionSpecification = [
+  "match",
+  ["get", "estado"],
+  "total",
+  "#E02424",
+  "parcial",
+  "#F59E0B",
+  "#1C64F2",
+];
 
 function InnerGeofenceHandles({
   form,
@@ -41,7 +53,37 @@ function InnerGeofenceHandles({
   );
 }
 
-export default function PlacesMapLayers({ ws }: { ws: PlacesWorkspace }) {
+/**
+ * Vista general (con los camiones): las formas de las geocercas se dibujan
+ * desde este zoom; más lejos solo se ven sus badges.
+ */
+export const ZOOM_FORMAS_VISTA_GENERAL = 13;
+
+export default function PlacesMapLayers({
+  ws,
+  vistaGeneral = false,
+  ocultar,
+}: {
+  ws: PlacesWorkspace;
+  /**
+   * Vista general: solo geocercas (sin trayectos) y sus formas solo de
+   * cerca (ZOOM_FORMAS_VISTA_GENERAL); los badges van aparte, siempre.
+   */
+  vistaGeneral?: boolean;
+  /**
+   * Capas apagadas desde la barra "Capas" del mapa. Lo que se está editando
+   * o importando (vistas previas, conflictos) se sigue viendo.
+   */
+  ocultar?: { geocercas?: boolean; trayectos?: boolean };
+}) {
+  // flechas de sentido de los trayectos: su imagen se registra en el mapa
+  useFlechaRuta();
+  const desdeZoom = vistaGeneral ? { minzoom: ZOOM_FORMAS_VISTA_GENERAL } : {};
+  const formas = {
+    ...desdeZoom,
+    layout: { visibility: ocultar?.geocercas ? "none" : "visible" } as const,
+  };
+  const verTrayectos = !vistaGeneral && !ocultar?.trayectos;
   const {
     carrierMode,
     fcGlobales,
@@ -72,6 +114,7 @@ export default function PlacesMapLayers({ ws }: { ws: PlacesWorkspace }) {
           <Layer
             id="glob-fill"
             type="fill"
+            {...formas}
             paint={{
               "fill-color": ["get", "color"],
               "fill-opacity": 0.12,
@@ -80,6 +123,7 @@ export default function PlacesMapLayers({ ws }: { ws: PlacesWorkspace }) {
           <Layer
             id="glob-line"
             type="line"
+            {...formas}
             paint={{
               "line-color": ["get", "color"],
               "line-width": 1,
@@ -97,6 +141,7 @@ export default function PlacesMapLayers({ ws }: { ws: PlacesWorkspace }) {
         <Layer
           id="prop-fill"
           type="fill"
+          {...formas}
           paint={{
             "fill-color": ["get", "color"],
             "fill-opacity": [
@@ -110,6 +155,7 @@ export default function PlacesMapLayers({ ws }: { ws: PlacesWorkspace }) {
         <Layer
           id="prop-line"
           type="line"
+          {...formas}
           paint={{
             "line-color": ["get", "color"],
             "line-width": [
@@ -120,18 +166,50 @@ export default function PlacesMapLayers({ ws }: { ws: PlacesWorkspace }) {
             ],
           }}
         />
-      </Source>
-      <Source id="tray" type="geojson" tolerance={GEOJSON_EXACTO} data={fcTray}>
+        {/* importando: el lugar guardado con el que choca la fila en hover */}
         <Layer
-          id="tray-line"
+          id="prop-conflicto"
           type="line"
+          filter={["==", ["get", "place_id"], ws.hoverConflictoId ?? ""]}
           paint={{
-            "line-color": "#7E3AF2",
-            "line-width": 2.5,
-            "line-opacity": 0.8,
+            "line-color": "#FFFFFF",
+            "line-width": 3,
+            "line-dasharray": [2, 1.5],
           }}
         />
       </Source>
+      {/* vista general: solo geocercas, sin trayectos */}
+      {verTrayectos && (
+        <Source
+          id="tray"
+          type="geojson"
+          tolerance={GEOJSON_EXACTO}
+          data={fcTray}
+        >
+          <Layer
+            id="tray-line"
+            type="line"
+            paint={{
+              // importando, cada trayecto en conflicto trae su propio color
+              "line-color": ["coalesce", ["get", "color"], "#1C64F2"],
+              "line-width": 2.5,
+              "line-opacity": 0.8,
+            }}
+          />
+          <FlechasRuta id="tray-flechas" />
+          {/* importando: el trayecto guardado igual al de la fila en hover */}
+          <Layer
+            id="tray-conflicto"
+            type="line"
+            filter={["==", ["get", "trayecto_id"], ws.hoverConflictoId ?? ""]}
+            paint={{
+              "line-color": "#FFFFFF",
+              "line-width": 4,
+              "line-dasharray": [2, 1.5],
+            }}
+          />
+        </Source>
+      )}
       <Source
         id="prev-lugar"
         type="geojson"
@@ -182,6 +260,7 @@ export default function PlacesMapLayers({ ws }: { ws: PlacesWorkspace }) {
             "line-dasharray": [2, 2],
           }}
         />
+        <FlechasRuta id="prev-tray-raw-flechas" />
       </Source>
       <Source
         id="prev-tray-adj"
@@ -194,7 +273,73 @@ export default function PlacesMapLayers({ ws }: { ws: PlacesWorkspace }) {
           type="line"
           paint={{ "line-color": "#1C64F2", "line-width": 3 }}
         />
+        <FlechasRuta id="prev-tray-adj-flechas" />
       </Source>
+      {ws.importando && (
+        <Source
+          id="import"
+          type="geojson"
+          tolerance={GEOJSON_EXACTO}
+          data={ws.fcImport}
+        >
+          {/* Gestor de conflictos: azul sin conflicto, ámbar parcial, rojo total */}
+          <Layer
+            id="import-fill"
+            type="fill"
+            // solo geocercas: un trayecto es una línea; sin este filtro Mapbox
+            // cierra la línea y la rellena como si fuera un polígono
+            filter={["==", ["geometry-type"], "Polygon"]}
+            paint={{
+              "fill-color": COLOR_ESTADO_IMPORT,
+              "fill-opacity": [
+                "case",
+                ["==", ["get", "uid"], ws.hoverImportUid ?? ""],
+                0.5,
+                0.25,
+              ],
+            }}
+          />
+          {/* borde con el color propio de cada geocerca (ver coloresImport);
+              el relleno de arriba indica el estado del conflicto */}
+          <Layer
+            id="import-line"
+            type="line"
+            paint={{
+              "line-color": ["coalesce", ["get", "color"], "#1C64F2"],
+              // un trayecto importado (línea) se ve más grueso que un contorno
+              "line-width": [
+                "case",
+                ["==", ["geometry-type"], "LineString"],
+                4,
+                2,
+              ],
+            }}
+          />
+          {/* la fila con hover: borde blanco grueso encima de todo */}
+          <Layer
+            id="import-hover"
+            type="line"
+            filter={["==", ["get", "uid"], ws.hoverImportUid ?? ""]}
+            paint={{ "line-color": "#FFFFFF", "line-width": 4 }}
+          />
+          {/* otra fila con la que choca: borde blanco punteado */}
+          <Layer
+            id="import-conflicto"
+            type="line"
+            filter={["==", ["get", "uid"], ws.hoverConflictoId ?? ""]}
+            paint={{
+              "line-color": "#FFFFFF",
+              "line-width": 3,
+              "line-dasharray": [2, 1.5],
+            }}
+          />
+          {/* sentido de los trayectos importados (no de las geocercas) */}
+          <FlechasRuta
+            id="import-flechas"
+            filter={["==", ["geometry-type"], "LineString"]}
+          />
+        </Source>
+      )}
       {modo === "lugar" && ws.pasoLugar === "geocerca" && (
         <GeofenceHandles form={form} setForm={setForm} />
       )}

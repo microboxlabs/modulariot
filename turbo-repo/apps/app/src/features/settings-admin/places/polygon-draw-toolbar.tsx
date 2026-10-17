@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from "react";
 import { Tooltip } from "flowbite-react";
 import { HiCheck, HiPencil, HiX } from "react-icons/hi";
 import { HiArrowUturnLeft, HiArrowUturnRight } from "react-icons/hi2";
+import { KeyboardShortcutTrigger } from "@/features/common/components/keyboard-shortcut-trigger";
 
 // Teclas dentro del formulario o sus popups (calendario, menús) no dibujan.
 const ignorarTecla = (t: EventTarget | null) =>
@@ -13,6 +14,9 @@ const ignorarTecla = (t: EventTarget | null) =>
     !!t.closest(
       "[data-places-form],[data-places-datepicker],[role=listbox],[role=menu]"
     ));
+
+/** Atajos globales que no aplican mientras se escribe en el formulario. */
+const ignorarEvento = (e: KeyboardEvent) => ignorarTecla(e.target);
 
 // bloque de botones unidos: borde común y separadores finos
 const grupoCls =
@@ -84,37 +88,62 @@ function GrupoHistorial({
   const mod = esMac() ? "⌘" : "Ctrl+";
   const btn =
     "flex h-7 w-7 items-center justify-center text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-gray-200 dark:hover:bg-gray-700";
+  // Mismo componente que el botón del harness: al mantener ⌘/Ctrl aparece
+  // la tecla sobre el botón, y el atajo lo dispara. Sin overflow-hidden en
+  // el grupo para que esa marca no se recorte.
   return (
-    <div role="group" aria-label="Historial" className={grupoCls}>
-      <Tooltip
-        content={<AtajoTooltip label="Deshacer" tecla={`${mod}Z`} />}
-        placement="top"
+    <div
+      role="group"
+      aria-label="Historial"
+      className="flex rounded-md border border-gray-200 dark:border-gray-600"
+    >
+      <KeyboardShortcutTrigger
+        shortcutKey="z"
+        label="Z"
+        shift={false}
+        ignore={ignorarEvento}
+        enabled={puedeDeshacer}
+        onTrigger={onDeshacer}
       >
-        <button
-          type="button"
-          aria-label="Deshacer (⌫)"
-          disabled={!puedeDeshacer}
-          onClick={onDeshacer}
-          className={btn}
+        <Tooltip
+          content={<AtajoTooltip label="Deshacer" tecla={`${mod}Z`} />}
+          placement="top"
         >
-          <HiArrowUturnLeft className="h-3.5 w-3.5" />
-        </button>
-      </Tooltip>
+          <button
+            type="button"
+            aria-label="Deshacer (⌫)"
+            disabled={!puedeDeshacer}
+            onClick={onDeshacer}
+            className={`${btn} rounded-l-md`}
+          >
+            <HiArrowUturnLeft className="h-3.5 w-3.5" />
+          </button>
+        </Tooltip>
+      </KeyboardShortcutTrigger>
       <span className={separadorCls} />
-      <Tooltip
-        content={<AtajoTooltip label="Rehacer" tecla={`${mod}⇧Z`} />}
-        placement="top"
+      <KeyboardShortcutTrigger
+        shortcutKey="z"
+        label="⇧Z"
+        shift
+        ignore={ignorarEvento}
+        enabled={puedeRehacer}
+        onTrigger={onRehacer}
       >
-        <button
-          type="button"
-          aria-label="Rehacer"
-          disabled={!puedeRehacer}
-          onClick={onRehacer}
-          className={btn}
+        <Tooltip
+          content={<AtajoTooltip label="Rehacer" tecla={`${mod}⇧Z`} />}
+          placement="top"
         >
-          <HiArrowUturnRight className="h-3.5 w-3.5" />
-        </button>
-      </Tooltip>
+          <button
+            type="button"
+            aria-label="Rehacer"
+            disabled={!puedeRehacer}
+            onClick={onRehacer}
+            className={`${btn} rounded-r-md`}
+          >
+            <HiArrowUturnRight className="h-3.5 w-3.5" />
+          </button>
+        </Tooltip>
+      </KeyboardShortcutTrigger>
     </div>
   );
 }
@@ -177,11 +206,8 @@ export default function PolygonDrawToolbar({
 }) {
   useEffect(() => {
     const accion = (e: KeyboardEvent): (() => void) | null => {
-      const k = e.key.toLowerCase();
-      const mod = e.metaKey || e.ctrlKey;
-      if ((mod && k === "z" && e.shiftKey) || (e.ctrlKey && k === "y"))
-        return onRehacer;
-      if (mod && k === "z") return onDeshacer;
+      // ⌘Z / ⌘⇧Z los manejan los botones (KeyboardShortcutTrigger)
+      if (e.ctrlKey && e.key.toLowerCase() === "y") return onRehacer;
       // Backspace solo deshace mientras se dibuja; con el polígono terminado
       // una tecla suelta no debe cambiar la forma.
       if (e.key === "Backspace" && !cerrado) return onDeshacer;

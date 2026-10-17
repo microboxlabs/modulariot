@@ -1,6 +1,7 @@
 // Búsqueda de direcciones (Mapbox Geocoding v6) para trazar trayectos
 // escribiendo origen y destino.
 import type { LatLon } from "./places.types";
+import { decodificar, extraerPlusCode, recuperarCorto } from "./plus-code";
 
 /** Las operaciones son en Chile: limitar resultados al país. */
 const PAIS = "cl";
@@ -43,7 +44,43 @@ export function parsearSugerencias(json: unknown): Sugerencia[] {
 }
 
 /**
- * Sugerencias para el texto `q`. `cerca` ([lat, lon], centro del mapa) ordena
+ * Un Plus Code de Google escrito en la búsqueda, como única sugerencia. El
+ * completo va directo a su punto; el corto se ubica cerca de la localidad
+ * escrita junto a él (geocodificada) o, sin localidad, del centro del mapa.
+ * null si el texto no es un Plus Code; [] si es corto y no hay referencia.
+ */
+async function sugerenciaPlusCode(
+  q: string,
+  token: string,
+  cerca: LatLon | null | undefined,
+  signal?: AbortSignal
+): Promise<Sugerencia[] | null> {
+  const pc = extraerPlusCode(q);
+  if (!pc) return null;
+  const sugerencia = (punto: LatLon, contexto: string): Sugerencia[] => [
+    { id: `pluscode:${pc.codigo}`, nombre: pc.codigo, contexto, punto },
+  ];
+  if (pc.completo) return sugerencia(decodificar(pc.codigo), "Plus Code");
+  if (pc.resto) {
+    const [localidad] = await buscarEnMapbox(pc.resto, token, cerca, signal);
+    if (!localidad) return [];
+    const donde = [localidad.nombre, localidad.contexto]
+      .filter(Boolean)
+      .join(", ");
+    return sugerencia(
+      recuperarCorto(pc.codigo, localidad.punto),
+      `Plus Code · ${donde}`
+    );
+  }
+  if (!cerca) return [];
+  return sugerencia(
+    recuperarCorto(pc.codigo, cerca),
+    "Plus Code · cerca del centro del mapa"
+  );
+}
+
+/**
+ * Sugerencias para el texto `q` (dirección o Plus Code). `cerca` ([lat, lon], centro del mapa) ordena
  * primero lo cercano. Devuelve [] ante cualquier error.
  */
 export async function buscarDirecciones(
@@ -54,6 +91,16 @@ export async function buscarDirecciones(
 ): Promise<Sugerencia[]> {
   const texto = q.trim();
   if (texto.length < 3) return [];
+  const plus = await sugerenciaPlusCode(texto, token, cerca, signal);
+  return plus ?? buscarEnMapbox(texto, token, cerca, signal);
+}
+
+async function buscarEnMapbox(
+  texto: string,
+  token: string,
+  cerca: LatLon | null | undefined,
+  signal?: AbortSignal
+): Promise<Sugerencia[]> {
   const params = new URLSearchParams({
     q: texto,
     country: PAIS,

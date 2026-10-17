@@ -14,6 +14,7 @@ import { PlacesEditorOverlays } from "../places/places-editor-overlays";
 import { PlacesSettingsSidebar } from "../places/places-catalog";
 import { itemsNombresMapa, type ItemNombre } from "../places/place-labels";
 import { capasNombresGeocercas } from "../places/place-name-layer";
+import { useResaltadoAnimado } from "../places/highlight-animation";
 import { zoomAlClicNombre } from "../places/geofence-lod";
 import {
   PLACES_INITIAL_VIEW,
@@ -24,9 +25,12 @@ export default function PlacesPageContent({ dict }: { dict: I18nRecord }) {
   const mapRef = useRef<MapRef | null>(null);
   const ws = usePlacesWorkspace(mapRef);
   const [zoom, setZoom] = useState(PLACES_INITIAL_VIEW.zoom);
+  // importando: los badges son los de lo importado, no los de lo guardado
   const nombresItems = useMemo(
-    () => itemsNombresMapa(ws.fcPropios, ws.prevLugarFC, ws.todosLugares),
-    [ws.fcPropios, ws.prevLugarFC, ws.todosLugares]
+    () =>
+      ws.nombresImport ??
+      itemsNombresMapa(ws.fcPropios, ws.prevLugarFC, ws.todosLugares),
+    [ws.nombresImport, ws.fcPropios, ws.prevLugarFC, ws.todosLugares]
   );
   const alClicNombre = useCallback(
     (item: ItemNombre) => {
@@ -40,6 +44,19 @@ export default function PlacesPageContent({ dict }: { dict: I18nRecord }) {
     },
     [zoom, nombresItems]
   );
+  const resaltadoAnim = useResaltadoAnimado(
+    ws.importando ? ws.hoverImportUid : ws.hoveredPlaceId
+  );
+  // clic en un cluster: acercar lo justo para que se separe
+  const abrirCluster = useCallback(
+    (centro: [number, number], z: number) =>
+      mapRef.current?.flyTo({
+        center: [centro[1], centro[0]],
+        zoom: z,
+        duration: 600,
+      }),
+    []
+  );
   const capasNombres = useMemo(
     () =>
       capasNombresGeocercas(
@@ -47,9 +64,22 @@ export default function PlacesPageContent({ dict }: { dict: I18nRecord }) {
         "place-names",
         ws.mapStyle,
         zoom,
-        alClicNombre
+        alClicNombre,
+        ws.onHoverNombre,
+        resaltadoAnim,
+        ws.onHoverBadge,
+        abrirCluster
       ),
-    [nombresItems, ws.mapStyle, zoom, alClicNombre]
+    [
+      nombresItems,
+      ws.mapStyle,
+      zoom,
+      alClicNombre,
+      ws.onHoverNombre,
+      resaltadoAnim,
+      ws.onHoverBadge,
+      abrirCluster,
+    ]
   );
   const alCambioZoom = useCallback((z: number) => {
     const next = Math.round((z || PLACES_INITIAL_VIEW.zoom) * 10) / 10;
@@ -72,7 +102,7 @@ export default function PlacesPageContent({ dict }: { dict: I18nRecord }) {
         >
           <PlacesMapLayers ws={ws} />
         </MapVisualization>
-        <PlacesEditorOverlays ws={ws} />
+        <PlacesEditorOverlays ws={ws} dict={dict} />
         <div className="absolute bottom-5 left-5 z-40">
           <MapStyleSelector
             dict={dict}

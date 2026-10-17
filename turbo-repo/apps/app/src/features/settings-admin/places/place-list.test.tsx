@@ -123,6 +123,26 @@ describe("PlaceList", () => {
     expect(onHover).toHaveBeenCalledWith(null);
   });
 
+  it("reports hover on parent rows too", () => {
+    const onHover = vi.fn();
+    setup({
+      onHover,
+      lugares: [
+        lugar({ place_id: "park", name: "Estacionamiento" }),
+        lugar({
+          place_id: "lot",
+          name: "Lote VIP",
+          metadata: { [PARENT_KEY]: "park" },
+        }),
+      ],
+    });
+    const nombre = screen.getByText("Estacionamiento");
+    fireEvent.mouseEnter(nombre);
+    expect(onHover).toHaveBeenCalledWith("park");
+    fireEvent.mouseLeave(nombre);
+    expect(onHover).toHaveBeenLastCalledWith(null);
+  });
+
   it("collapses the Lugares section from the expandable header", () => {
     setup();
     expect(screen.getByText("Planta Norte")).toBeInTheDocument();

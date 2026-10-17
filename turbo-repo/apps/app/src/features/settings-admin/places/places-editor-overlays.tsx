@@ -1,9 +1,12 @@
 "use client";
 
-import { ConfirmModal } from "@/features/dashboard/components/confirm-modal";
+import { DeleteConfirmModal } from "@/features/task-forms/components/task-bento-form/components/side-data/multimedia-manager.tsx/viewer/modals/delete-confirm-modal";
 import PlaceForm from "./place-form";
 import TrayectoForm from "./trayecto-form";
+import VersionDialog from "./version-dialog";
 import MapCreateMenu from "./map-create-menu";
+import PlaceBadgeMenu from "./place-badge-menu";
+import PlaceBadgeTooltip from "./place-badge-tooltip";
 import PolygonDrawToolbar from "./polygon-draw-toolbar";
 import { esPoligonoLibre } from "./geofence-editor";
 import {
@@ -28,6 +31,7 @@ import {
   puntosUbicados,
 } from "./recorrido";
 import type { PlacesWorkspace } from "./use-places-workspace";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import type { Dispatch, SetStateAction } from "react";
 import type { FormLugar } from "./places.types";
 
@@ -95,13 +99,16 @@ const STACKED_FORM_CREAR =
 function LugarFormCard({
   ws,
   className,
+  dict,
 }: {
   ws: PlacesWorkspace;
   className?: string;
+  dict?: I18nRecord;
 }) {
   return (
     <PlaceForm
       className={className}
+      dict={dict}
       form={ws.form}
       setForm={ws.setForm}
       cats={ws.cats ?? []}
@@ -113,6 +120,7 @@ function LugarFormCard({
       paso={ws.pasoLugar}
       onContinuar={ws.continuarAInteriores}
       onGuardar={() => void ws.guardarLugar()}
+      version={ws.versionDe("lugar", ws.form.place_id)}
       onBack={ws.volverAGeocerca}
       onClose={ws.cerrarForm}
     />
@@ -122,13 +130,16 @@ function LugarFormCard({
 function TrayectoFormCard({
   ws,
   className,
+  dict,
 }: {
   ws: PlacesWorkspace;
   className?: string;
+  dict?: I18nRecord;
 }) {
   return (
     <TrayectoForm
       className={className}
+      dict={dict}
       token={ws.MAPBOX_TOKEN}
       cerca={ws.centroMapa}
       onRecorrido={ws.aplicarRecorrido}
@@ -139,29 +150,43 @@ function TrayectoFormCard({
       paso={ws.pasoTrayecto}
       onPaso={ws.cambiarPasoTrayecto}
       onTipo={ws.cambiarTipoTrayecto}
+      onTipoPunto={ws.cambiarTipoPuntoTray}
+      distanciaM={ws.distanciaTrayectoM}
       tray={ws.tray}
       setTray={ws.setTray}
       guardando={ws.guardando}
       msg={ws.msg}
       onSave={ws.guardarOContinuarTrayecto}
+      version={ws.versionDe("trayecto", ws.tray.id)}
       onClose={ws.cerrarForm}
     />
   );
 }
 
+/** Este modal no se cierra solo al confirmar: se cierra y luego se borra. */
+function confirmarYCerrar(ws: PlacesWorkspace) {
+  const accion = ws.confirmacion?.accion;
+  ws.setConfirmacion(null);
+  accion?.();
+}
+
 export function PlacesEditorOverlays({
   ws,
   stacked = false,
+  dict,
 }: {
   ws: PlacesWorkspace;
   stacked?: boolean;
+  dict?: I18nRecord;
 }) {
   const formClass = stacked ? STACKED_FORM : undefined;
   const form = (
     <>
-      {ws.modo === "lugar" && <LugarFormCard ws={ws} className={formClass} />}
+      {ws.modo === "lugar" && (
+        <LugarFormCard ws={ws} className={formClass} dict={dict} />
+      )}
       {ws.modo === "trayecto" && (
-        <TrayectoFormCard ws={ws} className={formClass} />
+        <TrayectoFormCard ws={ws} className={formClass} dict={dict} />
       )}
     </>
   );
@@ -175,6 +200,24 @@ export function PlacesEditorOverlays({
           onCrearLugar={ws.crearLugarAqui}
           onCrearTrayecto={ws.crearTrayectoAqui}
           onClose={ws.cerrarMenu}
+        />
+      )}
+      {/* tooltip del badge bajo el mouse (no con un menú abierto) */}
+      {ws.tooltipBadge && !ws.menu && !ws.menuLugar && (
+        <PlaceBadgeTooltip
+          badge={ws.tooltipBadge.badge}
+          x={ws.tooltipBadge.x}
+          y={ws.tooltipBadge.y}
+        />
+      )}
+      {ws.menuLugar && (
+        <PlaceBadgeMenu
+          x={ws.menuLugar.x}
+          y={ws.menuLugar.y}
+          nombre={ws.menuLugar.lugar.name}
+          onConfigurar={ws.configurarDesdeMenu}
+          onEliminar={ws.eliminarDesdeMenu}
+          onClose={ws.cerrarMenuLugar}
         />
       )}
       {ws.modo === "lugar" &&
@@ -205,14 +248,21 @@ export function PlacesEditorOverlays({
         <TrayectoDrawToolbar ws={ws} />
       )}
       {!stacked && form}
-      <ConfirmModal
-        isOpen={ws.confirmacion !== null}
+      <DeleteConfirmModal
+        show={ws.confirmacion !== null}
         onClose={() => ws.setConfirmacion(null)}
-        onConfirm={() => ws.confirmacion?.accion()}
-        title={ws.confirmacion?.titulo ?? ""}
-        description={ws.confirmacion?.descripcion}
-        confirmText="Eliminar"
-        cancelText="Cancelar"
+        onConfirm={() => confirmarYCerrar(ws)}
+        fileName={ws.confirmacion?.nombre ?? ""}
+        title={ws.confirmacion?.titulo}
+        description={null}
+        dictionary={dict ?? {}}
+      />
+      {/* guardar una geocerca o trayecto editado: tipo de actualización */}
+      <VersionDialog
+        pendiente={ws.versionPendiente}
+        guardando={ws.guardando}
+        onCancelar={ws.cancelarVersion}
+        onConfirmar={ws.confirmarVersion}
       />
     </>
   );
@@ -222,15 +272,23 @@ function formPantallaCompleta(ws: PlacesWorkspace) {
   return ws.modo === "lugar" || ws.modo === "trayecto";
 }
 
-export function PlacesStackedFormCards({ ws }: { ws: PlacesWorkspace }) {
+export function PlacesStackedFormCards({
+  ws,
+  dict,
+}: {
+  ws: PlacesWorkspace;
+  dict?: I18nRecord;
+}) {
   const formClass = formPantallaCompleta(ws)
     ? STACKED_FORM_CREAR
     : STACKED_FORM;
   return (
     <>
-      {ws.modo === "lugar" && <LugarFormCard ws={ws} className={formClass} />}
+      {ws.modo === "lugar" && (
+        <LugarFormCard ws={ws} className={formClass} dict={dict} />
+      )}
       {ws.modo === "trayecto" && (
-        <TrayectoFormCard ws={ws} className={formClass} />
+        <TrayectoFormCard ws={ws} className={formClass} dict={dict} />
       )}
     </>
   );

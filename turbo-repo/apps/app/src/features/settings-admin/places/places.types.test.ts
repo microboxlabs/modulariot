@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   FORM_VACIO,
+  CATEGORIAS_KEY,
   COLOR_KEY,
   COLOR_LUGAR_DEF,
+  categoriasDeLugar,
   ICON_KEY,
   colorDeFormLugar,
   colorDeLugar,
@@ -53,22 +55,51 @@ describe("place metadata helpers", () => {
   });
 
   it("stores a custom geofence color under the reserved key", () => {
-    expect(
-      metadataParaGuardar({ ...FORM_VACIO, color: "#E02424" })
-    ).toEqual({ [COLOR_KEY]: "#E02424" });
+    expect(metadataParaGuardar({ ...FORM_VACIO, color: "#E02424" })).toEqual({
+      [COLOR_KEY]: "#E02424",
+    });
   });
 
   it("uses the picked color, then the category, then the default", () => {
     const cats = [{ category_id: 2, name: "Planta", color: "#00FF00" }];
     expect(colorDeFormLugar(FORM_VACIO)).toBe(COLOR_LUGAR_DEF);
-    expect(
-      colorDeFormLugar({ ...FORM_VACIO, category_id: "2" }, cats)
-    ).toBe("#00FF00");
+    expect(colorDeFormLugar({ ...FORM_VACIO, category_id: "2" }, cats)).toBe(
+      "#00FF00"
+    );
     expect(
       colorDeFormLugar(
         { ...FORM_VACIO, category_id: "2", color: "#E02424" },
         cats
       )
     ).toBe("#E02424");
+  });
+});
+
+describe("place categories", () => {
+  it("saves several categories in reserved metadata and reads them back", () => {
+    const meta = metadataParaGuardar({
+      ...FORM_VACIO,
+      categorias: ["bodega", "cliente"],
+    });
+    expect(meta[CATEGORIAS_KEY]).toBe('["bodega","cliente"]');
+    expect(categoriasDeLugar({ metadata: meta })).toEqual([
+      "bodega",
+      "cliente",
+    ]);
+    // reserved: not shown as an editable metadata row
+    expect(metadataAFilas(meta).map((f) => f.k)).not.toContain(CATEGORIAS_KEY);
+  });
+
+  it("omits the key without categories and ignores unreadable values", () => {
+    expect(metadataParaGuardar({ ...FORM_VACIO })).not.toHaveProperty(
+      CATEGORIAS_KEY
+    );
+    expect(categoriasDeLugar({ metadata: null })).toEqual([]);
+    expect(
+      categoriasDeLugar({ metadata: { [CATEGORIAS_KEY]: "no json" } })
+    ).toEqual([]);
+    expect(
+      categoriasDeLugar({ metadata: { [CATEGORIAS_KEY]: "[1,2]" } })
+    ).toEqual([]);
   });
 });

@@ -13,10 +13,25 @@ import {
   inputCls,
   inputErrorCls,
 } from "./form-ui";
-import type { FormTrayecto, LatLon, PasoTrayecto } from "./places.types";
+import type {
+  FormTrayecto,
+  LatLon,
+  PasoTrayecto,
+  TipoPunto,
+} from "./places.types";
 import { IconPicker } from "./icons";
 import RecorridoCard, { type OnRecorrido } from "./recorrido-card";
 import { SizeInput } from "./poly-base-fields";
+import CampoCategorias, {
+  CAMPO_CATEGORIAS_TRAYECTO,
+} from "./place-categories-field";
+import {
+  cambiarCategoriaPunto,
+  cambiarTipoPunto,
+  textoDistancia,
+} from "./recorrido";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import VersionBadge from "./version-badge";
 
 /** Ancho del corredor en metros (mismo control que el radio de geocercas). */
 const ANCHO_MIN = 1;
@@ -39,31 +54,102 @@ function estadoRuta(tray: FormTrayecto, calculando: boolean): string {
   return tray.ajustado ? "Ruta por calles" : "Línea recta";
 }
 
+/** Origen o destino del resumen: distintivo, rótulo y dirección. */
+function ExtremoRecorrido({
+  letra,
+  colorCls,
+  rotulo,
+  texto,
+}: {
+  letra: string;
+  colorCls: string;
+  rotulo: string;
+  texto: string;
+}) {
+  return (
+    <div className="relative flex items-center gap-2">
+      <span
+        className={twMerge(
+          "flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[9px] font-bold text-white",
+          colorCls
+        )}
+      >
+        {letra}
+      </span>
+      <div className="min-w-0 flex-1 leading-tight">
+        <span className="block text-[10px] text-gray-500 dark:text-gray-400">
+          {rotulo}
+        </span>
+        <span
+          className="block truncate text-xs text-gray-900 dark:text-white"
+          title={texto}
+        >
+          {texto || "Sin ubicar"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /** Resumen del recorrido, en la pestaña de información. */
 function ResumenRecorrido({
   tray,
   calculando,
+  distanciaM,
 }: {
   tray: FormTrayecto;
   calculando: boolean;
+  /** Largo del recorrido que se ve en el mapa (por calles o recto). */
+  distanciaM?: number;
 }) {
   const ubicados = tray.recorrido.filter((p) => p.punto);
-  const paradas = Math.max(ubicados.length - 2, 0);
+  // paradas y desvíos ubicados entre A y B
+  const intermedios = Math.max(ubicados.length - 2, 0);
   const desde = ubicados[0]?.texto ?? "";
   const hasta = ubicados[ubicados.length - 1]?.texto ?? "";
   return (
     <div className="rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-600">
-      <h3 className="text-xs font-semibold text-gray-900 dark:text-white">
-        Recorrido
-      </h3>
-      <p
-        className="mt-1 truncate text-xs text-gray-700 dark:text-gray-200"
-        title={`${desde} → ${hasta}`}
-      >
-        {desde} → {hasta}
-      </p>
-      <p className="text-[11px] text-gray-500 dark:text-gray-400">
-        {paradas === 1 ? "1 parada" : `${paradas} paradas`} ·{" "}
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-xs font-semibold text-gray-900 dark:text-white">
+          Recorrido
+        </h3>
+        {distanciaM != null && distanciaM > 0 && (
+          <span
+            title="Distancia del recorrido"
+            className="shrink-0 text-xs font-semibold text-gray-900 tabular-nums dark:text-white"
+          >
+            {textoDistancia(distanciaM)}
+          </span>
+        )}
+      </div>
+      {/* origen y destino, cada uno en su fila con su distintivo (A / B) */}
+      <div className="relative mt-1.5 space-y-1.5">
+        <span
+          aria-hidden
+          className="absolute top-3 bottom-3 left-[7px] border-l border-dashed border-gray-300 dark:border-gray-600"
+        />
+        <ExtremoRecorrido
+          letra="A"
+          colorCls="bg-green-600"
+          rotulo="Desde"
+          texto={desde}
+        />
+        {/* entre A y B: cuántos puntos intermedios hay */}
+        {intermedios > 0 && (
+          <p className="relative pl-6 text-[11px] text-gray-500 dark:text-gray-400">
+            {intermedios === 1
+              ? "1 punto intermedio"
+              : `${intermedios} puntos intermedios`}
+          </p>
+        )}
+        <ExtremoRecorrido
+          letra="B"
+          colorCls="bg-rose-600"
+          rotulo="Hasta"
+          texto={hasta}
+        />
+      </div>
+      <p className="mt-1.5 text-[11px] text-gray-500 dark:text-gray-400">
         {estadoRuta(tray, calculando)}
       </p>
     </div>
@@ -87,8 +173,16 @@ export default function TrayectoForm({
   paso = "recorrido",
   onPaso,
   onTipo,
+  onTipoPunto,
+  distanciaM,
   className,
+  dict,
+  version,
 }: {
+  /** Diccionario completo (control de la lista de categorías). */
+  dict?: I18nRecord;
+  /** Versión vigente del trayecto que se edita. */
+  version?: string | null;
   tray: FormTrayecto;
   setTray: Dispatch<SetStateAction<FormTrayecto>>;
   guardando: boolean;
@@ -105,6 +199,10 @@ export default function TrayectoForm({
   onPaso: (paso: PasoTrayecto) => void;
   /** Cambiar el tipo puede volver a trazar la ruta (vial = por calles). */
   onTipo?: (kind: FormTrayecto["kind"]) => void;
+  /** Parada o desvío: un desvío es punto de paso y puede retrazar la ruta. */
+  onTipoPunto?: (id: string, tipo: TipoPunto) => void;
+  /** Largo del recorrido en metros (lo calcula el workspace). */
+  distanciaM?: number;
   onSave: () => void;
   onClose: () => void;
   className?: string;
@@ -113,6 +211,8 @@ export default function TrayectoForm({
     setTray((t) => ({ ...t, [key]: value }));
   const cambiarTipo = (kind: FormTrayecto["kind"]) =>
     onTipo ? onTipo(kind) : set("kind", kind);
+  const cambiarTipoLocal = (id: string, tipo: TipoPunto) =>
+    setTray((t) => cambiarTipoPunto(t, id, tipo));
 
   // guardar sin nombre en la información: el campo se marca y recibe el foco
   const nombreRef = useRef<HTMLInputElement>(null);
@@ -129,7 +229,12 @@ export default function TrayectoForm({
   return (
     <FloatingWindow
       className={twMerge("h-[calc(100%-2rem)]", className)}
-      title={tituloTrayecto(tray)}
+      title={
+        <span className="flex items-center gap-2">
+          {tituloTrayecto(tray)}
+          <VersionBadge version={version} />
+        </span>
+      }
       onClose={onClose}
       toolbar={
         <SegmentedBar
@@ -163,11 +268,20 @@ export default function TrayectoForm({
           onElegirEnMapa={onElegirEnMapa ?? noopElegirMapa}
           resaltadoId={resaltadoId}
           onHoverPunto={onHoverPunto}
+          onTipoPunto={onTipoPunto ?? cambiarTipoLocal}
+          onCategoriaPunto={(id, c) =>
+            setTray((t) => cambiarCategoriaPunto(t, id, c))
+          }
+          dict={dict}
           className="min-h-0 flex-1"
         />
       ) : (
         <div className="-mx-4 min-h-0 flex-1 space-y-3 overflow-y-auto px-4">
-          <ResumenRecorrido tray={tray} calculando={guardando} />
+          <ResumenRecorrido
+            tray={tray}
+            calculando={guardando}
+            distanciaM={distanciaM}
+          />
 
           <Field label="Nombre *">
             <div className="flex items-center gap-2">
@@ -185,6 +299,16 @@ export default function TrayectoForm({
                 onChange={(e) => set("name", e.target.value)}
               />
             </div>
+          </Field>
+
+          <Field label="Categorías">
+            <CampoCategorias
+              fieldKey={CAMPO_CATEGORIAS_TRAYECTO}
+              label="Categorías"
+              value={tray.categorias}
+              onChange={(c) => set("categorias", c)}
+              dict={dict ?? {}}
+            />
           </Field>
 
           <Field label="Tipo">

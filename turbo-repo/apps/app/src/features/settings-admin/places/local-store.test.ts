@@ -85,6 +85,19 @@ describe("local-store", () => {
     expect(t.waypoints).toHaveLength(2);
   });
 
+  it("keeps a route's categories in the local backup", () => {
+    const con = trayectoDesdeForm(
+      { ...TRAY_VACIO, categorias: ["acceso", "minera"] },
+      null,
+      "local-t"
+    );
+    expect(con.categorias).toEqual(["acceso", "minera"]);
+    expect(con.tipos_puntos).toEqual([]);
+    expect(trayectoDesdeForm({ ...TRAY_VACIO }, null, "x").categorias).toBe(
+      null
+    );
+  });
+
   it("persists, updates and deletes places in localStorage", () => {
     const { result } = renderHook(() => useLocalPlaces());
     const l = lugarDesdeForm(

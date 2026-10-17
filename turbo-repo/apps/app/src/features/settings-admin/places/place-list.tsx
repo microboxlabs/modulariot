@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { HiOutlineLocationMarker } from "react-icons/hi";
 import { PlaceIcon } from "./icons";
-import { ListCard, ListCardRow, ListSection } from "./list-card";
+import VersionBadge from "./version-badge";
+import {
+  ListCard,
+  ListCardRow,
+  ListSection,
+  marcaDe,
+  type MarcasLista,
+} from "./list-card";
 import { parentPlaceId } from "./inner-geofences";
 import { colorDeLugar, iconoDeLugar, type Lugar } from "./places.types";
 
@@ -43,7 +51,13 @@ export default function PlaceList({
   onEditar,
   onEliminar,
   onHover,
+  marcas,
+  versionDe,
 }: {
+  /** Casillas para elegir varios (borrar en lote). */
+  marcas?: MarcasLista;
+  /** Versión vigente de cada lugar (las interiores van con su padre). */
+  versionDe?: (placeId: string) => string | null;
   lugares: Lugar[];
   busqueda: string;
   /** Lugar abierto en la ventana flotante, resaltado en la lista. */
@@ -83,7 +97,11 @@ export default function PlaceList({
 
   const seccion = (
     <ListSection
+      seleccion={marcas && { ids: lugares.map((l) => l.place_id), marcas }}
       titulo="Lugares"
+      icono={
+        <HiOutlineLocationMarker className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+      }
       total={lugares.length}
       vacio={`Sin lugares${busqueda ? ` para «${busqueda}»` : " — crea el primero"}.`}
     >
@@ -101,6 +119,8 @@ export default function PlaceList({
             onEditar={onEditar}
             onEliminar={onEliminar}
             onHover={onHover}
+            marcas={marcas}
+            version={versionDe?.(padre.place_id)}
           />
         );
       })}
@@ -120,7 +140,11 @@ function PlaceGroup({
   onEditar,
   onEliminar,
   onHover,
+  marcas,
+  version,
 }: {
+  marcas?: MarcasLista;
+  version?: string | null;
   padre: Lugar;
   hijos: Lugar[];
   plegado: boolean;
@@ -144,6 +168,9 @@ function PlaceGroup({
         onIr={onIr}
         onEditar={onEditar}
         onEliminar={onEliminar}
+        onHover={onHover}
+        marcas={marcas}
+        version={version}
       />
       {!plegado && hijos.length > 0 && (
         <ul className="bg-gray-100 py-0.5 dark:bg-gray-900/55">
@@ -158,6 +185,7 @@ function PlaceGroup({
               onEditar={onEditar}
               onEliminar={onEliminar}
               onHover={onHover}
+              marcas={marcas}
             />
           ))}
         </ul>
@@ -178,7 +206,11 @@ function LugarRow({
   onHover,
   onExpandir,
   expandido,
+  marcas,
+  version,
 }: {
+  marcas?: MarcasLista;
+  version?: string | null;
   lugar: Lugar;
   compact?: boolean;
   detalle: string;
@@ -218,8 +250,10 @@ function LugarRow({
       onIr={ir}
       onEditar={editar}
       onEliminar={eliminar}
-      onHoverStart={compact ? marcarHover : undefined}
-      onHoverEnd={compact ? soltarHover : undefined}
+      onHoverStart={marcarHover}
+      onHoverEnd={soltarHover}
+      marca={marcaDe(marcas, l.place_id)}
+      extras={<VersionBadge version={version} className="mr-1" />}
     />
   );
 }

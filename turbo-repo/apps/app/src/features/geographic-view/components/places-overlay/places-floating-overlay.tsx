@@ -11,7 +11,7 @@ import {
   PlacesStackedFormCards,
 } from "@/features/settings-admin/places/places-editor-overlays";
 import type { PlacesWorkspace } from "@/features/settings-admin/places/use-places-workspace";
-import { GrowPanel, SlidePanel } from "./panel-motion";
+import { ExpandPanel, GrowPanel } from "./panel-motion";
 
 export default function PlacesFloatingOverlay({
   dict,
@@ -26,17 +26,21 @@ export default function PlacesFloatingOverlay({
 
   return (
     <>
-      {show && <PlacesEditorOverlays ws={ws} stacked />}
-      <SlidePanel
+      {show && <PlacesEditorOverlays ws={ws} stacked dict={dict} />}
+      {/* barra lateral pegada al borde derecho del mapa, de alto completo
+          (como la que tenía esta vista); se despliega a lo ancho */}
+      <ExpandPanel
         show={show}
-        className="pointer-events-none absolute top-4 right-20 bottom-4 z-40 flex w-[420px] flex-col"
+        width="w-110"
+        className="pointer-events-auto absolute top-0 right-0 bottom-0 z-40 border-l border-gray-200 bg-gray-50 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
+        innerClassName="p-3"
       >
         <div className="pointer-events-auto flex min-h-0 flex-1 flex-col gap-3">
           <GrowPanel
             show={ws.modo === "lugar" || ws.modo === "trayecto"}
             className={formPantallaCompleta ? "min-h-0 flex-1" : undefined}
           >
-            <PlacesStackedFormCards ws={ws} />
+            <PlacesStackedFormCards ws={ws} dict={dict} />
           </GrowPanel>
           <GrowPanel
             show={
@@ -74,7 +78,7 @@ export default function PlacesFloatingOverlay({
             </div>
           )}
         </div>
-      </SlidePanel>
+      </ExpandPanel>
     </>
   );
 }

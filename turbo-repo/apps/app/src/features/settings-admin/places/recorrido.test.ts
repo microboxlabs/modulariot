@@ -4,7 +4,7 @@ import {
   MAX_PUNTOS,
   agregarPunto,
   elegirPunto,
-  etiquetaPunto,
+  distintivos,
   puntosRecorrido,
   quitarPunto,
   reordenar,
@@ -26,6 +26,14 @@ import {
   rehacerRecorrido,
   tramosRecorrido,
   puntoSobreLinea,
+  cambiarTipoPunto,
+  tipoDe,
+  tiposUbicados,
+  waypointsDirections,
+  longitudM,
+  textoDistancia,
+  cambiarCategoriaPunto,
+  categoriasUbicadas,
 } from "./recorrido";
 
 const sug = (nombre: string, punto: [number, number]) => ({
@@ -49,11 +57,23 @@ describe("recorrido", () => {
     expect(puntosRecorrido({ ...TRAY_VACIO })).toBeNull();
   });
 
-  it("labels points by position: A, numbers, B", () => {
-    expect(etiquetaPunto(0, 4).letra).toBe("A");
-    expect(etiquetaPunto(1, 4).letra).toBe("1");
-    expect(etiquetaPunto(2, 4).letra).toBe("2");
-    expect(etiquetaPunto(3, 4).letra).toBe("B");
+  it("labels points: A, numbered stops, unnumbered deviations, B", () => {
+    const ds = distintivos([
+      { id: "a", texto: "", punto: null },
+      { id: "1", texto: "", punto: null },
+      { id: "d", texto: "", punto: null, tipo: "desvio" },
+      { id: "2", texto: "", punto: null },
+      { id: "b", texto: "", punto: null },
+    ]);
+    // stops are numbered among themselves; deviations have no number
+    expect(ds.map((d) => d.letra)).toEqual(["A", "1", "", "2", "B"]);
+    expect(ds.map((d) => d.label)).toEqual([
+      "Desde",
+      "Parada 1",
+      "Desvío 1",
+      "Parada 2",
+      "Hasta",
+    ]);
   });
 
   it("adds new points before the destination", () => {
@@ -247,6 +267,117 @@ describe("recorrido", () => {
       expect(puntoSobreLinea([50, 40], tramos)).toBeNull();
       expect(puntoSobreLinea([5, 2], tramos)).toBeNull();
       expect(puntoSobreLinea([98, 3], tramos)).toBeNull();
+    });
+  });
+
+  describe("point types", () => {
+    it("treats a point as a stop unless set as a deviation", () => {
+      const t = agregarPunto(base());
+      const medio = t.recorrido[1]!;
+      expect(tipoDe(medio)).toBe("parada");
+      const u = cambiarTipoPunto(t, medio.id, "desvio");
+      expect(tipoDe(u.recorrido[1]!)).toBe("desvio");
+    });
+
+    it("keeps a confirmed route when only the type changes", () => {
+      const t = {
+        ...confirmarRecorrido(base()),
+        pts: [
+          [0, 0],
+          [9, 9],
+        ] as [number, number][],
+        ajustado: true,
+      };
+      const u = cambiarTipoPunto(t, "destino", "desvio");
+      expect(u.confirmado).toBe(true);
+      expect(u.ajustado).toBe(true);
+      expect(u.pts).toBe(t.pts);
+      expect(u.pasado).toBe(t.pasado);
+    });
+
+    it("sends deviations to Mapbox as pass-through points", () => {
+      // A, stop, deviation, deviation, B → only A, the stop and B are legs
+      expect(
+        waypointsDirections(["parada", "parada", "desvio", "desvio", "parada"])
+      ).toBe("0;1;4");
+      // all stops: no parameter needed
+      expect(waypointsDirections(["parada", "parada", "parada"])).toBeNull();
+      // A and B always count, whatever their stored type
+      expect(waypointsDirections(["desvio", "desvio"])).toBeNull();
+    });
+
+    it("rebuilds saved types in waypoint order", () => {
+      const filas = recorridoDesdePts(
+        [
+          [0, 0],
+          [1, 1],
+          [2, 2],
+        ],
+        ["parada", "desvio", "parada"]
+      );
+      expect(filas.map(tipoDe)).toEqual(["parada", "desvio", "parada"]);
+      expect(tiposUbicados({ ...TRAY_VACIO, recorrido: filas })).toEqual([
+        "parada",
+        "desvio",
+        "parada",
+      ]);
+    });
+  });
+
+  describe("route length", () => {
+    it("adds up every segment of the path", () => {
+      // ~111 km per degree of latitude
+      const km =
+        longitudM([
+          [0, 0],
+          [1, 0],
+          [2, 0],
+        ]) / 1000;
+      expect(km).toBeGreaterThan(222);
+      expect(km).toBeLessThan(223);
+      expect(longitudM([[0, 0]])).toBe(0);
+    });
+
+    it("reads in meters or kilometers", () => {
+      expect(textoDistancia(850.4)).toBe("850 m");
+      expect(textoDistancia(12_400)).toBe("12,4 km");
+    });
+  });
+
+  describe("intermediate point category", () => {
+    it("sets or clears it without touching the route", () => {
+      const t = {
+        ...confirmarRecorrido(agregarPunto(base())),
+        pts: [
+          [0, 0],
+          [9, 9],
+        ] as [number, number][],
+        ajustado: true,
+      };
+      const medio = t.recorrido[1]!.id;
+      const con = cambiarCategoriaPunto(t, medio, "carga");
+      expect(con.recorrido[1]?.categoria).toBe("carga");
+      expect(con.confirmado).toBe(true);
+      expect(con.pts).toBe(t.pts);
+      const sin = cambiarCategoriaPunto(con, medio, undefined);
+      expect(sin.recorrido[1]).not.toHaveProperty("categoria");
+    });
+
+    it("keeps categories in waypoint order and rebuilds them", () => {
+      let t = base();
+      t = cambiarCategoriaPunto(t, "destino", "descarga");
+      expect(categoriasUbicadas(t)).toEqual([null, "descarga"]);
+      const filas = recorridoDesdePts(
+        [
+          [0, 0],
+          [1, 1],
+          [2, 2],
+        ],
+        [],
+        [null, "carga", null]
+      );
+      expect(filas[1]?.categoria).toBe("carga");
+      expect(filas[0]).not.toHaveProperty("categoria");
     });
   });
 });

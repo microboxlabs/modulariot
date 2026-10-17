@@ -5351,6 +5351,12 @@
     "places": {
       "title": "Lugares de interés",
       "hint": "Busca en el catálogo o importa. Clic derecho en el mapa para crear un lugar o un trayecto."
+    },
+    "layers": {
+      "title": "Capas",
+      "vehiculos": "Vehículos",
+      "geocercas": "Geocercas",
+      "trayectos": "Trayectos"
     }
   },
   "release": {

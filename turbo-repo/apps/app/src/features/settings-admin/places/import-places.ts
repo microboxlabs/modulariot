@@ -1,10 +1,13 @@
 import JSZip from "jszip";
+import { z } from "zod";
 import {
   FORM_VACIO,
   type Categoria,
   type LatLon,
   type Lugar,
+  type TipoPunto,
 } from "./places.types";
+import { MAX_PUNTOS } from "./recorrido";
 
 export const MAX_FILAS_IMPORT = 500;
 export const ACCEPT_IMPORT = ".csv,.kml,.kmz,.geojson,.json";
@@ -23,8 +26,22 @@ export type FilaImport = {
   radius_m?: number;
   address?: string | null;
   external_id?: string;
-  geometry_type: "circle" | "polygon";
+  /** "line" = un trayecto: su camino y sus puntos A → B. */
+  geometry_type: "circle" | "polygon" | "line";
   vertices?: LatLon[];
+  /** Trayecto: el camino dibujado (por calles o en línea recta). */
+  points?: LatLon[];
+  /** Trayecto: A, paradas y desvíos, B (en orden). */
+  waypoints?: LatLon[];
+  /** Trayecto: parada o desvío de cada waypoint. */
+  tipos_puntos?: TipoPunto[];
+  /** Trayecto: categoría de cada waypoint (null = sin categoría). */
+  categorias_puntos?: (string | null)[];
+  kind?: "vial" | "interno";
+  width_m?: number;
+  ajustado?: boolean;
+  /** Lo pone el gestor de conflictos al cargar el archivo. */
+  uid?: string;
 };
 
 export type LoteImport = {
@@ -37,13 +54,21 @@ export function filasDeLotes(lotes: LoteImport[] | undefined): FilaImport[] {
   return (lotes ?? []).flatMap((l) => l.filas ?? []);
 }
 
+type ValorJson =
+  | string
+  | number
+  | boolean
+  | null
+  | ValorJson[]
+  | { [k: string]: ValorJson };
+
 type GeoLoose = {
   type?: string;
   name?: string;
   features?: GeoLoose[];
   geometry?: GeoLoose | null;
   geometries?: GeoLoose[];
-  properties?: Record<string, string | number | boolean | null>;
+  properties?: Record<string, ValorJson>;
   coordinates?: number[] | number[][] | number[][][] | number[][][][];
   bbox?: number[];
 };
@@ -133,7 +158,14 @@ export function poligonoDesdeEnvolvente(puntos: number[][]): LatLon[] | null {
   if (puntos.length === 2) {
     const a = puntos[0];
     const b = puntos[1];
-    if (!a || !b || a[0] == null || a[1] == null || b[0] == null || b[1] == null)
+    if (
+      !a ||
+      !b ||
+      a[0] == null ||
+      a[1] == null ||
+      b[0] == null ||
+      b[1] == null
+    )
       return null;
     const west = Math.min(a[0], b[0]);
     const east = Math.max(a[0], b[0]);
@@ -143,16 +175,95 @@ export function poligonoDesdeEnvolvente(puntos: number[][]): LatLon[] | null {
   }
   if (puntos.length === 1 && puntos[0]?.length === 4) {
     const box = puntos[0];
-    if (
-      box[0] == null ||
-      box[1] == null ||
-      box[2] == null ||
-      box[3] == null
-    )
+    if (box[0] == null || box[1] == null || box[2] == null || box[3] == null)
       return null;
     return poligonoDesdeBbox(box[0], box[1], box[2], box[3]);
   }
   return null;
+}
+
+export const filaEsLinea = (fila: FilaImport) => fila.geometry_type === "line";
+
+const paresSchema = z.array(z.tuple([z.number(), z.number()]).rest(z.number()));
+const tiposSchema = z.array(z.enum(["parada", "desvio"]));
+const categoriasSchema = z.array(z.string().nullable());
+
+/** [lon, lat] (GeoJSON/KML) → [lat, lon] del sistema. */
+const aLatLon = (pares: number[][]): LatLon[] =>
+  pares.flatMap((p) => {
+    const [lon, lat] = p;
+    return lon == null || lat == null ? [] : [[lat, lon] as LatLon];
+  });
+
+/** Lee un valor que puede venir como arreglo o como texto JSON (KML). */
+function leerJson<T>(v: ValorJson | undefined, schema: z.ZodType<T>): T | null {
+  let crudo: unknown = v;
+  if (typeof v === "string") {
+    try {
+      crudo = JSON.parse(v);
+    } catch {
+      return null;
+    }
+  }
+  const r = schema.safeParse(crudo);
+  return r.success ? r.data : null;
+}
+
+/** Puntos A → B: los del archivo o, si faltan, los de la línea. */
+function waypointsDeLinea(
+  points: LatLon[],
+  wpArchivo: number[][] | null
+): LatLon[] {
+  if (wpArchivo) return aLatLon(wpArchivo);
+  if (points.length <= MAX_PUNTOS) return points;
+  return [points[0]!, points[points.length - 1]!];
+}
+
+/**
+ * Trayecto desde una línea: su camino son las coordenadas de la línea. Los
+ * puntos A → B salen de `waypoints` si vienen; si no, con pocos vértices
+ * (hasta MAX_PUNTOS) cada vértice es una parada, y con muchos la línea es el
+ * camino ya trazado de su primer a su último punto.
+ */
+function filaLinea(
+  nombre: string,
+  coords: number[][],
+  props: GeoLoose["properties"],
+  extra: Partial<FilaImport>
+): FilaImport | null {
+  const points = aLatLon(coords);
+  if (points.length < 2) return null;
+  const wpArchivo = leerJson(props?.waypoints, paresSchema);
+  const pocos = points.length <= MAX_PUNTOS;
+  const waypoints = waypointsDeLinea(points, wpArchivo);
+  if (waypoints.length < 2) return null;
+  const tipos = leerJson(props?.tipos_puntos, tiposSchema);
+  const categorias = leerJson(props?.categorias_puntos, categoriasSchema);
+  const kind = props?.kind === "interno" ? "interno" : "vial";
+  const ancho = Number(props?.width_m);
+  const ajustado =
+    typeof props?.ajustado === "boolean"
+      ? props.ajustado
+      : !wpArchivo && !pocos;
+  return {
+    ...extra,
+    name: nombre,
+    lat: waypoints[0]![0],
+    lon: waypoints[0]![1],
+    geometry_type: "line",
+    points,
+    waypoints,
+    tipos_puntos:
+      tipos && tipos.length === waypoints.length
+        ? tipos
+        : waypoints.map(() => "parada"),
+    ...(categorias && categorias.length === waypoints.length
+      ? { categorias_puntos: categorias }
+      : {}),
+    kind,
+    width_m: Number.isFinite(ancho) && ancho > 0 ? ancho : undefined,
+    ajustado,
+  };
 }
 
 export function filaEsPoligono(fila: FilaImport): boolean {
@@ -245,11 +356,12 @@ function filasDesdeGeometria(
   geom: GeoLoose | null | undefined,
   nombre: string,
   extra: Partial<FilaImport>,
-  bbox?: number[]
+  bbox?: number[],
+  props?: GeoLoose["properties"]
 ): FilaImport[] {
   if (geom?.type === "GeometryCollection" && Array.isArray(geom.geometries)) {
     return geom.geometries.flatMap((g, i) =>
-      filasDesdeGeometria(g, `${nombre} ${i + 1}`, extra, bbox)
+      filasDesdeGeometria(g, `${nombre} ${i + 1}`, extra, bbox, props)
     );
   }
   const type = geom?.type ?? "";
@@ -261,6 +373,27 @@ function filasDesdeGeometria(
     if (typeof lon !== "number" || typeof lat !== "number") return [];
     const fila = filaCirculo(nombre, lat, lon, extra);
     return fila ? [fila] : [];
+  }
+  if (type === "LineString") {
+    const fila = filaLinea(
+      nombre,
+      coordsComoPares(geom?.coordinates),
+      props,
+      extra
+    );
+    return fila ? [fila] : [];
+  }
+  if (type === "MultiLineString" && Array.isArray(geom?.coordinates)) {
+    const partes = geom.coordinates as number[][][];
+    return partes.flatMap((linea, i) => {
+      const fila = filaLinea(
+        partes.length > 1 ? `${nombre} ${i + 1}` : nombre,
+        linea,
+        props,
+        extra
+      );
+      return fila ? [fila] : [];
+    });
   }
   const polys = poligonosDeCoords(type, geom?.coordinates);
   if (polys.length > 0) {
@@ -275,12 +408,7 @@ function filasDesdeGeometria(
   }
   if (bbox && bbox.length >= 4) {
     const [west, south, east, north] = bbox;
-    if (
-      west == null ||
-      south == null ||
-      east == null ||
-      north == null
-    )
+    if (west == null || south == null || east == null || north == null)
       return [];
     const fila = filaPoligono(
       nombre,
@@ -299,7 +427,8 @@ function filasDesdeFeature(feat: GeoLoose, fallback: string): FilaImport[] {
     feat.geometry ?? feat,
     nombre,
     extra,
-    feat.bbox ?? feat.geometry?.bbox
+    feat.bbox ?? feat.geometry?.bbox,
+    feat.properties
   );
 }
 
@@ -324,7 +453,9 @@ function paresCoordsKml(texto: string): number[][] {
     .trim()
     .split(/[\s\n]+/)
     .map((t) => t.split(",").map(Number))
-    .filter((p) => p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+    .filter(
+      (p) => p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1])
+    );
 }
 
 function textoDe(el: Element | null): string {
@@ -333,6 +464,19 @@ function textoDe(el: Element | null): string {
 
 function hijoTag(el: Element, tag: string): Element | undefined {
   return el.getElementsByTagName(tag)[0];
+}
+
+/** <ExtendedData><Data name="…"><value>…</value></Data>…: como propiedades. */
+function datosExtendidos(pm: Element): Record<string, ValorJson> {
+  const out: Record<string, ValorJson> = {};
+  for (const d of [...pm.getElementsByTagName("Data")]) {
+    const nombre = d.getAttribute("name");
+    if (!nombre) continue;
+    const valor = textoDe(hijoTag(d, "value") ?? null);
+    if (valor === "true" || valor === "false") out[nombre] = valor === "true";
+    else out[nombre] = valor;
+  }
+  return out;
 }
 
 function filaDesdePlacemark(pm: Element): FilaImport | null {
@@ -358,6 +502,16 @@ function filaDesdePlacemark(pm: Element): FilaImport | null {
         extra
       );
     }
+  }
+  const linea = hijoTag(pm, "LineString");
+  const lineaCoords = linea ? hijoTag(linea, "coordinates") : undefined;
+  if (lineaCoords?.textContent) {
+    return filaLinea(
+      name,
+      paresCoordsKml(lineaCoords.textContent),
+      datosExtendidos(pm),
+      extra
+    );
   }
   const point = hijoTag(pm, "Point");
   const pointCoords = point ? hijoTag(point, "coordinates") : undefined;
@@ -386,11 +540,7 @@ async function filasKmz(file: File): Promise<FilaImport[]> {
   return filasKml(await entry.async("text"));
 }
 
-function col(
-  head: string[],
-  row: string[],
-  ...names: string[]
-): string | null {
+function col(head: string[], row: string[], ...names: string[]): string | null {
   for (const n of names) {
     const i = head.indexOf(n);
     if (i >= 0 && row[i]?.trim()) return row[i].trim();
@@ -401,12 +551,7 @@ function col(
 function verticesDesdeWkt(wkt: string): LatLon[] {
   const m = wkt.match(/polygon\s*\(\s*\(\s*(.+?)\s*\)\s*\)/i);
   if (!m?.[1]) return [];
-  const pares = m[1].split(",").map((p) =>
-    p
-      .trim()
-      .split(/[\s]+/)
-      .map(Number)
-  );
+  const pares = m[1].split(",").map((p) => p.trim().split(/[\s]+/).map(Number));
   return verticesDesdeAnillo(pares);
 }
 
@@ -420,7 +565,12 @@ function verticesDesdeLista(raw: string): LatLon[] {
   for (const p of pares) {
     const lat = p[0];
     const lon = p[1];
-    if (lat == null || lon == null || !Number.isFinite(lat) || !Number.isFinite(lon))
+    if (
+      lat == null ||
+      lon == null ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lon)
+    )
       continue;
     vs.push([lat, lon]);
   }
@@ -534,15 +684,4 @@ export function lugarDesdeFilaImport(
     active_from: null,
     active_until: null,
   };
-}
-
-export function formaFilaImport(fila: FilaImport): string {
-  return filaEsPoligono(fila) ? "Polígono" : "Círculo";
-}
-
-export function detalleFilaImport(fila: FilaImport): string {
-  if (filaEsPoligono(fila)) {
-    return `${fila.vertices?.length ?? 0} vértices`;
-  }
-  return `${fila.lat.toFixed(3)}, ${fila.lon.toFixed(3)}`;
 }

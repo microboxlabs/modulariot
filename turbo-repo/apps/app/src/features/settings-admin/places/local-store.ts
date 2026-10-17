@@ -13,6 +13,7 @@ import type {
   Trayecto,
 } from "./places.types";
 import { metadataParaGuardar } from "./places.types";
+import { categoriasUbicadas, tiposUbicados } from "./recorrido";
 
 const STORAGE_KEY = "miot.settings.places.local.v1";
 export const LOCAL_PREFIX = "local-";
@@ -162,6 +163,9 @@ export function trayectoDesdeForm(
     ajustado: tray.ajustado,
     external_id: tray.external_id || null,
     icon: tray.icon || null,
+    categorias: tray.categorias.length > 0 ? tray.categorias : null,
+    tipos_puntos: tiposUbicados(tray),
+    categorias_puntos: categoriasUbicadas(tray),
   };
 }
 

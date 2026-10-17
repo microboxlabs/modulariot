@@ -341,7 +341,7 @@ export function RoutePointHandles({
           onClick={frenar}
         >
           <span
-            className={`block h-3 w-3 ${CURSOR_PUNTO_CLS} rounded-full border-2 border-white bg-purple-600 shadow`}
+            className={`block h-3 w-3 ${CURSOR_PUNTO_CLS} rounded-full border-2 border-white bg-blue-600 shadow`}
             title="Arrastra para mover el punto"
           />
         </Marker>

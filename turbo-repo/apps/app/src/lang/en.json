@@ -5351,6 +5351,12 @@
     "places": {
       "title": "Places of interest",
       "hint": "Search the catalog or import. Right-click the map to create a place or a route."
+    },
+    "layers": {
+      "title": "Layers",
+      "vehiculos": "Vehicles",
+      "geocercas": "Geofences",
+      "trayectos": "Routes"
     }
   },
   "release": {

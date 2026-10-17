@@ -9,6 +9,8 @@ import {
 } from "@/features/geographic-view/components/places-overlay/panel-motion";
 import MetaTable from "./meta-table";
 import CategoryDropdown from "./category-dropdown";
+import CampoCategorias, { CAMPO_CATEGORIAS } from "./place-categories-field";
+import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { IconPicker } from "./icons";
 import DateField from "./date-field";
 import AddressInput from "./address-input";
@@ -42,6 +44,7 @@ import {
 } from "./geofence-editor";
 import type { Sugerencia } from "./geocoding";
 import { faltantesPadre } from "./inner-geofences";
+import VersionBadge from "./version-badge";
 
 export default function PlaceForm({
   form,
@@ -58,7 +61,13 @@ export default function PlaceForm({
   token,
   cerca,
   onUbicar,
+  dict,
+  version,
 }: {
+  /** Diccionario completo (control de la lista de categorías). */
+  dict?: I18nRecord;
+  /** Versión vigente del lugar que se edita. */
+  version?: string | null;
   form: FormLugar;
   setForm: Dispatch<SetStateAction<FormLugar>>;
   cats: Categoria[];
@@ -135,8 +144,9 @@ export default function PlaceForm({
     <FloatingWindow
       className={twMerge("h-[calc(100%-2rem)]", className)}
       title={
-        <span className={fadeCls}>
+        <span className={twMerge("flex items-center gap-2", fadeCls)}>
           {shown === 1 ? interioresTitle : geocercaTitle}
+          <VersionBadge version={version} />
         </span>
       }
       onClose={onClose}
@@ -147,7 +157,7 @@ export default function PlaceForm({
             <div className="space-y-1.5 border-b border-sky-100 bg-sky-50 px-4 py-2.5 dark:border-sky-900/40 dark:bg-sky-950/40">
               <div className="flex items-start gap-1.5 text-[11px] leading-snug text-sky-900 dark:text-sky-100">
                 <HiOutlineSearch className="mt-0.5 h-3.5 w-3.5 flex-none" />
-                <span>Buscar ubicación en el mapa</span>
+                <span>Posicionar geocerca</span>
               </div>
               <AddressInput
                 label="Ubicar en el mapa"
@@ -160,7 +170,7 @@ export default function PlaceForm({
                 }}
                 token={token}
                 cerca={cerca ?? sinPunto}
-                placeholder="Buscar ubicación…"
+                placeholder="Buscar dirección o Plus Code…"
                 invalido={!!faltan?.ubicacion}
                 onTexto={cambiarBusqueda}
                 onElegir={ubicarDesdeBusqueda}
@@ -204,7 +214,8 @@ export default function PlaceForm({
         step={shown}
         visible={visible}
         first={
-          <div className="flex min-h-0 flex-1 flex-col gap-3">
+          // con scroll propio: la metadata no se comprime cuando falta alto
+          <div className="-mx-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
             <div className="shrink-0 space-y-3">
               {geomKindDe(form) === "circle" && (
                 <SizeInput
@@ -259,8 +270,18 @@ export default function PlaceForm({
                 </div>
               </Field>
 
+              <Field label="Categorías">
+                <CampoCategorias
+                  fieldKey={CAMPO_CATEGORIAS}
+                  label="Categorías"
+                  value={form.categorias}
+                  onChange={(c) => set("categorias", c)}
+                  dict={dict ?? {}}
+                />
+              </Field>
+
               <div className="grid grid-cols-2 gap-2">
-                <Field label="Categoría">
+                <Field label="Categoría de alerta">
                   <CategoryDropdown
                     value={form.category_id}
                     cats={cats}
@@ -285,7 +306,7 @@ export default function PlaceForm({
 
             <Field
               label="Metadata"
-              className="flex min-h-0 flex-1 flex-col"
+              className="flex min-h-44 flex-1 shrink-0 flex-col"
               aside={
                 <span className="font-normal text-gray-400">
                   {form.metadata.length}/{MAX_METADATA}

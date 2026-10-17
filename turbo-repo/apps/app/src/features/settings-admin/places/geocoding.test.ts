@@ -4,6 +4,7 @@ import {
   direccionDesdePunto,
   parsearSugerencias,
 } from "./geocoding";
+import { decodificar, recuperarCorto } from "./plus-code";
 
 const respuesta = {
   features: [
@@ -83,5 +84,46 @@ describe("geocoding", () => {
     expect(url.pathname).toBe("/search/geocode/v6/reverse");
     expect(url.searchParams.get("longitude")).toBe("-70.65");
     expect(url.searchParams.get("latitude")).toBe("-33.44");
+  });
+
+  it("goes straight to a full Plus Code, without calling Mapbox", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const [s] = await buscarDirecciones("47rfj9qr+7r", "tok");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(s).toMatchObject({
+      nombre: "47RFJ9QR+7R",
+      contexto: "Plus Code",
+      punto: decodificar("47RFJ9QR+7R"),
+    });
+  });
+
+  it("places a short Plus Code near the locality typed with it", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(respuesta),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const [s] = await buscarDirecciones("J9QR+7R Santiago", "tok");
+    // only the locality is geocoded
+    const url = new URL(fetchMock.mock.calls[0]![0] as string);
+    expect(url.searchParams.get("q")).toBe("Santiago");
+    expect(s).toMatchObject({
+      nombre: "J9QR+7R",
+      contexto:
+        "Plus Code · Av. Libertador 1000, Santiago, Región Metropolitana",
+      punto: recuperarCorto("J9QR+7R", [-33.44, -70.65]),
+    });
+  });
+
+  it("places a short Plus Code alone near the map centre", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const centro: [number, number] = [-33.45, -70.66];
+    const [s] = await buscarDirecciones("J9QR+7R", "tok", centro);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(s?.punto).toEqual(recuperarCorto("J9QR+7R", centro));
+    // without the map centre there is nothing to place it near
+    expect(await buscarDirecciones("J9QR+7R", "tok", null)).toEqual([]);
   });
 });

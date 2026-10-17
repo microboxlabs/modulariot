@@ -4,6 +4,7 @@
 // arrastran y, mientras no se confirma, un handle que sigue al mouse sobre la
 // línea inserta una parada con clic o arrastre.
 import { twMerge } from "tailwind-merge";
+import { SimboloDesvio, SimboloParada } from "./point-symbol";
 import {
   useEffect,
   useRef,
@@ -22,7 +23,8 @@ import {
 import type { FormTrayecto, LatLon } from "./places.types";
 import {
   MAX_PUNTOS,
-  etiquetaPunto,
+  distintivos,
+  type Distintivo,
   insertarParada,
   marcarHistorialRecorrido,
   moverPunto,
@@ -190,6 +192,39 @@ function TramoHandles({
 
 function sinHover() {}
 
+/** A y B: círculo con su letra; parada: el "PARE"; desvío: círculo hueco. */
+function MarcaPunto({
+  distintivo,
+  resaltado,
+}: {
+  distintivo: Distintivo;
+  resaltado: boolean;
+}) {
+  const anillo = resaltado && "ring-4 ring-blue-400/60";
+  if (distintivo.rol === "parada") {
+    return (
+      <SimboloParada numero={distintivo.letra} className={twMerge(anillo)} />
+    );
+  }
+  if (distintivo.rol === "desvio") {
+    return <SimboloDesvio className={twMerge(anillo)} />;
+  }
+  return (
+    <span
+      className={twMerge(
+        "flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-[11px] font-bold text-white shadow",
+        anillo,
+        distintivo.colorCls
+      )}
+    >
+      {distintivo.letra}
+    </span>
+  );
+}
+
+const tituloMarca = (label: string, editable: boolean) =>
+  editable ? `${label} · arrastra para mover` : label;
+
 /**
  * Puntos del recorrido con el mismo distintivo que la lista. Editables:
  * arrastrables y con paradas en los tramos; si no, solo se muestran.
@@ -211,7 +246,7 @@ export default function RouteHandles({
 }) {
   // el navegador dispara click al soltar un arrastre: ignorar ese click
   const recienArrastrado = useRef(false);
-  const total = tray.recorrido.length;
+  const ds = distintivos(tray.recorrido);
 
   const empezarArrastre = () => {
     setTray(marcarHistorialRecorrido);
@@ -235,7 +270,7 @@ export default function RouteHandles({
       )}
       {tray.recorrido.map((p, i) => {
         if (!p.punto) return null;
-        const { letra, colorCls, label } = etiquetaPunto(i, total);
+        const distintivo = ds[i]!;
         const resaltado = p.id === resaltadoId;
         return (
           <Marker
@@ -253,17 +288,16 @@ export default function RouteHandles({
           >
             <span
               className={twMerge(
-                "flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-[11px] font-bold text-white shadow transition-transform",
+                "block transition-transform",
                 editable &&
                   "cursor-grab hover:scale-110 active:cursor-grabbing",
-                resaltado && "scale-125 ring-4 ring-blue-400/60",
-                colorCls
+                resaltado && "scale-125"
               )}
-              title={editable ? `${label} · arrastra para mover` : label}
+              title={tituloMarca(distintivo.label, editable)}
               onMouseEnter={() => onHover(p.id)}
               onMouseLeave={() => onHover(null)}
             >
-              {letra}
+              <MarcaPunto distintivo={distintivo} resaltado={resaltado} />
             </span>
           </Marker>
         );

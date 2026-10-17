@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { PlacesCatalogLists, PlacesImportCard } from "./places-catalog";
 import type { Lugar, Trayecto } from "./places.types";
 import type { PlacesWorkspace } from "./use-places-workspace";
+import type { ConflictoImport, DecisionImport } from "./import-conflicts";
 
 function importWs(
   over: Partial<{
@@ -16,17 +17,37 @@ function importWs(
         name: string;
         lat: number;
         lon: number;
-        geometry_type: "circle" | "polygon";
+        geometry_type: "circle" | "polygon" | "line";
       }[];
     }[];
+    conflictosImp: Map<string, ConflictoImport[]>;
+    decisiones: Record<string, DecisionImport>;
+    seleccion: string[];
   }> = {}
 ) {
+  // cada fila con un uid estable, como al cargar el archivo
+  const lotes = (over.lotes ?? []).map((l) => ({
+    ...l,
+    filas: l.filas.map((f, i) => ({ ...f, uid: `${l.filename}#${i}` })),
+  }));
   return {
     imp: {
-      lotes: over.lotes ?? [],
+      lotes,
       catDef: "",
       resultado: null,
+      decisiones: over.decisiones ?? {},
+      seleccion: over.seleccion ?? [],
     },
+    filasImp: lotes.flatMap((l) => l.filas),
+    conflictosImp: over.conflictosImp ?? new Map(),
+    hoverImportUid: null,
+    decidirImport: vi.fn(),
+    alternarSeleccionImport: vi.fn(),
+    marcarFilasImport: vi.fn(),
+    seleccionarTodoImport: vi.fn(),
+    quitarFilasImport: vi.fn(),
+    hoverFilaImport: vi.fn(),
+    hoverConflictoImport: vi.fn(),
     setImp: vi.fn(),
     cats: [],
     fileRef: { current: null },
@@ -105,7 +126,9 @@ describe("PlacesImportCard", () => {
     );
     expect(screen.getByText("lugares-ejemplo.geojson")).toBeInTheDocument();
     expect(screen.getByText("Planta")).toBeInTheDocument();
-    expect(screen.getByText("Círculo")).toBeInTheDocument();
+    // shape and position come from the file: not shown in the list
+    expect(screen.queryByText(/Círculo/)).not.toBeInTheDocument();
+    expect(screen.getByText("1 sin conflicto")).toBeInTheDocument();
     expect(screen.getByText("Importar otro archivo")).toBeInTheDocument();
     expect(screen.queryByText("Seleccionar archivo")).not.toBeInTheDocument();
     expect(screen.queryByText("Radio def.")).not.toBeInTheDocument();
@@ -121,6 +144,104 @@ describe("PlacesImportCard", () => {
     expect(importar).toBeEnabled();
     fireEvent.click(importar);
     expect(confirmarImport).toHaveBeenCalledOnce();
+  });
+
+  it("shows a total conflict in red and lets you pick what to keep", () => {
+    const lote = {
+      filename: "a.geojson",
+      formato: "geojson",
+      filas: [
+        { name: "Planta", lat: 1, lon: 1, geometry_type: "circle" as const },
+      ],
+    };
+    const conflictosImp = new Map<string, ConflictoImport[]>([
+      [
+        "a.geojson#0",
+        [{ tipo: "total", con: { tipo: "fila", uid: "x", name: "Bodega" } }],
+      ],
+    ]);
+    const ws = importWs({ lotes: [lote], conflictosImp });
+    render(<PlacesImportCard ws={ws} />);
+
+    // red dot and a second line saying what it equals
+    expect(
+      screen.getByLabelText("Conflicto total: misma geocerca")
+    ).toHaveClass("bg-red-500");
+    expect(screen.getByText("Igual a")).toBeInTheDocument();
+    const chip = screen.getByText("Bodega");
+    // hovering the conflict shows both on the map
+    fireEvent.mouseEnter(chip);
+    expect(ws.hoverConflictoImport).toHaveBeenCalledWith(
+      "a.geojson#0",
+      expect.objectContaining({ tipo: "total" })
+    );
+    fireEvent.mouseLeave(chip);
+    expect(ws.hoverConflictoImport).toHaveBeenLastCalledWith(
+      "a.geojson#0",
+      null
+    );
+
+    // Flowbite button group: Existente / Nuevo (a total has no "Ambos")
+    const decision = screen.getByRole("group", {
+      name: "Qué conservar para Planta",
+    });
+    expect(
+      within(decision).getByRole("button", { name: "Existente" })
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(decision).not.toHaveTextContent("Ambos");
+    fireEvent.click(within(decision).getByRole("button", { name: "Nuevo" }));
+    expect(ws.decidirImport).toHaveBeenCalledWith("a.geojson#0", "nuevo");
+
+    fireEvent.click(screen.getByLabelText("Seleccionar Planta"));
+    expect(ws.alternarSeleccionImport).toHaveBeenCalledWith("a.geojson#0");
+    fireEvent.mouseEnter(screen.getByText("Planta"));
+    expect(ws.hoverFilaImport).toHaveBeenCalledWith("a.geojson#0");
+    // no delete button per row: rows are removed from the header
+    expect(screen.queryByLabelText("Quitar Planta")).toBeNull();
+    expect(screen.getByText("1 total")).toBeInTheDocument();
+  });
+
+  it("tells routes apart from geofences in an imported file", () => {
+    const lote = {
+      filename: "mixto.geojson",
+      formato: "geojson",
+      filas: [
+        { name: "Planta", lat: 1, lon: 1, geometry_type: "circle" as const },
+        { name: "Ruta", lat: 2, lon: 2, geometry_type: "line" as const },
+      ],
+    };
+    render(<PlacesImportCard ws={importWs({ lotes: [lote] })} />);
+    expect(screen.getByText("1 geocerca · 1 trayecto")).toBeInTheDocument();
+    expect(screen.getByLabelText("Trayecto")).toBeInTheDocument();
+    expect(screen.getByLabelText("Geocerca")).toBeInTheDocument();
+  });
+
+  it("selects a whole file and removes the selection from the header", () => {
+    const lote = {
+      filename: "a.geojson",
+      formato: "geojson",
+      filas: [
+        { name: "Uno", lat: 1, lon: 1, geometry_type: "circle" as const },
+        { name: "Dos", lat: 2, lon: 2, geometry_type: "circle" as const },
+      ],
+    };
+    const ws = importWs({ lotes: [lote], seleccion: ["a.geojson#1"] });
+    render(<PlacesImportCard ws={ws} />);
+
+    // one of two marked: the file checkbox is "some", clicking marks all
+    const archivo = screen.getByLabelText("Seleccionar todo a.geojson");
+    expect(archivo).not.toBeChecked();
+    expect((archivo as HTMLInputElement).indeterminate).toBe(true);
+    fireEvent.click(archivo);
+    expect(ws.marcarFilasImport).toHaveBeenCalledWith(
+      ["a.geojson#0", "a.geojson#1"],
+      true
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Quitar seleccionadas (1)" })
+    );
+    expect(ws.quitarFilasImport).toHaveBeenCalledWith(["a.geojson#1"]);
   });
 
   it("adds another import group when a second file is dropped", () => {
@@ -233,6 +354,7 @@ describe("PlacesCatalogLists", () => {
             irATrayecto: vi.fn(),
             editarTrayecto: vi.fn(),
             borrarTrayecto: vi.fn(),
+            versionDe: (tipo: string) => (tipo === "lugar" ? "1.2.0" : "1.0.0"),
           } as unknown as PlacesWorkspace
         }
       />
@@ -240,6 +362,9 @@ describe("PlacesCatalogLists", () => {
 
     expect(screen.getByText("Lugares")).toBeInTheDocument();
     expect(screen.getByText("Trayectos")).toBeInTheDocument();
+    // each geofence and trayecto shows its version
+    expect(screen.getByText("v1.2.0")).toBeInTheDocument();
+    expect(screen.getByText("v1.0.0")).toBeInTheDocument();
     expect(screen.getByText("Lugares").closest(".rounded-lg.border")).toBe(
       screen.getByText("Trayectos").closest(".rounded-lg.border")
     );
@@ -292,6 +417,7 @@ describe("PlacesCatalogLists", () => {
       borrarLugar: vi.fn(),
       setHoveredPlaceId: vi.fn(),
       todosTrayectos: [trayecto],
+      versionDe: () => "1.0.0",
       editandoTrayId: null,
       irATrayecto: vi.fn(),
       editarTrayecto: vi.fn(),

@@ -41,6 +41,25 @@ describe("PolygonDrawToolbar", () => {
     expect(p.onRehacer).toHaveBeenCalledTimes(2);
   });
 
+  it("shows the shortcut on undo/redo while ⌘/Ctrl is held", () => {
+    setup();
+    expect(screen.queryByText("⇧Z")).toBeNull();
+    fireEvent.keyDown(window, { key: "Meta", metaKey: true });
+    expect(screen.getByText("Z")).toBeInTheDocument();
+    expect(screen.getByText("⇧Z")).toBeInTheDocument();
+    fireEvent.keyUp(window, { key: "Meta" });
+    expect(screen.queryByText("⇧Z")).toBeNull();
+  });
+
+  it("leaves ⌘Z to a text field being typed in", () => {
+    const p = setup();
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    fireEvent.keyDown(input, { key: "z", metaKey: true });
+    expect(p.onDeshacer).not.toHaveBeenCalled();
+    input.remove();
+  });
+
   it("supports Enter, Backspace and Escape", () => {
     const p = setup();
     fireEvent.keyDown(window, { key: "Enter" });

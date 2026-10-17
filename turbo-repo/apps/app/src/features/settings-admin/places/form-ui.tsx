@@ -141,7 +141,7 @@ export function Segmented<T extends string>({
           type="button"
           onClick={() => onChange(o.value)}
           className={twMerge(
-            "rounded-md px-2 py-1 text-xs font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-300 dark:hover:text-white",
+            "whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-300 dark:hover:text-white",
             value === o.value &&
               "bg-white text-gray-900 shadow-sm dark:bg-gray-600 dark:text-white"
           )}

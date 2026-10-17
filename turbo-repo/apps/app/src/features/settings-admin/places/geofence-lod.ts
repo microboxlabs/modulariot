@@ -87,36 +87,6 @@ function geomDeNombre(item: ItemNombreLod): GeomLugar {
   };
 }
 
-function zoomParaVerHijo(
-  hijo: ItemNombreLod,
-  padre: ItemNombreLod | undefined
-): number {
-  const geomHijo = geomDeNombre(hijo);
-  if (!padre) return zoomVerInterior(geomHijo);
-  return zoomMinHijo(geomHijo, geomDeNombre(padre));
-}
-
-/**
- * Lejos: solo el nombre del padre (los hijos “clúster”).
- * Cerca: nombres de interiores; el padre se oculta cuando ya hay uno visible.
- * Las formas no se tocan.
- */
-export function nombresVisiblesEnZoom<T extends ItemNombreLod>(
-  items: T[],
-  zoom: number
-): T[] {
-  const porId = new Map(items.map((i) => [i.id, i]));
-  return items.filter((item) => {
-    if (item.inner) {
-      const padre = item.parentId ? porId.get(item.parentId) : undefined;
-      return zoom >= zoomParaVerHijo(item, padre);
-    }
-    const hijos = items.filter((i) => i.inner && i.parentId === item.id);
-    if (hijos.length === 0) return true;
-    return !hijos.some((h) => zoom >= zoomParaVerHijo(h, item));
-  });
-}
-
 /**
  * Clic en el padre agrupado → zoom que abre el clúster.
  * Clic en un nombre ya abierto → encuadra esa geocerca.

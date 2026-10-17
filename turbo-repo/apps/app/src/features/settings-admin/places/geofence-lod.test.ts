@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   PX_ABRIR_INTERIORES,
-  nombresVisiblesEnZoom,
   radioLugarM,
   zoomAbrirInteriores,
   zoomAlClicNombre,
@@ -81,27 +80,6 @@ describe("geofence lod", () => {
     parentId: "park",
     radio_m: 40,
   };
-
-  it("clusters child names into the parent until zoomed in", () => {
-    expect(
-      nombresVisiblesEnZoom([padreNom, hijoNom], 4).map((i) => i.id)
-    ).toEqual(["park"]);
-    const cerca = nombresVisiblesEnZoom([padreNom, hijoNom], 20).map(
-      (i) => i.id
-    );
-    expect(cerca).toContain("lot");
-    expect(cerca).not.toContain("park");
-  });
-
-  it("keeps the parent name while no child name is visible yet", () => {
-    const zHijo = zoomMinHijo(
-      { center: [-33, -70], polygon: null, radius_m: 40 },
-      { center: [-33, -70], polygon: null, radius_m: 250 }
-    );
-    expect(
-      nombresVisiblesEnZoom([padreNom, hijoNom], zHijo - 0.5).map((i) => i.id)
-    ).toEqual(["park"]);
-  });
 
   it("zooms past the cluster when clicking the parent name", () => {
     const zAbre = zoomAbrirInteriores({

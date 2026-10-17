@@ -67,6 +67,12 @@ export function anclaDeFeature(f: Feature): LatLon | null {
     }
     return verts.length >= 3 ? centroide(verts) : null;
   }
+  if (g.type === "LineString") {
+    // un trayecto: el badge va en el vértice del medio de su camino
+    const medio = g.coordinates[Math.floor(g.coordinates.length / 2)];
+    if (medio?.[0] == null || medio[1] == null) return null;
+    return [medio[1], medio[0]];
+  }
   return null;
 }
 
@@ -190,6 +196,8 @@ export type ItemNombre = {
   radio_m?: number;
   vistaPrevia?: boolean;
   lugar?: Lugar;
+  /** Importando: badge de lo guardado con que choca, debajo de la forma. */
+  abajo?: boolean;
 };
 
 export function itemsEtiquetaLugares(

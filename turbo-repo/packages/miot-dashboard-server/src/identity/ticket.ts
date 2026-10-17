@@ -70,6 +70,11 @@ export interface TicketIdentityOptions {
   scheme?: string;
   /** The emitter's validation endpoint. `{ticket}` and `{ticketBase64}` fill in. */
   url: string;
+  /**
+   * Accept a plain `http://` endpoint off loopback, for an emitter on the same
+   * private network. Tickets then cross that network in clear text.
+   */
+  allowHttp?: boolean;
   /** Default GET, or POST when the ticket is presented in the body. */
   method?: "GET" | "POST";
   present: TicketPresentation;
@@ -154,6 +159,7 @@ export function createTicketIdentityResolver(
     secureUrlProblem(
       fillTemplate(options.url, { ticket: "t", ticketBase64: "t" }),
       what,
+      { allowHttp: options.allowHttp === true },
     );
   if (problem !== null) throw new EndpointError(problem);
   if (options.header.trim().length === 0) {

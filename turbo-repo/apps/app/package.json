@@ -1,6 +1,6 @@
 {
   "name": "@modulariot/app",
-  "version": "0.5.62",
+  "version": "0.5.64",
   "private": true,
   "scripts": {
     "dev": "next dev --port 3050",
@@ -53,7 +53,6 @@
     "@microboxlabs/miot-dashboard-server": "*",
     "@microboxlabs/miot-dashboard-ui": "*",
     "@microboxlabs/miot-harness-client": "*",
-    "@microboxlabs/miot-resource-client": "*",
     "@modulariot/ui": "*",
     "@next/mdx": "16.2.11",
     "@react-google-maps/api": "^2.20.3",

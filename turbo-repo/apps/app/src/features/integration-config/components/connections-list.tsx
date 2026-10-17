@@ -204,6 +204,7 @@ function testLine(connection: IntegrationConnection, dict: I18nRecord): string {
 }
 
 const PROVIDER_LABELS: Record<string, string> = {
+  CAR_IMAGES: "CarImages",
   POSTGREST: "PostgREST",
   RESEND: "Resend",
   WHATSAPP: "WhatsApp",

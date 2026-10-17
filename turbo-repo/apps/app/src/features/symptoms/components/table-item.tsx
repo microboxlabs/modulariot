@@ -10,23 +10,20 @@ import { FormattedDate } from "@/features/common/components/formatted-date";
 import icu_condition from "@/features/symptoms/model/icu_condition.json";
 import { FaChevronRight } from "react-icons/fa6";
 
-// SLA declarado por nivel (min) — demo local: espejo de la parametrización
-const SLA_MIN: Record<string, number> = { "4": 10, "3": 15, "2": 30 };
-
 export default function TableItem({
   data,
   dict,
   compact = false,
-  recurrenceCount = 1,
 }: {
   data: TableItemType;
   dict: I18nRecord;
   compact?: boolean;
-  recurrenceCount?: number;
 }) {
   const searchParams = new URLSearchParams(window.location.search);
 
-  const slaMin = SLA_MIN[data.icu_code] ?? null;
+  const slaMin = data.sla_minutes;
+  // Occurrence number of this event on the trip: earlier events plus this one.
+  const occurrence = (data.recurrence_events ?? 0) + 1;
   // A badge, not plain colored text: the row itself is already tinted by
   // condition (`Conditions[...].bgColor` below), and a saturated row color —
   // red especially — could wash out same-colored text with no background of
@@ -107,8 +104,8 @@ export default function TableItem({
           )}
         </TableCell>
         <TableCell className="text-xs text-nowrap">
-          {recurrenceCount > 1 ? (
-            <Badge color="purple" className="w-fit">×{recurrenceCount}</Badge>
+          {occurrence > 1 ? (
+            <Badge color="purple" className="w-fit">×{occurrence}</Badge>
           ) : (
             <span className="text-gray-400">—</span>
           )}

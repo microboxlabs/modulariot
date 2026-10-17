@@ -26,6 +26,5 @@ ENTRYPOINT ["/opt/jboss/container/java/run/run-java.sh"]
 
 # Default: start all components. Override to select specific ones:
 #   docker run <image> miot fleet
-#   docker run <image> miot driver
-#   docker run <image> miot fleet driver
+#   docker run <image> miot fleet integrations
 CMD ["miot", "all"]

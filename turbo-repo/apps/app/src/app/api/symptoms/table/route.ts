@@ -4,7 +4,10 @@ import {
   isCarrierOrg,
   requireCarrierData,
 } from "@/app/api/utils/carrier-scope";
-import { forwardControlTowerMap } from "@/app/api/utils/control-tower-map";
+import {
+  forwardControlTowerMap,
+  isoDate,
+} from "@/app/api/utils/control-tower-map";
 import { SymptomsTableResponse } from "./route.types";
 import { SymptomTableResponse } from "@/features/symptoms/types/symptoms";
 
@@ -27,6 +30,8 @@ const PARAM_MAPPING = {
   page: "p_page",
 } as const;
 
+const DATE_PARAMS = new Set(["from", "to"]);
+
 function buildApiParams(searchParams: URLSearchParams): URLSearchParams {
   const params = new URLSearchParams();
 
@@ -34,7 +39,9 @@ function buildApiParams(searchParams: URLSearchParams): URLSearchParams {
     const value = searchParams.get(inputParam);
     if (value) {
       // Trim all parameter values to remove leading/trailing whitespace
-      const processedValue = value.trim();
+      const processedValue = DATE_PARAMS.has(inputParam)
+        ? isoDate(value)
+        : value.trim();
       if (processedValue) {
         // Only add non-empty values
         params.set(apiParam, processedValue);
@@ -60,6 +67,8 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       alertType: item?.type_of_incidence,
       status: item?.treatment_count === 0 ? "" : "Tratado",
       last_assigned_to: item?.last_assigned_to,
+      sla_minutes: item?.sla_minutes ?? null,
+      recurrence_events: item?.recurrence_events ?? null,
     })),
     pagination: {
       total_rows: data.total_rows,

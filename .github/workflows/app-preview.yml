@@ -40,7 +40,8 @@ jobs:
   build:
     name: Build and publish PR preview image
     runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    # Release preparation is built by app-release-train.yml, without a PR preview.
+    if: github.event.pull_request.head.repo.full_name == github.repository && !startsWith(github.head_ref, 'release/miot-v')
     outputs:
       image: ${{ steps.image.outputs.image }}
       short_sha: ${{ steps.vars.outputs.short_sha }}

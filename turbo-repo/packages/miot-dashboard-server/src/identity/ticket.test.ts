@@ -44,6 +44,21 @@ describe("createTicketIdentityResolver", () => {
     ).toThrowError(EndpointError);
   });
 
+  it("accepts a plain http validation URL only when allowed", () => {
+    expect(() =>
+      resolver(answering(200), {
+        url: "http://emitter.internal/x",
+        allowHttp: true,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      resolver(answering(200), {
+        url: "ftp://emitter.internal/x",
+        allowHttp: true,
+      }),
+    ).toThrowError(EndpointError);
+  });
+
   it("refuses to be built without the header callers use", () => {
     // No standard header carries a ticket, so a default would silently ignore
     // the real one and treat every request as anonymous.

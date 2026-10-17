@@ -209,7 +209,9 @@ export default function SpotlightSearch({
   const visiblePages = useVisiblePages(isDashboardServerEnabled);
   const { isPlatformOwner } = useIsPlatformOwner();
   const { isTrainer } = useKnowledgeTrainer();
-  const canViewGps = useMyAccess().can("gps:view");
+  const { can } = useMyAccess();
+  const canViewGps = can("gps:view");
+  const canViewFleet = can("fleet:assets.view");
   const navigateItems = useMemo(
     () =>
       buildNavigateItems(
@@ -218,6 +220,7 @@ export default function SpotlightSearch({
           platformOwner: isPlatformOwner,
           trainer: isTrainer,
           gps: canViewGps,
+          fleet: canViewFleet,
         }),
         sidebarLabels ?? {},
         onNavigate,
@@ -229,6 +232,7 @@ export default function SpotlightSearch({
       isPlatformOwner,
       isTrainer,
       canViewGps,
+      canViewFleet,
       sidebarLabels,
       onNavigate,
       canAccess,

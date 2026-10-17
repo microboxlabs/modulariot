@@ -1614,6 +1614,31 @@
           "statusFailed": "Prueba fallida",
           "statusUntested": "Sin probar"
         },
+        "vehicleImages": {
+          "title": "Imágenes de vehículos",
+          "menuHint": "carimagesapi.com para la flota",
+          "description": "La flota muestra la imagen de estudio de cada tracto según su marca, modelo y año. Las organizaciones sin proveedor propio usan esta cuenta de carimagesapi.com.",
+          "apiKey": "Clave de la cuenta",
+          "apiSecret": "Secreto de la API",
+          "apiSecretKeep": "Guardado: {preview}. Déjalo vacío para conservarlo.",
+          "apiSecretHint": "Se envía solo desde el servidor; el navegador recibe URLs firmadas que vencen.",
+          "save": "Guardar",
+          "test": "Probar",
+          "remove": "Quitar",
+          "saved": "Proveedor guardado.",
+          "saveError": "No se pudo guardar el proveedor.",
+          "removed": "Proveedor quitado.",
+          "removeError": "No se pudo quitar el proveedor.",
+          "loadError": "No se pudo cargar el proveedor.",
+          "testOk": "carimagesapi.com aceptó la clave y el secreto.",
+          "testFailed": "carimagesapi.com rechazó la clave o el secreto.",
+          "removeTitle": "Quitar el proveedor de imágenes",
+          "removeBody": "Las organizaciones sin proveedor propio dejarán de ver la imagen de sus vehículos.",
+          "statusNone": "Sin configurar",
+          "statusOk": "Funcionando",
+          "statusFailed": "Prueba fallida",
+          "statusUntested": "Sin probar"
+        },
         "plan": {
           "title": "Plan de asientos",
           "menuHint": "Precio por asiento y tokens incluidos",
@@ -3754,6 +3779,223 @@
         "title": "Configuración avanzada",
         "description": "Enriquecimiento e integraciones de este calendario"
       }
+    },
+    "fleet": {
+      "title": "Flota",
+      "subtitle": "{assets} assets · {carriers} transportistas",
+      "updated": "Actualizado {ago}",
+      "unavailable": "Los datos de flota no están configurados en este ambiente.",
+      "loadFailed": "No se pudo cargar la flota. Intenta de nuevo.",
+      "notAllowed": "No tienes acceso a la flota de esta organización.",
+      "notFound": "Este asset no existe o tu organización no lo ve.",
+      "breadcrumb": {
+        "fleet": "Flota",
+        "edit": "Editar"
+      },
+      "actions": {
+        "edit": "Editar datos",
+        "viewOnMap": "Ver en el mapa",
+        "save": "Guardar cambios",
+        "cancel": "Cancelar",
+        "back": "Volver"
+      },
+      "kpis": {
+        "assets": "Assets",
+        "withSignal": "{n} con señal ahora",
+        "inTrip": "En viaje",
+        "plannedToday": "{n} con viaje planificado hoy",
+        "noSignal": "Sin señal > 24 h",
+        "noSignalHint": "revisar GPS",
+        "documentsDue": "Documentos por vencer",
+        "documentsDueHint": "próximos 30 días o vencidos",
+        "suggestions": "Sugerencias",
+        "suggestionsHint": "assets con datos por confirmar"
+      },
+      "agent": {
+        "title": "Harness",
+        "subtitle": "Sugerencias desde los viajes y las señales",
+        "listHeadline": "{n} assets tienen datos que puedo completar desde sus viajes.",
+        "listBody": "Ramplas y conductores habituales según los viajes de los últimos 30 días.",
+        "listEmpty": "No hay sugerencias pendientes. Los datos de la flota están al día con las integraciones.",
+        "review": "Revisar sugerencias",
+        "showAll": "Ver todos",
+        "USUAL_TRAILER": "{value} viajó con este asset en {count} de {total} viajes.",
+        "USUAL_DRIVER": "{value} manejó este asset en {count} de {total} viajes.",
+        "whyLabel": "De dónde sale",
+        "why": "Viajes de los últimos 30 días.",
+        "effectLabel": "Qué cambia",
+        "effect_USUAL_TRAILER": "Queda como rampla habitual del asset.",
+        "effect_USUAL_DRIVER": "Queda como conductor habitual del asset.",
+        "accept": "Aceptar",
+        "dismiss": "Descartar",
+        "done": "Sin sugerencias pendientes para este asset."
+      },
+      "filters": {
+        "all": "Todos",
+        "status": "Estado",
+        "anyStatus": "Todos los estados",
+        "carrier": "Transportista",
+        "anyCarrier": "Todos los transportistas",
+        "documentsDue": "Documentos por vencer",
+        "withSuggestions": "Con sugerencias",
+        "search": "Patente, IMEI, conductor o transportista",
+        "sort": "Orden",
+        "sortId": "Identificador",
+        "sortSignal": "Última señal",
+        "sortKm": "Km en 30 días"
+      },
+      "kindsPlural": {
+        "TRUCK": "Tractos y camiones",
+        "TRAILER": "Ramplas",
+        "DECOY": "Señuelos",
+        "PERSON": "Personas",
+        "OTHER": "Otros"
+      },
+      "kinds": {
+        "TRUCK": "Tracto o camión",
+        "TRAILER": "Rampla",
+        "DECOY": "Señuelo",
+        "PERSON": "Persona",
+        "OTHER": "Otro"
+      },
+      "status": {
+        "IN_TRIP": "En viaje",
+        "AVAILABLE": "Disponible",
+        "NO_SIGNAL": "Sin señal"
+      },
+      "table": {
+        "asset": "Asset",
+        "carrier": "Transportista",
+        "status": "Estado",
+        "driver": "Conductor",
+        "nextTrip": "Próximo viaje",
+        "accreditation": "Acreditación",
+        "km30d": "Km · 30 d",
+        "lastSignal": "Última señal",
+        "noTrip": "Sin viaje planificado",
+        "inProgress": "en curso",
+        "empty": "No hay assets con estos filtros.",
+        "range": "{from}–{to} de {total}",
+        "previous": "Anterior",
+        "next": "Siguiente"
+      },
+      "documents": {
+        "accreditation": "Acreditación de acceso",
+        "technicalReview": "Revisión técnica",
+        "circulationPermit": "Permiso de circulación",
+        "insurance": "Seguro obligatorio (SOAP)"
+      },
+      "documentStatus": {
+        "MISSING": "Sin fecha",
+        "VALID": "Vigente · {date}",
+        "EXPIRING": "Vence {date}",
+        "EXPIRED": "Vencido · {date}"
+      },
+      "documentState": {
+        "MISSING": "Sin fecha",
+        "VALID": "Vigente",
+        "EXPIRING": "Por vencer",
+        "EXPIRED": "Vencido"
+      },
+      "fields": {
+        "label": "Nombre interno",
+        "kind": "Tipo",
+        "brandModel": "Marca y modelo",
+        "year": "Año",
+        "vin": "VIN",
+        "carrier": "Transportista",
+        "base": "Base",
+        "usualTrailer": "Rampla habitual",
+        "usualDriver": "Conductor habitual",
+        "gpsProvider": "Proveedor GPS"
+      },
+      "sources": {
+        "SIGNAL": "Señal GPS",
+        "TRIP": "Viajes",
+        "MANUAL": "Manual",
+        "NONE": "Sin fuente"
+      },
+      "sourceDetail": {
+        "reported": "el GPS reporta \"{value}\"",
+        "trips": "{count} de {total} viajes · 30 días",
+        "manual": "editado a mano",
+        "none": "Ninguna integración lo informa",
+        "sender": "cliente {value}"
+      },
+      "conflict": {
+        "title": "Dato en conflicto",
+        "body": "{field}: {source} dice {integration}, el valor guardado es {manual}.",
+        "useIntegration": "Usar {value}",
+        "keep": "Mantener {value}"
+      },
+      "indicators": {
+        "km30d": "Km · 30 días",
+        "engineHours": "Horas motor · 30 d",
+        "idle": "{pct}% en ralentí",
+        "utilization": "Utilización · 30 d",
+        "fleet": "flota {pct}%",
+        "trips": "Viajes · 30 d",
+        "avgTrip": "{h} h por viaje",
+        "noData": "sin datos aún"
+      },
+      "chart": {
+        "title": "Horas de motor por día",
+        "subtitle": "Últimos 14 días",
+        "moving": "En movimiento",
+        "idle": "Ralentí",
+        "today": "Hoy",
+        "engine": "Motor encendido",
+        "km": "Distancia",
+        "empty": "Todavía no hay actividad calculada para este asset.",
+        "dayLabel": "{day}: {moving} h en movimiento, {idle} h en ralentí"
+      },
+      "trips": {
+        "title": "Viajes",
+        "current": "En curso",
+        "planned": "Planificado",
+        "done": "Terminado",
+        "count": "{n} en 30 días",
+        "none": "Sin viajes registrados.",
+        "eta": "ETA {time}",
+        "with": "con {trailer}",
+        "starts": "sale {time}"
+      },
+      "live": {
+        "title": "Estado en vivo",
+        "signal": "Señal GPS",
+        "engine": "Motor",
+        "engineOn": "Encendido",
+        "engineOff": "Apagado",
+        "speed": "Velocidad",
+        "speedValue": "{v} km/h",
+        "driver": "Conductor",
+        "unknown": "Sin dato"
+      },
+      "history": {
+        "title": "Historial de cambios",
+        "empty": "Sin cambios todavía.",
+        "suggestion": "sugerencia aceptada",
+        "cleared": "{field} volvió al valor de la integración",
+        "set": "{field} → {value}"
+      },
+      "edit": {
+        "title": "Editar datos",
+        "legend": "Cada dato muestra de dónde viene. Lo que viene de una integración se actualiza solo hasta que lo cambias a mano. Deja un campo vacío para volver al valor de la integración.",
+        "identification": "Identificación",
+        "relations": "Relaciones",
+        "documents": "Documentos",
+        "documentsHint": "Fecha de vencimiento de cada documento.",
+        "readonly": "No editable",
+        "saved": "Cambios guardados.",
+        "saveFailed": "No se pudo guardar: {reason}",
+        "noChanges": "No hay cambios para guardar.",
+        "chooseKind": "Usar el tipo que reporta el GPS"
+      },
+      "image": {
+        "imageAlt": "Imagen de {vehicle}",
+        "imageMissing": "Agrega marca y modelo para ver la imagen del vehículo.",
+        "imageNone": "Sin imagen para este modelo."
+      }
     }
   },
   "layout": {
@@ -3817,7 +4059,6 @@
         "facilitySCL": "Sede SCL",
         "truckBeds": "Ramplas",
         "allDevices": "Todos",
-        "fleetManagement": "Flotas",
         "collaboratorsManagement": "Colaboradores",
         "searchPlaceholder": "Buscar...",
         "createDashboard": "Nuevo dashboard",
@@ -3828,7 +4069,8 @@
         "dashboardServer": "Dashboards",
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
-        "gps": "GPS"
+        "gps": "GPS",
+        "fleet": "Flota"
       }
     },
     "calendar": {
@@ -6033,445 +6275,6 @@
       },
       "successNotification": "Calendario creado correctamente",
       "errorNotification": "Error al crear el calendario"
-    }
-  },
-  "fleetManagement": {
-    "breadcrumb": {
-      "fleetManagement": "Gestión de Flotas"
-    },
-    "title": "Gestión de Flotas",
-    "subtitle": "Monitorea y administra todos los vehículos de tu flota en tiempo real",
-    "kpi": {
-      "totalFleet": "Total Flota",
-      "active": "Activos",
-      "inMaintenance": "En Mantención",
-      "symptoms": "Síntomas",
-      "alerts": "Alertas",
-      "inactive": "Inactivos"
-    },
-    "specialViews": {
-      "title": "Vistas Especiales",
-      "badge": "Vista especial",
-      "eventsView": "Vista de Eventos",
-      "eventsViewDesc": "Registro de incidentes, alertas y eventos críticos",
-      "usageView": "Vista de Uso",
-      "usageViewDesc": "Análisis de kilometraje, consumo y cumplimiento contractual",
-      "generalInfoView": "Vista de Información General",
-      "generalInfoViewDesc": "Dashboard ejecutivo con indicadores y cumplimiento normativo",
-      "maintenanceStatusView": "Vista de Mantención",
-      "maintenanceStatusViewDesc": "Calendario y alertas de mantenimiento preventivo y correctivo",
-      "technicalHealthView": "Vista de Salud Técnica",
-      "technicalHealthViewDesc": "Detección temprana de fallas y patrones de comportamiento",
-      "devicesTelemetryView": "Vista de Dispositivos",
-      "devicesTelemetryViewDesc": "Monitoreo de GPS, telemetría y conectividad en tiempo real",
-      "goToSlide": "Ir a diapositiva {number}",
-      "previous": "Anterior",
-      "next": "Siguiente"
-    },
-    "vehicleGrid": {
-      "title": "Vehículos",
-      "vehicleCount": "{count} vehículos",
-      "detailed": "Detallada",
-      "simplified": "Simplificada",
-      "driver": "Conductor",
-      "location": "Ubicación",
-      "model": "Modelo",
-      "transportist": "Transportista",
-      "fuel": "Combustible",
-      "maintenance": "Próx. Mantención",
-      "kmTraveled": "Km Totales",
-      "loading": "Cargando...",
-      "emptyTitle": "No hay vehículos en esta flota",
-      "emptyTile": "No hay vehículos en esta flota",
-      "emptyDescription": "Cuando se asignen vehículos a esta flota, aparecerán aquí.",
-      "plate": "Patente",
-      "lastSignal": "Última señal",
-      "status": "Estado",
-      "tabs": {
-        "trucks": "Camiones",
-        "trailers": "Remolques",
-        "carriers": "Transportistas"
-      },
-      "truckCount": "{count} camiones",
-      "trailerCount": "{count} remolques",
-      "carrierCount": "{count} transportistas",
-      "noData": "Sin datos disponibles",
-      "errorLoading": "Error al cargar datos de flota",
-      "vin": "VIN",
-      "year": "Año",
-      "maxWeight": "Peso Máximo",
-      "truckType": "Tipo",
-      "axleCount": "Ejes",
-      "externalId": "ID Externo",
-      "rut": "RUT",
-      "transportLicense": "Licencia de Transporte",
-      "carrierName": "Nombre Transportista"
-    },
-    "status": {
-      "active": "Activo",
-      "maintenance": "En Mantención",
-      "alert": "Alerta",
-      "inactive": "Inactivo"
-    },
-    "vehicleDetail": {
-      "title": "Detalles del Vehículo",
-      "back": "Volver a la flota",
-      "previous": "Anterior",
-      "next": "Siguiente",
-      "sections": {
-        "health": {
-          "title": "Salud",
-          "description": "Estado general de salud del vehículo",
-          "overallHealth": "Salud General",
-          "fuelLevel": "Nivel de Combustible",
-          "operationalStatus": "Estado Operacional",
-          "systemsCheck": "Revisión de Sistemas",
-          "stableHealth": "Salud Estable",
-          "moderateHealth": "Salud Moderada",
-          "poorHealth": "Salud Deficiente",
-          "responseTime": "Tiempo de Respuesta",
-          "resolved30days": "Resuelto (30d)",
-          "activeFailures": "Fallas Activas",
-          "critical": "Crítico",
-          "warnings": "Alertas",
-          "ok": "OK",
-          "criticalIssues": "problema(s) crítico(s)",
-          "warningIssues": "alerta(s)",
-          "allSystemsOk": "Todos los sistemas operando normalmente",
-          "allSystemsOkDesc": "No se detectaron problemas en ninguna sección"
-        },
-        "maintenance": {
-          "title": "Estado de Mantención",
-          "description": "Mantenciones programadas e historial de servicio",
-          "totalKm": "Kilometraje Total",
-          "totalKmDesc": "Odómetro actual del vehículo",
-          "nextMaintenance": "Próxima Mantención",
-          "nextMaintenanceDesc": "Fecha o km programado",
-          "lastService": "Última Mantención",
-          "lastServiceDesc": "Fecha del último servicio",
-          "contractualFrequency": "Frecuencia Contractual",
-          "contractualFrequencyDesc": "Intervalo entre mantenciones",
-          "maintenanceCount": "Mantenciones Realizadas",
-          "maintenanceCountDesc": "Total de servicios completados",
-          "kmSinceService": "Km Desde Mantención",
-          "kmSinceServiceDesc": "Recorrido desde último servicio",
-          "kmRemaining": "Faltan {km} km (proyección: {days} días)",
-          "atKm": "A los {km} km",
-          "intervalPercent": "{percent}% del intervalo ({interval})",
-          "upToDate": "Mantención al día",
-          "upToDateDesc": "El vehículo cumple con el plan de mantención preventiva.",
-          "upToDateBadge": "Al día",
-          "dueSoon": "Próxima",
-          "overdue": "Vencida",
-          "errorTitle": "No se pudo cargar mantención",
-          "errorDesc": "Hubo un problema al obtener los datos de mantención. Intenta nuevamente.",
-          "retry": "Reintentar",
-          "kmRemainingNoDays": "Faltan {km} km",
-          "neverServiced": "Sin servicio previo",
-          "criticality": {
-            "AL_DIA": {
-              "label": "Al día",
-              "bannerTitle": "Mantención al día",
-              "bannerDesc": "El vehículo cumple con el plan de mantención preventiva."
-            },
-            "POR_VENCER": {
-              "label": "Por vencer",
-              "bannerTitle": "Mantención próxima",
-              "bannerDesc": "Quedan menos de 2.000 km para la próxima mantención programada."
-            },
-            "CRITICO": {
-              "label": "Crítico",
-              "bannerTitle": "Mantención crítica",
-              "bannerDesc": "Quedan menos de 500 km. Agendar mantención inmediatamente."
-            },
-            "VENCIDO": {
-              "label": "Vencida",
-              "bannerTitle": "Mantención vencida",
-              "bannerDesc": "El vehículo ha superado el intervalo de mantención programado."
-            },
-            "EN_TALLER": {
-              "label": "En taller",
-              "bannerTitle": "En mantención",
-              "bannerDesc": "El vehículo está siendo atendido en el taller."
-            },
-            "AGENDADO": {
-              "label": "Agendado",
-              "bannerTitle": "Mantención agendada",
-              "bannerDesc": "Se ha programado una orden de trabajo de mantención."
-            },
-            "SIN_INFO": {
-              "label": "Sin datos",
-              "bannerTitle": "Sin datos de mantención",
-              "bannerDesc": "No hay señal de odómetro disponible para calcular el estado de mantención."
-            }
-          }
-        },
-        "technicalHealth": {
-          "title": "Salud Técnica",
-          "description": "Estado del motor, transmisión y componentes",
-          "engine": "Motor",
-          "transmission": "Transmisión",
-          "brakes": "Frenos",
-          "tires": "Neumáticos",
-          "noErrorCodes": "Sin códigos de error detectados",
-          "brakePadWear": "Desgaste de pastillas de freno (28%)",
-          "noIssues": "Sin fallas",
-          "criticalIssues": "{count} falla(s) crítica(s)",
-          "warningIssues": "{count} alerta(s)",
-          "adBlue": "AdBlue",
-          "dpf": "Filtro DPF",
-          "engineFailure": "Falla de Motor",
-          "ok": "OK"
-        },
-        "telemetry": {
-          "title": "Dispositivos y Telemetría",
-          "description": "Dispositivos conectados y datos de sensores",
-          "connected": "Conectado",
-          "disconnected": "Desconectado",
-          "lastDataReceived": "Último dato recibido",
-          "installedDevices": "Dispositivos instalados",
-          "fuelSensor": "Sensor de Combustible",
-          "tempSensor": "Sensor de Temp (calibrando)",
-          "lastUpdate": "Última Actualización",
-          "signalStrength": "Intensidad de Señal",
-          "odometer": "Odómetro",
-          "dateTime": "Fecha y hora",
-          "status": "Estado",
-          "onRoute": "En ruta",
-          "engine": "Motor",
-          "running": "En marcha",
-          "notRunning": "Apagado",
-          "speed": "Velocidad",
-          "rpm": "RPM",
-          "battery": "Batería",
-          "engineTemp": "Temp. motor",
-          "location": "Ubicación",
-          "transmissionInterval": "Intervalo de transmisión",
-          "every30Seconds": "Cada 30 segundos",
-          "acumulatedUptime": "Uptime acumulado",
-          "dataProcesedToday": "Datos procesados hoy",
-          "signalLost": "Pérdidas de señal (30d)",
-          "everySeconds": "Cada {seconds} segundos",
-          "dataProcessedToday": "Datos procesados hoy",
-          "statusMoving": "En movimiento",
-          "statusStopped": "Detenido",
-          "statusLabel": "Estado",
-          "motorRunning": "En marcha",
-          "motorOff": "Apagado",
-          "motor": "Motor",
-          "pulsesPerMinute": "{pulses} pulsos/min",
-          "headerSubtitle": "Puntaje telemetría: {score}% • Proveedor: {provider}",
-          "headerSubtitleNoProvider": "Puntaje telemetría: {score}%",
-          "errorTitle": "No se pudo cargar telemetría",
-          "errorDesc": "Hubo un problema al obtener los datos de telemetría. Intenta nuevamente.",
-          "retry": "Reintentar",
-          "stability": "Estabilidad",
-          "signalsPerDay": "Señales por día",
-          "hoursSinceSignal": "Horas desde última señal",
-          "freshness": {
-            "connected": {
-              "label": "Conectado",
-              "bannerTitle": "Señal activa",
-              "bannerDesc": "El GPS está enviando datos normalmente."
-            },
-            "unstable": {
-              "label": "Inestable",
-              "bannerTitle": "Señal inestable",
-              "bannerDesc": "El GPS está experimentando problemas de conectividad o retrasos en los datos."
-            },
-            "noSignal": {
-              "label": "Sin señal",
-              "bannerTitle": "Sin señal",
-              "bannerDesc": "No se han recibido datos del GPS recientemente."
-            }
-          }
-        },
-        "events": {
-          "title": "Eventos Operativos",
-          "description": "Alertas e incidentes recientes",
-          "errorTitle": "No se pudieron cargar los eventos",
-          "errorDesc": "Hubo un problema al obtener los eventos operativos. Intenta nuevamente.",
-          "errorBadge": "Error",
-          "retry": "Reintentar",
-          "emptyTitle": "Sin eventos recientes",
-          "emptyDesc": "No se han registrado eventos operativos en la ventana de tiempo reciente.",
-          "criticalCount": "{count} críticos",
-          "criticalCount_one": "{count} crítico",
-          "warningCount": "{count} alertas",
-          "warningCount_one": "{count} alerta",
-          "durationMinutes": "{minutes} min",
-          "speedExceeded": "{speed} km/h (límite {limit})",
-          "hardBraking": "Frenado brusco detectado",
-          "routeCompleted": "Ruta completada exitosamente",
-          "incidentsThisMonth": "Incidentes Este Mes",
-          "hoursAgo": "Hace {count}h",
-          "noIssues": "Sin alertas",
-          "urgency": {
-            "critical": "Crítico",
-            "warning": "Alerta",
-            "info": "Info"
-          },
-          "category": {
-            "falla_tecnica": "Falla técnica",
-            "evento": "Evento",
-            "uso": "Uso",
-            "cambio_datos": "Cambio de datos",
-            "mantencion": "Mantención",
-            "SEÑAL": "Señal",
-            "VELOCIDAD": "Velocidad",
-            "HORARIO": "Horario",
-            "MANTENIMIENTO": "Mantenimiento",
-            "OTROS": "Otros"
-          },
-          "filters": {
-            "dateRange": "Rango de fechas",
-            "eventType": "Tipo de evento",
-            "limit": "Cantidad",
-            "allTypes": "Todos",
-            "tipoVelocidad": "Velocidad",
-            "tipoSenal": "Señal",
-            "tipoHorario": "Horario",
-            "tipoMantenimiento": "Mantenimiento",
-            "tipoOtros": "Otros"
-          }
-        },
-        "usage": {
-          "title": "Uso de Flota",
-          "description": "Estadísticas de utilización y kilometraje",
-          "totalKm": "Kilómetros Totales",
-          "avgDailyKm": "Km Promedio Diario",
-          "utilizationRate": "Tasa de Utilización",
-          "idleTime": "Tiempo Inactivo",
-          "weeklyGoal": "Progreso Meta Semanal",
-          "totalKilometrage": "Kilometraje Total del vehiculo",
-          "odometerSinceOrigin": "Odómetro acumulado desde origen",
-          "monthlyContractualConsumption": "Consumo contractual mensual",
-          "deviationFromAverage": "Desviación respecto al promedio",
-          "kmTraveledThisMonth": "Km recorridos (mes)",
-          "kmRemainingThisMonth": "Km restantes (mes)",
-          "avgDaily": "Promedio diario",
-          "operationHours": "Horas de operación",
-          "activeDays": "Días activos",
-          "annualTotalKm": "Km totales anuales",
-          "kmPerDay": "{km} km/día",
-          "projectedDays": "Proyección: {days} días",
-          "limitKmMonthly": "Límite {km} km/mes",
-          "avgDailyOperationHours": "Promedio diario: {hours}",
-          "utilization": "{percentage}% Utilización",
-          "estimatedProjection": "Proyección estimada",
-          "intensityLastDays": "Intensidad últimos 30 días",
-          "exceeded": "Excedido",
-          "nearLimit": "Próximo al límite",
-          "usageLabel": "uso",
-          "activeDaysLabel": "Días con datos",
-          "activeDaysValue": "{active}/{total} días",
-          "useType": "Tipo de uso",
-          "useTypeUnknown": "Sin clasificar",
-          "useTypeDesc": "Categoría del contrato",
-          "annualProjection": "Proyección anual",
-          "projectionBasis": "Estimación basada en los últimos 30 días",
-          "contractStatus": {
-            "NORMAL": {
-              "label": "{pct} – uso normal",
-              "bannerTitle": "Uso dentro del contrato",
-              "bannerDesc": "El vehículo consume kilometraje dentro del rango contractual esperado."
-            },
-            "SOBREUSO": {
-              "label": "{pct} – sobreuso",
-              "bannerTitle": "Sobreuso del contrato",
-              "bannerDesc": "El kilometraje acumulado supera la meta contractual. Revisar condiciones del contrato o reasignación del vehículo."
-            },
-            "SUBUTILIZADO": {
-              "label": "{pct} – subutilizado",
-              "bannerTitle": "Vehículo subutilizado",
-              "bannerDesc": "El vehículo consume muy por debajo de la meta contractual. Evaluar reasignación o rebalance de flota."
-            },
-            "SIN_DATOS": {
-              "label": "Sin datos",
-              "bannerTitle": "Sin datos de uso",
-              "bannerDesc": "No se registran lecturas de odómetro recientes para este vehículo. La sección se actualizará cuando llegue nueva telemetría."
-            }
-          },
-          "intensity": {
-            "ALTA": {
-              "label": "Intensidad alta"
-            },
-            "MEDIA": {
-              "label": "Intensidad media"
-            },
-            "BAJA": {
-              "label": "Intensidad baja"
-            },
-            "SIN_DATO": {
-              "label": "Sin intensidad"
-            }
-          },
-          "loading": "Cargando uso…",
-          "errorTitle": "No se pudo cargar el uso",
-          "errorDesc": "Hubo un problema al obtener los datos de uso. Intenta nuevamente.",
-          "retry": "Reintentar",
-          "currentOdometer": "Odómetro Actual",
-          "contractConsumption": "Consumo Contractual",
-          "contractMaxLabel": "Contrato: {km} km",
-          "kmLast30Days": "Km Últimos 30 Días",
-          "lookbackWindowLabel": "Últimos {days} días",
-          "kmRemainingContract": "Km Restantes (Contrato)",
-          "noDataShort": "Sin datos",
-          "overuseAmount": "+{km} km sobreuso",
-          "withinContract": "Dentro del contrato"
-        },
-        "general": {
-          "title": "Información General",
-          "description": "Identificación y asignación del vehículo",
-          "plate": "Patente",
-          "model": "Modelo",
-          "type": "Tipo",
-          "brand": "Marca",
-          "carrier": "Transportista",
-          "driver": "Conductor",
-          "location": "Última Ubicación",
-          "vin": "VIN",
-          "year": "Año",
-          "maxWeight": "Peso Máximo (kg)",
-          "externalId": "ID Externo"
-        }
-      }
-    },
-    "lastSignalMap": {
-      "title": "Última Señal",
-      "openInMaps": "Abrir en Maps",
-      "snapshot": "Captura",
-      "share": "Compartir",
-      "copyLink": "Copiar enlace",
-      "copied": "¡Copiado!"
-    },
-    "gamification": {
-      "healthScore": "Salud",
-      "healthStatus": "Estado de Salud",
-      "level": "Nivel",
-      "achievements": "Logros",
-      "unlocked": "desbloqueados",
-      "badge": {
-        "road_warrior": "Guerrero del Camino",
-        "eco_champion": "Campeón Ecológico",
-        "perfect_maintenance": "Mantención Perfecta",
-        "speed_demon": "Demonio de la Velocidad",
-        "early_bird": "Madrugador",
-        "night_owl": "Ave Nocturna",
-        "long_hauler": "Largo Recorrido",
-        "city_navigator": "Navegador Urbano"
-      },
-      "driverPerformance": "Desempeño del Conductor",
-      "trips": "Viajes",
-      "onTime": "A Tiempo",
-      "safetyScore": "Seguridad",
-      "currentStreak": "Racha Actual",
-      "days": "días",
-      "onFire": "¡En Llamas!",
-      "experiencePoints": "Puntos de Experiencia",
-      "toNextLevel": "para subir de nivel",
-      "weeklyGoal": "Meta Semanal",
-      "goalCompleted": "¡Meta completada!"
     }
   },
   "collaboratorsManagement": {

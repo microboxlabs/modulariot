@@ -20,3 +20,16 @@ export async function forwardControlTowerMap(
     { method: "GET", sessionOnly: true }
   );
 }
+
+/**
+ * A date as the modulith expects it (ISO-8601). Links have always sent
+ * "2026-10-15 00:00:00", with a space between date and time; that space
+ * becomes the ISO "T". Other values pass unchanged.
+ */
+export function isoDate(value: string): string {
+  const date = value.trim();
+  if (date.length > 10 && date[10] === " ") {
+    return `${date.slice(0, 10)}T${date.slice(11)}`;
+  }
+  return date;
+}

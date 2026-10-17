@@ -61,6 +61,12 @@
     "blockedGroups": []
   },
   {
+    "label": "fleet",
+    "href": "/fleet",
+    "requiredGroups": [],
+    "blockedGroups": []
+  },
+  {
     "label": "liveStreams",
     "items": [
       { "href": "/live-streams/facility-scl", "label": "facilitySCL", "requiredGroups": [], "blockedGroups": [] },
@@ -74,12 +80,6 @@
     "label": "collaboratorsManagement",
     "href": "/collaborators-management",
     "requiredGroups": ["GROUP_COLLABORATORS_MANAGEMENT", "GROUP_COLABORATORS_MANAGEMENT"],
-    "blockedGroups": []
-  },
-  {
-    "label": "fleetManagement",
-    "href": "/fleet-management",
-    "requiredGroups": ["GROUP_FLEET_MANAGEMENT"],
     "blockedGroups": []
   },
   {

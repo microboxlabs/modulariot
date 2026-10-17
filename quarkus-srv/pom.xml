@@ -6,7 +6,7 @@
 
     <groupId>com.microboxlabs.miot</groupId>
     <artifactId>miot-parent</artifactId>
-    <version>0.5.36</version>
+    <version>0.5.37</version>
     <packaging>pom</packaging>
 
     <name>ModularIoT — Parent</name>
@@ -15,11 +15,9 @@
     <modules>
         <module>miot-gps-model</module>
         <module>miot-core</module>
-        <module>miot-resource-core</module>
         <module>miot-integrations</module>
         <module>miot-conversational</module>
         <module>miot-fleet</module>
-        <module>miot-driver</module>
         <module>miot-tracking</module>
         <module>miot-symptoms</module>
         <module>miot-gateway</module>
@@ -141,22 +139,12 @@
             </dependency>
             <dependency>
                 <groupId>com.microboxlabs.miot</groupId>
-                <artifactId>miot-resource-core</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.microboxlabs.miot</groupId>
                 <artifactId>miot-integrations</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.microboxlabs.miot</groupId>
                 <artifactId>miot-conversational</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.microboxlabs.miot</groupId>
-                <artifactId>miot-driver</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

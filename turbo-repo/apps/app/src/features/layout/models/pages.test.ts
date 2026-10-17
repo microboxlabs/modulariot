@@ -58,6 +58,7 @@ describe("filterSettings", () => {
       platformOwner: false,
       trainer: true,
       gps: true,
+      fleet: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/platform");
@@ -70,6 +71,7 @@ describe("filterSettings", () => {
       platformOwner: true,
       trainer: true,
       gps: true,
+      fleet: true,
     });
 
     expect(settingsHrefs(filtered)).not.toContain("/users/settings/harness");
@@ -82,6 +84,7 @@ describe("filterSettings", () => {
       platformOwner: false,
       trainer: false,
       gps: false,
+      fleet: false,
     });
 
     expect(settingsHrefs(filtered)).toEqual([
@@ -112,13 +115,19 @@ describe("filterSettings", () => {
       platformOwner: true,
       trainer: true,
       gps: true,
+      fleet: true,
     });
 
     expect(settingsHrefs(filtered)).toEqual(settingsHrefs(pages));
   });
 
   it("offers the learning workspace to trainers only", () => {
-    const gates = { harness: true, platformOwner: true, gps: true };
+    const gates = {
+      harness: true,
+      platformOwner: true,
+      gps: true,
+      fleet: true,
+    };
     expect(
       settingsHrefs(filterSettings(pages, { ...gates, trainer: true }))
     ).toContain("/harness/learning");
@@ -128,7 +137,12 @@ describe("filterSettings", () => {
   });
 
   it("offers GPS to those who may view it", () => {
-    const gates = { harness: true, platformOwner: true, trainer: true };
+    const gates = {
+      harness: true,
+      platformOwner: true,
+      trainer: true,
+      fleet: true,
+    };
     expect(
       settingsHrefs(filterSettings(pages, { ...gates, gps: true }))
     ).toContain("/users/settings/gps");
@@ -137,16 +151,30 @@ describe("filterSettings", () => {
     ).not.toContain("/users/settings/gps");
   });
 
-  it("touches no page outside Settings", () => {
+  it("offers the fleet to those who may view it", () => {
+    const gates = {
+      harness: true,
+      platformOwner: true,
+      trainer: true,
+      gps: true,
+    };
+    const labels = (fleet: boolean) =>
+      filterSettings(pages, { ...gates, fleet }).map((page) => page.label);
+    expect(labels(true)).toContain("fleet");
+    expect(labels(false)).not.toContain("fleet");
+  });
+
+  it("touches no other page outside Settings", () => {
     const filtered = filterSettings(pages, {
       harness: false,
       platformOwner: false,
       trainer: false,
       gps: false,
+      fleet: false,
     });
 
     expect(filtered.map((page) => page.label)).toEqual(
-      pages.map((page) => page.label)
+      pages.map((page) => page.label).filter((label) => label !== "fleet")
     );
   });
 });

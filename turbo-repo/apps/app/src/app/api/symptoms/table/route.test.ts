@@ -77,6 +77,18 @@ describe("GET /api/symptoms/table", () => {
     expect(body.symptoms_list).toEqual(["Speed"]);
   });
 
+  it("sends legacy dates with a space as ISO-8601", async () => {
+    await GET(
+      new NextRequest(
+        "http://x/t?from=2026-10-15%2000:00:00&to=2026-10-15T23:59:59"
+      )
+    );
+    expect(forwardMock).toHaveBeenCalledWith(
+      "/api/v1/orgs/acme/control-tower/map/symptoms?p_start_date_historic=2026-10-15T00%3A00%3A00&p_end_date_historic=2026-10-15T23%3A59%3A59",
+      { method: "GET", sessionOnly: true }
+    );
+  });
+
   it("forces a carrier organization's tax id over the browser's", async () => {
     scopeMock.mockResolvedValue(scope(["carrier-portal"], ["76.111.111-1"]));
     await GET(new NextRequest("http://x/t?carrier_id=someone-else"));

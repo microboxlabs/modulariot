@@ -1,22 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Badge, Button, Label, Spinner, TextInput } from "flowbite-react";
+import { Label, Spinner, TextInput } from "flowbite-react";
 import { HiOutlineMail } from "react-icons/hi";
-import { toast } from "sonner";
-import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { ApiError } from "../data/json-client";
 import { isSender } from "../email/email.types";
-import { usePlatformMail, type PlatformMail } from "./use-platform-mail";
+import {
+  PlatformSettingBadge,
+  PlatformSettingButtons,
+  PlatformSettingRemoveModal,
+  usePlatformSettingActions,
+} from "./platform-setting-controls";
+import { usePlatformMail } from "./use-platform-mail";
 
 interface PlatformMailSectionProps {
   readonly dict: I18nRecord;
-}
-
-function errorMessage(err: unknown, fallback: string): string {
-  return err instanceof ApiError ? err.message : fallback;
 }
 
 /**
@@ -29,8 +28,14 @@ export default function PlatformMailSection({
   const { mail, isLoading, error, save, remove, test } = usePlatformMail();
   const [from, setFrom] = useState("");
   const [apiKey, setApiKey] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [confirmRemove, setConfirmRemove] = useState(false);
+  const {
+    busy,
+    confirmRemove,
+    setConfirmRemove,
+    submit,
+    check,
+    confirmRemoval,
+  } = usePlatformSettingActions(dict, { save, test, remove });
 
   // Reset only when what is stored changes, so a test does not wipe unsaved edits.
   const storedFrom = mail?.from ?? "";
@@ -44,46 +49,7 @@ export default function PlatformMailSection({
   const fromValid = isSender(from);
   const canSave = fromValid && (configured || apiKey.trim() !== "");
 
-  const run = async (action: () => Promise<void>) => {
-    setBusy(true);
-    try {
-      await action();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submit = () =>
-    run(async () => {
-      try {
-        await save({ from: from.trim(), apiKey: apiKey.trim() });
-        toast.success(tr("saved", dict));
-      } catch (err) {
-        toast.error(errorMessage(err, tr("saveError", dict)));
-      }
-    });
-
-  const check = () =>
-    run(async () => {
-      try {
-        const result = await test();
-        if (result.success) toast.success(tr("testOk", dict));
-        else toast.error(result.message ?? tr("testFailed", dict));
-      } catch (err) {
-        toast.error(errorMessage(err, tr("testFailed", dict)));
-      }
-    });
-
-  const removeSender = () =>
-    run(async () => {
-      try {
-        await remove();
-        setConfirmRemove(false);
-        toast.success(tr("removed", dict));
-      } catch (err) {
-        toast.error(errorMessage(err, tr("removeError", dict)));
-      }
-    });
+  const onSave = () => submit({ from: from.trim(), apiKey: apiKey.trim() });
 
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
@@ -94,7 +60,7 @@ export default function PlatformMailSection({
             {tr("title", dict)}
           </h2>
         </div>
-        {mail && <StatusBadge mail={mail} dict={dict} />}
+        {mail && <PlatformSettingBadge setting={mail} dict={dict} />}
       </div>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
         {tr("description", dict)}
@@ -141,67 +107,25 @@ export default function PlatformMailSection({
               onChange={(e) => setApiKey(e.target.value)}
             />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              color="blue"
-              size="sm"
-              disabled={busy || !canSave}
-              onClick={submit}
-            >
-              {tr("save", dict)}
-            </Button>
-            {configured && (
-              <>
-                <Button
-                  color="alternative"
-                  size="sm"
-                  disabled={busy}
-                  onClick={check}
-                >
-                  {tr("test", dict)}
-                </Button>
-                <Button
-                  color="alternative"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => setConfirmRemove(true)}
-                >
-                  {tr("remove", dict)}
-                </Button>
-              </>
-            )}
-          </div>
+          <PlatformSettingButtons
+            dict={dict}
+            busy={busy}
+            canSave={canSave}
+            configured={configured}
+            onSave={onSave}
+            onTest={check}
+            onRemove={() => setConfirmRemove(true)}
+          />
         </div>
       )}
 
-      <ConfirmationModal
+      <PlatformSettingRemoveModal
+        dict={dict}
         isOpen={confirmRemove}
+        busy={busy}
         onClose={() => setConfirmRemove(false)}
-        onConfirm={removeSender}
-        isProcessing={busy}
-        variant="danger"
-        title={tr("removeTitle", dict)}
-        description={tr("removeBody", dict)}
-        confirmLabel={tr("remove", dict)}
+        onConfirm={confirmRemoval}
       />
     </section>
   );
-}
-
-interface StatusBadgeProps {
-  readonly mail: PlatformMail;
-  readonly dict: I18nRecord;
-}
-
-function StatusBadge({ mail, dict }: StatusBadgeProps) {
-  if (!mail.configured) {
-    return <Badge color="gray">{tr("statusNone", dict)}</Badge>;
-  }
-  if (mail.lastTestResult === false) {
-    return <Badge color="failure">{tr("statusFailed", dict)}</Badge>;
-  }
-  if (mail.lastTestResult === true) {
-    return <Badge color="success">{tr("statusOk", dict)}</Badge>;
-  }
-  return <Badge color="warning">{tr("statusUntested", dict)}</Badge>;
 }

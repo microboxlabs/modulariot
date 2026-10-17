@@ -32,4 +32,6 @@ export interface SymptomsTable {
   type_of_incidence: string;
   geographical_reference_point: string;
   last_assigned_to: string;
+  sla_minutes: number | null;
+  recurrence_events: number | null;
 }

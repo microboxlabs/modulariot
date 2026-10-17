@@ -27,9 +27,6 @@ const BLOCKED_GROUPS = {
 // Dashboard access roles
 const DASHBOARD_ROLES = ["GROUP_DASHBOARD"];
 
-// Fleet management access roles
-const FLEET_MANAGEMENT_ROLES = ["GROUP_FLEET_MANAGEMENT"];
-
 export const ROUTE_PERMISSIONS = {
   // Main routes
   "/": [], // Public route
@@ -58,9 +55,6 @@ export const ROUTE_PERMISSIONS = {
   "/api/admin/message-templates": ADMIN_ROLES,
   "/api/admin/webhooks": ADMIN_ROLES,
 
-  // Fleet management
-  "/fleet-management": FLEET_MANAGEMENT_ROLES,
-
   // Integrations job console — any authenticated org member; the backend
   // enforces org membership per request.
   "/integrations/jobs": [],
@@ -68,6 +62,10 @@ export const ROUTE_PERMISSIONS = {
   // Storytelling (list + /storytelling/[id] detail, matched by prefix) — any
   // authenticated org member (frontend-only demo for now).
   "/storytelling": [],
+
+  // Fleet (list, /fleet/[assetId] and its edit page, matched by prefix) — any
+  // authenticated member; the modulith checks fleet:assets.view / .edit.
+  "/fleet": [],
 
   // Settings › Connections (templates + connections) — any authenticated member;
   // the backend owner-gates every mutation per request.

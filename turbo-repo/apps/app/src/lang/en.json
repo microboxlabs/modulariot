@@ -2271,6 +2271,7 @@
         "organizations": "Organizations",
         "team": "Team",
         "dataSources": "Data Sources",
+        "places": "Places of interest",
         "credentials": "Credentials",
         "connections": "Connections",
         "harness": "Harness",
@@ -2404,6 +2405,7 @@
         "title": "Settings",
         "general": "General",
         "dataSources": "Data Sources",
+        "places": "Places of interest",
         "credentials": "Credentials",
         "selectables": "Selectables",
         "contactBook": "Contact book",
@@ -4035,6 +4037,7 @@
         "organizations": "Organizations",
         "team": "Team",
         "dataSources": "Data Sources",
+        "places": "Places of interest",
         "credentials": "Credentials",
         "connections": "Connections",
         "harness": "Harness",
@@ -5574,6 +5577,26 @@
       "decodeError": "Error decoding image",
       "downloadSuccess": "Image downloaded",
       "downloadError": "Error downloading image"
+    },
+    "profiles": {
+      "label": "Profile",
+      "admin": "Admin",
+      "other": "Other",
+      "comingSoon": "coming soon"
+    },
+    "notch": {
+      "label": "Map views",
+      "places": "Places of interest"
+    },
+    "places": {
+      "title": "Places of interest",
+      "hint": "Search the catalog or import. Right-click the map to create a place or a route."
+    },
+    "layers": {
+      "title": "Layers",
+      "vehiculos": "Vehicles",
+      "geocercas": "Geofences",
+      "trayectos": "Routes"
     }
   },
   "release": {

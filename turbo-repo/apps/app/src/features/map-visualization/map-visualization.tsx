@@ -2,11 +2,16 @@
 
 import type { LayersList, PickingInfo } from "@deck.gl/core";
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
-import Map, { useControl, MapRef } from "react-map-gl";
+import Map, {
+  useControl,
+  MapRef,
+  type MapLayerMouseEvent,
+  type ViewState,
+} from "react-map-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { DeckProps } from "@deck.gl/core";
 import { Spinner } from "flowbite-react";
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import type {
   MapDataProvider,
   MapDataProviderDefaults,
@@ -24,13 +29,27 @@ import { attachBoxZoom } from "./box-zoom";
 // Constants / helpers
 // ============================================================================
 
-const mapStyles = {
+export const mapStyles = {
   streets: "mapbox://styles/mapbox/streets-v9",
   satellite: "mapbox://styles/mapbox/satellite-streets-v11",
   dark: "mapbox://styles/mapbox/dark-v10",
   light: "mapbox://styles/mapbox/light-v10",
   outdoors: "mapbox://styles/mapbox/outdoors-v11",
   hybrid: "mapbox://styles/mapbox/hybrid-v10",
+};
+
+export type MapStyleName = keyof typeof mapStyles;
+
+function zoomUnDecimal(z: number): number {
+  return Math.round(z * 10) / 10;
+}
+
+const DEFAULT_INITIAL_VIEW_STATE: Partial<ViewState> = {
+  longitude: -62.136105,
+  latitude: -21.756514,
+  zoom: 2,
+  pitch: 45,
+  bearing: 45,
 };
 
 // Matches the UUID segment in named-layer IDs like "named-layer-{uuid}-points-scatterplot"
@@ -120,10 +139,15 @@ export default function MapVisualization({
   onFeatureHover,
   onFeatureClick,
   onLayerClick,
+  onMapClick,
+  onMapContextMenu,
+  idleCursor,
+  initialViewState = DEFAULT_INITIAL_VIEW_STATE,
   rounded = true,
+  children,
   minZoom,
 }: {
-  mapStyle: keyof typeof mapStyles;
+  mapStyle: MapStyleName;
   layers: LayersList;
   isLoading?: boolean;
   mapRef: RefObject<MapRef | null>;
@@ -135,7 +159,16 @@ export default function MapVisualization({
   onFeatureClick?: (info: FeatureHoverInfo | null) => void;
   /** Raw pick callback for any layer click (used by custom layers passed via `layers`) */
   onLayerClick?: (info: PickingInfo) => void;
+  /** Click anywhere on the base map (fires alongside deck.gl picking) */
+  onMapClick?: (e: MapLayerMouseEvent) => void;
+  /** Right click on the base map. */
+  onMapContextMenu?: (e: MapLayerMouseEvent) => void;
+  /** Cursor when not dragging, replacing the default grab/pointer (e.g. "crosshair" while drawing). */
+  idleCursor?: string;
+  initialViewState?: Partial<ViewState>;
   rounded?: boolean;
+  /** Native react-map-gl children (Source/Layer/Marker) rendered on the map */
+  children?: ReactNode;
   /** Lowest zoom the user can reach; Mapbox's default is -2. */
   minZoom?: number;
 }) {
@@ -145,6 +178,8 @@ export default function MapVisualization({
   const hasMapboxAccessToken = mapboxAccessToken.trim().length > 0;
   const shouldRenderMap = !isRuntimeConfigLoading && hasMapboxAccessToken;
   const [cursor, setCursor] = useState<string>("grab");
+  const cursorRef = useRef(cursor);
+  cursorRef.current = cursor;
   const [isMapDragging, setIsMapDragging] = useState(false);
   const [internalZoom, setInternalZoom] = useState(2.5);
   const [selectedPath, setSelectedPath] = useState<{
@@ -317,6 +352,9 @@ export default function MapVisualization({
           .mapboxgl-ctrl-logo { display: none !important; }
           .mapboxgl-ctrl-attrib a { color: #333 !important; text-decoration: none !important; }
           .mapboxgl-ctrl-attrib a:hover { text-decoration: underline !important; }
+          .miot-places-labels .mapboxgl-canvas-container { z-index: 4; }
+          .miot-places-labels .mapboxgl-marker { z-index: 5; }
+          .miot-places-labels .mapboxgl-control-container canvas { pointer-events: none; }
         `}
       </style>
     ),
@@ -334,8 +372,8 @@ export default function MapVisualization({
           mapboxAccessToken={mapboxAccessToken}
           mapStyle={mapStyles[mapStyle]}
           onLoad={(e) => {
-            const z = e.target.getZoom();
-            setInternalZoom(z);
+            const z = zoomUnDecimal(e.target.getZoom());
+            setInternalZoom((prev) => (prev === z ? prev : z));
             onZoomChange?.(z);
             detachBoxZoomRef.current?.();
             detachBoxZoomRef.current = attachBoxZoom(e.target);
@@ -343,19 +381,16 @@ export default function MapVisualization({
           boxZoom={false}
           minZoom={minZoom}
           onZoom={(e) => {
-            setInternalZoom(e.viewState.zoom);
-            onZoomChange?.(e.viewState.zoom);
+            const z = zoomUnDecimal(e.viewState.zoom);
+            setInternalZoom((prev) => (prev === z ? prev : z));
+            onZoomChange?.(z);
           }}
           onDragStart={() => setIsMapDragging(true)}
           onDragEnd={() => setIsMapDragging(false)}
-          cursor={cursor}
-          initialViewState={{
-            longitude: -62.136105,
-            latitude: -21.756514,
-            zoom: 2,
-            pitch: 45,
-            bearing: 45,
-          }}
+          onClick={onMapClick}
+          onContextMenu={onMapContextMenu}
+          cursor={!isMapDragging && idleCursor ? idleCursor : cursor}
+          initialViewState={initialViewState}
           preserveDrawingBuffer={true}
           antialias={true}
         >
@@ -364,6 +399,7 @@ export default function MapVisualization({
               <Spinner />
             </div>
           )}
+          {children}
           <DeckGLOverlay
             layers={mergedLayers}
             onHover={handleHover}
@@ -372,12 +408,17 @@ export default function MapVisualization({
               let newCursor: string;
               if (isMapDragging) {
                 newCursor = "grabbing";
+              } else if (idleCursor) {
+                newCursor = idleCursor;
               } else if (isHovering) {
                 newCursor = "pointer";
               } else {
                 newCursor = "grab";
               }
-              setCursor(newCursor);
+              if (cursorRef.current !== newCursor) {
+                cursorRef.current = newCursor;
+                queueMicrotask(() => setCursor(newCursor));
+              }
               return newCursor;
             }}
           />

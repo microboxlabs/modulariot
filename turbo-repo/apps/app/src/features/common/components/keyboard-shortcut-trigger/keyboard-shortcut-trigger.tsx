@@ -17,6 +17,8 @@ export default function KeyboardShortcutTrigger({
   onTrigger,
   withModifier = true,
   enabled = true,
+  shift,
+  ignore,
   children,
 }: Readonly<{
   shortcutKey: string;
@@ -30,6 +32,10 @@ export default function KeyboardShortcutTrigger({
    * can't fire an action the user has no way to see.
    */
   enabled?: boolean;
+  /** Require Shift held (true) or not (false); see `useKeyboardShortcut`. */
+  shift?: boolean;
+  /** Skip key events this returns true for (e.g. typing in a field). */
+  ignore?: (e: KeyboardEvent) => boolean;
   children: ReactNode;
 }>) {
   const { modifierHeld, justTriggered } = useKeyboardShortcut({
@@ -37,6 +43,8 @@ export default function KeyboardShortcutTrigger({
     withModifier,
     onTrigger,
     enabled,
+    shift,
+    ignore,
   });
 
   return (

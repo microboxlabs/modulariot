@@ -2271,6 +2271,7 @@
         "organizations": "Organizaciones",
         "team": "Equipo",
         "dataSources": "Fuentes de Datos",
+        "places": "Lugares de interés",
         "credentials": "Credenciales",
         "connections": "Conexiones",
         "harness": "Harness",
@@ -2404,6 +2405,7 @@
         "title": "Ajustes",
         "general": "General",
         "dataSources": "Fuentes de Datos",
+        "places": "Lugares de interés",
         "credentials": "Credenciales",
         "selectables": "Seleccionables",
         "contactBook": "Libreta de contactos",
@@ -4039,6 +4041,7 @@
         "organizations": "Organizaciones",
         "team": "Equipo",
         "dataSources": "Fuentes de Datos",
+        "places": "Lugares de interés",
         "credentials": "Credenciales",
         "connections": "Conexiones",
         "harness": "Harness",
@@ -5574,6 +5577,26 @@
       "decodeError": "Error al decodificar imagen",
       "downloadSuccess": "Imagen descargada",
       "downloadError": "Error al descargar imagen"
+    },
+    "profiles": {
+      "label": "Perfil",
+      "admin": "Admin",
+      "other": "Otro",
+      "comingSoon": "próximamente"
+    },
+    "notch": {
+      "label": "Vistas del mapa",
+      "places": "Lugares de interés"
+    },
+    "places": {
+      "title": "Lugares de interés",
+      "hint": "Busca en el catálogo o importa. Clic derecho en el mapa para crear un lugar o un trayecto."
+    },
+    "layers": {
+      "title": "Capas",
+      "vehiculos": "Vehículos",
+      "geocercas": "Geocercas",
+      "trayectos": "Trayectos"
     }
   },
   "release": {

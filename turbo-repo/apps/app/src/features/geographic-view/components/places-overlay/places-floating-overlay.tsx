@@ -4,13 +4,12 @@ import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
   PlacesCatalogLists,
-  PlacesImportCard,
-} from "@/features/settings-admin/places/places-catalog";
-import {
   PlacesEditorOverlays,
+  PlacesImportCard,
+  PANEL_LUGARES,
   PlacesStackedFormCards,
-} from "@/features/settings-admin/places/places-editor-overlays";
-import type { PlacesWorkspace } from "@/features/settings-admin/places/use-places-workspace";
+  type PlacesWorkspace,
+} from "@/features/places";
 import { ExpandPanel, GrowPanel } from "./panel-motion";
 
 export default function PlacesFloatingOverlay({
@@ -26,12 +25,12 @@ export default function PlacesFloatingOverlay({
 
   return (
     <>
-      {show && <PlacesEditorOverlays ws={ws} stacked dict={dict} />}
+      {show && <PlacesEditorOverlays ws={ws} dict={dict} />}
       {/* barra lateral pegada al borde derecho del mapa, de alto completo
           (como la que tenía esta vista); se despliega a lo ancho */}
       <ExpandPanel
         show={show}
-        width="w-110"
+        width={PANEL_LUGARES.ancho}
         className="pointer-events-auto absolute top-0 right-0 bottom-0 z-40 border-l border-gray-200 bg-gray-50 shadow-2xl dark:border-gray-700 dark:bg-gray-900"
         innerClassName="p-3"
       >
@@ -68,11 +67,7 @@ export default function PlacesFloatingOverlay({
                       {tr("geographic_view.places.hint", dict)}
                     </p>
                   </div>
-                  <PlacesCatalogLists
-                    ws={ws}
-                    searchAndImport
-                    className="min-h-0 flex-1"
-                  />
+                  <PlacesCatalogLists ws={ws} className="min-h-0 flex-1" />
                 </>
               )}
             </div>

@@ -92,18 +92,6 @@ describe("map layers card", () => {
     expect(onCambiar).toHaveBeenCalledWith("vehiculos", false);
   });
 
-  it("renders nothing on a view without layers", () => {
-    const { container } = render(
-      <MapLayersCard
-        dict={dict}
-        capas={CAPAS_POR_DEFECTO}
-        disponibles={[]}
-        onCambiar={vi.fn()}
-      />
-    );
-    expect(container).toBeEmptyDOMElement();
-  });
-
   it("joins neighbouring active layers like a button group", () => {
     // alone: a circle; in a run: only the ends of the run are round
     expect(formaCapa(false, false)).toBe("rounded-full");

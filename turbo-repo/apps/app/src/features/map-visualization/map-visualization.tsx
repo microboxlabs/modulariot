@@ -352,9 +352,6 @@ export default function MapVisualization({
           .mapboxgl-ctrl-logo { display: none !important; }
           .mapboxgl-ctrl-attrib a { color: #333 !important; text-decoration: none !important; }
           .mapboxgl-ctrl-attrib a:hover { text-decoration: underline !important; }
-          .miot-places-labels .mapboxgl-canvas-container { z-index: 4; }
-          .miot-places-labels .mapboxgl-marker { z-index: 5; }
-          .miot-places-labels .mapboxgl-control-container canvas { pointer-events: none; }
         `}
       </style>
     ),

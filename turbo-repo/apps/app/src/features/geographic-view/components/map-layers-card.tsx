@@ -170,7 +170,6 @@ export default function MapLayersCard({
   disponibles: CapaMapa[];
   onCambiar: (capa: CapaMapa, ver: boolean) => void;
 }>) {
-  if (disponibles.length === 0) return null;
   return (
     <section aria-label={tr("geographic_view.layers.title", dict)}>
       {/* misma píldora que el notch de arriba */}

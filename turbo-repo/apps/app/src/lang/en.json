@@ -5592,6 +5592,17 @@
       "title": "Places of interest",
       "hint": "Search the catalog or import. Right-click the map to create a place or a route."
     },
+    "places_permission_debug": {
+      "title": "Debug · Places editor",
+      "hint": "Try the view with and without the permission. This browser only.",
+      "real": "From roles",
+      "on": "Force on",
+      "off": "Force off",
+      "granted": "Your roles grant it",
+      "denied": "Your roles don't grant it",
+      "active": "On",
+      "inactive": "Off"
+    },
     "layers": {
       "title": "Layers",
       "vehiculos": "Vehicles",

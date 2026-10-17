@@ -1,16 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { FORM_VACIO } from "@/features/settings-admin/places/places.types";
-import type { PlacesWorkspace } from "@/features/settings-admin/places/use-places-workspace";
+import { FORM_VACIO, type PlacesWorkspace } from "@/features/places";
 import PlacesFloatingOverlay from "./places-floating-overlay";
 
-vi.mock("@/features/settings-admin/places/places-catalog", () => ({
+vi.mock("@/features/places/catalog/places-catalog", () => ({
   PlacesCatalogLists: () => <div>lugares-de-interes</div>,
   PlacesImportCard: () => <div>importar-lugares</div>,
 }));
 
-vi.mock("@/features/settings-admin/places/places-editor-overlays", () => ({
+vi.mock("@/features/places/map/places-editor-overlays", () => ({
   PlacesEditorOverlays: () => null,
   PlacesStackedFormCards: () => <div>formulario-lugar</div>,
 }));

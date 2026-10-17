@@ -12,16 +12,28 @@ import {
 } from "../types/map";
 import Filters from "./filters";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
 import MapTooltip from "./map-tooltip";
 import PinTooltip from "./tooltips/pin-tooltip";
 import MapStyleSelector from "./map-style-selector";
 import MapLayersCard, { capasDeVista, useCapasMapa } from "./map-layers-card";
-import PlaceBadgeTooltip from "@/features/settings-admin/places/place-badge-tooltip";
+import {
+  CURSOR_AGREGAR,
+  PANEL_LUGARES,
+  PlaceBadgeTooltip,
+  PlacesMapLayers,
+  capasNombresGeocercas,
+  itemsNombresMapa,
+  useResaltadoAnimado,
+  usePlacesWorkspace,
+  zoomAlClicNombre,
+  type ItemNombre,
+} from "@/features/places";
 import { MapRef } from "react-map-gl";
 import MapVisualizationGeneric from "@/features/map-visualization/map-visualization";
 import { useGeographicProfile } from "../profiles/geographic-profile-context";
 import MapNotch from "./map-notch/map-notch";
+import PlacesPermissionDebug from "./places-permission-debug";
+import { DEBUG_PERMISO_LUGARES } from "../profiles/places-permission";
 import PlacesFloatingOverlay from "./places-overlay/places-floating-overlay";
 import { twMerge } from "tailwind-merge";
 import {
@@ -29,16 +41,6 @@ import {
   SlidePanel,
   usePanelOpen,
 } from "./places-overlay/panel-motion";
-import PlacesMapLayers from "@/features/settings-admin/places/places-map-layers";
-import { CURSOR_AGREGAR } from "@/features/settings-admin/places/cursors";
-import {
-  itemsNombresMapa,
-  type ItemNombre,
-} from "@/features/settings-admin/places/place-labels";
-import { capasNombresGeocercas } from "@/features/settings-admin/places/place-name-layer";
-import { useResaltadoAnimado } from "@/features/settings-admin/places/highlight-animation";
-import { zoomAlClicNombre } from "@/features/settings-admin/places/geofence-lod";
-import { usePlacesWorkspace } from "@/features/settings-admin/places/use-places-workspace";
 
 type MapVisualizationProps = {
   mapPositions: MapPosition[] | null;
@@ -300,6 +302,8 @@ export default function MapVisualization({
         ) : null}
       </MapVisualizationGeneric>
       <div className="absolute bottom-5 left-5 z-40 flex flex-col gap-2">
+        {/* solo con NEXT_PUBLIC_DEBUG_PLACES_PERMISSION=true: probar Lugares sin el permiso */}
+        {DEBUG_PERMISO_LUGARES && <PlacesPermissionDebug dict={dict} />}
         <MapStyleSelector
           dict={dict}
           selectedStyle={mapStyle}
@@ -324,7 +328,7 @@ export default function MapVisualization({
         className={twMerge(
           "absolute top-5 z-50 flex flex-col items-end gap-2 transition-[right]",
           EXPAND_TRANSITION,
-          lugaresAbierto ? "right-115" : "right-5"
+          lugaresAbierto ? PANEL_LUGARES.aSuLado : "right-5"
         )}
       >
         <MapNotch dict={dict} />

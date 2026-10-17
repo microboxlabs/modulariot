@@ -5592,6 +5592,17 @@
       "title": "Lugares de interés",
       "hint": "Busca en el catálogo o importa. Clic derecho en el mapa para crear un lugar o un trayecto."
     },
+    "places_permission_debug": {
+      "title": "Debug · Editor de lugares",
+      "hint": "Prueba la vista con y sin el permiso. Solo en este navegador.",
+      "real": "Según roles",
+      "on": "Forzar activo",
+      "off": "Forzar inactivo",
+      "granted": "Tus roles lo tienen",
+      "denied": "Tus roles no lo tienen",
+      "active": "Activo",
+      "inactive": "Inactivo"
+    },
     "layers": {
       "title": "Capas",
       "vehiculos": "Vehículos",

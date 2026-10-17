@@ -390,11 +390,6 @@ const MSG_IMPORT_VACIO =
 // con la geocerca real. 0 = dibujar siempre los vértices exactos.
 export const GEOJSON_EXACTO = 0;
 
-export const PLACES_INITIAL_VIEW = {
-  longitude: -70.9,
-  latitude: -33.3,
-  zoom: 6.5,
-};
 // Everything is drawn with native Source/Layer children; no deck.gl layers.
 export const NO_DECK_LAYERS: LayersList = [];
 
@@ -2045,12 +2040,6 @@ export function usePlacesWorkspace(
 
   const inp =
     "w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2.5 py-1.5 text-sm text-gray-900 dark:text-white";
-  const btnTab = (activo: boolean, color = "bg-blue-600") =>
-    `flex-1 rounded-lg px-2 py-1.5 text-xs font-medium ${
-      activo
-        ? `${color} text-white`
-        : "border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
-    }`;
 
   const abrirImport = () => {
     setMenu(null);
@@ -2187,7 +2176,6 @@ export function usePlacesWorkspace(
     fileRef,
     abrirImport,
     inp,
-    btnTab,
   };
 }
 

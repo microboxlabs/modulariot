@@ -11,6 +11,7 @@ import { twMerge } from "tailwind-merge";
 import { z } from "zod";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import type { GeographicMapViewId } from "../profiles/geographic-profile-context";
 
 export type CapaMapa = "vehiculos" | "geocercas" | "trayectos";
 export type CapasMapa = Record<CapaMapa, boolean>;
@@ -81,12 +82,12 @@ export function useCapasMapa(): [
 
 /**
  * Lo que tiene sentido apagar en cada vista: la general no dibuja trayectos
- * y Lugares no muestra vehículos; la de prueba no tiene capas.
+ * y Lugares no muestra vehículos.
  */
-export function capasDeVista(vista: string | null): CapaMapa[] {
-  if (vista === "places") return ["geocercas", "trayectos"];
-  if (vista === null) return ["vehiculos", "geocercas"];
-  return [];
+export function capasDeVista(vista: GeographicMapViewId | null): CapaMapa[] {
+  return vista === "places"
+    ? ["geocercas", "trayectos"]
+    : ["vehiculos", "geocercas"];
 }
 
 /**

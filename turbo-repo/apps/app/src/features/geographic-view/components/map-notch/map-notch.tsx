@@ -3,18 +3,24 @@
 import { useState } from "react";
 import { twMerge } from "tailwind-merge";
 import type { IconType } from "react-icons";
-import { HiOutlineLocationMarker, HiOutlineBeaker } from "react-icons/hi";
+import { HiOutlineLocationMarker, HiX } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type { GeographicMapViewId } from "../../profiles/geographic-profile-context";
 import { useGeographicProfile } from "../../profiles/geographic-profile-context";
 
 const ITEM_SIZE = 40;
 
+/** Ícono y X en el mismo lugar: se cruzan girando un cuarto de vuelta. */
+const ICONO_CLS =
+  "absolute h-4 w-4 transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none";
+const ICONO_DENTRO = "rotate-0 scale-100 opacity-100";
+const ICONO_FUERA = "rotate-90 scale-50 opacity-0";
+
 type NotchItem = {
   id: GeographicMapViewId;
   icon: IconType;
-  capability: "placesEditor" | "testView";
+  capability: "placesEditor";
 };
 
 const NOTCH_ITEMS: NotchItem[] = [
@@ -23,16 +29,14 @@ const NOTCH_ITEMS: NotchItem[] = [
     icon: HiOutlineLocationMarker,
     capability: "placesEditor",
   },
-  {
-    id: "test",
-    icon: HiOutlineBeaker,
-    capability: "testView",
-  },
 ];
 
+const NOTCH_LABELS: Record<GeographicMapViewId, string> = {
+  places: "geographic_view.notch.places",
+};
+
 function notchLabel(id: GeographicMapViewId, dict: I18nRecord): string {
-  if (id === "places") return tr("geographic_view.notch.places", dict);
-  return tr("geographic_view.notch.test", dict);
+  return trDynamic(NOTCH_LABELS[id], dict);
 }
 
 function selectedIndex(activeView: GeographicMapViewId | null): number {
@@ -73,9 +77,7 @@ function MapNotchItem({
           "border border-gray-200 bg-white text-gray-900 shadow-lg",
           "dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100",
           "pointer-events-none origin-right transition duration-200 ease-out",
-          hovered
-            ? "translate-x-0 opacity-100"
-            : "translate-x-2 opacity-0"
+          hovered ? "translate-x-0 opacity-100" : "translate-x-2 opacity-0"
         )}
       >
         {label}
@@ -92,7 +94,20 @@ function MapNotchItem({
             : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
         )}
       >
-        <Icon className="h-4 w-4" />
+        {/* abierto: el ícono gira y se desvanece en una X (clic = cerrar) */}
+        <Icon
+          aria-hidden
+          data-notch-icon={selected ? "hidden" : "shown"}
+          className={twMerge(ICONO_CLS, selected ? ICONO_FUERA : ICONO_DENTRO)}
+        />
+        <HiX
+          aria-hidden
+          data-notch-close={selected ? "shown" : "hidden"}
+          className={twMerge(
+            ICONO_CLS,
+            selected ? ICONO_DENTRO : "-rotate-90 scale-50 opacity-0"
+          )}
+        />
       </button>
     </div>
   );

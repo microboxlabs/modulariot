@@ -68,7 +68,6 @@ describe("map layers card", () => {
   it("offers only the layers each view draws", () => {
     expect(capasDeVista(null)).toEqual(["vehiculos", "geocercas"]);
     expect(capasDeVista("places")).toEqual(["geocercas", "trayectos"]);
-    expect(capasDeVista("test")).toEqual([]);
   });
 
   it("switches a layer from its on/off button", () => {

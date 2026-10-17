@@ -5586,9 +5586,7 @@
     },
     "notch": {
       "label": "Map views",
-      "places": "Places of interest",
-      "test": "Test view",
-      "testHint": "Placeholder view to check the notch selection. More views will land here."
+      "places": "Places of interest"
     },
     "places": {
       "title": "Places of interest",

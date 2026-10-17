@@ -4,10 +4,12 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
+import { usePermisoEditorLugares } from "./places-permission";
 import {
   DEFAULT_GEOGRAPHIC_PROFILE,
   GEOGRAPHIC_PROFILES,
@@ -16,7 +18,7 @@ import {
   type GeographicProfileId,
 } from "./geographic-profiles";
 
-export type GeographicMapViewId = "places" | "test";
+export type GeographicMapViewId = "places";
 
 type GeographicProfileContextValue = {
   profileId: GeographicProfileId;
@@ -35,40 +37,45 @@ export function GeographicProfileProvider({
   const [profileId, setProfileIdState] = useState<GeographicProfileId>(
     DEFAULT_GEOGRAPHIC_PROFILE
   );
-  const [activeView, setActiveViewState] =
-    useState<GeographicMapViewId | null>(null);
+  const [activeView, setActiveViewState] = useState<GeographicMapViewId | null>(
+    null
+  );
+  // el editor de lugares necesita además el permiso "Editor de lugares"
+  const permisoLugares = usePermisoEditorLugares();
+  const tiene = useCallback(
+    (id: GeographicProfileId, capability: GeographicCapability) =>
+      profileHasCapability(id, capability) &&
+      (capability !== "placesEditor" || permisoLugares),
+    [permisoLugares]
+  );
+  // sin el permiso (o si se lo quitan) Lugares se cierra
+  useEffect(() => {
+    if (!permisoLugares) setActiveViewState((v) => (v === "places" ? null : v));
+  }, [permisoLugares]);
 
-  const setProfileId = useCallback((id: GeographicProfileId) => {
-    if (!GEOGRAPHIC_PROFILES[id].enabled) return;
-    setProfileIdState(id);
-    setActiveViewState((current) => {
-      if (current === "places" && !profileHasCapability(id, "placesEditor")) {
-        return null;
-      }
-      if (current === "test" && !profileHasCapability(id, "testView")) {
-        return null;
-      }
-      return current;
-    });
-  }, []);
+  const setProfileId = useCallback(
+    (id: GeographicProfileId) => {
+      if (!GEOGRAPHIC_PROFILES[id].enabled) return;
+      setProfileIdState(id);
+      setActiveViewState((current) => {
+        if (current === "places" && !tiene(id, "placesEditor")) return null;
+        return current;
+      });
+    },
+    [tiene]
+  );
 
   const setActiveView = useCallback(
     (id: GeographicMapViewId | null) => {
-      if (id === "places" && !profileHasCapability(profileId, "placesEditor")) {
-        return;
-      }
-      if (id === "test" && !profileHasCapability(profileId, "testView")) {
-        return;
-      }
+      if (id === "places" && !tiene(profileId, "placesEditor")) return;
       setActiveViewState(id);
     },
-    [profileId]
+    [profileId, tiene]
   );
 
   const can = useCallback(
-    (capability: GeographicCapability) =>
-      profileHasCapability(profileId, capability),
-    [profileId]
+    (capability: GeographicCapability) => tiene(profileId, capability),
+    [profileId, tiene]
   );
 
   const value = useMemo(

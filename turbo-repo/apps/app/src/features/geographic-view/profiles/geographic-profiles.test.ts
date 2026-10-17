@@ -14,7 +14,6 @@ describe("geographic profiles", () => {
 
   it("gives admin the places editor and keeps other empty", () => {
     expect(profileHasCapability("admin", "placesEditor")).toBe(true);
-    expect(profileHasCapability("admin", "testView")).toBe(true);
     expect(profileHasCapability("other", "placesEditor")).toBe(false);
   });
 });

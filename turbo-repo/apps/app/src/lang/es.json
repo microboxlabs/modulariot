@@ -5586,9 +5586,7 @@
     },
     "notch": {
       "label": "Vistas del mapa",
-      "places": "Lugares de interés",
-      "test": "Vista de prueba",
-      "testHint": "Vista de prueba para el selector. Aquí se sumarán más vistas."
+      "places": "Lugares de interés"
     },
     "places": {
       "title": "Lugares de interés",

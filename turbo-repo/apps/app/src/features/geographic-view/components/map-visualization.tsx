@@ -74,11 +74,10 @@ export default function MapVisualization({
   // mismo frame, duración y curva que la barra de Lugares: el notch se mueve
   // pegado a su borde al abrir y al cerrar
   const lugaresAbierto = usePanelOpen(placesMode);
-  const testMode = activeView === "test";
   // barra "Capas": qué se dibuja; en la vista general las geocercas (forma y
   // nombre) se ven, solo lectura, bajo los camiones mientras estén activas
   const [capas, setCapa] = useCapasMapa();
-  const geocercasEnGeneral = !placesMode && !testMode && capas.geocercas;
+  const geocercasEnGeneral = !placesMode && capas.geocercas;
   const places = usePlacesWorkspace(mapRef, {
     enabled: placesMode || geocercasEnGeneral,
   });
@@ -338,17 +337,6 @@ export default function MapVisualization({
         />
       </div>
       <PlacesFloatingOverlay dict={dict} ws={places} show={placesMode} />
-      <SlidePanel
-        show={testMode}
-        className="absolute top-4 right-20 z-40 w-[280px] rounded-xl border border-gray-200 bg-white/95 p-4 shadow-2xl backdrop-blur dark:border-gray-700 dark:bg-gray-800/95"
-      >
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-          {tr("geographic_view.notch.test", dict)}
-        </h2>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {tr("geographic_view.notch.testHint", dict)}
-        </p>
-      </SlidePanel>
       {/* vista general: nombre y categorías de la geocerca bajo el mouse */}
       {geocercasEnGeneral && places.tooltipBadge && (
         <PlaceBadgeTooltip

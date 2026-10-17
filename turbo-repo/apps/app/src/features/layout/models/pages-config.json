@@ -105,7 +105,6 @@
     "items": [
       { "href": "/users/settings/platform", "label": "platform", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/organizations", "label": "organizations", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/places", "label": "places", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/team", "label": "team", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/gps", "label": "gps", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/symptoms", "label": "symptomCatalog", "requiredGroups": [], "blockedGroups": [] },

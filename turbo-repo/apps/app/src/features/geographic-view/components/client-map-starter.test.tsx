@@ -14,6 +14,16 @@ vi.mock("@/features/common/providers/client-api.provider", () => ({
   useMapPositionsResume: vi.fn(),
 }));
 
+// the signed-in user's permissions; the places editor needs "Editor de lugares"
+const permisos = vi.hoisted(() => ({ lista: ["controltower:places.edit"] }));
+vi.mock("@/features/settings-admin/team/team-api", () => ({
+  useMyAccess: () => ({
+    access: undefined,
+    accessError: undefined,
+    can: (p: string) => permisos.lista.includes(p),
+  }),
+}));
+
 vi.mock("./map-visualization", () => ({
   default: () => <div>map-ready</div>,
 }));

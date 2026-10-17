@@ -2,10 +2,7 @@ export const GEOGRAPHIC_PROFILE_IDS = ["admin", "other"] as const;
 
 export type GeographicProfileId = (typeof GEOGRAPHIC_PROFILE_IDS)[number];
 
-export const GEOGRAPHIC_CAPABILITIES = [
-  "placesEditor",
-  "testView",
-] as const;
+export const GEOGRAPHIC_CAPABILITIES = ["placesEditor"] as const;
 
 export type GeographicCapability = (typeof GEOGRAPHIC_CAPABILITIES)[number];
 
@@ -22,7 +19,7 @@ export const GEOGRAPHIC_PROFILES: Record<
   admin: {
     id: "admin",
     enabled: true,
-    capabilities: ["placesEditor", "testView"],
+    capabilities: ["placesEditor"],
   },
   other: {
     id: "other",

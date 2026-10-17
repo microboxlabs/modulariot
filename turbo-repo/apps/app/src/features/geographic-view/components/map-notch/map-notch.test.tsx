@@ -1,15 +1,24 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { GeographicProfileProvider } from "../../profiles/geographic-profile-context";
 import MapNotch from "./map-notch";
+
+// the signed-in user's permissions; the places editor needs "Editor de lugares"
+const permisos = vi.hoisted(() => ({ lista: ["controltower:places.edit"] }));
+vi.mock("@/features/settings-admin/team/team-api", () => ({
+  useMyAccess: () => ({
+    access: undefined,
+    accessError: undefined,
+    can: (p: string) => permisos.lista.includes(p),
+  }),
+}));
 
 const dict = {
   geographic_view: {
     notch: {
       label: "Map views",
       places: "Places of interest",
-      test: "Test view",
     },
   },
 } as unknown as I18nRecord;
@@ -23,19 +32,57 @@ function renderNotch() {
 }
 
 describe("MapNotch", () => {
-  it("selects a view and toggles it off on a second click", () => {
-    renderNotch();
-    const places = screen.getByRole("button", { name: "Places of interest" });
-    const test = screen.getByRole("button", { name: "Test view" });
+  beforeEach(() => {
+    permisos.lista = ["controltower:places.edit"];
+    globalThis.localStorage.clear();
+  });
 
-    expect(places).toHaveAttribute("aria-pressed", "false");
+  it("hides the places view without the Editor de lugares permission", () => {
+    permisos.lista = [];
+    renderNotch();
+    expect(
+      screen.queryByRole("button", { name: "Places of interest" })
+    ).toBeNull();
+    // Lugares is the only view: without it there is no notch at all
+    expect(screen.queryByRole("toolbar", { name: "Map views" })).toBeNull();
+  });
+
+  it("drops Lugares when the permission is taken away", () => {
+    const { rerender } = renderNotch();
+    const places = screen.getByRole("button", { name: "Places of interest" });
     fireEvent.click(places);
     expect(places).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(test);
-    expect(test).toHaveAttribute("aria-pressed", "true");
+    permisos.lista = [];
+    rerender(
+      <GeographicProfileProvider>
+        <MapNotch dict={dict} />
+      </GeographicProfileProvider>
+    );
+    expect(
+      screen.queryByRole("button", { name: "Places of interest" })
+    ).toBeNull();
+  });
+
+  it("only offers Lugares de interés and toggles it off on a second click", () => {
+    renderNotch();
+    const places = screen.getByRole("button", { name: "Places of interest" });
+
+    const icono = () => places.querySelector("[data-notch-icon]");
+    const cerrar = () => places.querySelector("[data-notch-close]");
     expect(places).toHaveAttribute("aria-pressed", "false");
-    fireEvent.click(test);
-    expect(test).toHaveAttribute("aria-pressed", "false");
+    expect(icono()).toHaveAttribute("data-notch-icon", "shown");
+    expect(cerrar()).toHaveAttribute("data-notch-close", "hidden");
+
+    // open: its icon turns into an X that closes it
+    fireEvent.click(places);
+    expect(places).toHaveAttribute("aria-pressed", "true");
+    expect(icono()).toHaveAttribute("data-notch-icon", "hidden");
+    expect(cerrar()).toHaveAttribute("data-notch-close", "shown");
+    expect(cerrar()).toHaveClass("transition-[opacity,transform]");
+
+    fireEvent.click(places);
+    expect(places).toHaveAttribute("aria-pressed", "false");
+    expect(icono()).toHaveAttribute("data-notch-icon", "shown");
   });
 
   it("shows a floating section name on hover and hides it when idle", () => {

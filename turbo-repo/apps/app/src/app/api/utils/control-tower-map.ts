@@ -9,7 +9,13 @@ import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
  * database as that organization, so each organization sees only its own assets.
  */
 export async function forwardControlTowerMap(
-  resource: "positions" | "summary" | "conditions" | "symptoms",
+  resource:
+    | "positions"
+    | "summary"
+    | "conditions"
+    | "symptoms"
+    | `symptoms/${string}`
+    | `trips/${string}`,
   search = ""
 ): Promise<NextResponse> {
   const scope = await resolveTenantScope();

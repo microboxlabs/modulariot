@@ -2,7 +2,7 @@
 
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
-import { requestTreatment } from "@/features/common/providers/client-api.provider";
+import { guardedRequestTreatment } from "@/features/symptoms/components/map-view/prototype/prototype-api-guard";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { Button, Select, Textarea } from "flowbite-react";
 import { useState } from "react";
@@ -60,7 +60,7 @@ export default function IgnoreCondition({
           v_symptom_treatment_time: duration,
           status: "active",
         });
-        await requestTreatment({
+        await guardedRequestTreatment({
           ...treatmentRequest,
           status: "active",
           treatment_type: "ignorar condicion",

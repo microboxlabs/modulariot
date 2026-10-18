@@ -113,7 +113,7 @@ function MapNotchItem({
   );
 }
 
-export default function MapNotch({ dict }: { dict: I18nRecord }) {
+export default function MapNotch({ dict }: Readonly<{ dict: I18nRecord }>) {
   const { activeView, setActiveView, can } = useGeographicProfile();
   const items = NOTCH_ITEMS.filter((item) => can(item.capability));
   const activeIndex = selectedIndex(activeView);

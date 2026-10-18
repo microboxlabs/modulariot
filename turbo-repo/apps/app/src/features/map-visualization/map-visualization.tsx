@@ -5,7 +5,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import Map, {
   useControl,
   MapRef,
-  type MapLayerMouseEvent,
+  type MapMouseEvent,
   type ViewState,
 } from "react-map-gl";
 import { MapboxOverlay } from "@deck.gl/mapbox";
@@ -160,9 +160,9 @@ export default function MapVisualization({
   /** Raw pick callback for any layer click (used by custom layers passed via `layers`) */
   onLayerClick?: (info: PickingInfo) => void;
   /** Click anywhere on the base map (fires alongside deck.gl picking) */
-  onMapClick?: (e: MapLayerMouseEvent) => void;
+  onMapClick?: (e: MapMouseEvent) => void;
   /** Right click on the base map. */
-  onMapContextMenu?: (e: MapLayerMouseEvent) => void;
+  onMapContextMenu?: (e: MapMouseEvent) => void;
   /** Cursor when not dragging, replacing the default grab/pointer (e.g. "crosshair" while drawing). */
   idleCursor?: string;
   initialViewState?: Partial<ViewState>;

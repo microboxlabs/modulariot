@@ -22,10 +22,10 @@ import type { PlacesWorkspace } from "../hooks/use-places-workspace";
 export function PlacesImportCard({
   ws,
   className,
-}: {
+}: Readonly<{
   ws: PlacesWorkspace;
   className?: string;
-}) {
+}>) {
   const {
     imp,
     setImp,
@@ -217,10 +217,10 @@ export function PlacesImportCard({
 export function PlacesCatalogLists({
   ws,
   className,
-}: {
+}: Readonly<{
   ws: PlacesWorkspace;
   className?: string;
-}) {
+}>) {
   const hayBusca = ws.busca.trim().length > 0;
   const lugares = filtrarLugares(ws.todosLugares ?? ws.lugares, ws.busca);
   const trayectos = filtrarTrayectos(ws.todosTrayectos ?? [], ws.busca);
@@ -289,7 +289,7 @@ export function PlacesCatalogLists({
                   seleccionadoId={ws.editandoLugarId}
                   onIr={ws.irALugar}
                   onEditar={ws.editarLugar}
-                  onEliminar={(l) => void ws.borrarLugar(l)}
+                  onEliminar={ws.borrarLugar}
                   onHover={ws.setHoveredPlaceId}
                   marcas={sel.marcasLugares}
                   versionDe={(id) => ws.versionDe("lugar", id)}
@@ -302,7 +302,7 @@ export function PlacesCatalogLists({
                   seleccionadoId={ws.editandoTrayId}
                   onIr={ws.irATrayecto}
                   onEditar={ws.editarTrayecto}
-                  onEliminar={(t) => void ws.borrarTrayecto(t)}
+                  onEliminar={ws.borrarTrayecto}
                   marcas={sel.marcasTrayectos}
                   versionDe={(id) => ws.versionDe("trayecto", id)}
                 />

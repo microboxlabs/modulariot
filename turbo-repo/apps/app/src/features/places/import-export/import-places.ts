@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { DOMParser, type Element as NodoXml } from "@xmldom/xmldom";
 import { z } from "zod";
 import {
   FORM_VACIO,
@@ -143,12 +144,12 @@ export function verticesDesdeAnillo(coords: number[][]): LatLon[] {
     if (lat == null || lon == null) continue;
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
     const p: LatLon = [lat, lon];
-    const prev = vs[vs.length - 1];
+    const prev = vs.at(-1);
     if (prev && mismoPunto(prev, p)) continue;
     vs.push(p);
   }
   const first = vs[0];
-  const last = vs[vs.length - 1];
+  const last = vs.at(-1);
   if (first && last && vs.length > 1 && mismoPunto(first, last)) vs.pop();
   return vs;
 }
@@ -216,7 +217,7 @@ function waypointsDeLinea(
 ): LatLon[] {
   if (wpArchivo) return aLatLon(wpArchivo);
   if (points.length <= MAX_PUNTOS) return points;
-  return [points[0]!, points[points.length - 1]!];
+  return [points[0]!, points.at(-1)!];
 }
 
 /**
@@ -254,10 +255,10 @@ function filaLinea(
     points,
     waypoints,
     tipos_puntos:
-      tipos && tipos.length === waypoints.length
+      tipos?.length === waypoints.length
         ? tipos
         : waypoints.map(() => "parada"),
-    ...(categorias && categorias.length === waypoints.length
+    ...(categorias?.length === waypoints.length
       ? { categorias_puntos: categorias }
       : {}),
     kind,
@@ -280,9 +281,17 @@ function nombreDeProps(
 ): string {
   const v =
     props?.name ?? props?.nombre ?? props?.Name ?? props?.title ?? props?.id;
-  if (v == null) return fallback;
-  const s = String(v).trim();
-  return s || fallback;
+  return textoDeValor(v) || fallback;
+}
+
+/**
+ * Texto de un valor del archivo: solo texto, números o sí/no. Un objeto o
+ * una lista no es un nombre ni una dirección: queda vacío.
+ */
+function textoDeValor(v: unknown): string {
+  if (typeof v === "string") return v.trim();
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  return "";
 }
 
 function extraDeProps(props: GeoLoose["properties"]): Partial<FilaImport> {
@@ -290,10 +299,10 @@ function extraDeProps(props: GeoLoose["properties"]): Partial<FilaImport> {
   const external = props?.external_id ?? props?.id_externo;
   const radio = props?.radius_m ?? props?.radio;
   const extra: Partial<FilaImport> = {};
-  if (address != null && String(address).trim())
-    extra.address = String(address).trim();
-  if (external != null && String(external).trim())
-    extra.external_id = String(external).trim();
+  const direccion = textoDeValor(address);
+  if (direccion) extra.address = direccion;
+  const externo = textoDeValor(external);
+  if (externo) extra.external_id = externo;
   if (typeof radio === "number" && Number.isFinite(radio))
     extra.radius_m = radio;
   if (typeof radio === "string" && Number.isFinite(Number(radio)))
@@ -323,33 +332,81 @@ function primerAnillo(coords: GeoLoose["coordinates"]): number[][] {
   return [];
 }
 
+/** Un anillo válido (3+ vértices) como lista de un polígono; si no, ninguno. */
+const comoPoligonos = (vs: LatLon[]): LatLon[][] =>
+  vs.length >= 3 ? [vs] : [];
+
+/** Una fila, o ninguna si no se pudo armar. */
+const comoFilas = (fila: FilaImport | null): FilaImport[] =>
+  fila ? [fila] : [];
+
+/** "Ruta 1", "Ruta 2"… solo si la geometría trae varias partes. */
+const nombreDeParte = (nombre: string, i: number, total: number) =>
+  total > 1 ? `${nombre} ${i + 1}` : nombre;
+
+const TIPOS_ENVOLVENTE = new Set(["rectangle", "square", "envelope"]);
+
+function poligonoDeEnvolvente(coords: GeoLoose["coordinates"]): LatLon[][] {
+  const pares = coordsComoPares(coords);
+  const env = poligonoDesdeEnvolvente(pares);
+  return env ? [env] : comoPoligonos(verticesDesdeAnillo(pares));
+}
+
+function poligonosDeMulti(coords: unknown[]): LatLon[][] {
+  return coords.flatMap((poly) => {
+    if (!Array.isArray(poly)) return [];
+    const ring = Array.isArray(poly[0]) ? (poly[0] as number[][]) : [];
+    return comoPoligonos(verticesDesdeAnillo(ring));
+  });
+}
+
 function poligonosDeCoords(
   type: string,
   coords: GeoLoose["coordinates"]
 ): LatLon[][] {
   const t = type.toLowerCase();
-  if (t === "rectangle" || t === "square" || t === "envelope") {
-    const pares = coordsComoPares(coords);
-    const env = poligonoDesdeEnvolvente(pares);
-    if (env) return [env];
-    const vs = verticesDesdeAnillo(pares);
-    return vs.length >= 3 ? [vs] : [];
-  }
-  if (t === "polygon") {
-    const vs = verticesDesdeAnillo(primerAnillo(coords));
-    return vs.length >= 3 ? [vs] : [];
-  }
-  if (t === "multipolygon" && Array.isArray(coords)) {
-    const out: LatLon[][] = [];
-    for (const poly of coords) {
-      if (!Array.isArray(poly)) continue;
-      const ring = Array.isArray(poly[0]) ? (poly[0] as number[][]) : [];
-      const vs = verticesDesdeAnillo(ring);
-      if (vs.length >= 3) out.push(vs);
-    }
-    return out;
-  }
+  if (TIPOS_ENVOLVENTE.has(t)) return poligonoDeEnvolvente(coords);
+  if (t === "polygon")
+    return comoPoligonos(verticesDesdeAnillo(primerAnillo(coords)));
+  if (t === "multipolygon" && Array.isArray(coords))
+    return poligonosDeMulti(coords);
   return [];
+}
+
+function filaDePunto(
+  coords: GeoLoose["coordinates"],
+  nombre: string,
+  extra: Partial<FilaImport>
+): FilaImport[] {
+  if (!Array.isArray(coords)) return [];
+  const [lon, lat] = coords;
+  if (typeof lon !== "number" || typeof lat !== "number") return [];
+  return comoFilas(filaCirculo(nombre, lat, lon, extra));
+}
+
+function filasDeMultiLinea(
+  partes: number[][][],
+  nombre: string,
+  extra: Partial<FilaImport>,
+  props?: GeoLoose["properties"]
+): FilaImport[] {
+  return partes.flatMap((linea, i) =>
+    comoFilas(
+      filaLinea(nombreDeParte(nombre, i, partes.length), linea, props, extra)
+    )
+  );
+}
+
+function filaDeBbox(
+  bbox: number[],
+  nombre: string,
+  extra: Partial<FilaImport>
+): FilaImport[] {
+  const [west, south, east, north] = bbox;
+  if (west == null || south == null || east == null || north == null) return [];
+  return comoFilas(
+    filaPoligono(nombre, poligonoDesdeBbox(west, south, east, north), extra)
+  );
 }
 
 function filasDesdeGeometria(
@@ -365,58 +422,19 @@ function filasDesdeGeometria(
     );
   }
   const type = geom?.type ?? "";
-  if (type === "Point") {
-    const c = geom?.coordinates;
-    if (!Array.isArray(c) || typeof c[0] !== "number") return [];
-    const lon = c[0];
-    const lat = c[1];
-    if (typeof lon !== "number" || typeof lat !== "number") return [];
-    const fila = filaCirculo(nombre, lat, lon, extra);
-    return fila ? [fila] : [];
-  }
-  if (type === "LineString") {
-    const fila = filaLinea(
-      nombre,
-      coordsComoPares(geom?.coordinates),
-      props,
-      extra
-    );
-    return fila ? [fila] : [];
-  }
-  if (type === "MultiLineString" && Array.isArray(geom?.coordinates)) {
-    const partes = geom.coordinates as number[][][];
-    return partes.flatMap((linea, i) => {
-      const fila = filaLinea(
-        partes.length > 1 ? `${nombre} ${i + 1}` : nombre,
-        linea,
-        props,
-        extra
-      );
-      return fila ? [fila] : [];
-    });
-  }
-  const polys = poligonosDeCoords(type, geom?.coordinates);
+  const coords = geom?.coordinates;
+  if (type === "Point") return filaDePunto(coords, nombre, extra);
+  if (type === "LineString")
+    return comoFilas(filaLinea(nombre, coordsComoPares(coords), props, extra));
+  if (type === "MultiLineString" && Array.isArray(coords))
+    return filasDeMultiLinea(coords as number[][][], nombre, extra, props);
+  const polys = poligonosDeCoords(type, coords);
   if (polys.length > 0) {
-    return polys.flatMap((vs, i) => {
-      const fila = filaPoligono(
-        polys.length > 1 ? `${nombre} ${i + 1}` : nombre,
-        vs,
-        extra
-      );
-      return fila ? [fila] : [];
-    });
-  }
-  if (bbox && bbox.length >= 4) {
-    const [west, south, east, north] = bbox;
-    if (west == null || south == null || east == null || north == null)
-      return [];
-    const fila = filaPoligono(
-      nombre,
-      poligonoDesdeBbox(west, south, east, north),
-      extra
+    return polys.flatMap((vs, i) =>
+      comoFilas(filaPoligono(nombreDeParte(nombre, i, polys.length), vs, extra))
     );
-    return fila ? [fila] : [];
   }
+  if (bbox && bbox.length >= 4) return filaDeBbox(bbox, nombre, extra);
   return [];
 }
 
@@ -451,25 +469,30 @@ export function filasGeoJson(texto: string): FilaImport[] {
 function paresCoordsKml(texto: string): number[][] {
   return texto
     .trim()
-    .split(/[\s\n]+/)
+    .split(/\s+/)
     .map((t) => t.split(",").map(Number))
     .filter(
       (p) => p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1])
     );
 }
 
-function textoDe(el: Element | null): string {
+/** Avisos del parser XML: se ignoran; uno fatal corta el parseo (catch). */
+function ignorarErrorXml() {
+  // sin consola: un KML con detalles menores igual se importa
+}
+
+function textoDe(el: NodoXml | null): string {
   return el?.textContent?.trim() ?? "";
 }
 
-function hijoTag(el: Element, tag: string): Element | undefined {
+function hijoTag(el: NodoXml, tag: string): NodoXml | undefined {
   return el.getElementsByTagName(tag)[0];
 }
 
 /** <ExtendedData><Data name="…"><value>…</value></Data>…: como propiedades. */
-function datosExtendidos(pm: Element): Record<string, ValorJson> {
+function datosExtendidos(pm: NodoXml): Record<string, ValorJson> {
   const out: Record<string, ValorJson> = {};
-  for (const d of [...pm.getElementsByTagName("Data")]) {
+  for (const d of pm.getElementsByTagName("Data")) {
     const nombre = d.getAttribute("name");
     if (!nombre) continue;
     const valor = textoDe(hijoTag(d, "value") ?? null);
@@ -479,7 +502,7 @@ function datosExtendidos(pm: Element): Record<string, ValorJson> {
   return out;
 }
 
-function filaDesdePlacemark(pm: Element): FilaImport | null {
+function filaDesdePlacemark(pm: NodoXml): FilaImport | null {
   const name = textoDe(hijoTag(pm, "name") ?? null) || "Sin nombre";
   const address = textoDe(hijoTag(pm, "address") ?? null) || undefined;
   const extra: Partial<FilaImport> = address ? { address } : {};
@@ -523,8 +546,21 @@ function filaDesdePlacemark(pm: Element): FilaImport | null {
   return null;
 }
 
+/**
+ * El KML se lee con un parser XML propio (xmldom), no con el DOMParser del
+ * navegador: el contenido del archivo nunca llega a ser DOM de la página. Un
+ * archivo mal formado no rompe el import: queda sin filas.
+ */
 export function filasKml(xml: string): FilaImport[] {
-  const doc = new DOMParser().parseFromString(xml, "text/xml");
+  let doc;
+  try {
+    doc = new DOMParser({ onError: ignorarErrorXml }).parseFromString(
+      xml,
+      "text/xml"
+    );
+  } catch {
+    return [];
+  }
   const filas = [...doc.getElementsByTagName("Placemark")]
     .map(filaDesdePlacemark)
     .filter((r): r is FilaImport => r != null);
@@ -548,10 +584,25 @@ function col(head: string[], row: string[], ...names: string[]): string | null {
   return null;
 }
 
+/**
+ * Lo de adentro de "POLYGON ((x y, x y, …))", buscado con indexOf (sin regex
+ * con retroceso: un texto largo no se vuelve lento).
+ */
+function anilloWkt(wkt: string): string | null {
+  const t = wkt.toLowerCase();
+  const inicio = t.indexOf("polygon");
+  if (inicio < 0) return null;
+  const a = t.indexOf("(", inicio);
+  const b = a < 0 ? -1 : t.indexOf("(", a + 1);
+  if (b < 0 || t.slice(a + 1, b).trim()) return null;
+  const c = t.indexOf(")", b + 1);
+  return c < 0 ? null : wkt.slice(b + 1, c).trim() || null;
+}
+
 function verticesDesdeWkt(wkt: string): LatLon[] {
-  const m = wkt.match(/polygon\s*\(\s*\(\s*(.+?)\s*\)\s*\)/i);
-  if (!m?.[1]) return [];
-  const pares = m[1].split(",").map((p) => p.trim().split(/[\s]+/).map(Number));
+  const anillo = anilloWkt(wkt);
+  if (!anillo) return [];
+  const pares = anillo.split(",").map((p) => p.trim().split(/\s+/).map(Number));
   return verticesDesdeAnillo(pares);
 }
 
@@ -575,67 +626,81 @@ function verticesDesdeLista(raw: string): LatLon[] {
     vs.push([lat, lon]);
   }
   const first = vs[0];
-  const last = vs[vs.length - 1];
+  const last = vs.at(-1);
   if (first && last && vs.length > 1 && mismoPunto(first, last)) vs.pop();
   return vs;
+}
+
+/** Valor de una columna de la fila CSV, por cualquiera de sus nombres. */
+type ValorCsv = (...names: string[]) => string | null;
+
+/** Vértices escritos en WKT o como lista "lat,lon;lat,lon". */
+function verticesDeCsv(valor: ValorCsv): LatLon[] {
+  const wkt = valor("wkt", "polygon", "geometria");
+  if (wkt) return verticesDesdeWkt(wkt);
+  const lista = valor("vertices", "vertex", "puntos");
+  return lista ? verticesDesdeLista(lista) : [];
+}
+
+/** Caja oeste/sur/este/norte, solo si vienen las cuatro y son números. */
+function bboxDeCsv(valor: ValorCsv): [number, number, number, number] | null {
+  const crudos = [
+    valor("west", "min_lon", "minx"),
+    valor("south", "min_lat", "miny"),
+    valor("east", "max_lon", "maxx"),
+    valor("north", "max_lat", "maxy"),
+  ];
+  if (crudos.some((c) => !c)) return null;
+  const [west, south, east, north] = crudos.map(Number) as [
+    number,
+    number,
+    number,
+    number,
+  ];
+  return [west, south, east, north].every(Number.isFinite)
+    ? [west, south, east, north]
+    : null;
+}
+
+function extraDeCsv(valor: ValorCsv): Partial<FilaImport> {
+  const extra: Partial<FilaImport> = {};
+  const address = valor("address", "direccion");
+  const externalId = valor("external_id", "id_externo");
+  if (address) extra.address = address;
+  if (externalId) extra.external_id = externalId;
+  return extra;
+}
+
+/** Una fila del CSV: polígono (WKT, lista o caja) o, si no, círculo. */
+function filaDesdeCsv(valor: ValorCsv): FilaImport | null {
+  const name = valor("name", "nombre") ?? "Sin nombre";
+  const extra = extraDeCsv(valor);
+  const vs = verticesDeCsv(valor);
+  if (vs.length >= 3) return filaPoligono(name, vs, extra);
+  const bbox = bboxDeCsv(valor);
+  if (bbox) {
+    const [west, south, east, north] = bbox;
+    return filaPoligono(
+      name,
+      poligonoDesdeBbox(west, south, east, north),
+      extra
+    );
+  }
+  const lat = Number(valor("lat", "latitud"));
+  const lon = Number(valor("lon", "lng", "longitud"));
+  const radioRaw = valor("radius_m", "radio");
+  if (radioRaw) extra.radius_m = Number(radioRaw);
+  return filaCirculo(name, lat, lon, extra);
 }
 
 export function filasCsv(texto: string): FilaImport[] {
   const lineas = texto.split(/\r?\n/).filter((x) => x.trim());
   const sep = lineas[0]?.includes(";") ? ";" : ",";
   const head = (lineas[0] ?? "").split(sep).map((h) => h.trim().toLowerCase());
-  const filas: FilaImport[] = [];
-  for (const ln of lineas.slice(1)) {
+  const filas = lineas.slice(1).flatMap((ln) => {
     const r = ln.split(sep);
-    const valor = (...names: string[]) => col(head, r, ...names);
-    const name = valor("name", "nombre") ?? "Sin nombre";
-    const address = valor("address", "direccion") ?? undefined;
-    const external_id = valor("external_id", "id_externo") ?? undefined;
-    const extra: Partial<FilaImport> = {};
-    if (address) extra.address = address;
-    if (external_id) extra.external_id = external_id;
-    const wkt = valor("wkt", "polygon", "geometria");
-    const lista = valor("vertices", "vertex", "puntos");
-    const vs = wkt
-      ? verticesDesdeWkt(wkt)
-      : lista
-        ? verticesDesdeLista(lista)
-        : [];
-    if (vs.length >= 3) {
-      const fila = filaPoligono(name, vs, extra);
-      if (fila) filas.push(fila);
-      continue;
-    }
-    const westRaw = valor("west", "min_lon", "minx");
-    const eastRaw = valor("east", "max_lon", "maxx");
-    const southRaw = valor("south", "min_lat", "miny");
-    const northRaw = valor("north", "max_lat", "maxy");
-    const west = Number(westRaw);
-    const east = Number(eastRaw);
-    const south = Number(southRaw);
-    const north = Number(northRaw);
-    if (
-      westRaw &&
-      eastRaw &&
-      southRaw &&
-      northRaw &&
-      [west, east, south, north].every(Number.isFinite)
-    ) {
-      const fila = filaPoligono(
-        name,
-        poligonoDesdeBbox(west, south, east, north),
-        extra
-      );
-      if (fila) filas.push(fila);
-      continue;
-    }
-    const lat = Number(valor("lat", "latitud"));
-    const lon = Number(valor("lon", "lng", "longitud"));
-    const radioRaw = valor("radius_m", "radio");
-    if (radioRaw) extra.radius_m = Number(radioRaw);
-    const fila = filaCirculo(name, lat, lon, extra);
-    if (fila) filas.push(fila);
-  }
+    return comoFilas(filaDesdeCsv((...names) => col(head, r, ...names)));
+  });
   return acotar(filas);
 }
 

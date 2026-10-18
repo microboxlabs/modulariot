@@ -117,7 +117,9 @@ function TramoHandles({
   onEditar,
   onSoltar,
   recienArrastrado,
-}: Acciones & { tray: FormTrayecto; recienArrastrado: RefObject<boolean> }) {
+}: Readonly<
+  Acciones & { tray: FormTrayecto; recienArrastrado: RefObject<boolean> }
+>) {
   // parada recién insertada que se está arrastrando
   const [arrastre, setArrastre] = useState<Arrastre | null>(null);
   const lleno = tray.recorrido.length >= MAX_PUNTOS;
@@ -190,16 +192,18 @@ function TramoHandles({
   );
 }
 
-function sinHover() {}
+function sinHover() {
+  // sin resaltado: quien usa los puntos no sigue el hover
+}
 
 /** A y B: círculo con su letra; parada: el "PARE"; desvío: círculo hueco. */
 function MarcaPunto({
   distintivo,
   resaltado,
-}: {
+}: Readonly<{
   distintivo: Distintivo;
   resaltado: boolean;
-}) {
+}>) {
   const anillo = resaltado && "ring-4 ring-blue-400/60";
   if (distintivo.rol === "parada") {
     return (
@@ -237,13 +241,15 @@ export default function RouteHandles({
   editable = true,
   resaltadoId = null,
   onHover = sinHover,
-}: Acciones & {
-  tray: FormTrayecto;
-  editable?: boolean;
-  /** Punto resaltado (hover en la lista o en el mapa). */
-  resaltadoId?: string | null;
-  onHover?: (id: string | null) => void;
-}) {
+}: Readonly<
+  Acciones & {
+    tray: FormTrayecto;
+    editable?: boolean;
+    /** Punto resaltado (hover en la lista o en el mapa). */
+    resaltadoId?: string | null;
+    onHover?: (id: string | null) => void;
+  }
+>) {
   // el navegador dispara click al soltar un arrastre: ignorar ese click
   const recienArrastrado = useRef(false);
   const ds = distintivos(tray.recorrido);

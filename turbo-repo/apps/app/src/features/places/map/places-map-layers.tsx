@@ -34,10 +34,10 @@ const COLOR_ESTADO_IMPORT: ExpressionSpecification = [
 function InnerGeofenceHandles({
   form,
   setForm,
-}: {
+}: Readonly<{
   form: FormLugar;
   setForm: Dispatch<SetStateAction<FormLugar>>;
-}) {
+}>) {
   const inner = innerEnEdicion(form);
   if (!inner) return null;
   return (
@@ -66,7 +66,7 @@ export default function PlacesMapLayers({
   ws,
   vistaGeneral = false,
   ocultar,
-}: {
+}: Readonly<{
   ws: PlacesWorkspace;
   /**
    * Vista general: solo geocercas (sin trayectos) y sus formas solo de
@@ -78,7 +78,7 @@ export default function PlacesMapLayers({
    * o importando (vistas previas, conflictos) se sigue viendo.
    */
   ocultar?: { geocercas?: boolean; trayectos?: boolean };
-}) {
+}>) {
   // flechas de sentido de los trayectos: su imagen se registra en el mapa
   useFlechaRuta();
   const desdeZoom = vistaGeneral ? { minzoom: ZOOM_FORMAS_VISTA_GENERAL } : {};

@@ -53,11 +53,11 @@ function InnerEditor({
   inner,
   onChange,
   faltan,
-}: {
+}: Readonly<{
   inner: InnerGeofence;
   onChange: (next: InnerGeofence) => void;
   faltan: FaltantesLugar;
-}) {
+}>) {
   const kind = geomKindDe(inner);
   const polyBase = normalizarPolyBase(inner.polyBase);
   const vinculado = esRectVinculado(inner);
@@ -81,11 +81,9 @@ function InnerEditor({
   const cambiarRadio = (radius_m: number) => onChange({ ...inner, radius_m });
 
   const pista =
-    kind !== "circle"
-      ? pistaPoligono(polyBase, inner.lat != null)
-      : ubicada
-        ? "Arrastra el centro o el radio en el mapa"
-        : "Clic dentro del lugar para ubicarla";
+    kind === "circle"
+      ? pistaCirculo(ubicada)
+      : pistaPoligono(polyBase, inner.lat != null);
 
   return (
     <div className="space-y-2 px-2 pb-2">
@@ -130,14 +128,14 @@ function InnerRow({
   onChange,
   onRemove,
   faltan,
-}: {
+}: Readonly<{
   inner: InnerGeofence;
   selected: boolean;
   onSelect: () => void;
   onChange: (next: InnerGeofence) => void;
   onRemove: () => void;
   faltan: FaltantesLugar;
-}) {
+}>) {
   const elegir = () => onSelect();
   const quitar = () => onRemove();
   const setColor = (color: string) => onChange({ ...inner, color });
@@ -206,15 +204,21 @@ function InnerRow({
   );
 }
 
+function pistaCirculo(ubicada: boolean): string {
+  return ubicada
+    ? "Arrastra el centro o el radio en el mapa"
+    : "Clic dentro del lugar para ubicarla";
+}
+
 export default function InnerGeofenceFields({
   form,
   setForm,
   mostrarErrores = false,
-}: {
+}: Readonly<{
   form: FormLugar;
   setForm: Dispatch<SetStateAction<FormLugar>>;
   mostrarErrores?: boolean;
-}) {
+}>) {
   const [busca, setBusca] = useState("");
   const padreListo = padreTieneGeometria(form);
   const q = busca.trim().toLowerCase();

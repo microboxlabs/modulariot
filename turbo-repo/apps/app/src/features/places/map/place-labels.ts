@@ -16,6 +16,28 @@ export function anclaLugar(
   return l.center ?? l.polygon?.[0] ?? null;
 }
 
+/** Vértices [lat, lon] de un anillo GeoJSON [lon, lat] (sin los incompletos). */
+function verticesDeAnillo(ring: number[][]): LatLon[] {
+  const verts: LatLon[] = [];
+  for (const [lon, lat] of ring) {
+    if (lon != null && lat != null) verts.push([lat, lon]);
+  }
+  return verts;
+}
+
+function anclaDePoligono(ring: number[][] | undefined): LatLon | null {
+  if (!ring || ring.length < 3) return null;
+  const verts = verticesDeAnillo(ring);
+  return verts.length >= 3 ? centroide(verts) : null;
+}
+
+/** Un trayecto: el badge va en el vértice del medio de su camino. */
+function anclaDeLinea(coords: number[][]): LatLon | null {
+  const medio = coords[Math.floor(coords.length / 2)];
+  if (medio?.[0] == null || medio[1] == null) return null;
+  return [medio[1], medio[0]];
+}
+
 /** Centroide de un Feature ya pintado (mismo ancla que la forma en el mapa). */
 export function anclaDeFeature(f: Feature): LatLon | null {
   const g = f.geometry;
@@ -24,22 +46,8 @@ export function anclaDeFeature(f: Feature): LatLon | null {
     if (lat == null || lon == null) return null;
     return [lat, lon];
   }
-  if (g.type === "Polygon") {
-    const ring = g.coordinates[0];
-    if (!ring || ring.length < 3) return null;
-    const verts: LatLon[] = [];
-    for (const c of ring) {
-      if (c[0] == null || c[1] == null) continue;
-      verts.push([c[1], c[0]]);
-    }
-    return verts.length >= 3 ? centroide(verts) : null;
-  }
-  if (g.type === "LineString") {
-    // un trayecto: el badge va en el vértice del medio de su camino
-    const medio = g.coordinates[Math.floor(g.coordinates.length / 2)];
-    if (medio?.[0] == null || medio[1] == null) return null;
-    return [medio[1], medio[0]];
-  }
+  if (g.type === "Polygon") return anclaDePoligono(g.coordinates[0]);
+  if (g.type === "LineString") return anclaDeLinea(g.coordinates);
   return null;
 }
 
@@ -53,6 +61,22 @@ export function itemsNombresMapa(
     ...itemsDesdeFC(fcPropios, lugares),
     ...itemsDesdeFC(prevLugarFC, lugares),
   ];
+}
+
+/** El padre de una interior: el de la forma o, si no, el del lugar. */
+function padreDeInterior(
+  parentProp: unknown,
+  lugar: Lugar | undefined
+): string | null {
+  const desdeForma = typeof parentProp === "string" ? parentProp : "";
+  return desdeForma || (lugar ? parentPlaceId(lugar) : null) || null;
+}
+
+/** Radio del badge: el de la forma, el del lugar o 250 m por defecto. */
+function radioDeItem(radioProp: unknown, lugar: Lugar | undefined): number {
+  const r = Number(radioProp);
+  if (Number.isFinite(r) && r > 0) return r;
+  return lugar ? radioLugarM(lugar) : 250;
 }
 
 /** Chips a partir de las geocercas que el mapa ya está dibujando. */
@@ -72,12 +96,7 @@ export function itemsDesdeFC(
       props.place_id ?? `${inner ? "inner" : "padre"}-${items.length}`
     );
     const lugar = lugares.find((l) => l.place_id === id);
-    const radioProp = Number(props.radius_m);
-    const parentId = inner
-      ? String(props.parent_id ?? "") ||
-        (lugar ? parentPlaceId(lugar) : "") ||
-        null
-      : null;
+    const parentId = inner ? padreDeInterior(props.parent_id, lugar) : null;
     items.push({
       id,
       name,
@@ -86,12 +105,7 @@ export function itemsDesdeFC(
       ancla: p,
       inner,
       parentId,
-      radio_m:
-        Number.isFinite(radioProp) && radioProp > 0
-          ? radioProp
-          : lugar
-            ? radioLugarM(lugar)
-            : 250,
+      radio_m: radioDeItem(props.radius_m, lugar),
       lugar,
     });
   }

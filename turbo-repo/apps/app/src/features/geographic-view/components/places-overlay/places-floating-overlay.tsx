@@ -16,11 +16,11 @@ export default function PlacesFloatingOverlay({
   dict,
   ws,
   show,
-}: {
+}: Readonly<{
   dict: I18nRecord;
   ws: PlacesWorkspace;
   show: boolean;
-}) {
+}>) {
   const formPantallaCompleta = ws.modo === "lugar" || ws.modo === "trayecto";
 
   return (

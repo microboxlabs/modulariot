@@ -4,7 +4,10 @@ import { Dropdown, DropdownItem } from "flowbite-react";
 import { HiChevronDown } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { GEOGRAPHIC_PROFILES, type GeographicProfileId } from "./geographic-profiles";
+import {
+  GEOGRAPHIC_PROFILES,
+  type GeographicProfileId,
+} from "./geographic-profiles";
 import { useGeographicProfile } from "./geographic-profile-context";
 
 function profileLabel(id: GeographicProfileId, dict: I18nRecord): string {
@@ -12,7 +15,9 @@ function profileLabel(id: GeographicProfileId, dict: I18nRecord): string {
   return tr("geographic_view.profiles.other", dict);
 }
 
-export default function ProfileDropdown({ dict }: { dict: I18nRecord }) {
+export default function ProfileDropdown({
+  dict,
+}: Readonly<{ dict: I18nRecord }>) {
   const { profileId, setProfileId } = useGeographicProfile();
 
   return (

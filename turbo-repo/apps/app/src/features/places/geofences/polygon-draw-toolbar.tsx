@@ -27,7 +27,10 @@ const esMac = () =>
   typeof navigator !== "undefined" &&
   /Mac|iPhone|iPad/.test(navigator.platform);
 
-function AtajoTooltip({ label, tecla }: { label: string; tecla: string }) {
+function AtajoTooltip({
+  label,
+  tecla,
+}: Readonly<{ label: string; tecla: string }>) {
   return (
     <span className="whitespace-nowrap">
       {label} <span className="opacity-60">· {tecla}</span>
@@ -44,7 +47,7 @@ function BotonAccion({
   onClick,
   className,
   children,
-}: {
+}: Readonly<{
   label: string;
   /** Texto visible del botón (corto). */
   texto: string;
@@ -53,7 +56,7 @@ function BotonAccion({
   onClick: () => void;
   className: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <Tooltip
       content={<AtajoTooltip label={label} tecla={tecla} />}
@@ -79,12 +82,12 @@ function GrupoHistorial({
   puedeRehacer,
   onDeshacer,
   onRehacer,
-}: {
+}: Readonly<{
   puedeDeshacer: boolean;
   puedeRehacer: boolean;
   onDeshacer: () => void;
   onRehacer: () => void;
-}) {
+}>) {
   const mod = esMac() ? "⌘" : "Ctrl+";
   const btn =
     "flex h-7 w-7 items-center justify-center text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent dark:text-gray-200 dark:hover:bg-gray-700";
@@ -92,10 +95,9 @@ function GrupoHistorial({
   // la tecla sobre el botón, y el atajo lo dispara. Sin overflow-hidden en
   // el grupo para que esa marca no se recorte.
   return (
-    <div
-      role="group"
+    <fieldset
       aria-label="Historial"
-      className="flex rounded-md border border-gray-200 dark:border-gray-600"
+      className="min-w-0 flex rounded-md border border-gray-200 dark:border-gray-600"
     >
       <KeyboardShortcutTrigger
         shortcutKey="z"
@@ -144,7 +146,7 @@ function GrupoHistorial({
           </button>
         </Tooltip>
       </KeyboardShortcutTrigger>
-    </div>
+    </fieldset>
   );
 }
 
@@ -191,7 +193,7 @@ export default function PolygonDrawToolbar({
   onCancelar,
   onSeguir,
   variante = "poligono",
-}: {
+}: Readonly<{
   variante?: keyof typeof VARIANTES;
   puntos: number;
   cerrado: boolean;
@@ -203,7 +205,7 @@ export default function PolygonDrawToolbar({
   onRehacer: () => void;
   onCancelar: () => void;
   onSeguir: () => void;
-}) {
+}>) {
   useEffect(() => {
     const accion = (e: KeyboardEvent): (() => void) | null => {
       // ⌘Z / ⌘⇧Z los manejan los botones (KeyboardShortcutTrigger)
@@ -247,7 +249,7 @@ export default function PolygonDrawToolbar({
         onRehacer={onRehacer}
       />
       {cerrado ? (
-        <div role="group" aria-label="Edición" className={grupoCls}>
+        <fieldset aria-label="Edición" className={grupoCls}>
           <BotonAccion
             label={v.seguir}
             texto={v.seguir}
@@ -257,9 +259,9 @@ export default function PolygonDrawToolbar({
           >
             <HiPencil className="h-3.5 w-3.5" />
           </BotonAccion>
-        </div>
+        </fieldset>
       ) : (
-        <div role="group" aria-label="Cerrar o cancelar" className={grupoCls}>
+        <fieldset aria-label="Cerrar o cancelar" className={grupoCls}>
           <BotonAccion
             label={puedeTerminar ? v.terminarLabel : v.terminarMin}
             texto={v.terminar}
@@ -280,7 +282,7 @@ export default function PolygonDrawToolbar({
           >
             <HiX className="h-3.5 w-3.5" />
           </BotonAccion>
-        </div>
+        </fieldset>
       )}
     </div>
   );

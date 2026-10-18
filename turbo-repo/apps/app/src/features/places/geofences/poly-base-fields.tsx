@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useId,
   useRef,
   type ChangeEvent,
   type MouseEvent,
@@ -27,7 +28,12 @@ export function acotarMetros(
 export function milesConPunto(n: number): string {
   const sign = n < 0 ? "-" : "";
   const digits = String(Math.round(Math.abs(n)));
-  return sign + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  // de a tres desde la derecha, sin regex con retroceso
+  const grupos: string[] = [];
+  for (let fin = digits.length; fin > 0; fin -= 3) {
+    grupos.unshift(digits.slice(Math.max(0, fin - 3), fin));
+  }
+  return sign + grupos.join(".");
 }
 
 /** Interpreta "1.200" o "1200" como metros. */
@@ -70,13 +76,14 @@ export function SizeInput({
   onChange,
   min = RECT_MIN,
   max = RECT_MAX,
-}: {
+}: Readonly<{
   label: string;
   value: number;
   onChange: (value: number) => void;
   min?: number;
   max?: number;
-}) {
+}>) {
+  const idInput = useId();
   const caja = useRef<HTMLDivElement>(null);
   const arrastre = useRef<{
     x: number;
@@ -93,11 +100,11 @@ export function SizeInput({
   maxRef.current = max;
 
   const bound = useRef({
-    pedirLock() {
+    async pedirLock() {
       const el = caja.current;
       if (!el?.requestPointerLock) return;
       try {
-        void Promise.resolve(el.requestPointerLock()).catch(() => undefined);
+        await el.requestPointerLock();
       } catch {
         /* el navegador no deja bloquear el puntero */
       }
@@ -105,7 +112,7 @@ export function SizeInput({
     mover(ev: Event) {
       const a = arrastre.current;
       if (!a) return;
-      const e = ev as MouseEvent;
+      const e = ev as globalThis.MouseEvent; // el del navegador, no el de React
       const locked = Boolean(document.pointerLockElement);
       if (locked && ev.type === "mousemove" && a.via === "pointer") return;
       if (ev.type === "pointermove") a.via = "pointer";
@@ -166,17 +173,20 @@ export function SizeInput({
   };
 
   return (
+    // el arrastre empieza en el input (control nativo), que llena la caja
     <div
       ref={caja}
       className="flex w-full min-w-0 cursor-ew-resize select-none items-center gap-1 rounded-md border border-gray-200 bg-gray-50 px-2 py-1 dark:border-gray-600 dark:bg-gray-700/60"
       title="Arrastra para ajustar"
-      onPointerDown={alPointerDown}
-      onMouseDown={alMouseDown}
     >
-      <span className="shrink-0 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+      <label
+        htmlFor={idInput}
+        className="shrink-0 text-[10px] font-medium text-gray-500 dark:text-gray-400"
+      >
         {label}
-      </span>
+      </label>
       <input
+        id={idInput}
         type="text"
         inputMode="numeric"
         value={milesConPunto(value)}
@@ -198,14 +208,14 @@ export default function PolyBaseFields({
   onAncho,
   onAlto,
   onVincular,
-}: {
+}: Readonly<{
   anchoM: number;
   altoM: number;
   vinculado: boolean;
   onAncho: (value: number) => void;
   onAlto: (value: number) => void;
   onVincular: (value: boolean) => void;
-}) {
+}>) {
   const toggleVinculo = () => onVincular(!vinculado);
 
   return (

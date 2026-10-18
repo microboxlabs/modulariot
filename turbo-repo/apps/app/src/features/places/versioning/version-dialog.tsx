@@ -197,7 +197,7 @@ export default function VersionDialog({
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto px-6 py-5">
           <div>
             <p className="mb-2 flex items-center justify-between text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">
-              Cambios
+              {"Cambios"}
               <span className="rounded-full bg-gray-200 px-1.5 py-px text-[10px] font-medium text-gray-700 normal-case dark:bg-gray-600 dark:text-gray-200">
                 {pendiente.cambios.length}
               </span>

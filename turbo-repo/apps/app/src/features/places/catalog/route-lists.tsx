@@ -29,7 +29,7 @@ export function TrayectoList({
   onEliminar,
   marcas,
   versionDe,
-}: {
+}: Readonly<{
   /** Casillas para elegir varios (borrar en lote). */
   marcas?: MarcasLista;
   /** Versión vigente de cada trayecto. */
@@ -40,14 +40,14 @@ export function TrayectoList({
   onIr: (t: Trayecto) => void;
   onEditar: (t: Trayecto) => void;
   onEliminar: (t: Trayecto) => void;
-}) {
+}>) {
   return (
     <ListSection
       seleccion={marcas && { ids: trayectos.map((t) => t.trayecto_id), marcas }}
       titulo="Trayectos"
       icono={<TbRoute className="h-4 w-4 text-gray-500 dark:text-gray-400" />}
       total={trayectos.length}
-      vacio={`Sin trayectos${busqueda ? ` para «${busqueda}»` : ""}.`}
+      vacio={busqueda ? `Sin trayectos para «${busqueda}».` : "Sin trayectos."}
     >
       {trayectos.map((t) => (
         <ListCardRow

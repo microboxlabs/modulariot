@@ -2,7 +2,6 @@
 // en Ajustes: versión semántica (mayor.menor.parche), cada cambio del
 // formulario trae su tamaño y la versión recomendada sale del mayor de ellos.
 import type { VersionBump } from "@/features/symptoms/maintainer/maintainer-api";
-import { nextVersion } from "@/features/symptoms/maintainer/publish-dialog";
 import type {
   FormLugar,
   FormTrayecto,
@@ -12,7 +11,7 @@ import type {
 } from "../places.types";
 
 export type { VersionBump };
-export { nextVersion };
+export { nextVersion } from "@/features/symptoms/maintainer/publish-dialog";
 
 /** Lo que nunca se versionó (creado antes o recién creado) está en esta. */
 export const VERSION_INICIAL = "1.0.0";
@@ -36,8 +35,10 @@ const mismoPunto = (a: LatLon | null, b: LatLon | null): boolean => {
 const mismosPuntos = (a: LatLon[], b: LatLon[]): boolean =>
   a.length === b.length && a.every((p, i) => mismoPunto(p, b[i] ?? null));
 const mismoTexto = (a: string, b: string) => a.trim() === b.trim();
+const porTexto = (a: string, b: string) => a.localeCompare(b);
 const mismaLista = (a: string[], b: string[]) =>
-  a.length === b.length && [...a].sort().join("|") === [...b].sort().join("|");
+  a.length === b.length &&
+  [...a].sort(porTexto).join("|") === [...b].sort(porTexto).join("|");
 const citar = (s: string) => (s.trim() ? `«${s.trim()}»` : "vacío");
 
 /** "2 agregadas, 1 quitada" entre dos listas de códigos. */

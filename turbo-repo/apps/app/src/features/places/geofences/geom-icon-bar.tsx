@@ -80,14 +80,14 @@ function GeomIconButton({
   activo,
   compact,
   onChange,
-}: {
+}: Readonly<{
   value: GeomKind;
   label: string;
   icono: ReactNode;
   activo: boolean;
   compact: boolean;
   onChange: (value: GeomKind) => void;
-}) {
+}>) {
   const elegir = () => onChange(value);
   return (
     <button
@@ -111,11 +111,11 @@ export default function GeomIconBar({
   value,
   onChange,
   compact = false,
-}: {
+}: Readonly<{
   value: GeomKind;
   onChange: (value: GeomKind) => void;
   compact?: boolean;
-}) {
+}>) {
   const i = Math.max(
     0,
     OPCIONES.findIndex((o) => o.value === value)
@@ -123,10 +123,9 @@ export default function GeomIconBar({
   const n = OPCIONES.length;
 
   return (
-    <div
-      role="group"
+    <fieldset
       aria-label="Forma de la geocerca"
-      className="relative flex w-full overflow-hidden border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40"
+      className="min-w-0 relative flex w-full overflow-hidden border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40"
     >
       <span
         aria-hidden
@@ -147,6 +146,6 @@ export default function GeomIconBar({
           onChange={onChange}
         />
       ))}
-    </div>
+    </fieldset>
   );
 }

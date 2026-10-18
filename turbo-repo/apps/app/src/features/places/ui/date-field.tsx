@@ -18,13 +18,13 @@ export default function DateField({
   onChange,
   minDate,
   maxDate,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   onChange: (value: string) => void;
   minDate?: string;
   maxDate?: string;
-}) {
+}>) {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
 

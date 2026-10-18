@@ -96,7 +96,7 @@ export function reemplazarVertices(
 }
 
 export function deshacer(f: FormLugar): FormLugar {
-  const previo = f.pasado[f.pasado.length - 1];
+  const previo = f.pasado.at(-1);
   if (!previo) return f;
   return ajustarCierre({
     ...conCentro(f, previo),
@@ -106,7 +106,7 @@ export function deshacer(f: FormLugar): FormLugar {
 }
 
 export function rehacer(f: FormLugar): FormLugar {
-  const siguiente = f.futuro[f.futuro.length - 1];
+  const siguiente = f.futuro.at(-1);
   if (!siguiente) return f;
   return ajustarCierre({
     ...conCentro(f, siguiente),
@@ -153,7 +153,7 @@ export const puntoMedio = ([a1, b1]: LatLon, [a2, b2]: LatLon): LatLon => [
 export function anilloGeoJSON(vertices: LatLon[]): [number, number][] {
   const ring = vertices.map(([la, lo]) => [lo, la] as [number, number]);
   const primero = ring[0];
-  const ultimo = ring[ring.length - 1];
+  const ultimo = ring.at(-1);
   if (
     primero &&
     ultimo &&

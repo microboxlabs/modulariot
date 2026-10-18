@@ -71,11 +71,11 @@ export function FlechasRuta({
   id,
   filter,
   source,
-}: {
+}: Readonly<{
   id: string;
   filter?: FilterSpecification;
   source?: string;
-}) {
+}>) {
   return (
     <Layer
       id={id}

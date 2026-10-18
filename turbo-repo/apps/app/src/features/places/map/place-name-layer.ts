@@ -1,6 +1,5 @@
 import { IconLayer, type IconLayerProps } from "deck.gl";
 import type { LayersList } from "@deck.gl/core";
-import type { MapStyleName } from "@/features/map-visualization/map-visualization";
 import type { ItemNombre } from "./place-labels";
 import { trazosDeIcono } from "./place-name-icons";
 import {
@@ -304,7 +303,9 @@ const atlasCache = new Map<string, Atlas>();
 const MAX_ATLAS_CACHE = 12;
 
 function dibujarAtlas(pagina: Pagina, chips: Map<string, Chip>): Atlas {
-  const firma = Object.keys(pagina.posiciones).sort().join("\u0000");
+  const firma = Object.keys(pagina.posiciones)
+    .sort((a, b) => a.localeCompare(b))
+    .join("\u0000");
   const hit = atlasCache.get(firma);
   if (hit) return hit;
   const canvas = document.createElement("canvas");
@@ -364,34 +365,50 @@ const PROPS_COMUNES = {
   parameters: { depthCompare: "always" as const },
 };
 
-/**
- * Badges de nombres (icono dentro). Los que quedarían juntos se muestran en
- * un cluster "N geocercas"; más una capa para el resaltado.
- * `layerId` cambia al reabrir.
- */
-export function capasNombresGeocercas(
-  items: ItemNombre[],
-  layerId = "place-names",
-  mapStyle: MapStyleName | string = "dark",
-  zoom = 22,
-  onNombre?: (item: ItemNombre) => void,
+/** Sin lugar resaltado desde la lista. */
+const SIN_RESALTADO: { id: string | null; t: number } = { id: null, t: 0 };
+
+export type OpcionesNombres = {
+  /** Cambia al reabrir Lugares (deck.gl vuelve a crear la capa). */
+  layerId?: string;
+  mapStyle?: string;
+  zoom?: number;
+  onNombre?: (item: ItemNombre) => void;
   /** Badge bajo el mouse (null al salir): el clic derecho abre su menú. */
-  onHoverNombre?: (item: ItemNombre | null) => void,
+  onHoverNombre?: (item: ItemNombre | null) => void;
   /**
    * Lugar con hover en la lista y avance de su animación (0 → 1): el badge
    * resaltado aparece encima del normal, creciendo y con fundido.
    */
-  resaltadoAnim: { id: string | null; t: number } = { id: null, t: 0 },
+  resaltadoAnim?: { id: string | null; t: number };
   /** Badge (o cluster) bajo el mouse y dónde, para su tooltip; null al salir. */
   onHoverBadge?: (
     badge: BadgeMapa | null,
     pos: { x: number; y: number }
-  ) => void,
+  ) => void;
   /**
    * Clic en un cluster: acercar solo lo justo para que se abra (no ir a una
    * de sus geocercas). Recibe el centro de sus miembros y ese zoom.
    */
-  onAcercar?: (centro: LatLon, zoom: number) => void
+  onAcercar?: (centro: LatLon, zoom: number) => void;
+};
+
+/**
+ * Badges de nombres (icono dentro). Los que quedarían juntos se muestran en
+ * un cluster "N geocercas"; más una capa para el resaltado.
+ */
+export function capasNombresGeocercas(
+  items: ItemNombre[],
+  {
+    layerId = "place-names",
+    mapStyle = "dark",
+    zoom = 22,
+    onNombre,
+    onHoverNombre,
+    resaltadoAnim = SIN_RESALTADO,
+    onHoverBadge,
+    onAcercar,
+  }: OpcionesNombres = {}
 ): LayersList {
   const tema = temaChipMapa(mapStyle);
   const separar = (miembros: ItemNombre[]) =>

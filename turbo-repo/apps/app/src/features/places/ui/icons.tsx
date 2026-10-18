@@ -77,12 +77,12 @@ export function PlaceIcon({
   fallback = "pin",
   className,
   style,
-}: {
+}: Readonly<{
   id: string | null | undefined;
   fallback?: string;
   className?: string;
   style?: CSSProperties;
-}) {
+}>) {
   const key = claveIcono(id, fallback);
   const RegistryIcon = useRegistryIcon(key);
   if (RegistryIcon) {
@@ -104,11 +104,11 @@ export function IconPicker({
   value,
   fallback,
   onChange,
-}: {
+}: Readonly<{
   value: string;
   fallback: string;
   onChange: (id: string) => void;
-}) {
+}>) {
   return (
     <IconPickerDropdown
       value={claveIcono(value, fallback)}

@@ -241,6 +241,12 @@ export const tiposUbicados = (t: FormTrayecto): TipoPunto[] =>
   t.recorrido.filter((p) => p.punto).map(tipoDe);
 
 /** Recorre waypoints guardados como filas del formulario A → B. */
+/** A es "origen", B es "destino" y los de en medio, "wp-1", "wp-2"… */
+function idDePunto(i: number, total: number): string {
+  if (i === 0) return "origen";
+  return i === total - 1 ? "destino" : `wp-${i}`;
+}
+
 export function recorridoDesdePts(
   pts: LatLon[],
   tipos: TipoPunto[] = [],
@@ -260,7 +266,7 @@ export function recorridoDesdePts(
     ];
   }
   return pts.map((punto, i) => ({
-    id: i === 0 ? "origen" : i === pts.length - 1 ? "destino" : `wp-${i}`,
+    id: idDePunto(i, pts.length),
     texto: textoDesdeCoords(punto),
     punto,
     ...(tipos[i] ? { tipo: tipos[i] } : {}),
@@ -407,7 +413,7 @@ export const puedeConfirmar = (t: FormTrayecto) =>
   !t.confirmado && puntosRecorrido(t) !== null;
 
 export function deshacerRecorrido(t: FormTrayecto): FormTrayecto {
-  const previo = t.pasado[t.pasado.length - 1];
+  const previo = t.pasado.at(-1);
   if (!previo) return t;
   return invalidar({
     ...t,
@@ -418,7 +424,7 @@ export function deshacerRecorrido(t: FormTrayecto): FormTrayecto {
 }
 
 export function rehacerRecorrido(t: FormTrayecto): FormTrayecto {
-  const siguiente = t.futuro[t.futuro.length - 1];
+  const siguiente = t.futuro.at(-1);
   if (!siguiente) return t;
   return invalidar({
     ...t,

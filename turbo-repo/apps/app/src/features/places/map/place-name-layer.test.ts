@@ -83,8 +83,29 @@ type CapaBadges = {
   };
 };
 
-const capas = (...args: Parameters<typeof capasNombresGeocercas>) =>
-  capasNombresGeocercas(...args) as unknown as CapaBadges[];
+type Op = NonNullable<Parameters<typeof capasNombresGeocercas>[1]>;
+/** Las opciones en orden, para escribir los casos más cortos. */
+const capas = (
+  items: ItemNombre[],
+  layerId?: string,
+  mapStyle?: string,
+  zoom?: number,
+  onNombre?: Op["onNombre"],
+  onHoverNombre?: Op["onHoverNombre"],
+  resaltadoAnim?: Op["resaltadoAnim"],
+  onHoverBadge?: Op["onHoverBadge"],
+  onAcercar?: Op["onAcercar"]
+) =>
+  capasNombresGeocercas(items, {
+    layerId,
+    mapStyle,
+    zoom,
+    onNombre,
+    onHoverNombre,
+    resaltadoAnim,
+    onHoverBadge,
+    onAcercar,
+  }) as unknown as CapaBadges[];
 
 const solo = (item: ItemNombre): BadgeMapa => ({ item, miembros: [item] });
 const lejos: [number, number] = [-20, -60];

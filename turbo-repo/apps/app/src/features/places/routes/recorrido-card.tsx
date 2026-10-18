@@ -45,12 +45,12 @@ function BotonCategoriaPunto({
   categoria,
   abierta,
   onAlternar,
-}: {
+}: Readonly<{
   label: string;
   categoria: string | undefined;
   abierta: boolean;
   onAlternar: () => void;
-}) {
+}>) {
   const nombre = useNombreCategoriaPunto(categoria);
   return (
     <button
@@ -84,10 +84,10 @@ function BotonCategoriaPunto({
 function BotonTipoPunto({
   distintivo,
   onCambiar,
-}: {
+}: Readonly<{
   distintivo: Distintivo;
   onCambiar: (tipo: TipoPunto) => void;
-}) {
+}>) {
   const esParada = distintivo.rol === "parada";
   const alternar = () => onCambiar(esParada ? "desvio" : "parada");
   return (
@@ -126,7 +126,7 @@ function FilaPunto({
   onTipoPunto,
   onCategoriaPunto,
   dict,
-}: {
+}: Readonly<{
   onTipoPunto: (id: string, tipo: TipoPunto) => void;
   onCategoriaPunto?: (id: string, categoria: string | undefined) => void;
   dict?: I18nRecord;
@@ -140,7 +140,7 @@ function FilaPunto({
   eligiendo: boolean;
   onRecorrido: OnRecorrido;
   onElegirEnMapa: (id: string) => void;
-}) {
+}>) {
   const id = punto.id;
   const { letra, colorCls, label, rol } = distintivo;
   // A y B son origen y destino; solo los del medio son parada o desvío
@@ -242,8 +242,12 @@ function FilaPunto({
   );
 }
 
-function sinHover() {}
-function sinTipo() {}
+function sinHover() {
+  // sin resaltado: la tarjeta no está conectada al mapa
+}
+function sinTipo() {
+  // sin tipo de punto: la tarjeta solo muestra el recorrido
+}
 
 function estadoRecorrido(tray: FormTrayecto, calculando: boolean): string {
   if (calculando) return "Calculando ruta…";
@@ -266,7 +270,7 @@ export default function RecorridoCard({
   onCategoriaPunto,
   dict,
   className,
-}: {
+}: Readonly<{
   /** Parada o desvío de un punto intermedio (no cambia la ruta). */
   onTipoPunto?: (id: string, tipo: TipoPunto) => void;
   /** Categoría de un punto intermedio; sin esto no se muestra el selector. */
@@ -284,7 +288,7 @@ export default function RecorridoCard({
   onRecorrido: OnRecorrido;
   eligiendoPuntoId?: string | null;
   onElegirEnMapa: (id: string) => void;
-}) {
+}>) {
   const total = tray.recorrido.length;
   const ds = distintivos(tray.recorrido);
   const lleno = total >= MAX_PUNTOS;

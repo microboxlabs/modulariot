@@ -2,7 +2,7 @@
 
 // Campo de dirección o Plus Code con sugerencias (Mapbox Geocoding). Busca 300 ms después
 // de dejar de escribir y cancela la búsqueda anterior.
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useState, type KeyboardEvent } from "react";
 import { twMerge } from "tailwind-merge";
 import { buscarDirecciones, type Sugerencia } from "../data/geocoding";
 import { inputCls, inputErrorCls } from "./form-ui";
@@ -23,7 +23,7 @@ export default function AddressInput({
   onElegir,
   placeholder,
   invalido = false,
-}: {
+}: Readonly<{
   label: string;
   /** "A" / "B": mismo distintivo que el marcador en el mapa. */
   letra?: string;
@@ -37,7 +37,8 @@ export default function AddressInput({
   onElegir: (s: Sugerencia) => void;
   placeholder?: string;
   invalido?: boolean;
-}) {
+}>) {
+  const idLista = useId();
   const [sugerencias, setSugerencias] = useState<Sugerencia[]>([]);
   const [activa, setActiva] = useState(0);
   const [abierto, setAbierto] = useState(false);
@@ -108,6 +109,7 @@ export default function AddressInput({
           aria-label={label}
           aria-invalid={invalido}
           role="combobox"
+          aria-controls={idLista}
           aria-expanded={mostrarLista}
           aria-autocomplete="list"
           value={value.texto}
@@ -123,6 +125,7 @@ export default function AddressInput({
       </div>
       {mostrarLista && (
         <ul
+          id={idLista}
           role="listbox"
           className={twMerge(
             "absolute right-0 z-50 mt-1 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800",

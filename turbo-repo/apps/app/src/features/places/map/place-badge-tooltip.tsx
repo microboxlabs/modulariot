@@ -13,7 +13,7 @@ const MAX_NOMBRES_CLUSTER = 8;
 /** Separación entre el cursor y el tooltip. */
 const DESPLAZAMIENTO_PX = 14;
 
-function CategoriasDelLugar({ codigos }: { codigos: string[] }) {
+function CategoriasDelLugar({ codigos }: Readonly<{ codigos: string[] }>) {
   const { lang, opciones } = useListaCampo(CAMPO_CATEGORIAS);
   if (codigos.length === 0) {
     return (
@@ -40,7 +40,7 @@ function CategoriasDelLugar({ codigos }: { codigos: string[] }) {
   );
 }
 
-function ContenidoLugar({ badge }: { badge: BadgeMapa }) {
+function ContenidoLugar({ badge }: Readonly<{ badge: BadgeMapa }>) {
   const { item } = badge;
   const lugar = item.lugar;
   return (
@@ -74,7 +74,7 @@ function ContenidoLugar({ badge }: { badge: BadgeMapa }) {
   );
 }
 
-function ContenidoCluster({ badge }: { badge: BadgeMapa }) {
+function ContenidoCluster({ badge }: Readonly<{ badge: BadgeMapa }>) {
   const nombres = badge.miembros.map((m) => m.name);
   const resto = nombres.length - MAX_NOMBRES_CLUSTER;
   return (
@@ -103,11 +103,11 @@ export default function PlaceBadgeTooltip({
   badge,
   x,
   y,
-}: {
+}: Readonly<{
   badge: BadgeMapa;
   x: number;
   y: number;
-}) {
+}>) {
   return (
     <div
       role="tooltip"

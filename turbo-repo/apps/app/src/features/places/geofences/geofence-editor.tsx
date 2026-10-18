@@ -154,15 +154,21 @@ export function esFormaParametrica(kind: GeomKind): boolean {
   return kind === "square" || kind === "tri";
 }
 
+/** Alto de la forma base: vinculado sigue al ancho (equilátero si es triángulo). */
+function altoVinculado(
+  f: FormLugar,
+  polyBase: ReturnType<typeof normalizarPolyBase>,
+  rectVinculado: boolean
+): number {
+  if (!rectVinculado) return f.rect_h_m;
+  return polyBase === "tri" ? altoEquilatero(f.rect_w_m) : f.rect_w_m;
+}
+
 /** Regenera el polígono si el formulario usa una forma base (rectángulo o triángulo). */
 export function aplicarFormaBase(f: FormLugar): FormLugar {
   const polyBase = normalizarPolyBase(f.polyBase);
   const rectVinculado = esRectVinculado(f);
-  const rect_h_m = rectVinculado
-    ? polyBase === "tri"
-      ? altoEquilatero(f.rect_w_m)
-      : f.rect_w_m
-    : f.rect_h_m;
+  const rect_h_m = altoVinculado(f, polyBase, rectVinculado);
   const next = { ...f, polyBase, rectVinculado, rect_h_m };
   if (esPoligonoLibre(next) || next.geom !== "polygon") return next;
   if (next.lat == null || next.lon == null) {
@@ -237,12 +243,12 @@ function CircleHandles({
   setForm,
   radioMin = RADIO_MIN,
   radioMax = RADIO_MAX,
-}: {
+}: Readonly<{
   form: FormLugar;
   setForm: Dispatch<SetStateAction<FormLugar>>;
   radioMin?: number;
   radioMax?: number;
-}) {
+}>) {
   // El handle del radio se queda en el ángulo al que se arrastró: si siempre
   // volviera al este, saltaría lejos del cursor en cada movimiento.
   const [angulo, setAngulo] = useState(0);
@@ -300,12 +306,12 @@ export function GeofenceHandles({
   setForm,
   radioMin,
   radioMax,
-}: {
+}: Readonly<{
   form: FormLugar;
   setForm: Dispatch<SetStateAction<FormLugar>>;
   radioMin?: number;
   radioMax?: number;
-}) {
+}>) {
   return form.geom === "circle" ? (
     <CircleHandles
       form={form}

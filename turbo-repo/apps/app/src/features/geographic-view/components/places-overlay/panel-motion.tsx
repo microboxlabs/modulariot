@@ -62,11 +62,11 @@ export function GrowPanel({
   show,
   children,
   className,
-}: {
+}: Readonly<{
   show: boolean;
   children: ReactNode;
   className?: string;
-}) {
+}>) {
   const { rendered, open, content } = usePresence(show, children);
   if (!rendered) return null;
 
@@ -118,13 +118,13 @@ export function StepSwap({
   first,
   second,
   className,
-}: {
+}: Readonly<{
   step: 0 | 1;
   visible?: boolean;
   first: ReactNode;
   second: ReactNode;
   className?: string;
-}) {
+}>) {
   return (
     <div
       data-step-swap={step}
@@ -145,12 +145,12 @@ export function SlidePanel({
   children,
   className,
   from = "right",
-}: {
+}: Readonly<{
   show: boolean;
   children: ReactNode;
   className?: string;
   from?: "right" | "left";
-}) {
+}>) {
   const { rendered, open, content } = usePresence(show, children);
   if (!rendered) return null;
 
@@ -182,14 +182,14 @@ export function ExpandPanel({
   width,
   className,
   innerClassName,
-}: {
+}: Readonly<{
   show: boolean;
   children: ReactNode;
   /** full width when open, e.g. "w-110" */
   width: string;
   className?: string;
   innerClassName?: string;
-}) {
+}>) {
   // stays mounted for the whole close, not cut before the bar is folded
   const { rendered, open, content } = usePresence(show, children, EXPAND_MS);
   if (!rendered) return null;

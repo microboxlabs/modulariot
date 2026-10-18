@@ -20,7 +20,7 @@ export function FloatingWindow({
   children,
   className,
   bodyClassName,
-}: {
+}: Readonly<{
   title: ReactNode;
   /** Rendered edge to edge right under the header (no padding). */
   toolbar?: ReactNode;
@@ -29,7 +29,7 @@ export function FloatingWindow({
   children: ReactNode;
   className?: string;
   bodyClassName?: string;
-}) {
+}>) {
   return (
     <div
       data-places-form
@@ -74,12 +74,12 @@ export function Field({
   aside,
   children,
   className,
-}: {
+}: Readonly<{
   label: string;
   aside?: ReactNode;
   children: ReactNode;
   className?: string;
-}) {
+}>) {
   return (
     <div className={twMerge("block space-y-1", className)}>
       <div className="flex items-center justify-between text-[11px] font-medium text-gray-600 dark:text-gray-300">
@@ -97,13 +97,13 @@ export function SegmentedBar<T extends string>({
   options,
   onChange,
   activeCls,
-}: {
+}: Readonly<{
   value: T;
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
   /** Classes for the selected tab (text + underline color). */
   activeCls: string;
-}) {
+}>) {
   return (
     <div className="grid auto-cols-fr grid-flow-col border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/40">
       {options.map((o) => (
@@ -128,11 +128,11 @@ export function Segmented<T extends string>({
   value,
   options,
   onChange,
-}: {
+}: Readonly<{
   value: T;
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
-}) {
+}>) {
   return (
     <div className="grid auto-cols-fr grid-flow-col gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-700/60">
       {options.map((o) => (
@@ -163,7 +163,7 @@ export function FormFooter({
   altLabel,
   onAlt,
   onSave,
-}: {
+}: Readonly<{
   msg: string | null;
   guardando: boolean;
   saveLabel: string;
@@ -173,7 +173,7 @@ export function FormFooter({
   altLabel?: string;
   onAlt?: () => void;
   onSave: () => void;
-}) {
+}>) {
   const saveText = guardando ? "Guardando…" : saveLabel;
   const altText = guardando ? "Guardando…" : altLabel;
 

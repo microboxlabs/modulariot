@@ -33,12 +33,21 @@ function gruposLugares(lugares: Lugar[]): { padre: Lugar; hijos: Lugar[] }[] {
   }));
 }
 
+function textoInteriores(nHijos: number): string {
+  if (nHijos === 0) return "";
+  return nHijos === 1 ? " · 1 interior" : ` · ${nHijos} interiores`;
+}
+
 function detallePadre(l: Lugar, nHijos: number): string {
   const cat = l.category ?? "sin categoría";
-  const interiores =
-    nHijos === 0 ? "" : ` · ${nHijos} interior${nHijos === 1 ? "" : "es"}`;
+  const interiores = textoInteriores(nHijos);
   const dir = l.address ? ` · ${l.address}` : "";
   return `${cat}${interiores}${dir}`;
+}
+
+function vacioLugares(busqueda: string): string {
+  if (busqueda) return `Sin lugares para «${busqueda}».`;
+  return "Sin lugares — crea el primero.";
 }
 
 export default function PlaceList({
@@ -51,7 +60,7 @@ export default function PlaceList({
   onHover,
   marcas,
   versionDe,
-}: {
+}: Readonly<{
   /** Casillas para elegir varios (borrar en lote). */
   marcas?: MarcasLista;
   /** Versión vigente de cada lugar (las interiores van con su padre). */
@@ -65,7 +74,7 @@ export default function PlaceList({
   onEliminar: (l: Lugar) => void;
   /** Resalta la geocerca en el mapa (filas interiores). */
   onHover?: (placeId: string | null) => void;
-}) {
+}>) {
   const [plegados, setPlegados] = useState<Set<string>>(() => new Set());
 
   const plegar = (id: string) => {
@@ -99,7 +108,7 @@ export default function PlaceList({
         <HiOutlineLocationMarker className="h-4 w-4 text-gray-500 dark:text-gray-400" />
       }
       total={lugares.length}
-      vacio={`Sin lugares${busqueda ? ` para «${busqueda}»` : " — crea el primero"}.`}
+      vacio={vacioLugares(busqueda)}
     >
       {gruposLugares(lugares).map(({ padre, hijos }) => {
         const plegado = plegados.has(padre.place_id);
@@ -136,7 +145,7 @@ function PlaceGroup({
   onHover,
   marcas,
   version,
-}: {
+}: Readonly<{
   marcas?: MarcasLista;
   version?: string | null;
   padre: Lugar;
@@ -148,7 +157,7 @@ function PlaceGroup({
   onEditar: (l: Lugar) => void;
   onEliminar: (l: Lugar) => void;
   onHover?: (placeId: string | null) => void;
-}) {
+}>) {
   const plegarEste = () => onPlegar(padre.place_id);
   return (
     <li>
@@ -202,7 +211,7 @@ function LugarRow({
   expandido,
   marcas,
   version,
-}: {
+}: Readonly<{
   marcas?: MarcasLista;
   version?: string | null;
   lugar: Lugar;
@@ -216,7 +225,7 @@ function LugarRow({
   onHover?: (placeId: string | null) => void;
   onExpandir?: () => void;
   expandido?: boolean;
-}) {
+}>) {
   const ir = () => onIr(l);
   const editar = () => onEditar(l);
   const eliminar = () => onEliminar(l);

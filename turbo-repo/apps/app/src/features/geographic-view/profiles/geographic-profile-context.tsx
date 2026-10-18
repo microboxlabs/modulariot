@@ -34,12 +34,11 @@ const GeographicProfileContext =
 export function GeographicProfileProvider({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const [profileId, setProfileIdState] = useState<GeographicProfileId>(
+  const [profileIdActual, setProfileIdActual] = useState<GeographicProfileId>(
     DEFAULT_GEOGRAPHIC_PROFILE
   );
-  const [activeView, setActiveViewState] = useState<GeographicMapViewId | null>(
-    null
-  );
+  const [activeViewActual, setActiveViewActual] =
+    useState<GeographicMapViewId | null>(null);
   // el editor de lugares necesita además el permiso "Editor de lugares"
   const permisoLugares = usePermisoEditorLugares();
   const tiene = useCallback(
@@ -50,14 +49,15 @@ export function GeographicProfileProvider({
   );
   // sin el permiso (o si se lo quitan) Lugares se cierra
   useEffect(() => {
-    if (!permisoLugares) setActiveViewState((v) => (v === "places" ? null : v));
+    if (!permisoLugares)
+      setActiveViewActual((v) => (v === "places" ? null : v));
   }, [permisoLugares]);
 
   const setProfileId = useCallback(
     (id: GeographicProfileId) => {
       if (!GEOGRAPHIC_PROFILES[id].enabled) return;
-      setProfileIdState(id);
-      setActiveViewState((current) => {
+      setProfileIdActual(id);
+      setActiveViewActual((current) => {
         if (current === "places" && !tiene(id, "placesEditor")) return null;
         return current;
       });
@@ -67,20 +67,26 @@ export function GeographicProfileProvider({
 
   const setActiveView = useCallback(
     (id: GeographicMapViewId | null) => {
-      if (id === "places" && !tiene(profileId, "placesEditor")) return;
-      setActiveViewState(id);
+      if (id === "places" && !tiene(profileIdActual, "placesEditor")) return;
+      setActiveViewActual(id);
     },
-    [profileId, tiene]
+    [profileIdActual, tiene]
   );
 
   const can = useCallback(
-    (capability: GeographicCapability) => tiene(profileId, capability),
-    [profileId, tiene]
+    (capability: GeographicCapability) => tiene(profileIdActual, capability),
+    [profileIdActual, tiene]
   );
 
   const value = useMemo(
-    () => ({ profileId, setProfileId, activeView, setActiveView, can }),
-    [profileId, setProfileId, activeView, setActiveView, can]
+    () => ({
+      profileId: profileIdActual,
+      setProfileId,
+      activeView: activeViewActual,
+      setActiveView,
+      can,
+    }),
+    [profileIdActual, setProfileId, activeViewActual, setActiveView, can]
   );
 
   return (

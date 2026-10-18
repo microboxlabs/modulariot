@@ -29,7 +29,7 @@ export function colorInner(inner: InnerGeofence): string {
 
 export function parentPlaceId(l: Lugar): string | null {
   const id = l.metadata?.[PARENT_KEY];
-  return id ? id : null;
+  return id || null;
 }
 
 export function innerEnEdicion(form: FormLugar): InnerGeofence | undefined {

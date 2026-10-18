@@ -59,7 +59,7 @@ export default function MapVisualization({
   mapPositions,
   dict,
   isLoading,
-}: MapVisualizationProps) {
+}: Readonly<MapVisualizationProps>) {
   const [hoverInfo, setHoverInfo] =
     useState<PickingInfo<MapPositionProperties>>();
   const [positions, setPositions] = useState<MapPosition[]>([]);
@@ -215,17 +215,16 @@ export default function MapVisualization({
   );
   const capasNombres = useMemo(
     () =>
-      capasNombresGeocercas(
-        nombresItems,
-        `place-names-${namesGen.current}`,
+      capasNombresGeocercas(nombresItems, {
+        layerId: `place-names-${namesGen.current}`,
         mapStyle,
         zoom,
-        alClicNombre,
-        places.onHoverNombre,
+        onNombre: alClicNombre,
+        onHoverNombre: places.onHoverNombre,
         resaltadoAnim,
-        places.onHoverBadge,
-        abrirCluster
-      ),
+        onHoverBadge: places.onHoverBadge,
+        onAcercar: abrirCluster,
+      }),
     [
       nombresItems,
       namesGen.current,

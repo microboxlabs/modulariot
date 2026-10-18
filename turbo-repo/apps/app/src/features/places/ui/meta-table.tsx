@@ -18,12 +18,12 @@ export default function MetaTable({
   max,
   onRowsChange,
   className,
-}: {
+}: Readonly<{
   rows: Fila[];
   max: number;
   onRowsChange: (rows: Fila[]) => void;
   className?: string;
-}) {
+}>) {
   const [foco, setFoco] = useState<{ i: number; campo: Campo } | null>(null);
   const inputs = useRef(new Map<string, HTMLInputElement>());
 
@@ -87,7 +87,11 @@ export default function MetaTable({
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {rows.map((r, i) => (
-              <tr key={i} className="group">
+              <tr
+                // la clave de la fila es lo que se edita: el índice la mantiene
+                key={i} // NOSONAR (typescript:S6479)
+                className="group"
+              >
                 <td className="p-0">
                   <input
                     ref={registrar(i, "k")}

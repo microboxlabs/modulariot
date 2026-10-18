@@ -11,10 +11,10 @@ import ProfileDropdown from "@/features/geographic-view/profiles/profile-dropdow
 export default function GeographicViewShell({
   lang,
   dict,
-}: {
+}: Readonly<{
   lang: string;
   dict: I18nRecord;
-}) {
+}>) {
   const breadcrumbDict = dict["symptoms"] as I18nRecord;
   return (
     <GeographicProfileProvider>

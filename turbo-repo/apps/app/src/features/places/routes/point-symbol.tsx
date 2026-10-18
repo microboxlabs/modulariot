@@ -10,10 +10,10 @@ const OCTAGONO =
 export function SimboloParada({
   numero,
   className,
-}: {
+}: Readonly<{
   numero: string;
   className?: string;
-}) {
+}>) {
   return (
     <span
       aria-hidden
@@ -31,7 +31,7 @@ export function SimboloParada({
 }
 
 /** Círculo hueco: punto de paso, sin número. */
-export function SimboloDesvio({ className }: { className?: string }) {
+export function SimboloDesvio({ className }: Readonly<{ className?: string }>) {
   return (
     <span
       aria-hidden

@@ -51,9 +51,9 @@ describe("places map camera", () => {
       centro: [1, 2],
       zoom: 3,
     });
-    expect(camaraValida({ center: [Number.NaN, Number.NaN], zoom: 3 })).toBe(
-      null
-    );
+    expect(
+      camaraValida({ center: [Number.NaN, Number.NaN], zoom: 3 })
+    ).toBeNull();
     expect(camaraValida({ center: [1, 2], zoom: Number.NaN })).toBeNull();
     expect(camaraValida(undefined)).toBeNull();
   });

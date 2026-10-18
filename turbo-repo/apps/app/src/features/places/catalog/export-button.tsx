@@ -30,11 +30,11 @@ export default function ExportButton({
   lugares,
   trayectos,
   className,
-}: {
+}: Readonly<{
   lugares: Lugar[];
   trayectos: Trayecto[];
   className?: string;
-}) {
+}>) {
   const [abierto, setAbierto] = useState(false);
   const [que, setQue] = useState<QueExportar>("ambos");
   const [formato, setFormato] = useState<FormatoExport>("geojson");
@@ -89,10 +89,10 @@ export default function ExportButton({
         <HiDownload className="h-4 w-4" />
       </button>
       {abierto && (
-        <div
-          role="dialog"
+        <dialog
+          open
           aria-label="Exportar"
-          className="absolute right-0 top-full z-30 mt-1 w-96 max-w-[calc(100vw-2rem)] space-y-3 rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-lg dark:border-gray-700 dark:bg-gray-800"
+          className="absolute top-full right-0 left-auto m-0 text-gray-900 dark:text-white z-30 mt-1 w-96 max-w-[calc(100vw-2rem)] space-y-3 rounded-lg border border-gray-200 bg-white p-3 text-xs shadow-lg dark:border-gray-700 dark:bg-gray-800"
         >
           <div className="space-y-1">
             <p className="font-medium text-gray-700 dark:text-gray-200">
@@ -139,7 +139,7 @@ export default function ExportButton({
             <HiDownload className="mr-1 h-3.5 w-3.5" />
             Descargar ({cuantos})
           </Button>
-        </div>
+        </dialog>
       )}
     </div>
   );

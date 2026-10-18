@@ -62,10 +62,7 @@ function IconoOCasilla({
 }: Readonly<{ icono?: ReactNode; visible: boolean; children: ReactNode }>) {
   const alPasar = "hidden group-has-focus-visible:flex group-hover:flex";
   return (
-    <span
-      className="flex h-4 w-4 flex-none items-center justify-center"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <span className="flex h-4 w-4 flex-none items-center justify-center">
       {icono && !visible && (
         <span className="flex group-has-focus-visible:hidden group-hover:hidden">
           {icono}
@@ -121,7 +118,7 @@ function CasillaFila({
   );
 }
 
-export function ListCard({ children }: { children: ReactNode }) {
+export function ListCard({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
       {children}
@@ -136,7 +133,7 @@ export function ListSection({
   children,
   seleccion,
   icono,
-}: {
+}: Readonly<{
   /** Ícono del encabezado; con selección, al pasar el mouse es la casilla. */
   icono?: ReactNode;
   /** Casilla en el encabezado para elegir todas sus filas. */
@@ -146,7 +143,7 @@ export function ListSection({
   /** Texto cuando no hay filas. */
   vacio: string;
   children: ReactNode;
-}) {
+}>) {
   const [abierto, setAbierto] = useState(true);
   const plegar = () => setAbierto((v) => !v);
 
@@ -195,11 +192,11 @@ function RowMenu({
   nombre,
   onEditar,
   onEliminar,
-}: {
+}: Readonly<{
   nombre: string;
   onEditar: () => void;
   onEliminar: () => void;
-}) {
+}>) {
   return (
     <Dropdown
       label=""
@@ -231,6 +228,17 @@ function RowMenu({
   );
 }
 
+/** Nombre accesible del botón cuando la fila pliega interiores. */
+function etiquetaExpandir(
+  nombre: string,
+  onExpandir: (() => void) | undefined,
+  expandido: boolean | undefined
+): string | undefined {
+  if (!onExpandir) return undefined;
+  if (expandido) return `Ocultar interiores de ${nombre}`;
+  return `Mostrar interiores de ${nombre}`;
+}
+
 export function ListCardRow({
   icono,
   nombre,
@@ -248,7 +256,7 @@ export function ListCardRow({
   onExpandir,
   expandido,
   marca,
-}: {
+}: Readonly<{
   /** Casilla para elegir la fila (acciones en lote). */
   marca?: MarcaFila;
   icono?: ReactNode;
@@ -271,14 +279,12 @@ export function ListCardRow({
   /** Clic en la fila (nombre incluido) pliega o despliega hijos. */
   onExpandir?: () => void;
   expandido?: boolean;
-}) {
-  const irYExpandir = (e: { stopPropagation: () => void }) => {
-    e.stopPropagation();
+}>) {
+  // la fila se pliega desde su nombre (un botón); la casilla y el menú
+  // quedan aparte, sin manejadores de clic en elementos no interactivos
+  const irYExpandir = () => {
     onIr();
     onExpandir?.();
-  };
-  const noExpandir = (e: { stopPropagation: () => void }) => {
-    e.stopPropagation();
   };
 
   return (
@@ -294,7 +300,6 @@ export function ListCardRow({
       )}
       onMouseEnter={onHoverStart}
       onMouseLeave={onHoverEnd}
-      onClick={onExpandir}
     >
       {marca ? (
         <CasillaFila marca={marca} nombre={nombre} icono={icono} />
@@ -306,13 +311,7 @@ export function ListCardRow({
         className="min-w-0 flex-1 text-left"
         title="Ver en el mapa"
         aria-expanded={onExpandir ? expandido : undefined}
-        aria-label={
-          onExpandir
-            ? expandido
-              ? `Ocultar interiores de ${nombre}`
-              : `Mostrar interiores de ${nombre}`
-            : undefined
-        }
+        aria-label={etiquetaExpandir(nombre, onExpandir, expandido)}
         onClick={irYExpandir}
       >
         <div
@@ -329,7 +328,7 @@ export function ListCardRow({
           </div>
         )}
       </button>
-      <div className="flex flex-none items-center" onClick={noExpandir}>
+      <div className="flex flex-none items-center">
         {extras}
         <RowMenu nombre={nombre} onEditar={onEditar} onEliminar={onEliminar} />
       </div>

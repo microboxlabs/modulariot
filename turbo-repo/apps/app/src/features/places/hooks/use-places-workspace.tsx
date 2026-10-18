@@ -10,7 +10,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import useSWR from "swr";
-import type { MapRef, MapLayerMouseEvent } from "react-map-gl";
+import type { MapRef, MapMouseEvent } from "react-map-gl";
 import type { Feature, FeatureCollection, Polygon, LineString } from "geojson";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { useCarrierMode } from "@/features/auth/hooks/use-carrier-mode";
@@ -54,6 +54,7 @@ import {
   type Categoria,
   type FormLugar,
   type FormTrayecto,
+  type InnerGeofence,
   type LatLon,
   type PasoLugar,
   type PasoTrayecto,
@@ -137,6 +138,7 @@ import {
 import type { VersionPendiente } from "../versioning/version-dialog";
 import { resumenSeleccion } from "../catalog/list-selection";
 import { PANEL_LUGARES } from "../panel";
+import { enSerie } from "../data/en-serie";
 
 /** Versión elegida en el diálogo, que se anota al guardar bien. */
 type NuevaVersion = {
@@ -381,7 +383,7 @@ async function ajustarACalles(
       ? crudos
       : crudos
           .filter((_, i) => i % Math.ceil(crudos.length / MAX) === 0)
-          .concat([crudos[crudos.length - 1]]);
+          .concat(crudos.slice(-1));
   return { pts: pts2, vias: [...vias].slice(0, 12) };
 }
 
@@ -412,6 +414,112 @@ function sinUid(f: FilaImport): FilaImport {
   const copia = { ...f };
   delete copia.uid;
   return copia;
+}
+
+/** Forma que se está dibujando: la geocerca o una de sus interiores. */
+type FormaPrevia = Pick<
+  InnerGeofence,
+  "geom" | "lat" | "lon" | "radius_m" | "vertices" | "cerrado"
+>;
+
+/**
+ * Vista previa de una forma en el mapa: el círculo ubicado, o el polígono a
+ * medio dibujar (línea) o cerrado (relleno). null si todavía no hay forma.
+ */
+function featurePrevia(
+  forma: FormaPrevia,
+  props: {
+    inner: boolean;
+    color: string;
+    name: string;
+    place_id: string;
+    parent_id: string | null;
+    icon: string;
+  }
+): Feature | null {
+  if (forma.geom === "circle") {
+    if (forma.lat == null || forma.lon == null) return null;
+    return {
+      type: "Feature",
+      properties: { ...props, fill: true, radius_m: forma.radius_m },
+      geometry: {
+        type: "Polygon",
+        coordinates: [circuloPoly(forma.lat, forma.lon, forma.radius_m)],
+      } as Polygon,
+    };
+  }
+  const geom = geometriaDibujo(forma.vertices, forma.cerrado);
+  if (!geom) return null;
+  const center: LatLon | null =
+    forma.lat != null && forma.lon != null ? [forma.lat, forma.lon] : null;
+  return {
+    type: "Feature",
+    properties: {
+      ...props,
+      fill: forma.cerrado,
+      radius_m: radioLugarM({
+        polygon: forma.vertices,
+        center,
+        radius_m: forma.radius_m,
+      }),
+    },
+    geometry: geom,
+  };
+}
+
+/**
+ * Un clic en el mapa sobre la forma que se dibuja (geocerca o interior):
+ * ubica el círculo o la forma base la primera vez; en un polígono libre,
+ * agrega un vértice.
+ */
+function conClicEnForma(f: FormLugar, p: LatLon): FormLugar {
+  // las interiores llegan como FormLugar (actualizarInner): misma regla
+  if (f.lat == null && f.geom === "circle")
+    return { ...f, lat: p[0], lon: p[1] };
+  if (f.geom === "circle") return f;
+  if (esPoligonoLibre(f)) return agregarVertice(f, p);
+  return f.lat == null ? aplicarFormaBase({ ...f, lat: p[0], lon: p[1] }) : f;
+}
+
+/** Dónde quedó una fila importada. */
+type DestinoImport = "servidor" | "local" | "rechazada";
+
+type ConteoImport = { creadas: number; locales: number; rechazadas: number };
+const CONTEO_VACIO: ConteoImport = { creadas: 0, locales: 0, rechazadas: 0 };
+
+function contarDestinos(ds: DestinoImport[]): ConteoImport {
+  const n = (d: DestinoImport) => ds.filter((x) => x === d).length;
+  return {
+    creadas: n("servidor"),
+    locales: n("local"),
+    rechazadas: n("rechazada"),
+  };
+}
+
+/** "Importadas 3 · actualizadas 1 · rechazadas 0" (solo lo que pasó). */
+export function textoResultadoImport(r: {
+  creadas: number;
+  actualizadas: number;
+  reemplazadas: number;
+  locales: number;
+  rechazadas: number;
+}): string {
+  const partes = [`Importadas ${r.creadas}`];
+  if (r.actualizadas) partes.push(`actualizadas ${r.actualizadas}`);
+  if (r.reemplazadas) partes.push(`reemplazadas ${r.reemplazadas}`);
+  if (r.locales) partes.push(`locales ${r.locales}`);
+  partes.push(`rechazadas ${r.rechazadas}`);
+  return partes.join(" · ");
+}
+
+/** En el formulario de lugar, si un clic en el mapa agrega un punto. */
+function lugarAgregaPunto(
+  paso: PasoLugar,
+  form: FormLugar,
+  innerActivo: InnerGeofence | null | undefined
+): boolean {
+  if (paso !== "interiores") return mapaAgregaPunto(form);
+  return innerActivo ? mapaAgregaPunto(innerComoForm(innerActivo)) : false;
 }
 
 export function usePlacesWorkspace(
@@ -703,98 +811,28 @@ export function usePlacesWorkspace(
       : FC_VACIA;
   const prevLugarFC = useMemo<FeatureCollection>(() => {
     if (modo !== "lugar") return FC_VACIA;
-    const colorPadre = colorDeFormLugar(form, cats ?? []);
-    const features: Feature[] = [];
-    if (form.geom === "circle" && form.lat != null) {
-      features.push({
-        type: "Feature",
-        properties: {
-          inner: false,
-          color: colorPadre,
-          fill: true,
-          name: form.name.trim() || "Nuevo lugar",
-          place_id: form.place_id || "preview-padre",
-          parent_id: null,
-          radius_m: form.radius_m,
-          icon: form.icon,
-        },
-        geometry: {
-          type: "Polygon",
-          coordinates: [circuloPoly(form.lat, form.lon!, form.radius_m)],
-        } as Polygon,
-      });
-    } else if (form.geom === "polygon") {
-      const geom = geometriaDibujo(form.vertices, form.cerrado);
-      if (geom) {
-        features.push({
-          type: "Feature",
-          properties: {
-            inner: false,
-            color: colorPadre,
-            fill: form.cerrado,
-            name: form.name.trim() || "Nuevo lugar",
-            place_id: form.place_id || "preview-padre",
-            parent_id: null,
-            radius_m: radioLugarM({
-              polygon: form.vertices,
-              center:
-                form.lat != null && form.lon != null
-                  ? [form.lat, form.lon]
-                  : null,
-              radius_m: form.radius_m,
-            }),
-            icon: form.icon,
-          },
-          geometry: geom,
-        });
-      }
-    }
-    for (const inner of form.inners) {
-      if (inner.geom === "circle" && inner.lat != null && inner.lon != null) {
-        features.push({
-          type: "Feature",
-          properties: {
-            inner: true,
-            color: colorInner(inner),
-            fill: true,
-            name: inner.name.trim() || "Interior",
-            place_id: inner.id,
-            parent_id: form.place_id || "preview-padre",
-            radius_m: inner.radius_m,
-            icon: "",
-          },
-          geometry: {
-            type: "Polygon",
-            coordinates: [circuloPoly(inner.lat, inner.lon, inner.radius_m)],
-          } as Polygon,
-        });
-      } else if (inner.geom === "polygon") {
-        const geom = geometriaDibujo(inner.vertices, inner.cerrado);
-        if (geom) {
-          features.push({
-            type: "Feature",
-            properties: {
-              inner: true,
-              color: colorInner(inner),
-              fill: inner.cerrado,
-              name: inner.name.trim() || "Interior",
-              place_id: inner.id,
-              parent_id: form.place_id || "preview-padre",
-              radius_m: radioLugarM({
-                polygon: inner.vertices,
-                center:
-                  inner.lat != null && inner.lon != null
-                    ? [inner.lat, inner.lon]
-                    : null,
-                radius_m: inner.radius_m,
-              }),
-              icon: "",
-            },
-            geometry: geom,
-          });
-        }
-      }
-    }
+    const padreId = form.place_id || "preview-padre";
+    const padre = featurePrevia(form, {
+      inner: false,
+      color: colorDeFormLugar(form, cats ?? []),
+      name: form.name.trim() || "Nuevo lugar",
+      place_id: padreId,
+      parent_id: null,
+      icon: form.icon,
+    });
+    const interiores = form.inners.map((inner) =>
+      featurePrevia(inner, {
+        inner: true,
+        color: colorInner(inner),
+        name: inner.name.trim() || "Interior",
+        place_id: inner.id,
+        parent_id: padreId,
+        icon: "",
+      })
+    );
+    const features = [padre, ...interiores].filter(
+      (f): f is Feature => f != null
+    );
     return features.length ? { type: "FeatureCollection", features } : FC_VACIA;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -870,7 +908,7 @@ export function usePlacesWorkspace(
 
   // Clic derecho en modo ver: sobre el badge de un lugar, su menú
   // (configurar / eliminar); en otro punto, crear un lugar o trayecto ahí.
-  const onMapContextMenu = (e: MapLayerMouseEvent) => {
+  const onMapContextMenu = (e: MapMouseEvent) => {
     e.originalEvent.preventDefault(); // sin el menú del navegador
     if (modo !== "ver") return;
     const lugar = lugarEditableDe(badgeHover.current);
@@ -888,9 +926,28 @@ export function usePlacesWorkspace(
     });
   };
 
-  const onMapClick = (e: MapLayerMouseEvent) => {
-    const la = e.lngLat.lat,
-      lo = e.lngLat.lng;
+  /** Clic sobre la interior que se dibuja: debe quedar dentro del lugar. */
+  const clicEnInterior = (p: LatLon) => {
+    const inner = innerEnEdicion(form);
+    if (!inner) return;
+    if (!puntoDentroDelPadre(form, p)) {
+      setMsg("La geocerca interior debe quedar dentro del lugar.");
+      return;
+    }
+    setMsg(null);
+    setForm((f) => actualizarInner(f, inner.id, (g) => conClicEnForma(g, p)));
+  };
+
+  /** Clic sobre la geocerca: el círculo nuevo además acerca el mapa a él. */
+  const clicEnLugar = (p: LatLon) => {
+    // círculo ya ubicado: se mueve arrastrando su centro, no con clic
+    if (form.geom === "circle" && form.lat != null) return;
+    setForm((f) => conClicEnForma(f, p));
+    if (form.geom === "circle") encuadrarCirculo(p[0], p[1], form.radius_m);
+  };
+
+  const onMapClick = (e: MapMouseEvent) => {
+    const p: LatLon = [e.lngLat.lat, e.lngLat.lng];
     if (modo === "ver") {
       // los menús se abren con clic derecho; un clic normal los cierra
       setMenu(null);
@@ -898,51 +955,16 @@ export function usePlacesWorkspace(
       return;
     }
     if (modo === "lugar") {
-      if (pasoLugar === "interiores") {
-        const inner = innerEnEdicion(form);
-        if (!inner) return;
-        if (!puntoDentroDelPadre(form, [la, lo])) {
-          setMsg("La geocerca interior debe quedar dentro del lugar.");
-          return;
-        }
-        setMsg(null);
-        if (inner.geom === "circle") {
-          setForm((f) =>
-            actualizarInner(f, inner.id, (g) =>
-              g.lat == null ? { ...g, lat: la, lon: lo } : g
-            )
-          );
-        } else if (!esPoligonoLibre(inner)) {
-          setForm((f) =>
-            actualizarInner(f, inner.id, (g) =>
-              g.lat == null ? aplicarFormaBase({ ...g, lat: la, lon: lo }) : g
-            )
-          );
-        } else {
-          setForm((f) =>
-            actualizarInner(f, inner.id, (g) => agregarVertice(g, [la, lo]))
-          );
-        }
-        return;
-      }
-      // círculo ya ubicado: se mueve arrastrando su centro, no con clic
-      if (form.geom === "circle") {
-        if (form.lat == null) {
-          setForm((f) => ({ ...f, lat: la, lon: lo }));
-          encuadrarCirculo(la, lo, form.radius_m);
-        }
-      } else if (!esPoligonoLibre(form))
-        setForm((f) =>
-          f.lat == null ? aplicarFormaBase({ ...f, lat: la, lon: lo }) : f
-        );
-      else setForm((f) => agregarVertice(f, [la, lo]));
+      if (pasoLugar === "interiores") clicEnInterior(p);
+      else clicEnLugar(p);
+      return;
     }
     // punto elegido en la lista o, mientras se dibuja, el siguiente vacío
     const idPunto =
       modo === "trayecto" && pasoTrayecto === "recorrido"
         ? (puntoMapaId ?? primerPuntoVacio(tray))
         : null;
-    if (idPunto) ubicarPuntoEnRecorrido(idPunto, [la, lo]);
+    if (idPunto) ubicarPuntoEnRecorrido(idPunto, p);
   };
 
   // Acerca el mapa al círculo nuevo para dibujar con precisión: el radio
@@ -1023,12 +1045,7 @@ export function usePlacesWorkspace(
     (modo === "trayecto" &&
       pasoTrayecto === "recorrido" &&
       (!!puntoMapaId || !!primerPuntoVacio(tray))) ||
-    (modo === "lugar" &&
-      (pasoLugar === "interiores"
-        ? innerActivo
-          ? mapaAgregaPunto(innerComoForm(innerActivo))
-          : false
-        : mapaAgregaPunto(form)));
+    (modo === "lugar" && lugarAgregaPunto(pasoLugar, form, innerActivo));
   const terminarPoligono = useCallback(() => setForm(terminar), []);
   const deshacerPunto = useCallback(() => setForm(deshacer), []);
   const rehacerPunto = useCallback(() => setForm(rehacer), []);
@@ -1295,25 +1312,22 @@ export function usePlacesWorkspace(
     innersOk: ReturnType<typeof innersParaGuardar>
   ) => {
     const keep = new Set(innersOk.map((i) => i.id));
-    for (const id of idsHijosDe(parentId, todosLugares)) {
-      if (keep.has(id)) continue;
+    const quitadas = idsHijosDe(parentId, todosLugares).filter(
+      (id) => !keep.has(id)
+    );
+    await enSerie(quitadas, async (id) => {
       await tryPost("fn_pt4_delete_place", {
         p_place_id: id,
         p_actor: "app-settings",
       });
       local.deleteLugar(id);
-    }
-    for (const inner of innersOk) {
+    });
+    await enSerie(innersOk, (inner) => {
       const body = payloadInner(inner, parentId, form);
-      if (isLocalId(inner.id)) {
-        await tryPost("fn_pt4_create_place", body);
-      } else {
-        await tryPost("fn_pt4_update_place", {
-          p_place_id: inner.id,
-          ...body,
-        });
-      }
-    }
+      return isLocalId(inner.id)
+        ? tryPost("fn_pt4_create_place", body)
+        : tryPost("fn_pt4_update_place", { p_place_id: inner.id, ...body });
+    });
   };
 
   const guardarLugarLocal = (
@@ -1357,13 +1371,14 @@ export function usePlacesWorkspace(
       if (!silencioso) toast.success("Lugar local eliminado.");
       return true;
     }
-    for (const id of hijos) {
-      if (isLocalId(id)) continue;
-      await tryPost("fn_pt4_delete_place", {
-        p_place_id: id,
-        p_actor: "app-settings",
-      });
-    }
+    await enSerie(
+      hijos.filter((id) => !isLocalId(id)),
+      (id) =>
+        tryPost("fn_pt4_delete_place", {
+          p_place_id: id,
+          p_actor: "app-settings",
+        })
+    );
     const res = await tryPost("fn_pt4_delete_place", {
       p_place_id: l.place_id,
       p_actor: "app-settings",
@@ -1691,13 +1706,15 @@ export function usePlacesWorkspace(
       resumenSeleccion(sueltos.length, trayectosSel.length),
       () =>
         void (async () => {
-          let fallidos = 0;
-          for (const l of sueltos) {
-            if (!(await eliminarLugar(l, true))) fallidos += 1;
-          }
-          for (const t of trayectosSel) {
-            if (!(await eliminarTrayecto(t, true))) fallidos += 1;
-          }
+          const okLugares = await enSerie(sueltos, (l) =>
+            eliminarLugar(l, true)
+          );
+          const okTrayectos = await enSerie(trayectosSel, (t) =>
+            eliminarTrayecto(t, true)
+          );
+          const fallidos = [...okLugares, ...okTrayectos].filter(
+            (ok) => !ok
+          ).length;
           refrescarTodo();
           alTerminar?.();
           avisarBorradoLote(total, fallidos);
@@ -1707,23 +1724,24 @@ export function usePlacesWorkspace(
 
   // ── Importación masiva ──
   const onArchivos = async (files: File[]) => {
-    const nuevos: LoteImport[] = [];
-    let vacio = false;
-    for (const file of files) {
-      try {
-        const { formato, filas } = await parsearArchivoLugares(file);
-        if (filas.length)
-          nuevos.push({
-            filename: file.name,
-            formato,
-            filas: conUid(filas, file.name),
-          });
-        else vacio = true;
-      } catch {
-        setMsg("No se pudo leer el archivo.");
-        return;
-      }
+    let leidos: { file: File; formato: string; filas: FilaImport[] }[];
+    try {
+      leidos = await enSerie(files, async (file) => ({
+        file,
+        ...(await parsearArchivoLugares(file)),
+      }));
+    } catch {
+      setMsg("No se pudo leer el archivo.");
+      return;
     }
+    const vacio = leidos.some((l) => l.filas.length === 0);
+    const nuevos: LoteImport[] = leidos
+      .filter((l) => l.filas.length > 0)
+      .map(({ file, formato, filas }) => ({
+        filename: file.name,
+        formato,
+        filas: conUid(filas, file.name),
+      }));
     if (!nuevos.length) {
       if (vacio) setMsg(MSG_IMPORT_VACIO);
       return;
@@ -1921,16 +1939,72 @@ export function usePlacesWorkspace(
   const quitarReemplazado = async (l: Lugar): Promise<boolean> => {
     const ids = [...idsHijosDe(l.place_id, todosLugares), l.place_id];
     for (const id of ids) local.deleteLugar(id);
-    let ok = true;
-    for (const id of ids) {
-      if (isLocalId(id)) continue;
-      const res = await tryPost("fn_pt4_delete_place", {
-        p_place_id: id,
-        p_actor: "app-settings",
-      });
-      if (res === null || res?.ok === false) ok = false;
-    }
-    return ok;
+    const resultados = await enSerie(
+      ids.filter((id) => !isLocalId(id)),
+      (id) =>
+        tryPost("fn_pt4_delete_place", {
+          p_place_id: id,
+          p_actor: "app-settings",
+        })
+    );
+    return resultados.every(borradoOk);
+  };
+
+  /** Una fila guardada sola: en el servidor, local si no responde, o rechazada. */
+  const destinoDeFila = (
+    res: { ok?: boolean } | null,
+    fila: FilaImport
+  ): DestinoImport => {
+    if (res === null) return guardarFilaLocal(fila) ? "local" : "rechazada";
+    return res?.ok === false ? "rechazada" : "servidor";
+  };
+
+  /** Puntos (círculos) en una sola llamada; sin servidor, uno a uno en local. */
+  const importarPuntos = async (
+    puntos: FilaImport[],
+    lotes: LoteImport[]
+  ): Promise<ConteoImport> => {
+    if (puntos.length === 0) return CONTEO_VACIO;
+    const formatos = [...new Set(lotes.map((l) => l.formato))];
+    const res = await tryPost("fn_pt4_import_places", {
+      p_filename: lotes.map((l) => l.filename).join(", "),
+      p_format: formatos.length === 1 ? (formatos[0] ?? "mixto") : "mixto",
+      p_rows: puntos,
+      p_defaults: {
+        radius_m: FORM_VACIO.radius_m,
+        category_id: imp.catDef ? Number(imp.catDef) : null,
+      },
+      p_actor: "app-settings",
+    });
+    if (res === null)
+      return contarDestinos(puntos.map((f) => destinoDeFila(null, f)));
+    if (res?.ok === false)
+      return { ...CONTEO_VACIO, rechazadas: puntos.length };
+    return {
+      ...CONTEO_VACIO,
+      creadas: Number(res?.creadas ?? puntos.length),
+      rechazadas: Number(res?.rechazadas ?? 0),
+    };
+  };
+
+  const crearPoligonoImport = async (
+    fila: FilaImport
+  ): Promise<DestinoImport> => {
+    const catId = imp.catDef ? Number(imp.catDef) : null;
+    const res = await tryPost("fn_pt4_create_place", {
+      p_name: fila.name,
+      p_geometry_type: "polygon",
+      p_category_id: Number.isFinite(catId) ? catId : null,
+      p_address: fila.address || null,
+      p_lat: fila.lat,
+      p_lon: fila.lon,
+      p_radius_m: null,
+      p_vertices: fila.vertices,
+      p_metadata: null,
+      p_external_id: fila.external_id || null,
+      p_actor: "app-settings",
+    });
+    return destinoDeFila(res, fila);
   };
 
   const confirmarImport = async () => {
@@ -1940,97 +2014,44 @@ export function usePlacesWorkspace(
     const filas = plan.crear.map(sinUid);
     const lineas = filas.filter(filaEsLinea);
     const geocercas = filas.filter((f) => !filaEsLinea(f));
-    const puntos = geocercas.filter((f) => !filaEsPoligono(f));
-    const poligonos = geocercas.filter(filaEsPoligono);
-    let creadas = 0;
-    let rechazadas = 0;
-    let localOk = 0;
-    const filename = lotes.map((l) => l.filename).join(", ");
-    const formatos = [...new Set(lotes.map((l) => l.formato))];
-    const formato = formatos.length === 1 ? (formatos[0] ?? "mixto") : "mixto";
+    // en este orden, una cosa a la vez: puntos, polígonos, trayectos nuevos,
+    // trayectos y lugares que se actualizan y, al final, los reemplazados
+    const deLosPuntos = await importarPuntos(
+      geocercas.filter((f) => !filaEsPoligono(f)),
+      lotes
+    );
+    const nuevos = contarDestinos([
+      ...(await enSerie(geocercas.filter(filaEsPoligono), crearPoligonoImport)),
+      ...(await enSerie(lineas, (f) => guardarTrayectoImport(f, null))),
+    ]);
+    const traysActualizados = await enSerie(
+      plan.actualizarTrayectos,
+      ({ trayecto, fila }) =>
+        guardarTrayectoImport(sinUid(fila), trayecto.trayecto_id)
+    );
+    const lugaresActualizados = await enSerie(
+      plan.actualizar,
+      ({ lugar, fila }) => reemplazarConFila(lugar, fila)
+    );
+    const reemplazos = await enSerie(plan.borrar, quitarReemplazado);
 
-    if (puntos.length > 0) {
-      const res = await tryPost("fn_pt4_import_places", {
-        p_filename: filename,
-        p_format: formato,
-        p_rows: puntos,
-        p_defaults: {
-          radius_m: FORM_VACIO.radius_m,
-          category_id: imp.catDef ? Number(imp.catDef) : null,
-        },
-        p_actor: "app-settings",
-      });
-      if (res === null) {
-        for (const fila of puntos) {
-          if (guardarFilaLocal(fila)) localOk += 1;
-          else rechazadas += 1;
-        }
-      } else if (res?.ok === false) {
-        rechazadas += puntos.length;
-      } else {
-        creadas += Number(res?.creadas ?? puntos.length);
-        rechazadas += Number(res?.rechazadas ?? 0);
-      }
-    }
-
-    const catId = imp.catDef ? Number(imp.catDef) : null;
-    for (const fila of poligonos) {
-      const body = {
-        p_name: fila.name,
-        p_geometry_type: "polygon",
-        p_category_id: Number.isFinite(catId) ? catId : null,
-        p_address: fila.address || null,
-        p_lat: fila.lat,
-        p_lon: fila.lon,
-        p_radius_m: null,
-        p_vertices: fila.vertices,
-        p_metadata: null,
-        p_external_id: fila.external_id || null,
-        p_actor: "app-settings",
-      };
-      const res = await tryPost("fn_pt4_create_place", body);
-      if (res === null) {
-        if (guardarFilaLocal(fila)) localOk += 1;
-        else rechazadas += 1;
-      } else if (res?.ok === false) {
-        rechazadas += 1;
-      } else {
-        creadas += 1;
-      }
-    }
-
-    for (const fila of lineas) {
-      const r = await guardarTrayectoImport(fila, null);
-      if (r === "servidor") creadas += 1;
-      else if (r === "local") localOk += 1;
-      else rechazadas += 1;
-    }
-
-    let actualizadas = 0;
-    for (const { trayecto, fila } of plan.actualizarTrayectos) {
-      const r = await guardarTrayectoImport(sinUid(fila), trayecto.trayecto_id);
-      if (r === "rechazada") rechazadas += 1;
-      else actualizadas += 1;
-    }
-    for (const { lugar, fila } of plan.actualizar) {
-      if (await reemplazarConFila(lugar, fila)) actualizadas += 1;
-      else rechazadas += 1;
-    }
-    let reemplazadas = 0;
-    for (const l of plan.borrar) {
-      if (await quitarReemplazado(l)) reemplazadas += 1;
-    }
-
+    const cuenta = (xs: boolean[]) => xs.filter(Boolean).length;
+    const trayOk = traysActualizados.map((r) => r !== "rechazada");
     setGuardando(false);
     setHoverImportUid(null);
-    const partes = [`Importadas ${creadas}`];
-    if (actualizadas) partes.push(`actualizadas ${actualizadas}`);
-    if (reemplazadas) partes.push(`reemplazadas ${reemplazadas}`);
-    if (localOk) partes.push(`locales ${localOk}`);
-    partes.push(`rechazadas ${rechazadas}`);
     setImp((s) => ({
       ...s,
-      resultado: partes.join(" · "),
+      resultado: textoResultadoImport({
+        creadas: deLosPuntos.creadas + nuevos.creadas,
+        actualizadas: cuenta(trayOk) + cuenta(lugaresActualizados),
+        reemplazadas: cuenta(reemplazos),
+        locales: deLosPuntos.locales + nuevos.locales,
+        rechazadas:
+          deLosPuntos.rechazadas +
+          nuevos.rechazadas +
+          (trayOk.length - cuenta(trayOk)) +
+          (lugaresActualizados.length - cuenta(lugaresActualizados)),
+      }),
       lotes: [],
       decisiones: {},
       seleccion: [],

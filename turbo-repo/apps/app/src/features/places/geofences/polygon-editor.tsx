@@ -54,7 +54,7 @@ export function guiasPoligono(
   vertices: LatLon[],
   cursor: LatLon | null
 ): FeatureCollection {
-  const last = vertices[vertices.length - 1];
+  const last = vertices.at(-1);
   const first = vertices[0];
   if (!cursor || !last || !first)
     return { type: "FeatureCollection", features: [] };
@@ -81,7 +81,9 @@ export function guiasPoligono(
  * Sigue al mouse por su cuenta (estado local) para no re-renderizar toda la
  * página en cada mousemove.
  */
-export function PolygonRubberBand({ vertices }: { vertices: LatLon[] }) {
+export function PolygonRubberBand({
+  vertices,
+}: Readonly<{ vertices: LatLon[] }>) {
   const { current: map } = useMap();
   const [cursor, setCursor] = useState<LatLon | null>(null);
 
@@ -151,12 +153,12 @@ function VertexPopup({
   eliminable,
   onEliminar,
   onCerrar,
-}: {
+}: Readonly<{
   punto: LatLon;
   eliminable: boolean;
   onEliminar: () => void;
   onCerrar: () => void;
-}) {
+}>) {
   // Supr/Delete elimina el punto con el menú abierto
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -196,11 +198,11 @@ function MidpointHandles({
   form,
   setForm,
   recienArrastrado,
-}: {
+}: Readonly<{
   form: FormLugar;
   setForm: SetForm;
   recienArrastrado: RefObject<boolean>;
-}) {
+}>) {
   // lado cuyo punto medio se está arrastrando y posición actual del cursor
   const [arrastre, setArrastre] = useState<{ lado: number; p: LatLon } | null>(
     null
@@ -261,10 +263,10 @@ function MidpointHandles({
 export default function PolygonHandles({
   form,
   setForm,
-}: {
+}: Readonly<{
   form: FormLugar;
   setForm: SetForm;
-}) {
+}>) {
   // posición de inicio del arrastre del polígono completo + vértices originales
   const inicio = useRef<{ desde: LatLon; vertices: LatLon[] } | null>(null);
   // el navegador dispara click al soltar un arrastre: ignorar ese click
@@ -337,7 +339,9 @@ export default function PolygonHandles({
       )}
       {form.vertices.map((v, i) => (
         <Marker
-          key={i}
+          // el índice es la identidad del vértice: sus coordenadas cambian al
+          // arrastrarlo y una clave por posición lo volvería a montar
+          key={i} // NOSONAR (typescript:S6479)
           longitude={v[1]}
           latitude={v[0]}
           draggable

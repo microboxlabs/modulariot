@@ -93,8 +93,8 @@ export function formaDeLugar(l: Lugar): Forma | null {
 /** Vértices [lat, lon] sin el punto de cierre repetido. */
 function sinCierre(vs: LatLon[]): LatLon[] {
   const a = vs[0];
-  const b = vs[vs.length - 1];
-  if (vs.length > 1 && a && b && a[0] === b[0] && a[1] === b[1]) {
+  const b = vs.at(-1);
+  if (vs.length > 1 && a?.[0] === b?.[0] && a?.[1] === b?.[1]) {
     return vs.slice(0, -1);
   }
   return vs;
@@ -117,13 +117,16 @@ export function contorno(f: Forma): LatLon[] {
 const clave = ([la, lo]: LatLon) => `${la},${lo}`;
 
 /** Exactamente los mismos números en cada punto (el orden no importa). */
+/** Orden de texto estable (no el de código de caracteres por defecto). */
+const porTexto = (a: string, b: string) => a.localeCompare(b);
+
 export function mismaForma(a: Forma, b: Forma): boolean {
   if (a.tipo === "circulo" && b.tipo === "circulo") {
     return a.lat === b.lat && a.lon === b.lon && a.radio === b.radio;
   }
   if (a.tipo !== "poligono" || b.tipo !== "poligono") return false;
-  const va = sinCierre(a.vertices).map(clave).sort();
-  const vb = sinCierre(b.vertices).map(clave).sort();
+  const va = sinCierre(a.vertices).map(clave).sort(porTexto);
+  const vb = sinCierre(b.vertices).map(clave).sort(porTexto);
   return va.length === vb.length && va.every((k, i) => k === vb[i]);
 }
 
@@ -169,7 +172,8 @@ const orient = (a: LatLon, b: LatLon, c: LatLon) =>
 function segmentosCruzan(a: LatLon, b: LatLon, c: LatLon, d: LatLon) {
   const o1 = orient(a, b, c);
   const o2 = orient(a, b, d);
-  const o3 = orient(c, d, a);
+  // prueba de orientación: el orden de los puntos cambia a propósito
+  const o3 = orient(c, d, a); // NOSONAR (typescript:S2234)
   const o4 = orient(c, d, b);
   return o1 !== o2 && o3 !== o4 && o1 !== 0 && o2 !== 0;
 }
@@ -341,19 +345,17 @@ export type PlanImport = {
   borrar: Lugar[];
 };
 
-/** Qué hacer al importar, según las decisiones de cada fila. */
-export function planImport(
+type Decision = (uid: string) => DecisionImport | null;
+
+/**
+ * Filas que no se importan: las que eligen lo existente y las que pierden
+ * contra otra fila que eligió lo nuevo.
+ */
+function filasFuera(
   filas: FilaConUid[],
   conflictos: Map<string, ConflictoImport[]>,
-  decisiones: Record<string, DecisionImport>
-): PlanImport {
-  const decision = (uid: string) => {
-    const cs = conflictos.get(uid);
-    return cs ? decisionDe(cs, decisiones[uid]) : null;
-  };
-
-  // 1) qué filas quedan fuera: las que eligen lo existente y las filas que
-  //    pierden contra una que eligió lo nuevo
+  decision: Decision
+): Set<string> {
   const fuera = new Set<string>();
   for (const f of filas) {
     const d = decision(f.uid);
@@ -363,44 +365,74 @@ export function planImport(
       if (c.con.tipo === "fila") fuera.add(c.con.uid);
     }
   }
+  return fuera;
+}
 
-  // 2) las que eligen lo nuevo reemplazan a los lugares guardados que tocan
-  const actualizar: PlanImport["actualizar"] = [];
-  const actualizarTrayectos: PlanImport["actualizarTrayectos"] = [];
-  const borrar = new Map<string, Lugar>();
-  const usados = new Set<string>();
-  const actualizadas = new Set<string>();
-  for (const f of filas) {
-    if (fuera.has(f.uid) || decision(f.uid) !== "nuevo") continue;
+/** Lo que se va armando: qué se actualiza, qué se borra y qué ya se usó. */
+type Reemplazos = {
+  actualizar: PlanImport["actualizar"];
+  actualizarTrayectos: PlanImport["actualizarTrayectos"];
+  borrar: Map<string, Lugar>;
+  /** Guardados que ya reemplaza alguna fila. */
+  usados: Set<string>;
+  /** Filas que ya actualizan algo (no se crean aparte). */
+  actualizadas: Set<string>;
+};
+
+/** El mismo recorrido guardado: se actualiza (uno por fila). */
+function reemplazarTrayecto(f: FilaConUid, t: Trayecto, r: Reemplazos) {
+  const id = t.trayecto_id;
+  if (r.usados.has(id) || r.actualizadas.has(f.uid)) return;
+  r.usados.add(id);
+  r.actualizarTrayectos.push({ trayecto: t, fila: f });
+  r.actualizadas.add(f.uid);
+}
+
+/** Un lugar guardado que la fila toca: el primero se actualiza, el resto se borra. */
+function reemplazarLugar(f: FilaConUid, l: Lugar, r: Reemplazos) {
+  const id = l.place_id;
+  if (r.usados.has(id)) return;
+  r.usados.add(id);
+  if (r.actualizadas.has(f.uid)) {
+    r.borrar.set(id, l);
+    return;
+  }
+  r.actualizar.push({ lugar: l, fila: f });
+  r.actualizadas.add(f.uid);
+}
+
+/** Qué hacer al importar, según las decisiones de cada fila. */
+export function planImport(
+  filas: FilaConUid[],
+  conflictos: Map<string, ConflictoImport[]>,
+  decisiones: Record<string, DecisionImport>
+): PlanImport {
+  const decision: Decision = (uid) => {
+    const cs = conflictos.get(uid);
+    return cs ? decisionDe(cs, decisiones[uid]) : null;
+  };
+  const fuera = filasFuera(filas, conflictos, decision);
+  // las que eligen lo nuevo reemplazan a lo guardado con que chocan
+  const r: Reemplazos = {
+    actualizar: [],
+    actualizarTrayectos: [],
+    borrar: new Map(),
+    usados: new Set(),
+    actualizadas: new Set(),
+  };
+  const ganadoras = filas.filter(
+    (f) => !fuera.has(f.uid) && decision(f.uid) === "nuevo"
+  );
+  for (const f of ganadoras) {
     for (const c of conflictos.get(f.uid) ?? []) {
-      if (c.con.tipo === "trayecto") {
-        // el mismo recorrido: se actualiza el guardado (uno por fila)
-        const id = c.con.trayecto.trayecto_id;
-        if (usados.has(id) || actualizadas.has(f.uid)) continue;
-        usados.add(id);
-        actualizarTrayectos.push({ trayecto: c.con.trayecto, fila: f });
-        actualizadas.add(f.uid);
-        continue;
-      }
-      if (c.con.tipo !== "lugar") continue;
-      const id = c.con.lugar.place_id;
-      if (usados.has(id)) continue;
-      usados.add(id);
-      if (actualizadas.has(f.uid)) borrar.set(id, c.con.lugar);
-      else {
-        actualizar.push({ lugar: c.con.lugar, fila: f });
-        actualizadas.add(f.uid);
-      }
+      if (c.con.tipo === "trayecto") reemplazarTrayecto(f, c.con.trayecto, r);
+      else if (c.con.tipo === "lugar") reemplazarLugar(f, c.con.lugar, r);
     }
   }
-
-  const crear = filas.filter(
-    (f) => !fuera.has(f.uid) && !actualizadas.has(f.uid)
-  );
   return {
-    crear,
-    actualizar,
-    actualizarTrayectos,
-    borrar: [...borrar.values()],
+    crear: filas.filter((f) => !fuera.has(f.uid) && !r.actualizadas.has(f.uid)),
+    actualizar: r.actualizar,
+    actualizarTrayectos: r.actualizarTrayectos,
+    borrar: [...r.borrar.values()],
   };
 }

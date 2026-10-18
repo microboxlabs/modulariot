@@ -38,13 +38,12 @@ import type { FormLugar } from "../places.types";
 function InnerPolygonToolbar({
   form,
   setForm,
-}: {
+}: Readonly<{
   form: FormLugar;
   setForm: Dispatch<SetStateAction<FormLugar>>;
-}) {
+}>) {
   const inner = innerEnEdicion(form);
-  if (!inner || inner.geom !== "polygon" || !esPoligonoLibre(inner))
-    return null;
+  if (inner?.geom !== "polygon" || !esPoligonoLibre(inner)) return null;
   if (inner.vertices.length === 0 && !puedeDeshacer(innerComoForm(inner))) {
     return null;
   }
@@ -68,7 +67,7 @@ function InnerPolygonToolbar({
 }
 
 /** Barra del recorrido: deshacer/rehacer, confirmar o volver a editar. */
-function TrayectoDrawToolbar({ ws }: { ws: PlacesWorkspace }) {
+function TrayectoDrawToolbar({ ws }: Readonly<{ ws: PlacesWorkspace }>) {
   const { tray } = ws;
   const puntos = puntosUbicados(tray).length;
   const deshacer = puedeDeshacerRecorrido(tray);
@@ -99,11 +98,11 @@ function LugarFormCard({
   ws,
   className,
   dict,
-}: {
+}: Readonly<{
   ws: PlacesWorkspace;
   className?: string;
   dict?: I18nRecord;
-}) {
+}>) {
   return (
     <PlaceForm
       className={className}
@@ -130,11 +129,11 @@ function TrayectoFormCard({
   ws,
   className,
   dict,
-}: {
+}: Readonly<{
   ws: PlacesWorkspace;
   className?: string;
   dict?: I18nRecord;
-}) {
+}>) {
   return (
     <TrayectoForm
       className={className}
@@ -177,10 +176,10 @@ function confirmarYCerrar(ws: PlacesWorkspace) {
 export function PlacesEditorOverlays({
   ws,
   dict,
-}: {
+}: Readonly<{
   ws: PlacesWorkspace;
   dict?: I18nRecord;
-}) {
+}>) {
   return (
     <>
       {ws.menu && (
@@ -260,10 +259,10 @@ export function PlacesEditorOverlays({
 export function PlacesStackedFormCards({
   ws,
   dict,
-}: {
+}: Readonly<{
   ws: PlacesWorkspace;
   dict?: I18nRecord;
-}) {
+}>) {
   return (
     <>
       {ws.modo === "lugar" && (

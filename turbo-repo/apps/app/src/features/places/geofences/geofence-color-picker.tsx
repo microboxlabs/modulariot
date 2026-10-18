@@ -10,11 +10,11 @@ export default function GeofenceColorPicker({
   color,
   onChange,
   title = "Color de la geocerca",
-}: {
+}: Readonly<{
   color: string;
   onChange?: (color: string) => void;
   title?: string;
-}) {
+}>) {
   if (!onChange) {
     return (
       <span

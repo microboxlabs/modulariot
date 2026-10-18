@@ -82,12 +82,12 @@ function CheckboxTodas({
   marcadas,
   total,
   onCambiar,
-}: {
+}: Readonly<{
   label: string;
   marcadas: number;
   total: number;
   onCambiar: (marcar: boolean) => void;
-}) {
+}>) {
   const ref = useRef<HTMLInputElement>(null);
   const todas = total > 0 && marcadas === total;
   useEffect(() => {
@@ -111,11 +111,11 @@ function ChipConflicto({
   uid,
   c,
   onHover,
-}: {
+}: Readonly<{
   uid: string;
   c: ConflictoImport;
   onHover: (uid: string, c: ConflictoImport | null) => void;
-}) {
+}>) {
   const entrar = () => onHover(uid, c);
   const salir = () => onHover(uid, null);
   const donde = c.con.tipo === "fila" ? "en este import" : "guardado";
@@ -140,12 +140,12 @@ function SelectorDecision({
   cs,
   elegida,
   onDecidir,
-}: {
+}: Readonly<{
   fila: FilaConUid;
   cs: ConflictoImport[];
   elegida: DecisionImport | undefined;
   onDecidir: (uid: string, d: DecisionImport) => void;
-}) {
+}>) {
   const actual = decisionDe(cs, elegida);
   return (
     <ButtonGroup aria-label={`Qué conservar para ${fila.name}`}>
@@ -174,10 +174,10 @@ function SelectorDecision({
 function FilaImportRow({
   fila,
   acciones,
-}: {
+}: Readonly<{
   fila: FilaConUid;
   acciones: AccionesImport;
-}) {
+}>) {
   const cs = acciones.conflictos.get(fila.uid);
   const estado: Estado = cs ? gravedad(cs) : "ok";
   const marcada = acciones.seleccion.includes(fila.uid);
@@ -273,10 +273,10 @@ function conteoArchivo(filas: FilaConUid[]): string {
 export function ImportLoteTable({
   lote,
   acciones,
-}: {
+}: Readonly<{
   lote: LoteImport;
   acciones: AccionesImport;
-}) {
+}>) {
   const filas = lote.filas.filter((f): f is FilaConUid => Boolean(f.uid));
   const uids = filas.map((f) => f.uid);
   const marcadas = uids.filter((u) => acciones.seleccion.includes(u)).length;
@@ -315,11 +315,11 @@ export function ImportSelectionBar({
   filas,
   acciones,
   onSeleccionarTodo,
-}: {
+}: Readonly<{
   filas: FilaConUid[];
   acciones: AccionesImport;
   onSeleccionarTodo: (todo: boolean) => void;
-}) {
+}>) {
   const marcadas = acciones.seleccion.length;
   let totales = 0;
   let parciales = 0;

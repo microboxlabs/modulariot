@@ -3,7 +3,7 @@ import { centroide } from "./map-handles";
 import type { Lugar } from "../places.types";
 
 /** Metros por píxel en el ecuador a zoom 0 (Web Mercator). */
-const M_POR_PX_Z0 = 156_543.033_928_040_97;
+const M_POR_PX_Z0 = 156_543.03392804097;
 /** Evita que cos(lat) se vaya a 0 cerca de los polos. */
 const COS_MIN = 0.05;
 

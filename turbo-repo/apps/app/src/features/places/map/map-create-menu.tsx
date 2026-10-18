@@ -13,13 +13,13 @@ export default function MapCreateMenu({
   onCrearLugar,
   onCrearTrayecto,
   onClose,
-}: {
+}: Readonly<{
   x: number;
   y: number;
   onCrearLugar: () => void;
   onCrearTrayecto: () => void;
   onClose: () => void;
-}) {
+}>) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);

@@ -93,9 +93,9 @@ describe("local-store", () => {
     );
     expect(con.categorias).toEqual(["acceso", "minera"]);
     expect(con.tipos_puntos).toEqual([]);
-    expect(trayectoDesdeForm({ ...TRAY_VACIO }, null, "x").categorias).toBe(
-      null
-    );
+    expect(
+      trayectoDesdeForm({ ...TRAY_VACIO }, null, "x").categorias
+    ).toBeNull();
   });
 
   it("persists, updates and deletes places in localStorage", () => {

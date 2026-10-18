@@ -8,7 +8,7 @@ import type { Categoria } from "../places.types";
 
 const SIN_CATEGORIA = "Sin categoría";
 
-function Punto({ color }: { color?: string }) {
+function Punto({ color }: Readonly<{ color?: string }>) {
   return (
     <span
       className="h-2.5 w-2.5 flex-none rounded-full border border-gray-300 dark:border-gray-500"
@@ -22,11 +22,11 @@ export default function CategoryDropdown({
   value,
   cats,
   onChange,
-}: {
+}: Readonly<{
   value: string;
   cats: Categoria[];
   onChange: (categoryId: string) => void;
-}) {
+}>) {
   const actual = cats.find((c) => String(c.category_id) === value);
 
   return (

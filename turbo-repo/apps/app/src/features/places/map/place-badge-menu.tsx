@@ -11,14 +11,14 @@ export default function PlaceBadgeMenu({
   onConfigurar,
   onEliminar,
   onClose,
-}: {
+}: Readonly<{
   x: number;
   y: number;
   nombre: string;
   onConfigurar: () => void;
   onEliminar: () => void;
   onClose: () => void;
-}) {
+}>) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);

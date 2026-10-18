@@ -60,12 +60,12 @@ function ExtremoRecorrido({
   colorCls,
   rotulo,
   texto,
-}: {
+}: Readonly<{
   letra: string;
   colorCls: string;
   rotulo: string;
   texto: string;
-}) {
+}>) {
   return (
     <div className="relative flex items-center gap-2">
       <span
@@ -96,17 +96,17 @@ function ResumenRecorrido({
   tray,
   calculando,
   distanciaM,
-}: {
+}: Readonly<{
   tray: FormTrayecto;
   calculando: boolean;
   /** Largo del recorrido que se ve en el mapa (por calles o recto). */
   distanciaM?: number;
-}) {
+}>) {
   const ubicados = tray.recorrido.filter((p) => p.punto);
   // paradas y desvíos ubicados entre A y B
   const intermedios = Math.max(ubicados.length - 2, 0);
   const desde = ubicados[0]?.texto ?? "";
-  const hasta = ubicados[ubicados.length - 1]?.texto ?? "";
+  const hasta = ubicados.at(-1)?.texto ?? "";
   return (
     <div className="rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-600">
       <div className="flex items-baseline justify-between gap-2">
@@ -178,7 +178,7 @@ export default function TrayectoForm({
   className,
   dict,
   version,
-}: {
+}: Readonly<{
   /** Diccionario completo (control de la lista de categorías). */
   dict?: I18nRecord;
   /** Versión vigente del trayecto que se edita. */
@@ -206,7 +206,7 @@ export default function TrayectoForm({
   onSave: () => void;
   onClose: () => void;
   className?: string;
-}) {
+}>) {
   const set = <K extends keyof FormTrayecto>(key: K, value: FormTrayecto[K]) =>
     setTray((t) => ({ ...t, [key]: value }));
   const cambiarTipo = (kind: FormTrayecto["kind"]) =>

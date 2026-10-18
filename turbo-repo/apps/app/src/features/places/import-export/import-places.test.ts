@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   esArchivoImport,
   filasCsv,
@@ -75,6 +75,17 @@ describe("import parsers", () => {
     });
     expect(filas[1]?.vertices).toHaveLength(4);
     expect(filas[2]?.vertices).toHaveLength(4);
+  });
+
+  it("reads KML without the page's DOMParser and survives a broken file", () => {
+    // the file's text never becomes DOM of the page (CodeQL: DOM as HTML)
+    const nativo = vi.spyOn(globalThis.DOMParser.prototype, "parseFromString");
+    expect(filasKml(EJEMPLO_KML)).toHaveLength(3);
+    expect(nativo).not.toHaveBeenCalled();
+    nativo.mockRestore();
+    // malformed XML: no rows, no crash
+    expect(filasKml("<kml><Placemark><name>sin cerrar")).toEqual([]);
+    expect(filasKml("no es xml")).toEqual([]);
   });
 
   it("reads GeoJSON points, rectangles, unofficial squares and bbox as polygons", () => {

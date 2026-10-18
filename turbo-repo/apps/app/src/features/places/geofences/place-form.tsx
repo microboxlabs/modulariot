@@ -65,7 +65,7 @@ export default function PlaceForm({
   onUbicar,
   dict,
   version,
-}: {
+}: Readonly<{
   /** Diccionario completo (control de la lista de categorías). */
   dict?: I18nRecord;
   /** Versión vigente del lugar que se edita. */
@@ -84,7 +84,7 @@ export default function PlaceForm({
   token?: string;
   cerca?: () => LatLon | null;
   onUbicar?: (punto: LatLon, radioM: number) => void;
-}) {
+}>) {
   const [busqueda, setBusqueda] = useState("");
   const [ubicadoEn, setUbicadoEn] = useState<string | null>(null);
   const [intento, setIntento] = useState(false);

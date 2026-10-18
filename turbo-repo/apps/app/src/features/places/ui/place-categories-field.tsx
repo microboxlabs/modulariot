@@ -93,11 +93,7 @@ export default function CampoCategorias({
     value.length > 0 && (lista?.mode === "MULTIPLE" || value.length > 1);
   return (
     <div className="min-w-0 space-y-1.5">
-      <div
-        role="group"
-        aria-label={label}
-        className="flex min-w-0 items-center gap-1"
-      >
+      <fieldset aria-label={label} className="flex min-w-0 items-center gap-1">
         <div className="min-w-0 flex-1">
           <SelectableDropdown
             fieldKey={fieldKey}
@@ -115,7 +111,7 @@ export default function CampoCategorias({
         {puedeConfigurar && (
           <SelectableBindingControl fieldKey={fieldKey} dict={dict} />
         )}
-      </div>
+      </fieldset>
       {verElegidas && (
         <ul aria-label={`${label} elegidas`} className="flex flex-wrap gap-1">
           {value.map((codigo) => {

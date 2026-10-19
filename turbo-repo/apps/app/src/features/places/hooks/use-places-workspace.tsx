@@ -991,12 +991,10 @@ export function usePlacesWorkspace(
       if (!nom) return;
       setTray((t) => {
         const actual = t.recorrido.find((p) => p.id === id);
-        if (
-          !actual?.punto ||
-          actual.punto[0] !== punto[0] ||
-          actual.punto[1] !== punto[1]
-        )
-          return t;
+        // el punto se movió (o ya no está) mientras llegaba la dirección
+        const sigueAhi =
+          actual?.punto?.[0] === punto[0] && actual?.punto?.[1] === punto[1];
+        if (!sigueAhi) return t;
         return rotularPunto(t, id, nom);
       });
     });

@@ -43,6 +43,11 @@ export function metrosDesdeTexto(texto: string): number {
   return Number(limpio);
 }
 
+/** El navegador no deja bloquear el puntero: se arrastra sin bloqueo. */
+function sinBloqueoDePuntero() {
+  // nada que hacer: el arrastre usa clientX en vez de movementX
+}
+
 /** Delta en px: con lock suma movementX (sigue fuera de la pantalla). */
 export function dxDelArrastre(
   a: { x: number; dx: number },
@@ -100,14 +105,14 @@ export function SizeInput({
   maxRef.current = max;
 
   const bound = useRef({
-    async pedirLock() {
+    pedirLock() {
       const el = caja.current;
       if (!el?.requestPointerLock) return;
-      try {
-        await el.requestPointerLock();
-      } catch {
-        /* el navegador no deja bloquear el puntero */
-      }
+      // dentro de una promesa: también un fallo síncrono (navegadores viejos)
+      // termina en el catch; sin bloqueo, el arrastre sigue igual
+      new Promise<void>((listo) => listo(el.requestPointerLock())).catch(
+        sinBloqueoDePuntero
+      );
     },
     mover(ev: Event) {
       const a = arrastre.current;

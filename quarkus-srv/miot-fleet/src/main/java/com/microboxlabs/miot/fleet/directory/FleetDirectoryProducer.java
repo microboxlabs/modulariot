@@ -144,9 +144,9 @@ public class FleetDirectoryProducer {
     }
 
     /** Host, port and database of a {@code postgresql://[user@]host[:port]/db} URL; the scheme is optional. */
-    record Address(String host, int port, String database) {
+    public record Address(String host, int port, String database) {
 
-        static Address parse(String url) {
+        public static Address parse(String url) {
             String rest = url.replaceFirst("^postgres(ql)?://", "");
             int query = rest.indexOf('?');
             if (query >= 0) {

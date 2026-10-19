@@ -22,6 +22,8 @@ public interface FleetConfig {
 
     Activity activity();
 
+    Sharing sharing();
+
     interface Gps {
 
         Optional<String> reactiveUrl();
@@ -38,5 +40,23 @@ public interface FleetConfig {
 
         @WithDefault("8")
         int backfillPerRun();
+    }
+
+    /** Data shares between organizations. They read through {@link #gps()}; the sync writes with its own login. */
+    interface Sharing {
+
+        Sync sync();
+
+        interface Sync {
+
+            /** Off by default: writing {@code asset_client_map} needs a login allowed to change it. */
+            @WithDefault("false")
+            boolean enabled();
+
+            /** Login that may write {@code asset_client_map}; falls back to {@code miot.fleet.gps.*}. */
+            Optional<String> username();
+
+            Optional<String> password();
+        }
     }
 }

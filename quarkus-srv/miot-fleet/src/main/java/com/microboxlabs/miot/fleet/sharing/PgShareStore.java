@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.json.JsonArray;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
@@ -120,12 +121,9 @@ public class PgShareStore implements ShareStore {
         return pool.get().preparedQuery(sql).execute(params).await().atMost(QUERY_TIMEOUT);
     }
 
-    private static String json(List<String> values) {
-        try {
-            return JSON.writeValueAsString(values);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException(e);
-        }
+    /** A JSON array; a String bound to a jsonb parameter would be stored as a JSON string. */
+    private static JsonArray json(List<String> values) {
+        return new JsonArray(new ArrayList<>(values));
     }
 
     private static List<String> list(String json) {

@@ -54,6 +54,7 @@ export type PlatformSection =
   | "models"
   | "mail"
   | "vehicleImages"
+  | "sharing"
   | "templates"
   | "plan"
   | "usage";
@@ -175,4 +176,84 @@ export interface SetHarnessPlan {
   seatPriceUsd: number;
   tokensPerSeat: number;
   yearlyDiscountPct: number;
+}
+
+/** Read from the GPS data, not declared: its client sends signals, or creates trips. */
+export type DataShareOrgRole = "SENDER" | "OPERATOR";
+
+/** `assetCount` counts the organization's own assets, never the ones it receives. */
+export interface DataShareOrg {
+  slug: string;
+  name: string;
+  roles: DataShareOrgRole[];
+  assetCount: number;
+}
+
+/** An asset an organization can share, with what its signal reports about it. */
+export interface DataShareAsset {
+  id: string;
+  /** The signal's free-text `type`. */
+  kind: string;
+  /** The signal's free-text `owner`; empty when the sender leaves it out. */
+  owner: string;
+  lastSeen: string | null;
+}
+
+/**
+ * - `ALL`: every asset of the source, including later ones.
+ * - `FILTER`: the source's assets that match `filter`, including later ones.
+ * - `ASSETS`: only `assetIds`.
+ */
+export type DataShareScope = "ALL" | "FILTER" | "ASSETS";
+
+/** An empty list matches everything; the two lists combine with AND. */
+export interface DataShareFilter {
+  owners: string[];
+  kinds: string[];
+}
+
+/** Who created the share: a platform owner, or an integration the platform set up. */
+export type DataShareOrigin = "MANUAL" | "TRIP" | "ACCREDITATION";
+
+export type DataShareStatus = "ACTIVE" | "SCHEDULED" | "EXPIRED" | "REVOKED";
+
+export interface DataShare {
+  id: string;
+  sourceOrg: string;
+  targetOrg: string;
+  scope: DataShareScope;
+  /** Only for `FILTER`. */
+  filter: DataShareFilter | null;
+  /** Only for `ASSETS`. */
+  assetIds: string[];
+  /** Assets the share covers today, as the server counts them; null for revoked and expired shares. */
+  assetCount: number | null;
+  origin: DataShareOrigin;
+  status: DataShareStatus;
+  validFrom: string;
+  /** Null: no end date. */
+  validTo: string | null;
+  note: string | null;
+  createdBy: string;
+  createdAt: string;
+  revokedAt: string | null;
+  revokedBy: string | null;
+}
+
+export interface CreateDataShare {
+  sourceOrg: string;
+  targetOrg: string;
+  scope: DataShareScope;
+  filter: DataShareFilter | null;
+  assetIds: string[];
+  validFrom: string;
+  validTo: string | null;
+  note: string | null;
+}
+
+export interface DataSharingFigures {
+  active: number;
+  organizations: number;
+  assets: number;
+  endingSoon: number;
 }

@@ -1711,6 +1711,169 @@
             "ownerEmail": "Enter a valid email for the owner.",
             "slugTaken": "Another organization already uses this identifier or client ID."
           }
+        },
+        "sharing": {
+          "title": "Data sharing",
+          "menuHint": "Who sees whose GPS data",
+          "unavailable": "Data sharing is not configured in this environment.",
+          "loadError": "Could not load data sharing.",
+          "description": "Sets which organizations receive another organization's GPS data. Only platform admins create or revoke access. An organization that receives data cannot share it again.",
+          "create": "Share data",
+          "kpi": {
+            "active": "Active shares",
+            "organizations": "Connected organizations",
+            "assets": "Shared assets",
+            "endingSoon": "Ending in 30 days"
+          },
+          "filters": {
+            "org": "Filter by organization",
+            "allStatuses": "All statuses",
+            "allOrigins": "All origins"
+          },
+          "table": {
+            "source": "Shares",
+            "target": "Receives",
+            "scope": "Scope",
+            "origin": "Origin",
+            "validity": "Valid",
+            "status": "Status",
+            "open": "View"
+          },
+          "count": "{shown} of {total} shares",
+          "emptyNone": {
+            "title": "Nothing is shared yet",
+            "body": "When an organization shares its assets with another, the share shows up here.",
+            "action": "Share data"
+          },
+          "emptyFiltered": {
+            "title": "No share matches the filters",
+            "body": "Try another organization, status or origin.",
+            "action": "Clear filters"
+          },
+          "noEnd": "no end",
+          "status": {
+            "ACTIVE": "Active",
+            "SCHEDULED": "Scheduled",
+            "EXPIRED": "Expired",
+            "REVOKED": "Revoked"
+          },
+          "origin": {
+            "MANUAL": "Manual",
+            "TRIP": "Trip",
+            "ACCREDITATION": "Accreditation"
+          },
+          "roles": {
+            "SENDER": "Sends signals",
+            "OPERATOR": "Creates trips"
+          },
+          "scope": {
+            "ALL": "All its assets",
+            "FILTER": "By criteria",
+            "ASSETS": "Fixed list",
+            "hint": {
+              "ALL": "Includes assets added later.",
+              "FILTER": "Those matching criteria, including ones that arrive later.",
+              "ASSETS": "Only the assets you pick, even thousands."
+            },
+            "allDetail": "Shares today's {count} assets and any this organization adds later.",
+            "allCount": "All ({count})",
+            "filterCount": "By criteria ({count})",
+            "someCount": "List ({count})"
+          },
+          "filter": {
+            "owners": "Owner reported by the signal",
+            "kinds": "Asset type",
+            "hint": "Criteria combine: an asset must match both. A new asset that matches is added automatically.",
+            "matches": "{count} of {total} assets match today."
+          },
+          "picker": {
+            "noOrgs": "No organization matches.",
+            "refine": "And {count} more. Type to narrow down.",
+            "ownAssets": "Sends {count} assets",
+            "noOwnAssets": "Sends no assets: nothing to share",
+            "isSource": "It is the one sharing",
+            "clear": "Clear filter",
+            "searchAsset": "Search by ID, plate or IMEI",
+            "anyKind": "Any type",
+            "noKind": "No type",
+            "anyOwner": "Any owner",
+            "noOwner": "No owner reported",
+            "noValues": "No matches.",
+            "paste": "Paste list",
+            "pasteHint": "Paste IDs from a spreadsheet or text: one per line, or separated by commas, semicolons or tabs.",
+            "pasteApply": "Add to selection",
+            "pasteResult": "{found} added · {missing} not found in this organization",
+            "status": "{matching} match · {selected} selected of {total}",
+            "onlySelected": "Selected only",
+            "addMatching": "Select {count}",
+            "removeMatching": "Remove {count}",
+            "toggleMatching": "Select or remove the matching assets",
+            "noAssets": "No asset matches the filters.",
+            "columns": {
+              "id": "ID",
+              "kind": "Type",
+              "owner": "Reported owner",
+              "lastSeen": "Last signal"
+            }
+          },
+          "form": {
+            "title": "New share",
+            "subtitle": "The receiving organization will see these assets' position, trips and symptoms.",
+            "stepOrgs": "Organizations",
+            "stepAssets": "Which assets",
+            "stepValidity": "Validity and reason",
+            "source": "Shares",
+            "target": "Receives",
+            "pick": "Search organization",
+            "scope": "Scope",
+            "pickSourceFirst": "First pick who shares the data.",
+            "validFrom": "From",
+            "validTo": "Until",
+            "validToHint": "Empty: no end date.",
+            "note": "Reason",
+            "notePlaceholder": "E.g. GPS service contract",
+            "noReshare": "{target} will not be able to share this data with other organizations.",
+            "alreadyShared": "There are already {count} active or scheduled shares between these organizations ({assets} assets).",
+            "submit": "Share",
+            "cancel": "Cancel",
+            "created": "Share created. The receiving organization will see the assets within a few minutes.",
+            "saveError": "Could not create the share.",
+            "errors": {
+              "source": "Pick who shares the data.",
+              "target": "Pick who receives the data.",
+              "sameOrg": "An organization cannot share with itself.",
+              "sameClient": "These organizations use the same GPS credential: sharing between them changes nothing they see.",
+              "assetsUnavailable": "Could not load this organization's assets. Try again before sharing.",
+              "filter": "Pick at least one owner or type.",
+              "assets": "Pick at least one asset.",
+              "dates": "The end date must be after the start date.",
+              "duplicate": "An active or scheduled share of all assets already exists between these organizations."
+            }
+          },
+          "summary": {
+            "title": "Summary",
+            "today": "assets today; the number grows as new ones arrive",
+            "fixed": "assets in the list"
+          },
+          "detail": {
+            "created": "Created by",
+            "revokedBy": "Revoked by",
+            "criteria": "Criteria",
+            "criteriaValue": "Owner: {owners} · Type: {kinds}",
+            "any": "any",
+            "assets": "Assets",
+            "more": "and {count} more",
+            "close": "Close",
+            "revoke": "Revoke",
+            "revoked": "Share revoked.",
+            "revokeError": "Could not revoke the share.",
+            "revokeTitle": "Revoke the share",
+            "revokeBody": "{target} will stop seeing {source}'s data within a few minutes.",
+            "originHint": {
+              "TRIP": "Created by the trips integration; it ends when the trip closes.",
+              "ACCREDITATION": "Created by the accreditation integration; it ends with the accreditation."
+            }
+          }
         }
       },
       "organizations": {

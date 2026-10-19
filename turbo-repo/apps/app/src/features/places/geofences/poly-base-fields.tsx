@@ -108,11 +108,9 @@ export function SizeInput({
     pedirLock() {
       const el = caja.current;
       if (!el?.requestPointerLock) return;
-      // dentro de una promesa: también un fallo síncrono (navegadores viejos)
-      // termina en el catch; sin bloqueo, el arrastre sigue igual
-      new Promise<void>((listo) => listo(el.requestPointerLock())).catch(
-        sinBloqueoDePuntero
-      );
+      // los navegadores viejos devuelven undefined en vez de una promesa;
+      // sin bloqueo, el arrastre sigue igual
+      Promise.resolve(el.requestPointerLock()).catch(sinBloqueoDePuntero);
     },
     mover(ev: Event) {
       const a = arrastre.current;

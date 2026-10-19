@@ -49,10 +49,6 @@ public interface FleetConfig {
 
         interface Sync {
 
-            /** Off by default: writing {@code asset_client_map} needs a login allowed to change it. */
-            @WithDefault("false")
-            boolean enabled();
-
             /** Login that may write {@code asset_client_map}; falls back to {@code miot.fleet.gps.*}. */
             Optional<String> username();
 

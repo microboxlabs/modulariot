@@ -27,8 +27,8 @@ import org.jboss.logging.Logger;
 /**
  * Wires data sharing from {@code miot.fleet.source}, like the fleet directory: {@code gps} reads the modulith and GPS
  * databases and keeps shares in {@code miot_fleet}; {@code demo} serves generated organizations and keeps shares in
- * memory; anything else answers 503. With {@code miot.fleet.sharing.sync.enabled} and the {@code gps} source, a job
- * keeps {@code asset_client_map} in line with the active shares.
+ * memory; anything else answers 503. With {@code gps}, a job also keeps {@code asset_client_map} in line with the
+ * active shares.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.fleet.enabled", stringValue = "true")
@@ -103,10 +103,7 @@ public class SharingProducer {
             LOG.info("Data sharing: GPS database, shares in the modulith database");
             service = new SharingService(new GpsSharingSource(modulithPool::get, () -> gpsPool(true)),
                     new PgShareStore(modulithPool::get), clock, config.cacheTtl());
-            if (config.sharing().sync().enabled()) {
-                LOG.info("Data sharing: asset_client_map sync on");
-                sync = new ClientMapSync(service, new PgClientMapStore(() -> gpsPool(false)));
-            }
+            sync = new ClientMapSync(service, new PgClientMapStore(() -> gpsPool(false)));
         } else {
             LOG.infof("Data sharing: none (miot.fleet.source=%s)", source);
             service = new SharingService(new UnavailableSource(), new InMemoryShareStore(List.of(), clock),

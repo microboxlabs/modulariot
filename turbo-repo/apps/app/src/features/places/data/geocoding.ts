@@ -57,9 +57,11 @@ async function sugerenciaPlusCode(
 ): Promise<Sugerencia[] | null> {
   const pc = extraerPlusCode(q);
   if (!pc) return null;
-  const sugerencia = (punto: LatLon, contexto: string): Sugerencia[] => [
-    { id: `pluscode:${pc.codigo}`, nombre: pc.codigo, contexto, punto },
-  ];
+  // sin punto (la librería no pudo decodificarlo): ninguna sugerencia
+  const sugerencia = (punto: LatLon | null, contexto: string): Sugerencia[] =>
+    punto
+      ? [{ id: `pluscode:${pc.codigo}`, nombre: pc.codigo, contexto, punto }]
+      : [];
   if (pc.completo) return sugerencia(decodificar(pc.codigo), "Plus Code");
   if (pc.resto) {
     const [localidad] = await buscarEnMapbox(pc.resto, token, cerca, signal);

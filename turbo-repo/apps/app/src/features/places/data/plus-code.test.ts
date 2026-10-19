@@ -1,23 +1,36 @@
 import { describe, expect, it } from "vitest";
 import { decodificar, extraerPlusCode, recuperarCorto } from "./plus-code";
+import type { LatLon } from "../places.types";
 
-const cerca = (a: [number, number], b: [number, number], eps = 1e-5) => {
-  expect(a[0]).toBeCloseTo(b[0], -Math.log10(eps));
-  expect(a[1]).toBeCloseTo(b[1], -Math.log10(eps));
+/** Dos puntos iguales hasta ~10 cm (la librería redondea a 6 decimales). */
+const cerca = (a: LatLon | null, b: LatLon | null) => {
+  expect(a).not.toBeNull();
+  expect(b).not.toBeNull();
+  expect(a![0]).toBeCloseTo(b![0], 5);
+  expect(a![1]).toBeCloseTo(b![1], 5);
 };
 
 describe("plus codes", () => {
   it("decodes a full code to the centre of its area", () => {
     // the specification's example (Zürich)
     cerca(decodificar("8FVC9G8F+6X"), [47.3655625, 8.5249375]);
-    // grid digits after the 10th narrow it further
-    cerca(decodificar("8FVC9G8F+6XQ"), [47.3655625, 8.5249375], 1e-3);
+    // lower case works too (the library alone does not read it)
+    cerca(decodificar("8fvc9g8f+6x"), [47.3655625, 8.5249375]);
     // southern and western hemispheres: a code in Santiago
-    const [lat, lon] = decodificar("47RFJ9QR+7R");
+    const [lat, lon] = decodificar("47RFJ9QR+7R")!;
     expect(lat).toBeGreaterThan(-34);
     expect(lat).toBeLessThan(-33);
     expect(lon).toBeGreaterThan(-71);
     expect(lon).toBeLessThan(-70);
+  });
+
+  it("decodes padded low-precision codes to the centre of their cell", () => {
+    cerca(decodificar("8FVC0000+"), [47.5, 8.5]);
+  });
+
+  it("rejects what is not on the globe", () => {
+    // the library would return latitude 307 for this one
+    expect(decodificar("XXVC9G8F+6X")).toBeNull();
   });
 
   it("places a short code in the cell nearest the reference", () => {
@@ -40,6 +53,10 @@ describe("plus codes", () => {
       completo: false,
       resto: "Santiago Chile",
     });
+    expect(extraerPlusCode("8FVC0000+")).toMatchObject({
+      codigo: "8FVC0000+",
+      completo: true,
+    });
   });
 
   it("ignores ordinary addresses and malformed codes", () => {
@@ -50,5 +67,10 @@ describe("plus codes", () => {
     expect(extraerPlusCode("9G8F+6")).toBeNull();
     // a full code outside the globe
     expect(extraerPlusCode("XXVC9G8F+6X")).toBeNull();
+    // padding only in full codes, in pairs at the end, nothing after "+"
+    expect(extraerPlusCode("9G00+")).toBeNull();
+    expect(extraerPlusCode("8FV00000+")).toBeNull();
+    expect(extraerPlusCode("8FVC0000+6X")).toBeNull();
+    expect(extraerPlusCode("8F0C9G8F+6X")).toBeNull();
   });
 });

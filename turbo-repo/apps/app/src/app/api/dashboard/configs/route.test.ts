@@ -4,7 +4,7 @@
  * before that move, so a divergence in either implementation fails here.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authMock = vi.fn();
 const listMock = vi.fn();
@@ -43,8 +43,20 @@ const slugsOf = async (response: Response) =>
 describe("GET /api/dashboard/configs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("ECM_API_URL", "https://ecm.example.test");
     authMock.mockResolvedValue({ user: { email: "u@example.com" } });
     groupsMock.mockResolvedValue(["GROUP_fleet"]);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("lists nothing, without asking Alfresco, when there is no Alfresco", async () => {
+    vi.stubEnv("ECM_API_URL", "");
+    const response = await GET(withNextUrl("https://app.test/api?site=acme"));
+    expect(await response.json()).toEqual({ data: [] });
+    expect(listMock).not.toHaveBeenCalled();
   });
 
   it("401s an unauthenticated caller before asking Alfresco anything", async () => {

@@ -55,61 +55,24 @@ def test_finalize_answer_echo_is_effective_format_on_unknown(monkeypatch):
     assert rec.answer_format == "markdown"
 
 
-# --- Finding 2: ModeAccessDenied terminal path regression guard ---
+# --- The no-model answer is rendered in the requested format too ---
 
 
 @pytest.mark.asyncio
-async def test_mode_access_denied_answer_is_finalized_as_yaml(tmp_path):
-    """When _resolve_route raises ModeAccessDenied the supervisor must still
-    run _finalize_answer, so the persisted record's answer is rendered in the
-    requested format and answer_format is echoed correctly.
-
-    Trigger: llm_router wired + tenant_lock set + request mode="canned" with a
-    different tenant_id → mode_resolver.resolve_mode raises ModeAccessDenied
-    before any LLM call is made (the mode check is first).
-    """
-    from unittest.mock import AsyncMock, MagicMock
-
+async def test_no_model_answer_is_finalized_as_yaml(tmp_path):
     from miot_harness.runtime.context import UserRequest
-    from miot_harness.runtime.intent_router import LLMIntentRouter
-    from miot_harness.runtime.router import IntentRouter
     from miot_harness.runtime.run_store import JsonRunStore
     from miot_harness.runtime.supervisor import HarnessSupervisor
-    from miot_harness.storytelling.module import StorytellingModule
     from miot_harness.tools.registry import ToolRegistry
 
-    # Minimal stub model — ModeAccessDenied fires before any LLM call.
-    mock_model = MagicMock()
-    mock_model.ainvoke = AsyncMock(
-        return_value=MagicMock(content='{"route": "DIRECT", "confidence": 0.9, "reasoning": "x"}')
-    )
-    llm_router = LLMIntentRouter(model=mock_model)
+    sup = HarnessSupervisor(tools=ToolRegistry(), run_store=JsonRunStore(tmp_path))
 
-    sup = HarnessSupervisor(
-        router=IntentRouter(),
-        tools=ToolRegistry(),
-        stories=StorytellingModule(),
-        run_store=JsonRunStore(tmp_path),
-        llm_router=llm_router,
-        tenant_lock="locked-tenant",  # request's tenant_id will not match
+    record = await sup.run(
+        UserRequest(message="show me the data", tenant_id="other-tenant", answer_format="yaml")
     )
 
-    request = UserRequest(
-        message="show me the data",
-        mode="canned",
-        tenant_id="other-tenant",   # != tenant_lock → ModeAccessDenied
-        answer_format="yaml",
-    )
-
-    record = await sup.run(request)
-
-    # The run must complete (not raise)
     assert record.status == "completed"
-    # answer must be non-null — it is set from str(exc) before finalize
-    assert record.answer is not None
-    # answer_format must be echoed as "yaml" since str(exc) is Markdown-ish text
     assert record.answer_format == "yaml"
-    # answer must be valid YAML and parse successfully
     parsed = yaml.safe_load(record.answer)
     assert isinstance(parsed, dict)
     assert "answer" in parsed

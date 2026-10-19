@@ -137,6 +137,9 @@ jobs:
             "/testing",
             "/server",
             "/next",
+            "/queries",
+            "/vault-sql",
+            "/vault-http",
           ];
 
           for (const entry of entries) {

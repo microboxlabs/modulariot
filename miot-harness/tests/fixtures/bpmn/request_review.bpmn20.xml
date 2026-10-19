@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:activiti="http://activiti.org/bpmn"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI"
+             targetNamespace="http://example.org/processes">
+  <process id="requestReview" name="Request review" isExecutable="true">
+    <laneSet id="laneSet1">
+      <lane id="laneFront" name="Front office">
+        <flowNodeRef>start</flowNodeRef>
+        <flowNodeRef>register</flowNodeRef>
+        <flowNodeRef>decide</flowNodeRef>
+        <flowNodeRef>revise</flowNodeRef>
+        <flowNodeRef>rejected</flowNodeRef>
+      </lane>
+      <lane id="laneBack" name="Back office">
+        <flowNodeRef>split</flowNodeRef>
+        <flowNodeRef>ship</flowNodeRef>
+        <flowNodeRef>notify</flowNodeRef>
+        <flowNodeRef>join</flowNodeRef>
+        <flowNodeRef>close</flowNodeRef>
+        <flowNodeRef>closeGw</flowNodeRef>
+        <flowNodeRef>completed</flowNodeRef>
+        <flowNodeRef>cancelled</flowNodeRef>
+      </lane>
+    </laneSet>
+    <startEvent id="start" name="Start"/>
+    <userTask id="register" name="Register request" activiti:formKey="wf:registerTask"/>
+    <exclusiveGateway id="decide" name="Outcome?"/>
+    <userTask id="revise" name="Revise request" activiti:formKey="wf:reviseTask"/>
+    <endEvent id="rejected" name="Rejected"/>
+    <parallelGateway id="split"/>
+    <userTask id="ship" name="Prepare shipment" activiti:formKey="wf:shipTask"/>
+    <serviceTask id="notify" name="Notify customer"/>
+    <parallelGateway id="join"/>
+    <userTask id="close" name="Close request" activiti:formKey="wf:closeTask"/>
+    <exclusiveGateway id="closeGw" name="Cancel?" default="f13"/>
+    <endEvent id="completed" name="Completed"/>
+    <endEvent id="cancelled" name="Cancelled"/>
+    <sequenceFlow id="f1" sourceRef="start" targetRef="register"/>
+    <sequenceFlow id="f2" sourceRef="register" targetRef="decide"/>
+    <sequenceFlow id="f3" sourceRef="decide" targetRef="split">
+      <conditionExpression xsi:type="tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><![CDATA[${outcome=='Approve'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f4" sourceRef="decide" targetRef="rejected">
+      <conditionExpression xsi:type="tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><![CDATA[${outcome=='Reject'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f5" sourceRef="decide" targetRef="revise">
+      <conditionExpression xsi:type="tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><![CDATA[${outcome=='Needs changes'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f6" sourceRef="revise" targetRef="register"/>
+    <sequenceFlow id="f7" sourceRef="split" targetRef="ship"/>
+    <sequenceFlow id="f8" sourceRef="split" targetRef="notify"/>
+    <sequenceFlow id="f9" sourceRef="ship" targetRef="join"/>
+    <sequenceFlow id="f10" sourceRef="notify" targetRef="join"/>
+    <sequenceFlow id="f11" sourceRef="join" targetRef="close"/>
+    <sequenceFlow id="f12" sourceRef="close" targetRef="closeGw"/>
+    <sequenceFlow id="f13" sourceRef="closeGw" targetRef="completed"/>
+    <sequenceFlow id="f14" sourceRef="closeGw" targetRef="cancelled">
+      <conditionExpression xsi:type="tFormalExpression" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><![CDATA[${outcome=='Cancel'}]]></conditionExpression>
+    </sequenceFlow>
+  </process>
+  <bpmndi:BPMNDiagram id="diagram">
+    <bpmndi:BPMNPlane id="plane" bpmnElement="requestReview">
+      <bpmndi:BPMNShape id="s_laneFront" bpmnElement="laneFront"><omgdc:Bounds x="30" y="0" width="1050" height="200"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_laneBack" bpmnElement="laneBack"><omgdc:Bounds x="30" y="200" width="1050" height="200"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_start" bpmnElement="start"><omgdc:Bounds x="60" y="80" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_register" bpmnElement="register"><omgdc:Bounds x="140" y="68" width="120" height="60"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_decide" bpmnElement="decide"><omgdc:Bounds x="310" y="78" width="40" height="40"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_revise" bpmnElement="revise"><omgdc:Bounds x="280" y="145" width="100" height="45"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_rejected" bpmnElement="rejected"><omgdc:Bounds x="420" y="20" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_split" bpmnElement="split"><omgdc:Bounds x="420" y="278" width="40" height="40"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_ship" bpmnElement="ship"><omgdc:Bounds x="500" y="230" width="120" height="60"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_notify" bpmnElement="notify"><omgdc:Bounds x="500" y="320" width="120" height="60"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_join" bpmnElement="join"><omgdc:Bounds x="670" y="278" width="40" height="40"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_close" bpmnElement="close"><omgdc:Bounds x="750" y="268" width="120" height="60"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_closeGw" bpmnElement="closeGw"><omgdc:Bounds x="920" y="278" width="40" height="40"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_completed" bpmnElement="completed"><omgdc:Bounds x="1010" y="280" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="s_cancelled" bpmnElement="cancelled"><omgdc:Bounds x="1010" y="350" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="e_f1" bpmnElement="f1"><omgdi:waypoint x="96" y="98"/><omgdi:waypoint x="140" y="98"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f2" bpmnElement="f2"><omgdi:waypoint x="260" y="98"/><omgdi:waypoint x="310" y="98"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f3" bpmnElement="f3"><omgdi:waypoint x="350" y="98"/><omgdi:waypoint x="390" y="98"/><omgdi:waypoint x="390" y="298"/><omgdi:waypoint x="420" y="298"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f4" bpmnElement="f4"><omgdi:waypoint x="330" y="78"/><omgdi:waypoint x="330" y="38"/><omgdi:waypoint x="420" y="38"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f5" bpmnElement="f5"><omgdi:waypoint x="330" y="118"/><omgdi:waypoint x="330" y="145"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f6" bpmnElement="f6"><omgdi:waypoint x="280" y="168"/><omgdi:waypoint x="200" y="168"/><omgdi:waypoint x="200" y="128"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f7" bpmnElement="f7"><omgdi:waypoint x="440" y="278"/><omgdi:waypoint x="440" y="260"/><omgdi:waypoint x="500" y="260"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f8" bpmnElement="f8"><omgdi:waypoint x="440" y="318"/><omgdi:waypoint x="440" y="350"/><omgdi:waypoint x="500" y="350"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f9" bpmnElement="f9"><omgdi:waypoint x="620" y="260"/><omgdi:waypoint x="690" y="260"/><omgdi:waypoint x="690" y="278"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f10" bpmnElement="f10"><omgdi:waypoint x="620" y="350"/><omgdi:waypoint x="690" y="350"/><omgdi:waypoint x="690" y="318"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f11" bpmnElement="f11"><omgdi:waypoint x="710" y="298"/><omgdi:waypoint x="750" y="298"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f12" bpmnElement="f12"><omgdi:waypoint x="870" y="298"/><omgdi:waypoint x="920" y="298"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f13" bpmnElement="f13"><omgdi:waypoint x="960" y="298"/><omgdi:waypoint x="1010" y="298"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_f14" bpmnElement="f14"><omgdi:waypoint x="940" y="318"/><omgdi:waypoint x="940" y="368"/><omgdi:waypoint x="1010" y="368"/></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

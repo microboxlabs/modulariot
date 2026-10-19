@@ -43,8 +43,9 @@ export function PgrestSettingsSection({
   onDataSourceIdChange,
   activeProviders,
 }: Readonly<PgrestSettingsSectionProps>) {
-  const { filters } = useDashboard();
+  const { filters, hostAccess } = useDashboard();
   const filterSuggestions = useFilterSuggestions(filters);
+  if (hostAccess) return null;
 
   return (
     <>

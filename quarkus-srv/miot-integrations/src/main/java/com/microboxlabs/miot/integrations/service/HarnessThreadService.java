@@ -3,6 +3,7 @@ package com.microboxlabs.miot.integrations.service;
 import com.microboxlabs.miot.integrations.domain.HarnessThread;
 import com.microboxlabs.miot.integrations.domain.HarnessThreadMessage;
 import com.microboxlabs.miot.integrations.domain.HarnessThreadShare;
+import com.microboxlabs.miot.integrations.dto.ThreadForkRequest;
 import com.microboxlabs.miot.integrations.dto.ThreadMessageRequest;
 import com.microboxlabs.miot.integrations.dto.ThreadPatchRequest;
 import com.microboxlabs.miot.integrations.dto.ThreadResponse;
@@ -14,6 +15,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +54,8 @@ public class HarnessThreadService {
     /** Matches what the harness accepts back; its own summaries are a few
      * hundred words, so anything near this is not one of them. */
     private static final int MAX_SUMMARY_LENGTH = 8_000;
+    /** Model names look like `llmgateway:deepseek-v4-flash`. */
+    private static final int MAX_MODEL_LENGTH = 200;
 
     private static final int DEFAULT_MESSAGE_PAGE = 500;
 
@@ -71,6 +76,8 @@ public class HarnessThreadService {
 
     private static final String THREAD_ID = "threadId";
 
+    private static final String FORK_SUFFIX = " (fork)";
+
     private final HarnessThreadRepository repository;
 
     @Inject
@@ -79,10 +86,11 @@ public class HarnessThreadService {
     }
 
     /** The caller's own threads followed by the ones shared with them, each
-     * newest-activity first. */
-    public List<ThreadResponse> listVisible(String tenantCode, String userId, Integer limit) {
+     * newest-activity first. A null {@code kind} lists every kind. */
+    public List<ThreadResponse> listVisible(String tenantCode, String userId, Integer limit, String kind) {
         int bounded = boundLimit(limit);
-        List<HarnessThread> owned = repository.listOwned(tenantCode, userId, bounded);
+        String filter = kind == null || kind.isBlank() ? null : requireKind(kind);
+        List<HarnessThread> owned = repository.listOwned(tenantCode, userId, filter, bounded);
         // One query for every thread's shares, not one per thread.
         Map<String, List<HarnessThreadShare>> shares =
                 repository.listSharesFor(owned.stream().map(HarnessThread::id).toList());
@@ -95,7 +103,7 @@ public class HarnessThreadService {
         // getting 200 back would break any caller paging on the number.
         int remaining = bounded - out.size();
         if (remaining > 0) {
-            for (HarnessThread thread : repository.listSharedWith(tenantCode, userId, remaining)) {
+            for (HarnessThread thread : repository.listSharedWith(tenantCode, userId, filter, remaining)) {
                 out.add(toResponse(thread, userId, List.of()));
             }
         }
@@ -112,10 +120,13 @@ public class HarnessThreadService {
                 userId,
                 truncateTitle(request.title()),
                 null,
+                null,
                 request.expiresAt(),
                 null,
                 null,
-                null));
+                null,
+                false,
+                kind(request)));
         // The upsert's owner guard did not match, so this id is someone else's.
         return saved == null ? null : toResponse(saved, userId, repository.listShares(saved.id()));
     }
@@ -138,14 +149,53 @@ public class HarnessThreadService {
         if (ownedThread(tenantCode, userId, id) == null) {
             return null;
         }
-        HarnessThread saved = repository.update(
-                id,
-                userId,
+        HarnessThread saved = repository.update(id, userId, new HarnessThreadRepository.Changes(
                 truncateTitle(request.title()),
                 request.expiresAt(),
                 Boolean.TRUE.equals(request.clearExpiry()),
-                optionalText(request.summary(), "summary", MAX_SUMMARY_LENGTH));
+                optionalText(request.summary(), "summary", MAX_SUMMARY_LENGTH),
+                optionalText(request.model(), "model", MAX_MODEL_LENGTH),
+                Boolean.TRUE.equals(request.autoTitle())));
         return saved == null ? null : toResponse(saved, userId, repository.listShares(saved.id()));
+    }
+
+    /**
+     * Copies a thread the caller can see — their own or one shared with them —
+     * into a new thread they own. With {@code atMessageId} the copy is that
+     * message and its ancestors, so the new thread continues from there.
+     *
+     * <p>The source's summary is carried over only by a full copy: it may cover
+     * turns a partial fork leaves out. The harness's conversation memory is keyed
+     * by thread id and is not copied; the panel replays the copied transcript on
+     * the fork's first run.
+     */
+    public ThreadResponse fork(
+            String tenantCode, String userId, String threadId, ThreadForkRequest request) {
+        HarnessThread source = visibleThread(tenantCode, userId, threadId);
+        if (source == null) {
+            return null;
+        }
+        List<HarnessThreadMessage> messages = allMessages(source.id());
+        String atMessageId = request == null ? null : request.atMessageId();
+        boolean partial = atMessageId != null && !atMessageId.isBlank();
+        List<String> ids = partial
+                ? ancestry(messages, atMessageId)
+                : messages.stream().map(HarnessThreadMessage::id).toList();
+
+        HarnessThread saved = repository.fork(new HarnessThread(
+                UUID.randomUUID().toString(),
+                tenantCode,
+                userId,
+                forkTitle(source.title()),
+                partial ? null : source.summary(),
+                source.model(),
+                null,
+                null,
+                null,
+                null,
+                true,
+                source.kind()), source.id(), ids);
+        return saved == null ? null : toResponse(saved, userId, List.of());
     }
 
     public boolean delete(String tenantCode, String userId, String threadId) {
@@ -169,7 +219,7 @@ public class HarnessThreadService {
         HarnessThread existing = repository.find(id, tenantCode);
         if (existing == null) {
             HarnessThread created = repository.upsert(new HarnessThread(
-                    id, tenantCode, userId, null, null, null, null, null, null));
+                    id, tenantCode, userId, null, null, null, null, null, null, null));
             if (created == null) {
                 return null;
             }
@@ -235,6 +285,50 @@ public class HarnessThreadService {
         return repository.deleteShare(id, requireText(principal, "principal", 256));
     }
 
+    private List<HarnessThreadMessage> allMessages(String threadId) {
+        List<HarnessThreadMessage> all = new ArrayList<>();
+        long after = 0;
+        List<HarnessThreadMessage> page;
+        do {
+            page = repository.listMessages(threadId, after, MAX_MESSAGE_PAGE);
+            all.addAll(page);
+            if (!page.isEmpty()) {
+                after = page.get(page.size() - 1).seq();
+            }
+        } while (page.size() == MAX_MESSAGE_PAGE);
+        return all;
+    }
+
+    /** The ids of {@code messageId} and every message above it, in append order. */
+    private static List<String> ancestry(List<HarnessThreadMessage> messages, String messageId) {
+        Map<String, HarnessThreadMessage> byId = new HashMap<>();
+        for (HarnessThreadMessage message : messages) {
+            byId.put(message.id(), message);
+        }
+        if (!byId.containsKey(messageId)) {
+            throw new IllegalArgumentException("atMessageId is not a message of this thread");
+        }
+        Set<String> chain = new HashSet<>();
+        String id = messageId;
+        while (id != null && byId.containsKey(id) && chain.add(id)) {
+            id = byId.get(id).parentId();
+        }
+        return messages.stream().map(HarnessThreadMessage::id).filter(chain::contains).toList();
+    }
+
+    /** The source title with the suffix kept whole, cutting the title instead if it must. */
+    private static String forkTitle(String title) {
+        String base = truncateTitle(title);
+        if (base == null) {
+            return FORK_SUFFIX.strip();
+        }
+        int room = MAX_TITLE_LENGTH - FORK_SUFFIX.length();
+        if (base.codePointCount(0, base.length()) > room) {
+            base = base.substring(0, base.offsetByCodePoints(0, room));
+        }
+        return base + FORK_SUFFIX;
+    }
+
     private HarnessThread visibleThread(String tenantCode, String userId, String threadId) {
         HarnessThread thread = repository.find(requireUuid(threadId, THREAD_ID), tenantCode);
         if (thread == null) {
@@ -264,13 +358,30 @@ public class HarnessThreadService {
                 thread.id(),
                 thread.title(),
                 thread.summary(),
+                thread.model(),
                 thread.ownerId(),
                 owned,
                 thread.expiresAt(),
                 thread.lastMessageAt(),
                 thread.createdAt(),
                 thread.updatedAt(),
-                List.copyOf(principals));
+                List.copyOf(principals),
+                thread.titleEdited(),
+                thread.kind());
+    }
+
+    /** The kind a create asks for; a missing one is a chat. */
+    public static String kind(ThreadUpsertRequest request) {
+        return request == null || request.kind() == null || request.kind().isBlank()
+                ? HarnessThread.CHAT
+                : requireKind(request.kind());
+    }
+
+    private static String requireKind(String kind) {
+        if (!HarnessThread.CHAT.equals(kind) && !HarnessThread.LEARNING.equals(kind)) {
+            throw new IllegalArgumentException("kind must be chat or learning");
+        }
+        return kind;
     }
 
     /** A missing or negative cursor reads from the start. */

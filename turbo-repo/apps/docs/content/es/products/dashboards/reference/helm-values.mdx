@@ -1,0 +1,83 @@
+# Valores de Helm
+
+Valores del chart `miot-dashboard-server`, versión 0.1.2. Cada valor que establece una variable de entorno la indica. Las opciones sin un valor propio van en `extraEnv` o `extraEnvFrom`.
+
+## Carga de trabajo
+
+| Valor | Valor por defecto | Significado |
+| --- | --- | --- |
+| `replicaCount` | `1` | Mantenga 1 con SQLite |
+| `strategy.type` | `Recreate` | `Recreate` detiene primero el pod anterior, de modo que dos pods nunca comparten un archivo SQLite |
+| `image.repository` | `ghcr.io/microboxlabs/miot-dashboard-server` | Imagen |
+| `image.tag` | `latest` | Fije una etiqueta `sha-<commit>` |
+| `image.pullPolicy` | `Always` | Use `IfNotPresent` con una etiqueta fija |
+| `resources` | `{}` | Solicitudes y límites de CPU y memoria |
+| `podSecurityContext` | `fsGroup: 1001` | |
+| `securityContext` | UID 1001 sin privilegios de root, raíz de solo lectura, sin escalada de privilegios, todas las capacidades eliminadas | |
+| `nodeSelector`, `tolerations`, `affinity` | vacío | Planificación de pods |
+| `volumes`, `volumeMounts` | vacío | Montajes adicionales, como un módulo de consultas de solo lectura |
+| `extraEnv`, `extraEnvFrom` | vacío | Cualquier otra variable de entorno o secreto |
+
+## Red
+
+| Valor | Valor por defecto | Variable |
+| --- | --- | --- |
+| `service.type` | `ClusterIP` | |
+| `service.port` | `3070` | |
+| `ingress.enabled` | `false` | |
+| `ingress.className`, `hosts`, `tls`, `annotations` | | |
+| `basePath` | vacío | `MIOT_DASHBOARD_BASE_PATH` |
+| `docs` | `false` | `MIOT_DASHBOARD_DOCS` |
+| `cors.origins` | `[]` | `MIOT_DASHBOARD_CORS_ORIGINS` |
+| `cors.headers` | `[]` | `MIOT_DASHBOARD_CORS_HEADERS` |
+| `cors.credentials` | `null` | `MIOT_DASHBOARD_CORS_CREDENTIALS` |
+
+## Almacenamiento
+
+| Valor | Valor por defecto | Variable |
+| --- | --- | --- |
+| `store.kind` | `sqlite` | `MIOT_DASHBOARD_STORE` |
+| `store.postgres.url` | vacío | `MIOT_DASHBOARD_POSTGRES_URL`, guardada en un Secret que administra el chart |
+| `store.postgres.existingSecret`, `existingSecretKey` | vacío, `url` | Lee la URL desde su propio Secret |
+| `store.postgres.poolSize` | `null` (10) | `MIOT_DASHBOARD_POSTGRES_POOL_SIZE` |
+| `store.postgres.connectionTimeoutMs` | `null` (5000) | `MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT` |
+| `documents.kind` | `fs` | `MIOT_DASHBOARD_DOCUMENTS` |
+| `documents.bucket`, `prefix`, `region` | vacío | Para `s3` y `gcs` |
+| `orphan.sweepIntervalSeconds` | `null` (3600) | `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` |
+| `orphan.minAgeSeconds` | `null` (86400) | `MIOT_DASHBOARD_ORPHAN_MIN_AGE` |
+| `seed.path` | vacío | `MIOT_DASHBOARD_SEED` |
+| `persistence.enabled` | `true` | Un PersistentVolumeClaim en `/data` |
+| `persistence.existingClaim`, `storageClass`, `accessModes`, `size`, `mountPath` | `ReadWriteOnce`, `1Gi`, `/data` | |
+
+## Identidad
+
+| Valor | Variable |
+| --- | --- |
+| `auth.jwt.issuer` | `MIOT_DASHBOARD_JWT_ISSUER` |
+| `auth.jwt.audience` | `MIOT_DASHBOARD_JWT_AUDIENCE` |
+| `auth.jwt.jwksUrl` | `MIOT_DASHBOARD_JWT_JWKS_URL` |
+| `auth.jwt.publicKey.value` o `.existingSecret` | `MIOT_DASHBOARD_JWT_PUBLIC_KEY` |
+| `auth.jwt.secret.value` o `.existingSecret` | `MIOT_DASHBOARD_JWT_SECRET` |
+| `auth.jwt.claims.user`, `groups`, `displayName` | `MIOT_DASHBOARD_JWT_USER_CLAIM`, `_GROUPS_CLAIM`, `_NAME_CLAIM` |
+| `auth.jwt.clockToleranceSeconds` | `MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE` |
+
+## Membresías
+
+| Valor | Variable |
+| --- | --- |
+| `tenants.url`, `method`, `entitledPath`, `absentStatus` | `MIOT_DASHBOARD_TENANTS_*` |
+| `tenants.cacheSeconds`, `negativeCacheSeconds`, `timeoutMs` | `MIOT_DASHBOARD_TENANTS_CACHE`, `_NEGATIVE_CACHE`, `_TIMEOUT` |
+| `tenants.serviceHeader`, `serviceValue` o `existingSecret` | `MIOT_DASHBOARD_TENANTS_SERVICE_HEADER`, `_VALUE` |
+| `scopes.url`, `method`, `rolePath`, `roleMap`, `absentStatus` | `MIOT_DASHBOARD_SCOPES_*` |
+| `scopes.cacheSeconds`, `negativeCacheSeconds`, `timeoutMs` | `MIOT_DASHBOARD_SCOPES_CACHE`, `_NEGATIVE_CACHE`, `_TIMEOUT` |
+| `scopes.serviceHeader`, `serviceValue` o `existingSecret` | `MIOT_DASHBOARD_SCOPES_SERVICE_HEADER`, `_VALUE` |
+
+## Proxy de confianza
+
+| Valor | Variable |
+| --- | --- |
+| `proxy.key` o `proxy.existingSecret` (clave `proxy-key`) | `MIOT_DASHBOARD_PROXY_KEY` |
+
+## Secretos
+
+Cada valor sensible acepta un literal, que el chart guarda en un Secret que administra, o `existingSecret` y `existingSecretKey`, que apuntan a un Secret que usted creó. Use `existingSecret` en producción, para que los secretos no queden en los archivos de valores.

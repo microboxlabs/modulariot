@@ -7,21 +7,17 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.33</version>
+        <version>0.5.38</version>
     </parent>
 
     <artifactId>miot-fleet</artifactId>
     <name>ModularIoT — Fleet</name>
-    <description>Fleet monitoring component: vehicles, trips, routes, geofences</description>
+    <description>Fleet: the organization's assets, filled from GPS signals and trips, and editable</description>
 
     <dependencies>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.microboxlabs.miot</groupId>
-            <artifactId>miot-resource-core</artifactId>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -30,11 +26,6 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.rest-assured</groupId>
-            <artifactId>rest-assured</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

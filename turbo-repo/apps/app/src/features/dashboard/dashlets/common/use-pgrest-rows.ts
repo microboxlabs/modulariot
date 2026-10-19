@@ -1,3 +1,4 @@
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { PgrestParam, PgrestHttpMethod } from "./pgrest-types";
 import { buildPgrestFetch, parseRows } from "./pgrest-utils";
@@ -15,13 +16,15 @@ export function usePgrestRows(
   loading: boolean;
   fetchError: string | null;
 } {
+  const { hostAccess } = useOptionalDashboard();
+  const effectiveMode = hostAccess ? "static" : dataMode;
   const [rows, setRows] = useState<Record<string, string>[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Keep latest args in a ref so the polling callback reads fresh values
-  const argsRef = useRef({ dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId });
-  argsRef.current = { dataMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId };
+  const argsRef = useRef({ dataMode: effectiveMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId });
+  argsRef.current = { dataMode: effectiveMode, pgrestFunctionName, pgrestHttpMethod, pgrestParams, dataSourceId };
 
   // Abort controller ref for cancelling in-flight requests
   const abortRef = useRef<AbortController | null>(null);
@@ -80,7 +83,7 @@ export function usePgrestRows(
     return () => {
       abortRef.current?.abort();
     };
-  }, [dataMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId, doFetch]);
+  }, [effectiveMode, pgrestFunctionName, pgrestParams, pgrestHttpMethod, dataSourceId, doFetch]);
 
   // Polling (silent — no loading spinner flash)
   const pollFetch = useCallback(() => doFetch(true), [doFetch]);

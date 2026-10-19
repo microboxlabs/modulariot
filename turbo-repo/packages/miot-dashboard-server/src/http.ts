@@ -20,3 +20,5 @@ export {
   jsonResponse,
   noContentResponse,
 } from "./http/responses";
+
+export type { DashboardQueryCatalog, DashboardCatalogConnection, DashboardCatalogOperation } from "./seams/query-catalog";

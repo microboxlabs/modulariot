@@ -1,0 +1,90 @@
+# Documentos y widgets
+
+Todo lo que define un dashboard, salvo sus permisos, es un documento JSON. El servidor lo guarda, la UI lo dibuja, y usted puede exportarlo e importarlo como archivo.
+
+## El documento
+
+```json
+{
+  "version": 2,
+  "name": "Resumen de operaciones",
+  "preferences": { "editMode": false },
+  "widgets": [ ... ],
+  "queries": [ ... ],
+  "filters": [ ... ],
+  "refreshInterval": 60,
+  "order": 1
+}
+```
+
+| Campo | Contiene |
+| --- | --- |
+| `version` | Siempre `2`. El servidor rechaza cualquier otro valor. |
+| `name` | El título que ven las personas |
+| `widgets` | El árbol de widgets |
+| `queries` | Las consultas guardadas que leen los widgets |
+| `filters` | La barra de filtros |
+| `refreshInterval` | Segundos entre actualizaciones automáticas: 0 (desactivado), 10, 30, 60 o 300 |
+| `order` | Posición en la navegación. Un valor menor va primero; los dashboards sin este campo van al final. |
+| `allowedGroups` | Opcional. Limita a quienes pueden ver el dashboard a los miembros de estos grupos. |
+
+La lista completa de campos está en [Esquema del documento](/es/products/dashboards/reference/document-schema).
+
+## Widgets
+
+Un widget es un elemento de la grilla: una tarjeta, una estadística, una tabla, un gráfico o un contenedor que agrupa otros widgets.
+
+```json
+{
+  "id": "revenue",
+  "componentId": "text_card",
+  "layout": { "i": "revenue", "x": 0, "y": 0, "w": 12, "h": 3 },
+  "config": { "text": "Ingresos: {{total}}" },
+  "createdAt": "2026-10-05T00:00:00Z",
+  "updatedAt": "2026-10-05T00:00:00Z"
+}
+```
+
+| Campo | Significado |
+| --- | --- |
+| `id` | Único en el documento |
+| `componentId` | El tipo de widget que lo dibuja. Consulte [Catálogo de widgets](/es/products/dashboards/reference/widgets). |
+| `layout` | Posición y tamaño en la grilla |
+| `config` | La configuración propia del tipo de widget |
+| `children` | Widgets dentro de un contenedor |
+
+El contrato no decide qué valores de `componentId` existen. Lo decide la página que dibuja el dashboard, mediante su registro de widgets. Un widget que la página no conoce muestra un mensaje breve de "no disponible"; el resto del dashboard sigue funcionando.
+
+## La grilla
+
+La grilla tiene **24 columnas**. `x` y `w` cuentan columnas; `y` y `h` cuentan filas. Un widget debe caber: `x + w` es como máximo 24. No hay límite de filas, y el dashboard se desplaza.
+
+La grilla está diseñada para 1.600 píxeles de ancho y se escala para ajustarse a su contenedor, hasta 1,35 veces. En pantallas angostas ajusta cómo se muestran los widgets, pero las posiciones guardadas nunca cambian por el tamaño de la pantalla.
+
+## Plantillas
+
+El texto en la configuración de un widget puede contener plantillas entre llaves dobles. El widget las completa con sus datos:
+
+| Plantilla | Lee |
+| --- | --- |
+| `{{completed}}` o `{{row.completed}}` | La columna `completed` de la primera fila del resultado |
+| `{{filter.vehicle}}` | El valor actual del filtro `vehicle` |
+| `{{data_provider.title}}` | Un valor que define la configuración del widget |
+
+Las plantillas usan Handlebars, y su resultado siempre se muestra como texto, nunca como HTML.
+
+## Datos para un widget
+
+Un widget obtiene datos de una de dos formas:
+
+| `dataMode` | Los datos vienen de |
+| --- | --- |
+| `static` (predeterminado) | `staticData`, un objeto JSON en la configuración del widget |
+| `planner` | La consulta guardada indicada en `plannerVariableName` |
+
+Los widgets que muestran un solo valor leen la primera fila. Las tablas, listas y gráficos leen todas las filas.
+
+## Compatibilidad
+
+- **Los campos desconocidos se conservan.** Un documento escrito por una UI más nueva mantiene sus campos adicionales cuando un servidor más antiguo lo guarda.
+- **Las versiones desconocidas se rechazan.** El servidor no intenta adivinar cómo convertir un documento que no entiende, porque una conversión equivocada perdería datos en el siguiente guardado.

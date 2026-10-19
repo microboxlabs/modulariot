@@ -20,7 +20,7 @@ function seed(): SlashRegistry {
   return new SlashRegistry()
     .register(cmd("context", "Show session context"))
     .register(cmd("clear", "Clear the transcript"))
-    .register(cmd("mode", "Change run mode"))
+    .register(cmd("model", "Pick a model"))
     .register(cmd("whoami", "Print user identity"))
     .register(cmd("tenant", "Change tenant"));
 }
@@ -40,7 +40,7 @@ describe("<Palette />", () => {
     const frame = lastFrame() ?? "";
     expect(frame).toContain("/context");
     expect(frame).toContain("/clear");
-    expect(frame).toContain("/mode");
+    expect(frame).toContain("/model");
     expect(frame).toContain("/whoami");
     expect(frame).toContain("/tenant");
   });
@@ -52,7 +52,7 @@ describe("<Palette />", () => {
     const frame = lastFrame() ?? "";
     expect(frame).toContain("/context");
     expect(frame).not.toContain("/clear");
-    expect(frame).not.toContain("/mode");
+    expect(frame).not.toContain("/model");
   });
 
   it("falls back to summary matches", () => {

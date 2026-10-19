@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import type { RunMode } from "@microboxlabs/miot-harness-client";
 import { readMiotrcProfile } from "./miotrc.js";
 
 export interface MiotChatProfile {
@@ -9,7 +8,8 @@ export interface MiotChatProfile {
   token: string | null;
   tenantId: string;
   userId: string;
-  mode?: RunMode;
+  /** Conversation model; unset means the harness default. */
+  model?: string;
   /**
    * Organization slug; when set, runs route through the quarkus-srv harness
    * proxy at {baseUrl}/api/v1/orgs/{orgSlug}/harness.
@@ -35,7 +35,8 @@ export interface ResolvedConfig {
   token: string | null;
   tenantId: string;
   userId: string;
-  mode: RunMode;
+  /** Conversation model, or null for the harness default. */
+  model: string | null;
   profileName: string;
   theme: ThemeConfig | null;
   /**
@@ -59,7 +60,7 @@ export interface CliFlags {
   token?: string;
   tenant?: string;
   user?: string;
-  mode?: string;
+  model?: string;
   profile?: string;
   debug?: boolean;
   org?: string;
@@ -70,8 +71,6 @@ export interface ResolveOptions {
   env?: NodeJS.ProcessEnv;
   configDir?: string;
 }
-
-const VALID_MODES = new Set<RunMode>(["auto", "canned", "meta", "agentic"]);
 
 export const DEFAULT_CONFIG: MiotChatConfig = {
   defaultProfile: "local",
@@ -178,10 +177,11 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
   const tenantId =
     flags.tenant ?? env.MIOT_CHAT_TENANT_ID ?? profile.tenantId;
   const userId = flags.user ?? env.MIOT_CHAT_USER_ID ?? profile.userId;
-  const modeRaw = flags.mode ?? env.MIOT_CHAT_MODE ?? profile.mode ?? "auto";
-  const mode = (
-    VALID_MODES.has(modeRaw as RunMode) ? modeRaw : "auto"
-  ) as RunMode;
+  const model =
+    nonEmpty(flags.model) ??
+    nonEmpty(env.MIOT_CHAT_MODEL) ??
+    nonEmpty(profile.model) ??
+    null;
 
   const debug = Boolean(
     flags.debug ?? (env.MIOT_CHAT_DEBUG ? env.MIOT_CHAT_DEBUG !== "0" : false),
@@ -202,7 +202,7 @@ export function resolveConfig(opts: ResolveOptions = {}): ResolvedConfig {
     token,
     tenantId,
     userId,
-    mode,
+    model,
     profileName,
     theme: cfg.theme ?? null,
     debug,
@@ -237,9 +237,9 @@ function normalize(parsed: Partial<MiotChatConfig>): MiotChatConfig {
       token: p.token ?? null,
       tenantId: p.tenantId ?? "demo-tenant",
       userId: p.userId ?? "demo-user",
-      mode: VALID_MODES.has(p.mode as RunMode)
-        ? (p.mode as RunMode)
-        : undefined,
+      ...(typeof p.model === "string" && p.model !== ""
+        ? { model: p.model }
+        : undefined),
       ...(typeof p.orgSlug === "string" && p.orgSlug !== ""
         ? { orgSlug: p.orgSlug }
         : undefined),

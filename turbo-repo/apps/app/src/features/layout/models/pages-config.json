@@ -1,5 +1,15 @@
 [
   {
+    "label": "dashboardServer",
+    "href": "/dashboards",
+    "dynamicItemsSource": "serverDashboards",
+    "searchable": true,
+    "createAction": { "href": "/dashboards", "label": "createDashboard" },
+    "items": [],
+    "requiredGroups": [],
+    "blockedGroups": []
+  },
+  {
     "label": "home",
     "dynamicItemsSource": "dashboards",
     "searchable": true,
@@ -43,10 +53,16 @@
     "href": "/reports",
     "items": [
       { "href": "/geographic-view", "label": "geographicView", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/symptoms", "label": "symptoms", "requiredGroups": [], "blockedGroups": ["GROUP_MINTRAL_REVISOR"] },
+      { "href": "/symptoms", "label": "symptoms", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/signal-history", "label": "signalHistory", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/whatsapp/conversations", "label": "conversations", "requiredGroups": ["GROUP_CONVERSATIONS"], "blockedGroups": [] }
     ],
+    "requiredGroups": [],
+    "blockedGroups": []
+  },
+  {
+    "label": "fleet",
+    "href": "/fleet",
     "requiredGroups": [],
     "blockedGroups": []
   },
@@ -64,12 +80,6 @@
     "label": "collaboratorsManagement",
     "href": "/collaborators-management",
     "requiredGroups": ["GROUP_COLLABORATORS_MANAGEMENT", "GROUP_COLABORATORS_MANAGEMENT"],
-    "blockedGroups": []
-  },
-  {
-    "label": "fleetManagement",
-    "href": "/fleet-management",
-    "requiredGroups": ["GROUP_FLEET_MANAGEMENT"],
     "blockedGroups": []
   },
   {
@@ -95,10 +105,16 @@
     "items": [
       { "href": "/users/settings/platform", "label": "platform", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/organizations", "label": "organizations", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/users/settings/team", "label": "team", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/users/settings/gps", "label": "gps", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/users/settings/symptoms", "label": "symptomCatalog", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/users/settings/selectables", "label": "selectables", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/users/settings/contact-book", "label": "contactBook", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/data-sources", "label": "dataSources", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/credentials", "label": "credentials", "requiredGroups": [], "blockedGroups": [] },
       { "href": "/users/settings/connections", "label": "connections", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/harness", "label": "harness", "requiredGroups": [], "blockedGroups": [] }
+      { "href": "/users/settings/harness", "label": "harness", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/harness/learning", "label": "harnessLearning", "requiredGroups": [], "blockedGroups": [] }
     ],
     "requiredGroups": [],
     "blockedGroups": []

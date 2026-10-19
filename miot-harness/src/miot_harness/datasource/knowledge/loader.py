@@ -27,11 +27,14 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from miot_harness.connections.models import Connection
 from miot_harness.datasource.knowledge.models import (
     ConnectionCardsResult,
     KnowledgeCard,
@@ -171,11 +174,47 @@ def load_connection_cards(cards_dir: Path) -> ConnectionCardsResult:
             card = _parse_connection_card(
                 path.read_text(encoding="utf-8"), default_id=path.stem
             )
+            mtime = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
         except (ValueError, OSError, yaml.YAMLError) as exc:
             diagnostics.append(f"{path}: {exc}")
             continue
-        cards.append(card)
+        cards.append(replace(card, updated_at=mtime, file_stem=path.stem))
     return ConnectionCardsResult(tuple(cards), tuple(diagnostics))
+
+
+def connection_cards_dir(connection: Connection) -> Path | None:
+    """`<connection dir>/knowledge`, or None for a synthesized / legacy-env
+    connection, which has no file on disk to sit beside."""
+    source_path = connection.source_path
+    if not source_path or source_path.startswith("<"):
+        return None
+    return Path(source_path).parent / "knowledge"
+
+
+_CardsSignature = tuple[tuple[str, int, int], ...]
+_cards_cache: dict[Path, tuple[_CardsSignature, ConnectionCardsResult]] = {}
+
+
+def load_connection_cards_cached(cards_dir: Path) -> ConnectionCardsResult:
+    """`load_connection_cards`, re-parsed only when a card file is added,
+    removed or changed. Cards are read per run and per tool call, so a card
+    written after boot takes effect on the next one."""
+    try:
+        signature = tuple(
+            (p.name, st.st_mtime_ns, st.st_size)
+            for p in sorted(cards_dir.glob("*.md"))
+            for st in (p.stat(),)
+        )
+    except OSError:
+        return load_connection_cards(cards_dir)
+    cached = _cards_cache.get(cards_dir)
+    if cached is not None and cached[0] == signature:
+        return cached[1]
+    result = load_connection_cards(cards_dir)
+    for diag in result.diagnostics:
+        logger.warning("connection card: %s", diag)
+    _cards_cache[cards_dir] = (signature, result)
+    return result
 
 
 def detect_packs(

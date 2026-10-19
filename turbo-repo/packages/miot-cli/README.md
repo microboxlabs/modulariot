@@ -188,12 +188,12 @@ miot connections operations create <connectionId> --name <name> --method <method
 `miot chat` opens an Ink-based interactive TUI against a running [`miot-harness`](../miot-harness-client). Equivalent to running the standalone [`miot-chat`](../miot-chat) bin — the CLI re-exports it as a subcommand so users don't have to install two binaries.
 
 ```bash
-miot chat [--tenant <id>] [--user <id>] [--mode <auto|canned|meta|agentic>] [--profile <name>] [--harness-base-url <url>] [--harness-token <token>]
+miot chat [--tenant <id>] [--user <id>] [--model <name>] [--profile <name>] [--harness-base-url <url>] [--harness-token <token>]
 ```
 
-The flags mirror the standalone bin. Config + env precedence: CLI flag > `MIOT_CHAT_*` env > `~/.miot-chat/config.json` profile > defaults. Force the headless line-REPL fallback (no Ink) with `MIOT_CHAT_NO_TUI=1`; useful for CI or piped stdin (`echo "ping" | miot chat`).
+The flags mirror the standalone bin. `--model` (or `MIOT_CHAT_MODEL`) picks the conversation model; leave it out to use the harness default. Inside the TUI, `/model` lists the models the harness offers. Config + env precedence: CLI flag > `MIOT_CHAT_*` env > `~/.miot-chat/config.json` profile > defaults. Force the headless line-REPL fallback (no Ink) with `MIOT_CHAT_NO_TUI=1`; useful for CI or piped stdin (`echo "ping" | miot chat`).
 
-What you get inside the TUI: multi-line editor with cursor / paste / history, persistent status bar (tenant · user · conv · mode · ctx-tokens · turns · streaming spinner), live event chain with an animated indicator on the active step, markdown rendering for final answers, theme support, session persistence at `~/.miot-chat/sessions/<conv-id>.json`, and 15 slash commands (`/help`, `/context`, `/whoami`, `/mode`, `/tenant`, `/user`, `/theme`, `/resume`, `/runs`, `/export`, `/save`, `/clear`, `/reset`, `/approve`, `/exit`). See the [miot-chat README](../miot-chat) for the full slash table.
+What you get inside the TUI: multi-line editor with cursor / paste / history, persistent status bar (tenant · user · conv · model · ctx-tokens · turns · streaming spinner), live event chain with an animated indicator on the active step, markdown rendering for final answers, theme support, session persistence at `~/.miot-chat/sessions/<conv-id>.json`, and 15 slash commands (`/help`, `/context`, `/whoami`, `/model`, `/tenant`, `/user`, `/theme`, `/resume`, `/runs`, `/export`, `/save`, `/clear`, `/reset`, `/approve`, `/exit`). See the [miot-chat README](../miot-chat) for the full slash table.
 
 ### Harness (scriptable run verbs)
 
@@ -205,7 +205,7 @@ miot harness [--harness-base-url <url>] [--harness-token <token>] <subcommand>
 
 ```bash
 # Dispatch a run and capture the run_id
-miot harness create "what's in stock?" --tenant <tenant> [--user <id>] [--mode auto|canned|meta|agentic] [--conversation <id>] [--thread <id>]
+miot harness create "what's in stock?" --tenant <tenant> [--user <id>] [--model <name>] [--conversation <id>] [--thread <id>]
 
 # Fetch a completed run record (events + artifacts + answer)
 miot harness runs get <run_id>

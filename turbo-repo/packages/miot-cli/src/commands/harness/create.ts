@@ -1,27 +1,13 @@
 import type { Command } from "commander";
-import type {
-  RunMode,
-  UserRequest,
-} from "@microboxlabs/miot-harness-client";
+import type { UserRequest } from "@microboxlabs/miot-harness-client";
 import { getHarnessActionContext } from "../../harness-context.js";
 import { printDetail, printJson } from "../../output.js";
 import { handleError } from "../../utils/error.js";
 
-const VALID_MODES: RunMode[] = ["auto", "canned", "meta", "agentic"];
-
-function parseMode(value: string): RunMode {
-  if (!VALID_MODES.includes(value as RunMode)) {
-    throw new Error(
-      `Invalid mode "${value}". Must be one of: ${VALID_MODES.join(", ")}`,
-    );
-  }
-  return value as RunMode;
-}
-
 interface CreateOpts {
   tenant?: string;
   user?: string;
-  mode?: RunMode;
+  model?: string;
   conversation?: string;
   thread?: string;
   skill?: string;
@@ -36,9 +22,8 @@ export function registerHarnessCreateCommand(parent: Command): void {
     .option("--tenant <id>", "Tenant ID")
     .option("--user <id>", "User ID")
     .option(
-      "--mode <mode>",
-      `Dispatch mode: ${VALID_MODES.join("|")}`,
-      parseMode,
+      "--model <name>",
+      "Conversation model (see `GET /models`; omit for the harness default)",
     )
     .option(
       "--conversation <id>",
@@ -56,7 +41,8 @@ export function registerHarnessCreateCommand(parent: Command): void {
           message,
           ...(opts.tenant !== undefined && { tenant_id: opts.tenant }),
           ...(opts.user !== undefined && { user_id: opts.user }),
-          ...(opts.mode !== undefined && { mode: opts.mode }),
+          ...(opts.model !== undefined &&
+            opts.model !== "" && { model: opts.model }),
           ...(opts.conversation !== undefined && {
             conversation_id: opts.conversation,
           }),

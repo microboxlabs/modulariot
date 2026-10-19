@@ -93,6 +93,8 @@ export interface BookingResponse {
   syncDetail?: string;
   /** ISO timestamp of the last syncStatus transition. */
   syncAt?: string;
+  /** Outside capacity: not counted in the slot's occupancy nor the window's cap. */
+  overbooked?: boolean;
   createdAt: string;
   createdBy?: string;
   updatedAt?: string;
@@ -232,6 +234,15 @@ export interface TimeWindowResponse {
   bookableSlots: number;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Booked and remaining capacity of a time window on one date. Overbooked bookings are not counted. */
+export interface TimeWindowUsageResponse {
+  timeWindowId: string;
+  date: string;
+  capacity: number;
+  booked: number;
+  available: number;
 }
 
 // --- Slots ---

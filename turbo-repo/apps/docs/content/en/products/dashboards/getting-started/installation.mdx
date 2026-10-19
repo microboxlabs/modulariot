@@ -1,0 +1,149 @@
+import { Callout, Tabs } from 'nextra/components'
+
+# Installation
+
+The dashboard server runs as one Node.js process. Install it from npm, run the container image, or deploy the Helm chart. All three read the same [environment variables](/en/products/dashboards/reference/configuration).
+
+The UI library and the contract are npm packages you add to your web application.
+
+## Requirements
+
+| Component | Version | Notes |
+| --- | --- | --- |
+| Node.js | 22.13 or later | SQLite is built into Node from 22.13. On 22.5 to 22.12 it needs `--experimental-sqlite`; earlier versions can only use the in-memory store. |
+| Docker | Any recent version | Image `ghcr.io/microboxlabs/miot-dashboard-server` |
+| Kubernetes | Any supported version, with Helm 3 | Chart `miot-dashboard-server` in `https://microboxlabs.github.io/helm-charts` |
+| PostgreSQL | 17 is tested | Optional. Without it the server uses one SQLite file. |
+| Browser | Current Chrome, Edge, Firefox or Safari | For the UI library |
+
+## Install the server
+
+<Tabs items={['npm', 'Docker', 'Helm']}>
+<Tabs.Tab>
+
+Add it to a Node.js project:
+
+```bash
+npm install @microboxlabs/miot-dashboard-server
+npx miot-dashboard-server
+```
+
+Or run it once without a project:
+
+```bash
+npx @microboxlabs/miot-dashboard-server
+```
+
+The npm package installs only what every setup needs. Add the packages for the features you use:
+
+| Feature | Add |
+| --- | --- |
+| JWT sign-in (any real identity provider) | `jose` |
+| PostgreSQL store | `pg` |
+| Swagger UI at `/docs` | `swagger-ui-dist` |
+| Documents in Amazon S3 | `@aws-sdk/client-s3` |
+| Documents in Google Cloud Storage | `@google-cloud/storage` |
+
+```bash
+npm install @microboxlabs/miot-dashboard-server jose pg
+```
+
+With `npx`, name the extra packages with `-p`:
+
+```bash
+npx -p @microboxlabs/miot-dashboard-server -p jose miot-dashboard-server
+```
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+```bash
+docker run --rm -p 3070:3070 -v dashboards:/data \
+  -e MIOT_DASHBOARD_STORE=sqlite \
+  -e MIOT_DASHBOARD_JWT_ISSUER=https://your-company.auth0.com/ \
+  -e MIOT_DASHBOARD_JWT_AUDIENCE=miot-dashboards \
+  -e MIOT_DASHBOARD_JWT_JWKS_URL=https://your-company.auth0.com/.well-known/jwks.json \
+  -e MIOT_DASHBOARD_SEED=/data/seed.json \
+  ghcr.io/microboxlabs/miot-dashboard-server:sha-6fb37c8
+```
+
+The image listens on `0.0.0.0:3070`, keeps its data under `/data`, and runs as an unprivileged user. It includes `jose` and `swagger-ui-dist`. It does not include `pg` or the cloud storage SDKs; see [Docker](/en/products/dashboards/deployment/docker) to add them.
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+```bash
+helm repo add microboxlabs https://microboxlabs.github.io/helm-charts
+helm repo update
+helm install dashboards microboxlabs/miot-dashboard-server \
+  --namespace dashboards --create-namespace \
+  --values values.yaml
+```
+
+See [Kubernetes with Helm](/en/products/dashboards/deployment/kubernetes) for a working `values.yaml`.
+
+</Tabs.Tab>
+</Tabs>
+
+<Callout type="info">
+Pin an image tag such as `sha-6fb37c8` in production. `latest` moves with every publish, so a restart could change the code that writes your dashboards.
+</Callout>
+
+## Check that it answers
+
+```bash
+curl http://127.0.0.1:3070/readyz
+```
+
+```json
+{"status":"ready"}
+```
+
+| Path | Answers | Use |
+| --- | --- | --- |
+| `/livez` or `/health` | `{"status":"ok"}` | Liveness probe |
+| `/readyz` | `{"status":"ready"}` | Readiness probe |
+| `/openapi.yaml` | The API definition | Generate clients |
+| `/docs` | Swagger UI | Try the API from a browser |
+
+The probes do not touch the database. The server proves its database at startup instead: it runs migrations before it opens the port, and exits with an error if it cannot connect.
+
+## Install the UI library
+
+```bash
+npm install @microboxlabs/miot-dashboard-ui @microboxlabs/miot-dashboard-contract
+```
+
+Then add what your page needs:
+
+| Your page uses | Also install |
+| --- | --- |
+| React 18 or 19 | `react` and `react-dom`, which you already have |
+| Charts | `echarts` 6 |
+| Plain HTML, no build step | Nothing. Copy `dist/browser/browser.js` and `styles.css` from the package. |
+
+Load the stylesheet once:
+
+```ts
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+```
+
+The tutorial [Embed a dashboard in a web page](/en/products/dashboards/tutorials/embed-in-a-web-page) uses the plain HTML build. [Render with React](/en/products/dashboards/how-to/render-with-react) covers React.
+
+## Install the contract only
+
+Use the contract alone when you build your own server or tooling and want the same document validation:
+
+```bash
+npm install @microboxlabs/miot-dashboard-contract
+```
+
+See [Contract package](/en/products/dashboards/reference/contract).
+
+## Versions that work together
+
+| Server | Contract | UI |
+| --- | --- | --- |
+| 0.6.0 | 0.6.0 | 0.1.0 |
+
+Upgrade the contract first, then the server, then the UI. The full table is in [Releases and versions](/en/products/dashboards/releases).

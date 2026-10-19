@@ -1,3 +1,7 @@
+import type {
+  DashboardFilterParam,
+  DashboardQueryDefinition,
+} from "@microboxlabs/miot-dashboard-contract/document";
 /**
  * Dashboard Widget Type Definitions
  *
@@ -5,17 +9,8 @@
  * nested dashboard structures with containers and dashlets.
  */
 
-/** Base / minimum grid column count. Stored widget layouts use these units. */
-export const GRID_COLS = 24;
-
-/** Width (px) that GRID_COLS columns occupy at scale 1 (calibrated for 1080p). */
-export const DESIGN_WIDTH = 1600;
-
-/**
- * View-mode upper bound on the fill-to-fit scale, so the grid does not become
- * oversized on 4K / ultrawide monitors (beyond it the grid is centered).
- */
-export const MAX_SCALE = 1.35;
+export { GRID_COLS, DESIGN_WIDTH } from "@microboxlabs/miot-dashboard-contract/document";
+export { MAX_SCALE } from "@microboxlabs/miot-dashboard-ui/core";
 
 /** Refresh interval in seconds (0 = off) */
 export type RefreshInterval = 0 | 10 | 30 | 60 | 300;
@@ -107,52 +102,12 @@ export interface PlannerRequestDefinition {
   schema?: string[];
 }
 
-/** A single selectable option for a "select" filter */
-export interface DashboardFilterOption {
-  label: string;
-  value: string;
-}
-
-/**
- * Dynamic option source for a "select" filter: options are derived from the
- * rows of a Request Planner variable instead of being typed in by hand.
- */
-export interface DashboardFilterOptionsSource {
-  /** Planner variable name whose rows provide the options */
-  variableName: string;
-  /** Row field used as the option value */
-  valueField: string;
-  /** Row field used as the option label (falls back to valueField) */
-  labelField?: string;
-}
-
-/** A filter parameter available in the dashboard filter bar */
-export interface DashboardFilterParam {
-  /** URL param key (e.g., "asset_id", "date_range") */
-  key: string;
-  /** Display label shown in the filter bar */
-  label: string;
-  /** Filter type */
-  type: "text" | "date_range" | "select";
-  /** When true, setting this filter clears all other filters */
-  unique?: boolean;
-  /** Predefined options (only for type "select") */
-  options?: DashboardFilterOption[];
-  /**
-   * Only one option may be picked at a time (only for type "select"). Set it
-   * when the backing API takes a single value: a comma-joined list would reach
-   * it as one unmatchable string and silently return nothing.
-   */
-  single?: boolean;
-  /**
-   * Derive options from a planner variable instead of `options`
-   * (only for type "select"). Takes precedence over `options`.
-   */
-  optionsSource?: DashboardFilterOptionsSource;
-}
+export type { DashboardFilterOption, DashboardFilterOptionsSource, DashboardFilterParam } from "@microboxlabs/miot-dashboard-contract/document";
 
 /** Versioned storage schema for dashboard config (supports migrations) */
 export interface DashboardStorageSchema {
+  /** Saved connection operations executed by the dashboard server. */
+  queries?: DashboardQueryDefinition[];
   /** Schema version for migrations */
   version: 2;
   /** Dashboard display name */

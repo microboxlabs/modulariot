@@ -18,8 +18,7 @@ def make_profile(**overrides) -> DataSourceProfile:
         source_label="FakeSource · fake (test)",
         tool_prefix="fake_",
         primer="FakeSource answers questions about test fixtures.",
-        router_keywords=frozenset({"fakesource", "fixture"}),
-        tenant_lock="acme",
+            tenant_lock="acme",
         tenant_refusal_template=(
             "{display_name} is {lock}-only. I can't answer for other tenants."
         ),

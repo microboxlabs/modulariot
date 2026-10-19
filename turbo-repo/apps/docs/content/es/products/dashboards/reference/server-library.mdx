@@ -1,0 +1,105 @@
+# Biblioteca del servidor
+
+`@microboxlabs/miot-dashboard-server` es a la vez el servidor independiente y una biblioteca. Móntela en su propio backend Node.js y mantendrá las mismas reglas de acceso, con su propia identidad, almacenamiento y datos.
+
+La versión 0.6.0 requiere el contrato 0.6.0 y Node.js 20.19 o posterior (22.13 o posterior para SQLite).
+
+## Entradas
+
+| Entrada | Contiene | Se ejecuta en |
+| --- | --- | --- |
+| `.` | Interfaces, control de acceso, servicio de consultas, ayudas de importación y migración | Cualquier entorno |
+| `/http` | `createDashboardHandler`: recibe un `Request`, devuelve un `Response` | `Request` y `Response` web |
+| `/next` | `createNextRouteHandlers` para rutas de App Router | Runtime de Node.js |
+| `/identity` | Verificación de JWT y tickets | Node.js |
+| `/store-sql` | Almacenes SQLite y PostgreSQL | Node.js |
+| `/store-cloud` | Almacenes de documentos en S3 y Google Cloud Storage | Node.js |
+| `/vault-sql`, `/vault-http` | Almacenes de credenciales: cifrados en SQL, o solicitados a un host | Node.js |
+| `/queries` | Ejecutores de consultas y proveedores de catálogo | Node.js |
+| `/server` | El servidor independiente, sondas y documentación | Node.js |
+| `/testing` | Implementaciones en memoria para pruebas y demostraciones | Cualquier entorno |
+
+## Montarla
+
+```ts
+import { createDashboardHandler } from "@microboxlabs/miot-dashboard-server/http";
+
+const handle = createDashboardHandler({
+  identity,      // quién llama
+  tenants,       // si puede actuar en esta organización
+  scopes,        // su rol en este ámbito
+  store,         // dónde se guardan los dashboards
+  basePath: "/api/dashboards",
+});
+```
+
+En Next.js:
+
+```ts filename="app/api/dashboards/[...path]/route.ts"
+import { createNextRouteHandlers } from "@microboxlabs/miot-dashboard-server/next";
+
+export const runtime = "nodejs";
+export const { GET, PUT, DELETE, OPTIONS } = createNextRouteHandlers({
+  basePath: "/api/dashboards",
+  identity, tenants, scopes, store,
+});
+```
+
+`runtime = "nodejs"` es obligatorio: los almacenes necesitan Node.js. `basePath` debe coincidir con el lugar donde se monta la ruta. Exporte `OPTIONS` si los navegadores la llaman desde otro origen.
+
+## Interfaces que usted implementa
+
+| Interfaz | Responde |
+| --- | --- |
+| `IdentityResolver` | ¿Quién llama? |
+| `TenantAuthority` | ¿Puede actuar en la organización que indica la dirección? |
+| `ScopeAuthority` | ¿Qué rol tiene en el ámbito? |
+| `ServerDashboardStore` | ¿Dónde se guardan los documentos y los permisos? |
+| `CredentialsVault` | ¿Qué secreto autentica una fuente de datos? |
+| `AuditSink` | ¿Adónde van los eventos de auditoría? |
+| `CapabilityPolicy` | Opcional. Cómo los roles se convierten en capacidades. Solo puede quitar. |
+
+`createAllowedGroupsPolicy()` agrega soporte para `allowedGroups`. Páselo como `policy`.
+
+## Ejecutores de consultas
+
+Pase uno como `queries: { operations }` para habilitar la ruta de consultas.
+
+| Fábrica (desde `/queries`) | Ejecuta |
+| --- | --- |
+| `createHttpGetOperationExecutor` | Operaciones HTTP GET de solo lectura, como funciones de PostgREST, contra orígenes aprobados |
+| `createBigQueryOperationExecutor` | SQL de BigQuery guardado, con una ejecución de prueba y un tope de facturación |
+| `createRemotePlanOperationExecutor` | Pide el plan a un host y luego ejecuta HTTP GET o BigQuery localmente |
+| `createHttpDashboardOperationExecutor` | Envía la solicitud autorizada a un endpoint del host que la ejecuta |
+
+Cada ejecutor recibe de usted un `resolve(request)` de confianza, que debe verificar la conexión de la organización y devolver el plan, o `null` para denegar. Nunca construya un plan a partir de datos ingresados por el usuario.
+
+`createDashboardQueryService` aplica la misma autorización y los mismos límites a código fuera del handler HTTP.
+
+## Catálogo de consultas
+
+Pase `queryCatalog: { list({ identity, ref, signal }) }` para habilitar el catálogo del editor. `createRemoteQueryCatalog({ url, proxyKey })` lo lee desde un endpoint del host.
+
+## Importar dashboards existentes
+
+```ts
+import { importDashboards } from "@microboxlabs/miot-dashboard-server";
+
+const report = await importDashboards({ source, store, dryRun: true });
+```
+
+`source.read()` entrega los dashboards existentes. `dryRun` es true por defecto. Valida cada documento, omite los dashboards que ya existen, escribe con revisión cero para que una creación concurrente se convierta en un conflicto, conserva el creador original, e informa `imported`, `skipped`, `refused` y `failed`.
+
+`migratePlannerQueries` y `plannerOperationContracts` convierten dashboards del planificador. Vea [Migrar dashboards del planificador](/es/products/dashboards/how-to/migrate-planner-dashboards).
+
+## Límites que puede configurar
+
+| Opción | Valor por defecto |
+| --- | --- |
+| `maxBodyBytes` (handler) | 1 MiB |
+| `maxConcurrent` (servicio de consultas) | 8 |
+| `timeoutMs` | 20.000 |
+| `maxRows` | 5.000 |
+| `maxBytes` | 2 MiB |
+
+La API completa está en el [README del paquete](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-server/README.md).

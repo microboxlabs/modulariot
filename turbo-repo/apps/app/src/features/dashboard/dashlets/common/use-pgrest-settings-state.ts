@@ -1,3 +1,4 @@
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import { useState, useRef } from "react";
 import type {
   PgrestParam,
@@ -33,6 +34,7 @@ export interface PgrestSettingsStateConfig {
 }
 
 export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
+  const { hostAccess } = useOptionalDashboard();
   // Store callbacks in a ref so async functions always use latest versions
   const cfgRef = useRef(cfg);
   cfgRef.current = cfg;
@@ -62,6 +64,7 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
     methodOverride?: PgrestHttpMethod,
     paramsOverride?: PgrestParam[],
   ) => {
+    if (hostAccess) return;
     setDetecting(true);
     setDetectError(null);
 
@@ -102,6 +105,7 @@ export function usePgrestSettingsState(cfg: PgrestSettingsStateConfig) {
   };
 
   const introspectFunction = async (fnOverride?: string) => {
+    if (hostAccess) return null;
     const fn = (fnOverride ?? pgrestFunctionName).trim();
     if (!fn) return null;
 

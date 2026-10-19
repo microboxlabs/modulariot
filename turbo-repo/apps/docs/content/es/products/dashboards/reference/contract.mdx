@@ -1,0 +1,53 @@
+# Paquete de contrato
+
+`@microboxlabs/miot-dashboard-contract` define lo que la UI y el servidor acuerdan: el documento, los roles, los errores y la API. Úselo directamente cuando escriba su propio servidor, herramientas o pruebas.
+
+```bash
+npm install @microboxlabs/miot-dashboard-contract
+```
+
+No hay importación raíz.
+
+| Importación | Contiene |
+| --- | --- |
+| `/document` | Tipos del documento, `GRID_COLS` (24), `DESIGN_WIDTH` (1600), `DEFAULT_STORAGE` |
+| `/schema` | Esquemas zod, `validateDashboardConfig`, `CURRENT_DASHBOARD_CONFIG_VERSION` |
+| `/roles` | `DashboardRole`, `DashboardCapabilities`, `roleAtLeast`, `highestRole` |
+| `/errors` | `ErrorEnvelope`, `DashboardErrorCode`, `STATUS_BY_CODE` |
+| `/openapi.yaml` | El documento OpenAPI 3.1 |
+| `/dashboard-config.schema.json` | El JSON Schema del documento |
+
+`/document`, `/roles` y `/errors` contienen solo tipos y constantes. `/schema` carga zod.
+
+## Validar un documento
+
+```ts
+import { validateDashboardConfig } from "@microboxlabs/miot-dashboard-contract/schema";
+
+const result = validateDashboardConfig(await request.json());
+if (!result.valid) {
+  return Response.json({ error: result.problems.join("; ") }, { status: 400 });
+}
+```
+
+`problems` son textos simples como `widgets.0.layout.x: Expected number`, de modo que su código no depende de la versión de zod de este paquete.
+
+## Comparar roles
+
+```ts
+import { roleAtLeast } from "@microboxlabs/miot-dashboard-contract/roles";
+
+roleAtLeast("Editor", "Contributor"); // true
+```
+
+Roles en orden: `Consumer`, `Contributor`, `Editor`, `Coordinator`.
+
+## Servir los documentos de la API
+
+`openapi.yaml` hace referencia a `dashboard-config.schema.json` por nombre de archivo. Sírvalos uno junto al otro, como lo hace el servidor.
+
+## Reglas de compatibilidad
+
+- Los campos desconocidos pasan la validación y se conservan en un ciclo de lectura y escritura.
+- Se rechaza un `version` distinto de 2. Nada en el paquete convierte documentos.
+- Un esquema puede aceptar un documento y aun así no autorizar nada: las verificaciones de permisos corresponden al servidor.

@@ -1,0 +1,102 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Connect PostgREST
+
+This guide is for ModularIoT administrators. It makes PostgREST functions available to dashboards as read-only operations. Editors then pick them in **Saved queries**.
+
+You create one connection per PostgREST service, not one per function: a connection can expose many functions.
+
+## Before you start
+
+- The PostgREST service is reachable over `https`. Plain `http` is refused.
+- Its origin, such as `https://data.example.com`, is in the dashboard server's approved data origins (`MIOT_DASHBOARD_DATA_ORIGINS`). Ask whoever deploys the dashboard server.
+- You have a credential for it that sends `Authorization`, `x-api-key` or `apikey`. Other header names are refused.
+- The functions return rows whose values are text, numbers, true/false, null, or lists of those. A column holding a JSON object makes the whole query fail; see [Return only some columns](#return-only-some-columns).
+
+<Steps>
+
+### Add the credential
+
+1. Open **Settings** › **Credentials** and create a credential with the token or API key for the service.
+
+The secret stays on the server. Dashboards and browsers never receive it.
+
+### Create the connection
+
+1. Open **Settings** › **Connections** and select **New connection**.
+2. Under **Built-in**, choose **PostgREST**.
+3. In **Base URL**, enter the PostgREST root URL, the one that returns its OpenAPI description.
+4. Choose the **Credential** from the previous step and select **Create**.
+5. Select **Test**. The connection becomes **Active** when the service answers with that credential.
+
+### Import functions
+
+1. On the connection, select **Functions**. The dialog lists the functions PostgREST describes.
+2. Search and select the functions dashboards may use.
+3. Under **Fixed values**, add any parameter that must have the same value for every dashboard, such as a client ID. Select **Add fixed value**, then type the **Parameter** and the **Value**.
+4. Select **Import**.
+
+Each imported function becomes a read-only `HTTP_GET` operation on the connection. A fixed value is stored in the operation, and no dashboard can change it.
+
+<Callout type="warning">
+Fixed values apply to every function selected in the same import. Import functions that need different fixed values in separate imports.
+</Callout>
+
+</Steps>
+
+Editors now see the connection and its functions in **Saved queries**.
+
+## Keep organizations apart
+
+An operation must prove that it only returns the organization's own data. There are two ways:
+
+| Way | When to use it | How |
+| --- | --- | --- |
+| Credential-scoped | The credential itself can only read this organization's data | The operation is marked `credentialScoped` |
+| Tenant parameter | The function takes the organization as a parameter | The host inserts the organization's code; nobody can send it |
+
+Functions imported through **Functions** are credential-scoped. Use a fixed value for any client identifier the function needs, so dashboards cannot change it.
+
+## Return only some columns
+
+When a function returns a JSON column that no widget uses, ask PostgREST for the other columns only. Add a fixed value named `select` with a comma-separated list:
+
+| Parameter | Value |
+| --- | --- |
+| `select` | `id,total,status` |
+
+PostgREST then leaves the JSON column out, and the query succeeds.
+
+## Operation request schema
+
+Behind the dialog, each operation stores a JSON Schema for its parameters. You can also create operations by hand with the `miot` CLI. The schema must describe a closed object and declare the dashboard policy in `x-dashboard`:
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "p_client_id": { "type": "string", "const": "client-1" },
+    "p_from": { "type": "string", "maxLength": 2048 }
+  },
+  "required": ["p_client_id"],
+  "x-dashboard": { "readOnly": true, "kind": "HTTP_GET", "credentialScoped": true }
+}
+```
+
+| Rule | Reason |
+| --- | --- |
+| `additionalProperties: false` | A dashboard can only send parameters the operation declares |
+| No `pattern` and no `$ref` | Keeps validation bounded |
+| `readOnly: true` | Declares that the function changes nothing. GET alone does not prove it; the administrator does. |
+
+## Troubleshooting
+
+| Symptom | Cause |
+| --- | --- |
+| **Could not read the functions. Test the connection.** | The connection is not active, or the base URL is not the PostgREST root |
+| Functions list is empty | PostgREST describes no functions for that credential |
+| Query fails for every dashboard | The origin is not in `MIOT_DASHBOARD_DATA_ORIGINS`, or a column holds a JSON object |
+| Query fails with a 400 | A required parameter has no value. Bind it, or give it a fixed value |
+
+More in [Troubleshooting](/en/products/dashboards/troubleshooting).

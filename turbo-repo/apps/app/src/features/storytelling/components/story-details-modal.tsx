@@ -4,11 +4,11 @@ import { Modal, ModalBody, ModalHeader } from "flowbite-react";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import { getArtifactTypeMeta } from "../artifact-type-meta";
-import type { StoryItem } from "../storytelling.types";
+import { getStoryKindMeta } from "../story-kind-meta";
+import type { Story } from "../storytelling.types";
 
 interface StoryDetailsModalProps {
-  readonly story: StoryItem | null;
+  readonly story: Story | null;
   readonly lang: string;
   readonly onClose: () => void;
   readonly dict: I18nRecord;
@@ -37,7 +37,7 @@ export default function StoryDetailsModal({
   // "UTC" because story dates are stored date-only (YYYY-MM-DD) and parsed as
   // UTC midnight — without it formatDateString's America/Santiago default
   // rolls them back to the previous calendar day.
-  const fmt = (date: string) => formatDateString(date, "date", locale, "UTC");
+  const fmt = (date: string) => formatDateString(date, "date", locale);
 
   return (
     <Modal
@@ -63,10 +63,7 @@ export default function StoryDetailsModal({
             <div className="divide-y divide-gray-100 dark:divide-gray-700">
               <Row
                 label={tr("details.type", dict)}
-                value={trDynamic(
-                  getArtifactTypeMeta(story.artifactType).labelKey,
-                  dict
-                )}
+                value={trDynamic(getStoryKindMeta(story.kind).labelKey, dict)}
               />
               <Row
                 label={tr("details.created", dict)}

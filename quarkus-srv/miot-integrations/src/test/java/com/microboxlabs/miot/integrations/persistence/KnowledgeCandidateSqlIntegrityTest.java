@@ -40,6 +40,14 @@ class KnowledgeCandidateSqlIntegrityTest {
                 "review must RETURN the updated row so the caller can 404 on null");
     }
 
+    @Test
+    void editIsTenantScopedAndPendingOnly() throws Exception {
+        String edit = readStaticString("UPDATE_CONTENT");
+        assertTrue(edit.contains("tenant_code = $2"), "edit must be tenant-scoped");
+        assertTrue(edit.contains("status = 'pending'"), "only a pending candidate can be edited");
+        assertTrue(edit.contains("RETURNING"), "edit must RETURN the row so the caller can 404 on null");
+    }
+
     private static String readStaticString(String name) throws Exception {
         Field field = KnowledgeCandidateRepository.class.getDeclaredField(name);
         field.setAccessible(true);

@@ -36,14 +36,11 @@ declare module "next-auth" {
    */
   interface Session {
     user?: {
-      /** The user's role. */
-      ticket?: string;
       accessToken?: string;
       rawJWT?: string;
     } & DefaultSession["user"];
   }
   interface User {
-    ticket?: string;
     accessToken?: string;
     rawJWT?: string;
   }

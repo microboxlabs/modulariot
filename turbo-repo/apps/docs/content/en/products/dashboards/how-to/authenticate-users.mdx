@@ -1,0 +1,162 @@
+import { Callout, Tabs } from 'nextra/components'
+
+# Authenticate users
+
+A standalone server answers three questions on every request:
+
+1. **Who is calling?** A JWT or a ticket says.
+2. **May they act in this organization?** A membership list or a directory service says.
+3. **What is their role in this scope?** The same list or service says.
+
+This guide sets up all three. In the ModularIoT web app, ModularIoT answers them for you; skip this guide.
+
+## 1. Verify who is calling
+
+<Tabs items={['JWT', 'Opaque ticket']}>
+<Tabs.Tab>
+
+Most identity providers issue JWTs: Auth0, Microsoft Entra ID, Keycloak, Okta, Google. Install `jose` next to the server (the container image already has it), then set the issuer, the audience and one key source:
+
+```bash
+MIOT_DASHBOARD_JWT_ISSUER=https://your-company.auth0.com/
+MIOT_DASHBOARD_JWT_AUDIENCE=miot-dashboards
+MIOT_DASHBOARD_JWT_JWKS_URL=https://your-company.auth0.com/.well-known/jwks.json
+MIOT_DASHBOARD_JWT_USER_CLAIM=email
+```
+
+| Key source | Algorithm | Use when |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_JWT_JWKS_URL` | RS256 | The provider publishes its keys. The usual choice. |
+| `MIOT_DASHBOARD_JWT_PUBLIC_KEY` | RS256 | You have the public key as PEM |
+| `MIOT_DASHBOARD_JWT_SECRET` | HS256 | You share a secret of at least 32 bytes with the issuer |
+
+Set exactly one. The server accepts only that algorithm.
+
+`MIOT_DASHBOARD_JWT_USER_CLAIM` names the claim that identifies the person. It defaults to `sub`. Whatever it holds is the ID you use in memberships and in dashboard permissions, so pick one that is readable and stable, such as `email`.
+
+Callers send the token as `Authorization: Bearer <token>`.
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+If your system issues opaque tickets, the server can check each one with the issuer and cache the answer:
+
+```bash
+MIOT_DASHBOARD_TICKET_HEADER=x-ticket
+MIOT_DASHBOARD_TICKET_VALIDATE_URL=https://auth.internal/tickets/{ticket}
+MIOT_DASHBOARD_TICKET_USER_PATH=entry.id
+```
+
+| Variable | Meaning |
+| --- | --- |
+| `MIOT_DASHBOARD_TICKET_HEADER` | The request header that carries the ticket |
+| `MIOT_DASHBOARD_TICKET_VALIDATE_URL` | The issuer's check endpoint. Use `{ticket}` or `{ticketBase64}` in it. |
+| `MIOT_DASHBOARD_TICKET_USER_PATH` | Dotted path to the user ID in the issuer's answer |
+
+The other ticket settings, such as caching and how to present the ticket, are in [Configuration](/en/products/dashboards/reference/configuration#tickets). JWT and tickets can run together because they read different headers.
+
+</Tabs.Tab>
+</Tabs>
+
+## 2 and 3. Say who belongs where
+
+<Tabs items={['Membership file', 'Directory service', 'Groups']}>
+<Tabs.Tab>
+
+For a few dozen people, list them in a JSON file and point `MIOT_DASHBOARD_SEED` at it. The shape is organization, then scope, then person, then role:
+
+```json filename="seed.json"
+{
+  "memberships": {
+    "acme": {
+      "operations": {
+        "ana@acme.example": "Coordinator",
+        "luis@acme.example": "Editor",
+        "sofia@acme.example": "Consumer"
+      },
+      "finance": {
+        "ana@acme.example": "Consumer"
+      }
+    }
+  }
+}
+```
+
+A person may act in an organization when they appear in any of its scopes. The server reads the file at startup, so a change needs a restart.
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+If a directory already knows who belongs where, the server can ask it on every request. A change there applies at once, with no restart and no new token.
+
+```bash
+MIOT_DASHBOARD_TENANTS_URL='https://directory.internal/people/{userId}/organizations/{tenantId}'
+MIOT_DASHBOARD_SCOPES_URL='https://directory.internal/people/{userId}/groups/{scopeId}'
+MIOT_DASHBOARD_SCOPES_ROLE_PATH=role
+MIOT_DASHBOARD_SCOPES_ROLE_MAP='admin=Coordinator,editor=Editor,reader=Consumer'
+MIOT_DASHBOARD_SCOPES_SERVICE_HEADER=authorization
+MIOT_DASHBOARD_SCOPES_SERVICE_VALUE="Bearer $DIRECTORY_TOKEN"
+```
+
+| The directory answers | The server reads it as |
+| --- | --- |
+| 200 | A member. For scopes, the role is at `ROLE_PATH`, translated by `ROLE_MAP`. |
+| 404 (or the statuses in `*_ABSENT_STATUS`) | Not a member |
+| 401 | The server's own credential failed. It answers 500, not 403, so an outage never looks like everyone lost access. |
+
+A `GET` URL must contain `{userId}` and the organization or scope placeholder. Otherwise one answer would apply to everyone, and the server refuses to start. Answers are cached: yes for 60 seconds, no for 30, by default.
+
+The full list of `TENANTS_*` and `SCOPES_*` settings is in [Configuration](/en/products/dashboards/reference/configuration#memberships).
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+If the identity provider already puts the organization and the role in a group name, such as `GROUP_DHB_ACME_EDITOR`, the server reads both from the groups it already has. Nothing is looked up and no file is maintained.
+
+```bash
+MIOT_DASHBOARD_TICKET_GROUPS_PATH=user.data.groups   # or MIOT_DASHBOARD_JWT_GROUPS_CLAIM
+MIOT_DASHBOARD_GROUP_ROLES_PATTERN='GROUP_DHB_{tenant}_{role}'
+MIOT_DASHBOARD_GROUP_ROLES_MAP='CONSUMER=Consumer,COLLABORATOR=Contributor,EDITOR=Editor,COORDINATOR=Coordinator'
+```
+
+| Groups | Organization `acme` | Organization `globex` |
+| --- | --- | --- |
+| `GROUP_DHB_ACME_EDITOR` | Editor, in every scope | No access |
+| `GROUP_DHB_ACME_CONSUMER`, `GROUP_DHB_ACME_COORDINATOR` | Coordinator: the highest role wins | No access |
+| `GROUP_UNRELATED` | No access | No access |
+
+The server fills the organization from the address into the pattern and compares the result with each group. Case and surrounding spaces do not matter. Because it fills the organization in rather than reading it out, an organization id that contains the separator, such as `north_zone`, cannot be confused with `north`.
+
+Add `{scope}` to the pattern, such as `GROUP_DHB_{tenant}_{scope}_{role}`, to give a role in one scope only. Scope ids then cannot contain the character next to `{scope}` (here `_`): otherwise `GROUP_DHB_ACME_X_OPS_EDITOR` could mean organization `acme_x`, scope `ops`, or organization `acme`, scope `x_ops`. Without `{scope}`, a role applies in every scope of the organization.
+
+The settings are in [Configuration](/en/products/dashboards/reference/configuration#roles-from-groups).
+
+</Tabs.Tab>
+</Tabs>
+
+## Check it
+
+Restart the server and read its startup log:
+
+```text
+{"msg":"identity","auth":"RS256 bearer tokens from https://your-company.auth0.com/ ..."}
+{"msg":"tenants","entitlement":"the seed file (1 tenants)"}
+{"msg":"scopes","membership":"the seed file (1 tenants)"}
+```
+
+If `tenants` or `scopes` says `0 tenants`, the server knows nobody and answers 403 to everything.
+
+Then call it with a real token:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://dashboards.example.com/tenants/acme/scopes/operations/dashboards
+```
+
+<Callout type="warning">
+Never combine `MIOT_DASHBOARD_INSECURE_AUTH` with a real deployment. The server refuses to start with it when `NODE_ENV=production`, when it listens beyond `localhost`, or when JWT or ticket settings are also present.
+</Callout>
+
+## Groups
+
+To use `allowedGroups` on dashboards, the server must know each person's groups. Set `MIOT_DASHBOARD_JWT_GROUPS_CLAIM` to the token claim that lists them, or `MIOT_DASHBOARD_TICKET_GROUPS_PATH` for tickets. Use IDs that are unique across organizations. See [Share and set permissions](/en/products/dashboards/how-to/share-and-permissions#restrict-a-dashboard-to-groups).

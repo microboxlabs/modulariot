@@ -414,7 +414,8 @@ public class CalendarBookingsClient {
             return null;
         }
         return new BookingView(UUID.fromString(id), UUID.fromString(bookingCalendarId),
-                LocalDate.parse(date), hour, minutes, booking.getString(STATUS_FIELD));
+                LocalDate.parse(date), hour, minutes, booking.getString(STATUS_FIELD),
+                booking.getBoolean("overbooked", false));
     }
 
     private static JsonArray parseDataArray(String body, String url) {
@@ -472,7 +473,12 @@ public class CalendarBookingsClient {
      * future-vs-past decision. {@code status} may be null on older bookings.
      */
     public record BookingView(UUID id, UUID calendarId, LocalDate slotDate,
-                              int slotHour, int slotMinutes, String status) {
+                              int slotHour, int slotMinutes, String status, boolean overbooked) {
+        /** Shape for an ordinary (counted) booking. */
+        public BookingView(UUID id, UUID calendarId, LocalDate slotDate,
+                           int slotHour, int slotMinutes, String status) {
+            this(id, calendarId, slotDate, slotHour, slotMinutes, status, false);
+        }
     }
 
     /** A slot candidate returned by the slots endpoint. */

@@ -1,7 +1,6 @@
 import type {
   HarnessEvent,
   HarnessRunRecord,
-  RunMode,
 } from "@microboxlabs/miot-harness-client";
 
 export type ToolStatus = "running" | "ok" | "failed";
@@ -26,12 +25,11 @@ export type TranscriptItem =
       message: string | null;
       ts: string;
     }
-  | { kind: "route"; id: string; route: string; ts: string }
   | { kind: "agent"; id: string; agent: string; ts: string }
   | {
       kind: "thinking";
       id: string;
-      agent: string;
+      agent?: string;
       text: string;
       status: "streaming" | "complete";
       ts: string;
@@ -80,7 +78,8 @@ export interface SessionMeta {
   conversationId: string;
   tenantId: string;
   userId: string;
-  mode: RunMode;
+  /** Conversation model, or null for the harness default. */
+  model: string | null;
   baseUrl: string;
   profileName: string | null;
   debug: boolean;
@@ -98,7 +97,6 @@ export interface SessionState {
   currentThinkingItemId: string | null;
   /** Per-conversation token + cost running totals. */
   usageTotals: UsageTotals;
-  warnAgenticTenantMismatch: boolean;
   lastSubmittedPrompt: string | null;
 }
 
@@ -106,7 +104,7 @@ export type SessionAction =
   | { kind: "BEGIN_TURN"; prompt: string }
   | { kind: "STREAM_EVENT"; event: HarnessEvent; runId: string }
   | { kind: "END_TURN"; record?: HarnessRunRecord; failureMessage?: string }
-  | { kind: "SET_MODE"; mode: RunMode }
+  | { kind: "SET_MODEL"; model: string | null }
   | { kind: "SET_TENANT"; tenant: string }
   | { kind: "SET_USER"; user: string }
   | { kind: "RESET_CONVERSATION" }
@@ -126,7 +124,7 @@ export interface ReducerContext {
 export interface SessionMetaInit {
   tenantId: string;
   userId: string;
-  mode: RunMode;
+  model?: string | null;
   baseUrl: string;
   profileName?: string | null;
   debug?: boolean;

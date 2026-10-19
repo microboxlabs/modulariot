@@ -7,6 +7,7 @@ import {
   listCandidates,
   type CandidateBody,
 } from "./candidates-client";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
 /**
  * Review-queue + staging API for the semantic-layer learning loop. Same
@@ -21,8 +22,7 @@ export async function GET(request: Request) {
   const scopeResult = await resolveTenantScope();
   if (!scopeResult.resolved) return scopeResult.response;
 
-  const token =
-    authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? undefined;
+  const token = sessionToken(authResult.session);
   const status = new URL(request.url).searchParams.get("status") ?? "pending";
 
   try {
@@ -50,8 +50,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_candidate" }, { status: 400 });
   }
 
-  const token =
-    authResult.session.user?.rawJWT ?? authResult.session.user?.ticket ?? undefined;
+  const token = sessionToken(authResult.session);
 
   try {
     const candidate = await createCandidate({

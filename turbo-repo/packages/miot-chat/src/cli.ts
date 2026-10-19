@@ -31,8 +31,8 @@ program
     "Organization slug; routes runs through the quarkus harness proxy (or MIOT_CHAT_ORG env)",
   )
   .option(
-    "--mode <mode>",
-    "Dispatch mode: auto | canned | meta | agentic (or MIOT_CHAT_MODE env)",
+    "--model <name>",
+    "Conversation model (see /models; or MIOT_CHAT_MODEL env)",
   )
   .option(
     "--profile <name>",

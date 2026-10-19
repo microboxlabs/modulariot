@@ -1,35 +1,19 @@
 // Legacy slash parser. The TUI uses src/tui/slash/ instead — registry +
 // parser + per-command handlers. This module is kept for the headless
 // REPL in src/repl/loop.ts and is retired alongside it.
-//
-// AGENTIC_TENANT_LOCK was migrated to src/tui/session/agentic.ts in D2;
-// callers in the new path should import from there, not here.
-import type { RunMode } from "@microboxlabs/miot-harness-client";
-
-export const AGENTIC_TENANT_LOCK = "mintral";
-
-export interface SlashState {
-  mode: RunMode;
-  tenant: string;
-}
+import { DEFAULT_MODEL_ARG } from "../models.js";
 
 export type SlashAction =
   | { kind: "noop" }
   | { kind: "exit" }
   | { kind: "reset" }
-  | { kind: "set-mode"; mode: RunMode; warnAgenticTenantMismatch: boolean }
-  | { kind: "set-tenant"; tenant: string; warnAgenticTenantMismatch: boolean }
+  | { kind: "list-models" }
+  | { kind: "set-model"; model: string | null }
+  | { kind: "set-tenant"; tenant: string }
   | { kind: "save"; path: string }
   | { kind: "invalid"; reason: string };
 
-const VALID_MODES: ReadonlySet<RunMode> = new Set<RunMode>([
-  "auto",
-  "canned",
-  "meta",
-  "agentic",
-]);
-
-export function parseSlash(line: string, state: SlashState): SlashAction {
+export function parseSlash(line: string): SlashAction {
   const trimmed = line.trim();
   if (!trimmed.startsWith("/")) return { kind: "noop" };
 
@@ -48,23 +32,14 @@ export function parseSlash(line: string, state: SlashState): SlashAction {
     case "reset":
       return { kind: "reset" };
 
-    case "mode": {
+    case "model": {
       const value = rest[0];
-      if (value === undefined) {
-        return {
-          kind: "invalid",
-          reason: "usage: /mode <auto|canned|meta|agentic>",
-        };
+      if (value === undefined || value.length === 0) {
+        return { kind: "list-models" };
       }
-      if (!VALID_MODES.has(value as RunMode)) {
-        return { kind: "invalid", reason: `unknown mode: ${value}` };
-      }
-      const newMode = value as RunMode;
       return {
-        kind: "set-mode",
-        mode: newMode,
-        warnAgenticTenantMismatch:
-          newMode === "agentic" && state.tenant !== AGENTIC_TENANT_LOCK,
+        kind: "set-model",
+        model: value === DEFAULT_MODEL_ARG ? null : value,
       };
     }
 
@@ -73,12 +48,7 @@ export function parseSlash(line: string, state: SlashState): SlashAction {
       if (value === undefined || value.length === 0) {
         return { kind: "invalid", reason: "usage: /tenant <id>" };
       }
-      return {
-        kind: "set-tenant",
-        tenant: value,
-        warnAgenticTenantMismatch:
-          state.mode === "agentic" && value !== AGENTIC_TENANT_LOCK,
-      };
+      return { kind: "set-tenant", tenant: value };
     }
 
     case "save": {

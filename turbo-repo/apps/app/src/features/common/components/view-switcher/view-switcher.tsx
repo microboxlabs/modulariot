@@ -1,6 +1,6 @@
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { Button, ButtonGroup } from "flowbite-react";
 import { tr } from "@/features/i18n/tr.service";
+import { SegmentedSwitcher } from "./segmented-switcher";
 
 interface ViewSwitcherProps {
   activeView: "table" | "kanban";
@@ -14,21 +14,13 @@ export function ViewSwitcher({
   dict,
 }: ViewSwitcherProps) {
   return (
-    <ButtonGroup>
-      <Button
-        color="alternative"
-        onClick={() => onViewChange("kanban")}
-        disabled={activeView === "kanban"}
-      >
-        {tr("views.kanban", dict)}
-      </Button>
-      <Button
-        color="alternative"
-        onClick={() => onViewChange("table")}
-        disabled={activeView === "table"}
-      >
-        {tr("views.table", dict)}
-      </Button>
-    </ButtonGroup>
+    <SegmentedSwitcher
+      options={[
+        { value: "kanban", label: tr("views.kanban", dict) },
+        { value: "table", label: tr("views.table", dict) },
+      ]}
+      active={activeView}
+      onChange={onViewChange}
+    />
   );
 }

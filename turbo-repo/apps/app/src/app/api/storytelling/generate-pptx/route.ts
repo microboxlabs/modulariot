@@ -55,9 +55,8 @@ function isDeckContent(value: unknown): value is DeckContent {
   );
 }
 
-/** Generates a real .pptx from the posted DeckContent (a "ppt" story's
- * slides, as stored in localStorage — see storytelling-store.ts) — no
- * server-side persistence, the deck is regenerated on every download. */
+/** Generates a .pptx from the posted DeckContent (a deck story's slides).
+ * Nothing is stored; the deck is regenerated on every download. */
 export async function POST(req: Request) {
   // Testing-only for now — gated the same way the /storytelling pages are
   // (see ENABLE_STORYTELLING in runtime-config.types.ts). No auth middleware

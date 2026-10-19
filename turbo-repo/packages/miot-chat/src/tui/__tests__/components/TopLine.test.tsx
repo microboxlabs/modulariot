@@ -8,7 +8,7 @@ function meta(partial: Partial<SessionMeta> = {}): SessionMeta {
     conversationId: "abcdef0123456789",
     tenantId: "demo-tenant",
     userId: "demo-user",
-    mode: "auto",
+    model: null,
     baseUrl: "http://localhost:8000",
     profileName: null,
     debug: false,

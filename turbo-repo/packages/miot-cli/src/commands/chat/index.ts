@@ -39,7 +39,7 @@ interface RoutingOptions {
   harnessToken?: string;
   tenant?: string;
   user?: string;
-  mode?: string;
+  model?: string;
   // merged in from the program globals via optsWithGlobals()
   baseUrl?: string;
   token?: string;
@@ -64,8 +64,8 @@ function applyRoutingOptions(command: Command): Command {
     .option("--tenant <id>", "Tenant ID (defaults to the org; or MIOT_CHAT_TENANT_ID env)")
     .option("--user <id>", "User ID (defaults to the login email; or MIOT_CHAT_USER_ID env)")
     .option(
-      "--mode <mode>",
-      "Dispatch mode: auto | canned | meta | agentic (or MIOT_CHAT_MODE env)",
+      "--model <name>",
+      "Conversation model (see /models; or MIOT_CHAT_MODEL env)",
     )
     .option(
       "--profile <name>",
@@ -84,7 +84,7 @@ function resolveChatConfig(o: RoutingOptions): ResolvedConfig {
       ...(o.harnessToken !== undefined && { token: o.harnessToken }),
       ...(o.tenant !== undefined && { tenant: o.tenant }),
       ...(o.user !== undefined && { user: o.user }),
-      ...(o.mode !== undefined && { mode: o.mode }),
+      ...(o.model !== undefined && { model: o.model }),
       ...(o.profile !== undefined && { profile: o.profile }),
     };
   } else {
@@ -112,7 +112,7 @@ function resolveChatConfig(o: RoutingOptions): ResolvedConfig {
       ...(org !== undefined && { org }),
       ...(tenant !== undefined && { tenant }),
       ...(user !== undefined && { user }),
-      ...(o.mode !== undefined && { mode: o.mode }),
+      ...(o.model !== undefined && { model: o.model }),
       ...(o.profile !== undefined && { profile: o.profile }),
     };
   }

@@ -37,7 +37,13 @@ public class JdbcSelectableStore implements SelectableStore {
             + " groups = EXCLUDED.groups, source = EXCLUDED.source, options = EXCLUDED.options,"
             + " updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at"
             + " RETURNING " + COLUMNS;
-    private static final String MARK_SEEDED =
+    private static final String INSERT_IF_ABSENT = "INSERT INTO miot_core.selectables (" + COLUMNS + ")"
+            + " VALUES (?, ?, ?::jsonb, ?::jsonb, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?, now())"
+            + " ON CONFLICT (tenant_code, key) DO NOTHING";
+    private static final String MARK_SEEDED = "INSERT INTO miot_core.selectable_seeded_keys (tenant_code, key)"
+            + " VALUES (?, ?) ON CONFLICT DO NOTHING";
+    /** Read only by replicas older than V0.1.10, so they do not seed a tenant this version already seeded. */
+    private static final String MARK_TENANT_SEEDED =
             "INSERT INTO miot_core.selectable_tenants (tenant_code) VALUES (?) ON CONFLICT DO NOTHING";
     private static final String TENANT_LOCK =
             "SELECT pg_advisory_xact_lock(hashtext('miot_core.selectables'), hashtext(?))";
@@ -145,26 +151,17 @@ public class JdbcSelectableStore implements SelectableStore {
         });
     }
 
-    @Override
-    public boolean isSeeded(String tenantCode) {
-        return withConnection(c -> {
-            try (PreparedStatement st = c.prepareStatement(
-                    "SELECT 1 FROM miot_core.selectable_tenants WHERE tenant_code = ?")) {
-                st.setString(1, tenantCode);
-                try (ResultSet rs = st.executeQuery()) {
-                    return rs.next();
-                }
-            }
-        });
-    }
-
-    /** A replica seeding the same tenant at the same time waits on the marker row, then writes nothing. */
+    /** A replica seeding the same tenant at the same time waits on the key rows, then writes nothing. */
     @Override
     public void seed(String tenantCode, List<Selectable> defaults) {
         inTransaction(c -> {
-            if (markSeeded(c, tenantCode)) {
+            markTenantSeeded(c, tenantCode);
+            try (PreparedStatement st = c.prepareStatement(INSERT_IF_ABSENT)) {
                 for (Selectable s : defaults) {
-                    upsert(c, s);
+                    if (markSeeded(c, tenantCode, s.key())) {
+                        bind(st, s);
+                        st.executeUpdate();
+                    }
                 }
             }
             return null;
@@ -179,10 +176,11 @@ public class JdbcSelectableStore implements SelectableStore {
                 st.setString(1, tenantCode);
                 st.executeUpdate();
             }
+            markTenantSeeded(c, tenantCode);
             for (Selectable s : lists) {
                 upsert(c, s);
+                markSeeded(c, tenantCode, s.key());
             }
-            markSeeded(c, tenantCode);
             return null;
         });
     }
@@ -212,27 +210,39 @@ public class JdbcSelectableStore implements SelectableStore {
         });
     }
 
-    private static boolean markSeeded(Connection c, String tenantCode) throws SQLException {
+    private static boolean markSeeded(Connection c, String tenantCode, String key) throws SQLException {
         try (PreparedStatement st = c.prepareStatement(MARK_SEEDED)) {
             st.setString(1, tenantCode);
+            st.setString(2, key);
             return st.executeUpdate() > 0;
+        }
+    }
+
+    private static void markTenantSeeded(Connection c, String tenantCode) throws SQLException {
+        try (PreparedStatement st = c.prepareStatement(MARK_TENANT_SEEDED)) {
+            st.setString(1, tenantCode);
+            st.executeUpdate();
         }
     }
 
     private Selectable upsert(Connection c, Selectable s) throws SQLException {
         try (PreparedStatement st = c.prepareStatement(UPSERT)) {
-            st.setString(1, s.tenantCode());
-            st.setString(2, s.key());
-            st.setString(3, write(s.name() == null ? Map.of() : s.name()));
-            st.setString(4, write(s.description() == null ? Map.of() : s.description()));
-            st.setString(5, s.mode().name());
-            st.setString(6, write(s.settings() == null ? SelectableSettings.DEFAULT : s.settings()));
-            st.setString(7, write(s.groups() == null ? List.of() : s.groups()));
-            st.setString(8, write(s.source() == null ? SelectableSource.STATIC : s.source()));
-            st.setString(9, write(s.options() == null ? List.of() : s.options()));
-            st.setString(10, s.updatedBy());
+            bind(st, s);
             return readAll(st).get(0);
         }
+    }
+
+    private void bind(PreparedStatement st, Selectable s) throws SQLException {
+        st.setString(1, s.tenantCode());
+        st.setString(2, s.key());
+        st.setString(3, write(s.name() == null ? Map.of() : s.name()));
+        st.setString(4, write(s.description() == null ? Map.of() : s.description()));
+        st.setString(5, s.mode().name());
+        st.setString(6, write(s.settings() == null ? SelectableSettings.DEFAULT : s.settings()));
+        st.setString(7, write(s.groups() == null ? List.of() : s.groups()));
+        st.setString(8, write(s.source() == null ? SelectableSource.STATIC : s.source()));
+        st.setString(9, write(s.options() == null ? List.of() : s.options()));
+        st.setString(10, s.updatedBy());
     }
 
     private List<Selectable> readAll(PreparedStatement st) throws SQLException {

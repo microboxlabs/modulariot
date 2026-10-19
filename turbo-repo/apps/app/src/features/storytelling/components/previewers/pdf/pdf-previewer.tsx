@@ -17,8 +17,6 @@ import type { SearchableHandle } from "../searchable";
 import { useContainerWidth } from "../use-container-width";
 
 const base_path = process.env.NEXT_PUBLIC_BASE_PATH;
-export const PDF_PREVIEW_URL = `${base_path ?? ""}/api/storytelling/pdf-preview`;
-export const PDF_DOWNLOAD_FILENAME = "audit-report-demo.pdf";
 // Served straight from public/ — the `sync-pdf-worker` npm script (run by
 // the build) keeps this file matched to the installed pdfjs-dist, so the
 // worker URL never depends on bundler-specific asset resolution.
@@ -207,6 +205,9 @@ async function detectSectionsFromText(
 }
 
 interface PdfPreviewerProps {
+  /** The PDF's bytes. pdf.js takes ownership of the buffer it is given, so
+   * it gets a copy. */
+  readonly data: Uint8Array;
   readonly title: string;
   readonly dict: I18nRecord;
   /** Lets the header know when the search box can accept input. */
@@ -461,7 +462,7 @@ type RailMode = "page" | "section";
  * body's diff/blame intact through the conversion.
  */
 function PdfPreviewerImpl(
-  { title, dict, onReadyChange }: PdfPreviewerProps,
+  { data, title, dict, onReadyChange }: PdfPreviewerProps,
   ref: ForwardedRef<SearchableHandle>
 ) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -492,11 +493,8 @@ function PdfPreviewerImpl(
       try {
         const pdfjs = await import("pdfjs-dist");
         pdfjs.GlobalWorkerOptions.workerSrc = PDF_WORKER_URL;
-        const res = await fetch(PDF_PREVIEW_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = new Uint8Array(await res.arrayBuffer());
         if (cancelled) return;
-        doc = await pdfjs.getDocument({ data }).promise;
+        doc = await pdfjs.getDocument({ data: data.slice() }).promise;
         if (cancelled) {
           void doc.destroy();
           return;
@@ -525,7 +523,7 @@ function PdfPreviewerImpl(
       cancelled = true;
       void doc?.destroy();
     };
-  }, []);
+  }, [data]);
 
   useEffect(() => {
     if (pdf || failed) onReadyChange?.(true);

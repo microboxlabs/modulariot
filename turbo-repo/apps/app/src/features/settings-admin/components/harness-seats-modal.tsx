@@ -6,47 +6,17 @@ import { HiCheck } from "react-icons/hi";
 import AbsoluteModal from "@/features/common/components/absolute-modal/absolute-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-
-export type BillingCycle = "monthly" | "yearly";
-
-// 20% off the monthly per-seat rate when billed yearly.
-const YEARLY_DISCOUNT = 0.2;
-
-/** Per-seat rate for a cycle — discounted (and rounded, like the sticker price) when yearly. */
-export function getPricePerSeatForCycle(
-  pricePerSeat: number,
-  billingCycle: BillingCycle
-): number {
-  return billingCycle === "yearly"
-    ? Math.round(pricePerSeat * (1 - YEARLY_DISCOUNT))
-    : pricePerSeat;
-}
-
-/**
- * The recurring charge for a cycle — used for both the modal's own cards and
- * the page's pricing stats, so they can never show mismatched totals for the
- * same seat count/cycle.
- */
-export function getBillingTotal(
-  seats: number,
-  pricePerSeat: number,
-  billingCycle: BillingCycle
-): number {
-  const effectivePricePerSeat = getPricePerSeatForCycle(
-    pricePerSeat,
-    billingCycle
-  );
-  return billingCycle === "yearly"
-    ? seats * effectivePricePerSeat * 12
-    : seats * effectivePricePerSeat;
-}
+import type { HarnessPlan } from "../platform/platform.types";
+import type { BillingCycle } from "../harness/harness-plan.types";
+import { billingTotal, seatPriceFor } from "../harness/harness-plan-view";
 
 interface HarnessSeatsModalProps {
   readonly show: boolean;
   readonly currentSeats: number;
   readonly currentBillingCycle: BillingCycle;
   readonly minSeats: number;
-  readonly pricePerSeat: number;
+  readonly plan: HarnessPlan;
+  readonly isSaving: boolean;
   readonly onClose: () => void;
   readonly onSave: (seats: number, billingCycle: BillingCycle) => void;
   readonly dict: I18nRecord;
@@ -57,7 +27,8 @@ export default function HarnessSeatsModal({
   currentSeats,
   currentBillingCycle,
   minSeats,
-  pricePerSeat,
+  plan,
+  isSaving,
   onClose,
   onSave,
   dict,
@@ -75,9 +46,8 @@ export default function HarnessSeatsModal({
   const adjustSeats = (delta: number) =>
     setSeats((current) => Math.max(minSeats, current + delta));
 
-  const yearlyPricePerSeat = getPricePerSeatForCycle(pricePerSeat, "yearly");
-  const monthlyTotal = getBillingTotal(seats, pricePerSeat, "monthly");
-  const yearlyTotal = getBillingTotal(seats, pricePerSeat, "yearly");
+  const monthlyTotal = billingTotal(seats, plan, "monthly");
+  const yearlyTotal = billingTotal(seats, plan, "yearly");
 
   const isDirty =
     seats !== currentSeats || billingCycle !== currentBillingCycle;
@@ -106,7 +76,7 @@ export default function HarnessSeatsModal({
             label={tr("monthlyLabel", dict)}
             total={monthlyTotal}
             unit={tr("monthlyUnit", dict)}
-            pricePerSeat={pricePerSeat}
+            pricePerSeat={seatPriceFor(plan, "monthly")}
             perSeatSuffix={tr("perSeatSuffix", dict)}
             seats={seats}
             currentSeats={currentSeats}
@@ -125,12 +95,16 @@ export default function HarnessSeatsModal({
             selected={billingCycle === "yearly"}
             onSelect={() => setBillingCycle("yearly")}
             label={tr("yearlyLabel", dict)}
-            badge={tr("savePercent", dict, {
-              percent: String(Math.round(YEARLY_DISCOUNT * 100)),
-            })}
+            badge={
+              plan.yearlyDiscountPct > 0
+                ? tr("savePercent", dict, {
+                    percent: String(plan.yearlyDiscountPct),
+                  })
+                : undefined
+            }
             total={yearlyTotal}
             unit={tr("yearlyUnit", dict)}
-            pricePerSeat={yearlyPricePerSeat}
+            pricePerSeat={seatPriceFor(plan, "yearly")}
             perSeatSuffix={tr("perSeatSuffix", dict)}
             seats={seats}
             currentSeats={currentSeats}
@@ -151,7 +125,7 @@ export default function HarnessSeatsModal({
           color="blue"
           type="button"
           size="lg"
-          disabled={!isDirty}
+          disabled={!isDirty || isSaving}
           onClick={() => onSave(seats, billingCycle)}
           className="w-full font-medium"
         >

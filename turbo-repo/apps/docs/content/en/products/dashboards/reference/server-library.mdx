@@ -1,0 +1,105 @@
+# Server library
+
+`@microboxlabs/miot-dashboard-server` is both the standalone server and a library. Mount it in your own Node.js backend and you keep the same access rules, with your own identity, storage and data.
+
+Version 0.6.0 needs contract 0.6.0 and Node.js 20.19 or later (22.13 or later for SQLite).
+
+## Entries
+
+| Entry | Holds | Runs on |
+| --- | --- | --- |
+| `.` | Interfaces, access control, query service, import and migration helpers | Anywhere |
+| `/http` | `createDashboardHandler`: `Request` in, `Response` out | Web `Request` and `Response` |
+| `/next` | `createNextRouteHandlers` for App Router routes | Node.js runtime |
+| `/identity` | JWT and ticket verification | Node.js |
+| `/store-sql` | SQLite and PostgreSQL stores | Node.js |
+| `/store-cloud` | S3 and Google Cloud Storage document stores | Node.js |
+| `/vault-sql`, `/vault-http` | Credential stores: encrypted in SQL, or asked from a host | Node.js |
+| `/queries` | Query executors and catalog providers | Node.js |
+| `/server` | The standalone listener, probes and docs | Node.js |
+| `/testing` | In-memory implementations for tests and demos | Anywhere |
+
+## Mount it
+
+```ts
+import { createDashboardHandler } from "@microboxlabs/miot-dashboard-server/http";
+
+const handle = createDashboardHandler({
+  identity,      // who is calling
+  tenants,       // may they act in this organization
+  scopes,        // their role in this scope
+  store,         // where dashboards live
+  basePath: "/api/dashboards",
+});
+```
+
+In Next.js:
+
+```ts filename="app/api/dashboards/[...path]/route.ts"
+import { createNextRouteHandlers } from "@microboxlabs/miot-dashboard-server/next";
+
+export const runtime = "nodejs";
+export const { GET, PUT, DELETE, OPTIONS } = createNextRouteHandlers({
+  basePath: "/api/dashboards",
+  identity, tenants, scopes, store,
+});
+```
+
+`runtime = "nodejs"` is required: the stores need Node.js. `basePath` must match where the route is mounted. Export `OPTIONS` if browsers call it from another origin.
+
+## Interfaces you provide
+
+| Interface | Answers |
+| --- | --- |
+| `IdentityResolver` | Who is calling? |
+| `TenantAuthority` | May they act in the organization the address names? |
+| `ScopeAuthority` | What role do they have in the scope? |
+| `ServerDashboardStore` | Where are documents and permissions kept? |
+| `CredentialsVault` | Which secret authenticates a datasource? |
+| `AuditSink` | Where do audit events go? |
+| `CapabilityPolicy` | Optional. How roles become capabilities. It can only take away. |
+
+`createAllowedGroupsPolicy()` adds `allowedGroups` support. Pass it as `policy`.
+
+## Query executors
+
+Pass one as `queries: { operations }` to enable the query route.
+
+| Factory (from `/queries`) | Runs |
+| --- | --- |
+| `createHttpGetOperationExecutor` | Read-only HTTP GET operations, such as PostgREST functions, against approved origins |
+| `createBigQueryOperationExecutor` | Saved BigQuery SQL, with a dry run and a billing cap |
+| `createRemotePlanOperationExecutor` | Asks a host for the plan, then runs HTTP GET or BigQuery locally |
+| `createHttpDashboardOperationExecutor` | Sends the authorized request to a host endpoint that runs it |
+
+Each executor gets a trusted `resolve(request)` from you, which must check the organization's connection and return the plan, or `null` to deny. Never build a plan from viewer input.
+
+`createDashboardQueryService` gives the same authorization and limits to code outside the HTTP handler.
+
+## Query catalog
+
+Pass `queryCatalog: { list({ identity, ref, signal }) }` to enable the editor's catalog. `createRemoteQueryCatalog({ url, proxyKey })` reads it from a host endpoint.
+
+## Import existing dashboards
+
+```ts
+import { importDashboards } from "@microboxlabs/miot-dashboard-server";
+
+const report = await importDashboards({ source, store, dryRun: true });
+```
+
+`source.read()` yields existing dashboards. `dryRun` defaults to true. It validates every document, skips dashboards that already exist, writes with revision zero so a concurrent create becomes a conflict, keeps the original creator, and reports `imported`, `skipped`, `refused` and `failed`.
+
+`migratePlannerQueries` and `plannerOperationContracts` convert planner dashboards. See [Migrate planner dashboards](/en/products/dashboards/how-to/migrate-planner-dashboards).
+
+## Limits you can set
+
+| Option | Default |
+| --- | --- |
+| `maxBodyBytes` (handler) | 1 MiB |
+| `maxConcurrent` (query service) | 8 |
+| `timeoutMs` | 20,000 |
+| `maxRows` | 5,000 |
+| `maxBytes` | 2 MiB |
+
+The complete API is in the [package README](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-server/README.md).

@@ -1,10 +1,10 @@
 {
   "name": "@microboxlabs/miot-dashboard-contract",
-  "version": "0.2.0",
+  "version": "0.6.0",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/microboxlabs/modulariot",
+    "url": "git+https://github.com/microboxlabs/modulariot.git",
     "directory": "turbo-repo/packages/miot-dashboard-contract"
   },
   "description": "The wire contract for MIOT embeddable dashboards: the persisted document's schema, the role and capability vocabulary, and the OpenAPI specification. Depends on neither the UI nor the server.",
@@ -54,7 +54,8 @@
     "test": "vitest run",
     "lint": "eslint .",
     "check-types": "tsc --noEmit && node scripts/guard-imports.mjs",
-    "guard": "node scripts/guard-imports.mjs"
+    "guard": "node scripts/guard-imports.mjs",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "zod": "^3.23.8"
@@ -63,6 +64,7 @@
     "@repo/eslint-config": "*",
     "@repo/typescript-config": "*",
     "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^5.0.0",
     "tsup": "^8.0.0",
     "tsx": "^4.22.0",
     "typescript": "5.8.2",

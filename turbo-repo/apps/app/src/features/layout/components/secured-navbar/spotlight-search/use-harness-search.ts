@@ -35,9 +35,7 @@ export interface UseHarnessSearchReturn {
 
 const LOADING_PHASES: ReadonlySet<HarnessStreamProgress["phase"]> = new Set([
   "connecting",
-  "routing",
   "exploring",
-  "verifying",
   "answering",
 ]);
 

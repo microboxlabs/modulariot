@@ -1,8 +1,8 @@
-"""Guards on what reaches the loop and what the store keeps after it.
+"""What the loop is told about the tenant, and what the store keeps after it.
 
-The loop re-gates tenancy on the env override and the profile alone, so a
-lock the primary connection declared is invisible to it. And what the loop
-wrote is not always what the user was shown.
+A tenant outside the datasource's lock still talks to the model; the run
+carries the refusal its datasource tools will give. What the loop wrote is
+not always what the user was shown.
 """
 
 from __future__ import annotations
@@ -14,17 +14,10 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from miot_harness.runtime.context import UserRequest
 from miot_harness.runtime.conversation import InMemoryConversationStore
-from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
-from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
 from tests.fixtures.fake_provider import FAKE_PROFILE
-
-
-class _AgenticRouter(IntentRouter):
-    def route(self, message: str) -> RouteResult:
-        return RouteResult(route=HarnessRoute.DATA_AGENTIC, reason="test")
 
 
 class _Loop:
@@ -47,9 +40,7 @@ class _Loop:
 
 def _supervisor(tmp_path, loop, **kwargs):
     sup = HarnessSupervisor(
-        router=_AgenticRouter(),
         tools=ToolRegistry(),
-        stories=StorytellingModule(),
         run_store=JsonRunStore(tmp_path),
         agent_loop=loop,
         **kwargs,
@@ -59,19 +50,18 @@ def _supervisor(tmp_path, loop, **kwargs):
 
 
 @pytest.mark.asyncio
-async def test_a_connection_lock_the_loop_cannot_see_still_refuses(tmp_path) -> None:
-    """The lifespan prefers the primary connection's lock. The loop's own
-    gate reads the profile, which does not carry it, so the supervisor has
-    to refuse before dispatch however the route was reached."""
-
+async def test_a_tenant_outside_the_connection_lock_gets_the_loop_without_data(
+    tmp_path,
+) -> None:
     loop = _Loop()
     sup = _supervisor(tmp_path, loop)
     sup.tenant_lock = "another-tenant"
 
     record = await sup.run(UserRequest(message="count them", tenant_id="acme"))
 
-    assert loop.calls == []
-    assert "another-tenant" in record.answer
+    [call] = loop.calls
+    assert "another-tenant" in (call["ctx"].data_refusal or "")
+    assert record.answer == "loop answer"
     assert record.status == "completed"
 
 
@@ -84,6 +74,7 @@ async def test_the_matching_tenant_still_reaches_the_loop(tmp_path) -> None:
     record = await sup.run(UserRequest(message="count them", tenant_id="acme"))
 
     assert loop.calls[0]["user_message"] == "count them"
+    assert loop.calls[0]["ctx"].data_refusal is None
     assert record.answer == "loop answer"
 
 
@@ -110,3 +101,35 @@ async def test_the_stored_turn_ends_in_the_answer_the_user_saw(tmp_path) -> None
     assert history is not None
     stored = history.turns[-1]
     assert stored.messages[-1].content == stored.assistant_answer
+
+
+class _FailingLoop:
+    async def run(self, *, user_message, ctx, prior_messages, progress):
+        raise RuntimeError("provider down")
+
+
+@pytest.mark.asyncio
+async def test_every_finished_run_is_reported_for_charging(tmp_path) -> None:
+    reported: list[tuple[str, str | None]] = []
+
+    for loop in (_Loop(), _FailingLoop()):
+        sup = _supervisor(tmp_path, loop)
+        sup.usage_reporter = lambda record, ctx: reported.append(
+            (record.status, ctx.organization)
+        )
+        await sup.run(UserRequest(message="hi", tenant_id="acme"), organization="acme-org")
+
+    assert reported == [("completed", "acme-org"), ("failed", "acme-org")]
+
+
+@pytest.mark.asyncio
+async def test_a_broken_reporter_does_not_fail_the_run(tmp_path) -> None:
+    sup = _supervisor(tmp_path, _Loop())
+
+    def broken(record, ctx):
+        raise RuntimeError("no event loop")
+
+    sup.usage_reporter = broken
+    record = await sup.run(UserRequest(message="hi", tenant_id="acme"))
+
+    assert record.status == "completed"

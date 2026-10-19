@@ -46,6 +46,39 @@ describe("runs.get", () => {
   });
 });
 
+describe("runs.list", () => {
+  it("GETs /runs with the filters, joining statuses", async () => {
+    const { fn, call } = createMockFetch([]);
+    const client = createMiotHarnessClient({
+      baseUrl: "http://harness.local",
+      fetch: fn,
+    });
+    await expect(
+      client.runs.list({
+        conversation_id: "c 1",
+        status: ["running", "failed"],
+        limit: 5,
+      }),
+    ).resolves.toEqual([]);
+    const url = new URL(call.url);
+    expect(url.pathname).toBe("/runs");
+    expect(url.searchParams.get("conversation_id")).toBe("c 1");
+    expect(url.searchParams.get("status")).toBe("running,failed");
+    expect(url.searchParams.get("limit")).toBe("5");
+    expect(call.init.method).toBe("GET");
+  });
+
+  it("sends no query when called bare", async () => {
+    const { fn, call } = createMockFetch([]);
+    const client = createMiotHarnessClient({
+      baseUrl: "http://harness.local",
+      fetch: fn,
+    });
+    await client.runs.list();
+    expect(call.url).toBe("http://harness.local/runs");
+  });
+});
+
 describe("runs.cancel", () => {
   it("POSTs /runs/{id}/cancel and resolves on 204", async () => {
     const { fn, call } = createMockFetch(undefined, 204);
@@ -56,6 +89,28 @@ describe("runs.cancel", () => {
     await expect(client.runs.cancel("run id")).resolves.toBeUndefined();
     expect(call.url).toBe("http://harness.local/runs/run%20id/cancel");
     expect(call.init.method).toBe("POST");
+  });
+});
+
+describe("runs.resolveApproval", () => {
+  it("POSTs the decision to /runs/{id}/approvals/{approvalId}", async () => {
+    const { fn, call } = createMockFetch(undefined, 204);
+    const client = createMiotHarnessClient({
+      baseUrl: "http://harness.local",
+      fetch: fn,
+    });
+    await expect(
+      client.runs.resolveApproval("run_a", "aid 1", {
+        decision: "deny",
+        comment: "not now",
+      }),
+    ).resolves.toBeUndefined();
+    expect(call.url).toBe("http://harness.local/runs/run_a/approvals/aid%201");
+    expect(call.init.method).toBe("POST");
+    expect(JSON.parse(String(call.init.body))).toEqual({
+      decision: "deny",
+      comment: "not now",
+    });
   });
 });
 
@@ -75,9 +130,9 @@ describe("runs.stream", () => {
 
     expect(events.map((e) => e.type)).toEqual(["run.started", "run.completed"]);
     expect(call.url).toBe("http://harness.local/runs/run_abc/stream");
-    expect(
-      (call.init.headers as Record<string, string>).Accept,
-    ).toBe("text/event-stream");
+    expect((call.init.headers as Record<string, string>).Accept).toBe(
+      "text/event-stream",
+    );
   });
 
   it("forwards Last-Event-ID when provided", async () => {
@@ -86,7 +141,9 @@ describe("runs.stream", () => {
       baseUrl: "http://harness.local",
       fetch: fn,
     });
-    for await (const e of client.runs.stream("run_abc", { lastEventId: "evt_42" })) {
+    for await (const e of client.runs.stream("run_abc", {
+      lastEventId: "evt_42",
+    })) {
       void e;
     }
     const headers = call.init.headers as Record<string, string>;

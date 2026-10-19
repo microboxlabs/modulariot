@@ -5,7 +5,7 @@ import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import { useState } from "react";
 import TagManager from "@/features/symptoms/components/tag-manager";
-import { requestTreatment } from "@/features/common/providers/client-api.provider";
+import { guardedRequestTreatment } from "@/features/symptoms/components/map-view/prototype/prototype-api-guard";
 import { TreatmentsRequest } from "@/app/api/treatments/route.type";
 import { BiLogoMicrosoftTeams } from "react-icons/bi";
 import { useRouter } from "next/navigation";
@@ -80,7 +80,13 @@ export default function CallDriver({
       color: "blue",
       text: (dict.symptoms as I18nRecord).save_treatment,
       function: async () => {
-        const response = await requestTreatment(treatmentRequest);
+        // Read both texts from the inputs: the open preaction can reset
+        // treatmentRequest after the operator has started typing.
+        const response = await guardedRequestTreatment({
+          ...treatmentRequest,
+          message: messageToCommunicate,
+          driver_response: driverResponse,
+        });
 
         setTreatmentRequest({
           ...treatmentRequest,

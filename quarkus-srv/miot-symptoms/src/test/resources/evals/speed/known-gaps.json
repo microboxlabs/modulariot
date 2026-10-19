@@ -1,0 +1,30 @@
+{
+  "v01" : {
+    "reason" : "code black: production counts the 60 s from the case opening, the evaluator from the first signal over 21",
+    "evaluator" : [ "OPENED@58655:0>4", "CLOSED@58843:4>4", "OPENED@64408:0>4", "LEVEL_CHANGED@64544:4>1", "CLOSED@64585:1>1", "OPENED@85078:0>2", "CLOSED@85100:2>2" ]
+  },
+  "v03" : {
+    "reason" : "production opens a case only with at least one signal per minute",
+    "evaluator" : [ "OPENED@19057:0>3", "CLOSED@19097:3>3" ]
+  },
+  "v06" : {
+    "reason" : "code black: production counts the 60 s from the case opening, the evaluator from the first signal over 21",
+    "evaluator" : [ "OPENED@6541:0>3", "LEVEL_CHANGED@6562:3>4", "LEVEL_CHANGED@6646:4>2", "CLOSED@6667:2>2", "OPENED@9110:0>2", "LEVEL_CHANGED@9120:2>3", "CLOSED@9144:3>3", "OPENED@9235:0>2", "CLOSED@9238:2>2", "OPENED@9524:0>3", "CLOSED@9572:3>3", "OPENED@41182:0>3", "LEVEL_CHANGED@41210:3>1", "CLOSED@41238:1>1" ]
+  },
+  "v08" : {
+    "reason" : "code black: production counts the 60 s from the case opening, the evaluator from the first signal over 21",
+    "evaluator" : [ "OPENED@13371:0>4", "LEVEL_CHANGED@13611:4>3", "LEVEL_CHANGED@13671:3>4", "LEVEL_CHANGED@13761:4>2", "CLOSED@13791:2>2", "OPENED@14476:0>2", "CLOSED@14529:2>2", "OPENED@15311:0>2", "CLOSED@15371:2>2", "OPENED@15782:0>3", "CLOSED@15813:3>3", "OPENED@15903:0>4", "LEVEL_CHANGED@15933:4>2", "CLOSED@15963:2>2" ]
+  },
+  "v10" : {
+    "reason" : "code black: production counts the 60 s from the case opening, the evaluator from the first signal over 21",
+    "evaluator" : [ "OPENED@3752:0>4", "LEVEL_CHANGED@3836:4>2", "CLOSED@3857:2>2", "OPENED@7067:0>2", "CLOSED@7084:2>2", "OPENED@7174:0>2", "LEVEL_CHANGED@7191:2>1", "LEVEL_CHANGED@7206:1>3", "LEVEL_CHANGED@7238:3>2", "CLOSED@7276:2>2", "OPENED@8557:0>2", "LEVEL_CHANGED@8572:2>1", "LEVEL_CHANGED@8582:1>2", "LEVEL_CHANGED@8605:2>3", "LEVEL_CHANGED@8639:3>2", "LEVEL_CHANGED@8650:2>1", "LEVEL_CHANGED@8674:1>2", "LEVEL_CHANGED@8687:2>1", "LEVEL_CHANGED@8697:1>2", "LEVEL_CHANGED@8769:2>3", "LEVEL_CHANGED@8811:3>1", "CLOSED@8852:1>1", "OPENED@41174:0>3", "CLOSED@41202:3>3" ]
+  },
+  "v40" : {
+    "reason" : "code black: production counts the 60 s from the case opening, the evaluator from the first signal over 21",
+    "evaluator" : [ "OPENED@16260:0>4", "CLOSED@16440:4>4", "OPENED@16740:0>2", "CLOSED@16800:2>2", "OPENED@58140:0>3", "LEVEL_CHANGED@58320:3>1", "CLOSED@58380:1>1", "OPENED@63780:0>3", "CLOSED@63900:3>3", "OPENED@64140:0>2", "CLOSED@64200:2>2", "OPENED@65580:0>2", "CLOSED@65640:2>2", "OPENED@66120:0>3", "LEVEL_CHANGED@66180:3>2", "LEVEL_CHANGED@66300:2>3", "CLOSED@66360:3>3", "OPENED@78780:0>3", "LEVEL_CHANGED@78840:3>4", "CLOSED@79020:4>4", "OPENED@82920:0>2", "LEVEL_CHANGED@82980:2>1", "CLOSED@83040:1>1", "OPENED@84600:0>2", "CLOSED@84660:2>2" ]
+  },
+  "v45" : {
+    "reason" : "code black: production counts the 60 s from the case opening, the evaluator from the first signal over 21",
+    "evaluator" : [ "OPENED@1020:0>3", "CLOSED@1079:3>3", "OPENED@5160:0>4", "CLOSED@5401:4>4", "OPENED@9780:0>2", "CLOSED@9840:2>2" ]
+  }
+}

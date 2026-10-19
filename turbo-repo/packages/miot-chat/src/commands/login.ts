@@ -56,7 +56,7 @@ export function registerLoginCommand(program: Command): void {
             token: result.accessToken,
             tenantId: existing?.tenantId ?? "demo-tenant",
             userId: existing?.userId ?? "demo-user",
-            ...(existing?.mode !== undefined && { mode: existing.mode }),
+            ...(existing?.model !== undefined && { model: existing.model }),
             ...(result.organizationId !== undefined && {
               orgSlug: result.organizationId,
             }),

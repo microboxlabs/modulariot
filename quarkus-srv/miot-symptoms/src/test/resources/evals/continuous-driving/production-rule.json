@@ -1,0 +1,15 @@
+{
+  "source": "trip_check",
+  "activation": "check.trip.active && !check.trip.double_driver && check.driving_minutes >= 270",
+  "levels": [
+    { "icu": 1, "applies": true, "when": "check.driving_minutes < 300" },
+    { "icu": 2, "applies": true, "when": "check.driving_minutes >= 300 && check.driving_minutes < 330" },
+    { "icu": 3, "applies": true, "when": "check.driving_minutes >= 330 && check.driving_minutes < 360" },
+    { "icu": 4, "applies": true, "when": "check.driving_minutes >= 360" }
+  ],
+  "lifecycle": {
+    "open": "caso.condicion_s >= 0",
+    "close": "caso.normal_s >= 0",
+    "levelDown": true
+  }
+}

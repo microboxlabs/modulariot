@@ -12,6 +12,7 @@ import {
   HiOutlineSquare2Stack,
 } from "react-icons/hi2";
 import MapVisualization from "@/features/map-visualization/map-visualization";
+import { zoomToVehicle } from "@/features/map-visualization/map-view-utils";
 import { PinLayer } from "@/features/geographic-view/components/layers/pin_layer";
 import { MapComponentProps } from "./gps-validation-modal.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
@@ -50,6 +51,12 @@ export default function MapComponent({ pointer, msg }: MapComponentProps) {
             timestamp: new Date().toISOString(),
           },
         ],
+        onClick: () => {
+          if (mapRef.current) {
+            zoomToVehicle(mapRef.current, [pointer.lng, pointer.lat]);
+          }
+          return true;
+        },
       }),
     ],
     [pointer.lat, pointer.lng]

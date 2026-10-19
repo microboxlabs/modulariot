@@ -93,7 +93,7 @@ public class SelectableService {
             rejectCycle(lists, key, settings.dependsOn());
             List<SelectableOption> options = SelectableRules.options(req.options(), groups, settings);
             if (!source.isStatic()) {
-                requireSource(tenantCode, source);
+                requireSource(tenantCode, source).check(source);
             }
             return store.upsert(new Selectable(tenantCode, key, name,
                     Localized.clean(req.description(), "description"), req.mode(), settings, groups, source,
@@ -254,19 +254,17 @@ public class SelectableService {
     }
 
     /**
-     * The store records which tenants were seeded, so deleting every list does
-     * not bring the defaults back, even after a restart. A provider failure
-     * leaves the tenant unseeded, so the next read tries again. Runs as its
-     * own step, so a write that fails afterwards does not undo the seed.
+     * Gives the tenant every default list it was never given, once per process. The store records each list
+     * given, so a deleted list stays deleted, even after a restart, and a list a provider adds later still
+     * arrives. A provider failure leaves the tenant unseeded, so the next read tries again. Runs as its own
+     * step, so a write that fails afterwards does not undo the seed.
      */
     private void seedOnce(String tenantCode) {
         if (seeded.contains(tenantCode)) {
             return;
         }
         withTenantLock(tenantCode, () -> {
-            if (!store.isSeeded(tenantCode)) {
-                store.seed(tenantCode, collectDefaults(tenantCode));
-            }
+            store.seed(tenantCode, collectDefaults(tenantCode));
             return null;
         });
         seeded.add(tenantCode);

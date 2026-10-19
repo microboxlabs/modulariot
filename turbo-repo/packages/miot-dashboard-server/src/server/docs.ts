@@ -271,7 +271,7 @@ function codeFor(status: number): string {
  * server's own base path is not a good place to rely on that staying true.
  */
 function embed(value: string): string {
-  return JSON.stringify(value).replace(/</g, "\\u003c");
+  return JSON.stringify(value).replaceAll("<", String.raw`\u003c`);
 }
 
 /**

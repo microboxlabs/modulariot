@@ -8,6 +8,8 @@ const ENV_KEYS = [
   "TASK_DRIVEN_ORIGINS",
   "ENABLE_DEV_TOOLS",
   "ENABLE_STORYTELLING",
+  "SYMPTOMS_PROTOTYPE_DISABLE_API",
+  "SYMPTOMS_PAST_FORMS",
 ] as const;
 
 describe("runtime config route", () => {
@@ -24,6 +26,8 @@ describe("runtime config route", () => {
     process.env[ENV_KEYS[3]] = "ANTOFAGASTA";
     process.env[ENV_KEYS[4]] = "true";
     process.env[ENV_KEYS[5]] = "true";
+    process.env[ENV_KEYS[6]] = "true";
+    process.env[ENV_KEYS[7]] = "true";
 
     const response = GET();
     const data = await response.json();
@@ -35,6 +39,8 @@ describe("runtime config route", () => {
       TASK_DRIVEN_ORIGINS: "ANTOFAGASTA",
       ENABLE_DEV_TOOLS: "true",
       ENABLE_STORYTELLING: "true",
+      SYMPTOMS_PROTOTYPE_DISABLE_API: "true",
+      SYMPTOMS_PAST_FORMS: "true",
     });
   });
 

@@ -14,6 +14,8 @@
  * emits it as `dist/bin.js`, matching the path `package.json` publishes.
  */
 
+import { loadConfiguredOperations } from "./server/operations-module";
+import { createAllowedGroupsPolicy } from "./access/allowed-groups";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -118,7 +120,20 @@ function readSeed(seed: string | undefined): SeedFile {
       `MIOT_DASHBOARD_SEED at "${path}": "dashboards" must be an array`,
     );
   }
-  for (const [index, entry] of (dashboards ?? []).entries()) {
+  validateSeedReferences(dashboards ?? [], path);
+
+  return {
+    ...(memberships === undefined
+      ? {}
+      : { memberships: memberships as Memberships }),
+    ...(dashboards === undefined
+      ? {}
+      : { dashboards: dashboards as SeedDashboard[] }),
+  };
+}
+
+function validateSeedReferences(dashboards: unknown[], path: string): void {
+  for (const [index, entry] of dashboards.entries()) {
     if (!isRecord(entry) || !isRecord(entry.ref)) {
       throw new ConfigError(
         `MIOT_DASHBOARD_SEED at "${path}": "dashboards[${index}]" must be an object with a "ref"`,
@@ -135,15 +150,6 @@ function readSeed(seed: string | undefined): SeedFile {
       );
     }
   }
-
-  return {
-    ...(memberships === undefined
-      ? {}
-      : { memberships: memberships as Memberships }),
-    ...(dashboards === undefined
-      ? {}
-      : { dashboards: dashboards as SeedDashboard[] }),
-  };
 }
 
 interface AssembledStore {
@@ -238,8 +244,45 @@ const log = (line: Record<string, unknown>) => {
   process.stdout.write(`${JSON.stringify(line)}\n`);
 };
 
+/** Startup warnings for configurations that run but refuse or trust too much. */
+function warnAboutStartupConfig(
+  config: ReturnType<typeof readServerConfig>,
+  memberships: Record<string, unknown>,
+): void {
+  if (config.auth.kind === "insecure") {
+    process.stderr.write(
+      "WARNING: identity is read from request headers without verification " +
+        "(MIOT_DASHBOARD_INSECURE_AUTH). Local use only.\n",
+    );
+  }
+  if (
+    (config.scopes.kind === "seed" || config.tenants.kind === "seed") &&
+    Object.keys(memberships).length === 0 &&
+    // With a proxy key configured, an assertion answers both authorities and
+    // the empty seed is only the fallback for requests that arrive directly.
+    config.proxyKey === undefined
+  ) {
+    // Both authorities deny by default, so with no memberships every request
+    // is a 403 and the server looks broken rather than misconfigured.
+    process.stderr.write(
+      "WARNING: no memberships are configured, so every request will be " +
+        "refused with 403 TENANT_SCOPE. Read them from MIOT_DASHBOARD_SEED " +
+        "for local use, or set MIOT_DASHBOARD_TENANTS_URL and " +
+        "MIOT_DASHBOARD_SCOPES_URL to ask the host's own systems.\n",
+    );
+  }
+  if (config.tenants.kind === "groups" && Object.keys(memberships).length > 0) {
+    process.stderr.write(
+      "WARNING: the seed file's memberships are not used: " +
+        "MIOT_DASHBOARD_GROUP_ROLES_PATTERN answers tenants and scopes from " +
+        "the caller's groups.\n",
+    );
+  }
+}
+
 async function main(): Promise<void> {
   const config = readServerConfig(process.env);
+  const operations = await loadConfiguredOperations(config);
   const seed = readSeed(config.seedPath);
   const memberships = seed.memberships ?? {};
 
@@ -266,28 +309,7 @@ async function main(): Promise<void> {
     ...proxy,
   });
 
-  if (config.auth.kind === "insecure") {
-    process.stderr.write(
-      "WARNING: identity is read from request headers without verification " +
-        "(MIOT_DASHBOARD_INSECURE_AUTH). Local use only.\n",
-    );
-  }
-  if (
-    (config.scopes.kind === "seed" || config.tenants.kind === "seed") &&
-    Object.keys(memberships).length === 0 &&
-    // With a proxy key configured, an assertion answers both authorities and
-    // the empty seed is only the fallback for requests that arrive directly.
-    config.proxyKey === undefined
-  ) {
-    // Both authorities deny by default, so with no memberships every request
-    // is a 403 and the server looks broken rather than misconfigured.
-    process.stderr.write(
-      "WARNING: no memberships are configured, so every request will be " +
-        "refused with 403 TENANT_SCOPE. Read them from MIOT_DASHBOARD_SEED " +
-        "for local use, or set MIOT_DASHBOARD_TENANTS_URL and " +
-        "MIOT_DASHBOARD_SCOPES_URL to ask the host's own systems.\n",
-    );
-  }
+  warnAboutStartupConfig(config, memberships);
 
   const assembled = await openStore(config, seed);
   log({ level: "info", msg: "store", store: assembled.describe });
@@ -308,10 +330,15 @@ async function main(): Promise<void> {
   log({ level: "info", msg: "datasources", state: data.describe });
 
   const running = await serve({
+    policy: createAllowedGroupsPolicy(),
     identity: auth.identity,
     tenants: tenants.tenants,
     scopes: scopes.scopes,
     store: assembled.store,
+    ...(operations ? { queries: { operations } } : {}),
+    ...(operations?.queryCatalog
+      ? { queryCatalog: operations.queryCatalog }
+      : {}),
     audit: createRecordingAuditSink(),
     port: config.port,
     host: config.host,
@@ -338,7 +365,9 @@ async function main(): Promise<void> {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error) {
   if (error instanceof ConfigError) {
     process.stderr.write(`Configuration error: ${error.message}\n`);
     process.exit(2);
@@ -347,4 +376,4 @@ main().catch((error: unknown) => {
     `Failed to start: ${error instanceof Error ? error.stack : String(error)}\n`,
   );
   process.exit(1);
-});
+}

@@ -1,0 +1,99 @@
+import { Callout } from 'nextra/components'
+
+# Add filters
+
+Filters appear in a bar above the dashboard. Viewers use them to narrow the data; they do not change the dashboard itself. A filter does nothing until a saved query or a widget template reads it.
+
+## Filter types
+
+| Type | Viewer sees | Values it provides |
+| --- | --- | --- |
+| `text` | A text box | `<key>` |
+| `date_range` | A start and end date | `<key>_from` and `<key>_to` |
+| `select` | A list of options | `<key>` |
+
+A date range filter with key `date_range` provides `date_range_from` and `date_range_to`. Bind those names, not `date_range`.
+
+## Add a filter in the web app
+
+1. Turn on **Edit Mode**.
+2. Open the settings menu (the gear) and choose **Filter Bar**.
+3. Select **Add filter**.
+4. Fill in:
+   - **Filter key**: the name queries use, such as `vehicle`. Unique in the dashboard.
+   - **Display label**: what viewers read, such as `Vehicle`.
+   - **Control type**: text, date range or selection.
+5. Apply the filters. The dashboard saves on its own.
+
+Then bind the filter to a query parameter in **Saved queries**:
+
+```json
+{ "vehicle_id": { "kind": "filter", "key": "vehicle", "omitWhenEmpty": true } }
+```
+
+<Callout type="warning">
+Renaming a filter key does not update the queries that read it. Update their bindings in the same edit.
+</Callout>
+
+## Selection options
+
+A selection filter gets its options in one of two ways.
+
+**Static options.** Type each option's label and value. Use this for short lists that rarely change, such as `Open`, `Closed`.
+
+**From a saved query.** Choose **Options source**, then:
+
+| Field | Meaning |
+| --- | --- |
+| Saved query | The result that holds the options |
+| **Value column** | The column whose value the filter sends |
+| **Label column (optional)** | The column viewers read. Defaults to the value column. |
+
+Options from a query are de-duplicated and refresh with the query. The filter makes no extra request: it reads a result the dashboard already loads.
+
+**Allow a single selection** limits the viewer to one value. Turn it on when the operation parameter accepts one value, not a list.
+
+## Clear related values
+
+**Clear related values when setting this filter** (`unique`) makes a date range filter clear its other value when one is set. For example, picking a new start date clears the old end date.
+
+## In the document
+
+Filters live in the `filters` array:
+
+```json
+{
+  "filters": [
+    { "key": "date_range", "label": "Date", "type": "date_range" },
+    {
+      "key": "vehicle",
+      "label": "Vehicle",
+      "type": "select",
+      "single": true,
+      "optionsSource": { "variableName": "vehicles", "valueField": "id", "labelField": "plate" }
+    },
+    {
+      "key": "status",
+      "label": "Status",
+      "type": "select",
+      "options": [
+        { "label": "Open", "value": "open" },
+        { "label": "Closed", "value": "closed" }
+      ]
+    }
+  ]
+}
+```
+
+## Use a filter in a widget template
+
+Widget text can show the current filter value through the `filter` namespace:
+
+```text
+Trips for {{filter.vehicle}}
+```
+
+## Related
+
+- [Add saved queries](/en/products/dashboards/how-to/add-saved-queries)
+- [Document schema](/en/products/dashboards/reference/document-schema#filters)

@@ -8,7 +8,7 @@ export function createModelsApi(ctx: ClientContext) {
     /**
      * The conversation models a run may name in `model` (`GET /models`).
      * `default` is what an omitted `model` resolves to; both are null/empty
-     * when the harness runs the planner graph, which has no per-run model.
+     * when the harness has no model configured.
      */
     list(opts?: { signal?: AbortSignal }): Promise<ModelsInfo> {
       return ctx.fetcher("GET", BASE, {

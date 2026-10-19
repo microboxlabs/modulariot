@@ -29,7 +29,7 @@ function mkConfig(): ResolvedConfig {
     token: null,
     tenantId: "demo-tenant",
     userId: "demo-user",
-    mode: "auto",
+    model: null,
     profileName: "test",
     theme: null,
     debug: false,
@@ -109,6 +109,9 @@ describe("<App /> smoke", () => {
     await waitForFrame(lastFrame, "stock_lookup");
     await waitForFrame(lastFrame, "12 SKUs in stock");
     expect(client.runs.create).toHaveBeenCalledTimes(1);
+    const req = (client.runs.create.mock.calls[0] as unknown[])[0];
+    expect(req).not.toHaveProperty("mode");
+    expect(req).not.toHaveProperty("model");
   },
   );
 
@@ -134,6 +137,65 @@ describe("<App /> smoke", () => {
   });
 
   it(
+    "/model sets the session model and the next run sends it",
+    { timeout: 15000 },
+    async () => {
+      const ctx = deterministicCtx();
+      const events: HarnessEvent[] = [
+        evt("run.started"),
+        evt("answer.completed", { data: { text: "MODEL_RUN_ANSWER" } }),
+        evt("run.completed"),
+      ];
+      const client = {
+        models: {
+          list: vi.fn(async () => ({
+            default: "model-a",
+            models: ["model-a", "model-b"],
+          })),
+        },
+        runs: {
+          create: vi.fn(async () => ({ run_id: "r-model" })),
+          stream: async function* (): AsyncGenerator<HarnessEvent> {
+            for (const e of events) {
+              yield e;
+              await new Promise((r) => setTimeout(r, 5));
+            }
+          },
+          get: vi.fn(async () => ({
+            run_id: "r-model",
+            status: "completed",
+            events,
+            artifacts: [],
+            answer: "MODEL_RUN_ANSWER",
+            conversation_id: "id-1",
+          })),
+        },
+      };
+      const { stdin, lastFrame } = render(
+        <App config={mkConfig()} client={client} home="/tmp/miot-app-model" {...ctx} />,
+      );
+      await new Promise((r) => setTimeout(r, 50));
+      expect(lastFrame() ?? "").toContain("miot · default model");
+      stdin.write("/model model-b");
+      await new Promise((r) => setTimeout(r, 50));
+      stdin.write("\r");
+      await waitForFrame(lastFrame, "miot · model-b");
+      expect(client.runs.create).not.toHaveBeenCalled();
+
+      stdin.write("hello");
+      await new Promise((r) => setTimeout(r, 50));
+      stdin.write("\r");
+      for (let i = 0; i < 80 && client.runs.create.mock.calls.length === 0; i += 1) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      expect(client.runs.create).toHaveBeenCalledTimes(1);
+      const req = (client.runs.create.mock.calls[0] as unknown[])[0];
+      expect(req).toMatchObject({ model: "model-b" });
+      expect(req).not.toHaveProperty("mode");
+    },
+  );
+
+  it(
     "renders the final record.answer when answer.completed has no data.text (data_meta case)",
     { timeout: 15000 },
     async () => {
@@ -145,7 +207,6 @@ describe("<App /> smoke", () => {
       const ctx = deterministicCtx();
       const events: HarnessEvent[] = [
         evt("run.started"),
-        evt("route.selected", { data: { route: "data_meta" } }),
         evt("answer.completed", {
           message: "Meta agent answered",
           data: { length: 42 },
@@ -196,7 +257,6 @@ describe("<App /> smoke", () => {
     { timeout: 15000 },
     async () => {
       // Matches the screenshot the user reported:
-      //   route.selected data_query
       //   plan.created
       //   tool.started "Starting coordinador_eta_riesgo_hoy"
       //   tool.completed "Completed coordinador_eta_riesgo_hoy"
@@ -206,7 +266,6 @@ describe("<App /> smoke", () => {
       const ctx = deterministicCtx();
       const events: HarnessEvent[] = [
         evt("run.started"),
-        evt("route.selected", { data: { route: "data_query" } }),
         evt("plan.created", { message: "Initial plan created by filter_expert" }),
         evt("tool.started", {
           data: { name: "Starting coordinador_eta_riesgo_hoy" },
@@ -280,8 +339,8 @@ describe("<App /> smoke", () => {
     expect(frame).toContain("demo-tenant");
     expect(frame).toContain("demo-user");
     expect(frame).toContain("conv ");
-    // Mode is embedded in the input frame's bottom border.
-    expect(frame).toContain("miot · auto");
+    // The model is embedded in the input frame's bottom border.
+    expect(frame).toContain("miot · default model");
   });
 
   it("shows the welcome card on an empty transcript and hides it after a submit", async () => {

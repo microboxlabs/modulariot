@@ -40,6 +40,7 @@ def client() -> Iterator[TestClient]:
     """A TestClient wired to a fresh app instance with no auth or datasource."""
     app = create_app()
     with TestClient(app, headers={"X-Miot-Tenant-Client-Id": "demo-tenant"}) as tc:
+        app.state.harness.agent_loop = None  # runs answer without a model
         yield tc
 
 

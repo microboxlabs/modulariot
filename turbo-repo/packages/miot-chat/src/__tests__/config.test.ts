@@ -38,7 +38,7 @@ describe("readConfig", () => {
         staging: {
           baseUrl: "https://staging.example.com",
           token: null,
-          tenantId: "mintral",
+          tenantId: "acme",
           userId: "ops",
         },
       },
@@ -46,7 +46,7 @@ describe("readConfig", () => {
     writeFileSync(join(dir, "config.json"), JSON.stringify(file));
     const cfg = readConfig({ configDir: dir });
     expect(cfg.defaultProfile).toBe("staging");
-    expect(cfg.profiles.staging?.tenantId).toBe("mintral");
+    expect(cfg.profiles.staging?.tenantId).toBe("acme");
   });
 });
 
@@ -67,7 +67,7 @@ describe("resolveConfig precedence", () => {
     expect(r.baseUrl).toBe("http://localhost:8000");
     expect(r.tenantId).toBe("demo-tenant");
     expect(r.userId).toBe("demo-user");
-    expect(r.mode).toBe("auto");
+    expect(r.model).toBeNull();
     expect(r.profileName).toBe("local");
   });
 
@@ -112,7 +112,7 @@ describe("resolveConfig precedence", () => {
           staging: {
             baseUrl: "http://staging",
             token: "tok",
-            tenantId: "mintral",
+            tenantId: "acme",
             userId: "ops",
           },
         },
@@ -139,24 +139,80 @@ describe("resolveConfig precedence", () => {
     expect(byDefault.profileName).toBe("local");
   });
 
-  it("falls back to 'auto' for invalid mode values", () => {
-    const r = resolveConfig({
-      configDir: dir,
-      env: { HOME: dir } as NodeJS.ProcessEnv,
-      flags: { mode: "bogus" },
-    });
-    expect(r.mode).toBe("auto");
+  it("resolves model from flag > env > profile, null when unset", () => {
+    writeFileSync(
+      join(dir, "config.json"),
+      JSON.stringify({
+        defaultProfile: "local",
+        profiles: {
+          local: {
+            baseUrl: "http://localhost:8000",
+            token: null,
+            tenantId: "t",
+            userId: "u",
+            model: "profile-model",
+          },
+        },
+      }),
+    );
+    const env = { HOME: dir } as NodeJS.ProcessEnv;
+    expect(resolveConfig({ configDir: dir, env }).model).toBe("profile-model");
+    expect(
+      resolveConfig({
+        configDir: dir,
+        env: { ...env, MIOT_CHAT_MODEL: "env-model" },
+      }).model,
+    ).toBe("env-model");
+    expect(
+      resolveConfig({
+        configDir: dir,
+        env: { ...env, MIOT_CHAT_MODEL: "env-model" },
+        flags: { model: "flag-model" },
+      }).model,
+    ).toBe("flag-model");
   });
 
-  it("accepts each valid mode", () => {
-    for (const m of ["auto", "canned", "meta", "agentic"]) {
-      const r = resolveConfig({
-        configDir: dir,
-        env: { HOME: dir } as NodeJS.ProcessEnv,
-        flags: { mode: m },
-      });
-      expect(r.mode).toBe(m);
-    }
+  it("treats an empty model flag or env as unset", () => {
+    const r = resolveConfig({
+      configDir: dir,
+      env: { HOME: dir, MIOT_CHAT_MODEL: "" } as NodeJS.ProcessEnv,
+      flags: { model: "" },
+    });
+    expect(r.model).toBeNull();
+  });
+
+  it("ignores a legacy profile `mode` and does not write it back", () => {
+    writeFileSync(
+      join(dir, "config.json"),
+      JSON.stringify({
+        defaultProfile: "old",
+        profiles: {
+          old: {
+            baseUrl: "http://localhost:8000",
+            token: null,
+            tenantId: "t",
+            userId: "u",
+            mode: "agentic",
+          },
+        },
+      }),
+    );
+    const cfg = readConfig({ configDir: dir });
+    expect(cfg.profiles.old).not.toHaveProperty("mode");
+    expect(cfg.profiles.old).not.toHaveProperty("model");
+
+    const r = resolveConfig({ configDir: dir, env: { HOME: dir } as NodeJS.ProcessEnv });
+    expect(r.model).toBeNull();
+    expect(r).not.toHaveProperty("mode");
+
+    upsertProfile("other", {
+      baseUrl: "http://x",
+      token: null,
+      tenantId: "t2",
+      userId: "u2",
+    }, { configDir: dir });
+    const onDisk = readFileSync(join(dir, "config.json"), "utf-8");
+    expect(onDisk).not.toContain('"mode"');
   });
 
   it("defaults debug to false; --debug flag wins over env", () => {

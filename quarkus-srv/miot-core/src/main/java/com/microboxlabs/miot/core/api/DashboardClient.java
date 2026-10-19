@@ -6,6 +6,7 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
@@ -81,6 +82,17 @@ public interface DashboardClient {
             @BeanParam DashboardAssertion assertion,
             Map<String, Object> body);
 
+    @POST
+    @Path("/{slug}/queries/{query}")
+    Uni<Response> query(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("scopeId") String scopeId,
+            @PathParam("slug") String slug,
+            @PathParam("query") String query,
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion,
+            Map<String, Object> body);
+
     @DELETE
     @Path("/{slug}")
     Uni<Response> delete(
@@ -93,6 +105,15 @@ public interface DashboardClient {
     @GET
     @Path("/{slug}/capabilities")
     Uni<Response> capabilities(
+            @PathParam("tenantId") String tenantId,
+            @PathParam("scopeId") String scopeId,
+            @PathParam("slug") String slug,
+            @HeaderParam("Authorization") String authorization,
+            @BeanParam DashboardAssertion assertion);
+
+    @GET
+    @Path("/{slug}/query-catalog")
+    Uni<Response> queryCatalog(
             @PathParam("tenantId") String tenantId,
             @PathParam("scopeId") String scopeId,
             @PathParam("slug") String slug,

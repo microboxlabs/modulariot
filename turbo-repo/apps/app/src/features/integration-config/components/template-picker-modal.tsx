@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { Button, Modal, ModalBody, ModalFooter, TextInput } from "flowbite-react";
-import { HiOutlineTemplate, HiSearch } from "react-icons/hi";
+import { HiOutlineDatabase, HiOutlineTemplate, HiSearch } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import {
   schemaLeafPaths,
   type IntegrationTemplate,
+  type NativeProvider,
 } from "../integration-config.types";
 
 interface TemplatePickerModalProps {
@@ -15,6 +16,8 @@ interface TemplatePickerModalProps {
   readonly templates: readonly IntegrationTemplate[];
   readonly onClose: () => void;
   readonly onSelect: (template: IntegrationTemplate) => void;
+  /** A built-in provider, created without a template. */
+  readonly onSelectNative: (provider: NativeProvider) => void;
   readonly dict: I18nRecord;
 }
 
@@ -31,8 +34,9 @@ export function TemplatePickerModal({
   templates,
   onClose,
   onSelect,
+  onSelectNative,
   dict,
-}: TemplatePickerModalProps) {
+}: Readonly<TemplatePickerModalProps>) {
   const [query, setQuery] = useState("");
 
   const matches = templates.filter((template) =>
@@ -57,7 +61,30 @@ export function TemplatePickerModal({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <ul className="mt-4 flex flex-col gap-2">
+        <p className="mt-4 text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+          {tr("picker.native", dict)}
+        </p>
+        <button
+          type="button"
+          onClick={() => onSelectNative("POSTGREST")}
+          className="mt-2 flex w-full items-start gap-3 rounded-lg border border-gray-200 bg-white p-3 text-left transition hover:border-blue-500 hover:bg-blue-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-500 dark:hover:bg-gray-700"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+            <HiOutlineDatabase className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+              PostgREST
+            </span>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {tr("picker.postgrest", dict)}
+            </p>
+          </div>
+        </button>
+        <p className="mt-4 text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+          {tr("picker.templates", dict)}
+        </p>
+        <ul className="mt-2 flex flex-col gap-2">
           {matches.map((template) => (
             <li key={template.id}>
               <TemplateOption

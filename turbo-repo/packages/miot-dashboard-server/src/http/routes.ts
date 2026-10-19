@@ -7,8 +7,11 @@
  */
 
 export type RouteName =
+  | "scopeCapabilities"
   | "dashboards"
   | "dashboard"
+  | "query"
+  | "queryCatalog"
   | "capabilities"
   | "permissions"
   | "datasources"
@@ -34,7 +37,7 @@ export interface RouteMatch {
   scopeId: string;
   /** Absent only for the collection route. */
   slug?: string;
-  /** Datasource id or credential ref, on the routes that address one. */
+  /** Query id, datasource id or credential ref, on the routes that address one. */
   id?: string;
 }
 
@@ -58,6 +61,9 @@ export function matchRoute(pathname: string): RouteMatch | null {
   if (scopeId === null) return null;
 
   const collection = segments[4];
+  if (collection === "capabilities" && segments.length === 5) {
+    return { route: "scopeCapabilities", tenantId, scopeId };
+  }
   if (collection === "datasources") {
     return matchDataSources(segments, tenantId, scopeId);
   }
@@ -65,7 +71,14 @@ export function matchRoute(pathname: string): RouteMatch | null {
     return matchCredentials(segments, tenantId, scopeId);
   }
   if (collection !== "dashboards") return null;
+  return matchDashboards(segments, tenantId, scopeId);
+}
 
+function matchDashboards(
+  segments: readonly string[],
+  tenantId: string,
+  scopeId: string,
+): RouteMatch | null {
   if (segments.length === 5) return { route: "dashboards", tenantId, scopeId };
 
   const slug = decodeSegment(segments[5]);
@@ -75,8 +88,15 @@ export function matchRoute(pathname: string): RouteMatch | null {
     return { route: "dashboard", tenantId, scopeId, slug };
   }
 
+  if (segments.length === 8 && segments[6] === "queries") {
+    const id = decodeSegment(segments[7]);
+    return id === null ? null : { route: "query", tenantId, scopeId, slug, id };
+  }
+
   if (segments.length === 7) {
     const tail = segments[6];
+    if (tail === "query-catalog")
+      return { route: "queryCatalog", tenantId, scopeId, slug };
     if (tail === "capabilities")
       return { route: "capabilities", tenantId, scopeId, slug };
     if (tail === "permissions")

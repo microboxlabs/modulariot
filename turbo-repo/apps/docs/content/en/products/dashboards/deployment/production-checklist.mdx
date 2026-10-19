@@ -1,0 +1,39 @@
+# Production checklist
+
+Go through this list before people depend on a deployment.
+
+## Security
+
+- [ ] `MIOT_DASHBOARD_INSECURE_AUTH` is not set.
+- [ ] A real identity provider is configured: `MIOT_DASHBOARD_JWT_*` or `MIOT_DASHBOARD_TICKET_*`.
+- [ ] The startup log shows the expected number of organizations, not `0 tenants`.
+- [ ] Every secret comes from a secret store: credential key, proxy key, database URL, directory credentials.
+- [ ] The server is reachable only through HTTPS (an ingress or load balancer with TLS).
+- [ ] `MIOT_DASHBOARD_CORS_ORIGINS` lists exact origins, or is unset when the UI shares the server's domain.
+- [ ] Internal endpoints (`/internal/dashboard-operations/*` on the modulith) are not exposed outside the cluster.
+- [ ] `MIOT_DASHBOARD_DATA_ORIGINS` lists only the data services dashboards may call.
+- [ ] Data credentials are read-only and, where possible, limited to one organization.
+- [ ] If pages use a strict Content Security Policy, it allows what text widgets need (`'unsafe-eval'`), or those widgets are not used.
+
+## Reliability
+
+- [ ] The image tag or npm version is pinned, not `latest`.
+- [ ] Data is on a persistent volume or in PostgreSQL.
+- [ ] With SQLite, there is exactly one replica.
+- [ ] Liveness and readiness probes point at `/livez` and `/readyz`.
+- [ ] CPU and memory requests and limits are set.
+- [ ] Backups run, and a restore has been tested once.
+- [ ] The credential key is backed up separately from the database.
+
+## Operations
+
+- [ ] Logs are collected. The server writes one JSON line per event.
+- [ ] Someone receives alerts when the pod restarts or readiness fails.
+- [ ] The upgrade order and rollback steps are written down: [Upgrades and backups](/en/products/dashboards/deployment/upgrades).
+- [ ] `MIOT_DASHBOARD_DOCS` is off if the API description should not be public. The chart turns it off by default.
+
+## Data
+
+- [ ] Each operation declares how it keeps organizations apart: a tenant parameter or `credentialScoped`.
+- [ ] Expensive BigQuery operations have a `maximumBytesBilled` that matches your budget.
+- [ ] Dashboards with automatic refresh use cheap operations, or a long interval.

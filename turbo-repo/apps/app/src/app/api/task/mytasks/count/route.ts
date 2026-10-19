@@ -2,6 +2,7 @@ import "server-only";
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { getCountTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { isEcmConfigured } from "@/features/common/providers/alfresco-api/ecm-config";
 
 export async function GET() {
   const session = await auth();
@@ -11,6 +12,9 @@ export async function GET() {
     });
   }
   try {
+    if (!isEcmConfigured()) {
+      return NextResponse.json({ totals: {} });
+    }
     const taskResponses = await getCountTask(session);
     return NextResponse.json({
       totals: taskResponses.totals,

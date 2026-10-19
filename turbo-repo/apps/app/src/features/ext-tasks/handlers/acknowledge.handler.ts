@@ -9,7 +9,10 @@ export async function acknowledgeHandler(
 ): Promise<TaskExecutionResult> {
   const webhookUrl = process.env.EXT_TASKS_WEBHOOK_URL;
   if (!webhookUrl) {
-    throw new Error("EXT_TASKS_WEBHOOK_URL is not configured");
+    // DEMO LOCAL: sin webhook configurado, el tratamiento igual queda creado;
+    // se omite el aviso externo en vez de reventar el flujo.
+    console.warn("EXT_TASKS_WEBHOOK_URL not configured — skipping external ack");
+    return { status: "completed" };
   }
 
   const authToken = getSharedAuthToken();

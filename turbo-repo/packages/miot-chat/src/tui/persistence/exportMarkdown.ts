@@ -12,7 +12,7 @@ export function toMarkdown(state: SessionState): string {
   lines.push(`- conversation_id: \`${m.conversationId}\``);
   lines.push(`- tenant: \`${m.tenantId}\``);
   lines.push(`- user: \`${m.userId}\``);
-  lines.push(`- mode: \`${m.mode}\``);
+  lines.push(`- model: \`${m.model ?? "default"}\``);
   lines.push(`- baseUrl: ${m.baseUrl}`);
   if (m.profileName) lines.push(`- profile: \`${m.profileName}\``);
   lines.push("");
@@ -59,12 +59,12 @@ function renderItem(item: TranscriptItem): string[] {
       return [`**miot${statusSuffix(item.status)}:** ${item.text}`, ""];
     case "tool":
       return [`> tool ${item.name} ${toolGlyph(item.status)}${item.message ? ` — ${item.message}` : ""}`];
-    case "route":
-      return [`> route: ${item.route}`];
     case "agent":
       return [`> agent: ${item.agent}`];
     case "thinking":
-      return [`> _thinking (${item.agent}):_ ${item.text}`];
+      return [
+        `> _thinking${item.agent ? ` (${item.agent})` : ""}:_ ${item.text}`,
+      ];
     case "plan":
       return [`> plan: ${item.message}`];
     case "freshness":

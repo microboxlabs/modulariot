@@ -7,7 +7,9 @@ import { makeFilterParam } from "../test-fixtures";
 
 const mockReplace = vi.fn();
 let mockSearchParams = new URLSearchParams();
-let mockFilters = [makeFilterParam({ key: "status", label: "Status", type: "text" })];
+let mockFilters = [
+  makeFilterParam({ key: "status", label: "Status", type: "text" }),
+];
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => mockSearchParams,
@@ -19,9 +21,8 @@ vi.mock("./dashboard-context", () => ({
   useDashboard: () => ({ filters: mockFilters }),
 }));
 
-const { DashboardFiltersProvider, useDashboardFilters } = await import(
-  "./dashboard-filters-context"
-);
+const { DashboardFiltersProvider, useDashboardFilters } =
+  await import("./dashboard-filters-context");
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return <DashboardFiltersProvider>{children}</DashboardFiltersProvider>;
@@ -30,7 +31,9 @@ function wrapper({ children }: { children: React.ReactNode }) {
 beforeEach(() => {
   mockReplace.mockClear();
   mockSearchParams = new URLSearchParams();
-  mockFilters = [makeFilterParam({ key: "status", label: "Status", type: "text" })];
+  mockFilters = [
+    makeFilterParam({ key: "status", label: "Status", type: "text" }),
+  ];
 });
 
 // ============================================================================
@@ -54,7 +57,7 @@ describe("useDashboardFilters", () => {
       makeFilterParam({ key: "date_range", label: "Date", type: "date_range" }),
     ];
     mockSearchParams = new URLSearchParams(
-      "date_range_from=2025-01-01&date_range_to=2025-12-31",
+      "date_range_from=2025-01-01&date_range_to=2025-12-31"
     );
     const { result } = renderHook(() => useDashboardFilters(), { wrapper });
     expect(result.current.activeFilters).toEqual({
@@ -80,10 +83,9 @@ describe("useDashboardFilters", () => {
       act(() => {
         result.current.setFilter("status", "active");
       });
-      expect(mockReplace).toHaveBeenCalledWith(
-        "/dashboard?status=active",
-        { scroll: false },
-      );
+      expect(mockReplace).toHaveBeenCalledWith("/dashboard?status=active", {
+        scroll: false,
+      });
     });
 
     it("removes param when value is empty", () => {
@@ -106,7 +108,7 @@ describe("useDashboardFilters", () => {
       });
       expect(mockReplace).toHaveBeenCalledWith(
         expect.stringContaining("asset=new"),
-        { scroll: false },
+        { scroll: false }
       );
     });
   });
@@ -120,10 +122,9 @@ describe("useDashboardFilters", () => {
       act(() => {
         result.current.removeFilter("status");
       });
-      expect(mockReplace).toHaveBeenCalledWith(
-        "/dashboard?other=x",
-        { scroll: false },
-      );
+      expect(mockReplace).toHaveBeenCalledWith("/dashboard?other=x", {
+        scroll: false,
+      });
     });
   });
 
@@ -146,10 +147,35 @@ describe("useDashboardFilters", () => {
       act(() => {
         result.current.clearFilters();
       });
-      expect(mockReplace).toHaveBeenCalledWith(
-        "/dashboard?tab=overview",
-        { scroll: false },
-      );
+      expect(mockReplace).toHaveBeenCalledWith("/dashboard?tab=overview", {
+        scroll: false,
+      });
     });
+  });
+});
+
+it("preserves unrelated duplicate and empty URL values when editing filters", () => {
+  mockSearchParams = new URLSearchParams("tag=a&tag=b&empty=&status=old");
+  const { result } = renderHook(() => useDashboardFilters(), { wrapper });
+  act(() => result.current.setFilter("status", "new"));
+  expect(mockReplace).toHaveBeenCalledWith(
+    "/dashboard?tag=a&tag=b&empty=&status=new",
+    { scroll: false }
+  );
+});
+
+it("treats prototype names as ordinary host filter keys", () => {
+  mockSearchParams = new URLSearchParams("__proto__=value&constructor=other");
+  const { result } = renderHook(() => useDashboardFilters(), { wrapper });
+  expect(
+    Object.getOwnPropertyDescriptor(result.current.activeFilters, "__proto__")
+      ?.value
+  ).toBe("value");
+  expect(Object.getPrototypeOf(result.current.activeFilters)).toBe(
+    Object.prototype
+  );
+  act(() => result.current.removeFilter("__proto__"));
+  expect(mockReplace).toHaveBeenCalledWith("/dashboard?constructor=other", {
+    scroll: false,
   });
 });

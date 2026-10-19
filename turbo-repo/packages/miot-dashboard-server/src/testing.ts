@@ -15,6 +15,7 @@
 
 import { DashboardServerError } from "./access/errors";
 import { dashboardDisplayName } from "./store/composite";
+import { dashboardSortOrder } from "./store/display-name";
 import type { DashboardRole } from "./access/roles";
 import { FULL_CAPABILITIES, isDashboardRole } from "./access/roles";
 import type { AuditEvent, AuditSink } from "./seams/audit";
@@ -108,6 +109,7 @@ export function createMemoryStore(
 ): ServerDashboardStore {
   const { seed = [], now = () => new Date() } = options;
   const entries = new Map<string, Entry>();
+  const revisions = new Map<string, number>();
   const permissions = new Map<string, PermissionAssignment[]>();
 
   for (const item of seed) {
@@ -124,6 +126,7 @@ export function createMemoryStore(
         ...item.record,
       },
     });
+    revisions.set(key(item.ref), item.record?.revision ?? 1);
     permissions.set(key(item.ref), item.assignments ?? []);
   }
 
@@ -150,13 +153,14 @@ export function createMemoryStore(
         config,
         updatedAt: now().toISOString(),
         updatedBy: saveOptions.updatedBy,
-        revision: current + 1,
+        revision: (revisions.get(key(ref)) ?? current) + 1,
         // Set once, on creation, and preserved from then on: the default
         // capability policy reads it to decide Contributor edit-own.
         ...(existing?.record.createdBy !== undefined
           ? { createdBy: existing.record.createdBy }
           : { createdBy: saveOptions.updatedBy }),
       };
+      revisions.set(key(ref), record.revision);
       entries.set(key(ref), {
         ref,
         // Derived from the config, as the SQL store does. Keeping the name
@@ -174,7 +178,22 @@ export function createMemoryStore(
           .filter(
             (e) => e.ref.tenantId === tenantId && e.ref.scopeId === scopeId,
           )
-          .map((e) => ({ slug: e.ref.slug, name: e.name })),
+          .map((e) => {
+            const order = dashboardSortOrder(e.record.config);
+            return {
+              slug: e.ref.slug,
+              name: e.name,
+              ...(order === undefined ? {} : { order }),
+            };
+          })
+          // The SQL stores' order: by `order` with unordered last, then name, then slug.
+          .sort(
+            (a, b) =>
+              (a.order ?? Number.MAX_SAFE_INTEGER) -
+                (b.order ?? Number.MAX_SAFE_INTEGER) ||
+              a.name.localeCompare(b.name) ||
+              a.slug.localeCompare(b.slug),
+          ),
       );
     },
 
@@ -182,6 +201,15 @@ export function createMemoryStore(
       entries.delete(key(ref));
       permissions.delete(key(ref));
       return Promise.resolve();
+    },
+
+    removeIfRevision(ref, revision) {
+      if (!Number.isSafeInteger(revision) || revision < 1) return Promise.resolve(false);
+      if (entries.get(key(ref))?.record.revision !== revision)
+        return Promise.resolve(false);
+      entries.delete(key(ref));
+      permissions.delete(key(ref));
+      return Promise.resolve(true);
     },
 
     getPermissions(ref) {

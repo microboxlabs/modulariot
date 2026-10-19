@@ -21,6 +21,7 @@ import MapVisualizationGeneric, {
 import {
   center_in_bounds,
   flyTo,
+  zoomToVehicle,
 } from "@/features/map-visualization/map-view-utils";
 import type {
   MapLayer,
@@ -272,12 +273,18 @@ function MapContent({
       viewport: { width: number; height: number };
     }) => {
       if (!("cluster" in object) && mapRef.current) {
-        flyTo(mapRef.current, [
+        const coordinates: [number, number] = [
           (object as unknown as { geometry: { coordinates: [number, number] } })
             .geometry.coordinates[0],
           (object as unknown as { geometry: { coordinates: [number, number] } })
             .geometry.coordinates[1],
-        ]);
+        ];
+        // Zoom in only when the filters leave this vehicle on its own
+        if (positions.length === 1) {
+          zoomToVehicle(mapRef.current, coordinates);
+        } else {
+          flyTo(mapRef.current, coordinates);
+        }
         setHoverInfo({
           object,
           x: viewport.width / 2,
@@ -305,7 +312,7 @@ function MapContent({
         setHoverInfo(undefined);
       }
     },
-    [zoom]
+    [zoom, positions.length]
   );
 
   // Wrap flat MapPosition[] into the same GeoJSON structure that

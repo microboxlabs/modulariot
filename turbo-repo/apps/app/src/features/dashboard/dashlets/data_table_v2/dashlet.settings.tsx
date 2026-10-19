@@ -176,6 +176,8 @@ export function DashletSettings({
         s.dataMode === "planner" ? plannerVariableName : undefined,
       rowColorRules,
       rowActions: fromRowActionItems(rowActionItems),
+      // Set from view mode by resizing columns — not edited here, so carry it over.
+      columnWidths: config.columnWidths,
       ...refresh.savePayload,
     });
     onClose();

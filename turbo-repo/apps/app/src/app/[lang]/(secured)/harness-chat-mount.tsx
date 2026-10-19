@@ -17,10 +17,9 @@ function HarnessChatPanel({ dict, locale }: HarnessChatMountProps) {
  * This mount is a sibling of SecuredLayout (see layout.tsx) and therefore
  * sits outside KioskShell, whose `[data-kiosk]` rules only reach its own
  * descendants — so kiosk mode cannot hide the panel the way it hides the
- * navbar, sidebar and footer. Left alone, a kiosk dashboard opens with the
- * panel already expanded (HarnessChatProvider starts `isOpen`), losing a
- * quarter of the screen with no navbar toggle left to close it. Checking
- * kiosk here also keeps the skills fetch out of kiosk loads entirely.
+ * navbar, sidebar and footer. The panel starts closed, but flows that call
+ * open/openWithMessage would expand it with no navbar toggle left to close
+ * it. Checking kiosk here also keeps the skills fetch out of kiosk loads.
  */
 function KioskAwareHarnessChat(props: HarnessChatMountProps) {
   const isKiosk = useKioskMode();

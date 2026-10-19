@@ -68,10 +68,10 @@ export function untested(
 export function parseBigQueryTarget(
   target: string,
 ): { projectId: string | undefined; datasetId: string } | null {
-  const match = /^(?:([a-z][a-z0-9.:-]*[a-z0-9])\.)?([A-Za-z0-9_]+)$/.exec(
+  const match = /^(?:([a-z][a-z0-9.:-]*[a-z0-9])\.)?(\w+)$/.exec(
     target,
   );
-  if (match === null || match[2] === undefined) return null;
+  if (match?.[2] === undefined) return null;
   return { projectId: match[1], datasetId: match[2] };
 }
 

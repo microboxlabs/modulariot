@@ -1,0 +1,102 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Conectar PostgREST
+
+Esta guía es para administradores de ModularIoT. Pone las funciones de PostgREST a disposición de los dashboards como operaciones de solo lectura. Luego los editores las eligen en **Consultas guardadas**.
+
+Cree una conexión por cada servicio PostgREST, no una por función: una conexión puede exponer muchas funciones.
+
+## Antes de comenzar
+
+- El servicio PostgREST es accesible por `https`. Se rechaza `http` sin cifrar.
+- Su origen, por ejemplo `https://data.example.com`, está en los orígenes de datos aprobados del servidor de dashboards (`MIOT_DASHBOARD_DATA_ORIGINS`). Pídalo a quien despliega el servidor de dashboards.
+- Tiene una credencial para el servicio que envía `Authorization`, `x-api-key` o `apikey`. Se rechazan otros nombres de encabezado.
+- Las funciones devuelven filas cuyos valores son texto, números, true/false, null o listas de ellos. Una columna que contiene un objeto JSON hace fallar toda la consulta; consulte [Devolver solo algunas columnas](#devolver-solo-algunas-columnas).
+
+<Steps>
+
+### Agregar la credencial
+
+1. Abra **Ajustes** › **Credenciales** y cree una credencial con el token o la clave de API del servicio.
+
+El secreto queda en el servidor. Los dashboards y los navegadores nunca lo reciben.
+
+### Crear la conexión
+
+1. Abra **Ajustes** › **Conexiones** y seleccione **Nueva conexión**.
+2. En **Integradas**, elija **PostgREST**.
+3. En **URL base**, ingrese la URL raíz de PostgREST, la que devuelve su descripción OpenAPI.
+4. Elija la **Credencial** del paso anterior y seleccione **Crear**.
+5. Seleccione **Probar**. La conexión pasa a **Activa** cuando el servicio responde con esa credencial.
+
+### Importar funciones
+
+1. En la conexión, seleccione **Funciones**. El diálogo lista las funciones que describe PostgREST.
+2. Busque y seleccione las funciones que pueden usar los dashboards.
+3. En **Valores fijos**, agregue cada parámetro que deba tener el mismo valor en todos los dashboards, como un ID de cliente. Seleccione **Agregar valor fijo** y luego escriba el **Parámetro** y el **Valor**.
+4. Seleccione **Importar**.
+
+Cada función importada pasa a ser una operación `HTTP_GET` de solo lectura en la conexión. Un valor fijo se guarda en la operación, y ningún dashboard puede cambiarlo.
+
+<Callout type="warning">
+Los valores fijos se aplican a todas las funciones seleccionadas en la misma importación. Importe en importaciones separadas las funciones que necesitan valores fijos distintos.
+</Callout>
+
+</Steps>
+
+Ahora los editores ven la conexión y sus funciones en **Consultas guardadas**.
+
+## Mantener separadas las organizaciones
+
+Una operación debe demostrar que solo devuelve los datos de la propia organización. Hay dos formas:
+
+| Forma | Cuándo usarla | Cómo |
+| --- | --- | --- |
+| Acotada por credencial | La credencial misma solo puede leer datos de esta organización | La operación se marca como `credentialScoped` |
+| Parámetro de organización | La función recibe la organización como parámetro | El host inserta el código de la organización; nadie puede enviarlo |
+
+Las funciones importadas con **Funciones** están acotadas por credencial. Use un valor fijo para cualquier identificador de cliente que necesite la función, para que los dashboards no puedan cambiarlo.
+
+## Devolver solo algunas columnas
+
+Cuando una función devuelve una columna JSON que ningún widget usa, pida a PostgREST solo las demás columnas. Agregue un valor fijo llamado `select` con una lista separada por comas:
+
+| Parámetro | Valor |
+| --- | --- |
+| `select` | `id,total,status` |
+
+Así PostgREST omite la columna JSON y la consulta funciona.
+
+## Esquema de solicitud de la operación
+
+Detrás del diálogo, cada operación guarda un JSON Schema para sus parámetros. También puede crear operaciones a mano con la CLI `miot`. El esquema debe describir un objeto cerrado y declarar la política del dashboard en `x-dashboard`:
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "p_client_id": { "type": "string", "const": "client-1" },
+    "p_from": { "type": "string", "maxLength": 2048 }
+  },
+  "required": ["p_client_id"],
+  "x-dashboard": { "readOnly": true, "kind": "HTTP_GET", "credentialScoped": true }
+}
+```
+
+| Regla | Motivo |
+| --- | --- |
+| `additionalProperties: false` | Un dashboard solo puede enviar los parámetros que declara la operación |
+| Sin `pattern` y sin `$ref` | Mantiene acotada la validación |
+| `readOnly: true` | Declara que la función no cambia nada. GET por sí solo no lo demuestra; lo hace el administrador. |
+
+## Solución de problemas
+
+| Síntoma | Causa |
+| --- | --- |
+| **No se pudieron leer las funciones. Prueba la conexión.** | La conexión no está activa, o la URL base no es la raíz de PostgREST |
+| La lista de funciones está vacía | PostgREST no describe funciones para esa credencial |
+| La consulta falla en todos los dashboards | El origen no está en `MIOT_DASHBOARD_DATA_ORIGINS`, o una columna contiene un objeto JSON |
+| La consulta falla con un 400 | Un parámetro obligatorio no tiene valor. Vincúlelo o dele un valor fijo |
+
+Más información en [Solución de problemas](/es/products/dashboards/troubleshooting).

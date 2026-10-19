@@ -1,0 +1,96 @@
+# Solución de problemas
+
+Busque el síntoma y luego la causa. El log de inicio del servidor responde la mayoría de las preguntas: indica el almacén, el método de inicio de sesión y de dónde vienen las membresías.
+
+## El servidor no inicia
+
+| Mensaje o síntoma | Causa | Solución |
+| --- | --- | --- |
+| `Failed to start: error: database "…" does not exist` | La URL de PostgreSQL apunta a una base de datos que no existe | Cree la base de datos, o corrija `MIOT_DASHBOARD_POSTGRES_URL` |
+| Rechaza `MIOT_DASHBOARD_INSECURE_AUTH` | También está configurado `NODE_ENV=production`, un `HOST` que no es loopback, o configuración de JWT, tickets o proxy | Use un proveedor de identidad real fuera del desarrollo local |
+| Rechaza la clave de credenciales | Tiene menos de 32 caracteres, o el almacén es `memory` | Genere una con `openssl rand -base64 32`; use `sqlite` o `postgres` |
+| Rechaza el almacén de documentos | La base de datos se abrió por primera vez con otro `MIOT_DASHBOARD_DOCUMENTS` | Restaure el valor anterior, o mueva primero los documentos |
+| Rechaza una URL de consulta | Una URL `GET` no tiene `{userId}`, `{tenantId}` o `{scopeId}` | Agregue los marcadores |
+| Un error que menciona `jose` o `pg` | Falta un paquete opcional | `npm install jose` o `pg`, o use la imagen de contenedor (incluye `jose`) |
+| `ExperimentalWarning: SQLite is an experimental feature` | Normal en Node.js 22 y 24 | No hay nada que corregir |
+| Falla con un error genérico de módulo | No se pudo cargar el módulo de operaciones | Verifique que la ruta sea absoluta y que el archivo exporte `createDashboardOperations()` |
+
+## Todas las solicitudes reciben 403
+
+| Revise | Significa |
+| --- | --- |
+| El log de inicio dice `0 tenants` | No se cargaron membresías. Corrija `MIOT_DASHBOARD_SEED` o las URL de consulta. |
+| El ID de usuario del token difiere del archivo de membresías | `MIOT_DASHBOARD_JWT_USER_CLAIM` elige un claim distinto del que usted listó. Use el mismo valor en ambos. |
+| `reason: TENANT_SCOPE` | La persona no está en esa organización o ámbito, o la dirección es incorrecta |
+| `reason: CAPABILITY` | Es miembro, pero su rol no permite la acción |
+| Con ModularIoT, una llamada directa no funciona en ningún caso | Es lo esperado. Solo las llamadas a través del modulith llevan la clave de proxy. |
+
+## 401 Unauthenticated
+
+| Causa | Solución |
+| --- | --- |
+| No hay encabezado `Authorization` | Envíe `Authorization: Bearer <token>` |
+| Emisor o audiencia incorrectos | `iss` y `aud` en el token deben coincidir exactamente con `MIOT_DASHBOARD_JWT_ISSUER` y `_AUDIENCE`, incluida la barra final |
+| Token vencido | Renuévelo. Una diferencia de reloj mayor que `MIOT_DASHBOARD_JWT_CLOCK_TOLERANCE` también cuenta como vencido. |
+| Algoritmo incorrecto | La fuente de claves lo decide: JWKS o clave pública significa RS256, un secreto significa HS256 |
+
+## Falla el guardado
+
+| Respuesta | Causa | Solución |
+| --- | --- | --- |
+| 409 `CONFLICT` | Alguien guardó después de que usted cargó | Recargue, compare y aplique su cambio de nuevo. No reenvíe a ciegas con la nueva revisión. |
+| 400 `BAD_REQUEST` | El documento no cumple el contrato | El mensaje indica el campo, como `preferences: Required` |
+| 400 con `version` | El documento no es versión 2 | Expórtelo de nuevo desde una versión actual |
+| 413 | El documento supera 1 MiB | Elimine widgets que no use o `staticData` de gran tamaño |
+
+En la aplicación web, un guardado fallido muestra **Cambios sin guardar** y **Recargar**. Sus ediciones se mantienen en pantalla.
+
+## Un widget no muestra datos
+
+| El widget muestra | Causa | Solución |
+| --- | --- | --- |
+| "This widget needs a saved query" | Aún usa un modo de datos heredado | Establezca **Fuente de Datos** en **Planificador** y elija una consulta guardada |
+| "Could not load the data" | La consulta falló | Vea [Las consultas fallan](#las-consultas-fallan) |
+| Carga indefinidamente | El nombre del resultado de la consulta guardada no coincide con `plannerVariableName` | Elija de nuevo el resultado en los ajustes del widget |
+| Un valor vacío | El nombre de la columna en la plantilla es incorrecto | Use el nombre exacto de la columna: `{{completed}}` |
+| "Widget not available" | La página no tiene un registro para este `componentId` | Agregue el registro, o reemplace el widget |
+
+## Las consultas fallan
+
+| Respuesta o síntoma | Causa | Solución |
+| --- | --- | --- |
+| 404 en todas las consultas | No hay un ejecutor de consultas configurado | Configure `MIOT_DASHBOARD_OPERATIONS_MODULE` (o `_URL`) |
+| 502 `UPSTREAM_ERROR` | El servicio de datos falló o devolvió algo no válido | Revise las filas siguientes |
+| Falla solo para una función, con cualquier filtro | Una columna contiene un objeto JSON | Fije `select` a columnas escalares |
+| Falla para un origen | No está en `MIOT_DASHBOARD_DATA_ORIGINS`, o no es `https` | Agregue el origen exacto |
+| Falla después de un tiempo | Supera 20 segundos, 5.000 filas o 2 MiB | Agregue los datos en la función o en el SQL, o agregue filtros |
+| BigQuery se niega a ejecutar | La estimación de la ejecución de prueba supera `maximumBytesBilled`, o la sentencia no es un `SELECT` | Acote la consulta o suba el tope de la operación dentro del tope del host |
+| 400 en un parámetro | El valor no cumple el esquema de la operación, o falta un parámetro obligatorio | Vincúlelo, o dé a la operación un valor fijo |
+
+## La lista de conexiones del editor está vacía
+
+| Mensaje | Causa | Solución |
+| --- | --- | --- |
+| "El catálogo autorizado no está disponible o se denegó el acceso" | No hay proveedor de catálogo, o no hay permisos de edición | Configure `MIOT_DASHBOARD_CATALOG_URL` (ModularIoT) o `queryCatalog`, y revise el rol |
+| La lista carga, pero está vacía | La organización no tiene una conexión activa con operaciones elegibles | Importe funciones en una conexión probada |
+
+## El navegador no llega al servidor
+
+| Síntoma | Solución |
+| --- | --- |
+| Error de CORS en la consola | Configure `MIOT_DASHBOARD_CORS_ORIGINS` con el origen exacto de la página, con esquema y puerto |
+| El preflight rechaza un encabezado | Agréguelo a `MIOT_DASHBOARD_CORS_HEADERS` |
+| La Content Security Policy bloquea la página | Los widgets de texto necesitan `'unsafe-eval'` en `script-src` |
+
+## En la aplicación web de ModularIoT
+
+| Síntoma | Solución |
+| --- | --- |
+| **Dashboards** no aparece en la navegación | Configure `ENABLE_DASHBOARD_SERVER=true` en la aplicación web |
+| "No se pudieron cargar los dashboards. Revisa tu organización y acceso." | El modulith no llega al servidor de dashboards, o la clave de proxy es distinta. Revise `MIOT_DASHBOARD_BASE_URL` y ambas claves. |
+| No aparece el botón **Crear dashboard** | Su rol es Consumer, o falló la verificación de capacidades |
+| El pod del modulith no inicia después de un despliegue | Falta el secreto de la clave de proxy. Créelo antes de desplegar. |
+
+## Si el problema continúa
+
+Abra un issue en [github.com/microboxlabs/modulariot](https://github.com/microboxlabs/modulariot/issues) con la versión del servidor, las líneas del log de inicio, la solicitud y la respuesta de error completa. Elimine antes los tokens y las claves.

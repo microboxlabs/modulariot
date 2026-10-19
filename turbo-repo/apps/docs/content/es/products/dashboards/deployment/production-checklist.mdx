@@ -1,0 +1,39 @@
+# Lista de verificación para producción
+
+Revise esta lista antes de que las personas dependan de un despliegue.
+
+## Seguridad
+
+- [ ] `MIOT_DASHBOARD_INSECURE_AUTH` no está configurada.
+- [ ] Hay un proveedor de identidad real configurado: `MIOT_DASHBOARD_JWT_*` o `MIOT_DASHBOARD_TICKET_*`.
+- [ ] El log de inicio muestra el número esperado de organizaciones, no `0 tenants`.
+- [ ] Cada secreto viene de un almacén de secretos: clave de credenciales, clave de proxy, URL de la base de datos, credenciales del directorio.
+- [ ] El servidor solo es accesible por HTTPS (un ingress o balanceador de carga con TLS).
+- [ ] `MIOT_DASHBOARD_CORS_ORIGINS` lista orígenes exactos, o no está configurada cuando la UI comparte el dominio del servidor.
+- [ ] Los endpoints internos (`/internal/dashboard-operations/*` en el modulith) no están expuestos fuera del clúster.
+- [ ] `MIOT_DASHBOARD_DATA_ORIGINS` lista solo los servicios de datos a los que pueden llamar los dashboards.
+- [ ] Las credenciales de datos son de solo lectura y, cuando es posible, están limitadas a una organización.
+- [ ] Si las páginas usan una Content Security Policy estricta, esta permite lo que necesitan los widgets de texto (`'unsafe-eval'`), o esos widgets no se usan.
+
+## Confiabilidad
+
+- [ ] La etiqueta de la imagen o la versión de npm está fijada, no es `latest`.
+- [ ] Los datos están en un volumen persistente o en PostgreSQL.
+- [ ] Con SQLite, hay exactamente una réplica.
+- [ ] Las probes de liveness y readiness apuntan a `/livez` y `/readyz`.
+- [ ] Hay requests y limits de CPU y memoria configurados.
+- [ ] Los respaldos se ejecutan, y se probó una restauración al menos una vez.
+- [ ] La clave de credenciales tiene un respaldo separado de la base de datos.
+
+## Operación
+
+- [ ] Los logs se recolectan. El servidor escribe una línea JSON por evento.
+- [ ] Alguien recibe alertas cuando el pod se reinicia o falla la readiness.
+- [ ] El orden de actualización y los pasos para revertir están documentados: [Actualizaciones y respaldos](/es/products/dashboards/deployment/upgrades).
+- [ ] `MIOT_DASHBOARD_DOCS` está desactivada si la descripción de la API no debe ser pública. El chart la desactiva de forma predeterminada.
+
+## Datos
+
+- [ ] Cada operación declara cómo mantiene separadas las organizaciones: un parámetro de organización o `credentialScoped`.
+- [ ] Las operaciones costosas de BigQuery tienen un `maximumBytesBilled` acorde a su presupuesto.
+- [ ] Los dashboards con actualización automática usan operaciones de bajo costo, o un intervalo largo.

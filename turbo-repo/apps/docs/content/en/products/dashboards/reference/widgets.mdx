@@ -1,0 +1,95 @@
+import { Callout } from 'nextra/components'
+
+# Widget catalog
+
+Each widget type has a `componentId`, stored in the document, and a registry function in the UI library that teaches a page to draw it. A page draws only the types whose registries it includes.
+
+Every registry function is available from `@microboxlabs/miot-dashboard-ui/react`, `/embed` and the self-contained `/browser` build, except charts, which have their own entries.
+
+## Text and cards
+
+| `componentId` | Shows | Registry | Main settings |
+| --- | --- | --- | --- |
+| `text_card` | Text, with templates | `createTextCardRegistry` | `text`, `align`, `italic` |
+| `info_card` | A card with a value and a descriptor that can hold nested widgets | `createInfoCardRegistry` | `title`, `value`, `descriptor`, `icon`, `viewMoreUrl`, `viewMoreLabel` |
+
+## Statistics
+
+| `componentId` | Shows | Registry | Main settings |
+| --- | --- | --- | --- |
+| `percentage_value` | A labelled bar, value out of a maximum | `createPercentageValueRegistry` | `title`, `value`, `max`, `barColor`, `barColorRules` |
+| `stat_circular` | A ring, value out of a maximum | `createCircularStatRegistry` | `title`, `value`, `maxValue`, `unit`, `ringColor`, `ringColorRules` |
+| `stat_progress` | Progress toward a target, with quarter marks | `createProgressStatRegistry` | `title`, `value`, `target`, `unit`, `thresholds`, `barColorRules` |
+| `stat_status` | A status value with an optional icon and colored border | `createStatusStatRegistry` | `title`, `value`, `subtitle`, `icon`, `color`, `valueColorRules` |
+| `stat_icon` | A value next to an icon, with an optional description | `createIconStatRegistry` | `title`, `subtitle`, `value`, `unit`, `icon`, `cardVariant`, `goToUrl` |
+| `stat_sensitive` | A value hidden until the viewer reveals it | `createSensitiveStatRegistry` | `title`, `value`, `unit`, `isSensitive`, `thresholds` |
+| `stat_stacked` | Parts of a whole, as a stacked bar or donut | `createStackedStatRegistry` | `title`, `items`, `chartType`, `unit`, `showHeader` |
+| `stat_expandable` | A value with details that open on demand | `createExpandableStatRegistry` | `title`, `value`, `unit`, `details`, `valueColorRules` |
+| `stat_detailed` | A value with a comparison, a trend and progress to a target | `createDetailedStatRegistry` | `title`, `value`, `unit`, `description`, `previousValue`, `target` |
+| `stat_sparkline` | A value with a small trend line | `createSparklineStatRegistry` | `title`, `value`, `unit`, `sparkline`, `thresholds` |
+
+`stat_sensitive` hides the value on screen only. It does not replace access control: anyone who can load the dashboard can load its data.
+
+## Tables and lists
+
+| `componentId` | Shows | Registry |
+| --- | --- | --- |
+| `data_table` | Rows in a table with templates, filters, sorting, actions and CSV export | `createDataTableRegistry` |
+| `data_table_v2` | The same, with resizable columns and row links | `createResizableDataTableRegistry` |
+| `data_list` | Rows as cards with badges and metrics | `createDataListRegistry` |
+
+Viewers can filter, sort and resize locally. Their changes are not saved to the dashboard.
+
+## Charts
+
+| `componentId` | Shows | Registry |
+| --- | --- | --- |
+| `chart` | Line, bar, scatter, pie and gauge charts | `createChartRegistry` |
+| `chart_v2` | The same, with mixed series and dual axes | `createChartRegistry` |
+
+Charts need ECharts 6, which your page loads and passes in through `createEngine`. Import `createChartRegistry` from `@microboxlabs/miot-dashboard-ui/react-charts` in React, or from `/browser-charts` instead of `/browser` in plain HTML. The default browser build leaves charts out to stay small.
+
+## Host widgets
+
+These types exist in the ModularIoT web app but are not in the library. A page that does not provide them shows "not available" in their place:
+
+| `componentId` | Shows |
+| --- | --- |
+| `container` | A grid or labelled group of other widgets |
+| `geographic_map` | A map |
+| `fileUpload`, `batchImport` | Upload and import tools |
+
+## Data for any widget
+
+Every data-bound widget reads either `staticData` or a saved query result, set by `dataMode`:
+
+```json
+{ "dataMode": "planner", "plannerVariableName": "trips" }
+```
+
+Single-value widgets use the first row. Tables, lists and charts use every row. Text settings accept [templates](/en/products/dashboards/concepts/documents-and-widgets#templates).
+
+## Register widgets
+
+```js
+const labels = {
+  loadingLabel: "Loading…",
+  errorLabel: "Could not load the data.",
+  unsupportedDataLabel: "This widget needs a saved query.",
+};
+const definitions = [
+  ...createTextCardRegistry({ ...labels, defaultText: "" }).all(),
+  ...createCircularStatRegistry({
+    ...labels,
+    defaultTitle: "Value",
+    defaultUnit: "",
+    formatTotal: (max) => `of ${max}`,
+  }).all(),
+];
+```
+
+Each registry takes your translated labels, so the widgets speak your page's language. Combine them with `createWidgetRegistry` from `/core`, or with an object that has a `get(id)` method.
+
+<Callout type="info">
+The full option list for each registry is in the [UI library README](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-ui/README.md).
+</Callout>

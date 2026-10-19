@@ -22,7 +22,6 @@ export async function GET() {
     email: user?.email,
     hasAccessToken: !!user?.accessToken,
     hasRawJWT: !!user?.rawJWT,
-    hasTicket: !!user?.ticket,
     ...(exposeTokens && {
       accessToken: user?.accessToken ?? null,
       rawJWT: user?.rawJWT ?? null,

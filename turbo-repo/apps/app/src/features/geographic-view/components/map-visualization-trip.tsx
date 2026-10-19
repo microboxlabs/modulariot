@@ -35,6 +35,9 @@ import { MapRef } from "react-map-gl";
 import {
   center_in_bounds,
   flyTo,
+  panTo,
+  toLngLat,
+  zoomToVehicle,
 } from "@/features/map-visualization/map-view-utils";
 import { haversineKm, type LngLat } from "@/features/calendar/utils/distance";
 import {
@@ -106,6 +109,10 @@ const INITIAL_VIEW_STATE: ViewStateType = {
   height: 100,
 };
 
+// The map is tilted, so below this zoom the scroll wheel can pull the camera
+// to the map's edge or to latitude 0, far from the trip.
+const TRIP_MAP_MIN_ZOOM = 2;
+
 /* INDIVIDUAL POSITION TEST */
 type MapVisualizationProps = {
   tripId: string;
@@ -169,9 +176,14 @@ export default function MapVisualizationTrip({
     }
   }, [selectedTreatmentIndex]);
 
+  // Set when a positions load moves displayPosition, so follow mode does not
+  // interrupt the fit-to-bounds that runs for the new positions.
+  const skipNextFollow = useRef(false);
+
   // Add effect to update displayPosition when positions change
   useEffect(() => {
     if (positions?.length) {
+      skipNextFollow.current = displayPosition !== positions.length - 1;
       setDisplayPosition(positions.length - 1);
     }
   }, [positions?.length]);
@@ -180,6 +192,19 @@ export default function MapVisualizationTrip({
   const [showGeofences, setShowGeofences] = useState(true);
   const [showPulse, setShowPulse] = useState(true);
 
+  // Follow mode: while the camera toggle is on, keep the vehicle centered
+  // whenever its displayed position changes, without changing the zoom.
+  useEffect(() => {
+    if (skipNextFollow.current) {
+      skipNextFollow.current = false;
+      return;
+    }
+    const position = positions?.[displayPosition];
+    if (!camera_movement || !position || !mapRef.current) return;
+    panTo(mapRef.current, [position.longitude, position.latitude]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [camera_movement, displayPosition]);
+
   useEffect(() => {
     if (mapRef.current) {
       center_in_bounds(positions || [], mapRef.current, isLoading);
@@ -187,19 +212,12 @@ export default function MapVisualizationTrip({
   }, [positions]);
 
   useEffect(() => {
-    if (
-      filteredLocationData &&
-      filteredLocationData.features.length > 0 &&
-      mapRef.current
-    ) {
-      flyTo(
-        mapRef.current,
-        [
-          filteredLocationData.features[0].longitude ?? 0,
-          filteredLocationData.features[0].latitude ?? 0,
-        ],
-        6.5
-      );
+    const first = filteredLocationData?.features[0];
+    const coordinates = first
+      ? toLngLat(first.longitude, first.latitude)
+      : null;
+    if (coordinates && mapRef.current) {
+      flyTo(mapRef.current, coordinates, 6.5);
     }
   }, [filteredLocationData]);
 
@@ -373,12 +391,10 @@ export default function MapVisualizationTrip({
             setSelectedPulse(
               info.object?.properties.id ? [info.object?.properties.id] : []
             );
-            if (camera_movement && mapRef.current) {
-              flyTo(
-                mapRef.current,
-                info.object?.geometry.coordinates ?? [0, 0],
-                15
-              );
+            const coordinates = info.object?.geometry?.coordinates;
+            if (camera_movement && mapRef.current && coordinates) {
+              const target = toLngLat(coordinates[0], coordinates[1]);
+              if (target) panTo(mapRef.current, target);
             }
             if (setSelectedTreatment && setSelectedTreatmentIndex) {
               setSelectedTreatment(null);
@@ -408,8 +424,10 @@ export default function MapVisualizationTrip({
         new GeofencePinLayer({
           data: processedGeofence,
           onClick: (info: any) => {
-            if (camera_movement && mapRef.current) {
-              flyTo(mapRef.current, info.object?.coordinates ?? [0, 0], 15);
+            const coordinates = info.object?.coordinates;
+            if (camera_movement && mapRef.current && coordinates) {
+              const target = toLngLat(coordinates[0], coordinates[1]);
+              if (target) panTo(mapRef.current, target);
             }
             return true;
           },
@@ -448,12 +466,13 @@ export default function MapVisualizationTrip({
             };
 
             setHoverInfo(formattedInfo as any);
-            if (camera_movement && mapRef.current) {
-              flyTo(
-                mapRef.current,
-                [info.object?.longitude ?? 0, info.object?.latitude ?? 0],
-                15
-              );
+            // The trip map only ever shows this one vehicle
+            const target = toLngLat(
+              info.object?.longitude,
+              info.object?.latitude
+            );
+            if (mapRef.current && target) {
+              zoomToVehicle(mapRef.current, target);
             }
           },
           updateTriggers: {
@@ -522,18 +541,6 @@ export default function MapVisualizationTrip({
               positions={positions ?? []}
               displayPosition={displayPosition}
               setDisplayPosition={setDisplayPosition}
-              onZoom={(e) => {
-                if (positions && mapRef.current) {
-                  flyTo(
-                    mapRef.current,
-                    [
-                      positions[Number(e.target.value)]?.longitude ?? 0,
-                      positions[Number(e.target.value)]?.latitude ?? 0,
-                    ],
-                    15
-                  );
-                }
-              }}
             />
           }
         />
@@ -552,6 +559,7 @@ export default function MapVisualizationTrip({
         isLoading={false}
         mapRef={mapRef}
         onZoomChange={() => {}}
+        minZoom={TRIP_MAP_MIN_ZOOM}
       />
       {hoverInfo && (
         <MapTooltip
@@ -589,7 +597,7 @@ export default function MapVisualizationTrip({
       </div>
 
       {!minimized && distanceToOriginKm != null && (
-        <div className="pointer-events-none absolute left-1/2 top-2 z-[600] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs shadow dark:border-gray-700 dark:bg-gray-800/90">
+        <div className="pointer-events-none absolute left-1/2 top-2 z-[600] flex -translate-x-1/2 items-center gap-3 rounded-full border border-gray-200 bg-white/90 px-3 py-1 text-xs text-gray-900 shadow dark:border-gray-700 dark:bg-gray-800/90 dark:text-gray-100">
           <span className="flex items-center gap-1">
             <span className="font-semibold">
               {tr("geographic_view.distance_to_origin", dict)}:
@@ -604,7 +612,9 @@ export default function MapVisualizationTrip({
               {tr("geographic_view.eta_to_origin", dict)}:
             </span>
             <span>
-              {etaToOriginHours == null ? "—" : formatEtaHours(etaToOriginHours)}
+              {etaToOriginHours == null
+                ? "—"
+                : formatEtaHours(etaToOriginHours)}
             </span>
           </span>
         </div>

@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
-import Handlebars from "handlebars";
+import HandlebarsLibrary from "handlebars";
+const Handlebars = HandlebarsLibrary.create();
 import {
+  registerHandlebarsHelpers,
   formatNumberHelper,
   extractNumberHelper,
   toFixedHelper,
@@ -11,13 +13,16 @@ import {
   datePartHelper,
   timeAgoHelper,
 } from "./register-handlebars-helpers";
+registerHandlebarsHelpers(Handlebars);
 
 // ============================================================================
 // Helpers to build a mock Handlebars options object
 // ============================================================================
 
-function opts(hash: Record<string, unknown> = {}): Handlebars.HelperOptions {
-  return { hash } as Handlebars.HelperOptions;
+function opts(
+  hash: Record<string, unknown> = {}
+): HandlebarsLibrary.HelperOptions {
+  return { hash } as HandlebarsLibrary.HelperOptions;
 }
 
 // ============================================================================
@@ -171,7 +176,11 @@ describe("formatDateHelper", () => {
 
   it("formats as relative for recent date", () => {
     const recent = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
-    const result = formatDateHelper.call({}, recent, opts({ format: "relative" }));
+    const result = formatDateHelper.call(
+      {},
+      recent,
+      opts({ format: "relative" })
+    );
     expect(result).toBe("3h");
   });
 

@@ -32,16 +32,16 @@ describe("SlashRegistry — basic ops", () => {
     const reg = new SlashRegistry()
       .register(cmd("whoami", "Show identity"))
       .register(cmd("clear", "Clear screen"))
-      .register(cmd("mode", "Change mode"));
-    expect(reg.all().map((c) => c.name)).toEqual(["clear", "mode", "whoami"]);
+      .register(cmd("model", "Change model"));
+    expect(reg.all().map((c) => c.name)).toEqual(["clear", "model", "whoami"]);
   });
 
   it("register is chainable and replaces by name", () => {
     const reg = new SlashRegistry();
     reg
-      .register(cmd("mode", "first"))
-      .register(cmd("mode", "second")); // replaces
-    expect(reg.get("mode")?.summary).toBe("second");
+      .register(cmd("model", "first"))
+      .register(cmd("model", "second")); // replaces
+    expect(reg.get("model")?.summary).toBe("second");
   });
 });
 
@@ -50,7 +50,7 @@ describe("SlashRegistry — findMatches / tabCompletion", () => {
     return new SlashRegistry()
       .register(cmd("context", "Show session context"))
       .register(cmd("clear", "Clear the transcript"))
-      .register(cmd("mode", "Change run mode"))
+      .register(cmd("model", "Pick a model"))
       .register(cmd("whoami", "Print user identity"))
       .register(cmd("tenant", "Change tenant"));
   }
@@ -69,7 +69,7 @@ describe("SlashRegistry — findMatches / tabCompletion", () => {
   it("matches names before summaries", () => {
     const reg = seed();
     const names = reg.findMatches("mod").map((c) => c.name);
-    expect(names[0]).toBe("mode");
+    expect(names[0]).toBe("model");
   });
 
   it("falls back to summary substring", () => {

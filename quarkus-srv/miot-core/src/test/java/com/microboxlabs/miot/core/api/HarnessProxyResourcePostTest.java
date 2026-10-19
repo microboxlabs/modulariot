@@ -105,6 +105,7 @@ class HarnessProxyResourcePostTest {
         WireMockLifecycle.server().verify(
                 WireMock.postRequestedFor(WireMock.urlEqualTo("/runs"))
                         .withHeader("X-Miot-Tenant-Client-Id", WireMock.equalTo(ORG_TENANT))
+                        .withHeader("X-Miot-Organization", WireMock.equalTo(ORG_SLUG))
                         .withHeader("X-Miot-User-Email",
                                 WireMock.equalTo(StubAlfrescoMembershipClient.MEMBER_EMAIL))
                         .withHeader("X-Miot-Auth-Mode", WireMock.equalTo("web"))
@@ -126,6 +127,7 @@ class HarnessProxyResourcePostTest {
         WireMockLifecycle.server().verify(
                 WireMock.postRequestedFor(WireMock.urlEqualTo("/runs:start"))
                         .withHeader("X-Miot-Tenant-Client-Id", WireMock.equalTo(ORG_TENANT))
+                        .withHeader("X-Miot-Organization", WireMock.equalTo(ORG_SLUG))
                         .withHeader("X-Miot-User-Email",
                                 WireMock.equalTo(StubAlfrescoMembershipClient.MEMBER_EMAIL))
                         .withHeader("X-Miot-Auth-Mode", WireMock.equalTo("web"))

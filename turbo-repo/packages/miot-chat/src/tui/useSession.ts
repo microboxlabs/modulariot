@@ -112,7 +112,7 @@ export function useSession(opts: UseSessionOptions): UseSessionApi {
             message: prompt,
             tenant_id: meta.tenantId,
             user_id: meta.userId,
-            mode: meta.mode,
+            ...(meta.model ? { model: meta.model } : {}),
             conversation_id: meta.conversationId,
             ...(submitOpts?.skillId ? { skill_id: submitOpts.skillId } : {}),
             ...(meta.debug ? { debug: true } : {}),

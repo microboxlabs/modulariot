@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.auth;
 
+import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.container.ContainerRequestContext;
@@ -40,6 +41,11 @@ public class TenantRequestFilter implements ContainerRequestFilter {
     public void filter(ContainerRequestContext requestContext) {
         String path = requestContext.getUriInfo().getPath();
         if (!path.startsWith("/api/")) {
+            return;
+        }
+
+        // A service account (API key) has no client id; the organization filter sets the tenant from its org.
+        if (IamIdentityAugmentor.serviceAccountOf(securityIdentity) != null) {
             return;
         }
 

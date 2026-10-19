@@ -38,7 +38,7 @@ function clamp(width: number): number {
  * to [1/4, 2/3] of the viewport rather than fixed pixel values, so both
  * ends scale with the window and get re-clamped if it shrinks under them.
  */
-export function useResizablePanelWidth() {
+export function useResizablePanelWidth(storageKey: string = STORAGE_KEY) {
   const [width, setWidth] = useState(DEFAULT_PANEL_WIDTH);
   const [isDragging, setIsDragging] = useState(false);
   // The separator needs its range as real numbers for aria-valuemin/max, and
@@ -49,14 +49,14 @@ export function useResizablePanelWidth() {
   const capturedPointer = useRef<{ element: HTMLDivElement; pointerId: number } | null>(null);
 
   useEffect(() => {
-    const stored = Number(window.localStorage.getItem(STORAGE_KEY));
+    const stored = Number(window.localStorage.getItem(storageKey));
     // The default needs clamping every bit as much as a restored value: 384px
     // is already under the 1/4 minimum on any viewport wider than 1536px, and
     // proportionally smaller the wider the window gets.
     const initial = Number.isFinite(stored) && stored > 0 ? stored : DEFAULT_PANEL_WIDTH;
     setWidth(clamp(initial));
     setBounds({ min: minPanelWidth(), max: maxPanelWidth() });
-  }, []);
+  }, [storageKey]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -117,8 +117,8 @@ export function useResizablePanelWidth() {
 
   useEffect(() => {
     if (isDragging) return; // persist once the drag settles, not every pixel
-    window.localStorage.setItem(STORAGE_KEY, String(width));
-  }, [width, isDragging]);
+    window.localStorage.setItem(storageKey, String(width));
+  }, [width, isDragging, storageKey]);
 
   // Double-clicking the handle snaps straight to the max width; a second
   // double-click snaps back to the min, rather than restoring whatever

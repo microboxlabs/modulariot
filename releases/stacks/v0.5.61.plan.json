@@ -1,0 +1,56 @@
+{
+  "stack_version": "0.5.61",
+  "stack_tag": "miot-stack@v0.5.61",
+  "milestone": "MIOT-0.5.61",
+  "pull_requests": [
+    {
+      "number": 1909,
+      "title": "[app] Keep the trip map camera off [0, 0] and the world view",
+      "source_issues": []
+    }
+  ],
+  "milestone_changed_files": [
+    "turbo-repo/apps/app/src/features/geographic-view/components/geofence.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/geofence_pin.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pin_count.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pin_layer.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pin_layer_clustered.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pulse-range.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pulse.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.tsx",
+    "turbo-repo/apps/app/src/features/map-visualization/map-view-utils.test.ts",
+    "turbo-repo/apps/app/src/features/map-visualization/map-view-utils.tsx",
+    "turbo-repo/apps/app/src/features/map-visualization/map-visualization.tsx"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.61",
+      "tag": "app@v0.5.61"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.60",
+      "version": "0.5.60",
+      "tag": "docs@v0.5.60"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.60",
+      "version": "0.5.60",
+      "tag": "web@v0.5.60"
+    },
+    "modulith": {
+      "changed": false,
+      "changed_since": "modulith@v0.5.35",
+      "version": "0.5.35",
+      "tag": "modulith@v0.5.35"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.12",
+      "version": "0.1.12",
+      "tag": "harness@v0.1.12"
+    }
+  }
+}

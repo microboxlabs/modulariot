@@ -3,8 +3,8 @@
  * `createCompositeStore` combines this with a `DashboardDocumentStore` to make
  * a `ServerDashboardStore`.
  *
- * `commit` is a compare-and-swap and is the only concurrency check in the pair,
- * which is why the document store needs none.
+ * `commit` compares revisions on writes; optional `removeIfRevision` does the
+ * same for rollback. Document blobs are immutable and need neither check.
  */
 
 import type { PermissionAssignment, ServerDashboardRef } from "./store";
@@ -14,6 +14,8 @@ export interface DashboardMetadataRow {
   slug: string;
   /** Copied from the config so `list` does not read one document per row. */
   name: string;
+  /** The config's `order`, copied for sorting `list`; absent when unset. */
+  order?: number;
   /** Monotonic, incremented by every successful `commit`. */
   revision: number;
   /** Key of the config in the document store. A new key on every write. */
@@ -28,6 +30,7 @@ export interface DashboardMetadataRow {
 /** The fields a write supplies. */
 export interface DashboardMetadataWrite {
   name: string;
+  order?: number;
   documentKey: string;
   updatedBy: string;
   /** ISO-8601. Passed in rather than read from a clock so tests can fix it. */
@@ -53,6 +56,11 @@ export interface DashboardMetadataStore {
 
   /** Returns the deleted row, so its document can be deleted too. */
   remove(ref: ServerDashboardRef): Promise<DashboardMetadataRow | null>;
+  /** Atomic compare-and-delete, including permissions; null means no match. */
+  removeIfRevision?(
+    ref: ServerDashboardRef,
+    revision: number,
+  ): Promise<DashboardMetadataRow | null>;
 
   getPermissions(ref: ServerDashboardRef): Promise<PermissionAssignment[]>;
 

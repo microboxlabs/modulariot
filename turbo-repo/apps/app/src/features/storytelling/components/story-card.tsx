@@ -6,23 +6,25 @@ import {
   HiCheck,
   HiEllipsisVertical,
   HiInformationCircle,
+  HiOutlinePencilSquare,
   HiSparkles,
   HiTrash,
 } from "react-icons/hi2";
 import { formatDateString } from "@/features/common/components/formatted-date/formatted-date";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
-import { getArtifactTypeMeta } from "../artifact-type-meta";
-import type { StoryItem } from "../storytelling.types";
+import { getStoryKindMeta } from "../story-kind-meta";
+import type { Story } from "../storytelling.types";
 
 interface StoryCardProps {
-  readonly story: StoryItem;
+  readonly story: Story;
   readonly lang: string;
   readonly dict: I18nRecord;
   readonly selected: boolean;
-  readonly onToggleSelect: (story: StoryItem) => void;
-  readonly onDetails: (story: StoryItem) => void;
-  readonly onDelete: (story: StoryItem) => void;
+  readonly onToggleSelect: (story: Story) => void;
+  readonly onDetails: (story: Story) => void;
+  readonly onRename: (story: Story) => void;
+  readonly onDelete: (story: Story) => void;
 }
 
 export default function StoryCard({
@@ -32,15 +34,15 @@ export default function StoryCard({
   selected,
   onToggleSelect,
   onDetails,
+  onRename,
   onDelete,
 }: StoryCardProps) {
-  const typeMeta = getArtifactTypeMeta(story.artifactType);
+  const typeMeta = getStoryKindMeta(story.kind);
   const TypeIcon = typeMeta.icon;
   const editedDate = formatDateString(
     story.updatedAt,
     "date",
-    lang === "en" ? "en-US" : "es-CL",
-    "UTC"
+    lang === "en" ? "en-US" : "es-CL"
   );
 
   return (
@@ -61,7 +63,7 @@ export default function StoryCard({
           kebab and selection square below stacking above it as later,
           positioned siblings. */}
       <Link
-        href={`/${lang}/storytelling/${story.id}`}
+        href={`/${lang}/storytelling/${encodeURIComponent(story.id)}`}
         aria-label={story.title}
         className="cursor-pointer text-left after:absolute after:inset-0 after:rounded-lg focus:outline-none"
       />
@@ -69,8 +71,7 @@ export default function StoryCard({
       <div className="flex h-40 w-full items-center justify-center rounded-t-lg bg-indigo-50 text-indigo-300 dark:bg-indigo-900/10 dark:text-indigo-500/50">
         <HiSparkles className="h-14 w-14" />
       </div>
-      {/* Which previewer (previewers/html, /markdown, /ppt, /pdf) this story
-          opens into. */}
+      {/* The story's kind, which decides the previewer it opens into. */}
       <div className="pointer-events-none absolute top-2 left-2">
         <span
           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${typeMeta.badgeClassName}`}
@@ -81,7 +82,8 @@ export default function StoryCard({
       </div>
       {/* Mass-delete selection — hidden until hovered/focused, except once
           checked (stays visible so the selection state doesn't disappear
-          under the pointer). */}
+          under the pointer). Only stories the caller owns can be deleted. */}
+      {story.owned && (
       <button
         type="button"
         aria-pressed={selected}
@@ -99,6 +101,7 @@ export default function StoryCard({
       >
         <HiCheck className="h-3.5 w-3.5" />
       </button>
+      )}
       <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 dark:border-gray-700">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-normal text-gray-900 dark:text-white">
@@ -143,18 +146,24 @@ export default function StoryCard({
             )}
           >
             {/* Sharing lives only inside the open document (the share
-                button on story-detail-page.tsx, via StorySharePanel) — not
-                duplicated here as a second, simpler share UI. */}
+                button on story-detail-page.tsx, via StorySharePanel). */}
             <DropdownItem icon={HiInformationCircle} onClick={() => onDetails(story)}>
               {tr("menu.details", dict)}
             </DropdownItem>
-            <DropdownItem
-              icon={HiTrash}
-              onClick={() => onDelete(story)}
-              className="text-red-600 dark:text-red-400"
-            >
-              {tr("menu.delete", dict)}
-            </DropdownItem>
+            {story.permission !== "read" && (
+              <DropdownItem icon={HiOutlinePencilSquare} onClick={() => onRename(story)}>
+                {tr("menu.rename", dict)}
+              </DropdownItem>
+            )}
+            {story.owned && (
+              <DropdownItem
+                icon={HiTrash}
+                onClick={() => onDelete(story)}
+                className="text-red-600 dark:text-red-400"
+              >
+                {tr("menu.delete", dict)}
+              </DropdownItem>
+            )}
           </Dropdown>
         </div>
       </div>

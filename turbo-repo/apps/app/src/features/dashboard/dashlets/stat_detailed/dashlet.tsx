@@ -1,6 +1,9 @@
 "use client";
 
-import { HiArrowTrendingUp } from "react-icons/hi2";
+import { DetailedStat } from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+import { tr } from "@/features/i18n/tr.service";
+import { useOptionalDashboard } from "../../context/dashboard-context";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
 import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
 import { useDashletPgrest } from "../common/use-dashlet-pgrest";
@@ -9,12 +12,7 @@ import {
   DashletError,
   parseResolvedNumber,
 } from "../common/dashlet-states";
-import {
-  evaluateColorRulesWithFields,
-  hexToRgba,
-  getBadgeClasses as getStatBadgeClasses,
-  getConditionalClasses,
-} from "../common/color-rule-evaluation";
+import { evaluateColorRulesWithFields } from "../common/color-rule-evaluation";
 import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
 import type {
   ValueColorRulesConfig,
@@ -102,6 +100,7 @@ function evaluateColorRules(
  */
 export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
+  const { dictionary } = useOptionalDashboard();
   const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
 
   const { resolved, loading, fetchError } = useDashletPgrest(
@@ -150,91 +149,22 @@ export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
       )
     : { textColor: undefined, barColor: undefined, badgeColor: undefined };
 
-  // Build badge style and classes
-  const badgeStyle = ruleBadgeColor
-    ? {
-        backgroundColor: hexToRgba(ruleBadgeColor, 0.15),
-        color: `#${ruleBadgeColor}`,
-      }
-    : undefined;
-  const badgeClasses = getStatBadgeClasses(ruleBadgeColor, isPositive);
-
-  // Build text style
-  const textStyle = ruleTextColor ? { color: `#${ruleTextColor}` } : undefined;
-  const textClasses = getConditionalClasses(
-    !!ruleTextColor,
-    "text-gray-900 dark:text-white"
-  );
-
-  // Build bar style
-  const barStyle = ruleBarColor
-    ? { backgroundColor: `#${ruleBarColor}` }
-    : undefined;
-  const barClasses = getConditionalClasses(!!ruleBarColor, "bg-blue-500");
-
   return (
-    <div className="flex h-full flex-col rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-            {title}
-          </p>
-          <p
-            className={`mt-1 text-3xl font-bold ${textClasses}`}
-            style={textStyle}
-          >
-            {unit}
-            {value.toLocaleString()}
-          </p>
-        </div>
-        <div
-          className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${badgeClasses}`}
-          style={badgeStyle}
-        >
-          <HiArrowTrendingUp
-            className={`h-3 w-3 ${!isPositive && "rotate-180"}`}
-          />
-          {isPositive ? "+" : ""}
-          {changePercent}%
-        </div>
-      </div>
-
-      {/* Description */}
-      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-        {description}
-      </p>
-
-      {/* Progress to Target */}
-      <div className="mt-auto pt-3">
-        <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-          <span>Progress to target</span>
-          <span>
-            {unit}
-            {target.toLocaleString()}
-          </span>
-        </div>
-        <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-          <div
-            className={`h-full rounded-full ${barClasses} transition-all`}
-            style={{ width: `${progressPercent}%`, ...barStyle }}
-          />
-        </div>
-        <p className="mt-1 text-xs text-gray-400">
-          {progressPercent.toFixed(0)}% of target reached
-        </p>
-      </div>
-
-      {/* Comparison */}
-      <div className="mt-3 flex justify-between border-t border-gray-100 pt-3 text-xs dark:border-gray-700">
-        <span className="text-gray-500 dark:text-gray-400">
-          Previous period
-        </span>
-        <span className="font-medium text-gray-700 dark:text-gray-300">
-          {unit}
-          {previousValue.toLocaleString()}
-        </span>
-      </div>
-    </div>
+    <DetailedStat
+      title={title}
+      value={`${unit}${value.toLocaleString()}`}
+      description={description}
+      previousValue={`${unit}${previousValue.toLocaleString()}`}
+      target={`${unit}${target.toLocaleString()}`}
+      changeLabel={`${isPositive ? "+" : ""}${changePercent}%`}
+      positive={isPositive}
+      progress={progressPercent}
+      progressLabel={tr("dashboard.settings.progressToTarget", dictionary)}
+      progressSummary={`${progressPercent.toFixed(0)}% ${tr("dashboard.settings.targetReached", dictionary)}`}
+      previousLabel={tr("dashboard.settings.previousPeriod", dictionary)}
+      valueColor={ruleTextColor}
+      barColor={ruleBarColor}
+      badgeColor={ruleBadgeColor}
+    />
   );
 }

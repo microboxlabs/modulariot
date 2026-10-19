@@ -87,11 +87,9 @@ function readIdentifier(claims: JwtClaims, claim: string): string | null {
 function readGroups(claims: JwtClaims, claim: string | undefined): string[] {
   if (claim === undefined) return [];
   const value = claims[claim];
-  const raw = Array.isArray(value)
-    ? value
-    : typeof value === "string"
-      ? value.split(/[,\s]+/)
-      : [];
+  let raw: unknown[] = [];
+  if (Array.isArray(value)) raw = value;
+  else if (typeof value === "string") raw = value.split(/[,\s]+/);
   return raw
     .filter((entry): entry is string => typeof entry === "string")
     .map((entry) => entry.trim())

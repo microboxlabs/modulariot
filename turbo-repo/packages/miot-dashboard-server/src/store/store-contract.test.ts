@@ -79,7 +79,7 @@ if (POSTGRES_URL !== undefined && POSTGRES_URL !== "") {
       await runMigrations(driver);
       await driver.exec(
         "TRUNCATE dashboards, dashboard_permissions, dashboard_documents," +
-          " store_settings",
+          " store_settings, dashboard_revisions",
       );
       await driver.close();
 
@@ -102,6 +102,41 @@ describe.each(BACKENDS)("$name", ({ open }) => {
 
   afterEach(async () => {
     await opened?.close();
+  });
+
+  it("never reuses a revision after deleting and recreating an address", async () => {
+    const s = await store();
+    const first = await s.save(ref, config, {
+      updatedBy: "first",
+      expectedRevision: 0,
+    });
+    await s.setPermissions(ref, [
+      { authorityId: "old-editor", role: "Editor" },
+    ]);
+    await s.remove(ref);
+    expect(await s.load(ref)).toBeNull();
+    expect(await s.list(ref.tenantId, ref.scopeId)).toEqual([]);
+    const replacement = await s.save(ref, config, {
+      updatedBy: "replacement",
+      expectedRevision: 0,
+    });
+    expect(replacement.revision).toBeGreaterThan(first.revision);
+    expect(replacement.createdBy).toBe("replacement");
+    expect(await s.getPermissions(ref)).toEqual([]);
+    await expect(
+      s.save(
+        ref,
+        { ...config, name: "Stale" },
+        {
+          updatedBy: "first",
+          expectedRevision: first.revision,
+        },
+      ),
+    ).rejects.toMatchObject({ code: "CONFLICT" });
+    expect((await s.load(ref))?.config).toEqual(config);
+    await s.remove(ref);
+    const forced = await s.save(ref, config, { updatedBy: "third" });
+    expect(forced.revision).toBeGreaterThan(replacement.revision);
   });
 
   it("has nothing before anything is written", async () => {
@@ -189,6 +224,21 @@ describe.each(BACKENDS)("$name", ({ open }) => {
         { slug: "spares", name: "spares" },
       ]),
     );
+  });
+
+  it("lists by the config's order, unordered dashboards last", async () => {
+    const s = await store();
+    const at = (slug: string) => ({ ...ref, slug });
+    await s.save(at("b"), { version: 2, name: "B" }, { updatedBy: "ana" });
+    await s.save(at("c"), { version: 2, name: "C", order: 2 }, { updatedBy: "ana" });
+    await s.save(at("a"), { version: 2, name: "A", order: 5 }, { updatedBy: "ana" });
+    await s.save(at("d"), { version: 2, name: "D", order: 2 }, { updatedBy: "ana" });
+    expect(await s.list(ref.tenantId, ref.scopeId)).toEqual([
+      { slug: "c", name: "C", order: 2 },
+      { slug: "d", name: "D", order: 2 },
+      { slug: "a", name: "A", order: 5 },
+      { slug: "b", name: "B" },
+    ]);
   });
 
   it("shows a rename in the list", async () => {

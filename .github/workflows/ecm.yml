@@ -25,6 +25,8 @@ env:
 jobs:
   build:
     name: Build & Analyze
+    # Release preparation PRs are handled by app-release-train.yml.
+    if: github.event_name != 'pull_request' || !startsWith(github.head_ref, 'release/miot-v')
     runs-on: ubuntu-latest
     timeout-minutes: 10
 

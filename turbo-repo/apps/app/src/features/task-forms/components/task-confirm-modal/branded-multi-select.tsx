@@ -22,6 +22,10 @@ interface BrandedMultiSelectProps {
   emptyLabel: string;
   /** "sm" fits the document viewer's sidebar; "md" is the modal's roomier form. */
   size?: "sm" | "md";
+  /** Overrides the trigger's default border color (e.g. to flag it as
+   *  filled by an automated pass) — replaces, rather than layers onto, the
+   *  default so there's never two conflicting `border-*` utilities at once. */
+  borderClassName?: string;
 }
 
 const SIZES = {
@@ -55,6 +59,7 @@ export default function BrandedMultiSelect({
   summaryLabel,
   emptyLabel,
   size = "md",
+  borderClassName = "border-gray-300 dark:border-gray-600",
 }: Readonly<BrandedMultiSelectProps>) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0, upward: false });
@@ -142,7 +147,7 @@ export default function BrandedMultiSelect({
       <button
         ref={triggerRef}
         type="button"
-        className={`w-full flex justify-between items-center gap-2 rounded-lg border border-gray-300 bg-white text-left transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:hover:bg-gray-600 ${s.trigger}`}
+        className={`w-full flex justify-between items-center gap-2 rounded-lg border ${borderClassName} bg-white text-left transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:hover:bg-gray-600 ${s.trigger}`}
         onClick={() => setIsOpen((open) => !open)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}

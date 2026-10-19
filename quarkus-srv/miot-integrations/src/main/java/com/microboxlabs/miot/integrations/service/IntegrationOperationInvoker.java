@@ -8,6 +8,7 @@ import com.microboxlabs.miot.integrations.auth.ResolvedAuth;
 import com.microboxlabs.miot.integrations.domain.IntegrationOperation;
 import com.microboxlabs.miot.integrations.jobs.JobHttpTrace;
 import com.microboxlabs.miot.integrations.net.OutboundUrlGuard;
+import com.microboxlabs.miot.integrations.net.BoundedHttpTransport;
 import com.microboxlabs.miot.integrations.persistence.IntegrationOperationRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -107,6 +108,36 @@ public class IntegrationOperationInvoker {
         return execute(connection, operation, body);
     }
 
+    /**
+     * Bounded execution for interactive callers. Query parameters are encoded separately
+     * from the stored path and may not replace credential query parameters. The caller
+     * must authorize an ACTIVE, read-only operation and validate its input schema first.
+     */
+    public OperationInvocationResult invokeBounded(
+            String tenantCode, String connectionId, String operationId, Object body,
+            Map<String, String> queryParameters, int maxResponseBytes) {
+        if (maxResponseBytes < 1) {
+            throw new IllegalArgumentException("Positive response byte limit required");
+        }
+        ResolvedConnection connection = connectionResolver.resolve(tenantCode, connectionId);
+        IntegrationOperation operation =
+                operationRepository.findByConnectionAndId(connectionId, operationId);
+        if (operation == null) {
+            throw new OperationInvocationException("Operation does not belong to connection");
+        }
+        return execute(connection, operation, body, queryParameters, maxResponseBytes);
+    }
+
+    /** Executes the same immutable operation snapshot the dashboard policy checked. */
+    OperationInvocationResult executeBounded(
+            ResolvedConnection connection, IntegrationOperation operation,
+            Map<String, String> queryParameters, int maxResponseBytes) {
+        if (maxResponseBytes < 1 || !connection.connectionId().equals(operation.connectionId())) {
+            throw new OperationInvocationException("Invalid bounded operation");
+        }
+        return execute(connection, operation, null, queryParameters, maxResponseBytes);
+    }
+
     /** As {@link #invoke}, addressing the operation by its (case-insensitive) name. */
     public OperationInvocationResult invokeByName(
             String tenantCode, String connectionId, String operationName, Map<String, Object> body) {
@@ -122,10 +153,20 @@ public class IntegrationOperationInvoker {
 
     OperationInvocationResult execute(
             ResolvedConnection connection, IntegrationOperation operation, Object body) {
+        return execute(connection, operation, body, Map.of(), null);
+    }
+
+    private OperationInvocationResult execute(
+            ResolvedConnection connection, IntegrationOperation operation, Object body,
+            Map<String, String> queryParameters, Integer maxResponseBytes) {
         ResolvedAuth auth = resolveAuth(connection);
+        Map<String, String> combinedParameters = combineQueryParameters(queryParameters, auth.queryParams());
+        if (maxResponseBytes != null) {
+            requireParameterFreeAddress(connection.baseUrl(), operation.path());
+        }
         String method = method(operation);
         String requestBody = BODY_METHODS.contains(method) ? serialize(body) : null;
-        URI url = buildUrl(connection.baseUrl(), operation.path(), auth.queryParams());
+        URI url = buildUrl(connection.baseUrl(), operation.path(), combinedParameters);
 
         // The request as it will be recorded for the audit trail: the same call, with every
         // credential masked — auth header values, and any auth query params folded into the
@@ -133,9 +174,8 @@ public class IntegrationOperationInvoker {
         // that happens before the request leaves the process (the SSRF guard rejecting an
         // unresolvable or internal host) — the case that previously recorded nothing at all.
         Map<String, String> recordedHeaders = recordedRequestHeaders(auth.headers(), requestBody != null);
-        String recordedUrl = auth.queryParams().isEmpty()
-                ? url.toString()
-                : buildUrl(connection.baseUrl(), operation.path(), maskValues(auth.queryParams())).toString();
+        String recordedUrl = buildUrl(connection.baseUrl(), operation.path(),
+                combineQueryParameters(queryParameters, maskValues(auth.queryParams()))).toString();
 
         long startedAt = System.nanoTime();
         try {
@@ -154,7 +194,9 @@ public class IntegrationOperationInvoker {
             builder.header("Accept", "application/json");
 
             HttpResponse<String> response =
-                    httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+                    maxResponseBytes == null
+                            ? httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString())
+                            : BoundedHttpTransport.send(httpClient, builder.build(), maxResponseBytes, timeout);
             trace(method, recordedUrl, recordedHeaders, response.statusCode(), startedAt,
                     requestBody, response.body(), null);
             return new OperationInvocationResult(response.statusCode(), response.body());
@@ -172,6 +214,26 @@ public class IntegrationOperationInvoker {
             // have) and rethrow unchanged so the worker's outcome classification is untouched.
             trace(method, recordedUrl, recordedHeaders, null, startedAt, requestBody, null, e.getMessage());
             throw e;
+        }
+    }
+
+    static Map<String, String> combineQueryParameters(
+            Map<String, String> parameters, Map<String, String> auth) {
+        Map<String, String> combined = new LinkedHashMap<>(parameters);
+        for (Map.Entry<String, String> entry : auth.entrySet()) {
+            if (combined.containsKey(entry.getKey())) {
+                throw new OperationInvocationException("Operation parameters conflict with credential parameters");
+            }
+            combined.put(entry.getKey(), entry.getValue());
+        }
+        return combined;
+    }
+
+    static void requireParameterFreeAddress(URI base, String path) {
+        if (base == null || base.getRawQuery() != null || base.getRawFragment() != null
+                || (path != null && (path.contains("?") || path.contains("#")))) {
+            throw new OperationInvocationException(
+                    "Bounded operations require a base URL and path without query strings or fragments");
         }
     }
 

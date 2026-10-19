@@ -17,6 +17,9 @@ import {
 } from "./index";
 
 describe("getDashlet", () => {
+  it.each(["__proto__", "constructor", "toString"])("does not resolve inherited property %s as a widget", (id) => {
+    expect(getDashlet(id)).toBeUndefined();
+  });
   it('returns definition for known componentId "container"', () => {
     const result = getDashlet("container");
     expect(result).toBeDefined();
@@ -156,4 +159,11 @@ describe("getCategoryLabel", () => {
   it('maps "data-display" -> "Data Display"', () => {
     expect(getCategoryLabel("data-display")).toBe("Data Display");
   });
+});
+
+it("registers stat_progress for existing documents and the widget picker", () => {
+  const definition = getDashlet("stat_progress");
+  expect(definition?.getLayoutDefaults?.()).toEqual({ minW: 3, minH: 2 });
+  expect(definition?.SettingsModal).toBeDefined();
+  expect(getAllDashlets().some((item) => item.meta.id === "stat_progress")).toBe(true);
 });

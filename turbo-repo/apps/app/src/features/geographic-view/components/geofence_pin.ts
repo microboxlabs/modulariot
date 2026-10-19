@@ -43,6 +43,8 @@ type GeofencePinData = {
 };
 
 export class GeofencePinLayer extends CompositeLayer<any> {
+  static readonly layerName = "GeofencePinLayer";
+
   calculateAveragePosition(coordinates: number[][]): [number, number] {
     let sumLng = 0;
     let sumLat = 0;

@@ -20,11 +20,12 @@ import type {
 import { placeholders, type SqlDriver, type SqlValue } from "./driver";
 
 const COLUMNS =
-  "slug, name, revision, document_key, updated_at, updated_by, created_by";
+  "slug, name, sort_order, revision, document_key, updated_at, updated_by, created_by";
 
 interface RawRow {
   slug: string;
   name: string;
+  sort_order: number | null;
   revision: number;
   document_key: string;
   updated_at: string;
@@ -36,6 +37,7 @@ function toRow(raw: RawRow): DashboardMetadataRow {
   return {
     slug: raw.slug,
     name: raw.name,
+    ...(raw.sort_order === null ? {} : { order: Number(raw.sort_order) }),
     revision: Number(raw.revision),
     documentKey: raw.document_key,
     updatedAt: raw.updated_at,
@@ -80,17 +82,20 @@ export function createSqlMetadataStore(
   async function create(
     ref: ServerDashboardRef,
     write: DashboardMetadataWrite,
+    revision: number,
   ): Promise<DashboardMetadataRow | null> {
     const p = placeholders(driver.dialect);
     const rows = await driver.all<RawRow>(
       `INSERT INTO dashboards
-         (tenant_id, scope_id, slug, name, revision, document_key, updated_at, updated_by, created_by)
-       VALUES (${p()}, ${p()}, ${p()}, ${p()}, 1, ${p()}, ${p()}, ${p()}, ${p()})
+         (tenant_id, scope_id, slug, name, sort_order, revision, document_key, updated_at, updated_by, created_by)
+       VALUES (${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()})
        ON CONFLICT DO NOTHING
        RETURNING ${COLUMNS}`,
       [
         ...refValues(ref),
         write.name,
+        write.order ?? null,
+        revision,
         write.documentKey,
         write.updatedAt,
         write.updatedBy,
@@ -106,17 +111,20 @@ export function createSqlMetadataStore(
     ref: ServerDashboardRef,
     write: DashboardMetadataWrite,
     expectedRevision: number,
+    revision: number,
   ): Promise<DashboardMetadataRow | null> {
     const p = placeholders(driver.dialect);
     const rows = await driver.all<RawRow>(
       `UPDATE dashboards
-          SET name = ${p()}, revision = revision + 1, document_key = ${p()},
+          SET name = ${p()}, sort_order = ${p()}, revision = ${p()}, document_key = ${p()},
               updated_at = ${p()}, updated_by = ${p()}
         WHERE tenant_id = ${p()} AND scope_id = ${p()} AND slug = ${p()}
           AND revision = ${p()}
        RETURNING ${COLUMNS}`,
       [
         write.name,
+        write.order ?? null,
+        revision,
         write.documentKey,
         write.updatedAt,
         write.updatedBy,
@@ -131,15 +139,17 @@ export function createSqlMetadataStore(
   async function force(
     ref: ServerDashboardRef,
     write: DashboardMetadataWrite,
+    revision: number,
   ): Promise<DashboardMetadataRow | null> {
     const p = placeholders(driver.dialect);
     const rows = await driver.all<RawRow>(
       `INSERT INTO dashboards
-         (tenant_id, scope_id, slug, name, revision, document_key, updated_at, updated_by, created_by)
-       VALUES (${p()}, ${p()}, ${p()}, ${p()}, 1, ${p()}, ${p()}, ${p()}, ${p()})
+         (tenant_id, scope_id, slug, name, sort_order, revision, document_key, updated_at, updated_by, created_by)
+       VALUES (${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()}, ${p()})
        ON CONFLICT (tenant_id, scope_id, slug) DO UPDATE
           SET name = excluded.name,
-              revision = dashboards.revision + 1,
+              sort_order = excluded.sort_order,
+              revision = excluded.revision,
               document_key = excluded.document_key,
               updated_at = excluded.updated_at,
               updated_by = excluded.updated_by
@@ -147,6 +157,8 @@ export function createSqlMetadataStore(
       [
         ...refValues(ref),
         write.name,
+        write.order ?? null,
+        revision,
         write.documentKey,
         write.updatedAt,
         write.updatedBy,
@@ -154,6 +166,32 @@ export function createSqlMetadataStore(
       ],
     );
     return first(rows);
+  }
+
+  async function remove(ref: ServerDashboardRef, revision?: number) {
+    return driver.transaction(async () => {
+      const p = placeholders(driver.dialect);
+      const values = refValues(ref);
+      const predicate =
+        revision === undefined
+          ? ""
+          : ` AND revision = ${driver.dialect.placeholder(4)}`;
+      if (revision !== undefined) values.push(revision);
+      const rows = await driver.all<RawRow>(
+        `DELETE FROM dashboards
+            WHERE tenant_id = ${p()} AND scope_id = ${p()} AND slug = ${p()}${predicate}
+          RETURNING ${COLUMNS}`,
+        values,
+      );
+      if (revision !== undefined && rows.length === 0) return null;
+      const q = placeholders(driver.dialect);
+      await driver.all(
+        `DELETE FROM dashboard_permissions
+            WHERE tenant_id = ${q()} AND scope_id = ${q()} AND slug = ${q()}`,
+        refValues(ref),
+      );
+      return first(rows);
+    });
   }
 
   return {
@@ -167,38 +205,47 @@ export function createSqlMetadataStore(
       const rows = await driver.all<RawRow>(
         `SELECT ${COLUMNS} FROM dashboards
           WHERE tenant_id = ${p()} AND scope_id = ${p()}
-          ORDER BY name, slug`,
+          ORDER BY sort_order IS NULL, sort_order, name, slug`,
         [tenantId, scopeId],
       );
       return rows.map(toRow);
     },
 
-    commit(ref, write, expectedRevision) {
-      if (expectedRevision === undefined) return force(ref, write);
-      // Zero means the caller expects no row yet, so this is an insert that
-      // must fail if one exists. No row ever holds revision 0.
-      if (expectedRevision === 0) return create(ref, write);
-      return update(ref, write, expectedRevision);
+    async commit(ref, write, expectedRevision) {
+      // This row outlives dashboard deletion. Its lock serializes writers to
+      // the same address, so a recreated dashboard cannot reuse an old ETag.
+      const conflict = new Error("Dashboard revision conflict");
+      try {
+        return await driver.transaction(async () => {
+          const p = placeholders(driver.dialect);
+          const [counter] = await driver.all<{ revision: number }>(
+            `INSERT INTO dashboard_revisions (tenant_id, scope_id, slug, revision)
+             VALUES (${p()}, ${p()}, ${p()}, 1)
+             ON CONFLICT (tenant_id, scope_id, slug) DO UPDATE
+               SET revision = dashboard_revisions.revision + 1
+             RETURNING revision`,
+            refValues(ref),
+          );
+          if (!counter) throw new Error("Revision counter was not returned");
+          const revision = Number(counter.revision);
+          let row: DashboardMetadataRow | null;
+          if (expectedRevision === undefined)
+            row = await force(ref, write, revision);
+          else if (expectedRevision === 0)
+            row = await create(ref, write, revision);
+          else row = await update(ref, write, expectedRevision, revision);
+          // Roll back the counter as well when the compare-and-swap failed.
+          if (row === null) throw conflict;
+          return row;
+        });
+      } catch (error) {
+        if (error === conflict) return null;
+        throw error;
+      }
     },
 
-    async remove(ref) {
-      return driver.transaction(async () => {
-        const p = placeholders(driver.dialect);
-        const rows = await driver.all<RawRow>(
-          `DELETE FROM dashboards
-            WHERE tenant_id = ${p()} AND scope_id = ${p()} AND slug = ${p()}
-          RETURNING ${COLUMNS}`,
-          refValues(ref),
-        );
-        const q = placeholders(driver.dialect);
-        await driver.all(
-          `DELETE FROM dashboard_permissions
-            WHERE tenant_id = ${q()} AND scope_id = ${q()} AND slug = ${q()}`,
-          refValues(ref),
-        );
-        return first(rows);
-      });
-    },
+    remove: (ref) => remove(ref),
+    removeIfRevision: (ref, revision) => Number.isSafeInteger(revision) && revision > 0 ? remove(ref, revision) : Promise.resolve(null),
 
     async getPermissions(ref) {
       const p = placeholders(driver.dialect);

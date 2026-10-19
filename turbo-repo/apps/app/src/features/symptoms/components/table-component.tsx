@@ -82,6 +82,8 @@ export default function SymptomsTable({
         (dict.symptoms as I18nRecord).condition as string,
         (dict.symptoms as I18nRecord).symptom as string,
         (dict.symptoms as I18nRecord).active_time as string,
+        (dict.symptoms as I18nRecord).sla_column as string,
+        (dict.symptoms as I18nRecord).recurrence as string,
         (dict.symptoms as I18nRecord).trip as string,
         (dict.symptoms as I18nRecord).driver as string,
         (dict.symptoms as I18nRecord).creation_date as string,
@@ -95,8 +97,13 @@ export default function SymptomsTable({
 
   const content = [
     ...(tableData && tableData.data
-      ? tableData.data.map((item, index) => (
-          <TableItem key={index} data={item} dict={dict} compact={compact} />
+      ? tableData.data.map((item) => (
+          <TableItem
+            key={item.id}
+            data={item}
+            dict={dict}
+            compact={compact}
+          />
         ))
       : []),
   ];

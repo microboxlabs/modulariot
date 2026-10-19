@@ -1,0 +1,59 @@
+import { Callout } from 'nextra/components'
+
+# Conectar BigQuery
+
+Esta guía es para administradores. Permite que los dashboards ejecuten SQL guardado de BigQuery. Los usuarios y los editores nunca ven ni envían SQL: eligen una operación y entregan valores para los parámetros.
+
+## Qué necesita
+
+- Una cuenta de servicio de Google con permiso para ejecutar trabajos y leer los datasets que usa el SQL. Nada más.
+- Una conexión de BigQuery cuya URL base es `https://bigquery.googleapis.com`, con esa cuenta de servicio como credencial.
+- El ámbito OAuth de la credencial definido como `https://www.googleapis.com/auth/bigquery`. El ámbito no otorga permisos adicionales; IAM sigue decidiendo.
+
+## Definir la operación
+
+Una operación de BigQuery es una operación POST en la conexión. Su esquema de solicitud declara los parámetros y, en `x-dashboard`, el SQL y sus límites:
+
+```json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "days": { "type": "integer", "minimum": 1, "maximum": 90 }
+  },
+  "required": ["days"],
+  "x-dashboard": {
+    "readOnly": true,
+    "kind": "BIGQUERY",
+    "credentialScoped": true,
+    "projectId": "my-project",
+    "location": "US",
+    "query": "SELECT day, SUM(trips) AS trips FROM `my-project.fleet.daily` WHERE day >= DATE_SUB(CURRENT_DATE(), INTERVAL @days DAY) GROUP BY day ORDER BY day",
+    "maximumBytesBilled": "500000000",
+    "parameterTypes": { "days": "INT64" }
+  }
+}
+```
+
+| Campo | Significado |
+| --- | --- |
+| `query` | El SQL. Los parámetros son marcadores con nombre, como `@days`. Los valores nunca se pegan dentro del SQL. |
+| `parameterTypes` | El tipo de BigQuery de cada parámetro: `STRING`, `INT64`, `FLOAT64`, `NUMERIC`, `BIGNUMERIC`, `BOOL`, `DATE`, `DATETIME`, `TIME`, `TIMESTAMP`, o un arreglo plano como `ARRAY<STRING>`. Use `{}` si no hay ninguno. |
+| `maximumBytesBilled` | Lo máximo que la consulta puede leer, en bytes, como cadena decimal. No puede superar el tope del host (1 GB por defecto). |
+| `projectId`, `location` | Dónde se ejecuta el trabajo |
+
+## Qué pasa en cada ejecución
+
+1. Una ejecución de prueba verifica que la sentencia es un `SELECT` y que la lectura estimada cabe bajo `maximumBytesBilled`.
+2. El trabajo se ejecuta con el mismo tope de facturación y un tiempo máximo de 20 segundos.
+3. Solo vuelven resultados completos y planos: como máximo 5.000 filas y 2 MiB.
+
+Se rechazan las columnas anidadas o repetidas, y los resultados que necesitan más de una página. Adapte el SQL al dashboard: agregue los datos y seleccione solo las columnas que muestran los widgets.
+
+<Callout type="info">
+Cada ejecución cuesta una ejecución de prueba más la consulta. Use con moderación la actualización automática del dashboard en operaciones costosas.
+</Callout>
+
+## Sin ModularIoT
+
+Un servidor independiente puede ejecutar BigQuery con `createBigQueryOperationExecutor` de `@microboxlabs/miot-dashboard-server/queries`. Usted entrega una función `resolve(request)` que verifica la conexión de la organización y devuelve el plan, los parámetros y un token de acceso de corta duración. Consulte [Biblioteca de servidor](/es/products/dashboards/reference/server-library#ejecutores-de-consultas).

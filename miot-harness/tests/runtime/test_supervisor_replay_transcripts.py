@@ -15,24 +15,15 @@ from miot_harness.runtime.conversation import (
     ConversationTurn,
     InMemoryConversationStore,
 )
-from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
-from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
 from tests.fixtures.fake_provider import FAKE_PROFILE
 
 
-class _FixedRouter(IntentRouter):
-    def route(self, message: str) -> RouteResult:
-        return RouteResult(route=HarnessRoute.DATA_AGENTIC, reason="test")
-
-
 def _supervisor(tmp_path, store):
     sup = HarnessSupervisor(
-        router=_FixedRouter(),
         tools=ToolRegistry(),
-        stories=StorytellingModule(),
         run_store=JsonRunStore(tmp_path),
         conversation_store=store,
     )
@@ -119,6 +110,11 @@ def test_the_loop_is_handed_the_tenant_context_the_meta_seat_had(
         def facts_for(self, tenant_id: str):
             return []
 
+        overlays = None
+
+        def playbooks_for(self, tenant_id: str, *, connection: str | None = None, learned=True):
+            return []
+
     sup = _supervisor(tmp_path, InMemoryConversationStore())
     sup.context_skills = _Bundle()  # type: ignore[assignment]
 
@@ -128,3 +124,44 @@ def test_the_loop_is_handed_the_tenant_context_the_meta_seat_had(
         assert tenant_block in str(injected[0].content)
     else:
         assert injected == []
+
+
+def test_the_tenant_facts_leave_out_skills_the_loop_prompt_already_lists(tmp_path) -> None:
+    from miot_harness.context_skills.skill_models import LoadedSkill, PlaybookSkill
+    from miot_harness.datasource.catalog import CatalogEntry
+
+    listed = LoadedSkill(
+        skill=PlaybookSkill(kind="playbook", id="listed", name="Listed", when_to_use="x"),
+        playbook_body="body",
+        source_path="/skills/listed/SKILL.md",
+    )
+
+    class _Primer:
+        tenant_block = ""
+
+    class _Bundle:
+        def primer_for(self, tenant_id: str):
+            return _Primer()
+
+        def facts_for(self, tenant_id: str):
+            return [
+                CatalogEntry(name="depots", layer="system", title="Depots", body="Two."),
+                CatalogEntry(name="skill:listed", layer="skill", title="Listed", body="x"),
+                CatalogEntry(name="skill:tenant-only", layer="skill", title="Mine", body="y"),
+                CatalogEntry(name="skill:listed", layer="skill", title="Override", body="z"),
+            ]
+
+        overlays = None
+
+        def playbooks_for(self, tenant_id: str, *, connection: str | None = None, learned=True):
+            return [listed]
+
+    sup = _supervisor(tmp_path, InMemoryConversationStore())
+    sup.context_skills = _Bundle()  # type: ignore[assignment]
+
+    [injected] = sup._inject_tenant_context(_ctx(), [])
+    text = str(injected.content)
+    assert "Depots" in text
+    assert "Mine" in text
+    assert "Override" in text
+    assert "Listed" not in text

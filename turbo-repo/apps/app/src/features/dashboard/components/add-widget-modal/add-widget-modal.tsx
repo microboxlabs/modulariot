@@ -6,8 +6,6 @@ import { HiMagnifyingGlass } from "react-icons/hi2";
 import { createPortal } from "react-dom";
 import { useDashboard } from "../../context/dashboard-context";
 import {
-  getValidDashletsForParent,
-  getCategories,
   getCategoryLabel,
   type DashletMeta,
 } from "../../dashlets";
@@ -32,15 +30,14 @@ export function AddWidgetModal({
   isOpen,
   onClose,
   parentId,
-  parentComponentId,
 }: Readonly<AddWidgetModalProps>) {
-  const { createWidget, dictionary } = useDashboard();
+  const { createWidget, dictionary, registry } = useDashboard();
   const [searchQuery, setSearchQuery] = useState("");
 
   // Get valid dashlets for this parent
   const validDashlets = useMemo(
-    () => getValidDashletsForParent(parentComponentId),
-    [parentComponentId]
+    () => registry.all(),
+    [registry]
   );
 
   // Filter by search query (resolve i18n keys for matching)
@@ -60,7 +57,7 @@ export function AddWidgetModal({
 
   // Group by category
   const categories = useMemo(() => {
-    const cats = getCategories();
+    const cats = [...new Set(filteredDashlets.map((dashlet) => dashlet.meta.category))];
     return cats
       .map((cat) => ({
         id: cat,

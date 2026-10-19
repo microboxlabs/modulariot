@@ -2,7 +2,7 @@
  * Pure event→state mapping for the streaming harness search.
  *
  * The stream route (/api/harness/search/stream) relays typed SSE frames, all
- * carrying one flat payload shape (`{tool}`, `{route}`, `{delta}`,
+ * carrying one flat payload shape (`{tool}`, `{delta}`,
  * `{results}` …) with the event name on the SSE `event:` line. This reducer
  * folds them into the progress state the spotlight renders live — no I/O, no
  * React, so the whole chain-of-thought mapping is unit-testable.
@@ -13,9 +13,7 @@ import type { HarnessSearchResult } from "@/app/api/harness/search/search-blocks
 export type HarnessSearchPhase =
   | "idle"
   | "connecting"
-  | "routing"
   | "exploring"
-  | "verifying"
   | "answering"
   | "done"
   | "error";
@@ -27,11 +25,9 @@ export interface HarnessToolStep {
 
 export interface HarnessStreamProgress {
   phase: HarnessSearchPhase;
-  /** Harness route label (e.g. "data_agentic") from route.selected. */
-  route?: string;
   /** Tool invocations in arrival order — the visible chain of thought. */
   steps: HarnessToolStep[];
-  /** Synthesizer thinking text, accumulated from thinking.delta frames. */
+  /** The model's thinking text, accumulated from thinking.delta frames. */
   thinking: string;
   /** Final results — null until the search.result frame lands. */
   results: HarnessSearchResult[] | null;
@@ -89,15 +85,6 @@ export function reduceHarnessStreamEvent(
       };
     }
 
-    case "route.selected": {
-      const route = eventData(frame).route;
-      return {
-        ...state,
-        phase: "routing",
-        ...(typeof route === "string" && { route }),
-      };
-    }
-
     case "tool.started": {
       const tool = eventData(frame).tool;
       if (typeof tool !== "string") return state;
@@ -113,9 +100,6 @@ export function reduceHarnessStreamEvent(
       if (typeof tool !== "string") return state;
       return { ...state, steps: completeStep(state.steps, tool) };
     }
-
-    case "verification.completed":
-      return { ...state, phase: "verifying" };
 
     case "thinking.delta": {
       const delta = eventData(frame).delta;

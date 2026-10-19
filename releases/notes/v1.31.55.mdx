@@ -1,0 +1,90 @@
+# 🔔 Release Notes v1.31.55 — ModularIoT
+
+### Fecha: 29/09/2026
+
+**Objetivo**: Ampliar las capacidades de ASK MIOT Harness y del chat, con aprendizaje supervisado, resultados visuales y conversaciones más resistentes. Preparar también la edición segura de dashboards y fortalecer las integraciones y verificaciones del stack.
+
+## 🚀 Evolutivos
+
+- **📍 Aprendizaje supervisado del asistente**
+  - **Funcionalidad**: Los entrenadores pueden enseñar hechos desde el chat, aprobarlos y trabajar en un espacio de aprendizaje con sesiones, diferencias y evaluaciones antes y después de los cambios.
+  - **Detalle técnico**: El conocimiento editable se organiza por tenant en capas con historial de versiones; los hechos aprendidos pueden aplicarse en la siguiente ejecución sin reiniciar. Las herramientas de archivos y los comandos adicionales para entrenadores figuran como trabajo **previsto**, ya que su incidencia permanece abierta. *(Integración OSS — MIOT-0.5.56)*
+
+- **📍 Conversaciones más útiles y persistentes**
+  - **Funcionalidad**: El chat incorpora respuestas progresivas, indicadores de actividad, selección de modelo, adjuntos de imagen, PDF y texto, títulos, renombrado, bifurcación e inspección de los pasos del agente.
+  - **Detalle técnico**: Las ejecuciones pueden reanudarse tras recargar la página y la memoria de conversación persiste entre reinicios. El panel de actividad permite seguir varias conversaciones. *(Integración OSS — MIOT-0.5.56)*
+
+- **📍 Resultados visuales, historias y enlaces compartidos**
+  - **Funcionalidad**: El asistente presenta gráficos, tablas, indicadores, diagramas y preguntas con opciones; también permite previsualizar un dashboard creado a partir de widgets de la conversación antes de guardarlo.
+  - **Detalle técnico**: Las historias pasan del almacenamiento local a una API con versiones y enlaces compartidos. Los enlaces creados por el agente aparecen directamente como tarjetas en el chat. *(Integración OSS — MIOT-0.5.56)*
+
+- **📍 Dashboards con revisiones y consultas guardadas**
+  - **Funcionalidad**: El contrato admite definiciones portables de consultas guardadas sin alterar los documentos anteriores.
+  - **Detalle técnico**: El servidor devuelve revisiones mediante ETag; el proxy conserva ETag y admite `If-Match`, y el cliente de API exige la revisión para guardar sin sobrescribir cambios concurrentes. La integración paralela con la página y el editor queda para un trabajo posterior. *(Integración OSS — MIOT-0.5.56)*
+
+- **📍 Seleccionables administrables por organización**
+  - **Funcionalidad**: La configuración permite editar listas de opciones y sus asociaciones con campos de formularios, incluidas listas dinámicas de miembros y conexiones.
+  - **Detalle técnico**: Las listas se almacenan en PostgreSQL para conservarse entre reinicios y mantenerse consistentes entre réplicas. *(Integración OSS — MIOT-0.5.56)*
+
+- **📍 Más herramientas para el asistente**
+  - **Funcionalidad**: El agente puede consultar fuentes públicas y código y documentación configurados, explorar conexiones, perfilar tablas y analizar procesos BPMN disponibles en conexiones PostgreSQL compatibles.
+  - **Detalle técnico**: Se incorporan herramientas MCP, habilidades de investigación y creación de sistemas, notas y análisis guardados por conexión, y comandos `/compact` y `/context` para conversaciones largas. *(Integración OSS — MIOT-0.5.56)*
+
+## 🔧 Integraciones
+
+- **🔌 Proveedores de modelos y consumo**
+  - **Alcance**: La configuración de plataforma incorpora proveedores de IA, incluido LLM Gateway, y registra el uso por tokens. El plan de puestos ofrece un fondo mensual compartido por organización; su aplicación automática permanece desactivada por defecto. *(Integración OSS — MIOT-0.5.56)*
+
+- **🔌 Aprobaciones y acceso del entrenador**
+  - **Alcance**: Las operaciones de escritura del asistente que requieren autorización muestran controles para aprobar o rechazar desde el chat. El permiso `HARNESS_TRAINER` delimita el acceso al aprendizaje y a sus rutas; los propietarios de organización pueden gestionar la asignación correspondiente. *(Integración OSS — MIOT-0.5.56)*
+
+- **🔌 Verificación del servidor de dashboards**
+  - **Alcance**: CI ejecuta sus pruebas HTTP y de persistencia con SQLite y PostgreSQL, y un análisis SonarCloud específico cubre el servidor y los paquetes de contrato público. *(Integración OSS — MIOT-0.5.56)*
+
+## 🐛 Correcciones
+
+- **🐛 Conversaciones interrumpidas o incompletas**
+  - **Impacto**: Un reinicio o una interrupción del flujo podía dejar ejecuciones bloqueadas o perder preguntas sin respuesta en el contexto posterior.
+  - **Solución**: Se recuperan las ejecuciones interrumpidas, se conservan esas preguntas y se evita duplicar una pregunta reenviada en hilos compartidos. *(Integración OSS — MIOT-0.5.56)*
+
+- **🐛 Presentación y navegación del chat**
+  - **Impacto**: Algunos enlaces internos abrían la página principal; ciertos widgets generaban una respuesta vacía y las tarjetas de hilos compartidos mostraban información insuficiente.
+  - **Solución**: Los enlaces respetan la ruta de la aplicación, los widgets se resuelven sin una respuesta adicional y los hilos compartidos muestran sus tarjetas de solo lectura. *(Integración OSS — MIOT-0.5.56)*
+
+- **🐛 Persistencia y visualización en dashboards y mapas**
+  - **Impacto**: Los anchos de columna de la tabla v2 no se conservaban correctamente y la cámara del mapa acercaba indebidamente la vista al seguir un vehículo.
+  - **Solución**: Se corrige el guardado de anchos y el comportamiento de la cámara. *(Integración OSS — MIOT-0.5.56)*
+
+- **🐛 Resultados de herramientas y búsqueda web**
+  - **Impacto**: Los valores nulos válidos podían invalidar resultados estructurados de herramientas; algunas búsquedas respondían sin fuentes.
+  - **Solución**: Los esquemas admiten esos valores y las respuestas de búsqueda sin fuentes se tratan como errores. *(Integración OSS — MIOT-0.5.56)*
+
+- **🐛 Cálculo de créditos de compilación**
+  - **Impacto**: Un historial de Git extenso podía superar el límite de argumentos y detener los flujos nocturnos y de publicación.
+  - **Solución**: Ambos flujos transmiten el historial mediante un archivo temporal. *(Integración OSS — MIOT-0.5.56)*
+
+## 📊 Beneficios
+
+- Mayor continuidad de las conversaciones ante recargas, despliegues e interrupciones.
+- Resultados del asistente más fáciles de interpretar, revisar y compartir.
+- Aprendizaje de hechos con aprobación y evaluación de cambios.
+- Guardado de dashboards preparado para detectar conflictos de edición.
+- Listas de formularios persistentes y reutilizables por organización.
+- Mejor cobertura de pruebas y análisis para el servidor de dashboards.
+
+## 🧾 Versiones del stack
+
+- **Stack:** `miot-stack@v0.5.56`.
+- **App:** `app@v0.5.56` — actualizado.
+- **Docs:** `docs@v0.5.56` — actualizado.
+- **Web:** `web@v0.5.55` — sin cambios.
+- **Modulith:** `modulith@v0.5.34` — sin cambios.
+- **Harness:** `harness@v0.1.11` — actualizado.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el archivo `stack-manifest.json` adjunto a la publicación.
+
+## 📌 Conclusión
+
+Esta versión concentra mejoras en el trabajo cotidiano con el asistente: conversaciones más duraderas, respuestas visuales y aprendizaje supervisado. Las historias y los enlaces compartidos facilitan conservar y distribuir sus resultados.
+
+En dashboards, las revisiones y las precondiciones de guardado establecen la base para evitar sobrescrituras, aunque la integración con la página y el editor continúa por separado. Las nuevas verificaciones de CI y SonarCloud refuerzan esa evolución; las herramientas y comandos adicionales para entrenadores siguen previstos dentro del alcance OSS.

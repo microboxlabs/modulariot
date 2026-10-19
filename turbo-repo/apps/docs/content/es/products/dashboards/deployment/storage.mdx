@@ -1,0 +1,70 @@
+import { Callout } from 'nextra/components'
+
+# Almacenamiento
+
+El servidor guarda dos tipos de datos:
+
+- **Metadatos**: qué dashboards existen, quién los creó, sus revisiones y permisos. Se guardan en el **almacén**.
+- **Documentos**: el contenido de cada dashboard. Se guardan en el **almacén de documentos**, que puede ser la misma base de datos u otro lugar.
+
+## Elegir un almacén
+
+| `MIOT_DASHBOARD_STORE` | Guarda los datos | Requiere | Úselo para |
+| --- | --- | --- | --- |
+| `memory` (predeterminado) | Hasta que el proceso se detiene | Nada | Demos y pruebas |
+| `sqlite` | En un archivo | Node.js 22.13 o posterior | Un servidor |
+| `postgres` | En un servidor de base de datos | El paquete `pg` | Varios servidores, respaldos gestionados |
+
+El esquema se crea solo: las migraciones se ejecutan al iniciar y solo aplican lo que le falta a la base de datos. Con PostgreSQL, las migraciones toman un bloqueo, así que varios servidores pueden iniciar a la vez.
+
+### SQLite
+
+```bash
+MIOT_DASHBOARD_STORE=sqlite
+MIOT_DASHBOARD_SQLITE_PATH=/data/dashboards.db
+```
+
+Un proceso por archivo. Ponga el archivo en un volumen persistente.
+
+### PostgreSQL
+
+```bash
+MIOT_DASHBOARD_STORE=postgres
+MIOT_DASHBOARD_POSTGRES_URL=postgres://dashboards:secret@db.internal:5432/dashboards
+MIOT_DASHBOARD_POSTGRES_POOL_SIZE=10
+MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT=5000
+```
+
+Asigne al servidor su propia base de datos o esquema. Si se cae una conexión inactiva, el pool se reconecta cuando se necesita y registra una advertencia.
+
+## Elegir un almacén de documentos
+
+| `MIOT_DASHBOARD_DOCUMENTS` | Los documentos se guardan | Requiere |
+| --- | --- | --- |
+| `inline` (predeterminado) | En la misma base de datos que los metadatos | Nada |
+| `fs` | Un archivo por dashboard, bajo `MIOT_DASHBOARD_DOCUMENTS_PATH` | Un directorio persistente |
+| `s3` | Objetos en un bucket de S3 | `@aws-sdk/client-s3` y la cadena de credenciales de AWS |
+| `gcs` | Objetos en un bucket de Google Cloud Storage | `@google-cloud/storage` y Application Default Credentials |
+
+`inline` sirve para la mayoría de las instalaciones. Para `s3` y `gcs`, configure `MIOT_DASHBOARD_DOCUMENTS_BUCKET` y, opcionalmente, `MIOT_DASHBOARD_DOCUMENTS_PREFIX` (predeterminado `dashboards/`). La cuenta necesita permisos de lectura, creación, eliminación y listado bajo ese prefijo. Las credenciales de la nube vienen del entorno, nunca de la API.
+
+<Callout type="warning">
+El almacén de documentos queda registrado la primera vez que se abre la base de datos. Si después se inicia con uno distinto, el inicio se rechaza, porque los documentos no se mueven solos. Muévalos primero.
+</Callout>
+
+## Documentos sobrantes
+
+Un guardado o una eliminación que falla a medias puede dejar un documento sin metadatos. El servidor los elimina al iniciar y luego cada hora.
+
+| Configuración | Predeterminado | Significado |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600` | Segundos entre limpiezas. `0` las desactiva. |
+| `MIOT_DASHBOARD_ORPHAN_MIN_AGE` | `86400` | Solo se eliminan documentos más antiguos que este valor. No puede ser `0`, para que nunca se elimine un guardado en curso. |
+
+## Credenciales
+
+Si el servidor guarda credenciales de fuentes de datos (`MIOT_DASHBOARD_CREDENTIALS_KEY`), quedan cifradas en el mismo almacén. Requieren `sqlite` o `postgres`. Consulte [Guardar credenciales de fuentes de datos](/es/products/dashboards/how-to/store-credentials).
+
+## Datos iniciales
+
+`MIOT_DASHBOARD_SEED` también puede listar dashboards iniciales. Solo se escriben donde la dirección está vacía, así que la configuración puede quedar activa entre reinicios sin deshacer ediciones.

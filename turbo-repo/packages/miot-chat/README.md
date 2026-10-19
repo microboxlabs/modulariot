@@ -74,7 +74,10 @@ The CLI talks to `miot-harness` over the Phase A SSE surface (`POST /runs:start`
 miot-chat
 
 # One-shot against a local harness (no login needed)
-miot-chat ask "what's in stock?" --base-url http://localhost:8000 --tenant demo-tenant --mode canned
+miot-chat ask "what's in stock?" --base-url http://localhost:8000 --tenant demo-tenant
+
+# Pick the conversation model for this run (omit to use the harness default)
+miot-chat ask "what's in stock?" --model <name>
 
 # Resume — TUI mode opens the saved-sessions picker; piped stdin re-seeds the headless REPL
 miot-chat resume
@@ -103,9 +106,9 @@ MIOT_CHAT_NO_TUI=1 miot-chat --tenant demo-tenant
 
 ## TUI features
 
-- **Header bar**: tenant · user · conv (short id) · mode · baseUrl · profile · pending-approvals count. Warns in yellow on `mode=agentic` + a tenant other than the configured default.
+- **Header bar**: tenant · user · conv (short id). The input frame's bottom border shows the conversation model (`miot · <model>`, or `miot · default model` when none is set); the footer shows turns, context estimate, baseUrl and profile.
 - **Multi-line input editor** with bracketed-paste support, cursor movement (arrows, ctrl-arrow word jumps, home/end), backspace + forward-delete, kill-line, and an in-memory history ring (200 entries, file-backed at `~/.miot-chat/history`). Up/Down arrows recall history when the buffer is empty; `Alt-Enter` adds a newline; plain `Enter` submits.
-- **Live transcript** with structured per-event items: tool start/complete collapse to one line with a spinner, freshness warnings show inline, routes/agent turns/plans dim in. Completed turns flush into Ink's `<Static>` so they live in terminal scrollback.
+- **Live transcript** with structured per-event items: tool start/complete collapse to one line with a spinner, freshness warnings show inline, agent turns/plans dim in. Completed turns flush into Ink's `<Static>` so they live in terminal scrollback.
 - **Slash-command palette**: type `/` to filter commands by substring, Tab completes the unique match, Enter dispatches.
 - **Modals**: `/context`, `/resume`, `/theme`, `/runs`, and (behind `MIOT_CHAT_APPROVALS_UI=1`) `/approve`. Esc dismisses.
 - **Themes**: `dark` (default), `light`, `high-contrast` builtins, or your own token overrides via `~/.miot-chat/config.json` (see Configuration below). `/theme` opens a picker; `/theme <name>` jumps to it.
@@ -113,7 +116,7 @@ MIOT_CHAT_NO_TUI=1 miot-chat --tenant demo-tenant
 
 ## Slash commands
 
-All slash commands work in the TUI palette. The headless REPL supports the legacy subset (`/exit`, `/reset`, `/mode`, `/tenant`, `/save`) for backwards compatibility.
+All slash commands work in the TUI palette. The headless REPL supports the legacy subset (`/exit`, `/reset`, `/model`, `/tenant`, `/save`) for backwards compatibility.
 
 | Command | Where | Effect |
 |---|---|---|
@@ -121,7 +124,9 @@ All slash commands work in the TUI palette. The headless REPL supports the legac
 | `/exit` (or Ctrl-D) | both | Persist the session and exit |
 | `/clear` | both | Clear the on-screen transcript (conversation id kept) |
 | `/reset` | both | Mint a fresh `conversation_id` |
-| `/mode auto\|canned\|meta\|agentic` | both | Change dispatch mode |
+| `/model` | both | List the harness models (`GET /models`), marking the default and the current one |
+| `/model <name>` | both | Use that model for the rest of the session (checked against the list when the harness returns one) |
+| `/model default` | both | Go back to the harness default |
 | `/tenant <id>` | both | Change tenant |
 | `/user <id>` | TUI | Change user id |
 | `/save <path>` | both | Dump `{conversation_id, transcript}` as JSON |
@@ -150,6 +155,8 @@ All slash commands work in the TUI palette. The headless REPL supports the legac
 }
 ```
 
+A profile may also set `"model": "<name>"` to pick the conversation model; leave it out to use the harness default. A `mode` key left over from older versions is ignored.
+
 The `theme` field is optional. Valid values:
 
 - A builtin name: `"dark"`, `"light"`, or `"high-contrast"`.
@@ -165,7 +172,7 @@ Env vars:
 | `MIOT_CHAT_TOKEN` | Override bearer token |
 | `MIOT_CHAT_TENANT_ID` | Override tenant |
 | `MIOT_CHAT_USER_ID` | Override user |
-| `MIOT_CHAT_MODE` | Override dispatch mode |
+| `MIOT_CHAT_MODEL` | Conversation model; unset uses the harness default |
 | `MIOT_CHAT_ORG` | Override the organization slug (routes runs through the platform harness proxy) |
 | `MIOT_CHAT_PROFILE` | Pick a profile from the config file |
 | `MIOT_CHAT_DEBUG` | `1` streams full tool inputs and truncated outputs (tenant must be allow-listed) |
@@ -196,5 +203,5 @@ npm run check-types
 - **Architecture (TUI):** a pure session reducer in `src/tui/session/reducer.ts` owns `meta`, `transcript`, `pendingApprovals`, and `currentRunId`. `STREAM_EVENT` delegates to `src/tui/transcript/project.ts`, which mirrors the field-precedence rules of the legacy `renderer.ts:statusFor` but produces typed `TranscriptItem`s. Components subscribe via `useSession` and render via Ink. The same projector is reused by `/export` markdown serialization and (eventually) the `/runs` replay panel.
 - **Architecture (headless):** unchanged from earlier phases — `src/repl/loop.ts` reads lines, calls `client.runs.create` + `client.runs.stream`, and pipes events through the original `(state, event) → {state, output}` renderer. Marked deprecated in the source; future work re-implements headless mode on top of `useSession`.
 - The library's SSE parser surfaces the harness `event: error` frame as a thrown `MiotHarnessApiError`. Both code paths catch and render it.
-- Terminal signal is `run.completed` / `run.failed`, not `answer.completed` (which the supervisor can emit more than once when a mode is denied and a fallback runs). The projector handles the dual-emit case by upserting the in-flight assistant item.
+- Terminal signal is `run.completed` / `run.failed`, not `answer.completed` (which the harness can emit more than once in a run). The projector handles the dual-emit case by upserting the in-flight assistant item.
 - `approval.requested` events arrive from the harness, but no reply endpoint exists yet. The modal ships behind `MIOT_CHAT_APPROVALS_UI=1` and its resolve callback only records the decision locally — wiring will land when the harness exposes the reply transport.

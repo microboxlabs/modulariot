@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Label, Textarea, ToggleSwitch } from "flowbite-react";
+import { TextCardFields } from "@microboxlabs/miot-dashboard-ui/react";
+import "@microboxlabs/miot-dashboard-ui/styles.css";
+import { tr } from "@/features/i18n/tr.service";
 import type { DashletSettingsProps } from "../types";
 import type { DashletConfig, TextAlign } from "./dashlet";
-import { SettingsSelectField } from "../common/settings-fields";
-import { getHandlebarsStatus, getFlowbiteColor } from "../common/handlebars-helpers";
+import { getHandlebarsStatus } from "../common/handlebars-helpers";
 import { useDataProvider } from "../common/use-data-provider";
 import { usePgrestSettingsState } from "../common/use-pgrest-settings-state";
 import { fromPgrestParamItems } from "../common/pgrest-types";
@@ -107,37 +108,25 @@ export function DashletSettings({
   const textStatus = getHandlebarsStatus(text);
 
   const visualizationTab = (
-    <>
-      <div>
-        <Label htmlFor="tc-text" className="mb-1 block text-sm font-medium">
-          Text
-        </Label>
-        <Textarea
-          id="tc-text"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Add your text or quote here..."
-          rows={4}
-          className="text-sm"
-          color={getFlowbiteColor(textStatus)}
-        />
-      </div>
-      <SettingsSelectField
-        id="tc-align"
-        label="Alignment"
-        value={align}
-        onChange={(v) => setAlign(v as TextAlign)}
-        options={[
-          { value: "left", label: "Left" },
-          { value: "center", label: "Center" },
-          { value: "right", label: "Right" },
-        ]}
-      />
-      <div className="flex items-center justify-between">
-        <Label className="text-sm">Italic</Label>
-        <ToggleSwitch checked={italic} onChange={setItalic} label="" />
-      </div>
-    </>
+    <TextCardFields
+      value={{ text, italic, align }}
+      onChange={(next) => {
+        setText(next.text);
+        setItalic(next.italic);
+        setAlign(next.align);
+      }}
+      textStatus={textStatus}
+      labels={{
+        legend: tr("dashboard.textCard.appearance", dictionary),
+        text: tr("dashboard.textCard.text", dictionary),
+        placeholder: tr("dashboard.textCard.placeholder", dictionary),
+        alignment: tr("dashboard.textCard.alignment", dictionary),
+        left: tr("dashboard.textCard.left", dictionary),
+        center: tr("dashboard.textCard.center", dictionary),
+        right: tr("dashboard.textCard.right", dictionary),
+        italic: tr("dashboard.textCard.italic", dictionary),
+      }}
+    />
   );
 
   const dataTab = (

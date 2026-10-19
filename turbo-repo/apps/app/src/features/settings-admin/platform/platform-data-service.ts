@@ -2,13 +2,24 @@
 
 import { ApiError, getJson, sendEmpty, sendJson } from "../data/json-client";
 import { readLogoDataUrl } from "./domain-branding-form";
+import { ORGANIZATION_OWNER_ROLE_CODE } from "../data/settings-admin-data-service";
+import type { OrganizationRole } from "../types";
 import {
   PLATFORM_OWNER_ROLE,
+  type Auth0Client,
+  type CreatePlatformOrganization,
+  type PlatformOrganization,
+  type PlatformOrganizationListItem,
   type DomainBrandingAdmin,
+  type HarnessPlan,
+  type ModelProviderAdmin,
+  type ModelUsageTotal,
   type PlatformRole,
   type LogoVariant,
   type PlatformRoleMembership,
   type SetDomainBranding,
+  type SetHarnessPlan,
+  type SetModelProvider,
 } from "./platform.types";
 
 /**
@@ -95,4 +106,82 @@ export async function fetchStoredLogoDataUrl(
     throw new ApiError({ status: res.status, url });
   }
   return readLogoDataUrl(await res.blob());
+}
+
+export function fetchModelProviders(): Promise<ModelProviderAdmin[]> {
+  return getJson<ModelProviderAdmin[]>(`${PLATFORM_BASE}/model-providers`);
+}
+
+export function saveModelProvider(
+  provider: string,
+  value: SetModelProvider
+): Promise<ModelProviderAdmin> {
+  return sendJson<ModelProviderAdmin>(
+    "PUT",
+    `${PLATFORM_BASE}/model-providers/${encodeURIComponent(provider)}`,
+    value
+  );
+}
+
+export function deleteModelProvider(provider: string): Promise<void> {
+  return sendEmpty(
+    "DELETE",
+    `${PLATFORM_BASE}/model-providers/${encodeURIComponent(provider)}`
+  );
+}
+
+/** Totals per organization and model for `[from, to)`, as ISO-8601 instants. */
+export async function fetchModelUsage(
+  from: string,
+  to: string
+): Promise<ModelUsageTotal[]> {
+  const query = new URLSearchParams({ from, to });
+  const body = await getJson<{ totals: ModelUsageTotal[] }>(
+    `${PLATFORM_BASE}/model-usage?${query.toString()}`
+  );
+  return body.totals;
+}
+
+export function fetchHarnessPlan(): Promise<HarnessPlan> {
+  return getJson<HarnessPlan>(`${PLATFORM_BASE}/harness-plan`);
+}
+
+export function saveHarnessPlan(value: SetHarnessPlan): Promise<HarnessPlan> {
+  return sendJson<HarnessPlan>("PUT", `${PLATFORM_BASE}/harness-plan`, value);
+}
+
+export function fetchPlatformOrganizations(): Promise<
+  PlatformOrganizationListItem[]
+> {
+  return getJson<PlatformOrganizationListItem[]>(`${PLATFORM_BASE}/orgs`);
+}
+
+function organizationOwnersUrl(slug: string): string {
+  return `${PLATFORM_BASE}/orgs/${encodeURIComponent(slug)}/roles/${ORGANIZATION_OWNER_ROLE_CODE}`;
+}
+
+/** For a sub-account these are its top-level organization's owners. */
+export function fetchOrganizationOwners(
+  slug: string
+): Promise<OrganizationRole> {
+  return getJson<OrganizationRole>(organizationOwnersUrl(slug));
+}
+
+/** The Auth0 M2M applications; 409 when Auth0 management is not set up. */
+export function fetchAuth0Clients(): Promise<Auth0Client[]> {
+  return getJson<Auth0Client[]>(`${PLATFORM_BASE}/auth0-clients`);
+}
+
+export function createPlatformOrganization(
+  value: CreatePlatformOrganization
+): Promise<PlatformOrganization> {
+  return sendJson<PlatformOrganization>("POST", `${PLATFORM_BASE}/orgs`, value);
+}
+
+/** Replaces the organization's owners; used to name the first one. */
+export async function setOrganizationOwners(
+  slug: string,
+  assigneeIds: string[]
+): Promise<void> {
+  await sendJson<unknown>("PUT", organizationOwnersUrl(slug), { assigneeIds });
 }

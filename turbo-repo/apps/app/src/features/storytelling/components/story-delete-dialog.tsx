@@ -4,12 +4,12 @@ import { Button, Modal, ModalBody } from "flowbite-react";
 import { HiExclamation } from "react-icons/hi";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import type { StoryItem } from "../storytelling.types";
+import type { Story } from "../storytelling.types";
 
 interface StoryDeleteDialogProps {
   /** One story = the per-card kebab menu's delete; several = the grid's
    * selection-toolbar mass delete — same dialog either way. */
-  readonly stories: readonly StoryItem[];
+  readonly stories: readonly Pick<Story, "id" | "title">[];
   readonly onClose: () => void;
   readonly onConfirm: () => void;
   readonly dict: I18nRecord;

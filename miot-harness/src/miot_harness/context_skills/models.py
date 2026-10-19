@@ -36,7 +36,7 @@ class ContextScope(BaseModel):
 class SystemFact(BaseModel):
     """One queryable fact about the system around the harness.
 
-    Surfaced through the meta path as a `MetaAgentCatalogEntry`, so the
+    Surfaced to the model as a `CatalogEntry`, so the
     field names mirror that projection (`name`/`title`/`body`/`layer`).
     """
 

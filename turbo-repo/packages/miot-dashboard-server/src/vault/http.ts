@@ -220,7 +220,7 @@ export function createHttpCredentialsVault(
    */
   function cacheUntil(value: DataSourceCredential | null): number {
     const ceiling = now() + maxCacheMs;
-    if (value === null || value.kind !== "HTTP_AUTH") return ceiling;
+    if (value?.kind !== "HTTP_AUTH") return ceiling;
     if (value.expiresAt === undefined) return ceiling;
 
     const stated = Date.parse(value.expiresAt);

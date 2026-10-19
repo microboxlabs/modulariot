@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.microboxlabs.miot.core.alfresco.AlfrescoPerson;
 import com.microboxlabs.miot.core.api.dto.SelectableRequest;
 import java.io.UncheckedIOException;
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,7 +20,11 @@ class GeneralSelectablesTest {
 
     private final SelectableService service = new SelectableService(new InMemorySelectableStore(),
             List.of(new GeneralSelectables()),
-            List.of(new CoreSystemSources.TimeZones(), new CoreSystemSources.Currencies()), e -> { });
+            List.of(new CoreSystemSources.TimeZones(), new CoreSystemSources.Currencies(),
+                    new MemberSource(tenant -> List.of("GROUP_ops"), new MemberSourceTest.FakeDirectory(Map.of(
+                            "GROUP_ops", List.of(new AlfrescoPerson("ana@example.com", "ana@example.com", "Ana",
+                                    "Pérez", "Ana Pérez")))), Clock.systemUTC())),
+            e -> { });
 
     /** Defaults skip validation when seeded, so prove each one would pass it as a write. */
     @Test
@@ -86,5 +92,7 @@ class GeneralSelectablesTest {
         assertEquals(SelectableService.DEFAULT_OPTION_LIMIT, service.options(TENANT, "timezone", null, null, null)
                 .size());
         assertTrue(service.get(TENANT, "timezone").options().isEmpty(), "a system list stores no options");
+        assertEquals(List.of("ana@example.com"), service.options(TENANT, "responsible", "ana", null, null)
+                .stream().map(SelectableOption::value).toList());
     }
 }

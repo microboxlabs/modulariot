@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.api;
 
+import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.api.dto.SetModulesRequest;
 import com.microboxlabs.miot.core.auth.WriteAuthorizer;
 import com.microboxlabs.miot.core.model.Organization;
@@ -31,7 +32,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
  * any member of the org may see the enabled modules.
  *
  * <p>Write ({@code PUT}) replaces the full set of enabled module codes
- * for the org and requires {@code SITE_MANAGER} on the parent.
+ * for the org and requires {@code org:update} on the top-level organization.
  * Disabled modules are deleted outright rather than flagged — the
  * {@code enabled} column exists for forward-compat but we treat the
  * row's presence as authoritative for now.
@@ -86,7 +87,7 @@ public class OrgModulesResource {
                                 return Uni.createFrom().failure(new NotFoundException(
                                         "Organization not found: " + organizationId));
                             }
-                            return writeAuthorizer.requireParentSiteManager(org)
+                            return writeAuthorizer.require(org, CoreAccessCatalog.ORG_UPDATE)
                                     .flatMap(ignored -> replaceModules(org.id, requested));
                         }));
     }

@@ -1,0 +1,90 @@
+# Documents and widgets
+
+Everything about a dashboard, except its permissions, is one JSON document. The server stores it, the UI draws it, and you can export and import it as a file.
+
+## The document
+
+```json
+{
+  "version": 2,
+  "name": "Operations overview",
+  "preferences": { "editMode": false },
+  "widgets": [ ... ],
+  "queries": [ ... ],
+  "filters": [ ... ],
+  "refreshInterval": 60,
+  "order": 1
+}
+```
+
+| Field | Holds |
+| --- | --- |
+| `version` | Always `2`. The server refuses any other value. |
+| `name` | The title people see |
+| `widgets` | The widget tree |
+| `queries` | Saved queries widgets read |
+| `filters` | The filter bar |
+| `refreshInterval` | Seconds between automatic refreshes: 0 (off), 10, 30, 60 or 300 |
+| `order` | Position in the navigation. Lower comes first; dashboards without it come last. |
+| `allowedGroups` | Optional. Limits viewers to members of these groups. |
+
+The full field list is in [Document schema](/en/products/dashboards/reference/document-schema).
+
+## Widgets
+
+A widget is one element on the grid: a card, a statistic, a table, a chart, or a container that holds other widgets.
+
+```json
+{
+  "id": "revenue",
+  "componentId": "text_card",
+  "layout": { "i": "revenue", "x": 0, "y": 0, "w": 12, "h": 3 },
+  "config": { "text": "Revenue: {{total}}" },
+  "createdAt": "2026-10-05T00:00:00Z",
+  "updatedAt": "2026-10-05T00:00:00Z"
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `id` | Unique in the document |
+| `componentId` | Which widget type draws it. See [Widget catalog](/en/products/dashboards/reference/widgets). |
+| `layout` | Position and size on the grid |
+| `config` | The widget type's own settings |
+| `children` | Widgets inside a container |
+
+The contract does not decide which `componentId` values exist. The page that draws the dashboard does, through its widget registry. A widget the page does not know shows a short "not available" message; the rest of the dashboard still works.
+
+## The grid
+
+The grid has **24 columns**. `x` and `w` count columns; `y` and `h` count rows. A widget must fit: `x + w` is at most 24. There is no row limit, and the dashboard scrolls.
+
+The grid is designed at 1,600 pixels wide and scales to fit its container, up to 1.35 times. On narrow screens it adjusts how widgets are shown, but saved positions never change because of the screen size.
+
+## Templates
+
+Text in widget settings can contain templates in double braces. The widget fills them from its data:
+
+| Template | Reads |
+| --- | --- |
+| `{{completed}}` or `{{row.completed}}` | Column `completed` of the first result row |
+| `{{filter.vehicle}}` | The current value of filter `vehicle` |
+| `{{data_provider.title}}` | A value the widget's settings define |
+
+Templates use Handlebars, and their output is always shown as text, never as HTML.
+
+## Data for a widget
+
+A widget gets data in one of two ways:
+
+| `dataMode` | Data comes from |
+| --- | --- |
+| `static` (default) | `staticData`, a JSON object in the widget's settings |
+| `planner` | The saved query named in `plannerVariableName` |
+
+Widgets that show one value read the first row. Tables, lists and charts read every row.
+
+## Compatibility
+
+- **Unknown fields are kept.** A document written by a newer UI keeps its extra fields when an older server saves it.
+- **Unknown versions are refused.** The server does not guess how to convert a document it does not understand, because a wrong guess would lose data on the next save.

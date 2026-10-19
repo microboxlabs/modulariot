@@ -99,14 +99,22 @@ export function createS3DocumentStore(
           if (key !== null)
             yield { key, createdAt: documentDate(entry.LastModified) };
         }
-        const next = page.IsTruncated ? page.NextContinuationToken : undefined;
-        if (page.IsTruncated && (!next || next === token))
-          throw new Error("S3 listing did not advance");
-        token = next;
+        token = nextPageToken(page, token);
       } while (token);
     },
     async close() {
       if (!options.client) client.destroy();
     },
   };
+}
+
+/** A truncated page must move forward, otherwise iteration would never finish. */
+function nextPageToken(
+  page: Awaited<ReturnType<S3DocumentClient["listObjectsV2"]>>,
+  previous: string | undefined,
+): string | undefined {
+  if (!page.IsTruncated) return undefined;
+  const next = page.NextContinuationToken;
+  if (!next || next === previous) throw new Error("S3 listing did not advance");
+  return next;
 }

@@ -7,6 +7,9 @@ import type {
   CreateTemplateRequest,
   IntegrationConnection,
   IntegrationTemplate,
+  PostgrestFunction,
+  PostgrestImportRequest,
+  PostgrestImportResult,
   UpdateConnectionRequest,
   UpdateTemplateRequest,
 } from "./integration-config.types";
@@ -127,5 +130,30 @@ export function deleteConnection(orgSlug: string, id: string): Promise<void> {
   return sendJson<void>(
     "DELETE",
     `${base(orgSlug)}/connections/${encodeURIComponent(id)}`
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* PostgREST connections                                                       */
+/* -------------------------------------------------------------------------- */
+
+export function fetchPostgrestFunctions(
+  orgSlug: string,
+  id: string
+): Promise<PostgrestFunction[]> {
+  return getJson<PostgrestFunction[]>(
+    `${base(orgSlug)}/connections/${encodeURIComponent(id)}/postgrest/functions`
+  );
+}
+
+export function importPostgrestFunctions(
+  orgSlug: string,
+  id: string,
+  body: PostgrestImportRequest
+): Promise<PostgrestImportResult> {
+  return sendJson<PostgrestImportResult>(
+    "POST",
+    `${base(orgSlug)}/connections/${encodeURIComponent(id)}/postgrest/import`,
+    body
   );
 }

@@ -6,14 +6,18 @@ import { useOrgMembers } from "../hooks/use-org-members";
 import { useOrgModules } from "../hooks/use-org-modules";
 import ModulesList from "./modules-list";
 import GpsWebhookCard from "../gps-webhooks/gps-webhook-card";
+import EmailChannelCard from "../email/email-channel-card";
 import WhatsAppChannelCard from "../whatsapp/whatsapp-channel-card";
 import ContentReviewPermissionCard from "./content-review-permission-card";
+import HarnessTrainerPermissionCard from "./harness-trainer-permission-card";
 import OrganizationMembersCard from "./organization-members-card";
 import type { OrgSummary } from "../types";
 
 interface OrgDetailPanelProps {
   readonly organization: OrgSummary | null;
   readonly dict: I18nRecord;
+  /** Settings › Credentials text, for the credential forms the channel cards open. */
+  readonly credentialsDict?: I18nRecord;
 }
 
 /**
@@ -24,6 +28,7 @@ interface OrgDetailPanelProps {
 export default function OrgDetailPanel({
   organization,
   dict,
+  credentialsDict = {},
 }: OrgDetailPanelProps) {
   const orgSlug = organization?.slug ?? null;
   const {
@@ -50,13 +55,22 @@ export default function OrgDetailPanel({
   return (
     <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
       {isOwner ? (
-        <ContentReviewPermissionCard
-          orgSlug={orgSlug}
-          members={members}
-          membersLoading={membersLoading}
-          membersError={membersError}
-          dict={dict}
-        />
+        <>
+          <ContentReviewPermissionCard
+            orgSlug={orgSlug}
+            members={members}
+            membersLoading={membersLoading}
+            membersError={membersError}
+            dict={dict}
+          />
+          <HarnessTrainerPermissionCard
+            orgSlug={orgSlug}
+            members={members}
+            membersLoading={membersLoading}
+            membersError={membersError}
+            dict={dict}
+          />
+        </>
       ) : (
         <OrganizationMembersCard
           members={members}
@@ -74,6 +88,11 @@ export default function OrgDetailPanel({
       {isOwner && (
         <>
           <WhatsAppChannelCard orgSlug={orgSlug} dict={dict} />
+          <EmailChannelCard
+            orgSlug={orgSlug}
+            dict={dict}
+            credentialsDict={credentialsDict}
+          />
           <GpsWebhookCard orgSlug={orgSlug} dict={dict} />
         </>
       )}

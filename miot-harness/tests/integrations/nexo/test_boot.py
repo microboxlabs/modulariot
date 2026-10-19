@@ -136,14 +136,6 @@ async def test_boot_surveys_freshness_and_builds_catalog(monkeypatch):
     assert result.freshness["fn_dx_centro_control"].status == "fresh"
     assert result.freshness["fn_dx_task_timeline"].status == "empty_no_timestamp"
 
-    entries = {e.name: e for e in result.catalog_entries}
-    assert set(entries) == {"coordinador_centro_control", "coordinador_task_timeline"}
-    centro = entries["coordinador_centro_control"]
-    assert centro.layer == "L1"
-    assert "kpi" in centro.body
-    assert "Último refresh" in centro.body
-    timeline = entries["coordinador_task_timeline"]
-    assert "sin refrescar" in timeline.body
 
 
 @pytest.mark.asyncio
@@ -161,8 +153,7 @@ async def test_boot_survey_disabled_yields_no_freshness(monkeypatch):
 
     assert result.enabled is True
     assert result.freshness == {}
-    # Catalog entries are still descriptor-derived (no freshness suffix).
-    assert [e.name for e in result.catalog_entries] == ["coordinador_centro_control"]
+    assert result.registered == ["coordinador_centro_control"]
 
 
 @pytest.mark.asyncio

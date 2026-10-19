@@ -10,12 +10,15 @@ import type { Block, DetailPageData } from "./DetailPage";
 type CardConfig = { icon?: string; id?: string };
 type LinkConfig = { href: string; external?: boolean };
 
+type PlanConfig = { href: string; external?: boolean; featured?: boolean };
+
 type BlockConfig =
   | { type: "split" }
   | { type: "grid"; id?: string; cards: CardConfig[] }
   | { type: "steps" }
   | { type: "stats" }
-  | { type: "linkgrid"; links: LinkConfig[] };
+  | { type: "linkgrid"; links: LinkConfig[] }
+  | { type: "plans"; plans: PlanConfig[] };
 
 interface PageConfig {
   icon?: string;
@@ -51,6 +54,30 @@ export const detailConfig: Record<string, PageConfig> = {
     icon: "video",
     graphic: "video",
     blocks: [{ type: "split" }, { type: "grid", cards: [{ icon: "video" }, { icon: "bolt" }, { icon: "radar" }, { icon: "shield" }] }],
+  },
+  "producto/dashboards": {
+    icon: "chart",
+    blocks: [
+      { type: "split" },
+      { type: "grid", cards: [{ icon: "chart" }, { icon: "bolt" }, { icon: "shield" }, { icon: "users" }, { icon: "code" }, { icon: "cloud" }] },
+      { type: "steps" },
+      {
+        type: "plans",
+        plans: [
+          { href: "https://docs.modulariot.com/products/dashboards/getting-started/quickstart", external: true },
+          { href: "/precios", featured: true },
+          { href: "/contacto" },
+        ],
+      },
+      {
+        type: "linkgrid",
+        links: [
+          { href: "https://docs.modulariot.com/products/dashboards", external: true },
+          { href: "https://docs.modulariot.com/products/dashboards/tutorials/embed-in-a-web-page", external: true },
+          { href: "https://github.com/microboxlabs/modulariot", external: true },
+        ],
+      },
+    ],
   },
   "producto/caracteristicas": {
     icon: "code",
@@ -95,6 +122,7 @@ interface TranslatedBlock {
   steps?: { n: string; title: string; body: string }[];
   links?: { title: string; body: string }[];
   items?: { value: string; label: string }[];
+  plans?: { name: string; price: string; body: string; bullets: string[]; cta: string }[];
 }
 
 interface TranslatedPage {
@@ -140,6 +168,15 @@ export async function getDetailPageData(lang: string, slug: string): Promise<Det
     }
     if (bc.type === "steps") {
       return { type: "steps", kicker: bt.kicker, title: bt.title!, subtitle: bt.subtitle, steps: bt.steps! };
+    }
+    if (bc.type === "plans") {
+      return {
+        type: "plans",
+        kicker: bt.kicker,
+        title: bt.title!,
+        subtitle: bt.subtitle,
+        plans: bt.plans!.map((p, j) => ({ ...p, href: bc.plans[j].href, external: bc.plans[j].external, featured: bc.plans[j].featured })),
+      };
     }
     if (bc.type === "stats") {
       return { type: "stats", items: bt.items! };

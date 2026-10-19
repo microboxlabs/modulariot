@@ -27,6 +27,50 @@ export function flyTo(
   mapRef.flyTo(flyToOptions);
 }
 
+/**
+ * Returns [lng, lat] when both are finite numbers, otherwise null, so callers
+ * skip the camera move instead of sending the map to [0, 0].
+ */
+export function toLngLat(
+  longitude: number | null | undefined,
+  latitude: number | null | undefined
+): [number, number] | null {
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
+  return [longitude as number, latitude as number];
+}
+
+/** Zoom used when the user clicks a vehicle that is shown on its own. */
+export const VEHICLE_FOCUS_ZOOM = 12;
+
+/**
+ * Flies to a clicked vehicle and zooms in on it. Only for a vehicle shown on
+ * its own; on fleet maps the click just recenters. Never zooms out if the
+ * user is already closer than VEHICLE_FOCUS_ZOOM.
+ */
+export function zoomToVehicle(
+  mapRef: Pick<MapRef, "getZoom" | "flyTo">,
+  coordinates: [number, number]
+) {
+  mapRef.flyTo({
+    center: [coordinates[0], coordinates[1]],
+    zoom: Math.max(mapRef.getZoom(), VEHICLE_FOCUS_ZOOM),
+    duration: 1000,
+  });
+}
+
+// Recenters the map on a point while keeping the user's current zoom, pitch
+// and bearing — used to follow a moving element without zooming into it.
+export function panTo(
+  mapRef: MapRef,
+  coordinates: [number, number],
+  duration: number = 300
+) {
+  mapRef.easeTo({
+    center: [coordinates[0], coordinates[1]] as [number, number],
+    duration,
+  });
+}
+
 export function center_in_bounds(
   data: { longitude: number; latitude: number }[],
   mapRef: MapRef,

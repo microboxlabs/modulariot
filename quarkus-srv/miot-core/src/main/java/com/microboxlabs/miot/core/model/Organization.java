@@ -61,6 +61,10 @@ public class Organization extends PanacheEntityBase {
     @Column(nullable = false)
     public boolean active = true;
 
+    /** Where membership comes from: ALFRESCO (the org's Alfresco group) or NATIVE (the modulith's memberships). */
+    @Column(name = "membership_source", nullable = false)
+    public String membershipSource = "ALFRESCO";
+
     // --- Named finders (avoids static access via inherited PanacheEntityBase) ---
 
     public static Uni<Organization> findBySlug(String slug) {
@@ -71,7 +75,22 @@ public class Organization extends PanacheEntityBase {
         return find("parent.id = ?1 and active = true", parentId).list();
     }
 
+    /** The organization with this id, active or not, or null. */
+    public static Uni<Organization> byId(Long id) {
+        return findById(id);
+    }
+
+    /** The active top-level organization whose data is stored under {@code tenantClientId}, or null. */
+    public static Uni<Organization> findTopLevelByClientId(String tenantClientId) {
+        return find("tenantClientId = ?1 and parent is null and active = true", tenantClientId).firstResult();
+    }
+
     public static Uni<List<Organization>> listAllActive() {
         return find("active = true").list();
+    }
+
+    /** Every active organization with its parent loaded, by slug. */
+    public static Uni<List<Organization>> listAllActiveWithParent() {
+        return find("from Organization o left join fetch o.parent where o.active = true order by o.slug").list();
     }
 }

@@ -1,4 +1,5 @@
 "use client";
+import { DASHBOARD_DRAG_CANCEL_SELECTOR } from "@microboxlabs/miot-dashboard-ui/core";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { HiArrowRight } from "react-icons/hi2";
@@ -426,7 +427,7 @@ export function Dashlet({
                 }}
                 dragConfig={{
                   enabled: editMode,
-                  cancel: ".no-drag",
+                  cancel: DASHBOARD_DRAG_CANCEL_SELECTOR,
                 }}
                 resizeConfig={{
                   enabled: editMode,
@@ -487,7 +488,7 @@ export function Dashlet({
               }}
               dragConfig={{
                 enabled: editMode,
-                cancel: ".no-drag",
+                cancel: DASHBOARD_DRAG_CANCEL_SELECTOR,
               }}
               resizeConfig={{
                 enabled: editMode,

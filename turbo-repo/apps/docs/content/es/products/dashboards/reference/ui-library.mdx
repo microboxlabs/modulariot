@@ -1,0 +1,110 @@
+# Biblioteca de UI
+
+`@microboxlabs/miot-dashboard-ui` dibuja y edita dashboards en el navegador. La versión 0.1.0 requiere el contrato 0.6.0 o posterior. React 18 o 19 y ECharts 6 son dependencias peer opcionales.
+
+No hay importación raíz. Importe la entrada que necesita.
+
+## Entradas
+
+| Entrada | Para | Requiere React |
+| --- | --- | --- |
+| `/core` | Tamaño de la grilla, posiciones de widgets, `createWidgetRegistry` | No |
+| `/client` | `createDashboardClient`, `createDashboardRoutes`: comunicarse con el servidor | No |
+| `/document` | `createDashboardDocument`: cargar, editar y guardar un dashboard | No |
+| `/templates` | `createTemplateEngine`: plantillas Handlebars aisladas | No |
+| `/react` | Componentes, hooks, registros de widgets y editores | Sí, como peer |
+| `/charts` | Constructores de opciones para gráficos de líneas, barras, dispersión, torta e indicador | No |
+| `/react-charts` | `createChartRegistry` para React | Sí, además de ECharts |
+| `/embed` | `mountDashboard` para páginas sin React que empaquetan su propio código | Usa React internamente |
+| `/web-component` | `defineDashboardElement`: el elemento `<miot-dashboard>` | Usa React internamente |
+| `/browser` | Build autocontenido: `mountDashboard`, `defineDashboardElement`, todos los registros excepto gráficos | No, viene incluido |
+| `/browser-charts` | Lo mismo, además de `createChartRegistry` | No, viene incluido |
+| `/styles.css` | La hoja de estilos. Cárguela una vez. | No |
+
+## Cliente
+
+```ts
+const client = createDashboardClient({
+  routes: createDashboardRoutes({ baseUrl, tenantId, scopeId }),
+  getToken: async (signal) => token,
+});
+```
+
+| Método | Devuelve |
+| --- | --- |
+| `list(signal?)` | `[{ slug, name }]` |
+| `scopeCapabilities(signal?)` | `{ canCreate }` |
+| `load(slug, signal?)` | `{ config, etag }`; `config` es `null` cuando no existe |
+| `save(slug, config, etag, signal?)` | `{ revision, updatedAt, etag }` |
+| `query(slug, queryId, filters?, signal?)` | Filas del resultado |
+| `queryCatalog(slug, signal?)` | Conexiones y operaciones para editar |
+| `capabilities(slug, signal?)` | Los cinco indicadores de capacidad |
+| `permissions(slug, signal?)` | `{ assignments }` |
+| `setPermissions(slug, assignments, signal?)` | Nada |
+| `remove(slug, signal?)` | Nada |
+
+Los fallos lanzan `DashboardApiError` con `status`. El cliente nunca guarda tokens, nunca usa caché, nunca sigue redirecciones y nunca reintenta un guardado.
+
+Para un proxy del mismo origen, pase `routes: { dashboards, scopeCapabilities }` con rutas, y `credentials: "same-origin"`.
+
+## Hooks de React
+
+| Hook | Hace |
+| --- | --- |
+| `useDashboardDocument` | Carga, sigue la revisión, edita, guarda, descarta y recarga |
+| `useDashboardAutosave` | Guarda cuando las ediciones se detienen (1,5 s por defecto) |
+| `useDashboardState` | Edita widgets, diseño, filtros, consultas y ajustes, con deshacer y rehacer (50 pasos) |
+| `useSavedQueryResults` | Ejecuta consultas guardadas, las actualiza y cancela ejecuciones obsoletas |
+| `useDashboardFilterState` | Mantiene valores de filtro que controla el host |
+| `useFilterOptions` | Convierte el resultado de una consulta en opciones de selección |
+| `useQueryCatalog` | Carga las operaciones que un editor puede elegir |
+| `useDashboardPermissions` | Carga y reemplaza los permisos del dashboard |
+| `usePlannerData` | Lee un resultado con nombre dentro de un widget personalizado |
+
+## Componentes de React
+
+| Componente | Hace |
+| --- | --- |
+| `DashboardCanvas` | Grilla más dibujo recursivo de widgets. Solo lectura, salvo que pase `editMode` y callbacks. |
+| `DashboardGrid` | Solo la grilla |
+| `SavedQueryProvider` | Ejecuta consultas guardadas y entrega los resultados a los widgets |
+| `DashboardFiltersProvider` | Entrega valores y acciones de filtro a los widgets |
+| `DashboardGeneralSettings` | Edita título, actualización y orden |
+| `DashboardFilterEditor` | Edita filtros |
+| `SavedQueryManager`, `SavedQueryEditor` | Editan consultas guardadas desde el catálogo |
+| `QueryBindingSelector` | Vincula un widget a un resultado |
+| `PermissionAssignmentEditor` | Edita los permisos del dashboard |
+| `DashboardTransfer` | Importa y exporta JSON |
+| `SettingsPanel` | Ajustes accesibles en pestañas, con una acción de guardar |
+
+Los componentes de widgets (`TextCard`, `CircularStat`, `DataTable` y otros) también se exportan, para páginas que dibujan widgets sin el registro.
+
+## Montaje nativo
+
+```js
+const handle = mountDashboard(element, options);
+handle.update(newOptions); // reemplaza todas las opciones
+handle.destroy();          // antes de eliminar el elemento
+```
+
+| Opción | Significado |
+| --- | --- |
+| `instanceKey` | Obligatoria. Cámbiela cuando cambie la persona o el dashboard. No es un secreto. |
+| `registry` | Objeto con `get(componentId)` |
+| `widgets` | Los widgets del documento |
+| `unknownWidgetLabel` | Se muestra para tipos de widget desconocidos |
+| `savedQueries` | `{ client, slug, queries, filters, refreshIntervalMs, paused, errorMessage }` |
+| `filterController` | `{ definitions, values, onChange }`, cuando los usuarios cambian filtros |
+| `editMode`, `onLayoutCommit`, `onAction` | Para páginas de edición |
+
+Los errores lanzan `DashboardMountError` con un `code` estable: montar dos veces, montar sobre contenido existente, falta de `instanceKey`, o actualizar después de `destroy()`.
+
+## Estilos
+
+La hoja de estilos tiene alcance propio; no cambia los estilos de su página. Los widgets siguen el modo claro u oscuro de un ancestro con `data-miot-theme="dark"`, y los colores de las tarjetas vienen de variables CSS `--miot-card-*` que usted puede sobrescribir.
+
+## Content Security Policy
+
+Las plantillas se compilan en el navegador y necesitan `'unsafe-eval'` en `script-src`. La salida de las plantillas siempre es texto, nunca HTML.
+
+La API completa, con todas las opciones, está en el [README del paquete](https://github.com/microboxlabs/modulariot/blob/trunk/turbo-repo/packages/miot-dashboard-ui/README.md).

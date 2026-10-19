@@ -1,0 +1,104 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Construir su primer dashboard
+
+En este tutorial construye un pequeño dashboard de operaciones en la aplicación web de ModularIoT. Tiene una tarjeta de texto, una estadística que lee datos en vivo y un filtro. Al final lo comparte con un colega.
+
+Toma unos 15 minutos.
+
+## Antes de empezar
+
+- Puede iniciar sesión en la aplicación web de ModularIoT y ve **Dashboards** en la navegación. Si no aparece, pida a su administrador que lo active ([Desplegar con ModularIoT](/es/products/dashboards/deployment/with-modulariot)).
+- Su rol en la organización es **Contributor** o superior. Los Consumers pueden ver dashboards, pero no crearlos.
+- Su organización tiene al menos una conexión con una operación autorizada, como una función de PostgREST. Si no la tiene, pida a un administrador que siga [Conectar PostgREST](/es/products/dashboards/how-to/connect-postgrest). Puede hacer los pasos 1 a 3 sin ella.
+
+<Steps>
+
+### Crear el dashboard
+
+1. Abra **Dashboards** en la navegación.
+2. En **ID del dashboard**, escriba `operations-overview`. Use letras minúsculas, números y guiones. El ID pasa a ser parte de la dirección del dashboard y no se puede cambiar después.
+3. Seleccione **Crear dashboard**.
+
+El nuevo dashboard se abre vacío y aparece en la navegación bajo **Dashboards**.
+
+### Agregar una tarjeta de texto
+
+1. Active **Modo Edición** en la parte superior del dashboard.
+2. Seleccione **Agregar Widget** y elija la tarjeta **Text**.
+3. Pase el cursor sobre la nueva tarjeta y seleccione **Settings** (el engranaje del widget).
+4. En el campo de texto, escriba `Bienvenido al resumen de operaciones.` y aplique.
+
+Arrastre la tarjeta por su cuerpo para moverla. Arrastre su esquina inferior derecha para cambiar su tamaño. La grilla tiene 24 columnas, así que una tarjeta de 12 columnas de ancho ocupa la mitad del ancho.
+
+<Callout type="info">
+Los cambios se guardan automáticamente cerca de un segundo y medio después de que usted deja de editar. El encabezado muestra **Guardando…** mientras trabaja. Si un guardado falla, muestra **Cambios sin guardar** con un botón **Recargar** y conserva sus cambios.
+</Callout>
+
+### Agregar una consulta guardada
+
+Una consulta guardada entrega datos a los widgets. Nombra una operación que un administrador autorizó; usted la elige de una lista y nunca escribe una URL ni SQL.
+
+1. Abra el menú de ajustes (el engranaje en el encabezado del dashboard) y elija **Consultas guardadas**.
+2. Seleccione **Agregar consulta**.
+3. En **Nombre del resultado**, escriba `trips`. Los widgets se referirán a los datos con este nombre.
+4. Elija una **Conexión** y una **Operación** de las listas.
+5. Por ahora, deje **Parámetros (JSON)** como `{}`.
+6. Seleccione **Aplicar al borrador**.
+
+La consulta se ejecuta apenas un widget la usa.
+
+### Mostrar un número de la consulta
+
+1. Seleccione **Agregar Widget** y elija una estadística, por ejemplo la estadística **Circular**.
+2. Abra **Settings** (el engranaje del widget).
+3. Fije **Fuente de Datos** en **Planificador** y luego elija `trips` como **Variable**.
+4. En el campo de valor, escriba una plantilla con una columna del resultado, como `{{completed}}`. Use `{{row.<column>}}` o `{{<column>}}` para cualquier columna que devuelva la operación.
+5. Aplique los ajustes.
+
+El widget muestra el valor de la primera fila del resultado. Mientras la consulta carga, muestra un mensaje de carga. Si falla, muestra un error, nunca los detalles de la fuente de datos.
+
+### Agregar un filtro
+
+Los filtros permiten a quienes ven el dashboard acotar los datos sin editarlo.
+
+1. Abra el menú de ajustes y elija **Barra de Filtros**.
+2. Seleccione **Agregar filtro**. Fije **Clave del filtro** en `date_range`, la etiqueta en `Fecha` y el tipo en **Rango de fechas**.
+3. Aplique el filtro.
+4. Un filtro de rango de fechas entrega dos valores, nombrados a partir de su clave: `date_range_from` y `date_range_to`. De vuelta en **Consultas guardadas**, abra `trips` y vincule dos parámetros a esos valores, por ejemplo:
+
+   ```json
+   {
+     "from": { "kind": "filter", "key": "date_range_from", "omitWhenEmpty": true },
+     "to": { "kind": "filter", "key": "date_range_to", "omitWhenEmpty": true }
+   }
+   ```
+
+   Los nombres de los parámetros (`from`, `to`) deben ser nombres que la operación acepte. `omitWhenEmpty` deja fuera un parámetro mientras el filtro está vacío. [Agregar filtros](/es/products/dashboards/how-to/add-filters) explica los valores que entrega cada tipo de filtro.
+
+Elija un rango de fechas en la barra de filtros. La estadística se recarga con el nuevo rango.
+
+### Compartirlo
+
+1. Desactive **Modo Edición**.
+2. Abra el menú de ajustes y seleccione **Gestionar permisos**.
+3. Ingrese el ID de usuario de su colega exactamente como lo conoce su proveedor de identidad, elija el rol **Consumer** y agréguelo.
+4. Seleccione **Guardar cambios**.
+
+Su colega ahora puede abrir el dashboard y usar sus filtros, pero no puede cambiarlo. Para permitirle editar, asígnele **Editor**.
+
+</Steps>
+
+## Qué construyó
+
+- Un dashboard con su propia dirección en su organización.
+- Un widget que lee datos autorizados mediante una consulta guardada.
+- Un filtro que cambia los parámetros de esa consulta.
+- Un permiso que comparte el dashboard con una persona.
+
+## Próximos pasos
+
+- Conozca todos los tipos de filtro: [Agregar filtros](/es/products/dashboards/how-to/add-filters).
+- Vea todos los widgets: [Catálogo de widgets](/es/products/dashboards/reference/widgets).
+- Copie este dashboard a otro entorno: [Importar y exportar](/es/products/dashboards/how-to/import-export).
+- Entienda los roles: [Organizaciones, ámbitos y roles](/es/products/dashboards/concepts/access-model).

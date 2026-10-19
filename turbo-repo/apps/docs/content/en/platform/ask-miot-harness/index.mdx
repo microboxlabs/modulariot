@@ -1,34 +1,25 @@
 # ASK MIOT Harness
 
-The ASK MIOT Harness is a Python-first backend runtime that orchestrates multi-agent answers over ModularIoT operational data. It lets a language model plan and narrate while the harness retains control of typed tools, tenant context, permission checks, approvals, durable run state, and Storytelling artifacts.
+The ASK MIOT Harness is the backend behind ASK MIOT. One language model, which the user chooses, answers questions about ModularIoT operational data by calling tools. The harness keeps control of those tools, the tenant context, permission checks, approvals and the record of every run.
 
 ## Purpose
 
-ModularIoT collects large volumes of telemetry, symptoms, and shipping data. The harness turns natural-language questions about that data into grounded, evidence-backed answers — without giving the model unmediated access to the database or to mutating operations.
-
-It builds on LangChain Deep Agents, but wraps them in a controlled runtime: the model can reason and compose a plan, yet every tool call, data read, and dashboard change flows through the harness's own tool, permission, and audit contracts.
+ModularIoT collects large volumes of telemetry, symptoms and shipping data. The harness turns natural-language questions about that data into answers backed by evidence, without giving the model direct access to the database or to operations that change data.
 
 ## What the Harness Owns
 
-- **Typed tools** — curated read and write operations the model may call, instead of raw SQL or API access.
+- **Typed tools** — read and write operations the model may call, instead of raw SQL or API access.
 - **Tenant and user context** — taken from authenticated server context, never from model-provided text.
-- **Permission checks** — read-only tools run freely; mutating tools return approval requests and only apply after a user decision.
-- **Durable run state** — every run is recorded so it can be inspected, resumed, and audited.
-- **Storytelling artifacts** — answers are strict JSON objects with references to the evidence behind them.
-
-## First Vertical Slice
-
-The pilot target is a single end-to-end question:
-
-> Tell me the story of delivery compliance this month and suggest one dashboard widget.
-
-Answering it exercises the full path: intent routing, curated data tools, freshness checks, narrative synthesis, and an approval-gated dashboard change.
+- **Permission checks** — read-only tools run freely; tools that change data ask the user first.
+- **Conversation memory** — each turn is kept with the tools it called, and long conversations are summarized.
+- **Run records** — every run is recorded so it can be inspected and audited.
 
 ## Data Integration
 
-The harness reads ModularIoT operational data — the Coordinador database — through a standard Postgres connection string. When no database is configured, the harness still serves non-data runs with mocked tools, so it can run in local and demo environments without a live connection.
+The harness reads ModularIoT operational data through a standard Postgres connection string. Without a database it still answers, with no data tools.
 
 ## In This Section
 
-- **Architecture** — the supervisor and specialist agents, the intent router, and how data tools are built and gated.
-- **Run Modes** — the four dispatch paths (`auto`, `canned`, `meta`, `agentic`) and when to use each.
+- **Architecture** — the agent loop, its tools and how they are gated.
+- **Models** — choosing the model for a run.
+- **Authentication** — how requests reach the harness.

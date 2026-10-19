@@ -1,0 +1,102 @@
+import { Callout, Tabs } from 'nextra/components'
+
+# Add saved queries
+
+A saved query gives widgets data. It names a connection and an operation that an administrator approved, and says which value each operation parameter gets. Widgets read the result by its **result name** (`variableName`).
+
+You need edit rights on the dashboard (Contributor on your own dashboards, Editor or Coordinator on any).
+
+<Tabs items={['In the web app', 'In the document']}>
+<Tabs.Tab>
+
+1. Open the dashboard and turn on **Edit Mode**.
+2. Open the settings menu (the gear in the dashboard header) and choose **Saved queries**.
+3. Select **Add query**.
+4. Type a **Result name**, such as `trips`. It must be unique in the dashboard. A short name without spaces is easiest to use later.
+5. Choose the **Connection** and the **Operation**. The lists show only active, read-only operations you are allowed to use.
+6. Fill **Parameters (JSON)**. See [Parameter values](#parameter-values) below.
+7. Select **Apply to draft**. The dashboard saves on its own.
+
+If the lists show **The approved query catalog is unavailable or access was denied**, the server has no query catalog configured, or you lack edit rights. Saved queries that already exist keep running.
+
+</Tabs.Tab>
+<Tabs.Tab>
+
+Add an entry to the document's `queries` array:
+
+```json
+{
+  "id": "trips",
+  "variableName": "trips",
+  "connectionId": "fleet-db",
+  "operationId": "trips-by-day",
+  "parameters": {
+    "days": { "kind": "literal", "value": 30 },
+    "vehicle": { "kind": "filter", "key": "vehicle", "omitWhenEmpty": true }
+  },
+  "schema": ["day", "completed", "cancelled"]
+}
+```
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `id` | Yes | Identifies the query in the API route `.../queries/{id}`. Unique in the dashboard. |
+| `variableName` | Yes | The result name widgets use. Unique in the dashboard. |
+| `connectionId` | Yes | The connection, as the host knows it. |
+| `operationId` | Yes | The approved operation on that connection. |
+| `parameters` | Yes | One binding per operation parameter. Use `{}` for none. |
+| `schema` | No | Column names, so editors can offer them before the first run. |
+
+</Tabs.Tab>
+</Tabs>
+
+## Parameter values
+
+Each parameter is either a fixed value or a value from a dashboard filter.
+
+| Kind | Shape | Use it for |
+| --- | --- | --- |
+| Literal | `{ "kind": "literal", "value": 30 }` | A value that never changes |
+| Filter | `{ "kind": "filter", "key": "vehicle" }` | The current value of filter `vehicle` |
+
+A filter binding takes two optional fields:
+
+| Field | Effect |
+| --- | --- |
+| `defaultValue` | Used when the filter has no value. An explicit empty string does not use it. |
+| `omitWhenEmpty` | Leaves the parameter out when the value is missing or an empty string, after the default is applied. Use it for optional operation parameters. |
+
+Values are JSON scalars (text, number, true, false, null) or flat lists of scalars. They are never expressions, objects or SQL.
+
+<Callout type="info">
+A literal is not a security control. An editor can change it. Anything that must hold for every viewer, such as the organization's ID, belongs in the operation itself, which only an administrator can change. See [Queries and connections](/en/products/dashboards/concepts/queries-and-connections).
+</Callout>
+
+## Use the result in a widget
+
+In the widget's **Settings**, set **Data Source** to **Planner** and choose the result name as the **Variable**. In text fields, write the column in double braces: `{{completed}}`. Widgets that show one value read the first row; tables and lists read every row.
+
+In the document, the same binding is two fields in the widget's `config`:
+
+```json
+{ "dataMode": "planner", "plannerVariableName": "trips" }
+```
+
+## Limits
+
+| Limit | Value |
+| --- | --- |
+| Saved queries per dashboard | 50 |
+| Identifier length | 128 characters |
+| Text value length | 2,048 characters |
+| Values in one list | 100 |
+| Rows per result | 5,000 |
+| Result size | 2 MiB |
+| Time per query | 20 seconds |
+
+All limits are in [Limits](/en/products/dashboards/reference/limits).
+
+## Related
+
+- [Add filters](/en/products/dashboards/how-to/add-filters)
+- [Connect PostgREST](/en/products/dashboards/how-to/connect-postgrest) and [Connect BigQuery](/en/products/dashboards/how-to/connect-bigquery), for administrators

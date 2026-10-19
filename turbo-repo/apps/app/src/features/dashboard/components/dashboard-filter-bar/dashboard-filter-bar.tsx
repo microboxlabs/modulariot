@@ -15,7 +15,7 @@ import Tags from "./tags";
  * 3. Tags (active filter badge)
  */
 export function DashboardFilterBar() {
-  const { filters, dictionary } = useDashboard();
+  const { filters, dictionary, hostAccess } = useDashboard();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -236,7 +236,8 @@ export function DashboardFilterBar() {
           }
         />
       ))}
-      {dateFilters.length === 0 && (
+      {/* Controlled hosts declare their query filters explicitly. */}
+      {dateFilters.length === 0 && !hostAccess && (
         <TimeRangePicker
           dictionary={dictionary}
           from={searchParams.get("date_range_from") ?? undefined}

@@ -1,23 +1,15 @@
-import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
-
-const SYMPTOMS_API_URL = `${process.env.STREAMHUB_URL}/rpc/api_modular_symptoms_table`;
-
+import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
 import {
-  AuthToken,
-  AuthTokenConfig,
-} from "@/features/common/providers/sreamhub-api/streamhub-api.provider";
+  isCarrierOrg,
+  requireCarrierData,
+} from "@/app/api/utils/carrier-scope";
+import {
+  forwardControlTowerMap,
+  isoDate,
+} from "@/app/api/utils/control-tower-map";
 import { SymptomsTableResponse } from "./route.types";
 import { SymptomTableResponse } from "@/features/symptoms/types/symptoms";
-
-const config: AuthTokenConfig = {
-  clientId: `${process.env.STREAMHUB_CLIENT_ID}`,
-  clientSecret: `${process.env.STREAMHUB_CLIENT_SECRET}`,
-  audience: `${process.env.STREAMHUB_AUDIENCE}`,
-  grantType: "client_credentials",
-};
-
-const authToken = new AuthToken(config);
 
 // Parameter mapping configuration
 const PARAM_MAPPING = {
@@ -38,6 +30,8 @@ const PARAM_MAPPING = {
   page: "p_page",
 } as const;
 
+const DATE_PARAMS = new Set(["from", "to"]);
+
 function buildApiParams(searchParams: URLSearchParams): URLSearchParams {
   const params = new URLSearchParams();
 
@@ -45,7 +39,9 @@ function buildApiParams(searchParams: URLSearchParams): URLSearchParams {
     const value = searchParams.get(inputParam);
     if (value) {
       // Trim all parameter values to remove leading/trailing whitespace
-      const processedValue = value.trim();
+      const processedValue = DATE_PARAMS.has(inputParam)
+        ? isoDate(value)
+        : value.trim();
       if (processedValue) {
         // Only add non-empty values
         params.set(apiParam, processedValue);
@@ -58,7 +54,7 @@ function buildApiParams(searchParams: URLSearchParams): URLSearchParams {
 
 function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
   return {
-    data: data?.data.map((item) => ({
+    data: (data?.data ?? []).map((item) => ({
       id: String(item.id),
       condition: item?.icu_condition?.toLowerCase(),
       icu_code: item?.icu_code,
@@ -71,6 +67,8 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
       alertType: item?.type_of_incidence,
       status: item?.treatment_count === 0 ? "" : "Tratado",
       last_assigned_to: item?.last_assigned_to,
+      sla_minutes: item?.sla_minutes ?? null,
+      recurrence_events: item?.recurrence_events ?? null,
     })),
     pagination: {
       total_rows: data.total_rows,
@@ -82,43 +80,27 @@ function formatSymptomData(data: SymptomsTableResponse): SymptomTableResponse {
   };
 }
 
+/**
+ * One page of the active organization's symptoms, read by the modulith with
+ * the user's session token.
+ */
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session) {
-    return NextResponse.json({
-      status: 401,
-    });
+  const params = buildApiParams(req.nextUrl.searchParams);
+
+  // PT2: org carrier ⇒ p_carrier_id se fuerza desde el scope (se ignora el
+  // valor del navegador; regla de oro §A.4).
+  const scopeResult = await resolveTenantScope();
+  if (!scopeResult.resolved) return scopeResult.response;
+  if (isCarrierOrg(scopeResult.scope)) {
+    const guard = requireCarrierData(scopeResult.scope);
+    if (guard) return guard;
+    params.set("p_carrier_id", scopeResult.scope.effectiveTaxIds[0]);
   }
 
-  const url = new URL(req.url);
-  const params = buildApiParams(url.searchParams);
+  const search = params.size ? `?${params}` : "";
+  const response = await forwardControlTowerMap("symptoms", search);
+  if (!response.ok) return response;
 
-  async function fetchSymptomsData(params: URLSearchParams) {
-    const token = await authToken.getToken();
-
-    const response = await fetch(SYMPTOMS_API_URL + "?" + params.toString(), {
-      headers: {
-        accept: "application/json",
-        Authorization: ` Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return (await response.json()) as SymptomsTableResponse;
-  }
-
-  try {
-    const data = await fetchSymptomsData(params);
-    const formattedResponse = formatSymptomData(data);
-    return NextResponse.json(formattedResponse);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: "Failed to fetch symptoms data", errorMessage: error },
-      { status: 500 }
-    );
-  }
+  const data = (await response.json()) as SymptomsTableResponse;
+  return NextResponse.json(formatSymptomData(data));
 }

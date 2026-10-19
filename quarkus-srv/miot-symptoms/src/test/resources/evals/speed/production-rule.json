@@ -1,0 +1,20 @@
+{
+  "source": "gps_signal",
+  "activation": "signal.trip.active && signal.road.maxspeed_osm > 0",
+  "measure": {
+    "expression": "double(int(signal.gps.speed_kmh + 0.5)) - signal.road.maxspeed_osm",
+    "label": "Exceso sobre el límite",
+    "unit": "km/h"
+  },
+  "levels": [
+    { "icu": 1, "applies": true, "when": "medida > 0 && medida < 5" },
+    { "icu": 2, "applies": true, "when": "medida >= 5 && medida < 11" },
+    { "icu": 3, "applies": true, "when": "medida >= 11 && medida <= 21" },
+    { "icu": 4, "applies": true, "when": "medida > 21 && sostenido_s >= 60" }
+  ],
+  "lifecycle": {
+    "open": "caso.condicion_s >= 60 && caso.nivel >= 2",
+    "close": "caso.normal_s >= 0 && caso.nivel < 4 || caso.normal_s >= 120",
+    "levelDown": true
+  }
+}

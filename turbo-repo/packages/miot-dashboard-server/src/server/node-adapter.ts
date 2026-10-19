@@ -7,6 +7,7 @@
  * without either knowing about the other.
  */
 
+import { DEFAULT_MAX_BODY_BYTES } from "../http/read-json";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { DashboardServerError, toErrorEnvelope } from "../access/errors";
 import type { DashboardHandler } from "../http/handler";
@@ -20,7 +21,7 @@ import type { DashboardHandler } from "../http/handler";
  * body grows the chunk array until the process dies, and every other tenant
  * goes down with it. 1 MiB is far above any real dashboard document.
  */
-export const DEFAULT_MAX_BODY_BYTES = 1024 * 1024;
+export { DEFAULT_MAX_BODY_BYTES } from "../http/read-json";
 
 /**
  * Read the whole body, refusing one that is too large.
@@ -61,7 +62,11 @@ function readBody(
   });
 }
 
-function toRequest(incoming: IncomingMessage, body: Buffer | null): Request {
+function toRequest(
+  incoming: IncomingMessage,
+  body: Buffer | null,
+  signal: AbortSignal,
+): Request {
   const host = incoming.headers.host ?? "localhost";
   const url = new URL(incoming.url ?? "/", `http://${host}`);
   const headers = new Headers();
@@ -73,6 +78,7 @@ function toRequest(incoming: IncomingMessage, body: Buffer | null): Request {
   return new Request(url, {
     method: incoming.method ?? "GET",
     headers,
+    signal,
     ...(body && body.length > 0 ? { body: new Uint8Array(body) } : {}),
   });
 }
@@ -119,12 +125,18 @@ export function toNodeListener(
 ): (incoming: IncomingMessage, outgoing: ServerResponse) => void {
   const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
   return (incoming, outgoing) => {
+    const controller = new AbortController();
+    const disconnected = () => {
+      if (!outgoing.writableEnded) controller.abort();
+    };
+    outgoing.once("close", disconnected);
     void (async () => {
       try {
         const body = await readBody(incoming, maxBodyBytes);
-        const response = await handler(toRequest(incoming, body));
-        await writeResponse(response, outgoing);
+        const response = await handler(toRequest(incoming, body, controller.signal));
+        if (!outgoing.destroyed) await writeResponse(response, outgoing);
       } catch (error) {
+        if (outgoing.destroyed) return;
         options.onError?.(error);
         const envelope = toErrorEnvelope(error);
         // A body we stopped reading is still arriving, so this connection
@@ -141,6 +153,8 @@ export function toNodeListener(
           });
         }
         outgoing.end(JSON.stringify(envelope));
+      } finally {
+        outgoing.off("close", disconnected);
       }
     })();
   };

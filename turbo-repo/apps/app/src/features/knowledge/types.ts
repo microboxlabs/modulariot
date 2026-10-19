@@ -22,3 +22,21 @@ export interface ReviewResult {
   cardApplied?: boolean;
   error?: string;
 }
+
+/** An approved card the chat agent grounds on, as the harness lists it. */
+export interface KnowledgeCard {
+  id: string;
+  title: string | null;
+  term: string | null;
+  kind: string | null;
+  scope: string | null;
+  body: string;
+  updated_at: string | null;
+}
+
+/** The cards of one connection; `error` marks a connection whose list failed. */
+export interface ConnectionCards {
+  connection: string;
+  cards: KnowledgeCard[];
+  error?: boolean;
+}

@@ -8,8 +8,9 @@ def test_default_registry_contains_first_slice_tools() -> None:
 
     assert registry.names() == [
         "apply_dashboard_patch",
+        "artifact",
         "create_dashboard_widget_draft",
-        "create_story_draft",
+        "dashboard_draft",
         "fs_edit",
         "fs_ls",
         "fs_read",
@@ -17,6 +18,12 @@ def test_default_registry_contains_first_slice_tools() -> None:
         "get_dashboard_context",
         "get_delivery_compliance_metrics",
         "get_workflow_bottlenecks",
+        "source_list",
+        "source_read",
+        "source_search",
+        "web_fetch",
+        "web_search",
+        "write_todos",
     ]
 
 
@@ -25,9 +32,16 @@ def test_default_registry_omits_fs_tools_when_disabled() -> None:
 
     assert registry.names() == [
         "apply_dashboard_patch",
+        "artifact",
         "create_dashboard_widget_draft",
-        "create_story_draft",
+        "dashboard_draft",
         "get_dashboard_context",
         "get_delivery_compliance_metrics",
         "get_workflow_bottlenecks",
+        "source_list",
+        "source_read",
+        "source_search",
+        "web_fetch",
+        "web_search",
+        "write_todos",
     ]

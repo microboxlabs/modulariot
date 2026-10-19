@@ -1,0 +1,50 @@
+import { Callout } from 'nextra/components'
+
+# Importar y exportar
+
+Un dashboard es un documento JSON. Expórtelo para guardar una copia, revisar un cambio o moverlo a otro entorno. Impórtelo para reemplazar el contenido de un dashboard.
+
+## Exportar
+
+1. Abra el dashboard.
+2. Abra el menú de ajustes (el engranaje) y elija **Exportar Dashboard**.
+3. Seleccione **Descargar como archivo JSON** o **Copiar al portapapeles**.
+
+El archivo contiene el diseño, los widgets, los filtros, las consultas guardadas y los ajustes. No contiene datos, credenciales ni permisos.
+
+Con la API, el mismo documento es el campo `data` de una carga:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" \
+  https://dashboards.example.com/tenants/acme/scopes/ops/dashboards/sales \
+  | jq '.data' > sales.json
+```
+
+## Importar
+
+1. Abra el dashboard que quiere reemplazar, o cree uno vacío.
+2. Abra el menú de ajustes y elija **Importar Dashboard**.
+3. Elija **Subir Archivo** y seleccione el archivo JSON, o elija **Pegar JSON** y péguelo.
+4. Seleccione **Importar**.
+
+La importación reemplaza el contenido actual, y el dashboard se guarda solo. **Undo** restaura la versión anterior hasta que usted sale de la página.
+
+El servidor valida el documento antes de aceptarlo. Un archivo de más de 1 MiB, o uno cuyo `version` no es `2`, se rechaza.
+
+## Mover entre entornos
+
+Las consultas guardadas indican las conexiones y operaciones por ID. Esos ID suelen ser distintos entre entornos, así que después de importar:
+
+1. Abra **Consultas guardadas**.
+2. Para cada consulta, elija la conexión y la operación correspondientes en este entorno.
+3. Verifique que cada widget muestre datos.
+
+Los widgets que el destino no conoce muestran un mensaje de "widget no disponible" en lugar de romper la página.
+
+<Callout type="info">
+Los permisos no son parte del documento. Vuelva a definirlos en el destino con [Gestionar permisos](/es/products/dashboards/how-to/share-and-permissions).
+</Callout>
+
+## Importar muchos dashboards a la vez
+
+Para cargar muchos dashboards existentes en un servidor nuevo, use `importDashboards` de la biblioteca de servidor. Por defecto hace una ejecución de prueba, nunca sobrescribe y reporta cada dashboard como importado, omitido, rechazado o fallido. Consulte [Biblioteca de servidor](/es/products/dashboards/reference/server-library#importar-dashboards-existentes).

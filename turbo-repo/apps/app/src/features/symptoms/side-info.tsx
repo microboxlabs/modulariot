@@ -126,15 +126,16 @@ export default function SideInfo({
         className={`absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5 ${loading ? "opacity-50" : "opacity-100"}`}
       >
         <GroupAllowed
-          notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
+          notAllowedTo={[]} /* DEMO LOCAL: era GROUP_MINTRAL_REVISOR */
           userGroups={userGroups}
         >
           <ButtonGroup className="w-full">
             <BlurrableDropdown
               dict={dict}
-              isMenuOpen={isMenuOpen}
-              setIsMenuOpen={setIsMenuOpen}
-              setSelectedOption={setSelectedOption}
+              onSelect={(option) => {
+                setSelectedOption(option);
+                setIsMenuOpen(true);
+              }}
             />
             <Button
               size="md"

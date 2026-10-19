@@ -117,6 +117,20 @@ def test_distill_returns_candidates_with_grounded_provenance(
     assert cand["provenance"] == {"run_ids": ["run_a"], "evidence": 1}
 
 
+def test_distill_without_a_model_is_503_naming_the_setting(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MIOT_HARNESS_KNOWLEDGE_DISTILLER_ENABLED", "true")
+    get_settings.cache_clear()
+    conn = _on_disk_connection(tmp_path)
+    app = create_app()
+    with TestClient(app) as client:
+        client.app.state.connection_objects[conn.name] = conn
+        resp = client.post("/connections/acs/distill", json={"episodes": _EPISODES})
+    assert resp.status_code == 503
+    assert "MIOT_HARNESS_KNOWLEDGE_DISTILLER_MODEL" in resp.json()["detail"]
+
+
 def test_distill_empty_batch_returns_no_candidates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.core.selectable.SelectableService;
+import com.microboxlabs.miot.core.selectable.SourceUnavailableException;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.smallrye.mutiny.Uni;
@@ -197,7 +198,10 @@ public class OrgSelectablesResource {
         return null;
     }
 
-    /** {@link IllegalArgumentException} is a 400, {@link NoSuchElementException} a 404. */
+    /**
+     * {@link IllegalArgumentException} is a 400, {@link NoSuchElementException} a 404,
+     * {@link SourceUnavailableException} a 502.
+     */
     private static Response guarded(Supplier<Response> work) {
         try {
             return work.get();
@@ -205,6 +209,8 @@ public class OrgSelectablesResource {
             return error(Response.Status.BAD_REQUEST, e.getMessage());
         } catch (NoSuchElementException e) {
             return error(Response.Status.NOT_FOUND, e.getMessage());
+        } catch (SourceUnavailableException e) {
+            return error(Response.Status.BAD_GATEWAY, e.getMessage());
         }
     }
 

@@ -8,11 +8,10 @@ import { resolveTenantScope } from "../../utils/tenant-scope";
 import { logger } from "@/lib/logger";
 import { toSearchResult } from "./search-blocks";
 import { modulithHost, isModulithConfigured } from "@/lib/modulith-host";
+import { sessionToken } from "@/features/auth/services/session-auth";
 
-/** ms before we abort a run that hasn't completed — entity lookups on the
- * agentic path (planner → datasource tools → verify gate) need headroom.
- * Multi-turn agentic runs (planner + ~5 primitive calls + verify + synth)
- * measure ~35-45s against the acs connection, so 30s aborted real answers. */
+/** ms before we abort a run that hasn't completed. A run that makes several
+ * datasource calls can take 30-45s, so 30s aborted real answers. */
 const HARNESS_SEARCH_TIMEOUT_MS = 90_000;
 
 export async function POST(request: Request) {
@@ -39,10 +38,7 @@ export async function POST(request: Request) {
 
   // The harness accepts the Auth0 id_token (rawJWT) as the bearer token.
   // The opaque access_token (no AUTH_AUTH0_AUDIENCE) is NOT a JWT and is rejected.
-  const token =
-    authResult.session.user?.rawJWT ??
-    authResult.session.user?.ticket ??
-    undefined;
+  const token = sessionToken(authResult.session);
 
   const client = createMiotHarnessClient({
     baseUrl: harnessUrl,
@@ -61,7 +57,6 @@ export async function POST(request: Request) {
         message: query,
         skill_id: "miot-search",
         answer_format: "json",
-        mode: "auto",
         // tenant_id is ignored by the proxy — it injects X-Miot-Tenant-Client-Id from org membership
         ...(authResult.session.user?.email && { user_id: authResult.session.user.email }),
       },

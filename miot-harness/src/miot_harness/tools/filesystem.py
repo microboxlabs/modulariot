@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.permissions import PermissionResult
 from miot_harness.runtime.tool import HarnessTool, Progress
+from miot_harness.utils.text_diff import unified_diff
 
 # Defaults mirror config.py's fs_* settings so a bare VirtualFileStore()
 # (tests, evals) behaves like the wired-up one.
@@ -248,13 +249,15 @@ class VirtualFileStore:
 
 
 def _conv_key(ctx: HarnessContext) -> str:
-    """Scratchpad partition key: the conversation if set, else the thread.
+    """Scratchpad partition key: the conversation if set, else the thread,
+    under the tenant and user (`HarnessContext.scope_key`).
 
     `thread_id` is always populated, so one-shot runs still get an isolated
     partition; multi-turn conversations share one so a later turn can read
-    an earlier turn's note.
+    an earlier turn's note. The conversation id comes from the request body,
+    so another tenant naming the same id gets its own partition.
     """
-    return ctx.conversation_id or ctx.thread_id
+    return ctx.scope_key()
 
 
 # --- Pydantic I/O models -------------------------------------------------
@@ -270,6 +273,7 @@ class FsWriteOutput(BaseModel):
     path: str
     bytes: int = 0
     created: bool = False
+    diff: str | None = None
     error: str | None = None
 
 
@@ -313,6 +317,7 @@ class FsEditOutput(BaseModel):
     path: str
     bytes: int = 0
     replacements: int = 0
+    diff: str | None = None
     error: str | None = None
 
 
@@ -329,11 +334,19 @@ def _error_text(exc: FileStoreError) -> str:
 
 def fs_write_tool(store: VirtualFileStore) -> HarnessTool[FsWriteInput, FsWriteOutput]:
     async def call(ctx: HarnessContext, value: FsWriteInput, _: Progress) -> FsWriteOutput:
+        key = _conv_key(ctx)
         try:
-            res = store.write(_conv_key(ctx), value.path, value.content)
+            before = store.read(key, value.path)
+            res = store.write(key, value.path, value.content)
         except FileStoreError as exc:
             return FsWriteOutput(ok=False, path=value.path, error=_error_text(exc))
-        return FsWriteOutput(ok=True, path=res.path, bytes=res.bytes, created=res.created)
+        return FsWriteOutput(
+            ok=True,
+            path=res.path,
+            bytes=res.bytes,
+            created=res.created,
+            diff=unified_diff(before, value.content, res.path),
+        )
 
     return HarnessTool(
         name="fs_write",
@@ -346,7 +359,9 @@ def fs_write_tool(store: VirtualFileStore) -> HarnessTool[FsWriteInput, FsWriteO
         output_model=FsWriteOutput,
         read_only=False,
         destructive=False,
+        kind="utility",
         source="scratchpad",
+        carries_diff=True,
         check_permission=_allow,
         call=call,
     )
@@ -374,6 +389,7 @@ def fs_read_tool(store: VirtualFileStore) -> HarnessTool[FsReadInput, FsReadOutp
         input_model=FsReadInput,
         output_model=FsReadOutput,
         read_only=True,
+        kind="utility",
         source="scratchpad",
         check_permission=_allow,
         call=call,
@@ -394,6 +410,7 @@ def fs_ls_tool(store: VirtualFileStore) -> HarnessTool[FsLsInput, FsLsOutput]:
         input_model=FsLsInput,
         output_model=FsLsOutput,
         read_only=True,
+        kind="utility",
         source="scratchpad",
         check_permission=_allow,
         call=call,
@@ -402,9 +419,11 @@ def fs_ls_tool(store: VirtualFileStore) -> HarnessTool[FsLsInput, FsLsOutput]:
 
 def fs_edit_tool(store: VirtualFileStore) -> HarnessTool[FsEditInput, FsEditOutput]:
     async def call(ctx: HarnessContext, value: FsEditInput, _: Progress) -> FsEditOutput:
+        key = _conv_key(ctx)
         try:
+            before = store.read(key, value.path)
             res = store.edit(
-                _conv_key(ctx),
+                key,
                 value.path,
                 value.old_string,
                 value.new_string,
@@ -412,7 +431,13 @@ def fs_edit_tool(store: VirtualFileStore) -> HarnessTool[FsEditInput, FsEditOutp
             )
         except FileStoreError as exc:
             return FsEditOutput(ok=False, path=value.path, error=_error_text(exc))
-        return FsEditOutput(ok=True, path=res.path, bytes=res.bytes, replacements=res.replacements)
+        return FsEditOutput(
+            ok=True,
+            path=res.path,
+            bytes=res.bytes,
+            replacements=res.replacements,
+            diff=unified_diff(before, store.read(key, res.path), res.path),
+        )
 
     return HarnessTool(
         name="fs_edit",
@@ -424,7 +449,9 @@ def fs_edit_tool(store: VirtualFileStore) -> HarnessTool[FsEditInput, FsEditOutp
         output_model=FsEditOutput,
         read_only=False,
         destructive=False,
+        kind="utility",
         source="scratchpad",
+        carries_diff=True,
         check_permission=_allow,
         call=call,
     )

@@ -147,11 +147,17 @@ class OrgSelectablesResourceTest {
                 st.setString(4, slug + "-tenant");
                 st.executeUpdate();
             }
-            try (var st = c.prepareStatement("INSERT INTO miot_core.organization_role_assignments "
-                    + "(organization_id, role_code, person_id) "
-                    + "SELECT id, 'ORGANIZATION_OWNER', ? FROM miot_core.organizations WHERE slug = ?")) {
+            try (var st = c.prepareStatement(
+                    "INSERT INTO miot_iam.iam_user (email) VALUES (lower(?)) ON CONFLICT DO NOTHING")) {
                 st.setString(1, owner);
-                st.setString(2, slug);
+                st.executeUpdate();
+            }
+            try (var st = c.prepareStatement("INSERT INTO miot_iam.iam_membership "
+                    + "(organization_id, user_id, base_role) SELECT o.id, u.id, 'OWNER' "
+                    + "FROM miot_core.organizations o, miot_iam.iam_user u "
+                    + "WHERE o.slug = ? AND lower(u.email) = lower(?)")) {
+                st.setString(1, slug);
+                st.setString(2, owner);
                 st.executeUpdate();
             }
         }

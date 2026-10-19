@@ -1,0 +1,115 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Quickstart
+
+Run the dashboard server on your computer, read a dashboard, save a new one, and see the server refuse a request it should refuse. It takes about five minutes.
+
+You need Node.js 22.13 or later. Nothing else: the server stores data in a SQLite file that Node already supports.
+
+<Steps>
+
+### Start the server
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true \
+MIOT_DASHBOARD_SEED=example \
+MIOT_DASHBOARD_STORE=sqlite \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+The server starts on `http://127.0.0.1:3070` and writes its database to `./data`. Its first log lines say how it is configured:
+
+```text
+{"level":"info","msg":"store","store":"sqlite at ./data/dashboards.db, documents inline"}
+{"level":"info","msg":"identity","auth":"unverified request headers (local use only)"}
+{"level":"info","msg":"tenants","entitlement":"the seed file (2 tenants)"}
+{"level":"info","msg":"listening","url":"http://127.0.0.1:3070", ...}
+```
+
+`MIOT_DASHBOARD_SEED=example` loads sample data: two organizations, `acme` and `globex`, with a few people in each. `MIOT_DASHBOARD_INSECURE_AUTH=true` lets you say who you are with an `x-dev-user` header.
+
+<Callout type="warning">
+`MIOT_DASHBOARD_INSECURE_AUTH` trusts the header without checking it. The server only accepts it on `localhost`, and refuses to start with it in production. Use a real identity provider anywhere else. See [Authenticate users](/en/products/dashboards/how-to/authenticate-users).
+</Callout>
+
+### List the dashboards
+
+```bash
+curl -H 'x-dev-user: alice' \
+  http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards
+```
+
+```json
+{"data":[{"slug":"fleet","name":"Fleet overview"}]}
+```
+
+`alice` is a Coordinator in scope `ops` of organization `acme`. Every address names the organization (`tenants/acme`) and the scope (`scopes/ops`).
+
+### Save a dashboard
+
+```bash
+curl -X PUT http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards/sales \
+  -H 'x-dev-user: alice' \
+  -H 'If-Match: "0"' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "version": 2,
+    "name": "Sales",
+    "preferences": { "editMode": false },
+    "widgets": [{
+      "id": "hello",
+      "componentId": "text_card",
+      "layout": { "i": "hello", "x": 0, "y": 0, "w": 12, "h": 3 },
+      "config": { "text": "My first widget" },
+      "createdAt": "2026-10-05T00:00:00Z",
+      "updatedAt": "2026-10-05T00:00:00Z"
+    }]
+  }'
+```
+
+```json
+{"data":{"revision":1,"updatedAt":"2026-10-05T12:48:58.754Z"}}
+```
+
+`If-Match: "0"` means "create it only if nobody has". The answer carries the new revision, `1`. Send it with the next save. [Revisions and saving](/en/products/dashboards/concepts/revisions-and-saving) explains why.
+
+### See the server refuse
+
+Save the same document again with the old revision:
+
+```bash
+curl -X PUT http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards/sales \
+  -H 'x-dev-user: alice' -H 'If-Match: "0"' \
+  -H 'Content-Type: application/json' -d '{"version":2,"name":"Sales","preferences":{"editMode":false},"widgets":[]}'
+```
+
+```json
+{"error":"Dashboard was modified by someone else (expected revision 0, found 1)","status":409,"code":"CONFLICT"}
+```
+
+Then try to read another organization's dashboards as `alice`:
+
+```bash
+curl -H 'x-dev-user: alice' \
+  http://127.0.0.1:3070/tenants/globex/scopes/ops/dashboards
+```
+
+```json
+{"error":"The requested scope is not accessible with these credentials","status":403,"code":"FORBIDDEN","reason":"TENANT_SCOPE"}
+```
+
+`alice` does not belong to `globex`. The answer is the same as for an organization that does not exist, so nobody can use the address to find out which organizations exist.
+
+### Look at the API
+
+Open `http://127.0.0.1:3070/openapi.yaml` for the full API definition. To browse it in Swagger UI at `/docs`, install `swagger-ui-dist` next to the server; the container image already includes it.
+
+</Steps>
+
+## Next steps
+
+- Draw this dashboard in a web page: [Embed a dashboard in a web page](/en/products/dashboards/tutorials/embed-in-a-web-page).
+- Build one in the ModularIoT web app: [Build your first dashboard](/en/products/dashboards/tutorials/first-dashboard).
+- Decide how you will run it: [Choose a setup](/en/products/dashboards/getting-started/choose-a-setup).
+
+To start again from the sample data, stop the server and delete `./data`.

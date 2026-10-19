@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.core.auth;
 
+import com.microboxlabs.miot.core.iam.ApiKeyService;
+import com.microboxlabs.miot.core.iam.IamAuthentication;
+import com.microboxlabs.miot.core.iam.IamIdentityAugmentor;
 import io.quarkus.security.identity.IdentityProviderManager;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.quarkus.security.credential.TokenCredential;
@@ -63,6 +66,9 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
     private JwtConsumer rs256Consumer;
     private List<Pattern> m2mPathPatterns;
 
+    /** API key sign-in and the organization permission checker; this mechanism skips the identity augmentors. */
+    private final IamAuthentication iam;
+
     DualJwtAuthMechanism(
             @ConfigProperty(name = "miot.auth.hs256-issuer", defaultValue = "https://placeholder.auth0.com/")
                     String hs256Issuer,
@@ -75,7 +81,9 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
             @ConfigProperty(name = "miot.auth.hs256-audience", defaultValue = NOT_CONFIGURED)
                     String hs256Audience,
             @ConfigProperty(name = "miot.auth.rs256-audience", defaultValue = NOT_CONFIGURED)
-                    String rs256Audience) {
+                    String rs256Audience,
+            IamAuthentication iam) {
+        this.iam = iam;
         this.hs256Issuer = hs256Issuer;
         this.rs256Issuer = rs256Issuer;
         this.jwksUrl = jwksUrl;
@@ -169,29 +177,31 @@ public class DualJwtAuthMechanism implements HttpAuthenticationMechanism {
         }
 
         String token = authHeader.substring(BEARER_PREFIX.length()).trim();
+        if (ApiKeyService.looksLikeKey(token)) {
+            return iam.apiKey(token);
+        }
         String path = context.request().path();
         boolean isM2m = isM2mPath(path);
+        String devEmail = context.request().getHeader(IamIdentityAugmentor.DEV_EMAIL_HEADER);
+        return Uni.createFrom().item(() -> verify(token, path, isM2m, devEmail));
+    }
 
-        return Uni.createFrom().item(() -> {
-            JwtConsumer consumer = isM2m ? hs256Consumer : rs256Consumer;
-            String alg = isM2m ? "HS256" : "RS256";
-
-            if (consumer == null) {
-                LOG.warnf("%s verification not configured for path: %s", alg, path);
-                return null;
-            }
-
-            try {
-                JwtClaims claims = consumer.processToClaims(token);
-                LOG.debugf("Token verified via %s for path %s. sub=%s",
-                        alg, path, claims.getSubject());
-                return createIdentity(token, claims);
-            } catch (Exception e) {
-                LOG.debugf("%s verification failed for path %s: %s",
-                        alg, path, e.getMessage());
-                return null;
-            }
-        });
+    /** The identity of a JWT verified with the path's algorithm, or null. */
+    private SecurityIdentity verify(String token, String path, boolean isM2m, String devEmail) {
+        JwtConsumer consumer = isM2m ? hs256Consumer : rs256Consumer;
+        String alg = isM2m ? "HS256" : "RS256";
+        if (consumer == null) {
+            LOG.warnf("%s verification not configured for path: %s", alg, path);
+            return null;
+        }
+        try {
+            JwtClaims claims = consumer.processToClaims(token);
+            LOG.debugf("Token verified via %s for path %s. sub=%s", alg, path, claims.getSubject());
+            return iam.withOrgPermissions(createIdentity(token, claims), devEmail);
+        } catch (Exception e) {
+            LOG.debugf("%s verification failed for path %s: %s", alg, path, e.getMessage());
+            return null;
+        }
     }
 
     private boolean isM2mPath(String path) {

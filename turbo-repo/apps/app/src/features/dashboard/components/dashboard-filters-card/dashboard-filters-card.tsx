@@ -10,7 +10,7 @@ import { DateFilterBadge } from "./date-filter-badge";
 import { tr } from "@/features/i18n/tr.service";
 
 export function DashboardFilterBadges() {
-  const { filters, dictionary } = useDashboard();
+  const { filters, dictionary, hostAccess } = useDashboard();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -115,7 +115,7 @@ export function DashboardFilterBadges() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {filters.map(renderFilter)}
-      {!hasDateFilter && (
+      {!hasDateFilter && !hostAccess && (
         <DateFilterBadge
           filter={{ key: "date_range", label: tr("dashboard.settings.dateFilterLabel", dictionary), type: "date_range" }}
           from={searchParams.get("date_range_from") ?? undefined}

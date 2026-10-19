@@ -138,6 +138,7 @@ export function SecuredNavbar({
   initialOrgLogo,
   initialOrgLogoDark,
   isHarnessSettingsEnabled = false,
+  isDashboardServerEnabled = false,
 }: SecuredNavBarProps & { dict: I18nRecord }) {
   const sidebar = useSidebarContext();
   const isDesktop = useMediaQuery("(min-width: 1024px)");
@@ -183,6 +184,7 @@ export function SecuredNavbar({
                 <SpotlightSearch
                   dict={dict}
                   isHarnessSettingsEnabled={isHarnessSettingsEnabled}
+                  isDashboardServerEnabled={isDashboardServerEnabled}
                 />
               </div>
             )}

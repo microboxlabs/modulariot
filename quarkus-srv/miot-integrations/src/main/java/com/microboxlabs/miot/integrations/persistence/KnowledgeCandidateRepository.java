@@ -50,6 +50,12 @@ public class KnowledgeCandidateRepository {
              WHERE id = $1 AND tenant_code = $2 AND status = 'pending'
             RETURNING %s""".formatted(COLUMNS);
 
+    private static final String UPDATE_CONTENT = """
+            UPDATE miot_integrations.knowledge_candidates
+               SET term = $3, body = $4
+             WHERE id = $1 AND tenant_code = $2 AND status = 'pending'
+            RETURNING %s""".formatted(COLUMNS);
+
     private final Instance<Pool> clientInstance;
 
     protected KnowledgeCandidateRepository(Instance<Pool> clientInstance) {
@@ -93,6 +99,14 @@ public class KnowledgeCandidateRepository {
     public KnowledgeCandidate updateStatus(String tenantCode, String id, String status, String reviewedBy) {
         RowSet<Row> rows = client().preparedQuery(UPDATE_STATUS)
                 .execute(Tuple.of(UUID.fromString(id), tenantCode, status, reviewedBy))
+                .await().indefinitely();
+        return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
+    }
+
+    /** Rewrites a pending candidate's term and body; null when not pending in this tenant. */
+    public KnowledgeCandidate updateContent(String tenantCode, String id, String term, String body) {
+        RowSet<Row> rows = client().preparedQuery(UPDATE_CONTENT)
+                .execute(Tuple.of(UUID.fromString(id), tenantCode, term, body))
                 .await().indefinitely();
         return rows.iterator().hasNext() ? mapRow(rows.iterator().next()) : null;
     }

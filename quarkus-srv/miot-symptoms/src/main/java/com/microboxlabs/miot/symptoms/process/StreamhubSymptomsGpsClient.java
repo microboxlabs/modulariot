@@ -150,7 +150,7 @@ public class StreamhubSymptomsGpsClient implements FunctionInvoker {
         }
     }
 
-    static ParsedUrl parseUrl(String url) {
+    public static ParsedUrl parseUrl(String url) {
         String normalized = url.startsWith("postgresql://")
                 ? url.substring("postgresql://".length())
                 : url.startsWith("postgres://") ? url.substring("postgres://".length()) : url;
@@ -204,5 +204,5 @@ public class StreamhubSymptomsGpsClient implements FunctionInvoker {
         resetPool();
     }
 
-    record ParsedUrl(String host, int port, String database) {}
+    public record ParsedUrl(String host, int port, String database) {}
 }

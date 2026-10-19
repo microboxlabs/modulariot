@@ -18,11 +18,16 @@ const BASE = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/harness/threads`;
  * cannot decode. */
 export const AUI_MESSAGE_FORMAT = "aui-v1";
 
+/** A chat, or a trainer's learning session; fixed when the thread is created. */
+export type ThreadKind = "chat" | "learning";
+
 export type StoredThread = {
   id: string;
   title: string | null;
   /** The harness's compacted memory of the conversation; null until it compacts. */
   summary: string | null;
+  /** The conversation model the thread last ran on; null until its first run. */
+  model: string | null;
   ownerId: string;
   owned: boolean;
   expiresAt: string | null;
@@ -30,6 +35,9 @@ export type StoredThread = {
   createdAt: string;
   updatedAt: string;
   sharedWith: string[];
+  /** True once a person named the thread; generated titles stop replacing it. */
+  titleEdited?: boolean;
+  kind?: ThreadKind;
 };
 
 export type StoredMessage = {
@@ -46,15 +54,23 @@ export type StoredMessage = {
  * page is the last one. Matches the store's own default. */
 const MESSAGE_PAGE = 500;
 
-export async function listThreads(signal?: AbortSignal): Promise<StoredThread[] | null> {
-  const res = await fetch(BASE, { signal }).catch(() => null);
+export async function listThreads(
+  signal?: AbortSignal,
+  kind?: ThreadKind,
+): Promise<StoredThread[] | null> {
+  const url = kind ? `${BASE}?kind=${kind}` : BASE;
+  const res = await fetch(url, { signal }).catch(() => null);
   if (!res?.ok) return null;
   return (await res.json().catch(() => null)) as StoredThread[] | null;
 }
 
-export async function createThread(
-  thread: { id: string; title?: string | null; expiresAt?: string | null },
-): Promise<StoredThread | null> {
+/** `kind` only counts when the call creates the thread. */
+export async function createThread(thread: {
+  id: string;
+  title?: string | null;
+  expiresAt?: string | null;
+  kind?: ThreadKind;
+}): Promise<StoredThread | null> {
   return postJson<StoredThread>(BASE, thread);
 }
 
@@ -64,8 +80,27 @@ export async function getThread(id: string, signal?: AbortSignal): Promise<Store
   return (await res.json().catch(() => null)) as StoredThread | null;
 }
 
-export async function renameThread(id: string, title: string): Promise<void> {
-  await sendJson(`${BASE}/${encodeURIComponent(id)}`, "PATCH", { title });
+/** A rename by the person, which generated titles never replace. */
+export async function renameThread(id: string, title: string): Promise<boolean> {
+  return sendJson(`${BASE}/${encodeURIComponent(id)}`, "PATCH", { title });
+}
+
+/** Asks for a generated title from the first exchange. The thread comes back
+ * with its title unchanged when the person already named it. */
+export async function autoTitleThread(
+  id: string,
+  exchange: { message: string; answer: string },
+): Promise<StoredThread | null> {
+  return postJson<StoredThread>(`${BASE}/${encodeURIComponent(id)}/title`, exchange);
+}
+
+/** A copy of the thread owned by the caller: every message, or only
+ * `atMessageId` and the messages above it. */
+export async function forkThread(id: string, atMessageId?: string): Promise<StoredThread | null> {
+  return postJson<StoredThread>(
+    `${BASE}/${encodeURIComponent(id)}/fork`,
+    atMessageId ? { atMessageId } : {},
+  );
 }
 
 /** `null` expiry means "never" and has to say so explicitly — a missing field
@@ -79,6 +114,10 @@ export async function setThreadExpiry(id: string, expiresAt: string | null): Pro
 
 export async function setThreadSummary(id: string, summary: string): Promise<boolean> {
   return sendJson(`${BASE}/${encodeURIComponent(id)}`, "PATCH", { summary });
+}
+
+export async function setThreadModel(id: string, model: string): Promise<boolean> {
+  return sendJson(`${BASE}/${encodeURIComponent(id)}`, "PATCH", { model });
 }
 
 export async function deleteThread(id: string): Promise<void> {

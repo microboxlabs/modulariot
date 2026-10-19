@@ -4,8 +4,10 @@ import { getJson, sendJson } from "./json-client";
 import type {
   ContentReviewPermission,
   OrgMember,
+  OrganizationPermission,
   OrganizationRole,
   SetContentReviewPermission,
+  SetOrganizationPermission,
   SetOrganizationRole,
 } from "../types";
 
@@ -56,7 +58,28 @@ export function updateContentReviewPermission(
   );
 }
 
-const ORGANIZATION_OWNER_ROLE_CODE = "ORGANIZATION_OWNER";
+const HARNESS_TRAINER_PERMISSION_CODE = "HARNESS_TRAINER";
+
+export function fetchHarnessTrainerPermission(
+  orgSlug: string
+): Promise<OrganizationPermission> {
+  return getJson<OrganizationPermission>(
+    organizationPermissionUrl(orgSlug, HARNESS_TRAINER_PERMISSION_CODE)
+  );
+}
+
+export function updateHarnessTrainerPermission(
+  orgSlug: string,
+  value: SetOrganizationPermission
+): Promise<OrganizationPermission> {
+  return sendJson<OrganizationPermission>(
+    "PUT",
+    organizationPermissionUrl(orgSlug, HARNESS_TRAINER_PERMISSION_CODE),
+    value
+  );
+}
+
+export const ORGANIZATION_OWNER_ROLE_CODE = "ORGANIZATION_OWNER";
 
 function organizationRoleUrl(orgSlug: string, roleCode: string): string {
   return `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/roles/${encodeURIComponent(roleCode)}`;

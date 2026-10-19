@@ -1,0 +1,106 @@
+# API REST
+
+La definición completa de la API del servidor es el documento OpenAPI 3.1 en `/openapi.yaml`, con Swagger UI en `/docs` cuando `MIOT_DASHBOARD_DOCS` está activo. También se distribuye en el paquete de contrato como `@microboxlabs/miot-dashboard-contract/openapi.yaml`. Esta página la resume.
+
+## Convenciones
+
+| Tema | Regla |
+| --- | --- |
+| Dirección base | `/tenants/{tenantId}/scopes/{scopeId}`, después de `MIOT_DASHBOARD_BASE_PATH` si está configurado |
+| Autenticación | `Authorization: Bearer <JWT>`, o el encabezado de ticket configurado |
+| Cuerpo | JSON, como máximo 1 MiB |
+| Éxito | La mayoría de las respuestas envuelven el resultado en `{"data": ...}` |
+| Caché | Las respuestas de capacidades, catálogo y credenciales llevan `Cache-Control: no-store` |
+
+## Dashboards
+
+| Método | Ruta | Hace | Requiere |
+| --- | --- | --- | --- |
+| `GET` | `/dashboards` | Lista los dashboards que el llamador puede ver, como `{slug, name, order?}` | Miembro del ámbito |
+| `GET` | `/dashboards/{slug}` | Carga uno. `data` es el documento, o `null` si no existe. `ETag` contiene la revisión. | Ver |
+| `PUT` | `/dashboards/{slug}` | Crea o reemplaza. Envíe `If-Match`. Responde `{revision, updatedAt}` y el nuevo `ETag`. | Editar, o crear |
+| `DELETE` | `/dashboards/{slug}` | Elimina | Eliminar |
+| `GET` | `/dashboards/{slug}/capabilities` | Los cinco indicadores de capacidad del llamador | Ver |
+| `GET` | `/dashboards/{slug}/permissions` | `{assignments: [{authorityId, role}]}` | Gestionar permisos |
+| `PUT` | `/dashboards/{slug}/permissions` | Reemplaza todas las asignaciones | Gestionar permisos |
+| `GET` | `/capabilities` | `{canCreate}` para este ámbito | Miembro del ámbito |
+
+El `slug` de un dashboard es la dirección del dashboard dentro de su ámbito.
+
+## Consultas
+
+| Método | Ruta | Hace | Requiere |
+| --- | --- | --- | --- |
+| `POST` | `/dashboards/{slug}/queries/{queryId}` | Ejecuta una consulta guardada. Cuerpo `{"filters": {...}}`. Responde `{"data": {"rows": [...]}}`. | Ver. Requiere un ejecutor de consultas; si no, 404. |
+| `GET` | `/dashboards/{slug}/query-catalog` | `{connections: [{id, label, operations: [{id, label, schema?}]}]}` | Editar. Requiere un proveedor de catálogo; si no, 404. |
+
+## Fuentes de datos y credenciales
+
+Disponibles cuando el servidor guarda las credenciales por sí mismo.
+
+| Método | Ruta | Hace |
+| --- | --- | --- |
+| `GET`, `POST` | `/datasources` | Lista, o crea |
+| `GET`, `PUT`, `DELETE` | `/datasources/{dataSourceId}` | Lee, crea o reemplaza, elimina |
+| `POST` | `/datasources/test` | Prueba valores antes de guardar |
+| `POST` | `/datasources/{dataSourceId}/test` | Prueba una fuente de datos guardada |
+| `GET` | `/credentials` | Lista las credenciales como resúmenes |
+| `GET`, `PUT`, `DELETE` | `/credentials/{credentialRef}` | Lee un resumen, guarda un secreto, elimina |
+
+Con `MIOT_DASHBOARD_CREDENTIALS_URL` configurado, las rutas `/credentials` responden 404: las credenciales se gestionan donde residen.
+
+## Rutas del servidor
+
+Estas rutas están fuera de la API, antes de la autenticación.
+
+| Ruta | Responde |
+| --- | --- |
+| `/livez`, `/health` | `{"status":"ok"}` |
+| `/readyz` | `{"status":"ready"}` |
+| `/openapi.yaml` | La definición de la API |
+| `/dashboard-config.schema.json` | El JSON Schema del documento |
+| `/docs` | Swagger UI |
+
+## Errores
+
+Todos los errores tienen la misma forma:
+
+```json
+{ "error": "…", "status": 403, "code": "FORBIDDEN", "reason": "TENANT_SCOPE" }
+```
+
+| Estado | `code` | Significado |
+| --- | --- | --- |
+| 400 | `BAD_REQUEST` | El cuerpo no cumple el contrato. `error` indica el campo. |
+| 401 | `UNAUTHENTICATED` | No hay credencial, o no se pudo verificar |
+| 403 | `FORBIDDEN` | Vea `reason` más abajo |
+| 404 | `NOT_FOUND` | No existe ese dashboard, consulta o fuente de datos, o la función no está configurada |
+| 409 | `CONFLICT` | `If-Match` ya no coincide con la revisión actual |
+| 413 | `PAYLOAD_TOO_LARGE` | El cuerpo supera 1 MiB |
+| 502 | `UPSTREAM_ERROR` | El servicio de datos de una consulta falló o devolvió algo no válido |
+| 500 | `INTERNAL_ERROR` | Un servicio del que depende el servidor no respondió, como el directorio |
+
+| `reason` (solo 403) | Significado |
+| --- | --- |
+| `TENANT_SCOPE` | No es miembro de la organización o del ámbito, o estos no existen |
+| `CAPABILITY` | Es miembro, pero el rol no permite esta acción |
+| `EMBED_SCOPE` | Un token de inserción usado fuera del único dashboard que permite |
+
+Los mensajes de error nunca contienen cuerpos de servicios externos, trazas de pila ni credenciales.
+
+## Ejemplo: cargar y guardar
+
+```bash
+# Cargar
+curl -i -H "Authorization: Bearer $TOKEN" \
+  https://dashboards.example.com/tenants/acme/scopes/ops/dashboards/sales
+# HTTP/1.1 200 OK
+# etag: "3"
+# {"data":{"version":2,"name":"Sales",...}}
+
+# Guardar con la revisión que cargó
+curl -X PUT https://dashboards.example.com/tenants/acme/scopes/ops/dashboards/sales \
+  -H "Authorization: Bearer $TOKEN" -H 'If-Match: "3"' \
+  -H 'Content-Type: application/json' --data @sales.json
+# {"data":{"revision":4,"updatedAt":"2026-10-05T12:00:00.000Z"}}
+```

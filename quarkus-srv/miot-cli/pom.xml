@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.microboxlabs.miot</groupId>
         <artifactId>miot-parent</artifactId>
-        <version>0.5.33</version>
+        <version>0.5.38</version>
     </parent>
 
     <artifactId>miot-cli</artifactId>
@@ -26,10 +26,6 @@
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
-            <artifactId>miot-resource-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-integrations</artifactId>
             <!-- pulsar-client 4.x breaks quarkus-messaging-pulsar (Pulsar 3.3 original).
                  Symptoms uses the Quarkus connector; retransmit stays unused in this process. -->
@@ -43,10 +39,6 @@
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
             <artifactId>miot-conversational</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.microboxlabs.miot</groupId>
-            <artifactId>miot-driver</artifactId>
         </dependency>
         <dependency>
             <groupId>com.microboxlabs.miot</groupId>
@@ -77,6 +69,11 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

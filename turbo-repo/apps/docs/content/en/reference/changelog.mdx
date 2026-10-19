@@ -21,6 +21,76 @@ Features and improvements in development:
 
 ## Recent Releases
 
+### Dashboard server v0.8.0 (2026-10-15)
+
+Published the [server](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) v0.8.0:
+
+- `MIOT_DASHBOARD_TICKET_ALLOW_HTTP=true` accepts a plain `http://` ticket validation URL, for an issuer on the same private network. Before, only https or loopback was accepted. Requires contract `^0.6.0`.
+
+### Dashboard UI v0.1.2 (2026-10-08)
+
+Published the [dashboard UI](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui) v0.1.2:
+
+- A widget dragged in edit mode stays under the pointer. Before, the first move threw it away by the grid's distance from the page corner, such as a sidebar and header.
+
+### Dashboard UI v0.1.1 (2026-10-07)
+
+Published the [dashboard UI](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui) v0.1.1:
+
+- In edit mode, a widget can be dragged from anywhere on it, including the middle of a table or a chart. While the grid can drag, a widget's content no longer scrolls, takes the pointer or selects text. Controls in the host's `Frame` and container widgets stay interactive.
+
+### Dashboard server v0.7.0 (2026-10-06)
+
+Published the [server](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) v0.7.0:
+
+- `MIOT_DASHBOARD_GROUP_ROLES_PATTERN` and `MIOT_DASHBOARD_GROUP_ROLES_MAP` read organization and scope roles from the caller's groups, such as `GROUP_DHB_{tenant}_{role}`, with no seed file or lookup service ([guide](/en/products/dashboards/how-to/authenticate-users)). `createGroupRoleAuthorities` does the same for library users. Requires contract `^0.6.0`.
+
+### Dashboard packages v0.6.0 and dashboard UI v0.1.0 (2026-10-05)
+
+Published [contract](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract) and [server](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) v0.6.0, and the first release of the [dashboard UI](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-ui), v0.1.0:
+
+- Contract v0.6.0: filters can declare `single` selection and take their options from a saved query result (`optionsSource`). The OpenAPI document adds the query catalog route, and list summaries carry the dashboard's `order`.
+- Server v0.6.0: an optional query catalog provider lists approved connections, operations and result columns to editors, without credentials. `createRemoteQueryCatalog` reads it from a host endpoint. Lists are sorted by `order`. `plannerOperationContracts` and `migratePlannerQueries` convert request-planner dashboards to saved queries ([guide](/en/products/dashboards/how-to/migrate-planner-dashboards)). Requires contract `^0.6.0`.
+- UI v0.1.0, first release: React, Web Component and plain-browser rendering of the dashboard catalog, and authoring for settings, saved queries, permissions, filters and import/export. `useDashboardAutosave` saves a document once edits pause. Requires contract `^0.6.0`; React 18 or 19 and ECharts 6 are peer dependencies.
+
+### Dashboard packages v0.5.0 — Creation permissions (2026-09-29)
+
+Published compatible [contract](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract) and [server](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server) v0.5.0:
+
+- New scope capabilities endpoint and embedded method let a workspace check creation eligibility without reading dashboard documents. Embed tokens cannot use it.
+- New-dashboard saves now enforce both the credential edit ceiling and the document policy. Contributors can still create under the default policy.
+- The server requires contract `^0.5.0`, keeping installed OpenAPI documentation aligned with the runtime.
+
+A fresh registry install passed all 11 server exports and standalone SQLite/JWT permission checks. Deploy the server, host forwarding route and workspace in that order. This release does not complete Consumer browser or telemetry migration acceptance.
+
+### Dashboard packages v0.4.0 — Migration tools (2026-09-29)
+
+Published compatible contract and server v0.4.0:
+
+- Validate imported documents against the shared contract before any store access, including dry runs.
+- Convert legacy planner requests using explicit connection/operation mappings while preserving widget bindings and document settings.
+- Opt into `omitWhenEmpty` for optional filter arguments; keep existing binding behavior and host tenant controls.
+- Standalone servers enforce `allowedGroups`; configure trusted JWT or ticket group mappings before upgrading restricted dashboards.
+
+Upgrade both packages together. These migration capabilities do not replace live dashboard, filter and permission acceptance.
+
+[server v0.4.0](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-server/v/0.4.0) | [contract v0.4.0](https://www.npmjs.com/package/@microboxlabs/miot-dashboard-contract/v/0.4.0)
+
+---
+
+### Dashboard packages v0.3.0 — Portable query execution (2026-09-29)
+
+Published `@microboxlabs/miot-dashboard-server` and `@microboxlabs/miot-dashboard-contract` v0.3.0. Both packages are available on npm; dev migration acceptance remains open.
+
+- The contract adds bounded connection-backed query definitions and named filter bindings while retaining version-2 document compatibility.
+- The server exports TypeScript BigQuery and read-only HTTP executors under `/queries`, with tenant checks, deadlines, cancellation, cost and response limits.
+- Embedded hosts supply a trusted resolver. The standalone image includes an operator module for ModularIoT's private catalog; Java and Alfresco are not query execution requirements.
+- Upgrade both packages together. Existing standalone deployments must explicitly configure an operations module to enable portable saved queries.
+
+See the [query guide](/en/products/dashboards/concepts/queries-and-connections) and [acceptance roadmap](/en/products/dashboards/releases).
+
+---
+
 ### `miot-calendar-client` v0.8.0 — Time Window Blocks (2026-05-02)
 
 **`@microboxlabs/miot-calendar-client`** — [npm](https://www.npmjs.com/package/@microboxlabs/miot-calendar-client) | [GitHub](https://github.com/microboxlabs/modulariot/tree/trunk/packages/miot-calendar-client)

@@ -2,7 +2,6 @@ export default {
   index: 'Overview',
   'mission-control': 'Mission Control',
   deployment: 'Deployment',
-  'dashboard-server': 'Servidor de Dashboards',
   environments: 'Environments',
   monitoring: 'Monitoring',
   'logging-tracing': 'Logging & Tracing',

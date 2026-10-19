@@ -1,0 +1,57 @@
+# 🔔 Release Notes v1.31.62 — ModularIoT
+
+### Fecha: 15/10/2026
+
+**Objetivo**: Mejorar la gestión de flotas con un directorio de activos conectado a la información de GPS y viajes, y facilitar el acceso a imágenes de vehículos. La versión también corrige permisos de flota y compatibilidad de fechas en los endpoints de síntomas.
+
+## 🚀 Evolutivos
+
+- **📍 Directorio de flota basado en señales y viajes** *(Integración OSS — MIOT-0.5.63)*
+  - **Punto clave**: Permite consultar y editar activos de la organización, con campos completados a partir de integraciones y viajes recientes. Incluye perfiles de activos, sugerencias de remolque y conductor, documentos con vencimiento y datos de estado y actividad.
+  - **Detalle técnico**: La API y las páginas de flota utilizan permisos específicos; los activos se relacionan con clientes GPS de la organización o son reportados por estos. (#1917)
+
+- **📍 Red de activos entre organizaciones** *(Integración OSS — MIOT-0.5.63)*
+  - **Punto clave**: Añade una página de Ajustes para consultar activos y relaciones entre transportistas, proveedores GPS y operadores logísticos.
+  - **Detalle técnico**: Expone endpoints de red de activos y relaciones con el permiso `fleet:network.view`; esta entrega incluye una fuente de datos de ejemplo. (#1915)
+
+## 🔧 Integraciones
+
+- **🔌 Imágenes de vehículos en perfiles de flota** *(Integración OSS — MIOT-0.5.63)*
+  - **Alcance**: Integra `carimagesapi.com` como proveedor de imágenes a nivel de plataforma, con opciones para guardar, probar y quitar la conexión. Las organizaciones pueden usar su propia conexión o recurrir a la de la plataforma.
+  - **Seguridad y uso**: El secreto permanece en el backend; el navegador recibe una URL de imagen firmada de corta duración. Se muestran imágenes cuando se conocen la marca, el modelo y el año. (#1920)
+
+## 🐛 Correcciones
+
+- **🐛 Visibilidad de la flota según el rol** *(Integración OSS — MIOT-0.5.63)*
+  - **Impacto**: Propietarios y administradores podían ver el menú de flota sin tener configurada una fuente de datos.
+  - **Solución**: Los permisos de consulta y edición de activos son explícitos y solo se conceden mediante los roles `FLEET_VIEWER` y `FLEET_MANAGER`. (#1923)
+
+- **🐛 Rangos de fecha y hora en síntomas** *(Integración OSS — MIOT-0.5.63)*
+  - **Impacto**: El dashboard y la tabla de síntomas rechazaban rangos con un espacio entre la fecha y la hora.
+  - **Solución**: Las rutas de la aplicación convierten ese formato a ISO-8601 antes de reenviarlo al modulith; las fechas ISO existentes siguen funcionando. (#1922)
+
+## 📊 Beneficios
+
+- Mantiene la información de flota más completa aprovechando datos disponibles en señales GPS e integraciones de viajes.
+- Facilita revisar el estado, los viajes y la actividad diaria de cada activo desde su perfil.
+- Permite gestionar vencimientos de documentos y revisar sugerencias de activos y conductores.
+- Aclara el acceso a la flota mediante permisos asociados a roles específicos.
+- Añade imágenes de vehículos sin exponer credenciales del proveedor en el navegador.
+- Conserva la compatibilidad con rangos de fecha usados por enlaces existentes en síntomas.
+
+## 🧾 Versiones del stack
+
+- **Stack**: `miot-stack@v0.5.63`
+- **App**: `app@v0.5.63` — con cambios.
+- **Docs**: `docs@v0.5.63` — con cambios.
+- **Web**: `web@v0.5.63` — con cambios.
+- **Modulith**: `modulith@v0.5.37` — con cambios.
+- **Harness**: `harness@v0.1.13` — con cambios.
+
+Los digests exactos de las imágenes desplegadas están disponibles en el diálogo de información de compilación de la aplicación y en el artefacto de release `stack-manifest.json`.
+
+## 📌 Conclusión
+
+Esta versión amplía las herramientas de gestión de flotas y facilita conectar los activos con información operativa, permisos claros e imágenes de vehículos. También incorpora una vista de red de activos para consultar relaciones entre organizaciones.
+
+Las correcciones de permisos y fechas reducen errores de acceso y mantienen la compatibilidad de los flujos existentes. La combinación de estos cambios fortalece la operación diaria de flotas y la integración con los servicios de la plataforma.

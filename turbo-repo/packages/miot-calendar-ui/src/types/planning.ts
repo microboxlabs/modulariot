@@ -37,6 +37,8 @@ export interface PlannedService<TItem extends { id: string } = CalendarItem> {
   syncStatus?: SyncStatus;
   /** Human-readable detail for a REJECTED sync (the downstream reason). */
   syncDetail?: string;
+  /** The booking sits outside the window's capacity (automatic integrations). */
+  overbooked?: boolean;
 }
 
 /** A planned item being reassigned, with its original slot for restoration. */

@@ -12,9 +12,6 @@
  * it on its own side and returns the resulting header.
  */
 
-/** ISO-8601 instant. */
-type Timestamp = string;
-
 // ----------------------------------------------------------- resolving ----
 
 /** What to put on the outbound request. Not the stored secret. */
@@ -25,10 +22,10 @@ export type DataSourceCredential =
       headers: Readonly<Record<string, string>>;
       queryParams: Readonly<Record<string, string>>;
       /**
-       * When the auth stops working. Absent for a static credential. A caller
+       * ISO-8601 instant when auth stops working. Absent for a static credential. A caller
        * may cache until this instant and must not cache past it.
        */
-      expiresAt?: Timestamp;
+      expiresAt?: string;
     }
   | {
       /**
@@ -91,7 +88,8 @@ export interface CredentialSummary {
    * it. Absent for `NONE`, and always allowed to be absent.
    */
   preview?: string;
-  updatedAt: Timestamp;
+  /** ISO-8601 instant. */
+  updatedAt: string;
 }
 
 /**

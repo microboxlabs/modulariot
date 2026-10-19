@@ -34,6 +34,31 @@ class IntegrationOperationInvokerTest {
     }
 
     @Test
+    void runtimeQueryParametersCannotReplaceCredentialParameters() {
+        assertEquals(Map.of("days", "30", "key", "secret"),
+                IntegrationOperationInvoker.combineQueryParameters(Map.of("days", "30"), Map.of("key", "secret")));
+        var supplied = Map.of("key", "override");
+        var credentials = Map.of("key", "secret");
+        assertThrows(OperationInvocationException.class,
+                () -> IntegrationOperationInvoker.combineQueryParameters(supplied, credentials));
+    }
+
+    @Test
+    void boundedAddressesCannotHideDuplicateParametersOrFragments() {
+        IntegrationOperationInvoker.requireParameterFreeAddress(URI.create("https://api.example.com"), "/summary");
+        URI publicBase = URI.create("https://api.example.com");
+        for (String path : List.of("/summary?tenant=other", "/summary#fragment")) {
+            assertThrows(OperationInvocationException.class,
+                    () -> IntegrationOperationInvoker.requireParameterFreeAddress(publicBase, path));
+        }
+        for (String base : List.of("https://api.example.com?tenant=other", "https://api.example.com#fragment")) {
+            URI uri = URI.create(base);
+            assertThrows(OperationInvocationException.class,
+                    () -> IntegrationOperationInvoker.requireParameterFreeAddress(uri, "/summary"));
+        }
+    }
+
+    @Test
     void joinsBaseUrlAndPathWithExactlyOneSlash() {
         assertEquals(URI.create("https://api.example.com/v1/photos"),
                 IntegrationOperationInvoker.buildUrl(
@@ -165,6 +190,29 @@ class IntegrationOperationInvokerTest {
 
         assertEquals("<redacted>", masked.get("api_key"));
         assertEquals("<redacted>", masked.get("signature"));
+    }
+
+    @Test
+    void boundedSnapshotDoesNotReloadTheOperation() {
+        var invoker = new IntegrationOperationInvoker(null, null, null, 2);
+        var connection = new ResolvedConnection("c1", URI.create("http://127.0.0.1"), Map.of(), Map.of());
+        var operation = new IntegrationOperation("op", "c1", "summary", "GET", "/approved", Map.of(), Map.of(), false);
+        var parameters = Map.of("tenant", "ACME");
+        JobHttpTrace.begin();
+        assertThrows(IllegalArgumentException.class, () -> invoker.executeBounded(connection, operation, parameters, 1000));
+        var exchanges = JobHttpTrace.end();
+        assertEquals(1, exchanges.size());
+        assertEquals("http://127.0.0.1/approved?tenant=ACME", exchanges.get(0).get("url"));
+        assertEquals("GET", exchanges.get(0).get("method"));
+    }
+
+    @Test
+    void boundedSnapshotRefusesAnOperationFromAnotherConnection() {
+        var invoker = new IntegrationOperationInvoker(null, null, null, 2);
+        var connection = new ResolvedConnection("c1", URI.create("http://127.0.0.1"), Map.of(), Map.of());
+        var operation = new IntegrationOperation("op", "other", "summary", "GET", "/approved", Map.of(), Map.of(), false);
+        Map<String, String> parameters = Map.of();
+        assertThrows(OperationInvocationException.class, () -> invoker.executeBounded(connection, operation, parameters, 1000));
     }
 
     @Test

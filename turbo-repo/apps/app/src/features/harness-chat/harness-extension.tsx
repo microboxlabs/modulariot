@@ -12,6 +12,8 @@ export type HarnessExtension<TArgs = any, TResult = any> = {
   description: string;
   parameters: JSONSchema7;
   render: ToolCallMessagePartComponent<TArgs, TResult>;
+  /** Only registered, and offered to the harness, while storytelling is on. */
+  requiresStorytelling?: boolean;
 };
 
 /**

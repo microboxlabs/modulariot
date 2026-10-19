@@ -1,8 +1,10 @@
+import { Suspense } from "react";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { HiClipboardList } from "react-icons/hi";
-import GeneralMap from "@/features/symptoms/components/map-view/general-map";
+import GeneralMap from "@/features/symptoms/components/map-view/prototype/prototype-general-map";
+import { RuntimeConfigReady } from "@/features/runtime-config/runtime-config-context";
 
 interface MapViewParams {
   params: Promise<{
@@ -36,7 +38,14 @@ export default async function SymptomList({
           dict={dict["symptoms"] as I18nRecord}
         />
       </div>
-      <GeneralMap dict={dict} id={id as string} tripId={tripId} assetId={assetId} />
+      {/* GeneralMap persists the open panel/menu to the URL via
+          useSearchParams, which requires a Suspense boundary. It waits for
+          the runtime config, which holds the symptoms prototype flags. */}
+      <Suspense fallback={null}>
+        <RuntimeConfigReady>
+          <GeneralMap dict={dict} id={id as string} tripId={tripId} assetId={assetId} />
+        </RuntimeConfigReady>
+      </Suspense>
     </div>
   );
 }

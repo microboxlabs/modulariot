@@ -1,0 +1,115 @@
+import { Callout, Steps } from 'nextra/components'
+
+# Inicio rápido
+
+Ejecute el servidor de dashboards en su computador, lea un dashboard, guarde uno nuevo y vea cómo el servidor rechaza una solicitud que debe rechazar. Toma unos cinco minutos.
+
+Necesita Node.js 22.13 o posterior. Nada más: el servidor guarda los datos en un archivo SQLite que Node ya soporta.
+
+<Steps>
+
+### Iniciar el servidor
+
+```bash
+MIOT_DASHBOARD_INSECURE_AUTH=true \
+MIOT_DASHBOARD_SEED=example \
+MIOT_DASHBOARD_STORE=sqlite \
+  npx @microboxlabs/miot-dashboard-server
+```
+
+El servidor inicia en `http://127.0.0.1:3070` y escribe su base de datos en `./data`. Sus primeras líneas de log indican cómo está configurado:
+
+```text
+{"level":"info","msg":"store","store":"sqlite at ./data/dashboards.db, documents inline"}
+{"level":"info","msg":"identity","auth":"unverified request headers (local use only)"}
+{"level":"info","msg":"tenants","entitlement":"the seed file (2 tenants)"}
+{"level":"info","msg":"listening","url":"http://127.0.0.1:3070", ...}
+```
+
+`MIOT_DASHBOARD_SEED=example` carga datos de ejemplo: dos organizaciones, `acme` y `globex`, con algunas personas en cada una. `MIOT_DASHBOARD_INSECURE_AUTH=true` le permite indicar quién es usted con un header `x-dev-user`.
+
+<Callout type="warning">
+`MIOT_DASHBOARD_INSECURE_AUTH` confía en el header sin revisarlo. El servidor solo lo acepta en `localhost` y se niega a iniciar con esta opción en producción. En cualquier otro lugar, use un proveedor de identidad real. Consulte [Autenticar usuarios](/es/products/dashboards/how-to/authenticate-users).
+</Callout>
+
+### Listar los dashboards
+
+```bash
+curl -H 'x-dev-user: alice' \
+  http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards
+```
+
+```json
+{"data":[{"slug":"fleet","name":"Fleet overview"}]}
+```
+
+`alice` es Coordinator en el ámbito `ops` de la organización `acme`. Cada dirección nombra la organización (`tenants/acme`) y el ámbito (`scopes/ops`).
+
+### Guardar un dashboard
+
+```bash
+curl -X PUT http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards/sales \
+  -H 'x-dev-user: alice' \
+  -H 'If-Match: "0"' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "version": 2,
+    "name": "Ventas",
+    "preferences": { "editMode": false },
+    "widgets": [{
+      "id": "hello",
+      "componentId": "text_card",
+      "layout": { "i": "hello", "x": 0, "y": 0, "w": 12, "h": 3 },
+      "config": { "text": "Mi primer widget" },
+      "createdAt": "2026-10-05T00:00:00Z",
+      "updatedAt": "2026-10-05T00:00:00Z"
+    }]
+  }'
+```
+
+```json
+{"data":{"revision":1,"updatedAt":"2026-10-05T12:48:58.754Z"}}
+```
+
+`If-Match: "0"` significa "créelo solo si nadie lo ha creado". La respuesta trae la nueva revisión, `1`. Envíela con el siguiente guardado. [Revisiones y guardado](/es/products/dashboards/concepts/revisions-and-saving) explica por qué.
+
+### Ver cómo rechaza el servidor
+
+Guarde el mismo documento otra vez con la revisión anterior:
+
+```bash
+curl -X PUT http://127.0.0.1:3070/tenants/acme/scopes/ops/dashboards/sales \
+  -H 'x-dev-user: alice' -H 'If-Match: "0"' \
+  -H 'Content-Type: application/json' -d '{"version":2,"name":"Ventas","preferences":{"editMode":false},"widgets":[]}'
+```
+
+```json
+{"error":"Dashboard was modified by someone else (expected revision 0, found 1)","status":409,"code":"CONFLICT"}
+```
+
+Luego intente leer los dashboards de otra organización como `alice`:
+
+```bash
+curl -H 'x-dev-user: alice' \
+  http://127.0.0.1:3070/tenants/globex/scopes/ops/dashboards
+```
+
+```json
+{"error":"The requested scope is not accessible with these credentials","status":403,"code":"FORBIDDEN","reason":"TENANT_SCOPE"}
+```
+
+`alice` no pertenece a `globex`. La respuesta es la misma que para una organización que no existe, así nadie puede usar la dirección para averiguar qué organizaciones existen.
+
+### Revisar la API
+
+Abra `http://127.0.0.1:3070/openapi.yaml` para ver la definición completa de la API. Para explorarla en Swagger UI en `/docs`, instale `swagger-ui-dist` junto al servidor; la imagen de contenedor ya lo incluye.
+
+</Steps>
+
+## Próximos pasos
+
+- Dibuje este dashboard en una página web: [Incrustar un dashboard en una página web](/es/products/dashboards/tutorials/embed-in-a-web-page).
+- Construya uno en la aplicación web de ModularIoT: [Construir su primer dashboard](/es/products/dashboards/tutorials/first-dashboard).
+- Decida cómo lo va a ejecutar: [Elegir una configuración](/es/products/dashboards/getting-started/choose-a-setup).
+
+Para volver a empezar desde los datos de ejemplo, detenga el servidor y borre `./data`.

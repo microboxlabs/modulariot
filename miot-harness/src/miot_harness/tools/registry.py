@@ -1,16 +1,22 @@
 from typing import Any
 
+from miot_harness.agents.chat_models import provider_registry
 from miot_harness.config import HarnessSettings, get_settings
 from miot_harness.runtime.context import HarnessContext
 from miot_harness.runtime.tool import HarnessTool, Progress
+from miot_harness.tools.artifact import artifact_tool
 from miot_harness.tools.dashboard import (
     apply_dashboard_patch_tool,
     create_dashboard_widget_draft_tool,
     get_dashboard_context_tool,
 )
+from miot_harness.tools.dashboard_draft import dashboard_draft_tool
 from miot_harness.tools.delivery_metrics import get_delivery_compliance_metrics_tool
 from miot_harness.tools.filesystem import VirtualFileStore, build_filesystem_tools
-from miot_harness.tools.storytelling import create_story_draft_tool
+from miot_harness.tools.source import build_source_tools, source_repos
+from miot_harness.tools.todos import TodoStore, write_todos_tool
+from miot_harness.tools.web_fetch import web_fetch_tool
+from miot_harness.tools.web_search import WebSearcher, web_search_tool
 from miot_harness.tools.workflow_events import get_workflow_bottlenecks_tool
 
 
@@ -45,7 +51,6 @@ def build_default_registry(settings: HarnessSettings | None = None) -> ToolRegis
     registry.register(get_delivery_compliance_metrics_tool())
     registry.register(get_workflow_bottlenecks_tool())
     registry.register(get_dashboard_context_tool())
-    registry.register(create_story_draft_tool())
     registry.register(create_dashboard_widget_draft_tool())
     registry.register(apply_dashboard_patch_tool())
     if settings.fs_enabled:
@@ -59,4 +64,19 @@ def build_default_registry(settings: HarnessSettings | None = None) -> ToolRegis
         )
         for tool in build_filesystem_tools(store):
             registry.register(tool)
+    registry.register(write_todos_tool(TodoStore()))
+    registry.register(artifact_tool())
+    registry.register(dashboard_draft_tool())
+    if settings.web_fetch_enabled:
+        registry.register(web_fetch_tool(max_per_run=settings.web_fetch_max_per_run))
+    if settings.source_enabled and settings.source_repos:
+        for tool in build_source_tools(source_repos(settings)):
+            registry.register(tool)
+    if settings.web_search_enabled:
+        registry.register(
+            web_search_tool(
+                WebSearcher(providers=provider_registry, settings=settings),
+                with_fetch=settings.web_fetch_enabled,
+            )
+        )
     return registry

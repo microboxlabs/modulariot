@@ -21,6 +21,15 @@ public interface SelectableOptionSource {
     /** What an editor may pick for this tenant: this source, or one entry per usable connection. */
     List<Descriptor> describe(String tenantCode);
 
+    /**
+     * Refuses a list's source config this source could not use, when the list is
+     * saved rather than when a field first opens it.
+     *
+     * @throws IllegalArgumentException naming what is wrong
+     */
+    default void check(SelectableSource source) {
+    }
+
     /** At most {@code query.limit()} options matching the query. */
     List<SelectableOption> options(String tenantCode, SelectableSource source, Query query);
 

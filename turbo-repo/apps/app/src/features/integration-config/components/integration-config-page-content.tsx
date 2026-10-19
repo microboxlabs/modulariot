@@ -12,6 +12,7 @@ import { useIntegrationConfig } from "../use-integration-config";
 import type {
   IntegrationConnection,
   IntegrationTemplate,
+  NativeProvider,
 } from "../integration-config.types";
 import { ConnectionsList } from "./connections-list";
 import { TemplatesList } from "./templates-list";
@@ -19,6 +20,7 @@ import { TemplateFormModal } from "./template-form-modal";
 import { TemplatePickerModal } from "./template-picker-modal";
 import { ConnectionFormModal } from "./connection-form-modal";
 import { IntegrationDeleteDialog } from "./integration-delete-dialog";
+import { PostgrestFunctionsModal } from "./postgrest-functions-modal";
 
 interface IntegrationConfigPageContentProps {
   /** `pages.integrationConnections` subtree. */
@@ -72,7 +74,10 @@ export function IntegrationConfigPageContent({
     open: boolean;
     connection?: IntegrationConnection;
     template?: IntegrationTemplate;
+    providerType?: NativeProvider;
   }>({ open: false });
+  const [functionsFor, setFunctionsFor] =
+    useState<IntegrationConnection | null>(null);
   const [deletingTemplate, setDeletingTemplate] =
     useState<IntegrationTemplate | null>(null);
   const [deletingConnection, setDeletingConnection] =
@@ -92,6 +97,11 @@ export function IntegrationConfigPageContent({
   function handleTemplatePicked(template: IntegrationTemplate) {
     setPickerOpen(false);
     setConnectionModal({ open: true, template });
+  }
+
+  function handleNativePicked(providerType: NativeProvider) {
+    setPickerOpen(false);
+    setConnectionModal({ open: true, providerType });
   }
 
   function handleEditConnection(connection: IntegrationConnection) {
@@ -147,7 +157,9 @@ export function IntegrationConfigPageContent({
     try {
       const result = await testInstance(connection.id);
       if (result.success) {
-        toast.success(tr("toast.testOk", dict));
+        toast.success(tr("toast.testOk", dict), {
+          description: result.message ?? undefined,
+        });
       } else {
         toast.error(result.message ?? tr("toast.testFailed", dict));
       }
@@ -195,7 +207,7 @@ export function IntegrationConfigPageContent({
             color="blue"
             className="shrink-0 whitespace-nowrap"
             onClick={handleAddConnection}
-            disabled={!orgSlug || templates.length === 0}
+            disabled={!orgSlug}
           >
             <HiPlus className="mr-2 h-4 w-4" />
             {tr("connections.new", dict)}
@@ -225,12 +237,9 @@ export function IntegrationConfigPageContent({
               onOpen={handleEditConnection}
               onTest={handleTest}
               onDelete={setDeletingConnection}
+              onFunctions={setFunctionsFor}
               testing={testing}
-              emptyMessage={
-                templates.length === 0
-                  ? tr("connections.emptyNoTemplates", dict)
-                  : tr("connections.empty", dict)
-              }
+              emptyMessage={tr("connections.empty", dict)}
               dict={dict}
             />
 
@@ -283,6 +292,7 @@ export function IntegrationConfigPageContent({
         templates={templates}
         onClose={() => setPickerOpen(false)}
         onSelect={handleTemplatePicked}
+        onSelectNative={handleNativePicked}
         dict={dict}
       />
 
@@ -290,6 +300,7 @@ export function IntegrationConfigPageContent({
         show={connectionModal.open}
         connection={connectionModal.connection}
         template={connectionModal.template}
+        providerType={connectionModal.providerType}
         credentials={credentials}
         onClose={() => setConnectionModal({ open: false })}
         onSave={saveConnection}
@@ -306,6 +317,15 @@ export function IntegrationConfigPageContent({
         saving={saving}
         dict={dict}
       />
+
+      {functionsFor && orgSlug && (
+        <PostgrestFunctionsModal
+          orgSlug={orgSlug}
+          connection={functionsFor}
+          onClose={() => setFunctionsFor(null)}
+          dict={dict}
+        />
+      )}
 
       <IntegrationDeleteDialog
         show={deletingConnection !== null}

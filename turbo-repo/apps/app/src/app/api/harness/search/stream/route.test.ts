@@ -102,7 +102,7 @@ beforeEach(async () => {
 describe("POST /api/harness/search/stream", () => {
   it("relays whitelisted events and finishes with search.result", async () => {
     runsStreamMock.mockImplementation(async function* () {
-      yield harnessEvent("route.selected", 1, { route: "data_agentic" });
+      yield harnessEvent("agent.started", 1, { agent: "agent_loop", turn: 0 });
       yield harnessEvent("usage.recorded", 2, { model: "x" }); // must be filtered
       yield harnessEvent("tool.started", 3, { tool: "acs_query" });
       yield harnessEvent("tool.completed", 4, { tool: "acs_query" });
@@ -127,7 +127,7 @@ describe("POST /api/harness/search/stream", () => {
     expect(names[0]).toBe("search.accepted");
     expect(names).toEqual(
       expect.arrayContaining([
-        "route.selected",
+        "agent.started",
         "tool.started",
         "tool.completed",
         "thinking.delta",
@@ -168,14 +168,14 @@ describe("POST /api/harness/search/stream", () => {
   it("emits search.error, cancels the run, and still terminates when the relay fails mid-run", async () => {
     runsCancelMock.mockResolvedValue(undefined);
     runsStreamMock.mockImplementation(async function* () {
-      yield harnessEvent("route.selected", 1);
+      yield harnessEvent("agent.started", 1);
       throw new Error("upstream died");
     });
 
     const res = await POST(searchRequest());
     const frames = await parseFrames(res);
     const names = frames.map((f) => f.event);
-    expect(names).toContain("route.selected");
+    expect(names).toContain("agent.started");
     expect(names.at(-1)).toBe("search.error");
     expect(names).not.toContain("search.result");
     // Nobody can consume the run's answer anymore — it must be cancelled.
@@ -188,7 +188,7 @@ describe("POST /api/harness/search/stream", () => {
       _id: string,
       opts: { signal: AbortSignal },
     ) {
-      yield harnessEvent("route.selected", 1);
+      yield harnessEvent("agent.started", 1);
       // Block like a live run until the relay aborts us (client.runs.stream
       // honors the signal the route passes in).
       await new Promise((_, reject) => {

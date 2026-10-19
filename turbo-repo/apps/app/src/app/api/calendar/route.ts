@@ -37,6 +37,8 @@ export async function GET() {
   const authResult = await requireAuth();
   if (!authResult.authenticated) return authResult.response;
 
+  // Deployments without the calendar service have no calendars to list.
+  if (!process.env.MIOT_CALENDAR_URL) return NextResponse.json([]);
   const client = createCalendarClient(authResult.session);
 
   try {

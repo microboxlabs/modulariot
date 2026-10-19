@@ -18,9 +18,9 @@ describe("parseSlash", () => {
   });
 
   it("parses positional args", () => {
-    expect(parseSlash("/mode agentic")).toEqual({
-      name: "mode",
-      args: ["agentic"],
+    expect(parseSlash("/theme dark")).toEqual({
+      name: "theme",
+      args: ["dark"],
     });
     expect(parseSlash("/save  /tmp/foo.json")).toEqual({
       name: "save",
@@ -30,16 +30,16 @@ describe("parseSlash", () => {
 
   it("lowercases the command name", () => {
     expect(parseSlash("/HELP")).toEqual({ name: "help", args: [] });
-    expect(parseSlash("/Mode Agentic")).toEqual({
-      name: "mode",
-      args: ["Agentic"],
+    expect(parseSlash("/Theme Dark")).toEqual({
+      name: "theme",
+      args: ["Dark"],
     });
   });
 
   it("collapses multiple spaces between tokens", () => {
-    expect(parseSlash("/mode    agentic")).toEqual({
-      name: "mode",
-      args: ["agentic"],
+    expect(parseSlash("/theme    dark")).toEqual({
+      name: "theme",
+      args: ["dark"],
     });
   });
 
@@ -56,10 +56,10 @@ describe("validateArgs", () => {
 
   it("flags a missing required argument", () => {
     const r = validateArgs(
-      [{ name: "mode", required: true, choices: ["auto", "agentic"] }],
+      [{ name: "theme", required: true, choices: ["light", "dark"] }],
       [],
     );
-    expect(r).toEqual({ ok: false, error: "missing argument: mode" });
+    expect(r).toEqual({ ok: false, error: "missing argument: theme" });
   });
 
   it("accepts an optional argument that is omitted", () => {
@@ -69,23 +69,23 @@ describe("validateArgs", () => {
 
   it("flags an unknown choice", () => {
     const r = validateArgs(
-      [{ name: "mode", required: true, choices: ["auto", "agentic"] }],
+      [{ name: "theme", required: true, choices: ["light", "dark"] }],
       ["junk"],
     );
-    expect(r).toEqual({ ok: false, error: "unknown mode: junk" });
+    expect(r).toEqual({ ok: false, error: "unknown theme: junk" });
   });
 
   it("returns the values map keyed by spec name on success", () => {
     const r = validateArgs(
       [
-        { name: "mode", required: true, choices: ["auto", "agentic"] },
+        { name: "theme", required: true, choices: ["light", "dark"] },
         { name: "extra", required: false },
       ],
-      ["agentic", "hello"],
+      ["dark", "hello"],
     );
     expect(r).toEqual({
       ok: true,
-      values: { mode: "agentic", extra: "hello" },
+      values: { theme: "dark", extra: "hello" },
     });
   });
 });

@@ -125,3 +125,31 @@ export { refLabel } from "./import/legacy";
 export type { LegacyDashboard, LegacyDashboardSource } from "./import/legacy";
 export { migrateConfig, CURRENT_CONFIG_VERSION } from "./import/migrate";
 export type { MigrationResult } from "./import/migrate";
+export { migratePlannerQueries } from "./import/planner";
+export type {
+  PlannerQueryMapping,
+  PlannerMigrationOptions,
+  PlannerMigrationResult,
+} from "./import/planner";
+export {
+  plannerOperationContracts,
+  plannerParameterBindings,
+} from "./import/planner-contracts";
+export type {
+  PlannerContractOptions,
+  PlannerOperationContract,
+} from "./import/planner-contracts";
+
+export {
+  createDashboardQueryService,
+  type DashboardQueryOptions,
+} from "./queries/service";
+export type {
+  DashboardOperationExecutor,
+  DashboardOperationRequest,
+  DashboardQueryResult,
+} from "./seams/operations";
+export {
+  createHttpDashboardOperationExecutor,
+  type HttpDashboardOperationsOptions,
+} from "./queries/http-operations";

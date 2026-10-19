@@ -5,7 +5,13 @@ import {
   SidebarNavigationProvider,
   useSidebarNavigation,
 } from "./sidebar-navigation-context";
-import { pages, visiblePages, DEV_PAGE_LABEL, STORYTELLING_PAGE_LABEL } from "../models/pages";
+import {
+  pages,
+  visiblePages,
+  DEV_PAGE_LABEL,
+  STORYTELLING_PAGE_LABEL,
+  DASHBOARD_SERVER_PAGE_LABEL,
+} from "../models/pages";
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -117,7 +123,23 @@ function setDefaultMocks({
 }
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <SidebarNavigationProvider isHarnessSettingsEnabled={false}>
+  <SidebarNavigationProvider
+    isHarnessSettingsEnabled={false}
+    isDashboardServerEnabled={false}
+  >
+    {children}
+  </SidebarNavigationProvider>
+);
+
+const dashboardServerWrapper = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => (
+  <SidebarNavigationProvider
+    isHarnessSettingsEnabled={false}
+    isDashboardServerEnabled
+  >
     {children}
   </SidebarNavigationProvider>
 );
@@ -145,9 +167,12 @@ describe("SidebarNavigationProvider", () => {
     expect(result.current.totals).toBeDefined();
   });
 
-  it("exposes all pages as items", () => {
+  it("exposes all pages as items, Fleet only with fleet:assets.view", () => {
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
-    expect(result.current.items).toHaveLength(visiblePages(false, false).length);
+    expect(result.current.items).toHaveLength(
+      visiblePages(false, false, false).filter((p) => p.label !== "fleet")
+        .length
+    );
   });
 
   it("hides the Dev section when the runtime config hasn't enabled it", () => {
@@ -155,15 +180,37 @@ describe("SidebarNavigationProvider", () => {
     // — the same state as a page before the config fetch resolves. Dev must
     // stay out of navigation in that window.
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
-    expect(result.current.items.some((i) => i.label === DEV_PAGE_LABEL)).toBe(false);
+    expect(result.current.items.some((i) => i.label === DEV_PAGE_LABEL)).toBe(
+      false
+    );
     expect(pages.some((p) => p.label === DEV_PAGE_LABEL)).toBe(true);
   });
 
   it("hides the Storytelling section when the runtime config hasn't enabled it", () => {
     // Same "config not resolved yet" state as the Dev test above.
     const { result } = renderHook(() => useSidebarNavigation(), { wrapper });
-    expect(result.current.items.some((i) => i.label === STORYTELLING_PAGE_LABEL)).toBe(false);
+    expect(
+      result.current.items.some((i) => i.label === STORYTELLING_PAGE_LABEL)
+    ).toBe(false);
     expect(pages.some((p) => p.label === STORYTELLING_PAGE_LABEL)).toBe(true);
+  });
+
+  it("hides the dashboard workspace unless ENABLE_DASHBOARD_SERVER is on", () => {
+    const hidden = renderHook(() => useSidebarNavigation(), { wrapper });
+    expect(
+      hidden.result.current.items.some(
+        (i) => i.label === DASHBOARD_SERVER_PAGE_LABEL
+      )
+    ).toBe(false);
+
+    const shown = renderHook(() => useSidebarNavigation(), {
+      wrapper: dashboardServerWrapper,
+    });
+    expect(
+      shown.result.current.items.some(
+        (i) => i.label === DASHBOARD_SERVER_PAGE_LABEL
+      )
+    ).toBe(true);
   });
 
   describe("pages immutability", () => {

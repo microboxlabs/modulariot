@@ -8,7 +8,7 @@ const EMPTY = { default: null, models: [] as string[] };
 /**
  * The conversation models the harness lets a run choose, via
  * `client.models.list()` (`GET /models`). Empty when the harness has no
- * per-run model.
+ * per-run model; 502 when the harness could not be asked.
  */
 export async function GET() {
   if (!isModulithConfigured()) {
@@ -22,6 +22,8 @@ export async function GET() {
     return NextResponse.json(await route.client.models.list());
   } catch (err: unknown) {
     logger.error({ err }, "[harness/models] failed to fetch models");
-    return NextResponse.json(EMPTY);
+    // Not EMPTY: an empty list means "no per-run model", and the panel would
+    // cache it and hide the picker.
+    return NextResponse.json({ error: "models unavailable" }, { status: 502 });
   }
 }

@@ -52,7 +52,7 @@ def test_fake_mode_records_reproducibility_env(tmp_path: Path) -> None:
     assert env["deterministic"] is True
     assert env["python"]
     assert env["platform"]
-    assert "synthesizer" in env["models"]
+    assert "agent_loop" in env["models"]
 
 
 def _refusal_entry() -> dict[str, Any]:

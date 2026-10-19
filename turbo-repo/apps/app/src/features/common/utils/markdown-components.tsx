@@ -1,9 +1,16 @@
+import Link from "next/link";
 import React from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { twMerge } from "tailwind-merge";
+
+const LINK_CLASS = "underline opacity-80 hover:opacity-100";
+
+function isAppPath(href: string | undefined): href is string {
+  return !!href && href.startsWith("/") && !href.startsWith("//");
+}
 
 const MARKDOWN_COMPONENTS = {
   p: ({ children }: React.HTMLAttributes<HTMLParagraphElement>) => (
@@ -39,9 +46,15 @@ const MARKDOWN_COMPONENTS = {
   code: ({ children }: React.HTMLAttributes<HTMLElement>) => (
     <code className="rounded bg-black/10 px-0.5 font-mono dark:bg-white/10">{children}</code>
   ),
-  a: ({ children, href }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-    <a href={href} className="underline opacity-80 hover:opacity-100" target="_blank" rel="noopener noreferrer">{children}</a>
-  ),
+  // An app path ("/shipping?service=1") goes through next/link, which adds the
+  // app's basePath, and stays in the tab. A plain <a> would drop the basePath
+  // and land outside the app.
+  a: ({ children, href }: React.AnchorHTMLAttributes<HTMLAnchorElement>) =>
+    isAppPath(href) ? (
+      <Link href={href} className={LINK_CLASS}>{children}</Link>
+    ) : (
+      <a href={href} className={LINK_CLASS} target="_blank" rel="noopener noreferrer">{children}</a>
+    ),
   // GFM tables, styled to the same tight/small scale as everything else in
   // this map (not Tailwind Typography's prose scale — see the "document"
   // variant below for that — which sizes for a standalone page, not a chat

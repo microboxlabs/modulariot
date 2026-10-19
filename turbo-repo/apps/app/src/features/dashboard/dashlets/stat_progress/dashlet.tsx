@@ -1,15 +1,15 @@
 "use client";
 
+import { useOptionalDashboard } from "../../context/dashboard-context";
+import { PortableScalarWidget } from "../common/portable-scalar-widget";
 import type { DashletComponentProps, DashletLayoutDefaults } from "../types";
+import { useThresholdDashletData } from "../common/use-threshold-dashlet-data";
 import { type PgrestDashletFields } from "../common/use-dashlet-pgrest";
-import { useDashletPgrest } from "../common/use-dashlet-pgrest";
 import {
   DashletLoading,
   DashletError,
   parseResolvedNumber,
 } from "../common/dashlet-states";
-import { useEffectiveRefreshInterval } from "../../hooks/use-effective-refresh-interval";
-import { useRowThreshold } from "../common/use-threshold";
 import {
   getThresholdBarClass,
   getThresholdTextClasses,
@@ -101,20 +101,18 @@ function evaluateBarColorRules(
 /**
  * Progress Bar Card - Horizontal progress with milestones
  */
-export function Dashlet({ widget }: Readonly<DashletComponentProps>) {
+export function Dashlet(props: Readonly<DashletComponentProps>) {
+  const { hostAccess } = useOptionalDashboard();
+  return hostAccess ? (
+    <PortableScalarWidget widget={props.widget} />
+  ) : (
+    <LegacyDashlet {...props} />
+  );
+}
+function LegacyDashlet({ widget }: Readonly<DashletComponentProps>) {
   const config = widget.config as unknown as DashletConfig;
-  const refreshIntervalMs = useEffectiveRefreshInterval(widget.config);
-
-  const { resolved, loading, fetchError, firstRow } = useDashletPgrest(
-    config,
-    FIELD_DEFAULTS,
-    refreshIntervalMs
-  );
-
-  const { color: thresholdColor, appliesTo } = useRowThreshold(
-    config.thresholds,
-    firstRow
-  );
+  const { resolved, loading, fetchError, thresholdColor, appliesTo } =
+    useThresholdDashletData(widget.config, config, FIELD_DEFAULTS);
 
   if (loading) return <DashletLoading />;
   if (fetchError) return <DashletError message={fetchError} />;

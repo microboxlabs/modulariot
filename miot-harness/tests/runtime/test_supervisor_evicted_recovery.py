@@ -12,23 +12,14 @@ from miot_harness.runtime.conversation import (
     ConversationTurn,
     InMemoryConversationStore,
 )
-from miot_harness.runtime.router import HarnessRoute, IntentRouter, RouteResult
 from miot_harness.runtime.run_store import JsonRunStore
 from miot_harness.runtime.supervisor import HarnessSupervisor
-from miot_harness.storytelling.module import StorytellingModule
 from miot_harness.tools.registry import ToolRegistry
-
-
-class _Router(IntentRouter):
-    def route(self, message: str) -> RouteResult:
-        return RouteResult(route=HarnessRoute.DATA_AGENTIC, reason="test")
 
 
 def _supervisor(tmp_path, store):
     return HarnessSupervisor(
-        router=_Router(),
         tools=ToolRegistry(),
-        stories=StorytellingModule(),
         run_store=JsonRunStore(tmp_path),
         conversation_store=store,
     )

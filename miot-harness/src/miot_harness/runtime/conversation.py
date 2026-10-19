@@ -8,7 +8,8 @@ Redis-backed store without retouching call sites.
 groups runs from the same multi-turn chat in Langfuse.
 
 `summarize_if_needed` fires plan 12's summarizer when the transcript
-exceeds the configured turn cap (default 10). The store then keeps a
+exceeds the configured turn cap (default 10) or its replay passes
+`compact_at_tokens`. The store then keeps a
 compact `summary` field plus the most-recent turns so context stays
 under the LLM's window.
 """
@@ -31,9 +32,8 @@ from langchain_core.messages import (
 from langchain_core.messages.utils import count_tokens_approximately
 
 _DEFAULT_SUMMARIZE_AT_TURNS = 10
-# Turns left verbatim after a compaction. The intent router reads the
-# last turns to place a follow-up; a fully cleared history would leave
-# the request right after a compaction with nothing to read.
+# Turns left verbatim after a compaction, so the turn right after one
+# still sees the latest exchanges word for word.
 _DEFAULT_KEEP_RECENT_TURNS = 2
 # Conversations held at once, least-recently-used evicted first. Matches the
 # advisor transcript cap in `agent_seats`.
@@ -69,6 +69,9 @@ class ConversationHistory:
     conversation_id: str
     turns: list[ConversationTurn] = field(default_factory=list)
     summary: str | None = None
+    # True once the history was loaded from or saved to durable storage. Such
+    # a history is the record: a caller's text replay never replaces it.
+    saved: bool = False
 
 
 class ConversationStore(Protocol):
@@ -89,6 +92,14 @@ class ConversationStore(Protocol):
         summarizer: Callable[[ConversationHistory], Awaitable[str]],
     ) -> bool: ...
 
+    async def compact(
+        self,
+        conversation_id: str,
+        *,
+        summarizer: Callable[[ConversationHistory], Awaitable[str]],
+        keep_recent: int = 0,
+    ) -> bool: ...
+
 
 class InMemoryConversationStore:
     """Dict-keyed in-memory store. Lost on process restart — acceptable for v1.
@@ -106,12 +117,14 @@ class InMemoryConversationStore:
         keep_recent_turns: int = _DEFAULT_KEEP_RECENT_TURNS,
         max_conversations: int = _DEFAULT_MAX_CONVERSATIONS,
         max_chars: int = _DEFAULT_MAX_CHARS,
+        compact_at_tokens: int | None = None,
     ) -> None:
         self._histories: OrderedDict[str, ConversationHistory] = OrderedDict()
         self._summarize_at_turns = summarize_at_turns
         self._keep_recent_turns = max(0, keep_recent_turns)
         self._max_conversations = max(1, max_conversations)
         self._max_chars = max(1, max_chars)
+        self._compact_at_tokens = compact_at_tokens
         self._chars: dict[str, int] = {}
         self._compactions: dict[str, asyncio.Lock] = {}
 
@@ -184,6 +197,36 @@ class InMemoryConversationStore:
         self._remeasure(conversation_id)
         self._evict()
 
+    def _over_limit(self, history: ConversationHistory) -> bool:
+        """Too many turns, or a replay larger than `compact_at_tokens`.
+
+        Past the token limit the replay budget starts cutting tool
+        transcripts down to text, so the summary is written before that
+        detail is lost.
+        """
+
+        if len(history.turns) > self._summarize_at_turns:
+            return True
+        if self._compact_at_tokens is None:
+            return False
+        return history_tokens(history) > self._compact_at_tokens
+
+    def _fold_count(self, history: ConversationHistory, keep_recent: int) -> int:
+        """How many of the oldest turns to fold.
+
+        All but `keep_recent`, and further back while the kept turns
+        alone are still past `compact_at_tokens`, so the next run does not
+        compact again at once. The newest turn is always kept.
+        """
+
+        fold = len(history.turns) - keep_recent
+        if self._compact_at_tokens is None:
+            return fold
+        last = len(history.turns) - 1
+        while 0 <= fold < last and _turns_tokens(history.turns[fold:]) > self._compact_at_tokens:
+            fold += 1
+        return fold
+
     async def summarize_if_needed(
         self,
         conversation_id: str,
@@ -199,12 +242,47 @@ class InMemoryConversationStore:
         into nothing would lose them.
         """
 
+        return await self._fold(
+            conversation_id,
+            summarizer=summarizer,
+            keep_recent=self._keep_recent_turns,
+            force=False,
+        )
+
+    async def compact(
+        self,
+        conversation_id: str,
+        *,
+        summarizer: Callable[[ConversationHistory], Awaitable[str]],
+        keep_recent: int = 0,
+    ) -> bool:
+        """Fold every turn but the newest `keep_recent` now, whatever the size.
+
+        Same guarantees as `summarize_if_needed`. False when there is nothing
+        to fold.
+        """
+
+        return await self._fold(
+            conversation_id,
+            summarizer=summarizer,
+            keep_recent=max(0, keep_recent),
+            force=True,
+        )
+
+    async def _fold(
+        self,
+        conversation_id: str,
+        *,
+        summarizer: Callable[[ConversationHistory], Awaitable[str]],
+        keep_recent: int,
+        force: bool,
+    ) -> bool:
         lock = self._compactions.setdefault(conversation_id, asyncio.Lock())
         async with lock:
             history = self._histories.get(conversation_id)
-            if history is None or len(history.turns) <= self._summarize_at_turns:
+            if history is None or not (force or self._over_limit(history)):
                 return False
-            fold = len(history.turns) - self._keep_recent_turns
+            fold = self._fold_count(history, keep_recent)
             if fold <= 0:
                 return False
             snapshot = ConversationHistory(
@@ -240,8 +318,8 @@ def to_messages(
     silently dropped — appropriate for chat memory, since recent context
     dominates relevance.
 
-    Why token budget instead of last-N turns: our `synthesizer` produces
-    Markdown answers in the 3–5K-token range. A uniform last-N cap can mean
+    Why token budget instead of last-N turns: answers run to 3–5K tokens
+    of Markdown. A uniform last-N cap can mean
     "200 tokens" or "50K tokens" for the same N. The budget is the actual
     constraint (context-window cost), so we trim against it directly.
 
@@ -277,6 +355,23 @@ def to_messages(
     if not history.summary:
         return recent
     return [_summary_message(history.summary), *recent]
+
+
+def history_tokens(history: ConversationHistory) -> int:
+    """Approximate tokens of the full replay: summary plus every turn with its
+    tool calls, before any budget trim."""
+
+    msgs: list[BaseMessage] = []
+    if history.summary:
+        msgs.append(_summary_message(history.summary))
+    for turn in history.turns:
+        msgs.extend(_turn_messages(turn))
+    return count_tokens_approximately(msgs) if msgs else 0
+
+
+def _turns_tokens(turns: list[ConversationTurn]) -> int:
+    msgs = [msg for turn in turns for msg in _turn_messages(turn)]
+    return count_tokens_approximately(msgs) if msgs else 0
 
 
 def _turn_messages(turn: ConversationTurn) -> list[BaseMessage]:

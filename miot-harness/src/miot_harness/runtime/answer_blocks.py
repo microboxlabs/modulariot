@@ -92,6 +92,12 @@ def _after_bracket_run(text: str, start: int) -> int:
     return text.find("[", i)
 
 
+def _without_closing_fence(text: str) -> str:
+    """`text` without a trailing ``` — a model that narrates often fences the
+    array too (prose, then ```json [...] ```); the opening fence is prose."""
+    return text[:-3].rstrip() if text.endswith("```") else text
+
+
 def _salvage_trailing_blocks(text: str) -> list[AnswerBlock] | None:
     """The block array a model appended after narrating, or None.
 
@@ -102,7 +108,7 @@ def _salvage_trailing_blocks(text: str) -> list[AnswerBlock] | None:
     validates as blocks — a nested array, or one quoted inside prose, does not
     reach the end, and a trailing array of something else fails validation.
     """
-    stripped = text.rstrip()
+    stripped = _without_closing_fence(text.rstrip())
     if not stripped.endswith("]"):
         return None
     decoder = json.JSONDecoder()

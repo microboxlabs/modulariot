@@ -17,7 +17,6 @@ import {
   type HarnessEvent,
   type HarnessRunRecord,
   type MiotHarnessClient,
-  type RunMode,
   type UserRequest,
 } from "@microboxlabs/miot-harness-client";
 import {
@@ -25,7 +24,6 @@ import {
   bold,
   dim,
   red,
-  yellow,
   type ColorOptions,
 } from "../output.js";
 import {
@@ -36,7 +34,8 @@ import {
   type RenderState,
 } from "./renderer.js";
 import { writeLastConversation } from "./conversation.js";
-import { AGENTIC_TENANT_LOCK, parseSlash, type SlashState } from "./slash.js";
+import { checkModel, formatModels } from "../models.js";
+import { parseSlash } from "./slash.js";
 
 export interface RunReplOptions {
   config: ResolvedConfig;
@@ -51,7 +50,8 @@ export interface RunReplOptions {
 }
 
 interface SessionState {
-  mode: RunMode;
+  /** Conversation model, or null for the harness default. */
+  model: string | null;
   tenant: string;
   user: string;
   conversationId: string;
@@ -75,7 +75,7 @@ export async function runRepl(opts: RunReplOptions): Promise<number> {
   };
 
   const session: SessionState = {
-    mode: opts.config.mode,
+    model: opts.config.model,
     tenant: opts.config.tenantId,
     user: opts.config.userId,
     conversationId: opts.conversationId ?? randomUUID(),
@@ -96,10 +96,9 @@ export async function runRepl(opts: RunReplOptions): Promise<number> {
 
   if (opts.greet !== false) {
     stdout.write(
-      `${dim(`miot-chat → ${opts.config.harnessBaseUrl} (${session.mode} / ${session.tenant})`, color)}\n`,
+      `${dim(`miot-chat → ${opts.config.harnessBaseUrl} (${session.model ?? "default model"} / ${session.tenant})`, color)}\n`,
     );
     stdout.write(`${dim(`conversation: ${session.conversationId}`, color)}\n`);
-    warnIfAgenticMismatch(session, color, stdout);
   }
 
   const promptFn = () => promptFor(session, color);
@@ -107,7 +106,7 @@ export async function runRepl(opts: RunReplOptions): Promise<number> {
 
   try {
     for await (const line of iterateLines(rl, stdout, promptFn)) {
-      const slashAction = parseSlash(line, slashStateOf(session));
+      const slashAction = parseSlash(line);
 
       if (slashAction.kind === "noop" && line.trim().length === 0) {
         continue;
@@ -134,14 +133,30 @@ export async function runRepl(opts: RunReplOptions): Promise<number> {
         continue;
       }
 
-      if (slashAction.kind === "set-mode") {
-        session.mode = slashAction.mode;
-        stdout.write(`${dim(`mode = ${session.mode}`, color)}\n`);
-        if (slashAction.warnAgenticTenantMismatch) {
-          stdout.write(
-            `${yellow(`heads-up: agentic mode is gated to tenant '${AGENTIC_TENANT_LOCK}'; current tenant is '${session.tenant}'.`, color)}\n`,
+      if (slashAction.kind === "list-models") {
+        try {
+          const info = await opts.client.models.list();
+          stdout.write(`${dim(formatModels(info, session.model), color)}\n`);
+        } catch (e) {
+          stderr.write(
+            `${red(`model: ${describeError(e)}`, color)}\n`,
           );
         }
+        continue;
+      }
+
+      if (slashAction.kind === "set-model") {
+        if (slashAction.model !== null) {
+          const problem = await validateModel(opts.client, slashAction.model);
+          if (problem) {
+            stderr.write(`${red(problem, color)}\n`);
+            continue;
+          }
+        }
+        session.model = slashAction.model;
+        stdout.write(
+          `${dim(`model = ${session.model ?? "harness default"}`, color)}\n`,
+        );
         rl.setPrompt(promptFn());
         continue;
       }
@@ -149,11 +164,6 @@ export async function runRepl(opts: RunReplOptions): Promise<number> {
       if (slashAction.kind === "set-tenant") {
         session.tenant = slashAction.tenant;
         stdout.write(`${dim(`tenant = ${session.tenant}`, color)}\n`);
-        if (slashAction.warnAgenticTenantMismatch) {
-          stdout.write(
-            `${yellow(`heads-up: agentic mode is gated to tenant '${AGENTIC_TENANT_LOCK}'; this run will be denied.`, color)}\n`,
-          );
-        }
         rl.setPrompt(promptFn());
         continue;
       }
@@ -231,7 +241,7 @@ async function runOneTurn(
     message: prompt,
     tenant_id: session.tenant,
     user_id: session.user,
-    mode: session.mode,
+    ...(session.model ? { model: session.model } : {}),
     conversation_id: session.conversationId,
     ...(session.debug ? { debug: true } : {}),
   };
@@ -285,24 +295,22 @@ async function runOneTurn(
   throw new Error("stream ended without a terminal event");
 }
 
-function slashStateOf(s: SessionState): SlashState {
-  return { mode: s.mode, tenant: s.tenant };
-}
-
 function promptFor(s: SessionState, color: ColorOptions): string {
-  const tag = `${s.conversationId.slice(0, 6)}:${s.mode}`;
+  const conv = s.conversationId.slice(0, 6);
+  const tag = s.model ? `${conv}:${s.model}` : conv;
   return `${dim(`[${tag}]`, color)} > `;
 }
 
-function warnIfAgenticMismatch(
-  s: SessionState,
-  color: ColorOptions,
-  out: NodeJS.WritableStream,
-): void {
-  if (s.mode === "agentic" && s.tenant !== AGENTIC_TENANT_LOCK) {
-    out.write(
-      `${yellow(`heads-up: agentic mode is gated to tenant '${AGENTIC_TENANT_LOCK}'; current tenant is '${s.tenant}'.`, color)}\n`,
-    );
+/** Checks `name` against the harness model list. When the list cannot be
+ * fetched, the name is accepted and the harness decides. */
+async function validateModel(
+  client: MiotHarnessClient,
+  name: string,
+): Promise<string | null> {
+  try {
+    return checkModel(await client.models.list(), name);
+  } catch {
+    return null;
   }
 }
 

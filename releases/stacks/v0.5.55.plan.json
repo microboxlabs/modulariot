@@ -1,0 +1,1976 @@
+{
+  "stack_version": "0.5.55",
+  "stack_tag": "miot-stack@v0.5.55",
+  "milestone": "MIOT-0.5.55",
+  "pull_requests": [
+    {
+      "number": 476,
+      "title": "chore(app): knip-driven dead-code removal in apps/app",
+      "source_issues": [
+        {
+          "number": 473,
+          "title": "chore(app): drive knip-based dead-code removal to zero in apps/app"
+        }
+      ]
+    },
+    {
+      "number": 742,
+      "title": "Feat harness steering plan c",
+      "source_issues": [
+        {
+          "number": 1438,
+          "title": "feat(harness): steering plan C"
+        }
+      ]
+    },
+    {
+      "number": 885,
+      "title": "Added onboarding",
+      "source_issues": [
+        {
+          "number": 879,
+          "title": "feat: User Onboarding Flow & Vital Signs Settings Panel"
+        }
+      ]
+    },
+    {
+      "number": 927,
+      "title": "Based/896 redefine login streamlined user creation flow",
+      "source_issues": [
+        {
+          "number": 896,
+          "title": "Redefine login: streamlined user creation flow"
+        }
+      ]
+    },
+    {
+      "number": 1071,
+      "title": "feat(calendar): remove the legacy FE binding route — sync is workflow/modulith-only",
+      "source_issues": [
+        {
+          "number": 1070,
+          "title": "Remove the legacy FE calendar-binding route — calendar↔TMS sync is workflow/modulith-only"
+        }
+      ]
+    },
+    {
+      "number": 1184,
+      "title": "Fixes in the spotlight search",
+      "source_issues": [
+        {
+          "number": 1186,
+          "title": "Rework spotlight search's Harness flow into a chat-style UX"
+        }
+      ]
+    },
+    {
+      "number": 1195,
+      "title": "fix(totem): handle upstream errors, add diagnostics, native fingerprint client spike",
+      "source_issues": [
+        {
+          "number": 1194,
+          "title": "bug: totem verification freezes on upstream errors; add diagnostics and timeouts"
+        }
+      ]
+    },
+    {
+      "number": 1205,
+      "title": "Wip: Based/workers system UI",
+      "source_issues": [
+        {
+          "number": 1210,
+          "title": "Early UI for workers system"
+        }
+      ]
+    },
+    {
+      "number": 1370,
+      "title": "fix(auth): end the session when the id_token expires and redirect dashboards to sign-in",
+      "source_issues": [
+        {
+          "number": 1369,
+          "title": "Dashboards keep polling ECM with an expired id_token"
+        }
+      ]
+    },
+    {
+      "number": 1375,
+      "title": "feat(core): per-organization selectables API",
+      "source_issues": [
+        {
+          "number": 1376,
+          "title": "Per-organization selectables API in miot-core"
+        }
+      ]
+    },
+    {
+      "number": 1378,
+      "title": "fixed sizing in columns on table v2",
+      "source_issues": [
+        {
+          "number": 1379,
+          "title": "Fix column sizing persistence on table v2 (dashboard)"
+        }
+      ]
+    },
+    {
+      "number": 1381,
+      "title": "feat(core): selectables in Postgres, v2 model (languages, values, groups, sources)",
+      "source_issues": [
+        {
+          "number": 1382,
+          "title": "feat(core): keep selectables in Postgres"
+        }
+      ]
+    },
+    {
+      "number": 1383,
+      "title": "feat(app): Settings › Seleccionables v2 and a select2-style field",
+      "source_issues": [
+        {
+          "number": 1384,
+          "title": "Settings › Seleccionables v2 and a select2-style field"
+        }
+      ]
+    },
+    {
+      "number": 1385,
+      "title": "Fixed following element in map view symptoms",
+      "source_issues": [
+        {
+          "number": 1386,
+          "title": "Fix camera zoom / following element in map view symptoms"
+        }
+      ]
+    },
+    {
+      "number": 1388,
+      "title": "feat(selectables): organization members and connection-backed lists",
+      "source_issues": [
+        {
+          "number": 1389,
+          "title": "Selectables: organization members and connection-backed lists"
+        }
+      ]
+    },
+    {
+      "number": 1390,
+      "title": "feat(selectables): MCP tools, and harness skills backed by MCP",
+      "source_issues": [
+        {
+          "number": 1391,
+          "title": "feat(selectables): MCP tools, and harness skills backed by MCP"
+        }
+      ]
+    },
+    {
+      "number": 1392,
+      "title": "refactor(harness): one agent loop, the user picks the model",
+      "source_issues": [
+        {
+          "number": 1393,
+          "title": "Harness: un solo agent loop; el usuario elige el modelo"
+        }
+      ]
+    },
+    {
+      "number": 1394,
+      "title": "feat: model providers set by the platform owner, charged per token",
+      "source_issues": [
+        {
+          "number": 1395,
+          "title": "feat: model providers set by the platform owner, charged per token"
+        }
+      ]
+    },
+    {
+      "number": 1396,
+      "title": "feat(harness): seat plan with a shared monthly token pool",
+      "source_issues": [
+        {
+          "number": 1397,
+          "title": "Harness seat plan with a shared monthly token pool"
+        }
+      ]
+    },
+    {
+      "number": 1398,
+      "title": "fix(harness): organization owners manage the seat plan",
+      "source_issues": [
+        {
+          "number": 1399,
+          "title": "Organization owners can manage the harness seat plan"
+        }
+      ]
+    },
+    {
+      "number": 1400,
+      "title": "feat(harness): report context usage and compact on tokens",
+      "source_issues": [
+        {
+          "number": 1401,
+          "title": "feat(harness): report context usage and compact on tokens"
+        }
+      ]
+    },
+    {
+      "number": 1402,
+      "title": "feat(harness): clear old tool results when a run fills the context",
+      "source_issues": [
+        {
+          "number": 1403,
+          "title": "Clear old tool results when a harness run fills the context"
+        }
+      ]
+    },
+    {
+      "number": 1404,
+      "title": "feat(harness): /compact and /context chat commands",
+      "source_issues": [
+        {
+          "number": 1405,
+          "title": "feat(harness): /compact and /context chat commands"
+        }
+      ]
+    },
+    {
+      "number": 1406,
+      "title": "feat(app): /compact and /context in the chat \"/\" menu",
+      "source_issues": [
+        {
+          "number": 1407,
+          "title": "Mostrar /compact y /context en el menú \"/\" del chat"
+        }
+      ]
+    },
+    {
+      "number": 1408,
+      "title": "feat(harness): scratchpad files and a task list for the agent loop",
+      "source_issues": [
+        {
+          "number": 1409,
+          "title": "feat(harness): scratchpad files and a task list for the agent loop"
+        }
+      ]
+    },
+    {
+      "number": 1410,
+      "title": "feat(harness): web_fetch tool for public web pages",
+      "source_issues": [
+        {
+          "number": 1411,
+          "title": "feat(harness): web_fetch tool for public web pages"
+        }
+      ]
+    },
+    {
+      "number": 1412,
+      "title": "feat(harness): LLM Gateway as a model provider",
+      "source_issues": [
+        {
+          "number": 1413,
+          "title": "feat(harness): LLM Gateway as a model provider"
+        }
+      ]
+    },
+    {
+      "number": 1414,
+      "title": "feat(harness): web_search tool routed to a provider that searches",
+      "source_issues": [
+        {
+          "number": 1415,
+          "title": "Add web_search tool routed to a provider that searches"
+        }
+      ]
+    },
+    {
+      "number": 1416,
+      "title": "fix(harness): web_search on LLM Gateway uses a model that searches",
+      "source_issues": [
+        {
+          "number": 1417,
+          "title": "fix(harness): web_search on LLM Gateway uses a model that searches"
+        }
+      ]
+    },
+    {
+      "number": 1419,
+      "title": "fix(app): chat links to app pages open the page",
+      "source_issues": [
+        {
+          "number": 1420,
+          "title": "Chat links to app pages open the page"
+        }
+      ]
+    },
+    {
+      "number": 1422,
+      "title": "fix(harness): keep the answer blocks a model fenced after narrating",
+      "source_issues": [
+        {
+          "number": 1423,
+          "title": "fix(harness): keep the answer blocks a model fenced after narrating"
+        }
+      ]
+    },
+    {
+      "number": 1424,
+      "title": "fix(app): replay a question that got no answer",
+      "source_issues": [
+        {
+          "number": 1425,
+          "title": "fix(app): replay a question that got no answer"
+        }
+      ]
+    },
+    {
+      "number": 1427,
+      "title": "feat(integrations): store the harness's conversation memory; thread model",
+      "source_issues": [
+        {
+          "number": 1431,
+          "title": "feat(integrations): store the harness's conversation memory; thread model"
+        }
+      ]
+    },
+    {
+      "number": 1428,
+      "title": "feat(harness): conversation memory survives restarts",
+      "source_issues": [
+        {
+          "number": 1430,
+          "title": "feat(harness): conversation memory survives restarts"
+        }
+      ]
+    },
+    {
+      "number": 1429,
+      "title": "feat(app): a reopened chat starts on the model it last ran on",
+      "source_issues": [
+        {
+          "number": 1432,
+          "title": "feat(app): a reopened chat starts on the model it last ran on"
+        }
+      ]
+    },
+    {
+      "number": 1435,
+      "title": "fix(harness): miot-search answers questions about the world from the web",
+      "source_issues": [
+        {
+          "number": 1436,
+          "title": "miot-search answers questions about the world from the web"
+        }
+      ]
+    },
+    {
+      "number": 1439,
+      "title": "fix(harness): refresh packaged context and skills on the workspace volume at boot",
+      "source_issues": [
+        {
+          "number": 1441,
+          "title": "Refresh packaged harness context and skills on the workspace volume at boot"
+        }
+      ]
+    },
+    {
+      "number": 1440,
+      "title": "feat(harness): chat evals against a running harness",
+      "source_issues": [
+        {
+          "number": 1442,
+          "title": "Chat evals against a running harness"
+        }
+      ]
+    },
+    {
+      "number": 1443,
+      "title": "feat(harness): analytics eval suite on a synthetic fleet-operations dataset",
+      "source_issues": [
+        {
+          "number": 1444,
+          "title": "Analytics eval suite on a synthetic fleet-operations dataset"
+        }
+      ]
+    },
+    {
+      "number": 1446,
+      "title": "feat(harness): profile tables and show catalog comments to the agent",
+      "source_issues": [
+        {
+          "number": 1447,
+          "title": "Profile tables and show catalog comments to the agent"
+        }
+      ]
+    },
+    {
+      "number": 1448,
+      "title": "feat(harness): charts, tables and option questions in the chat",
+      "source_issues": [
+        {
+          "number": 1450,
+          "title": "Charts, tables and option questions in the chat harness"
+        }
+      ]
+    },
+    {
+      "number": 1449,
+      "title": "feat(harness): the agent keeps notes and saved analyses per connection",
+      "source_issues": [
+        {
+          "number": 1451,
+          "title": "feat(harness): the agent keeps notes and saved analyses per connection"
+        }
+      ]
+    },
+    {
+      "number": 1452,
+      "title": "fix(harness): chat evals send miot-analyst and accept a choices question",
+      "source_issues": [
+        {
+          "number": 1453,
+          "title": "fix(harness): chat evals send miot-analyst and accept a choices question"
+        }
+      ]
+    },
+    {
+      "number": 1454,
+      "title": "fix(app): no empty reply after a chat widget; format date axes",
+      "source_issues": [
+        {
+          "number": 1455,
+          "title": "No empty reply after a chat widget; format date axes"
+        }
+      ]
+    },
+    {
+      "number": 1456,
+      "title": "feat(harness): research tools: web_fetch on, product source reader, research skills",
+      "source_issues": [
+        {
+          "number": 1457,
+          "title": "Research tools: web_fetch on by default, product source reader, research skills"
+        }
+      ]
+    },
+    {
+      "number": 1458,
+      "title": "feat(harness-chat): per-run thinking effort, resilient model picker, working indicator",
+      "source_issues": [
+        {
+          "number": 1462,
+          "title": "feat(harness-chat): per-run thinking effort, resilient model picker, working indicator"
+        }
+      ]
+    },
+    {
+      "number": 1459,
+      "title": "feat(harness-chat): send image, PDF and text attachments to the model",
+      "source_issues": [
+        {
+          "number": 1461,
+          "title": "feat(harness-chat): send image, PDF and text attachments to the model"
+        }
+      ]
+    },
+    {
+      "number": 1460,
+      "title": "feat(harness): workflow tool for BPMN process graphs and stats",
+      "source_issues": [
+        {
+          "number": 1463,
+          "title": "feat(harness): workflow tool for BPMN process graphs and stats"
+        }
+      ]
+    },
+    {
+      "number": 1464,
+      "title": "feat(integrations): stories API with versions, shares and share links",
+      "source_issues": [
+        {
+          "number": 1466,
+          "title": "feat(integrations): stories API with versions, shares and share links"
+        }
+      ]
+    },
+    {
+      "number": 1465,
+      "title": "feat(harness-chat): generated thread titles, rename, and fork",
+      "source_issues": [
+        {
+          "number": 1467,
+          "title": "feat(harness-chat): generated thread titles, rename, and fork"
+        }
+      ]
+    },
+    {
+      "number": 1468,
+      "title": "feat(harness-chat): keep chat runs alive across reloads",
+      "source_issues": [
+        {
+          "number": 1469,
+          "title": "feat(harness-chat): keep chat runs alive across reloads"
+        }
+      ]
+    },
+    {
+      "number": 1470,
+      "title": "feat(harness): storyteller and session-summary skills",
+      "source_issues": [
+        {
+          "number": 1471,
+          "title": "feat(harness): storyteller and session-summary skills"
+        }
+      ]
+    },
+    {
+      "number": 1472,
+      "title": "feat(harness-chat): artifacts in the chat (svg, mermaid, markdown, html)",
+      "source_issues": [
+        {
+          "number": 1473,
+          "title": "feat(harness-chat): artifacts in the chat (svg, mermaid, markdown, html)"
+        }
+      ]
+    },
+    {
+      "number": 1474,
+      "title": "feat(storytelling): stories pages on the stories API",
+      "source_issues": [
+        {
+          "number": 1475,
+          "title": "feat(storytelling): stories pages on the stories API"
+        }
+      ]
+    },
+    {
+      "number": 1476,
+      "title": "feat(share-links): share links for stories and chats",
+      "source_issues": [
+        {
+          "number": 1480,
+          "title": "Share links for stories and chats"
+        }
+      ]
+    },
+    {
+      "number": 1477,
+      "title": "feat(chat): inspect the agent's steps on every reply",
+      "source_issues": [
+        {
+          "number": 1479,
+          "title": "Inspect the agent's steps on every chat reply"
+        }
+      ]
+    },
+    {
+      "number": 1478,
+      "title": "feat(chat): activity panel for running and recent runs, session summary action",
+      "source_issues": [
+        {
+          "number": 1481,
+          "title": "Activity panel for running and recent chat runs"
+        }
+      ]
+    },
+    {
+      "number": 1482,
+      "title": "test(harness): compare only DeckSlide types with the storyteller skill",
+      "source_issues": [
+        {
+          "number": 1483,
+          "title": "test(harness): compare only DeckSlide types with the storyteller skill"
+        }
+      ]
+    },
+    {
+      "number": 1484,
+      "title": "fix(chat): recover interrupted runs and polish the live run view",
+      "source_issues": [
+        {
+          "number": 1485,
+          "title": "fix(chat): recover interrupted runs and polish the live run view"
+        }
+      ]
+    },
+    {
+      "number": 1486,
+      "title": "feat(integrations): connections as MCP tools and a system-builder skill",
+      "source_issues": [
+        {
+          "number": 1487,
+          "title": "feat(integrations): connections as MCP tools and a system-builder skill"
+        }
+      ]
+    },
+    {
+      "number": 1488,
+      "title": "feat(harness): drain runs on shutdown, zoom diagrams, count cached tokens",
+      "source_issues": [
+        {
+          "number": 1489,
+          "title": "feat(harness): drain runs on shutdown, zoom diagrams, count cached tokens"
+        }
+      ]
+    },
+    {
+      "number": 1490,
+      "title": "feat(harness-chat): create a dashboard from widgets of the conversation",
+      "source_issues": [
+        {
+          "number": 1491,
+          "title": "Create a dashboard from widgets of the conversation"
+        }
+      ]
+    },
+    {
+      "number": 1492,
+      "title": "fix(mcp): allow nulls in structured tool output schemas",
+      "source_issues": [
+        {
+          "number": 1493,
+          "title": "Allow nulls in structured MCP tool output schemas"
+        }
+      ]
+    },
+    {
+      "number": 1494,
+      "title": "feat(chat): approve or reject harness write calls from the chat",
+      "source_issues": [
+        {
+          "number": 1495,
+          "title": "Approve or reject harness write calls from the chat"
+        }
+      ]
+    },
+    {
+      "number": 1496,
+      "title": "feat(chat): show share links the agent creates as a card",
+      "source_issues": [
+        {
+          "number": 1497,
+          "title": "feat(chat): show share links the agent creates as a card"
+        }
+      ]
+    },
+    {
+      "number": 1498,
+      "title": "perf(harness): run read-only tool calls of one turn concurrently",
+      "source_issues": [
+        {
+          "number": 1500,
+          "title": "Run read-only harness tool calls of one turn concurrently"
+        }
+      ]
+    },
+    {
+      "number": 1499,
+      "title": "feat(harness): stream thinking and answers as they arrive; time to first chunk",
+      "source_issues": [
+        {
+          "number": 1501,
+          "title": "Stream model thinking in chat and record time to first chunk"
+        }
+      ]
+    },
+    {
+      "number": 1502,
+      "title": "fix(share-links): chat cards on shared threads, one copy of a resent question",
+      "source_issues": [
+        {
+          "number": 1503,
+          "title": "fix(share-links): chat cards on shared threads, one copy of a resent question"
+        }
+      ]
+    },
+    {
+      "number": 1504,
+      "title": "perf(harness): keep the conversation cached across runs and send fewer tool tokens",
+      "source_issues": [
+        {
+          "number": 1505,
+          "title": "perf(harness): keep the conversation cached across runs and send fewer tool tokens"
+        }
+      ]
+    },
+    {
+      "number": 1506,
+      "title": "feat(chat): stream the answer text and say \"thinking\" between steps",
+      "source_issues": [
+        {
+          "number": 1507,
+          "title": "Stream chat answer text and show thinking between steps"
+        }
+      ]
+    },
+    {
+      "number": 1508,
+      "title": "fix(ci): pass the build credits log through a file",
+      "source_issues": [
+        {
+          "number": 1509,
+          "title": "fix(ci): pass the build credits log through a file"
+        }
+      ]
+    },
+    {
+      "number": 1510,
+      "title": "feat(harness): learned knowledge cards apply without restart",
+      "source_issues": [
+        {
+          "number": 1511,
+          "title": "Learned knowledge cards apply without restart"
+        }
+      ]
+    },
+    {
+      "number": 1512,
+      "title": "feat(knowledge): HARNESS_TRAINER permission and learned-knowledge management",
+      "source_issues": [
+        {
+          "number": 1513,
+          "title": "HARNESS_TRAINER permission and learned-knowledge management"
+        }
+      ]
+    },
+    {
+      "number": 1514,
+      "title": "feat(harness): trainers teach the chat agent facts in chat",
+      "source_issues": [
+        {
+          "number": 1515,
+          "title": "Trainers teach the chat agent facts in chat"
+        }
+      ]
+    },
+    {
+      "number": 1516,
+      "title": "feat(app): assistant trainers card; link data sources to learning workspace",
+      "source_issues": [
+        {
+          "number": 1517,
+          "title": "Assistant trainers card; link data sources to learning workspace"
+        }
+      ]
+    },
+    {
+      "number": 1518,
+      "title": "feat(modulith): trainer proxy for harness knowledge/learning, learning threads, transcripts",
+      "source_issues": [
+        {
+          "number": 1519,
+          "title": "Trainer proxy for harness knowledge/learning, learning threads, and transcripts"
+        }
+      ]
+    },
+    {
+      "number": 1520,
+      "title": "feat(harness): editable knowledge layers store and API",
+      "source_issues": [
+        {
+          "number": 1521,
+          "title": "Editable knowledge layers store and API for harness"
+        }
+      ]
+    },
+    {
+      "number": 1522,
+      "title": "[dashboard-server] Run persistence and HTTP tests in CI",
+      "source_issues": [
+        {
+          "number": 1524,
+          "title": "[dashboard-server] Run persistence and HTTP tests in CI"
+        }
+      ]
+    },
+    {
+      "number": 1523,
+      "title": "feat(app): learning workspace for assistant trainers",
+      "source_issues": [
+        {
+          "number": 1525,
+          "title": "feat(app): learning workspace for assistant trainers"
+        }
+      ]
+    },
+    {
+      "number": 1526,
+      "title": "[dashboard-server] Return revisions for safe concurrent saves",
+      "source_issues": [
+        {
+          "number": 1527,
+          "title": "[dashboard-server] Return revisions for safe concurrent saves"
+        }
+      ]
+    },
+    {
+      "number": 1530,
+      "title": "[dashboard-server] Simplify identity adapters after baseline scan",
+      "source_issues": [
+        {
+          "number": 1531,
+          "title": "[dashboard-server] Simplify identity adapters after baseline scan"
+        }
+      ]
+    },
+    {
+      "number": 1532,
+      "title": "[dashboard-server] Simplify network and access guards",
+      "source_issues": [
+        {
+          "number": 1533,
+          "title": "[dashboard-server] Simplify network and access guards"
+        }
+      ]
+    },
+    {
+      "number": 1534,
+      "title": "[dashboard-server] Clarify import and storage checks",
+      "source_issues": [
+        {
+          "number": 1535,
+          "title": "[dashboard-server] Clarify import and storage checks"
+        }
+      ]
+    },
+    {
+      "number": 1536,
+      "title": "[dashboard-server] Clarify startup and literal handling",
+      "source_issues": [
+        {
+          "number": 1538,
+          "title": "[dashboard-server] Clarify startup and literal handling"
+        }
+      ]
+    },
+    {
+      "number": 1537,
+      "title": "[dashboard-server] Isolate HTTP route handlers",
+      "source_issues": [
+        {
+          "number": 1539,
+          "title": "[dashboard-server] Isolate HTTP route handlers"
+        }
+      ]
+    },
+    {
+      "number": 1540,
+      "title": "[app] Expose authenticated dashboard server API routes",
+      "source_issues": [
+        {
+          "number": 1541,
+          "title": "Preserve dashboard revision preconditions through proxy"
+        }
+      ]
+    },
+    {
+      "number": 1542,
+      "title": "feat(dashboard-contract): define saved connection queries",
+      "source_issues": [
+        {
+          "number": 1543,
+          "title": "Define saved connection queries in dashboard contract"
+        }
+      ]
+    },
+    {
+      "number": 1544,
+      "title": "feat(harness): before/after evaluations of knowledge changes",
+      "source_issues": [
+        {
+          "number": 1545,
+          "title": "Harness: before/after evaluations of knowledge changes"
+        }
+      ]
+    },
+    {
+      "number": 1548,
+      "title": "feat(dashboard): add revision-aware server API client",
+      "source_issues": [
+        {
+          "number": 1549,
+          "title": "feat(dashboard): add revision-aware server API client"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    ".github/workflows/app-nightly.yml",
+    ".github/workflows/app-release-train.yml",
+    ".github/workflows/ci.yaml",
+    "miot-harness/.env.example",
+    "miot-harness/Dockerfile",
+    "miot-harness/README.md",
+    "miot-harness/docs/architecture.md",
+    "miot-harness/docs/dispatch-modes.md",
+    "miot-harness/evals/README.md",
+    "miot-harness/evals/datasets/fleet_ops/README.md",
+    "miot-harness/evals/datasets/fleet_ops/connection.md",
+    "miot-harness/evals/datasets/fleet_ops/generate.py",
+    "miot-harness/evals/datasets/fleet_ops/truth.sql",
+    "miot-harness/pyproject.toml",
+    "miot-harness/src/miot_harness/agents/agentic_planner.py",
+    "miot-harness/src/miot_harness/agents/chat_models.py",
+    "miot-harness/src/miot_harness/agents/context_windows.py",
+    "miot-harness/src/miot_harness/agents/conversation_summarizer.py",
+    "miot-harness/src/miot_harness/agents/critic.py",
+    "miot-harness/src/miot_harness/agents/deepagents_adapter.py",
+    "miot-harness/src/miot_harness/agents/direct_agent.py",
+    "miot-harness/src/miot_harness/agents/domain_analyst.py",
+    "miot-harness/src/miot_harness/agents/filter_expert.py",
+    "miot-harness/src/miot_harness/agents/llm_streaming.py",
+    "miot-harness/src/miot_harness/agents/meta_agent.py",
+    "miot-harness/src/miot_harness/agents/model_providers.py",
+    "miot-harness/src/miot_harness/agents/native_tools.py",
+    "miot-harness/src/miot_harness/agents/summarizer.py",
+    "miot-harness/src/miot_harness/agents/supervisor.py",
+    "miot-harness/src/miot_harness/agents/synthesizer.py",
+    "miot-harness/src/miot_harness/agents/thread_titler.py",
+    "miot-harness/src/miot_harness/agents/verifier.py",
+    "miot-harness/src/miot_harness/api/drain.py",
+    "miot-harness/src/miot_harness/api/knowledge_routes.py",
+    "miot-harness/src/miot_harness/api/learning_routes.py",
+    "miot-harness/src/miot_harness/api/server.py",
+    "miot-harness/src/miot_harness/cli.py",
+    "miot-harness/src/miot_harness/config.py",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/miot-analyst/SKILL.md",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/miot-capabilities/SKILL.md",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/miot-search/SKILL.md",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/playbooks/delivery_compliance.yaml",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/research/SKILL.md",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/selectables/SKILL.md",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/session-summary/SKILL.md",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/storyteller/SKILL.md",
+    "miot-harness/src/miot_harness/context_skills/defaults/skills/system-builder/SKILL.md",
+    "miot-harness/src/miot_harness/context_skills/file_source.py",
+    "miot-harness/src/miot_harness/context_skills/loader.py",
+    "miot-harness/src/miot_harness/context_skills/mcp_skills.py",
+    "miot-harness/src/miot_harness/context_skills/models.py",
+    "miot-harness/src/miot_harness/context_skills/registry.py",
+    "miot-harness/src/miot_harness/context_skills/seed.py",
+    "miot-harness/src/miot_harness/context_skills/skill_models.py",
+    "miot-harness/src/miot_harness/datasource/catalog.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/distiller.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/learned.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/loader.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/models.py",
+    "miot-harness/src/miot_harness/datasource/knowledge/writer.py",
+    "miot-harness/src/miot_harness/datasource/profile.py",
+    "miot-harness/src/miot_harness/datasource/provider.py",
+    "miot-harness/src/miot_harness/datasource/safe_query.py",
+    "miot-harness/src/miot_harness/datasource/safe_sql.py",
+    "miot-harness/src/miot_harness/datasource/workspace_store.py",
+    "miot-harness/src/miot_harness/evals/analytics_cases.yaml",
+    "miot-harness/src/miot_harness/evals/chat_cases.yaml",
+    "miot-harness/src/miot_harness/evals/conversations.py",
+    "miot-harness/src/miot_harness/evals/run_golden.py",
+    "miot-harness/src/miot_harness/integrations/generic_pg/bpmn.py",
+    "miot-harness/src/miot_harness/integrations/generic_pg/primitive_tools.py",
+    "miot-harness/src/miot_harness/integrations/generic_pg/provider.py",
+    "miot-harness/src/miot_harness/integrations/generic_pg/workflow_tool.py",
+    "miot-harness/src/miot_harness/integrations/generic_pg/workspace_tools.py",
+    "miot-harness/src/miot_harness/integrations/nexo/boot.py",
+    "miot-harness/src/miot_harness/integrations/nexo/freshness.py",
+    "miot-harness/src/miot_harness/integrations/nexo/primitive_tools.py",
+    "miot-harness/src/miot_harness/integrations/nexo/provider.py",
+    "miot-harness/src/miot_harness/knowledge/__init__.py",
+    "miot-harness/src/miot_harness/knowledge/changes.py",
+    "miot-harness/src/miot_harness/knowledge/evaluation.py",
+    "miot-harness/src/miot_harness/knowledge/formats.py",
+    "miot-harness/src/miot_harness/knowledge/primer.py",
+    "miot-harness/src/miot_harness/knowledge/store.py",
+    "miot-harness/src/miot_harness/knowledge/tenant_overlays.py",
+    "miot-harness/src/miot_harness/observability/callbacks.py",
+    "miot-harness/src/miot_harness/observability/report.py",
+    "miot-harness/src/miot_harness/runtime/agent_loop.py",
+    "miot-harness/src/miot_harness/runtime/agent_prompt.py",
+    "miot-harness/src/miot_harness/runtime/agent_seats.py",
+    "miot-harness/src/miot_harness/runtime/agentic_graph.py",
+    "miot-harness/src/miot_harness/runtime/answer_blocks.py",
+    "miot-harness/src/miot_harness/runtime/answer_contract.py",
+    "miot-harness/src/miot_harness/runtime/approvals.py",
+    "miot-harness/src/miot_harness/runtime/attachments.py",
+    "miot-harness/src/miot_harness/runtime/commands.py",
+    "miot-harness/src/miot_harness/runtime/context.py",
+    "miot-harness/src/miot_harness/runtime/control.py",
+    "miot-harness/src/miot_harness/runtime/conversation.py",
+    "miot-harness/src/miot_harness/runtime/conversation_backend.py",
+    "miot-harness/src/miot_harness/runtime/data_graph.py",
+    "miot-harness/src/miot_harness/runtime/event_payload.py",
+    "miot-harness/src/miot_harness/runtime/event_types.json",
+    "miot-harness/src/miot_harness/runtime/events.py",
+    "miot-harness/src/miot_harness/runtime/evidence.py",
+    "miot-harness/src/miot_harness/runtime/factory.py",
+    "miot-harness/src/miot_harness/runtime/freshness.py",
+    "miot-harness/src/miot_harness/runtime/instrumentation.py",
+    "miot-harness/src/miot_harness/runtime/intent_router.py",
+    "miot-harness/src/miot_harness/runtime/mode_resolver.py",
+    "miot-harness/src/miot_harness/runtime/node_lifecycle.py",
+    "miot-harness/src/miot_harness/runtime/plan.py",
+    "miot-harness/src/miot_harness/runtime/router.py",
+    "miot-harness/src/miot_harness/runtime/run_store.py",
+    "miot-harness/src/miot_harness/runtime/steering.py",
+    "miot-harness/src/miot_harness/runtime/supervisor.py",
+    "miot-harness/src/miot_harness/runtime/tenancy.py",
+    "miot-harness/src/miot_harness/runtime/tool.py",
+    "miot-harness/src/miot_harness/runtime/tool_step.py",
+    "miot-harness/src/miot_harness/runtime/usage_report.py",
+    "miot-harness/src/miot_harness/storytelling/contracts.py",
+    "miot-harness/src/miot_harness/storytelling/module.py",
+    "miot-harness/src/miot_harness/tools/artifact.py",
+    "miot-harness/src/miot_harness/tools/dashboard_draft.py",
+    "miot-harness/src/miot_harness/tools/filesystem.py",
+    "miot-harness/src/miot_harness/tools/learned_fact.py",
+    "miot-harness/src/miot_harness/tools/learning_eval.py",
+    "miot-harness/src/miot_harness/tools/registry.py",
+    "miot-harness/src/miot_harness/tools/source.py",
+    "miot-harness/src/miot_harness/tools/storytelling.py",
+    "miot-harness/src/miot_harness/tools/todos.py",
+    "miot-harness/src/miot_harness/tools/web_fetch.py",
+    "miot-harness/src/miot_harness/tools/web_search.py",
+    "miot-harness/src/miot_harness/utils/svg.py",
+    "miot-harness/src/miot_harness/utils/text.py",
+    "miot-harness/src/miot_harness/utils/truncation.py",
+    "miot-harness/tests/agents/test_agentic_planner.py",
+    "miot-harness/tests/agents/test_agentic_steering.py",
+    "miot-harness/tests/agents/test_chat_models_loop.py",
+    "miot-harness/tests/agents/test_meta_agent.py",
+    "miot-harness/tests/agents/test_model_providers.py",
+    "miot-harness/tests/agents/test_model_providers_modulith.py",
+    "miot-harness/tests/agents/test_thread_titler.py",
+    "miot-harness/tests/agents/test_verifier.py",
+    "miot-harness/tests/api/test_approvals.py",
+    "miot-harness/tests/api/test_connection_knowledge.py",
+    "miot-harness/tests/api/test_decisions.py",
+    "miot-harness/tests/api/test_decisions_e2e.py",
+    "miot-harness/tests/api/test_drain.py",
+    "miot-harness/tests/api/test_knowledge_layers_api.py",
+    "miot-harness/tests/api/test_learning_evaluations_api.py",
+    "miot-harness/tests/api/test_models.py",
+    "miot-harness/tests/api/test_runs_caller.py",
+    "miot-harness/tests/api/test_runs_interrupted.py",
+    "miot-harness/tests/api/test_runs_list.py",
+    "miot-harness/tests/api/test_runs_stream.py",
+    "miot-harness/tests/api/test_runs_stream_in_flight.py",
+    "miot-harness/tests/api/test_steering.py",
+    "miot-harness/tests/api/test_steering_e2e.py",
+    "miot-harness/tests/api/test_titles.py",
+    "miot-harness/tests/context_skills/test_mcp_skills.py",
+    "miot-harness/tests/context_skills/test_research_skills.py",
+    "miot-harness/tests/context_skills/test_seed.py",
+    "miot-harness/tests/context_skills/test_storyteller_skill.py",
+    "miot-harness/tests/context_skills/test_system_builder_skill.py",
+    "miot-harness/tests/datasource/test_learned_facts.py",
+    "miot-harness/tests/datasource/test_profile.py",
+    "miot-harness/tests/datasource/test_provider.py",
+    "miot-harness/tests/datasource/test_safe_sql_catalog_hint.py",
+    "miot-harness/tests/datasource/test_workspace_store.py",
+    "miot-harness/tests/evals/test_conversations.py",
+    "miot-harness/tests/fixtures/bpmn/request_review.bpmn20.xml",
+    "miot-harness/tests/fixtures/fake_provider.py",
+    "miot-harness/tests/integration/test_agent_loop_cache_live.py",
+    "miot-harness/tests/integrations/generic_pg/test_bpmn.py",
+    "miot-harness/tests/integrations/generic_pg/test_catalog_tool_outputs.py",
+    "miot-harness/tests/integrations/generic_pg/test_provider.py",
+    "miot-harness/tests/integrations/generic_pg/test_show_tool.py",
+    "miot-harness/tests/integrations/generic_pg/test_workflow_tool.py",
+    "miot-harness/tests/integrations/generic_pg/test_workspace_tools.py",
+    "miot-harness/tests/integrations/nexo/test_boot.py",
+    "miot-harness/tests/integrations/nexo/test_graph.py",
+    "miot-harness/tests/integrations/nexo/test_provider.py",
+    "miot-harness/tests/knowledge/__init__.py",
+    "miot-harness/tests/knowledge/test_evaluation.py",
+    "miot-harness/tests/knowledge/test_live_layers.py",
+    "miot-harness/tests/knowledge/test_store.py",
+    "miot-harness/tests/observability/test_callbacks.py",
+    "miot-harness/tests/observability/test_graph_wiring.py",
+    "miot-harness/tests/observability/test_mode_telemetry.py",
+    "miot-harness/tests/observability/test_usage_recorded_event.py",
+    "miot-harness/tests/runtime/test_agent_loop.py",
+    "miot-harness/tests/runtime/test_agent_loop_clear_results.py",
+    "miot-harness/tests/runtime/test_agent_loop_context_usage.py",
+    "miot-harness/tests/runtime/test_agent_loop_parallel_tools.py",
+    "miot-harness/tests/runtime/test_agent_loop_payload.py",
+    "miot-harness/tests/runtime/test_agent_loop_prefix_stability.py",
+    "miot-harness/tests/runtime/test_agent_loop_runners.py",
+    "miot-harness/tests/runtime/test_agent_seats.py",
+    "miot-harness/tests/runtime/test_agentic_graph.py",
+    "miot-harness/tests/runtime/test_answer_blocks_salvage.py",
+    "miot-harness/tests/runtime/test_attachments.py",
+    "miot-harness/tests/runtime/test_control.py",
+    "miot-harness/tests/runtime/test_conversation_persistence.py",
+    "miot-harness/tests/runtime/test_conversation_token_compaction.py",
+    "miot-harness/tests/runtime/test_intent_router.py",
+    "miot-harness/tests/runtime/test_mode_resolver.py",
+    "miot-harness/tests/runtime/test_node_lifecycle.py",
+    "miot-harness/tests/runtime/test_request_choice.py",
+    "miot-harness/tests/runtime/test_run_store_interrupted.py",
+    "miot-harness/tests/runtime/test_steering_registry.py",
+    "miot-harness/tests/runtime/test_stream_turn_providers.py",
+    "miot-harness/tests/runtime/test_stream_turn_timing.py",
+    "miot-harness/tests/runtime/test_supervisor_agent_loop.py",
+    "miot-harness/tests/runtime/test_supervisor_answer_format.py",
+    "miot-harness/tests/runtime/test_supervisor_commands.py",
+    "miot-harness/tests/runtime/test_supervisor_context_record.py",
+    "miot-harness/tests/runtime/test_supervisor_direct.py",
+    "miot-harness/tests/runtime/test_supervisor_event_bus.py",
+    "miot-harness/tests/runtime/test_supervisor_evicted_recovery.py",
+    "miot-harness/tests/runtime/test_supervisor_loop_guards.py",
+    "miot-harness/tests/runtime/test_supervisor_memory.py",
+    "miot-harness/tests/runtime/test_supervisor_phase_e.py",
+    "miot-harness/tests/runtime/test_supervisor_policy.py",
+    "miot-harness/tests/runtime/test_supervisor_replay_transcripts.py",
+    "miot-harness/tests/runtime/test_supervisor_skill.py",
+    "miot-harness/tests/runtime/test_supervisor_stamp_connection.py",
+    "miot-harness/tests/runtime/test_supervisor_steering.py",
+    "miot-harness/tests/runtime/test_supervisor_thread_owner.py",
+    "miot-harness/tests/runtime/test_tenancy.py",
+    "miot-harness/tests/runtime/test_tenancy_gate.py",
+    "miot-harness/tests/runtime/test_tool_decisions.py",
+    "miot-harness/tests/runtime/test_tool_event_payload.py",
+    "miot-harness/tests/runtime/test_usage_report.py",
+    "miot-harness/tests/test_answer_contract.py",
+    "miot-harness/tests/test_chat_models.py",
+    "miot-harness/tests/test_events.py",
+    "miot-harness/tests/test_native_tools.py",
+    "miot-harness/tests/test_tool_registry.py",
+    "miot-harness/tests/tools/test_artifact.py",
+    "miot-harness/tests/tools/test_dashboard_draft.py",
+    "miot-harness/tests/tools/test_learned_fact.py",
+    "miot-harness/tests/tools/test_learning_eval.py",
+    "miot-harness/tests/tools/test_source.py",
+    "miot-harness/tests/tools/test_web_fetch.py",
+    "miot-harness/tests/tools/test_web_search.py",
+    "miot-harness/tests/tools/test_workspace_tools.py",
+    "miot-harness/uv.lock",
+    "quarkus-srv/miot-cli/pom.xml",
+    "quarkus-srv/miot-cli/src/main/resources/application.properties",
+    "quarkus-srv/miot-cli/src/test/java/com/microboxlabs/miot/cli/StructuredToolOutputSchemaTest.java",
+    "quarkus-srv/miot-core/pom.xml",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/HarnessClient.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/HarnessLearningProxy.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/HarnessProxyResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgPermissionsResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/OrgSelectablesResource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/SelectableBindingsRequest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/api/dto/SelectableRequest.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationAccess.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationContext.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/OrganizationRequestFilter.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/auth/WriteAuthorizer.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/harness/AllowAllHarnessPlanGate.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/harness/HarnessPlanGate.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mcp/McpCaller.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mcp/NullableOutputSchemaGenerator.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/mcp/SelectableTools.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/OrganizationPermissionDefinition.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/permission/OrganizationPermissionService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/CoreSystemSources.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/GeneralSelectables.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/InMemorySelectableStore.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/JdbcSelectableStore.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/ListedSystemSource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/Localized.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/MemberSource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/Selectable.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableChanged.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableDefaults.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableDefaultsFile.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableGroup.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableOption.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableOptionSource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableRules.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableService.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableSettings.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableSource.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectableStore.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SelectionMode.java",
+    "quarkus-srv/miot-core/src/main/java/com/microboxlabs/miot/core/selectable/SourceUnavailableException.java",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.8__create_selectables.sql",
+    "quarkus-srv/miot-core/src/main/resources/db/migration/core/V0.1.9__selectables_localized_and_sources.sql",
+    "quarkus-srv/miot-core/src/main/resources/selectables/defaults/general.json",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceApprovalTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceKnowledgeGateTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceLearningTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceListRunsTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourcePlanGateTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourcePostTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/api/HarnessProxyResourceTrainerFlagTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/harness/HarnessPlanGateTestProfile.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/harness/RefusingHarnessPlanGate.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/mcp/McpSelectablesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/mcp/McpTestProfile.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/mcp/SelectableToolsTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/OrganizationPermissionDefinitionTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/permission/OrganizationPermissionServiceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/GeneralSelectablesTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/InMemorySelectableStore.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/JdbcSelectableStoreTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/MemberSourceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/OrgSelectablesResourceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/SelectableServiceTest.java",
+    "quarkus-srv/miot-core/src/test/java/com/microboxlabs/miot/core/selectable/TestSelectables.java",
+    "quarkus-srv/miot-core/src/test/resources/selectables/typo.json",
+    "quarkus-srv/miot-integrations/pom.xml",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/HarnessConversationsResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/HarnessKey.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/HarnessModelProvidersResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/HarnessModelUsageResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgActorRequests.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgHarnessPlanResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgHarnessThreadsResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgHarnessTranscriptsResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgKnowledgeCandidatesResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgShareLinksResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/OrgStoriesResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/PlatformHarnessPlanResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/PlatformModelProvidersResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/api/PlatformModelUsageResource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/HarnessThread.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/ModelProvider.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/ShareLink.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/Story.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/StoryShare.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/domain/StoryVersion.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/CandidateEditRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/HarnessConversationDtos.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/HarnessPlanDtos.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ModelProviderDtos.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ModelUsageDtos.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/StoryDtos.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ThreadForkRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ThreadPatchRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ThreadResponse.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/ThreadUpsertRequest.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/dto/TranscriptDtos.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/mcp/ConnectionTools.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/mcp/StoryTools.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/BoundedPgRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/HarnessConversationRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/HarnessPlanRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/HarnessThreadRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/KnowledgeCandidateRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/ModelProviderRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/ModelUsageRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/ShareLinkRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/persistence/StoryRepository.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/selectable/ConnectionOptionSource.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/selectable/ExampleConnectionSelectables.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/CandidateService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/HarnessConversationService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/HarnessPlanService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/HarnessThreadService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/HarnessTranscriptService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/ModelProviderService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/ModelUsageService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/SeatPlanHarnessGate.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/ShareLinkService.java",
+    "quarkus-srv/miot-integrations/src/main/java/com/microboxlabs/miot/integrations/service/StoryService.java",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.19__create_model_providers.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.20__create_model_usage.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.21__create_harness_seat_plan.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.22__create_harness_conversation_memory.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.23__create_stories.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.24__add_harness_thread_title_edited.sql",
+    "quarkus-srv/miot-integrations/src/main/resources/db/migration/integrations/V0.6.25__add_harness_thread_kind.sql",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/HarnessModelProvidersResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/HarnessModelUsageResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/OrgHarnessLearningGateTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/OrgKnowledgeCandidatesResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/api/OrgStoriesResourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/mcp/ConnectionToolsTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/mcp/StoryToolsTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/HarnessConversationSqlIntegrityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/HarnessThreadSqlIntegrityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/KnowledgeCandidateSqlIntegrityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/ModelProviderRepositoryJsonTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/persistence/StorySqlIntegrityTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/selectable/ConnectionOptionSourceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/selectable/ExampleConnectionSelectablesTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/CandidateServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/HarnessConversationServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/HarnessPlanServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/HarnessThreadServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/HarnessTranscriptServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/InMemoryStories.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/ModelProviderServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/ModelUsageServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/ShareLinkServiceTest.java",
+    "quarkus-srv/miot-integrations/src/test/java/com/microboxlabs/miot/integrations/service/StoryServiceTest.java",
+    "quarkus-srv/pom.xml",
+    "turbo-repo/apps/app/.env.example",
+    "turbo-repo/apps/app/.gitignore",
+    "turbo-repo/apps/app/knip.json",
+    "turbo-repo/apps/app/next.config.mjs",
+    "turbo-repo/apps/app/package.json",
+    "turbo-repo/apps/app/public/logo-icon.svg",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/dev/components/extension-preview.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/harness-chat-mount.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/harness/learning/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/home/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/share/[token]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/storytelling/[id]/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/gps-providers/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/selectables/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/(secured)/users/settings/vital-signs/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/onboarding/layout.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/onboarding/page.tsx",
+    "turbo-repo/apps/app/src/app/[lang]/sign-in/page.tsx",
+    "turbo-repo/apps/app/src/app/api/admin/orgs/[orgId]/harness-plan/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/harness-plan/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/model-providers/[provider]/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/model-providers/route.ts",
+    "turbo-repo/apps/app/src/app/api/admin/platform/model-usage/route.ts",
+    "turbo-repo/apps/app/src/app/api/biometric/verify/route.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/binding/route.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/[bookingId]/move/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/[bookingId]/move/route.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/binding-extractor.test.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/binding-extractor.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/binding-helpers.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/calendar/bookings/route.ts",
+    "turbo-repo/apps/app/src/app/api/dashboard/pgrest/[functionName]/route.ts",
+    "turbo-repo/apps/app/src/app/api/dashboard/pgrest/shared.ts",
+    "turbo-repo/apps/app/src/app/api/dashboard/pgrest/upload/route.ts",
+    "turbo-repo/apps/app/src/app/api/dashboards/[dashboard]/capabilities/route.ts",
+    "turbo-repo/apps/app/src/app/api/dashboards/[dashboard]/permissions/route.ts",
+    "turbo-repo/apps/app/src/app/api/dashboards/[dashboard]/route.ts",
+    "turbo-repo/apps/app/src/app/api/dashboards/forward-dashboard.ts",
+    "turbo-repo/apps/app/src/app/api/dashboards/route.ts",
+    "turbo-repo/apps/app/src/app/api/dashboards/routes.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/runs/[runId]/activity.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/runs/[runId]/activity.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/runs/[runId]/approvals/[approvalId]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/runs/[runId]/approvals/[approvalId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/runs/[runId]/cancel/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/runs/[runId]/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/runs/[runId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/runs/[runId]/stream/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/runs/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/runs/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/chat-answer.render.test.tsx",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/chat-answer.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/chat-answer.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/conversation.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/conversation.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/decide-harness-path.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/learning-cards.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/learning-turn.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/live-answer.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/live-answer.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/plan-refusal.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/plan-refusal.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/relay.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/review-transcript.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/review-transcript.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/step-labels.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/step-labels.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/thread-model.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/chat/stream/thread-model.ts",
+    "turbo-repo/apps/app/src/app/api/harness/knowledge/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/learning/[...path]/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/models/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/search/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/search/search-blocks.ts",
+    "turbo-repo/apps/app/src/app/api/harness/search/stream/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/threads/[threadId]/fork/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/threads/[threadId]/title/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/threads/route.ts",
+    "turbo-repo/apps/app/src/app/api/harness/trainer-proxy.ts",
+    "turbo-repo/apps/app/src/app/api/harness/trainer-routes.test.ts",
+    "turbo-repo/apps/app/src/app/api/harness/transcripts/[ref]/route.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/candidates/[id]/route.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/candidates/candidates-client.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/cards/[connection]/[cardId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/cards/route.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/knowledge-routes.test.ts",
+    "turbo-repo/apps/app/src/app/api/knowledge/trainer/route.ts",
+    "turbo-repo/apps/app/src/app/api/links/[token]/route.ts",
+    "turbo-repo/apps/app/src/app/api/links/route.ts",
+    "turbo-repo/apps/app/src/app/api/runtime-config/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/selectables/[key]/options/route.ts",
+    "turbo-repo/apps/app/src/app/api/selectables/[key]/route.ts",
+    "turbo-repo/apps/app/src/app/api/selectables/bindings/route.ts",
+    "turbo-repo/apps/app/src/app/api/selectables/forward-selectables.ts",
+    "turbo-repo/apps/app/src/app/api/selectables/reset/route.ts",
+    "turbo-repo/apps/app/src/app/api/selectables/route.ts",
+    "turbo-repo/apps/app/src/app/api/selectables/routes.test.ts",
+    "turbo-repo/apps/app/src/app/api/selectables/sources/route.ts",
+    "turbo-repo/apps/app/src/app/api/stories/[storyId]/current-version/route.ts",
+    "turbo-repo/apps/app/src/app/api/stories/[storyId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/stories/[storyId]/shares/[principal]/route.ts",
+    "turbo-repo/apps/app/src/app/api/stories/[storyId]/shares/route.ts",
+    "turbo-repo/apps/app/src/app/api/stories/[storyId]/versions/[versionId]/route.ts",
+    "turbo-repo/apps/app/src/app/api/stories/[storyId]/versions/route.ts",
+    "turbo-repo/apps/app/src/app/api/stories/route.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/dashboard-preview-data/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/dashboard-preview-data/route.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/dashboard-preview/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/dashboard-preview/route.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/generate-pptx/route.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/markdown-preview/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/markdown-preview/route.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/pdf-preview/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/storytelling/pdf-preview/route.ts",
+    "turbo-repo/apps/app/src/app/api/task/validate-id-card/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/task/validate-id-card/route.ts",
+    "turbo-repo/apps/app/src/app/api/totem/diagnostics/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/totem/diagnostics/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/org-proxy.test.ts",
+    "turbo-repo/apps/app/src/app/api/utils/org-proxy.ts",
+    "turbo-repo/apps/app/src/app/api/utils/quarkus-proxy.ts",
+    "turbo-repo/apps/app/src/app/api/utils/upstream-proxy.test.ts",
+    "turbo-repo/apps/app/src/app/api/utils/upstream-proxy.ts",
+    "turbo-repo/apps/app/src/app/globals.css",
+    "turbo-repo/apps/app/src/auth.config.ts",
+    "turbo-repo/apps/app/src/features/auth/components/auth-card/auth-card.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/auth-page-shell/auth-page-shell.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/footer-sign-in/footer-sign-in.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/badge-multi-select-group.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/badge-select-group.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/country-combobox.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/failure-border-theme.ts",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/form-sign-in.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/form-sign-in.types.ts",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/phone-country-select.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/phone-input.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/register-form.schema.ts",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/register-form.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/register-progress.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/register-step-organization.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/register-step-profile.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/register-step-verification.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/register-top-stepper.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/sign-in-saml.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/form-sign-in/sign-in.tsx",
+    "turbo-repo/apps/app/src/features/auth/components/register-link/register-link.tsx",
+    "turbo-repo/apps/app/src/features/auth/constants/countries.constants.ts",
+    "turbo-repo/apps/app/src/features/auth/constants/register-options.constants.ts",
+    "turbo-repo/apps/app/src/features/auth/services/verification-email.service.ts",
+    "turbo-repo/apps/app/src/features/auth/utils/country-name-to-code.ts",
+    "turbo-repo/apps/app/src/features/auth/utils/redirect-to-sign-in.ts",
+    "turbo-repo/apps/app/src/features/auth/utils/token-expiry.test.ts",
+    "turbo-repo/apps/app/src/features/auth/utils/token-expiry.ts",
+    "turbo-repo/apps/app/src/features/auth/utils/utils.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/calendar-group-selector.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/day/day-event-panel.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-selection-wrapper.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-sidebar-form.config.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/planning-sidebar.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/service-context-menu.tsx",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/assignment/index.ts",
+    "turbo-repo/apps/app/src/features/calendar/components/planning/sidebar-tabs/planificacion/index.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-assign.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-assign.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-binding-gate.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-binding-gate.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-guard.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-guard.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-origin.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-origin.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-plan.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-plan.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-replan.test.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/task-driven-replan.ts",
+    "turbo-repo/apps/app/src/features/calendar/services/use-task-driven-origins.ts",
+    "turbo-repo/apps/app/src/features/collaborators-management/components/collaborator-detail/info-card-with-summary.tsx",
+    "turbo-repo/apps/app/src/features/collaborators-management/data/index.ts",
+    "turbo-repo/apps/app/src/features/collaborators-management/types/collaborators.types.ts",
+    "turbo-repo/apps/app/src/features/common/components/admin-log-console/admin-log-console.tsx",
+    "turbo-repo/apps/app/src/features/common/components/connection-status-badge/connection-status-badge.tsx",
+    "turbo-repo/apps/app/src/features/common/components/connection-status-badge/index.ts",
+    "turbo-repo/apps/app/src/features/common/components/editable-field/editable-field-trigger.tsx",
+    "turbo-repo/apps/app/src/features/common/components/editable-field/editable-field.tsx",
+    "turbo-repo/apps/app/src/features/common/components/editable-field/editable-field.types.ts",
+    "turbo-repo/apps/app/src/features/common/components/editable-field/use-editable-field.ts",
+    "turbo-repo/apps/app/src/features/common/components/formatted-date/formatted-date.tsx",
+    "turbo-repo/apps/app/src/features/common/components/formatted-date/index.ts",
+    "turbo-repo/apps/app/src/features/common/components/icon-picker-dropdown/use-registry-icon.ts",
+    "turbo-repo/apps/app/src/features/common/components/icon-tile/icon-tile.tsx",
+    "turbo-repo/apps/app/src/features/common/components/info-row/index.ts",
+    "turbo-repo/apps/app/src/features/common/components/info-row/info-row.tsx",
+    "turbo-repo/apps/app/src/features/common/components/my-tasks/components/title/icon-selector.tsx",
+    "turbo-repo/apps/app/src/features/common/components/status-indicator/index.ts",
+    "turbo-repo/apps/app/src/features/common/components/status-indicator/status-indicator.tsx",
+    "turbo-repo/apps/app/src/features/common/components/trend-value/trend-value.tsx",
+    "turbo-repo/apps/app/src/features/common/components/view-switcher/segmented-switcher.tsx",
+    "turbo-repo/apps/app/src/features/common/components/view-switcher/view-switcher.tsx",
+    "turbo-repo/apps/app/src/features/common/providers/5cap-api/5cap-api.provider.ts",
+    "turbo-repo/apps/app/src/features/common/providers/alfresco-api/alfresco-api.provider.ts",
+    "turbo-repo/apps/app/src/features/common/providers/alfresco-api/alfresco-api.types.ts",
+    "turbo-repo/apps/app/src/features/common/providers/client-api.provider.ts",
+    "turbo-repo/apps/app/src/features/common/providers/fetcher-error.test.ts",
+    "turbo-repo/apps/app/src/features/common/providers/fetcher-error.ts",
+    "turbo-repo/apps/app/src/features/common/providers/fetcher.types.ts",
+    "turbo-repo/apps/app/src/features/common/providers/sreamhub-api/streamhub-api.provider.ts",
+    "turbo-repo/apps/app/src/features/common/utils/markdown-components.test.tsx",
+    "turbo-repo/apps/app/src/features/common/utils/markdown-components.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/select-filter-badge.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/components/dashboard-filters-card/sort-toggle-badge.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/context/planner-context.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/_template/README.md",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/_template/dashlet.meta.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/_template/dashlet.settings.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/_template/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/_template/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/common/icon-color-picker-row.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/common/use-pgrest-rows.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/container/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/data_table_v2/dashlet.settings.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/data_table_v2/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/info_card/value-color-rules.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_circular/value-color-rules.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_detailed/value-color-rules.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_expandable/value-color-rules.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_icon/value-color-rules.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_progress/dashlet.meta.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_progress/dashlet.settings.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_progress/dashlet.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_progress/index.ts",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_progress/value-color-rules.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/dashlets/stat_status/value-color-rules.tsx",
+    "turbo-repo/apps/app/src/features/dashboard/services/dashboard-server-client.test.ts",
+    "turbo-repo/apps/app/src/features/dashboard/services/dashboard-server-client.ts",
+    "turbo-repo/apps/app/src/features/dashboard/utils/widget-defaults.ts",
+    "turbo-repo/apps/app/src/features/data-sources/components/data-sources-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/data-sources/components/data-sources-page-content.tsx",
+    "turbo-repo/apps/app/src/features/data-sources/types.ts",
+    "turbo-repo/apps/app/src/features/dynamic-forms/components/dynamic-form-field.tsx",
+    "turbo-repo/apps/app/src/features/dynamic-forms/components/index.ts",
+    "turbo-repo/apps/app/src/features/dynamic-forms/dynamic-form.types.ts",
+    "turbo-repo/apps/app/src/features/dynamic-forms/hooks/index.ts",
+    "turbo-repo/apps/app/src/features/dynamic-forms/hooks/use-dynamic-form-state.ts",
+    "turbo-repo/apps/app/src/features/dynamic-forms/index.ts",
+    "turbo-repo/apps/app/src/features/fleet-management/components/gamification/achievement-badges.tsx",
+    "turbo-repo/apps/app/src/features/fleet-management/components/gamification/driver-rating-card.tsx",
+    "turbo-repo/apps/app/src/features/fleet-management/components/gamification/vehicle-progress-stats.tsx",
+    "turbo-repo/apps/app/src/features/fleet-management/components/gamification/vehicle-score-ring.tsx",
+    "turbo-repo/apps/app/src/features/fleet-management/components/vehicle-detail/expandable-section.tsx",
+    "turbo-repo/apps/app/src/features/fleet-management/components/vehicle-detail/vehicle-detail-accordion.tsx",
+    "turbo-repo/apps/app/src/features/fleet-management/data/fleet-mock-data.ts",
+    "turbo-repo/apps/app/src/features/fleet-management/hooks/use-fleet-carriers.ts",
+    "turbo-repo/apps/app/src/features/fleet-management/hooks/use-fleet-trailers.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/map-visualization.utils.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/layers/pulse-base.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/components/map-visualization-trip.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tool-bar/pulse-range.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/components/tool-bar/tool-bar.tsx",
+    "turbo-repo/apps/app/src/features/geographic-view/types/map.ts",
+    "turbo-repo/apps/app/src/features/geographic-view/utils/map-screenshot.ts",
+    "turbo-repo/apps/app/src/features/gps-providers/gps-provider-options.ts",
+    "turbo-repo/apps/app/src/features/gps-providers/gps-provider-request-form.tsx",
+    "turbo-repo/apps/app/src/features/gps-providers/gps-provider-request-item.tsx",
+    "turbo-repo/apps/app/src/features/gps-providers/gps-provider-request.types.ts",
+    "turbo-repo/apps/app/src/features/gps-providers/gps-providers-settings-content.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/attachment-parts.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/builtin-commands.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/builtin-commands.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/components/active-run-resumer.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/activity-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/activity-panel.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/composer.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/diff-view.css",
+    "turbo-repo/apps/app/src/features/harness-chat/components/diff-view.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/diff-view.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/history-list.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/history-list.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/initial-conversation-seeder.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/learning/eval-results.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/learning/knowledge-change-list.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/learning/labels.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/components/panel-resize-handle.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/pending-attachment-receiver.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/prompt-sender.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/run-activity.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/run-activity.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/session-host.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/session-model-watcher.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/session-title-watcher.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/thread-messages.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/components/title-input.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/harness-chat-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/harness-fork-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/harness-run-lookup-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/harness-session-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/run-cancel-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/context/work-area-context.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/ask-user-question-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/create-story-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/learning-cards.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/request-approval-card.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/request-approval-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/show-artifact-card.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/show-artifact-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/show-dashboard-draft-card.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/show-dashboard-draft-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/show-knowledge-change-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/show-learning-eval-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/show-learning-view-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/show-share-link-card.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/show-share-link-card.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/zoomable-view.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/components/zoomable-view.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/create-story.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/dashboard-draft.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/dashboard-draft.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/index.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/index.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/knowledge-change-args.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/learning-args.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/learning-cards.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/learning-eval-args.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/learning-view-args.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/request-approval-args.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/request-approval.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/show-artifact-args.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/show-artifact.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/show-dashboard-draft.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/show-share-link-args.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/show-share-link-args.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/extensions/show-share-link.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-active-run.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat-attachments.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat-attachments.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat-types.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-chat.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-extension.tsx",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-history-adapter.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-history-adapter.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-run-agent.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-run-agent.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-sessions.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/harness-thread-store.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-evaluation.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-harness-activity.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-harness-activity.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-harness-models.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-harness-models.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-resizable-panel-width.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-run-effort.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-run-effort.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-session-titles.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-thread-model.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/hooks/use-thread-model.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/knowledge-api.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/run-activity-types.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/run-activity.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/run-progress.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/run-progress.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/session-title.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/session-title.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/stream-watchdog.test.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/stream-watchdog.ts",
+    "turbo-repo/apps/app/src/features/harness-chat/thread.tsx",
+    "turbo-repo/apps/app/src/features/harness-learning/learning-commands.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-learning/learning-commands.ts",
+    "turbo-repo/apps/app/src/features/harness-learning/learning-workspace.test.tsx",
+    "turbo-repo/apps/app/src/features/harness-learning/learning-workspace.tsx",
+    "turbo-repo/apps/app/src/features/harness-learning/use-learning-sessions.ts",
+    "turbo-repo/apps/app/src/features/harness-learning/work-area-state.ts",
+    "turbo-repo/apps/app/src/features/harness-learning/work-area/changes-view.tsx",
+    "turbo-repo/apps/app/src/features/harness-learning/work-area/eval-view.tsx",
+    "turbo-repo/apps/app/src/features/harness-learning/work-area/file-view.tsx",
+    "turbo-repo/apps/app/src/features/harness-learning/work-area/layers-tree.tsx",
+    "turbo-repo/apps/app/src/features/harness-learning/work-area/work-area-panel.tsx",
+    "turbo-repo/apps/app/src/features/harness-learning/work-area/work-area.test.tsx",
+    "turbo-repo/apps/app/src/features/i18n/i18n.service.types.ts",
+    "turbo-repo/apps/app/src/features/icons/chart-mixed.tsx",
+    "turbo-repo/apps/app/src/features/icons/check-circle.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/components/template-form-modal.tsx",
+    "turbo-repo/apps/app/src/features/integration-config/integration-config.types.test.ts",
+    "turbo-repo/apps/app/src/features/integration-config/integration-config.types.ts",
+    "turbo-repo/apps/app/src/features/knowledge/components/learned-facts.tsx",
+    "turbo-repo/apps/app/src/features/knowledge/components/learned-knowledge-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/knowledge/components/learned-knowledge-panel.tsx",
+    "turbo-repo/apps/app/src/features/knowledge/components/pending-candidates.tsx",
+    "turbo-repo/apps/app/src/features/knowledge/hooks/use-knowledge-candidates.ts",
+    "turbo-repo/apps/app/src/features/knowledge/hooks/use-knowledge-cards.ts",
+    "turbo-repo/apps/app/src/features/knowledge/hooks/use-knowledge-hooks.test.tsx",
+    "turbo-repo/apps/app/src/features/knowledge/hooks/use-knowledge-trainer.ts",
+    "turbo-repo/apps/app/src/features/knowledge/types.ts",
+    "turbo-repo/apps/app/src/features/layout/components/bottom-menu/bottom-menu.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/icon-bar/icon-bar-item.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/icon-bar/icon-bar.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/mobile-sidebar/mobile-sidebar-section.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/section-header/section-header.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/searchbar/navegation_params.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/section-filter-bar-controller.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-input.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-results.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-row.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/spotlight-search.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/types.ts",
+    "turbo-repo/apps/app/src/features/layout/components/secured-navbar/spotlight-search/use-harness-search.ts",
+    "turbo-repo/apps/app/src/features/layout/components/sidebar-item/sidebar-item.tsx",
+    "turbo-repo/apps/app/src/features/layout/components/sidebar-item/sidebar-item.types.ts",
+    "turbo-repo/apps/app/src/features/layout/context/sidebar-navigation-context.tsx",
+    "turbo-repo/apps/app/src/features/layout/models/pages-config.json",
+    "turbo-repo/apps/app/src/features/layout/models/pages.test.ts",
+    "turbo-repo/apps/app/src/features/layout/models/pages.ts",
+    "turbo-repo/apps/app/src/features/map-visualization/map-view-utils.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/new-features.tsx",
+    "turbo-repo/apps/app/src/features/new-feature-notification/slider-components/slider.tsx",
+    "turbo-repo/apps/app/src/features/onboarding/background-shapes.tsx",
+    "turbo-repo/apps/app/src/features/onboarding/onboarding-arrival-overlay.tsx",
+    "turbo-repo/apps/app/src/features/onboarding/onboarding-footer.tsx",
+    "turbo-repo/apps/app/src/features/onboarding/onboarding-handoff.ts",
+    "turbo-repo/apps/app/src/features/onboarding/onboarding-header.tsx",
+    "turbo-repo/apps/app/src/features/onboarding/onboarding-stepper.tsx",
+    "turbo-repo/apps/app/src/features/onboarding/onboarding-steps.ts",
+    "turbo-repo/apps/app/src/features/onboarding/onboarding-welcome.tsx",
+    "turbo-repo/apps/app/src/features/onboarding/preparing-experience.tsx",
+    "turbo-repo/apps/app/src/features/onboarding/steps/profile-option-card.tsx",
+    "turbo-repo/apps/app/src/features/onboarding/steps/profile-step.tsx",
+    "turbo-repo/apps/app/src/features/onboarding/steps/vital-signs-step.tsx",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config.constants.ts",
+    "turbo-repo/apps/app/src/features/runtime-config/runtime-config.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/components/content-review-permission-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/harness-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/harness-seats-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/harness-trainer-permission-card.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/harness-trainer-permission-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/org-detail-panel.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/org-detail-panel.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/permission-card-parts.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/selectable-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/selectables-page-content.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/components/selectables-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/data/settings-admin-data-service.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/data/settings-admin-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/harness/harness-plan-view.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/harness/harness-plan-view.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/harness/harness-plan.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/harness/use-org-harness-plan.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/hooks/use-harness-trainer-permission.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/hooks/use-permission-assignment-form.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/harness-plan-form.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/harness-plan-form.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/harness-plan-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/model-provider-editor.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/model-provider-form.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/model-provider-form.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/model-providers-section.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/model-usage-card.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-data-service.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform-page-content.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/platform.types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/platform/use-model-providers.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/behavior-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/connection-fields.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/connection-fields.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/connection-mapping.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/editor-draft.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/editor-draft.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/general-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/groups-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/localized-input.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/options-tab.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/options-tab.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/selectable-editor-modal.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/selectable-preview.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/editor/use-connection-schema.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/field-bindings.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/field-bindings.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/field/field-logic.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/field/field-logic.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/field/field-parts.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/field/selectable-field.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/field/selectable-field.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/localized.test.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/localized.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/selectables-api.test.tsx",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/selectables-api.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/store.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/selectables/types.ts",
+    "turbo-repo/apps/app/src/features/settings-admin/types.ts",
+    "turbo-repo/apps/app/src/features/share-links/components/copy-link-button.tsx",
+    "turbo-repo/apps/app/src/features/share-links/components/share-snapshot-page.test.tsx",
+    "turbo-repo/apps/app/src/features/share-links/components/share-snapshot-page.tsx",
+    "turbo-repo/apps/app/src/features/share-links/components/transcript-tool-card.tsx",
+    "turbo-repo/apps/app/src/features/share-links/share-links-api.test.ts",
+    "turbo-repo/apps/app/src/features/share-links/share-links-api.ts",
+    "turbo-repo/apps/app/src/features/share-links/transcript.test.ts",
+    "turbo-repo/apps/app/src/features/share-links/transcript.ts",
+    "turbo-repo/apps/app/src/features/shipping/types/common.types.ts",
+    "turbo-repo/apps/app/src/features/sidebar/services/sidebar-cookie.service.ts",
+    "turbo-repo/apps/app/src/features/sidebar/services/sidebar-cookie.service.types.ts",
+    "turbo-repo/apps/app/src/features/signal-history/map-history-view.tsx",
+    "turbo-repo/apps/app/src/features/signal-history/pulse-detail-view.tsx",
+    "turbo-repo/apps/app/src/features/signal-history/summary-tooltip.tsx",
+    "turbo-repo/apps/app/src/features/signal-history/types/historic-signal.type.ts",
+    "turbo-repo/apps/app/src/features/sovos-fingerprint/services/autentia-agent.test.ts",
+    "turbo-repo/apps/app/src/features/sovos-fingerprint/services/autentia-agent.ts",
+    "turbo-repo/apps/app/src/features/sovos-fingerprint/services/autentia.test.ts",
+    "turbo-repo/apps/app/src/features/sovos-fingerprint/services/autentia.ts",
+    "turbo-repo/apps/app/src/features/sovos-fingerprint/services/autentia.types.ts",
+    "turbo-repo/apps/app/src/features/sse/context/sse-context.ts",
+    "turbo-repo/apps/app/src/features/storytelling/artifact-type-meta.ts",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/html/html-previewer.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/index.ts",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/markdown/markdown-previewer.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/pdf/pdf-previewer.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/sections/sections-previewer.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/previewers/svg/svg-previewer.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-card.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-content-view.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-dashlet-list.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-delete-dialog.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-detail-page.test.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-detail-page.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-details-modal.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-grid.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-rename-dialog.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-share-panel.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-version-delete-dialog.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/story-versions-page.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/components/storytelling-page-content.tsx",
+    "turbo-repo/apps/app/src/features/storytelling/people.ts",
+    "turbo-repo/apps/app/src/features/storytelling/seed-stories.ts",
+    "turbo-repo/apps/app/src/features/storytelling/stories-api.test.ts",
+    "turbo-repo/apps/app/src/features/storytelling/stories-api.ts",
+    "turbo-repo/apps/app/src/features/storytelling/story-content.test.ts",
+    "turbo-repo/apps/app/src/features/storytelling/story-content.ts",
+    "turbo-repo/apps/app/src/features/storytelling/story-kind-meta.ts",
+    "turbo-repo/apps/app/src/features/storytelling/story-share-store.ts",
+    "turbo-repo/apps/app/src/features/storytelling/story-versions-store.ts",
+    "turbo-repo/apps/app/src/features/storytelling/story-versions.test.ts",
+    "turbo-repo/apps/app/src/features/storytelling/story-versions.ts",
+    "turbo-repo/apps/app/src/features/storytelling/storytelling-store.test.ts",
+    "turbo-repo/apps/app/src/features/storytelling/storytelling-store.ts",
+    "turbo-repo/apps/app/src/features/storytelling/storytelling.types.ts",
+    "turbo-repo/apps/app/src/features/storytelling/testing/audit-report-demo.pdf",
+    "turbo-repo/apps/app/src/features/storytelling/testing/dashboard_torre_real.data.json",
+    "turbo-repo/apps/app/src/features/storytelling/testing/dashboard_torre_real.html",
+    "turbo-repo/apps/app/src/features/storytelling/testing/release-notes-demo.md",
+    "turbo-repo/apps/app/src/features/storytelling/use-story-chat.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/menus/derive-to-specialist/derive-to-specialist.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/types/timeline.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/driver-contact-info/driver-contact-info.type.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/sovos-deps/sovos-deps.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-actions/canceled-annulled-options.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/driver/validations.types.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/components/trip-information/trip-verifications.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-bento-form/hooks/use-get-conditions.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-confirm-modal/task-confirm-modal.types.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-details-accordion-title/task-details-accordion-title.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/components/task-form/task-form.types.ts",
+    "turbo-repo/apps/app/src/features/task-forms/components/trip-manifest-params/trip-manifest-params.tsx",
+    "turbo-repo/apps/app/src/features/task-forms/services/form.service.types.ts",
+    "turbo-repo/apps/app/src/features/totem/diagnostics/totem-diagnostics.test.ts",
+    "turbo-repo/apps/app/src/features/totem/diagnostics/totem-diagnostics.ts",
+    "turbo-repo/apps/app/src/features/totem/stepped-elements.tsx",
+    "turbo-repo/apps/app/src/features/totem/stepped-elements/huella.tsx",
+    "turbo-repo/apps/app/src/features/totem/stepped-elements/trip-information.tsx",
+    "turbo-repo/apps/app/src/features/vital-signs/markdown-tooltip.tsx",
+    "turbo-repo/apps/app/src/features/vital-signs/severity-dots.tsx",
+    "turbo-repo/apps/app/src/features/vital-signs/severity-legend.tsx",
+    "turbo-repo/apps/app/src/features/vital-signs/vital-sign-card.tsx",
+    "turbo-repo/apps/app/src/features/vital-signs/vital-sign-condition-builder.tsx",
+    "turbo-repo/apps/app/src/features/vital-signs/vital-sign-param-field.tsx",
+    "turbo-repo/apps/app/src/features/vital-signs/vital-signs-data.ts",
+    "turbo-repo/apps/app/src/features/vital-signs/vital-signs-settings-content.tsx",
+    "turbo-repo/apps/app/src/features/worker-dock/css-orb.tsx",
+    "turbo-repo/apps/app/src/features/worker-dock/orb-animations.ts",
+    "turbo-repo/apps/app/src/features/worker-dock/orb-canvas.tsx",
+    "turbo-repo/apps/app/src/features/worker-dock/orb.tsx",
+    "turbo-repo/apps/app/src/features/worker-dock/pointer.ts",
+    "turbo-repo/apps/app/src/features/worker-dock/worker-badge.tsx",
+    "turbo-repo/apps/app/src/features/worker-dock/worker-colors.ts",
+    "turbo-repo/apps/app/src/features/worker-dock/worker-dock-mount.tsx",
+    "turbo-repo/apps/app/src/features/worker-dock/worker-dock.tsx",
+    "turbo-repo/apps/app/src/features/worker-dock/worker-orb-view.tsx",
+    "turbo-repo/apps/app/src/features/worker-dock/workers.ts",
+    "turbo-repo/apps/app/src/lang/en.json",
+    "turbo-repo/apps/app/src/lang/es.json",
+    "turbo-repo/apps/app/tailwind.config.ts",
+    "turbo-repo/apps/docs/content/en/operations/dashboard-server/api.mdx",
+    "turbo-repo/apps/docs/content/en/reference/changelog.mdx",
+    "turbo-repo/apps/docs/content/en/reference/sdks/_meta.ts",
+    "turbo-repo/apps/docs/content/en/reference/sdks/miot-dashboard-contract.mdx",
+    "turbo-repo/apps/docs/content/es/operations/dashboard-server/api.mdx",
+    "turbo-repo/apps/docs/content/es/reference/changelog.mdx",
+    "turbo-repo/apps/docs/content/es/reference/sdks/_meta.ts",
+    "turbo-repo/apps/docs/content/es/reference/sdks/miot-dashboard-contract.mdx",
+    "turbo-repo/package-lock.json",
+    "turbo-repo/packages/miot-chat/src/repl/renderer.ts",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/session.reducer.test.ts",
+    "turbo-repo/packages/miot-chat/src/tui/__tests__/transcript.project.test.ts",
+    "turbo-repo/packages/miot-chat/src/tui/transcript/project.ts",
+    "turbo-repo/packages/miot-dashboard-contract/README.md",
+    "turbo-repo/packages/miot-dashboard-contract/contract/dashboard-config.schema.json",
+    "turbo-repo/packages/miot-dashboard-contract/contract/openapi.yaml",
+    "turbo-repo/packages/miot-dashboard-contract/scripts/generate-json-schema.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/document.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/queries.test.ts",
+    "turbo-repo/packages/miot-dashboard-contract/src/schema.ts",
+    "turbo-repo/packages/miot-dashboard-server/README.md",
+    "turbo-repo/packages/miot-dashboard-server/src/access/access-control.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/bin.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/cors.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/handler.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/handler.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/http/test-connection.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/google-service-account.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/resolver.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/scope-http.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/tenant-http.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/identity/ticket.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/import/import.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/net/endpoint.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/net/loopback.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/seams/credentials.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/config.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/docs.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/serve.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/server/sweep-schedule.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/composite.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/s3-documents.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/store/sqlite.test.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/test/fixtures.ts",
+    "turbo-repo/packages/miot-dashboard-server/src/vault/http.ts",
+    "turbo-repo/packages/miot-harness-client/README.md",
+    "turbo-repo/packages/miot-harness-client/src/__tests__/runs.test.ts",
+    "turbo-repo/packages/miot-harness-client/src/__tests__/titles.test.ts",
+    "turbo-repo/packages/miot-harness-client/src/client.ts",
+    "turbo-repo/packages/miot-harness-client/src/index.ts",
+    "turbo-repo/packages/miot-harness-client/src/resources/runs.ts",
+    "turbo-repo/packages/miot-harness-client/src/resources/titles.ts",
+    "turbo-repo/packages/miot-harness-client/src/types.ts",
+    "turbo-repo/turbo.json"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.55",
+      "tag": "app@v0.5.55"
+    },
+    "docs": {
+      "changed": true,
+      "changed_since": "docs@v0.5.53",
+      "version": "0.5.55",
+      "tag": "docs@v0.5.55"
+    },
+    "web": {
+      "changed": true,
+      "changed_since": "web@v0.5.53",
+      "version": "0.5.55",
+      "tag": "web@v0.5.55"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.33",
+      "version": "0.5.34",
+      "tag": "modulith@v0.5.34"
+    },
+    "harness": {
+      "changed": true,
+      "changed_since": "harness@v0.1.9",
+      "version": "0.1.10",
+      "tag": "harness@v0.1.10"
+    }
+  }
+}

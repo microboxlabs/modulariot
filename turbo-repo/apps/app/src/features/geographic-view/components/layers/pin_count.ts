@@ -27,6 +27,8 @@ interface ClusterData {
 }
 
 export class PinCountLayer extends CompositeLayer<PinCountLayerProps> {
+  static readonly layerName = "PinCountLayer";
+
   renderLayers(): Layer[] {
     const getScaledOffset = (d: ClusterData): [number, number] => {
       const count = d.properties.cluster ? (d.properties.point_count ?? 1) : 1;

@@ -1,12 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Spinner } from "flowbite-react";
-import { HiOutlineKey, HiOutlinePhotograph, HiServer } from "react-icons/hi";
+import {
+  HiOutlineChartBar,
+  HiOutlineChip,
+  HiOutlineCreditCard,
+  HiOutlineKey,
+  HiOutlineMail,
+  HiOutlinePhotograph,
+  HiOutlineTemplate,
+  HiOutlineTruck,
+  HiServer,
+} from "react-icons/hi";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
+import MailTemplateEditor from "../mail-templates/mail-template-editor";
 import BrandingSection from "./branding-section";
+import HarnessPlanSection from "./harness-plan-section";
+import ModelProvidersSection from "./model-providers-section";
+import ModelUsageCard from "./model-usage-card";
+import PlatformMailSection from "./platform-mail-section";
+import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
 import PlatformOwnersCard from "./platform-owners-card";
 import PlatformSectionList, {
   type PlatformSectionEntry,
@@ -43,6 +59,12 @@ export default function PlatformPageContent({
   const platformDict = (dict?.platform as I18nRecord) ?? {};
   const brandingDict = (platformDict?.branding as I18nRecord) ?? {};
   const superusersDict = (platformDict?.superusers as I18nRecord) ?? {};
+  const modelsDict = (platformDict?.models as I18nRecord) ?? {};
+  const mailDict = (platformDict?.mail as I18nRecord) ?? {};
+  const vehicleImagesDict = (platformDict?.vehicleImages as I18nRecord) ?? {};
+  const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
+  const planDict = (platformDict?.plan as I18nRecord) ?? {};
+  const usageDict = (platformDict?.usage as I18nRecord) ?? {};
   const breadcrumbDict = dict?.breadcrumb as I18nRecord;
 
   const { isPlatformOwner, isLoading } = useIsPlatformOwner();
@@ -61,7 +83,56 @@ export default function PlatformPageContent({
       description: tr("menuHint", superusersDict),
       icon: HiOutlineKey,
     },
+    {
+      id: "models",
+      label: tr("title", modelsDict),
+      description: tr("menuHint", modelsDict),
+      icon: HiOutlineChip,
+    },
+    {
+      id: "mail",
+      label: tr("title", mailDict),
+      description: tr("menuHint", mailDict),
+      icon: HiOutlineMail,
+    },
+    {
+      id: "vehicleImages",
+      label: tr("title", vehicleImagesDict),
+      description: tr("menuHint", vehicleImagesDict),
+      icon: HiOutlineTruck,
+    },
+    {
+      id: "templates",
+      label: tr("title", templatesDict),
+      description: tr("menuHint", templatesDict),
+      icon: HiOutlineTemplate,
+    },
+    {
+      id: "plan",
+      label: tr("title", planDict),
+      description: tr("menuHint", planDict),
+      icon: HiOutlineCreditCard,
+    },
+    {
+      id: "usage",
+      label: tr("title", usageDict),
+      description: tr("menuHint", usageDict),
+      icon: HiOutlineChartBar,
+    },
   ];
+
+  const panels: Record<PlatformSection, ReactNode> = {
+    branding: <BrandingSection dict={brandingDict} lang={lang} />,
+    superusers: <PlatformOwnersCard dict={superusersDict} />,
+    models: <ModelProvidersSection dict={modelsDict} />,
+    mail: <PlatformMailSection dict={mailDict} />,
+    vehicleImages: <PlatformVehicleImagesSection dict={vehicleImagesDict} />,
+    templates: (
+      <MailTemplateEditor scope="platform" dict={templatesDict} lang={lang} />
+    ),
+    plan: <HarnessPlanSection dict={planDict} />,
+    usage: <ModelUsageCard dict={usageDict} lang={lang} />,
+  };
 
   return (
     // Same shell as Settings > Organizations: a full-width breadcrumb bar
@@ -109,11 +180,7 @@ export default function PlatformPageContent({
               dict={platformDict}
             />
             <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-              {selected === "branding" ? (
-                <BrandingSection dict={brandingDict} lang={lang} />
-              ) : (
-                <PlatformOwnersCard dict={superusersDict} />
-              )}
+              {panels[selected]}
             </div>
           </div>
         )}

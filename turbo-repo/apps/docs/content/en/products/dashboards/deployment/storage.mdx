@@ -1,0 +1,70 @@
+import { Callout } from 'nextra/components'
+
+# Storage
+
+The server keeps two kinds of data:
+
+- **Metadata**: which dashboards exist, who created them, their revisions and permissions. It lives in the **store**.
+- **Documents**: the content of each dashboard. They live in the **document store**, which can be the same database or somewhere else.
+
+## Choose a store
+
+| `MIOT_DASHBOARD_STORE` | Keeps data | Needs | Use it for |
+| --- | --- | --- | --- |
+| `memory` (default) | Until the process stops | Nothing | Demos and tests |
+| `sqlite` | In one file | Node.js 22.13 or later | One server |
+| `postgres` | In a database server | The `pg` package | Several servers, managed backups |
+
+The schema creates itself: migrations run at startup and only apply what the database lacks. With PostgreSQL, migrations take a lock, so several servers can start together.
+
+### SQLite
+
+```bash
+MIOT_DASHBOARD_STORE=sqlite
+MIOT_DASHBOARD_SQLITE_PATH=/data/dashboards.db
+```
+
+One process per file. Put the file on a persistent volume.
+
+### PostgreSQL
+
+```bash
+MIOT_DASHBOARD_STORE=postgres
+MIOT_DASHBOARD_POSTGRES_URL=postgres://dashboards:secret@db.internal:5432/dashboards
+MIOT_DASHBOARD_POSTGRES_POOL_SIZE=10
+MIOT_DASHBOARD_POSTGRES_CONNECTION_TIMEOUT=5000
+```
+
+Give the server its own database or schema. If an idle connection drops, the pool reconnects on demand and logs a warning.
+
+## Choose a document store
+
+| `MIOT_DASHBOARD_DOCUMENTS` | Documents live | Needs |
+| --- | --- | --- |
+| `inline` (default) | In the same database as the metadata | Nothing |
+| `fs` | One file per dashboard, under `MIOT_DASHBOARD_DOCUMENTS_PATH` | A persistent directory |
+| `s3` | Objects in an S3 bucket | `@aws-sdk/client-s3` and the AWS credential chain |
+| `gcs` | Objects in a Google Cloud Storage bucket | `@google-cloud/storage` and Application Default Credentials |
+
+`inline` suits most installations. For `s3` and `gcs`, set `MIOT_DASHBOARD_DOCUMENTS_BUCKET` and, optionally, `MIOT_DASHBOARD_DOCUMENTS_PREFIX` (default `dashboards/`). The account needs read, create, delete and list permissions under that prefix. Cloud credentials come from the environment, never from the API.
+
+<Callout type="warning">
+The document store is recorded the first time the database opens. Starting later with a different one is refused, because the documents do not move by themselves. Move them first.
+</Callout>
+
+## Leftover documents
+
+A save or delete that fails halfway can leave a document with no metadata. The server removes these at startup and then every hour.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `MIOT_DASHBOARD_ORPHAN_SWEEP_INTERVAL` | `3600` | Seconds between sweeps. `0` turns them off. |
+| `MIOT_DASHBOARD_ORPHAN_MIN_AGE` | `86400` | Only documents older than this are removed. Cannot be `0`, so a save in progress is never swept. |
+
+## Credentials
+
+If the server stores datasource credentials (`MIOT_DASHBOARD_CREDENTIALS_KEY`), they are encrypted in the same store. They need `sqlite` or `postgres`. See [Store datasource credentials](/en/products/dashboards/how-to/store-credentials).
+
+## Seed data
+
+`MIOT_DASHBOARD_SEED` can also list starting dashboards. They are written only where the address is empty, so the setting can stay on across restarts without undoing edits.

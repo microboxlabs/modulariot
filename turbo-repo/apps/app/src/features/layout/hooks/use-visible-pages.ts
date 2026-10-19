@@ -8,7 +8,8 @@ import type { SidebarItem } from "../types/common.types";
 /**
  * The pages navigation should render, with the Dev and Storytelling sections
  * each filtered by their own runtime config flag rather than a build-time
- * env var.
+ * env var. The dashboard workspace is filtered by `dashboardServerEnabled`,
+ * passed in by the caller from the server-only `ENABLE_DASHBOARD_SERVER`.
  *
  * Both surfaces that build navigation use this — the sidebar
  * (SidebarNavigationProvider) and Spotlight — so neither section can appear
@@ -19,12 +20,19 @@ import type { SidebarItem } from "../types/common.types";
  * and never appear at all when they aren't — the safe direction for sections
  * that shouldn't be in front of real users.
  */
-export function useVisiblePages(): SidebarItem[] {
+export function useVisiblePages(
+  dashboardServerEnabled: boolean
+): SidebarItem[] {
   const runtimeConfig = useRuntimeConfig();
   const devToolsEnabled = runtimeConfig?.ENABLE_DEV_TOOLS === "true";
   const storytellingEnabled = runtimeConfig?.ENABLE_STORYTELLING === "true";
   return useMemo(
-    () => visiblePages(devToolsEnabled, storytellingEnabled),
-    [devToolsEnabled, storytellingEnabled],
+    () =>
+      visiblePages(
+        devToolsEnabled,
+        storytellingEnabled,
+        dashboardServerEnabled
+      ),
+    [devToolsEnabled, storytellingEnabled, dashboardServerEnabled]
   );
 }

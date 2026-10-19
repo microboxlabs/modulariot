@@ -1,11 +1,21 @@
 import json
 from collections.abc import Awaitable, Callable
+from time import monotonic
 from typing import Any, Generic, TypeVar
 from uuid import uuid4
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
+from miot_harness.runtime.approvals import ApprovalResolution
 from miot_harness.runtime.context import HarnessContext
+from miot_harness.runtime.event_payload import (
+    APPROVAL_INPUT_BYTES_CAP,
+    DIFF_PAYLOAD_BYTES_CAP,
+    args_payload,
+    bounded,
+    preview_payload,
+    scrub_text,
+)
 from miot_harness.runtime.events import HarnessEvent
 from miot_harness.runtime.permissions import (
     PermissionDecision,
@@ -34,10 +44,15 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
     output_model: type[OutputT]
     read_only: bool = True
     destructive: bool = False
-    # Tool family for catalog scoping: "curated" datasource functions are
-    # offered to every planner seat; "primitive" exploration tools are
-    # agentic-only; "general" (default) covers everything else sharing the
-    # registry (e.g. storytelling tools) and is never planner-selectable.
+    # Always pauses for a human: allow rules and auto-approve modes do not
+    # skip its approval, and rules never skip its check_permission.
+    always_ask: bool = False
+    # What the model is told when the human rejects the call.
+    declined_message: str = ""
+    # Tool family. The model is given the datasource's prefixed tools,
+    # "primitive" exploration tools, "mcp" (`mcp_call`) and "utility" tools
+    # (scratchpad files, task list), whose results are not data evidence;
+    # "general" (default) tools stay in the registry but are not offered.
     kind: str = "general"
     # Trace badge — propagated into tool.started.data.source so the frontend
     # can render the datasource provenance label (e.g. "ModularIoT AMS")
@@ -46,6 +61,14 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
     source: str = ""
     check_permission: Callable[[HarnessContext, InputT], Awaitable[PermissionResult]]
     call: Callable[[HarnessContext, InputT, Progress], Awaitable[OutputT]]
+    # Whether the tool can run with the current configuration. A tool that
+    # returns False is not offered to the model.
+    available: Callable[[], bool] | None = None
+    # Fields added to what the user sees before approving (e.g. the diff of a
+    # file write), computed from the input.
+    approval_details: Callable[[HarnessContext, InputT], Awaitable[dict[str, Any]]] | None = None
+    # Its approval input and result carry file diffs, sent whole to the app.
+    carries_diff: bool = False
 
     async def invoke(
         self,
@@ -53,7 +76,20 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
         raw_input: dict[str, Any],
         progress: Progress,
     ) -> OutputT:
-        parsed_input = self.input_model.model_validate(raw_input)
+        call_id = uuid4().hex[:12]
+        try:
+            parsed_input = self.input_model.model_validate(raw_input)
+        except ValidationError as exc:
+            _emit_failed(
+                progress,
+                ctx,
+                self.name,
+                str(exc),
+                type(exc).__name__,
+                call_id=call_id,
+                args=raw_input,
+            )
+            raise
         input_dump = parsed_input.model_dump()
         input_keys = sorted(input_dump.keys())
 
@@ -61,17 +97,15 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
         policy = ctx.permission_policy
         rule_decision = None
         if policy is not None and policy.rules:
-            rule_decision = evaluate_rules(
-                policy.rules, tool_name=self.name, tool_input=input_dump
-            )
+            rule_decision = evaluate_rules(policy.rules, tool_name=self.name, tool_input=input_dump)
         if rule_decision == PermissionDecision.DENY:
             reason = f"rule denied tool {self.name}"
-            _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+            _emit_failed(progress, ctx, self.name, reason, "PermissionError", call_id=call_id)
             raise PermissionError(reason)
 
-        if rule_decision == PermissionDecision.ALLOW:
+        if rule_decision == PermissionDecision.ALLOW and not self.always_ask:
             permission = PermissionResult.allow("allowed by rule")
-        elif rule_decision == PermissionDecision.ASK:
+        elif rule_decision == PermissionDecision.ASK and not self.always_ask:
             # An explicit `ask` rule forces the human-pause decision,
             # skipping check_permission. The mode handling below still
             # applies (bypass/auto_safe can auto-approve), matching Claude
@@ -81,14 +115,17 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
             permission = await self.check_permission(ctx, parsed_input)
 
         if permission.decision == PermissionDecision.DENY:
-            _emit_failed(progress, ctx, self.name, permission.reason, "PermissionError")
+            _emit_failed(
+                progress, ctx, self.name, permission.reason, "PermissionError", call_id=call_id
+            )
             raise PermissionError(permission.reason)
 
         if permission.decision == PermissionDecision.ASK:
             # Mode-based auto-approval upgrades an "ask" without a human.
             mode = policy.mode if policy is not None else None
-            auto_approve = mode is PermissionMode.BYPASS or (
-                mode is PermissionMode.AUTO_SAFE and not self.destructive
+            auto_approve = not self.always_ask and (
+                mode is PermissionMode.BYPASS
+                or (mode is PermissionMode.AUTO_SAFE and not self.destructive)
             )
             if auto_approve:
                 # auto_approve is only True when mode is BYPASS or AUTO_SAFE
@@ -107,6 +144,17 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                 )
             else:
                 approval_id = uuid4().hex
+                # The user decides from this input, and it is stored with the
+                # run: secrets are redacted and big values shortened.
+                shown = input_dump
+                if self.approval_details is not None:
+                    shown = {**input_dump, **await self.approval_details(ctx, parsed_input)}
+                cap = DIFF_PAYLOAD_BYTES_CAP if self.carries_diff else APPROVAL_INPUT_BYTES_CAP
+                shown_input, input_truncated = bounded(shown, cap)
+                registry = ctx.approval_registry
+                # Registered before the event goes out, so a decision posted
+                # as soon as the event arrives finds it.
+                event = registry.register(approval_id, ctx.run_id) if registry is not None else None
                 progress(
                     HarnessEvent(
                         run_id=ctx.run_id,
@@ -114,37 +162,45 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                         message=permission.reason,
                         data={
                             "tool": self.name,
-                            "input": input_dump,
+                            "input": shown_input,
                             "approval_id": approval_id,
+                            **({"input_truncated": True} if input_truncated else {}),
                         },
                     )
                 )
-                registry = ctx.approval_registry
-                if registry is None:
+                if registry is None or event is None:
                     # No human-in-the-loop wired (CLI / eval path). Refusing
                     # is safer than silently proceeding — the caller has no
                     # way to approve.
                     reason = "approval required but no approval_registry on context"
-                    _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+                    _emit_failed(
+                        progress, ctx, self.name, reason, "PermissionError", call_id=call_id
+                    )
                     raise PermissionError(reason)
-                event = registry.register(approval_id, ctx.run_id)
                 try:
                     await event.wait()
-                    decision = registry.decision(approval_id)
+                    resolution = registry.resolution(approval_id)
                 finally:
                     # Always discard so a cancelled wait (e.g. POST
                     # /runs/{id}/cancel during an approval pause) doesn't
                     # leak the registry entry. Without this, _pending grows
                     # unbounded across the process lifetime.
                     registry.discard(approval_id)
-                if decision != "approve":
-                    reason = f"approval {approval_id} denied"
-                    _emit_failed(progress, ctx, self.name, reason, "PermissionError")
+                progress(_resolved_event(ctx, self.name, approval_id, resolution))
+                if resolution is None or resolution.decision != "approve":
+                    reason = self.declined_message or f"approval {approval_id} denied by the user"
+                    if resolution is not None and resolution.comment:
+                        reason += f": {resolution.comment}"
+                    _emit_failed(
+                        progress, ctx, self.name, reason, "PermissionError", call_id=call_id
+                    )
                     raise PermissionError(reason)
         started_data: dict[str, Any] = {
             "tool": self.name,
             "source": self.source,
             "input_keys": input_keys,
+            "call_id": call_id,
+            **args_payload(input_dump),
         }
         if ctx.debug:
             started_data.update(_debug_input_payload(input_dump))
@@ -156,15 +212,28 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
                 data=started_data,
             )
         )
+        started_at = monotonic()
         try:
             output = await self.call(ctx, parsed_input, progress)
         except Exception as exc:
-            _emit_failed(progress, ctx, self.name, str(exc), type(exc).__name__)
+            _emit_failed(
+                progress,
+                ctx,
+                self.name,
+                str(exc),
+                type(exc).__name__,
+                call_id=call_id,
+                duration_ms=int((monotonic() - started_at) * 1000),
+            )
             raise
         completed_data: dict[str, Any] = {
             "tool": self.name,
             "result_shape": _compute_result_shape(output),
             **_lift_metadata(output),
+            "call_id": call_id,
+            "ok": True,
+            "duration_ms": int((monotonic() - started_at) * 1000),
+            **preview_payload(_dump_payload(output), carries_diff=self.carries_diff),
         }
         if ctx.debug:
             completed_data.update(_debug_output_payload(output))
@@ -179,13 +248,43 @@ class HarnessTool(BaseModel, Generic[InputT, OutputT]):
         return self.output_model.model_validate(output)
 
 
+def _resolved_event(
+    ctx: HarnessContext,
+    tool: str,
+    approval_id: str,
+    resolution: ApprovalResolution | None,
+) -> HarnessEvent:
+    data: dict[str, Any] = {
+        "tool": tool,
+        "approval_id": approval_id,
+        "decision": resolution.decision if resolution is not None else "deny",
+    }
+    if resolution is not None and resolution.comment:
+        data["comment"] = resolution.comment
+    if resolution is not None and resolution.resolved_by:
+        data["resolved_by"] = resolution.resolved_by
+    verb = "Approved" if data["decision"] == "approve" else "Rejected"
+    return HarnessEvent(
+        run_id=ctx.run_id,
+        type="approval.resolved",
+        message=f"{verb} {tool}",
+        data=data,
+    )
+
+
 def _emit_failed(
     progress: Progress,
     ctx: HarnessContext,
     tool: str,
     error: str,
     error_type: str,
+    *,
+    call_id: str,
+    duration_ms: int = 0,
+    args: dict[str, Any] | None = None,
 ) -> None:
+    error = scrub_text(error)
+    extra = args_payload(args) if args is not None else {}
     progress(
         HarnessEvent(
             run_id=ctx.run_id,
@@ -196,6 +295,10 @@ def _emit_failed(
                 "error": error,
                 "error_type": error_type,
                 "reason": error,
+                "call_id": call_id,
+                "ok": False,
+                "duration_ms": duration_ms,
+                **extra,
             },
         )
     )
@@ -266,9 +369,7 @@ def _debug_output_payload(output: Any) -> dict[str, Any]:
         # errors="ignore" drops any incomplete codepoint at the cut
         # boundary so the decoded string is always valid UTF-8.
         return {
-            "output": encoded[:_DEBUG_OUTPUT_BYTES_CAP].decode(
-                "utf-8", errors="ignore"
-            ),
+            "output": encoded[:_DEBUG_OUTPUT_BYTES_CAP].decode("utf-8", errors="ignore"),
             "truncated": True,
         }
     return {"output": capped, "truncated": truncated}
@@ -292,9 +393,7 @@ def _debug_input_payload(input_dump: dict[str, Any]) -> dict[str, Any]:
         # See _debug_output_payload — byte-slice + lossy decode so
         # multibyte characters can't blow past the SSE frame cap.
         return {
-            "input": encoded[:_DEBUG_OUTPUT_BYTES_CAP].decode(
-                "utf-8", errors="ignore"
-            ),
+            "input": encoded[:_DEBUG_OUTPUT_BYTES_CAP].decode("utf-8", errors="ignore"),
             "truncated": True,
         }
     return {"input": capped, "truncated": truncated}

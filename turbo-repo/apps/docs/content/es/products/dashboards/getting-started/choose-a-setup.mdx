@@ -1,0 +1,39 @@
+# Elegir una configuración
+
+Hay tres formas de usar Dashboards. Se diferencian en quién inicia la sesión de las personas, dónde se guardan las credenciales y cuánto construye usted.
+
+| Configuración | Elíjala cuando | Inicio de sesión | Credenciales | Usted construye |
+| --- | --- | --- | --- | --- |
+| **Aplicación web de ModularIoT** | Su equipo ya usa ModularIoT | ModularIoT | Conexiones de ModularIoT | Nada |
+| **Servidor independiente** | Quiere dashboards en su propio producto, sin ModularIoT | Su proveedor de identidad (JWT) | La base de datos del servidor, cifrada | La página que muestra los dashboards |
+| **Biblioteca en su backend** | Ya ejecuta un backend Node.js y quiere un solo proceso | Su código | Su código | Adaptadores para identidad, almacenamiento y datos |
+
+## Aplicación web de ModularIoT
+
+Dashboards es parte de la aplicación web. Un administrador lo activa y las personas abren **Dashboards** en la navegación. Los datos vienen de las conexiones de la organización, que los administradores gestionan en la pantalla de conexiones.
+
+- Comience con [Construir su primer dashboard](/es/products/dashboards/tutorials/first-dashboard).
+- Los operadores leen [Desplegar con ModularIoT](/es/products/dashboards/deployment/with-modulariot).
+
+## Servidor independiente
+
+Ejecute el servidor junto a su producto con npm, Docker o Helm. Su proveedor de identidad inicia la sesión de las personas; el servidor revisa sus tokens y decide qué pueden hacer. Su página web usa la biblioteca de UI para dibujar dashboards.
+
+- Pruébelo con el [Inicio rápido](/es/products/dashboards/getting-started/quickstart).
+- Luego siga [Incrustar un dashboard en una página web](/es/products/dashboards/tutorials/embed-in-a-web-page).
+- Configure el inicio de sesión con [Autenticar usuarios](/es/products/dashboards/how-to/authenticate-users).
+- Despliegue con [Docker](/es/products/dashboards/deployment/docker) o [Kubernetes](/es/products/dashboards/deployment/kubernetes).
+
+## Biblioteca en su backend
+
+Monte el manejador de solicitudes del servidor en su propio backend Node.js, por ejemplo en una ruta de Next.js. Usted implementa algunas interfaces: quién llama, a qué organizaciones y ámbitos pertenece y dónde se guardan los dashboards. Las reglas de acceso no cambian.
+
+- Lea [Biblioteca del servidor](/es/products/dashboards/reference/server-library).
+
+## Qué se mantiene igual
+
+Elija la configuración que elija:
+
+- El documento del dashboard es el mismo, así que un dashboard exportado desde una configuración se importa en otra.
+- Cada solicitud se revisa en el mismo orden: identidad, organización, ámbito y luego la acción.
+- El navegador nunca recibe una credencial, una URL de datos ni SQL.

@@ -1,0 +1,99 @@
+import { Callout } from 'nextra/components'
+
+# Agregar filtros
+
+Los filtros aparecen en una barra sobre el dashboard. Los usuarios los usan para acotar los datos; no cambian el dashboard. Un filtro no tiene efecto hasta que una consulta guardada o una plantilla de widget lo lee.
+
+## Tipos de filtro
+
+| Tipo | El usuario ve | Valores que entrega |
+| --- | --- | --- |
+| `text` | Un cuadro de texto | `<key>` |
+| `date_range` | Una fecha de inicio y una de término | `<key>_from` y `<key>_to` |
+| `select` | Una lista de opciones | `<key>` |
+
+Un filtro de rango de fechas con clave `date_range` entrega `date_range_from` y `date_range_to`. Vincule esos nombres, no `date_range`.
+
+## Agregar un filtro en la aplicación web
+
+1. Active **Modo Edición**.
+2. Abra el menú de ajustes (el engranaje) y elija **Barra de Filtros**.
+3. Seleccione **Agregar filtro**.
+4. Complete:
+   - **Clave del filtro**: el nombre que usan las consultas, por ejemplo `vehicle`. Única en el dashboard.
+   - **Etiqueta visible**: lo que leen los usuarios, por ejemplo `Vehículo`.
+   - **Tipo de control**: texto, rango de fechas o selección.
+5. Aplique los filtros. El dashboard se guarda solo.
+
+Luego vincule el filtro a un parámetro de consulta en **Consultas guardadas**:
+
+```json
+{ "vehicle_id": { "kind": "filter", "key": "vehicle", "omitWhenEmpty": true } }
+```
+
+<Callout type="warning">
+Cambiar el nombre de la clave de un filtro no actualiza las consultas que la leen. Actualice sus vínculos en la misma edición.
+</Callout>
+
+## Opciones de selección
+
+Un filtro de selección obtiene sus opciones de una de dos formas.
+
+**Opciones estáticas.** Escriba la etiqueta y el valor de cada opción. Úselas para listas cortas que cambian poco, como `Abierto`, `Cerrado`.
+
+**Desde una consulta guardada.** Elija **Fuente de opciones** y luego:
+
+| Campo | Significado |
+| --- | --- |
+| Consulta guardada | El resultado que contiene las opciones |
+| **Columna de valor** | La columna cuyo valor envía el filtro |
+| **Columna de etiqueta (opcional)** | La columna que leen los usuarios. Por defecto, la columna de valor. |
+
+Las opciones que vienen de una consulta se deduplican y se actualizan con la consulta. El filtro no hace solicitudes adicionales: lee un resultado que el dashboard ya carga.
+
+**Permitir una sola selección** limita al usuario a un valor. Actívelo cuando el parámetro de la operación acepta un valor, no una lista.
+
+## Limpiar valores relacionados
+
+**Limpiar valores relacionados al establecer este filtro** (`unique`) hace que un filtro de rango de fechas limpie su otro valor cuando se establece uno. Por ejemplo, elegir una nueva fecha de inicio limpia la fecha de término anterior.
+
+## En el documento
+
+Los filtros están en el arreglo `filters`:
+
+```json
+{
+  "filters": [
+    { "key": "date_range", "label": "Fecha", "type": "date_range" },
+    {
+      "key": "vehicle",
+      "label": "Vehículo",
+      "type": "select",
+      "single": true,
+      "optionsSource": { "variableName": "vehicles", "valueField": "id", "labelField": "plate" }
+    },
+    {
+      "key": "status",
+      "label": "Estado",
+      "type": "select",
+      "options": [
+        { "label": "Abierto", "value": "open" },
+        { "label": "Cerrado", "value": "closed" }
+      ]
+    }
+  ]
+}
+```
+
+## Usar un filtro en una plantilla de widget
+
+El texto de un widget puede mostrar el valor actual de un filtro con el espacio de nombres `filter`:
+
+```text
+Viajes de {{filter.vehicle}}
+```
+
+## Relacionado
+
+- [Agregar consultas guardadas](/es/products/dashboards/how-to/add-saved-queries)
+- [Esquema del documento](/es/products/dashboards/reference/document-schema#filtros)

@@ -65,8 +65,10 @@ export const roleCapabilityPolicy: CapabilityPolicy = {
       if (authorities.has(assignment.authorityId)) roles.push(assignment.role);
     }
     const role = highestRole(roles) ?? scopeRole;
-    const isOwner =
-      record?.createdBy !== undefined && record.createdBy === identity.userId;
+    // A new document will be owned by its creator. The access control still
+    // requires Contributor scope membership for creation; document policy and
+    // the identity ceiling may further restrict it.
+    const isOwner = record === null || record.createdBy === identity.userId;
     return capabilitiesForRole(role, { isOwner });
   },
 };

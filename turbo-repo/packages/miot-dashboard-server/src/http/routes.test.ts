@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { matchRoute } from "./routes";
 
 describe("matchRoute", () => {
+  it("keeps scope capabilities separate from a dashboard named capabilities", () => {
+    expect(matchRoute("/tenants/acme/scopes/ops/capabilities")).toEqual({
+      route: "scopeCapabilities", tenantId: "acme", scopeId: "ops",
+    });
+    expect(matchRoute("/tenants/acme/scopes/ops/dashboards/capabilities"))
+      .toMatchObject({ route: "dashboard", slug: "capabilities" });
+    expect(matchRoute("/tenants/acme/scopes/ops/capabilities/extra")).toBeNull();
+  });
   it("matches the contract's four shapes", () => {
     expect(matchRoute("/tenants/acme/scopes/ops/dashboards")).toEqual({
       route: "dashboards",

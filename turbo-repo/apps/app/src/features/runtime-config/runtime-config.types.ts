@@ -28,9 +28,19 @@ export interface RuntimeConfig {
   TASK_DRIVEN_ORIGINS: string;
   /**
    * If "true", the storytelling section (nav entry + /storytelling routes)
-   * is reachable and the chat's storytelling demo trigger words
-   * (create_story, "show all dashlets") fire. Anything else, including
-   * empty, keeps the whole thing off — testing-only until it's real.
+   * is reachable and the chat's "show all dashlets" demo trigger fires.
+   * Anything else, including empty, keeps it off.
    */
   ENABLE_STORYTELLING: string;
+  /**
+   * If "true", the symptoms map-view prototype does not send its saves to the
+   * real backend (treatments and the invalidate-symptom webhook) and shows
+   * mock contact and call data.
+   */
+  SYMPTOMS_PROTOTYPE_DISABLE_API: string;
+  /**
+   * If "true", the symptoms map-view opens the previous full-screen treatment
+   * modal instead of the inline forms.
+   */
+  SYMPTOMS_PAST_FORMS: string;
 }

@@ -21,14 +21,11 @@ export const KANBAN_ACCESS_ROLES = [
 
 // Define groups that should be blocked from certain routes
 const BLOCKED_GROUPS = {
-  GROUP_MINTRAL_REVISOR: ["/symptoms", "/geographic-view"], // Revisors cannot access symptoms and geographic view
+  GROUP_MINTRAL_REVISOR: ["/geographic-view"], // DEMO LOCAL: symptoms destrabado para revisar Tratamiento v2
 };
 
 // Dashboard access roles
 const DASHBOARD_ROLES = ["GROUP_DASHBOARD"];
-
-// Fleet management access roles
-const FLEET_MANAGEMENT_ROLES = ["GROUP_FLEET_MANAGEMENT"];
 
 export const ROUTE_PERMISSIONS = {
   // Main routes
@@ -53,12 +50,10 @@ export const ROUTE_PERMISSIONS = {
   "/api/task": FULL_ACCESS_ROLES,
   "/api/geographic": FULL_ACCESS_ROLES,
   "/api/symptoms": FULL_ACCESS_ROLES,
+  "/api/control-tower": FULL_ACCESS_ROLES,
   "/api/admin/logs": ADMIN_ROLES,
   "/api/admin/message-templates": ADMIN_ROLES,
   "/api/admin/webhooks": ADMIN_ROLES,
-
-  // Fleet management
-  "/fleet-management": FLEET_MANAGEMENT_ROLES,
 
   // Integrations job console — any authenticated org member; the backend
   // enforces org membership per request.
@@ -67,6 +62,10 @@ export const ROUTE_PERMISSIONS = {
   // Storytelling (list + /storytelling/[id] detail, matched by prefix) — any
   // authenticated org member (frontend-only demo for now).
   "/storytelling": [],
+
+  // Fleet (list, /fleet/[assetId] and its edit page, matched by prefix) — any
+  // authenticated member; the modulith checks fleet:assets.view / .edit.
+  "/fleet": [],
 
   // Settings › Connections (templates + connections) — any authenticated member;
   // the backend owner-gates every mutation per request.

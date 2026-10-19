@@ -1,6 +1,6 @@
 "use client";
 
-import { STORY_AUTHOR_NAMES } from "@/features/storytelling/people";
+import { STORY_KINDS } from "@/features/storytelling/storytelling.types";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr, trDynamic } from "@/features/i18n/tr.service";
 import {
@@ -101,37 +101,21 @@ const where_is_my_load_params: ParamType[] = [
   setParam("expeditionNumber", "text"),
 ];
 
-function fleet_params(searchbarDict: I18nRecord): ParamType[] {
-  return [
-    setParam("licensePlate", "text"),
-    setParam("client", "text"),
-    setParam("state", "selector", [
-      { value: "active", label: tr("stateActive", searchbarDict) },
-      { value: "maintenance", label: tr("stateMaintenance", searchbarDict) },
-      { value: "alert", label: tr("stateAlert", searchbarDict) },
-      { value: "inactive", label: tr("stateInactive", searchbarDict) },
-    ]),
-  ];
-}
-
 const collaborators_management_params: ParamType[] = [
   setParam("name", "text"),
   setParam("rut", "text"),
 ];
 
-function storytelling_params(): ParamType[] {
+function storytelling_params(storyDict: I18nRecord): ParamType[] {
   return [
     setParam("name", "text"),
-    setParam("artifactType", "selector", [
-      { value: "html", label: "HTML" },
-      { value: "markdown", label: "Markdown" },
-      { value: "ppt", label: "PPT" },
-      { value: "pdf", label: "PDF" },
-    ]),
     setParam(
-      "creator",
+      "artifactType",
       "selector",
-      STORY_AUTHOR_NAMES.map((name) => ({ value: name, label: name }))
+      STORY_KINDS.map((kind) => ({
+        value: kind,
+        label: trDynamic(`kind.${kind}`, storyDict),
+      }))
     ),
     setParam("createdAt", "date_range"),
   ];
@@ -162,9 +146,8 @@ function setParam(
 export function getNavegationParams(dict: I18nRecord, size: number) {
   const searchbarDict = dict.searchbar as I18nRecord;
   const kanban = kanban_params(searchbarDict);
-  const fleet = fleet_params(searchbarDict);
   const calendar = calendar_params(searchbarDict);
-  const storytelling = storytelling_params();
+  const storytelling = storytelling_params(dict.storytelling as I18nRecord);
 
   return {
     finished: getParamsFixed(kanban, dict),
@@ -183,7 +166,6 @@ export function getNavegationParams(dict: I18nRecord, size: number) {
     ),
     symptoms: getParamsFixed(symptoms_params, dict),
     "geographic-view": getParamsFixed([setParam("licensePlate", "text")], dict),
-    "fleet-management": getParamsFixed(fleet, dict),
     "collaborators-management": getParamsFixed(
       collaborators_management_params,
       dict,

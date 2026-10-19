@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { getStatisticsTasks } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import type { StatisticsMode } from "@/features/common/providers/alfresco-api/alfresco-api.types";
+import { isEcmConfigured } from "@/features/common/providers/alfresco-api/ecm-config";
 
 export async function GET(request: NextRequest) {
   const session = await auth();
@@ -23,6 +24,9 @@ export async function GET(request: NextRequest) {
     const mode =
       (searchParams.get("mode") as StatisticsMode) || "running_tasks";
 
+    if (!isEcmConfigured()) {
+      return NextResponse.json({ totals: {} });
+    }
     const statisticsResponse = await getStatisticsTasks(session, mode);
     return NextResponse.json({
       totals: statisticsResponse.totals,

@@ -32,7 +32,7 @@ function useRouteCrumbs(dict: I18nRecord) {
   return useMemo(() => {
     const sidebarDict = (((dict.layout as I18nRecord)?.secured as I18nRecord)
       ?.sidebar ?? {}) as I18nRecord;
-    for (const page of visiblePages(true)) {
+    for (const page of visiblePages(true, true, true)) {
       const child = page.items?.find(
         (c) => c.href && isSegmentPrefix(c.href, pathname)
       );
@@ -62,6 +62,7 @@ export function SecuredHeader({
   dict,
   isSeachEnabled = true,
   isHarnessSettingsEnabled = false,
+  isDashboardServerEnabled = false,
 }: Readonly<SecuredNavBarProps & { dict: I18nRecord }>) {
   const { mobile } = useSidebarContext();
   const crumbs = useRouteCrumbs(dict);
@@ -110,6 +111,7 @@ export function SecuredHeader({
           <SpotlightSearch
             dict={dict}
             isHarnessSettingsEnabled={isHarnessSettingsEnabled}
+            isDashboardServerEnabled={isDashboardServerEnabled}
           />
         ) : undefined
       }

@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.api;
 
+import com.microboxlabs.miot.core.api.dto.AuthorizationDecisionDto;
 import com.microboxlabs.miot.core.api.dto.OrganizationPermissionDto;
 import com.microboxlabs.miot.core.api.dto.SetOrganizationPermissionRequest;
 import com.microboxlabs.miot.core.permission.OrganizationPermissionService;
@@ -37,6 +38,15 @@ public class OrgPermissionsResource {
             @PathParam("organizationId") String organizationId,
             @PathParam("permissionCode") String permissionCode) {
         return service.get(organizationId, permissionCode);
+    }
+
+    @GET
+    @Path("/me")
+    @Operation(summary = "Whether the caller holds an application-owned organization permission")
+    public Uni<AuthorizationDecisionDto> me(
+            @PathParam("organizationId") String organizationId,
+            @PathParam("permissionCode") String permissionCode) {
+        return service.checkCurrentUser(organizationId, permissionCode);
     }
 
     @PUT

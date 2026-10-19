@@ -215,7 +215,10 @@ export function UnifiedHeaderPreview(props: Readonly<PreviewProps>) {
     // Own SidebarProvider so the mock's L2 panel doesn't drive the real
     // sidebar that SecuredLayout still renders on this route.
     <SidebarProvider>
-      <SidebarNavigationProvider isHarnessSettingsEnabled={false}>
+      <SidebarNavigationProvider
+        isHarnessSettingsEnabled={false}
+        isDashboardServerEnabled={false}
+      >
         <HeaderPageActionsProvider>
           <PreviewInner {...props} />
         </HeaderPageActionsProvider>

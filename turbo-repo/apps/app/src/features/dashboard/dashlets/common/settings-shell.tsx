@@ -1,12 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import { Button } from "flowbite-react";
+import { useEffect } from "react";
+import { SettingsPanel } from "@microboxlabs/miot-dashboard-ui/react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { SettingsDrawer } from "./settings-drawer";
-import { SettingsTabButton } from "./settings-tab-button";
 import { useDirtySettings } from "./dirty-settings-context";
 
 // ============================================================================
@@ -165,63 +164,22 @@ function SettingsShellContent({
   footer,
   contentClassName = "p-4",
 }: Readonly<SettingsShellContentProps>) {
-  const [activeTabId, setActiveTabId] = useState<string>(
-    () => tabs?.[0]?.id ?? ""
-  );
   const { isDirty, registerSaveAndClose } = useDirtySettings();
-  const handleMouseDown = (e: React.MouseEvent) => e.stopPropagation();
-
-  // Register save-and-close so the UnsavedChangesModal can trigger it
   useEffect(() => {
     registerSaveAndClose(onSave);
+    return () => registerSaveAndClose(undefined);
   }, [onSave, registerSaveAndClose]);
-
-  const hasTabs = tabs !== undefined && tabs.length > 0;
-  const activeTab = hasTabs
-    ? (tabs.find((t) => t.id === activeTabId) ?? tabs[0])
-    : undefined;
-
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {/* Tab bar (only for tabbed layout) */}
-      {hasTabs && (
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
-          {tabs.map((tab) => (
-            <SettingsTabButton
-              key={tab.id}
-              active={activeTabId === tab.id}
-              onClick={() => setActiveTabId(tab.id)}
-            >
-              {tab.label}
-            </SettingsTabButton>
-          ))}
-        </div>
-      )}
-
-      {/* Scrollable content */}
-      <div className={`min-h-0 grow overflow-y-auto ${contentClassName}`}>
-        {hasTabs ? activeTab?.content : children}
-      </div>
-
-      <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-3">
-        {/* Optional footer (e.g. refresh interval) */}
-        {footer && <div className="shrink-0">{footer}</div>}
-
-        {/* Action buttons */}
-        <div className="flex shrink-0 gap-2 pt-2">
-          <Button
-            color="blue"
-            onClick={onSave}
-            onMouseDown={handleMouseDown}
-            size="sm"
-            className="no-drag w-full shrink-0"
-            disabled={!isDirty}
-          >
-            {tr("common.save", dictionary)}
-          </Button>
-        </div>
-      </div>
-
-    </div>
+    <SettingsPanel
+      tabs={tabs}
+      tabsLabel={tr("dashboard.settings.visualization", dictionary)}
+      saveLabel={tr("common.save", dictionary)}
+      onSave={onSave}
+      isDirty={isDirty}
+      footer={footer}
+      contentClassName={contentClassName}
+    >
+      {children}
+    </SettingsPanel>
   );
 }

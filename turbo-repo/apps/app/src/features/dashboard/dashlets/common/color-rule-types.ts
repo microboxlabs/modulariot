@@ -1,12 +1,11 @@
-export type ColorRuleOperator =
-  | "equals"
-  | "not_equals"
-  | "contains"
-  | "not_contains"
-  | "greater_than"
-  | "less_than"
-  | "greater_than_or_equal"
-  | "less_than_or_equal";
+import type {
+  ColorRuleOperator,
+  ColorRule,
+} from "@microboxlabs/miot-dashboard-ui/core";
+export type {
+  ColorRuleOperator,
+  ColorRule,
+} from "@microboxlabs/miot-dashboard-ui/core";
 
 export const COLOR_RULE_OPERATORS: ColorRuleOperator[] = [
   "equals",
@@ -65,17 +64,6 @@ export const COLOR_RULE_PRESETS: ColorRulePreset[] = [
 
 /** Default color for new rules */
 export const DEFAULT_RULE_COLOR = "3b82f6"; // Blue
-
-export interface ColorRule {
-  /** Column key (Handlebars template, e.g. "{{row.status}}") */
-  column: string;
-  /** Comparison operator */
-  operator: ColorRuleOperator;
-  /** Value to compare against */
-  value: string;
-  /** The color to apply when this rule matches (hex without # or legacy named color) */
-  color: string;
-}
 
 export interface ColorRulesConfig {
   /** When false, rules are stored but not evaluated */

@@ -14,6 +14,7 @@ export const MEGA_SECTIONS: {
       { icon: "radar", href: "/producto/sintomas-torre-control" },
       { icon: "plug", href: "/producto/integraciones" },
       { icon: "video", href: "/producto/video-en-vivo" },
+      { icon: "chart", href: "/producto/dashboards" },
     ],
   },
   {

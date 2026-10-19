@@ -137,7 +137,7 @@ describe("summarizeRuns", () => {
       {
         tenantId: "t",
         userId: "u",
-        mode: "auto",
+        model: null,
         baseUrl: "http://x",
       },
       ctx,
@@ -151,7 +151,7 @@ describe("summarizeRuns", () => {
       {
         tenantId: "t",
         userId: "u",
-        mode: "auto",
+        model: null,
         baseUrl: "http://x",
       },
       ctx,

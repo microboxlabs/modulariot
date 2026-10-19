@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 import { Dropdown, DropdownItem } from "flowbite-react";
 import {
   HiArrowLeft,
@@ -13,7 +12,6 @@ import {
   HiMinus,
   HiPlus,
   HiSparkles,
-  HiTrash,
 } from "react-icons/hi2";
 import { MdGpsFixed } from "react-icons/md";
 import { toast } from "sonner";
@@ -22,16 +20,15 @@ import { formatDateString } from "@/features/common/components/formatted-date/fo
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { avatarTint, initials } from "../story-share-store";
-import { getStory } from "../storytelling-store";
-import { versionChildren, type StoryVersion } from "../story-versions";
-import { StoryVersionDeleteDialog } from "./story-version-delete-dialog";
 import {
-  deleteStoryVersion,
-  getStoryVersionState,
+  StoriesApiError,
+  getStory,
   iterateVersion,
+  listVersions,
   setCurrentVersion,
-} from "../story-versions-store";
+} from "../stories-api";
+import { versionChildren } from "../story-versions";
+import type { Story, StoryVersion } from "../storytelling.types";
 
 interface StoryVersionsPageProps {
   readonly dict: I18nRecord;
@@ -48,6 +45,13 @@ const ZOOM_STEP = 1.25;
 
 /** Which slice of the horizontal "bus" a child cell draws — the connector
  * spans between the first and last child's centres. */
+function initials(name: string): string {
+  const parts = name.split(/[\s@._-]+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
 function busClass(index: number, count: number): string {
   if (count <= 1) return "before:hidden";
   if (index === 0) return "before:left-1/2 before:right-0";
@@ -57,8 +61,10 @@ function busClass(index: number, count: number): string {
 
 interface NodeActions {
   readonly onOpen: (version: StoryVersion) => void;
-  readonly onIterate: (version: StoryVersion) => void;
-  readonly onDelete: (version: StoryVersion) => void;
+  /** False for a reader: the story shows its current version only. */
+  readonly canSwitch: boolean;
+  /** Null for a reader, who cannot add versions. */
+  readonly onIterate: ((version: StoryVersion) => void) | null;
 }
 
 function VersionCard({
@@ -74,6 +80,7 @@ function VersionCard({
   readonly dict: I18nRecord;
   readonly actions: NodeActions;
 }) {
+  const openable = isCurrent || actions.canSwitch;
   return (
     <div
       data-version-node
@@ -94,10 +101,11 @@ function VersionCard({
       <button
         type="button"
         onClick={() => actions.onOpen(version)}
+        disabled={!openable}
         aria-label={`${tr("version.menu.open", dict)} ${tr("version.badgeLabel", dict, {
           label: version.label,
         })}`}
-        className="absolute inset-0 z-0 cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className="absolute inset-0 z-0 cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-default"
       />
 
       {/* Title row — same treatment as the stories' section header. */}
@@ -116,6 +124,7 @@ function VersionCard({
           </span>
         )}
 
+        {(openable || actions.onIterate) && (
         <div className="relative z-10 ml-auto">
           <Dropdown
             inline
@@ -137,45 +146,38 @@ function VersionCard({
               </button>
             )}
           >
-            <DropdownItem
-              icon={HiArrowTopRightOnSquare}
-              onClick={() => actions.onOpen(version)}
-            >
-              {tr("version.menu.open", dict)}
-            </DropdownItem>
-            <DropdownItem icon={HiArrowPath} onClick={() => actions.onIterate(version)}>
-              {tr("version.menu.iterate", dict)}
-            </DropdownItem>
-            {version.parentId !== null && (
+            {openable && (
               <DropdownItem
-                icon={HiTrash}
-                onClick={() => actions.onDelete(version)}
-                className="text-red-600 dark:text-red-400"
+                icon={HiArrowTopRightOnSquare}
+                onClick={() => actions.onOpen(version)}
               >
-                {tr("version.menu.delete", dict)}
+                {tr("version.menu.open", dict)}
+              </DropdownItem>
+            )}
+            {actions.onIterate && (
+              <DropdownItem icon={HiArrowPath} onClick={() => actions.onIterate?.(version)}>
+                {tr("version.menu.iterate", dict)}
               </DropdownItem>
             )}
           </Dropdown>
         </div>
+        )}
       </div>
 
       <div className="px-3 py-2.5">
-        <p className="text-xs text-gray-600 dark:text-gray-300">{version.summary}</p>
+        {version.summary && (
+          <p className="text-xs text-gray-600 dark:text-gray-300">{version.summary}</p>
+        )}
         <div className="mt-2.5 flex items-center gap-1.5">
           <span
-            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[9px] font-semibold ${avatarTint(
-              version.createdBy
-            )}`}
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[9px] font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300"
           >
             {initials(version.createdBy)}
           </span>
           <span className="min-w-0 truncate text-[11px] text-gray-400 dark:text-gray-500">
             {tr("attribution", dict, {
               name: version.createdBy,
-              // "UTC": version.createdAt is stored date-only (YYYY-MM-DD) and
-              // parsed as UTC midnight, so it must be read back in UTC or
-              // formatDateString's America/Santiago default shows the day before.
-              date: formatDateString(version.createdAt, "date", locale, "UTC"),
+              date: formatDateString(version.createdAt, "datetime", locale),
             })}
           </span>
         </div>
@@ -251,8 +253,10 @@ function clamp(n: number, min: number, max: number) {
 export default function StoryVersionsPage({ dict, id, rootDict }: StoryVersionsPageProps) {
   const { lang } = useParams<{ lang: string }>();
   const router = useRouter();
-  const { data: session } = useSession();
-  const [story] = useState(() => getStory(id));
+  const [story, setStory] = useState<Story | null>(null);
+  const [versions, setVersions] = useState<StoryVersion[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "missing" | "failed">("loading");
+  const [busy, setBusy] = useState(false);
   const locale = lang === "en" ? "en-US" : "es-CL";
 
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -266,24 +270,29 @@ export default function StoryVersionsPage({ dict, id, rootDict }: StoryVersionsP
   viewRef.current = view;
   const [dragging, setDragging] = useState(false);
 
-  // Bumped after an iterate/delete so the store is re-read.
-  const [nonce, setNonce] = useState(0);
-  const [pendingDelete, setPendingDelete] = useState<StoryVersion | null>(null);
-
-  const { versions, current, roots } = useMemo(() => {
-    if (!story) {
-      return { versions: [] as StoryVersion[], current: null, roots: [] as StoryVersion[] };
-    }
-    const state = getStoryVersionState(story);
-    return {
-      versions: state.versions,
-      current: state.current,
-      roots: versionChildren(state.versions).get(null) ?? [],
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getStory(id), listVersions(id)])
+      .then(([loaded, list]) => {
+        if (cancelled) return;
+        setStory(loaded);
+        setVersions(list);
+        setLoadState("ready");
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        const missing =
+          error instanceof StoriesApiError && (error.status === 404 || error.status === 403);
+        setLoadState(missing ? "missing" : "failed");
+      });
+    return () => {
+      cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [story, nonce]);
+  }, [id]);
 
   const childrenByParent = useMemo(() => versionChildren(versions), [versions]);
+  const roots = childrenByParent.get(null) ?? [];
+  const current = versions.find((v) => v.id === story?.currentVersionId) ?? null;
 
   const fitAll = useCallback(() => {
     const vp = viewportRef.current;
@@ -309,7 +318,7 @@ export default function StoryVersionsPage({ dict, id, rootDict }: StoryVersionsP
   useEffect(() => {
     const t = window.setTimeout(fitAll, 0);
     return () => window.clearTimeout(t);
-  }, [fitAll, versions.length]);
+  }, [fitAll, versions.length, loadState]);
 
   const zoomToward = useCallback((factor: number, px: number, py: number) => {
     setView((v) => {
@@ -347,7 +356,7 @@ export default function StoryVersionsPage({ dict, id, rootDict }: StoryVersionsP
     };
     vp.addEventListener("wheel", handler, { passive: false });
     return () => vp.removeEventListener("wheel", handler);
-  }, [zoomToward]);
+  }, [zoomToward, loadState]);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -376,40 +385,53 @@ export default function StoryVersionsPage({ dict, id, rootDict }: StoryVersionsP
     }
   }, []);
 
-  const actions = useMemo<NodeActions>(
-    () => ({
-      onOpen: (version) => {
-        if (!story) return;
-        setCurrentVersion(story, version.id);
-        router.push(`/${lang}/storytelling/${encodeURIComponent(story.id)}`);
-      },
-      onIterate: (version) => {
-        if (!story) return;
-        // Attribute the new iteration to whoever's actually signed in, not
-        // a generic "Harness AI" label — iterateVersion falls back to that
-        // itself if the session hasn't resolved a name yet.
-        const created = iterateVersion(story, version.id, session?.user?.name ?? undefined);
-        toast.success(tr("version.toast.iterated", dict, { label: created.label }));
-        setNonce((n) => n + 1);
-      },
-      onDelete: (version) => setPendingDelete(version),
-    }),
-    [story, lang, router, dict, session?.user?.name]
-  );
+  const canWrite = story !== null && story.permission !== "read";
+  const actions: NodeActions = {
+    canSwitch: canWrite,
+    onOpen: (version) => {
+      if (!story || busy) return;
+      const open = () => router.push(`/${lang}/storytelling/${encodeURIComponent(story.id)}`);
+      if (version.id === story.currentVersionId || !canWrite) {
+        open();
+        return;
+      }
+      setBusy(true);
+      setCurrentVersion(story.id, version.id)
+        .then(open)
+        .catch(() => toast.error(tr("toast.failed", dict)))
+        .finally(() => setBusy(false));
+    },
+    onIterate: canWrite
+      ? (version) => {
+          if (!story || busy) return;
+          setBusy(true);
+          iterateVersion(story.id, version)
+            .then((created) => {
+              setVersions((prev) => [...prev, { ...created, content: null, metadata: null }]);
+              setStory({ ...story, currentVersionId: created.id });
+              toast.success(tr("version.toast.iterated", dict, { label: created.label }));
+            })
+            .catch(() => toast.error(tr("toast.failed", dict)))
+            .finally(() => setBusy(false));
+        }
+      : null,
+  };
 
-  const confirmDelete = useCallback(() => {
-    if (!story || !pendingDelete) return;
-    deleteStoryVersion(story, pendingDelete.id);
-    toast.success(tr("version.toast.deleted", dict, { label: pendingDelete.label }));
-    setPendingDelete(null);
-    setNonce((n) => n + 1);
-  }, [story, pendingDelete, dict]);
+  if (loadState === "loading") {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-gray-500 dark:border-gray-700 dark:border-t-gray-400" />
+      </div>
+    );
+  }
 
   if (!story) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
         <p className="text-lg font-semibold text-gray-900 dark:text-white">
-          {tr("detail.notFound.title", dict)}
+          {loadState === "missing"
+            ? tr("detail.notFound.title", dict)
+            : tr("detail.loadFailed", dict)}
         </p>
         <Link
           href={`/${lang}/storytelling`}
@@ -533,17 +555,6 @@ export default function StoryVersionsPage({ dict, id, rootDict }: StoryVersionsP
         </div>
       </div>
 
-      <StoryVersionDeleteDialog
-        version={pendingDelete}
-        hasBranch={
-          pendingDelete
-            ? (childrenByParent.get(pendingDelete.id)?.length ?? 0) > 0
-            : false
-        }
-        onClose={() => setPendingDelete(null)}
-        onConfirm={confirmDelete}
-        dict={dict}
-      />
     </div>
   );
 }

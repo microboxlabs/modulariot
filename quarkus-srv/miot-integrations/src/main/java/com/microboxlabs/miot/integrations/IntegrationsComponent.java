@@ -49,7 +49,7 @@ public class IntegrationsComponent implements IMiotComponent {
             if (!gpsClient.isConfigured()) {
                 LOG.warn(
                         "Retransmit worker enabled but GPS datasource is not configured "
-                                + "(miot.integrations.retransmit.gps.reactive-url / username)");
+                                + "(miot.gps.reactive-url / username)");
             }
             consumer.start();
         }

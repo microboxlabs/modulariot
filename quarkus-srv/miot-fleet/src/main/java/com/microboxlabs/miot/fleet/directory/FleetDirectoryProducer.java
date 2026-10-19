@@ -21,11 +21,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
  * Wires the fleet directory from {@code miot.fleet.source}: {@code gps} reads the GPS database through
- * {@code miot.fleet.gps.*} with read-only sessions and keeps edits in the modulith database; {@code demo} serves
+ * {@code miot.gps.*} with read-only sessions and keeps edits in the modulith database; {@code demo} serves
  * fixed data and keeps edits in memory; anything else answers 503.
  */
 @ApplicationScoped
@@ -49,15 +50,17 @@ public class FleetDirectoryProducer {
     private Pool gpsPool;
     private Wiring wiring;
 
-    FleetDirectoryProducer(Vertx vertx, Instance<Pool> modulithPool, VehicleImages images,
-            FleetConfig config) {
+    FleetDirectoryProducer(Vertx vertx, Instance<Pool> modulithPool, VehicleImages images, FleetConfig config,
+            @ConfigProperty(name = "miot.gps.reactive-url") Optional<String> url,
+            @ConfigProperty(name = "miot.gps.username") Optional<String> username,
+            @ConfigProperty(name = "miot.gps.password") Optional<String> password) {
         this.vertx = vertx;
         this.modulithPool = modulithPool;
         this.images = images;
         this.source = config.source();
-        this.url = config.gps().reactiveUrl().filter(s -> !s.isBlank());
-        this.username = config.gps().username().filter(s -> !s.isBlank());
-        this.password = config.gps().password();
+        this.url = url.filter(s -> !s.isBlank());
+        this.username = username.filter(s -> !s.isBlank());
+        this.password = password;
         this.zone = ZoneId.of(config.zone());
         this.cacheTtl = config.cacheTtl();
         this.history = config.activity().history();

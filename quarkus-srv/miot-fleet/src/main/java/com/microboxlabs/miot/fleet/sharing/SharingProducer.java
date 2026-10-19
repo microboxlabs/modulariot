@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -39,15 +40,24 @@ public class SharingProducer {
     private final Vertx vertx;
     private final Instance<Pool> modulithPool;
     private final FleetConfig config;
+    private final Optional<String> url;
+    private final Optional<String> username;
+    private final Optional<String> password;
     private final Clock clock = Clock.systemUTC();
     private final Map<Boolean, Pool> gpsPools = new HashMap<>();
     private SharingService service;
     private ClientMapSync sync;
 
-    SharingProducer(Vertx vertx, Instance<Pool> modulithPool, FleetConfig config) {
+    SharingProducer(Vertx vertx, Instance<Pool> modulithPool, FleetConfig config,
+            @ConfigProperty(name = "miot.gps.reactive-url") Optional<String> url,
+            @ConfigProperty(name = "miot.gps.username") Optional<String> username,
+            @ConfigProperty(name = "miot.gps.password") Optional<String> password) {
         this.vertx = vertx;
         this.modulithPool = modulithPool;
         this.config = config;
+        this.url = url.filter(s -> !s.isBlank());
+        this.username = username.filter(s -> !s.isBlank());
+        this.password = password;
     }
 
     /** Singleton: the service has no no-args constructor, so it cannot sit behind a client proxy. */
@@ -92,8 +102,7 @@ public class SharingProducer {
             return service;
         }
         String source = config.source();
-        boolean gps = "gps".equals(source) && config.gps().reactiveUrl().filter(s -> !s.isBlank()).isPresent()
-                && config.gps().username().filter(s -> !s.isBlank()).isPresent();
+        boolean gps = "gps".equals(source) && url.isPresent() && username.isPresent();
         if ("demo".equals(source)) {
             LOG.info("Data sharing: demo organizations, shares in memory");
             DemoSharingSource demo = new DemoSharingSource(clock.instant());
@@ -112,22 +121,18 @@ public class SharingProducer {
         return service;
     }
 
-    /** Read-only for the screens; the sync's pool writes, with its own login when one is set. */
+    /** Read-only for the screens; the sync's pool writes. Both use the one GPS login. */
     private synchronized Pool gpsPool(boolean readOnly) {
         return gpsPools.computeIfAbsent(readOnly, key -> newGpsPool(readOnly));
     }
 
     private Pool newGpsPool(boolean ro) {
-        Address address = Address.parse(config.gps().reactiveUrl().orElseThrow());
-        FleetConfig.Sharing.Sync syncLogin = config.sharing().sync();
-        boolean ownLogin = !ro && syncLogin.username().filter(s -> !s.isBlank()).isPresent();
-        Optional<String> user = ownLogin ? syncLogin.username() : config.gps().username();
-        Optional<String> password = ownLogin ? syncLogin.password() : config.gps().password();
+        Address address = Address.parse(url.orElseThrow());
         PgConnectOptions connect = new PgConnectOptions()
                 .setHost(address.host())
                 .setPort(address.port())
                 .setDatabase(address.database())
-                .setUser(user.orElseThrow())
+                .setUser(username.orElseThrow())
                 .setPassword(password.orElse(""))
                 .setProperties(Map.of(
                         "application_name", ro ? "miot-sharing" : "miot-sharing-sync",

@@ -34,11 +34,11 @@ public class StreamhubGpsClient {
     StreamhubGpsClient(
             @ConfigProperty(name = "miot.integrations.retransmit.worker.enabled", defaultValue = "false")
                     boolean workerEnabled,
-            @ConfigProperty(name = "miot.integrations.retransmit.gps.reactive-url")
+            @ConfigProperty(name = "miot.gps.reactive-url")
                     Optional<String> reactiveUrl,
-            @ConfigProperty(name = "miot.integrations.retransmit.gps.username")
+            @ConfigProperty(name = "miot.gps.username")
                     Optional<String> username,
-            @ConfigProperty(name = "miot.integrations.retransmit.gps.password")
+            @ConfigProperty(name = "miot.gps.password")
                     Optional<String> password) {
         this.workerEnabled = workerEnabled;
         this.reactiveUrl = reactiveUrl;
@@ -74,7 +74,7 @@ public class StreamhubGpsClient {
             if (!isConfigured()) {
                 throw new IllegalStateException(
                         "Retransmit GPS datasource is not configured "
-                                + "(set miot.integrations.retransmit.gps.reactive-url / username)");
+                                + "(set miot.gps.reactive-url / username)");
             }
             String url = reactiveUrl.orElseThrow();
             // Accept postgresql://host:port/db or host:port/db

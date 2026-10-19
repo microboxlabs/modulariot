@@ -68,7 +68,7 @@ public class SymptomsComponent implements IMiotComponent {
         if (table.anyPostgres() && !gpsClient.isConfigured()) {
             LOG.warn(
                     "Symptoms routes call Postgres but GPS datasource is not configured "
-                            + "(miot.symptoms.gps.reactive-url / username)");
+                            + "(miot.gps.reactive-url / username)");
         }
         LOG.infof(
                 "Symptoms component started — %d route(s), channel symptoms-cdc",

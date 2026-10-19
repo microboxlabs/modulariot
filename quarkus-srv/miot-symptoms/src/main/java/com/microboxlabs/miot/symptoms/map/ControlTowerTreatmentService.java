@@ -16,7 +16,8 @@ import java.util.function.Supplier;
 import org.jboss.logging.Logger;
 
 /**
- * The treatment page's data from the GPS database ({@link GpsDatabase}), in read-only transactions: the symptom header, its signals, and the positions of a trip. A symptom or trip outside
+ * The treatment page's data from the GPS database ({@link GpsDatabase#readPool()}): the symptom header, its
+ * signals, and the positions of a trip. A symptom or trip outside
  * the organization's client ids is not found.
  */
 @ApplicationScoped
@@ -30,7 +31,7 @@ public class ControlTowerTreatmentService {
 
     @Inject
     public ControlTowerTreatmentService(GpsDatabase gps) {
-        this.reads = gps.configured() ? new PgTreatmentReads(gps::pool) : null;
+        this.reads = gps.configured() ? new PgTreatmentReads(gps::readPool) : null;
     }
 
     /** {@code reads} null: the GPS database is not configured. */

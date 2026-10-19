@@ -89,7 +89,7 @@ public class FleetDirectoryProducer {
                     new ActivityRollup(data, activity, clock, zone, history, (int) history.toHours()));
         } else if ("gps".equals(source) && gps.configured()) {
             LOG.info("Fleet directory: GPS database, read only; edits in the modulith database");
-            FleetData data = new GpsFleetData(gps::pool);
+            FleetData data = new GpsFleetData(gps::readPool);
             ActivityStore activity = new PgActivityStore(modulithPool::get);
             wiring = new Wiring(
                     new FleetDirectoryService(data, new PgProfileStore(modulithPool::get), activity, new AssetImages(images), clock,

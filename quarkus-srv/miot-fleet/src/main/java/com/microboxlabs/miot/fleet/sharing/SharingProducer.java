@@ -91,7 +91,7 @@ public class SharingProducer {
                     clock, config.cacheTtl());
         } else if ("gps".equals(source) && gps.configured()) {
             LOG.info("Data sharing: GPS database, shares in the modulith database");
-            service = new SharingService(new GpsSharingSource(modulithPool::get, gps::pool),
+            service = new SharingService(new GpsSharingSource(modulithPool::get, gps::readPool),
                     new PgShareStore(modulithPool::get), clock, config.cacheTtl());
             sync = new ClientMapSync(service, new PgClientMapStore(gps::pool));
         } else {
@@ -102,7 +102,6 @@ public class SharingProducer {
         return service;
     }
 
-    /** Read-only for the screens; the sync's pool writes. Both use the one GPS login. */
     /** No source configured: every read answers 503. */
     static final class UnavailableSource implements SharingSource {
 

@@ -48,8 +48,7 @@ public class StreamhubSymptomsGpsClient implements FunctionInvoker {
     }
 
     private Uni<JsonObject> execute(String sql, JsonArray arg) {
-        return gps.pool().preparedQuery(sql)
-                .execute(Tuple.of(arg))
+        return Uni.createFrom().deferred(() -> gps.pool().preparedQuery(sql).execute(Tuple.of(arg)))
                 .onItem()
                 .transform(rows -> {
                     if (!rows.iterator().hasNext()) {

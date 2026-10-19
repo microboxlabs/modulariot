@@ -1,6 +1,5 @@
 package com.microboxlabs.miot.symptoms.map;
 
-import com.microboxlabs.miot.core.gps.GpsDatabase;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,8 +22,7 @@ public class PgTreatmentReads implements TreatmentReads {
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(30);
     private static final ObjectMapper JSON = new ObjectMapper();
 
-    /** Read only, and stops a query that runs longer than 25 s. */
-    private static final String READ_ONLY = GpsDatabase.READ_ONLY + "; SET LOCAL statement_timeout = 25000";
+    private static final String STATEMENT_TIMEOUT = "SET LOCAL statement_timeout = 25000";
     private static final String CLAIMS =
             "SELECT set_config('request.jwt.claims', json_build_object('sub', $1::text)::text, true)";
 
@@ -108,7 +106,7 @@ public class PgTreatmentReads implements TreatmentReads {
     }
 
     private Uni<Optional<Row>> asClient(String clientId, String sql, Tuple args) {
-        return pool.get().withTransaction(conn -> conn.query(READ_ONLY).execute()
+        return pool.get().withTransaction(conn -> conn.query(STATEMENT_TIMEOUT).execute()
                         .flatMap(ignored -> conn.preparedQuery(CLAIMS).execute(Tuple.of(clientId)))
                         .flatMap(ignored -> conn.preparedQuery(sql).execute(args)))
                 .ifNoItem().after(QUERY_TIMEOUT).fail()

@@ -1,6 +1,5 @@
 package com.microboxlabs.miot.fleet.sharing;
 
-import com.microboxlabs.miot.core.gps.GpsDatabase;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
@@ -64,7 +63,7 @@ public class GpsSharingSource implements SharingSource {
         if (clientIds.isEmpty()) {
             return Map.of();
         }
-        return rows(read(gps, COUNTS, Tuple.of(clientIds.toArray(String[]::new))))
+        return rows(query(gps, COUNTS, Tuple.of(clientIds.toArray(String[]::new))))
                 .collect(Collectors.toMap(r -> r.getString("client_id"), r -> r.getInteger("n")));
     }
 
@@ -73,13 +72,13 @@ public class GpsSharingSource implements SharingSource {
         if (clientIds.isEmpty()) {
             return Set.of();
         }
-        return rows(read(gps, OPERATORS, Tuple.of(clientIds.toArray(String[]::new))))
+        return rows(query(gps, OPERATORS, Tuple.of(clientIds.toArray(String[]::new))))
                 .map(r -> r.getString("client_id")).collect(Collectors.toSet());
     }
 
     @Override
     public List<SharingAsset> assets(String clientId) {
-        return rows(read(gps, ASSETS, Tuple.of(clientId)))
+        return rows(query(gps, ASSETS, Tuple.of(clientId)))
                 .map(r -> new SharingAsset(r.getString("asset_id"), r.getString("type"), r.getString("owner"),
                         instant(r.getOffsetDateTime("timestamp"))))
                 .toList();
@@ -95,9 +94,5 @@ public class GpsSharingSource implements SharingSource {
 
     private static RowSet<Row> query(Supplier<Pool> pool, String sql, Tuple params) {
         return pool.get().preparedQuery(sql).execute(params).await().atMost(QUERY_TIMEOUT);
-    }
-
-    private static RowSet<Row> read(Supplier<Pool> pool, String sql, Tuple params) {
-        return GpsDatabase.read(pool.get(), sql, params).await().atMost(QUERY_TIMEOUT);
     }
 }

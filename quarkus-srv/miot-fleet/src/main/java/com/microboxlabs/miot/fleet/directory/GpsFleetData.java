@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.fleet.directory;
 
+import com.microboxlabs.miot.core.gps.GpsDatabase;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
@@ -203,7 +204,7 @@ public class GpsFleetData implements FleetData {
     }
 
     private RowSet<Row> query(String sql, Tuple params) {
-        return pool.get().preparedQuery(sql).execute(params).await().atMost(QUERY_TIMEOUT);
+        return GpsDatabase.read(pool.get(), sql, params).await().atMost(QUERY_TIMEOUT);
     }
 
     private static List<TripView> trips(RowSet<Row> rows) {

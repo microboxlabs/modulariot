@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.engine;
 
+import com.microboxlabs.miot.core.gps.GpsDatabase;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -179,7 +180,7 @@ public class GpsSymptomEngine implements SymptomEngine {
         for (Object p : params) {
             tuple.addValue(p);
         }
-        return pool.get().preparedQuery(sql).execute(tuple).await().atMost(QUERY_TIMEOUT);
+        return GpsDatabase.read(pool.get(), sql, tuple).await().atMost(QUERY_TIMEOUT);
     }
 
     private static Map<String, Object> parse(String json) {

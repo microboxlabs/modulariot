@@ -16,7 +16,10 @@ import { Dropdown, DropdownItem } from "flowbite-react";
 import { toast } from "sonner";
 import type { RunSummary } from "@microboxlabs/miot-harness-client";
 import { copyShareLink } from "@/features/share-links/share-links-api";
-import { useHarnessChatContext } from "./context/harness-chat-context";
+import {
+  useHarnessChatContext,
+  type PendingHarnessConversation,
+} from "./context/harness-chat-context";
 import {
   HarnessChatI18nProvider,
   useHarnessChatTr,
@@ -104,6 +107,8 @@ const HarnessChatPanel: FC<{
     close,
     pendingMessage,
     clearPendingMessage,
+    pendingConversation,
+    clearPendingConversation,
     pendingAttachment,
     clearPendingAttachment,
     pendingThreadId,
@@ -178,8 +183,11 @@ const HarnessChatPanel: FC<{
   }, [loadHistory]);
 
   const newChat = useCallback(
-    (initialMessage: string | null = null) => {
-      const session = createSession(initialMessage);
+    (
+      initialMessage: string | null = null,
+      initialConversation: PendingHarnessConversation | null = null,
+    ) => {
+      const session = createSession(initialMessage, initialConversation);
       setSessions((prev) => [session, ...prev]);
       setActiveId(session.id);
       mount(session.id);
@@ -188,13 +196,29 @@ const HarnessChatPanel: FC<{
     [mount],
   );
 
-  // A search-bar "open chat" action landed while we were mounted — start a
-  // fresh conversation with that text as the first (auto-sent) message.
+  // A search-bar "open chat" action, or a spotlight "Take to chat" handoff,
+  // landed while we were mounted — start a fresh conversation for it. Both
+  // pending slots are handled by this one effect (rather than two independent
+  // ones) so that if they were ever both set at once, only one `newChat` ever
+  // fires per render — `pendingMessage` takes precedence — instead of two
+  // sessions racing to become the active one.
   useEffect(() => {
-    if (!pendingMessage) return;
-    newChat(pendingMessage);
-    clearPendingMessage();
-  }, [pendingMessage, newChat, clearPendingMessage]);
+    if (pendingMessage) {
+      newChat(pendingMessage);
+      clearPendingMessage();
+      return;
+    }
+    if (pendingConversation) {
+      newChat(null, pendingConversation);
+      clearPendingConversation();
+    }
+  }, [
+    pendingMessage,
+    pendingConversation,
+    newChat,
+    clearPendingMessage,
+    clearPendingConversation,
+  ]);
 
   const selectSession = useCallback(
     (id: string) => {
@@ -502,6 +526,7 @@ const HarnessChatPanel: FC<{
               active={session.id === activeId}
               shouldFocus={isOpen && view === "chat"}
               initialMessage={session.initialMessage}
+              initialConversation={session.initialConversation}
               // Only the active session should receive it — every session's
               // SessionHost stays mounted (just hidden), so a session-agnostic
               // prop would add the same attachment to all of them at once.

@@ -18,6 +18,18 @@ interface SpotlightInputProps {
   showOpenChat: boolean;
   onOpenChat: () => void;
   openChatLabel: string;
+  /** True while Harness is working a committed question — the question is
+   * "locked" (read-only) until it finishes or is cancelled. */
+  locked: boolean;
+  showCancelHarness: boolean;
+  onCancelHarness: () => void;
+  cancelHarnessLabel: string;
+  /** True while there's fresh, uncommitted text — Enter's implicit default
+   * action. Shown as a hint pill to the right of the input, not a row in
+   * the results list. */
+  showAskHarness: boolean;
+  onAskHarness: () => void;
+  askHarnessLabel: string;
 }
 
 export function SpotlightInput({
@@ -30,6 +42,13 @@ export function SpotlightInput({
   showOpenChat,
   onOpenChat,
   openChatLabel,
+  locked,
+  showCancelHarness,
+  onCancelHarness,
+  cancelHarnessLabel,
+  showAskHarness,
+  onAskHarness,
+  askHarnessLabel,
 }: Readonly<SpotlightInputProps>) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -84,10 +103,38 @@ export function SpotlightInput({
         placeholder={placeholder}
         spellCheck={false}
         autoComplete="off"
-        className="flex-1 bg-transparent text-base text-gray-900 placeholder:text-gray-400 outline-none dark:text-gray-100 dark:placeholder:text-gray-500"
+        readOnly={locked}
+        aria-readonly={locked}
+        className={`flex-1 bg-transparent text-base outline-none ${
+          locked
+            ? "text-gray-400 dark:text-gray-500 cursor-default"
+            : "text-gray-900 placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
+        }`}
       />
 
-      {showOpenChat && (
+      {showCancelHarness && (
+        <button
+          type="button"
+          onClick={onCancelHarness}
+          aria-label={cancelHarnessLabel}
+          title={cancelHarnessLabel}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-200"
+        >
+          <span className="h-2.5 w-2.5 rounded-xs bg-current" />
+        </button>
+      )}
+
+      {!showCancelHarness && showAskHarness && (
+        <button
+          type="button"
+          onClick={onAskHarness}
+          className="flex shrink-0 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-400 dark:hover:bg-amber-900/30"
+        >
+          {askHarnessLabel} <kbd className="font-mono text-[10px]">↵</kbd>
+        </button>
+      )}
+
+      {!showCancelHarness && showOpenChat && (
         <button
           type="button"
           onClick={onOpenChat}

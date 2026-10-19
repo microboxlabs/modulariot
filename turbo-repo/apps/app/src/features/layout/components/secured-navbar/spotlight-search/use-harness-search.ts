@@ -19,6 +19,7 @@ function toSpotlightItem(r: HarnessSearchResult): SpotlightItem {
     sublabel: r.sublabel,
     blocks: r.blocks,
     intent: r.intent,
+    conversationId: r.conversationId,
     kind: "harness" as const,
     icon: BsStars,
     keywords: [],

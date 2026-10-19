@@ -41,6 +41,18 @@ public class PgShareStore implements ShareStore {
                 valid_to, note, created_by, created_at)
             VALUES ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9, $10, $11, $12)""";
 
+    // Serializes creates for one organization pair, across modulith instances, until the transaction ends.
+    private static final String LOCK_PAIR = "SELECT pg_advisory_xact_lock(hashtextextended($1 || '>' || $2, 0))";
+
+    // DataShare.alreadyCovers, in SQL: an ALL share in force for the pair whose window overlaps [$3, $4).
+    private static final String COVERED = """
+            SELECT 1 FROM miot_fleet.data_share
+            WHERE source_org = $1 AND target_org = $2 AND scope = 'ALL' AND revoked_at IS NULL
+              AND (valid_to IS NULL OR valid_to > now())
+              AND (valid_to IS NULL OR $3 < valid_to)
+              AND ($4::timestamptz IS NULL OR $4 > valid_from)
+            LIMIT 1""";
+
     private static final String INSERT_ASSET =
             "INSERT INTO miot_fleet.data_share_asset (share_id, asset_id) VALUES ($1, $2)";
 
@@ -81,11 +93,18 @@ public class PgShareStore implements ShareStore {
                 .addValue(s.origin().name()).addValue(time(s.validFrom())).addValue(time(s.validTo()))
                 .addValue(s.note()).addValue(s.createdBy()).addValue(time(s.createdAt()));
         List<Tuple> assets = s.assetIds().stream().map(a -> Tuple.of(s.id(), a)).toList();
-        pool.get().withTransaction(tx -> {
-            Uni<Void> insert = tx.preparedQuery(INSERT).execute(row).replaceWithVoid();
-            return assets.isEmpty() ? insert
-                    : insert.chain(() -> tx.preparedQuery(INSERT_ASSET).executeBatch(assets).replaceWithVoid());
-        }).await().atMost(QUERY_TIMEOUT);
+        Tuple pair = Tuple.of(s.sourceOrg(), s.targetOrg());
+        Tuple window = Tuple.of(s.sourceOrg(), s.targetOrg(), time(s.validFrom()), time(s.validTo()));
+        pool.get().withTransaction(tx -> tx.preparedQuery(LOCK_PAIR).execute(pair)
+                .chain(() -> tx.preparedQuery(COVERED).execute(window))
+                .chain(covered -> {
+                    if (covered.rowCount() > 0) {
+                        return Uni.createFrom().failure(new AlreadyCovered());
+                    }
+                    Uni<Void> insert = tx.preparedQuery(INSERT).execute(row).replaceWithVoid();
+                    return assets.isEmpty() ? insert
+                            : insert.chain(() -> tx.preparedQuery(INSERT_ASSET).executeBatch(assets).replaceWithVoid());
+                })).await().atMost(QUERY_TIMEOUT);
     }
 
     @Override

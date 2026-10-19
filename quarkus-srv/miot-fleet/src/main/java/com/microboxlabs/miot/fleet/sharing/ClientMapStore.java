@@ -10,6 +10,9 @@ public interface ClientMapStore {
 
     List<ClientMap.Row> managed();
 
-    /** Applies the plan in one transaction. An insert never takes over a row that something else wrote. */
+    /**
+     * Applies the plan in one transaction. An insert takes over a row that something else wrote only when that row is
+     * inactive or expired; a row in force stays as it is and keeps giving access.
+     */
     void apply(ClientMap.Plan plan);
 }

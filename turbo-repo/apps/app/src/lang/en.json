@@ -1842,6 +1842,8 @@
               "source": "Pick who shares the data.",
               "target": "Pick who receives the data.",
               "sameOrg": "An organization cannot share with itself.",
+              "sameClient": "These organizations use the same GPS credential: sharing between them changes nothing they see.",
+              "assetsUnavailable": "Could not load this organization's assets. Try again before sharing.",
               "filter": "Pick at least one owner or type.",
               "assets": "Pick at least one asset.",
               "dates": "The end date must be after the start date.",

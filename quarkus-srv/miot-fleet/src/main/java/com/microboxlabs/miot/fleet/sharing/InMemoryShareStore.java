@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.fleet.sharing;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,9 +11,11 @@ import java.util.UUID;
 public class InMemoryShareStore implements ShareStore {
 
     private final List<DataShare> shares = new ArrayList<>();
+    private final Clock clock;
 
-    public InMemoryShareStore(List<DataShare> seed) {
+    public InMemoryShareStore(List<DataShare> seed, Clock clock) {
         shares.addAll(seed);
+        this.clock = clock;
     }
 
     @Override
@@ -22,6 +25,12 @@ public class InMemoryShareStore implements ShareStore {
 
     @Override
     public synchronized void create(DataShare share) {
+        Instant now = clock.instant();
+        boolean covered = shares.stream().anyMatch(s -> s.alreadyCovers(share.sourceOrg(), share.targetOrg(),
+                share.validFrom(), share.validTo(), now));
+        if (covered) {
+            throw new AlreadyCovered();
+        }
         shares.add(0, share);
     }
 

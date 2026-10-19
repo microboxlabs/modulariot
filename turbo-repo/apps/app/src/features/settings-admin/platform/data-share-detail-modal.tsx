@@ -47,7 +47,8 @@ function criteria(filter: DataShareFilter, dict: I18nRecord) {
     .join(", ");
   return tr("detail.criteriaValue", dict, {
     owners: owners || any,
-    kinds: filter.kinds.join(", ") || any,
+    kinds:
+      filter.kinds.map((k) => k || tr("picker.noKind", dict)).join(", ") || any,
   });
 }
 

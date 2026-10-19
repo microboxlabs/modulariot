@@ -43,17 +43,17 @@ public final class ClientMap {
         public Instant storedTo() {
             return validTo == null ? NO_END : validTo;
         }
-    }
 
-    private static Instant laterEnd(Instant a, Instant b) {
-        if (a == null || b == null) {
-            return null;
+        private static Instant laterEnd(Instant a, Instant b) {
+            if (a == null || b == null) {
+                return null;
+            }
+            return a.isAfter(b) ? a : b;
         }
-        return a.isAfter(b) ? a : b;
-    }
 
-    private static Instant micros(Instant at) {
-        return at == null ? null : at.truncatedTo(ChronoUnit.MICROS);
+        private static Instant micros(Instant at) {
+            return at == null ? null : at.truncatedTo(ChronoUnit.MICROS);
+        }
     }
 
     public record Plan(List<Row> insert, List<Row> update, List<Row> delete) {

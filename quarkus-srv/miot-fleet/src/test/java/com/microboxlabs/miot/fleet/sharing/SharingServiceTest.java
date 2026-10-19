@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,16 +28,18 @@ class SharingServiceTest {
     /** Provider "gps" sends three assets, carrier "carrier" two, operator "op" none but creates trips. */
     private static final class FakeSource implements SharingSource {
 
-        private final Map<String, List<SharingAsset>> assets = Map.of(
+        private final Map<String, List<SharingAsset>> assets = new HashMap<>(Map.of(
                 "c-gps", List.of(asset("AA11", "Andes", "Tracto"), asset("BB22", "Andes", "Jaula"),
                         asset("CC33", "Sur", "Tracto")),
-                "c-carrier", List.of(asset("DD44", "Sur", "Tracto"), asset("EE55", "Sur", "Jaula")));
+                "c-carrier", List.of(asset("DD44", "Sur", "Tracto"), asset("EE55", "Sur", "Jaula"))));
 
         @Override
         public List<SharingOrg.Ref> organizations() {
             return List.of(new SharingOrg.Ref("gps", "GPS", "c-gps"),
                     new SharingOrg.Ref("carrier", "Carrier", "c-carrier"),
-                    new SharingOrg.Ref("op", "Operator", "c-op"));
+                    new SharingOrg.Ref("op", "Operator", "c-op"),
+                    new SharingOrg.Ref("new", "No client yet", null),
+                    new SharingOrg.Ref("gps-site", "GPS sub-account", "c-gps"));
         }
 
         @Override
@@ -61,12 +64,14 @@ class SharingServiceTest {
     }
 
     private InMemoryShareStore store;
+    private FakeSource source;
     private SharingService sharing;
 
     @BeforeEach
     void setUp() {
-        store = new InMemoryShareStore(List.of());
-        sharing = new SharingService(new FakeSource(), store, Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofMinutes(1));
+        store = new InMemoryShareStore(List.of(), Clock.fixed(NOW, ZoneOffset.UTC));
+        source = new FakeSource();
+        sharing = new SharingService(source, store, Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofMinutes(1));
     }
 
     private static CreateShare request(String source, String target, DataShare.Scope scope, FilterView filter,
@@ -102,6 +107,8 @@ class SharingServiceTest {
     @Test
     void rejectsSharesThatCannotWork() {
         assertEquals("source", rejected(all("nope", "op")));
+        assertEquals("target", rejected(all("gps", "new")));
+        assertEquals("sameClient", rejected(all("gps", "gps-site")));
         assertEquals("sameOrg", rejected(all("gps", "gps")));
         assertEquals("filter", rejected(request("gps", "op", DataShare.Scope.FILTER,
                 new FilterView(List.of(), List.of()), null, null, null)));
@@ -111,6 +118,45 @@ class SharingServiceTest {
                 NOW.minusSeconds(1))));
         sharing.create(all("gps", "op"), ACTOR);
         assertEquals("duplicate", rejected(all("gps", "op")));
+    }
+
+    @Test
+    void aRenewalThatStartsWhenTheCurrentShareEndsIsAllowed() {
+        Instant end = NOW.plus(Duration.ofDays(10));
+        sharing.create(request("gps", "op", DataShare.Scope.ALL, null, null, null, end), ACTOR);
+        assertEquals("duplicate", rejected(request("gps", "op", DataShare.Scope.ALL, null, null,
+                end.minus(Duration.ofDays(1)), null)));
+        assertEquals(DataShare.Status.SCHEDULED,
+                sharing.create(request("gps", "op", DataShare.Scope.ALL, null, null, end, null), ACTOR).status());
+    }
+
+    @Test
+    void aListedShareKeepsItsAssetsWhenTheyChangeSender() {
+        sharing.create(request("gps", "op", DataShare.Scope.ASSETS, null, List.of("AA11"), null, null), ACTOR);
+        source.assets.put("c-gps", List.of(asset("BB22", "Andes", "Jaula")));
+        source.assets.put("c-carrier", List.of(asset("AA11", "Andes", "Tracto")));
+        sharing = new SharingService(source, store, Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofMinutes(1));
+
+        assertEquals(List.of("AA11"), sharing.clientMap().stream().map(ClientMap.Row::assetId).toList());
+    }
+
+    @Test
+    void theStoreRefusesASecondShareThatSlippedPastTheCheck() {
+        ShareStore racing = new InMemoryShareStore(List.of(), Clock.fixed(NOW, ZoneOffset.UTC)) {
+            @Override
+            public synchronized List<DataShare> all() {
+                return List.of();
+            }
+        };
+        sharing = new SharingService(source, racing, Clock.fixed(NOW, ZoneOffset.UTC), Duration.ofMinutes(1));
+        sharing.create(all("gps", "op"), ACTOR);
+        assertEquals("duplicate", rejected(all("gps", "op")));
+    }
+
+    @Test
+    void oldSharesAreNotCounted() {
+        var share = sharing.create(all("gps", "op"), ACTOR);
+        assertEquals(null, sharing.revoke(share.id(), ACTOR).assetCount());
     }
 
     private String rejected(CreateShare request) {

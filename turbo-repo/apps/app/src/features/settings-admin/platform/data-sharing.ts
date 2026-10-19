@@ -1,5 +1,5 @@
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr } from "@/features/i18n/tr.service";
+import { tr, trDynamic } from "@/features/i18n/tr.service";
 import type {
   CreateDataShare,
   DataShare,
@@ -37,7 +37,11 @@ export function formatCount(value: number, lang: string) {
   return value.toLocaleString(lang);
 }
 
+/** The scope, with today's asset count when the server sends one (it skips revoked and expired shares). */
 export function scopeLabel(share: DataShare, dict: I18nRecord, lang: string) {
+  if (share.assetCount === null) {
+    return trDynamic(`scope.${share.scope}`, dict);
+  }
   const count = formatCount(share.assetCount, lang);
   if (share.scope === "ALL") return tr("scope.allCount", dict, { count });
   if (share.scope === "FILTER") return tr("scope.filterCount", dict, { count });
@@ -166,9 +170,20 @@ export function checkShare(
       s.sourceOrg === draft.sourceOrg &&
       s.targetOrg === draft.targetOrg &&
       s.scope === "ALL" &&
-      ["ACTIVE", "SCHEDULED"].includes(shareStatus(s, now))
+      ["ACTIVE", "SCHEDULED"].includes(shareStatus(s, now)) &&
+      overlaps(s, draft)
   );
   return covered ? "duplicate" : null;
+}
+
+function overlaps(share: DataShare, draft: CreateDataShare) {
+  const startsBeforeItEnds =
+    share.validTo === null ||
+    Date.parse(draft.validFrom) < Date.parse(share.validTo);
+  const endsAfterItStarts =
+    draft.validTo === null ||
+    Date.parse(draft.validTo) > Date.parse(share.validFrom);
+  return startsBeforeItEnds && endsAfterItStarts;
 }
 
 export interface Facet {

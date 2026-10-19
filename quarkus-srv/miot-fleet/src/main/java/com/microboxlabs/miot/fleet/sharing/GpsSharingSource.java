@@ -5,14 +5,15 @@ import io.vertx.mutiny.sqlclient.Row;
 import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.Tuple;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Organizations from the modulith database; their assets from the GPS database, read only. An organization's assets
@@ -52,46 +53,43 @@ public class GpsSharingSource implements SharingSource {
 
     @Override
     public List<SharingOrg.Ref> organizations() {
-        List<SharingOrg.Ref> refs = new ArrayList<>();
-        for (Row r : query(modulith, ORGANIZATIONS, Tuple.tuple())) {
-            refs.add(new SharingOrg.Ref(r.getString("slug"), r.getString("name"), r.getString("tenant_client_id")));
-        }
-        return refs;
+        return rows(query(modulith, ORGANIZATIONS, Tuple.tuple()))
+                .map(r -> new SharingOrg.Ref(r.getString("slug"), r.getString("name"), r.getString("tenant_client_id")))
+                .toList();
     }
 
     @Override
     public Map<String, Integer> assetCounts(Set<String> clientIds) {
-        Map<String, Integer> counts = new HashMap<>();
         if (clientIds.isEmpty()) {
-            return counts;
+            return Map.of();
         }
-        for (Row r : query(gps, COUNTS, Tuple.of(clientIds.toArray(String[]::new)))) {
-            counts.put(r.getString("client_id"), r.getInteger("n"));
-        }
-        return counts;
+        return rows(query(gps, COUNTS, Tuple.of(clientIds.toArray(String[]::new))))
+                .collect(Collectors.toMap(r -> r.getString("client_id"), r -> r.getInteger("n")));
     }
 
     @Override
     public Set<String> operators(Set<String> clientIds) {
-        Set<String> found = new HashSet<>();
         if (clientIds.isEmpty()) {
-            return found;
+            return Set.of();
         }
-        for (Row r : query(gps, OPERATORS, Tuple.of(clientIds.toArray(String[]::new)))) {
-            found.add(r.getString("client_id"));
-        }
-        return found;
+        return rows(query(gps, OPERATORS, Tuple.of(clientIds.toArray(String[]::new))))
+                .map(r -> r.getString("client_id")).collect(Collectors.toSet());
     }
 
     @Override
     public List<SharingAsset> assets(String clientId) {
-        List<SharingAsset> assets = new ArrayList<>();
-        for (Row r : query(gps, ASSETS, Tuple.of(clientId))) {
-            OffsetDateTime seen = r.getOffsetDateTime("timestamp");
-            assets.add(new SharingAsset(r.getString("asset_id"), r.getString("type"), r.getString("owner"),
-                    seen == null ? null : seen.toInstant()));
-        }
-        return assets;
+        return rows(query(gps, ASSETS, Tuple.of(clientId)))
+                .map(r -> new SharingAsset(r.getString("asset_id"), r.getString("type"), r.getString("owner"),
+                        instant(r.getOffsetDateTime("timestamp"))))
+                .toList();
+    }
+
+    private static Stream<Row> rows(RowSet<Row> rows) {
+        return StreamSupport.stream(rows.spliterator(), false);
+    }
+
+    private static Instant instant(OffsetDateTime at) {
+        return at == null ? null : at.toInstant();
     }
 
     private static RowSet<Row> query(Supplier<Pool> pool, String sql, Tuple params) {

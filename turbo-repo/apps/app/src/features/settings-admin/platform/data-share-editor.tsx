@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button, Label, Spinner, Textarea, TextInput } from "flowbite-react";
 import {
   HiOutlineArrowLeft,
@@ -46,8 +46,16 @@ interface DataShareEditorProps {
   readonly onCreate: (draft: CreateDataShare) => Promise<DataShare>;
 }
 
+/** Today in the browser's time zone, as the date input expects it. */
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/** Local midnight of a `yyyy-mm-dd` value; today when the input is cleared. */
+function startOf(day: string) {
+  return new Date(`${day || today()}T00:00:00`).toISOString();
 }
 
 const SCOPES: { scope: DataShareScope; icon: IconType }[] = [
@@ -85,13 +93,24 @@ export default function DataShareEditor({
   const [saving, setSaving] = useState(false);
   const [rejected, setRejected] = useState<string | null>(null);
 
+  // The server's answer was about the form as submitted; any change makes it stale.
+  useEffect(() => {
+    setRejected(null);
+  }, [sourceOrg, targetOrg, scope, filter, selected, validFrom, validTo]);
+
   const orgList = useMemo(
     () => [...orgs.values()].sort((a, b) => a.name.localeCompare(b.name)),
     [orgs]
   );
   const source = orgs.get(sourceOrg);
   const target = orgs.get(targetOrg);
-  const { assets, isLoading: loadingAssets } = useShareableAssets(sourceOrg);
+  const {
+    assets,
+    isLoading: loadingAssets,
+    error: assetsError,
+  } = useShareableAssets(sourceOrg);
+  // Without the source's assets the preview would read 0, while the share could still cover thousands.
+  const assetsUnknown = sourceOrg !== "" && (loadingAssets || !!assetsError);
 
   const draft: CreateDataShare = {
     sourceOrg,
@@ -99,7 +118,7 @@ export default function DataShareEditor({
     scope,
     filter: scope === "FILTER" ? filter : null,
     assetIds: scope === "ASSETS" ? [...selected] : [],
-    validFrom: new Date(`${validFrom}T00:00:00`).toISOString(),
+    validFrom: startOf(validFrom),
     validTo: validTo ? new Date(`${validTo}T23:59:59`).toISOString() : null,
     note: note.trim() || null,
   };
@@ -119,7 +138,7 @@ export default function DataShareEditor({
   const submit = async () => {
     setTried(true);
     setRejected(null);
-    if (problem) return;
+    if (problem || assetsUnknown) return;
     setSaving(true);
     try {
       await onCreate(draft);
@@ -204,7 +223,12 @@ export default function DataShareEditor({
 
           <Step number={2} title={tr("form.stepAssets", dict)}>
             {source && loadingAssets && <Spinner size="sm" />}
-            {source && !loadingAssets && (
+            {source && assetsError && (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {tr("form.errors.assetsUnavailable", dict)}
+              </p>
+            )}
+            {source && !loadingAssets && !assetsError && (
               <ScopeContent
                 scope={scope}
                 onScope={setScope}
@@ -274,6 +298,7 @@ export default function DataShareEditor({
           validTo={draft.validTo}
           error={errorText(tried ? problem : null, rejected, dict)}
           saving={saving}
+          blocked={assetsUnknown}
           onSubmit={() => void submit()}
           onCancel={onCancel}
           dict={dict}
@@ -343,7 +368,7 @@ function ExistingShares({
         {tr("form.alreadyShared", dict, {
           count: String(current.length),
           assets: formatCount(
-            current.reduce((sum, s) => sum + s.assetCount, 0),
+            current.reduce((sum, s) => sum + (s.assetCount ?? 0), 0),
             lang
           ),
         })}
@@ -576,6 +601,8 @@ interface SummaryProps {
   readonly validTo: string | null;
   readonly error: string | null;
   readonly saving: boolean;
+  /** The source's assets are loading or failed to load. */
+  readonly blocked: boolean;
   readonly onSubmit: () => void;
   readonly onCancel: () => void;
   readonly dict: I18nRecord;
@@ -591,6 +618,7 @@ function Summary({
   validTo,
   error,
   saving,
+  blocked,
   onSubmit,
   onCancel,
   dict,
@@ -622,7 +650,7 @@ function Summary({
       </dl>
       <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
         <p className="text-3xl font-semibold text-blue-700 dark:text-blue-300">
-          {source ? formatCount(count, lang) : dash}
+          {source && !blocked ? formatCount(count, lang) : dash}
         </p>
         <p className="text-xs text-blue-800 dark:text-blue-200">
           {scope === "ASSETS"
@@ -638,7 +666,7 @@ function Summary({
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
-      <Button color="blue" disabled={saving} onClick={onSubmit}>
+      <Button color="blue" disabled={saving || blocked} onClick={onSubmit}>
         {tr("form.submit", dict)}
       </Button>
       <Button color="alternative" disabled={saving} onClick={onCancel}>

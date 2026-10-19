@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -29,7 +30,7 @@ public class SharingService {
     private final Clock clock;
     private final Duration cacheTtl;
     private final Map<String, Cached<List<SharingAsset>>> assetCache = new ConcurrentHashMap<>();
-    private volatile Cached<List<SharingOrg>> orgCache;
+    private final AtomicReference<Cached<List<SharingOrg>>> orgCache = new AtomicReference<>();
 
     private record Cached<T>(T value, Instant at) {
     }
@@ -48,7 +49,7 @@ public class SharingService {
     }
 
     public record ShareView(UUID id, String sourceOrg, String targetOrg, DataShare.Scope scope, FilterView filter,
-            List<String> assetIds, int assetCount, DataShare.Origin origin, DataShare.Status status,
+            List<String> assetIds, Integer assetCount, DataShare.Origin origin, DataShare.Status status,
             Instant validFrom, Instant validTo, String note, String createdBy, Instant createdAt, Instant revokedAt,
             String revokedBy) {
     }
@@ -97,7 +98,7 @@ public class SharingService {
         for (DataShare share : active) {
             orgs.add(share.sourceOrg());
             orgs.add(share.targetOrg());
-            covered(share).forEach(a -> assets.add(share.sourceOrg() + "/" + a.id()));
+            coveredIds(share).forEach(id -> assets.add(share.sourceOrg() + "/" + id));
         }
         Instant soon = now.plus(Duration.ofDays(30));
         int endingSoon = (int) active.stream().filter(s -> s.validTo() != null && !s.validTo().isAfter(soon))
@@ -108,7 +109,11 @@ public class SharingService {
     public ShareView create(CreateShare request, String actor) {
         Instant now = clock.instant();
         DataShare share = check(request, now, actor);
-        store.create(share);
+        try {
+            store.create(share);
+        } catch (ShareStore.AlreadyCovered e) {
+            throw new ShareRejected("duplicate");
+        }
         return view(share, now);
     }
 
@@ -134,8 +139,8 @@ public class SharingService {
                     || to.clientId() == null || to.clientId().equals(from.clientId())) {
                 continue;
             }
-            for (SharingAsset asset : share.covered(assetsOf(from))) {
-                ClientMap.Row row = new ClientMap.Row(asset.id(), to.clientId(), share.validFrom(), share.validTo());
+            for (String assetId : share.coveredIds(assetsOf(from))) {
+                ClientMap.Row row = new ClientMap.Row(assetId, to.clientId(), share.validFrom(), share.validTo());
                 rows.merge(row.key(), row, ClientMap.Row::widen);
             }
         }
@@ -143,24 +148,10 @@ public class SharingService {
     }
 
     private DataShare check(CreateShare r, Instant now, String actor) {
-        Optional<SharingOrg> from = org(r.sourceOrg());
-        if (from.isEmpty()) {
-            throw new ShareRejected("source");
-        }
-        if (org(r.targetOrg()).isEmpty()) {
-            throw new ShareRejected("target");
-        }
-        if (r.sourceOrg().equals(r.targetOrg())) {
-            throw new ShareRejected("sameOrg");
-        }
+        SharingOrg from = parties(r);
         DataShare.Scope scope = r.scope() == null ? DataShare.Scope.ALL : r.scope();
-        ShareFilter filter = scope == DataShare.Scope.FILTER && r.filter() != null
-                ? new ShareFilter(r.filter().owners(), r.filter().kinds())
-                : ShareFilter.NONE;
-        if (scope == DataShare.Scope.FILTER && filter.isEmpty()) {
-            throw new ShareRejected("filter");
-        }
-        List<String> assetIds = scope == DataShare.Scope.ASSETS ? owned(from.get(), r.assetIds()) : List.of();
+        ShareFilter filter = filterOf(scope, r.filter());
+        List<String> assetIds = scope == DataShare.Scope.ASSETS ? owned(from, r.assetIds()) : List.of();
         if (scope == DataShare.Scope.ASSETS && assetIds.isEmpty()) {
             throw new ShareRejected("assets");
         }
@@ -168,15 +159,44 @@ public class SharingService {
         if (r.validTo() != null && !r.validTo().isAfter(validFrom)) {
             throw new ShareRejected("dates");
         }
-        boolean covered = store.all().stream().anyMatch(s -> s.sourceOrg().equals(r.sourceOrg())
-                && s.targetOrg().equals(r.targetOrg()) && s.scope() == DataShare.Scope.ALL
-                && EnumSet.of(DataShare.Status.ACTIVE, DataShare.Status.SCHEDULED).contains(s.status(now)));
-        if (covered) {
+        if (store.all().stream().anyMatch(s -> s.alreadyCovers(r.sourceOrg(), r.targetOrg(), validFrom, r.validTo(),
+                now))) {
             throw new ShareRejected("duplicate");
         }
         String note = r.note() == null || r.note().isBlank() ? null : r.note().trim();
         return new DataShare(DataShare.newId(), r.sourceOrg(), r.targetOrg(), scope, filter, assetIds,
                 DataShare.Origin.MANUAL, validFrom, r.validTo(), note, actor, now, null, null);
+    }
+
+    /**
+     * The source, once both ends are usable. The sync writes the receiver's client id, so a receiver without one, or
+     * with the source's own (a parent and its sub-account), would get nothing.
+     */
+    private SharingOrg parties(CreateShare r) {
+        SharingOrg from = org(r.sourceOrg()).orElseThrow(() -> new ShareRejected("source"));
+        if (r.sourceOrg().equals(r.targetOrg())) {
+            throw new ShareRejected("sameOrg");
+        }
+        SharingOrg to = org(r.targetOrg()).orElseThrow(() -> new ShareRejected("target"));
+        if (to.clientId() == null) {
+            throw new ShareRejected("target");
+        }
+        if (to.clientId().equals(from.clientId())) {
+            throw new ShareRejected("sameClient");
+        }
+        return from;
+    }
+
+    private static ShareFilter filterOf(DataShare.Scope scope, FilterView requested) {
+        if (scope != DataShare.Scope.FILTER) {
+            return ShareFilter.NONE;
+        }
+        ShareFilter filter = requested == null ? ShareFilter.NONE
+                : new ShareFilter(requested.owners(), requested.kinds());
+        if (filter.isEmpty()) {
+            throw new ShareRejected("filter");
+        }
+        return filter;
     }
 
     /** The requested ids the source owns, in its own spelling; anything else is dropped. */
@@ -193,12 +213,24 @@ public class SharingService {
                 ? new FilterView(s.filter().owners(), s.filter().kinds())
                 : null;
         return new ShareView(s.id(), s.sourceOrg(), s.targetOrg(), s.scope(), filter, s.assetIds(),
-                covered(s).size(), s.origin(), s.status(now), s.validFrom(), s.validTo(), s.note(), s.createdBy(),
+                assetCount(s, now), s.origin(), s.status(now), s.validFrom(), s.validTo(), s.note(), s.createdBy(),
                 s.createdAt(), s.revokedAt(), s.revokedBy());
     }
 
-    private List<SharingAsset> covered(DataShare share) {
-        return org(share.sourceOrg()).map(o -> share.covered(assetsOf(o))).orElse(List.of());
+    /** Counted for listed shares and for those still in force; null otherwise, to spare a read per old share. */
+    private Integer assetCount(DataShare share, Instant now) {
+        if (share.scope() == DataShare.Scope.ASSETS) {
+            return share.assetIds().size();
+        }
+        DataShare.Status status = share.status(now);
+        if (status == DataShare.Status.ACTIVE || status == DataShare.Status.SCHEDULED) {
+            return coveredIds(share).size();
+        }
+        return null;
+    }
+
+    private List<String> coveredIds(DataShare share) {
+        return org(share.sourceOrg()).map(o -> share.coveredIds(assetsOf(o))).orElse(List.of());
     }
 
     private Optional<SharingOrg> org(String slug) {
@@ -217,7 +249,7 @@ public class SharingService {
     }
 
     private List<SharingOrg> orgs() {
-        return fresh(orgCache, () -> {
+        return fresh(orgCache.get(), () -> {
             List<SharingOrg.Ref> refs = source.organizations();
             Set<String> clients = refs.stream().map(SharingOrg.Ref::clientId).filter(c -> c != null)
                     .collect(Collectors.toSet());
@@ -225,6 +257,9 @@ public class SharingService {
             Set<String> operators = source.operators(clients);
             List<SharingOrg> list = refs.stream().map(r -> {
                 Set<SharingOrg.Role> roles = EnumSet.noneOf(SharingOrg.Role.class);
+                if (r.clientId() == null) {
+                    return new SharingOrg(r.slug(), r.name(), null, roles, 0);
+                }
                 int count = counts.getOrDefault(r.clientId(), 0);
                 if (count > 0) {
                     roles.add(SharingOrg.Role.SENDER);
@@ -234,7 +269,7 @@ public class SharingService {
                 }
                 return new SharingOrg(r.slug(), r.name(), r.clientId(), roles, count);
             }).toList();
-            orgCache = new Cached<>(list, clock.instant());
+            orgCache.set(new Cached<>(list, clock.instant()));
             return list;
         });
     }

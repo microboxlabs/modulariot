@@ -60,6 +60,28 @@ public record DataShare(UUID id, String sourceOrg, String targetOrg, Scope scope
         };
     }
 
+    /**
+     * The ids of the assets this share covers today. A listed share covers its list as created, even when an asset
+     * later reports through another sender; the others follow the source's current assets.
+     */
+    public List<String> coveredIds(List<SharingAsset> sourceAssets) {
+        if (scope == Scope.ASSETS) {
+            return assetIds;
+        }
+        return covered(sourceAssets).stream().map(SharingAsset::id).toList();
+    }
+
+    /**
+     * This share already gives {@code target} all of {@code source}'s assets during part of {@code [from, to)}; a new
+     * share between them over that window adds nothing. A null {@code to} means no end.
+     */
+    public boolean alreadyCovers(String source, String target, Instant from, Instant to, Instant now) {
+        Status status = status(now);
+        boolean inForce = status == Status.ACTIVE || status == Status.SCHEDULED;
+        boolean overlaps = (validTo == null || from.isBefore(validTo)) && (to == null || to.isAfter(validFrom));
+        return scope == Scope.ALL && inForce && overlaps && sourceOrg.equals(source) && targetOrg.equals(target);
+    }
+
     public DataShare revoke(String by, Instant at) {
         return new DataShare(id, sourceOrg, targetOrg, scope, filter, assetIds, origin, validFrom, validTo, note,
                 createdBy, createdAt, at, by);

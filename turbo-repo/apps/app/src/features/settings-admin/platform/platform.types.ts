@@ -226,8 +226,8 @@ export interface DataShare {
   filter: DataShareFilter | null;
   /** Only for `ASSETS`. */
   assetIds: string[];
-  /** Assets the share covers today, as the server counts them. */
-  assetCount: number;
+  /** Assets the share covers today, as the server counts them; null for revoked and expired shares. */
+  assetCount: number | null;
   origin: DataShareOrigin;
   status: DataShareStatus;
   validFrom: string;

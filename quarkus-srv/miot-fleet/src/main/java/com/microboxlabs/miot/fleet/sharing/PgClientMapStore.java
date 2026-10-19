@@ -3,16 +3,16 @@ package com.microboxlabs.miot.fleet.sharing;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.sqlclient.Pool;
 import io.vertx.mutiny.sqlclient.Row;
+import io.vertx.mutiny.sqlclient.RowSet;
 import io.vertx.mutiny.sqlclient.SqlConnection;
 import io.vertx.mutiny.sqlclient.Tuple;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.StreamSupport;
 
 /**
  * {@link ClientMapStore} on the GPS database. Touches only rows whose {@code managed_by} is
@@ -27,10 +27,16 @@ public class PgClientMapStore implements ClientMapStore {
             SELECT asset_id, shared_client_id, valid_from, valid_to FROM public.asset_client_map
             WHERE managed_by = $1""";
 
+    // A row loaded by hand or by the sender auto-assignment stays as it is while it is in force; once it is inactive
+    // or expired, the share takes it over.
     private static final String INSERT = """
             INSERT INTO public.asset_client_map (asset_id, shared_client_id, active, valid_from, valid_to, managed_by)
             VALUES ($1, $2, true, $3, $4, $5)
-            ON CONFLICT (asset_id, shared_client_id) DO NOTHING""";
+            ON CONFLICT (asset_id, shared_client_id) DO UPDATE
+                SET active = true, valid_from = EXCLUDED.valid_from, valid_to = EXCLUDED.valid_to,
+                    managed_by = EXCLUDED.managed_by
+                WHERE asset_client_map.managed_by IS NULL
+                  AND (NOT asset_client_map.active OR asset_client_map.valid_to <= now())""";
 
     private static final String UPDATE = """
             UPDATE public.asset_client_map SET active = true, valid_from = $3, valid_to = $4
@@ -48,12 +54,11 @@ public class PgClientMapStore implements ClientMapStore {
 
     @Override
     public List<ClientMap.Row> managed() {
-        List<ClientMap.Row> rows = new ArrayList<>();
-        for (Row r : pool.get().preparedQuery(MANAGED).execute(Tuple.of(MANAGED_BY)).await().atMost(TIMEOUT)) {
-            rows.add(new ClientMap.Row(r.getString("asset_id"), r.getString("shared_client_id"),
-                    instant(r.getOffsetDateTime("valid_from")), instant(r.getOffsetDateTime("valid_to"))));
-        }
-        return rows;
+        RowSet<Row> rows = pool.get().preparedQuery(MANAGED).execute(Tuple.of(MANAGED_BY)).await().atMost(TIMEOUT);
+        return StreamSupport.stream(rows.spliterator(), false)
+                .map(r -> new ClientMap.Row(r.getString("asset_id"), r.getString("shared_client_id"),
+                        instant(r.getOffsetDateTime("valid_from")), instant(r.getOffsetDateTime("valid_to"))))
+                .toList();
     }
 
     @Override
@@ -75,9 +80,7 @@ public class PgClientMapStore implements ClientMapStore {
         Uni<Void> chain = Uni.createFrom().voidItem();
         for (int from = 0; from < rows.size(); from += BATCH) {
             List<Tuple> batch = rows.subList(from, Math.min(from + BATCH, rows.size()));
-            Function<Void, Uni<? extends Void>> next = ignored -> tx.preparedQuery(sql).executeBatch(batch)
-                    .replaceWithVoid();
-            chain = chain.chain(next);
+            chain = chain.chain(() -> tx.preparedQuery(sql).executeBatch(batch).replaceWithVoid());
         }
         return chain;
     }

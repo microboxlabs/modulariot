@@ -50,6 +50,7 @@ public class SharingProducer {
         this.config = config;
     }
 
+    /** Singleton: the service has no no-args constructor, so it cannot sit behind a client proxy. */
     @Produces
     @Singleton
     SharingService service() {
@@ -96,8 +97,8 @@ public class SharingProducer {
         if ("demo".equals(source)) {
             LOG.info("Data sharing: demo organizations, shares in memory");
             DemoSharingSource demo = new DemoSharingSource(clock.instant());
-            service = new SharingService(demo, new InMemoryShareStore(demo.seedShares(clock.instant())), clock,
-                    config.cacheTtl());
+            service = new SharingService(demo, new InMemoryShareStore(demo.seedShares(clock.instant()), clock),
+                    clock, config.cacheTtl());
         } else if (gps) {
             LOG.info("Data sharing: GPS database, shares in the modulith database");
             service = new SharingService(new GpsSharingSource(modulithPool::get, () -> gpsPool(true)),
@@ -108,33 +109,35 @@ public class SharingProducer {
             }
         } else {
             LOG.infof("Data sharing: none (miot.fleet.source=%s)", source);
-            service = new SharingService(new UnavailableSource(), new InMemoryShareStore(List.of()), clock,
-                    config.cacheTtl());
+            service = new SharingService(new UnavailableSource(), new InMemoryShareStore(List.of(), clock),
+                    clock, config.cacheTtl());
         }
         return service;
     }
 
     /** Read-only for the screens; the sync's pool writes, with its own login when one is set. */
     private synchronized Pool gpsPool(boolean readOnly) {
-        return gpsPools.computeIfAbsent(readOnly, ro -> {
-            Address address = Address.parse(config.gps().reactiveUrl().orElseThrow());
-            FleetConfig.Sharing.Sync sync = config.sharing().sync();
-            boolean ownLogin = !ro && sync.username().filter(s -> !s.isBlank()).isPresent();
-            Optional<String> user = ownLogin ? sync.username() : config.gps().username();
-            Optional<String> password = ownLogin ? sync.password() : config.gps().password();
-            PgConnectOptions connect = new PgConnectOptions()
-                    .setHost(address.host())
-                    .setPort(address.port())
-                    .setDatabase(address.database())
-                    .setUser(user.orElseThrow())
-                    .setPassword(password.orElse(""))
-                    .setProperties(Map.of(
-                            "application_name", ro ? "miot-sharing" : "miot-sharing-sync",
-                            "default_transaction_read_only", ro ? "on" : "off",
-                            "TimeZone", "UTC"));
-            return PgBuilder.pool().with(new PoolOptions().setMaxSize(ro ? 2 : 1)).connectingTo(connect)
-                    .using(vertx).build();
-        });
+        return gpsPools.computeIfAbsent(readOnly, key -> newGpsPool(readOnly));
+    }
+
+    private Pool newGpsPool(boolean ro) {
+        Address address = Address.parse(config.gps().reactiveUrl().orElseThrow());
+        FleetConfig.Sharing.Sync syncLogin = config.sharing().sync();
+        boolean ownLogin = !ro && syncLogin.username().filter(s -> !s.isBlank()).isPresent();
+        Optional<String> user = ownLogin ? syncLogin.username() : config.gps().username();
+        Optional<String> password = ownLogin ? syncLogin.password() : config.gps().password();
+        PgConnectOptions connect = new PgConnectOptions()
+                .setHost(address.host())
+                .setPort(address.port())
+                .setDatabase(address.database())
+                .setUser(user.orElseThrow())
+                .setPassword(password.orElse(""))
+                .setProperties(Map.of(
+                        "application_name", ro ? "miot-sharing" : "miot-sharing-sync",
+                        "default_transaction_read_only", ro ? "on" : "off",
+                        "TimeZone", "UTC"));
+        return PgBuilder.pool().with(new PoolOptions().setMaxSize(ro ? 2 : 1)).connectingTo(connect)
+                .using(vertx).build();
     }
 
     @PreDestroy

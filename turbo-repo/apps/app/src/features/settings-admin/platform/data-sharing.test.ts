@@ -152,6 +152,14 @@ describe("checkShare", () => {
     expect(checkShare(draft({ validTo: at(-1) }), [], NOW)).toBe("dates");
   });
 
+  it("allows a renewal that starts when the current share ends", () => {
+    const current = share({ validTo: at(10) });
+    expect(checkShare(draft({ validFrom: at(10) }), [current], NOW)).toBeNull();
+    expect(checkShare(draft({ validFrom: at(9) }), [current], NOW)).toBe(
+      "duplicate"
+    );
+  });
+
   it("refuses a second share of everything between the same pair", () => {
     expect(checkShare(draft({}), [share({})], NOW)).toBe("duplicate");
     expect(

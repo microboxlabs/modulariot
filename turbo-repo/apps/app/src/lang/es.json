@@ -1842,6 +1842,8 @@
               "source": "Elige quién entrega los datos.",
               "target": "Elige quién recibe los datos.",
               "sameOrg": "Una organización no puede compartir consigo misma.",
+              "sameClient": "Estas organizaciones usan la misma credencial GPS: compartir entre ellas no cambia lo que ven.",
+              "assetsUnavailable": "No se pudieron cargar los assets de esta organización. Vuelve a intentarlo antes de compartir.",
               "filter": "Elige al menos un dueño o un tipo.",
               "assets": "Elige al menos un asset.",
               "dates": "La fecha de término debe ser posterior a la de inicio.",

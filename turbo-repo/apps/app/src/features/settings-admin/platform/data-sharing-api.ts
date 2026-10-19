@@ -53,12 +53,17 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   }
   const parsed = (await res.json().catch(() => ({}))) as {
     code?: string;
+    message?: string;
     error?: string;
   };
   if (res.status === 400 && parsed.code) {
     throw new ShareRejectedError(parsed.code);
   }
-  throw new ApiError({ status: res.status, url, message: parsed.error });
+  throw new ApiError({
+    status: res.status,
+    url,
+    message: parsed.message ?? parsed.error,
+  });
 }
 
 export function createDataShare(draft: CreateDataShare): Promise<DataShare> {

@@ -38,9 +38,9 @@ public class StreamhubSymptomsGpsClient implements FunctionInvoker {
 
     StreamhubSymptomsGpsClient(
             Vertx vertx,
-            @ConfigProperty(name = "miot.symptoms.gps.reactive-url") Optional<String> reactiveUrl,
-            @ConfigProperty(name = "miot.symptoms.gps.username") Optional<String> username,
-            @ConfigProperty(name = "miot.symptoms.gps.password") Optional<String> password,
+            @ConfigProperty(name = "miot.gps.reactive-url") Optional<String> reactiveUrl,
+            @ConfigProperty(name = "miot.gps.username") Optional<String> username,
+            @ConfigProperty(name = "miot.gps.password") Optional<String> password,
             @ConfigProperty(name = "miot.symptoms.gps.pool-max-size", defaultValue = "8") int maxSize) {
         this.vertx = vertx;
         this.reactiveUrl = reactiveUrl;
@@ -124,7 +124,7 @@ public class StreamhubSymptomsGpsClient implements FunctionInvoker {
             if (!isConfigured()) {
                 throw new IllegalStateException(
                         "Symptoms GPS datasource is not configured "
-                                + "(set miot.symptoms.gps.reactive-url / username)");
+                                + "(set miot.gps.reactive-url / username)");
             }
             ParsedUrl parsed = parseUrl(reactiveUrl.orElseThrow());
             PgConnectOptions connect = new PgConnectOptions()

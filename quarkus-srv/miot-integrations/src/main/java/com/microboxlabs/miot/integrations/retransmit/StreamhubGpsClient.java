@@ -34,11 +34,11 @@ public class StreamhubGpsClient {
     StreamhubGpsClient(
             @ConfigProperty(name = "miot.integrations.retransmit.worker.enabled", defaultValue = "false")
                     boolean workerEnabled,
-            @ConfigProperty(name = "miot.integrations.retransmit.gps.reactive-url")
+            @ConfigProperty(name = "miot.gps.reactive-url")
                     Optional<String> reactiveUrl,
-            @ConfigProperty(name = "miot.integrations.retransmit.gps.username")
+            @ConfigProperty(name = "miot.gps.username")
                     Optional<String> username,
-            @ConfigProperty(name = "miot.integrations.retransmit.gps.password")
+            @ConfigProperty(name = "miot.gps.password")
                     Optional<String> password) {
         this.workerEnabled = workerEnabled;
         this.reactiveUrl = reactiveUrl;
@@ -74,45 +74,47 @@ public class StreamhubGpsClient {
             if (!isConfigured()) {
                 throw new IllegalStateException(
                         "Retransmit GPS datasource is not configured "
-                                + "(set miot.integrations.retransmit.gps.reactive-url / username)");
+                                + "(set miot.gps.reactive-url / username)");
             }
-            String url = reactiveUrl.orElseThrow();
-            // Accept postgresql://host:port/db or host:port/db
-            String normalized = url.startsWith("postgresql://")
-                    ? url.substring("postgresql://".length())
-                    : url.startsWith("postgres://")
-                            ? url.substring("postgres://".length())
-                            : url;
-            String hostPortDb = normalized;
-            String host = "localhost";
-            int port = 5432;
-            String database = "prod_iot_gps";
-            int slash = hostPortDb.indexOf('/');
-            String hostPort = slash >= 0 ? hostPortDb.substring(0, slash) : hostPortDb;
-            if (slash >= 0 && slash + 1 < hostPortDb.length()) {
-                database = hostPortDb.substring(slash + 1);
-                int q = database.indexOf('?');
-                if (q >= 0) {
-                    database = database.substring(0, q);
-                }
-            }
-            int colon = hostPort.lastIndexOf(':');
-            if (colon > 0) {
-                host = hostPort.substring(0, colon);
-                port = Integer.parseInt(hostPort.substring(colon + 1));
-            } else if (!hostPort.isBlank()) {
-                host = hostPort;
-            }
-
-            PgConnectOptions connect = new PgConnectOptions()
-                    .setHost(host)
-                    .setPort(port)
-                    .setDatabase(database)
-                    .setUser(username.orElse("streamhub"))
+            PgConnectOptions connect = connectOptions(reactiveUrl.orElseThrow())
+                    .setUser(username.orElseThrow())
                     .setPassword(password.orElse(""));
             pool = PgPool.pool(connect, new PoolOptions().setMaxSize(4));
-            LOG.infof("Retransmit GPS pool ready — %s:%d/%s", host, port, database);
+            LOG.infof("Retransmit GPS pool ready — %s:%d/%s", connect.getHost(), connect.getPort(),
+                    connect.getDatabase());
         }
+    }
+
+    /** Host, port and database from postgresql://[user@]host:port/db or host:port/db; the login comes from config. */
+    static PgConnectOptions connectOptions(String url) {
+        String normalized = url.startsWith("postgresql://")
+                ? url.substring("postgresql://".length())
+                : url.startsWith("postgres://")
+                        ? url.substring("postgres://".length())
+                        : url;
+        int end = normalized.indexOf('/');
+        int at = normalized.lastIndexOf('@', end >= 0 ? end : normalized.length());
+        String hostPortDb = at >= 0 ? normalized.substring(at + 1) : normalized;
+        String host = "localhost";
+        int port = 5432;
+        String database = "prod_iot_gps";
+        int slash = hostPortDb.indexOf('/');
+        String hostPort = slash >= 0 ? hostPortDb.substring(0, slash) : hostPortDb;
+        if (slash >= 0 && slash + 1 < hostPortDb.length()) {
+            database = hostPortDb.substring(slash + 1);
+            int q = database.indexOf('?');
+            if (q >= 0) {
+                database = database.substring(0, q);
+            }
+        }
+        int colon = hostPort.lastIndexOf(':');
+        if (colon > 0) {
+            host = hostPort.substring(0, colon);
+            port = Integer.parseInt(hostPort.substring(colon + 1));
+        } else if (!hostPort.isBlank()) {
+            host = hostPort;
+        }
+        return new PgConnectOptions().setHost(host).setPort(port).setDatabase(database);
     }
 
     @PreDestroy

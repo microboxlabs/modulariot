@@ -3,16 +3,13 @@ package com.microboxlabs.miot.fleet.directory;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import java.time.Duration;
-import java.util.Optional;
 
-/** {@code miot.fleet.*}; the GPS connection falls back to {@code miot.symptoms.gps.*} in application.properties. */
+/** {@code miot.fleet.*}. The GPS database is {@code miot.gps.*}, shared with the other components. */
 @ConfigMapping(prefix = "miot.fleet")
 public interface FleetConfig {
 
     @WithDefault("none")
     String source();
-
-    Gps gps();
 
     @WithDefault("America/Santiago")
     String zone();
@@ -22,17 +19,6 @@ public interface FleetConfig {
 
     Activity activity();
 
-    Sharing sharing();
-
-    interface Gps {
-
-        Optional<String> reactiveUrl();
-
-        Optional<String> username();
-
-        Optional<String> password();
-    }
-
     interface Activity {
 
         @WithDefault("P30D")
@@ -40,23 +26,5 @@ public interface FleetConfig {
 
         @WithDefault("8")
         int backfillPerRun();
-    }
-
-    /** Data shares between organizations. They read through {@link #gps()}; the sync writes with its own login. */
-    interface Sharing {
-
-        Sync sync();
-
-        interface Sync {
-
-            /** Off by default: writing {@code asset_client_map} needs a login allowed to change it. */
-            @WithDefault("false")
-            boolean enabled();
-
-            /** Login that may write {@code asset_client_map}; falls back to {@code miot.fleet.gps.*}. */
-            Optional<String> username();
-
-            Optional<String> password();
-        }
     }
 }

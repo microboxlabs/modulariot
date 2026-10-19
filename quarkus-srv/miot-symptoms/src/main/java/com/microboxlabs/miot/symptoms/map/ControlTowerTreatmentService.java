@@ -44,9 +44,9 @@ public class ControlTowerTreatmentService {
 
     @Inject
     public ControlTowerTreatmentService(Vertx vertx,
-            @ConfigProperty(name = "miot.symptoms.gps.reactive-url") Optional<String> url,
-            @ConfigProperty(name = "miot.symptoms.gps.username") Optional<String> username,
-            @ConfigProperty(name = "miot.symptoms.gps.password") Optional<String> password) {
+            @ConfigProperty(name = "miot.gps.reactive-url") Optional<String> url,
+            @ConfigProperty(name = "miot.gps.username") Optional<String> username,
+            @ConfigProperty(name = "miot.gps.password") Optional<String> password) {
         this.vertx = vertx;
         this.url = url.filter(s -> !s.isBlank());
         this.username = username.filter(s -> !s.isBlank());

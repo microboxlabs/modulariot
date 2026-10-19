@@ -38,9 +38,9 @@ public class SymptomEngineProducer {
 
     SymptomEngineProducer(Vertx vertx,
             @ConfigProperty(name = "miot.symptoms.engine.kind", defaultValue = "none") String kind,
-            @ConfigProperty(name = "miot.symptoms.gps.reactive-url") Optional<String> url,
-            @ConfigProperty(name = "miot.symptoms.gps.username") Optional<String> username,
-            @ConfigProperty(name = "miot.symptoms.gps.password") Optional<String> password,
+            @ConfigProperty(name = "miot.gps.reactive-url") Optional<String> url,
+            @ConfigProperty(name = "miot.gps.username") Optional<String> username,
+            @ConfigProperty(name = "miot.gps.password") Optional<String> password,
             @ConfigProperty(name = "miot.symptoms.engine.clients") Optional<List<String>> clients) {
         this.vertx = vertx;
         this.kind = kind;

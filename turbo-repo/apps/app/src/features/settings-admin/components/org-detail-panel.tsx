@@ -2,15 +2,11 @@
 
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
-import { useOrgMembers } from "../hooks/use-org-members";
 import { useOrgModules } from "../hooks/use-org-modules";
 import ModulesList from "./modules-list";
 import GpsWebhookCard from "../gps-webhooks/gps-webhook-card";
 import EmailChannelCard from "../email/email-channel-card";
 import WhatsAppChannelCard from "../whatsapp/whatsapp-channel-card";
-import ContentReviewPermissionCard from "./content-review-permission-card";
-import HarnessTrainerPermissionCard from "./harness-trainer-permission-card";
-import OrganizationMembersCard from "./organization-members-card";
 import type { OrgSummary } from "../types";
 
 interface OrgDetailPanelProps {
@@ -21,9 +17,8 @@ interface OrgDetailPanelProps {
 }
 
 /**
- * Right-column detail view. Shows the selected org's members and enabled
- * modules. Both sections load independently via SWR; the hooks skip the
- * fetch when orgSlug is null.
+ * Right-column detail view. Shows the selected org's enabled modules and, to
+ * owners, its channel settings. Members and their access are on the Team page.
  */
 export default function OrgDetailPanel({
   organization,
@@ -31,11 +26,6 @@ export default function OrgDetailPanel({
   credentialsDict = {},
 }: OrgDetailPanelProps) {
   const orgSlug = organization?.slug ?? null;
-  const {
-    members,
-    isLoading: membersLoading,
-    error: membersError,
-  } = useOrgMembers(orgSlug);
   const {
     modules,
     isLoading: modulesLoading,
@@ -54,31 +44,6 @@ export default function OrgDetailPanel({
 
   return (
     <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-      {isOwner ? (
-        <>
-          <ContentReviewPermissionCard
-            orgSlug={orgSlug}
-            members={members}
-            membersLoading={membersLoading}
-            membersError={membersError}
-            dict={dict}
-          />
-          <HarnessTrainerPermissionCard
-            orgSlug={orgSlug}
-            members={members}
-            membersLoading={membersLoading}
-            membersError={membersError}
-            dict={dict}
-          />
-        </>
-      ) : (
-        <OrganizationMembersCard
-          members={members}
-          isLoading={membersLoading}
-          error={membersError}
-          dict={dict}
-        />
-      )}
       <ModulesList
         modules={modules}
         isLoading={modulesLoading}

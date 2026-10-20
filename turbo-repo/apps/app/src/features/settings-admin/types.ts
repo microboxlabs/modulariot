@@ -22,26 +22,7 @@ export interface OrgMember {
   displayName: string;
 }
 
-export interface OrganizationPermission {
-  enabled: boolean;
-  permissionCode: string;
-  roleCode: string;
-  assigneeIds: string[];
-}
-
-export interface SetOrganizationPermission {
-  enabled: boolean;
-  assigneeIds: string[];
-}
-
-export type ContentReviewPermission = OrganizationPermission;
-export type SetContentReviewPermission = SetOrganizationPermission;
-
 export interface OrganizationRole {
   roleCode: string;
-  assigneeIds: string[];
-}
-
-export interface SetOrganizationRole {
   assigneeIds: string[];
 }

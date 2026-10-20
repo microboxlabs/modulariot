@@ -1,15 +1,7 @@
 "use client";
 
-import { getJson, sendJson } from "./json-client";
-import type {
-  ContentReviewPermission,
-  OrgMember,
-  OrganizationPermission,
-  OrganizationRole,
-  SetContentReviewPermission,
-  SetOrganizationPermission,
-  SetOrganizationRole,
-} from "../types";
+import { getJson } from "./json-client";
+import type { OrgMember } from "../types";
 
 /**
  * Thin client-side fetch wrappers around the Next.js admin proxy routes.
@@ -25,83 +17,5 @@ export function fetchOrgMembers(orgSlug: string): Promise<OrgMember[]> {
 export function fetchOrgModules(orgSlug: string): Promise<string[]> {
   return getJson<string[]>(
     `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/modules`
-  );
-}
-
-const CONTENT_REVIEW_PERMISSION_CODE = "CONTENT_MULTIMEDIA_REVIEW_AUTO_APPROVE";
-
-function organizationPermissionUrl(
-  orgSlug: string,
-  permissionCode: string
-): string {
-  return `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/permissions/${encodeURIComponent(permissionCode)}`;
-}
-
-function contentReviewPermissionUrl(orgSlug: string): string {
-  return organizationPermissionUrl(orgSlug, CONTENT_REVIEW_PERMISSION_CODE);
-}
-
-export function fetchContentReviewPermission(
-  orgSlug: string
-): Promise<ContentReviewPermission> {
-  return getJson<ContentReviewPermission>(contentReviewPermissionUrl(orgSlug));
-}
-
-export function updateContentReviewPermission(
-  orgSlug: string,
-  value: SetContentReviewPermission
-): Promise<ContentReviewPermission> {
-  return sendJson<ContentReviewPermission>(
-    "PUT",
-    contentReviewPermissionUrl(orgSlug),
-    value
-  );
-}
-
-const HARNESS_TRAINER_PERMISSION_CODE = "HARNESS_TRAINER";
-
-export function fetchHarnessTrainerPermission(
-  orgSlug: string
-): Promise<OrganizationPermission> {
-  return getJson<OrganizationPermission>(
-    organizationPermissionUrl(orgSlug, HARNESS_TRAINER_PERMISSION_CODE)
-  );
-}
-
-export function updateHarnessTrainerPermission(
-  orgSlug: string,
-  value: SetOrganizationPermission
-): Promise<OrganizationPermission> {
-  return sendJson<OrganizationPermission>(
-    "PUT",
-    organizationPermissionUrl(orgSlug, HARNESS_TRAINER_PERMISSION_CODE),
-    value
-  );
-}
-
-export const ORGANIZATION_OWNER_ROLE_CODE = "ORGANIZATION_OWNER";
-
-function organizationRoleUrl(orgSlug: string, roleCode: string): string {
-  return `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/roles/${encodeURIComponent(roleCode)}`;
-}
-
-function organizationOwnerRoleUrl(orgSlug: string): string {
-  return organizationRoleUrl(orgSlug, ORGANIZATION_OWNER_ROLE_CODE);
-}
-
-export function fetchOrganizationOwnerRole(
-  orgSlug: string
-): Promise<OrganizationRole> {
-  return getJson<OrganizationRole>(organizationOwnerRoleUrl(orgSlug));
-}
-
-export function updateOrganizationOwnerRole(
-  orgSlug: string,
-  value: SetOrganizationRole
-): Promise<OrganizationRole> {
-  return sendJson<OrganizationRole>(
-    "PUT",
-    organizationOwnerRoleUrl(orgSlug),
-    value
   );
 }

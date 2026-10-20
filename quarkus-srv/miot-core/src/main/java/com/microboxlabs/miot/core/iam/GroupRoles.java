@@ -12,6 +12,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -26,8 +27,6 @@ import java.util.stream.Collectors;
  */
 @ApplicationScoped
 public class GroupRoles {
-
-    static final int PAGE = 100;
 
     /** {@code excludedGroupId}: members of this group are skipped by the import; null for none. */
     public record Mapping(String groupId, String roleKey, boolean projected, String excludedGroupId) {
@@ -107,9 +106,10 @@ public class GroupRoles {
     public Uni<ImportResult> importRoles(String slug, boolean dryRun, String actor) {
         return Panache.withTransaction(() -> root(slug).flatMap(org -> IamGroupRole.findByOrganization(org.id)
                 .flatMap(rows -> {
+                    Set<String> simulated = new HashSet<>();
                     Uni<List<ImportLine>> chain = Uni.createFrom().item(new ArrayList<>());
                     for (IamGroupRole row : rows) {
-                        chain = chain.flatMap(lines -> importOne(org, row, dryRun, actor).map(line -> {
+                        chain = chain.flatMap(lines -> importOne(org, row, dryRun, simulated, actor).map(line -> {
                             lines.add(line);
                             return lines;
                         }));
@@ -122,7 +122,8 @@ public class GroupRoles {
                 })));
     }
 
-    private Uni<ImportLine> importOne(Organization org, IamGroupRole row, boolean dryRun, String actor) {
+    private Uni<ImportLine> importOne(Organization org, IamGroupRole row, boolean dryRun, Set<String> simulated,
+            String actor) {
         Uni<Set<String>> excludedEmails = row.excludedGroupId == null
                 ? Uni.createFrom().item(Set.of())
                 : members(row.excludedGroupId).map(people -> people.stream().map(GroupRoles::emailOf)
@@ -142,7 +143,7 @@ public class GroupRoles {
             }
             Uni<Void> chain = Uni.createFrom().voidItem();
             for (String email : emails) {
-                chain = chain.flatMap(i -> bind(org, email, row.roleKey, dryRun, actor)
+                chain = chain.flatMap(i -> bind(org, email, row.roleKey, dryRun, simulated, actor)
                         .invoke(added -> counts[Boolean.TRUE.equals(added) ? 0 : 1]++)
                         .replaceWithVoid());
             }
@@ -151,9 +152,16 @@ public class GroupRoles {
         }));
     }
 
-    /** True when the user had no binding of the role on the organization (and, unless a dry run, now has one). */
+    /**
+     * True when the user had no binding of the role on the organization (and, unless a dry run, now has one). A dry
+     * run remembers what it would have added in {@code simulated}, so a later mapping counts it as existing.
+     */
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
-    private static Uni<Boolean> bind(Organization org, String email, String roleKey, boolean dryRun, String actor) {
+    private static Uni<Boolean> bind(Organization org, String email, String roleKey, boolean dryRun,
+            Set<String> simulated, String actor) {
+        if (dryRun && !simulated.add(email + "|" + roleKey)) {
+            return Uni.createFrom().item(false);
+        }
         Uni<IamUser> user = dryRun ? IamUser.findByEmail(email) : IamUser.findOrCreate(email);
         return user.flatMap(u -> {
             if (u == null) {
@@ -177,14 +185,12 @@ public class GroupRoles {
 
     /** Every person in the group, nested groups included. */
     Uni<List<AlfrescoPerson>> members(String groupId) {
-        return page(groupId, 0, new ArrayList<>());
+        return directory.listAllGroupMembers(groupId);
     }
 
-    private Uni<List<AlfrescoPerson>> page(String groupId, int skip, List<AlfrescoPerson> acc) {
-        return directory.listGroupMembers(groupId, PAGE, skip).flatMap(people -> {
-            acc.addAll(people);
-            return people.size() < PAGE ? Uni.createFrom().item(acc) : page(groupId, skip + PAGE, acc);
-        });
+    /** The emails of the people who are members of the group themselves; null when the directory cannot tell. */
+    Uni<Set<String>> directMembers(String groupId) {
+        return directory.listDirectMemberIds(groupId);
     }
 
     /** The top-level organization of {@code slug}. Needs an open session. */

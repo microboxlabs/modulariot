@@ -277,7 +277,7 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
     listRef.current
       ?.querySelector(`[data-index="${activeIndex}"]`)
       ?.scrollIntoView({ block: "nearest" });
-  }, [activeIndex]);
+  }, [activeIndex, options, open]);
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     switch (event.key) {

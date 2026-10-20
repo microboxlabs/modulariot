@@ -4,6 +4,8 @@ import { useCallback, useMemo } from "react";
 import { getRouteRule } from "../config/route-permissions";
 import {
   decideAccess,
+  needsGroups,
+  needsPermissions,
   parseAccessSource,
   type AccessRule,
   type AccessSource,
@@ -24,36 +26,44 @@ export function useAccessSource(): AccessSource | null {
 }
 
 /**
- * Decides gates with the configured access source. Every gate stays closed
- * until the source and the data it needs have loaded.
+ * Decides gates with the configured access source. A gate stays closed until
+ * the source and the data that rule needs have loaded. A failed permissions
+ * read denies in `permissions` mode and counts as unknown in `shadow` mode.
  */
 export function usePermissions() {
   const source = useAccessSource();
   const { data: userGroups, isLoading: groupsLoading } = useUserGroups();
   const { access, accessError } = useMyAccess();
-  const permissions = useMemo(
-    () => access?.permissions ?? (accessError ? [] : null),
-    [access, accessError]
-  );
+  const permissionsLoading = !access && !accessError;
+  const permissions = useMemo(() => {
+    if (access) return access.permissions;
+    return accessError && source === "permissions" ? [] : null;
+  }, [access, accessError, source]);
 
-  const isLoading =
-    source === null ||
-    groupsLoading ||
-    (source === "permissions" && permissions === null);
+  const isRuleLoading = useCallback(
+    (rule: AccessRule): boolean => {
+      if (source === null) return true;
+      if (needsGroups(source, rule) && groupsLoading) return true;
+      return (
+        source === "permissions" &&
+        needsPermissions(source, rule) &&
+        permissionsLoading
+      );
+    },
+    [source, groupsLoading, permissionsLoading]
+  );
 
   const canAccess = useCallback<CanAccess>(
     (rule, context) => {
-      if (source === null) return false;
+      if (source === null || isRuleLoading(rule)) return false;
       const decision = decideAccess(source, rule, {
         groups: userGroups,
         permissions,
       });
-      if (decision.mismatch && !groupsLoading) {
-        reportAccessMismatch(rule, decision, context);
-      }
+      if (decision.mismatch) reportAccessMismatch(rule, decision, context);
       return decision.allowed;
     },
-    [source, userGroups, permissions, groupsLoading]
+    [source, isRuleLoading, userGroups, permissions]
   );
 
   const hasRoutePermission = useCallback(
@@ -61,10 +71,16 @@ export function usePermissions() {
     [canAccess]
   );
 
+  const isRouteLoading = useCallback(
+    (path: string): boolean => isRuleLoading(getRouteRule(path)),
+    [isRuleLoading]
+  );
+
   return {
     canAccess,
     hasRoutePermission,
-    isLoading,
+    isRuleLoading,
+    isRouteLoading,
     source,
     userGroups,
   };

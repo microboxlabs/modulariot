@@ -8,10 +8,12 @@ import { modulithHost } from "@/lib/modulith-host";
 import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
 import { quarkusAuthHeaders } from "@/app/api/utils/quarkus-proxy";
 import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { PLATFORM_OWNER_ROLE } from "@/features/settings-admin/platform/platform.types";
 import {
   decideAccess,
   describeRule,
-  hasPermissionMapping,
+  needsGroups,
+  needsPermissions,
   parseAccessSource,
   type AccessDecision,
   type AccessRule,
@@ -80,17 +82,6 @@ async function loadGroups(session: Session): Promise<string[]> {
   }
 }
 
-function needsGroups(source: AccessSource, rule: AccessRule): boolean {
-  const hasGroups =
-    (rule.requiredGroups?.length ?? 0) + (rule.blockedGroups?.length ?? 0) > 0;
-  if (!hasGroups) return false;
-  return source !== "permissions" || !hasPermissionMapping(rule);
-}
-
-function needsPermissions(source: AccessSource, rule: AccessRule): boolean {
-  return source !== "groups" && hasPermissionMapping(rule);
-}
-
 /** Logs a shadow-mode disagreement between the groups and the permissions. */
 export function logAccessMismatch(
   fields: {
@@ -142,12 +133,63 @@ export async function hasAccess(
   return decision.allowed;
 }
 
+/** Whether the caller holds `PLATFORM_OWNER`; false when the modulith cannot be read. */
+export async function isPlatformOwner(): Promise<boolean> {
+  try {
+    const headers = await quarkusAuthHeaders();
+    if (!headers) return false;
+    const res = await fetch(`${modulithHost()}/api/v1/platform/roles/me`, {
+      headers,
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw new Error(`GET platform/roles/me → ${res.status}`);
+    const body = (await res.json()) as { roleCodes?: unknown };
+    return (
+      Array.isArray(body.roleCodes) &&
+      body.roleCodes.includes(PLATFORM_OWNER_ROLE)
+    );
+  } catch (err) {
+    logger.error({ err }, "Failed to load the caller's platform roles");
+    return false;
+  }
+}
+
+/**
+ * Gate for operations that affect the whole deployment, not one organization.
+ * In `permissions` mode only a platform owner passes; in `groups` and
+ * `shadow` modes `rule` decides.
+ */
+async function hasPlatformAccess(
+  session: Session,
+  rule: AccessRule,
+  context?: string
+): Promise<boolean> {
+  if (accessSource() === "permissions") return isPlatformOwner();
+  return hasAccess(session, rule, context);
+}
+
 type PermissionResult =
   | { authorized: true; session: Session }
   | { authorized: false; response: NextResponse };
 
 /** API route gate: 401 without a session, 403 when the gate is closed. */
 export async function requirePermission(
+  rule: AccessRule,
+  context?: string
+): Promise<PermissionResult> {
+  return authorize(hasAccess, rule, context);
+}
+
+/** API route gate for deployment-wide operations; see `hasPlatformAccess`. */
+export async function requirePlatformAccess(
+  rule: AccessRule,
+  context?: string
+): Promise<PermissionResult> {
+  return authorize(hasPlatformAccess, rule, context);
+}
+
+async function authorize(
+  decide: (session: Session, rule: AccessRule, context?: string) => Promise<boolean>,
   rule: AccessRule,
   context?: string
 ): Promise<PermissionResult> {
@@ -158,7 +200,7 @@ export async function requirePermission(
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     };
   }
-  if (await hasAccess(session, rule, context)) {
+  if (await decide(session, rule, context)) {
     return { authorized: true, session };
   }
   logger.warn(
@@ -185,4 +227,14 @@ export async function guardPage(
   const session = await auth();
   if (!session?.user) redirect("/sign-in");
   if (!(await hasAccess(session, rule, context))) notFound();
+}
+
+/** Server page gate for deployment-wide pages; see `hasPlatformAccess`. */
+export async function guardPlatformPage(
+  rule: AccessRule,
+  context: string
+): Promise<void> {
+  const session = await auth();
+  if (!session?.user) redirect("/sign-in");
+  if (!(await hasPlatformAccess(session, rule, context))) notFound();
 }

@@ -20,9 +20,9 @@ A rule without `requiredPermissions` is decided by groups in every mode.
 | --- | --- |
 | `access/access-control.ts` | `AccessRule`, `decideAccess`, `parseAccessSource` |
 | `access/access-rules.ts` | `ACCESS_RULES`: every gate with its groups and permission |
-| `access/server-access.ts` | `requirePermission` (API routes), `guardPage` (server pages), `hasAccess` |
+| `access/server-access.ts` | `requirePermission` (API routes), `guardPage` (server pages), `hasAccess`, `requirePlatformAccess` and `guardPlatformPage` (deployment-wide surfaces) |
 | `config/route-permissions.ts` | Page path prefix → rule, used by `RouteGuard` |
-| `hooks/use-permissions.ts` | `usePermissions().canAccess(rule)` for client components |
+| `hooks/use-permissions.ts` | `usePermissions().canAccess(rule)` and `isRuleLoading(rule)` for client components |
 | `components/route-guard.tsx` | Client page guard |
 | `components/access-allowed.tsx` | Renders children when a rule is open |
 
@@ -38,6 +38,8 @@ if (!access.authorized) return access.response;
 ```
 
 Returns 401 without a session and 403 when the rule is closed.
+
+The log console (`/api/admin/logs`, `/admin/console/logs`) changes the process-wide logger, so it uses `requirePlatformAccess` and `guardPlatformPage`: in `permissions` mode only a platform owner passes (`GET /api/v1/platform/roles/me`); in `groups` and `shadow` modes the rule decides.
 
 **Server page**
 

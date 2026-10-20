@@ -38,7 +38,7 @@
       { "href": "/finished", "label": "finished", "requiredGroups": [], "blockedGroups": [], "requiredPermissions": ["coordination:finished.view"] }
     ],
     "requiredGroups": ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
-    "requiredPermissions": ["coordination:kanban.view"],
+    "requiredPermissions": ["coordination:kanban.view", "coordination:finished.view"],
     "blockedGroups": []
   },
   {

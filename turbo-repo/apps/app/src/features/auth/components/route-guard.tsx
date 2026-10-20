@@ -17,9 +17,10 @@ export function RouteGuard({
   fallbackPath = "/",
   path,
 }: Readonly<RouteGuardProps>) {
-  const { hasRoutePermission, isLoading } = usePermissions();
+  const { hasRoutePermission, isRouteLoading } = usePermissions();
   const router = useRouter();
 
+  const isLoading = isRouteLoading(path ?? "/");
   const allowed = hasRoutePermission(path ?? "/");
 
   React.useEffect(() => {

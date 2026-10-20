@@ -44,6 +44,22 @@ export function hasPermissionMapping(rule: AccessRule): boolean {
   return (rule.requiredPermissions?.length ?? 0) > 0;
 }
 
+/** Whether deciding `rule` under `source` reads the caller's groups. */
+export function needsGroups(source: AccessSource, rule: AccessRule): boolean {
+  const hasGroups =
+    (rule.requiredGroups?.length ?? 0) + (rule.blockedGroups?.length ?? 0) > 0;
+  if (!hasGroups) return false;
+  return source !== "permissions" || !hasPermissionMapping(rule);
+}
+
+/** Whether deciding `rule` under `source` reads the caller's permissions. */
+export function needsPermissions(
+  source: AccessSource,
+  rule: AccessRule
+): boolean {
+  return source !== "groups" && hasPermissionMapping(rule);
+}
+
 export function allowedByGroups(
   rule: AccessRule,
   groups: readonly string[]

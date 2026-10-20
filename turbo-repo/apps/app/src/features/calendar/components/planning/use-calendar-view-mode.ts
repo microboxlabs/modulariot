@@ -24,8 +24,12 @@ import { ACCESS_RULES } from "@/features/auth/access/access-rules";
  * exposed here — if you ever need them, call `usePermissions` directly.
  */
 export function useCalendarViewMode() {
-  const { canAccess, isLoading } = usePermissions();
+  const { canAccess, isRuleLoading } = usePermissions();
   const searchParams = useSearchParams();
+  const isLoading =
+    isRuleLoading(ACCESS_RULES.calendarPlan) ||
+    isRuleLoading(ACCESS_RULES.calendarAssign) ||
+    isRuleLoading(ACCESS_RULES.calendarView);
 
   const rawCanPlan = !isLoading && canAccess(ACCESS_RULES.calendarPlan);
   const rawCanAssign = !isLoading && canAccess(ACCESS_RULES.calendarAssign);

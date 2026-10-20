@@ -27,7 +27,11 @@ vi.mock("@/lib/logger", () => ({
   logger: { warn, error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-import { hasAccess, requirePermission } from "./server-access";
+import {
+  hasAccess,
+  requirePermission,
+  requirePlatformAccess,
+} from "./server-access";
 import { ACCESS_RULES } from "./access-rules";
 
 const session = { user: { id: "u-1", email: "ana@example.com" } };
@@ -134,5 +138,59 @@ describe("server access", () => {
     const denied = await requirePermission(ACCESS_RULES.adminConsole);
     expect(denied.authorized).toBe(false);
     if (!denied.authorized) expect(denied.response.status).toBe(403);
+  });
+
+  it("platform gate needs a platform owner in permissions mode, not admin:console", async () => {
+    process.env.ACCESS_CONTROL_SOURCE = "permissions";
+    const fetchSpy = vi
+      .fn()
+      .mockImplementation(async () =>
+        new Response(JSON.stringify({ roleCodes: [] }), { status: 200 })
+      );
+    vi.stubGlobal("fetch", fetchSpy);
+    auth.mockResolvedValue(freshSession());
+
+    const orgAdmin = await requirePlatformAccess(ACCESS_RULES.adminConsole);
+    expect(orgAdmin.authorized).toBe(false);
+    if (!orgAdmin.authorized) expect(orgAdmin.response.status).toBe(403);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "http://modulith.test/api/v1/platform/roles/me",
+      expect.anything()
+    );
+    expect(fetchSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("/me/access"),
+      expect.anything()
+    );
+
+    fetchSpy.mockImplementation(async () =>
+      new Response(JSON.stringify({ roleCodes: ["PLATFORM_OWNER"] }), {
+        status: 200,
+      })
+    );
+    const owner = await requirePlatformAccess(ACCESS_RULES.adminConsole);
+    expect(owner.authorized).toBe(true);
+  });
+
+  it("platform gate denies when the platform roles cannot be read", async () => {
+    process.env.ACCESS_CONTROL_SOURCE = "permissions";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("", { status: 502 }))
+    );
+    auth.mockResolvedValue(freshSession());
+
+    const result = await requirePlatformAccess(ACCESS_RULES.adminConsole);
+    expect(result.authorized).toBe(false);
+  });
+
+  it("platform gate keeps the admin groups in groups mode", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    auth.mockResolvedValue(freshSession());
+    getGroupsForPerson.mockResolvedValue(["GROUP_ALFRESCO_ADMINISTRATORS"]);
+
+    const result = await requirePlatformAccess(ACCESS_RULES.adminConsole);
+    expect(result.authorized).toBe(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

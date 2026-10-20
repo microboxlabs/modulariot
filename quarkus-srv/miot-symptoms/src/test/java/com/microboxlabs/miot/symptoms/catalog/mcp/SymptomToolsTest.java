@@ -246,11 +246,12 @@ class SymptomToolsTest {
             this.organization = organization;
         }
 
-        /** The real rules: the owner is an Owner; anyone else an Alfresco member with the legacy Operator role. */
+        /** The real rules: the owner is an Owner; anyone else a Member holding the Operator role. */
         @Override
         public Uni<Access> access(String organizationSlug, Caller caller) {
-            AccessRules.Facts facts = new AccessRules.Facts(false, OWNER.equals(caller.email()) ? BaseRole.OWNER : null,
-                    true, false, false, Set.of(), null);
+            boolean owner = OWNER.equals(caller.email());
+            AccessRules.Facts facts = new AccessRules.Facts(owner ? BaseRole.OWNER : BaseRole.MEMBER, false,
+                    owner ? Set.of() : Set.of(ControlTowerAccessCatalog.OPERATOR));
             return Uni.createFrom().item(AccessRules.resolve(1L, organizationSlug, caller, facts, REGISTRY));
         }
     }

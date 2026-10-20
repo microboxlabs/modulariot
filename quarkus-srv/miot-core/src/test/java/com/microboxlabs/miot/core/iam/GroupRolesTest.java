@@ -91,7 +91,7 @@ class GroupRolesTest {
         String org = "(SELECT id FROM miot_core.organizations WHERE slug = '" + ORG + "')";
         String user = "(SELECT id FROM miot_iam.iam_user WHERE email = '" + MEMBER + "')";
         exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role, source, created_by) "
-                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test')");
+                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test') ON CONFLICT DO NOTHING");
         exec("DELETE FROM miot_iam.iam_role_binding WHERE organization_id = " + org + " AND principal_id = "
                 + user + "::text");
 
@@ -118,7 +118,7 @@ class GroupRolesTest {
         String org = "(SELECT id FROM miot_core.organizations WHERE slug = '" + ORG + "')";
         String user = "(SELECT id FROM miot_iam.iam_user WHERE email = '" + MEMBER + "')";
         exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role, source, created_by) "
-                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test')");
+                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test') ON CONFLICT DO NOTHING");
         exec("DELETE FROM miot_iam.iam_role_binding WHERE organization_id = " + org + " AND principal_id = "
                 + user + "::text AND role_key = '" + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR + "'");
 

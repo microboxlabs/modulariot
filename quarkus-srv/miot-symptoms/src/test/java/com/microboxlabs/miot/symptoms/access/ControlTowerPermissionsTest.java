@@ -130,17 +130,20 @@ class ControlTowerPermissionsTest {
     }
 
     @Test
-    void anAlfrescoMemberWithoutARoleOperatesAsBefore() {
+    void theOrganizationsOwnClientOperatesWithoutARole() {
         AccessRegistry registry = new AccessRegistry(List.of(new CoreAccessCatalog(), new ControlTowerAccessCatalog()));
+        Set<String> client = AccessRules.resolve(1L, "acme", Caller.client("acme-client"),
+                new AccessRules.Facts(null, true, Set.of()), registry).permissions();
+        assertTrue(client.contains(TREAT));
+        assertTrue(!client.contains(EDIT));
         Set<String> member = AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
-                new AccessRules.Facts(false, null, true, false, false, Set.of(), null), registry).permissions();
-        assertTrue(member.contains(TREAT));
-        assertTrue(!member.contains(EDIT));
+                new AccessRules.Facts(BaseRole.MEMBER, false, Set.of()), registry).permissions();
+        assertTrue(!member.contains(TREAT), "a member without a role gets no default");
     }
 
     private static Set<String> grant(AccessRegistry registry, String role) {
         return AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
-                new AccessRules.Facts(true, BaseRole.MEMBER, false, false, false, Set.of(role), null), registry)
+                new AccessRules.Facts(BaseRole.MEMBER, false, Set.of(role)), registry)
                 .permissions();
     }
 

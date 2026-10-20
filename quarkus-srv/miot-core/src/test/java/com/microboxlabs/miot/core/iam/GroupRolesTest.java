@@ -87,6 +87,23 @@ class GroupRolesTest {
     }
 
     @Test
+    void aDryRunCountsAPersonOncePerRoleAcrossGroups() {
+        owner().contentType("application/json").body("{}")
+                .when().put(MAPPINGS + "/GROUP_PLANNING/" + CoordinatorAccessCatalog.CALENDAR_PLANNER)
+                .then().statusCode(200);
+        owner().contentType("application/json").body("{}")
+                .when().put(MAPPINGS + "/GROUP_PLANNING_2/" + CoordinatorAccessCatalog.CALENDAR_PLANNER)
+                .then().statusCode(200);
+
+        // The stub directory answers the same people for every group.
+        owner().when().post(MAPPINGS + "/import?dryRun=true")
+                .then().statusCode(200)
+                .body("lines[0].added", is(3))
+                .body("lines[1].added", is(0))
+                .body("lines[1].existing", is(3));
+    }
+
+    @Test
     void mappingsAreListedAndRemoved() {
         owner().contentType("application/json").body("{}")
                 .when().put(MAPPINGS + "/GROUP_PLANNING/" + CoordinatorAccessCatalog.CALENDAR_PLANNER)

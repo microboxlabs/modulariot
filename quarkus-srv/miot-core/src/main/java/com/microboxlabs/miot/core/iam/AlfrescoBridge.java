@@ -15,7 +15,6 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -39,7 +38,6 @@ public class AlfrescoBridge {
 
     public static final String PROJECTION_PROPERTY = "miot.iam.alfresco-projection.enabled";
     static final int MAX_ATTEMPTS = 10;
-    static final int PAGE = 100;
     private static final Logger LOG = Logger.getLogger(AlfrescoBridge.class);
 
     public record ImportResult(String organization, String groupId, int seen, int added, int alreadyMembers) {
@@ -78,18 +76,11 @@ public class AlfrescoBridge {
             if (org.alfrescoGroupId == null) {
                 throw new IllegalStateException("The organization has no Alfresco group");
             }
-            return people(org.alfrescoGroupId, 0, new ArrayList<>())
+            return directory.listAllGroupMembers(org.alfrescoGroupId)
                     .flatMap(people -> addAll(org, people, actor))
                     .flatMap(result -> IamAuditEvent.of(org.id, actor, "alfresco.imported", org.alfrescoGroupId,
                             Map.of("seen", result.seen(), "added", result.added())).persist().replaceWith(result));
         }));
-    }
-
-    private Uni<List<AlfrescoPerson>> people(String groupId, int skip, List<AlfrescoPerson> acc) {
-        return directory.listGroupMembers(groupId, PAGE, skip).flatMap(page -> {
-            acc.addAll(page);
-            return page.size() < PAGE ? Uni.createFrom().item(acc) : people(groupId, skip + PAGE, acc);
-        });
     }
 
     private Uni<ImportResult> addAll(Organization org, List<AlfrescoPerson> people, String actor) {

@@ -1,9 +1,7 @@
 package com.microboxlabs.miot.core.iam;
 
-import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
 import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
-import com.microboxlabs.miot.core.auth.OrganizationMembership;
 import io.quarkus.security.identity.SecurityIdentity;
 import com.microboxlabs.miot.core.iam.model.IamMembership;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
@@ -32,27 +30,15 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 @ApplicationScoped
 public class AccessEvaluator {
 
-    static final Set<String> BOOTSTRAP_MANAGER_ROLES = Set.of("SITE_MANAGER", "GROUP_ADMIN");
-
-    /** The base role an Alfresco member gets: Admin for site and group managers, else Member. */
-    static BaseRole alfrescoBaseRole(String alfrescoRole) {
-        return alfrescoRole != null && BOOTSTRAP_MANAGER_ROLES.contains(alfrescoRole) ? BaseRole.ADMIN : BaseRole.MEMBER;
-    }
-
     private final AccessRegistry registry;
-    private final IAlfrescoMembershipClient alfresco;
-    private final OrganizationMembership deployment;
     private final PlatformAuthorizer platform;
     private final TokenRoles tokenRoles;
     private final DomainMembership domains;
 
     @Inject
-    public AccessEvaluator(AccessRegistry registry, IAlfrescoMembershipClient alfresco,
-            OrganizationMembership deployment, PlatformAuthorizer platform, TokenRoles tokenRoles,
+    public AccessEvaluator(AccessRegistry registry, PlatformAuthorizer platform, TokenRoles tokenRoles,
             DomainMembership domains) {
         this.registry = registry;
-        this.alfresco = alfresco;
-        this.deployment = deployment;
         this.platform = platform;
         this.tokenRoles = tokenRoles;
         this.domains = domains;
@@ -100,11 +86,9 @@ public class AccessEvaluator {
     }
 
     private Uni<Access> clientAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
-        boolean nativeMembership = isNative(root);
         return IamRoleBinding.findFor(scope, IamRoleBinding.CLIENT, List.of(caller.clientId()))
                 .map(bindings -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                        nativeMembership, null, false, false, caller.clientId().equals(org.tenantClientId),
-                        covered(bindings, org, root), null), registry));
+                        null, caller.clientId().equals(org.tenantClientId), covered(bindings, org, root)), registry));
     }
 
     private Uni<Access> serviceAccountAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
@@ -112,8 +96,7 @@ public class AccessEvaluator {
         return IamRoleBinding.findFor(scope, IamRoleBinding.SERVICE_ACCOUNT,
                         List.of(caller.serviceAccountId().toString()))
                 .map(bindings -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                        true, own ? BaseRole.MEMBER : null, false, false, false,
-                        covered(bindings, org, root), null), registry));
+                        own ? BaseRole.MEMBER : null, false, covered(bindings, org, root)), registry));
     }
 
     private Uni<Access> userAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
@@ -131,13 +114,13 @@ public class AccessEvaluator {
         }));
     }
 
-    /** The user's active memberships; in a native organization, a signed-in person with none may join by domain. */
+    /** The user's active memberships; a signed-in person with none may join by domain. */
     private Uni<List<IamMembership>> memberships(Organization root, List<Long> scope, IamUser user, String email,
             SecurityIdentity signer) {
         Uni<List<IamMembership>> found = user == null
                 ? Uni.createFrom().item(List.of())
                 : IamMembership.findFor(scope, user.id);
-        if (!isNative(root) || signer == null) {
+        if (signer == null) {
             return found;
         }
         return found.flatMap(rows -> rows.isEmpty()
@@ -148,14 +131,10 @@ public class AccessEvaluator {
     /** The access of a user whose base role in the organization is known. */
     private Uni<Access> decide(Organization org, Organization root, List<Long> scope, Caller caller, IamUser user,
             BaseRole base) {
-        boolean nativeMembership = isNative(root);
         return bindingsOf(user, scope)
-                .flatMap(bindings -> directory(org, root, caller, nativeMembership)
-                        .flatMap(dir -> platform.isPlatformOwner(caller.email())
-                                .map(owner -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                                        nativeMembership, base, dir.member(), dir.bootstrapOwner(), false,
-                                        covered(bindings, org, root), dir.role(), Boolean.TRUE.equals(owner)),
-                                        registry))));
+                .flatMap(bindings -> platform.isPlatformOwner(caller.email())
+                        .map(owner -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
+                                base, false, covered(bindings, org, root), Boolean.TRUE.equals(owner)), registry)));
     }
 
     /** The memberships after a join through the caller's email domain; empty when the domain gives none. */
@@ -172,53 +151,6 @@ public class AccessEvaluator {
     /** A member's base role raised to the one their token gives, for this request only. */
     static BaseRole withToken(BaseRole membership, String tokenBase) {
         return membership == null || tokenBase == null ? membership : BaseRole.max(membership, BaseRole.valueOf(tokenBase));
-    }
-
-    /** Whether membership of this organization comes from the modulith. Needs an open session. */
-    public Uni<Boolean> membershipNative(Organization org) {
-        return root(org).map(this::isNative);
-    }
-
-    /** Whether membership of this top-level organization, and its sub-accounts, comes from the modulith. */
-    public boolean isNative(Organization root) {
-        return deployment.isNative() || "NATIVE".equals(root.membershipSource);
-    }
-
-    private record Directory(boolean member, boolean bootstrapOwner, String role) {
-    }
-
-    /** The Alfresco side, only asked when membership comes from Alfresco. */
-    private Uni<Directory> directory(Organization org, Organization root, Caller caller, boolean nativeMembership) {
-        if (nativeMembership) {
-            return Uni.createFrom().item(new Directory(false, false, null));
-        }
-        if (org.alfrescoGroupId == null) {
-            return Uni.createFrom().item(new Directory(true, false, null));
-        }
-        return alfresco.isMember(caller.email(), org.alfrescoGroupId).flatMap(member -> {
-            if (!Boolean.TRUE.equals(member)) {
-                return Uni.createFrom().item(new Directory(false, false, null));
-            }
-            return alfresco.getRole(caller.email(), org.alfrescoGroupId)
-                    .flatMap(role -> bootstrap(org, root, caller, role)
-                            .map(owner -> new Directory(true, owner, role)));
-        });
-    }
-
-    /** An Alfresco manager of the root organization is Owner while it has no assigned owner. */
-    private Uni<Boolean> bootstrap(Organization org, Organization root, Caller caller, String orgRole) {
-        if (root.alfrescoGroupId == null) {
-            return Uni.createFrom().item(false);
-        }
-        return IamMembership.findByRole(root.id, BaseRole.OWNER.name()).flatMap(owners -> {
-            if (!owners.isEmpty()) {
-                return Uni.createFrom().item(false);
-            }
-            if (root.id.equals(org.id)) {
-                return Uni.createFrom().item(BOOTSTRAP_MANAGER_ROLES.contains(orgRole));
-            }
-            return alfresco.getRole(caller.email(), root.alfrescoGroupId).map(BOOTSTRAP_MANAGER_ROLES::contains);
-        });
     }
 
     /** The top-level organization of {@code org}: itself, or its parent. Needs an open session. */

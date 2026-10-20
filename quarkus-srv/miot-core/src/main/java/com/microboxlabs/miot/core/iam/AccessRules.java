@@ -8,12 +8,9 @@ import java.util.TreeSet;
  * Turns what was loaded about a caller into an {@link Access}. No I/O, so every rule is unit-tested.
  *
  * <ul>
- *   <li>Native membership: the caller needs a membership; its base role is the membership's.</li>
- *   <li>Alfresco membership: the caller must be in the org's Alfresco group (or the org has none); the base role is
- *       the membership's, else Member, or Owner when no owner is assigned yet and the caller manages the Alfresco
- *       site or group.</li>
+ *   <li>A user needs a membership; its base role is the membership's.</li>
  *   <li>The organization's own M2M client is a Member; so is a service account of the organization.</li>
- *   <li>Outside native membership, a caller holding no role of a module gets that module's legacy-default role.</li>
+ *   <li>An M2M client holding no role of a module gets that module's legacy-default role.</li>
  *   <li>A platform owner is Owner of every organization, with or without a membership.</li>
  * </ul>
  */
@@ -23,20 +20,15 @@ public final class AccessRules {
      * Everything the evaluator loaded.
      *
      * @param membershipRole    the caller's base role from a membership of the org or its parent; null for none
-     * @param directoryMember   Alfresco says the caller is a member, or the org has no Alfresco group
-     * @param bootstrapOwner    no owner is assigned and the caller manages the org in Alfresco
      * @param tenantClient      the caller is the organization's own M2M client
      * @param boundRoles        role keys of the bindings that cover the org
      * @param platformOwner     the caller is a platform owner
      */
-    public record Facts(boolean nativeMembership, BaseRole membershipRole, boolean directoryMember,
-            boolean bootstrapOwner, boolean tenantClient, Set<String> boundRoles, String alfrescoRole,
+    public record Facts(BaseRole membershipRole, boolean tenantClient, Set<String> boundRoles,
             boolean platformOwner) {
 
-        public Facts(boolean nativeMembership, BaseRole membershipRole, boolean directoryMember,
-                boolean bootstrapOwner, boolean tenantClient, Set<String> boundRoles, String alfrescoRole) {
-            this(nativeMembership, membershipRole, directoryMember, bootstrapOwner, tenantClient, boundRoles,
-                    alfrescoRole, false);
+        public Facts(BaseRole membershipRole, boolean tenantClient, Set<String> boundRoles) {
+            this(membershipRole, tenantClient, boundRoles, false);
         }
     }
 
@@ -50,11 +42,10 @@ public final class AccessRules {
             return Access.none(organizationId, slug);
         }
         Set<String> roles = new TreeSet<>(facts.boundRoles());
-        if (!facts.nativeMembership() || caller.isClient()) {
+        if (caller.isClient()) {
             addLegacyDefaults(roles, registry);
         }
-        return new Access(organizationId, slug, base, roles, registry.permissionsOf(base, roles),
-                facts.alfrescoRole());
+        return new Access(organizationId, slug, base, roles, registry.permissionsOf(base, roles));
     }
 
     static BaseRole baseRole(Caller caller, Facts facts) {
@@ -67,17 +58,7 @@ public final class AccessRules {
         if (!caller.isUser()) {
             return null;
         }
-        if (facts.platformOwner()) {
-            return BaseRole.OWNER;
-        }
-        if (facts.nativeMembership()) {
-            return facts.membershipRole();
-        }
-        if (!facts.directoryMember()) {
-            return null;
-        }
-        BaseRole base = BaseRole.max(facts.membershipRole(), BaseRole.MEMBER);
-        return facts.bootstrapOwner() ? BaseRole.OWNER : base;
+        return facts.platformOwner() ? BaseRole.OWNER : facts.membershipRole();
     }
 
     private static void addLegacyDefaults(Set<String> roles, AccessRegistry registry) {

@@ -11,14 +11,11 @@ package com.microboxlabs.miot.core.api.dto;
  *       {@code TaxIdValidator}. Required for child sub-accounts since the
  *       whole point of a sub-account is to scope pgrest queries to a
  *       specific {@code cust_account}.</li>
- *   <li>{@code alfrescoGroupId} — optional override. When null, the server
- *       derives {@code GROUP_<uppercase-slug>} and creates it in Alfresco.</li>
  * </ul>
  */
 public record CreateOrganizationRequest(
         String slug,
         String name,
         String displayName,
-        String taxId,
-        String alfrescoGroupId) {
+        String taxId) {
 }

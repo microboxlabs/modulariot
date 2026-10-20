@@ -35,7 +35,11 @@ class GroupRolesTest {
     void seed() throws SQLException {
         exec("INSERT INTO miot_core.organizations (slug, name, tenant_client_id, active, alfresco_group_id, "
                 + "membership_source) VALUES ('" + ORG + "', 'Group roles', 'group-roles-client', true, "
-                + "NULL, 'ALFRESCO')");
+                + "NULL, 'NATIVE')");
+        exec("INSERT INTO miot_iam.iam_user (email) VALUES ('" + MEMBER + "') ON CONFLICT DO NOTHING");
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role) "
+                + "SELECT o.id, u.id, 'MEMBER' FROM miot_core.organizations o, miot_iam.iam_user u "
+                + "WHERE o.slug = '" + ORG + "' AND u.email = '" + MEMBER + "'");
     }
 
     @AfterEach

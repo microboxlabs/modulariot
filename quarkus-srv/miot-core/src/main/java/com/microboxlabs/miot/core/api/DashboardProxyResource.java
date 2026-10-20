@@ -54,10 +54,6 @@ public class DashboardProxyResource {
         return DashboardProxySupport.scopeIdFrom(alfrescoGroupId, defaultScopeId);
     }
 
-    static String dashboardRoleFrom(String alfrescoRole) {
-        return DashboardProxySupport.dashboardRoleFrom(alfrescoRole, null);
-    }
-
     @GET
     public Uni<Response> list(@PathParam("slug") String slug,
                               @HeaderParam("Authorization") String authorization) {

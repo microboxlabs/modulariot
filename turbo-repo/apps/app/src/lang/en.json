@@ -1902,19 +1902,13 @@
         "platformView": {
           "readOnly": "Read-only. Managing members and integrations needs a role in this organization.",
           "parentOwners": "Owners (from {parent})",
-          "alfrescoOwners": "No owner assigned. The Alfresco managers of the organization act as owners.",
           "slug": "Identifier",
           "tenantClientId": "Tenant client ID",
-          "membershipSource": "Members managed in",
           "parent": "Parent organization",
           "taxId": "Tax ID",
           "owners": "Owners",
           "noOwners": "This organization has no owner yet. Until a platform owner assigns one, nobody can manage its members.",
-          "ownersError": "Could not load the owners.",
-          "sources": {
-            "NATIVE": "ModularIoT",
-            "ALFRESCO": "Alfresco"
-          }
+          "ownersError": "Could not load the owners."
         },
         "parentAccount": "Primary account",
         "noSelection": "Select an organization to view details.",
@@ -2131,7 +2125,6 @@
         "invite": "Invite members",
         "loadFailed": "Could not load the team.",
         "saveFailed": "Could not save the change.",
-        "alfrescoNote": "Members come from the organization's Alfresco group. They appear here when they sign in. To add or remove people, do it in Alfresco.",
         "colName": "Name",
         "colEmail": "Email",
         "colRole": "Role",

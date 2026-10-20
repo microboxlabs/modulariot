@@ -2,7 +2,7 @@
 
 import { Spinner } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
-import { tr, trDynamic } from "@/features/i18n/tr.service";
+import { tr } from "@/features/i18n/tr.service";
 import type { PlatformOrganizationListItem } from "../platform/platform.types";
 import { useOrganizationOwners } from "../platform/use-platform-organizations";
 
@@ -27,32 +27,12 @@ function Fact({ label, value }: Readonly<FactProps>) {
   );
 }
 
-interface NoOwnersProps {
+interface OwnersProps {
   readonly organization: PlatformOrganizationListItem;
   readonly dict: I18nRecord;
 }
 
-/**
- * With Alfresco membership, the Alfresco managers of the top-level
- * organization act as its owners until one is assigned, so an empty list is
- * normal there. With native membership nobody can manage the organization.
- */
-function NoOwners({ organization, dict }: Readonly<NoOwnersProps>) {
-  if (organization.membershipSource === "ALFRESCO") {
-    return (
-      <p className="text-sm text-gray-500 dark:text-gray-400">
-        {tr("platformView.alfrescoOwners", dict)}
-      </p>
-    );
-  }
-  return (
-    <p className="text-sm text-amber-700 dark:text-amber-300">
-      {tr("platformView.noOwners", dict)}
-    </p>
-  );
-}
-
-function Owners({ organization, dict }: Readonly<NoOwnersProps>) {
+function Owners({ organization, dict }: Readonly<OwnersProps>) {
   const { owners, isLoading, error } = useOrganizationOwners(organization.slug);
   if (isLoading) return <Spinner size="sm" />;
   if (error) {
@@ -63,7 +43,11 @@ function Owners({ organization, dict }: Readonly<NoOwnersProps>) {
     );
   }
   if (owners.length === 0) {
-    return <NoOwners organization={organization} dict={dict} />;
+    return (
+      <p className="text-sm text-amber-700 dark:text-amber-300">
+        {tr("platformView.noOwners", dict)}
+      </p>
+    );
   }
   return (
     <ul className="text-sm text-gray-900 dark:text-white">
@@ -110,13 +94,6 @@ export default function PlatformOrgDetailPanel({
           <Fact
             label={tr("platformView.tenantClientId", dict)}
             value={organization.tenantClientId}
-          />
-          <Fact
-            label={tr("platformView.membershipSource", dict)}
-            value={trDynamic(
-              `platformView.sources.${organization.membershipSource}`,
-              dict
-            )}
           />
           <Fact
             label={tr("platformView.parent", dict)}

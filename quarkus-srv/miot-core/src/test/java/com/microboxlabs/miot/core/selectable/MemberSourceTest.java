@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.core.alfresco.AlfrescoPerson;
-import com.microboxlabs.miot.core.alfresco.IAlfrescoDirectoryClient;
-import io.smallrye.mutiny.Uni;
 import java.lang.reflect.Proxy;
 import java.sql.SQLException;
 import java.time.Clock;
@@ -13,6 +11,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.IntStream;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
@@ -22,31 +21,19 @@ class MemberSourceTest {
     private static final String TENANT = "tenant-a";
     private static final Instant NOW = Instant.parse("2026-09-25T12:00:00Z");
 
-    /** Groups answer from a fixed roster, paged like Alfresco, and count every call. */
-    static class FakeDirectory implements IAlfrescoDirectoryClient {
-        final Map<String, List<AlfrescoPerson>> groups;
+    /** Answers a fixed roster for {@link #TENANT} and counts every read. */
+    static class FakeMembers implements Function<String, List<AlfrescoPerson>> {
+        final List<AlfrescoPerson> people;
         int calls;
 
-        FakeDirectory(Map<String, List<AlfrescoPerson>> groups) {
-            this.groups = groups;
+        FakeMembers(List<AlfrescoPerson> people) {
+            this.people = people;
         }
 
         @Override
-        public Uni<List<AlfrescoPerson>> listGroupMembers(String groupId, int maxItems, int skipCount) {
+        public List<AlfrescoPerson> apply(String tenant) {
             calls++;
-            List<AlfrescoPerson> all = groups.getOrDefault(groupId, List.of());
-            return Uni.createFrom().item(all.subList(Math.min(skipCount, all.size()),
-                    Math.min(skipCount + maxItems, all.size())));
-        }
-
-        @Override
-        public Uni<String> getSiteRole(String personId, String siteId) {
-            return Uni.createFrom().nullItem();
-        }
-
-        @Override
-        public Uni<List<AlfrescoPerson>> searchPeople(String query, int maxItems) {
-            return Uni.createFrom().item(List.of());
+            return TENANT.equals(tenant) ? people : List.of();
         }
     }
 
@@ -54,35 +41,21 @@ class MemberSourceTest {
         return new AlfrescoPerson(email, email, first, last, display);
     }
 
-    private static MemberSource source(FakeDirectory directory, Clock clock) {
-        return new MemberSource(tenant -> TENANT.equals(tenant) ? List.of("GROUP_a", "GROUP_b") : List.of(),
-                tenant -> List.of(), directory, clock);
+    private static List<SelectableOption> options(MemberSource source, String search) {
+        return options(source, TENANT, search);
     }
 
-    private static List<SelectableOption> options(MemberSource source, String search) {
-        return source.options(TENANT, SelectableSource.system(MemberSource.ID),
+    private static List<SelectableOption> options(MemberSource source, String tenant, String search) {
+        return source.options(tenant, SelectableSource.system(MemberSource.ID),
                 new SelectableOptionSource.Query(search, List.of(), 500));
     }
 
     @Test
-    void nativeMembersAreListedWithTheGroupMembers() {
-        AlfrescoPerson ana = person("ana@example.com", "Ana Pérez", "Ana", "Pérez");
-        AlfrescoPerson luis = person("luis@example.com", "Luis Soto", null, null);
-        FakeDirectory directory = new FakeDirectory(Map.of("GROUP_a", List.of(ana)));
-        MemberSource source = new MemberSource(tenant -> List.of("GROUP_a"), tenant -> List.of(luis, ana),
-                directory, Clock.fixed(NOW, ZoneOffset.UTC));
-        assertEquals(List.of("ana@example.com", "luis@example.com"),
-                options(source, "").stream().map(SelectableOption::value).toList());
-    }
+    void listsTheTenantsMembersByName() {
+        FakeMembers members = new FakeMembers(List.of(person("zoe@example.com", null, "Zoe", "Díaz"),
+                person("ana@example.com", "Ana Pérez", "Ana", "Pérez"), person("bot@example.com", "", null, null)));
 
-    @Test
-    void listsEveryoneInTheTenantsOrganizationsOnceByName() {
-        AlfrescoPerson ana = person("ana@example.com", "Ana Pérez", "Ana", "Pérez");
-        FakeDirectory directory = new FakeDirectory(Map.of(
-                "GROUP_a", List.of(person("zoe@example.com", null, "Zoe", "Díaz"), ana),
-                "GROUP_b", List.of(ana, person("bot@example.com", "", null, null))));
-
-        List<SelectableOption> all = options(source(directory, Clock.fixed(NOW, ZoneOffset.UTC)), null);
+        List<SelectableOption> all = options(new MemberSource(members, Clock.fixed(NOW, ZoneOffset.UTC)), null);
 
         assertEquals(List.of("ana@example.com", "bot@example.com", "zoe@example.com"),
                 all.stream().map(SelectableOption::value).toList());
@@ -93,11 +66,10 @@ class MemberSourceTest {
     }
 
     @Test
-    void readsPastTheFirstPageAndSearchesNames() {
-        List<AlfrescoPerson> many = IntStream.range(0, 120)
-                .mapToObj(i -> person("p" + i + "@example.com", "Persona " + i, null, null)).toList();
-        FakeDirectory directory = new FakeDirectory(Map.of("GROUP_a", many));
-        MemberSource source = source(directory, Clock.fixed(NOW, ZoneOffset.UTC));
+    void searchesNames() {
+        FakeMembers members = new FakeMembers(IntStream.range(0, 120)
+                .mapToObj(i -> person("p" + i + "@example.com", "Persona " + i, null, null)).toList());
+        MemberSource source = new MemberSource(members, Clock.fixed(NOW, ZoneOffset.UTC));
 
         assertEquals(120, options(source, null).size());
         assertEquals(List.of("p42@example.com"),
@@ -105,54 +77,36 @@ class MemberSourceTest {
     }
 
     @Test
-    void asksAlfrescoAgainOnlyAfterAMinute() {
-        FakeDirectory directory = new FakeDirectory(Map.of("GROUP_a",
-                List.of(person("ana@example.com", "Ana", null, null))));
+    void readsTheRosterAgainOnlyAfterAMinute() {
+        FakeMembers members = new FakeMembers(List.of(person("ana@example.com", "Ana", null, null)));
         MutableClock clock = new MutableClock(NOW);
-        MemberSource source = source(directory, clock);
+        MemberSource source = new MemberSource(members, clock);
 
         options(source, null);
         options(source, "an");
-        int afterTwoReads = directory.calls;
+        int afterTwoReads = members.calls;
         clock.now = NOW.plus(MemberSource.KEEP);
         options(source, null);
 
-        assertEquals(2, afterTwoReads, "one call per group, then the kept roster");
-        assertEquals(4, directory.calls);
+        assertEquals(1, afterTwoReads, "the second read uses the kept roster");
+        assertEquals(2, members.calls);
     }
 
     @Test
     void aTenantWithNoOrganizationsHasNoOne() {
-        FakeDirectory directory = new FakeDirectory(Map.of());
-        MemberSource source = source(directory, Clock.fixed(NOW, ZoneOffset.UTC));
+        FakeMembers members = new FakeMembers(List.of(person("ana@example.com", "Ana", null, null)));
 
-        assertEquals(List.of(), source.options("other", SelectableSource.system(MemberSource.ID),
-                new SelectableOptionSource.Query(null, List.of(), 10)));
-        assertEquals(0, directory.calls);
+        assertEquals(List.of(), options(new MemberSource(members, Clock.fixed(NOW, ZoneOffset.UTC)), "other", null));
     }
 
     @Test
-    void anAlfrescoFailureIsReportedNotAnEmptyList() {
-        FakeDirectory down = new FakeDirectory(Map.of()) {
-            @Override
-            public Uni<List<AlfrescoPerson>> listGroupMembers(String groupId, int maxItems, int skipCount) {
-                return Uni.createFrom().failure(new IllegalStateException("503"));
-            }
-        };
-
-        MemberSource source = source(down, Clock.fixed(NOW, ZoneOffset.UTC));
-
-        assertThrows(SourceUnavailableException.class, () -> options(source, null));
-    }
-
-    @Test
-    void aDatabaseFailureReadingTheGroupsIsReportedToo() {
+    void aDatabaseFailureIsReportedNotAnEmptyList() {
         DataSource down = (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(),
                 new Class<?>[] {DataSource.class}, (proxy, method, args) -> {
                     throw new SQLException("connection refused");
                 });
 
-        assertThrows(SourceUnavailableException.class, () -> MemberSource.groupsOf(down, TENANT, false));
+        assertThrows(SourceUnavailableException.class, () -> MemberSource.membersOf(down, TENANT));
     }
 
     static final class MutableClock extends Clock {

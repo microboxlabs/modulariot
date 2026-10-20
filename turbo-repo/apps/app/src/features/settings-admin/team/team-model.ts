@@ -235,12 +235,15 @@ async function retryOneByOne<T>(
   }
 }
 
-/** Whether the caller may invite people into this organization. */
-export function invitesAllowed(
-  can: (permission: string) => boolean,
-  membershipSource: string | undefined
-): boolean {
-  return can("members:invite") && membershipSource === "NATIVE";
+/** The Team page actions the caller holds the permission for. */
+export function teamActions(can: (permission: string) => boolean) {
+  return {
+    canInvite: can("members:invite"),
+    canEditInvitationEmail: can("org:update"),
+    canUpdate: can("members:update"),
+    canRemove: can("members:remove"),
+    canManageOwners: can("owners:manage"),
+  };
 }
 
 /** The base roles a caller without owners:manage may give. */

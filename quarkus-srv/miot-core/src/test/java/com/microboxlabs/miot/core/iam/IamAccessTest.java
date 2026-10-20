@@ -55,23 +55,29 @@ class IamAccessTest {
     }
 
     @Test
-    void anAlfrescoManagerOwnsAnOrganizationWithoutOwnersAndMayInvite() {
+    void anAlfrescoGroupManagerWithoutAMembershipIsRefused() {
         given().header("Authorization", bearer(MEMBER))
                 .when().get("/api/v1/orgs/" + ALFRESCO_ORG + "/me/access")
-                .then().log().ifValidationFails().statusCode(200)
-                .body("baseRole", is("OWNER"))
-                .body("permissions", hasItem(CoreAccessCatalog.MEMBERS_INVITE));
-
-        given().header("Authorization", bearer(MEMBER))
-                .when().get("/api/v1/orgs/" + ALFRESCO_ORG + "/iam-probe")
-                .then().log().ifValidationFails().statusCode(200);
-    }
-
-    @Test
-    void someoneOutsideTheAlfrescoGroupIsRefused() {
+                .then().statusCode(403);
         given().header("Authorization", bearer(ANA))
                 .when().get("/api/v1/orgs/" + ALFRESCO_ORG + "/me/access")
                 .then().statusCode(403);
+    }
+
+    @Test
+    void aMembershipAdmitsAndGivesItsBaseRole() throws SQLException {
+        exec("INSERT INTO miot_iam.iam_user (email) VALUES ('" + MEMBER + "') ON CONFLICT DO NOTHING");
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role) "
+                + "SELECT o.id, u.id, 'ADMIN' FROM miot_core.organizations o, miot_iam.iam_user u "
+                + "WHERE o.slug = '" + ALFRESCO_ORG + "' AND u.email = '" + MEMBER + "'");
+        given().header("Authorization", bearer(MEMBER))
+                .when().get("/api/v1/orgs/" + ALFRESCO_ORG + "/me/access")
+                .then().log().ifValidationFails().statusCode(200)
+                .body("baseRole", is("ADMIN"))
+                .body("permissions", hasItem(CoreAccessCatalog.MEMBERS_INVITE));
+        given().header("Authorization", bearer(MEMBER))
+                .when().get("/api/v1/orgs/" + ALFRESCO_ORG + "/iam-probe")
+                .then().log().ifValidationFails().statusCode(200);
     }
 
     @Test
@@ -97,7 +103,6 @@ class IamAccessTest {
         given().header("Authorization", bearer(PLATFORM_OWNER))
                 .when().get("/api/v1/platform/orgs")
                 .then().statusCode(200)
-                .body("find { it.slug == '" + NATIVE_ORG + "' }.membershipSource", is("NATIVE"))
                 .body("find { it.slug == '" + NATIVE_ORG + "' }.parentSlug", nullValue());
         given().header("Authorization", bearer(MEMBER))
                 .when().get("/api/v1/platform/orgs")

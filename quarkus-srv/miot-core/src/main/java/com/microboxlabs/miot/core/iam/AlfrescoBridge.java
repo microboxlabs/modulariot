@@ -18,16 +18,17 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
- * Moves an organization from Alfresco membership to native membership without losing anyone, and keeps its Alfresco
- * group in step afterwards.
+ * Copies an organization's Alfresco group into memberships, and keeps the group in step afterwards.
  *
  * <ul>
  *   <li>{@link #importMembers}: every member of the org's Alfresco group becomes a membership (site and group
- *       managers as Admin, everyone else as Member). Existing memberships keep their role.</li>
+ *       managers as Admin, everyone else as Member). Existing memberships keep their role.
+ *       {@link NativeMembershipMigration} runs it once per organization.</li>
  *   <li>Projection, when {@value #PROJECTION_PROPERTY} is true: adding or removing a member of a native
  *       organization with an Alfresco group writes an outbox row in the same transaction; {@link #sendPending}
  *       applies it to Alfresco and retries failures, so BPM pooled tasks and document permissions follow.</li>
@@ -37,6 +38,7 @@ import org.jboss.logging.Logger;
 public class AlfrescoBridge {
 
     public static final String PROJECTION_PROPERTY = "miot.iam.alfresco-projection.enabled";
+    private static final Set<String> MANAGER_ROLES = Set.of("SITE_MANAGER", "GROUP_ADMIN");
     static final int MAX_ATTEMPTS = 10;
     private static final Logger LOG = Logger.getLogger(AlfrescoBridge.class);
 
@@ -64,10 +66,7 @@ public class AlfrescoBridge {
 
     // --- import ---
 
-    /**
-     * Copies the Alfresco group of {@code slug}'s top-level organization into memberships. Run it before switching
-     * the organization to NATIVE.
-     */
+    /** Copies the Alfresco group of {@code slug}'s top-level organization into memberships. */
     public Uni<ImportResult> importMembers(String slug, String actor) {
         return Panache.withTransaction(() -> Organization.findBySlug(slug).flatMap(found -> {
             if (found == null) {
@@ -116,8 +115,13 @@ public class AlfrescoBridge {
                         .flatMap(user -> named(user, person))
                         .flatMap(user -> IamMembership.findOne(org.id, user.id).flatMap(m -> m != null
                                 ? Uni.createFrom().item(false)
-                                : IamMembership.of(org.id, user.id, AccessEvaluator.alfrescoBaseRole(role).name(),
+                                : IamMembership.of(org.id, user.id, baseRoleOf(role).name(),
                                         "ALFRESCO", actor).persist().replaceWith(true))));
+    }
+
+    /** Admin for Alfresco site and group managers, else Member. */
+    static BaseRole baseRoleOf(String alfrescoRole) {
+        return alfrescoRole != null && MANAGER_ROLES.contains(alfrescoRole) ? BaseRole.ADMIN : BaseRole.MEMBER;
     }
 
     private static Uni<IamUser> named(IamUser user, AlfrescoPerson person) {

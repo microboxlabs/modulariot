@@ -13,7 +13,6 @@ import {
   inviteLink,
   inviteAll,
   inviteBatches,
-  invitesAllowed,
   MAX_INVITES_PER_REQUEST,
   inviteLinkOf,
   keyDisplay,
@@ -29,6 +28,7 @@ import {
   sameRoles,
   selectedRoles,
   sourceKey,
+  teamActions,
   textOf,
 } from "./team-model";
 import type {
@@ -283,12 +283,27 @@ describe("emails", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
-  it("allows invites only into a native organization", () => {
-    const can = (p: string) => p === "members:invite";
-    expect(invitesAllowed(can, "NATIVE")).toBe(true);
-    expect(invitesAllowed(can, "ALFRESCO")).toBe(false);
-    expect(invitesAllowed(can, undefined)).toBe(false);
-    expect(invitesAllowed(() => false, "NATIVE")).toBe(false);
+  it("offers each Team action exactly when the caller holds its permission", () => {
+    expect(teamActions(() => true)).toEqual({
+      canInvite: true,
+      canEditInvitationEmail: true,
+      canUpdate: true,
+      canRemove: true,
+      canManageOwners: true,
+    });
+    expect(teamActions(() => false)).toEqual({
+      canInvite: false,
+      canEditInvitationEmail: false,
+      canUpdate: false,
+      canRemove: false,
+      canManageOwners: false,
+    });
+    const actions = teamActions(
+      (p) => p === "members:invite" || p === "members:remove"
+    );
+    expect(actions.canInvite).toBe(true);
+    expect(actions.canRemove).toBe(true);
+    expect(actions.canEditInvitationEmail).toBe(false);
   });
 });
 

@@ -47,7 +47,7 @@ public class TeamService {
             List<String> roles, Instant joinedAt, Instant lastSeenAt) {
     }
 
-    public record TeamView(String organization, String membershipSource, List<MemberView> members) {
+    public record TeamView(String organization, List<MemberView> members) {
     }
 
     public record InvitationView(UUID id, String email, String baseRole, List<String> roles, String invitedBy,
@@ -111,8 +111,7 @@ public class TeamService {
     public Uni<TeamView> members(String slug) {
         return Panache.withSession(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 IamMembership.findByOrganization(root.id).flatMap(rows -> views(root.id, rows))
-                        .map(members -> new TeamView(org.slug,
-                                evaluator.isNative(root) ? "NATIVE" : "ALFRESCO", members)))));
+                        .map(members -> new TeamView(org.slug, members)))));
     }
 
     public Uni<MemberView> setBaseRole(String slug, Caller actor, UUID userId, BaseRoleRequest request) {
@@ -147,7 +146,6 @@ public class TeamService {
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 evaluator.evaluate(org, actor).flatMap(access -> membership(root.id, userId).flatMap(m ->
                         lockedOwnerCount(root.id).flatMap(owners -> {
-                            requireNative(root);
                             TeamRules.checkRemoval(access, BaseRole.valueOf(m.baseRole), owners);
                             return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 "
                                             + "and principalId = ?3", root.id, IamRoleBinding.USER, userId.toString())
@@ -205,7 +203,6 @@ public class TeamService {
         }
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 evaluator.evaluate(org, actor).flatMap(access -> {
-                    requireNative(root);
                     TeamRules.checkInvite(access, base, roles, evaluator.registry());
                     Uni<List<CreatedInvitation>> chain = Uni.createFrom().item(new ArrayList<>());
                     for (String email : emails) {
@@ -447,14 +444,6 @@ public class TeamService {
             }
             return org;
         });
-    }
-
-    /** Alfresco decides who belongs to an ALFRESCO organization, so members are added and removed there. */
-    private void requireNative(Organization root) {
-        if (!evaluator.isNative(root)) {
-            throw new IllegalStateException(
-                    "Members of this organization come from Alfresco; add or remove them in its Alfresco group");
-        }
     }
 
     private static Uni<Organization> root(Organization org) {

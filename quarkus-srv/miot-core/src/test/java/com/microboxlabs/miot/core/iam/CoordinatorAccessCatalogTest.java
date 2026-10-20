@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.core.iam;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -45,7 +46,7 @@ class CoordinatorAccessCatalogTest {
     void onlyTheBoardRoleCompletesTasks() {
         for (RoleDef role : new CoordinatorAccessCatalog().roles()) {
             boolean completes = role.permissions().contains(CoordinatorAccessCatalog.TASK_COMPLETE);
-            assertTrue(completes == CoordinatorAccessCatalog.KANBAN_USER.equals(role.key()), role.key());
+            assertEquals(CoordinatorAccessCatalog.KANBAN_USER.equals(role.key()), completes, role.key());
         }
     }
 

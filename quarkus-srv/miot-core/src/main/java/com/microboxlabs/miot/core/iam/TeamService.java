@@ -41,6 +41,7 @@ public class TeamService {
     static final int MAX_INVITATION_DAYS = 90;
     private static final String BASE_ROLE = "baseRole";
     private static final String ROLES = "roles";
+    private static final String ACTIVE = "ACTIVE";
 
     public record MemberView(UUID userId, String email, String name, String baseRole, String status, String source,
             List<String> roles, Instant joinedAt, Instant lastSeenAt) {
@@ -152,7 +153,7 @@ public class TeamService {
                                             + "and principalId = ?3", root.id, IamRoleBinding.USER, userId.toString())
                                     .flatMap(ignored -> IamTeamMember.delete("id.userId = ?1 and id.teamId in "
                                             + "(select t.id from IamTeam t where t.organizationId = ?2)", userId, root.id))
-                                    .flatMap(ignored -> m.delete())
+                                    .flatMap(ignored -> leave(m))
                                     .flatMap(ignored -> directory.rolesChanged(root.id, List.of(userId), null))
                                     .flatMap(ignored -> IamUser.<IamUser>findById(userId))
                                     .flatMap(user -> user == null
@@ -161,6 +162,19 @@ public class TeamService {
                                     .flatMap(ignored -> directory.audit(root.id, actor.name(), "member.removed",
                                             userId.toString(), Map.of(BASE_ROLE, m.baseRole)));
                         }))))));
+    }
+
+    /**
+     * Ends a membership. One that came from the email domain is suspended instead of deleted, so the person does not
+     * join again at the next sign-in.
+     */
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private static Uni<Void> leave(IamMembership m) {
+        if (DomainMembership.SOURCE.equals(m.source)) {
+            m.status = "SUSPENDED";
+            return m.persist().replaceWithVoid();
+        }
+        return m.delete();
     }
 
     // --- invitations ---
@@ -307,10 +321,12 @@ public class TeamService {
                     ? existing
                     : IamMembership.of(invitation.organizationId, user.id, invited.name(), "INVITE",
                             invitation.invitedBy);
-            m.baseRole = BaseRole.max(BaseRole.valueOf(m.baseRole), invited).name();
-            m.status = "ACTIVE";
+            boolean joins = existing == null || !ACTIVE.equals(existing.status);
+            // A suspended member returns with the invited role; an active one keeps the higher of the two.
+            m.baseRole = joins ? invited.name() : BaseRole.max(BaseRole.valueOf(m.baseRole), invited).name();
+            m.status = ACTIVE;
             return m.<IamMembership>persist()
-                    .flatMap(saved -> existing == null
+                    .flatMap(saved -> joins
                             ? bridge.memberAdded(invitation.organizationId, me)
                             : Uni.createFrom().voidItem())
                     .flatMap(saved -> addRoles(invitation.organizationId, user.id, invitation.roles(), me))
@@ -337,7 +353,7 @@ public class TeamService {
                         ? Uni.createFrom().nullItem()
                         : IamMembership.findOne(root.id, user.id))
                 .flatMap(member -> {
-                    if (member != null) {
+                    if (member != null && ACTIVE.equals(member.status)) {
                         throw new IllegalStateException(email + " is already a member");
                     }
                     return IamInvitation.pendingFor(root.id, email);

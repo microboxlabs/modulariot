@@ -16,12 +16,14 @@ import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.json.JsonValue;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
  * The only place that decides what a caller may do in an organization. The org filter, the permission checks on
@@ -42,15 +44,18 @@ public class AccessEvaluator {
     private final OrganizationMembership deployment;
     private final PlatformAuthorizer platform;
     private final TokenRoles tokenRoles;
+    private final DomainMembership domains;
 
     @Inject
     public AccessEvaluator(AccessRegistry registry, IAlfrescoMembershipClient alfresco,
-            OrganizationMembership deployment, PlatformAuthorizer platform, TokenRoles tokenRoles) {
+            OrganizationMembership deployment, PlatformAuthorizer platform, TokenRoles tokenRoles,
+            DomainMembership domains) {
         this.registry = registry;
         this.alfresco = alfresco;
         this.deployment = deployment;
         this.platform = platform;
         this.tokenRoles = tokenRoles;
+        this.domains = domains;
     }
 
     public AccessRegistry registry() {
@@ -112,8 +117,8 @@ public class AccessEvaluator {
     }
 
     private Uni<Access> userAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
-        boolean nativeMembership = isNative(root);
-        Set<String> ids = requestTokenRoles(caller.email());
+        SecurityIdentity signer = requestSigner(caller.email());
+        Set<String> ids = signer == null ? null : TokenRoles.fromIdentity(signer);
         Uni<String> synced = ids == null
                 ? Uni.createFrom().nullItem()
                 : Panache.withTransaction(() -> tokenRoles.sync(root, caller.email(), ids));
@@ -121,17 +126,47 @@ public class AccessEvaluator {
             if (user != null && !"ACTIVE".equals(user.status)) {
                 return Uni.createFrom().item(Access.none(org.id, org.slug));
             }
-            Uni<List<IamMembership>> memberships = user == null
-                    ? Uni.createFrom().item(List.of())
-                    : IamMembership.findFor(scope, user.id);
-            return memberships.flatMap(rows -> bindingsOf(user, scope)
-                    .flatMap(bindings -> directory(org, root, caller, nativeMembership)
-                            .flatMap(dir -> platform.isPlatformOwner(caller.email())
-                                    .map(owner -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                                            nativeMembership, withToken(highest(rows), tokenBase), dir.member(),
-                                            dir.bootstrapOwner(), false, covered(bindings, org, root), dir.role(),
-                                            Boolean.TRUE.equals(owner)), registry)))));
+            return memberships(root, scope, user, caller.email(), signer)
+                    .flatMap(rows -> decide(org, root, scope, caller, user, withToken(highest(rows), tokenBase)));
         }));
+    }
+
+    /** The user's active memberships; in a native organization, a signed-in person with none may join by domain. */
+    private Uni<List<IamMembership>> memberships(Organization root, List<Long> scope, IamUser user, String email,
+            SecurityIdentity signer) {
+        Uni<List<IamMembership>> found = user == null
+                ? Uni.createFrom().item(List.of())
+                : IamMembership.findFor(scope, user.id);
+        if (!isNative(root) || signer == null) {
+            return found;
+        }
+        return found.flatMap(rows -> rows.isEmpty()
+                ? joinByDomain(root, scope, email, signer)
+                : Uni.createFrom().item(rows));
+    }
+
+    /** The access of a user whose base role in the organization is known. */
+    private Uni<Access> decide(Organization org, Organization root, List<Long> scope, Caller caller, IamUser user,
+            BaseRole base) {
+        boolean nativeMembership = isNative(root);
+        return bindingsOf(user, scope)
+                .flatMap(bindings -> directory(org, root, caller, nativeMembership)
+                        .flatMap(dir -> platform.isPlatformOwner(caller.email())
+                                .map(owner -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
+                                        nativeMembership, base, dir.member(), dir.bootstrapOwner(), false,
+                                        covered(bindings, org, root), dir.role(), Boolean.TRUE.equals(owner)),
+                                        registry))));
+    }
+
+    /** The memberships after a join through the caller's email domain; empty when the domain gives none. */
+    private Uni<List<IamMembership>> joinByDomain(Organization root, List<Long> scope, String email,
+            SecurityIdentity signer) {
+        return Panache.withTransaction(() -> domains.join(root, email, emailVerified(signer))).flatMap(joined -> {
+            if (!Boolean.TRUE.equals(joined)) {
+                return Uni.createFrom().item(List.<IamMembership>of());
+            }
+            return IamUser.findByEmail(email).flatMap(created -> IamMembership.findFor(scope, created.id));
+        });
     }
 
     /** A member's base role raised to the one their token gives, for this request only. */
@@ -229,12 +264,8 @@ public class AccessEvaluator {
         return best;
     }
 
-    /**
-     * The role ids in this request's token when {@code email} is the person who signed it; null otherwise, and outside
-     * a request.
-     */
-    @SuppressWarnings("java:S1168") // null: the claim is absent; an empty set: it carries no ids.
-    private static Set<String> requestTokenRoles(String email) {
+    /** This request's identity when {@code email} is the person who signed in; null otherwise, and outside a request. */
+    private static SecurityIdentity requestSigner(String email) {
         InjectableContext request = Arc.container() == null ? null : Arc.container().requestContext();
         if (request == null || !request.isActive()) {
             return null;
@@ -244,7 +275,22 @@ public class AccessEvaluator {
             return null;
         }
         String signed = OrganizationAccess.email(identity);
-        return signed != null && IamUser.normalize(signed).equals(email) ? TokenRoles.fromIdentity(identity) : null;
+        return signed != null && IamUser.normalize(signed).equals(email) ? identity : null;
+    }
+
+    /** Whether the sign-in token says the email is verified ({@code email_verified}). */
+    static boolean emailVerified(SecurityIdentity identity) {
+        if (!(identity.getPrincipal() instanceof JsonWebToken jwt)) {
+            return false;
+        }
+        Object claim = jwt.getClaim("email_verified");
+        if (claim instanceof Boolean b) {
+            return b;
+        }
+        if (claim instanceof JsonValue v) {
+            return v.getValueType() == JsonValue.ValueType.TRUE;
+        }
+        return claim != null && "true".equalsIgnoreCase(claim.toString());
     }
 
     private static AccessContext requestContext() {

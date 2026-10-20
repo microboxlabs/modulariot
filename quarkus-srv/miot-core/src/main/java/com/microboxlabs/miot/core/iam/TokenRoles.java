@@ -264,17 +264,20 @@ public class TokenRoles {
      * when no id maps any more. A membership granted otherwise is left as it is.
      */
     @SuppressWarnings("java:S1612") // Reactive Panache: persist overloads.
-    private static Uni<Boolean> membership(Organization root, IamUser user, String baseRole) {
+    private Uni<Boolean> membership(Organization root, IamUser user, String baseRole) {
         return IamMembership.findOne(root.id, user.id).flatMap(m -> {
             if (m == null) {
                 return baseRole == null
                         ? Uni.createFrom().item(false)
                         : IamMembership.of(root.id, user.id, baseRole, IamRoleBinding.TOKEN, ACTOR).persist()
+                                .flatMap(created -> projection.memberChanged(root.id, user.email, true))
                                 .replaceWith(true);
             }
             if (IamRoleBinding.TOKEN.equals(m.source)) {
                 if (baseRole == null) {
-                    return m.delete().replaceWith(true);
+                    return m.delete()
+                            .flatMap(deleted -> projection.memberChanged(root.id, user.email, false))
+                            .replaceWith(true);
                 }
                 if (!baseRole.equals(m.baseRole)) {
                     m.baseRole = baseRole;

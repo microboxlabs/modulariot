@@ -128,23 +128,9 @@ public class GroupRoles {
 
     private Uni<ImportLine> importOne(Organization org, IamGroupRole row, boolean dryRun, Set<String> simulated,
             String actor) {
-        Uni<Set<String>> excludedEmails = row.excludedGroupId == null
-                ? Uni.createFrom().item(Set.of())
-                : members(row.excludedGroupId).map(people -> people.stream().map(GroupRoles::emailOf)
-                        .filter(e -> e != null).collect(Collectors.toSet()));
-        return excludedEmails.flatMap(excluded -> members(row.groupId).flatMap(people -> {
+        return excludedEmails(row).flatMap(excluded -> members(row.groupId).flatMap(people -> {
             int[] counts = new int[4]; // added, existing, without email, excluded
-            Set<String> emails = new LinkedHashSet<>();
-            for (AlfrescoPerson person : people) {
-                String email = emailOf(person);
-                if (email == null) {
-                    counts[2]++;
-                } else if (excluded.contains(email)) {
-                    counts[3]++;
-                } else {
-                    emails.add(email);
-                }
-            }
+            Set<String> emails = eligible(people, excluded, counts);
             Uni<Void> chain = Uni.createFrom().voidItem();
             for (String email : emails) {
                 chain = chain.flatMap(i -> bind(org, email, row.roleKey, dryRun, simulated, actor)
@@ -154,6 +140,30 @@ public class GroupRoles {
             return chain.map(i -> new ImportLine(row.groupId, row.roleKey, people.size(), counts[0], counts[1],
                     counts[2], counts[3]));
         }));
+    }
+
+    private Uni<Set<String>> excludedEmails(IamGroupRole row) {
+        if (row.excludedGroupId == null) {
+            return Uni.createFrom().item(Set.of());
+        }
+        return members(row.excludedGroupId).map(people -> people.stream().map(GroupRoles::emailOf)
+                .filter(e -> e != null).collect(Collectors.toSet()));
+    }
+
+    /** The emails to bind; counts people without an email in {@code counts[2]} and excluded people in {@code [3]}. */
+    private static Set<String> eligible(List<AlfrescoPerson> people, Set<String> excluded, int[] counts) {
+        Set<String> emails = new LinkedHashSet<>();
+        for (AlfrescoPerson person : people) {
+            String email = emailOf(person);
+            if (email == null) {
+                counts[2]++;
+            } else if (excluded.contains(email)) {
+                counts[3]++;
+            } else {
+                emails.add(email);
+            }
+        }
+        return emails;
     }
 
     /**

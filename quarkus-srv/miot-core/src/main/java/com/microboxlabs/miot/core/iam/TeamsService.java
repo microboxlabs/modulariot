@@ -96,11 +96,13 @@ public class TeamsService {
 
     public Uni<Void> delete(String slug, Caller actor, UUID teamId) {
         return Panache.withTransaction(() -> root(slug).flatMap(root -> team(root.id, teamId)
-                .flatMap(team -> IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 "
-                                + "and principalId = ?3", root.id, IamRoleBinding.TEAM, team.id.toString())
+                .flatMap(team -> ProjectionQueue.teamMembers(team.id).flatMap(members -> IamRoleBinding.delete(
+                                "organizationId = ?1 and principalKind = ?2 and principalId = ?3", root.id,
+                                IamRoleBinding.TEAM, team.id.toString())
                         .flatMap(ignored -> team.delete())
+                        .flatMap(ignored -> directory.rolesChanged(root.id, members, null))
                         .flatMap(ignored -> directory.audit(root.id, actor.name(), "team.deleted", team.name,
-                                Map.of())))));
+                                Map.of()))))));
     }
 
     /** Replaces the team's members. Every one must be a member of the organization. */
@@ -111,7 +113,12 @@ public class TeamsService {
         return Panache.withTransaction(() -> root(slug).flatMap(root -> team(root.id, teamId).flatMap(team ->
                 IamMembership.findByOrganization(root.id).flatMap(memberships -> {
                     requireMembers(memberships, wanted);
-                    return replaceMembers(team, wanted)
+                    return ProjectionQueue.teamMembers(team.id).flatMap(before -> replaceMembers(team, wanted)
+                                    .flatMap(ignored -> {
+                                        Set<UUID> affected = new LinkedHashSet<>(before);
+                                        affected.addAll(wanted);
+                                        return directory.rolesChanged(root.id, affected, null);
+                                    }))
                             .flatMap(ignored -> directory.audit(root.id, actor.name(), "team.members", team.name,
                                     Map.of("members", wanted.stream().map(UUID::toString).toList())))
                             .flatMap(ignored -> view(root.id, team));
@@ -157,6 +164,8 @@ public class TeamsService {
                                 }
                                 return chain;
                             })
+                            .flatMap(ignored -> ProjectionQueue.teamMembers(team.id))
+                            .flatMap(members -> directory.rolesChanged(root.id, members, null))
                             .flatMap(ignored -> directory.audit(root.id, actor.name(), "team.roles", team.name,
                                     Map.of("roles", List.copyOf(wanted))))
                             .flatMap(ignored -> view(root.id, team));
@@ -217,6 +226,7 @@ public class TeamsService {
         b.expiresAt = request.expiresAt();
         String subSlug = sub == null ? null : sub.slug;
         return b.<IamRoleBinding>persist()
+                .flatMap(saved -> projectBinding(root.id, kind, principal.toString(), request.role()))
                 .flatMap(saved -> directory.audit(root.id, actor, "binding.created", kind + ":" + principal,
                         Map.of("role", request.role(), "subAccount", subSlug == null ? "" : subSlug)))
                 .map(ignored -> new BindingView(b.id, b.principalKind, b.principalId, b.roleKey, b.scopeKind,
@@ -229,12 +239,26 @@ public class TeamsService {
                     if (b == null || !b.organizationId.equals(root.id)) {
                         throw new NoSuchElementException("Binding not found");
                     }
-                    return b.delete().flatMap(ignored -> directory.audit(root.id, actor.name(), "binding.deleted",
+                    return b.delete()
+                            .flatMap(ignored -> projectBinding(root.id, b.principalKind, b.principalId, b.roleKey))
+                            .flatMap(ignored -> directory.audit(root.id, actor.name(), "binding.deleted",
                             b.principalKind + ":" + b.principalId, Map.of("role", b.roleKey)));
                 })));
     }
 
     // --- helpers ---
+
+    /** Queues the projected groups of the users a binding reaches: the user, or the team's members. */
+    private Uni<Void> projectBinding(Long rootId, String kind, String principal, String role) {
+        if (IamRoleBinding.USER.equals(kind)) {
+            return directory.rolesChanged(rootId, List.of(UUID.fromString(principal)), List.of(role));
+        }
+        if (IamRoleBinding.TEAM.equals(kind)) {
+            return ProjectionQueue.teamMembers(UUID.fromString(principal))
+                    .flatMap(members -> directory.rolesChanged(rootId, members, List.of(role)));
+        }
+        return Uni.createFrom().voidItem();
+    }
 
     private Uni<List<TeamView>> views(Long orgId, List<IamTeam> teams) {
         List<UUID> ids = teams.stream().map(t -> t.id).toList();

@@ -12,6 +12,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,10 +30,17 @@ public class IamDirectory {
     private static final Duration SEEN_EVERY = Duration.ofMinutes(5);
 
     private final AlfrescoBridge bridge;
+    private final ProjectionQueue projection;
 
     @Inject
-    public IamDirectory(AlfrescoBridge bridge) {
+    public IamDirectory(AlfrescoBridge bridge, ProjectionQueue projection) {
         this.bridge = bridge;
+        this.projection = projection;
+    }
+
+    /** After the roles of these users changed; queues their projected groups. Needs an open transaction. */
+    public Uni<Void> rolesChanged(Long rootId, Collection<UUID> userIds, Collection<String> roles) {
+        return projection.usersChanged(rootId, userIds, roles);
     }
 
     /** The organization's owners' emails, sorted. */
@@ -104,18 +112,40 @@ public class IamDirectory {
         Set<String> subjects = requested.stream()
                 .map(subject -> isEmail(subject) ? IamUser.normalize(subject) : subject.trim())
                 .collect(Collectors.toCollection(TreeSet::new));
-        return holders(organizationId, roleKey).flatMap(before -> IamRoleBinding
-                .delete("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3",
-                        organizationId, roleKey, IamRoleBinding.ORGANIZATION)
-                .flatMap(ignored -> {
-                    Uni<Void> chain = Uni.createFrom().voidItem();
-                    for (String subject : subjects) {
-                        chain = chain.flatMap(i -> bind(organizationId, roleKey, subject, actor));
-                    }
-                    return chain;
-                })
+        return holders(organizationId, roleKey).flatMap(before -> usersHolding(organizationId, roleKey)
+                .flatMap(previous -> IamRoleBinding
+                        .delete("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3",
+                                organizationId, roleKey, IamRoleBinding.ORGANIZATION)
+                        .flatMap(ignored -> {
+                            Uni<Void> chain = Uni.createFrom().voidItem();
+                            for (String subject : subjects) {
+                                chain = chain.flatMap(i -> bind(organizationId, roleKey, subject, actor));
+                            }
+                            return chain;
+                        })
+                        // People who lost the role; the new holders were projected by bind.
+                        .flatMap(ignored -> rolesChanged(organizationId, previous, List.of(roleKey))))
                 .flatMap(ignored -> audit(organizationId, actor, "role.replaced", roleKey,
                         Map.of("before", before, "after", subjects.stream().sorted().toList()))));
+    }
+
+    /** The users holding the role on the whole organization, directly or through a team. */
+    @SuppressWarnings("java:S3252") // Reactive Panache generates finders per entity.
+    private static Uni<List<UUID>> usersHolding(Long organizationId, String roleKey) {
+        return IamRoleBinding.<IamRoleBinding>list("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3",
+                organizationId, roleKey, IamRoleBinding.ORGANIZATION).flatMap(bindings -> {
+                    List<UUID> users = new ArrayList<>();
+                    Uni<Void> chain = Uni.createFrom().voidItem();
+                    for (IamRoleBinding b : bindings) {
+                        if (IamRoleBinding.USER.equals(b.principalKind)) {
+                            users.add(UUID.fromString(b.principalId));
+                        } else if (IamRoleBinding.TEAM.equals(b.principalKind)) {
+                            chain = chain.flatMap(i -> ProjectionQueue.teamMembers(UUID.fromString(b.principalId))
+                                    .invoke(users::addAll).replaceWithVoid());
+                        }
+                    }
+                    return chain.replaceWith(users);
+                });
     }
 
     /** The membership of the user with this email, created with {@code baseRole} when there is none. */
@@ -181,7 +211,8 @@ public class IamDirectory {
         }
         return ensureMember(organizationId, subject, BaseRole.MEMBER, actor)
                 .flatMap(m -> IamRoleBinding.of(organizationId, IamRoleBinding.USER, m.userId.toString(), roleKey,
-                        actor).persist().replaceWithVoid());
+                        actor).persist().replaceWith(m.userId))
+                .flatMap(userId -> rolesChanged(organizationId, List.of(userId), List.of(roleKey)));
     }
 
     private Uni<List<String>> emailsOf(List<IamMembership> memberships) {

@@ -65,12 +65,14 @@ public class TokenRoles {
 
     private final AccessRegistry registry;
     private final Duration ttl;
+    private final ProjectionQueue projection;
 
     @Inject
     public TokenRoles(AccessRegistry registry,
-            @ConfigProperty(name = TTL_PROPERTY, defaultValue = "P30D") Duration ttl) {
+            @ConfigProperty(name = TTL_PROPERTY, defaultValue = "P30D") Duration ttl, ProjectionQueue projection) {
         this.registry = registry;
         this.ttl = ttl;
+        this.projection = projection;
     }
 
     /** The role ids in the caller's token, or null when the claim is not configured or not in the token. */
@@ -201,35 +203,51 @@ public class TokenRoles {
         Instant now = Instant.now();
         Instant expires = now.plus(ttl);
         List<Uni<?>> writes = new ArrayList<>();
+        Set<String> revived = new TreeSet<>();
         for (IamRoleBinding b : orgWide) {
             if (plan.remove().contains(b.roleKey)) {
                 writes.add(b.delete());
             } else if (plan.wanted().contains(b.roleKey) && renews(b, now)) {
+                if (!b.expiresAt.isAfter(now)) {
+                    revived.add(b.roleKey);
+                }
                 b.source = IamRoleBinding.TOKEN;
                 b.expiresAt = expires;
                 writes.add(b.persist());
             }
         }
-        for (String key : plan.add()) {
-            if (registry.role(key).isEmpty()) {
-                continue;
-            }
-            IamRoleBinding b = IamRoleBinding.of(root.id, IamRoleBinding.USER, user.id.toString(), key, ACTOR);
-            b.source = IamRoleBinding.TOKEN;
-            b.expiresAt = expires;
-            writes.add(b.persist());
-        }
+        addBindings(root, user, plan.add(), expires, writes);
         Uni<Void> chain = Uni.createFrom().voidItem();
         for (Uni<?> write : writes) {
             chain = chain.flatMap(i -> write.replaceWithVoid());
         }
-        boolean rolesChanged = !plan.add().isEmpty() || !plan.remove().isEmpty();
-        return chain.flatMap(i -> membership(root, user, plan.baseRole()))
+        Set<String> changed = new TreeSet<>(plan.add());
+        changed.addAll(plan.remove());
+        changed.addAll(revived);
+        boolean rolesChanged = !changed.isEmpty();
+        return chain.flatMap(i -> rolesChanged
+                        ? projection.usersChanged(root.id, List.of(user.id), changed)
+                        : Uni.createFrom().voidItem())
+                .flatMap(i -> membership(root, user, plan.baseRole()))
                 .flatMap(membershipChanged -> rolesChanged || Boolean.TRUE.equals(membershipChanged)
                         ? IamAuditEvent.of(root.id, ACTOR, "token-roles.synced", user.email,
                                 Map.of("added", plan.add(), "removed", plan.remove(),
                                         "baseRole", String.valueOf(plan.baseRole()))).persist().replaceWithVoid()
                         : Uni.createFrom().voidItem());
+    }
+
+    /** Adds a TOKEN binding for each known role in {@code keys}. */
+    @SuppressWarnings("java:S1612") // Reactive Panache: persist overloads.
+    private void addBindings(Organization root, IamUser user, Set<String> keys, Instant expires,
+            List<Uni<?>> writes) {
+        for (String key : keys) {
+            if (registry.role(key).isPresent()) {
+                IamRoleBinding b = IamRoleBinding.of(root.id, IamRoleBinding.USER, user.id.toString(), key, ACTOR);
+                b.source = IamRoleBinding.TOKEN;
+                b.expiresAt = expires;
+                writes.add(b.persist());
+            }
+        }
     }
 
     /** Whether a binding of a mapped role is written again: expired, or from a token with less than half left. */

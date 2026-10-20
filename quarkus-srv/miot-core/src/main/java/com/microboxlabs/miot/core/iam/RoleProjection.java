@@ -25,11 +25,14 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
- * Keeps each projected Alfresco group equal to the holders of its mapped role, through the projection outbox that
- * {@link AlfrescoBridge} sends. Roles mapped to the same group are reconciled together. A holder missing from the
- * group is added. A direct member is removed only when the organization knows them (they have a membership, active
- * or not) and they hold none of the group's roles; members through a subgroup are never removed. When a run would remove more
- * than {@value #MAX_REMOVED_SHARE_PERCENT}% of a group (and more than {@value #MIN_REMOVALS_HELD} people), it removes
+ * Keeps each projected Alfresco group equal to the holders of its mapped roles, through the projection outbox that
+ * {@link AlfrescoBridge} sends. Role changes are queued as they happen by {@link ProjectionQueue}; this reconcile runs
+ * every 30 minutes for what that does not see: expired bindings and changes made in Alfresco.
+ *
+ * <p>Roles mapped to the same group are reconciled together. A holder missing from the group is added. A direct member
+ * is removed only when the organization knows them (they have a membership, active or not) and they hold none of the
+ * group's roles; members through a subgroup are never removed. When a run would remove more than
+ * {@value #MAX_REMOVED_SHARE_PERCENT}% of a group (and more than {@value #MIN_REMOVALS_HELD} people), it removes
  * nobody from that group and reports the removals as held.
  */
 @ApplicationScoped
@@ -69,7 +72,7 @@ public class RoleProjection {
     }
 
     /** Reconciles every organization with a projected mapping. */
-    @Scheduled(every = "${miot.iam.alfresco-projection.reconcile-every:10m}", delayed = "1m",
+    @Scheduled(every = "${miot.iam.alfresco-projection.reconcile-every:30m}", delayed = "1m",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
     Uni<Void> reconcileAll() {
@@ -144,23 +147,16 @@ public class RoleProjection {
     private static Uni<Void> queue(Long organizationId, Line line) {
         Uni<Void> chain = Uni.createFrom().voidItem();
         for (String email : line.add()) {
-            chain = chain.flatMap(i -> queueOnce(organizationId, IamProjectionChange.MEMBER_ADDED, line.groupId(),
-                    email));
+            chain = chain.flatMap(i -> ProjectionQueue.queueOnce(organizationId, IamProjectionChange.MEMBER_ADDED,
+                    line.groupId(), email));
         }
         if (!line.removalsHeld()) {
             for (String email : line.remove()) {
-                chain = chain.flatMap(i -> queueOnce(organizationId, IamProjectionChange.MEMBER_REMOVED,
+                chain = chain.flatMap(i -> ProjectionQueue.queueOnce(organizationId, IamProjectionChange.MEMBER_REMOVED,
                         line.groupId(), email));
             }
         }
         return chain;
-    }
-
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
-    private static Uni<Void> queueOnce(Long organizationId, String kind, String groupId, String email) {
-        return IamProjectionChange.findPending(organizationId, kind, groupId, email).flatMap(found -> found != null
-                ? Uni.createFrom().voidItem()
-                : IamProjectionChange.of(organizationId, kind, groupId, email).persist().replaceWithVoid());
     }
 
     /** Emails of the active users holding the role on the organization, directly or through a team. */

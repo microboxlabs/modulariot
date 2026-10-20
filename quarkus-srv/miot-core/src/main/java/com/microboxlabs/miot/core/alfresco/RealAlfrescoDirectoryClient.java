@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
@@ -51,6 +52,38 @@ public class RealAlfrescoDirectoryClient implements IAlfrescoDirectoryClient {
         return collectGroupMembers(groupId, new HashSet<>(), new LinkedHashMap<>())
                 .flatMap(this::hydrateMembers)
                 .map(members -> page(members, safeMaxItems, safeSkipCount));
+    }
+
+    /** Reads the group once, instead of once per page as {@link #listGroupMembers} does. */
+    @Override
+    public Uni<List<AlfrescoPerson>> listAllGroupMembers(String groupId) {
+        return collectGroupMembers(groupId, new HashSet<>(), new LinkedHashMap<>()).flatMap(this::hydrateMembers);
+    }
+
+    @Override
+    public Uni<Set<String>> listDirectMemberIds(String groupId) {
+        return directPage(groupId, 0, new HashSet<>());
+    }
+
+    private Uni<Set<String>> directPage(String groupId, int skipCount, Set<String> ids) {
+        return coreApi.listGroupMembers(groupId, MAX_PAGE_SIZE, skipCount)
+                .onFailure(AlfrescoClientException.class).recoverWithItem(ex -> {
+                    if (ex.isNotFound()) {
+                        return null;
+                    }
+                    throw ex;
+                })
+                .flatMap(response -> {
+                    if (response == null) {
+                        return Uni.createFrom().item(ids);
+                    }
+                    List<AlfrescoGroupMemberEntry> entries = response.unwrap();
+                    entries.stream().filter(e -> "PERSON".equalsIgnoreCase(e.memberType()))
+                            .forEach(e -> ids.add(e.id().toLowerCase(Locale.ROOT)));
+                    return entries.size() < MAX_PAGE_SIZE
+                            ? Uni.createFrom().item(ids)
+                            : directPage(groupId, skipCount + MAX_PAGE_SIZE, ids);
+                });
     }
 
     @Override

@@ -7,6 +7,7 @@ import com.microboxlabs.miot.core.iam.OrgPermission;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.map.ControlTowerMapService;
+import com.microboxlabs.miot.symptoms.map.ControlTowerTreatmentService;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.security.Authenticated;
 import io.quarkus.security.PermissionsAllowed;
@@ -23,15 +24,17 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
- * The map and the dashboard counters, read from the GPS database as the organization. Answers 503 when the GPS data
- * cannot be read.
+ * The map, the dashboard counters and the treatment page, read from the GPS database as the organization. Answers
+ * 404 for a symptom or trip outside the organization, and 503 when the GPS data cannot be read.
  */
 @Path("/api/v1/orgs/{organizationId}/control-tower/map")
 @Produces(MediaType.APPLICATION_JSON)
@@ -43,6 +46,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
 
     private final TenantContext tenantContext;
     private final ControlTowerMapService map;
+    private final ControlTowerTreatmentService treatments;
 
     @Inject
     public OrgControlTowerMapResource(
@@ -50,10 +54,12 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            ControlTowerMapService map) {
+            ControlTowerMapService map,
+            ControlTowerTreatmentService treatments) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
         this.map = map;
+        this.treatments = treatments;
     }
 
     @GET
@@ -105,6 +111,48 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         return answer(() -> map.symptoms(tenantContext.getClientId(), filters));
     }
 
+    @GET
+    @Path("/symptoms/{symptomId}")
+    @Operation(operationId = "getMapSymptom", summary = "One symptom with its trip, related symptoms and timeline",
+            description = "404 when the symptom is not one of the organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> symptom(@PathParam("organizationId") String organizationId,
+            @PathParam("symptomId") String symptomId) {
+        tenantCode(organizationId);
+        return answer(() -> treatments.treatment(clientIds(), symptomId));
+    }
+
+    @GET
+    @Path("/symptoms/{symptomId}/signals")
+    @Operation(operationId = "getMapSymptomSignals", summary = "The signals of one symptom, as a FeatureCollection",
+            description = "Geometries are hex EWKB. 404 when the symptom is not one of the organization's.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> symptomSignals(@PathParam("organizationId") String organizationId,
+            @PathParam("symptomId") String symptomId) {
+        tenantCode(organizationId);
+        return answer(() -> treatments.signals(clientIds(), symptomId));
+    }
+
+    @GET
+    @Path("/trips/{tripId}/positions")
+    @Operation(operationId = "listMapTripPositions", summary = "The asset's positions during a trip, oldest first",
+            description = "At most 20000, sampled evenly over the trip. 404 when the trip does not exist for the "
+                    + "asset or the asset was not the organization's when the trip started.")
+    @PermissionsAllowed(value = ControlTowerAccessCatalog.VIEW, permission = OrgPermission.class,
+            params = "organizationId")
+    public Uni<Response> tripPositions(@PathParam("organizationId") String organizationId,
+            @PathParam("tripId") String tripId, @QueryParam("assetId") String assetId) {
+        tenantCode(organizationId);
+        return answer(() -> treatments.tripPositions(clientIds(), tripId, assetId));
+    }
+
+    /** The client id the symptom list reads as, so the treatment page shows the symptoms the list shows. */
+    private List<String> clientIds() {
+        return tenantContext.getClientId() == null ? List.of() : List.of(tenantContext.getClientId());
+    }
+
     private static Uni<Response> answer(Supplier<Uni<JsonNode>> read) {
         Uni<JsonNode> data;
         try {
@@ -113,6 +161,8 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             return Uni.createFrom().item(error(Response.Status.BAD_REQUEST, e.getMessage()));
         }
         return data.map(body -> Response.ok(body).build())
+                .onFailure(NoSuchElementException.class)
+                .recoverWithItem(e -> error(Response.Status.NOT_FOUND, e.getMessage()))
                 .onFailure(ControlTowerMapService.UnavailableException.class)
                 .recoverWithItem(e -> error(Response.Status.SERVICE_UNAVAILABLE, e.getMessage()));
     }

@@ -144,6 +144,13 @@ public class IamDirectory {
                         : Uni.createFrom().voidItem()));
     }
 
+    /** Notes that a platform owner signed in, once for every organization. Needs an open session. */
+    public Uni<Void> platformOwnerSignedIn(String email) {
+        Instant now = Instant.now();
+        return Panache.withTransaction(() -> IamUser.findOrCreate(email).flatMap(user -> seen(user, now)))
+                .replaceWithVoid();
+    }
+
     private static Uni<IamUser> seen(IamUser user, Instant now) {
         if (user.lastSeenAt != null && !user.lastSeenAt.isBefore(now.minus(SEEN_EVERY))) {
             return Uni.createFrom().item(user);

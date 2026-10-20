@@ -9,6 +9,7 @@ import {
   HiOutlineKey,
   HiOutlineMail,
   HiOutlinePhotograph,
+  HiOutlineShare,
   HiOutlineTemplate,
   HiOutlineTruck,
   HiServer,
@@ -23,6 +24,7 @@ import ModelProvidersSection from "./model-providers-section";
 import ModelUsageCard from "./model-usage-card";
 import PlatformMailSection from "./platform-mail-section";
 import PlatformVehicleImagesSection from "./platform-vehicle-images-section";
+import DataSharingSection from "./data-sharing-section";
 import PlatformOwnersCard from "./platform-owners-card";
 import PlatformSectionList, {
   type PlatformSectionEntry,
@@ -62,6 +64,7 @@ export default function PlatformPageContent({
   const modelsDict = (platformDict?.models as I18nRecord) ?? {};
   const mailDict = (platformDict?.mail as I18nRecord) ?? {};
   const vehicleImagesDict = (platformDict?.vehicleImages as I18nRecord) ?? {};
+  const sharingDict = (platformDict?.sharing as I18nRecord) ?? {};
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
   const planDict = (platformDict?.plan as I18nRecord) ?? {};
   const usageDict = (platformDict?.usage as I18nRecord) ?? {};
@@ -102,6 +105,12 @@ export default function PlatformPageContent({
       icon: HiOutlineTruck,
     },
     {
+      id: "sharing",
+      label: tr("title", sharingDict),
+      description: tr("menuHint", sharingDict),
+      icon: HiOutlineShare,
+    },
+    {
       id: "templates",
       label: tr("title", templatesDict),
       description: tr("menuHint", templatesDict),
@@ -127,6 +136,7 @@ export default function PlatformPageContent({
     models: <ModelProvidersSection dict={modelsDict} />,
     mail: <PlatformMailSection dict={mailDict} />,
     vehicleImages: <PlatformVehicleImagesSection dict={vehicleImagesDict} />,
+    sharing: <DataSharingSection dict={sharingDict} lang={lang} />,
     templates: (
       <MailTemplateEditor scope="platform" dict={templatesDict} lang={lang} />
     ),

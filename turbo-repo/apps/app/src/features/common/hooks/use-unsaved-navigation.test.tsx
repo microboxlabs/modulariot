@@ -38,7 +38,7 @@ describe("unsaved navigation", () => {
       useUnsavedNavigation(true, "Discard draft?");
       return useOrgScopes();
     });
-    await result.current.switchOrg("another-org");
+    expect(await result.current.switchOrg("another-org")).toBe(false);
     expect(fetcher.mock.calls.some(([, init]) => init?.method === "POST")).toBe(
       false
     );

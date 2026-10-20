@@ -1,7 +1,9 @@
 package com.microboxlabs.miot.core.alfresco;
 
 import io.smallrye.mutiny.Uni;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Read-only directory operations against Alfresco: listing group members
@@ -22,6 +24,27 @@ public interface IAlfrescoDirectoryClient {
      * @param skipCount pagination offset
      */
     Uni<List<AlfrescoPerson>> listGroupMembers(String groupId, int maxItems, int skipCount);
+
+    /** Every person in the group, nested groups included, read page by page. */
+    default Uni<List<AlfrescoPerson>> listAllGroupMembers(String groupId) {
+        return allPages(groupId, 0, new ArrayList<>());
+    }
+
+    private Uni<List<AlfrescoPerson>> allPages(String groupId, int skip, List<AlfrescoPerson> acc) {
+        int page = 50;
+        return listGroupMembers(groupId, page, skip).flatMap(people -> {
+            acc.addAll(people);
+            return people.size() < page ? Uni.createFrom().item(acc) : allPages(groupId, skip + page, acc);
+        });
+    }
+
+    /**
+     * The ids of the people who are members of the group themselves, not through a subgroup. Null when this
+     * directory cannot tell.
+     */
+    default Uni<Set<String>> listDirectMemberIds(String groupId) {
+        return Uni.createFrom().nullItem();
+    }
 
     /**
      * Resolve a person's authoritative role in an Alfresco site.

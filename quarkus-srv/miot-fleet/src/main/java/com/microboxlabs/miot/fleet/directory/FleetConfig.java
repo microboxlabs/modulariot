@@ -3,16 +3,13 @@ package com.microboxlabs.miot.fleet.directory;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 import java.time.Duration;
-import java.util.Optional;
 
-/** {@code miot.fleet.*}; the GPS connection falls back to {@code miot.symptoms.gps.*} in application.properties. */
+/** {@code miot.fleet.*}. The GPS database is {@code miot.gps.*}, shared with the other components. */
 @ConfigMapping(prefix = "miot.fleet")
 public interface FleetConfig {
 
     @WithDefault("none")
     String source();
-
-    Gps gps();
 
     @WithDefault("America/Santiago")
     String zone();
@@ -21,15 +18,6 @@ public interface FleetConfig {
     Duration cacheTtl();
 
     Activity activity();
-
-    interface Gps {
-
-        Optional<String> reactiveUrl();
-
-        Optional<String> username();
-
-        Optional<String> password();
-    }
 
     interface Activity {
 

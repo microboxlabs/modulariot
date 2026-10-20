@@ -21,6 +21,7 @@
 import { getRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
 import { requestTreatment } from "@/features/common/providers/client-api.provider";
 import type { TreatmentsRequest } from "@/app/api/treatments/route.type";
+import type { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 
 export function isPrototypeApiDisabled(): boolean {
   return getRuntimeConfig()?.SYMPTOMS_PROTOTYPE_DISABLE_API === "true";
@@ -42,4 +43,76 @@ export async function guardedRequestTreatment(
 ): Promise<TreatmentsRequest> {
   if (isPrototypeApiDisabled()) return payload;
   return requestTreatment(payload);
+}
+
+/**
+ * The preaction every treatment form runs when its menu opens: records a
+ * `pending` treatment of `treatmentType` and keeps the returned
+ * `treatment_id` so the form's final save updates that same record. Shared
+ * by the past modal (`symptom-form.tsx`) and the inline form.
+ */
+export async function startPendingTreatment(
+  treatmentRequest: TreatmentsRequest,
+  setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void,
+  treatmentType: string
+): Promise<void> {
+  const pending = {
+    ...treatmentRequest,
+    treatment_type: treatmentType,
+    status: "pending",
+  };
+  setTreatmentRequest(pending);
+  const response = await guardedRequestTreatment(pending);
+  setTreatmentRequest({
+    ...treatmentRequest,
+    treatment_id: response.treatment_id,
+  });
+}
+
+/**
+ * Saves an "invalidar síntoma" treatment and fires the invalidate-symptom
+ * webhook — a second, separate real write, not routed through
+ * `requestTreatment`, so it needs its own check. Throws if the webhook
+ * fails. Shared by the past modal and the inline form.
+ */
+export async function guardedInvalidateSymptom({
+  treatmentRequest,
+  setTreatmentRequest,
+  treatmentData,
+  reason,
+}: {
+  treatmentRequest: TreatmentsRequest;
+  setTreatmentRequest: (treatmentRequest: TreatmentsRequest) => void;
+  treatmentData: TreatmentsGeneralResponseItem | null;
+  reason: string;
+}): Promise<void> {
+  const treatmentResult = await guardedRequestTreatment({
+    ...treatmentRequest,
+    status: "active",
+    treatment_type: "invalidar sintoma",
+    description: reason,
+  });
+
+  setTreatmentRequest({
+    ...treatmentRequest,
+    status: "active",
+    description: reason,
+    treatment_id: treatmentResult.treatment_id,
+  });
+
+  if (isPrototypeApiDisabled()) return;
+
+  const invalidateResponse = await fetch("/app/api/symptoms/invalidate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      symptom_id: treatmentData?.symptom_info?.id.toString() ?? "",
+      asset_id: treatmentData?.trip_info?.asset_id ?? "",
+      trip_id: treatmentData?.trip_info?.trip_id ?? "",
+      reason,
+      invalidated_by: treatmentRequest.assigned_to,
+      treatment_id: treatmentResult.treatment_id,
+    }),
+  });
+  if (!invalidateResponse.ok) throw new Error("Invalidate webhook failed");
 }

@@ -1711,6 +1711,169 @@
             "ownerEmail": "Ingresa un email válido para el dueño.",
             "slugTaken": "Otra organización ya usa este identificador o client ID."
           }
+        },
+        "sharing": {
+          "title": "Datos compartidos",
+          "menuHint": "Quién ve los datos GPS de quién",
+          "unavailable": "Los datos compartidos no están configurados en este entorno.",
+          "loadError": "No se pudieron cargar los datos compartidos.",
+          "description": "Define qué organizaciones reciben los datos GPS de otra. Solo los administradores de la plataforma crean o revocan un acceso. Quien recibe datos no puede volver a compartirlos.",
+          "create": "Compartir datos",
+          "kpi": {
+            "active": "Accesos vigentes",
+            "organizations": "Organizaciones conectadas",
+            "assets": "Assets compartidos",
+            "endingSoon": "Vencen en 30 días"
+          },
+          "filters": {
+            "org": "Filtrar por organización",
+            "allStatuses": "Todos los estados",
+            "allOrigins": "Todos los orígenes"
+          },
+          "table": {
+            "source": "Entrega",
+            "target": "Recibe",
+            "scope": "Alcance",
+            "origin": "Origen",
+            "validity": "Vigencia",
+            "status": "Estado",
+            "open": "Ver"
+          },
+          "count": "{shown} de {total} accesos",
+          "emptyNone": {
+            "title": "Aún no hay datos compartidos",
+            "body": "Cuando una organización comparta sus assets con otra, el acceso aparecerá aquí.",
+            "action": "Compartir datos"
+          },
+          "emptyFiltered": {
+            "title": "Ningún acceso coincide con los filtros",
+            "body": "Prueba con otra organización, estado u origen.",
+            "action": "Quitar filtros"
+          },
+          "noEnd": "sin término",
+          "status": {
+            "ACTIVE": "Vigente",
+            "SCHEDULED": "Programado",
+            "EXPIRED": "Vencido",
+            "REVOKED": "Revocado"
+          },
+          "origin": {
+            "MANUAL": "Manual",
+            "TRIP": "Viaje",
+            "ACCREDITATION": "Acreditación"
+          },
+          "roles": {
+            "SENDER": "Envía señales",
+            "OPERATOR": "Crea viajes"
+          },
+          "scope": {
+            "ALL": "Todos sus assets",
+            "FILTER": "Por criterio",
+            "ASSETS": "Lista fija",
+            "hint": {
+              "ALL": "Incluye los assets que se sumen después.",
+              "FILTER": "Los que cumplen un criterio, también los que lleguen después.",
+              "ASSETS": "Solo los assets que elijas, aunque sean miles."
+            },
+            "allDetail": "Se comparten los {count} assets de hoy y los que esta organización sume después.",
+            "allCount": "Todos ({count})",
+            "filterCount": "Por criterio ({count})",
+            "someCount": "Lista ({count})"
+          },
+          "filter": {
+            "owners": "Dueño informado en la señal",
+            "kinds": "Tipo de asset",
+            "hint": "Los criterios se combinan: el asset debe cumplir ambos. Un asset nuevo que los cumpla entra solo.",
+            "matches": "Hoy coinciden {count} de {total} assets."
+          },
+          "picker": {
+            "noOrgs": "Ninguna organización coincide.",
+            "refine": "Y {count} más. Escribe para acotar.",
+            "ownAssets": "Envía {count} assets",
+            "noOwnAssets": "No envía assets: nada que compartir",
+            "isSource": "Es quien entrega los datos",
+            "clear": "Quitar filtro",
+            "searchAsset": "Buscar por ID, patente o IMEI",
+            "anyKind": "Cualquier tipo",
+            "noKind": "Sin tipo",
+            "anyOwner": "Cualquier dueño",
+            "noOwner": "Sin dueño informado",
+            "noValues": "Sin coincidencias.",
+            "paste": "Pegar lista",
+            "pasteHint": "Pega IDs desde una planilla o un texto: uno por línea, o separados por coma, punto y coma o tabulación.",
+            "pasteApply": "Agregar a la selección",
+            "pasteResult": "{found} agregados · {missing} no encontrados en esta organización",
+            "status": "{matching} coinciden · {selected} seleccionados de {total}",
+            "onlySelected": "Solo seleccionados",
+            "addMatching": "Seleccionar {count}",
+            "removeMatching": "Quitar {count}",
+            "toggleMatching": "Seleccionar o quitar los que coinciden",
+            "noAssets": "Ningún asset coincide con los filtros.",
+            "columns": {
+              "id": "ID",
+              "kind": "Tipo",
+              "owner": "Dueño informado",
+              "lastSeen": "Última señal"
+            }
+          },
+          "form": {
+            "title": "Nuevo acceso",
+            "subtitle": "La organización que recibe verá la posición, los viajes y los síntomas de estos assets.",
+            "stepOrgs": "Organizaciones",
+            "stepAssets": "Qué assets",
+            "stepValidity": "Vigencia y motivo",
+            "source": "Entrega",
+            "target": "Recibe",
+            "pick": "Buscar organización",
+            "scope": "Alcance",
+            "pickSourceFirst": "Primero elige quién entrega los datos.",
+            "validFrom": "Desde",
+            "validTo": "Hasta",
+            "validToHint": "Vacío: sin fecha de término.",
+            "note": "Motivo",
+            "notePlaceholder": "Ej.: contrato de servicio GPS",
+            "noReshare": "{target} no podrá compartir estos datos con otras organizaciones.",
+            "alreadyShared": "Ya existen {count} accesos vigentes o programados entre estas organizaciones ({assets} assets).",
+            "submit": "Compartir",
+            "cancel": "Cancelar",
+            "created": "Acceso creado. La organización que recibe verá los assets en unos minutos.",
+            "saveError": "No se pudo crear el acceso.",
+            "errors": {
+              "source": "Elige quién entrega los datos.",
+              "target": "Elige quién recibe los datos.",
+              "sameOrg": "Una organización no puede compartir consigo misma.",
+              "sameClient": "Estas organizaciones usan la misma credencial GPS: compartir entre ellas no cambia lo que ven.",
+              "assetsUnavailable": "No se pudieron cargar los assets de esta organización. Vuelve a intentarlo antes de compartir.",
+              "filter": "Elige al menos un dueño o un tipo.",
+              "assets": "Elige al menos un asset.",
+              "dates": "La fecha de término debe ser posterior a la de inicio.",
+              "duplicate": "Ya existe un acceso vigente o programado con todos los assets entre estas organizaciones."
+            }
+          },
+          "summary": {
+            "title": "Resumen",
+            "today": "assets hoy; el número crece con los que lleguen",
+            "fixed": "assets en la lista"
+          },
+          "detail": {
+            "created": "Creado por",
+            "revokedBy": "Revocado por",
+            "criteria": "Criterio",
+            "criteriaValue": "Dueño: {owners} · Tipo: {kinds}",
+            "any": "cualquiera",
+            "assets": "Assets",
+            "more": "y {count} más",
+            "close": "Cerrar",
+            "revoke": "Revocar",
+            "revoked": "Acceso revocado.",
+            "revokeError": "No se pudo revocar el acceso.",
+            "revokeTitle": "Revocar el acceso",
+            "revokeBody": "{target} dejará de ver los datos de {source} en unos minutos.",
+            "originHint": {
+              "TRIP": "Lo creó la integración de viajes y vence cuando el viaje se cierra.",
+              "ACCREDITATION": "Lo creó la integración de acreditación y vence con la acreditación."
+            }
+          }
         }
       },
       "organizations": {
@@ -7139,5 +7302,19 @@
   },
   "moduleNames": {
     "CARRIER_PORTAL": "Portal transportista"
+  },
+  "orgSwitcher": {
+    "searchPlaceholder": "Buscar organización…",
+    "recent": "Recientes",
+    "all": "Todas las organizaciones",
+    "results": "Resultados",
+    "noResults": "Ninguna organización coincide con «{query}»",
+    "parentAccount": "Cuenta principal",
+    "clear": "Limpiar búsqueda",
+    "navigate": "navegar",
+    "select": "cambiar",
+    "close": "cerrar",
+    "changeOrgFailed": "No se pudo cambiar la organización",
+    "panelLabel": "Cambiar de organización"
   }
 }

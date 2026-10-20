@@ -1,0 +1,79 @@
+{
+  "stack_version": "0.5.65",
+  "stack_tag": "miot-stack@v0.5.65",
+  "milestone": "MIOT-0.5.65",
+  "pull_requests": [
+    {
+      "number": 1916,
+      "title": "brought modal back",
+      "source_issues": []
+    },
+    {
+      "number": 1927,
+      "title": "fix(control-tower): load the treatment page through the modulith when PostgREST is absent",
+      "source_issues": [
+        {
+          "number": 1926,
+          "title": "Treatment page redirects to 404 when the app runs without PostgREST and Alfresco"
+        }
+      ]
+    }
+  ],
+  "milestone_changed_files": [
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResource.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/ControlTowerTreatmentService.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/PgTreatmentReads.java",
+    "quarkus-srv/miot-symptoms/src/main/java/com/microboxlabs/miot/symptoms/map/TreatmentReads.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/access/ControlTowerPermissionsTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/api/OrgControlTowerMapResourceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/ControlTowerTreatmentServiceTest.java",
+    "quarkus-srv/miot-symptoms/src/test/java/com/microboxlabs/miot/symptoms/map/PgTreatmentReadsTest.java",
+    "turbo-repo/apps/app/src/app/api/map/trip/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/map/trip/route.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/general/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/general/route.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/location/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/location/route.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/templates/route.test.ts",
+    "turbo-repo/apps/app/src/app/api/treatments/templates/route.ts",
+    "turbo-repo/apps/app/src/app/api/utils/control-tower-map.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/menus/call-driver/call-driver.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/menus/ignore-condition/ignore-condition.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/menus/invalidate-symptom/invalidate-symptom.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/blurrable-stepped-menu/symptom-form.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-api-guard.ts",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-inline-form.tsx",
+    "turbo-repo/apps/app/src/features/symptoms/components/map-view/prototype/prototype-invalidate-symptom.tsx"
+  ],
+  "components": {
+    "app": {
+      "changed": true,
+      "version": "0.5.65",
+      "tag": "app@v0.5.65"
+    },
+    "docs": {
+      "changed": false,
+      "changed_since": "docs@v0.5.64",
+      "version": "0.5.64",
+      "tag": "docs@v0.5.64"
+    },
+    "web": {
+      "changed": false,
+      "changed_since": "web@v0.5.64",
+      "version": "0.5.64",
+      "tag": "web@v0.5.64"
+    },
+    "modulith": {
+      "changed": true,
+      "changed_since": "modulith@v0.5.37",
+      "version": "0.5.38",
+      "tag": "modulith@v0.5.38"
+    },
+    "harness": {
+      "changed": false,
+      "changed_since": "harness@v0.1.13",
+      "version": "0.1.13",
+      "tag": "harness@v0.1.13"
+    }
+  }
+}

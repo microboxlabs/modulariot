@@ -1,4 +1,5 @@
 import { forwardToQuarkus } from "@/app/api/utils/quarkus-proxy";
+import { evictAllScopeCaches } from "@/app/api/utils/tenant-scope";
 import { platformOrgPath } from "../platform-org-path";
 
 /**
@@ -12,8 +13,13 @@ interface RouteParams {
 
 export async function POST(_request: Request, { params }: RouteParams) {
   const { slug } = await params;
-  return forwardToQuarkus(platformOrgPath(slug, "alfresco-import"), {
-    method: "POST",
-    timeoutMs: 120_000,
-  });
+  const response = await forwardToQuarkus(
+    platformOrgPath(slug, "alfresco-import"),
+    { method: "POST", timeoutMs: 120_000 },
+  );
+  // Imported people gain the organization: cached scopes would hide it.
+  if (response.ok) {
+    evictAllScopeCaches();
+  }
+  return response;
 }

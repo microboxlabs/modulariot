@@ -8,7 +8,7 @@ import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 export default async function CollaboratorsManagementRoute({
   params,
 }: ParamsWithLang) {
-  await guardPage(ACCESS_RULES.collaboratorsPage, "/collaborators-management");
+  await guardPage(ACCESS_RULES.collaborators, "/collaborators-management");
   const { lang } = await params;
   const [, dict] = await getDictionary(lang);
 

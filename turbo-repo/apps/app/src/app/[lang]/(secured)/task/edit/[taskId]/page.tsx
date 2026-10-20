@@ -3,7 +3,6 @@ import { TaskEditPageParams } from "./page.types";
 import { auth } from "@/auth";
 import {
   getFinishedWorkflowByInstanceId,
-  getGroupsForPerson,
   getTaskById,
 } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getDictionary } from "@/features/i18n/i18n.service";
@@ -17,7 +16,7 @@ import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 export default async function TaskEditPage(
   params: ParamsWithLang<TaskEditPageParams>
 ) {
-  await guardPage(ACCESS_RULES.kanbanPage, "/task/edit");
+  await guardPage(ACCESS_RULES.kanban, "/task/edit");
   const paramsResult = await params.params;
   const { lang, taskId } = paramsResult;
 
@@ -27,10 +26,9 @@ export default async function TaskEditPage(
       redirect(`/${lang}/sign-in`);
     }
 
-    const [dictionaryTuple, taskResult, userGroups] = await Promise.all([
+    const [dictionaryTuple, taskResult] = await Promise.all([
       getDictionary(lang),
       getTaskById(session, paramsResult.taskId),
-      getGroupsForPerson(session),
     ]);
     const [, _dictionary] = dictionaryTuple;
 
@@ -50,7 +48,6 @@ export default async function TaskEditPage(
               msg={_dictionary}
               session={session}
               user={session.user?.name ?? ""}
-              userGroups={userGroups}
               active={false}
             />
           </div>
@@ -67,7 +64,6 @@ export default async function TaskEditPage(
           msg={_dictionary}
           session={session}
           user={session.user?.name ?? ""}
-          userGroups={userGroups}
         />
       </div>
     );

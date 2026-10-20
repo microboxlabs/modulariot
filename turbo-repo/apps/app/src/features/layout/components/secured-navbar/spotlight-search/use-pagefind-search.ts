@@ -94,7 +94,7 @@ export function usePagefindSearch(
 
   // Refs keep these values current without them being effect dependencies.
   // navigateItems/canAccess/onNavigate can have unstable references (e.g.
-  // canAccess rebuilds when userGroups returns a new [] before SWR resolves),
+  // canAccess rebuilds when the permissions load),
   // so putting them in deps would cause the effect to rerun on every render,
   // firing setResults and resetting selection via the auto-select in the parent.
   const navigateItemsRef = useRef(navigateItems);
@@ -145,11 +145,9 @@ export function usePagefindSearch(
           const { meta } = data;
 
           const rule = {
-            requiredGroups: splitMeta(meta.requiredGroups),
-            blockedGroups: splitMeta(meta.blockedGroups),
             requiredPermissions: splitMeta(meta.requiredPermissions),
           };
-          if (!canAccessRef.current(rule, data.url)) continue;
+          if (!canAccessRef.current(rule)) continue;
 
           // Re-insert group header when a new parent is encountered
           if (meta.parent && meta.parentId && !seenParents.has(meta.parentId)) {

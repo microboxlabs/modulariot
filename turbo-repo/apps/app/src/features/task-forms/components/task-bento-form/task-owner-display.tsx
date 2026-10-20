@@ -36,7 +36,6 @@ export function TaskOwnerDisplay({
         {dict.taken_by}:{" "}
         <AccessAllowed
           rule={ACCESS_RULES.taskUnclaim}
-          context="task-unclaim"
           fallback={
             <span className="font-normal text-gray-800 dark:text-gray-200">
               {currentOwner}

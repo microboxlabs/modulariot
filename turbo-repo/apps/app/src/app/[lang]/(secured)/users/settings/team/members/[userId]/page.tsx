@@ -16,7 +16,7 @@ export default async function TeamMemberPage({ params }: MemberPageProps) {
     ?.userSettings as I18nRecord;
 
   return (
-    <RouteGuard path="/users/settings/team" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/users/settings/team">
       <MemberAccessPage dict={userSettings} lang={lang} userId={userId} />
     </RouteGuard>
   );

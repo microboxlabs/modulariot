@@ -1,6 +1,5 @@
 import { Suspense } from "react";
-import { guardPlatformPage } from "@/features/auth/access/server-access";
-import { ACCESS_RULES } from "@/features/auth/access/access-rules";
+import { guardPlatformOwnerPage } from "@/features/auth/access/server-access";
 import { AdminLogConsole } from "@/features/common/components/admin-log-console/admin-log-console";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { HiClipboardList } from "react-icons/hi";
@@ -24,7 +23,7 @@ function LoadingConsole() {
 
 export default async function LogManagementPage({ params }: ParamsWithLang) {
   const { lang } = await params;
-  await guardPlatformPage(ACCESS_RULES.adminConsole, "/admin/console/logs");
+  await guardPlatformOwnerPage("/admin/console/logs");
   const [, dictionary] = await getDictionary(lang);
   const dict = (dictionary.pages as I18nRecord)?.admin as I18nRecord;
   return (

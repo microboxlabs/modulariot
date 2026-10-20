@@ -1,33 +1,14 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { logger } from "@/lib/logger";
 import { modulithHost } from "@/lib/modulith-host";
 import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
 import { quarkusAuthHeaders } from "@/app/api/utils/quarkus-proxy";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { PLATFORM_OWNER_ROLE } from "@/features/settings-admin/platform/platform.types";
-import {
-  decideAccess,
-  describeRule,
-  needsGroups,
-  needsPermissions,
-  parseAccessSource,
-  type AccessDecision,
-  type AccessRule,
-  type AccessSource,
-} from "./access-control";
-
-export function accessSource(): AccessSource {
-  return parseAccessSource(process.env.ACCESS_CONTROL_SOURCE);
-}
-
-interface OrgPermissions {
-  readonly org: string | null;
-  readonly permissions: string[] | null;
-}
+import { decideAccess, describeRule, type AccessRule } from "./access-control";
 
 const CACHE_TTL_MS = 30_000;
 const permissionCache = new Map<
@@ -48,15 +29,15 @@ async function fetchPermissions(org: string): Promise<string[]> {
 }
 
 /** The caller's permissions in the active organization; `null` when they cannot be loaded. */
-async function loadPermissions(session: Session): Promise<OrgPermissions> {
+async function loadPermissions(session: Session): Promise<string[] | null> {
   const scope = await resolveTenantScope();
-  if (!scope.resolved) return { org: null, permissions: null };
+  if (!scope.resolved) return null;
   const org = scope.scope.activeOrg.slug;
   const email = session.user?.email?.trim().toLowerCase();
   const cacheKey = email ? `${email}:${org}` : null;
   const cached = cacheKey ? permissionCache.get(cacheKey) : undefined;
   if (cached && cached.expiresAt > Date.now()) {
-    return { org, permissions: cached.permissions };
+    return cached.permissions;
   }
   try {
     const permissions = await fetchPermissions(org);
@@ -66,71 +47,26 @@ async function loadPermissions(session: Session): Promise<OrgPermissions> {
         expiresAt: Date.now() + CACHE_TTL_MS,
       });
     }
-    return { org, permissions };
+    return permissions;
   } catch (err) {
     logger.error({ err, org }, "Failed to load the caller's permissions");
-    return { org, permissions: null };
+    return null;
   }
 }
 
-async function loadGroups(session: Session): Promise<string[]> {
-  try {
-    return await getGroupsForPerson(session);
-  } catch (err) {
-    logger.error({ err }, "Failed to load the caller's groups");
-    return [];
-  }
+/** The signed-in caller's permissions in the active organization; null without a session or when unreadable. */
+export async function currentPermissions(): Promise<string[] | null> {
+  const session = await auth();
+  return session?.user ? loadPermissions(session) : null;
 }
 
-/** Logs a shadow-mode disagreement between the groups and the permissions. */
-export function logAccessMismatch(
-  fields: {
-    userEmail: string | null | undefined;
-    org: string | null;
-    key: string;
-    context?: string;
-  },
-  decision: Pick<AccessDecision, "byGroups" | "byPermissions">
-): void {
-  logger.warn(
-    {
-      ...fields,
-      byGroups: decision.byGroups,
-      byPermissions: decision.byPermissions,
-    },
-    "Access mismatch between groups and permissions"
-  );
-}
-
-/** Decides one gate for a session with the configured access source. */
+/** Decides one gate for a session with its permissions in the active organization. */
 export async function hasAccess(
   session: Session,
-  rule: AccessRule,
-  context?: string
+  rule: AccessRule
 ): Promise<boolean> {
-  const source = accessSource();
-  const [groups, orgPermissions] = await Promise.all([
-    needsGroups(source, rule) ? loadGroups(session) : Promise.resolve([]),
-    needsPermissions(source, rule)
-      ? loadPermissions(session)
-      : Promise.resolve<OrgPermissions>({ org: null, permissions: null }),
-  ]);
-  const decision = decideAccess(source, rule, {
-    groups,
-    permissions: orgPermissions.permissions,
-  });
-  if (decision.mismatch) {
-    logAccessMismatch(
-      {
-        userEmail: session.user?.email,
-        org: orgPermissions.org,
-        key: describeRule(rule),
-        context,
-      },
-      decision
-    );
-  }
-  return decision.allowed;
+  if ((rule.requiredPermissions?.length ?? 0) === 0) return true;
+  return decideAccess(rule, await loadPermissions(session));
 }
 
 /** Whether the caller holds `PLATFORM_OWNER`; false when the modulith cannot be read. */
@@ -154,20 +90,6 @@ export async function isPlatformOwner(): Promise<boolean> {
   }
 }
 
-/**
- * Gate for operations that affect the whole deployment, not one organization.
- * In `permissions` mode only a platform owner passes; in `groups` and
- * `shadow` modes `rule` decides.
- */
-async function hasPlatformAccess(
-  session: Session,
-  rule: AccessRule,
-  context?: string
-): Promise<boolean> {
-  if (accessSource() === "permissions") return isPlatformOwner();
-  return hasAccess(session, rule, context);
-}
-
 type PermissionResult =
   | { authorized: true; session: Session }
   | { authorized: false; response: NextResponse };
@@ -177,20 +99,26 @@ export async function requirePermission(
   rule: AccessRule,
   context?: string
 ): Promise<PermissionResult> {
-  return authorize(hasAccess, rule, context);
+  return authorize(
+    (session) => hasAccess(session, rule),
+    describeRule(rule),
+    context
+  );
 }
 
-/** API route gate for deployment-wide operations; see `hasPlatformAccess`. */
-export async function requirePlatformAccess(
-  rule: AccessRule,
+/**
+ * API route gate for operations that affect the whole deployment, not one
+ * organization: only a platform owner passes.
+ */
+export async function requirePlatformOwner(
   context?: string
 ): Promise<PermissionResult> {
-  return authorize(hasPlatformAccess, rule, context);
+  return authorize(() => isPlatformOwner(), PLATFORM_OWNER_ROLE, context);
 }
 
 async function authorize(
-  decide: (session: Session, rule: AccessRule, context?: string) => Promise<boolean>,
-  rule: AccessRule,
+  decide: (session: Session) => Promise<boolean>,
+  key: string,
   context?: string
 ): Promise<PermissionResult> {
   const session = await auth();
@@ -200,11 +128,11 @@ async function authorize(
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     };
   }
-  if (await decide(session, rule, context)) {
+  if (await decide(session)) {
     return { authorized: true, session };
   }
   logger.warn(
-    { userEmail: session.user.email, key: describeRule(rule), context },
+    { userEmail: session.user.email, key, context },
     "Forbidden: caller lacks the required access"
   );
   return {
@@ -213,28 +141,34 @@ async function authorize(
   };
 }
 
-/**
- * Server page gate. Renders the not-found page when the gate is closed. In
- * `groups` and `shadow` modes it leaves the page to the client RouteGuard,
- * unless `always` is set for pages that were already checked on the server.
- */
+/** Server page gate. Sends the caller to the no-access page when the gate is closed. */
 export async function guardPage(
   rule: AccessRule,
-  context: string,
-  options: { always?: boolean } = {}
+  context: string
 ): Promise<void> {
-  if (accessSource() !== "permissions" && !options.always) return;
-  const session = await auth();
-  if (!session?.user) redirect("/sign-in");
-  if (!(await hasAccess(session, rule, context))) notFound();
+  await guard(
+    (session) => hasAccess(session, rule),
+    describeRule(rule),
+    context
+  );
 }
 
-/** Server page gate for deployment-wide pages; see `hasPlatformAccess`. */
-export async function guardPlatformPage(
-  rule: AccessRule,
+/** Server page gate for deployment-wide pages: only a platform owner passes. */
+export async function guardPlatformOwnerPage(context: string): Promise<void> {
+  await guard(() => isPlatformOwner(), PLATFORM_OWNER_ROLE, context);
+}
+
+async function guard(
+  decide: (session: Session) => Promise<boolean>,
+  key: string,
   context: string
 ): Promise<void> {
   const session = await auth();
   if (!session?.user) redirect("/sign-in");
-  if (!(await hasPlatformAccess(session, rule, context))) notFound();
+  if (await decide(session)) return;
+  logger.warn(
+    { userEmail: session.user.email, key, context },
+    "Forbidden: caller lacks the required access"
+  );
+  redirect(`/no-access?from=${encodeURIComponent(context)}`);
 }

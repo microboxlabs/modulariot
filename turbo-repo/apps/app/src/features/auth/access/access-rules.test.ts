@@ -9,7 +9,6 @@ const KNOWN_PERMISSIONS = new Set<string>(Object.values(PERMISSIONS));
 interface ConfigEntry {
   label: string;
   href?: string;
-  requiredGroups?: string[];
   requiredPermissions?: string[];
   items?: ConfigEntry[];
 }
@@ -21,70 +20,23 @@ function flatten(entries: ConfigEntry[]): ConfigEntry[] {
 describe("ACCESS_RULES", () => {
   it("only uses permissions from the catalog", () => {
     for (const rule of Object.values(ACCESS_RULES) as AccessRule[]) {
+      expect(rule.requiredPermissions?.length ?? 0).toBeGreaterThan(0);
       for (const permission of rule.requiredPermissions ?? []) {
         expect(KNOWN_PERMISSIONS).toContain(permission);
       }
     }
   });
 
-  it("maps each legacy group gate to its permission", () => {
-    const expected: Array<[AccessRule, string[], string[]]> = [
-      [
-        ACCESS_RULES.adminConsole,
-        ["GROUP_ALFRESCO_ADMINISTRATORS", "GROUP_MINTRAL_SYSTEM_ADMIN"],
-        ["admin:console"],
-      ],
-      [
-        ACCESS_RULES.taskUnclaim,
-        ["GROUP_ALFRESCO_ADMINISTRATORS", "GROUP_MINTRAL_SYSTEM_ADMIN"],
-        ["admin:task.unclaim"],
-      ],
-      [
-        ACCESS_RULES.liveStreamsMenu,
-        ["GROUP_ALFRESCO_ADMINISTRATORS"],
-        ["admin:livestreams.view"],
-      ],
-      [ACCESS_RULES.dashboards, ["GROUP_DASHBOARD"], ["dashboards:view"]],
-      [ACCESS_RULES.calendarView, ["GROUP_CALENDAR_VIEWER"], ["calendar:view"]],
-      [ACCESS_RULES.calendarPlan, ["GROUP_PLANNING"], ["calendar:plan"]],
-      [ACCESS_RULES.calendarAssign, ["GROUP_ASSIGNMENT"], ["calendar:assign"]],
-      [
-        ACCESS_RULES.bookingWrite,
-        ["GROUP_PLANNING", "GROUP_ASSIGNMENT"],
-        ["calendar:plan", "calendar:assign"],
-      ],
-      [
-        ACCESS_RULES.kanban,
-        ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
-        ["coordination:kanban.view"],
-      ],
-      [
-        ACCESS_RULES.loadsSearch,
-        ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
-        ["coordination:loads.search"],
-      ],
-      [
-        ACCESS_RULES.conversations,
-        ["GROUP_CONVERSATIONS"],
-        ["conversations:view"],
-      ],
-      [
-        ACCESS_RULES.collaboratorsMenu,
-        ["GROUP_COLLABORATORS_MANAGEMENT", "GROUP_COLABORATORS_MANAGEMENT"],
-        ["collaborators:manage"],
-      ],
-    ];
-    for (const [rule, groups, permissions] of expected) {
-      expect(rule.requiredGroups).toEqual(groups);
-      expect(rule.requiredPermissions).toEqual(permissions);
-    }
-  });
-
-  it("turns the reviewer deny-list on task outcomes into task.complete", () => {
-    expect(ACCESS_RULES.taskComplete).toEqual({
-      blockedGroups: ["GROUP_MINTRAL_REVISOR"],
-      requiredPermissions: ["coordination:task.complete"],
-    });
+  it("opens the calendar with any calendar permission", () => {
+    expect(ACCESS_RULES.calendar.requiredPermissions).toEqual([
+      "calendar:view",
+      "calendar:plan",
+      "calendar:assign",
+    ]);
+    expect(ACCESS_RULES.bookingWrite.requiredPermissions).toEqual([
+      "calendar:plan",
+      "calendar:assign",
+    ]);
   });
 });
 
@@ -116,23 +68,16 @@ describe("route rules", () => {
       expect(getRouteRule(path)).toEqual({});
     }
   );
-
-  it("keeps routes that were open in groups mode free of groups", () => {
-    for (const path of ["/finished", "/planning", "/calendar", "/symptoms"]) {
-      expect(getRouteRule(path).requiredGroups ?? []).toEqual([]);
-    }
-  });
 });
 
 describe("pages-config", () => {
   const entries = flatten(pagesConfig as ConfigEntry[]);
 
-  it("gives every group-gated entry a permission", () => {
-    const missing = entries
-      .filter((e) => (e.requiredGroups?.length ?? 0) > 0)
-      .filter((e) => (e.requiredPermissions?.length ?? 0) === 0)
+  it("has no group gates", () => {
+    const withGroups = entries
+      .filter((e) => "requiredGroups" in e || "blockedGroups" in e)
       .map((e) => e.label);
-    expect(missing).toEqual([]);
+    expect(withGroups).toEqual([]);
   });
 
   it("only uses permissions from the catalog", () => {
@@ -152,10 +97,10 @@ describe("pages-config", () => {
       ACCESS_RULES.kanban.requiredPermissions
     );
     expect(byLabel.get("calendar")?.requiredPermissions).toEqual(
-      ACCESS_RULES.calendarMenu.requiredPermissions
+      ACCESS_RULES.calendar.requiredPermissions
     );
     expect(byLabel.get("liveStreams")?.requiredPermissions).toEqual(
-      ACCESS_RULES.liveStreamsMenu.requiredPermissions
+      ACCESS_RULES.liveStreams.requiredPermissions
     );
     expect(byLabel.get("whereIsMyLoad")?.requiredPermissions).toEqual(
       ACCESS_RULES.loadsSearch.requiredPermissions

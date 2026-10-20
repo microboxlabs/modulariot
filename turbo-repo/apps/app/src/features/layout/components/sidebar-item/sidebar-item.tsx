@@ -20,21 +20,12 @@ export default function SidebarItem({
   pathname,
   dict,
   totals,
-  requiredGroups,
-  blockedGroups,
   requiredPermissions,
 }: PropsWithI18nDict<SidebarItemProps>) {
   const { canAccess } = usePermissions();
   const searchParams = useSearchParams();
 
-  if (
-    !canAccess(
-      { requiredGroups, blockedGroups, requiredPermissions },
-      href ?? label
-    )
-  ) {
-    return null;
-  }
+  if (!canAccess({ requiredPermissions })) return null;
 
   if (items) {
     const isOpen = true;
@@ -47,7 +38,7 @@ export default function SidebarItem({
         theme={{ list: "space-y-2 py-2 [&>li>div]:w-full" }}
       >
         {items.map((item) => {
-          if (!canAccess(item, item.href ?? item.label)) {
+          if (!canAccess(item)) {
             return null;
           }
 

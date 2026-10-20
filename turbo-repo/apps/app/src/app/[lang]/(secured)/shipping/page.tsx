@@ -1,6 +1,4 @@
 import "server-only";
-import { auth } from "@/auth";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 // import { getUserTasks } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
@@ -18,9 +16,7 @@ export default async function ShippingPage(params: ParamsWithLang) {
   try {
     const { lang } = await params.params;
     const [, dictionary] = await getDictionary(lang);
-    const session = await auth();
 
-    const userGroups = await getGroupsForPerson(session!);
     // let tasks;
 
     // tasks = await getUserTasks(session);
@@ -35,10 +31,7 @@ export default async function ShippingPage(params: ParamsWithLang) {
     // });
 
     return (
-      <RouteGuard
-        path="/shipping"
-        fallbackPath={`/${lang}/geographic-view`}
-      >
+      <RouteGuard path="/shipping">
         <PageContent
           showFinishedTasks={false}
           showWorkflowTasks="shipping"
@@ -48,7 +41,6 @@ export default async function ShippingPage(params: ParamsWithLang) {
             base: (dictionary.pages as I18nRecord)?.shipping as I18nRecord,
             general: dictionary,
           }}
-          userGroups={userGroups}
         />
       </RouteGuard>
     );

@@ -3,8 +3,6 @@ import Timeline from "@/features/where-is-my-load/timeline";
 import TimelineHeader from "@/features/where-is-my-load/components/header";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { buildNavBarMessages } from "@/features/layout/utils/utils";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { auth } from "@/auth";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 import { guardPage } from "@/features/auth/access/server-access";
 import { ACCESS_RULES } from "@/features/auth/access/access-rules";
@@ -20,14 +18,9 @@ export default async function WheresMyLoadPage({
   const resolvedSearchParams = await searchParams;
   const [dict, dictionary] = await getDictionary(lang);
   const navBarMessages = buildNavBarMessages({ messages: dict });
-  const session = await auth();
-  const userGroups = await getGroupsForPerson(session!);
 
   return (
-    <RouteGuard
-      path="/where-is-my-load"
-      fallbackPath={`/${lang}/shipping`}
-    >
+    <RouteGuard path="/where-is-my-load">
       <div className="h-full flex flex-col">
         <TimelineHeader
           dict={dictionary as I18nRecord}
@@ -37,7 +30,6 @@ export default async function WheresMyLoadPage({
           <Timeline
             dict={dictionary as I18nRecord}
             messages={navBarMessages}
-            userGroups={userGroups}
             lang={lang}
           />
         </div>

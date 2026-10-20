@@ -3,8 +3,6 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 import { FaBook } from "react-icons/fa";
 import MyTasks from "@/features/common/components/my-tasks/my-tasks";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { auth } from "@/auth";
 import { SearchParams } from "next/dist/server/request/search-params";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 import { guardPage } from "@/features/auth/access/server-access";
@@ -19,14 +17,9 @@ export default async function MyTasksPage(params: {
   const { lang } = paramsResult;
   const [, dict] = await getDictionary(lang);
   let status = getStatus((await params.searchParams)?.status);
-  const session = await auth();
-  const userGroups = await getGroupsForPerson(session!);
 
   return (
-    <RouteGuard
-      path="/mytasks"
-      fallbackPath={`/${lang}/geographic-view`}
-    >
+    <RouteGuard path="/mytasks">
       <div className="h-full flex flex-col overflow-hidden">
         <SectionHeader
           path={[
@@ -45,12 +38,7 @@ export default async function MyTasksPage(params: {
           filterDict={dict as I18nRecord}
         />
         <div className="max-w-screen-2xl mx-auto w-full flex-1 overflow-hidden">
-          <MyTasks
-            dict={dict}
-            status={status}
-            userGroups={userGroups}
-            lang={lang}
-          />
+          <MyTasks dict={dict} status={status} lang={lang} />
         </div>
       </div>
     </RouteGuard>

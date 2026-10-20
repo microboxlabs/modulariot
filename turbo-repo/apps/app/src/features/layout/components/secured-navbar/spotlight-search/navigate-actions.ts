@@ -35,10 +35,10 @@ export function buildNavigateItems(
   const items: SpotlightItem[] = [];
 
   for (const page of pages) {
-    if (!canAccess(page, page.href ?? page.label)) continue;
+    if (!canAccess(page)) continue;
 
     const accessibleChildren = (page.items ?? []).filter(
-      (child) => child.href && canAccess(child, child.href),
+      (child) => child.href && canAccess(child),
     );
 
     if (accessibleChildren.length > 0) {

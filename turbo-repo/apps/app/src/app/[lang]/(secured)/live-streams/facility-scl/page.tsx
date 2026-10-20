@@ -4,7 +4,7 @@ import { guardPage } from "@/features/auth/access/server-access";
 import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function FacilitySCLPage({ params }: ParamsWithLang) {
-  await guardPage(ACCESS_RULES.liveStreamsPage, "/live-streams");
+  await guardPage(ACCESS_RULES.liveStreams, "/live-streams");
   const { lang } = await params;
   const [tr] = await getDictionary(lang);
 

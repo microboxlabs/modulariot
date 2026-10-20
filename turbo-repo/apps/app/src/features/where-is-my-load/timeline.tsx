@@ -59,13 +59,11 @@ export type State = {
 
 export default function Timeline({
   lang,
-  userGroups,
   dict,
   messages,
   debug = false,
 }: {
   lang: string;
-  userGroups: string[];
   dict: I18nRecord;
   messages: I18nRecord;
   debug?: boolean;
@@ -273,7 +271,6 @@ export default function Timeline({
     <div ref={timelineRef} className="w-fit h-fit flex flex-col xl:flex-row">
       <ModalTooltip
         lang={lang}
-        userGroups={userGroups}
         selectedTask={selectedTask}
         setSelectedTask={setSelectedTask}
         dict={dict}

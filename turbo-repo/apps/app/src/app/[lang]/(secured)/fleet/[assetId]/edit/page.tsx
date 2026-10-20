@@ -15,7 +15,7 @@ export default async function FleetAssetEditRoute({
   const dict = (dictionary.pages as I18nRecord)?.fleet as I18nRecord;
 
   return (
-    <RouteGuard path="/fleet" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/fleet">
       <AssetEditPage
         assetId={decodeURIComponent(assetId)}
         dict={dict ?? {}}

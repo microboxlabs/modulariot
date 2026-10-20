@@ -1,45 +1,35 @@
 # Access control
 
-Pages, menus, buttons and API routes are gated by access rules. A rule lists the Alfresco groups that open it and the IAM permission that replaces them.
+Pages, menus, buttons and API routes are gated by access rules. A rule lists IAM permissions. Any one of them opens it. A rule without permissions is open.
 
-## Access source
-
-`ACCESS_CONTROL_SOURCE` sets what decides each rule. The client reads it from the runtime config.
-
-| Value | Decides with | Notes |
-| --- | --- | --- |
-| `groups` (default) | Alfresco groups | |
-| `shadow` | Alfresco groups | Also computes the permission decision and logs every mismatch as `Access mismatch between groups and permissions`. |
-| `permissions` | Permissions in the active organization (`GET /api/v1/orgs/{org}/me/access`) | Gates stay closed while permissions load. Server page guards are active. |
-
-A rule without `requiredPermissions` is decided by groups in every mode.
+Permissions come from the caller's roles in the active organization (`GET /api/v1/orgs/{org}/me/access`). Gated rules stay closed while permissions load and when they cannot be loaded.
 
 ## Files
 
 | File | Contents |
 | --- | --- |
-| `access/access-control.ts` | `AccessRule`, `decideAccess`, `parseAccessSource` |
-| `access/access-rules.ts` | `ACCESS_RULES`: every gate with its groups and permission |
-| `access/server-access.ts` | `requirePermission` (API routes), `guardPage` (server pages), `hasAccess`, `requirePlatformAccess` and `guardPlatformPage` (deployment-wide surfaces) |
+| `access/access-control.ts` | `AccessRule`, `decideAccess` |
+| `access/access-rules.ts` | `PERMISSIONS` and `ACCESS_RULES` |
+| `access/server-access.ts` | `requirePermission` (API routes), `guardPage` (server pages), `hasAccess`, `requirePlatformOwner` and `guardPlatformOwnerPage` (deployment-wide surfaces) |
 | `config/route-permissions.ts` | Page path prefix → rule, used by `RouteGuard` |
-| `hooks/use-permissions.ts` | `usePermissions().canAccess(rule)` and `isRuleLoading(rule)` for client components |
+| `hooks/use-permissions.ts` | `usePermissions().canAccess(rule)` for client components |
 | `components/route-guard.tsx` | Client page guard |
 | `components/access-allowed.tsx` | Renders children when a rule is open |
 
-Menu entries in `features/layout/models/pages-config.json` carry `requiredGroups`, `blockedGroups` and `requiredPermissions`. The sidebar, Spotlight and the Pagefind index use the same decision.
+Menu entries in `features/layout/models/pages-config.json` carry `requiredPermissions`. The sidebar, Spotlight and the Pagefind index use the same decision.
 
 ## Usage
 
 **API route**
 
 ```ts
-const access = await requirePermission(ACCESS_RULES.adminConsole, "/api/admin/logs");
+const access = await requirePermission(ACCESS_RULES.taskUnclaim, "/api/task/unclaim");
 if (!access.authorized) return access.response;
 ```
 
 Returns 401 without a session and 403 when the rule is closed.
 
-The log console (`/api/admin/logs`, `/admin/console/logs`) changes the process-wide logger, so it uses `requirePlatformAccess` and `guardPlatformPage`: in `permissions` mode only a platform owner passes (`GET /api/v1/platform/roles/me`); in `groups` and `shadow` modes the rule decides.
+The log console (`/api/admin/logs`, `/admin/console/logs`) changes the process-wide logger, so it uses `requirePlatformOwner` and `guardPlatformOwnerPage`: only a platform owner passes (`GET /api/v1/platform/roles/me`).
 
 **Server page**
 
@@ -47,7 +37,7 @@ The log console (`/api/admin/logs`, `/admin/console/logs`) changes the process-w
 await guardPage(ACCESS_RULES.finished, "/finished");
 ```
 
-Renders the not-found page when the rule is closed. It only runs in `permissions` mode, unless `{ always: true }` is passed.
+Redirects to sign-in without a session. Renders the not-found page when the rule is closed.
 
 **Client component**
 
@@ -61,3 +51,13 @@ Renders the not-found page when the rule is closed. It only runs in `permissions
 1. Add the permission to `PERMISSIONS` and the rule to `ACCESS_RULES`.
 2. Add the path to `ROUTE_PERMISSIONS` and call `guardPage` in the page.
 3. Add `requiredPermissions` to the menu entry in `pages-config.json`.
+
+## Alfresco groups
+
+Groups no longer decide access to pages, menus or API routes. They are still used for:
+
+| Use | Where |
+| --- | --- |
+| Task candidate groups (who can act on a workflow task) | `task-actions.tsx` via `useUserGroups` |
+| Per-dashboard `allowedGroups` | `/api/dashboard/config(s)`, `home/[slug]/page.tsx` |
+| User filters | `/api/user/filters` |

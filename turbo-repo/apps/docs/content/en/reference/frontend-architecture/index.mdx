@@ -117,13 +117,12 @@ type SidebarItem = {
   items?: SidebarItem[];
   badge?: string;
   totals: Record<string, number | string>;
-  requiredGroups?: string[];
-  blockedGroups?: string[];
+  requiredPermissions?: string[];
   dynamicItemsSource?: string;  // key into the provider's dynamicMap
 };
 ```
 
-`requiredGroups` and `blockedGroups` are evaluated by `SidebarItem` at render time to show or hide sections based on the current user's group memberships.
+`requiredPermissions` lists IAM permissions, for example `["admin:livestreams.view"]`. The sidebar shows the entry when the user holds any one of them in the active organization. An entry without `requiredPermissions` is shown to every user.
 
 ## Testing Approach
 

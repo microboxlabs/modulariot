@@ -13,8 +13,6 @@ export type SidebarItem = {
   items?: SidebarItem[];
   badge?: string;
   totals?: Record<string, number | string>;
-  requiredGroups?: string[];
-  blockedGroups?: string[];
   requiredPermissions?: string[];
   dynamicItemsSource?: string;
   searchable?: boolean;

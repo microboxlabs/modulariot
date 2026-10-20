@@ -21,7 +21,9 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
@@ -81,18 +83,49 @@ public class MeResource {
             return Uni.createFrom().item(List.of());
         }
         return platform.isPlatformOwner(email).flatMap(owner -> Panache.withSession(() ->
-                Organization.listAllActive()
-                        .flatMap(orgs -> buildScopesForCaller(orgs, email, Boolean.TRUE.equals(owner)))));
+                Organization.listAllActive().flatMap(orgs -> Boolean.TRUE.equals(owner)
+                        ? platformOwnerScopes(orgs, email)
+                        : buildScopesForCaller(orgs, email))));
     }
 
-    private Uni<List<OrganizationScopeDto>> buildScopesForCaller(List<Organization> orgs, String email,
-            boolean platformOwner) {
+    /** A platform owner is Owner of every organization: the same queries whatever the number of organizations. */
+    private Uni<List<OrganizationScopeDto>> platformOwnerScopes(List<Organization> orgs, String email) {
+        return directory.platformOwnerSignedIn(email)
+                .onFailure().recoverWithItem(e -> {
+                    LOG.warnf("Could not record sign-in of %s: %s", email, e.getMessage());
+                    return true;
+                })
+                .flatMap(active -> Boolean.TRUE.equals(active)
+                        ? OrganizationModule.listAllEnabled().map(modules -> ownerScopes(orgs, modules))
+                        : Uni.createFrom().item(List.of()));
+    }
+
+    static List<OrganizationScopeDto> ownerScopes(List<Organization> orgs, List<OrganizationModule> modules) {
+        Map<Long, List<String>> modulesByOrg = modules.stream().collect(Collectors.groupingBy(
+                m -> m.id.organizationId, Collectors.mapping(m -> m.id.moduleCode, Collectors.toList())));
+        Map<Long, List<String>> childTaxIds = orgs.stream()
+                .filter(org -> org.parent != null && org.taxId != null)
+                .collect(Collectors.groupingBy(org -> org.parent.id,
+                        Collectors.mapping(org -> org.taxId, Collectors.toList())));
+        return orgs.stream().map(org -> new OrganizationScopeDto(
+                        org.id,
+                        org.slug,
+                        org.displayName != null ? org.displayName : org.name,
+                        org.taxId,
+                        OrganizationRoleService.OWNER_ACCESS_ROLE,
+                        org.parent == null,
+                        org.parent == null ? childTaxIds.getOrDefault(org.id, List.of()) : ownTaxId(org),
+                        modulesByOrg.getOrDefault(org.id, List.of())))
+                .toList();
+    }
+
+    private Uni<List<OrganizationScopeDto>> buildScopesForCaller(List<Organization> orgs, String email) {
         // Sequential chain: Phase 1 uses the stub client so this is effectively free.
         // A real Alfresco client with getGroupsForPerson will replace this per-org
         // membership check with a single lookup + in-memory filter.
         Uni<List<OrganizationScopeDto>> acc = Uni.createFrom().item(new ArrayList<>());
         for (Organization org : orgs) {
-            acc = acc.flatMap(list -> buildScopeIfMember(org, email, platformOwner)
+            acc = acc.flatMap(list -> buildScopeIfMember(org, email)
                     .map(scope -> {
                         if (scope != null) {
                             list.add(scope);
@@ -106,20 +139,18 @@ public class MeResource {
 
     /**
      * The org's scope when the caller is a member. With Alfresco membership, an org without an Alfresco group is
-     * left out: every signed-in user would otherwise see it. A platform owner sees every organization.
+     * left out: every signed-in user would otherwise see it.
      */
-    private Uni<OrganizationScopeDto> buildScopeIfMember(Organization org, String email, boolean platformOwner) {
+    private Uni<OrganizationScopeDto> buildScopeIfMember(Organization org, String email) {
         return evaluator.membershipNative(org).flatMap(nativeMembership -> {
-            if (!platformOwner && !Boolean.TRUE.equals(nativeMembership) && org.alfrescoGroupId == null) {
+            if (!Boolean.TRUE.equals(nativeMembership) && org.alfrescoGroupId == null) {
                 return Uni.createFrom().nullItem();
             }
-            // A platform owner is not recorded as an Alfresco member of every organization they open.
-            boolean recordAsNative = platformOwner || Boolean.TRUE.equals(nativeMembership);
             return evaluator.evaluate(org, Caller.user(email))
                     .onFailure().recoverWithNull()
                     .flatMap(access -> access == null || !access.member()
                             ? Uni.createFrom().<OrganizationScopeDto>nullItem()
-                            : signedIn(org, email, recordAsNative, access.alfrescoRole())
+                            : signedIn(org, email, nativeMembership, access.alfrescoRole())
                                     .flatMap(ignored -> assembleScope(org, OrganizationRoleService.accessRole(access))));
         });
     }
@@ -155,14 +186,17 @@ public class MeResource {
 
     private Uni<List<String>> resolveEffectiveTaxIds(Organization org) {
         if (org.parent != null) {
-            return Uni.createFrom().item(
-                    org.taxId != null ? List.of(org.taxId) : List.of());
+            return Uni.createFrom().item(ownTaxId(org));
         }
         return Organization.findByParent(org.id)
                 .map(children -> children.stream()
                         .map(child -> child.taxId)
                         .filter(Objects::nonNull)
                         .toList());
+    }
+
+    private static List<String> ownTaxId(Organization org) {
+        return org.taxId != null ? List.of(org.taxId) : List.of();
     }
 
     private String resolveEmail(HttpHeaders headers) {

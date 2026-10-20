@@ -10,7 +10,8 @@ import java.util.TreeSet;
  * collaborators and the admin console. Each role replaces an Alfresco group the app or the ECM workflow used to check.
  *
  * <p>The {@code coordination:stage.*} permissions decide who works a workflow stage, and the {@code admin:*} ones open
- * the admin console. Both are explicit: an organization Owner or Admin holds them only through a role.
+ * the admin console. Both are explicit: an organization Owner or Admin holds them only through a role. Completing a
+ * task comes only from {@value #KANBAN_USER}, so a stage role can be held without it.
  */
 @ApplicationScoped
 public class CoordinatorAccessCatalog implements AccessCatalog {
@@ -57,7 +58,7 @@ public class CoordinatorAccessCatalog implements AccessCatalog {
     public static final String COLLABORATORS_MANAGER = "COLLABORATORS_MANAGER";
     public static final String CONVERSATIONS_AGENT = "CONVERSATIONS_AGENT";
 
-    private static final Set<String> OPERATOR_BASE = Set.of(KANBAN_VIEW, TASK_COMPLETE, FINISHED_VIEW);
+    private static final Set<String> STAGE_BASE = Set.of(KANBAN_VIEW, FINISHED_VIEW);
 
     @Override
     public List<PermissionDef> permissions() {
@@ -111,23 +112,24 @@ public class CoordinatorAccessCatalog implements AccessCatalog {
                         .describedAs("Asigna conductor y transporte a los servicios planificados.",
                                 "Assigns driver and transport to planned services."),
                 RoleDef.of(CONTROL_TOWER_EXECUTIVE, COORDINATION, "Ejecutivo torre de control",
-                        "Control tower executive", union(OPERATOR_BASE, Set.of(REPORTS_VIEW, GEOGRAPHIC_VIEW,
+                        "Control tower executive", union(STAGE_BASE, Set.of(REPORTS_VIEW, GEOGRAPHIC_VIEW,
                                 STAGE_CONTROL_TOWER)))
                         .describedAs("Atiende las etapas del viaje, desde la consolidación hasta la entrega.",
                                 "Works the trip stages, from consolidation to delivery."),
                 RoleDef.of(TRANSPORT_VALIDATOR, COORDINATION, "Validador de transporte", "Transport validator",
-                        union(OPERATOR_BASE, Set.of(STAGE_TRANSPORT_VALIDATION)))
+                        union(STAGE_BASE, Set.of(STAGE_TRANSPORT_VALIDATION)))
                         .describedAs("Valida al conductor y al transporte presentados.",
                                 "Validates the presented driver and transport."),
                 RoleDef.of(TRIP_ESCALATION, COORDINATION, "Escalamiento de viajes", "Trip escalation",
-                        union(OPERATOR_BASE, Set.of(STAGE_ESCALATION)))
+                        union(STAGE_BASE, Set.of(STAGE_ESCALATION)))
                         .describedAs("Recibe los viajes que la torre de control escala.",
                                 "Receives the trips the control tower escalates."),
                 RoleDef.of(TRANSPORT_EXECUTIVE, COORDINATION, "Ejecutivo de transporte", "Transport executive",
-                        union(OPERATOR_BASE, Set.of(STAGE_DELIVERY_REASSIGNMENT)))
+                        union(STAGE_BASE, Set.of(STAGE_DELIVERY_REASSIGNMENT)))
                         .describedAs("Recibe las entregas que quedaron sin atender.",
                                 "Receives deliveries left unattended."),
-                RoleDef.of(KANBAN_USER, COORDINATION, "Usuario del tablero", "Board user", OPERATOR_BASE)
+                RoleDef.of(KANBAN_USER, COORDINATION, "Usuario del tablero", "Board user",
+                        Set.of(KANBAN_VIEW, TASK_COMPLETE, FINISHED_VIEW))
                         .describedAs("Ve el tablero de envíos y completa sus tareas.",
                                 "Sees the shipping board and completes their tasks."),
                 RoleDef.of(REVIEWER, COORDINATION, "Revisor", "Reviewer", Set.of(KANBAN_VIEW, FINISHED_VIEW))

@@ -1,31 +1,23 @@
 package com.microboxlabs.miot.symptoms.map;
 
+import com.microboxlabs.miot.core.gps.GpsDatabase;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.microboxlabs.miot.symptoms.map.ControlTowerMapService.UnavailableException;
-import com.microboxlabs.miot.symptoms.process.StreamhubSymptomsGpsClient;
 import io.smallrye.mutiny.Uni;
-import io.vertx.mutiny.core.Vertx;
-import io.vertx.mutiny.pgclient.PgBuilder;
-import io.vertx.mutiny.sqlclient.Pool;
-import io.vertx.pgclient.PgConnectOptions;
-import io.vertx.sqlclient.PoolOptions;
-import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
- * The treatment page's data from the GPS database, read with read-only sessions through
- * {@code miot.symptoms.gps.*}: the symptom header, its signals, and the positions of a trip. A symptom or trip outside
+ * The treatment page's data from the GPS database ({@link GpsDatabase#readPool()}): the symptom header, its
+ * signals, and the positions of a trip. A symptom or trip outside
  * the organization's client ids is not found.
  */
 @ApplicationScoped
@@ -36,22 +28,10 @@ public class ControlTowerTreatmentService {
     static final int MAX_POSITIONS = 20_000;
 
     private final TreatmentReads reads;
-    private Vertx vertx;
-    private Optional<String> url = Optional.empty();
-    private Optional<String> username = Optional.empty();
-    private Optional<String> password = Optional.empty();
-    private Pool pool;
 
     @Inject
-    public ControlTowerTreatmentService(Vertx vertx,
-            @ConfigProperty(name = "miot.gps.reactive-url") Optional<String> url,
-            @ConfigProperty(name = "miot.gps.username") Optional<String> username,
-            @ConfigProperty(name = "miot.gps.password") Optional<String> password) {
-        this.vertx = vertx;
-        this.url = url.filter(s -> !s.isBlank());
-        this.username = username.filter(s -> !s.isBlank());
-        this.password = password;
-        this.reads = this.url.isPresent() && this.username.isPresent() ? new PgTreatmentReads(this::pool) : null;
+    public ControlTowerTreatmentService(GpsDatabase gps) {
+        this.reads = gps.configured() ? new PgTreatmentReads(gps::readPool) : null;
     }
 
     /** {@code reads} null: the GPS database is not configured. */
@@ -150,31 +130,5 @@ public class ControlTowerTreatmentService {
         empty.putObject("description");
         empty.putArray(FEATURES);
         return empty;
-    }
-
-    private synchronized Pool pool() {
-        if (pool == null) {
-            StreamhubSymptomsGpsClient.ParsedUrl parsed = StreamhubSymptomsGpsClient.parseUrl(url.orElseThrow());
-            PgConnectOptions connect = new PgConnectOptions()
-                    .setHost(parsed.host())
-                    .setPort(parsed.port())
-                    .setDatabase(parsed.database())
-                    .setUser(username.orElseThrow())
-                    .setPassword(password.orElse(""))
-                    .setProperties(Map.of(
-                            "application_name", "miot-control-tower",
-                            "default_transaction_read_only", "on",
-                            "statement_timeout", "25000",
-                            "TimeZone", "UTC"));
-            pool = PgBuilder.pool().with(new PoolOptions().setMaxSize(2)).connectingTo(connect).using(vertx).build();
-        }
-        return pool;
-    }
-
-    @PreDestroy
-    synchronized void close() {
-        if (pool != null) {
-            pool.closeAndAwait();
-        }
     }
 }

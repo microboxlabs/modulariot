@@ -1,28 +1,20 @@
 package com.microboxlabs.miot.fleet.sharing;
 
+import com.microboxlabs.miot.core.gps.GpsDatabase;
 import com.microboxlabs.miot.fleet.directory.FleetConfig;
-import com.microboxlabs.miot.fleet.directory.FleetDirectoryProducer.Address;
 import com.microboxlabs.miot.fleet.directory.FleetUnavailableException;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.quarkus.scheduler.Scheduled;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
-import io.vertx.mutiny.core.Vertx;
-import io.vertx.mutiny.pgclient.PgBuilder;
 import io.vertx.mutiny.sqlclient.Pool;
-import io.vertx.pgclient.PgConnectOptions;
-import io.vertx.sqlclient.PoolOptions;
-import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Singleton;
 import java.time.Clock;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 /**
@@ -37,27 +29,17 @@ public class SharingProducer {
 
     private static final Logger LOG = Logger.getLogger(SharingProducer.class);
 
-    private final Vertx vertx;
     private final Instance<Pool> modulithPool;
+    private final GpsDatabase gps;
     private final FleetConfig config;
-    private final Optional<String> url;
-    private final Optional<String> username;
-    private final Optional<String> password;
     private final Clock clock = Clock.systemUTC();
-    private final Map<Boolean, Pool> gpsPools = new HashMap<>();
     private SharingService service;
     private ClientMapSync sync;
 
-    SharingProducer(Vertx vertx, Instance<Pool> modulithPool, FleetConfig config,
-            @ConfigProperty(name = "miot.gps.reactive-url") Optional<String> url,
-            @ConfigProperty(name = "miot.gps.username") Optional<String> username,
-            @ConfigProperty(name = "miot.gps.password") Optional<String> password) {
-        this.vertx = vertx;
+    SharingProducer(Instance<Pool> modulithPool, GpsDatabase gps, FleetConfig config) {
         this.modulithPool = modulithPool;
+        this.gps = gps;
         this.config = config;
-        this.url = url.filter(s -> !s.isBlank());
-        this.username = username.filter(s -> !s.isBlank());
-        this.password = password;
     }
 
     /** Singleton: the service has no no-args constructor, so it cannot sit behind a client proxy. */
@@ -102,49 +84,22 @@ public class SharingProducer {
             return service;
         }
         String source = config.source();
-        boolean gps = "gps".equals(source) && url.isPresent() && username.isPresent();
         if ("demo".equals(source)) {
             LOG.info("Data sharing: demo organizations, shares in memory");
             DemoSharingSource demo = new DemoSharingSource(clock.instant());
             service = new SharingService(demo, new InMemoryShareStore(demo.seedShares(clock.instant()), clock),
                     clock, config.cacheTtl());
-        } else if (gps) {
+        } else if ("gps".equals(source) && gps.configured()) {
             LOG.info("Data sharing: GPS database, shares in the modulith database");
-            service = new SharingService(new GpsSharingSource(modulithPool::get, () -> gpsPool(true)),
+            service = new SharingService(new GpsSharingSource(modulithPool::get, gps::readPool),
                     new PgShareStore(modulithPool::get), clock, config.cacheTtl());
-            sync = new ClientMapSync(service, new PgClientMapStore(() -> gpsPool(false)));
+            sync = new ClientMapSync(service, new PgClientMapStore(gps::pool));
         } else {
             LOG.infof("Data sharing: none (miot.fleet.source=%s)", source);
             service = new SharingService(new UnavailableSource(), new InMemoryShareStore(List.of(), clock),
                     clock, config.cacheTtl());
         }
         return service;
-    }
-
-    /** Read-only for the screens; the sync's pool writes. Both use the one GPS login. */
-    private synchronized Pool gpsPool(boolean readOnly) {
-        return gpsPools.computeIfAbsent(readOnly, key -> newGpsPool(readOnly));
-    }
-
-    private Pool newGpsPool(boolean ro) {
-        Address address = Address.parse(url.orElseThrow());
-        PgConnectOptions connect = new PgConnectOptions()
-                .setHost(address.host())
-                .setPort(address.port())
-                .setDatabase(address.database())
-                .setUser(username.orElseThrow())
-                .setPassword(password.orElse(""))
-                .setProperties(Map.of(
-                        "application_name", ro ? "miot-sharing" : "miot-sharing-sync",
-                        "default_transaction_read_only", ro ? "on" : "off",
-                        "TimeZone", "UTC"));
-        return PgBuilder.pool().with(new PoolOptions().setMaxSize(ro ? 2 : 1)).connectingTo(connect)
-                .using(vertx).build();
-    }
-
-    @PreDestroy
-    synchronized void close() {
-        gpsPools.values().forEach(Pool::closeAndAwait);
     }
 
     /** No source configured: every read answers 503. */

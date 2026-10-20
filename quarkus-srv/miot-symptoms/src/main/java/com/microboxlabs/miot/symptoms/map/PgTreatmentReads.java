@@ -22,6 +22,7 @@ public class PgTreatmentReads implements TreatmentReads {
     private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(30);
     private static final ObjectMapper JSON = new ObjectMapper();
 
+    private static final String STATEMENT_TIMEOUT = "SET LOCAL statement_timeout = 25000";
     private static final String CLAIMS =
             "SELECT set_config('request.jwt.claims', json_build_object('sub', $1::text)::text, true)";
 
@@ -105,7 +106,8 @@ public class PgTreatmentReads implements TreatmentReads {
     }
 
     private Uni<Optional<Row>> asClient(String clientId, String sql, Tuple args) {
-        return pool.get().withTransaction(conn -> conn.preparedQuery(CLAIMS).execute(Tuple.of(clientId))
+        return pool.get().withTransaction(conn -> conn.query(STATEMENT_TIMEOUT).execute()
+                        .flatMap(ignored -> conn.preparedQuery(CLAIMS).execute(Tuple.of(clientId)))
                         .flatMap(ignored -> conn.preparedQuery(sql).execute(args)))
                 .ifNoItem().after(QUERY_TIMEOUT).fail()
                 .map(PgTreatmentReads::first);

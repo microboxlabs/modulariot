@@ -13,10 +13,7 @@ export default async function SymptomsSettingsPage({ params }: ParamsWithLang) {
     ?.userSettings as I18nRecord;
 
   return (
-    <RouteGuard
-      path="/users/settings/symptoms"
-      fallbackPath={`/${lang}/shipping`}
-    >
+    <RouteGuard path="/users/settings/symptoms">
       <SymptomCatalog
         dict={userSettings}
         rootDict={dictionary as I18nRecord}

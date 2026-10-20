@@ -19,10 +19,7 @@ export default async function MyTasksPage(params: {
   let status = getStatus((await params.searchParams)?.status);
 
   return (
-    <RouteGuard
-      path="/mytasks"
-      fallbackPath={`/${lang}/geographic-view`}
-    >
+    <RouteGuard path="/mytasks">
       <div className="h-full flex flex-col overflow-hidden">
         <SectionHeader
           path={[
@@ -41,11 +38,7 @@ export default async function MyTasksPage(params: {
           filterDict={dict as I18nRecord}
         />
         <div className="max-w-screen-2xl mx-auto w-full flex-1 overflow-hidden">
-          <MyTasks
-            dict={dict}
-            status={status}
-            lang={lang}
-          />
+          <MyTasks dict={dict} status={status} lang={lang} />
         </div>
       </div>
     </RouteGuard>

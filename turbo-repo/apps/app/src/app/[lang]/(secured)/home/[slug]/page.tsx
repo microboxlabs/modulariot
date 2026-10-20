@@ -118,7 +118,7 @@ export default async function SlugDashboardPage({
   }
 
   return (
-    <RouteGuard path="/home" fallbackPath={`/${lang}/home`}>
+    <RouteGuard path="/home">
       <div className="flex h-full flex-col overflow-hidden">
         <DashboardProvider
           dictionary={dictionary}

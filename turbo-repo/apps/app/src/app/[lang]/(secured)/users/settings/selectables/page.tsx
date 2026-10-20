@@ -10,17 +10,16 @@ import SelectablesPageContent from "@/features/settings-admin/components/selecta
  * Maintainer for the reusable option lists that back the treatment-form
  * selectors, stored per organization by the modulith core selectables API.
  */
-export default async function SelectablesSettingsPage({ params }: ParamsWithLang) {
+export default async function SelectablesSettingsPage({
+  params,
+}: ParamsWithLang) {
   const { lang } = await params;
   const [, dictionary] = await getDictionary(lang);
   const userSettings = (dictionary.pages as I18nRecord)
     ?.userSettings as I18nRecord;
 
   return (
-    <RouteGuard
-      path="/users/settings/selectables"
-      fallbackPath={`/${lang}/shipping`}
-    >
+    <RouteGuard path="/users/settings/selectables">
       <SelectablesPageContent dict={userSettings} lang={lang} />
     </RouteGuard>
   );

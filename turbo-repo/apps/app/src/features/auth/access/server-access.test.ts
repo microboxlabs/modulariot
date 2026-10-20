@@ -22,6 +22,7 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 import {
+  currentPermissions,
   guardPage,
   guardPlatformOwnerPage,
   hasAccess,
@@ -133,17 +134,20 @@ describe("server access", () => {
     expect(allowed.authorized).toBe(true);
   });
 
-  it("guardPage redirects without a session and renders not-found when closed", async () => {
+  it("guardPage sends to sign-in without a session and to no-access when closed", async () => {
     auth.mockResolvedValueOnce(null);
     await expect(guardPage(ACCESS_RULES.finished, "/finished")).rejects.toThrow(
       "NEXT_REDIRECT"
     );
+    expect(redirect).toHaveBeenLastCalledWith("/sign-in");
 
     auth.mockResolvedValueOnce(freshSession());
     stubPermissions([]);
     await expect(guardPage(ACCESS_RULES.finished, "/finished")).rejects.toThrow(
-      "NEXT_NOT_FOUND"
+      "NEXT_REDIRECT"
     );
+    expect(redirect).toHaveBeenLastCalledWith("/no-access?from=%2Ffinished");
+    expect(notFound).not.toHaveBeenCalled();
 
     auth.mockResolvedValueOnce(freshSession());
     stubPermissions(["coordination:finished.view"]);
@@ -195,7 +199,7 @@ describe("server access", () => {
     expect(result.authorized).toBe(false);
   });
 
-  it("guardPlatformOwnerPage renders not-found for a non-owner", async () => {
+  it("guardPlatformOwnerPage sends a non-owner to no-access", async () => {
     vi.stubGlobal(
       "fetch",
       vi
@@ -206,7 +210,19 @@ describe("server access", () => {
     );
     auth.mockResolvedValueOnce(freshSession());
     await expect(guardPlatformOwnerPage("/admin/console/logs")).rejects.toThrow(
-      "NEXT_NOT_FOUND"
+      "NEXT_REDIRECT"
     );
+    expect(redirect).toHaveBeenLastCalledWith(
+      "/no-access?from=%2Fadmin%2Fconsole%2Flogs"
+    );
+  });
+
+  it("currentPermissions is null without a session", async () => {
+    auth.mockResolvedValueOnce(null);
+    await expect(currentPermissions()).resolves.toBeNull();
+
+    auth.mockResolvedValueOnce(freshSession());
+    stubPermissions(["calendar:view"]);
+    await expect(currentPermissions()).resolves.toEqual(["calendar:view"]);
   });
 });

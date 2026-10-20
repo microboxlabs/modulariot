@@ -19,7 +19,6 @@ import {
   defaultServiceTypeFor,
 } from "./features/layout/services/kanban-default-filters";
 import { createManagedLogger } from "./lib/logger";
-import { homePath } from "@/features/common/providers/alfresco-api/ecm-config";
 // import { logger } from "./lib/logger";
 // import {
 //   buildAccessLogFields,
@@ -67,8 +66,9 @@ const middleware = auth(async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // The start page picks the first module page the caller may open.
   if (/^\/[a-z]{0,2}\/{0,1}$/.test(pathname)) {
-    pathname = homePath();
+    pathname = "/start";
   }
 
   // const startTime = Date.now();

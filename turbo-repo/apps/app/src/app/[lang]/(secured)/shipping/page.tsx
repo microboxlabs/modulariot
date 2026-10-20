@@ -31,10 +31,7 @@ export default async function ShippingPage(params: ParamsWithLang) {
     // });
 
     return (
-      <RouteGuard
-        path="/shipping"
-        fallbackPath={`/${lang}/geographic-view`}
-      >
+      <RouteGuard path="/shipping">
         <PageContent
           showFinishedTasks={false}
           showWorkflowTasks="shipping"

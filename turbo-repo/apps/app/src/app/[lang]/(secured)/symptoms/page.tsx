@@ -12,7 +12,7 @@ export default async function SymptomsPage({ params }: ParamsWithLang) {
   const { lang } = await params;
   const [, dict] = await getDictionary(lang);
   return (
-    <RouteGuard path="/symptoms" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/symptoms">
       <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900">
         <SectionHeader
           path={["mission_control", "symptoms"]}

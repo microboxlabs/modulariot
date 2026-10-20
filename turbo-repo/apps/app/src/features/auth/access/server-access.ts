@@ -1,6 +1,6 @@
 import "server-only";
 import { NextResponse } from "next/server";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { logger } from "@/lib/logger";
@@ -52,6 +52,12 @@ async function loadPermissions(session: Session): Promise<string[] | null> {
     logger.error({ err, org }, "Failed to load the caller's permissions");
     return null;
   }
+}
+
+/** The signed-in caller's permissions in the active organization; null without a session or when unreadable. */
+export async function currentPermissions(): Promise<string[] | null> {
+  const session = await auth();
+  return session?.user ? loadPermissions(session) : null;
 }
 
 /** Decides one gate for a session with its permissions in the active organization. */
@@ -135,7 +141,7 @@ async function authorize(
   };
 }
 
-/** Server page gate. Renders the not-found page when the gate is closed. */
+/** Server page gate. Sends the caller to the no-access page when the gate is closed. */
 export async function guardPage(
   rule: AccessRule,
   context: string
@@ -164,5 +170,5 @@ async function guard(
     { userEmail: session.user.email, key, context },
     "Forbidden: caller lacks the required access"
   );
-  notFound();
+  redirect(`/no-access?from=${encodeURIComponent(context)}`);
 }

@@ -9,7 +9,7 @@ export default async function IntegrationJobsPage({ params }: ParamsWithLang) {
   const dict = (dictionary.pages as I18nRecord)?.integrationJobs as I18nRecord;
 
   return (
-    <RouteGuard path="/integrations/jobs" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/integrations/jobs">
       {/* LayoutContent is overflow-hidden — pages own their scroll. */}
       <div className="flex h-full w-full flex-col overflow-y-auto bg-white dark:bg-gray-900">
         <JobConsolePageContent dict={dict ?? {}} />

@@ -20,10 +20,7 @@ export default async function WheresMyLoadPage({
   const navBarMessages = buildNavBarMessages({ messages: dict });
 
   return (
-    <RouteGuard
-      path="/where-is-my-load"
-      fallbackPath={`/${lang}/shipping`}
-    >
+    <RouteGuard path="/where-is-my-load">
       <div className="h-full flex flex-col">
         <TimelineHeader
           dict={dictionary as I18nRecord}

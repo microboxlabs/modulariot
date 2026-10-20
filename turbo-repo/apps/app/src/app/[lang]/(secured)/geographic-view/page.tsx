@@ -19,7 +19,7 @@ const layers = [
 */
 
   return (
-    <RouteGuard path="/geographic-view" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/geographic-view">
       <div className="h-full w-full flex flex-col">
         <SectionHeader
           path={["mission_control", "geographic_view"]}

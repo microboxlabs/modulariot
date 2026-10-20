@@ -31,13 +31,22 @@ class CoordinatorAccessCatalogTest {
 
     @Test
     void eachStageRoleWorksItsOwnStage() {
-        assertTrue(registry.permissionsOf(BaseRole.MEMBER, List.of(CoordinatorAccessCatalog.CONTROL_TOWER_EXECUTIVE))
-                .containsAll(Set.of(CoordinatorAccessCatalog.STAGE_CONTROL_TOWER,
-                        CoordinatorAccessCatalog.TASK_COMPLETE)));
+        Set<String> executive =
+                registry.permissionsOf(BaseRole.MEMBER, List.of(CoordinatorAccessCatalog.CONTROL_TOWER_EXECUTIVE));
+        assertTrue(executive.contains(CoordinatorAccessCatalog.STAGE_CONTROL_TOWER));
+        assertFalse(executive.contains(CoordinatorAccessCatalog.TASK_COMPLETE));
         Set<String> validator =
                 registry.permissionsOf(BaseRole.MEMBER, List.of(CoordinatorAccessCatalog.TRANSPORT_VALIDATOR));
         assertTrue(validator.contains(CoordinatorAccessCatalog.STAGE_TRANSPORT_VALIDATION));
         assertFalse(validator.contains(CoordinatorAccessCatalog.STAGE_CONTROL_TOWER));
+    }
+
+    @Test
+    void onlyTheBoardRoleCompletesTasks() {
+        for (RoleDef role : new CoordinatorAccessCatalog().roles()) {
+            boolean completes = role.permissions().contains(CoordinatorAccessCatalog.TASK_COMPLETE);
+            assertTrue(completes == CoordinatorAccessCatalog.KANBAN_USER.equals(role.key()), role.key());
+        }
     }
 
     @Test

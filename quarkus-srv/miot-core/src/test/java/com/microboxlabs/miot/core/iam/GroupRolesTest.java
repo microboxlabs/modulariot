@@ -102,6 +102,21 @@ class GroupRolesTest {
     }
 
     @Test
+    void membersOfTheExcludedGroupAreSkipped() {
+        owner().contentType("application/json")
+                .body("{\"excludedGroupId\":\"GROUP_MINTRAL_REVISOR\"}")
+                .when().put(MAPPINGS + "/GROUP_MINTRAL_KANBAN_ACCESS/" + CoordinatorAccessCatalog.KANBAN_USER)
+                .then().statusCode(200).body("excludedGroupId", is("GROUP_MINTRAL_REVISOR"));
+
+        // The stub directory answers the same people for every group, so all of them are excluded.
+        owner().when().post(MAPPINGS + "/import")
+                .then().statusCode(200)
+                .body("lines[0].seen", is(3))
+                .body("lines[0].excluded", is(3))
+                .body("lines[0].added", is(0));
+    }
+
+    @Test
     void mappingsAreListedAndRemoved() {
         owner().contentType("application/json").body("{}")
                 .when().put(MAPPINGS + "/GROUP_PLANNING/" + CoordinatorAccessCatalog.CALENDAR_PLANNER)

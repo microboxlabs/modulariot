@@ -12,6 +12,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,10 +30,17 @@ public class IamDirectory {
     private static final Duration SEEN_EVERY = Duration.ofMinutes(5);
 
     private final AlfrescoBridge bridge;
+    private final ProjectionQueue projection;
 
     @Inject
-    public IamDirectory(AlfrescoBridge bridge) {
+    public IamDirectory(AlfrescoBridge bridge, ProjectionQueue projection) {
         this.bridge = bridge;
+        this.projection = projection;
+    }
+
+    /** After the roles of these users changed; queues their projected groups. Needs an open transaction. */
+    public Uni<Void> rolesChanged(Long rootId, Collection<UUID> userIds, Collection<String> roles) {
+        return projection.usersChanged(rootId, userIds, roles);
     }
 
     /** The organization's owners' emails, sorted. */
@@ -181,7 +189,8 @@ public class IamDirectory {
         }
         return ensureMember(organizationId, subject, BaseRole.MEMBER, actor)
                 .flatMap(m -> IamRoleBinding.of(organizationId, IamRoleBinding.USER, m.userId.toString(), roleKey,
-                        actor).persist().replaceWithVoid());
+                        actor).persist().replaceWith(m.userId))
+                .flatMap(userId -> rolesChanged(organizationId, List.of(userId), List.of(roleKey)));
     }
 
     private Uni<List<String>> emailsOf(List<IamMembership> memberships) {

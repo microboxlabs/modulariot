@@ -150,6 +150,7 @@ public class TeamService {
                             return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 "
                                             + "and principalId = ?3", root.id, IamRoleBinding.USER, userId.toString())
                                     .flatMap(ignored -> m.delete())
+                                    .flatMap(ignored -> directory.rolesChanged(root.id, List.of(userId), null))
                                     .flatMap(ignored -> IamUser.<IamUser>findById(userId))
                                     .flatMap(user -> user == null
                                             ? Uni.createFrom().voidItem()
@@ -365,6 +366,7 @@ public class TeamService {
                         + "and scopeKind = ?4", orgId, IamRoleBinding.USER, userId.toString(),
                         IamRoleBinding.ORGANIZATION)
                 .flatMap(ignored -> addRoles(orgId, userId, List.copyOf(wanted), actor))
+                .flatMap(ignored -> directory.rolesChanged(orgId, List.of(userId), null))
                 .flatMap(ignored -> directory.audit(orgId, actor, "member.roles", userId.toString(),
                         Map.of(ROLES, List.copyOf(wanted))));
     }
@@ -383,7 +385,7 @@ public class TeamService {
                                     userId.toString(), role, actor).persist().replaceWithVoid());
                         }
                     }
-                    return chain;
+                    return chain.flatMap(i -> directory.rolesChanged(orgId, List.of(userId), roles));
                 });
     }
 

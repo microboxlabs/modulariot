@@ -60,12 +60,14 @@ public class TokenRoles {
 
     private final AccessRegistry registry;
     private final Duration ttl;
+    private final ProjectionQueue projection;
 
     @Inject
     public TokenRoles(AccessRegistry registry,
-            @ConfigProperty(name = TTL_PROPERTY, defaultValue = "P30D") Duration ttl) {
+            @ConfigProperty(name = TTL_PROPERTY, defaultValue = "P30D") Duration ttl, ProjectionQueue projection) {
         this.registry = registry;
         this.ttl = ttl;
+        this.projection = projection;
     }
 
     /** The role ids in the caller's token, or null when the claim is not configured or not in the token. */
@@ -195,7 +197,12 @@ public class TokenRoles {
             chain = chain.flatMap(i -> write.replaceWithVoid());
         }
         boolean rolesChanged = !plan.add().isEmpty() || !plan.remove().isEmpty();
-        return chain.flatMap(i -> membership(root, user, plan.baseRole()))
+        Set<String> changed = new TreeSet<>(plan.add());
+        changed.addAll(plan.remove());
+        return chain.flatMap(i -> rolesChanged
+                        ? projection.usersChanged(root.id, List.of(user.id), changed)
+                        : Uni.createFrom().voidItem())
+                .flatMap(i -> membership(root, user, plan.baseRole()))
                 .flatMap(membershipChanged -> rolesChanged || membershipChanged
                         ? IamAuditEvent.of(root.id, "token", "token-roles.synced", user.email,
                                 Map.of("added", plan.add(), "removed", plan.remove(),

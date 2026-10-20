@@ -72,6 +72,36 @@ class GroupRolesTest {
     }
 
     @Test
+    void reconcileRemovesAKnownMemberWhoLostTheRole() throws SQLException {
+        owner().contentType("application/json").body("{\"projected\":true}")
+                .when().put(MAPPINGS + "/GROUP_MINTRAL_VALIDADOR_TRANSPORTE/"
+                        + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR)
+                .then().statusCode(200);
+        owner().when().post(MAPPINGS + "/import").then().statusCode(200);
+
+        owner().when().post(MAPPINGS + "/reconcile?dryRun=true")
+                .then().statusCode(200)
+                .body("lines[0].add", hasSize(0))
+                .body("lines[0].remove", hasSize(0));
+
+        String org = "(SELECT id FROM miot_core.organizations WHERE slug = '" + ORG + "')";
+        String user = "(SELECT id FROM miot_iam.iam_user WHERE email = '" + MEMBER + "')";
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role, source, created_by) "
+                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test')");
+        exec("DELETE FROM miot_iam.iam_role_binding WHERE organization_id = " + org + " AND principal_id = "
+                + user + "::text");
+
+        owner().when().post(MAPPINGS + "/reconcile?dryRun=true")
+                .then().statusCode(200)
+                .body("lines[0].holders", is(2))
+                .body("lines[0].remove", hasItem(MEMBER))
+                .body("lines[0].removalsHeld", is(false));
+
+        // Projection is off in this profile, so only a dry run is allowed.
+        owner().when().post(MAPPINGS + "/reconcile").then().statusCode(409);
+    }
+
+    @Test
     void mappingsAreListedAndRemoved() {
         owner().contentType("application/json").body("{}")
                 .when().put(MAPPINGS + "/GROUP_PLANNING/" + CoordinatorAccessCatalog.CALENDAR_PLANNER)

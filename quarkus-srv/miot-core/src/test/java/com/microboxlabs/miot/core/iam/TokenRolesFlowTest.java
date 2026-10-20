@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.microboxlabs.miot.core.auth.PlatformTestProfile;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
@@ -79,6 +80,50 @@ class TokenRolesFlowTest {
     }
 
     @Test
+    void anAdminTokenDoesNotChangeAnExistingMembership() throws SQLException {
+        exec("INSERT INTO miot_iam.iam_user (email) VALUES ('" + USER + "')");
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role, source, created_by) "
+                + "SELECT o.id, u.id, 'MEMBER', 'NATIVE', 'test' FROM miot_core.organizations o, miot_iam.iam_user u "
+                + "WHERE o.slug = '" + ORG + "' AND u.email = '" + USER + "'");
+
+        given().header("Authorization", bearer("10102")).when().get(ACCESS)
+                .then().statusCode(200).body("baseRole", is("ADMIN"));
+        assertEquals("MEMBER/NATIVE", membership());
+        given().header("Authorization", bearer("10502")).when().get(ACCESS)
+                .then().statusCode(200).body("baseRole", is("MEMBER"));
+    }
+
+    @Test
+    void deletingEveryMappingTakesBackWhatTokensGave() throws SQLException {
+        given().header("Authorization", bearer("10502")).when().get(ACCESS).then().statusCode(200);
+        for (String id : List.of("10102", "10401", "10502")) {
+            owner().when().delete(MAPPINGS + "/" + id).then().statusCode(204);
+        }
+        given().header("Authorization", bearer("10502")).when().get(ACCESS).then().statusCode(403);
+        assertTokenBindings(0);
+        assertEquals("none", membership());
+    }
+
+    @Test
+    void anExpiredBindingOfAMappedRoleIsRenewedAsATokenBinding() throws SQLException {
+        given().header("Authorization", bearer("10502")).when().get(ACCESS).then().statusCode(200);
+        exec("UPDATE miot_iam.iam_role_binding SET source = 'NATIVE', expires_at = now() - interval '1 day' "
+                + "WHERE principal_id = (SELECT id::text FROM miot_iam.iam_user WHERE email = '" + USER + "')");
+
+        given().header("Authorization", bearer("10502")).when().get(ACCESS)
+                .then().statusCode(200).body("roles", hasItem(CoordinatorAccessCatalog.TRANSPORT_VALIDATOR));
+        assertTokenBindings(1);
+    }
+
+    @Test
+    void aDisabledPersonGetsNothingFromTheToken() throws SQLException {
+        exec("INSERT INTO miot_iam.iam_user (email, status) VALUES ('" + USER + "', 'DISABLED')");
+        given().header("Authorization", bearer("10502")).when().get(ACCESS).then().statusCode(403);
+        assertTokenBindings(0);
+        assertEquals("none", membership());
+    }
+
+    @Test
     void mappingsNeedAKnownRole() {
         owner().contentType("application/json").body("{\"roleKey\":\"NOT_A_ROLE\"}")
                 .when().put(MAPPINGS + "/1").then().statusCode(400);
@@ -98,7 +143,15 @@ class TokenRolesFlowTest {
                         + "JOIN miot_iam.iam_user u ON u.id::text = b.principal_id "
                         + "WHERE u.email = '" + USER + "' AND b.source = 'TOKEN'")) {
             rs.next();
-            org.junit.jupiter.api.Assertions.assertEquals(expected, rs.getInt(1));
+            assertEquals(expected, rs.getInt(1));
+        }
+    }
+
+    private String membership() throws SQLException {
+        try (Connection c = ds.getConnection(); var st = c.createStatement();
+                ResultSet rs = st.executeQuery("SELECT m.base_role || '/' || m.source FROM miot_iam.iam_membership m "
+                        + "JOIN miot_iam.iam_user u ON u.id = m.user_id WHERE u.email = '" + USER + "'")) {
+            return rs.next() ? rs.getString(1) : "none";
         }
     }
 

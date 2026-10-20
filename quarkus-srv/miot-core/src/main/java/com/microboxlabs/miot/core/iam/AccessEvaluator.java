@@ -120,10 +120,10 @@ public class AccessEvaluator {
         boolean nativeMembership = isNative(root);
         SecurityIdentity signer = requestSigner(caller.email());
         Set<String> ids = signer == null ? null : TokenRoles.fromIdentity(signer);
-        Uni<Void> synced = ids == null
-                ? Uni.createFrom().voidItem()
+        Uni<String> synced = ids == null
+                ? Uni.createFrom().nullItem()
                 : Panache.withTransaction(() -> tokenRoles.sync(root, caller.email(), ids));
-        return synced.flatMap(ignored -> IamUser.findByEmail(caller.email())).flatMap(user -> {
+        return synced.flatMap(tokenBase -> IamUser.findByEmail(caller.email()).flatMap(user -> {
             if (user != null && !"ACTIVE".equals(user.status)) {
                 return Uni.createFrom().item(Access.none(org.id, org.slug));
             }
@@ -143,10 +143,15 @@ public class AccessEvaluator {
                     .flatMap(bindings -> directory(org, root, caller, nativeMembership)
                             .flatMap(dir -> platform.isPlatformOwner(caller.email())
                                     .map(owner -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                                            nativeMembership, highest(rows), dir.member(), dir.bootstrapOwner(),
-                                            false, covered(bindings, org, root), dir.role(),
+                                            nativeMembership, withToken(highest(rows), tokenBase), dir.member(),
+                                            dir.bootstrapOwner(), false, covered(bindings, org, root), dir.role(),
                                             Boolean.TRUE.equals(owner)), registry)))));
-        });
+        }));
+    }
+
+    /** A member's base role raised to the one their token gives, for this request only. */
+    static BaseRole withToken(BaseRole membership, String tokenBase) {
+        return membership == null || tokenBase == null ? membership : BaseRole.max(membership, BaseRole.valueOf(tokenBase));
     }
 
     /** Whether membership of this organization comes from the modulith. Needs an open session. */

@@ -151,6 +151,12 @@ public class AlfrescoBridge {
         return alfrescoGroupId;
     }
 
+    /** Whether {@code groupId} holds the org's members, so its content follows membership, not a role. */
+    static boolean isMemberGroup(Organization org, String groupId) {
+        return org.alfrescoGroupId != null
+                && (groupId.equals(org.alfrescoGroupId) || groupId.equals(memberGroupOf(org.alfrescoGroupId)));
+    }
+
     /** Sends pending changes to Alfresco, oldest first; a failure is retried up to {@value #MAX_ATTEMPTS} times. */
     @Scheduled(every = "${miot.iam.alfresco-projection.every:30s}",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)

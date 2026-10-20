@@ -68,7 +68,11 @@ public class GroupRoles {
         if (evaluator.registry().role(roleKey).isEmpty()) {
             throw new IllegalArgumentException("Unknown role: " + roleKey);
         }
-        return Panache.withTransaction(() -> root(slug).flatMap(org -> IamGroupRole.findOne(org.id, groupId, roleKey)
+        return Panache.withTransaction(() -> root(slug).invoke(org -> {
+            if (projected && AlfrescoBridge.isMemberGroup(org, groupId)) {
+                throw new IllegalStateException(groupId + " holds the organization's members and cannot be projected");
+            }
+        }).flatMap(org -> IamGroupRole.findOne(org.id, groupId, roleKey)
                 .flatMap(found -> {
                     IamGroupRole row = found == null
                             ? IamGroupRole.of(org.id, groupId, roleKey, projected, excludedGroupId, actor)

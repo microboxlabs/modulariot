@@ -7,6 +7,8 @@ import com.microboxlabs.miot.core.alfresco.IAlfrescoGroupAdminClient;
 import com.microboxlabs.miot.core.api.dto.AddMemberRequest;
 import com.microboxlabs.miot.core.auth.WriteAuthorizer;
 import com.microboxlabs.miot.core.iam.AccessEvaluator;
+import com.microboxlabs.miot.core.iam.model.IamMembership;
+import com.microboxlabs.miot.core.iam.model.IamUser;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
@@ -26,6 +28,7 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
+import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
@@ -61,7 +64,7 @@ public class OrgMembersResource {
         this.evaluator = evaluator;
     }
 
-    /** The org, refused with 409 when its membership is native: those members are managed on the Team page. */
+    /** The org for a change, refused with 409 when its membership is native: those members are managed on the Team page. */
     private Uni<Organization> alfrescoSourced(Organization org) {
         if (org == null) {
             return Uni.createFrom().nullItem();
@@ -84,14 +87,39 @@ public class OrgMembersResource {
             @QueryParam("skipCount") @DefaultValue("0") int skipCount) {
         return Panache.withSession(() ->
                 Organization.findBySlug(organizationId)
-                        .flatMap(this::alfrescoSourced)
                         .flatMap(org -> {
-                            if (org == null || org.alfrescoGroupId == null) {
+                            if (org == null) {
                                 return Uni.createFrom().item(List.<AlfrescoPerson>of());
                             }
-                            return directoryClient.listGroupMembers(
-                                    org.alfrescoGroupId, maxItems, skipCount);
+                            return evaluator.membershipNative(org).flatMap(nativeMembership -> {
+                                if (Boolean.TRUE.equals(nativeMembership)) {
+                                    return nativeMembers(org, maxItems, skipCount);
+                                }
+                                if (org.alfrescoGroupId == null) {
+                                    return Uni.createFrom().item(List.<AlfrescoPerson>of());
+                                }
+                                return directoryClient.listGroupMembers(
+                                        org.alfrescoGroupId, maxItems, skipCount);
+                            });
                         }));
+    }
+
+    /** Active IAM members of the org's top-level organization, in the shape the Alfresco roster has. */
+    private Uni<List<AlfrescoPerson>> nativeMembers(Organization org, int maxItems, int skipCount) {
+        return evaluator.root(org)
+                .flatMap(root -> IamMembership.findByOrganization(root.id))
+                .flatMap(memberships -> {
+                    List<UUID> ids = memberships.stream()
+                            .filter(m -> "ACTIVE".equals(m.status))
+                            .skip(Math.max(skipCount, 0))
+                            .limit(Math.max(maxItems, 0))
+                            .map(m -> m.userId)
+                            .toList();
+                    return IamUser.findByIds(ids);
+                })
+                .map(users -> users.stream()
+                        .map(u -> new AlfrescoPerson(u.email, u.email, null, null, u.name))
+                        .toList());
     }
 
     @POST

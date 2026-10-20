@@ -53,6 +53,7 @@ class MemberSource extends ListedSystemSource {
             JOIN miot_iam.iam_membership m ON m.organization_id IN (o.id, coalesce(p.id, o.id))
             JOIN miot_iam.iam_user u ON u.id = m.user_id
             WHERE o.tenant_client_id = ? AND o.active AND m.status = 'ACTIVE' AND u.status = 'ACTIVE'
+              AND btrim(u.email) <> ''
               AND (? OR coalesce(p.membership_source, o.membership_source) = 'NATIVE')""";
 
     private final Function<String, List<String>> groupsOf;

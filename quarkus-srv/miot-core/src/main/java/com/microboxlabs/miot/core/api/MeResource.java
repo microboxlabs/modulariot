@@ -6,6 +6,7 @@ import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.iam.AccessEvaluator;
 import com.microboxlabs.miot.core.iam.Caller;
 import com.microboxlabs.miot.core.iam.IamDirectory;
+import com.microboxlabs.miot.core.iam.model.IamUser;
 import com.microboxlabs.miot.core.model.Organization;
 import com.microboxlabs.miot.core.model.OrganizationModule;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
@@ -90,14 +91,18 @@ public class MeResource {
 
     /** A platform owner is Owner of every organization: the same queries whatever the number of organizations. */
     private Uni<List<OrganizationScopeDto>> platformOwnerScopes(List<Organization> orgs, String email) {
-        return directory.platformOwnerSignedIn(email)
-                .onFailure().recoverWithItem(e -> {
-                    LOG.warnf("Could not record sign-in of %s: %s", email, e.getMessage());
-                    return true;
-                })
-                .flatMap(active -> Boolean.TRUE.equals(active)
-                        ? OrganizationModule.listAllEnabled().map(modules -> ownerScopes(orgs, modules))
-                        : Uni.createFrom().item(List.of()));
+        return IamUser.findByEmail(email).flatMap(user -> {
+            if (user != null && !"ACTIVE".equals(user.status)) {
+                return Uni.createFrom().item(List.of());
+            }
+            return directory.platformOwnerSignedIn(email)
+                    .onFailure().recoverWithItem(e -> {
+                        LOG.warnf("Could not record sign-in of %s: %s", email, e.getMessage());
+                        return null;
+                    })
+                    .flatMap(ignored -> OrganizationModule.listAllEnabled())
+                    .map(modules -> ownerScopes(orgs, modules));
+        });
     }
 
     static List<OrganizationScopeDto> ownerScopes(List<Organization> orgs, List<OrganizationModule> modules) {

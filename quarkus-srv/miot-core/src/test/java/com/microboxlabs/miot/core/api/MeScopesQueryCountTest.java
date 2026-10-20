@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.core.api;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
@@ -64,6 +65,21 @@ class MeScopesQueryCountTest {
                 .body("role", everyItem(is("OWNER")))
                 .body("find { it.slug == '" + PREFIX + "0' }.effectiveTaxIds", is(java.util.List.of("76.000.000-0")))
                 .body("find { it.slug == '" + PREFIX + "child' }.isParent", is(false));
+    }
+
+    @Test
+    void aDisabledPlatformOwnerSeesNoOrganization() throws SQLException {
+        seed(0, 1);
+        queriesForOwnerScopes(); // records the owner's user
+        String owner = "email = '" + PlatformTestProfile.OWNER_EMAIL + "'";
+        exec("UPDATE miot_iam.iam_user SET status = 'DISABLED' WHERE " + owner);
+        try {
+            given().header("Authorization", bearer(PlatformTestProfile.OWNER_EMAIL))
+                    .when().get("/api/v1/me/scopes")
+                    .then().statusCode(200).body("$", empty());
+        } finally {
+            exec("UPDATE miot_iam.iam_user SET status = 'ACTIVE' WHERE " + owner);
+        }
     }
 
     private long queriesForOwnerScopes() {

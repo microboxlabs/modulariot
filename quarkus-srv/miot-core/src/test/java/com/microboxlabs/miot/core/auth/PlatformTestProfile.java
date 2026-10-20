@@ -61,6 +61,7 @@ public class PlatformTestProfile implements QuarkusTestProfile {
         overrides.put("quarkus.flyway.schemas", "miot_core");
         overrides.put("quarkus.flyway.create-schemas", "true");
         overrides.put("quarkus.hibernate-orm.schema-management.strategy", "none");
+        overrides.put("quarkus.hibernate-orm.statistics", "true");
         overrides.put("quarkus.hibernate-orm.physical-naming-strategy",
                 "org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy");
 

@@ -82,6 +82,11 @@ public class IamRoleBinding extends PanacheEntityBase {
         return find("organizationId = ?1 and roleKey = ?2", organizationId, roleKey).list();
     }
 
+    public static Uni<List<IamRoleBinding>> findByRoles(Long organizationId, List<String> roleKeys) {
+        return roleKeys.isEmpty() ? Uni.createFrom().item(List.of())
+                : find("organizationId = ?1 and roleKey in ?2", organizationId, roleKeys).list();
+    }
+
     public static Uni<List<IamRoleBinding>> findByOrganization(Long organizationId) {
         return find("organizationId = ?1", organizationId).list();
     }

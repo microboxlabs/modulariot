@@ -7,16 +7,14 @@ import { useState } from "react";
 import type { SelectedOption } from "../../../types/side-info";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { useRuntimeConfig } from "@/features/runtime-config/runtime-config-context";
-import {
-  useTreatmentsTemplates,
-  useUserGroups,
-} from "../../../../common/providers/client-api.provider";
+import { useTreatmentsTemplates } from "../../../../common/providers/client-api.provider";
 import { TreatmentsGeneralResponseItem } from "@/app/api/treatments/general/route.type";
 import TimelineComponent from "../timeline";
 import { FaClock } from "react-icons/fa";
 import { TbSortAscendingShapes, TbSortDescendingShapes } from "react-icons/tb";
 import { ConditionsAgg } from "../../../types/timeline";
-import { GroupAllowed } from "../../../../common/components/group-allowed/group-allowed";
+import { AccessAllowed } from "@/features/auth/components/access-allowed";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import PrototypeInlineForm from "./prototype-inline-form";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
 import SymptomForm from "../../blurrable-stepped-menu/symptom-form";
@@ -74,7 +72,6 @@ export default function PrototypeSideInfo({
     treatmentData?.symptom_info?.icu_code.toString() ?? "4"
   );
 
-  const { data: userGroups } = useUserGroups();
 
   if (error) {
     return (
@@ -177,10 +174,7 @@ export default function PrototypeSideInfo({
           <div
             className={`absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5 ${loading ? "opacity-50" : "opacity-100"}`}
           >
-            <GroupAllowed
-              notAllowedTo={[]} /* DEMO LOCAL: era GROUP_MINTRAL_REVISOR */
-              userGroups={userGroups}
-            >
+            <AccessAllowed rule={ACCESS_RULES.controlTowerCaseTreat}>
               <ButtonGroup className="w-full">
                 <BlurrableDropdown
                   dict={dict}
@@ -202,7 +196,7 @@ export default function PrototypeSideInfo({
                   <HiArrowRight className="ml-2 h-5 w-5 xl:flex lg:hidden" />
                 </Button>
               </ButtonGroup>
-            </GroupAllowed>
+            </AccessAllowed>
           </div>
         </>
       )}

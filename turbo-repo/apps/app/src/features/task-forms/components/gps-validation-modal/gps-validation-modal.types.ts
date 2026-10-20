@@ -9,7 +9,6 @@ export type GpsValidationModalProps = {
   entityInfo?: GetEntityInfoResponse;
   lang: string;
   task: TaskResponse;
-  userGroups: string[];
 };
 
 export type MapComponentProps = {

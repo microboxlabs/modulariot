@@ -13,7 +13,7 @@ export default async function FleetAssetRoute({ params }: AssetRouteParams) {
   const dict = (dictionary.pages as I18nRecord)?.fleet as I18nRecord;
 
   return (
-    <RouteGuard path="/fleet" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/fleet">
       <AssetPage
         assetId={decodeURIComponent(assetId)}
         dict={dict ?? {}}

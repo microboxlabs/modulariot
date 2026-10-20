@@ -3,28 +3,23 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
 import { FaBook } from "react-icons/fa";
 import MyTasks from "@/features/common/components/my-tasks/my-tasks";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
-import { auth } from "@/auth";
 import { SearchParams } from "next/dist/server/request/search-params";
 import { RouteGuard } from "@/features/auth/components/route-guard";
-import { KANBAN_ACCESS_ROLES } from "@/features/auth/config/route-permissions";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function MyTasksPage(params: {
   params: Promise<{ lang: string }>;
   searchParams: Promise<SearchParams>;
 }) {
+  await guardPage(ACCESS_RULES.kanban, "/mytasks");
   const paramsResult = await params.params;
   const { lang } = paramsResult;
   const [, dict] = await getDictionary(lang);
   let status = getStatus((await params.searchParams)?.status);
-  const session = await auth();
-  const userGroups = await getGroupsForPerson(session!);
 
   return (
-    <RouteGuard
-      requiredGroups={KANBAN_ACCESS_ROLES}
-      fallbackPath={`/${lang}/geographic-view`}
-    >
+    <RouteGuard path="/mytasks">
       <div className="h-full flex flex-col overflow-hidden">
         <SectionHeader
           path={[
@@ -43,12 +38,7 @@ export default async function MyTasksPage(params: {
           filterDict={dict as I18nRecord}
         />
         <div className="max-w-screen-2xl mx-auto w-full flex-1 overflow-hidden">
-          <MyTasks
-            dict={dict}
-            status={status}
-            userGroups={userGroups}
-            lang={lang}
-          />
+          <MyTasks dict={dict} status={status} lang={lang} />
         </div>
       </div>
     </RouteGuard>

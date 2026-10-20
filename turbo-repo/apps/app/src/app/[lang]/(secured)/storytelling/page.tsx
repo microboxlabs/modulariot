@@ -19,12 +19,15 @@ export default async function StorytellingPage({ params }: ParamsWithLang) {
   const dict = (dictionary.storytelling as I18nRecord) ?? {};
 
   return (
-    <RouteGuard path="/storytelling" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/storytelling">
       {/* LayoutContent is overflow-hidden — pages own their scroll. The header
           (SectionHeader, inside StorytellingPageContent) stays fixed; only the
           body below it scrolls, same as symptoms / geographic-view. */}
       <div className="flex h-full w-full flex-col bg-white dark:bg-gray-900">
-        <StorytellingPageContent dict={dict} rootDict={dictionary as unknown as I18nRecord} />
+        <StorytellingPageContent
+          dict={dict}
+          rootDict={dictionary as unknown as I18nRecord}
+        />
       </div>
     </RouteGuard>
   );

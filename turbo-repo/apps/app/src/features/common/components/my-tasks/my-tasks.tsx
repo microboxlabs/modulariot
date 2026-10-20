@@ -26,12 +26,10 @@ import ModalTooltip from "../../../shipping/components/modal-tooltip";
 export default function MyTasks({
   dict,
   status,
-  userGroups,
   lang,
 }: {
   dict: I18nRecord;
   status: string;
-  userGroups: string[];
   lang: string;
 }) {
   const searchParams = useSearchParams();
@@ -161,7 +159,6 @@ export default function MyTasks({
       {/* Modal Tooltip Component */}
       <ModalTooltip
         lang={lang}
-        userGroups={userGroups}
         selectedTask={selectedTask}
         setSelectedTask={setSelectedTask}
         dict={dict as I18nRecord}

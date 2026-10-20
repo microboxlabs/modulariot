@@ -96,7 +96,7 @@ public class RoleProjection {
                 .flatMap(known -> {
                     Map<String, List<String>> rolesByGroup = new TreeMap<>();
                     for (IamGroupRole row : rows) {
-                        if (row.projected) {
+                        if (row.projected && !AlfrescoBridge.isMemberGroup(org, row.groupId)) {
                             rolesByGroup.computeIfAbsent(row.groupId, g -> new ArrayList<>()).add(row.roleKey);
                         }
                     }

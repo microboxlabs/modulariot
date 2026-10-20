@@ -137,7 +137,6 @@ export interface CreatePlatformOrganization {
   slug: string;
   name: string;
   tenantClientId?: string;
-  membershipSource: "NATIVE";
 }
 
 /** Mirrors `PlatformAuth0ClientsResource.Auth0ClientView`. */
@@ -164,8 +163,6 @@ export interface PlatformOrganizationListItem {
   name: string;
   displayName: string | null;
   tenantClientId: string;
-  /** In effect for this organization: its top-level organization's, or NATIVE on a native deployment. */
-  membershipSource: "NATIVE" | "ALFRESCO";
   taxId: string | null;
   /** Null for a top-level organization. */
   parentSlug: string | null;

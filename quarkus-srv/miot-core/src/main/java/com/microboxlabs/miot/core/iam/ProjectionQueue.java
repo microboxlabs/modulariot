@@ -1,6 +1,5 @@
 package com.microboxlabs.miot.core.iam;
 
-import com.microboxlabs.miot.core.auth.OrganizationMembership;
 import com.microboxlabs.miot.core.iam.model.IamGroupRole;
 import com.microboxlabs.miot.core.iam.model.IamProjectionChange;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
@@ -34,17 +33,15 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 public class ProjectionQueue {
 
     private final boolean projection;
-    private final OrganizationMembership deployment;
 
     @Inject
     public ProjectionQueue(@ConfigProperty(name = AlfrescoBridge.PROJECTION_PROPERTY, defaultValue = "false")
-            boolean projection, OrganizationMembership deployment) {
+            boolean projection) {
         this.projection = projection;
-        this.deployment = deployment;
     }
 
     /**
-     * After {@code email} joined ({@code member} true) or left a native organization: queues the change to the org's
+     * After {@code email} joined ({@code member} true) or left an organization: queues the change to the org's
      * member group (see {@link AlfrescoBridge#memberGroupOf}). Needs an open transaction.
      */
     @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
@@ -53,8 +50,7 @@ public class ProjectionQueue {
             return Uni.createFrom().voidItem();
         }
         return Organization.<Organization>findById(organizationId).flatMap(org -> {
-            if (org == null || org.alfrescoGroupId == null
-                    || !(deployment.isNative() || "NATIVE".equals(org.membershipSource))) {
+            if (org == null || org.alfrescoGroupId == null) {
                 return Uni.createFrom().voidItem();
             }
             String kind = member ? IamProjectionChange.MEMBER_ADDED : IamProjectionChange.MEMBER_REMOVED;

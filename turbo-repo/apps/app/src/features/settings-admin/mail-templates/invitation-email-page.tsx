@@ -4,7 +4,7 @@ import { Alert, Spinner } from "flowbite-react";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { DetailShell } from "../team/module-access";
-import { useMyAccess, useTeam } from "../team/team-api";
+import { useMyAccess } from "../team/team-api";
 import MailTemplateEditor from "./mail-template-editor";
 
 interface InvitationEmailPageProps {
@@ -21,10 +21,9 @@ export default function InvitationEmailPage({
   const d = dict?.team as I18nRecord;
   const templatesDict = (dict?.mailTemplates as I18nRecord) ?? {};
   const { access, accessError, can } = useMyAccess();
-  const team = useTeam();
-  const failed = Boolean(accessError || team.error);
-  const loading = !failed && (!access || team.isLoading);
-  const allowed = can("org:update") && team.data?.membershipSource === "NATIVE";
+  const failed = Boolean(accessError);
+  const loading = !failed && !access;
+  const allowed = can("org:update");
 
   return (
     <DetailShell
@@ -35,7 +34,7 @@ export default function InvitationEmailPage({
     >
       {loading && <Spinner className="mx-auto" />}
       {failed && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
-      {!loading && !failed && team.data && !allowed && (
+      {!loading && !failed && !allowed && (
         <Alert color="gray">{tr("notAllowed", templatesDict)}</Alert>
       )}
       {!loading && !failed && allowed && (

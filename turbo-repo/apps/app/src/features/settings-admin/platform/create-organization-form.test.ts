@@ -21,7 +21,6 @@ describe("toOrganizationRequest", () => {
           slug: "acme-fleet",
           name: "Acme Fleet",
           tenantClientId: "client-123",
-          membershipSource: "NATIVE",
         },
         ownerEmail: "owner@example.com",
       },
@@ -78,7 +77,6 @@ describe("an organization without a client id", () => {
     expect(result.ok && result.value.organization).toEqual({
       slug: "acme-fleet",
       name: "Acme Fleet",
-      membershipSource: "NATIVE",
     });
   });
 });

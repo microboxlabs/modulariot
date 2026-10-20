@@ -21,10 +21,8 @@ class GeneralSelectablesTest {
     private final SelectableService service = new SelectableService(new InMemorySelectableStore(),
             List.of(new GeneralSelectables()),
             List.of(new CoreSystemSources.TimeZones(), new CoreSystemSources.Currencies(),
-                    new MemberSource(tenant -> List.of("GROUP_ops"), tenant -> List.of(),
-                            new MemberSourceTest.FakeDirectory(Map.of(
-                            "GROUP_ops", List.of(new AlfrescoPerson("ana@example.com", "ana@example.com", "Ana",
-                                    "Pérez", "Ana Pérez")))), Clock.systemUTC())),
+                    new MemberSource(tenant -> List.of(new AlfrescoPerson("ana@example.com", "ana@example.com",
+                            "Ana", "Pérez", "Ana Pérez")), Clock.systemUTC())),
             e -> { });
 
     /** Defaults skip validation when seeded, so prove each one would pass it as a write. */

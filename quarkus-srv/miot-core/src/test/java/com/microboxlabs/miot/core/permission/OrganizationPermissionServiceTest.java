@@ -127,7 +127,7 @@ class OrganizationPermissionServiceTest {
         @Override
         public Uni<Access> access(Organization organization, Caller caller) {
             Set<String> held = TRAINER.equals(caller.email()) ? Set.of("HARNESS_TRAINER") : Set.of();
-            return Uni.createFrom().item(new Access(1L, "org", BaseRole.MEMBER, held, Set.of(), null));
+            return Uni.createFrom().item(new Access(1L, "org", BaseRole.MEMBER, held, Set.of()));
         }
 
         @Override

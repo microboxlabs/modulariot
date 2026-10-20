@@ -89,7 +89,6 @@ export default function MemberAccessPage({
           key={member.userId}
           member={member}
           catalog={catalog}
-          fromAlfresco={team.data.membershipSource === "ALFRESCO"}
           isMe={!!session?.user?.email && member.email === session.user.email}
           can={can}
           lang={lang}
@@ -108,7 +107,6 @@ export default function MemberAccessPage({
 interface MemberEditorProps {
   readonly member: TeamMember;
   readonly catalog: AccessCatalog;
-  readonly fromAlfresco: boolean;
   readonly isMe: boolean;
   readonly can: (permission: string) => boolean;
   readonly lang: string;
@@ -120,7 +118,6 @@ interface MemberEditorProps {
 function MemberEditor({
   member,
   catalog,
-  fromAlfresco,
   isMe,
   can,
   lang,
@@ -130,7 +127,7 @@ function MemberEditor({
 }: MemberEditorProps) {
   const canUpdate = can("members:update");
   const canManageOwners = can("owners:manage");
-  const canRemove = can("members:remove") && !fromAlfresco && !isMe;
+  const canRemove = can("members:remove") && !isMe;
   const baseEditable =
     canUpdate && !isMe && (member.baseRole !== "OWNER" || canManageOwners);
 

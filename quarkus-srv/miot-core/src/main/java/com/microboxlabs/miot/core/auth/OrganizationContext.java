@@ -13,7 +13,6 @@ public class OrganizationContext {
 
     private String organizationId;
     private String userEmail;
-    private String alfrescoRole;
     private String baseRole;
     private String alfrescoGroupId;
 
@@ -35,14 +34,6 @@ public class OrganizationContext {
 
     public void setUserEmail(String userEmail) {
         this.userEmail = userEmail;
-    }
-
-    public String getAlfrescoRole() {
-        return alfrescoRole;
-    }
-
-    public void setAlfrescoRole(String alfrescoRole) {
-        this.alfrescoRole = alfrescoRole;
     }
 
     /** The caller's base role in the organization (OWNER, ADMIN or MEMBER); null when not a member. */

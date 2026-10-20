@@ -9,6 +9,7 @@ import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.microboxlabs.miot.core.auth.DashboardAssertionTestProfile;
 import com.microboxlabs.miot.core.auth.DashboardProxyTestProfile.DashboardWireMock;
 import com.microboxlabs.miot.core.auth.StubAlfrescoMembershipClient;
+import com.microboxlabs.miot.core.auth.TestMembers;
 import com.microboxlabs.miot.core.auth.TestTokenFactory;
 import io.agroal.api.AgroalDataSource;
 import io.quarkus.test.junit.QuarkusTest;
@@ -36,7 +37,7 @@ class DashboardProxyAssertionTest {
     private static final String SITE_ID = "fleet-ops";
     private static final String SITE_GROUP = "GROUP_site_" + SITE_ID;
 
-    /** No site behind it, so the role the filter resolves is null. */
+    /** No site behind it, and the stub user is a plain member. */
     private static final String PLAIN_ORG = "assert-plain-org";
 
     private static String listPath(String org, String scope) {
@@ -48,8 +49,8 @@ class DashboardProxyAssertionTest {
 
     @BeforeEach
     void seedOrgsAndStubs() throws SQLException {
-        insertOrg(SITE_ORG, SITE_GROUP, "assert-site-tenant");
-        insertOrg(PLAIN_ORG, null, "assert-plain-tenant");
+        insertOrg(SITE_ORG, SITE_GROUP, "assert-site-tenant", "OWNER");
+        insertOrg(PLAIN_ORG, null, "assert-plain-tenant", "MEMBER");
 
         DashboardWireMock.server().resetAll();
         DashboardWireMock.server().stubFor(
@@ -70,17 +71,19 @@ class DashboardProxyAssertionTest {
         }
     }
 
-    private void insertOrg(String slug, String groupId, String tenantClientId)
+    private void insertOrg(String slug, String groupId, String tenantClientId,
+            String baseRole)
             throws SQLException {
         try (Connection c = ds.getConnection(); var st = c.prepareStatement(
                 "INSERT INTO miot_core.organizations "
-                        + "(slug, name, alfresco_group_id, tenant_client_id, active) "
-                        + "VALUES (?, ?, ?, ?, true)")) {
+                        + "(slug, name, alfresco_group_id, tenant_client_id, active, membership_source) "
+                        + "VALUES (?, ?, ?, ?, true, 'NATIVE')")) {
             st.setString(1, slug);
             st.setString(2, slug);
             st.setString(3, groupId);
             st.setString(4, tenantClientId);
             st.executeUpdate();
+            TestMembers.addMember(c, slug, StubAlfrescoMembershipClient.MEMBER_EMAIL, baseRole);
         }
     }
 
@@ -110,7 +113,7 @@ class DashboardProxyAssertionTest {
                 is(StubAlfrescoMembershipClient.MEMBER_EMAIL));
         assertThat(sent.getHeader(DashboardClient.ASSERTED_TENANT_HEADER), is(SITE_ORG));
         assertThat(sent.getHeader(DashboardClient.ASSERTED_SCOPE_HEADER), is(SITE_ID));
-        // The stub resolves SITE_MANAGER, which is the upstream's Coordinator.
+        // An OWNER membership is the upstream's Coordinator.
         assertThat(sent.getHeader(DashboardClient.ASSERTED_ROLE_HEADER), is("Coordinator"));
     }
 
@@ -145,16 +148,14 @@ class DashboardProxyAssertionTest {
     }
 
     @Test
-    void anOrgWithNoSiteAssertsTheLowestRole() {
+    void aPlainMemberAssertsTheLowestRole() {
         given().header("Authorization", "Bearer " + memberToken())
                 .when()
                 .get("/api/v1/orgs/" + PLAIN_ORG + "/dashboards")
                 .then()
                 .statusCode(200);
 
-        // The filter lets an org with no Alfresco group through with a null
-        // role. Asserting Coordinator there would grant editing rights
-        // nobody configured.
+        // A MEMBER base role is Consumer, the lowest dashboard role.
         assertThat(sentTo(listPath(PLAIN_ORG, "default"))
                 .getHeader(DashboardClient.ASSERTED_ROLE_HEADER), is("Consumer"));
     }

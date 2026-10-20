@@ -32,7 +32,6 @@ import {
   GET as getOrgRole,
   PUT as putOrgRole,
 } from "./orgs/[slug]/roles/[roleCode]/route";
-import { POST as importMembers } from "./orgs/[slug]/alfresco-import/route";
 
 const FORWARDED = { ok: true };
 
@@ -144,17 +143,6 @@ describe("platform organizations proxy", () => {
     });
 
     expect(evictAllScopeCaches).not.toHaveBeenCalled();
-  });
-
-  it("drops cached scopes after a successful Alfresco import only", async () => {
-    const params = { params: Promise.resolve({ slug: "acme" }) };
-
-    await importMembers(new Request("http://localhost"), params);
-    expect(evictAllScopeCaches).toHaveBeenCalledTimes(1);
-
-    forwardToQuarkus.mockResolvedValue({ ok: false });
-    await importMembers(new Request("http://localhost"), params);
-    expect(evictAllScopeCaches).toHaveBeenCalledTimes(1);
   });
 
   it("answers 400 to an unparseable body rather than forwarding it", async () => {

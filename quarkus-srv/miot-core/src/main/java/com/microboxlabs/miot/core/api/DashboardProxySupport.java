@@ -63,24 +63,15 @@ public class DashboardProxySupport {
     }
 
     /**
-     * Alfresco's site roles as the dashboard server names them. Without a
-     * site role (native membership) the base role decides: Owner is
-     * {@code Coordinator}, Admin {@code Editor}. Anything else is
-     * {@code Consumer}, the lowest of the four.
+     * The base role as the dashboard server names roles: Owner is
+     * {@code Coordinator}, Admin {@code Editor}, anything else
+     * {@code Consumer}, the lowest.
      */
-    static String dashboardRoleFrom(String alfrescoRole, String baseRole) {
-        if (alfrescoRole == null) {
-            if ("OWNER".equals(baseRole)) {
-                return "Coordinator";
-            }
-            return "ADMIN".equals(baseRole) ? "Editor" : "Consumer";
+    static String dashboardRoleFrom(String baseRole) {
+        if ("OWNER".equals(baseRole)) {
+            return "Coordinator";
         }
-        return switch (alfrescoRole) {
-            case "SITE_MANAGER" -> "Coordinator";
-            case "SITE_COLLABORATOR" -> "Editor";
-            case "SITE_CONTRIBUTOR" -> "Contributor";
-            default -> "Consumer";
-        };
+        return "ADMIN".equals(baseRole) ? "Editor" : "Consumer";
     }
 
     /**
@@ -95,8 +86,7 @@ public class DashboardProxySupport {
             return DashboardAssertion.none();
         }
         return new DashboardAssertion(proxyKey, email, tenantIdFor(slug),
-                scopeIdFor(), dashboardRoleFrom(organizationContext.getAlfrescoRole(),
-                organizationContext.getBaseRole()));
+                scopeIdFor(), dashboardRoleFrom(organizationContext.getBaseRole()));
     }
 
     /**

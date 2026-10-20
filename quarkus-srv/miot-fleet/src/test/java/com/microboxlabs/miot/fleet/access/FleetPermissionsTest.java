@@ -83,7 +83,7 @@ class FleetPermissionsTest {
 
     private static Set<String> permissions(AccessRegistry registry, BaseRole base, Set<String> roles) {
         return AccessRules.resolve(1L, "acme", Caller.user("ana@example.com"),
-                new AccessRules.Facts(true, base, false, false, false, roles, null), registry)
+                new AccessRules.Facts(base, false, roles), registry)
                 .permissions();
     }
 }

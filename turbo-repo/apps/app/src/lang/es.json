@@ -1902,19 +1902,13 @@
         "platformView": {
           "readOnly": "Solo lectura. Para administrar miembros e integraciones necesitas un rol en esta organización.",
           "parentOwners": "Dueños (de {parent})",
-          "alfrescoOwners": "Sin dueño asignado. Los administradores de la organización en Alfresco actúan como dueños.",
           "slug": "Identificador",
           "tenantClientId": "Client ID del tenant",
-          "membershipSource": "Miembros administrados en",
           "parent": "Organización padre",
           "taxId": "RUT",
           "owners": "Dueños",
           "noOwners": "Esta organización aún no tiene dueño. Hasta que un dueño de la plataforma asigne uno, nadie puede administrar sus miembros.",
-          "ownersError": "No se pudieron cargar los dueños.",
-          "sources": {
-            "NATIVE": "ModularIoT",
-            "ALFRESCO": "Alfresco"
-          }
+          "ownersError": "No se pudieron cargar los dueños."
         },
         "parentAccount": "Cuenta principal",
         "noSelection": "Selecciona una organización para ver el detalle.",
@@ -2131,7 +2125,6 @@
         "invite": "Invitar miembros",
         "loadFailed": "No se pudo cargar el equipo.",
         "saveFailed": "No se pudo guardar el cambio.",
-        "alfrescoNote": "Los miembros vienen del grupo de Alfresco de la organización. Aparecen aquí al iniciar sesión. Para agregar o quitar personas, hazlo en Alfresco.",
         "colName": "Nombre",
         "colEmail": "Email",
         "colRole": "Rol",

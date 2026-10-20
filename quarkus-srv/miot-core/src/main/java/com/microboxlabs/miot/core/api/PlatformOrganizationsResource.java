@@ -1,10 +1,7 @@
 package com.microboxlabs.miot.core.api;
 
-import jakarta.ws.rs.PATCH;
 import com.microboxlabs.miot.core.iam.model.IamProjectionChange;
-import com.microboxlabs.miot.core.iam.model.IamAuditEvent;
-import com.microboxlabs.miot.core.iam.AccessEvaluator;
-import com.microboxlabs.miot.core.iam.AlfrescoBridge;
+import com.microboxlabs.miot.core.iam.NativeMembershipMigration;
 import com.microboxlabs.miot.core.api.dto.CreateRootOrganizationRequest;
 import com.microboxlabs.miot.core.api.dto.OrganizationDto;
 import com.microboxlabs.miot.core.api.dto.OrganizationRoleDto;
@@ -32,16 +29,14 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.time.Instant;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 /**
- * Platform owners create top-level organizations and assign their roles. With native membership this is
- * how an organization gets its first owner: nobody belongs to it until a role is assigned.
+ * Platform owners create top-level organizations and assign their roles. This is how an organization gets its
+ * first owner: nobody belongs to it until a role is assigned.
  */
 @Path("/api/v1/platform/orgs")
 @Produces(MediaType.APPLICATION_JSON)
@@ -51,20 +46,9 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class PlatformOrganizationsResource {
 
     static final String SLUG = "[a-z0-9][a-z0-9-]{1,98}[a-z0-9]";
-    private static final String NATIVE = "NATIVE";
-    private static final String ALFRESCO = "ALFRESCO";
-
-    /** {@code membershipSource}: ALFRESCO or NATIVE. */
-    public record MembershipSourceRequest(String membershipSource) {
-    }
-
-    /**
-     * One organization in the platform-wide list. {@code membershipSource} is the one in effect: the
-     * top-level organization's, or NATIVE for a native deployment. {@code parentSlug} is null for a
-     * top-level organization.
-     */
+    /** One organization in the platform-wide list. {@code parentSlug} is null for a top-level organization. */
     public record PlatformOrganizationView(String slug, String name, String displayName, String tenantClientId,
-            String membershipSource, String taxId, String parentSlug) {
+            String taxId, String parentSlug) {
     }
 
     public record ProjectionView(Long id, String kind, String subject, String status, int attempts, String lastError,
@@ -74,20 +58,18 @@ public class PlatformOrganizationsResource {
     private final PlatformAuthorizer authorizer;
     private final OrganizationRoleService roles;
     private final TaxIdValidator taxIdValidator;
-    private final AlfrescoBridge bridge;
-    private final AccessEvaluator access;
     private final Auth0Management auth0;
+    private final NativeMembershipMigration migration;
 
     @Inject
     public PlatformOrganizationsResource(PlatformAuthorizer authorizer, OrganizationRoleService roles,
-            @ActiveTaxIdValidator TaxIdValidator taxIdValidator, AlfrescoBridge bridge, AccessEvaluator access,
-            Auth0Management auth0) {
+            @ActiveTaxIdValidator TaxIdValidator taxIdValidator, Auth0Management auth0,
+            NativeMembershipMigration migration) {
         this.authorizer = authorizer;
         this.roles = roles;
         this.taxIdValidator = taxIdValidator;
-        this.bridge = bridge;
-        this.access = access;
         this.auth0 = auth0;
+        this.migration = migration;
     }
 
     /**
@@ -157,11 +139,8 @@ public class PlatformOrganizationsResource {
     }
 
     private PlatformOrganizationView view(Organization org) {
-        // Organizations are at most two levels deep, so the parent is the top-level one.
-        Organization root = org.parent == null ? org : org.parent;
-        String source = access.isNative(root) ? NATIVE : ALFRESCO;
-        return new PlatformOrganizationView(org.slug, org.name, org.displayName, org.tenantClientId, source,
-                org.taxId, org.parent == null ? null : org.parent.slug);
+        return new PlatformOrganizationView(org.slug, org.name, org.displayName, org.tenantClientId, org.taxId,
+                org.parent == null ? null : org.parent.slug);
     }
 
     @GET
@@ -181,43 +160,12 @@ public class PlatformOrganizationsResource {
     }
 
     @POST
-    @Path("/{slug}/alfresco-import")
+    @Path("/native-migration")
     @Consumes(MediaType.WILDCARD)
-    @Operation(summary = "Copy the organization's Alfresco group into memberships (managers as Admin). Run it before"
-            + " switching the organization to NATIVE")
-    public Uni<Response> importAlfresco(@PathParam("slug") String slug) {
-        return authorizer.requirePlatformOwner()
-                .flatMap(actor -> IamResponses.ok(() -> bridge.importMembers(slug, actor)));
-    }
-
-    @PATCH
-    @Path("/{slug}/membership-source")
-    @Operation(summary = "Switch a top-level organization between ALFRESCO and NATIVE membership")
-    public Uni<Response> setMembershipSource(@PathParam("slug") String slug, MembershipSourceRequest body) {
-        return authorizer.requirePlatformOwner().flatMap(actor -> IamResponses.ok(() -> {
-            String source = parseMembershipSource(body == null ? null : body.membershipSource());
-            if (source == null) {
-                throw new IllegalArgumentException("membershipSource is required");
-            }
-            return switchMembershipSource(slug, source, actor);
-        }));
-    }
-
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
-    private static Uni<Map<String, String>> switchMembershipSource(String slug, String source, String actor) {
-        return Panache.withTransaction(() -> Organization.findBySlug(slug).flatMap(org -> {
-            if (org == null) {
-                throw new NoSuchElementException("Organization not found: " + slug);
-            }
-            if (org.parent != null) {
-                throw new IllegalArgumentException("Set it on the top-level organization");
-            }
-            org.membershipSource = source;
-            return org.<Organization>persist()
-                    .flatMap(saved -> IamAuditEvent.of(org.id, actor, "membership-source", source, Map.of())
-                            .persist())
-                    .map(ignored -> Map.of("organization", org.slug, "membershipSource", source));
-        }));
+    @Operation(summary = "Move every organization still on Alfresco membership onto memberships now; it also runs"
+            + " on its own every 30 minutes")
+    public Uni<List<NativeMembershipMigration.Migrated>> migrateToNative() {
+        return authorizer.requirePlatformOwner().flatMap(actor -> migration.migrateAll());
     }
 
     @GET
@@ -258,31 +206,11 @@ public class PlatformOrganizationsResource {
         organization.displayName = isBlank(body.displayName()) ? organization.name : body.displayName().trim();
         organization.tenantClientId = isBlank(body.tenantClientId()) ? null : body.tenantClientId().trim();
         organization.alfrescoGroupId = isBlank(body.alfrescoGroupId()) ? null : body.alfrescoGroupId().trim();
+        // NativeMembershipMigration imports an existing group's people, then marks the organization NATIVE.
+        organization.membershipSource = organization.alfrescoGroupId == null ? "NATIVE" : "ALFRESCO";
         organization.taxId = isBlank(body.taxId()) ? null : normalizeTaxId(body.taxId());
-        organization.membershipSource = membershipSource(body);
         organization.active = true;
         return organization;
-    }
-
-    /** As requested; otherwise ALFRESCO when the organization names an Alfresco group, else NATIVE. */
-    static String membershipSource(CreateRootOrganizationRequest body) {
-        String source = parseMembershipSource(body.membershipSource());
-        if (source != null) {
-            return source;
-        }
-        return isBlank(body.alfrescoGroupId()) ? NATIVE : ALFRESCO;
-    }
-
-    /** ALFRESCO or NATIVE, upper-cased; null when blank. */
-    static String parseMembershipSource(String raw) {
-        if (isBlank(raw)) {
-            return null;
-        }
-        String source = raw.trim().toUpperCase(Locale.ROOT);
-        if (!source.equals(ALFRESCO) && !source.equals(NATIVE)) {
-            throw new BadRequestException("membershipSource must be ALFRESCO or NATIVE");
-        }
-        return source;
     }
 
     private String normalizeTaxId(String taxId) {

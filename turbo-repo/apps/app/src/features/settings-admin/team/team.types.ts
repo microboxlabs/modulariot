@@ -14,7 +14,6 @@ export interface TeamMember {
 
 export interface TeamView {
   organization: string;
-  membershipSource: "NATIVE" | "ALFRESCO";
   members: TeamMember[];
 }
 

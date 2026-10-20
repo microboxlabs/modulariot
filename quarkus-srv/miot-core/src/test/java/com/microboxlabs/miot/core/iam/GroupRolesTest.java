@@ -35,7 +35,11 @@ class GroupRolesTest {
     void seed() throws SQLException {
         exec("INSERT INTO miot_core.organizations (slug, name, tenant_client_id, active, alfresco_group_id, "
                 + "membership_source) VALUES ('" + ORG + "', 'Group roles', 'group-roles-client', true, "
-                + "NULL, 'ALFRESCO')");
+                + "NULL, 'NATIVE')");
+        exec("INSERT INTO miot_iam.iam_user (email) VALUES ('" + MEMBER + "') ON CONFLICT DO NOTHING");
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role) "
+                + "SELECT o.id, u.id, 'MEMBER' FROM miot_core.organizations o, miot_iam.iam_user u "
+                + "WHERE o.slug = '" + ORG + "' AND u.email = '" + MEMBER + "'");
     }
 
     @AfterEach
@@ -87,7 +91,7 @@ class GroupRolesTest {
         String org = "(SELECT id FROM miot_core.organizations WHERE slug = '" + ORG + "')";
         String user = "(SELECT id FROM miot_iam.iam_user WHERE email = '" + MEMBER + "')";
         exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role, source, created_by) "
-                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test')");
+                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test') ON CONFLICT DO NOTHING");
         exec("DELETE FROM miot_iam.iam_role_binding WHERE organization_id = " + org + " AND principal_id = "
                 + user + "::text");
 
@@ -114,7 +118,7 @@ class GroupRolesTest {
         String org = "(SELECT id FROM miot_core.organizations WHERE slug = '" + ORG + "')";
         String user = "(SELECT id FROM miot_iam.iam_user WHERE email = '" + MEMBER + "')";
         exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role, source, created_by) "
-                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test')");
+                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test') ON CONFLICT DO NOTHING");
         exec("DELETE FROM miot_iam.iam_role_binding WHERE organization_id = " + org + " AND principal_id = "
                 + user + "::text AND role_key = '" + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR + "'");
 

@@ -27,8 +27,11 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 @SecurityRequirement(name = "oidc")
 public class PlatformGroupRolesResource {
 
-    /** {@code projected}: keep the role's holders in the group. */
-    public record MappingRequest(Boolean projected) {
+    /**
+     * {@code projected}: keep the role's holders in the group. {@code excludedGroupId}: members of this group do not
+     * get the role from the import.
+     */
+    public record MappingRequest(Boolean projected, String excludedGroupId) {
     }
 
     private final PlatformAuthorizer authorizer;
@@ -52,8 +55,10 @@ public class PlatformGroupRolesResource {
     public Uni<Response> put(@PathParam("slug") String slug, @PathParam("groupId") String groupId,
             @PathParam("roleKey") String roleKey, MappingRequest body) {
         boolean projected = body != null && Boolean.TRUE.equals(body.projected());
+        String excluded = body == null || body.excludedGroupId() == null || body.excludedGroupId().isBlank()
+                ? null : body.excludedGroupId().trim();
         return authorizer.requirePlatformOwner().flatMap(actor -> IamResponses.ok(
-                () -> groupRoles.put(slug, groupId, roleKey, projected, actor)));
+                () -> groupRoles.put(slug, groupId, roleKey, projected, excluded, actor)));
     }
 
     @DELETE

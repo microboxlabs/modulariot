@@ -32,6 +32,10 @@ public class IamGroupRole extends PanacheEntityBase {
     @Column(nullable = false)
     public boolean projected;
 
+    /** Members of this group do not get the role from the import. */
+    @Column(name = "excluded_group_id")
+    public String excludedGroupId;
+
     @Column(name = "created_at", nullable = false)
     public Instant createdAt = Instant.now();
 
@@ -39,12 +43,13 @@ public class IamGroupRole extends PanacheEntityBase {
     public String createdBy;
 
     public static IamGroupRole of(Long organizationId, String groupId, String roleKey, boolean projected,
-            String actor) {
+            String excludedGroupId, String actor) {
         IamGroupRole r = new IamGroupRole();
         r.organizationId = organizationId;
         r.groupId = groupId;
         r.roleKey = roleKey;
         r.projected = projected;
+        r.excludedGroupId = excludedGroupId;
         r.createdBy = actor;
         return r;
     }

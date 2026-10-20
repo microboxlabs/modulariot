@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * The Alfresco groups that stand for module roles in a top-level organization, and the import that turns their
@@ -28,11 +29,16 @@ public class GroupRoles {
 
     static final int PAGE = 100;
 
-    public record Mapping(String groupId, String roleKey, boolean projected) {
+    /** {@code excludedGroupId}: members of this group are skipped by the import; null for none. */
+    public record Mapping(String groupId, String roleKey, boolean projected, String excludedGroupId) {
     }
 
-    /** One mapping's import: members seen, bindings added (or that a dry run would add), and members skipped. */
-    public record ImportLine(String groupId, String roleKey, int seen, int added, int existing, int withoutEmail) {
+    /**
+     * One mapping's import: members seen, bindings added (or that a dry run would add), bindings already held,
+     * members without an email, and members skipped because they are in the excluded group.
+     */
+    public record ImportLine(String groupId, String roleKey, int seen, int added, int existing, int withoutEmail,
+            int excluded) {
     }
 
     public record ImportResult(String organization, boolean dryRun, List<ImportLine> lines) {
@@ -49,27 +55,35 @@ public class GroupRoles {
 
     public Uni<List<Mapping>> list(String slug) {
         return Panache.withSession(() -> root(slug).flatMap(org -> IamGroupRole.findByOrganization(org.id)))
-                .map(rows -> rows.stream().map(r -> new Mapping(r.groupId, r.roleKey, r.projected)).toList());
+                .map(rows -> rows.stream().map(r -> new Mapping(r.groupId, r.roleKey, r.projected, r.excludedGroupId))
+                        .toList());
     }
 
     /** Creates or updates the mapping; the role must be a module role this modulith knows. */
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
-    public Uni<Mapping> put(String slug, String groupId, String roleKey, boolean projected, String actor) {
-        if (groupId == null || !groupId.startsWith("GROUP_")) {
-            throw new IllegalArgumentException("groupId must be an Alfresco group id (GROUP_...)");
+    public Uni<Mapping> put(String slug, String groupId, String roleKey, boolean projected, String excludedGroupId,
+            String actor) {
+        if (!isGroupId(groupId) || (excludedGroupId != null && !isGroupId(excludedGroupId))) {
+            throw new IllegalArgumentException("groupId and excludedGroupId must be Alfresco group ids (GROUP_...)");
         }
         if (evaluator.registry().role(roleKey).isEmpty()) {
             throw new IllegalArgumentException("Unknown role: " + roleKey);
         }
         return Panache.withTransaction(() -> root(slug).flatMap(org -> IamGroupRole.findOne(org.id, groupId, roleKey)
                 .flatMap(found -> {
-                    IamGroupRole row = found == null ? IamGroupRole.of(org.id, groupId, roleKey, projected, actor)
+                    IamGroupRole row = found == null
+                            ? IamGroupRole.of(org.id, groupId, roleKey, projected, excludedGroupId, actor)
                             : found;
                     row.projected = projected;
+                    row.excludedGroupId = excludedGroupId;
+                    Map<String, Object> detail = new LinkedHashMap<>();
+                    detail.put("role", roleKey);
+                    detail.put("projected", projected);
+                    detail.put("excludedGroupId", excludedGroupId);
                     return row.<IamGroupRole>persist()
-                            .flatMap(saved -> IamAuditEvent.of(org.id, actor, "group-role.set", groupId,
-                                    Map.of("role", roleKey, "projected", projected)).persist())
-                            .replaceWith(new Mapping(groupId, roleKey, projected));
+                            .flatMap(saved -> IamAuditEvent.of(org.id, actor, "group-role.set", groupId, detail)
+                                    .persist())
+                            .replaceWith(new Mapping(groupId, roleKey, projected, excludedGroupId));
                 })));
     }
 
@@ -109,13 +123,19 @@ public class GroupRoles {
     }
 
     private Uni<ImportLine> importOne(Organization org, IamGroupRole row, boolean dryRun, String actor) {
-        return members(row.groupId).flatMap(people -> {
-            int[] counts = new int[3]; // added, existing, without email
+        Uni<Set<String>> excludedEmails = row.excludedGroupId == null
+                ? Uni.createFrom().item(Set.of())
+                : members(row.excludedGroupId).map(people -> people.stream().map(GroupRoles::emailOf)
+                        .filter(e -> e != null).collect(Collectors.toSet()));
+        return excludedEmails.flatMap(excluded -> members(row.groupId).flatMap(people -> {
+            int[] counts = new int[4]; // added, existing, without email, excluded
             Set<String> emails = new LinkedHashSet<>();
             for (AlfrescoPerson person : people) {
                 String email = emailOf(person);
                 if (email == null) {
                     counts[2]++;
+                } else if (excluded.contains(email)) {
+                    counts[3]++;
                 } else {
                     emails.add(email);
                 }
@@ -127,8 +147,8 @@ public class GroupRoles {
                         .replaceWithVoid());
             }
             return chain.map(i -> new ImportLine(row.groupId, row.roleKey, people.size(), counts[0], counts[1],
-                    counts[2]));
-        });
+                    counts[2], counts[3]));
+        }));
     }
 
     /** True when the user had no binding of the role on the organization (and, unless a dry run, now has one). */
@@ -175,6 +195,10 @@ public class GroupRoles {
             }
             return evaluator.root(found);
         });
+    }
+
+    private static boolean isGroupId(String id) {
+        return id != null && id.startsWith("GROUP_");
     }
 
     /** The person's email, from the email field or the user id; null when neither is an email. */

@@ -5590,7 +5590,8 @@
     },
     "places": {
       "title": "Lugares de interés",
-      "hint": "Busca en el catálogo o importa. Clic derecho en el mapa para crear un lugar o un trayecto."
+      "hint": "Busca en el catálogo o importa. Clic derecho en el mapa para crear un lugar o un trayecto.",
+      "hint_read_only": "Solo lectura: busca en el catálogo o descarga. Crear, editar o importar necesita el permiso «Editor de lugares»."
     },
     "places_permission_debug": {
       "title": "Debug · Editor de lugares",
@@ -5602,6 +5603,12 @@
       "denied": "Tus roles no lo tienen",
       "active": "Activo",
       "inactive": "Inactivo"
+    },
+    "trip_geofences": {
+      "title": "Geocercas del viaje",
+      "origin": "Origen del viaje",
+      "destination": "Destino del viaje",
+      "other": "Geocerca del viaje"
     },
     "layers": {
       "title": "Capas",

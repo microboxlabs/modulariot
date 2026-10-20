@@ -1,6 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import PlaceBadgeTooltip from "./place-badge-tooltip";
+import PlaceBadgeTooltip, {
+  MAX_NOMBRES_CLUSTER,
+  posicionTooltip,
+} from "./place-badge-tooltip";
 import type { ItemNombre } from "./place-labels";
 import { CATEGORIAS_KEY, type Lugar } from "../places.types";
 
@@ -62,5 +65,46 @@ describe("PlaceBadgeTooltip", () => {
     );
     expect(screen.getByText("2 geocercas")).toBeInTheDocument();
     expect(screen.getByText("Dos")).toBeInTheDocument();
+  });
+
+  it("caps a big cluster's list and counts the rest", () => {
+    const miembros = Array.from({ length: 40 }, (_, i) =>
+      item({ id: `g${i}`, name: `Geocerca ${i + 1}` })
+    );
+    render(
+      <PlaceBadgeTooltip badge={{ item: miembros[0]!, miembros }} x={0} y={0} />
+    );
+    expect(screen.getByText("40 geocercas")).toBeInTheDocument();
+    // only the first few names, then how many are left
+    expect(screen.getAllByRole("listitem")).toHaveLength(
+      MAX_NOMBRES_CLUSTER + 1
+    );
+    expect(screen.getByText("Geocerca 5")).toBeInTheDocument();
+    expect(screen.queryByText("Geocerca 6")).toBeNull();
+    expect(
+      screen.getByText(`+${40 - MAX_NOMBRES_CLUSTER} más`)
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the card inside the map, flipping it near the edges", () => {
+    const tarjeta = { ancho: 200, alto: 150 };
+    const mapa = { ancho: 800, alto: 600 };
+    // room below-right: next to the cursor
+    expect(posicionTooltip({ x: 100, y: 100 }, tarjeta, mapa)).toEqual({
+      left: 114,
+      top: 114,
+    });
+    // near the right edge: to the left of the cursor
+    expect(posicionTooltip({ x: 700, y: 100 }, tarjeta, mapa).left).toBe(
+      700 - 14 - 200
+    );
+    // near the bottom: above the cursor
+    expect(posicionTooltip({ x: 100, y: 550 }, tarjeta, mapa).top).toBe(
+      550 - 14 - 150
+    );
+    // a corner: both flipped, never outside
+    const esquina = posicionTooltip({ x: 790, y: 590 }, tarjeta, mapa);
+    expect(esquina.left + tarjeta.ancho).toBeLessThanOrEqual(mapa.ancho);
+    expect(esquina.top + tarjeta.alto).toBeLessThanOrEqual(mapa.alto);
   });
 });

@@ -127,6 +127,11 @@ export interface FeatureHoverInfo {
   isCluster?: boolean;
 }
 
+function claseRedondeo(rounded: boolean | "left"): string {
+  if (rounded === "left") return "rounded-l-lg";
+  return rounded ? "rounded-lg" : "";
+}
+
 export default function MapVisualization({
   mapStyle,
   layers,
@@ -166,7 +171,9 @@ export default function MapVisualization({
   /** Cursor when not dragging, replacing the default grab/pointer (e.g. "crosshair" while drawing). */
   idleCursor?: string;
   initialViewState?: Partial<ViewState>;
-  rounded?: boolean;
+  /** Esquinas redondeadas: todas, ninguna o solo las de la izquierda
+   *  ("left": con una barra pegada a la derecha del mapa). */
+  rounded?: boolean | "left";
   /** Native react-map-gl children (Source/Layer/Marker) rendered on the map */
   children?: ReactNode;
   /** Lowest zoom the user can reach; Mapbox's default is -2. */
@@ -361,7 +368,7 @@ export default function MapVisualization({
   return (
     <div
       ref={containerRef}
-      className={`h-full w-full relative overflow-hidden ${rounded ? "rounded-lg" : ""}`}
+      className={`h-full w-full relative overflow-hidden ${claseRedondeo(rounded)}`}
     >
       {shouldRenderMap ? (
         <Map

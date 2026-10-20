@@ -70,8 +70,9 @@ export default function PlaceList({
   /** Lugar abierto en la ventana flotante, resaltado en la lista. */
   seleccionadoId: string | null;
   onIr: (l: Lugar) => void;
-  onEditar: (l: Lugar) => void;
-  onEliminar: (l: Lugar) => void;
+  /** Sin permiso de edición no vienen: la fila no tiene menú. */
+  onEditar?: (l: Lugar) => void;
+  onEliminar?: (l: Lugar) => void;
   /** Resalta la geocerca en el mapa (filas interiores). */
   onHover?: (placeId: string | null) => void;
 }>) {
@@ -154,8 +155,9 @@ function PlaceGroup({
   seleccionadoId: string | null;
   onPlegar: (id: string) => void;
   onIr: (l: Lugar) => void;
-  onEditar: (l: Lugar) => void;
-  onEliminar: (l: Lugar) => void;
+  /** Sin permiso de edición no vienen: la fila no tiene menú. */
+  onEditar?: (l: Lugar) => void;
+  onEliminar?: (l: Lugar) => void;
   onHover?: (placeId: string | null) => void;
 }>) {
   const plegarEste = () => onPlegar(padre.place_id);
@@ -220,15 +222,16 @@ function LugarRow({
   seleccionadoId: string | null;
   as?: "li" | "div";
   onIr: (l: Lugar) => void;
-  onEditar: (l: Lugar) => void;
-  onEliminar: (l: Lugar) => void;
+  /** Sin permiso de edición no vienen: la fila no tiene menú. */
+  onEditar?: (l: Lugar) => void;
+  onEliminar?: (l: Lugar) => void;
   onHover?: (placeId: string | null) => void;
   onExpandir?: () => void;
   expandido?: boolean;
 }>) {
   const ir = () => onIr(l);
-  const editar = () => onEditar(l);
-  const eliminar = () => onEliminar(l);
+  const editar = onEditar && (() => onEditar(l));
+  const eliminar = onEliminar && (() => onEliminar(l));
   const color = colorDeLugar(l);
   const marcarHover = () => onHover?.(l.place_id);
   const soltarHover = () => onHover?.(null);

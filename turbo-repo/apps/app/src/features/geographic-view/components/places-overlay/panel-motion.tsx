@@ -88,9 +88,17 @@ export function GrowPanel({
   );
 }
 
-/** Fade out, swap content while hidden, then fade in — layout changes stay invisible. */
-export function useOutThenIn(step: 0 | 1): {
-  shown: 0 | 1;
+/**
+ * Fade out, swap content while hidden, then fade in — layout changes stay
+ * invisible. `step` is any key (a step number, or a string naming what is
+ * shown); `shown` lags behind it while the old content fades out.
+ */
+export function useOutThenIn<T extends string | number>(
+  step: T,
+  /** Cuánto dura el fundido de salida; la clase de transición debe coincidir. */
+  ms: number = STEP_SWAP_MS
+): {
+  shown: T;
   visible: boolean;
 } {
   const [shown, setShown] = useState(step);
@@ -104,9 +112,9 @@ export function useOutThenIn(step: 0 | 1): {
       return () => cancelAnimationFrame(id);
     }
     setVisible(false);
-    const t = window.setTimeout(() => setShown(step), STEP_SWAP_MS);
+    const t = window.setTimeout(() => setShown(step), ms);
     return () => window.clearTimeout(t);
-  }, [step, shown]);
+  }, [step, shown, ms]);
 
   return { shown, visible };
 }

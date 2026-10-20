@@ -8,6 +8,9 @@ import { filtrarLugares, filtrarTrayectos } from "./catalog-search";
 import { ListCard } from "./list-card";
 import PlaceList from "./place-list";
 import { TrayectoList } from "./route-lists";
+import ExternalGeofencesList, {
+  filtrarExternas,
+} from "./external-geofences-list";
 import { SelectionBar, useSeleccionLista } from "./list-selection";
 import { inputCls } from "../ui/form-ui";
 import { ACCEPT_IMPORT, esArchivoImport } from "../import-export/import-places";
@@ -18,6 +21,7 @@ import {
   type AccionesImport,
 } from "../import-export/import-conflict-table";
 import type { PlacesWorkspace } from "../hooks/use-places-workspace";
+import type { GeocercaExterna } from "../places.types";
 
 export function PlacesImportCard({
   ws,
@@ -216,17 +220,25 @@ export function PlacesImportCard({
 
 export function PlacesCatalogLists({
   ws,
+  externas,
   className,
 }: Readonly<{
   ws: PlacesWorkspace;
+  /** Otra sección de solo lectura (p. ej. las geocercas del viaje). */
+  externas?: { titulo: string; items: GeocercaExterna[] };
   className?: string;
 }>) {
+  // sin el permiso "Editor de lugares": solo listar, buscar y descargar
+  const editable = ws.puedeEditar !== false;
   const hayBusca = ws.busca.trim().length > 0;
   const lugares = filtrarLugares(ws.todosLugares ?? ws.lugares, ws.busca);
   const trayectos = filtrarTrayectos(ws.todosTrayectos ?? [], ws.busca);
   const verLugares = !hayBusca || lugares.length > 0;
   const verTrayectos = !hayBusca || trayectos.length > 0;
-  const sinResultados = hayBusca && !verLugares && !verTrayectos;
+  const externasFiltradas = filtrarExternas(externas?.items ?? [], ws.busca);
+  const verExternas = !!externas && (!hayBusca || externasFiltradas.length > 0);
+  const sinResultados =
+    hayBusca && !verLugares && !verTrayectos && !verExternas;
   const sel = useSeleccionLista(
     ws.todosLugares ?? ws.lugares,
     ws.todosTrayectos ?? []
@@ -247,24 +259,27 @@ export function PlacesCatalogLists({
           value={ws.busca}
           onChange={(e) => ws.setBusca(e.target.value)}
         />
-        <button
-          type="button"
-          className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium ${
-            ws.modo === "import"
-              ? "bg-blue-600 text-white"
-              : "border border-gray-300 text-gray-900 dark:border-gray-600 dark:text-white"
-          }`}
-          onClick={ws.abrirImport}
-        >
-          Importar
-        </button>
+        {/* importar crea lugares: solo con el permiso */}
+        {editable && (
+          <button
+            type="button"
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium ${
+              ws.modo === "import"
+                ? "bg-blue-600 text-white"
+                : "border border-gray-300 text-gray-900 dark:border-gray-600 dark:text-white"
+            }`}
+            onClick={ws.abrirImport}
+          >
+            Importar
+          </button>
+        )}
         <ExportButton
           lugares={ws.todosLugares ?? []}
           trayectos={ws.todosTrayectos ?? []}
         />
       </div>
 
-      {sel.total > 0 && (
+      {editable && sel.total > 0 && (
         <SelectionBar
           total={sel.total}
           todosVisibles={todosVisibles}
@@ -288,10 +303,10 @@ export function PlacesCatalogLists({
                   busqueda={ws.busca}
                   seleccionadoId={ws.editandoLugarId}
                   onIr={ws.irALugar}
-                  onEditar={ws.editarLugar}
-                  onEliminar={ws.borrarLugar}
+                  onEditar={editable ? ws.editarLugar : undefined}
+                  onEliminar={editable ? ws.borrarLugar : undefined}
                   onHover={ws.setHoveredPlaceId}
-                  marcas={sel.marcasLugares}
+                  marcas={editable ? sel.marcasLugares : undefined}
                   versionDe={(id) => ws.versionDe("lugar", id)}
                 />
               )}
@@ -301,10 +316,18 @@ export function PlacesCatalogLists({
                   busqueda={ws.busca}
                   seleccionadoId={ws.editandoTrayId}
                   onIr={ws.irATrayecto}
-                  onEditar={ws.editarTrayecto}
-                  onEliminar={ws.borrarTrayecto}
-                  marcas={sel.marcasTrayectos}
+                  onEditar={editable ? ws.editarTrayecto : undefined}
+                  onEliminar={editable ? ws.borrarTrayecto : undefined}
+                  marcas={editable ? sel.marcasTrayectos : undefined}
                   versionDe={(id) => ws.versionDe("trayecto", id)}
+                />
+              )}
+              {verExternas && externas && (
+                <ExternalGeofencesList
+                  titulo={externas.titulo}
+                  items={externasFiltradas}
+                  vacio={`Sin ${externas.titulo.toLowerCase()}.`}
+                  onIr={(g) => ws.irAPunto(g.ancla)}
                 />
               )}
             </>

@@ -62,6 +62,18 @@ export type Trayecto = {
 };
 export type Categoria = { category_id: number; name: string; color: string };
 
+/**
+ * Geocerca que no es de Lugares (p. ej. las del viaje): solo se lista para
+ * verla e ir a ella. `ancla` es [lat, lon].
+ */
+export type GeocercaExterna = {
+  id: string;
+  nombre: string;
+  /** Su papel, p. ej. "Origen del viaje". */
+  detalle: string;
+  ancla: LatLon;
+};
+
 export const FORM_VACIO = {
   place_id: null as string | null,
   name: "",

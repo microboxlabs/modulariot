@@ -50,7 +50,7 @@ export default function PlacesPermissionDebug({
   return (
     <section
       aria-label={t("title")}
-      className="w-64 rounded-lg border border-dashed border-amber-300 bg-white/95 p-2 shadow-md backdrop-blur dark:border-amber-700 dark:bg-gray-800/95"
+      className="pointer-events-auto w-64 rounded-lg border border-dashed border-amber-300 bg-white/95 p-2 shadow-md backdrop-blur dark:border-amber-700 dark:bg-gray-800/95"
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-1 text-[11px] font-semibold text-gray-900 dark:text-white">

@@ -268,8 +268,9 @@ export function ListCardRow({
   onIr: () => void;
   /** Distintivos o acciones rápidas antes del menú (ej. "local", "+"). */
   extras?: ReactNode;
-  onEditar: () => void;
-  onEliminar: () => void;
+  /** Sin ellos (solo lectura) la fila no tiene menú de tres puntos. */
+  onEditar?: () => void;
+  onEliminar?: () => void;
   className?: string;
   /** Una sola línea, para hijos de un lugar. */
   compact?: boolean;
@@ -330,7 +331,13 @@ export function ListCardRow({
       </button>
       <div className="flex flex-none items-center">
         {extras}
-        <RowMenu nombre={nombre} onEditar={onEditar} onEliminar={onEliminar} />
+        {onEditar && onEliminar && (
+          <RowMenu
+            nombre={nombre}
+            onEditar={onEditar}
+            onEliminar={onEliminar}
+          />
+        )}
       </div>
     </Tag>
   );

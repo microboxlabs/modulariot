@@ -14,7 +14,8 @@ export {
   usePlacesWorkspace,
   type PlacesWorkspace,
 } from "./hooks/use-places-workspace";
-export { FORM_VACIO } from "./places.types";
+export { usePlacesEnMapa } from "./hooks/use-places-en-mapa";
+export { FORM_VACIO, type GeocercaExterna } from "./places.types";
 export { PANEL_LUGARES } from "./panel";
 export { PlacesCatalogLists, PlacesImportCard } from "./catalog/places-catalog";
 export {
@@ -23,8 +24,3 @@ export {
 } from "./map/places-editor-overlays";
 export { default as PlacesMapLayers } from "./map/places-map-layers";
 export { default as PlaceBadgeTooltip } from "./map/place-badge-tooltip";
-export { CURSOR_AGREGAR } from "./map/cursors";
-export { itemsNombresMapa, type ItemNombre } from "./map/place-labels";
-export { capasNombresGeocercas } from "./map/place-name-layer";
-export { useResaltadoAnimado } from "./map/highlight-animation";
-export { zoomAlClicNombre } from "./map/geofence-lod";

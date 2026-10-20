@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import type { IconType } from "react-icons";
 import { TbPolygon, TbRoute, TbTruck } from "react-icons/tb";
 import { twMerge } from "tailwind-merge";
+import { useOutThenIn } from "./places-overlay/panel-motion";
 import { z } from "zod";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -102,6 +103,14 @@ export function formaCapa(arribaActiva: boolean, abajoActiva: boolean): string {
   return "rounded-full";
 }
 
+/** Siempre en este orden, en todas las vistas. */
+const ORDEN_CAPAS: CapaMapa[] = ["vehiculos", "geocercas", "trayectos"];
+
+const TRANSICION = "duration-200 ease-out motion-reduce:transition-none";
+/** Fundido rápido al cambiar de vista: 75 ms de salida y 75 ms de entrada. */
+const FUNDIDO_MS = 75;
+const FUNDIDO = "duration-75 ease-out motion-reduce:transition-none";
+
 function BotonCapa({
   capa,
   dict,
@@ -121,7 +130,7 @@ function BotonCapa({
   return (
     // como un ítem del notch: círculo de 40 px y su nombre en una píldora
     // a la izquierda al pasar el mouse
-    <div className="group relative h-10 w-10">
+    <div data-capa={capa} className="group relative h-10 w-10">
       <span
         aria-hidden
         className={twMerge(
@@ -141,7 +150,8 @@ function BotonCapa({
         aria-label={nombre}
         onClick={() => onCambiar(capa, !activa)}
         className={twMerge(
-          "relative z-10 flex h-10 w-10 items-center justify-center rounded-full transition-[color,background-color,border-radius] duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 dark:focus-visible:ring-blue-800",
+          "relative z-10 flex h-10 w-10 items-center justify-center rounded-full transition-[color,background-color,border-radius] focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 dark:focus-visible:ring-blue-800",
+          TRANSICION,
           activa
             ? "bg-blue-600 text-white hover:bg-blue-700"
             : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white",
@@ -154,8 +164,18 @@ function BotonCapa({
   );
 }
 
-function encendida(capas: CapasMapa, capa: CapaMapa | undefined): boolean {
-  return capa === undefined ? false : capas[capa];
+/**
+ * Si la vecina visible de arriba (paso -1) o de abajo (+1) está encendida:
+ * las ocultas no cuentan, así el bloque azul se une solo con lo que se ve.
+ */
+function vecinaEncendida(
+  capas: CapasMapa,
+  visibles: CapaMapa[],
+  capa: CapaMapa,
+  paso: -1 | 1
+): boolean {
+  const vecina = visibles[visibles.indexOf(capa) + paso];
+  return vecina === undefined ? false : capas[vecina];
 }
 
 export default function MapLayersCard({
@@ -166,23 +186,35 @@ export default function MapLayersCard({
 }: Readonly<{
   dict: I18nRecord;
   capas: CapasMapa;
-  /** las capas que tienen sentido en la vista actual, en este orden */
+  /** las capas que tienen sentido en la vista actual */
   disponibles: CapaMapa[];
   onCambiar: (capa: CapaMapa, ver: boolean) => void;
 }>) {
+  // al cambiar de vista la píldora se desvanece, cambia sus botones sin que
+  // se vea y vuelve a aparecer: nada se pliega ni salta de lugar
+  const clave = ORDEN_CAPAS.filter((c) => disponibles.includes(c)).join(",");
+  const { shown, visible } = useOutThenIn(clave, FUNDIDO_MS);
+  const visibles = (shown ? shown.split(",") : []) as CapaMapa[];
   return (
     <section aria-label={tr("geographic_view.layers.title", dict)}>
       {/* misma píldora que el notch de arriba */}
-      <div className="pointer-events-auto flex flex-col rounded-full border border-gray-200 bg-white/95 p-0.5 shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-800/95">
-        {disponibles.map((capa, i) => (
+      <div
+        data-capas-visible={visible ? "in" : "out"}
+        className={twMerge(
+          "pointer-events-auto flex flex-col rounded-full border border-gray-200 bg-white/95 p-0.5 shadow-lg backdrop-blur transition-opacity dark:border-gray-700 dark:bg-gray-800/95",
+          FUNDIDO,
+          visible ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
+      >
+        {visibles.map((capa) => (
           <BotonCapa
             key={capa}
             capa={capa}
             dict={dict}
             activa={capas[capa]}
             forma={formaCapa(
-              encendida(capas, disponibles[i - 1]),
-              encendida(capas, disponibles[i + 1])
+              vecinaEncendida(capas, visibles, capa, -1),
+              vecinaEncendida(capas, visibles, capa, 1)
             )}
             onCambiar={onCambiar}
           />

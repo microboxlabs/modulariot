@@ -17,13 +17,13 @@ const ICONO_CLS =
 const ICONO_DENTRO = "rotate-0 scale-100 opacity-100";
 const ICONO_FUERA = "rotate-90 scale-50 opacity-0";
 
-type NotchItem = {
+export type NotchItem = {
   id: GeographicMapViewId;
   icon: IconType;
   capability: "placesEditor";
 };
 
-const NOTCH_ITEMS: NotchItem[] = [
+export const NOTCH_ITEMS: NotchItem[] = [
   {
     id: "places",
     icon: HiOutlineLocationMarker,
@@ -37,11 +37,6 @@ const NOTCH_LABELS: Record<GeographicMapViewId, string> = {
 
 function notchLabel(id: GeographicMapViewId, dict: I18nRecord): string {
   return trDynamic(NOTCH_LABELS[id], dict);
-}
-
-function selectedIndex(activeView: GeographicMapViewId | null): number {
-  if (!activeView) return -1;
-  return NOTCH_ITEMS.findIndex((item) => item.id === activeView);
 }
 
 function MapNotchItem({
@@ -113,17 +108,26 @@ function MapNotchItem({
   );
 }
 
-export default function MapNotch({ dict }: Readonly<{ dict: I18nRecord }>) {
-  const { activeView, setActiveView, can } = useGeographicProfile();
-  const items = NOTCH_ITEMS.filter((item) => can(item.capability));
-  const activeIndex = selectedIndex(activeView);
-
+/**
+ * La barra del notch sin estado propio: qué vistas ofrece, cuál está abierta
+ * y qué hacer al tocar una. MapNotch la alimenta con el perfil de la vista
+ * geográfica; otros mapas (el de viaje) la usan con su propio estado.
+ */
+export function MapNotchBar({
+  dict,
+  items,
+  activeView,
+  onToggle,
+}: Readonly<{
+  dict: I18nRecord;
+  items: NotchItem[];
+  activeView: GeographicMapViewId | null;
+  onToggle: (id: GeographicMapViewId) => void;
+}>) {
   if (items.length === 0) return null;
-
-  const toggleView = (id: GeographicMapViewId) => {
-    setActiveView(activeView === id ? null : id);
-  };
-
+  const activeIndex = activeView
+    ? items.findIndex((item) => item.id === activeView)
+    : -1;
   return (
     <div
       role="toolbar"
@@ -144,9 +148,24 @@ export default function MapNotch({ dict }: Readonly<{ dict: I18nRecord }>) {
           icon={item.icon}
           label={notchLabel(item.id, dict)}
           selected={activeView === item.id}
-          onToggle={toggleView}
+          onToggle={onToggle}
         />
       ))}
     </div>
+  );
+}
+
+export default function MapNotch({ dict }: Readonly<{ dict: I18nRecord }>) {
+  const { activeView, setActiveView, can } = useGeographicProfile();
+  const toggleView = (id: GeographicMapViewId) => {
+    setActiveView(activeView === id ? null : id);
+  };
+  return (
+    <MapNotchBar
+      dict={dict}
+      items={NOTCH_ITEMS.filter((item) => can(item.capability))}
+      activeView={activeView}
+      onToggle={toggleView}
+    />
   );
 }

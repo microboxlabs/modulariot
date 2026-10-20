@@ -81,7 +81,8 @@ describe("map layers card", () => {
       />
     );
     expect(screen.getByRole("region", { name: "Capas" })).toBeInTheDocument();
-    expect(screen.queryByText("Trayectos")).toBeNull();
+    // not offered in this view: not there at all
+    expect(screen.queryByRole("button", { name: "Trayectos" })).toBeNull();
     const geocercas = screen.getByRole("button", { name: "Geocercas" });
     expect(geocercas).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(geocercas);
@@ -113,5 +114,41 @@ describe("map layers card", () => {
     expect(boton("Geocercas")).toHaveClass("rounded-b-full");
     // an inactive layer has no blue background to shape
     expect(boton("Trayectos")).toHaveClass("rounded-full");
+  });
+
+  it("fades the pill out, swaps its buttons unseen and fades it back in", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const props = { dict, capas: CAPAS_POR_DEFECTO, onCambiar: vi.fn() };
+    const pildora = () => document.querySelector("[data-capas-visible]");
+    const botones = () =>
+      [...document.querySelectorAll("[data-capa]")].map((el) =>
+        el.getAttribute("data-capa")
+      );
+    const { rerender } = render(
+      <MapLayersCard {...props} disponibles={capasDeVista(null)} />
+    );
+    // first render: shown straight away, no fade
+    expect(pildora()).toHaveAttribute("data-capas-visible", "in");
+    expect(botones()).toEqual(["vehiculos", "geocercas"]);
+
+    rerender(<MapLayersCard {...props} disponibles={capasDeVista("places")} />);
+    // fading out, still with the old buttons: nothing changes shape in view
+    expect(pildora()).toHaveAttribute("data-capas-visible", "out");
+    expect(botones()).toEqual(["vehiculos", "geocercas"]);
+
+    act(() => vi.advanceTimersByTime(75));
+    // swapped while invisible, after a quick 75 ms
+    expect(botones()).toEqual(["geocercas", "trayectos"]);
+    vi.useRealTimers();
+    await act(async () => {
+      await new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(null)))
+      );
+    });
+    expect(pildora()).toHaveAttribute("data-capas-visible", "in");
+    // the joined blue block is the new pair: geofences + routes
+    const boton = (name: string) => screen.getByRole("button", { name });
+    expect(boton("Geocercas")).toHaveClass("rounded-t-full");
+    expect(boton("Trayectos")).toHaveClass("rounded-b-full");
   });
 });

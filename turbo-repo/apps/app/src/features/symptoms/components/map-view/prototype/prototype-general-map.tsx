@@ -124,11 +124,16 @@ export default function PrototypeGeneralMap({
   const isCallFormStep = callFlowStep === "form" || callFlowStep === null;
   // Past forms open as a fixed modal, so the side panel stays at its
   // resting width instead of morphing over the map.
-  const { side: sideWidth, map: mapWidth } = panelWidths(
+  const anchos = panelWidths(
     pastFormsEnabled ? false : isFormOpen,
     isCallDriver,
     isCallFormStep
   );
+  // Lugares abierto en el mapa: la línea de tiempo se pliega y el mapa
+  // toma todo el ancho
+  const [lugaresAbierto, setLugaresAbierto] = useState(false);
+  const sideWidth = lugaresAbierto ? "0%" : anchos.side;
+  const mapWidth = lugaresAbierto ? "100%" : anchos.map;
 
   const [selectedTreatment, setSelectedTreatment] =
     useState<TreatmentsGeneralResponseItem | null>(null);
@@ -314,11 +319,20 @@ export default function PrototypeGeneralMap({
           </div>
         </Card>
       </div>
-      <div className="flex flex-row gap-2 w-full h-full px-2 pb-2 overflow-hidden">
-        {/* Side information — grows when the inline form opens */}
+      <div className="flex flex-row w-full h-full px-2 pb-2 overflow-hidden">
+        {/* Side information — grows when the inline form opens; folds away
+            while Lugares is open on the map */}
         <div
-          className="h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-[width] duration-500 ease-in-out"
-          style={{ width: sideWidth }}
+          className="h-full rounded-lg shadow-md border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-500 ease-in-out"
+          style={{
+            width: sideWidth,
+            marginRight: lugaresAbierto ? "0px" : "8px",
+            opacity: lugaresAbierto ? 0 : 1,
+            borderWidth: lugaresAbierto ? 0 : 1,
+            minWidth: 0,
+          }}
+          aria-hidden={lugaresAbierto}
+          inert={lugaresAbierto}
         >
           <PrototypeSideInfo
             dict={dict}
@@ -352,6 +366,8 @@ export default function PrototypeGeneralMap({
               setSelectedTreatment={setSelectedTreatment}
               setSelectedTreatmentIndex={setSelectedTreatmentIndex}
               licensePlate={treatmentData?.trip_info?.asset_id ?? null}
+              onLugaresChange={setLugaresAbierto}
+              listarGeocercasViaje
             />
           </div>
           {/* Keeps the symptom being called about visible without flipping

@@ -3,13 +3,17 @@
 // Tooltip al pasar el mouse por el badge de una geocerca en el mapa: su
 // nombre y, sobre todo, sus categorías. En un cluster ("N geocercas"),
 // cuántas son y sus nombres.
+import { useLayoutEffect, useRef, useState } from "react";
 import { OptionBadge } from "@/features/settings-admin/selectables/field/field-parts";
 import { CAMPO_CATEGORIAS, useListaCampo } from "../ui/place-categories-field";
 import type { BadgeMapa } from "./place-name-layer";
 import { categoriasDeLugar } from "../places.types";
 
-/** Nombres que se listan en el tooltip de un cluster. */
-const MAX_NOMBRES_CLUSTER = 8;
+/**
+ * Nombres que se listan en el tooltip de un cluster; el resto queda en
+ * "+N más", así un cluster grande no agranda la tarjeta.
+ */
+export const MAX_NOMBRES_CLUSTER = 5;
 /** Separación entre el cursor y el tooltip. */
 const DESPLAZAMIENTO_PX = 14;
 
@@ -99,6 +103,25 @@ function ContenidoCluster({ badge }: Readonly<{ badge: BadgeMapa }>) {
   );
 }
 
+/**
+ * Dónde va la tarjeta: abajo a la derecha del cursor; si ahí no cabe en el
+ * mapa, al otro lado (izquierda o arriba). Nunca sale del borde.
+ */
+export function posicionTooltip(
+  cursor: { x: number; y: number },
+  tarjeta: { ancho: number; alto: number },
+  mapa: { ancho: number; alto: number }
+): { left: number; top: number } {
+  const eje = (c: number, tam: number, max: number) => {
+    if (c + DESPLAZAMIENTO_PX + tam <= max) return c + DESPLAZAMIENTO_PX;
+    return Math.max(0, c - DESPLAZAMIENTO_PX - tam);
+  };
+  return {
+    left: eje(cursor.x, tarjeta.ancho, mapa.ancho),
+    top: eje(cursor.y, tarjeta.alto, mapa.alto),
+  };
+}
+
 export default function PlaceBadgeTooltip({
   badge,
   x,
@@ -108,10 +131,29 @@ export default function PlaceBadgeTooltip({
   x: number;
   y: number;
 }>) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({
+    left: x + DESPLAZAMIENTO_PX,
+    top: y + DESPLAZAMIENTO_PX,
+  });
+  // se mide antes de pintar: la tarjeta aparece ya del lado que cabe
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const mapa = el?.offsetParent;
+    if (!el || !mapa) return;
+    setPos(
+      posicionTooltip(
+        { x, y },
+        { ancho: el.offsetWidth, alto: el.offsetHeight },
+        { ancho: mapa.clientWidth, alto: mapa.clientHeight }
+      )
+    );
+  }, [x, y, badge]);
   return (
     <div
+      ref={ref}
       role="tooltip"
-      style={{ left: x + DESPLAZAMIENTO_PX, top: y + DESPLAZAMIENTO_PX }}
+      style={pos}
       className="pointer-events-none absolute z-40 max-w-64 rounded-lg border border-gray-200 bg-white p-2.5 shadow-lg dark:border-gray-700 dark:bg-gray-800"
     >
       {badge.miembros.length > 1 ? (

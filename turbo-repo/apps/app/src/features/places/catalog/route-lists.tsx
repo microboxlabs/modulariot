@@ -38,8 +38,9 @@ export function TrayectoList({
   busqueda?: string;
   seleccionadoId: string | null;
   onIr: (t: Trayecto) => void;
-  onEditar: (t: Trayecto) => void;
-  onEliminar: (t: Trayecto) => void;
+  /** Sin permiso de edición no vienen: la fila no tiene menú. */
+  onEditar?: (t: Trayecto) => void;
+  onEliminar?: (t: Trayecto) => void;
 }>) {
   return (
     <ListSection
@@ -63,8 +64,8 @@ export function TrayectoList({
           detalle={detalleTrayecto(t)}
           seleccionado={seleccionadoId === t.trayecto_id}
           onIr={() => onIr(t)}
-          onEditar={() => onEditar(t)}
-          onEliminar={() => onEliminar(t)}
+          onEditar={onEditar && (() => onEditar(t))}
+          onEliminar={onEliminar && (() => onEliminar(t))}
           marca={marcaDe(marcas, t.trayecto_id)}
           extras={
             <VersionBadge

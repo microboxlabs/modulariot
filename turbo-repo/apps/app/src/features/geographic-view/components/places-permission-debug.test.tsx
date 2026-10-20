@@ -41,10 +41,12 @@ async function renderDebug(variable: "true" | "false" = "true") {
   const { default: PlacesPermissionDebug } =
     await import("./places-permission-debug");
   function Sonda() {
-    const { can, activeView, setActiveView } = useGeographicProfile();
+    const { activeView, setActiveView } = useGeographicProfile();
+    // con permiso se edita; sin él, Lugares es de solo lectura
+    const editable = permiso.usePermisoEditorLugares();
     return (
       <>
-        <span data-testid="lugares">{can("placesEditor") ? "si" : "no"}</span>
+        <span data-testid="lugares">{editable ? "si" : "no"}</span>
         <span data-testid="vista">{activeView ?? "ninguna"}</span>
         <button type="button" onClick={() => setActiveView("places")}>
           abrir lugares
@@ -111,15 +113,16 @@ describe("places permission debug", () => {
     ).toBe("activo");
   });
 
-  it("closes Lugares when the permission is forced off", async () => {
+  it("keeps Lugares open, read-only, when the permission is forced off", async () => {
     permisos.lista = ["controltower:places.edit"];
     await renderDebug();
     fireEvent.click(screen.getByRole("button", { name: "abrir lugares" }));
-    expect(screen.getByTestId("vista")).toHaveTextContent("places");
+    expect(screen.getByTestId("lugares")).toHaveTextContent("si");
     act(() => {
       fireEvent.click(screen.getByRole("radio", { name: "Forzar inactivo" }));
     });
-    expect(screen.getByTestId("vista")).toHaveTextContent("ninguna");
+    // still open: only editing goes away
+    expect(screen.getByTestId("vista")).toHaveTextContent("places");
     expect(screen.getByTestId("lugares")).toHaveTextContent("no");
   });
 });

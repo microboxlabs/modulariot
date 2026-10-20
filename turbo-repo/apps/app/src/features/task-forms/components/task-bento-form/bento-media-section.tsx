@@ -21,7 +21,10 @@ function MediaPanelErrorFallback({
 }: ErrorFallbackProps & Readonly<{ dict: I18nDictionary }>) {
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-6 text-center">
-      <HiExclamationTriangle aria-hidden="true" className="h-8 w-8 text-amber-500" />
+      <HiExclamationTriangle
+        aria-hidden="true"
+        className="h-8 w-8 text-amber-500"
+      />
       <div>
         <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
           {tr("bento.multimedia.panel_error_title", dict)}
@@ -49,6 +52,10 @@ export default function BentoMediaSection({
   dict: I18nDictionary;
 }>) {
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
+  // Lugares abierto en el mapa: el visor multimedia se pliega y el mapa
+  // toma todo el ancho
+  const [lugaresAbierto, setLugaresAbierto] = useState(false);
+  const anchoMapa = lugaresAbierto ? "100%" : "66.666%";
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,8 +73,8 @@ export default function BentoMediaSection({
       <div
         className="hidden lg:flex overflow-hidden bg-white dark:bg-gray-800 rounded-lg sm:border border-gray-300 dark:border-gray-700 transition-all duration-500 ease-in-out"
         style={{
-          width: isMediaExpanded ? "0%" : "66.666%",
-          marginRight: isMediaExpanded ? "0px" : "8px",
+          width: isMediaExpanded ? "0%" : anchoMapa,
+          marginRight: isMediaExpanded || lugaresAbierto ? "0px" : "8px",
           opacity: isMediaExpanded ? 0 : 1,
           minWidth: 0,
         }}
@@ -76,6 +83,7 @@ export default function BentoMediaSection({
           <Geographic
             task={task}
             dictionary={dict as unknown as Record<string, string>}
+            onLugaresChange={setLugaresAbierto}
           />
         </div>
       </div>
@@ -83,7 +91,15 @@ export default function BentoMediaSection({
       {/* FileImages — fills remaining space; on < lg the geographic is hidden so this becomes full width */}
       <div
         className="flex-1 overflow-hidden rounded-lg border scroll-p-6 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all duration-500 ease-in-out"
-        style={{ minWidth: 0 }}
+        style={{
+          minWidth: 0,
+          // plegado mientras Lugares usa todo el ancho del mapa
+          ...(lugaresAbierto
+            ? { flexGrow: 0, width: 0, borderWidth: 0, opacity: 0 }
+            : {}),
+        }}
+        aria-hidden={lugaresAbierto}
+        inert={lugaresAbierto}
       >
         <ErrorBoundary fallback={<MediaPanelErrorFallback dict={dict} />}>
           <FileImages

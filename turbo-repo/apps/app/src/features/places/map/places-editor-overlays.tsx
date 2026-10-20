@@ -90,9 +90,12 @@ function TrayectoDrawToolbar({ ws }: Readonly<{ ws: PlacesWorkspace }>) {
   );
 }
 
-/** El formulario abierto ocupa todo el alto de la barra lateral de Lugares. */
+/**
+ * El formulario abierto ES la barra lateral de Lugares: todo su alto y ancho,
+ * sin marco de tarjeta (ni borde, ni redondeo, ni sombra) sobre la barra.
+ */
 const FORM_EN_PANEL =
-  "relative top-auto right-auto flex h-full min-h-0 w-full max-h-none flex-col";
+  "relative top-auto right-auto flex h-full min-h-0 w-full max-h-none flex-col rounded-none border-0 bg-transparent shadow-none backdrop-blur-none dark:bg-transparent";
 
 function LugarFormCard({
   ws,

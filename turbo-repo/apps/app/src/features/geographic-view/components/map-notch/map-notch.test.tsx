@@ -37,30 +37,13 @@ describe("MapNotch", () => {
     globalThis.localStorage.clear();
   });
 
-  it("hides the places view without the Editor de lugares permission", () => {
+  it("shows Lugares even without the Editor de lugares permission", () => {
+    // without it Lugares opens read-only (the editor decides), not hidden
     permisos.lista = [];
     renderNotch();
-    expect(
-      screen.queryByRole("button", { name: "Places of interest" })
-    ).toBeNull();
-    // Lugares is the only view: without it there is no notch at all
-    expect(screen.queryByRole("toolbar", { name: "Map views" })).toBeNull();
-  });
-
-  it("drops Lugares when the permission is taken away", () => {
-    const { rerender } = renderNotch();
     const places = screen.getByRole("button", { name: "Places of interest" });
     fireEvent.click(places);
     expect(places).toHaveAttribute("aria-pressed", "true");
-    permisos.lista = [];
-    rerender(
-      <GeographicProfileProvider>
-        <MapNotch dict={dict} />
-      </GeographicProfileProvider>
-    );
-    expect(
-      screen.queryByRole("button", { name: "Places of interest" })
-    ).toBeNull();
   });
 
   it("only offers Lugares de interés and toggles it off on a second click", () => {

@@ -7,10 +7,13 @@ import { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-
 export default function Geographic({
   task,
   dictionary,
-}: {
+  onLugaresChange,
+}: Readonly<{
   task: TaskResponse;
   dictionary: Record<string, string>;
-}) {
+  /** Lugares se abrió o cerró en el mapa (la página le da más ancho). */
+  onLugaresChange?: (abierto: boolean) => void;
+}>) {
   const trip_id = task.mintral_serviceCode;
   const assetId = task.mintral_truckLicensePlate;
 
@@ -35,6 +38,7 @@ export default function Geographic({
         selectedTreatmentIndex={null}
         minimized={true}
         licensePlate={(task.mintral_truckLicensePlate as string) ?? null}
+        onLugaresChange={onLugaresChange}
       />
     </div>
   );

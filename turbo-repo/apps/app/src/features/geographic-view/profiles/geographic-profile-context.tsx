@@ -4,12 +4,10 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { usePermisoEditorLugares } from "./places-permission";
 import {
   DEFAULT_GEOGRAPHIC_PROFILE,
   GEOGRAPHIC_PROFILES,
@@ -39,19 +37,9 @@ export function GeographicProfileProvider({
   );
   const [activeViewActual, setActiveViewActual] =
     useState<GeographicMapViewId | null>(null);
-  // el editor de lugares necesita además el permiso "Editor de lugares"
-  const permisoLugares = usePermisoEditorLugares();
-  const tiene = useCallback(
-    (id: GeographicProfileId, capability: GeographicCapability) =>
-      profileHasCapability(id, capability) &&
-      (capability !== "placesEditor" || permisoLugares),
-    [permisoLugares]
-  );
-  // sin el permiso (o si se lo quitan) Lugares se cierra
-  useEffect(() => {
-    if (!permisoLugares)
-      setActiveViewActual((v) => (v === "places" ? null : v));
-  }, [permisoLugares]);
+  // Lugares se abre con o sin el permiso "Editor de lugares": sin él es de
+  // solo lectura (lo decide el editor, no el perfil)
+  const tiene = profileHasCapability;
 
   const setProfileId = useCallback(
     (id: GeographicProfileId) => {

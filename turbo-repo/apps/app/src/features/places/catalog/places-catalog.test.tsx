@@ -441,4 +441,73 @@ describe("PlacesCatalogLists", () => {
     expect(screen.queryByText("Geofence planta")).toBeNull();
     expect(screen.queryByText("Lugares")).toBeNull();
   });
+
+  it("is read-only without the Editor de lugares permission", () => {
+    const lugar: Lugar = {
+      place_id: "p1",
+      name: "Planta Norte",
+      address: null,
+      category: null,
+      category_id: null,
+      geometry_type: "circle",
+      color: null,
+      center: [-33, -70],
+      polygon: null,
+      radius_m: 250,
+      metadata: null,
+      external_id: null,
+      active_from: null,
+      active_until: null,
+    };
+    const ws = (puedeEditar: boolean) =>
+      ({
+        busca: "",
+        setBusca: vi.fn(),
+        lugares: [lugar],
+        todosLugares: [lugar],
+        editandoLugarId: null,
+        modo: "ver",
+        irALugar: vi.fn(),
+        editarLugar: vi.fn(),
+        borrarLugar: vi.fn(),
+        setHoveredPlaceId: vi.fn(),
+        todosTrayectos: [],
+        versionDe: () => "1.0.0",
+        editandoTrayId: null,
+        irATrayecto: vi.fn(),
+        editarTrayecto: vi.fn(),
+        borrarTrayecto: vi.fn(),
+        abrirImport: vi.fn(),
+        puedeEditar,
+      }) as unknown as PlacesWorkspace;
+
+    const { rerender } = render(<PlacesCatalogLists ws={ws(true)} />);
+    // with the permission: import, row menu and checkboxes
+    expect(
+      screen.getByRole("button", { name: "Importar" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Opciones de Planta Norte" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: "Seleccionar Planta Norte" })
+    ).toBeInTheDocument();
+
+    rerender(<PlacesCatalogLists ws={ws(false)} />);
+    // without it: list, search and download only
+    expect(screen.queryByRole("button", { name: "Importar" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Opciones de Planta Norte" })
+    ).toBeNull();
+    expect(
+      screen.queryByRole("checkbox", { name: "Seleccionar Planta Norte" })
+    ).toBeNull();
+    expect(
+      screen.getByPlaceholderText("Buscar por nombre, dirección o external_id…")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Exportar" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Planta Norte")).toBeInTheDocument();
+  });
 });

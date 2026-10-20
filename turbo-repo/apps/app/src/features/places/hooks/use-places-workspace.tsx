@@ -137,7 +137,6 @@ import {
 } from "../versioning/versions-store";
 import type { VersionPendiente } from "../versioning/version-dialog";
 import { resumenSeleccion } from "../catalog/list-selection";
-import { PANEL_LUGARES } from "../panel";
 import { enSerie } from "../data/en-serie";
 
 /** Versión elegida en el diálogo, que se anota al guardar bien. */
@@ -269,9 +268,6 @@ const MAX_ZOOM_CREAR = 15;
 const ZOOM_DIRECCION = 16;
 // Tope al crear un círculo: el radio de 20 m cabe entero (nivel edificio).
 const MAX_ZOOM_CIRCULO = 22;
-
-// La barra lateral de Lugares tapa el lado derecho del mapa.
-const ANCHO_VENTANA_FLOTANTE = PANEL_LUGARES.anchoPx;
 
 // El tipo guardado manda: un círculo puede venir del servidor con su
 // polígono proyectado y no debe abrirse como polígono de 48 vértices.
@@ -524,9 +520,17 @@ function lugarAgregaPunto(
 
 export function usePlacesWorkspace(
   mapRef: RefObject<MapRef | null>,
-  options?: { enabled?: boolean }
+  options?: {
+    enabled?: boolean;
+    /**
+     * Permiso "Editor de lugares": sin él, Lugares es de solo lectura (ver,
+     * buscar, ir y descargar). Crear, editar, importar y borrar no corren.
+     */
+    puedeEditar?: boolean;
+  }
 ) {
   const enabled = options?.enabled ?? true;
+  const puedeEditar = options?.puedeEditar ?? true;
   const runtimeConfig = useRuntimeConfig();
   const MAPBOX_TOKEN = runtimeConfig?.MAPBOX_API_KEY;
   const { carrierMode } = useCarrierMode();
@@ -909,6 +913,7 @@ export function usePlacesWorkspace(
   // Clic derecho en modo ver: sobre el badge de un lugar, su menú
   // (configurar / eliminar); en otro punto, crear un lugar o trayecto ahí.
   const onMapContextMenu = (e: MapMouseEvent) => {
+    if (!puedeEditar) return;
     e.originalEvent.preventDefault(); // sin el menú del navegador
     if (modo !== "ver") return;
     const lugar = lugarEditableDe(badgeHover.current);
@@ -978,7 +983,7 @@ export function usePlacesWorkspace(
         top: margen,
         bottom: margen,
         left: margen,
-        right: ANCHO_VENTANA_FLOTANTE + margen,
+        right: margen,
       },
       maxZoom: MAX_ZOOM_CIRCULO,
       duration: 800,
@@ -1001,6 +1006,7 @@ export function usePlacesWorkspace(
   };
 
   const crearLugarAqui = () => {
+    if (!puedeEditar) return;
     if (!menu) return;
     encuadrarCirculo(menu.lat, menu.lon, FORM_VACIO.radius_m);
     setForm({ ...FORM_VACIO, lat: menu.lat, lon: menu.lon });
@@ -1010,6 +1016,7 @@ export function usePlacesWorkspace(
     setMenu(null);
   };
   const crearTrayectoAqui = () => {
+    if (!puedeEditar) return;
     if (!menu) return;
     const punto: LatLon = [menu.lat, menu.lon];
     setTray({
@@ -1027,11 +1034,13 @@ export function usePlacesWorkspace(
   const cerrarMenu = useCallback(() => setMenu(null), []);
   const cerrarMenuLugar = useCallback(() => setMenuLugar(null), []);
   const configurarDesdeMenu = () => {
+    if (!puedeEditar) return;
     if (!menuLugar) return;
     setMenuLugar(null);
     editarLugar(menuLugar.lugar);
   };
   const eliminarDesdeMenu = () => {
+    if (!puedeEditar) return;
     if (!menuLugar) return;
     setMenuLugar(null);
     borrarLugar(menuLugar.lugar);
@@ -1091,13 +1100,13 @@ export function usePlacesWorkspace(
     setConfirmacion(null);
     setModo("ver");
   }, [enabled]);
-  // Al abrir algo para editar: centrarlo sin tocar el zoom. El centro es el
-  // del área libre a la izquierda de la ventana flotante, no el del mapa.
+  // Al abrir algo para editar: centrarlo sin tocar el zoom. La barra de
+  // Lugares va al lado del mapa (no encima), así el centro del mapa es el
+  // centro de lo que se ve.
   const centrarEnVista = (p: [number, number] | null) => {
     if (!p) return;
     mapRef.current?.easeTo({
       center: [p[1], p[0]],
-      offset: [-ANCHO_VENTANA_FLOTANTE / 2, 0],
       duration: 600,
     });
   };
@@ -1107,7 +1116,6 @@ export function usePlacesWorkspace(
     mapRef.current?.flyTo({
       center: [p[1], p[0]],
       zoom: ZOOM_DIRECCION,
-      offset: [-ANCHO_VENTANA_FLOTANTE / 2, 0],
       duration: 800,
     });
   };
@@ -1129,7 +1137,12 @@ export function usePlacesWorkspace(
     if (p) mapRef.current?.flyTo({ center: [p[1], p[0]], zoom: 11 });
   };
 
+  /** Ir a un punto cualquiera (p. ej. una geocerca del viaje). */
+  const irAPunto = (p: LatLon) =>
+    mapRef.current?.flyTo({ center: [p[1], p[0]], zoom: 14, duration: 600 });
+
   const editarLugar = (l: Lugar) => {
+    if (!puedeEditar) return;
     const padreId = parentPlaceId(l);
     const padre = padreId
       ? todosLugares.find((x) => x.place_id === padreId)
@@ -1346,6 +1359,7 @@ export function usePlacesWorkspace(
   };
 
   const borrarLugar = (l: Lugar) => {
+    if (!puedeEditar) return;
     confirmar("Eliminar lugar", l.name, () => void eliminarLugar(l));
   };
 
@@ -1389,6 +1403,7 @@ export function usePlacesWorkspace(
   };
 
   const editarTrayecto = (t: Trayecto) => {
+    if (!puedeEditar) return;
     setMenu(null);
     setModo("trayecto");
     setMsg(null);
@@ -1438,7 +1453,7 @@ export function usePlacesWorkspace(
         top: margen,
         bottom: margen,
         left: margen,
-        right: ANCHO_VENTANA_FLOTANTE + margen,
+        right: margen,
       },
       maxZoom: MAX_ZOOM_CREAR,
       duration: 800,
@@ -1657,8 +1672,10 @@ export function usePlacesWorkspace(
     setModo("ver");
   };
 
-  const borrarTrayecto = (t: Trayecto) =>
+  const borrarTrayecto = (t: Trayecto) => {
+    if (!puedeEditar) return;
     confirmar("Eliminar trayecto", t.name, () => void eliminarTrayecto(t));
+  };
 
   const eliminarTrayecto = async (t: Trayecto, silencioso = false) => {
     if (modo === "trayecto" && tray.id === t.trayecto_id) cerrarForm();
@@ -1692,6 +1709,7 @@ export function usePlacesWorkspace(
     trayectosSel: Trayecto[],
     alTerminar?: () => void
   ) => {
+    if (!puedeEditar) return;
     const ids = new Set(lugaresSel.map((l) => l.place_id));
     const sueltos = lugaresSel.filter((l) => {
       const padre = parentPlaceId(l);
@@ -1722,6 +1740,7 @@ export function usePlacesWorkspace(
 
   // ── Importación masiva ──
   const onArchivos = async (files: File[]) => {
+    if (!puedeEditar) return;
     let leidos: { file: File; formato: string; filas: FilaImport[] }[];
     try {
       leidos = await enSerie(files, async (file) => ({
@@ -1851,7 +1870,7 @@ export function usePlacesWorkspace(
         top: margen,
         bottom: margen,
         left: margen,
-        right: ANCHO_VENTANA_FLOTANTE + margen,
+        right: margen,
       },
       maxZoom: 17,
       duration: 500,
@@ -2058,6 +2077,7 @@ export function usePlacesWorkspace(
   };
 
   const abrirImport = () => {
+    if (!puedeEditar) return;
     setMenu(null);
     setHoverImportUid(null);
     setHoverConflictoId(null);
@@ -2154,8 +2174,10 @@ export function usePlacesWorkspace(
     volverAGeocerca,
     irALugar,
     irATrayecto,
+    irAPunto,
     editarLugar,
     guardarLugar,
+    puedeEditar,
     borrarSeleccion,
     versionPendiente,
     confirmarVersion,

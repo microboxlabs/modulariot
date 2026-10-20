@@ -71,6 +71,7 @@ public class RoleProjection {
     /** Reconciles every organization with a projected mapping. */
     @Scheduled(every = "${miot.iam.alfresco-projection.reconcile-every:10m}", delayed = "1m",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
     Uni<Void> reconcileAll() {
         if (!projection) {
             return Uni.createFrom().voidItem();

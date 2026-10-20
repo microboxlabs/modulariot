@@ -74,8 +74,9 @@ export function useOrgScopes() {
     }
   );
 
-  const switchOrg = async (slug: string) => {
-    if (!confirmNavigation()) return;
+  /** False when the user kept their unsaved changes; true when the page reloads into the org. */
+  const switchOrg = async (slug: string): Promise<boolean> => {
+    if (!confirmNavigation()) return false;
     let response: Response;
     try {
       response = await fetch("/app/api/user/active-org", {
@@ -101,6 +102,7 @@ export function useOrgScopes() {
 
     await mutate();
     globalThis.location.reload();
+    return true;
   };
 
   return {

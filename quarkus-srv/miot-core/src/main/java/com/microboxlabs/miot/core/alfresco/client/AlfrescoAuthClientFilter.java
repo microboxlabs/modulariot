@@ -10,6 +10,7 @@ import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import org.jboss.logging.Logger;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
@@ -29,6 +30,8 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
  */
 public class AlfrescoAuthClientFilter implements ClientRequestFilter {
 
+    private static final Logger LOG = Logger.getLogger(AlfrescoAuthClientFilter.class);
+
     private static final String STUB_AUTH_HEADER = "Bearer stub";
 
     @Override
@@ -42,6 +45,8 @@ public class AlfrescoAuthClientFilter implements ClientRequestFilter {
                     : provider.resolveAuthHeader();
             requestContext.getHeaders().putSingle(HttpHeaders.AUTHORIZATION, header);
         } catch (IllegalStateException e) {
+            LOG.warnf(e, "Alfresco call %s %s refused before sending: %s", requestContext.getMethod(),
+                    requestContext.getUri().getPath(), e.getMessage());
             requestContext.abortWith(Response.status(Response.Status.UNAUTHORIZED)
                     .entity("Unauthorized")
                     .build());
@@ -62,13 +67,14 @@ public class AlfrescoAuthClientFilter implements ClientRequestFilter {
         };
     }
 
+    /**
+     * The caller's JWT. Work with no caller (a scheduled job, where the identity is absent or cannot be read without
+     * blocking the event loop) uses the Basic credentials instead, when they are set.
+     */
     private String resolveOAuthHeader() {
-        SecurityIdentity identity = Arc.container()
-                .instance(SecurityIdentity.class)
-                .get();
-        if (identity == null || identity.isAnonymous()) {
-            throw new IllegalStateException(
-                    "Cannot forward JWT to Alfresco: request is anonymous");
+        SecurityIdentity identity = callerIdentity();
+        if (identity == null) {
+            return resolveBasicHeader();
         }
         TokenCredential credential = identity.getCredential(TokenCredential.class);
         if (credential != null && credential.getToken() != null
@@ -83,6 +89,16 @@ public class AlfrescoAuthClientFilter implements ClientRequestFilter {
         }
         throw new IllegalStateException(
                 "Cannot forward JWT to Alfresco: principal is not a JsonWebToken");
+    }
+
+    /** The signed-in caller, or null when there is none or it cannot be read on this thread. */
+    private static SecurityIdentity callerIdentity() {
+        try {
+            SecurityIdentity identity = Arc.container().instance(SecurityIdentity.class).get();
+            return identity == null || identity.isAnonymous() ? null : identity;
+        } catch (RuntimeException noCaller) {
+            return null;
+        }
     }
 
     private String resolveBasicHeader() {

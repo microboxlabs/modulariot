@@ -45,12 +45,6 @@ public class OrganizationContext {
         this.alfrescoRole = alfrescoRole;
     }
 
-    /**
-     * The org's Alfresco group, as stored on the organization — a site group
-     * ({@code GROUP_site_<siteId>}) for orgs backed by a site, a plain group
-     * otherwise, and null for orgs with no group at all. Carried here so a
-     * handler that needs the site behind the org does not re-query it.
-     */
     /** The caller's base role in the organization (OWNER, ADMIN or MEMBER); null when not a member. */
     public String getBaseRole() {
         return baseRole;
@@ -60,6 +54,12 @@ public class OrganizationContext {
         this.baseRole = baseRole;
     }
 
+    /**
+     * The org's Alfresco group, as stored on the organization — a site group
+     * ({@code GROUP_site_<siteId>}) for orgs backed by a site, a plain group
+     * otherwise, and null for orgs with no group at all. Carried here so a
+     * handler that needs the site behind the org does not re-query it.
+     */
     public String getAlfrescoGroupId() {
         return alfrescoGroupId;
     }

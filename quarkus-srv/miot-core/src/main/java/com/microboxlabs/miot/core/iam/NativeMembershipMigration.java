@@ -136,7 +136,6 @@ public class NativeMembershipMigration {
      * Binds each module's legacy-default role to active members who hold no role of that module, directly or through
      * a team. Returns how many bindings it made.
      */
-    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     private Uni<Integer> bindDefaults(String slug) {
         Map<String, RoleDef> defaults = registry.legacyDefaults();
         if (defaults.isEmpty()) {
@@ -145,26 +144,34 @@ public class NativeMembershipMigration {
         return Panache.withTransaction(() -> AlfrescoBridge.lock(slug)
                 .flatMap(locked -> Organization.findBySlug(slug))
                 .flatMap(org -> IamMembership.findByOrganization(org.id).flatMap(rows -> IamRoleBinding
-                        .findByOrganization(org.id).flatMap(bindings -> modulesHeld(bindings).flatMap(held -> {
-                            List<IamRoleBinding> added = new ArrayList<>();
-                            for (IamMembership m : rows) {
-                                if (!"ACTIVE".equals(m.status)) {
-                                    continue;
-                                }
-                                Set<String> modules = held.getOrDefault(m.userId, Set.of());
-                                defaults.forEach((module, role) -> {
-                                    if (!modules.contains(module)) {
-                                        added.add(IamRoleBinding.of(org.id, IamRoleBinding.USER,
-                                                m.userId.toString(), role.key(), ACTOR));
-                                    }
-                                });
-                            }
-                            Uni<Void> chain = Uni.createFrom().voidItem();
-                            for (IamRoleBinding b : added) {
-                                chain = chain.flatMap(i -> b.persist().replaceWithVoid());
-                            }
-                            return chain.replaceWith(added.size());
-                        })))));
+                        .findByOrganization(org.id).flatMap(this::modulesHeld)
+                        .map(held -> missingDefaults(org.id, rows, held, defaults))
+                        .flatMap(NativeMembershipMigration::persistAll))));
+    }
+
+    /** A binding of each default role for every active member who holds no role of its module. */
+    private static List<IamRoleBinding> missingDefaults(Long organizationId, List<IamMembership> rows,
+            Map<UUID, Set<String>> held, Map<String, RoleDef> defaults) {
+        List<IamRoleBinding> added = new ArrayList<>();
+        for (IamMembership m : rows.stream().filter(r -> "ACTIVE".equals(r.status)).toList()) {
+            Set<String> modules = held.getOrDefault(m.userId, Set.of());
+            defaults.forEach((module, role) -> {
+                if (!modules.contains(module)) {
+                    added.add(IamRoleBinding.of(organizationId, IamRoleBinding.USER, m.userId.toString(), role.key(),
+                            ACTOR));
+                }
+            });
+        }
+        return added;
+    }
+
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private static Uni<Integer> persistAll(List<IamRoleBinding> bindings) {
+        Uni<Void> chain = Uni.createFrom().voidItem();
+        for (IamRoleBinding b : bindings) {
+            chain = chain.flatMap(i -> b.persist().replaceWithVoid());
+        }
+        return chain.replaceWith(bindings.size());
     }
 
     /** The modules each user holds a role of, through their own bindings or their teams'. */

@@ -7261,5 +7261,18 @@
   },
   "moduleNames": {
     "CARRIER_PORTAL": "Portal transportista"
+  },
+  "orgSwitcher": {
+    "searchPlaceholder": "Buscar organización…",
+    "recent": "Recientes",
+    "all": "Todas las organizaciones",
+    "results": "Resultados",
+    "noResults": "Ninguna organización coincide con «{query}»",
+    "parentAccount": "Cuenta principal",
+    "clear": "Limpiar búsqueda",
+    "navigate": "navegar",
+    "select": "cambiar",
+    "close": "cerrar",
+    "changeOrgFailed": "No se pudo cambiar la organización"
   }
 }

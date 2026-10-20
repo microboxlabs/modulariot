@@ -7261,5 +7261,18 @@
   },
   "moduleNames": {
     "CARRIER_PORTAL": "Carrier portal"
+  },
+  "orgSwitcher": {
+    "searchPlaceholder": "Search organizations…",
+    "recent": "Recent",
+    "all": "All organizations",
+    "results": "Results",
+    "noResults": "No organization matches “{query}”",
+    "parentAccount": "Main account",
+    "clear": "Clear search",
+    "navigate": "navigate",
+    "select": "switch",
+    "close": "close",
+    "changeOrgFailed": "Could not switch organization"
   }
 }

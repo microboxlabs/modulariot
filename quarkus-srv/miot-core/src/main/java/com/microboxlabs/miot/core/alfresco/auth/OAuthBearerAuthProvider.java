@@ -1,10 +1,14 @@
 package com.microboxlabs.miot.core.alfresco.auth;
 
+import io.quarkus.arc.Arc;
 import io.quarkus.arc.Unremovable;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import io.quarkus.security.identity.SecurityIdentity;
+import io.quarkus.vertx.http.runtime.CurrentVertxRequest;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.Optional;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
@@ -17,7 +21,10 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
  * <p>Reads the raw token from {@link JsonWebToken#getRawToken()} via the
  * {@link SecurityIdentity} principal. If the current request is anonymous
  * (no JWT), fails the outgoing call so the caller sees a clear 401 rather
- * than a silent success against Alfresco.
+ * than a silent success against Alfresco. Work that runs outside a request
+ * (scheduled jobs) uses the Basic credentials from
+ * {@code miot.alfresco.basic.username} / {@code .password}, and fails when
+ * they are not set.
  */
 @ApplicationScoped
 @Unremovable
@@ -25,14 +32,28 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
 public class OAuthBearerAuthProvider implements AlfrescoAuthProvider {
 
     private final SecurityIdentity securityIdentity;
+    private final BasicAuthProvider service;
+    private final boolean serviceConfigured;
 
     @Inject
-    public OAuthBearerAuthProvider(SecurityIdentity securityIdentity) {
+    public OAuthBearerAuthProvider(SecurityIdentity securityIdentity,
+            @ConfigProperty(name = "miot.alfresco.basic.username") Optional<String> serviceUsername,
+            @ConfigProperty(name = "miot.alfresco.basic.password") Optional<String> servicePassword) {
         this.securityIdentity = securityIdentity;
+        this.service = new BasicAuthProvider(serviceUsername, servicePassword);
+        this.serviceConfigured = serviceUsername.filter(s -> !s.isBlank()).isPresent()
+                && servicePassword.filter(s -> !s.isBlank()).isPresent();
     }
 
     @Override
     public String resolveAuthHeader() {
+        if (!inHttpRequest() && callerToken() == null) {
+            if (serviceConfigured) {
+                return service.resolveAuthHeader();
+            }
+            throw new IllegalStateException(
+                    "Cannot call Alfresco outside a request: miot.alfresco.basic credentials are not set");
+        }
         if (securityIdentity == null || securityIdentity.isAnonymous()) {
             throw new IllegalStateException(
                     "Cannot forward JWT to Alfresco: request is anonymous");
@@ -50,5 +71,28 @@ public class OAuthBearerAuthProvider implements AlfrescoAuthProvider {
         }
 
         return "Bearer " + raw;
+    }
+
+    /** The caller's raw JWT, or null when there is none or no request context is active. */
+    private String callerToken() {
+        try {
+            if (securityIdentity == null || securityIdentity.isAnonymous()
+                    || !(securityIdentity.getPrincipal() instanceof JsonWebToken jwt)) {
+                return null;
+            }
+            String raw = jwt.getRawToken();
+            return raw == null || raw.isBlank() ? null : raw;
+        } catch (RuntimeException noRequestContext) {
+            return null;
+        }
+    }
+
+    /** Scheduled jobs run with a request context but without an HTTP request, and so without a caller JWT. */
+    private static boolean inHttpRequest() {
+        if (!Arc.container().requestContext().isActive()) {
+            return false;
+        }
+        var current = Arc.container().instance(CurrentVertxRequest.class);
+        return current.isAvailable() && current.get().getCurrent() != null;
     }
 }

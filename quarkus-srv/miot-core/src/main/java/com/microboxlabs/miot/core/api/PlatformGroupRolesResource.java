@@ -2,6 +2,7 @@ package com.microboxlabs.miot.core.api;
 
 import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.iam.GroupRoles;
+import com.microboxlabs.miot.core.iam.RoleProjection;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -19,7 +20,10 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-/** Platform owners map a top-level organization's Alfresco groups to module roles and import their members. */
+/**
+ * Platform owners map a top-level organization's Alfresco groups to module roles, import their members as bindings,
+ * and keep projected groups equal to the role's holders.
+ */
 @Path("/api/v1/platform/orgs/{slug}/alfresco-group-roles")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -36,11 +40,14 @@ public class PlatformGroupRolesResource {
 
     private final PlatformAuthorizer authorizer;
     private final GroupRoles groupRoles;
+    private final RoleProjection projection;
 
     @Inject
-    public PlatformGroupRolesResource(PlatformAuthorizer authorizer, GroupRoles groupRoles) {
+    public PlatformGroupRolesResource(PlatformAuthorizer authorizer, GroupRoles groupRoles,
+            RoleProjection projection) {
         this.authorizer = authorizer;
         this.groupRoles = groupRoles;
+        this.projection = projection;
     }
 
     @GET
@@ -78,5 +85,15 @@ public class PlatformGroupRolesResource {
     public Uni<Response> importRoles(@PathParam("slug") String slug, @QueryParam("dryRun") boolean dryRun) {
         return authorizer.requirePlatformOwner().flatMap(actor -> IamResponses.ok(
                 () -> groupRoles.importRoles(slug, dryRun, actor)));
+    }
+
+    @POST
+    @Path("/reconcile")
+    @Consumes(MediaType.WILDCARD)
+    @Operation(summary = "Queue the changes that make each projected group equal to its role's holders. dryRun=true"
+            + " lists them without queueing")
+    public Uni<Response> reconcile(@PathParam("slug") String slug, @QueryParam("dryRun") boolean dryRun) {
+        return authorizer.requirePlatformOwner().flatMap(actor -> IamResponses.ok(
+                () -> projection.reconcile(slug, dryRun)));
     }
 }

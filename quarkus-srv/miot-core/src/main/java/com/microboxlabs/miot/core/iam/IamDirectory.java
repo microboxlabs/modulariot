@@ -130,6 +130,7 @@ public class IamDirectory {
     }
 
     /** The users holding the role on the whole organization, directly or through a team. */
+    @SuppressWarnings("java:S3252") // Reactive Panache generates finders per entity.
     private static Uni<List<UUID>> usersHolding(Long organizationId, String roleKey) {
         return IamRoleBinding.<IamRoleBinding>list("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3",
                 organizationId, roleKey, IamRoleBinding.ORGANIZATION).flatMap(bindings -> {

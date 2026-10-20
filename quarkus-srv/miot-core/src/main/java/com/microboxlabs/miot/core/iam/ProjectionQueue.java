@@ -49,34 +49,43 @@ public class ProjectionQueue {
         }
         List<UUID> users = List.copyOf(new LinkedHashSet<>(userIds));
         return Panache.flush().flatMap(f -> IamGroupRole.findByOrganization(rootId)).flatMap(rows -> {
-            Map<String, Set<String>> rolesByGroup = new TreeMap<>();
-            for (IamGroupRole row : rows) {
-                if (row.projected) {
-                    rolesByGroup.computeIfAbsent(row.groupId, g -> new TreeSet<>()).add(row.roleKey);
-                }
-            }
-            rolesByGroup.values()
-                    .removeIf(groupRoles -> roles != null && groupRoles.stream().noneMatch(roles::contains));
+            Map<String, Set<String>> rolesByGroup = projectedGroups(rows, roles);
             if (rolesByGroup.isEmpty()) {
                 return Uni.createFrom().voidItem();
             }
             return IamUser.findByIds(users).flatMap(found -> {
                 Uni<Void> chain = Uni.createFrom().voidItem();
                 for (IamUser user : found) {
-                    chain = chain.flatMap(i -> heldRoles(rootId, user.id).flatMap(held -> {
-                        boolean active = "ACTIVE".equals(user.status);
-                        Uni<Void> queued = Uni.createFrom().voidItem();
-                        for (Map.Entry<String, Set<String>> group : rolesByGroup.entrySet()) {
-                            boolean holds = active && group.getValue().stream().anyMatch(held::contains);
-                            String kind = holds ? IamProjectionChange.MEMBER_ADDED : IamProjectionChange.MEMBER_REMOVED;
-                            queued = queued.flatMap(q -> queueOnce(rootId, kind, group.getKey(),
-                                    IamUser.normalize(user.email)));
-                        }
-                        return queued;
-                    }));
+                    chain = chain.flatMap(i -> queueFor(rootId, user, rolesByGroup));
                 }
                 return chain;
             });
+        });
+    }
+
+    /** The roles mapped to each projected group, keeping only groups mapped to one of {@code roles} (null: all). */
+    private static Map<String, Set<String>> projectedGroups(List<IamGroupRole> rows, Collection<String> roles) {
+        Map<String, Set<String>> rolesByGroup = new TreeMap<>();
+        for (IamGroupRole row : rows) {
+            if (row.projected) {
+                rolesByGroup.computeIfAbsent(row.groupId, g -> new TreeSet<>()).add(row.roleKey);
+            }
+        }
+        rolesByGroup.values().removeIf(groupRoles -> roles != null && groupRoles.stream().noneMatch(roles::contains));
+        return rolesByGroup;
+    }
+
+    /** Queues, for each group, adding the user when active and holding one of its roles, removing otherwise. */
+    private static Uni<Void> queueFor(Long rootId, IamUser user, Map<String, Set<String>> rolesByGroup) {
+        return heldRoles(rootId, user.id).flatMap(held -> {
+            boolean active = "ACTIVE".equals(user.status);
+            Uni<Void> queued = Uni.createFrom().voidItem();
+            for (Map.Entry<String, Set<String>> group : rolesByGroup.entrySet()) {
+                boolean holds = active && group.getValue().stream().anyMatch(held::contains);
+                String kind = holds ? IamProjectionChange.MEMBER_ADDED : IamProjectionChange.MEMBER_REMOVED;
+                queued = queued.flatMap(q -> queueOnce(rootId, kind, group.getKey(), IamUser.normalize(user.email)));
+            }
+            return queued;
         });
     }
 

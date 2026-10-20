@@ -216,15 +216,7 @@ public class TokenRoles {
                 writes.add(b.persist());
             }
         }
-        for (String key : plan.add()) {
-            if (registry.role(key).isEmpty()) {
-                continue;
-            }
-            IamRoleBinding b = IamRoleBinding.of(root.id, IamRoleBinding.USER, user.id.toString(), key, ACTOR);
-            b.source = IamRoleBinding.TOKEN;
-            b.expiresAt = expires;
-            writes.add(b.persist());
-        }
+        addBindings(root, user, plan.add(), expires, writes);
         Uni<Void> chain = Uni.createFrom().voidItem();
         for (Uni<?> write : writes) {
             chain = chain.flatMap(i -> write.replaceWithVoid());
@@ -242,6 +234,20 @@ public class TokenRoles {
                                 Map.of("added", plan.add(), "removed", plan.remove(),
                                         "baseRole", String.valueOf(plan.baseRole()))).persist().replaceWithVoid()
                         : Uni.createFrom().voidItem());
+    }
+
+    /** Adds a TOKEN binding for each known role in {@code keys}. */
+    @SuppressWarnings("java:S1612") // Reactive Panache: persist overloads.
+    private void addBindings(Organization root, IamUser user, Set<String> keys, Instant expires,
+            List<Uni<?>> writes) {
+        for (String key : keys) {
+            if (registry.role(key).isPresent()) {
+                IamRoleBinding b = IamRoleBinding.of(root.id, IamRoleBinding.USER, user.id.toString(), key, ACTOR);
+                b.source = IamRoleBinding.TOKEN;
+                b.expiresAt = expires;
+                writes.add(b.persist());
+            }
+        }
     }
 
     /** Whether a binding of a mapped role is written again: expired, or from a token with less than half left. */

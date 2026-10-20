@@ -72,7 +72,7 @@ public class DomainMembership {
                         : IamMembership.of(root.id, user.id, BaseRole.MEMBER.name(), SOURCE, ACTOR).persist()
                                 .flatMap(created -> projection.memberChanged(root.id, user.email, true))
                                 .flatMap(queued -> IamAuditEvent.of(root.id, ACTOR, "member.joined", user.email,
-                                        Map.of("domain", domain)).persist())
+                                        Map.of("emailDomain", domain)).persist())
                                 .replaceWith(true));
             });
         });

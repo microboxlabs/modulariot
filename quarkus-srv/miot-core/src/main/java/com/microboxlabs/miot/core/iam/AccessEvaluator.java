@@ -117,7 +117,6 @@ public class AccessEvaluator {
     }
 
     private Uni<Access> userAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
-        boolean nativeMembership = isNative(root);
         SecurityIdentity signer = requestSigner(caller.email());
         Set<String> ids = signer == null ? null : TokenRoles.fromIdentity(signer);
         Uni<String> synced = ids == null
@@ -127,17 +126,23 @@ public class AccessEvaluator {
             if (user != null && !"ACTIVE".equals(user.status)) {
                 return Uni.createFrom().item(Access.none(org.id, org.slug));
             }
-            Uni<List<IamMembership>> memberships = user == null
-                    ? Uni.createFrom().item(List.of())
-                    : IamMembership.findFor(scope, user.id);
-            if (nativeMembership && signer != null) {
-                memberships = memberships.flatMap(rows -> rows.isEmpty()
-                        ? joinByDomain(root, scope, caller.email(), signer)
-                        : Uni.createFrom().item(rows));
-            }
-            return memberships.flatMap(rows -> decide(org, root, scope, caller, user,
-                    withToken(highest(rows), tokenBase)));
+            return memberships(root, scope, user, caller.email(), signer)
+                    .flatMap(rows -> decide(org, root, scope, caller, user, withToken(highest(rows), tokenBase)));
         }));
+    }
+
+    /** The user's active memberships; in a native organization, a signed-in person with none may join by domain. */
+    private Uni<List<IamMembership>> memberships(Organization root, List<Long> scope, IamUser user, String email,
+            SecurityIdentity signer) {
+        Uni<List<IamMembership>> found = user == null
+                ? Uni.createFrom().item(List.of())
+                : IamMembership.findFor(scope, user.id);
+        if (!isNative(root) || signer == null) {
+            return found;
+        }
+        return found.flatMap(rows -> rows.isEmpty()
+                ? joinByDomain(root, scope, email, signer)
+                : Uni.createFrom().item(rows));
     }
 
     /** The access of a user whose base role in the organization is known. */

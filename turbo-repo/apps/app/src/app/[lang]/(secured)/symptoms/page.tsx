@@ -4,12 +4,15 @@ import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import ClientSymptoms from "../../../../features/symptoms/client-symptoms";
 import { RouteGuard } from "@/features/auth/components/route-guard";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function SymptomsPage({ params }: ParamsWithLang) {
+  await guardPage(ACCESS_RULES.controlTower, "/symptoms");
   const { lang } = await params;
   const [, dict] = await getDictionary(lang);
   return (
-    <RouteGuard path="/symptoms" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/symptoms">
       <div className="h-full w-full flex flex-col bg-white dark:bg-gray-900">
         <SectionHeader
           path={["mission_control", "symptoms"]}

@@ -19,14 +19,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 const ENV_KEY = "TASK_DRIVEN_ORIGINS";
 const ORIGINAL_ENV = process.env[ENV_KEY];
 
-const requireAnyGroupMock = vi.fn();
+const requirePermissionMock = vi.fn();
 const runCalendarBindingMock = vi.fn();
 const createMiotCalendarClientMock = vi.fn();
 const bookingsGetMock = vi.fn();
 const bookingsMoveMock = vi.fn();
 
-vi.mock("../../../../utils/alfresco-crud-client", () => ({
-  requireAnyGroup: (...args: unknown[]) => requireAnyGroupMock(...args),
+vi.mock("@/features/auth/access/server-access", () => ({
+  requirePermission: (...args: unknown[]) => requirePermissionMock(...args),
 }));
 
 vi.mock("../../binding-helpers", () => ({
@@ -126,7 +126,7 @@ const routeParams = { params: Promise.resolve({ bookingId: BOOKING_ID }) };
 describe("bookings move POST — task-driven flag gating", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireAnyGroupMock.mockResolvedValue({
+    requirePermissionMock.mockResolvedValue({
       authorized: true,
       session: { user: { rawJWT: "jwt" } },
     });

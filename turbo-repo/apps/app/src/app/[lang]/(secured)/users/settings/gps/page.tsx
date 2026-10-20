@@ -12,7 +12,7 @@ export default async function GpsSettingsPage({ params }: ParamsWithLang) {
     ?.userSettings as I18nRecord;
 
   return (
-    <RouteGuard path="/users/settings/gps" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/users/settings/gps">
       <GpsIntegrationPage dict={userSettings} lang={lang} />
     </RouteGuard>
   );

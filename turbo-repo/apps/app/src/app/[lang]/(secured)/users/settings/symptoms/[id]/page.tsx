@@ -15,10 +15,7 @@ export default async function SymptomSettingsPage({
     ?.userSettings as I18nRecord;
 
   return (
-    <RouteGuard
-      path="/users/settings/symptoms"
-      fallbackPath={`/${lang}/shipping`}
-    >
+    <RouteGuard path="/users/settings/symptoms">
       <SymptomDetail
         id={id}
         dict={userSettings}

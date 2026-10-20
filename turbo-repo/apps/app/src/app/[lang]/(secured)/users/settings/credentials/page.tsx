@@ -18,10 +18,7 @@ export default async function CredentialsPage({ params }: ParamsWithLang) {
     ?.userSettings as I18nRecord;
 
   return (
-    <RouteGuard
-      path="/users/settings/credentials"
-      fallbackPath={`/${lang}/shipping`}
-    >
+    <RouteGuard path="/users/settings/credentials">
       <CredentialsPageContent
         dict={userSettings}
         rootDict={dictionary as unknown as I18nRecord}

@@ -16,7 +16,7 @@ export default async function InvitePage({ params }: InvitePageProps) {
     ?.userSettings as I18nRecord;
 
   return (
-    <RouteGuard path="/users/settings/team" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/users/settings/team">
       <InviteMembersPage dict={userSettings} lang={lang} />
     </RouteGuard>
   );

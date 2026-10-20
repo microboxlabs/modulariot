@@ -11,7 +11,7 @@ export default async function FleetRoute({ params }: ParamsWithLang) {
   const dict = (dictionary.pages as I18nRecord)?.fleet as I18nRecord;
 
   return (
-    <RouteGuard path="/fleet" fallbackPath={`/${lang}/shipping`}>
+    <RouteGuard path="/fleet">
       <FleetPage
         dict={dict ?? {}}
         rootDict={dictionary as I18nRecord}

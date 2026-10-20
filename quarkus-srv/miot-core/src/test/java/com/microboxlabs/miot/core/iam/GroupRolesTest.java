@@ -102,6 +102,31 @@ class GroupRolesTest {
     }
 
     @Test
+    void rolesProjectedToOneGroupAreReconciledTogether() throws SQLException {
+        owner().contentType("application/json").body("{\"projected\":true}")
+                .when().put(MAPPINGS + "/GROUP_SHARED/" + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR)
+                .then().statusCode(200);
+        owner().contentType("application/json").body("{\"projected\":true}")
+                .when().put(MAPPINGS + "/GROUP_SHARED/" + CoordinatorAccessCatalog.TRIP_ESCALATION)
+                .then().statusCode(200);
+        owner().when().post(MAPPINGS + "/import").then().statusCode(200);
+
+        String org = "(SELECT id FROM miot_core.organizations WHERE slug = '" + ORG + "')";
+        String user = "(SELECT id FROM miot_iam.iam_user WHERE email = '" + MEMBER + "')";
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role, source, created_by) "
+                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test')");
+        exec("DELETE FROM miot_iam.iam_role_binding WHERE organization_id = " + org + " AND principal_id = "
+                + user + "::text AND role_key = '" + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR + "'");
+
+        // Still holds the other role mapped to the group, so stays.
+        owner().when().post(MAPPINGS + "/reconcile?dryRun=true")
+                .then().statusCode(200)
+                .body("lines", hasSize(1))
+                .body("lines[0].roleKeys", hasSize(2))
+                .body("lines[0].remove", hasSize(0));
+    }
+
+    @Test
     void membersOfTheExcludedGroupAreSkipped() {
         owner().contentType("application/json")
                 .body("{\"excludedGroupId\":\"GROUP_MINTRAL_REVISOR\"}")
@@ -114,6 +139,23 @@ class GroupRolesTest {
                 .body("lines[0].seen", is(3))
                 .body("lines[0].excluded", is(3))
                 .body("lines[0].added", is(0));
+    }
+
+    @Test
+    void aDryRunCountsAPersonOncePerRoleAcrossGroups() {
+        owner().contentType("application/json").body("{}")
+                .when().put(MAPPINGS + "/GROUP_PLANNING/" + CoordinatorAccessCatalog.CALENDAR_PLANNER)
+                .then().statusCode(200);
+        owner().contentType("application/json").body("{}")
+                .when().put(MAPPINGS + "/GROUP_PLANNING_2/" + CoordinatorAccessCatalog.CALENDAR_PLANNER)
+                .then().statusCode(200);
+
+        // The stub directory answers the same people for every group.
+        owner().when().post(MAPPINGS + "/import?dryRun=true")
+                .then().statusCode(200)
+                .body("lines[0].added", is(3))
+                .body("lines[1].added", is(0))
+                .body("lines[1].existing", is(3));
     }
 
     @Test

@@ -15,7 +15,9 @@ import jakarta.inject.Inject;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -24,8 +26,9 @@ import org.jboss.logging.Logger;
 
 /**
  * Keeps each projected Alfresco group equal to the holders of its mapped role, through the projection outbox that
- * {@link AlfrescoBridge} sends. A holder missing from the group is added. A group member is removed only when the
- * organization knows them (they have a membership) and they no longer hold the role. When a run would remove more
+ * {@link AlfrescoBridge} sends. Roles mapped to the same group are reconciled together. A holder missing from the
+ * group is added. A direct member is removed only when the organization knows them (they have a membership, active
+ * or not) and they hold none of the group's roles; members through a subgroup are never removed. When a run would remove more
  * than {@value #MAX_REMOVED_SHARE_PERCENT}% of a group (and more than {@value #MIN_REMOVALS_HELD} people), it removes
  * nobody from that group and reports the removals as held.
  */
@@ -36,8 +39,11 @@ public class RoleProjection {
     static final int MIN_REMOVALS_HELD = 3;
     private static final Logger LOG = Logger.getLogger(RoleProjection.class);
 
-    /** One projected mapping: who would be added to and removed from the group. */
-    public record Line(String groupId, String roleKey, int holders, int groupMembers, List<String> add,
+    /**
+     * One projected group: the roles mapped to it, who would be added, and who would be removed. {@code groupMembers}
+     * counts nested members too; only direct members can be removed.
+     */
+    public record Line(String groupId, List<String> roleKeys, int holders, int groupMembers, List<String> add,
             List<String> remove, boolean removalsHeld) {
     }
 
@@ -86,34 +92,48 @@ public class RoleProjection {
 
     private Uni<Result> reconcile(Organization org, boolean dryRun) {
         return IamGroupRole.findByOrganization(org.id).flatMap(rows -> IamMembership.findByOrganization(org.id)
-                .flatMap(memberships -> emails(memberships.stream().map(m -> m.userId).toList()))
+                .flatMap(memberships -> emails(memberships.stream().map(m -> m.userId).toList(), false))
                 .flatMap(known -> {
-                    Uni<List<Line>> chain = Uni.createFrom().item(new ArrayList<>());
+                    Map<String, List<String>> rolesByGroup = new TreeMap<>();
                     for (IamGroupRole row : rows) {
                         if (row.projected) {
-                            chain = chain.flatMap(lines -> line(org, row, known, dryRun).map(line -> {
-                                lines.add(line);
-                                return lines;
-                            }));
+                            rolesByGroup.computeIfAbsent(row.groupId, g -> new ArrayList<>()).add(row.roleKey);
                         }
+                    }
+                    Uni<List<Line>> chain = Uni.createFrom().item(new ArrayList<>());
+                    for (Map.Entry<String, List<String>> group : rolesByGroup.entrySet()) {
+                        chain = chain.flatMap(lines -> line(org, group.getKey(), group.getValue(), known, dryRun)
+                                .map(line -> {
+                                    lines.add(line);
+                                    return lines;
+                                }));
                     }
                     return chain.map(lines -> new Result(org.slug, dryRun, List.copyOf(lines)));
                 }));
     }
 
-    private Uni<Line> line(Organization org, IamGroupRole row, Set<String> known, boolean dryRun) {
-        return holders(org.id, row.roleKey).flatMap(holders -> groupRoles.members(row.groupId).flatMap(people -> {
-            Set<String> inGroup = people.stream().map(GroupRoles::emailOf).filter(e -> e != null)
-                    .collect(Collectors.toCollection(TreeSet::new));
-            List<String> add = holders.stream().filter(e -> !inGroup.contains(e)).toList();
-            List<String> remove = inGroup.stream().filter(e -> !holders.contains(e) && known.contains(e)).toList();
-            boolean held = removalsHeld(remove.size(), inGroup.size());
-            if (held) {
-                LOG.warnf("Role projection held %d removals from %s in %s", remove.size(), row.groupId, org.slug);
-            }
-            Line line = new Line(row.groupId, row.roleKey, holders.size(), inGroup.size(), add, remove, held);
-            return dryRun ? Uni.createFrom().item(line) : queue(org.id, line).replaceWith(line);
-        }));
+    /**
+     * Holders of any role mapped to the group are added when missing. A direct member who holds none of them and is
+     * known to the organization is removed; people in the group only through a subgroup are left alone.
+     */
+    private Uni<Line> line(Organization org, String groupId, List<String> roleKeys, Set<String> known,
+            boolean dryRun) {
+        return holders(org.id, roleKeys).flatMap(holders -> groupRoles.members(groupId)
+                .flatMap(people -> groupRoles.directMembers(groupId).flatMap(direct -> {
+                    Set<String> inGroup = people.stream().map(GroupRoles::emailOf).filter(e -> e != null)
+                            .collect(Collectors.toCollection(TreeSet::new));
+                    List<String> add = holders.stream().filter(e -> !inGroup.contains(e)).toList();
+                    List<String> remove = direct == null ? List.of() : inGroup.stream()
+                            .filter(e -> direct.contains(e) && !holders.contains(e) && known.contains(e)).toList();
+                    boolean held = removalsHeld(remove.size(), inGroup.size());
+                    if (held) {
+                        LOG.warnf("Role projection held %d removals from %s in %s", remove.size(), groupId,
+                                org.slug);
+                    }
+                    Line line = new Line(groupId, List.copyOf(roleKeys), holders.size(), inGroup.size(), add,
+                            remove, held);
+                    return dryRun ? Uni.createFrom().item(line) : queue(org.id, line).replaceWith(line);
+                })));
     }
 
     static boolean removalsHeld(int removals, int groupMembers) {
@@ -143,9 +163,9 @@ public class RoleProjection {
     }
 
     /** Emails of the active users holding the role on the organization, directly or through a team. */
-    private static Uni<Set<String>> holders(Long organizationId, String roleKey) {
+    private static Uni<Set<String>> holders(Long organizationId, List<String> roleKeys) {
         Instant now = Instant.now();
-        return IamRoleBinding.findByRole(organizationId, roleKey).flatMap(bindings -> {
+        return IamRoleBinding.findByRoles(organizationId, roleKeys).flatMap(bindings -> {
             List<IamRoleBinding> current = bindings.stream().filter(b -> b.organizationWide(now)).toList();
             List<UUID> users = current.stream().filter(b -> IamRoleBinding.USER.equals(b.principalKind))
                     .map(b -> UUID.fromString(b.principalId)).toList();
@@ -154,14 +174,15 @@ public class RoleProjection {
             return IamTeamMember.findByTeams(teams).flatMap(members -> {
                 List<UUID> all = new ArrayList<>(users);
                 members.forEach(m -> all.add(m.id.userId));
-                return emails(all.stream().distinct().toList());
+                return emails(all.stream().distinct().toList(), true);
             });
         });
     }
 
-    private static Uni<Set<String>> emails(List<UUID> userIds) {
+    /** The users' emails; with {@code activeOnly}, only of users who are not disabled. */
+    private static Uni<Set<String>> emails(List<UUID> userIds, boolean activeOnly) {
         return IamUser.findByIds(userIds).map(users -> users.stream()
-                .filter(u -> "ACTIVE".equals(u.status))
+                .filter(u -> !activeOnly || "ACTIVE".equals(u.status))
                 .map(u -> IamUser.normalize(u.email))
                 .collect(Collectors.toCollection(TreeSet::new)));
     }

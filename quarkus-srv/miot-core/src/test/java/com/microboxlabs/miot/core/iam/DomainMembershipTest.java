@@ -85,6 +85,35 @@ class DomainMembershipTest {
     }
 
     @Test
+    void aSuspendedAdminInvitedAsMemberComesBackAsMember() throws SQLException {
+        suspendedAdmin();
+        String token = owner().contentType("application/json")
+                .body("{\"emails\":[\"" + USER + "\"],\"baseRole\":\"MEMBER\"}")
+                .when().post("/api/v1/orgs/" + ORG + "/team/invitations")
+                .then().statusCode(201).extract().path("[0].token");
+        signedIn(USER, true).contentType("application/json").body("{\"token\":\"" + token + "\"}")
+                .when().post("/api/v1/me/invitations/accept")
+                .then().statusCode(200).body("member.baseRole", is("MEMBER"));
+        assertEquals("DOMAIN/ACTIVE", membership());
+    }
+
+    @Test
+    void aSuspendedAdminGivenAModuleRoleComesBackAsMember() throws SQLException {
+        suspendedAdmin();
+        owner().contentType("application/json").body("{\"assigneeIds\":[\"" + USER + "\"]}")
+                .when().put("/api/v1/orgs/" + ORG + "/roles/" + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR)
+                .then().statusCode(200);
+        signedIn(USER, true).when().get(ACCESS).then().statusCode(200).body("baseRole", is("MEMBER"));
+    }
+
+    private void suspendedAdmin() throws SQLException {
+        signedIn(USER, true).when().get(ACCESS).then().statusCode(200);
+        exec("UPDATE miot_iam.iam_membership SET base_role = 'ADMIN' WHERE user_id = '" + userId() + "'");
+        owner().when().delete("/api/v1/orgs/" + ORG + "/team/members/" + userId()).then().statusCode(204);
+        assertEquals("DOMAIN/SUSPENDED", membership());
+    }
+
+    @Test
     void aDomainBelongsToOneOrganization() {
         owner().when().put("/api/v1/platform/orgs/" + OTHER_ORG + "/member-domains/" + DOMAIN)
                 .then().statusCode(409);

@@ -161,6 +161,8 @@ public class IamDirectory {
                     IamMembership m = existing != null
                             ? existing
                             : IamMembership.of(organizationId, user.id, baseRole.name(), "NATIVE", actor);
+                    // A suspended membership comes back with the role granted now, not the one it had.
+                    m.baseRole = baseRole.name();
                     m.status = "ACTIVE";
                     return m.<IamMembership>persist()
                             .call(saved -> bridge.memberAdded(organizationId, user.email));

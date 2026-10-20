@@ -321,7 +321,8 @@ public class TeamService {
                     : IamMembership.of(invitation.organizationId, user.id, invited.name(), "INVITE",
                             invitation.invitedBy);
             boolean joins = existing == null || !"ACTIVE".equals(existing.status);
-            m.baseRole = BaseRole.max(BaseRole.valueOf(m.baseRole), invited).name();
+            // A suspended member returns with the invited role; an active one keeps the higher of the two.
+            m.baseRole = joins ? invited.name() : BaseRole.max(BaseRole.valueOf(m.baseRole), invited).name();
             m.status = "ACTIVE";
             return m.<IamMembership>persist()
                     .flatMap(saved -> joins
@@ -351,7 +352,7 @@ public class TeamService {
                         ? Uni.createFrom().nullItem()
                         : IamMembership.findOne(root.id, user.id))
                 .flatMap(member -> {
-                    if (member != null) {
+                    if (member != null && "ACTIVE".equals(member.status)) {
                         throw new IllegalStateException(email + " is already a member");
                     }
                     return IamInvitation.pendingFor(root.id, email);

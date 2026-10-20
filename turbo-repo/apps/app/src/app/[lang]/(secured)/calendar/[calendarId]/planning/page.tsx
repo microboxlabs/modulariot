@@ -3,10 +3,13 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Planning from "@/features/calendar/components/planning/planning";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function CalendarIdPlanningPage(
   props: ParamsWithLang<{ calendarId: string }>
 ) {
+  await guardPage(ACCESS_RULES.calendar, "/calendar/planning");
   const { lang, calendarId } = await props.params;
   const session = await auth();
   if (!session) redirect(`/${lang}/sign-in`);

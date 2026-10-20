@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { hasAdminAccessForSession } from "@/features/auth/utils/admin-access";
+import { requirePermission } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import {
   createWebhookDefinition,
   updateWebhookDefinition,
@@ -18,14 +18,12 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session || !(await hasAdminAccessForSession(session))) {
-      return NextResponse.json(
-        { error: "Unauthorized. Admin access required." },
-        { status: 403 }
-      );
-    }
+    const access = await requirePermission(
+      ACCESS_RULES.adminConsole,
+      "/api/admin/webhooks"
+    );
+    if (!access.authorized) return access.response;
+    const { session } = access;
 
     const { searchParams } = new URL(request.url);
     const site = searchParams.get("site") || "mintral";
@@ -72,14 +70,12 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session || !(await hasAdminAccessForSession(session))) {
-      return NextResponse.json(
-        { error: "Unauthorized. Admin access required." },
-        { status: 403 }
-      );
-    }
+    const access = await requirePermission(
+      ACCESS_RULES.adminConsole,
+      "/api/admin/webhooks"
+    );
+    if (!access.authorized) return access.response;
+    const { session } = access;
 
     const body: CreateWebhookRequest = await request.json();
     const { site, templateId, webhookUrl, webhookKind, template } = body;
@@ -133,14 +129,12 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session || !(await hasAdminAccessForSession(session))) {
-      return NextResponse.json(
-        { error: "Unauthorized. Admin access required." },
-        { status: 403 }
-      );
-    }
+    const access = await requirePermission(
+      ACCESS_RULES.adminConsole,
+      "/api/admin/webhooks"
+    );
+    if (!access.authorized) return access.response;
+    const { session } = access;
 
     const body: UpdateWebhookRequest = await request.json();
     const { webhookDef, templateId, webhookUrl, webhookKind, template } = body;
@@ -193,14 +187,12 @@ export async function PUT(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth();
-
-    if (!session || !(await hasAdminAccessForSession(session))) {
-      return NextResponse.json(
-        { error: "Unauthorized. Admin access required." },
-        { status: 403 }
-      );
-    }
+    const access = await requirePermission(
+      ACCESS_RULES.adminConsole,
+      "/api/admin/webhooks"
+    );
+    if (!access.authorized) return access.response;
+    const { session } = access;
 
     const { searchParams } = new URL(request.url);
     const webhookDefNodeRef = searchParams.get("webhookDef");

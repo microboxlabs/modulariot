@@ -1,29 +1,9 @@
 import { Suspense } from "react";
-import { auth } from "@/auth";
-import { hasAdminAccessForSession } from "@/features/auth/utils/admin-access";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import { AdminMessageTemplatesConsole } from "@/features/common/components/admin-message-templates-console/admin-message-templates-console";
-import { redirect } from "next/navigation";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
-
-async function checkAdminAccess() {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/sign-in");
-  }
-
-  try {
-    const hasAccess = await hasAdminAccessForSession(session);
-
-    if (!hasAccess) {
-      redirect("/"); // Redirect to home if not admin
-    }
-  } catch (error) {
-    console.error("Error checking admin access:", error);
-    redirect("/");
-  }
-}
 
 function LoadingConsole() {
   return (
@@ -45,11 +25,13 @@ export default async function MessageTemplatesPage({
 }: {
   params: Promise<{ lang: string }>;
 }) {
+  await guardPage(
+    ACCESS_RULES.adminConsole,
+    "/admin/console/message-templates"
+  );
   const { lang } = await params;
   const [, dictionary] = await getDictionary(lang);
   const dict = (dictionary.pages as I18nRecord)?.admin as I18nRecord;
-  // Check admin access server-side
-  await checkAdminAccess();
 
   return (
     <div className="container mx-auto">

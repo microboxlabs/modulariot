@@ -1,12 +1,14 @@
 import "server-only";
 import { auth } from "@/auth";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import PageContent from "@/features/shipping/components/content";
 import { getStaticPlanningData } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 export default async function PlanningPage({ params }: ParamsWithLang) {
+  await guardPage(ACCESS_RULES.kanban, "/planning");
   const { lang } = await params;
   try {
     const [, dictionary] = await getDictionary(lang);
@@ -14,7 +16,6 @@ export default async function PlanningPage({ params }: ParamsWithLang) {
     if (!session) {
       await redirectWithLang(`/sign-in`);
     }
-    const userGroups = await getGroupsForPerson(session!);
     const staticData = getStaticPlanningData();
 
     return (
@@ -27,7 +28,6 @@ export default async function PlanningPage({ params }: ParamsWithLang) {
           base: (dictionary.pages as I18nRecord)?.planning as I18nRecord,
           general: dictionary,
         }}
-        userGroups={userGroups}
       />
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

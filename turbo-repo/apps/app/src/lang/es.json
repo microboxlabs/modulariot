@@ -994,6 +994,18 @@
       "heading": "¡Vaya! Esa página no existe.",
       "backToHome": "Volver al inicio"
     },
+    "noAccess": {
+      "account": {
+        "title": "Tu cuenta aún no tiene acceso",
+        "body": "Iniciaste sesión correctamente, pero todavía no tienes un rol asignado en ningún módulo. Pide a un administrador de tu organización que te asigne uno."
+      },
+      "page": {
+        "title": "No tienes acceso a esta sección",
+        "body": "Tu rol no incluye esta sección. Si la necesitas, pide a un administrador de tu organización que te asigne el rol correspondiente."
+      },
+      "signedInAs": "Sesión iniciada como",
+      "back": "Ir a mi inicio"
+    },
     "transportValidationForm": {
       "breadcrumb": {
         "tasks": "Mis tareas",

@@ -59,7 +59,8 @@ import {
   TaskOutcomePlanning,
 } from "../../services/form.service.types";
 
-import { GroupAllowed } from "@/features/common/components/group-allowed/group-allowed";
+import { AccessAllowed } from "@/features/auth/components/access-allowed";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import { ValidationIcon } from "../task-bento-form/components/driver/validation-icon";
 import { useUserGroups } from "@/features/common/providers/client-api.provider";
 import { useRouter } from "next/navigation";
@@ -267,10 +268,7 @@ export default function TaskActions({
 
   return (
     <div className="flex flex-col-reverse lg:flex-row w-full gap-2 items-center">
-      <GroupAllowed
-        notAllowedTo={["GROUP_MINTRAL_REVISOR"]}
-        userGroups={userGroups}
-      >
+      <AccessAllowed rule={ACCESS_RULES.taskComplete}>
         {splitBtn}
 
         <TaskConfirmModal
@@ -287,7 +285,7 @@ export default function TaskActions({
           rejectedItems={reviewState.rejectedItems}
           lang={lang}
         />
-      </GroupAllowed>
+      </AccessAllowed>
     </div>
   );
 }

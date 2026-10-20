@@ -2,7 +2,8 @@ import {
   createMiotCalendarClient,
   MiotCalendarApiError,
 } from "@microboxlabs/miot-calendar-client";
-import { requireAnyGroup } from "../../../utils/alfresco-crud-client";
+import { requirePermission } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { z } from "zod";
@@ -10,17 +11,14 @@ import { sessionAuthHeader } from "@/features/auth/services/session-auth";
 
 const MIOT_CALENDAR_URL = process.env.MIOT_CALENDAR_URL ?? "";
 
-// Same gate as the create/move routes — see ../route.ts.
-const BOOKING_MUTATION_GROUPS = [
-  "GROUP_PLANNING",
-  "GROUP_ASSIGNMENT",
-] as const;
-
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
-  const authResult = await requireAnyGroup(BOOKING_MUTATION_GROUPS);
+  const authResult = await requirePermission(
+    ACCESS_RULES.bookingWrite,
+    "/api/calendar/bookings/[bookingId]"
+  );
   if (!authResult.authorized) return authResult.response;
 
   const { bookingId } = await params;
@@ -54,7 +52,10 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ bookingId: string }> }
 ) {
-  const authResult = await requireAnyGroup(BOOKING_MUTATION_GROUPS);
+  const authResult = await requirePermission(
+    ACCESS_RULES.bookingWrite,
+    "/api/calendar/bookings/[bookingId]"
+  );
   if (!authResult.authorized) return authResult.response;
 
   const { bookingId } = await params;

@@ -35,7 +35,7 @@ let userCounter = 0;
 
 function freshSession() {
   userCounter += 1;
-  return { user: { id: `u-${userCounter}`, email: "ana@example.com" } };
+  return { user: { id: `u-${userCounter}`, email: `ana-${userCounter}@example.com` } };
 }
 
 function stubPermissions(permissions: string[]) {
@@ -112,7 +112,7 @@ describe("server access", () => {
     ).resolves.toBe(true);
     expect(warn).toHaveBeenCalledWith(
       {
-        userEmail: "ana@example.com",
+        userEmail: expect.stringMatching(/^ana-\d+@example\.com$/),
         org: "acme",
         key: "coordination:kanban.view",
         context: "/shipping",

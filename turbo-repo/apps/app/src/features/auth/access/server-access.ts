@@ -50,17 +50,20 @@ async function loadPermissions(session: Session): Promise<OrgPermissions> {
   const scope = await resolveTenantScope();
   if (!scope.resolved) return { org: null, permissions: null };
   const org = scope.scope.activeOrg.slug;
-  const cacheKey = `${session.user?.id}:${org}`;
-  const cached = permissionCache.get(cacheKey);
+  const email = session.user?.email?.trim().toLowerCase();
+  const cacheKey = email ? `${email}:${org}` : null;
+  const cached = cacheKey ? permissionCache.get(cacheKey) : undefined;
   if (cached && cached.expiresAt > Date.now()) {
     return { org, permissions: cached.permissions };
   }
   try {
     const permissions = await fetchPermissions(org);
-    permissionCache.set(cacheKey, {
-      permissions,
-      expiresAt: Date.now() + CACHE_TTL_MS,
-    });
+    if (cacheKey) {
+      permissionCache.set(cacheKey, {
+        permissions,
+        expiresAt: Date.now() + CACHE_TTL_MS,
+      });
+    }
     return { org, permissions };
   } catch (err) {
     logger.error({ err, org }, "Failed to load the caller's permissions");

@@ -136,6 +136,20 @@ class TeamApiTest {
     }
 
     @Test
+    void theRosterListsIamMembersAndRefusesAlfrescoChanges() {
+        String roster = "/api/v1/orgs/" + ORG + "/members";
+        given().header("Authorization", bearer(ADMIN)).when().get(roster)
+                .then().statusCode(200)
+                .body("id", containsInAnyOrder(OWNER, ADMIN))
+                .body("email", containsInAnyOrder(OWNER, ADMIN));
+        given().header("Authorization", bearer(ADMIN)).when().get(roster + "?maxItems=1")
+                .then().statusCode(200).body("$", hasSize(1));
+        given().header("Authorization", bearer(OWNER)).contentType("application/json")
+                .body("{\"personId\":\"" + NEWCOMER + "\"}").when().post(roster)
+                .then().statusCode(409);
+    }
+
+    @Test
     void ownersAndAdminsRenameANativeOrganization() {
         given().header("Authorization", bearer(ADMIN)).contentType("application/json")
                 .body("{\"displayName\":\"Equipo Norte\"}").when().patch("/api/v1/orgs/" + ORG)

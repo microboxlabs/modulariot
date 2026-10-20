@@ -66,11 +66,10 @@ public class IamProjectionChange extends PanacheEntityBase {
         return find("status = ?1 order by id", PENDING).page(0, limit).list();
     }
 
-    /** The pending change of this kind for the subject in the group, or null. */
-    public static Uni<IamProjectionChange> findPending(Long organizationId, String kind, String groupId,
-            String subject) {
-        return find("organizationId = ?1 and kind = ?2 and groupId = ?3 and subject = ?4 and status = ?5",
-                organizationId, kind, groupId, subject, PENDING).firstResult();
+    /** The newest pending change for the subject in the group, of any kind, or null. */
+    public static Uni<IamProjectionChange> findLastPending(Long organizationId, String groupId, String subject) {
+        return find("organizationId = ?1 and groupId = ?2 and subject = ?3 and status = ?4 order by id desc",
+                organizationId, groupId, subject, PENDING).firstResult();
     }
 
     public static Uni<List<IamProjectionChange>> forOrganization(Long organizationId, int limit) {

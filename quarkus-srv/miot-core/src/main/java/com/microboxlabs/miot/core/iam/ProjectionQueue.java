@@ -80,10 +80,15 @@ public class ProjectionQueue {
         });
     }
 
-    /** The members of a team, for changes made through it. */
+    /**
+     * The members of a team, for changes made through it. Reads ids only: loading the entities would keep them in the
+     * session, and replacing the team's members re-creates rows with the same ids.
+     */
     public static Uni<List<UUID>> teamMembers(UUID teamId) {
-        return IamTeamMember.findByTeams(List.of(teamId))
-                .map(members -> members.stream().map(m -> m.id.userId).toList());
+        return Panache.getSession().flatMap(session -> session
+                .createQuery("select m.id.userId from IamTeamMember m where m.id.teamId = ?1", UUID.class)
+                .setParameter(1, teamId)
+                .getResultList());
     }
 
     /** Role keys the user holds on the whole organization now, directly or through a team. */
@@ -102,10 +107,12 @@ public class ProjectionQueue {
                 }));
     }
 
+    /** Queues the change unless the newest pending change for the person and group already is the same. */
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     static Uni<Void> queueOnce(Long organizationId, String kind, String groupId, String email) {
-        return IamProjectionChange.findPending(organizationId, kind, groupId, email).flatMap(found -> found != null
-                ? Uni.createFrom().voidItem()
-                : IamProjectionChange.of(organizationId, kind, groupId, email).persist().replaceWithVoid());
+        return IamProjectionChange.findLastPending(organizationId, groupId, email)
+                .flatMap(last -> last != null && kind.equals(last.kind)
+                        ? Uni.createFrom().voidItem()
+                        : IamProjectionChange.of(organizationId, kind, groupId, email).persist().replaceWithVoid());
     }
 }

@@ -96,6 +96,47 @@ class ProjectionQueueTest {
     }
 
     @Test
+    void aRoleGrantedAgainBeforeTheSenderRunsIsQueuedAgain() throws SQLException {
+        String binding = "{\"principalKind\":\"USER\",\"principalId\":\"" + userId() + "\",\"role\":\""
+                + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR + "\"}";
+        String first = owner().contentType("application/json").body(binding).when().post(BASE + "/team/bindings")
+                .then().statusCode(201).extract().path("id");
+        owner().when().delete(BASE + "/team/bindings/" + first).then().statusCode(204);
+        owner().contentType("application/json").body(binding).when().post(BASE + "/team/bindings")
+                .then().statusCode(201);
+        assertEquals(List.of("MEMBER_ADDED", "MEMBER_REMOVED", "MEMBER_ADDED"), queued());
+    }
+
+    @Test
+    void replacingTheHoldersQueuesTheRemovalOfThePreviousOnes() throws SQLException {
+        String role = "/api/v1/orgs/" + ORG + "/roles/" + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR;
+        owner().contentType("application/json").body("{\"assigneeIds\":[\"" + USER + "\"]}")
+                .when().put(role).then().statusCode(200);
+        owner().contentType("application/json").body("{\"assigneeIds\":[\"other@projection.test\"]}")
+                .when().put(role).then().statusCode(200);
+        assertEquals(List.of("MEMBER_ADDED", "MEMBER_REMOVED"), queued());
+        exec("DELETE FROM miot_iam.iam_user WHERE email = 'other@projection.test'");
+    }
+
+    @Test
+    void aTeamKeepsItsMembersAndARemovedMemberLeavesItsGroup() throws SQLException {
+        String teamId = owner().contentType("application/json").body("{\"name\":\"Validadores\"}")
+                .when().post(BASE + "/team/teams")
+                .then().statusCode(201).extract().path("id");
+        owner().contentType("application/json")
+                .body("{\"roles\":[\"" + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR + "\"]}")
+                .when().put(BASE + "/team/teams/" + teamId + "/roles").then().statusCode(200);
+        String members = "{\"userIds\":[\"" + userId() + "\"]}";
+        owner().contentType("application/json").body(members)
+                .when().put(BASE + "/team/teams/" + teamId + "/members").then().statusCode(200);
+        owner().contentType("application/json").body(members)
+                .when().put(BASE + "/team/teams/" + teamId + "/members").then().statusCode(200);
+
+        owner().when().delete(BASE + "/team/members/" + userId()).then().statusCode(204);
+        assertEquals(List.of("MEMBER_ADDED", "MEMBER_REMOVED"), queued());
+    }
+
+    @Test
     void aRoleNotMappedToAProjectedGroupQueuesNothing() throws SQLException {
         owner().contentType("application/json")
                 .body("{\"principalKind\":\"USER\",\"principalId\":\"" + userId() + "\",\"role\":\""

@@ -205,12 +205,16 @@ public class TokenRoles {
         Instant now = Instant.now();
         Instant expires = now.plus(ttl);
         List<Uni<?>> writes = new ArrayList<>();
+        Set<String> revived = new TreeSet<>();
         for (IamRoleBinding b : orgWide) {
             boolean expired = b.expiresAt != null && !b.expiresAt.isAfter(now);
             if (plan.remove().contains(b.roleKey)) {
                 writes.add(b.delete());
             } else if (plan.wanted().contains(b.roleKey) && (expired || (IamRoleBinding.TOKEN.equals(b.source)
                     && b.expiresAt != null && b.expiresAt.isBefore(now.plus(ttl.dividedBy(2)))))) {
+                if (expired) {
+                    revived.add(b.roleKey);
+                }
                 b.source = IamRoleBinding.TOKEN;
                 b.expiresAt = expires;
                 writes.add(b.persist());
@@ -229,9 +233,10 @@ public class TokenRoles {
         for (Uni<?> write : writes) {
             chain = chain.flatMap(i -> write.replaceWithVoid());
         }
-        boolean rolesChanged = !plan.add().isEmpty() || !plan.remove().isEmpty();
         Set<String> changed = new TreeSet<>(plan.add());
         changed.addAll(plan.remove());
+        changed.addAll(revived);
+        boolean rolesChanged = !changed.isEmpty();
         return chain.flatMap(i -> rolesChanged
                         ? projection.usersChanged(root.id, List.of(user.id), changed)
                         : Uni.createFrom().voidItem())

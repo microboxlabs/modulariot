@@ -112,18 +112,39 @@ public class IamDirectory {
         Set<String> subjects = requested.stream()
                 .map(subject -> isEmail(subject) ? IamUser.normalize(subject) : subject.trim())
                 .collect(Collectors.toCollection(TreeSet::new));
-        return holders(organizationId, roleKey).flatMap(before -> IamRoleBinding
-                .delete("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3",
-                        organizationId, roleKey, IamRoleBinding.ORGANIZATION)
-                .flatMap(ignored -> {
-                    Uni<Void> chain = Uni.createFrom().voidItem();
-                    for (String subject : subjects) {
-                        chain = chain.flatMap(i -> bind(organizationId, roleKey, subject, actor));
-                    }
-                    return chain;
-                })
+        return holders(organizationId, roleKey).flatMap(before -> usersHolding(organizationId, roleKey)
+                .flatMap(previous -> IamRoleBinding
+                        .delete("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3",
+                                organizationId, roleKey, IamRoleBinding.ORGANIZATION)
+                        .flatMap(ignored -> {
+                            Uni<Void> chain = Uni.createFrom().voidItem();
+                            for (String subject : subjects) {
+                                chain = chain.flatMap(i -> bind(organizationId, roleKey, subject, actor));
+                            }
+                            return chain;
+                        })
+                        // People who lost the role; the new holders were projected by bind.
+                        .flatMap(ignored -> rolesChanged(organizationId, previous, List.of(roleKey))))
                 .flatMap(ignored -> audit(organizationId, actor, "role.replaced", roleKey,
                         Map.of("before", before, "after", subjects.stream().sorted().toList()))));
+    }
+
+    /** The users holding the role on the whole organization, directly or through a team. */
+    private static Uni<List<UUID>> usersHolding(Long organizationId, String roleKey) {
+        return IamRoleBinding.<IamRoleBinding>list("organizationId = ?1 and roleKey = ?2 and scopeKind = ?3",
+                organizationId, roleKey, IamRoleBinding.ORGANIZATION).flatMap(bindings -> {
+                    List<UUID> users = new ArrayList<>();
+                    Uni<Void> chain = Uni.createFrom().voidItem();
+                    for (IamRoleBinding b : bindings) {
+                        if (IamRoleBinding.USER.equals(b.principalKind)) {
+                            users.add(UUID.fromString(b.principalId));
+                        } else if (IamRoleBinding.TEAM.equals(b.principalKind)) {
+                            chain = chain.flatMap(i -> ProjectionQueue.teamMembers(UUID.fromString(b.principalId))
+                                    .invoke(users::addAll).replaceWithVoid());
+                        }
+                    }
+                    return chain.replaceWith(users);
+                });
     }
 
     /** The membership of the user with this email, created with {@code baseRole} when there is none. */

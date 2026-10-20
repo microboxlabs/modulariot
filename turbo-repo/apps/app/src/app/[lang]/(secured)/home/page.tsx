@@ -4,8 +4,11 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { DashboardLanding } from "@/features/dashboard/components/dashboard-landing/dashboard-landing";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function HomePage(props: ParamsWithLang) {
+  await guardPage(ACCESS_RULES.dashboards, "/home");
   const { lang } = await props.params;
 
   const session = await auth();

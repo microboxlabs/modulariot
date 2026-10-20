@@ -17,7 +17,6 @@ import Forum from "./components/forum/forum";
 export default function Bento({
   lang,
   task,
-  userGroups,
   dict, // this is the general dictionary to base all our code
   msg, // this is a relative dictionary for the current task
   active = true,
@@ -26,7 +25,6 @@ export default function Bento({
 }: {
   lang: string;
   task: TaskResponse;
-  userGroups: string[];
   dict: I18nDictionary;
   msg: I18nRecord;
   active?: boolean;
@@ -48,7 +46,6 @@ export default function Bento({
         lang={lang}
         showActions={showActions}
         enableActions={enableActions}
-        userGroups={userGroups}
       />
       {/* Head */}
 
@@ -84,7 +81,6 @@ export default function Bento({
             task={task}
             msg={dict}
             lang={lang}
-            userGroups={userGroups}
           />
         </div>
 

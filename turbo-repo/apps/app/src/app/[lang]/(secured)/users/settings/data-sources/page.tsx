@@ -26,10 +26,7 @@ export default async function DataSourcesPage({ params }: ParamsWithLang) {
     }
 
     return (
-      <RouteGuard
-        path="/users/settings/data-sources"
-        fallbackPath={`/${lang}/shipping`}
-      >
+      <RouteGuard path="/users/settings/data-sources">
         <DataSourcesPageContent
           dict={userSettings}
           siteId={siteId}

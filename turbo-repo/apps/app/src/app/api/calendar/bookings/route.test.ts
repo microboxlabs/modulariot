@@ -17,7 +17,7 @@ const ENV_KEY = "TASK_DRIVEN_ORIGINS";
 const ORIGINAL_ENV = process.env[ENV_KEY];
 
 const requireAuthMock = vi.fn();
-const requireAnyGroupMock = vi.fn();
+const requirePermissionMock = vi.fn();
 const runCalendarBindingMock = vi.fn();
 const endTaskMock = vi.fn();
 const createMiotCalendarClientMock = vi.fn();
@@ -28,7 +28,10 @@ const bookingsListMock = vi.fn();
 
 vi.mock("../../utils/alfresco-crud-client", () => ({
   requireAuth: (...args: unknown[]) => requireAuthMock(...args),
-  requireAnyGroup: (...args: unknown[]) => requireAnyGroupMock(...args),
+}));
+
+vi.mock("@/features/auth/access/server-access", () => ({
+  requirePermission: (...args: unknown[]) => requirePermissionMock(...args),
 }));
 
 vi.mock("./binding-helpers", () => ({
@@ -122,10 +125,9 @@ describe("bookings POST — P2 plan-path task-driven flag gating", () => {
     vi.clearAllMocks();
     process.env[ENV_KEY] = TASK_DRIVEN_ORIGIN;
 
-    requireAnyGroupMock.mockResolvedValue({
+    requirePermissionMock.mockResolvedValue({
       authorized: true,
       session: { user: { email: "u@example.com", rawJWT: "jwt" } },
-      userGroups: ["GROUP_PLANNING"],
     });
 
     bookingsCreateMock.mockResolvedValue({ id: "booking-001" });

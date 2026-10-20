@@ -4,6 +4,8 @@ import { FaVideo } from "react-icons/fa";
 import { AllDevicesView } from "@/features/live-streams/components/all-devices-view";
 import { StreamDevice } from "@/features/live-streams/types/device.types";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 const MOCK_DEVICES: StreamDevice[] = [
   { id: "cam-001", name: "Dock A - Entry", location: "facility-scl", status: "live" },
@@ -17,6 +19,7 @@ const MOCK_DEVICES: StreamDevice[] = [
 ];
 
 export default async function AllDevicesPage({ params }: ParamsWithLang) {
+  await guardPage(ACCESS_RULES.liveStreams, "/live-streams");
   const { lang } = await params;
   const [, dict] = await getDictionary(lang);
 

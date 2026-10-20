@@ -1,47 +1,17 @@
-import { auth } from "@/auth";
-import {
-  unclaimTask,
-  getGroupsForPerson,
-} from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { unclaimTask } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { requirePermission } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import { NextRequest, NextResponse } from "next/server";
 import { logger, logError } from "@/lib/logger";
 
-const ADMIN_GROUPS = [
-  "GROUP_ALFRESCO_ADMINISTRATORS",
-  "GROUP_MINTRAL_SYSTEM_ADMIN",
-];
-
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Unauthorized",
-        },
-        { status: 401 }
-      );
-    }
-
-    // Verify admin permissions
-    const userGroups = await getGroupsForPerson(session);
-    const hasAdminAccess = userGroups.some((group) =>
-      ADMIN_GROUPS.includes(group)
+    const access = await requirePermission(
+      ACCESS_RULES.taskUnclaim,
+      "/api/task/unclaim"
     );
-
-    if (!hasAdminAccess) {
-      logger.warn(
-        `Unauthorized unclaim attempt by user: ${session.user?.email}`
-      );
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Forbidden: Admin access required",
-        },
-        { status: 403 }
-      );
-    }
+    if (!access.authorized) return access.response;
+    const { session } = access;
 
     const { taskId } = (await request.json()) as { taskId: string };
 

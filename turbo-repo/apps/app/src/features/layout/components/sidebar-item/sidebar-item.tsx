@@ -20,24 +20,12 @@ export default function SidebarItem({
   pathname,
   dict,
   totals,
-  requiredGroups = [],
-  blockedGroups = [],
+  requiredPermissions,
 }: PropsWithI18nDict<SidebarItemProps>) {
-  const { hasPermission, userGroups } = usePermissions();
+  const { canAccess } = usePermissions();
   const searchParams = useSearchParams();
 
-  // Check if user has any blocked groups
-  const hasBlockedGroup = blockedGroups.some((group) =>
-    userGroups.includes(group)
-  );
-  if (hasBlockedGroup) {
-    return null; // Don't render the item if user has blocked groups
-  }
-
-  // If user doesn't have required permissions, don't render the item
-  if (!hasPermission(requiredGroups)) {
-    return null;
-  }
+  if (!canAccess({ requiredPermissions })) return null;
 
   if (items) {
     const isOpen = true;
@@ -50,16 +38,7 @@ export default function SidebarItem({
         theme={{ list: "space-y-2 py-2 [&>li>div]:w-full" }}
       >
         {items.map((item) => {
-          // Check if user has any blocked groups for this sub-item
-          const hasSubItemBlockedGroup = (item.blockedGroups || []).some(
-            (group) => userGroups.includes(group)
-          );
-          if (hasSubItemBlockedGroup) {
-            return null; // Don't render the sub-item if user has blocked groups
-          }
-
-          // Check permissions for each sub-item
-          if (!hasPermission(item.requiredGroups ?? [])) {
+          if (!canAccess(item)) {
             return null;
           }
 

@@ -14,6 +14,7 @@ public class OrganizationContext {
     private String organizationId;
     private String userEmail;
     private String alfrescoRole;
+    private String baseRole;
     private String alfrescoGroupId;
 
     public boolean isResolved() {
@@ -50,6 +51,15 @@ public class OrganizationContext {
      * otherwise, and null for orgs with no group at all. Carried here so a
      * handler that needs the site behind the org does not re-query it.
      */
+    /** The caller's base role in the organization (OWNER, ADMIN or MEMBER); null when not a member. */
+    public String getBaseRole() {
+        return baseRole;
+    }
+
+    public void setBaseRole(String baseRole) {
+        this.baseRole = baseRole;
+    }
+
     public String getAlfrescoGroupId() {
         return alfrescoGroupId;
     }

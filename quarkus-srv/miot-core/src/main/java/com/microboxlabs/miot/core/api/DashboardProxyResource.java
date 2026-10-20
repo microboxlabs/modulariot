@@ -55,7 +55,7 @@ public class DashboardProxyResource {
     }
 
     static String dashboardRoleFrom(String alfrescoRole) {
-        return DashboardProxySupport.dashboardRoleFrom(alfrescoRole);
+        return DashboardProxySupport.dashboardRoleFrom(alfrescoRole, null);
     }
 
     @GET

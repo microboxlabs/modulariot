@@ -155,9 +155,21 @@ public class AlfrescoBridge {
             if (org == null || org.alfrescoGroupId == null || !evaluator.isNative(org)) {
                 return Uni.createFrom().voidItem();
             }
-            return IamProjectionChange.of(org.id, kind, org.alfrescoGroupId, IamUser.normalize(email)).persist()
-                    .replaceWithVoid();
+            return IamProjectionChange.of(org.id, kind, memberGroupOf(org.alfrescoGroupId), IamUser.normalize(email))
+                    .persist().replaceWithVoid();
         });
+    }
+
+    /**
+     * The group a member is added to. A site's own group ({@code GROUP_site_<id>}) only holds the site's role groups,
+     * so members go to its Consumer group, which gives read access to the site. Any other group is used as is.
+     */
+    static String memberGroupOf(String alfrescoGroupId) {
+        if (alfrescoGroupId != null && alfrescoGroupId.startsWith("GROUP_site_")
+                && !alfrescoGroupId.matches(".*_Site(Manager|Collaborator|Contributor|Consumer)$")) {
+            return alfrescoGroupId + "_SiteConsumer";
+        }
+        return alfrescoGroupId;
     }
 
     /** Sends pending changes to Alfresco, oldest first; a failure is retried up to {@value #MAX_ATTEMPTS} times. */

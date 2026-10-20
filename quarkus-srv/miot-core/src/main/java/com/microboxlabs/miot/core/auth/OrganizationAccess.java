@@ -108,7 +108,10 @@ public class OrganizationAccess {
             return refuse(Response.Status.FORBIDDEN, message);
         }
         return effectiveClientIds(org)
-                .invoke(ids -> apply(org, caller.email(), access.alfrescoRole(), ids))
+                .invoke(ids -> {
+                    apply(org, caller.email(), access.alfrescoRole(), ids);
+                    organizationContext.setBaseRole(access.baseRole() == null ? null : access.baseRole().name());
+                })
                 .replaceWith((Refusal) null);
     }
 

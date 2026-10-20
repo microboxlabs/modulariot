@@ -26,7 +26,7 @@ class TokenRolesTest {
 
     @Test
     void aModuleRoleMakesAMemberAndIsAdded() {
-        TokenRoles.Plan plan = TokenRoles.plan(Set.of("10502"), MAP, Set.of());
+        TokenRoles.Plan plan = TokenRoles.plan(Set.of("10502"), MAP, Set.of(), Set.of());
         assertEquals("MEMBER", plan.baseRole());
         assertEquals(Set.of(CoordinatorAccessCatalog.TRANSPORT_VALIDATOR), plan.add());
         assertEquals(Set.of(), plan.remove());
@@ -34,22 +34,38 @@ class TokenRolesTest {
 
     @Test
     void theHighestBaseRoleWins() {
-        assertEquals("ADMIN", TokenRoles.plan(Set.of("10102", "10401"), MAP, Set.of()).baseRole());
+        assertEquals("ADMIN", TokenRoles.plan(Set.of("10102", "10401"), MAP, Set.of(), Set.of()).baseRole());
     }
 
     @Test
     void aCoveredRoleMissingFromTheTokenIsRemovedAndAnUncoveredOneIsKept() {
         TokenRoles.Plan plan = TokenRoles.plan(Set.of("10502"), MAP,
                 Set.of(CoordinatorAccessCatalog.KANBAN_USER, CoordinatorAccessCatalog.TRANSPORT_VALIDATOR,
-                        "HARNESS_TRAINER"));
+                        "HARNESS_TRAINER"), Set.of());
         assertEquals(Set.of(), plan.add());
         assertEquals(Set.of(CoordinatorAccessCatalog.KANBAN_USER), plan.remove());
     }
 
     @Test
     void noMappedIdMeansNoMembership() {
-        TokenRoles.Plan plan = TokenRoles.plan(Set.of("99999"), MAP, Set.of(CoordinatorAccessCatalog.KANBAN_USER));
+        TokenRoles.Plan plan = TokenRoles.plan(Set.of("99999"), MAP, Set.of(CoordinatorAccessCatalog.KANBAN_USER),
+                Set.of());
         assertNull(plan.baseRole());
         assertEquals(Set.of(CoordinatorAccessCatalog.KANBAN_USER), plan.remove());
+    }
+
+    @Test
+    void aTokenRoleWhoseMappingWasDeletedIsRemoved() {
+        TokenRoles.Plan plan = TokenRoles.plan(Set.of("10502"), Map.of("10502", CoordinatorAccessCatalog.TRANSPORT_VALIDATOR),
+                Set.of(CoordinatorAccessCatalog.KANBAN_USER, "HARNESS_TRAINER"), Set.of(CoordinatorAccessCatalog.KANBAN_USER));
+        assertEquals(Set.of(CoordinatorAccessCatalog.KANBAN_USER), plan.remove());
+        assertEquals(Set.of(CoordinatorAccessCatalog.TRANSPORT_VALIDATOR), plan.wanted());
+    }
+
+    @Test
+    void theTokenRaisesAMembersBaseRoleOnlyForTheRequest() {
+        assertEquals(BaseRole.ADMIN, AccessEvaluator.withToken(BaseRole.MEMBER, "ADMIN"));
+        assertEquals(BaseRole.OWNER, AccessEvaluator.withToken(BaseRole.OWNER, "MEMBER"));
+        assertNull(AccessEvaluator.withToken(null, "ADMIN"));
     }
 }

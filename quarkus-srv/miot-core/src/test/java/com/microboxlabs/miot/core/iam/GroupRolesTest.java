@@ -170,6 +170,22 @@ class GroupRolesTest {
     }
 
     @Test
+    void theMemberGroupIsNeverReconciledAsARoleGroup() throws SQLException {
+        exec("UPDATE miot_core.organizations SET alfresco_group_id = 'GROUP_site_gr' WHERE slug = '" + ORG + "'");
+        owner().contentType("application/json").body("{\"projected\":true}")
+                .when().put(MAPPINGS + "/GROUP_site_gr_SiteConsumer/" + CoordinatorAccessCatalog.LOAD_SEARCHER)
+                .then().statusCode(409);
+        owner().contentType("application/json").body("{}")
+                .when().put(MAPPINGS + "/GROUP_site_gr_SiteConsumer/" + CoordinatorAccessCatalog.LOAD_SEARCHER)
+                .then().statusCode(200);
+
+        // A projected row written before the check is left out of the reconcile.
+        exec("UPDATE miot_iam.iam_group_role SET projected = true WHERE group_id = 'GROUP_site_gr_SiteConsumer'");
+        owner().when().post(MAPPINGS + "/reconcile?dryRun=true")
+                .then().statusCode(200).body("lines", hasSize(0));
+    }
+
+    @Test
     void anUnknownRoleOrABadGroupIsRejected() {
         owner().contentType("application/json").body("{}")
                 .when().put(MAPPINGS + "/GROUP_X/NOT_A_ROLE").then().statusCode(400);

@@ -48,16 +48,18 @@ public class AlfrescoBridge {
     private final IAlfrescoDirectoryClient directory;
     private final IAlfrescoMembershipClient membership;
     private final IAlfrescoGroupAdminClient groups;
+    private final ProjectionQueue queue;
 
     @Inject
     public AlfrescoBridge(@ConfigProperty(name = PROJECTION_PROPERTY, defaultValue = "false") boolean projection,
             AccessEvaluator evaluator, IAlfrescoDirectoryClient directory, IAlfrescoMembershipClient membership,
-            IAlfrescoGroupAdminClient groups) {
+            IAlfrescoGroupAdminClient groups, ProjectionQueue queue) {
         this.projection = projection;
         this.evaluator = evaluator;
         this.directory = directory;
         this.membership = membership;
         this.groups = groups;
+        this.queue = queue;
     }
 
     // --- import ---
@@ -129,26 +131,12 @@ public class AlfrescoBridge {
 
     /** Queues adding {@code email} to the org's Alfresco group, when projection applies. Needs an open session. */
     public Uni<Void> memberAdded(Long organizationId, String email) {
-        return queue(organizationId, IamProjectionChange.MEMBER_ADDED, email);
+        return queue.memberChanged(organizationId, email, true);
     }
 
     /** Queues removing {@code email} from the org's Alfresco group, when projection applies. */
     public Uni<Void> memberRemoved(Long organizationId, String email) {
-        return queue(organizationId, IamProjectionChange.MEMBER_REMOVED, email);
-    }
-
-    @SuppressWarnings({"java:S1612", "java:S3252"}) // Reactive Panache: persist overloads; finders per entity.
-    private Uni<Void> queue(Long organizationId, String kind, String email) {
-        if (!projection || email == null) {
-            return Uni.createFrom().voidItem();
-        }
-        return Organization.<Organization>findById(organizationId).flatMap(org -> {
-            if (org == null || org.alfrescoGroupId == null || !evaluator.isNative(org)) {
-                return Uni.createFrom().voidItem();
-            }
-            return IamProjectionChange.of(org.id, kind, memberGroupOf(org.alfrescoGroupId), IamUser.normalize(email))
-                    .persist().replaceWithVoid();
-        });
+        return queue.memberChanged(organizationId, email, false);
     }
 
     /**

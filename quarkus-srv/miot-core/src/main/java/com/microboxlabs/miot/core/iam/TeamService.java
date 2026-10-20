@@ -149,7 +149,7 @@ public class TeamService {
                             TeamRules.checkRemoval(access, BaseRole.valueOf(m.baseRole), owners);
                             return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 "
                                             + "and principalId = ?3", root.id, IamRoleBinding.USER, userId.toString())
-                                    .flatMap(ignored -> m.delete())
+                                    .flatMap(ignored -> leave(m))
                                     .flatMap(ignored -> directory.rolesChanged(root.id, List.of(userId), null))
                                     .flatMap(ignored -> IamUser.<IamUser>findById(userId))
                                     .flatMap(user -> user == null
@@ -158,6 +158,19 @@ public class TeamService {
                                     .flatMap(ignored -> directory.audit(root.id, actor.name(), "member.removed",
                                             userId.toString(), Map.of(BASE_ROLE, m.baseRole)));
                         }))))));
+    }
+
+    /**
+     * Ends a membership. One that came from the email domain is suspended instead of deleted, so the person does not
+     * join again at the next sign-in.
+     */
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private static Uni<Void> leave(IamMembership m) {
+        if (DomainMembership.SOURCE.equals(m.source)) {
+            m.status = "SUSPENDED";
+            return m.persist().replaceWithVoid();
+        }
+        return m.delete();
     }
 
     // --- invitations ---
@@ -304,10 +317,11 @@ public class TeamService {
                     ? existing
                     : IamMembership.of(invitation.organizationId, user.id, invited.name(), "INVITE",
                             invitation.invitedBy);
+            boolean joins = existing == null || !"ACTIVE".equals(existing.status);
             m.baseRole = BaseRole.max(BaseRole.valueOf(m.baseRole), invited).name();
             m.status = "ACTIVE";
             return m.<IamMembership>persist()
-                    .flatMap(saved -> existing == null
+                    .flatMap(saved -> joins
                             ? bridge.memberAdded(invitation.organizationId, me)
                             : Uni.createFrom().voidItem())
                     .flatMap(saved -> addRoles(invitation.organizationId, user.id, invitation.roles(), me))

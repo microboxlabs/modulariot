@@ -126,15 +126,24 @@ public class IamDirectory {
                         Map.of("before", before, "after", subjects.stream().sorted().toList()))));
     }
 
-    /** The membership of the user with this email, created with {@code baseRole} when there is none. */
+    /**
+     * The membership of the user with this email, created with {@code baseRole} when there is none. A suspended
+     * membership is active again.
+     */
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     public Uni<IamMembership> ensureMember(Long organizationId, String email, BaseRole baseRole, String actor) {
         return IamUser.findOrCreate(email).flatMap(user -> IamMembership.findOne(organizationId, user.id)
-                .flatMap(existing -> existing != null
-                        ? Uni.createFrom().item(existing)
-                        : IamMembership.of(organizationId, user.id, baseRole.name(), "NATIVE", actor)
-                                .<IamMembership>persist()
-                                .call(created -> bridge.memberAdded(organizationId, user.email))));
+                .flatMap(existing -> {
+                    if (existing != null && "ACTIVE".equals(existing.status)) {
+                        return Uni.createFrom().item(existing);
+                    }
+                    IamMembership m = existing != null
+                            ? existing
+                            : IamMembership.of(organizationId, user.id, baseRole.name(), "NATIVE", actor);
+                    m.status = "ACTIVE";
+                    return m.<IamMembership>persist()
+                            .call(saved -> bridge.memberAdded(organizationId, user.email));
+                }));
     }
 
     /**

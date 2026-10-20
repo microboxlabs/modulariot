@@ -1,10 +1,12 @@
 package com.microboxlabs.miot.core.iam;
 
+import com.microboxlabs.miot.core.auth.OrganizationMembership;
 import com.microboxlabs.miot.core.iam.model.IamGroupRole;
 import com.microboxlabs.miot.core.iam.model.IamProjectionChange;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.iam.model.IamTeamMember;
 import com.microboxlabs.miot.core.iam.model.IamUser;
+import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -32,11 +34,33 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 public class ProjectionQueue {
 
     private final boolean projection;
+    private final OrganizationMembership deployment;
 
     @Inject
     public ProjectionQueue(@ConfigProperty(name = AlfrescoBridge.PROJECTION_PROPERTY, defaultValue = "false")
-            boolean projection) {
+            boolean projection, OrganizationMembership deployment) {
         this.projection = projection;
+        this.deployment = deployment;
+    }
+
+    /**
+     * After {@code email} joined ({@code member} true) or left a native organization: queues the change to the org's
+     * member group (see {@link AlfrescoBridge#memberGroupOf}). Needs an open transaction.
+     */
+    @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
+    public Uni<Void> memberChanged(Long organizationId, String email, boolean member) {
+        if (!projection || email == null) {
+            return Uni.createFrom().voidItem();
+        }
+        return Organization.<Organization>findById(organizationId).flatMap(org -> {
+            if (org == null || org.alfrescoGroupId == null
+                    || !(deployment.isNative() || "NATIVE".equals(org.membershipSource))) {
+                return Uni.createFrom().voidItem();
+            }
+            String kind = member ? IamProjectionChange.MEMBER_ADDED : IamProjectionChange.MEMBER_REMOVED;
+            return queueOnce(org.id, kind, AlfrescoBridge.memberGroupOf(org.alfrescoGroupId),
+                    IamUser.normalize(email));
+        });
     }
 
     /**

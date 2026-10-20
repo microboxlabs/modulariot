@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.regex.Pattern;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 /**
@@ -26,8 +25,7 @@ public class DomainMembership {
 
     public static final String SOURCE = "DOMAIN";
     public static final String VERIFIED_PROPERTY = "miot.iam.member-domains.require-verified-email";
-    private static final Pattern DOMAIN = Pattern.compile(
-            "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$");
+    private static final String ACTOR = "domain";
 
     public record DomainView(String domain) {
     }
@@ -71,9 +69,9 @@ public class DomainMembership {
                 }
                 return IamMembership.findOne(root.id, user.id).flatMap(existing -> existing != null
                         ? Uni.createFrom().item(false)
-                        : IamMembership.of(root.id, user.id, BaseRole.MEMBER.name(), SOURCE, "domain").persist()
+                        : IamMembership.of(root.id, user.id, BaseRole.MEMBER.name(), SOURCE, ACTOR).persist()
                                 .flatMap(created -> projection.memberChanged(root.id, user.email, true))
-                                .flatMap(queued -> IamAuditEvent.of(root.id, "domain", "member.joined", user.email,
+                                .flatMap(queued -> IamAuditEvent.of(root.id, ACTOR, "member.joined", user.email,
                                         Map.of("domain", domain)).persist())
                                 .replaceWith(true));
             });
@@ -90,7 +88,7 @@ public class DomainMembership {
     @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
     public Uni<DomainView> put(String slug, String domain, String actor) {
         String d = domain == null ? "" : domain.trim().toLowerCase(Locale.ROOT);
-        if (d.length() > 253 || !DOMAIN.matcher(d).matches()) {
+        if (!isDomain(d)) {
             throw new IllegalArgumentException("Not a domain: " + domain);
         }
         return Panache.withTransaction(() -> root(slug).flatMap(org -> IamMemberDomain.findByDomain(d)
@@ -122,6 +120,28 @@ public class DomainMembership {
                 })));
     }
 
+    /** A host name of at least two labels: each 1 to 63 letters, digits or inner hyphens; 253 characters at most. */
+    static boolean isDomain(String d) {
+        String[] labels = d.split("\\.", -1);
+        if (d.length() > 253 || labels.length < 2) {
+            return false;
+        }
+        for (String label : labels) {
+            if (!isLabel(label)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean isLabel(String label) {
+        if (label.isEmpty() || label.length() > 63 || label.startsWith("-") || label.endsWith("-")) {
+            return false;
+        }
+        return label.chars().allMatch(c -> (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-');
+    }
+
+    @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
     private static Uni<Organization> root(String slug) {
         return Organization.findBySlug(slug).flatMap(found -> {
             if (found == null) {

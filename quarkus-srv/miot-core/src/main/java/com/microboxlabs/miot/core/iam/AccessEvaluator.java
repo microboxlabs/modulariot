@@ -131,22 +131,37 @@ public class AccessEvaluator {
                     ? Uni.createFrom().item(List.of())
                     : IamMembership.findFor(scope, user.id);
             if (nativeMembership && signer != null) {
-                memberships = memberships.flatMap(rows -> !rows.isEmpty()
-                        ? Uni.createFrom().item(rows)
-                        : Panache.withTransaction(() -> domains.join(root, caller.email(), emailVerified(signer)))
-                                .flatMap(joined -> Boolean.TRUE.equals(joined)
-                                        ? IamUser.findByEmail(caller.email())
-                                                .flatMap(created -> IamMembership.findFor(scope, created.id))
-                                        : Uni.createFrom().item(rows)));
+                memberships = memberships.flatMap(rows -> rows.isEmpty()
+                        ? joinByDomain(root, scope, caller.email(), signer)
+                        : Uni.createFrom().item(rows));
             }
-            return memberships.flatMap(rows -> bindingsOf(user, scope)
-                    .flatMap(bindings -> directory(org, root, caller, nativeMembership)
-                            .flatMap(dir -> platform.isPlatformOwner(caller.email())
-                                    .map(owner -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
-                                            nativeMembership, withToken(highest(rows), tokenBase), dir.member(),
-                                            dir.bootstrapOwner(), false, covered(bindings, org, root), dir.role(),
-                                            Boolean.TRUE.equals(owner)), registry)))));
+            return memberships.flatMap(rows -> decide(org, root, scope, caller, user,
+                    withToken(highest(rows), tokenBase)));
         }));
+    }
+
+    /** The access of a user whose base role in the organization is known. */
+    private Uni<Access> decide(Organization org, Organization root, List<Long> scope, Caller caller, IamUser user,
+            BaseRole base) {
+        boolean nativeMembership = isNative(root);
+        return bindingsOf(user, scope)
+                .flatMap(bindings -> directory(org, root, caller, nativeMembership)
+                        .flatMap(dir -> platform.isPlatformOwner(caller.email())
+                                .map(owner -> AccessRules.resolve(org.id, org.slug, caller, new AccessRules.Facts(
+                                        nativeMembership, base, dir.member(), dir.bootstrapOwner(), false,
+                                        covered(bindings, org, root), dir.role(), Boolean.TRUE.equals(owner)),
+                                        registry))));
+    }
+
+    /** The memberships after a join through the caller's email domain; empty when the domain gives none. */
+    private Uni<List<IamMembership>> joinByDomain(Organization root, List<Long> scope, String email,
+            SecurityIdentity signer) {
+        return Panache.withTransaction(() -> domains.join(root, email, emailVerified(signer))).flatMap(joined -> {
+            if (!Boolean.TRUE.equals(joined)) {
+                return Uni.createFrom().item(List.<IamMembership>of());
+            }
+            return IamUser.findByEmail(email).flatMap(created -> IamMembership.findFor(scope, created.id));
+        });
     }
 
     /** A member's base role raised to the one their token gives, for this request only. */

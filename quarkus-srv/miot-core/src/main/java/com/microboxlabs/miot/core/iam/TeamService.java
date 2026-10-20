@@ -41,6 +41,7 @@ public class TeamService {
     static final int MAX_INVITATION_DAYS = 90;
     private static final String BASE_ROLE = "baseRole";
     private static final String ROLES = "roles";
+    private static final String ACTIVE = "ACTIVE";
 
     public record MemberView(UUID userId, String email, String name, String baseRole, String status, String source,
             List<String> roles, Instant joinedAt, Instant lastSeenAt) {
@@ -320,10 +321,10 @@ public class TeamService {
                     ? existing
                     : IamMembership.of(invitation.organizationId, user.id, invited.name(), "INVITE",
                             invitation.invitedBy);
-            boolean joins = existing == null || !"ACTIVE".equals(existing.status);
+            boolean joins = existing == null || !ACTIVE.equals(existing.status);
             // A suspended member returns with the invited role; an active one keeps the higher of the two.
             m.baseRole = joins ? invited.name() : BaseRole.max(BaseRole.valueOf(m.baseRole), invited).name();
-            m.status = "ACTIVE";
+            m.status = ACTIVE;
             return m.<IamMembership>persist()
                     .flatMap(saved -> joins
                             ? bridge.memberAdded(invitation.organizationId, me)
@@ -352,7 +353,7 @@ public class TeamService {
                         ? Uni.createFrom().nullItem()
                         : IamMembership.findOne(root.id, user.id))
                 .flatMap(member -> {
-                    if (member != null && "ACTIVE".equals(member.status)) {
+                    if (member != null && ACTIVE.equals(member.status)) {
                         throw new IllegalStateException(email + " is already a member");
                     }
                     return IamInvitation.pendingFor(root.id, email);

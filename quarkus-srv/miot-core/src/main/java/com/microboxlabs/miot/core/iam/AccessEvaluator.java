@@ -233,6 +233,7 @@ public class AccessEvaluator {
      * The role ids in this request's token when {@code email} is the person who signed it; null otherwise, and outside
      * a request.
      */
+    @SuppressWarnings("java:S1168") // null: the claim is absent; an empty set: it carries no ids.
     private static Set<String> requestTokenRoles(String email) {
         InjectableContext request = Arc.container() == null ? null : Arc.container().requestContext();
         if (request == null || !request.isActive()) {

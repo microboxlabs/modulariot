@@ -50,6 +50,7 @@ public class TokenRoles {
     public static final String CLAIM_PROPERTY = "miot.iam.token-roles.claim";
     public static final String TTL_PROPERTY = "miot.iam.token-roles.ttl";
     static final String MEMBER = "MEMBER";
+    private static final String ACTOR = "token";
 
     public record Mapping(String externalId, String roleKey) {
     }
@@ -73,6 +74,7 @@ public class TokenRoles {
     }
 
     /** The role ids in the caller's token, or null when the claim is not configured or not in the token. */
+    @SuppressWarnings("java:S1168") // null: the claim is absent; an empty set: it carries no ids.
     public static Set<String> fromIdentity(SecurityIdentity identity) {
         Optional<String> claim = ConfigProvider.getConfig().getOptionalValue(CLAIM_PROPERTY, String.class)
                 .filter(c -> !c.isBlank());
@@ -97,16 +99,12 @@ public class TokenRoles {
     }
 
     private static void add(Set<String> out, Object value) {
-        String id;
-        if (value instanceof JsonString s) {
-            id = s.getString();
-        } else if (value instanceof JsonNumber n) {
-            id = n.toString();
-        } else if (value instanceof JsonValue v) {
-            id = v.toString();
-        } else {
-            id = String.valueOf(value);
-        }
+        String id = switch (value) {
+            case JsonString s -> s.getString();
+            case JsonNumber n -> n.toString();
+            case JsonValue v -> v.toString();
+            case null, default -> String.valueOf(value);
+        };
         id = id.trim();
         if (!id.isEmpty()) {
             out.add(id);
@@ -204,11 +202,9 @@ public class TokenRoles {
         Instant expires = now.plus(ttl);
         List<Uni<?>> writes = new ArrayList<>();
         for (IamRoleBinding b : orgWide) {
-            boolean expired = b.expiresAt != null && !b.expiresAt.isAfter(now);
             if (plan.remove().contains(b.roleKey)) {
                 writes.add(b.delete());
-            } else if (plan.wanted().contains(b.roleKey) && (expired || (IamRoleBinding.TOKEN.equals(b.source)
-                    && b.expiresAt != null && b.expiresAt.isBefore(now.plus(ttl.dividedBy(2)))))) {
+            } else if (plan.wanted().contains(b.roleKey) && renews(b, now)) {
                 b.source = IamRoleBinding.TOKEN;
                 b.expiresAt = expires;
                 writes.add(b.persist());
@@ -218,7 +214,7 @@ public class TokenRoles {
             if (registry.role(key).isEmpty()) {
                 continue;
             }
-            IamRoleBinding b = IamRoleBinding.of(root.id, IamRoleBinding.USER, user.id.toString(), key, "token");
+            IamRoleBinding b = IamRoleBinding.of(root.id, IamRoleBinding.USER, user.id.toString(), key, ACTOR);
             b.source = IamRoleBinding.TOKEN;
             b.expiresAt = expires;
             writes.add(b.persist());
@@ -229,11 +225,20 @@ public class TokenRoles {
         }
         boolean rolesChanged = !plan.add().isEmpty() || !plan.remove().isEmpty();
         return chain.flatMap(i -> membership(root, user, plan.baseRole()))
-                .flatMap(membershipChanged -> rolesChanged || membershipChanged
-                        ? IamAuditEvent.of(root.id, "token", "token-roles.synced", user.email,
+                .flatMap(membershipChanged -> rolesChanged || Boolean.TRUE.equals(membershipChanged)
+                        ? IamAuditEvent.of(root.id, ACTOR, "token-roles.synced", user.email,
                                 Map.of("added", plan.add(), "removed", plan.remove(),
                                         "baseRole", String.valueOf(plan.baseRole()))).persist().replaceWithVoid()
                         : Uni.createFrom().voidItem());
+    }
+
+    /** Whether a binding of a mapped role is written again: expired, or from a token with less than half left. */
+    private boolean renews(IamRoleBinding b, Instant now) {
+        if (b.expiresAt == null) {
+            return false;
+        }
+        return !b.expiresAt.isAfter(now)
+                || (IamRoleBinding.TOKEN.equals(b.source) && b.expiresAt.isBefore(now.plus(ttl.dividedBy(2))));
     }
 
     /**
@@ -246,7 +251,7 @@ public class TokenRoles {
             if (m == null) {
                 return baseRole == null
                         ? Uni.createFrom().item(false)
-                        : IamMembership.of(root.id, user.id, baseRole, IamRoleBinding.TOKEN, "token").persist()
+                        : IamMembership.of(root.id, user.id, baseRole, IamRoleBinding.TOKEN, ACTOR).persist()
                                 .replaceWith(true);
             }
             if (IamRoleBinding.TOKEN.equals(m.source)) {
@@ -308,6 +313,7 @@ public class TokenRoles {
         return Panache.withSession(() -> root(slug).flatMap(this::list));
     }
 
+    @SuppressWarnings("java:S3252") // Reactive Panache generates findById per entity.
     private static Uni<Organization> root(String slug) {
         return Organization.findBySlug(slug).flatMap(found -> {
             if (found == null) {

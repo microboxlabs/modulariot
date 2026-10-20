@@ -1890,7 +1890,7 @@
       },
       "organizations": {
         "title": "Organizations",
-        "description": "Review your organizations and their members. Organization owners can manage access and integrations.",
+        "description": "Review your organizations and their modules. Organization owners can manage integrations. Members and their access are on the Team page.",
         "loadError": "Couldn't load your organizations. Check that the local modulith is running and you are signed in.",
         "empty": "No organizations available for your account.",
         "loading": "Loading…",
@@ -1918,9 +1918,6 @@
         },
         "parentAccount": "Primary account",
         "noSelection": "Select an organization to view details.",
-        "membersTitle": "Members",
-        "membersDescription": "People with access to this organization.",
-        "membersEmpty": "No members found.",
         "modulesTitle": "Modules",
         "modulesDescription": "Enabled product modules for this organization.",
         "modulesEmpty": "No modules enabled.",

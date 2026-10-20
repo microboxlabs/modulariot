@@ -1890,7 +1890,7 @@
       },
       "organizations": {
         "title": "Organizaciones",
-        "description": "Revisa tus organizaciones y sus miembros. Los propietarios pueden administrar accesos e integraciones.",
+        "description": "Revisa tus organizaciones y sus módulos. Los propietarios pueden administrar integraciones. Los miembros y sus accesos están en Equipo.",
         "loadError": "No se pudieron cargar tus organizaciones. Verifica que el modulith local esté en ejecución y que hayas iniciado sesión.",
         "empty": "No hay organizaciones disponibles para tu cuenta.",
         "loading": "Cargando…",
@@ -1918,9 +1918,6 @@
         },
         "parentAccount": "Cuenta principal",
         "noSelection": "Selecciona una organización para ver el detalle.",
-        "membersTitle": "Miembros",
-        "membersDescription": "Personas con acceso a esta organización.",
-        "membersEmpty": "No se encontraron miembros.",
         "modulesTitle": "Módulos",
         "modulesDescription": "Módulos de producto habilitados para esta organización.",
         "modulesEmpty": "No hay módulos habilitados.",

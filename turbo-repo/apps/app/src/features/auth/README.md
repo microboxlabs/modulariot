@@ -10,7 +10,7 @@ Permissions come from the caller's roles in the active organization (`GET /api/v
 | --- | --- |
 | `access/access-control.ts` | `AccessRule`, `decideAccess` |
 | `access/access-rules.ts` | `PERMISSIONS` and `ACCESS_RULES` |
-| `access/server-access.ts` | `requirePermission` (API routes), `guardPage` (server pages), `hasAccess` |
+| `access/server-access.ts` | `requirePermission` (API routes), `guardPage` (server pages), `hasAccess`, `requirePlatformOwner` and `guardPlatformOwnerPage` (deployment-wide surfaces) |
 | `config/route-permissions.ts` | Page path prefix → rule, used by `RouteGuard` |
 | `hooks/use-permissions.ts` | `usePermissions().canAccess(rule)` for client components |
 | `components/route-guard.tsx` | Client page guard |
@@ -23,11 +23,13 @@ Menu entries in `features/layout/models/pages-config.json` carry `requiredPermis
 **API route**
 
 ```ts
-const access = await requirePermission(ACCESS_RULES.adminConsole, "/api/admin/logs");
+const access = await requirePermission(ACCESS_RULES.taskUnclaim, "/api/task/unclaim");
 if (!access.authorized) return access.response;
 ```
 
 Returns 401 without a session and 403 when the rule is closed.
+
+The log console (`/api/admin/logs`, `/admin/console/logs`) changes the process-wide logger, so it uses `requirePlatformOwner` and `guardPlatformOwnerPage`: only a platform owner passes (`GET /api/v1/platform/roles/me`).
 
 **Server page**
 

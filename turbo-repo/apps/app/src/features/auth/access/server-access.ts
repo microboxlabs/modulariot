@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger";
 import { modulithHost } from "@/lib/modulith-host";
 import { resolveTenantScope } from "@/app/api/utils/tenant-scope";
 import { quarkusAuthHeaders } from "@/app/api/utils/quarkus-proxy";
+import { PLATFORM_OWNER_ROLE } from "@/features/settings-admin/platform/platform.types";
 import { decideAccess, describeRule, type AccessRule } from "./access-control";
 
 const CACHE_TTL_MS = 30_000;
@@ -62,6 +63,27 @@ export async function hasAccess(
   return decideAccess(rule, await loadPermissions(session));
 }
 
+/** Whether the caller holds `PLATFORM_OWNER`; false when the modulith cannot be read. */
+export async function isPlatformOwner(): Promise<boolean> {
+  try {
+    const headers = await quarkusAuthHeaders();
+    if (!headers) return false;
+    const res = await fetch(`${modulithHost()}/api/v1/platform/roles/me`, {
+      headers,
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw new Error(`GET platform/roles/me → ${res.status}`);
+    const body = (await res.json()) as { roleCodes?: unknown };
+    return (
+      Array.isArray(body.roleCodes) &&
+      body.roleCodes.includes(PLATFORM_OWNER_ROLE)
+    );
+  } catch (err) {
+    logger.error({ err }, "Failed to load the caller's platform roles");
+    return false;
+  }
+}
+
 type PermissionResult =
   | { authorized: true; session: Session }
   | { authorized: false; response: NextResponse };
@@ -71,6 +93,28 @@ export async function requirePermission(
   rule: AccessRule,
   context?: string
 ): Promise<PermissionResult> {
+  return authorize(
+    (session) => hasAccess(session, rule),
+    describeRule(rule),
+    context
+  );
+}
+
+/**
+ * API route gate for operations that affect the whole deployment, not one
+ * organization: only a platform owner passes.
+ */
+export async function requirePlatformOwner(
+  context?: string
+): Promise<PermissionResult> {
+  return authorize(() => isPlatformOwner(), PLATFORM_OWNER_ROLE, context);
+}
+
+async function authorize(
+  decide: (session: Session) => Promise<boolean>,
+  key: string,
+  context?: string
+): Promise<PermissionResult> {
   const session = await auth();
   if (!session?.user) {
     return {
@@ -78,11 +122,11 @@ export async function requirePermission(
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     };
   }
-  if (await hasAccess(session, rule)) {
+  if (await decide(session)) {
     return { authorized: true, session };
   }
   logger.warn(
-    { userEmail: session.user.email, key: describeRule(rule), context },
+    { userEmail: session.user.email, key, context },
     "Forbidden: caller lacks the required access"
   );
   return {
@@ -96,11 +140,28 @@ export async function guardPage(
   rule: AccessRule,
   context: string
 ): Promise<void> {
+  await guard(
+    (session) => hasAccess(session, rule),
+    describeRule(rule),
+    context
+  );
+}
+
+/** Server page gate for deployment-wide pages: only a platform owner passes. */
+export async function guardPlatformOwnerPage(context: string): Promise<void> {
+  await guard(() => isPlatformOwner(), PLATFORM_OWNER_ROLE, context);
+}
+
+async function guard(
+  decide: (session: Session) => Promise<boolean>,
+  key: string,
+  context: string
+): Promise<void> {
   const session = await auth();
   if (!session?.user) redirect("/sign-in");
-  if (await hasAccess(session, rule)) return;
+  if (await decide(session)) return;
   logger.warn(
-    { userEmail: session.user.email, key: describeRule(rule), context },
+    { userEmail: session.user.email, key, context },
     "Forbidden: caller lacks the required access"
   );
   notFound();

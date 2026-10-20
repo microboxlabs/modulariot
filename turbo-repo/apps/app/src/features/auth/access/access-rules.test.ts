@@ -106,4 +106,15 @@ describe("pages-config", () => {
       ACCESS_RULES.loadsSearch.requiredPermissions
     );
   });
+
+  it("opens the kanban container to anyone who can see one of its pages", () => {
+    const kanban = (pagesConfig as ConfigEntry[]).find(
+      (e) => e.label === "kanban"
+    );
+    const childPermissions = new Set(
+      (kanban?.items ?? []).flatMap((item) => item.requiredPermissions ?? [])
+    );
+    expect(new Set(kanban?.requiredPermissions)).toEqual(childPermissions);
+    expect(kanban?.requiredPermissions).toContain("coordination:finished.view");
+  });
 });

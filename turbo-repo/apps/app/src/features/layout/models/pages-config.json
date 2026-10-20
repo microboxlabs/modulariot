@@ -31,7 +31,7 @@
       { "href": "/delivery", "label": "delivery", "requiredPermissions": ["coordination:kanban.view"] },
       { "href": "/finished", "label": "finished", "requiredPermissions": ["coordination:finished.view"] }
     ],
-    "requiredPermissions": ["coordination:kanban.view"]
+    "requiredPermissions": ["coordination:kanban.view", "coordination:finished.view"]
   },
   {
     "label": "tasks",

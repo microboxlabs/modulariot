@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logManagementAPI, LogLevel } from "@/lib/logger";
-import { requirePermission } from "@/features/auth/access/server-access";
-import { ACCESS_RULES } from "@/features/auth/access/access-rules";
+import { requirePlatformOwner } from "@/features/auth/access/server-access";
 
 /**
  * GET /api/admin/logs
@@ -9,10 +8,7 @@ import { ACCESS_RULES } from "@/features/auth/access/access-rules";
  */
 export async function GET() {
   try {
-    const access = await requirePermission(
-      ACCESS_RULES.adminConsole,
-      "/api/admin/logs"
-    );
+    const access = await requirePlatformOwner("/api/admin/logs");
     if (!access.authorized) return access.response;
 
     const handlers = logManagementAPI.getAllHandlers();
@@ -41,10 +37,7 @@ export async function GET() {
  */
 export async function PUT(request: NextRequest) {
   try {
-    const access = await requirePermission(
-      ACCESS_RULES.adminConsole,
-      "/api/admin/logs"
-    );
+    const access = await requirePlatformOwner("/api/admin/logs");
     if (!access.authorized) return access.response;
 
     const body = await request.json();
@@ -107,10 +100,7 @@ export async function PUT(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const access = await requirePermission(
-      ACCESS_RULES.adminConsole,
-      "/api/admin/logs"
-    );
+    const access = await requirePlatformOwner("/api/admin/logs");
     if (!access.authorized) return access.response;
 
     const body = await request.json();
@@ -170,10 +160,7 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const access = await requirePermission(
-      ACCESS_RULES.adminConsole,
-      "/api/admin/logs"
-    );
+    const access = await requirePlatformOwner("/api/admin/logs");
     if (!access.authorized) return access.response;
 
     const { searchParams } = new URL(request.url);

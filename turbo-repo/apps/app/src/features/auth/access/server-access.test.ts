@@ -21,7 +21,13 @@ vi.mock("@/lib/logger", () => ({
   logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-import { guardPage, hasAccess, requirePermission } from "./server-access";
+import {
+  guardPage,
+  guardPlatformOwnerPage,
+  hasAccess,
+  requirePermission,
+  requirePlatformOwner,
+} from "./server-access";
 import { ACCESS_RULES } from "./access-rules";
 
 let userCounter = 0;
@@ -144,5 +150,63 @@ describe("server access", () => {
     await expect(
       guardPage(ACCESS_RULES.finished, "/finished")
     ).resolves.toBeUndefined();
+  });
+
+  it("requirePlatformOwner needs a platform owner, not admin:console", async () => {
+    const fetchSpy = vi
+      .fn()
+      .mockImplementation(
+        async () =>
+          new Response(JSON.stringify({ roleCodes: [] }), { status: 200 })
+      );
+    vi.stubGlobal("fetch", fetchSpy);
+    auth.mockResolvedValue(freshSession());
+
+    const orgAdmin = await requirePlatformOwner("/api/admin/logs");
+    expect(orgAdmin.authorized).toBe(false);
+    if (!orgAdmin.authorized) expect(orgAdmin.response.status).toBe(403);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "http://modulith.test/api/v1/platform/roles/me",
+      expect.anything()
+    );
+    expect(fetchSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("/me/access"),
+      expect.anything()
+    );
+
+    fetchSpy.mockImplementation(
+      async () =>
+        new Response(JSON.stringify({ roleCodes: ["PLATFORM_OWNER"] }), {
+          status: 200,
+        })
+    );
+    const owner = await requirePlatformOwner("/api/admin/logs");
+    expect(owner.authorized).toBe(true);
+  });
+
+  it("requirePlatformOwner denies when the platform roles cannot be read", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("", { status: 502 }))
+    );
+    auth.mockResolvedValue(freshSession());
+
+    const result = await requirePlatformOwner("/api/admin/logs");
+    expect(result.authorized).toBe(false);
+  });
+
+  it("guardPlatformOwnerPage renders not-found for a non-owner", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ roleCodes: [] }), { status: 200 })
+        )
+    );
+    auth.mockResolvedValueOnce(freshSession());
+    await expect(guardPlatformOwnerPage("/admin/console/logs")).rejects.toThrow(
+      "NEXT_NOT_FOUND"
+    );
   });
 });

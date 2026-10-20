@@ -1,10 +1,8 @@
 package com.microboxlabs.miot.core.alfresco.auth;
 
-import io.quarkus.arc.Arc;
 import io.quarkus.arc.Unremovable;
 import io.quarkus.arc.lookup.LookupIfProperty;
 import io.quarkus.security.identity.SecurityIdentity;
-import io.quarkus.vertx.http.runtime.CurrentVertxRequest;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.Optional;
@@ -19,9 +17,8 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
  * <p>Active when {@code miot.alfresco.auth=oauth}.
  *
  * <p>Reads the raw token from {@link JsonWebToken#getRawToken()} via the
- * {@link SecurityIdentity} principal. If the current request is anonymous
- * (no JWT), fails the outgoing call so the caller sees a clear 401 rather
- * than a silent success against Alfresco. Work that runs outside a request
+ * {@link SecurityIdentity} principal. A caller whose identity is not a JWT
+ * (an API key) fails the outgoing call with a clear 401. Work with no caller
  * (scheduled jobs) uses the Basic credentials from
  * {@code miot.alfresco.basic.username} / {@code .password}, and fails when
  * they are not set.
@@ -47,52 +44,41 @@ public class OAuthBearerAuthProvider implements AlfrescoAuthProvider {
 
     @Override
     public String resolveAuthHeader() {
-        if (!inHttpRequest() && callerToken() == null) {
+        Caller caller = caller();
+        if (caller == Caller.NONE) {
             if (serviceConfigured) {
                 return service.resolveAuthHeader();
             }
             throw new IllegalStateException(
-                    "Cannot call Alfresco outside a request: miot.alfresco.basic credentials are not set");
+                    "Cannot call Alfresco without a caller: miot.alfresco.basic credentials are not set");
         }
-        if (securityIdentity == null || securityIdentity.isAnonymous()) {
-            throw new IllegalStateException(
-                    "Cannot forward JWT to Alfresco: request is anonymous");
+        if (caller.token() == null) {
+            throw new IllegalStateException("Cannot forward JWT to Alfresco: the caller has no JWT");
         }
-        var principal = securityIdentity.getPrincipal();
-        if (!(principal instanceof JsonWebToken jwt)) {
-            throw new IllegalStateException(
-                    "Cannot forward JWT to Alfresco: principal is not a JsonWebToken");
-        }
-
-        String raw = jwt.getRawToken();
-        if (raw == null || raw.isBlank()) {
-            throw new IllegalStateException(
-                    "Cannot forward JWT to Alfresco: JWT raw token is missing or blank");
-        }
-
-        return "Bearer " + raw;
+        return "Bearer " + caller.token();
     }
 
-    /** The caller's raw JWT, or null when there is none or no request context is active. */
-    private String callerToken() {
+    /** The caller's JWT; null token for a caller without one; {@link #NONE} when there is no caller. */
+    private record Caller(String token) {
+        static final Caller NONE = new Caller(null);
+    }
+
+    /**
+     * Reads the caller in one guarded step. A background job has no caller: outside a request context, or on an
+     * event loop where resolving the identity would block, the identity cannot be read at all.
+     */
+    private Caller caller() {
         try {
-            if (securityIdentity == null || securityIdentity.isAnonymous()
-                    || !(securityIdentity.getPrincipal() instanceof JsonWebToken jwt)) {
-                return null;
+            if (securityIdentity == null || securityIdentity.isAnonymous()) {
+                return Caller.NONE;
             }
-            String raw = jwt.getRawToken();
-            return raw == null || raw.isBlank() ? null : raw;
-        } catch (RuntimeException noRequestContext) {
-            return null;
+            if (securityIdentity.getPrincipal() instanceof JsonWebToken jwt) {
+                String raw = jwt.getRawToken();
+                return new Caller(raw == null || raw.isBlank() ? null : raw);
+            }
+            return new Caller(null);
+        } catch (RuntimeException noCaller) {
+            return Caller.NONE;
         }
-    }
-
-    /** Scheduled jobs run with a request context but without an HTTP request, and so without a caller JWT. */
-    private static boolean inHttpRequest() {
-        if (!Arc.container().requestContext().isActive()) {
-            return false;
-        }
-        var current = Arc.container().instance(CurrentVertxRequest.class);
-        return current.isAvailable() && current.get().getCurrent() != null;
     }
 }

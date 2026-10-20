@@ -37,8 +37,12 @@ import org.eclipse.microprofile.jwt.JsonWebToken;
  * <p>When a person's token carries the claim, {@link #sync} makes their stored roles match it before access is
  * decided: bindings of every role the organization's map covers are rewritten from the token (source TOKEN), and a
  * membership is created for them. Bindings of roles the map does not cover are left alone. Stored bindings let work
- * that runs without a token, such as the Alfresco projection, see the same roles. A TOKEN binding expires
- * {@value #TTL_PROPERTY} after the last sign-in that carried it.
+ * that runs without a token, such as the Alfresco projection, see the same roles. A TOKEN binding expires between half
+ * of {@value #TTL_PROPERTY} and all of it after the last sign-in that carried it: it is renewed once less than half is
+ * left, so a person signing in often does not write on every request.
+ *
+ * <p>The token's base role is applied to the request ({@link #sync} returns it); it is stored only on a membership the
+ * token created. A membership granted otherwise keeps its own base role.
  */
 @ApplicationScoped
 public class TokenRoles {
@@ -50,8 +54,8 @@ public class TokenRoles {
     public record Mapping(String externalId, String roleKey) {
     }
 
-    /** What a sync changes for one person in one organization. */
-    record Plan(String baseRole, Set<String> add, Set<String> remove) {
+    /** What a sync changes for one person in one organization; {@code wanted} are the module roles the token maps. */
+    record Plan(String baseRole, Set<String> wanted, Set<String> add, Set<String> remove) {
 
         boolean member() {
             return baseRole != null;
@@ -110,11 +114,12 @@ public class TokenRoles {
     }
 
     /**
-     * What the token means for one person, given the organization's map and the role keys they hold now. The base
-     * role is the highest of the mapped OWNER, ADMIN and MEMBER ids; any mapped module role also makes them a Member.
-     * Null when no id in the token is mapped.
+     * What the token means for one person, given the organization's map, the role keys they hold now, and those of
+     * them that came from a token. The base role is the highest of the mapped OWNER, ADMIN and MEMBER ids; any mapped
+     * module role also makes them a Member. Null when no id in the token is mapped. A held role the map covers, or one
+     * a token gave, is removed when the token no longer maps it.
      */
-    static Plan plan(Set<String> tokenIds, Map<String, String> map, Set<String> held) {
+    static Plan plan(Set<String> tokenIds, Map<String, String> map, Set<String> held, Set<String> fromToken) {
         Set<String> covered = new TreeSet<>(map.values());
         Set<String> wanted = new TreeSet<>();
         BaseRole base = null;
@@ -134,8 +139,9 @@ public class TokenRoles {
         add.removeAll(held);
         Set<String> remove = new TreeSet<>(held);
         remove.retainAll(covered);
+        remove.addAll(fromToken);
         remove.removeAll(wanted);
-        return new Plan(base == null ? null : base.name(), add, remove);
+        return new Plan(base == null ? null : base.name(), wanted, add, remove);
     }
 
     static boolean isBaseRole(String key) {
@@ -143,40 +149,67 @@ public class TokenRoles {
     }
 
     /**
-     * Makes the person's stored roles in {@code root} match their token. Needs an open session; writes only what
-     * changed.
+     * Makes the person's stored roles in {@code root} match their token, and returns the base role the token gives
+     * (null when none). Needs an open transaction; writes only what changed. Syncs of one person run one at a time, so
+     * parallel first requests do not insert the same rows twice. A disabled person is left as is.
      */
     @SuppressWarnings("java:S1612") // Reactive Panache: persist overloads.
-    public Uni<Void> sync(Organization root, String email, Set<String> tokenIds) {
+    public Uni<String> sync(Organization root, String email, Set<String> tokenIds) {
         return IamTokenRole.findByOrganization(root.id).flatMap(rows -> {
-            if (rows.isEmpty()) {
-                return Uni.createFrom().voidItem();
-            }
             Map<String, String> map = new LinkedHashMap<>();
             rows.forEach(r -> map.put(r.externalId, r.roleKey));
-            return IamUser.findOrCreate(email).flatMap(user -> IamRoleBinding
-                    .findFor(List.of(root.id), IamRoleBinding.USER, List.of(user.id.toString()))
-                    .flatMap(bindings -> {
-                        List<IamRoleBinding> orgWide = bindings.stream()
-                                .filter(b -> IamRoleBinding.ORGANIZATION.equals(b.scopeKind)).toList();
-                        Set<String> held = new TreeSet<>();
-                        orgWide.forEach(b -> held.add(b.roleKey));
-                        Plan plan = plan(tokenIds, map, held);
-                        return apply(root, user, orgWide, plan);
-                    }));
+            // With no map left, only undo what earlier tokens gave: never create the person.
+            Uni<IamUser> person = rows.isEmpty()
+                    ? IamUser.findByEmail(email)
+                    : lock(email).flatMap(i -> IamUser.findOrCreate(email));
+            return person.flatMap(user -> {
+                if (user == null || !"ACTIVE".equals(user.status)) {
+                    return Uni.createFrom().nullItem();
+                }
+                return IamRoleBinding.findFor(List.of(root.id), IamRoleBinding.USER, List.of(user.id.toString()))
+                        .flatMap(bindings -> {
+                            List<IamRoleBinding> orgWide = bindings.stream()
+                                    .filter(b -> IamRoleBinding.ORGANIZATION.equals(b.scopeKind)).toList();
+                            Set<String> held = new TreeSet<>();
+                            Set<String> fromToken = new TreeSet<>();
+                            orgWide.forEach(b -> {
+                                held.add(b.roleKey);
+                                if (IamRoleBinding.TOKEN.equals(b.source)) {
+                                    fromToken.add(b.roleKey);
+                                }
+                            });
+                            Plan plan = plan(tokenIds, map, held, fromToken);
+                            return apply(root, user, orgWide, plan).replaceWith(plan.baseRole());
+                        });
+            });
         });
     }
 
+    /** Holds a transaction-scoped lock for this person until the transaction ends. */
+    private static Uni<Void> lock(String email) {
+        return Panache.getSession()
+                .flatMap(session -> session.createNativeQuery("select pg_advisory_xact_lock(hashtext(?1))")
+                        .setParameter(1, "iam-token-sync:" + IamUser.normalize(email))
+                        .executeUpdate())
+                .replaceWithVoid();
+    }
+
+    /**
+     * Writes the plan. A binding of a role the token maps is renewed when it came from a token and less than half its
+     * time is left, or when it has expired, whatever its source: it then becomes a TOKEN binding.
+     */
     @SuppressWarnings("java:S1612") // Reactive Panache: persist overloads.
     private Uni<Void> apply(Organization root, IamUser user, List<IamRoleBinding> orgWide, Plan plan) {
         Instant now = Instant.now();
         Instant expires = now.plus(ttl);
         List<Uni<?>> writes = new ArrayList<>();
         for (IamRoleBinding b : orgWide) {
+            boolean expired = b.expiresAt != null && !b.expiresAt.isAfter(now);
             if (plan.remove().contains(b.roleKey)) {
                 writes.add(b.delete());
-            } else if (IamRoleBinding.TOKEN.equals(b.source) && b.expiresAt != null
-                    && b.expiresAt.isBefore(now.plus(ttl.dividedBy(2)))) {
+            } else if (plan.wanted().contains(b.roleKey) && (expired || (IamRoleBinding.TOKEN.equals(b.source)
+                    && b.expiresAt != null && b.expiresAt.isBefore(now.plus(ttl.dividedBy(2)))))) {
+                b.source = IamRoleBinding.TOKEN;
                 b.expiresAt = expires;
                 writes.add(b.persist());
             }
@@ -205,7 +238,7 @@ public class TokenRoles {
 
     /**
      * Creates or updates the membership the token gives. A membership the token created follows it, and is removed
-     * when no id maps any more. A membership granted otherwise keeps the higher of its role and the token's.
+     * when no id maps any more. A membership granted otherwise is left as it is.
      */
     @SuppressWarnings("java:S1612") // Reactive Panache: persist overloads.
     private static Uni<Boolean> membership(Organization root, IamUser user, String baseRole) {
@@ -225,10 +258,6 @@ public class TokenRoles {
                     return m.persist().replaceWith(true);
                 }
                 return Uni.createFrom().item(false);
-            }
-            if (baseRole != null && BaseRole.valueOf(baseRole).compareTo(BaseRole.valueOf(m.baseRole)) > 0) {
-                m.baseRole = baseRole;
-                return m.persist().replaceWith(true);
             }
             return Uni.createFrom().item(false);
         });

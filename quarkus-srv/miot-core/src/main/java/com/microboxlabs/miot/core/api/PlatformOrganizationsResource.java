@@ -206,6 +206,8 @@ public class PlatformOrganizationsResource {
         organization.displayName = isBlank(body.displayName()) ? organization.name : body.displayName().trim();
         organization.tenantClientId = isBlank(body.tenantClientId()) ? null : body.tenantClientId().trim();
         organization.alfrescoGroupId = isBlank(body.alfrescoGroupId()) ? null : body.alfrescoGroupId().trim();
+        // NativeMembershipMigration imports an existing group's people, then marks the organization NATIVE.
+        organization.membershipSource = organization.alfrescoGroupId == null ? "NATIVE" : "ALFRESCO";
         organization.taxId = isBlank(body.taxId()) ? null : normalizeTaxId(body.taxId());
         organization.active = true;
         return organization;

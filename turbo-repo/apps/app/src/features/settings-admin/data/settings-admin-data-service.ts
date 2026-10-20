@@ -19,5 +19,3 @@ export function fetchOrgModules(orgSlug: string): Promise<string[]> {
     `/app/api/admin/orgs/${encodeURIComponent(orgSlug)}/modules`
   );
 }
-
-export const ORGANIZATION_OWNER_ROLE_CODE = "ORGANIZATION_OWNER";

@@ -43,7 +43,9 @@ public class OrganizationPermissionService {
         String subjectId = request.subjectId().trim();
 
         return Panache.withSession(() -> findOrganization(organizationSlug)
-                .flatMap(org -> isAllowed(org, permission, subjectId))
+                .flatMap(org -> IamDirectory.isEmail(subjectId)
+                        ? hasPermission(org, permission, subjectId)
+                        : isAllowed(org, permission, subjectId))
                 .map(allowed -> new AuthorizationDecisionDto(
                         permission.permissionCode(), subjectId, allowed)));
     }

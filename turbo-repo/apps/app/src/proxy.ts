@@ -25,7 +25,6 @@ import { homePath } from "@/features/common/providers/alfresco-api/ecm-config";
 //   buildAccessLogFields,
 //   generateRequestId,
 // } from "@/features/common/utils/access-log";
-//import { getRoutePermissions } from "@/features/auth/config/route-permissions";
 //import type { JWT } from "next-auth/jwt";
 
 /* interface NextRequestWithAuth extends NextRequest {
@@ -33,21 +32,6 @@ import { homePath } from "@/features/common/providers/alfresco-api/ecm-config";
     token: JWT | null;
   };
 } */
-/* 
-
-function hasRequiredGroups(
-  userGroups: string[] = [],
-  requiredGroups: string[],
-  operator: "OR" | "AND" = "OR",
-): boolean {
-  if (!requiredGroups.length) return true;
-
-  return operator === "OR"
-    ? requiredGroups.some((group) => userGroups.includes(group))
-    : requiredGroups.every((group) => userGroups.includes(group));
-} */
-
-// moved to common utils
 
 const logger = createManagedLogger("middleware", "Middleware", "error");
 

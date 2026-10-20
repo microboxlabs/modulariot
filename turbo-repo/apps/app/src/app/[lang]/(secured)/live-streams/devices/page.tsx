@@ -19,7 +19,7 @@ const MOCK_DEVICES: StreamDevice[] = [
 ];
 
 export default async function AllDevicesPage({ params }: ParamsWithLang) {
-  await guardPage(ACCESS_RULES.liveStreamsPage, "/live-streams");
+  await guardPage(ACCESS_RULES.liveStreams, "/live-streams");
   const { lang } = await params;
   const [, dict] = await getDictionary(lang);
 

@@ -24,9 +24,7 @@ function LoadingConsole() {
 
 export default async function LogManagementPage({ params }: ParamsWithLang) {
   const { lang } = await params;
-  await guardPage(ACCESS_RULES.adminConsole, "/admin/console/logs", {
-    always: true,
-  });
+  await guardPage(ACCESS_RULES.adminConsole, "/admin/console/logs");
   const [, dictionary] = await getDictionary(lang);
   const dict = (dictionary.pages as I18nRecord)?.admin as I18nRecord;
   return (

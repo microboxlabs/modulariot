@@ -113,7 +113,7 @@ function NestedGroup({
   onNavigate: () => void;
 }>) {
   const visibleChildren = (group.items ?? []).filter((child) =>
-    canAccess(child, child.href)
+    canAccess(child)
   );
 
   if (visibleChildren.length === 0) return null;
@@ -150,7 +150,7 @@ export default function MobileSidebarSection({
   const searchParamsHook = useSearchParams();
   const searchParamsStr = searchParamsHook.toString();
 
-  if (!canAccess(item, item.href ?? item.label)) return null;
+  if (!canAccess(item)) return null;
 
   const hasChildren = Boolean(item.items && item.items.length > 0);
   const active = isSectionActive(item, pathname);
@@ -229,7 +229,7 @@ function ExpandableSection({
   }, [active]);
 
   const visibleItems = (item.items ?? []).filter((child) =>
-    canAccess(child, child.href)
+    canAccess(child)
   );
 
   if (visibleItems.length === 0) return null;

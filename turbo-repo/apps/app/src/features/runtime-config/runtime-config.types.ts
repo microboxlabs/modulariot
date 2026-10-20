@@ -43,9 +43,4 @@ export interface RuntimeConfig {
    * modal instead of the inline forms.
    */
   SYMPTOMS_PAST_FORMS: string;
-  /**
-   * Where access decisions come from: "groups" (default), "shadow" or
-   * "permissions". See `parseAccessSource`.
-   */
-  ACCESS_CONTROL_SOURCE: string;
 }

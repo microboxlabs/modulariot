@@ -10,7 +10,7 @@ type DriverRouteParams = ParamsWithLang<{ codDriver: string }>;
 export default async function CollaboratorDetailRoute({
   params,
 }: DriverRouteParams) {
-  await guardPage(ACCESS_RULES.collaboratorsPage, "/collaborators-management");
+  await guardPage(ACCESS_RULES.collaborators, "/collaborators-management");
   const { lang, codDriver } = await params;
   const [, dict] = await getDictionary(lang);
   const decodedCodDriver = decodeURIComponent(codDriver);

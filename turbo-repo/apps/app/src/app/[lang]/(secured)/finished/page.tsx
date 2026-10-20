@@ -1,6 +1,4 @@
 import "server-only";
-import { auth } from "@/auth";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 // import { getUserTasks } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
@@ -17,8 +15,6 @@ export default async function FinishedPage({ params }: ParamsWithLang) {
   await guardPage(ACCESS_RULES.finished, "/finished");
   const { lang } = await params;
   const [, dictionary] = await getDictionary(lang);
-  const session = await auth();
-  const userGroups = await getGroupsForPerson(session!);
   // let tasks;
   try {
     // tasks = await getUserTasks(session);
@@ -41,7 +37,6 @@ export default async function FinishedPage({ params }: ParamsWithLang) {
             base: (dictionary.pages as I18nRecord)?.shipping as I18nRecord,
             general: dictionary,
           }}
-          userGroups={userGroups}
         />
       </div>
     );

@@ -91,7 +91,7 @@ function PanelNestedGroup({
   const translatedGroupLabel = trDynamic(item.label, dict);
   const visibleChildren = (item.items ?? []).filter(
     (child) =>
-      canAccess(child, child.href) &&
+      canAccess(child) &&
       matchesSearch(trDynamic(child.label, dict), searchQuery)
   );
 
@@ -140,7 +140,7 @@ export default function SecondaryPanelItemList({
   return (
     <ul className="flex-1 space-y-0.5 overflow-y-auto">
       {items.map((item) => {
-        if (!canAccess(item, item.href ?? item.label)) return null;
+        if (!canAccess(item)) return null;
 
         const translatedLabel = trDynamic(item.label, dict);
 

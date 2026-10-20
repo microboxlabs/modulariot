@@ -6,8 +6,7 @@ import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 /**
  * Single source of truth for "what mode is the calendar in" — combines the
- * caller's calendar access (groups or permissions, per ACCESS_CONTROL_SOURCE)
- * with the `?as=viewer` URL override.
+ * caller's calendar permissions with the `?as=viewer` URL override.
  *
  * The override lets a user who can view and also plan or assign preview the
  * read-only experience without giving up their real permissions. For users

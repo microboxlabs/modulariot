@@ -122,10 +122,7 @@ export default function SideInfo({
       <div
         className={`absolute bottom-5 left-5 right-5 flex flex-col justify-self-end w-full px-5 ${loading ? "opacity-50" : "opacity-100"}`}
       >
-        <AccessAllowed
-          rule={ACCESS_RULES.controlTowerCaseTreat}
-          context="symptom-actions"
-        >
+        <AccessAllowed rule={ACCESS_RULES.controlTowerCaseTreat}>
           <ButtonGroup className="w-full">
             <BlurrableDropdown
               dict={dict}

@@ -6,7 +6,6 @@ import type { AccessRule } from "../access/access-control";
 
 interface AccessAllowedProps {
   rule: AccessRule;
-  context?: string;
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }
@@ -14,10 +13,9 @@ interface AccessAllowedProps {
 /** Renders `children` when the gate is open, `fallback` otherwise (and while loading). */
 export function AccessAllowed({
   rule,
-  context,
   children,
   fallback = null,
 }: Readonly<AccessAllowedProps>) {
   const { canAccess } = usePermissions();
-  return <>{canAccess(rule, context) ? children : fallback}</>;
+  return <>{canAccess(rule) ? children : fallback}</>;
 }

@@ -7,42 +7,29 @@ import { usePermissions } from "@/features/auth/hooks/use-permissions";
 
 interface IconBarItemProps {
   icon?: FC<ComponentProps<"svg">>;
-  label: string;
   translatedLabel: string;
   href?: string;
   hasChildren: boolean;
   isActive: boolean;
   isPanelOpen: boolean;
-  requiredGroups?: string[];
-  blockedGroups?: string[];
   requiredPermissions?: string[];
   onClick: () => void;
 }
 
 export default function IconBarItem({
   icon: Icon,
-  label,
   translatedLabel,
   href,
   hasChildren,
   isActive,
   isPanelOpen,
-  requiredGroups,
-  blockedGroups,
   requiredPermissions,
   onClick,
 }: Readonly<IconBarItemProps>) {
   const { canAccess } = usePermissions();
   const [isHovered, setIsHovered] = useState(false);
 
-  if (
-    !canAccess(
-      { requiredGroups, blockedGroups, requiredPermissions },
-      href ?? label
-    )
-  ) {
-    return null;
-  }
+  if (!canAccess({ requiredPermissions })) return null;
 
   const showLabel = isHovered && !isPanelOpen;
 

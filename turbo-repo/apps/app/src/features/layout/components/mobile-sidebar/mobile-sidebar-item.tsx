@@ -24,7 +24,7 @@ export default function MobileSidebarItem({
   onClick,
 }: Readonly<PropsWithI18nDict<MobileSidebarItemProps>>) {
   const { canAccess } = usePermissions();
-  if (!canAccess(item, item.href ?? item.label)) return null;
+  if (!canAccess(item)) return null;
 
   const Icon = item.icon;
   const translatedLabel = trDynamic(item.label, dict);

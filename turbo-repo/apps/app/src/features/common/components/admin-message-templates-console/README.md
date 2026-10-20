@@ -29,7 +29,7 @@ A comprehensive admin console for managing message templates and webhook definit
 
 - **Admin console gate** (`ACCESS_RULES.adminConsole` in `src/features/auth/access/access-rules.ts`)
   - API routes call `requirePermission()` and pages call `guardPage()` from `src/features/auth/access/server-access.ts`
-  - Decided by the admin groups or the `admin:console` permission, per `ACCESS_CONTROL_SOURCE`
+  - Opens with the `admin:console` permission
 
 ### ✅ 4. SWR Data Fetching Hooks
 

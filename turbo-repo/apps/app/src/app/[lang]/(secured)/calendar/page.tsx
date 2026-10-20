@@ -9,7 +9,7 @@ import { guardPage } from "@/features/auth/access/server-access";
 import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function CalendarPage(props: ParamsWithLang) {
-  await guardPage(ACCESS_RULES.calendarPage, "/calendar");
+  await guardPage(ACCESS_RULES.calendar, "/calendar");
   const { lang } = await props.params;
 
   const session = await auth();

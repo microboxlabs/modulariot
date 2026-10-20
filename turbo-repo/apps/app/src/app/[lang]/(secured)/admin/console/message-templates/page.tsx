@@ -27,10 +27,7 @@ export default async function MessageTemplatesPage({
 }) {
   await guardPage(
     ACCESS_RULES.adminConsole,
-    "/admin/console/message-templates",
-    {
-      always: true,
-    }
+    "/admin/console/message-templates"
   );
   const { lang } = await params;
   const [, dictionary] = await getDictionary(lang);

@@ -58,7 +58,6 @@ export function useDashboardDynamicItems(): SidebarItem[] {
       .map((dashboard) => ({
         href: `/home/${dashboard.slug}`,
         label: dashboard.name,
-        requiredGroups: [...ACCESS_RULES.dashboards.requiredGroups],
         requiredPermissions: [...ACCESS_RULES.dashboards.requiredPermissions],
       }));
   }, [dashboards]);

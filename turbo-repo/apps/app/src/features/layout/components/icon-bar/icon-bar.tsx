@@ -68,14 +68,11 @@ export default function IconBar({ dict }: Readonly<PropsWithI18nDict>) {
               <IconBarItem
                 key={item.label}
                 icon={item.icon}
-                label={item.label}
                 translatedLabel={trDynamic(item.label, dict)}
                 href={item.href}
                 hasChildren={hasChildren}
                 isActive={active}
                 isPanelOpen={isPanelOpen}
-                requiredGroups={item.requiredGroups}
-                blockedGroups={item.blockedGroups}
                 requiredPermissions={item.requiredPermissions}
                 onClick={() => handleItemClick(item)}
               />

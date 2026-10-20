@@ -3,9 +3,12 @@ import { getDictionary } from "@/features/i18n/i18n.service";
 import { HiClipboardList } from "react-icons/hi";
 import ClientMapStarter from "@/features/geographic-view/components/client-map-starter";
 import { SectionHeader } from "@/features/layout/components/section-header/section-header";
-//import { RouteGuard } from "@/features/auth/components/route-guard";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
+import { RouteGuard } from "@/features/auth/components/route-guard";
 
 export default async function GeographicViewPage({ params }: ParamsWithLang) {
+  await guardPage(ACCESS_RULES.geographic, "/geographic-view");
   const { lang } = await params;
   const [, dict] = await getDictionary(lang);
 
@@ -16,19 +19,19 @@ const layers = [
 */
 
   return (
-    /*  <RouteGuard path="/geographic-view" fallbackPath={`/${lang}/shipping`}> */
-    <div className="h-full w-full flex flex-col">
-      <SectionHeader
-        path={["mission_control", "geographic_view"]}
-        lang={lang}
-        rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-        breadcrumbDict={dict["symptoms"] as I18nRecord}
-        filterDict={dict as I18nRecord}
-      />
-      <div className="flex-1 relative">
-        <ClientMapStarter dict={dict} />
+    <RouteGuard path="/geographic-view" fallbackPath={`/${lang}/shipping`}>
+      <div className="h-full w-full flex flex-col">
+        <SectionHeader
+          path={["mission_control", "geographic_view"]}
+          lang={lang}
+          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
+          breadcrumbDict={dict["symptoms"] as I18nRecord}
+          filterDict={dict as I18nRecord}
+        />
+        <div className="flex-1 relative">
+          <ClientMapStarter dict={dict} />
+        </div>
       </div>
-    </div>
-    /*  </RouteGuard> */
+    </RouteGuard>
   );
 }

@@ -2,9 +2,8 @@ import { HiArrowRight } from "react-icons/hi";
 import { trDynamic } from "@/features/i18n/tr.service";
 import type { SidebarItem } from "@/features/layout/types/common.types";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
+import type { CanAccess } from "@/features/auth/hooks/use-permissions";
 import type { SpotlightItem } from "./types";
-
-export type CanAccessFn = (requiredGroups: string[], blockedGroups: string[]) => boolean;
 
 function translate(label: string, sidebarLabels: I18nRecord | null): string {
   return sidebarLabels ? trDynamic(label, sidebarLabels) : label;
@@ -31,17 +30,15 @@ export function buildNavigateItems(
   pages: SidebarItem[],
   sidebarLabels: I18nRecord,
   onNavigate: (href: string) => void,
-  canAccess: CanAccessFn = () => true,
+  canAccess: CanAccess = () => true,
 ): SpotlightItem[] {
   const items: SpotlightItem[] = [];
 
   for (const page of pages) {
-    if (!canAccess(page.requiredGroups ?? [], page.blockedGroups ?? [])) continue;
+    if (!canAccess(page, page.href ?? page.label)) continue;
 
     const accessibleChildren = (page.items ?? []).filter(
-      (child) =>
-        child.href &&
-        canAccess(child.requiredGroups ?? [], child.blockedGroups ?? []),
+      (child) => child.href && canAccess(child, child.href),
     );
 
     if (accessibleChildren.length > 0) {

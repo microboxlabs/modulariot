@@ -3,21 +3,14 @@ import {
   MiotCalendarApiError,
   type BookingResponse,
 } from "@microboxlabs/miot-calendar-client";
-import {
-  requireAuth,
-  requireAnyGroup,
-} from "../../utils/alfresco-crud-client";
+import { requireAuth } from "../../utils/alfresco-crud-client";
+import { requirePermission } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
-// Booking mutations are gated on either GROUP_PLANNING (slot/time changes)
-// or GROUP_ASSIGNMENT (carrier/driver/truck changes) — pure
-// GROUP_CALENDAR_VIEWER users are rejected with 403. The route doesn't try
-// to split the two further: by the time a request reaches the calendar
-// backend the payload may carry both kinds of change in one move, and the
-// UI never sends a viewer-shaped request anyway. GET stays on requireAuth.
-const BOOKING_MUTATION_GROUPS = [
-  "GROUP_PLANNING",
-  "GROUP_ASSIGNMENT",
-] as const;
+// Booking mutations need calendar:plan (slot/time changes) or calendar:assign
+// (carrier/driver/truck changes); pure viewers get a 403. The route doesn't
+// split the two further: one move may carry both kinds of change, and the UI
+// never sends a viewer-shaped request anyway. GET stays on requireAuth.
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import {
@@ -220,7 +213,10 @@ async function runTaskAdvance(
 
 
 export async function POST(request: Request) {
-  const authResult = await requireAnyGroup(BOOKING_MUTATION_GROUPS);
+  const authResult = await requirePermission(
+    ACCESS_RULES.bookingWrite,
+    "/api/calendar/bookings"
+  );
   if (!authResult.authorized) return authResult.response;
 
   const body: AppBookingRequest = await request.json();

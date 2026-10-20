@@ -1,128 +1,52 @@
-const FULL_ACCESS_ROLES: string[] = [
-  // "GROUP_MINTRAL_EJECUTIVO_TORRE_CONTROL",
-  // "GROUP_MINTRAL_OPERADORES",
-  // "GROUP_MINTRAL_OVERLORD_VIAJES",
-  // "GROUP_MINTRAL_RECEPTOR_VIAJES",
-  // "GROUP_MINTRAL_REGULARIZADORES_VIAJES",
-  // "GROUP_MINTRAL_VALIDADOR_TRANSPORTE",
-];
+import type { AccessRule } from "../access/access-control";
+import { ACCESS_RULES } from "../access/access-rules";
 
-// Admin roles for system management
-const ADMIN_ROLES = [
-  "GROUP_ALFRESCO_ADMINISTRATORS",
-  "GROUP_MINTRAL_SYSTEM_ADMIN",
-];
+const OPEN: AccessRule = {};
 
-// Kanban access roles
-export const KANBAN_ACCESS_ROLES = [
-  "GROUP_MINTRAL_KANBAN_ACCESS",
-  "GROUP_GAMA_KANBAN_ACCESS"
-];
+/** Page access by path prefix; the longest matching prefix wins. */
+export const ROUTE_PERMISSIONS: Record<string, AccessRule> = {
+  "/": OPEN,
+  "/home": ACCESS_RULES.dashboards,
+  "/shipping": ACCESS_RULES.kanban,
+  "/mytasks": ACCESS_RULES.kanban,
+  "/planning": ACCESS_RULES.kanbanPage,
+  "/delivery": ACCESS_RULES.kanbanPage,
+  "/task/edit": ACCESS_RULES.kanbanPage,
+  "/task/view": ACCESS_RULES.kanbanPage,
+  "/finished": ACCESS_RULES.finished,
+  "/reports": ACCESS_RULES.reports,
+  "/geographic-view": ACCESS_RULES.geographic,
+  "/symptoms": ACCESS_RULES.controlTower,
+  "/where-is-my-load": ACCESS_RULES.loadsSearch,
+  "/calendar": ACCESS_RULES.calendarPage,
+  "/live-streams": ACCESS_RULES.liveStreamsPage,
+  "/collaborators-management": ACCESS_RULES.collaboratorsPage,
+  "/whatsapp/conversations": ACCESS_RULES.conversations,
+  "/admin/console": ACCESS_RULES.adminConsole,
 
-// Define groups that should be blocked from certain routes
-const BLOCKED_GROUPS = {
-  GROUP_MINTRAL_REVISOR: ["/geographic-view"], // DEMO LOCAL: symptoms destrabado para revisar Tratamiento v2
-};
-
-// Dashboard access roles
-const DASHBOARD_ROLES = ["GROUP_DASHBOARD"];
-
-export const ROUTE_PERMISSIONS = {
-  // Main routes
-  "/": [], // Public route
-  "/home": DASHBOARD_ROLES,
-  "/shipping": KANBAN_ACCESS_ROLES,
-  "/finished": FULL_ACCESS_ROLES,
-  "/reports": FULL_ACCESS_ROLES,
-  "/geographic-view": FULL_ACCESS_ROLES,
-  "/symptoms": FULL_ACCESS_ROLES,
-  "/where-is-my-load": ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
-  "/mytasks": KANBAN_ACCESS_ROLES,
-
-  // Task routes
-  "/task/edit": FULL_ACCESS_ROLES,
-  "/task/view": FULL_ACCESS_ROLES,
-
-  // Settings routes
-  "/users/settings": FULL_ACCESS_ROLES,
-
-  // API routes
-  "/api/task": FULL_ACCESS_ROLES,
-  "/api/geographic": FULL_ACCESS_ROLES,
-  "/api/symptoms": FULL_ACCESS_ROLES,
-  "/api/control-tower": FULL_ACCESS_ROLES,
-  "/api/admin/logs": ADMIN_ROLES,
-  "/api/admin/message-templates": ADMIN_ROLES,
-  "/api/admin/webhooks": ADMIN_ROLES,
+  "/users/settings": OPEN,
 
   // Integrations job console — any authenticated org member; the backend
   // enforces org membership per request.
-  "/integrations/jobs": [],
+  "/integrations/jobs": OPEN,
 
   // Storytelling (list + /storytelling/[id] detail, matched by prefix) — any
   // authenticated org member (frontend-only demo for now).
-  "/storytelling": [],
+  "/storytelling": OPEN,
 
   // Fleet (list, /fleet/[assetId] and its edit page, matched by prefix) — any
   // authenticated member; the modulith checks fleet:assets.view / .edit.
-  "/fleet": [],
+  "/fleet": OPEN,
 
   // Settings › Connections (templates + connections) — any authenticated member;
   // the backend owner-gates every mutation per request.
-  "/users/settings/connections": [],
+  "/users/settings/connections": OPEN,
+};
 
-  // Admin console routes
-  "/admin/console/message-templates": ADMIN_ROLES,
-} as const;
-
-export type RouteKey = keyof typeof ROUTE_PERMISSIONS;
-
-export function getRoutePermissions(path: string): string[] {
-  // Find the most specific matching route
+export function getRouteRule(path: string): AccessRule {
   const matchingRoute = Object.keys(ROUTE_PERMISSIONS)
     .filter((route) => path.startsWith(route))
     .sort((a, b) => b.length - a.length)[0];
 
-  return matchingRoute ? [...ROUTE_PERMISSIONS[matchingRoute as RouteKey]] : [];
-}
-
-export function getBlockedGroupsForRoute(path: string): string[] {
-  const blockedGroups: string[] = [];
-
-  // Check if any group should be blocked from this specific path
-  Object.entries(BLOCKED_GROUPS).forEach(([group, blockedRoutes]) => {
-    if (blockedRoutes.some((route) => path.startsWith(route))) {
-      blockedGroups.push(group);
-    }
-  });
-
-  return blockedGroups;
-}
-
-export function hasRouteAccess(
-  userGroups: string[],
-  path: string,
-  operator: "OR" | "AND" = "OR"
-): boolean {
-  const requiredGroups = getRoutePermissions(path);
-  const blockedGroups = getBlockedGroupsForRoute(path);
-
-  // Check if user has any blocked groups
-  const hasBlockedGroup = blockedGroups.some((group) =>
-    userGroups.includes(group)
-  );
-
-  if (hasBlockedGroup) {
-    return false; // User is blocked from this route
-  }
-
-  // If no required groups, access is allowed (unless blocked above)
-  if (!requiredGroups.length) {
-    return true;
-  }
-
-  // Check if user has required groups
-  return operator === "OR"
-    ? requiredGroups.some((group) => userGroups.includes(group))
-    : requiredGroups.every((group) => userGroups.includes(group));
+  return matchingRoute ? ROUTE_PERMISSIONS[matchingRoute] : OPEN;
 }

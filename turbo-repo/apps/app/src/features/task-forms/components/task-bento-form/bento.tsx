@@ -48,7 +48,6 @@ export default function Bento({
         lang={lang}
         showActions={showActions}
         enableActions={enableActions}
-        userGroups={userGroups}
       />
       {/* Head */}
 

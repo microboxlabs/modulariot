@@ -15,6 +15,7 @@ interface IconBarItemProps {
   isPanelOpen: boolean;
   requiredGroups?: string[];
   blockedGroups?: string[];
+  requiredPermissions?: string[];
   onClick: () => void;
 }
 
@@ -26,18 +27,22 @@ export default function IconBarItem({
   hasChildren,
   isActive,
   isPanelOpen,
-  requiredGroups = [],
-  blockedGroups = [],
+  requiredGroups,
+  blockedGroups,
+  requiredPermissions,
   onClick,
 }: Readonly<IconBarItemProps>) {
-  const { hasPermission, userGroups } = usePermissions();
+  const { canAccess } = usePermissions();
   const [isHovered, setIsHovered] = useState(false);
 
-  const hasBlockedGroup = blockedGroups.some((group) =>
-    userGroups.includes(group)
-  );
-  if (hasBlockedGroup) return null;
-  if (!hasPermission(requiredGroups)) return null;
+  if (
+    !canAccess(
+      { requiredGroups, blockedGroups, requiredPermissions },
+      href ?? label
+    )
+  ) {
+    return null;
+  }
 
   const showLabel = isHovered && !isPanelOpen;
 

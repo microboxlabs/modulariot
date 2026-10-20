@@ -27,11 +27,9 @@ A comprehensive admin console for managing message templates and webhook definit
 
 ### ✅ 3. DRY Admin Access Control
 
-- **Centralized Admin Utility** (`src/features/auth/utils/admin-access.ts`)
-  - Reusable `hasAdminAccess()` and `hasAdminAccessForSession()` functions
-  - Supports `GROUP_ALFRESCO_ADMINISTRATORS` and the tenant system-admin group
-    (see `ADMIN_ROLES` in `features/auth/config/route-permissions.ts`)
-  - Integrated with existing group validation system
+- **Admin console gate** (`ACCESS_RULES.adminConsole` in `src/features/auth/access/access-rules.ts`)
+  - API routes call `requirePermission()` and pages call `guardPage()` from `src/features/auth/access/server-access.ts`
+  - Decided by the admin groups or the `admin:console` permission, per `ACCESS_CONTROL_SOURCE`
 
 ### ✅ 4. SWR Data Fetching Hooks
 

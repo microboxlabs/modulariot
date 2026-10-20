@@ -1,205 +1,61 @@
-# Route Permissions System
+# Access control
 
-This system supports both **allowlist** and **blocklist** approaches for route permissions.
+Pages, menus, buttons and API routes are gated by access rules. A rule lists the Alfresco groups that open it and the IAM permission that replaces them.
 
-## Features
+## Access source
 
-### 1. Allowlist (Original Logic)
+`ACCESS_CONTROL_SOURCE` sets what decides each rule. The client reads it from the runtime config.
 
-- Users must have specific groups to access routes
-- If no groups are required, access is allowed
+| Value | Decides with | Notes |
+| --- | --- | --- |
+| `groups` (default) | Alfresco groups | |
+| `shadow` | Alfresco groups | Also computes the permission decision and logs every mismatch as `Access mismatch between groups and permissions`. |
+| `permissions` | Permissions in the active organization (`GET /api/v1/orgs/{org}/me/access`) | Gates stay closed while permissions load. Server page guards are active. |
 
-### 2. Blocklist (Opposite Logic)
+A rule without `requiredPermissions` is decided by groups in every mode.
 
-- Users with specific groups are blocked from accessing certain routes
-- Takes precedence over allowlist logic
+## Files
 
-### 3. Sidebar Navigation Protection
+| File | Contents |
+| --- | --- |
+| `access/access-control.ts` | `AccessRule`, `decideAccess`, `parseAccessSource` |
+| `access/access-rules.ts` | `ACCESS_RULES`: every gate with its groups and permission |
+| `access/server-access.ts` | `requirePermission` (API routes), `guardPage` (server pages), `hasAccess` |
+| `config/route-permissions.ts` | Page path prefix → rule, used by `RouteGuard` |
+| `hooks/use-permissions.ts` | `usePermissions().canAccess(rule)` for client components |
+| `components/route-guard.tsx` | Client page guard |
+| `components/access-allowed.tsx` | Renders children when a rule is open |
 
-- Sidebar items can be hidden from users with blocked groups
-- Prevents users from seeing navigation options they can't access
+Menu entries in `features/layout/models/pages-config.json` carry `requiredGroups`, `blockedGroups` and `requiredPermissions`. The sidebar, Spotlight and the Pagefind index use the same decision.
 
-## Configuration
+## Usage
 
-### Route Permissions (Allowlist)
+**API route**
 
-```typescript
-export const ROUTE_PERMISSIONS = {
-  "/shipping": ["CONTROL_TOWER_LEAD", "OPERATORS"],
-  "/reports": ["CONTROL_TOWER_LEAD"],
-  "/": [], // Public route
-} as const;
+```ts
+const access = await requirePermission(ACCESS_RULES.adminConsole, "/api/admin/logs");
+if (!access.authorized) return access.response;
 ```
 
-### Blocked Groups (Blocklist)
+Returns 401 without a session and 403 when the rule is closed.
 
-```typescript
-const BLOCKED_GROUPS = {
-  REVIEWER: ["/reports", "/geographic-view"], // Reviewers cannot access reports and geographic view
-  REVIEWER: ["/users/settings", "/api/symptoms"], // Basic operators cannot access settings and symptoms API
-};
+**Server page**
+
+```ts
+await guardPage(ACCESS_RULES.finished, "/finished");
 ```
 
-### Sidebar Configuration (Hide Navigation Items)
+Renders the not-found page when the rule is closed. It only runs in `permissions` mode, unless `{ always: true }` is passed.
 
-```typescript
-export const pages: SidebarItem[] = [
-  {
-    href: "/reports",
-    icon: ChartMixedIcon,
-    label: "controlTower",
-    items: [
-      {
-        href: "/geographic-view",
-        label: "geographicView",
-        blockedGroups: ["REVIEWER"], // Hide from reviewers
-      },
-      {
-        href: "/symptoms",
-        label: "symptoms",
-        blockedGroups: ["REVIEWER"], // Hide from reviewers
-      },
-    ],
-    blockedGroups: ["REVIEWER"], // Hide entire reports section from reviewers
-  },
-];
-```
-
-## Usage Examples
-
-### 1. Using RouteGuard Component (Recommended)
-
-**For route-level protection (uses hasRoutePermission):**
+**Client component**
 
 ```tsx
-// This will check both allowlist and blocklist for the specific route
-<RouteGuard path="/reports" fallbackPath="/shipping">
-  <ReportsPage />
-</RouteGuard>
-
-<RouteGuard path="/geographic-view" fallbackPath="/shipping">
-  <GeographicViewPage />
-</RouteGuard>
+<RouteGuard path="/shipping" fallbackPath={`/${lang}/geographic-view`}>…</RouteGuard>
+<AccessAllowed rule={ACCESS_RULES.taskComplete}>…</AccessAllowed>
 ```
 
-**For component-level protection (manual checks):**
+## Adding a gate
 
-```tsx
-// Allowlist only
-<RouteGuard requiredGroups={["CONTROL_TOWER_LEAD"]}>
-  <ReportsPage />
-</RouteGuard>
-
-// Blocklist only
-<RouteGuard blockedGroups={["REVIEWER"]}>
-  <ReportsPage />
-</RouteGuard>
-
-// Both allowlist and blocklist
-<RouteGuard
-  requiredGroups={["CONTROL_TOWER_LEAD"]}
-  blockedGroups={["REVIEWER"]}
->
-  <ReportsPage />
-</RouteGuard>
-```
-
-### 2. Using usePermissions Hook
-
-```tsx
-const { hasPermission, hasRoutePermission, userGroups } = usePermissions();
-
-// Check specific groups
-const canAccessReports = hasPermission(["CONTROL_TOWER_LEAD"]);
-
-// Check route access (includes both allowlist and blocklist logic)
-const canAccessRoute = hasRoutePermission("/reports");
-```
-
-### 3. Programmatic Access Check
-
-```tsx
-import { hasRouteAccess } from "@/features/auth/config/route-permissions";
-
-const userGroups = ["REVIEWER", "OPERATORS"];
-const canAccess = hasRouteAccess(userGroups, "/reports"); // false (blocked by REVIEWER)
-```
-
-## Logic Flow
-
-1. **Blocklist Check First**: If user has any blocked groups for the route, access is denied
-2. **Allowlist Check**: If no required groups, access is allowed (unless blocked above)
-3. **Group Check**: User must have required groups (OR/AND logic)
-
-## Implementation in Pages
-
-To protect a page from blocked groups, wrap it with RouteGuard:
-
-```tsx
-// src/app/[lang]/(secured)/reports/page.tsx
-import { RouteGuard } from "@/features/auth/components/route-guard";
-
-export default async function ReportsPage({ params: { lang } }) {
-  return (
-    <RouteGuard path="/reports" fallbackPath={`/${lang}/shipping`}>
-      <div>
-        {/* Your page content */}
-        Reports content here...
-      </div>
-    </RouteGuard>
-  );
-}
-```
-
-## Sidebar Navigation Protection
-
-The sidebar automatically hides items from users with blocked groups:
-
-```typescript
-// In src/features/layout/models/pages.ts
-{
-  href: "/reports",
-  label: "controlTower",
-  blockedGroups: ["REVIEWER"], // Entire section hidden from reviewers
-  items: [
-    {
-      href: "/geographic-view",
-      label: "geographicView",
-      blockedGroups: ["REVIEWER"], // Individual item hidden
-    },
-  ],
-}
-```
-
-## Adding New Restrictions
-
-To add new route restrictions:
-
-1. **For allowlist**: Add groups to `ROUTE_PERMISSIONS`
-2. **For blocklist**: Add group-route pairs to `BLOCKED_GROUPS`
-3. **For sidebar**: Add `blockedGroups` to sidebar items in `pages.ts`
-
-Example:
-
-```typescript
-const BLOCKED_GROUPS = {
-  REVIEWER: ["/reports", "/geographic-view"],
-  BASIC_OPERATOR: ["/users/settings", "/api/symptoms"],
-  NEW_GROUP: ["/restricted-route"], // Add new restriction
-};
-```
-
-## Why RouteGuard with path prop is recommended
-
-The `path` prop in RouteGuard uses the `hasRoutePermission` function which:
-
-- Automatically checks the route permissions configuration
-- Applies both allowlist and blocklist logic
-- Ensures consistent permission checking across the application
-- Reduces manual configuration in each component
-
-## Complete Protection Flow
-
-1. **Sidebar**: Items hidden from users with blocked groups
-2. **Route Access**: RouteGuard prevents access to protected pages
-3. **API Protection**: Server-side checks prevent unauthorized API calls
+1. Add the permission to `PERMISSIONS` and the rule to `ACCESS_RULES`.
+2. Add the path to `ROUTE_PERMISSIONS` and call `guardPage` in the page.
+3. Add `requiredPermissions` to the menu entry in `pages-config.json`.

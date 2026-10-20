@@ -7,12 +7,14 @@ import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alf
 import { auth } from "@/auth";
 import { SearchParams } from "next/dist/server/request/search-params";
 import { RouteGuard } from "@/features/auth/components/route-guard";
-import { KANBAN_ACCESS_ROLES } from "@/features/auth/config/route-permissions";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function MyTasksPage(params: {
   params: Promise<{ lang: string }>;
   searchParams: Promise<SearchParams>;
 }) {
+  await guardPage(ACCESS_RULES.kanban, "/mytasks");
   const paramsResult = await params.params;
   const { lang } = paramsResult;
   const [, dict] = await getDictionary(lang);
@@ -22,7 +24,7 @@ export default async function MyTasksPage(params: {
 
   return (
     <RouteGuard
-      requiredGroups={KANBAN_ACCESS_ROLES}
+      path="/mytasks"
       fallbackPath={`/${lang}/geographic-view`}
     >
       <div className="h-full flex flex-col overflow-hidden">

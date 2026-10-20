@@ -16,6 +16,7 @@
     "createAction": { "href": "/home", "label": "createDashboard" },
     "items": [],
     "requiredGroups": ["GROUP_DASHBOARD"],
+    "requiredPermissions": ["dashboards:view"],
     "blockedGroups": []
   },
   {
@@ -25,17 +26,19 @@
       { "href": "/calendar", "label": "calendarOverview", "requiredGroups": [], "blockedGroups": [] }
     ],
     "requiredGroups": ["GROUP_ASSIGNMENT", "GROUP_PLANNING", "GROUP_CALENDAR_VIEWER"],
+    "requiredPermissions": ["calendar:view", "calendar:plan", "calendar:assign"],
     "blockedGroups": []
   },
   {
     "label": "kanban",
     "items": [
-      { "href": "/planning", "label": "planning", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/shipping", "label": "shipping", "requiredGroups": ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"], "blockedGroups": [] },
-      { "href": "/delivery", "label": "delivery", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/finished", "label": "finished", "requiredGroups": [], "blockedGroups": [] }
+      { "href": "/planning", "label": "planning", "requiredGroups": [], "blockedGroups": [], "requiredPermissions": ["coordination:kanban.view"] },
+      { "href": "/shipping", "label": "shipping", "requiredGroups": ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"], "blockedGroups": [], "requiredPermissions": ["coordination:kanban.view"] },
+      { "href": "/delivery", "label": "delivery", "requiredGroups": [], "blockedGroups": [], "requiredPermissions": ["coordination:kanban.view"] },
+      { "href": "/finished", "label": "finished", "requiredGroups": [], "blockedGroups": [], "requiredPermissions": ["coordination:finished.view"] }
     ],
     "requiredGroups": ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
+    "requiredPermissions": ["coordination:kanban.view"],
     "blockedGroups": []
   },
   {
@@ -46,16 +49,17 @@
       { "href": "/mytasks?status=pending", "label": "pending_tasks", "requiredGroups": [], "blockedGroups": [] }
     ],
     "requiredGroups": ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
-    "blockedGroups": ["GROUP_MINTRAL_REVISOR"]
+    "blockedGroups": ["GROUP_MINTRAL_REVISOR"],
+    "requiredPermissions": ["coordination:kanban.view"]
   },
   {
     "label": "controlTower",
     "href": "/reports",
     "items": [
-      { "href": "/geographic-view", "label": "geographicView", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/symptoms", "label": "symptoms", "requiredGroups": [], "blockedGroups": [] },
+      { "href": "/geographic-view", "label": "geographicView", "requiredGroups": [], "blockedGroups": [], "requiredPermissions": ["coordination:geographic.view"] },
+      { "href": "/symptoms", "label": "symptoms", "requiredGroups": [], "blockedGroups": [], "requiredPermissions": ["controltower:view"] },
       { "href": "/signal-history", "label": "signalHistory", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/whatsapp/conversations", "label": "conversations", "requiredGroups": ["GROUP_CONVERSATIONS"], "blockedGroups": [] }
+      { "href": "/whatsapp/conversations", "label": "conversations", "requiredGroups": ["GROUP_CONVERSATIONS"], "blockedGroups": [], "requiredPermissions": ["conversations:view"] }
     ],
     "requiredGroups": [],
     "blockedGroups": []
@@ -74,18 +78,21 @@
       { "href": "/live-streams/devices", "label": "allDevices", "requiredGroups": [], "blockedGroups": [] }
     ],
     "requiredGroups": ["GROUP_ALFRESCO_ADMINISTRATORS"],
+    "requiredPermissions": ["admin:livestreams.view"],
     "blockedGroups": []
   },
   {
     "label": "collaboratorsManagement",
     "href": "/collaborators-management",
     "requiredGroups": ["GROUP_COLLABORATORS_MANAGEMENT", "GROUP_COLABORATORS_MANAGEMENT"],
+    "requiredPermissions": ["collaborators:manage"],
     "blockedGroups": []
   },
   {
     "label": "whereIsMyLoad",
     "href": "/where-is-my-load",
     "requiredGroups": ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
+    "requiredPermissions": ["coordination:loads.search"],
     "blockedGroups": []
   },
   {

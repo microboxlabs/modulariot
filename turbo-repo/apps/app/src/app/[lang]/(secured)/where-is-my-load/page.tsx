@@ -6,6 +6,8 @@ import { buildNavBarMessages } from "@/features/layout/utils/utils";
 import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
 import { auth } from "@/auth";
 import { RouteGuard } from "@/features/auth/components/route-guard";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function WheresMyLoadPage({
   params,
@@ -13,6 +15,7 @@ export default async function WheresMyLoadPage({
 }: ParamsWithLang & {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  await guardPage(ACCESS_RULES.loadsSearch, "/where-is-my-load");
   const { lang } = await params;
   const resolvedSearchParams = await searchParams;
   const [dict, dictionary] = await getDictionary(lang);
@@ -24,7 +27,6 @@ export default async function WheresMyLoadPage({
     <RouteGuard
       path="/where-is-my-load"
       fallbackPath={`/${lang}/shipping`}
-      requiredGroups={["GROUP_MINTRAL_BUSCADOR_CARGAS"]}
     >
       <div className="h-full flex flex-col">
         <TimelineHeader

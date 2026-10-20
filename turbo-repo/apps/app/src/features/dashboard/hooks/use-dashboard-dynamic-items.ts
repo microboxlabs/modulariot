@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import useSWR from "swr";
 import { useUserSite } from "@/features/common/providers/client-api.provider";
 import type { SidebarItem } from "@/features/layout/types/common.types";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 interface DashboardConfigSummary {
   slug: string;
@@ -57,7 +58,8 @@ export function useDashboardDynamicItems(): SidebarItem[] {
       .map((dashboard) => ({
         href: `/home/${dashboard.slug}`,
         label: dashboard.name,
-        requiredGroups: ["GROUP_DASHBOARD"],
+        requiredGroups: [...ACCESS_RULES.dashboards.requiredGroups],
+        requiredPermissions: [...ACCESS_RULES.dashboards.requiredPermissions],
       }));
   }, [dashboards]);
 }

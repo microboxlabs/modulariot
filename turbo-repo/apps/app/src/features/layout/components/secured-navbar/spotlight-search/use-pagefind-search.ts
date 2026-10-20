@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { HiArrowRight } from "react-icons/hi";
 import type { SpotlightItem } from "./types";
-import type { CanAccessFn } from "./navigate-actions";
+import type { CanAccess } from "@/features/auth/hooks/use-permissions";
 
 interface PagefindResultData {
   url: string;
@@ -78,11 +78,15 @@ function fuzzyFallback(navigateItems: SpotlightItem[], query: string): Spotlight
   return result;
 }
 
+function splitMeta(value: string | undefined): string[] {
+  return value?.split(",").filter(Boolean) ?? [];
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────────────
 export function usePagefindSearch(
   query: string,
   navigateItems: SpotlightItem[],
-  canAccess: CanAccessFn,
+  canAccess: CanAccess,
   onNavigate: (href: string) => void,
 ): SpotlightItem[] {
   const [pagefind, setPagefind] = useState<PagefindInstance | null>(null);
@@ -140,9 +144,12 @@ export function usePagefindSearch(
         for (const data of dataList) {
           const { meta } = data;
 
-          const reqGroups = meta.requiredGroups?.split(",").filter(Boolean) ?? [];
-          const blkGroups = meta.blockedGroups?.split(",").filter(Boolean) ?? [];
-          if (!canAccessRef.current(reqGroups, blkGroups)) continue;
+          const rule = {
+            requiredGroups: splitMeta(meta.requiredGroups),
+            blockedGroups: splitMeta(meta.blockedGroups),
+            requiredPermissions: splitMeta(meta.requiredPermissions),
+          };
+          if (!canAccessRef.current(rule, data.url)) continue;
 
           // Re-insert group header when a new parent is encountered
           if (meta.parent && meta.parentId && !seenParents.has(meta.parentId)) {

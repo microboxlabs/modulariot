@@ -5,8 +5,11 @@ import { redirect } from "next/navigation";
 import { Breadcrumb } from "@/features/common/components/Breadcrumb/Breadcrumb";
 import { HiCalendar } from "react-icons/hi";
 import { CalendarLanding } from "@/features/calendar/components/calendar-landing/calendar-landing";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function CalendarPage(props: ParamsWithLang) {
+  await guardPage(ACCESS_RULES.calendarPage, "/calendar");
   const { lang } = await props.params;
 
   const session = await auth();

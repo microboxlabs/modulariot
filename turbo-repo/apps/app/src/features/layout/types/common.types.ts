@@ -15,6 +15,7 @@ export type SidebarItem = {
   totals?: Record<string, number | string>;
   requiredGroups?: string[];
   blockedGroups?: string[];
+  requiredPermissions?: string[];
   dynamicItemsSource?: string;
   searchable?: boolean;
   createAction?: SidebarCreateAction;

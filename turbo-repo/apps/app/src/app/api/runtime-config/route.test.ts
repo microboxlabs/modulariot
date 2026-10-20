@@ -10,6 +10,7 @@ const ENV_KEYS = [
   "ENABLE_STORYTELLING",
   "SYMPTOMS_PROTOTYPE_DISABLE_API",
   "SYMPTOMS_PAST_FORMS",
+  "ACCESS_CONTROL_SOURCE",
 ] as const;
 
 describe("runtime config route", () => {
@@ -28,6 +29,7 @@ describe("runtime config route", () => {
     process.env[ENV_KEYS[5]] = "true";
     process.env[ENV_KEYS[6]] = "true";
     process.env[ENV_KEYS[7]] = "true";
+    process.env[ENV_KEYS[8]] = "shadow";
 
     const response = GET();
     const data = await response.json();
@@ -41,6 +43,7 @@ describe("runtime config route", () => {
       ENABLE_STORYTELLING: "true",
       SYMPTOMS_PROTOTYPE_DISABLE_API: "true",
       SYMPTOMS_PAST_FORMS: "true",
+      ACCESS_CONTROL_SOURCE: "shadow",
     });
   });
 

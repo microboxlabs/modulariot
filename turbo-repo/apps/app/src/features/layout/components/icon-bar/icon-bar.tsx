@@ -76,6 +76,7 @@ export default function IconBar({ dict }: Readonly<PropsWithI18nDict>) {
                 isPanelOpen={isPanelOpen}
                 requiredGroups={item.requiredGroups}
                 blockedGroups={item.blockedGroups}
+                requiredPermissions={item.requiredPermissions}
                 onClick={() => handleItemClick(item)}
               />
             );

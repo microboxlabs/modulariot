@@ -23,13 +23,8 @@ export default function MobileSidebarItem({
   dict,
   onClick,
 }: Readonly<PropsWithI18nDict<MobileSidebarItemProps>>) {
-  const { hasPermission, userGroups } = usePermissions();
-
-  const hasBlockedGroup = (item.blockedGroups ?? []).some((g) =>
-    userGroups.includes(g)
-  );
-  if (hasBlockedGroup) return null;
-  if (!hasPermission(item.requiredGroups ?? [])) return null;
+  const { canAccess } = usePermissions();
+  if (!canAccess(item, item.href ?? item.label)) return null;
 
   const Icon = item.icon;
   const translatedLabel = trDynamic(item.label, dict);

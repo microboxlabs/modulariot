@@ -1,42 +1,11 @@
 import { Suspense } from "react";
-import { auth } from "@/auth";
-import { getGroupsForPerson } from "@/features/common/providers/alfresco-api/alfresco-api.provider";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import { AdminLogConsole } from "@/features/common/components/admin-log-console/admin-log-console";
-import { redirect } from "next/navigation";
-import { logError } from "@/lib/logger";
 import { ClientBreadcrumb } from "@/features/common/components/Breadcrumb/ClientBreadcrumb";
 import { HiClipboardList } from "react-icons/hi";
 import { getDictionary } from "@/features/i18n/i18n.service";
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
-import { redirectWithLang } from "@/features/auth/services/navigation.service";
-
-// Admin groups that can access log management
-const ADMIN_GROUPS = [
-  "GROUP_ALFRESCO_ADMINISTRATORS",
-  "GROUP_MINTRAL_SYSTEM_ADMIN",
-];
-
-async function checkAdminAccess() {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/sign-in");
-  }
-
-  try {
-    const userGroups = await getGroupsForPerson(session);
-    const hasAccess = userGroups.some((group) => ADMIN_GROUPS.includes(group));
-
-    if (!hasAccess) {
-      redirectWithLang("/shipping"); // Redirect to home if not admin
-    }
-  } catch (error) {
-    logError(error instanceof Error ? error : new Error(String(error)), {
-      context: "checkAdminAccess",
-    });
-    redirectWithLang("/shipping");
-  }
-}
 
 function LoadingConsole() {
   return (
@@ -55,8 +24,9 @@ function LoadingConsole() {
 
 export default async function LogManagementPage({ params }: ParamsWithLang) {
   const { lang } = await params;
-  // Check admin access server-side
-  await checkAdminAccess();
+  await guardPage(ACCESS_RULES.adminConsole, "/admin/console/logs", {
+    always: true,
+  });
   const [, dictionary] = await getDictionary(lang);
   const dict = (dictionary.pages as I18nRecord)?.admin as I18nRecord;
   return (

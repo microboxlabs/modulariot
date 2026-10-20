@@ -6,7 +6,10 @@ import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import PageContent from "@/features/shipping/components/content";
 import { getStaticPlanningData } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 export default async function PlanningPage({ params }: ParamsWithLang) {
+  await guardPage(ACCESS_RULES.kanbanPage, "/planning");
   const { lang } = await params;
   try {
     const [, dictionary] = await getDictionary(lang);

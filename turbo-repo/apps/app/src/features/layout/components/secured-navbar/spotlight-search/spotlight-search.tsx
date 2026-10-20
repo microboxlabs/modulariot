@@ -151,7 +151,7 @@ export default function SpotlightSearch({
   isDashboardServerEnabled = false,
 }: Readonly<SpotlightSearchProps>) {
   const router = useRouter();
-  const { userGroups } = usePermissions();
+  const { canAccess } = usePermissions();
 
   // ── i18n ─────────────────────────────────────────────────────────────────
   const spotlightDict = dict?.spotlight as I18nRecord | undefined;
@@ -194,15 +194,6 @@ export default function SpotlightSearch({
       if (confirmNavigation()) router.push(href);
     },
     [router]
-  );
-
-  const canAccess = useCallback(
-    (requiredGroups: string[], blockedGroups: string[]) => {
-      if (blockedGroups.some((g) => userGroups.includes(g))) return false;
-      if (!requiredGroups.length) return true;
-      return requiredGroups.some((g) => userGroups.includes(g));
-    },
-    [userGroups]
   );
 
   // ── Navigate item registry ────────────────────────────────────────────────

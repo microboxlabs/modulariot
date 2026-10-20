@@ -10,8 +10,11 @@ import {
   // toShippingKanban,
 } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function ShippingPage({ params }: ParamsWithLang) {
+  await guardPage(ACCESS_RULES.kanbanPage, "/delivery");
   const { lang } = await params;
   const [, dictionary] = await getDictionary(lang);
   const session = await auth();

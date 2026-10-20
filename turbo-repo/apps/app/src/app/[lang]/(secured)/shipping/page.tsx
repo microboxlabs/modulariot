@@ -11,8 +11,10 @@ import {
 } from "@/features/shipping/services/data.service";
 import { redirectWithLang } from "@/features/auth/services/navigation.service";
 import { RouteGuard } from "@/features/auth/components/route-guard";
-import { KANBAN_ACCESS_ROLES } from "@/features/auth/config/route-permissions";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 export default async function ShippingPage(params: ParamsWithLang) {
+  await guardPage(ACCESS_RULES.kanban, "/shipping");
   try {
     const { lang } = await params.params;
     const [, dictionary] = await getDictionary(lang);
@@ -34,7 +36,7 @@ export default async function ShippingPage(params: ParamsWithLang) {
 
     return (
       <RouteGuard
-        requiredGroups={KANBAN_ACCESS_ROLES}
+        path="/shipping"
         fallbackPath={`/${lang}/geographic-view`}
       >
         <PageContent

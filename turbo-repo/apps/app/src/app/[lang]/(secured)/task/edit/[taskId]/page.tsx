@@ -11,10 +11,13 @@ import { redirect } from "next/navigation";
 import { ExtendedTaskResponse } from "@/features/task-forms/components/task-form/task-form.types";
 import { ErrorTripView } from "@/features/shipping/components/error-trip/error-trip-view";
 import { TaskBentoForm } from "@/features/task-forms/components/task-bento-form/task-bento";
+import { guardPage } from "@/features/auth/access/server-access";
+import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 
 export default async function TaskEditPage(
   params: ParamsWithLang<TaskEditPageParams>
 ) {
+  await guardPage(ACCESS_RULES.kanbanPage, "/task/edit");
   const paramsResult = await params.params;
   const { lang, taskId } = paramsResult;
 

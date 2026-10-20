@@ -54,6 +54,7 @@ for (const page of pages) {
         id: page.label,
         requiredGroups: (page.requiredGroups ?? []).join(","),
         blockedGroups: (page.blockedGroups ?? []).join(","),
+        requiredPermissions: (page.requiredPermissions ?? []).join(","),
       },
     });
     continue;
@@ -67,6 +68,10 @@ for (const page of pages) {
     // Merge parent + child groups: child inherits parent restrictions
     const requiredGroups = [...(page.requiredGroups ?? []), ...(child.requiredGroups ?? [])];
     const blockedGroups = [...(page.blockedGroups ?? []), ...(child.blockedGroups ?? [])];
+    // A child's own permission replaces its parent's.
+    const requiredPermissions = child.requiredPermissions?.length
+      ? child.requiredPermissions
+      : (page.requiredPermissions ?? []);
 
     await index.addCustomRecord({
       url: child.href,
@@ -80,6 +85,7 @@ for (const page of pages) {
         parentId: page.label,
         requiredGroups: requiredGroups.join(","),
         blockedGroups: blockedGroups.join(","),
+        requiredPermissions: requiredPermissions.join(","),
       },
     });
   }

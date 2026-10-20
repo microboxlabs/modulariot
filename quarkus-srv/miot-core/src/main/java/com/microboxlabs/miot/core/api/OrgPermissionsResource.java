@@ -1,14 +1,11 @@
 package com.microboxlabs.miot.core.api;
 
 import com.microboxlabs.miot.core.api.dto.AuthorizationDecisionDto;
-import com.microboxlabs.miot.core.api.dto.OrganizationPermissionDto;
-import com.microboxlabs.miot.core.api.dto.SetOrganizationPermissionRequest;
 import com.microboxlabs.miot.core.permission.OrganizationPermissionService;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -17,7 +14,7 @@ import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
-/** Generic organization permission administration API. */
+/** Whether the caller holds an application-owned organization permission. Holders are assigned on the Team page. */
 @Path("/api/v1/orgs/{organizationId}/permissions/{permissionCode}")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -33,28 +30,11 @@ public class OrgPermissionsResource {
     }
 
     @GET
-    @Operation(summary = "Get an application-owned organization permission")
-    public Uni<OrganizationPermissionDto> get(
-            @PathParam("organizationId") String organizationId,
-            @PathParam("permissionCode") String permissionCode) {
-        return service.get(organizationId, permissionCode);
-    }
-
-    @GET
     @Path("/me")
     @Operation(summary = "Whether the caller holds an application-owned organization permission")
     public Uni<AuthorizationDecisionDto> me(
             @PathParam("organizationId") String organizationId,
             @PathParam("permissionCode") String permissionCode) {
         return service.checkCurrentUser(organizationId, permissionCode);
-    }
-
-    @PUT
-    @Operation(summary = "Replace an application-owned organization permission")
-    public Uni<OrganizationPermissionDto> replace(
-            @PathParam("organizationId") String organizationId,
-            @PathParam("permissionCode") String permissionCode,
-            SetOrganizationPermissionRequest request) {
-        return service.replace(organizationId, permissionCode, request);
     }
 }

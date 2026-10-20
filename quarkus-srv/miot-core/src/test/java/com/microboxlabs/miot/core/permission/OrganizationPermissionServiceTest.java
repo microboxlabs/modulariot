@@ -104,7 +104,7 @@ class OrganizationPermissionServiceTest {
 
         FakePermissionService(
                 OrganizationRoleService roles, OrganizationContext context, Set<String> assigned) {
-            super(roles, context, null);
+            super(roles, context);
             this.assigned = assigned;
         }
 

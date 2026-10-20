@@ -10,16 +10,6 @@ vi.mock("../hooks/use-org-modules", () => ({
   useOrgModules: () => ({ modules: [], isLoading: false, error: undefined }),
 }));
 
-vi.mock("./content-review-permission-card", () => ({
-  default: ({ orgSlug }: Readonly<{ orgSlug: string }>) => (
-    <div data-testid="content-review-permission">{orgSlug}</div>
-  ),
-}));
-
-vi.mock("./harness-trainer-permission-card", () => ({
-  default: () => <div data-testid="harness-trainer-permission" />,
-}));
-
 vi.mock("./organization-members-card", () => ({
   default: () => <div data-testid="organization-members" />,
 }));
@@ -33,7 +23,7 @@ vi.mock("../whatsapp/whatsapp-channel-card", () => ({
 }));
 
 describe("OrgDetailPanel", () => {
-  it("shows content-review permissions for a parent organization without a tax id", () => {
+  it("shows the roster and channel settings to an owner", () => {
     render(
       <OrgDetailPanel
         organization={{
@@ -48,12 +38,7 @@ describe("OrgDetailPanel", () => {
       />
     );
 
-    expect(screen.getByTestId("content-review-permission").textContent).toBe(
-      "mintral"
-    );
-    expect(
-      screen.getByTestId("harness-trainer-permission")
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("organization-members")).toBeInTheDocument();
     expect(screen.getByTestId("whatsapp-channel")).toBeInTheDocument();
     expect(screen.getByTestId("gps-webhooks")).toBeInTheDocument();
   });
@@ -73,12 +58,6 @@ describe("OrgDetailPanel", () => {
       />
     );
 
-    expect(
-      screen.queryByTestId("content-review-permission")
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId("harness-trainer-permission")
-    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("whatsapp-channel")).not.toBeInTheDocument();
     expect(screen.queryByTestId("gps-webhooks")).not.toBeInTheDocument();
     expect(screen.getByTestId("organization-members")).toBeInTheDocument();
@@ -99,12 +78,6 @@ describe("OrgDetailPanel", () => {
       />
     );
 
-    expect(
-      screen.queryByTestId("content-review-permission")
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByTestId("harness-trainer-permission")
-    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("whatsapp-channel")).not.toBeInTheDocument();
     expect(screen.queryByTestId("gps-webhooks")).not.toBeInTheDocument();
     expect(screen.getByTestId("organization-members")).toBeInTheDocument();

@@ -8,8 +8,6 @@ import ModulesList from "./modules-list";
 import GpsWebhookCard from "../gps-webhooks/gps-webhook-card";
 import EmailChannelCard from "../email/email-channel-card";
 import WhatsAppChannelCard from "../whatsapp/whatsapp-channel-card";
-import ContentReviewPermissionCard from "./content-review-permission-card";
-import HarnessTrainerPermissionCard from "./harness-trainer-permission-card";
 import OrganizationMembersCard from "./organization-members-card";
 import type { OrgSummary } from "../types";
 
@@ -54,31 +52,12 @@ export default function OrgDetailPanel({
 
   return (
     <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-      {isOwner ? (
-        <>
-          <ContentReviewPermissionCard
-            orgSlug={orgSlug}
-            members={members}
-            membersLoading={membersLoading}
-            membersError={membersError}
-            dict={dict}
-          />
-          <HarnessTrainerPermissionCard
-            orgSlug={orgSlug}
-            members={members}
-            membersLoading={membersLoading}
-            membersError={membersError}
-            dict={dict}
-          />
-        </>
-      ) : (
-        <OrganizationMembersCard
-          members={members}
-          isLoading={membersLoading}
-          error={membersError}
-          dict={dict}
-        />
-      )}
+      <OrganizationMembersCard
+        members={members}
+        isLoading={membersLoading}
+        error={membersError}
+        dict={dict}
+      />
       <ModulesList
         modules={modules}
         isLoading={modulesLoading}

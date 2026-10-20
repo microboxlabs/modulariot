@@ -24,8 +24,10 @@ export function filterOrgs<T extends SwitcherOrg>(
   );
   if (words.length === 0) return sorted;
   return sorted.filter((org) => {
+    const taxId = org.taxId ?? "";
+    // "76123456-7" and "761234567" find "76.123.456-7".
     const haystack = normalize(
-      `${org.displayName} ${org.slug} ${org.taxId ?? ""}`
+      `${org.displayName} ${org.slug} ${taxId} ${taxId.replaceAll(".", "")} ${taxId.replaceAll(/[.-]/g, "")}`
     );
     return words.every((word) => haystack.includes(word));
   });

@@ -84,6 +84,7 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
   const [recentSlugs, setRecentSlugs] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const activeSlug = activeOrg?.slug ?? "";
@@ -100,6 +101,12 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
   const options = useMemo(() => [...recent, ...matches], [recent, matches]);
 
   const closePanel = useCallback(() => setOpen(false), []);
+
+  /** Closes from the keyboard and puts focus back on the trigger. */
+  const dismissPanel = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
 
   const openPanel = useCallback(() => {
     setRecentSlugs(loadRecentSlugs());
@@ -146,6 +153,17 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [open, closePanel]);
 
+  // Escape from anywhere in the page; the search box handles its own first.
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && event.target !== inputRef.current) {
+        dismissPanel();
+      }
+    };
+    if (open) document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open, dismissPanel]);
+
   useEffect(() => {
     if (open) inputRef.current?.focus();
   }, [open]);
@@ -186,7 +204,7 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
           setQuery("");
           setHighlight(0);
         } else {
-          closePanel();
+          dismissPanel();
         }
         break;
     }
@@ -254,6 +272,7 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
   return (
     <div ref={dropdownRef} className="relative hidden sm:block">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => (open ? closePanel() : openPanel())}
         disabled={switching}

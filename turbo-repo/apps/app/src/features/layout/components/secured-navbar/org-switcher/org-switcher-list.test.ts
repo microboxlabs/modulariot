@@ -50,6 +50,14 @@ describe("filterOrgs", () => {
       "mbl:exacta",
     ]);
   });
+
+  it("matches a tax id typed without dots or dash", () => {
+    for (const query of ["761234567", "76123456-7"]) {
+      expect(filterOrgs(ORGS, query).map((o) => o.slug)).toEqual([
+        "mbl:exacta",
+      ]);
+    }
+  });
 });
 
 describe("recents", () => {

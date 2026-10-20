@@ -56,12 +56,23 @@ class MemberSourceTest {
 
     private static MemberSource source(FakeDirectory directory, Clock clock) {
         return new MemberSource(tenant -> TENANT.equals(tenant) ? List.of("GROUP_a", "GROUP_b") : List.of(),
-                directory, clock);
+                tenant -> List.of(), directory, clock);
     }
 
     private static List<SelectableOption> options(MemberSource source, String search) {
         return source.options(TENANT, SelectableSource.system(MemberSource.ID),
                 new SelectableOptionSource.Query(search, List.of(), 500));
+    }
+
+    @Test
+    void nativeMembersAreListedWithTheGroupMembers() {
+        AlfrescoPerson ana = person("ana@example.com", "Ana Pérez", "Ana", "Pérez");
+        AlfrescoPerson luis = person("luis@example.com", "Luis Soto", null, null);
+        FakeDirectory directory = new FakeDirectory(Map.of("GROUP_a", List.of(ana)));
+        MemberSource source = new MemberSource(tenant -> List.of("GROUP_a"), tenant -> List.of(luis, ana),
+                directory, Clock.fixed(NOW, ZoneOffset.UTC));
+        assertEquals(List.of("ana@example.com", "luis@example.com"),
+                options(source, "").stream().map(SelectableOption::value).toList());
     }
 
     @Test
@@ -141,7 +152,7 @@ class MemberSourceTest {
                     throw new SQLException("connection refused");
                 });
 
-        assertThrows(SourceUnavailableException.class, () -> MemberSource.groupsOf(down, TENANT));
+        assertThrows(SourceUnavailableException.class, () -> MemberSource.groupsOf(down, TENANT, false));
     }
 
     static final class MutableClock extends Clock {

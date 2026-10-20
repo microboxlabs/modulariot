@@ -14,6 +14,7 @@ public class OrganizationContext {
     private String organizationId;
     private String userEmail;
     private String alfrescoRole;
+    private String baseRole;
     private String alfrescoGroupId;
 
     public boolean isResolved() {
@@ -42,6 +43,15 @@ public class OrganizationContext {
 
     public void setAlfrescoRole(String alfrescoRole) {
         this.alfrescoRole = alfrescoRole;
+    }
+
+    /** The caller's base role in the organization (OWNER, ADMIN or MEMBER); null when not a member. */
+    public String getBaseRole() {
+        return baseRole;
+    }
+
+    public void setBaseRole(String baseRole) {
+        this.baseRole = baseRole;
     }
 
     /**

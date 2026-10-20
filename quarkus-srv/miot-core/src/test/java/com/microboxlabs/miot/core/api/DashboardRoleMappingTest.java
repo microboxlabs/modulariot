@@ -53,4 +53,12 @@ class DashboardRoleMappingTest {
     void everythingElseBecomesConsumer(String role) {
         assertThat(DashboardProxyResource.dashboardRoleFrom(role), is("Consumer"));
     }
+
+    @Test
+    void withoutASiteRoleTheBaseRoleDecides() {
+        assertThat(DashboardProxySupport.dashboardRoleFrom(null, "OWNER"), is("Coordinator"));
+        assertThat(DashboardProxySupport.dashboardRoleFrom(null, "ADMIN"), is("Editor"));
+        assertThat(DashboardProxySupport.dashboardRoleFrom(null, "MEMBER"), is("Consumer"));
+        assertThat(DashboardProxySupport.dashboardRoleFrom("SITE_CONSUMER", "OWNER"), is("Consumer"));
+    }
 }

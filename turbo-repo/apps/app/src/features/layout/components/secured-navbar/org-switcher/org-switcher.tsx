@@ -35,6 +35,10 @@ interface OrgSwitcherProps {
   readonly dict: I18nRecord;
 }
 
+const LIST_ID = "org-switcher-list";
+const RECENT_LABEL_ID = "org-switcher-recent";
+const ALL_LABEL_ID = "org-switcher-all";
+
 const AVATAR_COLORS = [
   "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
   "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
@@ -50,8 +54,20 @@ function avatarColor(slug: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+function optionId(index: number): string {
+  return `org-option-${index}`;
+}
+
+function nameClasses(isActive: boolean): string {
+  if (isActive) return "font-semibold text-blue-700 dark:text-blue-300";
+  return "font-medium text-gray-900 dark:text-white";
+}
+
 /** The name with the first match of the query's first word in bold. */
-function HighlightedName({ name, query }: { name: string; query: string }) {
+function HighlightedName({
+  name,
+  query,
+}: Readonly<{ name: string; query: string }>) {
   const word = normalize(query).split(/\s+/).find(Boolean);
   if (!word) return <>{name}</>;
   const chars = [...name];
@@ -67,6 +83,85 @@ function HighlightedName({ name, query }: { name: string; query: string }) {
       </mark>
       {chars.slice(end).join("")}
     </>
+  );
+}
+
+function SectionLabel({
+  id,
+  text,
+  count,
+}: Readonly<{ id: string; text: string; count?: number }>) {
+  return (
+    <div
+      id={id}
+      className="flex items-center justify-between px-2.5 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500"
+    >
+      <span>{text}</span>
+      {count !== undefined && <span className="tabular-nums">{count}</span>}
+    </div>
+  );
+}
+
+interface OrgOptionProps {
+  org: SwitcherOrg;
+  index: number;
+  isRecent: boolean;
+  isActive: boolean;
+  isHighlighted: boolean;
+  query: string;
+  parentLabel: string;
+  onSelect: (slug: string) => void;
+  onHover: (index: number) => void;
+}
+
+function OrgOption({
+  org,
+  index,
+  isRecent,
+  isActive,
+  isHighlighted,
+  query,
+  parentLabel,
+  onSelect,
+  onHover,
+}: Readonly<OrgOptionProps>) {
+  const highlightClass = isHighlighted ? "bg-gray-100 dark:bg-gray-700/70" : "";
+  const subtitle = org.taxId ?? (org.isParent ? parentLabel : null);
+  return (
+    <button
+      id={optionId(index)}
+      data-index={index}
+      type="button"
+      role="option"
+      aria-selected={isHighlighted}
+      tabIndex={-1}
+      onClick={() => onSelect(org.slug)}
+      onMouseMove={() => onHover(index)}
+      className={`w-full text-left flex items-center gap-3 px-2.5 py-2 rounded-md cursor-pointer transition-colors duration-150 ${highlightClass}`}
+    >
+      <span
+        className={`h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-xs font-semibold ${avatarColor(org.slug)}`}
+        aria-hidden="true"
+      >
+        {initials(org.displayName)}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className={`block text-sm truncate ${nameClasses(isActive)}`}>
+          <HighlightedName name={org.displayName} query={query} />
+        </span>
+        {subtitle && (
+          <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">
+            {subtitle}
+          </span>
+        )}
+      </span>
+      {isRecent && !isActive && (
+        <HiClock className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
+      )}
+      {isActive && (
+        <HiCheck className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+      )}
+    </button>
   );
 }
 
@@ -99,6 +194,8 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
     [availableOrgs, query]
   );
   const options = useMemo(() => [...recent, ...matches], [recent, matches]);
+  // The list can shrink under the highlight when the orgs are re-read.
+  const activeIndex = Math.min(highlight, Math.max(options.length - 1, 0));
 
   const closePanel = useCallback(() => setOpen(false), []);
 
@@ -115,17 +212,25 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
     setOpen(true);
   }, []);
 
+  const resetSearch = useCallback(() => {
+    setQuery("");
+    setHighlight(0);
+  }, []);
+
   const handleSwitch = useCallback(
     async (slug: string) => {
       if (slug === activeSlug) {
         closePanel();
         return;
       }
-      saveRecentSlugs(pushRecent(loadRecentSlugs(), slug, activeSlug));
       setSwitching(true);
       closePanel();
       try {
-        await switchOrg(slug);
+        if (await switchOrg(slug)) {
+          // The page is reloading into the new org.
+          saveRecentSlugs(pushRecent(loadRecentSlugs(), slug, activeSlug));
+          return;
+        }
       } catch (error) {
         console.error("Failed to switch organization", error);
         toast.error(
@@ -133,8 +238,8 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
             ? error.message
             : tr("orgSwitcher.changeOrgFailed", dict)
         );
-        setSwitching(false);
       }
+      setSwitching(false);
     },
     [activeSlug, switchOrg, closePanel, dict]
   );
@@ -170,19 +275,19 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
 
   useEffect(() => {
     listRef.current
-      ?.querySelector(`[data-index="${highlight}"]`)
+      ?.querySelector(`[data-index="${activeIndex}"]`)
       ?.scrollIntoView({ block: "nearest" });
-  }, [highlight]);
+  }, [activeIndex]);
 
   const onKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
-        setHighlight((i) => Math.min(i + 1, options.length - 1));
+        setHighlight(Math.min(activeIndex + 1, options.length - 1));
         break;
       case "ArrowUp":
         event.preventDefault();
-        setHighlight((i) => Math.max(i - 1, 0));
+        setHighlight(Math.max(activeIndex - 1, 0));
         break;
       case "Home":
         event.preventDefault();
@@ -194,15 +299,14 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
         break;
       case "Enter": {
         event.preventDefault();
-        const org = options[highlight];
+        const org = options[activeIndex];
         if (org) void handleSwitch(org.slug);
         break;
       }
       case "Escape":
         event.preventDefault();
         if (query) {
-          setQuery("");
-          setHighlight(0);
+          resetSearch();
         } else {
           dismissPanel();
         }
@@ -212,61 +316,24 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
 
   if (isLoading || !activeOrg || availableOrgs.length <= 1) return null;
 
-  const renderOption = (org: SwitcherOrg, index: number, isRecent: boolean) => {
-    const isActive = org.slug === activeSlug;
-    const isHighlighted = index === highlight;
-    return (
-      <button
-        key={`${isRecent ? "recent" : "all"}-${org.slug}`}
-        id={`org-option-${index}`}
-        data-index={index}
-        type="button"
-        role="option"
-        aria-selected={isHighlighted}
-        tabIndex={-1}
-        onClick={() => handleSwitch(org.slug)}
-        onMouseMove={() => setHighlight(index)}
-        className={`w-full text-left flex items-center gap-3 px-2.5 py-2 rounded-md cursor-pointer transition-colors duration-150 ${
-          isHighlighted ? "bg-gray-100 dark:bg-gray-700/70" : ""
-        }`}
-      >
-        <span
-          className={`h-8 w-8 shrink-0 rounded-md flex items-center justify-center text-xs font-semibold ${avatarColor(org.slug)}`}
-          aria-hidden="true"
-        >
-          {initials(org.displayName)}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span
-            className={`block text-sm truncate ${
-              isActive
-                ? "font-semibold text-blue-700 dark:text-blue-300"
-                : "font-medium text-gray-900 dark:text-white"
-            }`}
-          >
-            <HighlightedName name={org.displayName} query={query} />
-          </span>
-          {(org.taxId || org.isParent) && (
-            <span className="block text-xs text-gray-500 dark:text-gray-400 truncate">
-              {org.taxId ?? tr("orgSwitcher.parentAccount", dict)}
-            </span>
-          )}
-        </span>
-        {isRecent && !isActive && (
-          <HiClock className="h-4 w-4 shrink-0 text-gray-300 dark:text-gray-600" />
-        )}
-        {isActive && (
-          <HiCheck className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
-        )}
-      </button>
-    );
-  };
-
-  const sectionLabel = (text: string, count?: number) => (
-    <div className="flex items-center justify-between px-2.5 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-      <span>{text}</span>
-      {count !== undefined && <span className="tabular-nums">{count}</span>}
-    </div>
+  const parentLabel = tr("orgSwitcher.parentAccount", dict);
+  const allLabel = searching
+    ? tr("orgSwitcher.results", dict)
+    : tr("orgSwitcher.all", dict);
+  const selectOrg = (slug: string) => void handleSwitch(slug);
+  const optionFor = (org: SwitcherOrg, index: number, isRecent: boolean) => (
+    <OrgOption
+      key={org.slug}
+      org={org}
+      index={index}
+      isRecent={isRecent}
+      isActive={org.slug === activeSlug}
+      isHighlighted={index === activeIndex}
+      query={query}
+      parentLabel={parentLabel}
+      onSelect={selectOrg}
+      onHover={setHighlight}
+    />
   );
 
   return (
@@ -276,7 +343,7 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
         type="button"
         onClick={() => (open ? closePanel() : openPanel())}
         disabled={switching}
-        aria-haspopup="listbox"
+        aria-haspopup="dialog"
         aria-expanded={open}
         className="h-10 select-none cursor-pointer flex items-center gap-1.5 px-2.5 bg-gray-100 dark:bg-gray-700 rounded-lg border border-transparent transition-all duration-300 hover:border-gray-300 dark:hover:border-gray-600 active:ring-2 active:ring-gray-300 dark:active:ring-gray-600 disabled:opacity-50"
       >
@@ -292,7 +359,11 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
       </button>
 
       {open && (
-        <div className="absolute z-50 right-0 top-full mt-2 w-[340px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden">
+        <div
+          role="dialog"
+          aria-label={tr("orgSwitcher.panelLabel", dict)}
+          className="absolute z-50 right-0 top-full mt-2 w-[340px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden"
+        >
           <div className="p-2 border-b border-gray-200 dark:border-gray-700">
             <div className="relative">
               <HiSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -306,11 +377,13 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
                 }}
                 onKeyDown={onKeyDown}
                 placeholder={tr("orgSwitcher.searchPlaceholder", dict)}
+                aria-label={tr("orgSwitcher.searchPlaceholder", dict)}
                 role="combobox"
+                aria-autocomplete="list"
                 aria-expanded="true"
-                aria-controls="org-switcher-list"
+                aria-controls={LIST_ID}
                 aria-activedescendant={
-                  options.length > 0 ? `org-option-${highlight}` : undefined
+                  options.length > 0 ? optionId(activeIndex) : undefined
                 }
                 autoComplete="off"
                 spellCheck={false}
@@ -320,8 +393,7 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    setQuery("");
-                    setHighlight(0);
+                    resetSearch();
                     inputRef.current?.focus();
                   }}
                   aria-label={tr("orgSwitcher.clear", dict)}
@@ -335,35 +407,42 @@ export default function OrgSwitcher({ dict }: OrgSwitcherProps) {
 
           <div
             ref={listRef}
-            id="org-switcher-list"
+            id={LIST_ID}
             role="listbox"
             className="max-h-[min(60vh,420px)] overflow-y-auto overscroll-contain px-1.5 pb-1.5"
           >
             {recent.length > 0 && (
-              <>
-                {sectionLabel(tr("orgSwitcher.recent", dict))}
-                {recent.map((org, i) => renderOption(org, i, true))}
-                <div className="mx-2.5 my-1 border-t border-gray-100 dark:border-gray-700" />
-              </>
-            )}
-            {sectionLabel(
-              searching
-                ? tr("orgSwitcher.results", dict)
-                : tr("orgSwitcher.all", dict),
-              matches.length
-            )}
-            {matches.map((org, i) =>
-              renderOption(org, recent.length + i, false)
-            )}
-            {matches.length === 0 && (
-              <div className="px-3 py-8 text-center">
-                <HiSearch className="mx-auto h-6 w-6 text-gray-300 dark:text-gray-600" />
-                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                  {tr("orgSwitcher.noResults", dict, { query: query.trim() })}
-                </p>
+              <div
+                role="group"
+                aria-labelledby={RECENT_LABEL_ID}
+                className="mb-1 pb-1 border-b border-gray-100 dark:border-gray-700"
+              >
+                <SectionLabel
+                  id={RECENT_LABEL_ID}
+                  text={tr("orgSwitcher.recent", dict)}
+                />
+                {recent.map((org, i) => optionFor(org, i, true))}
               </div>
             )}
+            <div role="group" aria-labelledby={ALL_LABEL_ID}>
+              <SectionLabel
+                id={ALL_LABEL_ID}
+                text={allLabel}
+                count={matches.length}
+              />
+              {matches.map((org, i) =>
+                optionFor(org, recent.length + i, false)
+              )}
+            </div>
           </div>
+          {matches.length === 0 && (
+            <div role="status" className="px-3 pb-8 pt-2 text-center">
+              <HiSearch className="mx-auto h-6 w-6 text-gray-300 dark:text-gray-600" />
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                {tr("orgSwitcher.noResults", dict, { query: query.trim() })}
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 px-3 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 text-[11px] text-gray-500 dark:text-gray-400">
             <span>

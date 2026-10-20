@@ -7273,6 +7273,7 @@
     "navigate": "navegar",
     "select": "cambiar",
     "close": "cerrar",
-    "changeOrgFailed": "No se pudo cambiar la organización"
+    "changeOrgFailed": "No se pudo cambiar la organización",
+    "panelLabel": "Cambiar de organización"
   }
 }

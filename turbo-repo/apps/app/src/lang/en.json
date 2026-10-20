@@ -7273,6 +7273,7 @@
     "navigate": "navigate",
     "select": "switch",
     "close": "close",
-    "changeOrgFailed": "Could not switch organization"
+    "changeOrgFailed": "Could not switch organization",
+    "panelLabel": "Switch organization"
   }
 }

@@ -27,6 +27,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -115,11 +116,12 @@ public class OrgMembersResource {
                             .limit(Math.max(maxItems, 0))
                             .map(m -> m.userId)
                             .toList();
-                    return IamUser.findByIds(ids);
-                })
-                .map(users -> users.stream()
-                        .map(u -> new AlfrescoPerson(u.email, u.email, null, null, u.name))
-                        .toList());
+                    // Keep the page in membership order: the id lookup returns users in any order.
+                    return IamUser.findByIds(ids).map(users -> users.stream()
+                            .sorted(Comparator.comparingInt(u -> ids.indexOf(u.id)))
+                            .map(u -> new AlfrescoPerson(u.email, u.email, null, null, u.name))
+                            .toList());
+                });
     }
 
     @POST

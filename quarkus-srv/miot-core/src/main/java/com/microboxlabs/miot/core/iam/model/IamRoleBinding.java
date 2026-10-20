@@ -21,6 +21,10 @@ public class IamRoleBinding extends PanacheEntityBase {
     public static final String CLIENT = "CLIENT";
     public static final String ORGANIZATION = "ORGANIZATION";
     public static final String SUB_ACCOUNT = "SUB_ACCOUNT";
+    /** Granted by a person. */
+    public static final String MANUAL = "MANUAL";
+    /** Written from the caller's sign-in token. */
+    public static final String TOKEN = "TOKEN";
 
     @Id
     public UUID id;
@@ -51,6 +55,9 @@ public class IamRoleBinding extends PanacheEntityBase {
 
     @Column(name = "created_by")
     public String createdBy;
+
+    @Column(nullable = false)
+    public String source = MANUAL;
 
     public IamRoleBinding() {
         // Required by JPA.

@@ -67,6 +67,16 @@ public final class TestTokenFactory {
         return signRs256(claims);
     }
 
+    /** A web token for {@code email} carrying one more claim, such as a list of role ids. */
+    public static String signWebToken(String email, String claim, Object value) {
+        JwtClaims claims = baseClaims(WEB_AUDIENCE, Instant.now().plusSeconds(300));
+        claims.setSubject("auth0|" + email);
+        claims.setStringClaim("email", email);
+        claims.setStringClaim("azp", "web-client-id");
+        claims.setClaim(claim, value);
+        return signRs256(claims);
+    }
+
     public static String signM2mToken(String clientId) {
         return signM2mToken(clientId, Instant.now().plusSeconds(300));
     }

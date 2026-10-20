@@ -2,7 +2,9 @@ package com.microboxlabs.miot.core.iam;
 
 import com.microboxlabs.miot.core.alfresco.IAlfrescoMembershipClient;
 import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
+import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationMembership;
+import io.quarkus.security.identity.SecurityIdentity;
 import com.microboxlabs.miot.core.iam.model.IamMembership;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
 import com.microboxlabs.miot.core.iam.model.IamTeamMember;
@@ -39,14 +41,16 @@ public class AccessEvaluator {
     private final IAlfrescoMembershipClient alfresco;
     private final OrganizationMembership deployment;
     private final PlatformAuthorizer platform;
+    private final TokenRoles tokenRoles;
 
     @Inject
     public AccessEvaluator(AccessRegistry registry, IAlfrescoMembershipClient alfresco,
-            OrganizationMembership deployment, PlatformAuthorizer platform) {
+            OrganizationMembership deployment, PlatformAuthorizer platform, TokenRoles tokenRoles) {
         this.registry = registry;
         this.alfresco = alfresco;
         this.deployment = deployment;
         this.platform = platform;
+        this.tokenRoles = tokenRoles;
     }
 
     public AccessRegistry registry() {
@@ -109,7 +113,11 @@ public class AccessEvaluator {
 
     private Uni<Access> userAccess(Organization org, Organization root, List<Long> scope, Caller caller) {
         boolean nativeMembership = isNative(root);
-        return IamUser.findByEmail(caller.email()).flatMap(user -> {
+        Set<String> ids = requestTokenRoles(caller.email());
+        Uni<Void> synced = ids == null
+                ? Uni.createFrom().voidItem()
+                : Panache.withTransaction(() -> tokenRoles.sync(root, caller.email(), ids));
+        return synced.flatMap(ignored -> IamUser.findByEmail(caller.email())).flatMap(user -> {
             if (user != null && !"ACTIVE".equals(user.status)) {
                 return Uni.createFrom().item(Access.none(org.id, org.slug));
             }
@@ -214,6 +222,23 @@ public class AccessEvaluator {
             best = BaseRole.max(best, BaseRole.valueOf(m.baseRole));
         }
         return best;
+    }
+
+    /**
+     * The role ids in this request's token when {@code email} is the person who signed it; null otherwise, and outside
+     * a request.
+     */
+    private static Set<String> requestTokenRoles(String email) {
+        InjectableContext request = Arc.container() == null ? null : Arc.container().requestContext();
+        if (request == null || !request.isActive()) {
+            return null;
+        }
+        SecurityIdentity identity = Arc.container().instance(SecurityIdentity.class).get();
+        if (identity == null || identity.isAnonymous()) {
+            return null;
+        }
+        String signed = OrganizationAccess.email(identity);
+        return signed != null && IamUser.normalize(signed).equals(email) ? TokenRoles.fromIdentity(identity) : null;
     }
 
     private static AccessContext requestContext() {

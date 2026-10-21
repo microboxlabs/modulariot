@@ -140,6 +140,9 @@ export function TeamMembersModal({
           aria-label={tr("searchMembers", d)}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.preventDefault();
+          }}
         />
         <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
           <span>

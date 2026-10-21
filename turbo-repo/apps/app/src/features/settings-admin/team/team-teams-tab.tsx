@@ -226,7 +226,7 @@ export function TeamTeamsTab({
         team={null}
         onClose={() => setCreating(false)}
         onSaved={(team) => {
-          reload();
+          void teams.mutate((current) => [...(current ?? []), team]);
           router.push(teamPath(lang, team.id));
         }}
         d={d}

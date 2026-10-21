@@ -67,9 +67,10 @@ export default function TeamAccessPage({
   const { can } = useMyAccess();
   const teams = useTeams(true);
   const org = useTeam();
-  const { data: catalog } = useAccessCatalog();
+  const { data: catalog, error: catalogError } = useAccessCatalog();
   const teamsPath = `/${lang}/users/settings/team?tab=teams`;
   const team = teams.data?.find((t) => t.id === teamId);
+  const loadError = teams.error ?? catalogError;
 
   return (
     <DetailShell
@@ -78,10 +79,10 @@ export default function TeamAccessPage({
       backHref={teamsPath}
       backLabel={tr("backToTeams", d)}
     >
-      {(teams.isLoading || !catalog) && !teams.error && (
+      {(teams.isLoading || !catalog) && !loadError && (
         <Spinner className="mx-auto" />
       )}
-      {teams.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
+      {loadError && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
       {teams.data && catalog && !team && (
         <div className={`${CARD} p-10 text-center`}>
           <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -116,7 +117,8 @@ interface TeamEditorProps {
   readonly can: (permission: string) => boolean;
   readonly lang: string;
   readonly d: I18nRecord;
-  readonly onChanged: () => void;
+  /** Reloads the team; resolves once the new data is in. */
+  readonly onChanged: () => Promise<unknown>;
   readonly onDeleted: () => void;
 }
 
@@ -143,8 +145,10 @@ function TeamEditor({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const reset = () => setByModule(rolesByModule(team.roles, catalog.roles));
-  // Pick up a saved change (or one made elsewhere) once it is reloaded.
-  useEffect(reset, [team, catalog]);
+  // Pick up saved roles once they are reloaded. Keyed on the roles, so a
+  // member or name change keeps unsaved role choices.
+  const savedRoles = team.roles.join(",");
+  useEffect(reset, [savedRoles, catalog]);
 
   const roles = selectedRoles(byModule);
   const dirty = canBind && !sameRoles(roles, team.roles);
@@ -155,7 +159,8 @@ function TeamEditor({
     setError(null);
     try {
       await action();
-      onChanged();
+      // Wait for the reload, so the next member change starts from saved data.
+      await onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : tr("saveFailed", d));
     } finally {
@@ -211,6 +216,7 @@ function TeamEditor({
                     color="alternative"
                     size="sm"
                     className="whitespace-nowrap"
+                    disabled={busy}
                     onClick={() => setPicking(true)}
                   >
                     <HiPlus className="mr-1.5 h-4 w-4" />
@@ -273,14 +279,14 @@ function TeamEditor({
         show={editing}
         team={team}
         onClose={() => setEditing(false)}
-        onSaved={onChanged}
+        onSaved={() => void onChanged()}
         d={d}
       />
       <TeamMembersModal
         team={picking ? team : null}
         members={members}
         onClose={() => setPicking(false)}
-        onSaved={onChanged}
+        onSaved={() => void onChanged()}
         d={d}
       />
       <ConfirmationModal

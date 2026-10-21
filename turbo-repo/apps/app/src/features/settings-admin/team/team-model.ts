@@ -355,6 +355,16 @@ export function effectivePermissions(
   catalog: AccessCatalog
 ): Set<string> {
   const out = basePermissions(base, catalog.permissions);
+  rolePermissions(roles, catalog).forEach((p) => out.add(p));
+  return out;
+}
+
+/** The permissions the given module roles grant, without a base role. A team's members get these. */
+export function rolePermissions(
+  roles: readonly string[],
+  catalog: AccessCatalog
+): Set<string> {
+  const out = new Set<string>();
   for (const key of roles) {
     const role = catalog.roles.find((r) => r.key === key);
     role?.permissions.forEach((p) => out.add(p));

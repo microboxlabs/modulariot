@@ -24,6 +24,7 @@ import {
   memberLabels,
   parseEmails,
   permissionsByModule,
+  rolePermissions,
   rolesByModule,
   sameRoles,
   selectedRoles,
@@ -480,6 +481,13 @@ describe("member access page", () => {
         "content:review.autoapprove"
       )
     ).toBe(false);
+  });
+
+  it("gives a team only its roles' permissions", () => {
+    expect([...rolePermissions(["CONTROL_TOWER_VIEWER"], catalog)]).toEqual([
+      "controltower:view",
+    ]);
+    expect(rolePermissions([], catalog).size).toBe(0);
   });
 
   it("groups permissions by module in catalog order", () => {

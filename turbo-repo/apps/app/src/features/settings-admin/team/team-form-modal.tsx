@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Label, Textarea, TextInput } from "flowbite-react";
+import { HiOutlineUserGroup } from "react-icons/hi";
 import FormModal from "@/features/common/components/form-modal/form-modal";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -13,7 +14,7 @@ interface TeamFormModalProps {
   /** The team to rename; null creates a new one. */
   readonly team: Team | null;
   readonly onClose: () => void;
-  readonly onSaved: () => void;
+  readonly onSaved: (team: Team) => void;
   readonly d: I18nRecord;
 }
 
@@ -46,8 +47,10 @@ export function TeamFormModal({
     setError(null);
     const request = { name: name.trim(), description: description.trim() };
     try {
-      await (team ? updateTeam(team.id, request) : createTeam(request));
-      onSaved();
+      const saved = await (team
+        ? updateTeam(team.id, request)
+        : createTeam(request));
+      onSaved(saved);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e : new Error(tr("saveFailed", d)));
@@ -60,8 +63,17 @@ export function TeamFormModal({
     <FormModal
       isOpen={show}
       onClose={onClose}
+      size="lg"
+      icon={
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+          <HiOutlineUserGroup className="h-5 w-5" />
+        </span>
+      }
       title={team ? tr("teamEditTitle", d) : tr("teamCreateTitle", d)}
+      subtitle={team ? undefined : tr("teamCreateHelp", d)}
       submitLabel={team ? tr("save", d) : tr("create", d)}
+      cancelLabel={tr("cancel", d)}
+      showCancelButton
       isProcessing={busy}
       error={error}
       onSubmit={submit}
@@ -71,8 +83,10 @@ export function TeamFormModal({
           <Label htmlFor="team-name">{tr("colName", d)}</Label>
           <TextInput
             id="team-name"
-            sizing="sm"
             value={name}
+            placeholder={tr("teamNamePlaceholder", d)}
+            autoFocus
+            required
             onChange={(e) => setName(e.target.value)}
           />
         </div>
@@ -82,6 +96,7 @@ export function TeamFormModal({
             id="team-description"
             rows={3}
             value={description}
+            placeholder={tr("teamDescriptionPlaceholder", d)}
             onChange={(e) => setDescription(e.target.value)}
           />
         </div>

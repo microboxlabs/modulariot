@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Alert, Badge, Button, Spinner } from "flowbite-react";
 import { HiOutlineKey, HiOutlineTrash, HiPlus } from "react-icons/hi";
 import ConfirmationModal from "@/features/common/components/confirmation-modal/confirmation-modal";
@@ -20,6 +21,10 @@ export interface TeamsPermissions {
   canManage: boolean;
   /** members:update: change the team's roles. */
   canBind: boolean;
+}
+
+function teamPath(lang: string, id: string) {
+  return `/${lang}/users/settings/team/teams/${encodeURIComponent(id)}`;
 }
 
 /** Members named in a row before the rest are counted. */
@@ -96,7 +101,7 @@ function TeamRow({
             color="alternative"
             className="whitespace-nowrap"
             as={Link}
-            href={`/${lang}/users/settings/team/teams/${encodeURIComponent(team.id)}`}
+            href={teamPath(lang, team.id)}
           >
             <HiOutlineKey className="mr-1 h-4 w-4" />
             {allowed.canManage || allowed.canBind
@@ -137,6 +142,7 @@ export function TeamTeamsTab({
   d,
 }: TeamTeamsTabProps) {
   const teams = useTeams(true);
+  const router = useRouter();
 
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<Team | null>(null);
@@ -219,7 +225,10 @@ export function TeamTeamsTab({
         show={creating}
         team={null}
         onClose={() => setCreating(false)}
-        onSaved={reload}
+        onSaved={(team) => {
+          reload();
+          router.push(teamPath(lang, team.id));
+        }}
         d={d}
       />
       <ConfirmationModal

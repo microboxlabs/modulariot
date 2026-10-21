@@ -310,6 +310,30 @@ export function memberLabels(
   });
 }
 
+function searchText(value: string | null): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/** Members whose name or email contains the query, sorted by name. Accents and case are ignored. */
+export function pickableMembers(
+  members: readonly TeamMember[],
+  query: string
+): TeamMember[] {
+  const needle = searchText(query.trim());
+  const label = (m: TeamMember) => searchText(m.name ?? m.email ?? m.userId);
+  return members
+    .filter(
+      (m) =>
+        !needle ||
+        searchText(m.name).includes(needle) ||
+        searchText(m.email).includes(needle)
+    )
+    .sort((a, b) => label(a).localeCompare(label(b)));
+}
+
 export const MAX_KEY_DAYS = 365;
 
 /**

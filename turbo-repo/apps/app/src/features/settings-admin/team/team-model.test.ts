@@ -22,6 +22,7 @@ import {
   matrixColumns,
   NON_OWNER_ROLES,
   memberLabels,
+  pickableMembers,
   parseEmails,
   permissionsByModule,
   rolePermissions,
@@ -374,6 +375,19 @@ describe("teams and API keys", () => {
       "Bo",
       "u3",
     ]);
+  });
+
+  it("finds members by name or email, ignoring accents and case", () => {
+    const members = [
+      { userId: "u1", email: "zoe@x.test", name: "Zoé Pérez" },
+      { userId: "u2", email: "ana@x.test", name: null },
+      { userId: "u3", email: "bo@y.test", name: "Bo" },
+    ] as TeamMember[];
+    const ids = (q: string) => pickableMembers(members, q).map((m) => m.userId);
+    expect(ids("")).toEqual(["u2", "u3", "u1"]);
+    expect(ids("PEREZ")).toEqual(["u1"]);
+    expect(ids("x.test")).toEqual(["u2", "u1"]);
+    expect(ids("nobody")).toEqual([]);
   });
 
   it("shows only the public part of a key", () => {

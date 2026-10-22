@@ -12,7 +12,10 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.function.Supplier;
 
-/** The evaluator's case changes, in {@code miot_symptoms.signal_transitions}. */
+/**
+ * The evaluator's case changes, in {@code miot_symptoms.signal_transitions}. A replayed signal
+ * yields the same change at the same time, which is skipped: one per symptom, vehicle and signal.
+ */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
 public class PgTransitionLog implements TransitionLog {
@@ -21,7 +24,13 @@ public class PgTransitionLog implements TransitionLog {
             INSERT INTO miot_symptoms.signal_transitions
                 (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure,
                  trip_id, latitude, longitude, speed_kmh)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            SELECT $1::varchar, $2::uuid, $3::varchar, $4::varchar, $5::varchar, $6::varchar, $7::timestamptz,
+                   $8::integer, $9::integer, $10::double precision,
+                   $11::varchar, $12::double precision, $13::double precision, $14::double precision
+            WHERE NOT EXISTS (
+                SELECT 1 FROM miot_symptoms.signal_transitions
+                WHERE definition_id = $2::uuid AND at = $7::timestamptz AND asset_id = $6::varchar
+                  AND tenant_code = $1::varchar)
             """;
 
     private final Supplier<Pool> pool;
@@ -36,7 +45,7 @@ public class PgTransitionLog implements TransitionLog {
     }
 
     @Override
-    public void record(String tenantCode, List<Transition> transitions, Place place) {
+    public void append(String tenantCode, List<Transition> transitions, Place place) {
         for (Transition t : transitions) {
             PgIds.query(pool.get(), INSERT, Tuple.tuple().addValue(tenantCode).addValue(t.definitionId())
                     .addValue(t.version()).addValue(t.state().name()).addValue(t.kind().name())

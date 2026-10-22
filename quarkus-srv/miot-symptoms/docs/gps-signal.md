@@ -39,7 +39,7 @@ A part the builder does not know is left out. A rule that reads a missing field 
 | `local_hour` | Frame time in `MIOT_SYMPTOMS_SIGNAL_BUILDER_ZONE` (default `America/Santiago`) |
 | `vehicle`, `road`, `geo`, `derived` | Not built yet: left out |
 
-`live_trip` and `asset_client_map` are loaded from the GPS database at start and every `MIOT_SYMPTOMS_SIGNAL_BUILDER_RELOAD_EVERY` (10 min), and kept current between loads from their Debezium topics (non-durable subscriptions, so a stopped replica leaves no backlog). Off unless `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED=true`. Frames are counted (`miot.symptoms.signal.built`, `.skipped`), never logged.
+`live_trip` and `asset_client_map` are loaded from the GPS database at start and every `MIOT_SYMPTOMS_SIGNAL_BUILDER_RELOAD_EVERY` (10 min), and kept current between loads from their Debezium topics (non-durable subscriptions, so a stopped replica leaves no backlog). Frames wait for the first load, which is retried until the GPS database answers. On wherever the symptoms Pulsar is wired (`MIOT_SYMPTOMS_CDC_ENABLED`, which follows the symptoms component); `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED=false` turns it off. Frames are counted (`miot.symptoms.signal.built`, `.skipped`), never logged.
 
 ## Rule editor fields
 

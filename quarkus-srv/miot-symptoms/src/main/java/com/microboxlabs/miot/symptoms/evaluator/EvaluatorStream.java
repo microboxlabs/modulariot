@@ -16,10 +16,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -29,12 +29,10 @@ import org.jboss.logging.Logger;
 
 /**
  * Runs the published symptom versions on each GPS signal ({@code gps-signals-in},
- * {@code miot.gps.signal@1}) for the organizations in
- * {@code miot.symptoms.evaluator.tenants} that the vehicle belongs to, keeps
- * the episodes in Redis (in memory when no Redis URL is set) and records the
- * case changes in {@code miot_symptoms.signal_transitions}. Off unless
- * {@code miot.symptoms.evaluator.enabled}. It opens no cases yet: ACTIVE
- * transitions are recorded like TEST ones.
+ * {@code miot.gps.signal@1}) for every organization the vehicle belongs to,
+ * keeps the episodes in Redis (in memory when no Redis URL is set) and records
+ * the case changes in {@code miot_symptoms.signal_transitions}. On wherever the
+ * symptoms Pulsar is wired ({@code miot.symptoms.evaluator.enabled}).
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -46,9 +44,8 @@ public class EvaluatorStream {
     private static final Duration VERSIONS_TTL = Duration.ofSeconds(30);
 
     private final boolean enabled;
-    private final Set<String> tenants;
     private final EvaluatorCatalog catalog;
-    private final TransitionLog log;
+    private final TransitionLog transitionLog;
     private final MeterRegistry meters;
     private final Clock clock;
     private final EpisodeRepository episodes;
@@ -59,27 +56,25 @@ public class EvaluatorStream {
 
     @Inject
     EvaluatorStream(@ConfigProperty(name = "miot.symptoms.evaluator.enabled", defaultValue = "false") boolean enabled,
-            @ConfigProperty(name = "miot.symptoms.evaluator.tenants") Optional<List<String>> tenants,
             @ConfigProperty(name = "miot.symptoms.evaluator.redis-url") Optional<String> redisUrl,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration ttl,
-            EvaluatorCatalog catalog, TransitionLog log, MeterRegistry meters, Vertx vertx) {
-        this(enabled, Set.copyOf(tenants.orElse(List.of())), catalog, log, meters, Clock.systemUTC(),
+            EvaluatorCatalog catalog, TransitionLog transitionLog, MeterRegistry meters, Vertx vertx) {
+        this(enabled, catalog, transitionLog, meters, Clock.systemUTC(),
                 enabled && redisUrl.filter(u -> !u.isBlank()).isPresent()
                         ? new RedisEpisodes(RedisAPI.api(Redis.createClient(vertx,
                                 new RedisOptions().setConnectionString(redisUrl.get()))), ttl)
                         : new InMemoryEpisodeRepository());
         if (enabled) {
-            LOG.infof("Symptom evaluator: on for %d organizations, episodes in %s", this.tenants.size(),
+            LOG.infof("Symptom evaluator: on, episodes in %s",
                     episodes instanceof RedisEpisodes ? "Redis" : "memory");
         }
     }
 
-    EvaluatorStream(boolean enabled, Set<String> tenants, EvaluatorCatalog catalog, TransitionLog log,
+    EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, TransitionLog transitionLog,
             MeterRegistry meters, Clock clock, EpisodeRepository episodes) {
         this.enabled = enabled;
-        this.tenants = tenants;
         this.catalog = catalog;
-        this.log = log;
+        this.transitionLog = transitionLog;
         this.meters = meters;
         this.clock = clock;
         this.episodes = episodes;
@@ -90,16 +85,22 @@ public class EvaluatorStream {
     public CompletionStage<Void> onSignal(Message<byte[]> in) {
         try {
             evaluate(new String(in.getPayload(), StandardCharsets.UTF_8));
-        } catch (RuntimeException e) {
+        } catch (IllegalArgumentException e) {
             meters.counter("miot.symptoms.evaluator.failed").increment();
             LOG.warnf("Symptom evaluator: signal skipped (%s)", e.getClass().getSimpleName());
+        } catch (RuntimeException e) {
+            // Redis, the catalog or the transition log failed: redelivered, and organizations already
+            // evaluated reject the replay by their watermark.
+            meters.counter("miot.symptoms.evaluator.retried").increment();
+            LOG.warnf("Symptom evaluator: signal retried (%s)", e.getClass().getSimpleName());
+            return in.nack(e);
         }
         return in.ack();
     }
 
-    /** Evaluates one signal for every allowed organization it belongs to; returns the transitions recorded. */
+    /** Evaluates one signal for every organization it belongs to; returns the transitions recorded. */
     int evaluate(String json) {
-        if (!enabled || tenants.isEmpty()) {
+        if (!enabled) {
             return 0;
         }
         Map<String, Object> signal;
@@ -115,10 +116,16 @@ public class EvaluatorStream {
                 || !(signal.get("clients") instanceof List<?> clients)) {
             return 0;
         }
+        Instant instant;
+        try {
+            instant = Instant.parse(time);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("not a signal time", e);
+        }
         int recorded = 0;
         for (Object client : clients) {
-            if (client instanceof String tenant && tenants.contains(tenant)) {
-                recorded += evaluate(tenant, assetId, Instant.parse(time), signal);
+            if (client instanceof String tenant) {
+                recorded += evaluate(tenant, assetId, instant, signal);
             }
         }
         return recorded;
@@ -132,10 +139,11 @@ public class EvaluatorStream {
         AssetEpisodes state = episodes.load(tenant, assetId);
         SignalEvaluator.Result result = new SignalEvaluator(state)
                 .evaluate(tenant, assetId, at, Map.of(SignalFields.ROOT, signal), symptoms);
-        episodes.save(state);
+        // Transitions first: a failed episode write replays the signal, and the log skips what it already holds.
         if (!result.transitions().isEmpty()) {
-            log.record(tenant, result.transitions(), place(signal));
+            transitionLog.append(tenant, result.transitions(), place(signal));
         }
+        episodes.save(state);
         result.transitions().forEach(t -> meters.counter("miot.symptoms.evaluator.transitions",
                 "kind", t.kind().name(), "state", t.state().name()).increment());
         if (!result.errors().isEmpty()) {

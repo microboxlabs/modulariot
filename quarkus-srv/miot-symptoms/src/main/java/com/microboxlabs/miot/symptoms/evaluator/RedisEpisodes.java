@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -29,8 +30,10 @@ public class RedisEpisodes implements EpisodeRepository {
     private static final String WATERMARK = "wm:";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
+    /** Ignores fields it does not know, so episodes written before a field was dropped still load. */
     private static final ObjectMapper JSON = new ObjectMapper().registerModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
 
     private final RedisAPI redis;
     private final Duration ttl;
@@ -62,32 +65,46 @@ public class RedisEpisodes implements EpisodeRepository {
         return new AssetEpisodes(tenantCode, assetId, episodes, watermarks);
     }
 
+    /**
+     * HSET, HDEL and EXPIRE in one script, so a failure leaves either all of a signal's changes or none.
+     * ARGV: ttl seconds, number of field/value pairs, the pairs, then the fields to delete.
+     */
+    static final String SAVE_SCRIPT = """
+            local n = tonumber(ARGV[2])
+            if n > 0 then redis.call('HSET', KEYS[1], unpack(ARGV, 3, 2 + 2 * n)) end
+            if #ARGV > 2 + 2 * n then redis.call('HDEL', KEYS[1], unpack(ARGV, 3 + 2 * n, #ARGV)) end
+            redis.call('EXPIRE', KEYS[1], ARGV[1])
+            return 1
+            """;
+
     /** Writes what changed since {@link #load}, and resets the expiry. */
     @Override
     public void save(AssetEpisodes changes) {
-        String key = key(changes.tenantCode(), changes.assetId());
-        List<String> set = new ArrayList<>();
-        set.add(key);
+        List<String> args = saveArgs(changes, ttl);
+        if (!args.isEmpty()) {
+            redis.eval(args).await().atMost(TIMEOUT);
+        }
+    }
+
+    /** The EVAL arguments for {@link #save}, or none when nothing changed. */
+    static List<String> saveArgs(AssetEpisodes changes, Duration ttl) {
+        List<String> pairs = new ArrayList<>();
         changes.saved().forEach((id, e) -> {
-            set.add(EPISODE + id);
-            set.add(write(e));
+            pairs.add(EPISODE + id);
+            pairs.add(write(e));
         });
         changes.marked().forEach((source, at) -> {
-            set.add(WATERMARK + source);
-            set.add(Long.toString(at.toEpochMilli()));
+            pairs.add(WATERMARK + source);
+            pairs.add(Long.toString(at.toEpochMilli()));
         });
-        if (set.size() > 1) {
-            redis.hset(set).await().atMost(TIMEOUT);
+        if (pairs.isEmpty() && changes.deleted().isEmpty()) {
+            return List.of();
         }
-        if (!changes.deleted().isEmpty()) {
-            List<String> del = new ArrayList<>();
-            del.add(key);
-            changes.deleted().forEach(id -> del.add(EPISODE + id));
-            redis.hdel(del).await().atMost(TIMEOUT);
-        }
-        if (set.size() > 1 || !changes.deleted().isEmpty()) {
-            redis.expire(List.of(key, Long.toString(ttl.toSeconds()))).await().atMost(TIMEOUT);
-        }
+        List<String> args = new ArrayList<>(List.of(SAVE_SCRIPT, "1", key(changes.tenantCode(), changes.assetId()),
+                Long.toString(ttl.toSeconds()), Integer.toString(pairs.size() / 2)));
+        args.addAll(pairs);
+        changes.deleted().forEach(id -> args.add(EPISODE + id));
+        return args;
     }
 
     @Override

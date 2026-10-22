@@ -25,7 +25,7 @@ One GPS frame as symptom rules read it, under the CEL root `signal`. The signal 
 | `signal.derived` | `speed_avg_5m` (not evaluated yet) | calculated |
 | `signal.frame` | The frame as the device sent it (`AssetTrackingData`), for example `signal.frame.sensors.panic_button` | device |
 
-A part the builder does not know is left out. A rule that reads a missing field fails for that signal and is reported as a rule error.
+A part the builder does not know is left out. A rule that reads a missing field fails for that signal and is reported as a rule error. A rule that reads an optional field guards it with `has()`, for example `has(signal.frame) && has(signal.frame.sensors) && has(signal.frame.sensors.panic_button) && signal.frame.sensors.panic_button`.
 
 ## Rule editor fields
 
@@ -38,6 +38,6 @@ A part the builder does not know is left out. A rule that reads a missing field 
 | `x-engine: false` | the engine does not evaluate it yet |
 | `hidden` | not a field |
 
-Not fields: `signal.frame.asset_id` (same as `signal.asset_id`), driver data (read it from the trip), peripherals, metrics, events and other lists.
+Not fields: `signal.frame.asset_id` (same as `signal.asset_id`), driver data (read it from the trip), peripherals, metrics, events and other lists, and optional readings that gps-model holds as primitives (`gps.speed`, `gps.altitude`, `gps.heading`, `gps.satellites`, `gps.accuracy`). A primitive reads 0 when the device did not send it, so a rule could not tell a missing reading from a zero one. Use `signal.gps.speed_kmh` for speed.
 
 To add a field: add it to `GpsSignal` (or to gps-model for frame fields) with its annotations. A frame field also needs a label in `gps-signal-labels.properties`; `SignalFieldsTest` fails until it has one.

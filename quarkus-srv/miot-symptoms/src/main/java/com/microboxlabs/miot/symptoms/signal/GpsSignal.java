@@ -41,7 +41,7 @@ public record GpsSignal(
         Derived derived,
         @Schema(extensions = @Extension(name = "x-origin", value = "DEVICE")) AssetTrackingData frame) {
 
-    public static final String SCHEMA = "miot.gps.signal@1";
+    public static final String SCHEMA_ID = "miot.gps.signal@1";
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)

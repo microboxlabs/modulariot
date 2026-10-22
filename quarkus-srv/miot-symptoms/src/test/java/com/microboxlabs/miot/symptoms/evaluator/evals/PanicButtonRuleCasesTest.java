@@ -47,4 +47,15 @@ class PanicButtonRuleCasesTest {
     void framesWithoutAPressOpenNothing() {
         assertEquals(List.of(), run(frame(0, false, true), frame(30, false, false)));
     }
+
+    @Test
+    void framesWithoutTheButtonOpenNothingAndRaiseNoError() {
+        Signal noButton = new Signal(0, EvalTraces.root(Map.of("signal.frame.sensors.engine_status", true,
+                "signal.trip.active", true)));
+        Signal noSensors = new Signal(30, EvalTraces.root(Map.of("signal.frame.gps.latitude", -33.45,
+                "signal.trip.active", true)));
+        Signal noFrame = new Signal(60, EvalTraces.root(Map.of("signal.trip.active", true)));
+
+        assertEquals(List.of(), run(noButton, noSensors, noFrame), "replay fails on any rule error");
+    }
 }

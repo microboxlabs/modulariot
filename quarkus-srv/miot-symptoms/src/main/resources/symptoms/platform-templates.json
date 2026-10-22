@@ -119,7 +119,7 @@
     "description": "El conductor presiona el botón de pánico del GPS",
     "spec": {
       "source": "gps_signal",
-      "activation": "signal.frame.sensors.panic_button == true",
+      "activation": "has(signal.frame) && has(signal.frame.sensors) && has(signal.frame.sensors.panic_button) && signal.frame.sensors.panic_button == true",
       "levels": [
         {"icu": 1, "applies": false, "when": null, "response": null},
         {"icu": 2, "applies": false, "when": null, "response": null},

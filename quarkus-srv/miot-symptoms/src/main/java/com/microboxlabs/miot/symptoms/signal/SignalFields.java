@@ -67,31 +67,54 @@ public final class SignalFields {
         for (BeanPropertyDefinition p : JSON.getSerializationConfig().introspect(type).findProperties()) {
             String path = prefix + "." + p.getName();
             Schema schema = schemaOf(p);
-            if (SKIPPED.contains(path) || (schema != null && schema.hidden())) {
-                continue;
+            if (!skipped(path, schema, p.getPrimaryType())) {
+                add(p, path, schema, inherited, labels, out, depth);
             }
-            String origin = extension(schema, "x-origin");
-            FieldOrigin fieldOrigin = origin == null ? inherited : FieldOrigin.valueOf(origin);
-            JavaType t = p.getPrimaryType();
-            String kind = kindOf(t, extension(schema, "x-type"));
-            if (kind == null) {
-                if (!t.isContainerType() && !Temporal.class.isAssignableFrom(t.getRawClass())) {
-                    walk(t, path, fieldOrigin, labels, out, depth + 1);
-                }
-                continue;
-            }
-            String[] entry = labels.getProperty(path, "").split("\\|", 2);
-            String label = schema != null && !schema.title().isEmpty() ? schema.title()
-                    : !entry[0].isBlank() ? entry[0].trim()
-                    : schema != null && !schema.description().isEmpty() ? schema.description() : p.getName();
-            String unit = extension(schema, "x-unit");
-            if (unit == null && entry.length > 1 && !entry[1].isBlank()) {
-                unit = entry[1].trim();
-            }
-            boolean engine = !"false".equals(extension(schema, "x-engine"));
-            out.add(new SourceField(path, label, kind, unit, fieldOrigin, engine,
-                    t.isEnumType() ? values(t.getRawClass()) : null));
         }
+    }
+
+    /**
+     * Listed or hidden parts, and optional primitives: a primitive reads 0 or false when the device did not send
+     * it, so a rule could not tell a missing reading from a zero one.
+     */
+    private static boolean skipped(String path, Schema schema, JavaType t) {
+        if (SKIPPED.contains(path) || (schema != null && schema.hidden())) {
+            return true;
+        }
+        return t.isPrimitive() && (schema == null || !schema.required());
+    }
+
+    private static void add(BeanPropertyDefinition p, String path, Schema schema, FieldOrigin inherited,
+            Properties labels, List<SourceField> out, int depth) {
+        String origin = extension(schema, "x-origin");
+        FieldOrigin fieldOrigin = origin == null ? inherited : FieldOrigin.valueOf(origin);
+        JavaType t = p.getPrimaryType();
+        String kind = kindOf(t, extension(schema, "x-type"));
+        if (kind == null) {
+            if (!t.isContainerType() && !Temporal.class.isAssignableFrom(t.getRawClass())) {
+                walk(t, path, fieldOrigin, labels, out, depth + 1);
+            }
+            return;
+        }
+        String[] entry = labels.getProperty(path, "").split("\\|", 2);
+        String unit = extension(schema, "x-unit");
+        if (unit == null && entry.length > 1 && !entry[1].isBlank()) {
+            unit = entry[1].trim();
+        }
+        boolean engine = !"false".equals(extension(schema, "x-engine"));
+        out.add(new SourceField(path, label(p, schema, entry[0]), kind, unit, fieldOrigin, engine,
+                t.isEnumType() ? values(t.getRawClass()) : null));
+    }
+
+    /** The {@code @Schema} title, else the labels file entry, else the description, else the property name. */
+    private static String label(BeanPropertyDefinition p, Schema schema, String entry) {
+        if (schema != null && !schema.title().isEmpty()) {
+            return schema.title();
+        }
+        if (!entry.isBlank()) {
+            return entry.trim();
+        }
+        return schema != null && !schema.description().isEmpty() ? schema.description() : p.getName();
     }
 
     private static String kindOf(JavaType t, String override) {

@@ -1,6 +1,7 @@
 package com.microboxlabs.miot.symptoms.signal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import cl.streamhub.gps.model.AssetTrackingData;
@@ -94,9 +95,20 @@ class SignalFieldsTest {
     }
 
     @Test
+    void leavesOutOptionalReadingsThatCannotBeMissing() {
+        Map<String, SourceField> fields = byPath();
+
+        assertTrue(fields.containsKey("signal.frame.gps.latitude"), "required primitives stay");
+        for (String path : List.of("signal.frame.gps.speed", "signal.frame.gps.altitude", "signal.frame.gps.heading",
+                "signal.frame.gps.satellites", "signal.frame.gps.accuracy.horizontal")) {
+            assertTrue(!fields.containsKey(path), path);
+        }
+    }
+
+    @Test
     void everyFieldIsAPathOfTheSerializedSignal() throws Exception {
         AssetTrackingData frame = JSON.readValue(FRAME, AssetTrackingData.class);
-        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA, "ABCD12", null, List.of("client-1"),
+        GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, List.of("client-1"),
                 new GpsSignal.Trip(true, false, "T-1"),
                 new GpsSignal.Vehicle(GpsSignal.WeightCategory.HEAVY, 30000.0),
                 new GpsSignal.Gps(42.5, true, true), new GpsSignal.Road(90.0, 80.0),
@@ -106,12 +118,12 @@ class SignalFieldsTest {
 
         for (String path : List.of("signal.trip.active", "signal.vehicle.weight_category", "signal.gps.speed_kmh",
                 "signal.road.maxspeed_osm", "signal.geo.zone", "signal.local_hour", "signal.derived.speed_avg_5m",
-                "signal.frame.gps.speed", "signal.frame.sensors.panic_button")) {
+                "signal.frame.gps.latitude", "signal.frame.sensors.panic_button")) {
             assertTrue(byPath().containsKey(path), path);
-            assertTrue(valueAt(root, path) != null, path);
+            assertNotNull(valueAt(root, path), path);
         }
         assertEquals(Boolean.TRUE, valueAt(root, "signal.frame.sensors.panic_button"));
-        assertEquals(GpsSignal.SCHEMA, valueAt(root, "signal.schema"));
+        assertEquals(GpsSignal.SCHEMA_ID, valueAt(root, "signal.schema"));
     }
 
     @SuppressWarnings("unchecked")

@@ -35,6 +35,9 @@ public class EngineCaseService {
 
     /** The list filters that still show the open cases: paging only. */
     private static final Set<String> PAGING = Set.of("p_page", "p_page_size");
+    private static final String SYMPTOM_NAME = "symptom_name";
+    private static final String ICU_CODE = "icu_code";
+    private static final String ICU_CONDITION = "icu_condition";
     private static final Map<Integer, String> CONDITIONS = Map.of(1, "UNDER OBSERVATION", 2,
             "COMPROMISED CONDITION", 3, "CRITICAL CONDITION", 4, "CODE BLACK");
     private static final String TRIP = """
@@ -116,10 +119,10 @@ public class EngineCaseService {
     private ObjectNode row(EngineCase c) {
         ObjectNode r = JSON.objectNode();
         r.put("id", c.symptomId());
-        r.put("symptom_name", c.name());
+        r.put(SYMPTOM_NAME, c.name());
         r.put("type_of_incidence", c.name());
-        r.put("icu_code", String.valueOf(c.level()));
-        r.put("icu_condition", condition(c.level()));
+        r.put(ICU_CODE, String.valueOf(c.level()));
+        r.put(ICU_CONDITION, condition(c.level()));
         r.put("asset_id", c.assetId());
         r.put("trip_id", c.tripId());
         r.put("start_time", c.openedAt().toString());
@@ -139,7 +142,7 @@ public class EngineCaseService {
         entry.put("start", c.openedAt().toString());
         entry.put("end", c.openedAt().toString());
         entry.put("symptom_id", c.symptomId());
-        entry.put("symptom_name", c.name());
+        entry.put(SYMPTOM_NAME, c.name());
         ObjectNode agg = entry.putArray("conditions_agg").addObject();
         agg.put("start", c.openedAt().toString());
         agg.put("end", c.openedAt().toString());
@@ -147,8 +150,8 @@ public class EngineCaseService {
         agg.put("is_symptom", 1);
         agg.put("type", c.name());
         agg.put("symptom_description", c.name());
-        agg.put("icu_code", String.valueOf(c.level()));
-        agg.put("icu_condition", condition(c.level()));
+        agg.put(ICU_CODE, String.valueOf(c.level()));
+        agg.put(ICU_CONDITION, condition(c.level()));
         agg.put("count", 1);
         agg.putNull("assigned_to");
         agg.set("treatments", JSON.arrayNode());
@@ -157,8 +160,8 @@ public class EngineCaseService {
         symptom.put("id", c.symptomId());
         symptom.put("name", c.name());
         symptom.put("type", c.family());
-        symptom.put("icu_code", c.level());
-        symptom.put("icu_condition", condition(c.level()));
+        symptom.put(ICU_CODE, c.level());
+        symptom.put(ICU_CONDITION, condition(c.level()));
         ObjectNode trip = out.putObject("trip_info");
         trip.put("asset_id", c.assetId());
         trip.put("trip_id", c.tripId());
@@ -190,7 +193,7 @@ public class EngineCaseService {
             props.put("timestamp", c.openedAt().toString());
         }
         ObjectNode description = out.putObject("description");
-        description.put("symptom_name", c.name());
+        description.put(SYMPTOM_NAME, c.name());
         description.put("first_signal_timestamp", c.openedAt().toString());
         description.put("last_signal_timestamp", c.openedAt().toString());
         if (c.speedKmh() != null) {

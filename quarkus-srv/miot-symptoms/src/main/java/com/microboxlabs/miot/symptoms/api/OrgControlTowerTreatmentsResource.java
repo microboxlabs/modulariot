@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import com.microboxlabs.miot.symptoms.cases.EngineCase;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
+import com.microboxlabs.miot.symptoms.dto.TreatmentView;
 import io.quarkus.security.PermissionsAllowed;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.core.iam.OrgPermission;
@@ -39,6 +42,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSupport {
 
     private final TreatmentService treatments;
+    private final EngineCaseService cases;
 
     @Inject
     public OrgControlTowerTreatmentsResource(
@@ -46,9 +50,11 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
             OrganizationContext organizationContext,
             OrganizationRoleService roleService,
             SecurityIdentity identity,
-            TreatmentService treatments) {
+            TreatmentService treatments,
+            EngineCaseService cases) {
         super(tenantContext, organizationContext, roleService, identity);
         this.treatments = treatments;
+        this.cases = cases;
     }
 
     @GET
@@ -124,7 +130,13 @@ public class OrgControlTowerTreatmentsResource extends ControlTowerResourceSuppo
             CloseTreatmentRequest body) {
         String tenant = tenantCode(organizationId);
         String actor = actor();
-        return work(() -> Response.ok(treatments.close(tenant, actor, treatmentId, body)).build());
+        return work(() -> {
+            TreatmentView closed = treatments.close(tenant, actor, treatmentId, body);
+            if (EngineCase.caseId(closed.symptomId()).isPresent()) {
+                cases.close(tenant, closed.symptomId(), actor);
+            }
+            return Response.ok(closed).build();
+        });
     }
 
     @POST

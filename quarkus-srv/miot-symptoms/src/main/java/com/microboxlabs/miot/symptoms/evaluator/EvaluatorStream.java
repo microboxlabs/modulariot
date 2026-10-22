@@ -134,7 +134,7 @@ public class EvaluatorStream {
                 .evaluate(tenant, assetId, at, Map.of(SignalFields.ROOT, signal), symptoms);
         episodes.save(state);
         if (!result.transitions().isEmpty()) {
-            log.record(tenant, result.transitions());
+            log.record(tenant, result.transitions(), place(signal));
         }
         result.transitions().forEach(t -> meters.counter("miot.symptoms.evaluator.transitions",
                 "kind", t.kind().name(), "state", t.state().name()).increment());
@@ -142,6 +142,34 @@ public class EvaluatorStream {
             meters.counter("miot.symptoms.evaluator.rule_errors").increment(result.errors().size());
         }
         return result.transitions().size();
+    }
+
+    /**
+     * An operator closed the symptom's case for the vehicle: its episode is dropped, so the next signal that
+     * meets the condition opens a new case.
+     */
+    public void forget(String tenant, String assetId, java.util.UUID definitionId) {
+        episodes.forget(tenant, assetId, definitionId);
+    }
+
+    /** The trip and position of the signal, as far as it has them. */
+    static TransitionLog.Place place(Map<String, Object> signal) {
+        Object trip = path(signal, "trip", "id");
+        return new TransitionLog.Place(trip instanceof String id ? id : null,
+                number(path(signal, "frame", "gps", "latitude")), number(path(signal, "frame", "gps", "longitude")),
+                number(path(signal, "gps", "speed_kmh")));
+    }
+
+    private static Object path(Map<String, Object> root, String... keys) {
+        Object node = root;
+        for (String k : keys) {
+            node = node instanceof Map<?, ?> m ? m.get(k) : null;
+        }
+        return node;
+    }
+
+    private static Double number(Object value) {
+        return value instanceof Number n ? n.doubleValue() : null;
     }
 
     private List<CompiledSymptom> symptoms(String tenant) {

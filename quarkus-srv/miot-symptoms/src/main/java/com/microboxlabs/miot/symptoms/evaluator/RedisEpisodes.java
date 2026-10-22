@@ -90,6 +90,11 @@ public class RedisEpisodes implements EpisodeRepository {
         }
     }
 
+    @Override
+    public void forget(String tenantCode, String assetId, UUID definitionId) {
+        redis.hdel(List.of(key(tenantCode, assetId), EPISODE + definitionId)).await().atMost(TIMEOUT);
+    }
+
     static String write(Episode e) {
         try {
             return JSON.writeValueAsString(e);

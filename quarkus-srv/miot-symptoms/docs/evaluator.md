@@ -2,7 +2,7 @@
 
 Runs published symptom versions on a vehicle's signals and keeps one episode per vehicle and symptom. It turns each signal into at most one case change per symptom: opened, level changed or closed.
 
-**Status: runs in test.** `EvaluatorStream` reads `tracking/asset-signals` (built by the signal builder, [gps-signal.md](gps-signal.md)) for the organizations in `miot.symptoms.evaluator.tenants`, keeps episodes in Redis and records every case change in `miot_symptoms.signal_transitions`. It opens no cases yet: ACTIVE transitions are recorded like TEST ones.
+**Status: runs in test.** `EvaluatorStream` reads `tracking/asset-signals` (built by the signal builder, [gps-signal.md](gps-signal.md)) for the organizations in `miot.symptoms.evaluator.tenants`, keeps episodes in Redis and records every case change in `miot_symptoms.signal_transitions`. An ACTIVE OPENED transition is a Control Tower case (see Cases below); TEST transitions are shadow counts.
 
 | Setting | Meaning | Default |
 |---|---|---|
@@ -43,3 +43,15 @@ Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>
 - An episode is kept while the activation runs, a level waits or a case is open. A vehicle off its candidate costs no storage.
 - A rule that fails on a signal (a missing field, a measure that is not a number) is reported as a `RuleError` for that symptom; its episode stays as it was and the other symptoms still run.
 - OFF versions are not compiled. TEST transitions are for shadow counts; ACTIVE ones create cases.
+
+## Cases
+
+An ACTIVE OPENED row of `signal_transitions` is a Control Tower case until a CLOSED row for the same symptom and vehicle. The Control Tower API serves them next to the GPS database's symptoms (`cases/EngineCaseService`):
+
+| Endpoint | What changes |
+|---|---|
+| `GET …/control-tower/map/symptoms` | With paging only (no filters), page 1 lists the open cases first, in the GPS function's row shape. They still show when the GPS database cannot be read |
+| `GET …/map/symptoms/{id}`, `…/{id}/signals` | A negative id is a case: header from the catalog and `live_trip`, and the signal's point as an EWKB feature |
+| `POST …/treatments/{id}/close` | Closing the treatment of a case closes the case (CLOSED row with `closed_by`) and drops its Redis episode, so the next signal that meets the condition opens a new case |
+
+A case's symptom id is the OPENED row's id negated, so it never meets a GPS database symptom id in `treatment` and `audit_event`. The row keeps the signal's trip, position and speed (V0.8.5).

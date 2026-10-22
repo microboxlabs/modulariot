@@ -47,7 +47,7 @@ class EvaluatorStreamTest {
     }
 
     private EvaluatorStream stream(Set<String> tenants) {
-        return new EvaluatorStream(true, tenants, evaluatorCatalog, (tenant, t) -> recorded.addAll(t),
+        return new EvaluatorStream(true, tenants, evaluatorCatalog, (tenant, t, place) -> recorded.addAll(t),
                 new SimpleMeterRegistry(), Clock.systemUTC(), new InMemoryEpisodeRepository());
     }
 
@@ -90,7 +90,7 @@ class EvaluatorStreamTest {
 
     @Test
     void doesNothingWhenOffOrWithoutOrganizations() {
-        EvaluatorStream off = new EvaluatorStream(false, Set.of(DEMO), evaluatorCatalog, (t, x) -> recorded.addAll(x),
+        EvaluatorStream off = new EvaluatorStream(false, Set.of(DEMO), evaluatorCatalog, (t, x, place) -> recorded.addAll(x),
                 new SimpleMeterRegistry(), Clock.systemUTC(), new InMemoryEpisodeRepository());
 
         assertEquals(0, off.evaluate(signal("2026-10-22T03:00:30Z", true, DEMO)));

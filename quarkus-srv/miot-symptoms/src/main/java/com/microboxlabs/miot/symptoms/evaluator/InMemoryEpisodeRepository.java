@@ -34,4 +34,13 @@ public class InMemoryEpisodeRepository implements EpisodeRepository {
             return new Snapshot(episodes, watermarks);
         });
     }
+
+    @Override
+    public void forget(String tenantCode, String assetId, UUID definitionId) {
+        data.computeIfPresent(new Key(tenantCode, assetId), (k, old) -> {
+            Map<UUID, Episode> episodes = new HashMap<>(old.episodes());
+            episodes.remove(definitionId);
+            return new Snapshot(episodes, old.watermarks());
+        });
+    }
 }

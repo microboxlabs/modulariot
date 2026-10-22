@@ -20,8 +20,8 @@ import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.Crea
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.PublishPlan;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomDetail;
-import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -45,7 +45,7 @@ class SymptomCatalogServiceTest {
         catalog = new InMemoryCatalog();
         catalog.upsert(Specs.gpsSignal());
         audit = new AuditService(new InMemoryAuditStore());
-        service = new SymptomCatalogService(catalog, new DataSourceService(catalog, new UnavailableSymptomEngine()),
+        service = new SymptomCatalogService(catalog, new DataSourceService(catalog, SignalSamples.inMemory()),
                 audit);
     }
 
@@ -237,7 +237,7 @@ class SymptomCatalogServiceTest {
         };
         racing.upsert(Specs.gpsSignal());
         SymptomCatalogService raced = new SymptomCatalogService(racing,
-                new DataSourceService(racing, new UnavailableSymptomEngine()), audit);
+                new DataSourceService(racing, SignalSamples.inMemory()), audit);
 
         assertEquals("speeding-2", raced.createFromTemplate(TENANT, OWNER, speedingTemplate(), null).definition()
                 .key());

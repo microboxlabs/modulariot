@@ -13,7 +13,7 @@ import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.Cal
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.Description;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService.UnavailableException;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
-import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -38,7 +38,7 @@ class RuleDescriptionServiceTest {
     @BeforeEach
     void setUp() {
         store = new InMemoryRuleDescriptions();
-        sources = new DataSourceService(new InMemoryCatalog(), new UnavailableSymptomEngine());
+        sources = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory());
         answer = "Se activa cuando el camión está <b>en viaje</b>.";
         calls.clear();
     }

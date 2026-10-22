@@ -1,21 +1,24 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
+import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
-import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
-import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.evaluator.Transition.Kind;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -25,13 +28,14 @@ class EvaluatorStreamTest {
     private static final String OTHER = "tenant-without-symptoms";
 
     private final List<Transition> recorded = new ArrayList<>();
+    private final SignalSamples samples = SignalSamples.inMemory();
     private SymptomCatalogService catalog;
     private EvaluatorCatalog evaluatorCatalog;
 
     @BeforeEach
     void setUp() {
         InMemoryCatalog store = new InMemoryCatalog();
-        DataSourceService sources = new DataSourceService(store, new UnavailableSymptomEngine());
+        DataSourceService sources = new DataSourceService(store, SignalSamples.inMemory());
         catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
         evaluatorCatalog = new EvaluatorCatalog(catalog, sources);
         publishPanic(DEMO, SymptomState.TEST);
@@ -44,9 +48,28 @@ class EvaluatorStreamTest {
         catalog.publish(tenant, "owner@example.com", id, "Primera versión", null, state);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void keepsEachOrganizationsSignalAsASampleWithoutRoutingFields() {
+        EvaluatorStream s = stream();
+
+        s.evaluate(signal("2026-10-22T03:00:30Z", true, OTHER));
+
+        List<Map<String, Object>> kept = samples.recent(OTHER, 5);
+        assertEquals(1, kept.size(), "kept even when the organization has no symptoms");
+        Map<String, Object> signal = (Map<String, Object>) kept.get(0).get("signal");
+        assertEquals("DEMO01", signal.get("asset_id"));
+        assertFalse(signal.containsKey("clients"));
+        assertFalse(signal.containsKey("schema"));
+        Map<String, Object> frame = (Map<String, Object>) signal.get("frame");
+        assertFalse(frame.containsKey("asset_id"));
+        assertEquals(true, ((Map<String, Object>) frame.get("sensors")).get("panic_button"));
+        assertTrue(samples.recent(DEMO, 5).isEmpty());
+    }
+
     private EvaluatorStream stream() {
         return new EvaluatorStream(true, evaluatorCatalog, (tenant, t, place) -> recorded.addAll(t),
-                new SimpleMeterRegistry(), Clock.systemUTC(), new InMemoryEpisodeRepository());
+                new SimpleMeterRegistry(), Clock.systemUTC(), new InMemoryEpisodeRepository(), samples);
     }
 
     private static String signal(String at, Boolean panic, String... clients) {
@@ -89,7 +112,7 @@ class EvaluatorStreamTest {
     @Test
     void doesNothingWhenOff() {
         EvaluatorStream off = new EvaluatorStream(false, evaluatorCatalog, (t, x, place) -> recorded.addAll(x),
-                new SimpleMeterRegistry(), Clock.systemUTC(), new InMemoryEpisodeRepository());
+                new SimpleMeterRegistry(), Clock.systemUTC(), new InMemoryEpisodeRepository(), samples);
 
         assertEquals(0, off.evaluate(signal("2026-10-22T03:00:30Z", true, DEMO)));
     }
@@ -143,7 +166,7 @@ class EvaluatorStreamTest {
             }
         };
         EvaluatorStream s = new EvaluatorStream(true, evaluatorCatalog, (t, x, place) -> recorded.addAll(x),
-                new SimpleMeterRegistry(), Clock.systemUTC(), failing);
+                new SimpleMeterRegistry(), Clock.systemUTC(), failing, samples);
         List<String> outcomes = new ArrayList<>();
 
         s.onSignal(message(signal("2026-10-22T03:00:30Z", true, DEMO), outcomes));

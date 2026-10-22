@@ -10,8 +10,8 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Report;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
-import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import java.util.HashSet;
 import java.util.List;
@@ -25,7 +25,7 @@ class TemplateServiceTest {
     private static final String OWNER = "owner@example.com";
 
     private final InMemoryCatalog store = new InMemoryCatalog();
-    private final DataSourceService sources = new DataSourceService(store, new UnavailableSymptomEngine());
+    private final DataSourceService sources = new DataSourceService(store, SignalSamples.inMemory());
     private final SymptomCatalogService catalog = new SymptomCatalogService(store, sources,
             new AuditService(new InMemoryAuditStore()));
     private final TemplateService templates = new TemplateService(store);

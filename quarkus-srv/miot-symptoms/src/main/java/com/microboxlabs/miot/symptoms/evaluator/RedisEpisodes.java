@@ -81,12 +81,12 @@ public class RedisEpisodes implements EpisodeRepository {
     @Override
     public void save(AssetEpisodes changes) {
         List<String> args = saveArgs(changes, ttl);
-        if (args != null) {
+        if (!args.isEmpty()) {
             redis.eval(args).await().atMost(TIMEOUT);
         }
     }
 
-    /** The EVAL arguments for {@link #save}, or null when nothing changed. */
+    /** The EVAL arguments for {@link #save}, or none when nothing changed. */
     static List<String> saveArgs(AssetEpisodes changes, Duration ttl) {
         List<String> pairs = new ArrayList<>();
         changes.saved().forEach((id, e) -> {
@@ -98,7 +98,7 @@ public class RedisEpisodes implements EpisodeRepository {
             pairs.add(Long.toString(at.toEpochMilli()));
         });
         if (pairs.isEmpty() && changes.deleted().isEmpty()) {
-            return null;
+            return List.of();
         }
         List<String> args = new ArrayList<>(List.of(SAVE_SCRIPT, "1", key(changes.tenantCode(), changes.assetId()),
                 Long.toString(ttl.toSeconds()), Integer.toString(pairs.size() / 2)));

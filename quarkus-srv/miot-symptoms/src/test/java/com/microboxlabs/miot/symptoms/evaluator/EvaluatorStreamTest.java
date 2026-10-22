@@ -123,7 +123,7 @@ class EvaluatorStreamTest {
         assertEquals(List.of("1", "symptoms:ep:" + DEMO + ":DEMO01", "604800", "2"), args.subList(1, 5));
         assertEquals("ep:" + gone, args.get(args.size() - 1));
         assertEquals(10, args.size());
-        assertEquals(null, RedisEpisodes.saveArgs(AssetEpisodes.empty(DEMO, "DEMO01"), java.time.Duration.ofDays(7)));
+        assertEquals(List.of(), RedisEpisodes.saveArgs(AssetEpisodes.empty(DEMO, "DEMO01"), java.time.Duration.ofDays(7)));
     }
 
     @Test

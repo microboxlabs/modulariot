@@ -1,29 +1,5 @@
 [
   {
-    "key": "gps_signal",
-    "name": "Señal GPS enriquecida",
-    "kind": "SIGNAL",
-    "root": "signal",
-    "cadence": "Cada pulso GPS, del orden de 30 s por camión",
-    "fields": [
-      {"path": "signal.trip.active", "label": "En viaje", "type": "bool", "origin": "TRIP", "engineSupported": true},
-      {"path": "signal.trip.double_driver", "label": "Dos conductores", "type": "bool", "origin": "TRIP", "engineSupported": true},
-      {"path": "signal.vehicle.weight_category", "label": "Categoría de peso", "type": "list", "origin": "VEHICLE", "engineSupported": true,
-       "values": [{"value": "HEAVY", "label": "Pesado (más de 3.860 kg o sin dato)"}, {"value": "LIGHT", "label": "Liviano (hasta 3.860 kg)"}]},
-      {"path": "signal.vehicle.weight_kg", "label": "Peso máximo", "type": "number", "unit": "kg", "origin": "VEHICLE", "engineSupported": true},
-      {"path": "signal.gps.speed_kmh", "label": "Velocidad", "type": "number", "unit": "km/h", "origin": "DEVICE", "engineSupported": true},
-      {"path": "signal.gps.engine_on", "label": "Motor encendido", "type": "bool", "origin": "DEVICE", "engineSupported": true},
-      {"path": "signal.gps.moving", "label": "En movimiento", "type": "bool", "origin": "CALCULATED", "engineSupported": true},
-      {"path": "signal.road.maxspeed_osm", "label": "Límite de la vía", "type": "number", "unit": "km/h", "origin": "ROAD_NETWORK", "engineSupported": true},
-      {"path": "signal.road.maxspeed_custom", "label": "Límite propio", "type": "number", "unit": "km/h", "engineSupported": true},
-      {"path": "signal.geo.authorized_zone", "label": "En zona autorizada", "type": "bool", "origin": "ZONES", "engineSupported": true},
-      {"path": "signal.geo.zone", "label": "Zona", "type": "zone", "origin": "ZONES", "engineSupported": true},
-      {"path": "signal.local_hour", "label": "Hora local", "type": "number", "engineSupported": true},
-      {"path": "signal.derived.speed_avg_5m", "label": "Velocidad promedio 5 min", "type": "number", "unit": "km/h", "origin": "CALCULATED", "engineSupported": false}
-    ],
-    "samples": []
-  },
-  {
     "key": "device_event",
     "name": "Evento de dispositivo o app",
     "kind": "EVENT",

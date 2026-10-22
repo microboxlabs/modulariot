@@ -3,6 +3,7 @@ package cl.streamhub.gps.model;
 import org.eclipse.microprofile.openapi.annotations.extensions.Extension;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -46,6 +47,13 @@ public class Sensors {
     )
     @JsonProperty("engine_status")
     private Boolean engineStatus;
+
+    @Schema(description = "Panic button status (true = pressed). Omit if the device has no panic button.",
+            required = false, extensions = { @Extension(name = "x-order", value = "6", parseValue = true) } //
+    )
+    @JsonProperty("panic_button")
+    @JsonAlias("button_panic")
+    private Boolean panicButton;
 
     public Acceleration getAcceleration() {
         return acceleration;
@@ -98,5 +106,18 @@ public class Sensors {
 
     public void setEngineStatus(boolean engineStatus) {
         this.engineStatus = engineStatus;
+    }
+
+    public Boolean getPanicButton() {
+        return panicButton;
+    }
+
+    @JsonIgnore
+    public boolean isPanicButton() {
+        return Boolean.TRUE.equals(panicButton);
+    }
+
+    public void setPanicButton(Boolean panicButton) {
+        this.panicButton = panicButton;
     }
 }

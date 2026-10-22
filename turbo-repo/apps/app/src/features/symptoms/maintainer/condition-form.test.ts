@@ -391,57 +391,71 @@ describe("moveRow", () => {
   });
 });
 
-describe("has() tests on the device frame", () => {
+describe("fields of the device frame", () => {
   const PANIC = [
     ...FIELDS,
     field("signal.frame.sensors.panic_button", "bool"),
     field("signal.frame.sensors.engine_status", "bool"),
     field("signal.frame.gps.speed", "number"),
   ];
+  const pressed = {
+    match: "all",
+    rows: [
+      { path: "signal.frame.sensors.panic_button", op: "is_true", value: null },
+    ],
+    groups: [],
+  };
 
-  it("shows the panic rule as one condition", () => {
-    const rule =
-      "has(signal.frame.sensors)\n&& has(signal.frame.sensors.panic_button)\n&& signal.frame.sensors.panic_button == true";
-    expect(shape(parseConditions(rule, PANIC))).toEqual({
-      match: "all",
-      rows: [
-        {
-          path: "signal.frame.sensors.panic_button",
-          op: "is_true",
-          value: null,
-        },
-      ],
-      groups: [],
-    });
+  it("reads a yes/no field written with .? and TRUE or FALSE", () => {
+    expect(
+      shape(
+        parseConditions("signal.frame.?sensors.?panic_button == TRUE", PANIC)
+      )
+    ).toEqual(pressed);
+    expect(
+      shape(
+        parseConditions("signal.frame.?sensors.?panic_button == FALSE", PANIC)
+      )?.rows[0]?.op
+    ).toBe("is_false");
   });
 
-  it("writes each has() once before the conditions that need it", () => {
+  it("still reads the panic rule written with has()", () => {
+    const rule =
+      "has(signal.frame.sensors)\n&& has(signal.frame.sensors.panic_button)\n&& signal.frame.sensors.panic_button == true";
+    const form = parseConditions(rule, PANIC) as ConditionForm;
+    expect(shape(form)).toEqual(pressed);
+    expect(compileConditions(form)).toBe(
+      "signal.frame.?sensors.?panic_button == TRUE"
+    );
+  });
+
+  it("writes yes/no fields with .? and other frame fields with has(), each once", () => {
     const form = parseConditions(
-      "signal.trip.active && signal.frame.sensors.panic_button && !signal.frame.sensors.engine_status",
+      "signal.trip.active && signal.frame.sensors.panic_button && !signal.frame.sensors.engine_status && signal.frame.gps.speed > 0",
       PANIC
     ) as ConditionForm;
     expect(compileConditions(form)).toBe(
       [
-        "has(signal.frame.sensors)",
-        "has(signal.frame.sensors.panic_button)",
-        "has(signal.frame.sensors.engine_status)",
+        "has(signal.frame.gps)",
+        "has(signal.frame.gps.speed)",
         "signal.trip.active",
-        "signal.frame.sensors.panic_button",
-        "!signal.frame.sensors.engine_status",
+        "signal.frame.?sensors.?panic_button == TRUE",
+        "signal.frame.?sensors.?engine_status == FALSE",
+        "signal.frame.gps.speed > 0",
       ].join("\n&& ")
     );
   });
 
   it("keeps each has() with its condition in an 'any' list and in groups", () => {
     const rule =
-      "((has(signal.frame.gps) && has(signal.frame.gps.speed) && signal.frame.gps.speed > 90) || signal.trip.double_driver)\n&& !((has(signal.frame.sensors) && has(signal.frame.sensors.panic_button) && signal.frame.sensors.panic_button) || signal.derived.moving)";
+      "((has(signal.frame.gps) && has(signal.frame.gps.speed) && signal.frame.gps.speed > 90) || signal.trip.double_driver)\n&& !(signal.frame.?sensors.?panic_button == TRUE || signal.derived.moving)";
     const form = parseConditions(rule, PANIC) as ConditionForm;
     expect(form.match).toBe("any");
     expect(form.groups[0]?.match).toBe("none");
     expect(ruleKey(compileConditions(form))).toBe(ruleKey(rule));
   });
 
-  it("leaves to the expression a has() that protects no condition", () => {
+  it("leaves to the expression what the form does not write", () => {
     expect(
       parseConditions("has(signal.frame.sensors) && signal.trip.active", PANIC)
     ).toBeNull();
@@ -450,6 +464,9 @@ describe("has() tests on the device frame", () => {
         "(has(signal.frame.gps) && signal.frame.gps.speed > 90) || signal.trip.active",
         PANIC
       )
+    ).toBeNull();
+    expect(
+      parseConditions("signal.frame.sensors.?panic_button == TRUE", PANIC)
     ).toBeNull();
   });
 

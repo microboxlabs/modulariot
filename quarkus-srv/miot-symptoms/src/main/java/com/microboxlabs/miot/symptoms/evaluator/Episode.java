@@ -1,5 +1,6 @@
 package com.microboxlabs.miot.symptoms.evaluator;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
@@ -20,6 +21,7 @@ import java.util.UUID;
  * @param level          the case's level; 0 when no case is open
  * @param maxMeasure     the highest measure since the case opened
  */
+@RegisterForReflection
 public record Episode(
         UUID definitionId,
         String version,

@@ -27,6 +27,20 @@ One GPS frame as symptom rules read it, under the CEL root `signal`. The signal 
 
 A part the builder does not know is left out. A rule that reads a missing field fails for that signal and is reported as a rule error. A rule that reads an optional field guards it with `has()`, for example `has(signal.frame) && has(signal.frame.sensors) && has(signal.frame.sensors.panic_button) && signal.frame.sensors.panic_button`.
 
+## Signal builder
+
+`SignalStream` reads `tracking/asset-positions` (`Key_Shared`, subscription `miot-signal-builder`) and publishes the signal to `tracking/asset-signals`, keyed by `asset_id`.
+
+| Part | How it is built |
+|---|---|
+| `clients` | The sending client (without `@clients`), then the clients of the vehicle's active `asset_client_map` rows valid at the frame time |
+| `trip` | The `live_trip` row in progress at the frame time (`SCHEDULED`, started, not ended); `v` trips before `ote`/`otr`, then the latest start. As the GPS database's signal function picks it |
+| `gps.moving` | Speed above 10 km/h, as the GPS database's signal function |
+| `local_hour` | Frame time in `MIOT_SYMPTOMS_SIGNAL_BUILDER_ZONE` (default `America/Santiago`) |
+| `vehicle`, `road`, `geo`, `derived` | Not built yet: left out |
+
+`live_trip` and `asset_client_map` are loaded from the GPS database at start and every `MIOT_SYMPTOMS_SIGNAL_BUILDER_RELOAD_EVERY` (10 min), and kept current between loads from their Debezium topics (non-durable subscriptions, so a stopped replica leaves no backlog). Frames wait for the first load, which is retried until the GPS database answers. Off unless `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED=true`. Frames are counted (`miot.symptoms.signal.built`, `.skipped`), never logged.
+
 ## Rule editor fields
 
 | Annotation | Field property |

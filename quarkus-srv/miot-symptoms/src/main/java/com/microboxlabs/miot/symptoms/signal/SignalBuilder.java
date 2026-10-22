@@ -53,9 +53,9 @@ public class SignalBuilder {
                 : new GpsSignal.Destination(d.destinationId(), d.destinationLabel(), d.destinationVisited());
         GpsSignal.Carrier carrier = d.carrierId() == null && d.carrierName() == null ? null
                 : new GpsSignal.Carrier(d.carrierId(), d.carrierName());
-        Integer zone = d.currentGeofenceId() == null || d.currentGeofenceId() == 0 ? null : d.currentGeofenceId();
+        Integer currentZone = d.currentGeofenceId() == null || d.currentGeofenceId() == 0 ? null : d.currentGeofenceId();
         return new GpsSignal.Trip(true, t.doubleDriver(), t.tripId(), t.tripType(), minutes(t.startTime(), at),
-                minutes(d.eta(), at), origin, destination, zone, carrier, d.loadType(), d.trailerPlate(),
+                minutes(d.eta(), at), origin, destination, currentZone, carrier, d.loadType(), d.trailerPlate(),
                 driver(d, at));
     }
 

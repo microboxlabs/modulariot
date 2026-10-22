@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The GPS database rows the signal builder joins to each frame: trips from
@@ -81,7 +82,7 @@ public class ReferenceCache {
     private final Map<String, Trip> trips = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Share>> shares = new ConcurrentHashMap<>();
     /** By national id without dots, upper case; null until the registry is first loaded. */
-    private volatile Map<String, List<Driver>> drivers;
+    private final AtomicReference<Map<String, List<Driver>>> drivers = new AtomicReference<>();
     /** Rows changed by a change event since the current reload began; the reload's older copy does not replace them. */
     private final Set<String> changedTrips = ConcurrentHashMap.newKeySet();
     private final Set<String> changedShares = ConcurrentHashMap.newKeySet();
@@ -131,7 +132,7 @@ public class ReferenceCache {
 
     /** Whether the driver registry has been loaded, so a driver not found in it is known to be unregistered. */
     public boolean driversLoaded() {
-        return drivers != null;
+        return drivers.get() != null;
     }
 
     /** Replaces the driver registry. */
@@ -139,7 +140,7 @@ public class ReferenceCache {
         Map<String, List<Driver>> next = new HashMap<>();
         all.stream().filter(d -> d.nationalId() != null)
                 .forEach(d -> next.computeIfAbsent(nationalId(d.nationalId()), k -> new ArrayList<>()).add(d));
-        drivers = next;
+        drivers.set(next);
     }
 
     /**
@@ -147,7 +148,7 @@ public class ReferenceCache {
      * active one.
      */
     public Optional<Driver> driver(String nationalId, String clientId) {
-        Map<String, List<Driver>> registry = drivers;
+        Map<String, List<Driver>> registry = drivers.get();
         if (nationalId == null || registry == null) {
             return Optional.empty();
         }

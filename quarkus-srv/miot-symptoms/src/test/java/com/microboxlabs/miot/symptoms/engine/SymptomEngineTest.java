@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -32,21 +31,6 @@ class SymptomEngineTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    void signalSampleHasTheSourceShapeAndNoIdentifiers() {
-        Map<String, Object> sample = GpsSymptomEngine.signalSample(112.0, 90.0, "HEAVY", 28000.0, "0", 75);
-
-        Map<String, Object> signal = (Map<String, Object>) sample.get("signal");
-        assertEquals(112.0, ((Map<String, Object>) signal.get("gps")).get("speed_kmh"));
-        assertEquals(90.0, ((Map<String, Object>) signal.get("road")).get("maxspeed_osm"));
-        assertEquals("HEAVY", ((Map<String, Object>) signal.get("vehicle")).get("weight_category"));
-        assertEquals(false, ((Map<String, Object>) signal.get("geo")).get("authorized_zone"));
-        assertEquals(true, ((Map<String, Object>) signal.get("trip")).get("active"));
-        assertEquals(75L, sample.get("held_s"));
-        assertFalse(sample.toString().contains("plate"));
-    }
-
-    @Test
     void demoEngineServesTheSpeedingRule() {
         DemoSymptomEngine demo = new DemoSymptomEngine();
 
@@ -55,7 +39,6 @@ class SymptomEngineTest {
         OffsetDateTime longAgo = OffsetDateTime.now().minusYears(1);
         assertEquals(3, demo.recentCases("any", DemoSymptomEngine.SPEEDING, longAgo, 3).size());
         assertEquals(0, demo.recentCases("any", DemoSymptomEngine.SPEEDING, OffsetDateTime.now(), 3).size());
-        assertEquals(2, demo.signalSamples("any", 2).size());
         OffsetDateTime now = OffsetDateTime.now();
         assertEquals(412, demo.levelCounts("any", now.minusDays(7), now).get(0).cases());
         assertEquals(0, demo.levelCounts("any", now, now).get(0).cases(), "an empty period has no cases");

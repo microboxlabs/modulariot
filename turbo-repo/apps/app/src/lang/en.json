@@ -994,6 +994,18 @@
       "heading": "Oops! That page doesn't exist.",
       "backToHome": "Back to home"
     },
+    "noAccess": {
+      "account": {
+        "title": "Your account has no access yet",
+        "body": "You signed in, but you have no role in any module yet. Ask an administrator of your organization to assign you one."
+      },
+      "page": {
+        "title": "You don't have access to this section",
+        "body": "Your role does not include this section. If you need it, ask an administrator of your organization to assign you the matching role."
+      },
+      "signedInAs": "Signed in as",
+      "back": "Go to my home page"
+    },
     "transportValidationForm": {
       "breadcrumb": {
         "tasks": "My tasks",
@@ -1874,11 +1886,17 @@
               "ACCREDITATION": "Created by the accreditation integration; it ends with the accreditation."
             }
           }
+        },
+        "symptomTemplates": {
+          "title": "Symptom templates",
+          "menuHint": "Ready symptoms that organizations copy",
+          "description": "Each template is a platform symptom, with a draft, versions and publishing. Organizations see the latest published version in \"New symptom from template\".",
+          "open": "Open templates"
         }
       },
       "organizations": {
         "title": "Organizations",
-        "description": "Review your organizations and their members. Organization owners can manage access and integrations.",
+        "description": "Review your organizations and their modules. Organization owners can manage integrations. Members and their access are on the Team page.",
         "loadError": "Couldn't load your organizations. Check that the local modulith is running and you are signed in.",
         "empty": "No organizations available for your account.",
         "loading": "Loading…",
@@ -1890,77 +1908,19 @@
         "platformView": {
           "readOnly": "Read-only. Managing members and integrations needs a role in this organization.",
           "parentOwners": "Owners (from {parent})",
-          "alfrescoOwners": "No owner assigned. The Alfresco managers of the organization act as owners.",
           "slug": "Identifier",
           "tenantClientId": "Tenant client ID",
-          "membershipSource": "Members managed in",
           "parent": "Parent organization",
           "taxId": "Tax ID",
           "owners": "Owners",
           "noOwners": "This organization has no owner yet. Until a platform owner assigns one, nobody can manage its members.",
-          "ownersError": "Could not load the owners.",
-          "sources": {
-            "NATIVE": "ModularIoT",
-            "ALFRESCO": "Alfresco"
-          }
+          "ownersError": "Could not load the owners."
         },
         "parentAccount": "Primary account",
         "noSelection": "Select an organization to view details.",
-        "membersTitle": "Members",
-        "membersDescription": "People with access to this organization.",
-        "membersEmpty": "No members found.",
         "modulesTitle": "Modules",
         "modulesDescription": "Enabled product modules for this organization.",
         "modulesEmpty": "No modules enabled.",
-        "contentReviewPermission": {
-          "accessTitle": "Access and permissions",
-          "accessDescription": "Manage organization members and assign multimedia review permissions.",
-          "memberCount": "{count} members",
-          "loadError": "Couldn't load the organization's members and permissions.",
-          "enabledLabel": "Enable automatic approval",
-          "enabledHelp": "Assigned members receive the Content Review Auto Approver role while this setting is enabled.",
-          "assignedCount": "{count} with automatic approval",
-          "searchLabel": "Search members",
-          "searchPlaceholder": "Search by name or email…",
-          "memberColumn": "Member",
-          "accessColumn": "Access",
-          "permissionColumn": "Automatic approval",
-          "memberAccess": "Member",
-          "ownerAccess": "Owner",
-          "memberRoleLabel": "Organization role for {member}",
-          "lastOwnerHelp": "Promote another member before removing the last owner.",
-          "memberPermissionLabel": "Automatic approval for {member}",
-          "noSearchResults": "No members match your search.",
-          "readOnly": "Read only",
-          "readOnlyHelp": "You have read-only access. The site manager role is required to change these permissions.",
-          "noMembers": "Add members to the organization before assigning this role.",
-          "unavailableMember": "No longer an organization member; uncheck to remove",
-          "saveError": "Couldn't save the permission.",
-          "roleSaveError": "Couldn't update the organization role.",
-          "save": "Save permission",
-          "saving": "Saving…"
-        },
-        "harnessTrainerPermission": {
-          "title": "Assistant trainers",
-          "description": "Trainers teach the assistant: they edit its knowledge and run evaluations.",
-          "ownersNote": "Organization owners are always trainers.",
-          "enabledLabel": "Enable trainers",
-          "enabledHelp": "Assigned members can train the assistant while this option is on.",
-          "assignedCount": "{count} trainers assigned",
-          "searchLabel": "Search members",
-          "searchPlaceholder": "Search by name or email…",
-          "memberColumn": "Member",
-          "permissionColumn": "Trainer",
-          "ownerBadge": "Owner",
-          "memberPermissionLabel": "Trainer permission for {member}",
-          "noSearchResults": "No members match your search.",
-          "noMembers": "Add members to the organization before assigning trainers.",
-          "unavailableMember": "No longer in the organization; uncheck to remove",
-          "loadError": "Couldn't load the assistant trainers.",
-          "saveError": "Couldn't save the trainers.",
-          "save": "Save trainers",
-          "saving": "Saving…"
-        },
         "whatsappChannel": {
           "title": "WhatsApp Channel",
           "description": "Configure and test the WhatsApp connection used to reach drivers.",
@@ -2171,7 +2131,6 @@
         "invite": "Invite members",
         "loadFailed": "Could not load the team.",
         "saveFailed": "Could not save the change.",
-        "alfrescoNote": "Members come from the organization's Alfresco group. They appear here when they sign in. To add or remove people, do it in Alfresco.",
         "colName": "Name",
         "colEmail": "Email",
         "colRole": "Role",
@@ -2309,8 +2268,25 @@
         "teamMembersTitle": "Members of {name}",
         "teamDeleteTitle": "Delete team",
         "teamDeleteBody": "{name} is deleted and its members lose the roles they had through the team.",
-        "rolesTitle": "Roles of {name}",
-        "rolesSubtitle": "One role per module, across the organization.",
+        "teamMembersPickerHelp": "Selected people get the team's roles.",
+        "searchMembers": "Search by name or email",
+        "selectedCount": "{count} of {total} selected",
+        "selectVisible": "Select shown",
+        "clearSelection": "Clear",
+        "noMemberMatches": "No members match your search.",
+        "teamCreateHelp": "Next you can add members and choose the roles they get.",
+        "teamNamePlaceholder": "For example, Night operators",
+        "teamDescriptionPlaceholder": "What this team does (optional)",
+        "teamNotFound": "This team no longer exists.",
+        "backToTeams": "Back to teams",
+        "teamMembersHelp": "They get the team's roles on top of their own access.",
+        "addMembers": "Add members",
+        "teamModuleAccessHelp": "Pick a role in each module. Every team member gets it.",
+        "teamEffectiveHelp": "What each member can do through this team.",
+        "memberCount": "{count} members",
+        "memberCountOne": "1 member",
+        "noTeamMembers": "No members yet. Add people from the organization.",
+        "teamCreated": "Created",
         "keysHelp": "Service accounts use API keys to call the platform without a person.",
         "noAccounts": "No service accounts yet.",
         "accountCreate": "New service account",
@@ -2442,7 +2418,8 @@
         "selectables": "Selectables",
         "contactBook": "Contact book",
         "symptomCatalog": "Symptoms",
-        "gps": "GPS"
+        "gps": "GPS",
+        "symptomTemplates": "Symptom templates"
       },
       "symptoms": {
         "config": {
@@ -3475,7 +3452,20 @@
         "colSymptom": "Symptom",
         "colScale": "Scale",
         "colVersion": "Version",
-        "colPerWeek": "Cases/wk"
+        "colPerWeek": "Cases/wk",
+        "templatesTitle": "Symptom templates",
+        "templatesDescription": "The symptoms the platform offers to organizations. An organization sees a template only after it is published.",
+        "newTemplate": "New template",
+        "templatesEmpty": "No templates yet.",
+        "createTemplateTitle": "New template",
+        "originTemplateVersion": "From the {name} template v{version}",
+        "saveAsTemplate": "Save as template",
+        "templateTarget": "Template",
+        "templateTargetNew": "New template ({key})",
+        "saveAsTemplateNewHint": "A template is created with version {version} of this symptom as its draft. Organizations see it when you publish it.",
+        "saveAsTemplateReplaceHint": "Version {version} of this symptom replaces the draft of {name}. Organizations see the change when you publish it.",
+        "saveAsTemplateForbidden": "Only a platform administrator can save templates.",
+        "saveAsTemplateConflict": "A template with that key already exists. Pick it in the list to replace its draft."
       },
       "gps": {
         "title": "GPS integration",

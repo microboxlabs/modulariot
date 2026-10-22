@@ -38,9 +38,7 @@ export default function PageContent({
   kanbanBoards,
   lang,
   dictionary,
-  userGroups,
 }: KanbanPageData & {
-  userGroups: string[];
 }) {
   const { activeView, handleViewChange } = useViewPreference("kanban");
   const { getLaneState, updateLaneState } = useLaneViewState();
@@ -231,7 +229,6 @@ export default function PageContent({
           >
             <ModalTooltip
               lang={lang}
-              userGroups={userGroups}
               selectedTask={selectedTask}
               setSelectedTask={setSelectedTask}
               dict={dictionary.general}

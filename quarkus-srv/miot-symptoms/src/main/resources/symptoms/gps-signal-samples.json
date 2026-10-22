@@ -1,0 +1,274 @@
+[
+  {
+    "signal": {
+      "asset_id": "DEMO001",
+      "trip": {
+        "active": true,
+        "double_driver": false,
+        "id": "TRIP-1001",
+        "type": "v",
+        "age_min": 95.0,
+        "late_min": -20.0,
+        "origin": {
+          "id": 32,
+          "label": "Planta Norte",
+          "visited": true,
+          "internal": true
+        },
+        "destination": {
+          "id": 17,
+          "label": "Puerto Sur",
+          "visited": false
+        },
+        "carrier": {
+          "id": "11111111-1",
+          "name": "Transportes Demo"
+        },
+        "load_type": "rampla",
+        "trailer_plate": "DEMO10",
+        "driver": {
+          "id": "drv-0001",
+          "registered": true,
+          "status": "ACTIVE",
+          "license_expired": false
+        }
+      },
+      "vehicle": {
+        "weight_category": "HEAVY",
+        "weight_kg": 28000.0
+      },
+      "road": {
+        "maxspeed_osm": 90.0
+      },
+      "geo": {
+        "authorized_zone": false
+      },
+      "local_hour": 14,
+      "derived": {
+        "moving": true
+      },
+      "frame": {
+        "type": "TRUCK",
+        "year": 2021,
+        "gps": {
+          "latitude": -33.4489,
+          "longitude": -70.6693,
+          "speed": 112.0
+        },
+        "telecom": {
+          "operator": "ENTEL",
+          "signal_strength": 24,
+          "gps_provider": "GPS"
+        },
+        "sensors": {
+          "engine_status": true,
+          "panic_button": false
+        }
+      }
+    },
+    "held_s": 75
+  },
+  {
+    "signal": {
+      "asset_id": "DEMO002",
+      "trip": {
+        "active": true,
+        "double_driver": false,
+        "id": "TRIP-1002",
+        "type": "v",
+        "age_min": 240.0,
+        "late_min": 35.0,
+        "origin": {
+          "id": 32,
+          "label": "Planta Norte",
+          "visited": true,
+          "internal": true
+        },
+        "destination": {
+          "id": 18,
+          "label": "Centro Distribución",
+          "visited": false
+        },
+        "current_zone_id": 21,
+        "carrier": {
+          "id": "22222222-2",
+          "name": "Fletes Demo"
+        },
+        "load_type": "rampla",
+        "trailer_plate": "DEMO20",
+        "driver": {
+          "id": "drv-0002",
+          "registered": true,
+          "status": "SUSPENDED",
+          "license_expired": true
+        }
+      },
+      "vehicle": {
+        "weight_category": "HEAVY",
+        "weight_kg": 28000.0
+      },
+      "road": {
+        "maxspeed_osm": 90.0
+      },
+      "geo": {
+        "authorized_zone": false
+      },
+      "local_hour": 9,
+      "derived": {
+        "moving": true
+      },
+      "frame": {
+        "type": "TRUCK",
+        "year": 2019,
+        "gps": {
+          "latitude": -33.0472,
+          "longitude": -71.6127,
+          "speed": 101.0
+        },
+        "telecom": {
+          "operator": "MOVISTAR",
+          "signal_strength": 18,
+          "gps_provider": "GPS"
+        },
+        "sensors": {
+          "engine_status": true,
+          "panic_button": false
+        }
+      }
+    },
+    "held_s": 20
+  },
+  {
+    "signal": {
+      "asset_id": "DEMO003",
+      "trip": {
+        "active": true,
+        "double_driver": false,
+        "id": "TRIP-1003",
+        "type": "ote",
+        "age_min": 30.0,
+        "origin": {
+          "id": 40,
+          "label": "Bodega Central",
+          "visited": true,
+          "internal": true
+        },
+        "destination": {
+          "id": 41,
+          "label": "Cliente Demo",
+          "visited": false
+        },
+        "carrier": {
+          "id": "11111111-1",
+          "name": "Transportes Demo"
+        },
+        "load_type": "carga liviana",
+        "driver": {
+          "registered": false
+        }
+      },
+      "vehicle": {
+        "weight_category": "LIGHT",
+        "weight_kg": 3200.0
+      },
+      "road": {
+        "maxspeed_osm": 50.0
+      },
+      "geo": {
+        "authorized_zone": true,
+        "zone": "Planta Norte"
+      },
+      "local_hour": 11,
+      "derived": {
+        "moving": true
+      },
+      "frame": {
+        "type": "PICKUP",
+        "year": 2023,
+        "gps": {
+          "latitude": -23.6509,
+          "longitude": -70.3975,
+          "speed": 58.0
+        },
+        "telecom": {
+          "operator": "ENTEL",
+          "signal_strength": 28,
+          "gps_provider": "GPS"
+        },
+        "sensors": {
+          "engine_status": true,
+          "panic_button": false
+        }
+      }
+    },
+    "held_s": 10
+  },
+  {
+    "signal": {
+      "asset_id": "DEMO004",
+      "trip": {
+        "active": true,
+        "double_driver": true,
+        "id": "TRIP-1004",
+        "type": "v",
+        "age_min": 610.0,
+        "late_min": 150.0,
+        "origin": {
+          "id": 32,
+          "label": "Planta Norte",
+          "visited": true,
+          "internal": true
+        },
+        "destination": {
+          "id": 17,
+          "label": "Puerto Sur",
+          "visited": false
+        },
+        "carrier": {
+          "id": "22222222-2",
+          "name": "Fletes Demo"
+        },
+        "load_type": "rampla",
+        "trailer_plate": "DEMO40",
+        "driver": {
+          "id": "drv-0004",
+          "registered": true,
+          "status": "ACTIVE"
+        }
+      },
+      "vehicle": {
+        "weight_category": "HEAVY",
+        "weight_kg": 30000.0
+      },
+      "road": {
+        "maxspeed_osm": 100.0
+      },
+      "geo": {
+        "authorized_zone": false
+      },
+      "local_hour": 3,
+      "derived": {
+        "moving": false
+      },
+      "frame": {
+        "type": "TRUCK",
+        "year": 2020,
+        "gps": {
+          "latitude": -27.3668,
+          "longitude": -70.3322,
+          "speed": 0.0
+        },
+        "telecom": {
+          "operator": "CLARO",
+          "signal_strength": 9,
+          "gps_provider": "GPS"
+        },
+        "sensors": {
+          "engine_status": false,
+          "panic_button": true
+        }
+      }
+    },
+    "held_s": 0
+  }
+]

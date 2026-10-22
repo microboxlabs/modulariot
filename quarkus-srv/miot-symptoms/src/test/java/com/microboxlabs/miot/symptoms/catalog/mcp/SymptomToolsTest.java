@@ -10,15 +10,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.iam.Access;
+import com.microboxlabs.miot.core.iam.AccessRegistry;
+import com.microboxlabs.miot.core.iam.AccessRules;
+import com.microboxlabs.miot.core.iam.BaseRole;
+import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.mcp.McpCaller;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.core.selectable.SelectableOption;
-import com.microboxlabs.miot.core.iam.Access;
-import com.microboxlabs.miot.core.iam.BaseRole;
-import com.microboxlabs.miot.core.iam.AccessRegistry;
-import com.microboxlabs.miot.core.iam.AccessRules;
-import com.microboxlabs.miot.core.iam.Caller;
-import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
@@ -28,11 +28,11 @@ import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
-import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomFamilies;
-import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.security.runtime.QuarkusSecurityIdentity;
@@ -54,7 +54,7 @@ class SymptomToolsTest {
     private static final String MEMBER = "member@acme.test";
 
     private final InMemoryCatalog store = new InMemoryCatalog();
-    private final DataSourceService sources = new DataSourceService(store, new DemoSymptomEngine());
+    private final DataSourceService sources = new DataSourceService(store, SignalSamples.inMemory());
     private final SymptomCatalogService catalog =
             new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
     private final String speeding = catalog.create(TENANT, OWNER, new CreateRequest("speeding",
@@ -88,8 +88,8 @@ class SymptomToolsTest {
     }
 
     private static SymptomSpec raisedCodigoNegro() {
-        return Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11 && medida < 25", "medida >= 25 && sostenido_s >= 60"));
+        return Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11 && measure < 25", "measure >= 25 && held_s >= 60"));
     }
 
     @Test
@@ -188,10 +188,10 @@ class SymptomToolsTest {
     void aSpecTheModelSendsAsJsonReadsIntoTheRecord() throws Exception {
         String json = """
                 {"source": "gps_signal", "activation": "signal.trip.active",
-                 "measure": {"expression": "signal.gps.speed_kmh - signal.road.maxspeed_osm", "unit": "km/h"},
-                 "levels": [{"icu": 4, "applies": true, "when": "medida >= 25 && sostenido_s >= 60",
+                 "measure": {"expression": "signal.frame.gps.speed - signal.road.maxspeed_osm", "unit": "km/h"},
+                 "levels": [{"icu": 4, "applies": true, "when": "measure >= 25 && held_s >= 60",
                              "response": {"operator": true, "slaMinutes": 2}}],
-                 "lifecycle": {"open": "caso.condicion_s >= 0", "close": "caso.normal_s >= 120"},
+                 "lifecycle": {"open": "case.condition_s >= 0", "close": "case.normal_s >= 120"},
                  "somethingElse": 1}
                 """;
 
@@ -199,7 +199,7 @@ class SymptomToolsTest {
 
         assertEquals(4, spec.levels().get(0).icu());
         assertEquals(2, spec.levels().get(0).response().slaMinutes());
-        assertEquals("caso.normal_s >= 120", spec.lifecycle().close());
+        assertEquals("case.normal_s >= 120", spec.lifecycle().close());
     }
 
     @Test
@@ -246,11 +246,12 @@ class SymptomToolsTest {
             this.organization = organization;
         }
 
-        /** The real rules: the owner is an Owner; anyone else an Alfresco member with the legacy Operator role. */
+        /** The real rules: the owner is an Owner; anyone else a Member holding the Operator role. */
         @Override
         public Uni<Access> access(String organizationSlug, Caller caller) {
-            AccessRules.Facts facts = new AccessRules.Facts(false, OWNER.equals(caller.email()) ? BaseRole.OWNER : null,
-                    true, false, false, Set.of(), null);
+            boolean owner = OWNER.equals(caller.email());
+            AccessRules.Facts facts = new AccessRules.Facts(owner ? BaseRole.OWNER : BaseRole.MEMBER, false,
+                    owner ? Set.of() : Set.of(ControlTowerAccessCatalog.OPERATOR));
             return Uni.createFrom().item(AccessRules.resolve(1L, organizationSlug, caller, facts, REGISTRY));
         }
     }

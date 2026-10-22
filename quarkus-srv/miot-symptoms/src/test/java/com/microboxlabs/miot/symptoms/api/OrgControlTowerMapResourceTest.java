@@ -1,5 +1,7 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
+import com.microboxlabs.miot.symptoms.cases.InMemoryEngineCases;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -80,9 +82,11 @@ class OrgControlTowerMapResourceTest {
         }, url, () -> rpc);
         tenant.setEffectiveClientIds(List.of("client-a", "client-child"));
         return new OrgControlTowerMapResource(tenant, org, new Roles(), null, map,
-                new ControlTowerTreatmentService(treatmentReads));
+                new ControlTowerTreatmentService(treatmentReads), new EngineCaseService(engineCases,
+                        (t, a, d) -> { }, t -> null, java.time.Clock.systemUTC()));
     }
 
+    private final InMemoryEngineCases engineCases = new InMemoryEngineCases();
     private final List<String> treatmentClients = new ArrayList<>();
 
     /** Symptom 7 and trip T1 on asset AB12 are client-a's. */

@@ -15,6 +15,7 @@ import {
   type SymptomSpec,
   type ValidationReport,
 } from "./maintainer-api";
+import { useSymptomScope } from "./symptom-scope";
 
 const DEBOUNCE_MS = 600;
 
@@ -31,6 +32,7 @@ function shown(spec: SymptomSpec | null): SymptomSpec | null {
  * a short pause; owners also save it as the draft.
  */
 export function useSymptomDraft(id: string, canWrite: boolean) {
+  const scope = useSymptomScope();
   const { data: detail, error, mutate } = useSymptomDefinition(id);
   const [spec, setSpec] = useState<SymptomSpec | null>(null);
   const [report, setReport] = useState<ValidationReport | null>(null);
@@ -92,33 +94,33 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
     setSpec(loaded);
     setPlanFor(loaded);
     setReport(null);
-    void globalMutate(publishPlanKey(id));
-  }, [serverDraft, id]);
+    void globalMutate(publishPlanKey(id, scope));
+  }, [serverDraft, id, scope]);
 
   const check = useCallback(
     (next: SymptomSpec, save: boolean) => {
       const ticket = ++latest.current;
       // The plan describes `next` once its reload after the save resolves.
       const reloadPlan = async () => {
-        await globalMutate(publishPlanKey(id));
+        await globalMutate(publishPlanKey(id, scope));
         if (ticket === latest.current) setPlanFor(next);
       };
       const run = async () => {
         try {
           if (save) {
             setSaving(true);
-            const saved = await saveDraft(id, next);
+            const saved = await saveDraft(id, next, scope);
             known.current = JSON.stringify(saved?.spec ?? next);
             if (ticket === latest.current) dirty.current = false;
             setSaveError(null);
             void mutate();
-            void refreshSymptoms();
+            void refreshSymptoms(undefined, scope);
             void reloadPlan();
           }
           if (ticket !== latest.current) return;
           const [r, p] = await Promise.all([
-            validateSpec(id, next),
-            previewSpec(id, next),
+            validateSpec(id, next, scope),
+            previewSpec(id, next, scope),
           ]);
           if (ticket !== latest.current) return;
           setReport(r);
@@ -133,7 +135,7 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
       queue.current = queue.current.then(run);
       return queue.current;
     },
-    [id, mutate]
+    [id, mutate, scope]
   );
 
   // First check once the spec is loaded, without saving.
@@ -173,10 +175,10 @@ export function useSymptomDraft(id: string, canWrite: boolean) {
   }, [id, mutate]);
 
   const discard = useCallback(async () => {
-    await discardDraft(id);
-    await refreshSymptoms();
+    await discardDraft(id, scope);
+    await refreshSymptoms(undefined, scope);
     await resync();
-  }, [id, resync]);
+  }, [id, resync, scope]);
 
   return {
     detail,

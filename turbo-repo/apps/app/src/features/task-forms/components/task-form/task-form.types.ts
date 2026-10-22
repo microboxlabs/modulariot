@@ -10,7 +10,6 @@ export type TaskFormProps = {
   lang: string;
   msg?: I18nDictionary;
   user?: string;
-  userGroups: string[];
 };
 
 export interface ExtendedTaskResponse
@@ -38,6 +37,5 @@ export interface ExtendedTaskViewProps {
   msg: I18nDictionary;
   lang: string;
   session: Session;
-  userGroups: string[];
   active?: boolean;
 }

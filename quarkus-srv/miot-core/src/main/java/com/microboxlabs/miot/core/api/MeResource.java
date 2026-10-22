@@ -95,7 +95,7 @@ public class MeResource {
             if (user != null && !"ACTIVE".equals(user.status)) {
                 return Uni.createFrom().item(List.of());
             }
-            return directory.platformOwnerSignedIn(email)
+            return directory.signedIn(email)
                     .onFailure().recoverWithItem(e -> {
                         LOG.warnf("Could not record sign-in of %s: %s", email, e.getMessage());
                         return null;
@@ -142,30 +142,22 @@ public class MeResource {
         return acc.map(List::copyOf);
     }
 
-    /**
-     * The org's scope when the caller is a member. With Alfresco membership, an org without an Alfresco group is
-     * left out: every signed-in user would otherwise see it.
-     */
+    /** The org's scope when the caller is a member. */
     private Uni<OrganizationScopeDto> buildScopeIfMember(Organization org, String email) {
-        return evaluator.membershipNative(org).flatMap(nativeMembership -> {
-            if (!Boolean.TRUE.equals(nativeMembership) && org.alfrescoGroupId == null) {
-                return Uni.createFrom().nullItem();
-            }
-            return evaluator.evaluate(org, Caller.user(email))
-                    .onFailure().recoverWithNull()
-                    .flatMap(access -> access == null || !access.member()
-                            ? Uni.createFrom().<OrganizationScopeDto>nullItem()
-                            : signedIn(org, email, nativeMembership, access.alfrescoRole())
-                                    .flatMap(ignored -> assembleScope(org, OrganizationRoleService.accessRole(access))));
-        });
+        return evaluator.evaluate(org, Caller.user(email))
+                .onFailure().recoverWithNull()
+                .flatMap(access -> access == null || !access.member()
+                        ? Uni.createFrom().<OrganizationScopeDto>nullItem()
+                        : signedIn(org, email)
+                                .flatMap(ignored -> assembleScope(org, OrganizationRoleService.accessRole(access))));
     }
 
-    /** Members are recorded on the top-level organization; a failure here never hides the organization. */
-    private Uni<Void> signedIn(Organization org, String email, Boolean nativeMembership, String alfrescoRole) {
+    /** Sign-ins are recorded on the top-level organization; a failure here never hides the organization. */
+    private Uni<Void> signedIn(Organization org, String email) {
         if (org.parent != null) {
             return Uni.createFrom().voidItem();
         }
-        return directory.signedIn(org, email, Boolean.TRUE.equals(nativeMembership), alfrescoRole)
+        return directory.signedIn(email)
                 .onFailure().recoverWithItem(e -> {
                     LOG.warnf("Could not record sign-in of %s in %s: %s", email, org.slug, e.getMessage());
                     return null;

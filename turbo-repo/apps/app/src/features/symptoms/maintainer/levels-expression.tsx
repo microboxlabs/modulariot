@@ -40,7 +40,7 @@ export default function LevelsExpression({
   preview: Preview | undefined;
   fields: SourceField[];
   sourceFields: CelField[];
-  /** The source fields plus `medida` and `sostenido_s`. */
+  /** The source fields plus `measure` and `held_s`. */
   levelFields: CelField[];
   findings: Finding[] | undefined;
   readOnly: boolean;

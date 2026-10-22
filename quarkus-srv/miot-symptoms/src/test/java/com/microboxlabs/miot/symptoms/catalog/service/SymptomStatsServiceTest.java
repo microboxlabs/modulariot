@@ -16,10 +16,10 @@ import com.microboxlabs.miot.symptoms.engine.EngineCase;
 import com.microboxlabs.miot.symptoms.engine.EngineRule;
 import com.microboxlabs.miot.symptoms.engine.LevelCount;
 import com.microboxlabs.miot.symptoms.engine.SymptomEngine;
-import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.service.TowerSettingsService;
 import com.microboxlabs.miot.symptoms.service.TowerSettingsService.SettingsRequest;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryTowerSettingsStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryTreatmentStore;
@@ -29,7 +29,6 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -94,18 +93,13 @@ class SymptomStatsServiceTest {
                     .limit(limit)
                     .toList();
         }
-
-        @Override
-        public List<Map<String, Object>> signalSamples(String tenantCode, int limit) {
-            return List.of();
-        }
     }
 
     @BeforeEach
     void setUp() {
         InMemoryCatalog store = new InMemoryCatalog();
         store.upsert(Specs.gpsSignal());
-        catalog = new SymptomCatalogService(store, new DataSourceService(store, new UnavailableSymptomEngine()),
+        catalog = new SymptomCatalogService(store, new DataSourceService(store, SignalSamples.inMemory()),
                 new AuditService(new InMemoryAuditStore()));
         treatments = new InMemoryTreatmentStore();
         settings = new TowerSettingsService(new InMemoryTowerSettingsStore(), new AuditService(new InMemoryAuditStore()));

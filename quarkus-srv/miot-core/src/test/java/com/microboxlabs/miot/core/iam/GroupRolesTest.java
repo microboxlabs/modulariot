@@ -35,7 +35,11 @@ class GroupRolesTest {
     void seed() throws SQLException {
         exec("INSERT INTO miot_core.organizations (slug, name, tenant_client_id, active, alfresco_group_id, "
                 + "membership_source) VALUES ('" + ORG + "', 'Group roles', 'group-roles-client', true, "
-                + "NULL, 'ALFRESCO')");
+                + "NULL, 'NATIVE')");
+        exec("INSERT INTO miot_iam.iam_user (email) VALUES ('" + MEMBER + "') ON CONFLICT DO NOTHING");
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role) "
+                + "SELECT o.id, u.id, 'MEMBER' FROM miot_core.organizations o, miot_iam.iam_user u "
+                + "WHERE o.slug = '" + ORG + "' AND u.email = '" + MEMBER + "'");
     }
 
     @AfterEach
@@ -69,6 +73,61 @@ class GroupRolesTest {
                 .then().statusCode(200)
                 .body("roles", hasItem(CoordinatorAccessCatalog.CONTROL_TOWER_EXECUTIVE))
                 .body("permissions", hasItem(CoordinatorAccessCatalog.STAGE_CONTROL_TOWER));
+    }
+
+    @Test
+    void reconcileRemovesAKnownMemberWhoLostTheRole() throws SQLException {
+        owner().contentType("application/json").body("{\"projected\":true}")
+                .when().put(MAPPINGS + "/GROUP_MINTRAL_VALIDADOR_TRANSPORTE/"
+                        + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR)
+                .then().statusCode(200);
+        owner().when().post(MAPPINGS + "/import").then().statusCode(200);
+
+        owner().when().post(MAPPINGS + "/reconcile?dryRun=true")
+                .then().statusCode(200)
+                .body("lines[0].add", hasSize(0))
+                .body("lines[0].remove", hasSize(0));
+
+        String org = "(SELECT id FROM miot_core.organizations WHERE slug = '" + ORG + "')";
+        String user = "(SELECT id FROM miot_iam.iam_user WHERE email = '" + MEMBER + "')";
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role, source, created_by) "
+                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test') ON CONFLICT DO NOTHING");
+        exec("DELETE FROM miot_iam.iam_role_binding WHERE organization_id = " + org + " AND principal_id = "
+                + user + "::text");
+
+        owner().when().post(MAPPINGS + "/reconcile?dryRun=true")
+                .then().statusCode(200)
+                .body("lines[0].holders", is(2))
+                .body("lines[0].remove", hasItem(MEMBER))
+                .body("lines[0].removalsHeld", is(false));
+
+        // Projection is off in this profile, so only a dry run is allowed.
+        owner().when().post(MAPPINGS + "/reconcile").then().statusCode(409);
+    }
+
+    @Test
+    void rolesProjectedToOneGroupAreReconciledTogether() throws SQLException {
+        owner().contentType("application/json").body("{\"projected\":true}")
+                .when().put(MAPPINGS + "/GROUP_SHARED/" + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR)
+                .then().statusCode(200);
+        owner().contentType("application/json").body("{\"projected\":true}")
+                .when().put(MAPPINGS + "/GROUP_SHARED/" + CoordinatorAccessCatalog.TRIP_ESCALATION)
+                .then().statusCode(200);
+        owner().when().post(MAPPINGS + "/import").then().statusCode(200);
+
+        String org = "(SELECT id FROM miot_core.organizations WHERE slug = '" + ORG + "')";
+        String user = "(SELECT id FROM miot_iam.iam_user WHERE email = '" + MEMBER + "')";
+        exec("INSERT INTO miot_iam.iam_membership (organization_id, user_id, base_role, source, created_by) "
+                + "VALUES (" + org + ", " + user + ", 'MEMBER', 'NATIVE', 'test') ON CONFLICT DO NOTHING");
+        exec("DELETE FROM miot_iam.iam_role_binding WHERE organization_id = " + org + " AND principal_id = "
+                + user + "::text AND role_key = '" + CoordinatorAccessCatalog.TRANSPORT_VALIDATOR + "'");
+
+        // Still holds the other role mapped to the group, so stays.
+        owner().when().post(MAPPINGS + "/reconcile?dryRun=true")
+                .then().statusCode(200)
+                .body("lines", hasSize(1))
+                .body("lines[0].roleKeys", hasSize(2))
+                .body("lines[0].remove", hasSize(0));
     }
 
     @Test
@@ -112,6 +171,22 @@ class GroupRolesTest {
         owner().when().delete(MAPPINGS + "/GROUP_PLANNING/" + CoordinatorAccessCatalog.CALENDAR_PLANNER)
                 .then().statusCode(204);
         owner().when().get(MAPPINGS).then().statusCode(200).body("$", hasSize(0));
+    }
+
+    @Test
+    void theMemberGroupIsNeverReconciledAsARoleGroup() throws SQLException {
+        exec("UPDATE miot_core.organizations SET alfresco_group_id = 'GROUP_site_gr' WHERE slug = '" + ORG + "'");
+        owner().contentType("application/json").body("{\"projected\":true}")
+                .when().put(MAPPINGS + "/GROUP_site_gr_SiteConsumer/" + CoordinatorAccessCatalog.LOAD_SEARCHER)
+                .then().statusCode(409);
+        owner().contentType("application/json").body("{}")
+                .when().put(MAPPINGS + "/GROUP_site_gr_SiteConsumer/" + CoordinatorAccessCatalog.LOAD_SEARCHER)
+                .then().statusCode(200);
+
+        // A projected row written before the check is left out of the reconcile.
+        exec("UPDATE miot_iam.iam_group_role SET projected = true WHERE group_id = 'GROUP_site_gr_SiteConsumer'");
+        owner().when().post(MAPPINGS + "/reconcile?dryRun=true")
+                .then().statusCode(200).body("lines", hasSize(0));
     }
 
     @Test

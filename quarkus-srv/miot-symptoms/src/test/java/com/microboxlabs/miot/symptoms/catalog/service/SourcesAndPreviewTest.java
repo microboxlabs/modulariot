@@ -9,9 +9,9 @@ import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService.SamplePreview;
-import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
-import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SourcesAndPreviewTest {
@@ -20,18 +20,19 @@ class SourcesAndPreviewTest {
 
     @Test
     void platformSourcesAreSeededOnFirstUse() {
-        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), new UnavailableSymptomEngine());
+        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory());
 
         List<String> keys = sources.list(TENANT).stream().map(DataSource::key).toList();
 
         assertEquals(List.of("gps_signal", "device_event", "trip_check"), keys);
-        assertTrue(sources.get(TENANT, "gps_signal").samples().isEmpty(), "no engine, no GPS samples");
+        assertEquals(SignalSamples.fallback(), sources.get(TENANT, "gps_signal").samples(),
+                "no recent signals: the fixed samples");
         assertEquals(2, sources.get(TENANT, "trip_check").samples().size());
     }
 
     @Test
     void unconfirmedOriginsAreLeftOut() {
-        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), new UnavailableSymptomEngine());
+        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory());
 
         SourceField custom = sources.get(TENANT, "gps_signal").fields().stream()
                 .filter(f -> f.path().equals("signal.road.maxspeed_custom")).findFirst().orElseThrow();
@@ -40,13 +41,13 @@ class SourcesAndPreviewTest {
     }
 
     @Test
-    void theSpeedingRulesRunOnEngineSamples() {
-        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), new DemoSymptomEngine());
+    void theSpeedingRulesRunOnTheFixedSamples() {
+        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory());
         DataSource gps = sources.get(TENANT, "gps_signal");
 
         List<SamplePreview> results = PreviewService.run(Specs.speeding(), gps);
 
-        assertEquals(3, results.size());
+        assertEquals(4, results.size());
         assertEquals(22.0, results.get(0).measure());
         assertEquals(4, results.get(0).level(), "22 km/h over, held 75 s: código negro");
         assertEquals(3, results.get(1).level(), "11 km/h over, held 20 s: crítica");
@@ -55,8 +56,33 @@ class SourcesAndPreviewTest {
     }
 
     @Test
+    void thePanicTemplateOpensOnlyOnThePressedButton() {
+        DataSource gps = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory()).get(TENANT, "gps_signal");
+
+        List<SamplePreview> results = PreviewService.run(SeedTemplates.get("panic-button").spec(), gps);
+
+        assertEquals(List.of(false, false, false, true), results.stream().map(SamplePreview::activates).toList());
+        assertEquals(4, results.get(3).level());
+        assertTrue(results.stream().allMatch(r -> r.error() == null));
+    }
+
+    @Test
+    void recentSignalsReplaceTheFixedSamples() {
+        SignalSamples samples = SignalSamples.inMemory();
+        samples.keep(TENANT, Map.of("asset_id", "AB1234", "clients", List.of(TENANT),
+                "frame", Map.of("sensors", Map.of("panic_button", true))));
+        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), samples);
+
+        List<Map<String, Object>> live = sources.get(TENANT, "gps_signal").samples();
+
+        assertEquals(List.of(Map.of("signal", Map.of("asset_id", "AB1234",
+                "frame", Map.of("sensors", Map.of("panic_button", true))))), live);
+        assertEquals(SignalSamples.fallback(), sources.get("tenant-b", "gps_signal").samples());
+    }
+
+    @Test
     void eachConditionOfTheActivationIsRunOnItsOwn() {
-        DataSource gps = new DataSourceService(new InMemoryCatalog(), new DemoSymptomEngine()).get(TENANT, "gps_signal");
+        DataSource gps = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory()).get(TENANT, "gps_signal");
 
         List<SamplePreview> results = PreviewService.run(Specs.speeding(), gps);
 
@@ -72,37 +98,37 @@ class SourcesAndPreviewTest {
         assertNull(broken.holds());
         assertNull(broken.values().get("signal.nope"));
 
-        SymptomSpec or = Specs.with(Specs.speeding(), "signal.trip.active || signal.gps.speed_kmh > 0");
+        SymptomSpec or = Specs.with(Specs.speeding(), "signal.trip.active || signal.frame.gps.speed > 0");
         assertTrue(PreviewService.run(or, gps).get(0).clauses().isEmpty(), "an || rule has no clause list");
 
         SymptomSpec ternary = Specs.with(Specs.speeding(),
-                "signal.trip.active ? signal.gps.speed_kmh > 0 && signal.gps.speed_kmh < 200 : false");
+                "signal.trip.active ? signal.frame.gps.speed > 0 && signal.frame.gps.speed < 200 : false");
         assertTrue(PreviewService.run(ternary, gps).get(0).clauses().isEmpty(),
                 "&& inside a conditional is not the rule's own conjunction");
-        SymptomSpec grouped = Specs.with(Specs.speeding(), "(signal.trip.active && signal.gps.speed_kmh > 0)");
+        SymptomSpec grouped = Specs.with(Specs.speeding(), "(signal.trip.active && signal.frame.gps.speed > 0)");
         assertEquals(2, PreviewService.run(grouped, gps).get(0).clauses().size(), "parentheses are looked through");
     }
 
     @Test
     void wrongResultTypesAndFailingLevelsAreReportedNotThrown() {
-        DataSource gps = new DataSourceService(new InMemoryCatalog(), new DemoSymptomEngine()).get(TENANT, "gps_signal");
+        DataSource gps = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory()).get(TENANT, "gps_signal");
         SymptomSpec base = Specs.speeding();
 
         SymptomSpec boolMeasure = new SymptomSpec(base.source(), base.activation(),
                 new SymptomSpec.Measure("true", null, null), base.levels(), base.lifecycle(), null);
         assertEquals("La medida debe dar un número.", PreviewService.run(boolMeasure, gps).get(0).error());
 
-        SymptomSpec numberActivation = Specs.with(base, "signal.gps.speed_kmh");
+        SymptomSpec numberActivation = Specs.with(base, "signal.frame.gps.speed");
         assertEquals("La condición debe dar sí o no.", PreviewService.run(numberActivation, gps).get(0).error());
 
-        SymptomSpec badLevel = Specs.withLevels(base, Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11 && medida < 21", "medida >= 21 && signal.nope > 1.0"));
+        SymptomSpec badLevel = Specs.withLevels(base, Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11 && measure < 21", "measure >= 21 && signal.nope > 1.0"));
         assertTrue(PreviewService.run(badLevel, gps).get(0).error().startsWith("Nivel 4: "));
     }
 
     @Test
     void aBrokenRuleReportsItsErrorPerSample() {
-        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), new DemoSymptomEngine());
+        DataSourceService sources = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory());
 
         SamplePreview first = PreviewService.run(Specs.with(Specs.speeding(), "signal.trip.activo"),
                 sources.get(TENANT, "gps_signal")).get(0);
@@ -113,20 +139,20 @@ class SourcesAndPreviewTest {
     @Test
     void theLifecycleRunsOnEachCaseMoment() {
         List<PreviewService.CasePreview> cases = PreviewService.cases(new SymptomSpec.Lifecycle(
-                "caso.condicion_s >= 60", "caso.normal_s >= 120 || caso.cerrado_por_operador"));
+                "case.condition_s >= 60", "case.normal_s >= 120 || case.closed_by_operator"));
 
         assertEquals(List.of("detected", "held", "ongoing", "normal", "closed_by_operator"),
                 cases.stream().map(PreviewService.CasePreview::scenario).toList());
         assertEquals(List.of("waits", "opens", "stays_open", "closes", "closes"),
                 cases.stream().map(PreviewService.CasePreview::outcome).toList());
-        assertEquals(-1.0, ((java.util.Map<?, ?>) cases.get(2).sample().get("caso")).get("normal_s"),
+        assertEquals(-1.0, ((java.util.Map<?, ?>) cases.get(2).sample().get("case")).get("normal_s"),
                 "normal_s is -1 while the condition holds, as the engine writes it");
     }
 
     @Test
     void aLifecycleRuleThatFailsIsReportedPerMoment() {
         List<PreviewService.CasePreview> cases = PreviewService.cases(
-                new SymptomSpec.Lifecycle("caso.condicion_s", "caso.nope > 1"));
+                new SymptomSpec.Lifecycle("case.condition_s", "case.nope > 1"));
 
         assertNull(cases.get(0).outcome());
         assertEquals("La condición debe dar sí o no.", cases.get(0).error());

@@ -48,13 +48,14 @@ class AuthTestInfrastructureTest {
     void seedOrg() throws SQLException {
         try (Connection c = ds.getConnection(); var st = c.prepareStatement(
                 "INSERT INTO miot_core.organizations "
-                        + "(slug, name, alfresco_group_id, tenant_client_id, active) "
-                        + "VALUES (?, ?, ?, ?, true)")) {
+                        + "(slug, name, alfresco_group_id, tenant_client_id, active, membership_source) "
+                        + "VALUES (?, ?, ?, ?, true, 'NATIVE')")) {
             st.setString(1, ORG_SLUG);
             st.setString(2, "Auth Infra Test Org");
             st.setString(3, ORG_GROUP);
             st.setString(4, ORG_TENANT);
             st.executeUpdate();
+            TestMembers.addMember(c, ORG_SLUG, StubAlfrescoMembershipClient.MEMBER_EMAIL, "OWNER");
         }
     }
 

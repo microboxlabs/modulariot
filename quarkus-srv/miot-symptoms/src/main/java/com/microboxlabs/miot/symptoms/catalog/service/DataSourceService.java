@@ -7,12 +7,14 @@ import com.microboxlabs.miot.symptoms.catalog.domain.DataSource;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceField;
 import com.microboxlabs.miot.symptoms.catalog.domain.SourceKind;
 import com.microboxlabs.miot.symptoms.catalog.store.DataSourceStore;
-import com.microboxlabs.miot.symptoms.engine.SymptomEngine;
+import com.microboxlabs.miot.symptoms.signal.SignalFields;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import io.quarkus.arc.properties.IfBuildProperty;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -20,10 +22,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The data sources rules read. Platform sources come from {@value #RESOURCE}
- * and are written to the store the first time they are needed. The GPS
- * signal's samples are read from the engine when it is connected, so rule
- * previews use recent real values.
+ * The data sources rules read. The GPS signal's fields are read from its
+ * contract ({@link SignalFields}); the other platform sources come from
+ * {@value #RESOURCE}. Both are written to the store the first time they are
+ * needed. The GPS signal's samples are the organization's recent signals
+ * ({@link SignalSamples}), or else fixed ones with the signal's whole shape.
  */
 @ApplicationScoped
 @IfBuildProperty(name = "miot.component.symptoms.enabled", stringValue = "true")
@@ -31,13 +34,13 @@ public class DataSourceService {
 
     static final String RESOURCE = "/symptoms/platform-sources.json";
     static final String GPS_SIGNAL = "gps_signal";
-    private static final int ENGINE_SAMPLES = 5;
+    private static final int RECENT_SAMPLES = 5;
 
     private static final ObjectMapper JSON = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     private final DataSourceStore store;
-    private final SymptomEngine engine;
+    private final SignalSamples samples;
     private volatile boolean seeded;
 
     /** A platform source as the resource file writes it. */
@@ -45,9 +48,9 @@ public class DataSourceService {
             List<Map<String, Object>> samples) {
     }
 
-    public DataSourceService(DataSourceStore store, SymptomEngine engine) {
+    public DataSourceService(DataSourceStore store, SignalSamples samples) {
         this.store = store;
-        this.engine = engine;
+        this.samples = samples;
     }
 
     public List<DataSource> list(String tenantCode) {
@@ -55,21 +58,21 @@ public class DataSourceService {
         return store.list(tenantCode);
     }
 
-    /** The source as stored, without asking the engine for samples. */
+    /** The source as stored, without the organization's recent signals. */
     public Optional<DataSource> find(String tenantCode, String key) {
         seed();
         return key == null ? Optional.empty() : store.find(tenantCode, key);
     }
 
-    /** The source, with engine samples for the GPS signal when the engine is connected. */
+    /** The source, with the organization's recent signals as the GPS signal's samples when there are any. */
     public DataSource get(String tenantCode, String key) {
         seed();
         DataSource source = store.find(tenantCode, key)
                 .orElseThrow(() -> new NoSuchElementException("data source not found: " + key));
-        if (!GPS_SIGNAL.equals(source.key()) || !engine.available()) {
+        if (!GPS_SIGNAL.equals(source.key())) {
             return source;
         }
-        List<Map<String, Object>> live = engine.signalSamples(tenantCode, ENGINE_SAMPLES);
+        List<Map<String, Object>> live = samples.recent(tenantCode, RECENT_SAMPLES);
         return live.isEmpty() ? source : new DataSource(source.id(), source.tenantCode(), source.key(),
                 source.name(), source.kind(), source.root(), source.cadence(), source.fields(), live);
     }
@@ -94,8 +97,12 @@ public class DataSourceService {
             if (in == null) {
                 throw new IllegalStateException("missing " + RESOURCE);
             }
-            return JSON.readValue(in, new TypeReference<List<Seed>>() {
-            });
+            List<Seed> seeds = new ArrayList<>();
+            seeds.add(new Seed(GPS_SIGNAL, SignalFields.name(), SourceKind.SIGNAL, SignalFields.ROOT,
+                    SignalFields.cadence(), SignalFields.fields(), SignalSamples.fallback()));
+            seeds.addAll(JSON.readValue(in, new TypeReference<List<Seed>>() {
+            }));
+            return seeds;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

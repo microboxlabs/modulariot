@@ -235,12 +235,15 @@ async function retryOneByOne<T>(
   }
 }
 
-/** Whether the caller may invite people into this organization. */
-export function invitesAllowed(
-  can: (permission: string) => boolean,
-  membershipSource: string | undefined
-): boolean {
-  return can("members:invite") && membershipSource === "NATIVE";
+/** The Team page actions the caller holds the permission for. */
+export function teamActions(can: (permission: string) => boolean) {
+  return {
+    canInvite: can("members:invite"),
+    canEditInvitationEmail: can("org:update"),
+    canUpdate: can("members:update"),
+    canRemove: can("members:remove"),
+    canManageOwners: can("owners:manage"),
+  };
 }
 
 /** The base roles a caller without owners:manage may give. */
@@ -307,6 +310,30 @@ export function memberLabels(
   });
 }
 
+function searchText(value: string | null): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/** Members whose name or email contains the query, sorted by name. Accents and case are ignored. */
+export function pickableMembers(
+  members: readonly TeamMember[],
+  query: string
+): TeamMember[] {
+  const needle = searchText(query.trim());
+  const label = (m: TeamMember) => searchText(m.name ?? m.email ?? m.userId);
+  return members
+    .filter(
+      (m) =>
+        !needle ||
+        searchText(m.name).includes(needle) ||
+        searchText(m.email).includes(needle)
+    )
+    .sort((a, b) => label(a).localeCompare(label(b)));
+}
+
 export const MAX_KEY_DAYS = 365;
 
 /**
@@ -352,6 +379,16 @@ export function effectivePermissions(
   catalog: AccessCatalog
 ): Set<string> {
   const out = basePermissions(base, catalog.permissions);
+  rolePermissions(roles, catalog).forEach((p) => out.add(p));
+  return out;
+}
+
+/** The permissions the given module roles grant, without a base role. A team's members get these. */
+export function rolePermissions(
+  roles: readonly string[],
+  catalog: AccessCatalog
+): Set<string> {
+  const out = new Set<string>();
   for (const key of roles) {
     const role = catalog.roles.find((r) => r.key === key);
     role?.permissions.forEach((p) => out.add(p));

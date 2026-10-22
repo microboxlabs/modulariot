@@ -2,7 +2,6 @@ package com.microboxlabs.miot.symptoms.engine;
 
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Map;
 
 /** Used when no engine is configured: reports itself unavailable and returns nothing. */
 public class UnavailableSymptomEngine implements SymptomEngine {
@@ -30,11 +29,6 @@ public class UnavailableSymptomEngine implements SymptomEngine {
     @Override
     public List<EngineCase> casesPage(String tenantCode, String symptomName, OffsetDateTime from, OffsetDateTime to,
             List<Integer> icus, long afterId, int limit) {
-        return List.of();
-    }
-
-    @Override
-    public List<Map<String, Object>> signalSamples(String tenantCode, int limit) {
         return List.of();
     }
 }

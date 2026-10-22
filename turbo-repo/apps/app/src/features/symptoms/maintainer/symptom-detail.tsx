@@ -16,6 +16,7 @@ import { useOrgScopes } from "@/features/layout/components/secured-navbar/org-sw
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
 import { useIntegrationConfig } from "@/features/integration-config/use-integration-config";
+import { useIsPlatformOwner } from "@/features/settings-admin/platform/use-platform-membership";
 import type { CelField } from "./cel-editor";
 import { keyFrom } from "./create-symptom-modal";
 import {
@@ -28,6 +29,8 @@ import {
   useControlTowerAccess,
   familiesListMissing,
   useSymptomTemplates,
+  type PublishPlan,
+  type SymptomSpec,
 } from "./maintainer-api";
 import DraftBar from "./draft-bar";
 import HarnessPanel from "./harness-panel";
@@ -35,6 +38,7 @@ import ImpactPanel from "./impact-panel";
 import { overviewText } from "./overview-text";
 import RuleDescription from "./rule-description";
 import PublishDialog from "./publish-dialog";
+import SaveAsTemplateModal from "./save-as-template-modal";
 import SheetHeader from "./sheet-header";
 import SymptomRuleSections from "./symptom-rule-sections";
 import {
@@ -44,6 +48,12 @@ import {
   originLabel,
 } from "./symptom-side-panels";
 import { pendingError } from "./pending-error";
+import {
+  isTemplateScope,
+  PLATFORM_TEMPLATES,
+  useSymptomScope,
+  type SymptomScope,
+} from "./symptom-scope";
 import { useSymptomDraft } from "./use-symptom-draft";
 import { changedPaths } from "./ui/changed";
 import VersionBanner from "./version-banner";
@@ -54,6 +64,46 @@ function variantName(name: string, d: I18nRecord) {
   return tr("variantName", d, { name });
 }
 
+/**
+ * Who may edit the sheet: platform owners for a template, Control Tower
+ * maintainers for a symptom. The integration API lists connections for
+ * organization owners only, so `connectionsOrg` is null for anyone else, who
+ * sees the saved choice.
+ */
+function useSheetAccess(scope: SymptomScope) {
+  const template = isTemplateScope(scope);
+  const { activeOrg } = useOrgScopes();
+  const { canMaintain } = useControlTowerAccess();
+  const { isPlatformOwner } = useIsPlatformOwner();
+  const ownsOrg = !template && activeOrg?.role === "OWNER";
+  return {
+    template,
+    isPlatformOwner,
+    canWrite: template ? isPlatformOwner : canMaintain,
+    connectionsOrg: ownsOrg ? (activeOrg?.slug ?? null) : null,
+  };
+}
+
+/** Amber marks: what the draft changes against the published version; none before publishing. */
+function changeMarks(
+  spec: SymptomSpec | null | undefined,
+  published: SymptomSpec | null | undefined,
+  plan: PublishPlan | null | undefined,
+  planIsCurrent: boolean
+): Set<string> {
+  if (!published || !spec) return new Set<string>();
+  const paths = changedPaths(spec, published);
+  // Conditions in another order are no change for the publish plan, so no mark either.
+  if (
+    planIsCurrent &&
+    plan &&
+    !plan.changes.some((c) => c.section === "activation")
+  ) {
+    paths.delete("activation");
+  }
+  return paths;
+}
+
 /** The scrolling sheet; opening an old version scrolls it to the top. */
 const SHEET_ID = "symptom-sheet";
 
@@ -62,7 +112,11 @@ type Pending =
   | { kind: "fork"; version: string }
   | null;
 
-/** The symptom page: its rules as editable CEL, checked and previewed by the server as you type. */
+/**
+ * The symptom page: its rules as editable CEL, checked and previewed by the
+ * server as you type. Under the platform scope it edits a template, which has
+ * no state, stats or Harness.
+ */
 export default function SymptomDetail({
   id,
   dict,
@@ -79,13 +133,10 @@ export default function SymptomDetail({
 }>) {
   const d = dict?.symptomCatalog as I18nRecord;
   const router = useRouter();
-  const { activeOrg } = useOrgScopes();
-  const { canMaintain: canWrite } = useControlTowerAccess();
-  // The integration API lists connections for organization owners only; others see the saved choice.
-  const listsConnections = activeOrg?.role === "OWNER";
-  const { connections } = useIntegrationConfig(
-    listsConnections ? (activeOrg?.slug ?? null) : null
-  );
+  const scope = useSymptomScope();
+  const { template, isPlatformOwner, canWrite, connectionsOrg } =
+    useSheetAccess(scope);
+  const { connections } = useIntegrationConfig(connectionsOrg);
   const {
     detail,
     error,
@@ -102,7 +153,7 @@ export default function SymptomDetail({
     planIsCurrent,
   } = useSymptomDraft(id, canWrite);
   const { data: families, error: familiesError } = useSymptomFamilies();
-  const { data: templates } = useSymptomTemplates(true);
+  const { data: templates } = useSymptomTemplates(!template);
   const { data: plan, error: planError } = usePublishPlan(
     id,
     Boolean(canWrite && detail?.draft)
@@ -113,19 +164,14 @@ export default function SymptomDetail({
     ? detail?.versions.find((v) => v.version === viewing)
     : undefined;
   const shownSpec = viewed?.spec ?? spec;
-  // Amber marks: what the spec on screen changes against the published version; none for an old version or before publishing.
   const published = detail?.current?.spec;
-  const changed = useMemo(() => {
-    if (viewed || !published || !spec) return new Set<string>();
-    const paths = changedPaths(spec, published);
-    // Conditions in another order are no change for the publish plan, so no mark either.
-    const reordered =
-      planIsCurrent &&
-      plan &&
-      !plan.changes.some((c) => c.section === "activation");
-    if (reordered) paths.delete("activation");
-    return paths;
-  }, [viewed, published, spec, plan, planIsCurrent]);
+  const changed = useMemo(
+    () =>
+      viewed
+        ? new Set<string>()
+        : changeMarks(spec, published, plan, planIsCurrent),
+    [viewed, published, spec, plan, planIsCurrent]
+  );
   // The overview describes the version on screen, or the one in force; a draft would rewrite it on every edit.
   const overviewSpec = viewed?.spec ?? published ?? null;
   const overview = overviewSpec ? overviewText(overviewSpec) : "";
@@ -133,6 +179,7 @@ export default function SymptomDetail({
     shownSpec?.source ?? detail?.definition.sourceKey ?? null
   );
   const [publishing, setPublishing] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [pending, setPending] = useState<Pending>(null);
   const [text, setText] = useState("");
@@ -160,7 +207,7 @@ export default function SymptomDetail({
     setActionError(null);
     try {
       await work();
-      await refreshSymptoms();
+      await refreshSymptoms(undefined, scope);
       await resync();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : String(e));
@@ -174,20 +221,18 @@ export default function SymptomDetail({
     setDialogError(null);
     try {
       if (pending.kind === "rollback") {
-        await rollbackTo(id, pending.version, text.trim() || undefined);
-        await refreshSymptoms();
+        await rollbackTo(id, pending.version, text.trim() || undefined, scope);
+        await refreshSymptoms(undefined, scope);
         await resync();
         setViewing(null);
       } else {
-        const created = await forkSymptom(id, {
-          version: pending.version,
-          key: keyFrom(text),
-          name: text.trim(),
-        });
-        await refreshSymptoms();
-        router.push(
-          `/${lang}/users/settings/symptoms/${created.definition.id}`
+        const created = await forkSymptom(
+          id,
+          { version: pending.version, key: keyFrom(text), name: text.trim() },
+          scope
         );
+        await refreshSymptoms(undefined, scope);
+        router.push(`/${lang}${scope.pages}/${created.definition.id}`);
       }
       setPending(null);
     } catch (e) {
@@ -211,7 +256,11 @@ export default function SymptomDetail({
         <Breadcrumb
           dict={dict?.breadcrumb as I18nRecord}
           lang={lang}
-          path={["user", "settings", "symptomCatalog"]}
+          path={
+            template
+              ? ["user", "settings", "platform", "symptomTemplates"]
+              : ["user", "settings", "symptomCatalog"]
+          }
           disableLinks
         />
       </div>
@@ -233,11 +282,17 @@ export default function SymptomDetail({
             familiesMissing={familiesListMissing(familiesError)}
             templates={templates}
             forkedFrom={detail?.forkedFrom ?? null}
-            backHref={`/${lang}/users/settings/symptoms`}
+            backHref={`/${lang}${scope.pages}`}
             lang={lang}
             d={d}
             rootDict={rootDict}
+            stateless={template}
             onChange={update}
+            onSaveAsTemplate={
+              !template && isPlatformOwner
+                ? () => setSavingTemplate(true)
+                : undefined
+            }
             onHistory={() => setHistoryOpen(true)}
             onDuplicate={() => {
               if (!def.currentVersion) return;
@@ -321,16 +376,18 @@ export default function SymptomDetail({
                 <>
                   <ReviewPanel report={report} d={d} />
                   <PreviewPanel preview={preview} d={d} rootDict={rootDict} />
-                  {harnessEnabled && canWrite && def && (
+                  {!template && harnessEnabled && canWrite && def && (
                     <HarnessPanel id={id} name={def.name} d={d} />
                   )}
-                  <ImpactPanel
-                    definitionId={id}
-                    spec={spec ?? shownSpec}
-                    published={published}
-                    lang={lang}
-                    d={d}
-                  />
+                  {!template && (
+                    <ImpactPanel
+                      definitionId={id}
+                      spec={spec ?? shownSpec}
+                      published={published}
+                      lang={lang}
+                      d={d}
+                    />
+                  )}
                 </>
               )}
               <FieldsPanel source={source} d={d} />
@@ -384,56 +441,102 @@ export default function SymptomDetail({
         onClose={() => setPublishing(false)}
         onPublished={() => {
           setPublishing(false);
-          void refreshSymptoms();
+          void refreshSymptoms(undefined, scope);
           void resync();
         }}
       />
 
-      <Modal show={pending !== null} size="md" onClose={closePending}>
-        <ModalHeader>
-          {pending?.kind === "fork"
-            ? tr("duplicateAsNew", d)
-            : tr("restoreTitle", d, { version: pending?.version ?? "" })}
-        </ModalHeader>
-        <ModalBody>
-          <Label htmlFor="pending-text">
-            {pending?.kind === "fork" ? tr("name", d) : tr("reason", d)}
-          </Label>
-          <TextInput
-            id="pending-text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-          <p className="mt-2 text-xs text-gray-500">
-            {pending?.kind === "fork"
-              ? tr("duplicateHint", d, { version: pending.version })
-              : tr("restoreHint", d)}
-          </p>
-          {dialogError && (
-            <p
-              role="alert"
-              className="mt-2 text-sm text-red-600 dark:text-red-400"
-            >
-              {dialogError}
-            </p>
-          )}
-        </ModalBody>
-        <ModalFooter className="justify-end">
-          <Button
-            color="alternative"
-            disabled={confirming}
-            onClick={closePending}
-          >
-            {tr("cancel", d)}
-          </Button>
-          <Button
-            disabled={confirming || (pending?.kind === "fork" && !text.trim())}
-            onClick={() => void confirmPending()}
-          >
-            {pending?.kind === "fork" ? tr("duplicate", d) : tr("restore", d)}
-          </Button>
-        </ModalFooter>
-      </Modal>
+      {def && !template && isPlatformOwner && (
+        <SaveAsTemplateModal
+          open={savingTemplate}
+          def={def}
+          version={viewed?.version ?? def.currentVersion}
+          d={d}
+          onClose={() => setSavingTemplate(false)}
+          onSaved={(saved) => {
+            setSavingTemplate(false);
+            router.push(
+              `/${lang}${PLATFORM_TEMPLATES.pages}/${saved.definition.id}`
+            );
+          }}
+        />
+      )}
+
+      <PendingDialog
+        pending={pending}
+        text={text}
+        confirming={confirming}
+        error={dialogError}
+        d={d}
+        onText={setText}
+        onClose={closePending}
+        onConfirm={() => void confirmPending()}
+      />
     </div>
+  );
+}
+
+/** Asks for a copy's name, or a rollback's reason, before either runs. */
+function PendingDialog({
+  pending,
+  text,
+  confirming,
+  error,
+  d,
+  onText,
+  onClose,
+  onConfirm,
+}: Readonly<{
+  pending: Pending;
+  text: string;
+  confirming: boolean;
+  error: string | null;
+  d: I18nRecord;
+  onText: (text: string) => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}>) {
+  return (
+    <Modal show={pending !== null} size="md" onClose={onClose}>
+      <ModalHeader>
+        {pending?.kind === "fork"
+          ? tr("duplicateAsNew", d)
+          : tr("restoreTitle", d, { version: pending?.version ?? "" })}
+      </ModalHeader>
+      <ModalBody>
+        <Label htmlFor="pending-text">
+          {pending?.kind === "fork" ? tr("name", d) : tr("reason", d)}
+        </Label>
+        <TextInput
+          id="pending-text"
+          value={text}
+          onChange={(e) => onText(e.target.value)}
+        />
+        <p className="mt-2 text-xs text-gray-500">
+          {pending?.kind === "fork"
+            ? tr("duplicateHint", d, { version: pending.version })
+            : tr("restoreHint", d)}
+        </p>
+        {error && (
+          <p
+            role="alert"
+            className="mt-2 text-sm text-red-600 dark:text-red-400"
+          >
+            {error}
+          </p>
+        )}
+      </ModalBody>
+      <ModalFooter className="justify-end">
+        <Button color="alternative" disabled={confirming} onClick={onClose}>
+          {tr("cancel", d)}
+        </Button>
+        <Button
+          disabled={confirming || (pending?.kind === "fork" && !text.trim())}
+          onClick={onConfirm}
+        >
+          {pending?.kind === "fork" ? tr("duplicate", d) : tr("restore", d)}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }

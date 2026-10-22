@@ -20,22 +20,13 @@ Who belongs to an organization and what they may do. Code: `com.microboxlabs.mio
 | `ADMIN` | Owner's, minus owner-only ones (`owners:manage`, `org:delete`, `billing:manage`) |
 | `MEMBER` | `org:read`, `members:read`, plus what module roles give |
 
-## Membership source
+## Membership
 
-Each top-level organization has `membership_source`; its sub-accounts follow it.
+A user is a member of an organization when they have an active membership of it or of its top-level organization. The base role is the membership's. Members are managed on the Team page.
 
-| Value | Member when | Base role |
-|---|---|---|
-| `ALFRESCO` (default) | In the organization's Alfresco group, or it has none | The membership's, else `MEMBER`; an Alfresco site or group manager is `OWNER` while no owner is assigned |
-| `NATIVE` | Has a membership | The membership's |
+A platform owner is `OWNER` of every active organization without a membership. `GET /api/v1/me/scopes` lists every active organization for them, so the app's organization switcher shows all of them. No membership row is written for this.
 
-`MIOT_ORGANIZATIONS_MEMBERSHIP=native` makes every organization native, for deployments without Alfresco.
-
-A platform owner is `OWNER` of every active organization, with either source and without a membership. `GET /api/v1/me/scopes` lists every active organization for them, so the app's organization switcher shows all of them. No membership row is written for this.
-
-With `ALFRESCO`, and for the organization's own M2M client, a caller holding no role of a module gets that module's legacy-default role (control tower: Operator).
-
-With `ALFRESCO`, people are added and removed in the Alfresco group. The Team page cannot invite or remove (409). An Alfresco member is recorded as a membership the first time they sign in (`GET /api/v1/me/scopes`): site and group managers as `ADMIN`, everyone else `MEMBER`. A membership row only raises the base role; it never grants access on its own.
+The organization's own M2M client holding no role of a module gets that module's legacy-default role (control tower: Operator). Users do not.
 
 ## Signing in
 
@@ -81,7 +72,7 @@ The email is written from a Handlebars template, one per language (`es`, `en`). 
 | Rename, change tax id, change modules, create a sub-account | `org:update` (Owner, Admin) |
 | Delete | `org:delete` (Owner) |
 
-A native organization's sub-accounts get no Alfresco group. Creating a top-level organization is for platform owners.
+Sub-accounts get no Alfresco group. Creating a top-level organization is for platform owners.
 
 ## Rules for changing members
 
@@ -156,11 +147,17 @@ Reading and rotating the secret are recorded in the audit log. A sub-account use
 
 Without the Management variables, organizations need a `tenantClientId` and the secret cannot be read or rotated.
 
-## Moving an organization off Alfresco
+## Organizations that used Alfresco membership
 
-1. A platform owner calls `POST /api/v1/platform/orgs/{slug}/alfresco-import`. It copies the Alfresco group into memberships. Site and group managers become `ADMIN`; everyone else `MEMBER`. Running it again adds only new people.
-2. Assign at least one `OWNER`.
-3. `PATCH /api/v1/platform/orgs/{slug}/membership-source` with `{"membershipSource": "NATIVE"}`.
+Organizations used to take their members from their Alfresco group (`membership_source = 'ALFRESCO'`). A job moves each one that is left, a second after start and then every minute (`miot.iam.native-migration.every`):
+
+1. Imports the top-level Alfresco group. Site and group managers become `ADMIN`, or `OWNER` when the organization has no owner; everyone else `MEMBER`. Existing memberships keep their role. Memberships recorded from Alfresco for people no longer in the group are suspended.
+2. Binds each module's legacy-default role to members who hold no role of that module.
+3. Marks the organization `NATIVE`.
+
+With `MIOT_ORGANIZATIONS_MEMBERSHIP=native` or `MIOT_ALFRESCO_AUTH=stub`, organizations are only marked `NATIVE`. An organization with a sub-account that has its own Alfresco group is left pending. A scheduled run has no caller, so it reads Alfresco with the Basic credentials.
+
+Readiness (`native-membership-migration`) stays down until a run leaves no organization pending, so a rollout keeps traffic on the previous version until then. A top-level organization created with an `alfrescoGroupId` gets its group imported the same way. `POST /api/v1/platform/orgs/native-migration` runs it at once and returns each organization's result, with `error` set when it failed.
 
 To keep the Alfresco group in step afterwards (BPM pooled tasks, document permissions), set `miot.iam.alfresco-projection.enabled=true`. Adding or removing a member then queues a change in `miot_iam.iam_projection_outbox`. A job sends pending changes every `miot.iam.alfresco-projection.every` (default `30s`) and gives up after 10 failures.
 
@@ -193,10 +190,9 @@ To keep the Alfresco group in step afterwards (BPM pooled tasks, document permis
 | `/api/v1/orgs/{org}/team/teams[/{teamId}[/members]]` | `teams:manage` (`members:read` to list) | Teams and their members |
 | `/api/v1/orgs/{org}/team/bindings[/{bindingId}]` | `members:update` (`members:read` to list) | Role bindings, optionally scoped to a sub-account |
 | `/api/v1/orgs/{org}/team/service-accounts[/{id}[/roles\|/keys[/{keyId}]]]` | `apikeys:manage` | Service accounts, their roles and keys |
-| `POST /api/v1/platform/orgs` | platform owner | Create a top-level organization (`membershipSource` optional) |
+| `POST /api/v1/platform/orgs` | platform owner | Create a top-level organization |
 | `GET`, `PUT /api/v1/platform/orgs/{slug}/roles/{roleCode}` | platform owner | Give a new organization its first owner |
-| `POST /api/v1/platform/orgs/{slug}/alfresco-import` | platform owner | Copy the Alfresco group into memberships |
-| `PATCH /api/v1/platform/orgs/{slug}/membership-source` | platform owner | Switch between `ALFRESCO` and `NATIVE` |
+| `POST /api/v1/platform/orgs/native-migration` | platform owner | Move the organizations left on Alfresco membership now |
 | `GET /api/v1/platform/orgs/{slug}/alfresco-projection` | platform owner | The latest 100 projection changes |
 
 Every change writes `miot_iam.iam_audit_event`.

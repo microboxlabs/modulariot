@@ -3,6 +3,7 @@ package com.microboxlabs.miot.core.iam;
 import com.microboxlabs.miot.core.iam.model.IamInvitation;
 import com.microboxlabs.miot.core.iam.model.IamMembership;
 import com.microboxlabs.miot.core.iam.model.IamRoleBinding;
+import com.microboxlabs.miot.core.iam.model.IamTeamMember;
 import com.microboxlabs.miot.core.iam.model.IamUser;
 import com.microboxlabs.miot.core.model.Organization;
 import io.quarkus.hibernate.reactive.panache.Panache;
@@ -40,12 +41,13 @@ public class TeamService {
     static final int MAX_INVITATION_DAYS = 90;
     private static final String BASE_ROLE = "baseRole";
     private static final String ROLES = "roles";
+    private static final String ACTIVE = "ACTIVE";
 
     public record MemberView(UUID userId, String email, String name, String baseRole, String status, String source,
             List<String> roles, Instant joinedAt, Instant lastSeenAt) {
     }
 
-    public record TeamView(String organization, String membershipSource, List<MemberView> members) {
+    public record TeamView(String organization, List<MemberView> members) {
     }
 
     public record InvitationView(UUID id, String email, String baseRole, List<String> roles, String invitedBy,
@@ -109,8 +111,7 @@ public class TeamService {
     public Uni<TeamView> members(String slug) {
         return Panache.withSession(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 IamMembership.findByOrganization(root.id).flatMap(rows -> views(root.id, rows))
-                        .map(members -> new TeamView(org.slug,
-                                evaluator.isNative(root) ? "NATIVE" : "ALFRESCO", members)))));
+                        .map(members -> new TeamView(org.slug, members)))));
     }
 
     public Uni<MemberView> setBaseRole(String slug, Caller actor, UUID userId, BaseRoleRequest request) {
@@ -145,11 +146,13 @@ public class TeamService {
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 evaluator.evaluate(org, actor).flatMap(access -> membership(root.id, userId).flatMap(m ->
                         lockedOwnerCount(root.id).flatMap(owners -> {
-                            requireNative(root);
                             TeamRules.checkRemoval(access, BaseRole.valueOf(m.baseRole), owners);
                             return IamRoleBinding.delete("organizationId = ?1 and principalKind = ?2 "
                                             + "and principalId = ?3", root.id, IamRoleBinding.USER, userId.toString())
-                                    .flatMap(ignored -> m.delete())
+                                    .flatMap(ignored -> IamTeamMember.delete("id.userId = ?1 and id.teamId in "
+                                            + "(select t.id from IamTeam t where t.organizationId = ?2)", userId, root.id))
+                                    .flatMap(ignored -> leave(m))
+                                    .flatMap(ignored -> directory.rolesChanged(root.id, List.of(userId), null))
                                     .flatMap(ignored -> IamUser.<IamUser>findById(userId))
                                     .flatMap(user -> user == null
                                             ? Uni.createFrom().voidItem()
@@ -157,6 +160,19 @@ public class TeamService {
                                     .flatMap(ignored -> directory.audit(root.id, actor.name(), "member.removed",
                                             userId.toString(), Map.of(BASE_ROLE, m.baseRole)));
                         }))))));
+    }
+
+    /**
+     * Ends a membership. One that came from the email domain is suspended instead of deleted, so the person does not
+     * join again at the next sign-in.
+     */
+    @SuppressWarnings("java:S1612") // PanacheEntityBase::persist is ambiguous with Reactive Panache overloads.
+    private static Uni<Void> leave(IamMembership m) {
+        if (DomainMembership.SOURCE.equals(m.source)) {
+            m.status = "SUSPENDED";
+            return m.persist().replaceWithVoid();
+        }
+        return m.delete();
     }
 
     // --- invitations ---
@@ -187,7 +203,6 @@ public class TeamService {
         }
         return Panache.withTransaction(() -> organization(slug).flatMap(org -> root(org).flatMap(root ->
                 evaluator.evaluate(org, actor).flatMap(access -> {
-                    requireNative(root);
                     TeamRules.checkInvite(access, base, roles, evaluator.registry());
                     Uni<List<CreatedInvitation>> chain = Uni.createFrom().item(new ArrayList<>());
                     for (String email : emails) {
@@ -303,10 +318,12 @@ public class TeamService {
                     ? existing
                     : IamMembership.of(invitation.organizationId, user.id, invited.name(), "INVITE",
                             invitation.invitedBy);
-            m.baseRole = BaseRole.max(BaseRole.valueOf(m.baseRole), invited).name();
-            m.status = "ACTIVE";
+            boolean joins = existing == null || !ACTIVE.equals(existing.status);
+            // A suspended member returns with the invited role; an active one keeps the higher of the two.
+            m.baseRole = joins ? invited.name() : BaseRole.max(BaseRole.valueOf(m.baseRole), invited).name();
+            m.status = ACTIVE;
             return m.<IamMembership>persist()
-                    .flatMap(saved -> existing == null
+                    .flatMap(saved -> joins
                             ? bridge.memberAdded(invitation.organizationId, me)
                             : Uni.createFrom().voidItem())
                     .flatMap(saved -> addRoles(invitation.organizationId, user.id, invitation.roles(), me))
@@ -333,7 +350,7 @@ public class TeamService {
                         ? Uni.createFrom().nullItem()
                         : IamMembership.findOne(root.id, user.id))
                 .flatMap(member -> {
-                    if (member != null) {
+                    if (member != null && ACTIVE.equals(member.status)) {
                         throw new IllegalStateException(email + " is already a member");
                     }
                     return IamInvitation.pendingFor(root.id, email);
@@ -365,6 +382,7 @@ public class TeamService {
                         + "and scopeKind = ?4", orgId, IamRoleBinding.USER, userId.toString(),
                         IamRoleBinding.ORGANIZATION)
                 .flatMap(ignored -> addRoles(orgId, userId, List.copyOf(wanted), actor))
+                .flatMap(ignored -> directory.rolesChanged(orgId, List.of(userId), null))
                 .flatMap(ignored -> directory.audit(orgId, actor, "member.roles", userId.toString(),
                         Map.of(ROLES, List.copyOf(wanted))));
     }
@@ -383,7 +401,7 @@ public class TeamService {
                                     userId.toString(), role, actor).persist().replaceWithVoid());
                         }
                     }
-                    return chain;
+                    return chain.flatMap(i -> directory.rolesChanged(orgId, List.of(userId), roles));
                 });
     }
 
@@ -426,14 +444,6 @@ public class TeamService {
             }
             return org;
         });
-    }
-
-    /** Alfresco decides who belongs to an ALFRESCO organization, so members are added and removed there. */
-    private void requireNative(Organization root) {
-        if (!evaluator.isNative(root)) {
-            throw new IllegalStateException(
-                    "Members of this organization come from Alfresco; add or remove them in its Alfresco group");
-        }
     }
 
     private static Uni<Organization> root(Organization org) {

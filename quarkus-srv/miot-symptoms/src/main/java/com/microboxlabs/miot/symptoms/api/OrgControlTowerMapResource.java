@@ -1,5 +1,8 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import com.microboxlabs.miot.symptoms.cases.EngineCase;
+import com.microboxlabs.miot.symptoms.cases.EngineCaseService;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
@@ -47,6 +50,7 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     private final TenantContext tenantContext;
     private final ControlTowerMapService map;
     private final ControlTowerTreatmentService treatments;
+    private final EngineCaseService cases;
 
     @Inject
     public OrgControlTowerMapResource(
@@ -55,11 +59,13 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             OrganizationRoleService roleService,
             SecurityIdentity identity,
             ControlTowerMapService map,
-            ControlTowerTreatmentService treatments) {
+            ControlTowerTreatmentService treatments,
+            EngineCaseService cases) {
         super(tenantContext, organizationContext, roleService, identity);
         this.tenantContext = tenantContext;
         this.map = map;
         this.treatments = treatments;
+        this.cases = cases;
     }
 
     @GET
@@ -108,7 +114,23 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
         tenantCode(organizationId);
         Map<String, String> filters = new LinkedHashMap<>();
         uri.getQueryParameters().forEach((name, values) -> filters.put(name, values.isEmpty() ? null : values.get(0)));
-        return answer(() -> map.symptoms(tenantContext.getClientId(), filters));
+        String tenant = tenantCode(organizationId);
+        return answer(() -> {
+            Uni<JsonNode> gps = map.symptoms(tenantContext.getClientId(), filters);
+            if (!EngineCaseService.showsOpenCases(filters)) {
+                return gps;
+            }
+            // The evaluator's open cases go first; they still show when the GPS database cannot be read.
+            return gps.onFailure(ControlTowerMapService.UnavailableException.class).recoverWithNull()
+                    .emitOn(Infrastructure.getDefaultWorkerPool())
+                    .map(page -> {
+                        JsonNode out = cases.withOpenCases(tenant, page);
+                        if (page == null && out.path("data").isEmpty()) {
+                            throw new ControlTowerMapService.UnavailableException("GPS data is not available");
+                        }
+                        return out;
+                    });
+        });
     }
 
     @GET
@@ -119,7 +141,10 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             params = "organizationId")
     public Uni<Response> symptom(@PathParam("organizationId") String organizationId,
             @PathParam("symptomId") String symptomId) {
-        tenantCode(organizationId);
+        String tenant = tenantCode(organizationId);
+        if (engineCase(symptomId)) {
+            return answer(() -> blocking(() -> cases.header(tenant, Long.parseLong(symptomId.trim()))));
+        }
         return answer(() -> treatments.treatment(clientIds(), symptomId));
     }
 
@@ -131,7 +156,10 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
             params = "organizationId")
     public Uni<Response> symptomSignals(@PathParam("organizationId") String organizationId,
             @PathParam("symptomId") String symptomId) {
-        tenantCode(organizationId);
+        String tenant = tenantCode(organizationId);
+        if (engineCase(symptomId)) {
+            return answer(() -> blocking(() -> cases.signals(tenant, Long.parseLong(symptomId.trim()))));
+        }
         return answer(() -> treatments.signals(clientIds(), symptomId));
     }
 
@@ -151,6 +179,15 @@ public class OrgControlTowerMapResource extends ControlTowerResourceSupport {
     /** The client id the symptom list reads as, so the treatment page shows the symptoms the list shows. */
     private List<String> clientIds() {
         return tenantContext.getClientId() == null ? List.of() : List.of(tenantContext.getClientId());
+    }
+
+    /** A negative symptom id is one of the evaluator's cases ({@link EngineCase#symptomId()}). */
+    private static boolean engineCase(String symptomId) {
+        return symptomId != null && symptomId.trim().matches("-\\d{1,18}");
+    }
+
+    private static Uni<JsonNode> blocking(Supplier<JsonNode> read) {
+        return Uni.createFrom().item(read).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
     private static Uni<Response> answer(Supplier<Uni<JsonNode>> read) {

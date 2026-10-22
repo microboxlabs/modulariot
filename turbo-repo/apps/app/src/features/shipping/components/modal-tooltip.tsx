@@ -16,14 +16,12 @@ export default function ModalTooltip({
   setSelectedTask,
   dict,
   lang,
-  userGroups,
   isFinished,
 }: {
   readonly selectedTask: string | null;
   readonly setSelectedTask: (task: string | null) => void;
   readonly dict: I18nRecord;
   readonly lang: string;
-  readonly userGroups: string[];
   readonly isFinished: boolean;
 }) {
   const pathname = usePathname();
@@ -102,7 +100,6 @@ export default function ModalTooltip({
                     task={data.taskResponse as unknown as TaskResponse}
                     msg={dict}
                     lang={lang}
-                    userGroups={userGroups}
                   />
                 </div>
               </div>

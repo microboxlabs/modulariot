@@ -994,6 +994,18 @@
       "heading": "¡Vaya! Esa página no existe.",
       "backToHome": "Volver al inicio"
     },
+    "noAccess": {
+      "account": {
+        "title": "Tu cuenta aún no tiene acceso",
+        "body": "Iniciaste sesión correctamente, pero todavía no tienes un rol asignado en ningún módulo. Pide a un administrador de tu organización que te asigne uno."
+      },
+      "page": {
+        "title": "No tienes acceso a esta sección",
+        "body": "Tu rol no incluye esta sección. Si la necesitas, pide a un administrador de tu organización que te asigne el rol correspondiente."
+      },
+      "signedInAs": "Sesión iniciada como",
+      "back": "Ir a mi inicio"
+    },
     "transportValidationForm": {
       "breadcrumb": {
         "tasks": "Mis tareas",
@@ -1874,11 +1886,17 @@
               "ACCREDITATION": "Lo creó la integración de acreditación y vence con la acreditación."
             }
           }
+        },
+        "symptomTemplates": {
+          "title": "Plantillas de síntomas",
+          "menuHint": "Síntomas listos que copian las organizaciones",
+          "description": "Cada plantilla es un síntoma de la plataforma, con borrador, versiones y publicación. Las organizaciones ven la última versión publicada en «Nuevo síntoma desde plantilla».",
+          "open": "Abrir plantillas"
         }
       },
       "organizations": {
         "title": "Organizaciones",
-        "description": "Revisa tus organizaciones y sus miembros. Los propietarios pueden administrar accesos e integraciones.",
+        "description": "Revisa tus organizaciones y sus módulos. Los propietarios pueden administrar integraciones. Los miembros y sus accesos están en Equipo.",
         "loadError": "No se pudieron cargar tus organizaciones. Verifica que el modulith local esté en ejecución y que hayas iniciado sesión.",
         "empty": "No hay organizaciones disponibles para tu cuenta.",
         "loading": "Cargando…",
@@ -1890,77 +1908,19 @@
         "platformView": {
           "readOnly": "Solo lectura. Para administrar miembros e integraciones necesitas un rol en esta organización.",
           "parentOwners": "Dueños (de {parent})",
-          "alfrescoOwners": "Sin dueño asignado. Los administradores de la organización en Alfresco actúan como dueños.",
           "slug": "Identificador",
           "tenantClientId": "Client ID del tenant",
-          "membershipSource": "Miembros administrados en",
           "parent": "Organización padre",
           "taxId": "RUT",
           "owners": "Dueños",
           "noOwners": "Esta organización aún no tiene dueño. Hasta que un dueño de la plataforma asigne uno, nadie puede administrar sus miembros.",
-          "ownersError": "No se pudieron cargar los dueños.",
-          "sources": {
-            "NATIVE": "ModularIoT",
-            "ALFRESCO": "Alfresco"
-          }
+          "ownersError": "No se pudieron cargar los dueños."
         },
         "parentAccount": "Cuenta principal",
         "noSelection": "Selecciona una organización para ver el detalle.",
-        "membersTitle": "Miembros",
-        "membersDescription": "Personas con acceso a esta organización.",
-        "membersEmpty": "No se encontraron miembros.",
         "modulesTitle": "Módulos",
         "modulesDescription": "Módulos de producto habilitados para esta organización.",
         "modulesEmpty": "No hay módulos habilitados.",
-        "contentReviewPermission": {
-          "accessTitle": "Acceso y permisos",
-          "accessDescription": "Administra los miembros de la organización y asigna permisos de revisión multimedia.",
-          "memberCount": "{count} miembros",
-          "loadError": "No se pudieron cargar los miembros y permisos de la organización.",
-          "enabledLabel": "Habilitar aprobación automática",
-          "enabledHelp": "Los miembros asignados reciben el rol de aprobación automática de contenido mientras esta opción esté habilitada.",
-          "assignedCount": "{count} con aprobación automática",
-          "searchLabel": "Buscar miembros",
-          "searchPlaceholder": "Buscar por nombre o correo…",
-          "memberColumn": "Miembro",
-          "accessColumn": "Acceso",
-          "permissionColumn": "Aprobación automática",
-          "memberAccess": "Miembro",
-          "ownerAccess": "Propietario",
-          "memberRoleLabel": "Rol en la organización para {member}",
-          "lastOwnerHelp": "Promueve a otro miembro antes de quitar al último propietario.",
-          "memberPermissionLabel": "Aprobación automática para {member}",
-          "noSearchResults": "No hay miembros que coincidan con la búsqueda.",
-          "readOnly": "Solo lectura",
-          "readOnlyHelp": "Tienes acceso de solo lectura. Se requiere el rol de administrador del sitio para modificar estos permisos.",
-          "noMembers": "Agrega miembros a la organización antes de asignar este rol.",
-          "unavailableMember": "Ya no pertenece a la organización; desmarca para eliminar",
-          "saveError": "No se pudo guardar el permiso.",
-          "roleSaveError": "No se pudo actualizar el rol de la organización.",
-          "save": "Guardar permiso",
-          "saving": "Guardando…"
-        },
-        "harnessTrainerPermission": {
-          "title": "Entrenadores del asistente",
-          "description": "Los entrenadores enseñan al asistente: editan su conocimiento y ejecutan evaluaciones.",
-          "ownersNote": "Los propietarios de la organización siempre son entrenadores.",
-          "enabledLabel": "Habilitar entrenadores",
-          "enabledHelp": "Los miembros asignados pueden entrenar al asistente mientras esta opción esté habilitada.",
-          "assignedCount": "{count} entrenadores asignados",
-          "searchLabel": "Buscar miembros",
-          "searchPlaceholder": "Buscar por nombre o correo…",
-          "memberColumn": "Miembro",
-          "permissionColumn": "Entrenador",
-          "ownerBadge": "Propietario",
-          "memberPermissionLabel": "Permiso de entrenador para {member}",
-          "noSearchResults": "No hay miembros que coincidan con la búsqueda.",
-          "noMembers": "Agrega miembros a la organización antes de asignar entrenadores.",
-          "unavailableMember": "Ya no pertenece a la organización; desmarca para eliminar",
-          "loadError": "No se pudieron cargar los entrenadores del asistente.",
-          "saveError": "No se pudieron guardar los entrenadores.",
-          "save": "Guardar entrenadores",
-          "saving": "Guardando…"
-        },
         "whatsappChannel": {
           "title": "Canal WhatsApp",
           "description": "Configura y prueba la conexión de WhatsApp para contactar a los conductores.",
@@ -2171,7 +2131,6 @@
         "invite": "Invitar miembros",
         "loadFailed": "No se pudo cargar el equipo.",
         "saveFailed": "No se pudo guardar el cambio.",
-        "alfrescoNote": "Los miembros vienen del grupo de Alfresco de la organización. Aparecen aquí al iniciar sesión. Para agregar o quitar personas, hazlo en Alfresco.",
         "colName": "Nombre",
         "colEmail": "Email",
         "colRole": "Rol",
@@ -2309,8 +2268,25 @@
         "teamMembersTitle": "Miembros de {name}",
         "teamDeleteTitle": "Eliminar equipo",
         "teamDeleteBody": "{name} se elimina y sus miembros pierden los roles que tenían por el equipo.",
-        "rolesTitle": "Roles de {name}",
-        "rolesSubtitle": "Un rol por módulo, en toda la organización.",
+        "teamMembersPickerHelp": "Las personas seleccionadas reciben los roles del equipo.",
+        "searchMembers": "Buscar por nombre o correo",
+        "selectedCount": "{count} de {total} seleccionados",
+        "selectVisible": "Seleccionar mostrados",
+        "clearSelection": "Limpiar",
+        "noMemberMatches": "Ningún miembro coincide con la búsqueda.",
+        "teamCreateHelp": "Luego podrás agregar miembros y elegir los roles que reciben.",
+        "teamNamePlaceholder": "Por ejemplo, Operadores de noche",
+        "teamDescriptionPlaceholder": "Qué hace este equipo (opcional)",
+        "teamNotFound": "Este equipo ya no existe.",
+        "backToTeams": "Volver a equipos",
+        "teamMembersHelp": "Reciben los roles del equipo, además de sus propios accesos.",
+        "addMembers": "Agregar miembros",
+        "teamModuleAccessHelp": "Elige un rol en cada módulo. Todos los miembros del equipo lo reciben.",
+        "teamEffectiveHelp": "Lo que puede hacer cada miembro por pertenecer a este equipo.",
+        "memberCount": "{count} miembros",
+        "memberCountOne": "1 miembro",
+        "noTeamMembers": "Todavía no hay miembros. Agrega personas de la organización.",
+        "teamCreated": "Creado",
         "keysHelp": "Las cuentas de servicio usan claves API para llamar a la plataforma sin una persona.",
         "noAccounts": "Todavía no hay cuentas de servicio.",
         "accountCreate": "Nueva cuenta de servicio",
@@ -2442,7 +2418,8 @@
         "selectables": "Seleccionables",
         "contactBook": "Libreta de contactos",
         "symptomCatalog": "Síntomas",
-        "gps": "GPS"
+        "gps": "GPS",
+        "symptomTemplates": "Plantillas de síntomas"
       },
       "symptoms": {
         "config": {
@@ -3475,7 +3452,20 @@
         "colSymptom": "Síntoma",
         "colScale": "Escala",
         "colVersion": "Versión",
-        "colPerWeek": "Casos/sem"
+        "colPerWeek": "Casos/sem",
+        "templatesTitle": "Plantillas de síntomas",
+        "templatesDescription": "Los síntomas que la plataforma ofrece a las organizaciones. Una organización solo ve una plantilla después de publicarla.",
+        "newTemplate": "Nueva plantilla",
+        "templatesEmpty": "Aún no hay plantillas.",
+        "createTemplateTitle": "Nueva plantilla",
+        "originTemplateVersion": "Desde la plantilla {name} v{version}",
+        "saveAsTemplate": "Guardar como plantilla",
+        "templateTarget": "Plantilla",
+        "templateTargetNew": "Plantilla nueva ({key})",
+        "saveAsTemplateNewHint": "Se crea una plantilla con la versión {version} de este síntoma como borrador. Las organizaciones la ven cuando la publiques.",
+        "saveAsTemplateReplaceHint": "La versión {version} de este síntoma reemplaza el borrador de {name}. Las organizaciones ven el cambio cuando lo publiques.",
+        "saveAsTemplateForbidden": "Solo un administrador de la plataforma puede guardar plantillas.",
+        "saveAsTemplateConflict": "Ya existe una plantilla con esa clave. Elígela en la lista para reemplazar su borrador."
       },
       "gps": {
         "title": "Integración GPS",

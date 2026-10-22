@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 
 const scopeMock = vi.fn();
 const forwardMock = vi.fn();
+const evictMock = vi.fn();
 
 vi.mock("@/app/api/utils/tenant-scope", () => ({
   resolveTenantScope: () => scopeMock(),
+  evictAllScopeCaches: () => evictMock(),
 }));
 vi.mock("@/app/api/utils/quarkus-proxy", () => ({
   forwardToQuarkus: (...args: unknown[]) => forwardMock(...args),
@@ -71,6 +73,28 @@ describe("/api/team/[...path]", () => {
         body: { emails: ["a@b.cl"] },
       }
     );
+  });
+
+  it("clears the cached scopes after a successful change, not after a read or a refusal", async () => {
+    await GET(req("http://x/app/api/team/members"), ctx(["members"]));
+    expect(evictMock).not.toHaveBeenCalled();
+
+    forwardMock.mockResolvedValueOnce(
+      NextResponse.json({ error: "conflict" }, { status: 409 })
+    );
+    const patch = () =>
+      PATCH(
+        req("http://x/app/api/team/members/u-1", {
+          method: "PATCH",
+          body: JSON.stringify({ baseRole: "OWNER" }),
+        }),
+        ctx(["members", "u-1"])
+      );
+    await patch();
+    expect(evictMock).not.toHaveBeenCalled();
+
+    await patch();
+    expect(evictMock).toHaveBeenCalledTimes(1);
   });
 
   it("refuses path segments that could leave the team API", async () => {

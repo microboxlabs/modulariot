@@ -5,9 +5,7 @@
     "dynamicItemsSource": "serverDashboards",
     "searchable": true,
     "createAction": { "href": "/dashboards", "label": "createDashboard" },
-    "items": [],
-    "requiredGroups": [],
-    "blockedGroups": []
+    "items": []
   },
   {
     "label": "home",
@@ -15,117 +13,98 @@
     "searchable": true,
     "createAction": { "href": "/home", "label": "createDashboard" },
     "items": [],
-    "requiredGroups": ["GROUP_DASHBOARD"],
-    "blockedGroups": []
+    "requiredPermissions": ["dashboards:view"]
   },
   {
     "label": "calendar",
     "dynamicItemsSource": "calendars",
     "items": [
-      { "href": "/calendar", "label": "calendarOverview", "requiredGroups": [], "blockedGroups": [] }
+      { "href": "/calendar", "label": "calendarOverview" }
     ],
-    "requiredGroups": ["GROUP_ASSIGNMENT", "GROUP_PLANNING", "GROUP_CALENDAR_VIEWER"],
-    "blockedGroups": []
+    "requiredPermissions": ["calendar:view", "calendar:plan", "calendar:assign"]
   },
   {
     "label": "kanban",
     "items": [
-      { "href": "/planning", "label": "planning", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/shipping", "label": "shipping", "requiredGroups": ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"], "blockedGroups": [] },
-      { "href": "/delivery", "label": "delivery", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/finished", "label": "finished", "requiredGroups": [], "blockedGroups": [] }
+      { "href": "/planning", "label": "planning", "requiredPermissions": ["coordination:kanban.view"] },
+      { "href": "/shipping", "label": "shipping", "requiredPermissions": ["coordination:kanban.view"] },
+      { "href": "/delivery", "label": "delivery", "requiredPermissions": ["coordination:kanban.view"] },
+      { "href": "/finished", "label": "finished", "requiredPermissions": ["coordination:finished.view"] }
     ],
-    "requiredGroups": ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
-    "blockedGroups": []
+    "requiredPermissions": ["coordination:kanban.view", "coordination:finished.view"]
   },
   {
     "label": "tasks",
     "dynamicItemsSource": "tasks",
     "items": [
-      { "href": "/mytasks?status=finished", "label": "completed_tasks", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/mytasks?status=pending", "label": "pending_tasks", "requiredGroups": [], "blockedGroups": [] }
+      { "href": "/mytasks?status=finished", "label": "completed_tasks" },
+      { "href": "/mytasks?status=pending", "label": "pending_tasks" }
     ],
-    "requiredGroups": ["GROUP_MINTRAL_KANBAN_ACCESS", "GROUP_GAMA_KANBAN_ACCESS"],
-    "blockedGroups": ["GROUP_MINTRAL_REVISOR"]
+    "requiredPermissions": ["coordination:kanban.view"]
   },
   {
     "label": "controlTower",
     "href": "/reports",
     "items": [
-      { "href": "/geographic-view", "label": "geographicView", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/symptoms", "label": "symptoms", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/signal-history", "label": "signalHistory", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/whatsapp/conversations", "label": "conversations", "requiredGroups": ["GROUP_CONVERSATIONS"], "blockedGroups": [] }
-    ],
-    "requiredGroups": [],
-    "blockedGroups": []
+      { "href": "/geographic-view", "label": "geographicView", "requiredPermissions": ["coordination:geographic.view"] },
+      { "href": "/symptoms", "label": "symptoms", "requiredPermissions": ["controltower:view"] },
+      { "href": "/signal-history", "label": "signalHistory" },
+      { "href": "/whatsapp/conversations", "label": "conversations", "requiredPermissions": ["conversations:view"] }
+    ]
   },
   {
     "label": "fleet",
-    "href": "/fleet",
-    "requiredGroups": [],
-    "blockedGroups": []
+    "href": "/fleet"
   },
   {
     "label": "liveStreams",
     "items": [
-      { "href": "/live-streams/facility-scl", "label": "facilitySCL", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/live-streams/truck-beds", "label": "truckBeds", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/live-streams/devices", "label": "allDevices", "requiredGroups": [], "blockedGroups": [] }
+      { "href": "/live-streams/facility-scl", "label": "facilitySCL" },
+      { "href": "/live-streams/truck-beds", "label": "truckBeds" },
+      { "href": "/live-streams/devices", "label": "allDevices" }
     ],
-    "requiredGroups": ["GROUP_ALFRESCO_ADMINISTRATORS"],
-    "blockedGroups": []
+    "requiredPermissions": ["admin:livestreams.view"]
   },
   {
     "label": "collaboratorsManagement",
     "href": "/collaborators-management",
-    "requiredGroups": ["GROUP_COLLABORATORS_MANAGEMENT", "GROUP_COLABORATORS_MANAGEMENT"],
-    "blockedGroups": []
+    "requiredPermissions": ["collaborators:manage"]
   },
   {
     "label": "whereIsMyLoad",
     "href": "/where-is-my-load",
-    "requiredGroups": ["GROUP_MINTRAL_BUSCADOR_CARGAS"],
-    "blockedGroups": []
+    "requiredPermissions": ["coordination:loads.search"]
   },
   {
     "label": "integrations",
-    "href": "/integrations/jobs",
-    "requiredGroups": [],
-    "blockedGroups": []
+    "href": "/integrations/jobs"
   },
   {
     "label": "storytelling",
-    "href": "/storytelling",
-    "requiredGroups": [],
-    "blockedGroups": []
+    "href": "/storytelling"
   },
   {
     "label": "settings",
     "items": [
-      { "href": "/users/settings/platform", "label": "platform", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/organizations", "label": "organizations", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/team", "label": "team", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/gps", "label": "gps", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/symptoms", "label": "symptomCatalog", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/selectables", "label": "selectables", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/contact-book", "label": "contactBook", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/data-sources", "label": "dataSources", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/credentials", "label": "credentials", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/connections", "label": "connections", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/users/settings/harness", "label": "harness", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/harness/learning", "label": "harnessLearning", "requiredGroups": [], "blockedGroups": [] }
-    ],
-    "requiredGroups": [],
-    "blockedGroups": []
+      { "href": "/users/settings/platform", "label": "platform" },
+      { "href": "/users/settings/organizations", "label": "organizations" },
+      { "href": "/users/settings/team", "label": "team" },
+      { "href": "/users/settings/gps", "label": "gps" },
+      { "href": "/users/settings/symptoms", "label": "symptomCatalog" },
+      { "href": "/users/settings/selectables", "label": "selectables" },
+      { "href": "/users/settings/contact-book", "label": "contactBook" },
+      { "href": "/users/settings/data-sources", "label": "dataSources" },
+      { "href": "/users/settings/credentials", "label": "credentials" },
+      { "href": "/users/settings/connections", "label": "connections" },
+      { "href": "/users/settings/harness", "label": "harness" },
+      { "href": "/harness/learning", "label": "harnessLearning" }
+    ]
   },
   {
     "label": "dev",
     "items": [
-      { "href": "/dev/harness-extensions", "label": "devExtensions", "requiredGroups": [], "blockedGroups": [] },
-      { "href": "/dev/components", "label": "devComponents", "requiredGroups": [], "blockedGroups": [] }
-    ],
-    "requiredGroups": [],
-    "blockedGroups": []
+      { "href": "/dev/harness-extensions", "label": "devExtensions" },
+      { "href": "/dev/components", "label": "devComponents" }
+    ]
   }
 ]

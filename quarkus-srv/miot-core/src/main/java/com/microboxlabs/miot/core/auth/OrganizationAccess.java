@@ -108,7 +108,10 @@ public class OrganizationAccess {
             return refuse(Response.Status.FORBIDDEN, message);
         }
         return effectiveClientIds(org)
-                .invoke(ids -> apply(org, caller.email(), access.alfrescoRole(), ids))
+                .invoke(ids -> {
+                    apply(org, caller.email(), ids);
+                    organizationContext.setBaseRole(access.baseRole() == null ? null : access.baseRole().name());
+                })
                 .replaceWith((Refusal) null);
     }
 
@@ -137,16 +140,15 @@ public class OrganizationAccess {
                 });
     }
 
-    private void apply(Organization org, String userEmail, String role, List<String> effectiveClientIds) {
+    private void apply(Organization org, String userEmail, List<String> effectiveClientIds) {
         tenantContext.setClientId(org.tenantClientId);
         tenantContext.setTenantCode(org.tenantClientId);
         tenantContext.setEffectiveClientIds(effectiveClientIds);
         organizationContext.setOrganizationId(org.slug);
         organizationContext.setUserEmail(userEmail);
-        organizationContext.setAlfrescoRole(role);
         organizationContext.setAlfrescoGroupId(org.alfrescoGroupId);
-        LOG.debugf("Organization resolved: slug=%s tenant=%s effectiveIds=%s user=%s role=%s",
-                org.slug, org.tenantClientId, effectiveClientIds, userEmail, role);
+        LOG.debugf("Organization resolved: slug=%s tenant=%s effectiveIds=%s user=%s",
+                org.slug, org.tenantClientId, effectiveClientIds, userEmail);
     }
 
     private static Uni<Refusal> refuse(Response.Status status, String message) {

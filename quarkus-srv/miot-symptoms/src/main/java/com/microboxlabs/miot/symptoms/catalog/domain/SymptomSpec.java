@@ -7,8 +7,8 @@ import java.util.List;
 /**
  * The rules of one symptom version. Conditions are CEL expressions:
  * {@code activation} over the source's root object, each level's {@code when}
- * over {@code medida} and {@code sostenido_s}, and the lifecycle over a
- * {@code caso} object.
+ * over {@code measure} and {@code held_s}, and the lifecycle over a
+ * {@code case} object.
  *
  * @param source     key of the {@link DataSource} the rules read
  * @param activation which situations are candidates
@@ -62,7 +62,7 @@ public record SymptomSpec(
     /**
      * @param icu     1 to 4
      * @param applies false when the symptom never produces this level
-     * @param when    CEL over {@code medida} and {@code sostenido_s}
+     * @param when    CEL over {@code measure} and {@code held_s}
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Level(int icu, boolean applies, String when, Response response) {
@@ -125,8 +125,8 @@ public record SymptomSpec(
     }
 
     /**
-     * @param open      CEL over {@code caso}
-     * @param close     CEL over {@code caso}
+     * @param open      CEL over {@code case}
+     * @param close     CEL over {@code case}
      * @param levelDown the level follows the measure down while the case is open; otherwise it never goes down
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -142,13 +142,13 @@ public record SymptomSpec(
      * Raise the level by {@code raiseLevels} when the same {@code entity} repeats {@code count} times in
      * {@code days}.
      *
-     * @param entity what repeats: {@code patente} (the vehicle) or {@code conductor}; null means the vehicle
+     * @param entity what repeats: {@code vehicle} or {@code driver}; null means the vehicle
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Recurrence(boolean enabled, int count, int days, int raiseLevels, String entity) {
 
-        public static final String VEHICLE = "patente";
-        public static final String DRIVER = "conductor";
+        public static final String VEHICLE = "vehicle";
+        public static final String DRIVER = "driver";
 
         /** A recurrence counted per vehicle. */
         public Recurrence(boolean enabled, int count, int days, int raiseLevels) {

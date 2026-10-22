@@ -132,6 +132,19 @@ Newest first, `limit` up to 500. Actions: `treatment.opened`,
 `contact.created`, `contact.updated`, `contact.deleted`, `selectable.replaced`,
 `selectable.deleted`, `selectable.reset`, `selectable.bindings_updated`.
 
+## Symptom templates
+
+Templates are the symptoms of the reserved tenant `platform`. They have drafts, checks and versions like any symptom, and are always `OFF`. Migration `V0.9.3` seeds seven at `1.0.0`.
+
+| Route | Who | Notes |
+|---|---|---|
+| `GET /symptom-definitions/templates` | `controltower:view` | Published templates with their `version` |
+| `POST /symptom-definitions/from-template` | `controltower:symptom.edit` | The copy records `templateKey` and `templateVersion` |
+| `POST /symptom-definitions/{id}/save-as-template` | platform owner with `controltower:view` | Body `{version, templateKey, name}`, all optional. Saves the version in force (else the draft) as a template draft: a new template, or the draft of `templateKey`. Notice connections, message templates and recipients are dropped. Platform data sources only |
+| `/api/v1/platform/symptom-templates/**` | platform owner | The symptom-definitions routes for templates: list, create, get, identity, draft, validate, preview, publish plan, publish, rollback, fork, compare, describe, plus `GET /data-sources` and `GET /data-sources/{key}`. No state, stats, import or response |
+
+Organizations see a template once a platform owner publishes it.
+
 ## Roles and permissions
 
 Each endpoint declares one permission with `@PermissionsAllowed`; `ControlTowerAccessCatalog` lists them and the roles that grant them. Owners and Admins hold every permission.

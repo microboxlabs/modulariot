@@ -8,7 +8,7 @@ const SAMPLE = {
   signal: {
     vehicle: { plate: "AB1234" },
     trip: { route: "SCL - ANF" },
-    gps: { speed_kmh: 112 },
+    frame: { gps: { speed: 112 } },
     road: { maxspeed_osm: 90 },
   },
 };

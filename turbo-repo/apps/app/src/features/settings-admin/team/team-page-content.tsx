@@ -31,7 +31,7 @@ import {
 import { TeamInvitationsTab } from "./team-invitations-tab";
 import { TeamKeysTab } from "./team-keys-tab";
 import { TeamMembersTab } from "./team-members-tab";
-import { inviteLinkOf, invitesAllowed } from "./team-model";
+import { inviteLinkOf, teamActions } from "./team-model";
 import { TeamRolesTab } from "./team-roles-tab";
 import { TeamTeamsTab } from "./team-teams-tab";
 import type { BaseRole, Invitation, TeamMember } from "./team.types";
@@ -81,19 +81,7 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
   const { data: session } = useSession();
   const { can } = useMyAccess();
   const team = useTeam();
-  // Alfresco decides who belongs to an ALFRESCO organization: no invites or removals here.
-  const fromAlfresco = team.data?.membershipSource === "ALFRESCO";
-  // Wait for the membership source: an ALFRESCO organization cannot invite.
-  const nativeMembers = team.data?.membershipSource === "NATIVE";
-  const canInvite = invitesAllowed(can, team.data?.membershipSource);
-  // Pending invitations can still be resent or revoked while members load.
-  const canManageInvitations = can("members:invite") && !fromAlfresco;
-  const canEditInvitationEmail = can("org:update") && !fromAlfresco;
-  const allowed = {
-    canUpdate: can("members:update"),
-    canRemove: can("members:remove") && nativeMembers,
-    canManageOwners: can("owners:manage"),
-  };
+  const { canInvite, canEditInvitationEmail, ...allowed } = teamActions(can);
   const teamsAllowed = {
     canManage: can("teams:manage"),
     canBind: allowed.canUpdate,
@@ -219,9 +207,6 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
           </Alert>
         )}
         {team.error && <Alert color="gray">{tr("loadFailed", d)}</Alert>}
-        {fromAlfresco && tab === "members" && (
-          <Alert color="gray">{tr("alfrescoNote", d)}</Alert>
-        )}
         {team.isLoading && <Spinner className="mx-auto" />}
 
         {tab === "members" && team.data && (
@@ -240,7 +225,7 @@ export default function TeamPageContent({ dict, lang }: TeamPageContentProps) {
           <TeamInvitationsTab
             invitations={invitations.data ?? []}
             roles={roles}
-            canInvite={canManageInvitations}
+            canInvite={canInvite}
             lang={lang}
             d={d}
             onResend={onResend}

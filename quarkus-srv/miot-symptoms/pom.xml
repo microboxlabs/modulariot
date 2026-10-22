@@ -24,6 +24,16 @@
             <artifactId>miot-core</artifactId>
         </dependency>
         <dependency>
+            <!-- The GPS frame the signal builder reads and the gps_signal source's frame fields. -->
+            <groupId>com.microboxlabs.miot</groupId>
+            <artifactId>miot-gps-model</artifactId>
+        </dependency>
+        <dependency>
+            <!-- The evaluator's episodes. The plain Vert.x client, so a modulith without Redis needs no Redis config. -->
+            <groupId>io.smallrye.reactive</groupId>
+            <artifactId>smallrye-mutiny-vertx-redis-client</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-jackson</artifactId>
         </dependency>

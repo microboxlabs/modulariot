@@ -36,16 +36,11 @@ class AccessRulesTest {
     }
 
     private static AccessRules.Facts nativeFacts(BaseRole membership, String... roles) {
-        return new AccessRules.Facts(true, membership, false, false, false, Set.of(roles), null);
-    }
-
-    private static AccessRules.Facts alfrescoFacts(BaseRole membership, boolean inGroup, boolean bootstrap,
-            String... roles) {
-        return new AccessRules.Facts(false, membership, inGroup, bootstrap, false, Set.of(roles), "SITE_CONSUMER");
+        return new AccessRules.Facts(membership, false, Set.of(roles));
     }
 
     @Test
-    void nativeMembershipNeedsAMembership() {
+    void aUserNeedsAMembership() {
         assertFalse(resolve(ANA, nativeFacts(null, "TOWER_VIEWER")).member());
         Access member = resolve(ANA, nativeFacts(BaseRole.MEMBER));
         assertEquals(BaseRole.MEMBER, member.baseRole());
@@ -53,11 +48,12 @@ class AccessRulesTest {
     }
 
     @Test
-    void aNativeMemberGetsOnlyWhatTheirRolesGive() {
+    void aMemberGetsOnlyWhatTheirRolesGive() {
         Access viewer = resolve(ANA, nativeFacts(BaseRole.MEMBER, "TOWER_VIEWER"));
         assertTrue(viewer.can("tower:view"));
         assertFalse(viewer.can("tower:treat"));
         assertEquals(Set.of("TOWER_VIEWER"), viewer.roles());
+        assertEquals(Set.of(), resolve(ANA, nativeFacts(BaseRole.MEMBER)).roles(), "no legacy default for a user");
     }
 
     @Test
@@ -76,52 +72,26 @@ class AccessRulesTest {
 
     @Test
     void aPlatformOwnerIsOwnerOfEveryOrganization() {
-        AccessRules.Facts nativeNoMembership = new AccessRules.Facts(true, null, false, false, false, Set.of(), null,
-                true);
-        assertEquals(BaseRole.OWNER, resolve(ANA, nativeNoMembership).baseRole());
-        assertTrue(resolve(ANA, nativeNoMembership).can(CoreAccessCatalog.OWNERS_MANAGE));
-
-        AccessRules.Facts outsideAlfrescoGroup = new AccessRules.Facts(false, null, false, false, false, Set.of(),
-                null, true);
-        assertEquals(BaseRole.OWNER, resolve(ANA, outsideAlfrescoGroup).baseRole());
+        AccessRules.Facts noMembership = new AccessRules.Facts(null, false, Set.of(), true);
+        assertEquals(BaseRole.OWNER, resolve(ANA, noMembership).baseRole());
+        assertTrue(resolve(ANA, noMembership).can(CoreAccessCatalog.OWNERS_MANAGE));
     }
 
     @Test
     void platformOwnershipGivesAClientNothing() {
-        AccessRules.Facts facts = new AccessRules.Facts(true, null, false, false, false, Set.of(), null, true);
+        AccessRules.Facts facts = new AccessRules.Facts(null, false, Set.of(), true);
         assertFalse(resolve(Caller.client("other-client"), facts).member());
-    }
-
-    @Test
-    void alfrescoMembershipNeedsTheGroupAndKeepsTheLegacyDefaults() {
-        assertFalse(resolve(ANA, alfrescoFacts(BaseRole.OWNER, false, false)).member());
-        Access member = resolve(ANA, alfrescoFacts(null, true, false));
-        assertEquals(BaseRole.MEMBER, member.baseRole());
-        assertEquals(Set.of("TOWER_OPERATOR"), member.roles());
-        assertTrue(member.can("tower:treat"));
-        assertEquals("SITE_CONSUMER", member.alfrescoRole());
-    }
-
-    @Test
-    void anExplicitModuleRoleReplacesTheLegacyDefault() {
-        Access viewer = resolve(ANA, alfrescoFacts(null, true, false, "TOWER_VIEWER"));
-        assertEquals(Set.of("TOWER_VIEWER"), viewer.roles());
-        assertFalse(viewer.can("tower:treat"));
-    }
-
-    @Test
-    void anAlfrescoManagerOwnsAnOrganizationWithoutOwners() {
-        assertEquals(BaseRole.OWNER, resolve(ANA, alfrescoFacts(null, true, true)).baseRole());
-        assertEquals(BaseRole.OWNER, resolve(ANA, alfrescoFacts(BaseRole.OWNER, true, false)).baseRole());
     }
 
     @Test
     void theOrganizationsOwnClientIsAMemberWithTheLegacyDefaults() {
         Caller client = Caller.client("client-acme");
-        Access own = resolve(client, new AccessRules.Facts(true, null, false, false, true, Set.of(), null));
+        Access own = resolve(client, new AccessRules.Facts(null, true, Set.of()));
         assertEquals(BaseRole.MEMBER, own.baseRole());
         assertTrue(own.can("tower:treat"));
-        assertFalse(resolve(client, new AccessRules.Facts(true, null, false, false, false, Set.of(), null)).member());
+        assertFalse(resolve(client, new AccessRules.Facts(null, false, Set.of())).member());
+        Access viewer = resolve(client, new AccessRules.Facts(null, true, Set.of("TOWER_VIEWER")));
+        assertEquals(Set.of("TOWER_VIEWER"), viewer.roles(), "an explicit module role replaces the default");
     }
 
     @Test

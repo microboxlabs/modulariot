@@ -63,7 +63,7 @@ public class IamMembership extends PanacheEntityBase {
     }
 
     public static Uni<List<IamMembership>> findByOrganization(Long organizationId) {
-        return find("organizationId = ?1 order by createdAt", organizationId).list();
+        return find("organizationId = ?1 order by createdAt, id", organizationId).list();
     }
 
     public static Uni<List<IamMembership>> findByRole(Long organizationId, String baseRole) {

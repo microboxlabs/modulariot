@@ -22,7 +22,7 @@ class SpecRulesTest {
 
         assertNull(SpecDiff.bump(SpecDiff.changes(base, Specs.speeding())));
         assertEquals(VersionBump.MAJOR, SpecDiff.bump(SpecDiff.changes(base,
-                Specs.with(base, Specs.ACTIVATION + " && signal.gps.speed_kmh > 10"))));
+                Specs.with(base, Specs.ACTIVATION + " && signal.frame.gps.speed > 10"))));
         assertNull(SpecDiff.bump(SpecDiff.changes(base, Specs.with(base, "  " + Specs.ACTIVATION.replace(" && ",
                 "\n && ")))), "whitespace is not a change");
         assertNull(SpecDiff.bump(SpecDiff.changes(base, Specs.with(base, Specs.ACTIVATION.replace(" && ", "&&")))),
@@ -31,8 +31,8 @@ class SpecRulesTest {
         assertEquals(VersionBump.MAJOR, SpecDiff.bump(SpecDiff.changes(zone,
                 Specs.with(base, "signal.geo.zone == \"North  Yard\""))), "spaces inside a string are a change");
 
-        List<Level> raised = Specs.levels("medida > 0 && medida < 5", "medida >= 5 && medida < 11",
-                "medida >= 11 && medida < 25", "medida >= 25 && sostenido_s >= 60");
+        List<Level> raised = Specs.levels("measure > 0 && measure < 5", "measure >= 5 && measure < 11",
+                "measure >= 11 && measure < 25", "measure >= 25 && held_s >= 60");
         assertEquals(VersionBump.MINOR, SpecDiff.bump(SpecDiff.changes(base, Specs.withLevels(base, raised))));
 
         List<Level> newSla = List.of(base.levels().get(0), base.levels().get(1), base.levels().get(2),
@@ -68,8 +68,8 @@ class SpecRulesTest {
 
     @Test
     void overlappingLevelsAreAnError() {
-        SymptomSpec overlap = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11", "medida >= 21 && sostenido_s >= 60"));
+        SymptomSpec overlap = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11", "measure >= 21 && held_s >= 60"));
 
         Report report = SpecValidator.validate(overlap, Specs.gpsSignal());
 
@@ -80,17 +80,17 @@ class SpecRulesTest {
 
     @Test
     void overlapsAreFoundBeyondAnyFixedRange() {
-        SymptomSpec high = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida > 500", "medida > 500"));
+        SymptomSpec high = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure > 500", "measure > 500"));
 
         assertFalse(SpecValidator.validate(high, Specs.gpsSignal()).publishable());
     }
 
     @Test
     void levelRulesCountForEngineSupportButStringsDoNot() {
-        SymptomSpec levelField = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11 && medida < 21",
-                "medida >= 21 && signal.derived.speed_avg_5m > 90.0"));
+        SymptomSpec levelField = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11 && measure < 21",
+                "measure >= 21 && signal.derived.speed_avg_5m > 90.0"));
         assertTrue(SpecValidator.validate(levelField, Specs.gpsSignal()).needsTestOnly());
 
         SymptomSpec inText = Specs.with(Specs.speeding(),
@@ -122,7 +122,7 @@ class SpecRulesTest {
     void operatorLevelsNeedAnSla() {
         SymptomSpec noSla = Specs.withLevels(Specs.speeding(), List.of(
                 new Level(1, false, null, null), new Level(2, false, null, null), new Level(3, false, null, null),
-                new Level(4, true, "medida >= 21", Specs.response(true, null))));
+                new Level(4, true, "measure >= 21", Specs.response(true, null))));
 
         assertEquals("Si interviene un operador, el nivel necesita un SLA.",
                 SpecValidator.validate(noSla, Specs.gpsSignal()).findings().get(0).message());
@@ -135,7 +135,7 @@ class SpecRulesTest {
                 new SymptomSpec.Step(" ", "call", 0, "Hola")), List.of(), List.of(), true);
         SymptomSpec spec = Specs.withLevels(Specs.speeding(), List.of(
                 new Level(1, false, null, null), new Level(2, false, null, null), new Level(3, false, null, null),
-                new Level(4, true, "medida >= 21", withSteps)));
+                new Level(4, true, "measure >= 21", withSteps)));
 
         List<String> messages = SpecValidator.validate(spec, Specs.gpsSignal()).findings().stream()
                 .map(SpecValidator.Finding::message).toList();

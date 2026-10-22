@@ -35,7 +35,7 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: "24"
+  NODE_VERSION: "24.22.1"
   NEXT_PUBLIC_APP_LOGIN_URL: ${{ vars.NEXT_PUBLIC_APP_LOGIN_URL || 'https://modulariot.com/app/sign-in' }}
   NEXT_PUBLIC_APP_SIGNUP_URL: ${{ vars.NEXT_PUBLIC_APP_SIGNUP_URL || 'https://modulariot.com/app/sign-in' }}
   NEXT_PUBLIC_INGEST_URL: ${{ vars.NEXT_PUBLIC_INGEST_URL }}

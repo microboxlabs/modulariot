@@ -27,6 +27,7 @@ import {
 } from "./maintainer-api";
 import { renderDescription } from "./rule-description";
 import { familyLabel } from "./symptom-labels";
+import { useSymptomScope } from "./symptom-scope";
 import { Spark } from "./ui/badges";
 import { MUTED } from "./ui/card";
 
@@ -102,6 +103,11 @@ function TemplateButton({
       <span className="min-w-0">
         <span className="block text-sm font-medium text-gray-900 dark:text-white">
           {t.name}
+          {t.version && (
+            <span className={`ml-1.5 font-mono text-xs font-normal ${MUTED}`}>
+              v{t.version}
+            </span>
+          )}
         </span>
         <span className={`block truncate text-xs ${MUTED}`}>
           {t.description}
@@ -142,16 +148,17 @@ function HarnessBox({
   );
 }
 
-/** The plain form: name, key and source, with an empty draft. */
+/** The plain form: name, key and source, with an empty draft. Without `onBack` there is nothing to go back to. */
 function BlankForm({
   d,
   onBack,
   onCreated,
 }: Readonly<{
   d: I18nRecord;
-  onBack: () => void;
+  onBack?: () => void;
   onCreated: (detail: SymptomDetail) => void;
 }>) {
+  const scope = useSymptomScope();
   const { data: sources } = useDataSources();
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
@@ -167,12 +174,11 @@ function BlankForm({
     setBusy(true);
     setError(null);
     try {
-      const created = await createSymptom({
-        key: effectiveKey,
-        name: name.trim(),
-        sourceKey,
-      });
-      await refreshSymptoms();
+      const created = await createSymptom(
+        { key: effectiveKey, name: name.trim(), sourceKey },
+        scope
+      );
+      await refreshSymptoms(undefined, scope);
       onCreated(created);
     } catch (e) {
       setError(createError(e, d, true));
@@ -226,9 +232,13 @@ function BlankForm({
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
       <div className="flex justify-between gap-2">
-        <Button color="alternative" onClick={onBack}>
-          {tr("backToTemplates", d)}
-        </Button>
+        {onBack ? (
+          <Button color="alternative" onClick={onBack}>
+            {tr("backToTemplates", d)}
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button
           disabled={busy || !name.trim() || !keyValid}
           onClick={() => void submit()}
@@ -243,7 +253,8 @@ function BlankForm({
 /**
  * Nuevo síntoma: start from a platform template (published as 0.1.0 in
  * test), hand a description to Harness, import the engine's rules or start
- * from an empty draft.
+ * from an empty draft. `blankOnly` keeps only the empty draft, for the
+ * platform's templates.
  */
 export default function CreateSymptomModal({
   open,
@@ -251,6 +262,7 @@ export default function CreateSymptomModal({
   rootDict,
   lang,
   harnessEnabled,
+  blankOnly = false,
   importing,
   onImport,
   onClose,
@@ -261,6 +273,7 @@ export default function CreateSymptomModal({
   rootDict: I18nRecord;
   lang: string;
   harnessEnabled: boolean;
+  blankOnly?: boolean;
   importing: boolean;
   onImport: () => void;
   onClose: () => void;
@@ -271,7 +284,7 @@ export default function CreateSymptomModal({
     data: templates,
     error: templatesError,
     mutate: reloadTemplates,
-  } = useSymptomTemplates(open);
+  } = useSymptomTemplates(open && !blankOnly);
   const { data: families } = useSymptomFamilies();
   const [blank, setBlank] = useState(false);
   const [creating, setCreating] = useState<string | null>(null);
@@ -305,9 +318,12 @@ export default function CreateSymptomModal({
 
   return (
     <Modal show={open} size="4xl" onClose={close} dismissible>
-      <ModalHeader>{tr("createTitle", d)}</ModalHeader>
+      <ModalHeader>
+        {blankOnly ? tr("createTemplateTitle", d) : tr("createTitle", d)}
+      </ModalHeader>
       <ModalBody>
-        {blank ? (
+        {blankOnly && <BlankForm d={d} onCreated={onCreated} />}
+        {!blankOnly && blank && (
           <BlankForm
             d={d}
             onBack={() => setBlank(false)}
@@ -316,7 +332,8 @@ export default function CreateSymptomModal({
               onCreated(c);
             }}
           />
-        ) : (
+        )}
+        {!blankOnly && !blank && (
           <>
             <p className={`mb-4 text-sm ${MUTED}`}>
               {renderDescription(tr("createIntro", d))}

@@ -21,15 +21,15 @@ import java.util.UUID;
  * <ul>
  * <li>The activation says whether a signal is a candidate; the measure and the
  * levels set its level.</li>
- * <li>{@code sostenido_s} depends on the level's rule. A rule that holds given
- * enough time (such as {@code medida >= 21 && sostenido_s >= 60}) counts from
+ * <li>{@code held_s} depends on the level's rule. A rule that holds given
+ * enough time (such as {@code measure >= 21 && held_s >= 60}) counts from
  * the first signal where it would hold, so the time is how long the measure
  * met that threshold; while it waits, and no level holds, the case is at the
  * applying level below it. Any other rule (such as
- * {@code sostenido_s >= 600 && sostenido_s < 1200}) counts from the start of
+ * {@code held_s >= 600 && held_s < 1200}) counts from the start of
  * the activation's run.</li>
  * <li>The condition holds while a candidate reaches a level.
- * {@code caso.condicion_s} counts from its first signal, {@code caso.normal_s}
+ * {@code case.condition_s} counts from its first signal, {@code case.normal_s}
  * from the first signal after it stopped, and is -1 while it holds. The
  * lifecycle opens and closes the case.</li>
  * <li>Per vehicle and source, a signal not newer than the last one applied is
@@ -41,9 +41,9 @@ import java.util.UUID;
  */
 public class SignalEvaluator {
 
-    /** {@code sostenido_s} for asking whether a level's rule holds given enough time. */
+    /** {@code held_s} for asking whether a level's rule holds given enough time. */
     private static final double FOREVER = 1e9;
-    /** {@code caso.normal_s} while the condition holds. */
+    /** {@code case.normal_s} while the condition holds. */
     static final double NOT_NORMAL = -1;
 
     private final EpisodeStore store;
@@ -134,21 +134,21 @@ public class SignalEvaluator {
     private static LevelReading levels(CompiledSymptom s, Map<String, Object> root, double measure,
             Instant candidateSince, Map<Integer, Instant> previous, Instant at) {
         Map<String, Object> vars = new LinkedHashMap<>(root);
-        vars.put("medida", measure);
+        vars.put("measure", measure);
         Map<Integer, Instant> since = new HashMap<>();
         int reached = 0;
         int floor = 0;
         int below = 0;
         for (Map.Entry<Integer, PreparedRule> l : s.levels().entrySet()) {
             String section = "levels." + l.getKey();
-            vars.put("sostenido_s", FOREVER);
+            vars.put("held_s", FOREVER);
             boolean holdQualified = condition(l.getValue(), vars, section);
             Instant start = candidateSince;
             if (holdQualified) {
                 start = previous.getOrDefault(l.getKey(), at);
                 since.put(l.getKey(), start);
             }
-            vars.put("sostenido_s", seconds(start, at));
+            vars.put("held_s", seconds(start, at));
             if (condition(l.getValue(), vars, section)) {
                 reached = l.getKey();
             } else if (holdQualified && floor == 0) {
@@ -164,7 +164,7 @@ public class SignalEvaluator {
 
     private Step whileClosed(CompiledSymptom s, Episode e, Instant at, Reading r) {
         if (r.active()
-                && condition(s.open(), caso(r.conditionSince(), r.normalSince(), null, r.level(), at),
+                && condition(s.open(), caseFields(r.conditionSince(), r.normalSince(), null, r.level(), at),
                         "lifecycle.open")) {
             Episode opened = new Episode(s.definitionId(), s.version(), e.assetId(), r.candidateSince(),
                     r.conditionSince(), r.normalSince(), r.levelSince(), at, at, r.level(), r.measure());
@@ -178,7 +178,7 @@ public class SignalEvaluator {
         // Down only while the condition still holds: a normal signal leaves the case at its level until it closes.
         int level = s.levelDown() && r.active() ? r.level() : Math.max(e.level(), r.level());
         double max = r.active() ? Math.max(e.maxMeasure(), r.measure()) : e.maxMeasure();
-        if (condition(s.close(), caso(r.conditionSince(), r.normalSince(), e.openedAt(), level, at),
+        if (condition(s.close(), caseFields(r.conditionSince(), r.normalSince(), e.openedAt(), level, at),
                 "lifecycle.close")) {
             // A condition that still holds starts a new run on the next signal.
             Episode closed = new Episode(s.definitionId(), s.version(), e.assetId(), null, null, r.normalSince(),
@@ -198,16 +198,16 @@ public class SignalEvaluator {
         return new Transition(kind, s.definitionId(), s.version(), s.state(), assetId, at, level, previous, measure);
     }
 
-    /** The {@code caso} object the lifecycle reads. */
-    private static Map<String, Object> caso(Instant conditionSince, Instant normalSince, Instant openedAt, int level,
-            Instant at) {
-        Map<String, Object> caso = new LinkedHashMap<>();
-        caso.put("condicion_s", seconds(conditionSince, at));
-        caso.put("normal_s", normalSince == null ? NOT_NORMAL : seconds(normalSince, at));
-        caso.put("edad_h", seconds(openedAt, at) / 3600);
-        caso.put("nivel", (double) level);
-        caso.put("cerrado_por_operador", false);
-        return Map.of("caso", caso);
+    /** The {@code case} object the lifecycle reads. */
+    private static Map<String, Object> caseFields(Instant conditionSince, Instant normalSince, Instant openedAt,
+            int level, Instant at) {
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put("condition_s", seconds(conditionSince, at));
+        fields.put("normal_s", normalSince == null ? NOT_NORMAL : seconds(normalSince, at));
+        fields.put("age_h", seconds(openedAt, at) / 3600);
+        fields.put("level", (double) level);
+        fields.put("closed_by_operator", false);
+        return Map.of("case", fields);
     }
 
     private static double measure(CompiledSymptom s, Map<String, Object> root) {

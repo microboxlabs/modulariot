@@ -13,7 +13,6 @@ import {
   inviteLink,
   inviteAll,
   inviteBatches,
-  invitesAllowed,
   MAX_INVITES_PER_REQUEST,
   inviteLinkOf,
   keyDisplay,
@@ -23,12 +22,15 @@ import {
   matrixColumns,
   NON_OWNER_ROLES,
   memberLabels,
+  pickableMembers,
   parseEmails,
   permissionsByModule,
+  rolePermissions,
   rolesByModule,
   sameRoles,
   selectedRoles,
   sourceKey,
+  teamActions,
   textOf,
 } from "./team-model";
 import type {
@@ -283,12 +285,27 @@ describe("emails", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
-  it("allows invites only into a native organization", () => {
-    const can = (p: string) => p === "members:invite";
-    expect(invitesAllowed(can, "NATIVE")).toBe(true);
-    expect(invitesAllowed(can, "ALFRESCO")).toBe(false);
-    expect(invitesAllowed(can, undefined)).toBe(false);
-    expect(invitesAllowed(() => false, "NATIVE")).toBe(false);
+  it("offers each Team action exactly when the caller holds its permission", () => {
+    expect(teamActions(() => true)).toEqual({
+      canInvite: true,
+      canEditInvitationEmail: true,
+      canUpdate: true,
+      canRemove: true,
+      canManageOwners: true,
+    });
+    expect(teamActions(() => false)).toEqual({
+      canInvite: false,
+      canEditInvitationEmail: false,
+      canUpdate: false,
+      canRemove: false,
+      canManageOwners: false,
+    });
+    const actions = teamActions(
+      (p) => p === "members:invite" || p === "members:remove"
+    );
+    expect(actions.canInvite).toBe(true);
+    expect(actions.canRemove).toBe(true);
+    expect(actions.canEditInvitationEmail).toBe(false);
   });
 });
 
@@ -358,6 +375,19 @@ describe("teams and API keys", () => {
       "Bo",
       "u3",
     ]);
+  });
+
+  it("finds members by name or email, ignoring accents and case", () => {
+    const members = [
+      { userId: "u1", email: "zoe@x.test", name: "Zoé Pérez" },
+      { userId: "u2", email: "ana@x.test", name: null },
+      { userId: "u3", email: "bo@y.test", name: "Bo" },
+    ] as TeamMember[];
+    const ids = (q: string) => pickableMembers(members, q).map((m) => m.userId);
+    expect(ids("")).toEqual(["u2", "u3", "u1"]);
+    expect(ids("PEREZ")).toEqual(["u1"]);
+    expect(ids("x.test")).toEqual(["u2", "u1"]);
+    expect(ids("nobody")).toEqual([]);
   });
 
   it("shows only the public part of a key", () => {
@@ -465,6 +495,13 @@ describe("member access page", () => {
         "content:review.autoapprove"
       )
     ).toBe(false);
+  });
+
+  it("gives a team only its roles' permissions", () => {
+    expect([...rolePermissions(["CONTROL_TOWER_VIEWER"], catalog)]).toEqual([
+      "controltower:view",
+    ]);
+    expect(rolePermissions([], catalog).size).toBe(0);
   });
 
   it("groups permissions by module in catalog order", () => {

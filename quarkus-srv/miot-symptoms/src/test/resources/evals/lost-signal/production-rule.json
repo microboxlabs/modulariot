@@ -8,8 +8,8 @@
     { "icu": 4, "applies": true, "when": "check.signal_lost_minutes >= 180" }
   ],
   "lifecycle": {
-    "open": "caso.condicion_s >= 0",
-    "close": "caso.normal_s >= 0",
+    "open": "case.condition_s >= 0",
+    "close": "case.normal_s >= 0",
     "levelDown": true
   }
 }

@@ -445,11 +445,14 @@ export function compileCondition(c: Condition): string {
   return `${c.path} ${c.op} ${literal(c)}`;
 }
 
+const hasTest = (path: string) => `has(${path})`;
+
 /** One condition with its has() tests, in parentheses when it has any. */
 function compileGuarded(c: Condition): string {
   const guards = guardsFor(c.path);
   if (guards.length === 0) return compileCondition(c);
-  return `(${[...guards.map((g) => `has(${g})`), compileCondition(c)].join(" && ")})`;
+  const terms = [...guards.map(hasTest), compileCondition(c)];
+  return `(${terms.join(" && ")})`;
 }
 
 function compileGroup(g: ConditionGroup): string | null {
@@ -469,7 +472,7 @@ export function compileConditions(form: ConditionForm): string {
     const rows = form.rows.map(compileCondition);
     if (form.match === "all" || rows.length === 1) {
       const guards = new Set(form.rows.flatMap((r) => guardsFor(r.path)));
-      parts.push(...[...guards].map((g) => `has(${g})`), ...rows);
+      parts.push(...[...guards].map(hasTest), ...rows);
     } else {
       const any = form.rows.map(compileGuarded).join(" || ");
       parts.push(form.groups.some((g) => g.rows.length > 0) ? `(${any})` : any);

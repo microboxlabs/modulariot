@@ -22,6 +22,7 @@ import {
   parseConditions,
   ruleKey,
 } from "./condition-form";
+import FieldCombobox from "./field-combobox";
 import type { SourceField } from "./maintainer-api";
 import { originLabel } from "./symptom-side-panels";
 
@@ -166,24 +167,13 @@ function ConditionRow({
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5 dark:border-gray-700 dark:bg-gray-800">
       {handle}
-      <select
-        aria-label={tr("conditionField", d)}
-        className={pillClass}
-        disabled={readOnly}
+      <FieldCombobox
         value={row.path}
-        onChange={(e) => {
-          const next = fields.find((f) => f.path === e.target.value);
-          if (next) onChange({ ...newCondition(next), id: row.id });
-        }}
-      >
-        {fields.map((f) => (
-          <option key={f.path} value={f.path}>
-            {f.engineSupported
-              ? f.label
-              : `${f.label} (${tr("engineNotYetTag", d)})`}
-          </option>
-        ))}
-      </select>
+        fields={fields}
+        readOnly={readOnly}
+        d={d}
+        onChange={(next) => onChange({ ...newCondition(next), id: row.id })}
+      />
       <select
         aria-label={tr("conditionOp", d)}
         className={pillClass}

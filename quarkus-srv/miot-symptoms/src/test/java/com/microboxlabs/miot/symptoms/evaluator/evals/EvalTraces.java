@@ -8,11 +8,11 @@ import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
-import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.evaluator.CompiledSymptom;
 import com.microboxlabs.miot.symptoms.evaluator.InMemoryEpisodeStore;
-import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator.Result;
 import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator;
+import com.microboxlabs.miot.symptoms.evaluator.SignalEvaluator.Result;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -125,7 +125,7 @@ final class EvalTraces {
 
     /** The platform data source with this key, as a new organization gets it. */
     static DataSource source(String key) {
-        return new DataSourceService(new InMemoryCatalog(), new UnavailableSymptomEngine()).find("tenant", key)
+        return new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory()).find("tenant", key)
                 .orElseThrow();
     }
 

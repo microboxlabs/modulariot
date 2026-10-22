@@ -12,7 +12,6 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -64,18 +63,6 @@ public class GpsSymptomEngine implements SymptomEngine {
             LIMIT $7""";
 
     // accumulated_states has no time index; the newest ids are the newest episodes, so walk the primary key.
-    private static final String SIGNAL_SAMPLES = """
-            SELECT s.signal_last_speed::float8 AS speed, s.route_max_speed::float8 AS speed_limit,
-                   extract(epoch FROM s.accumulated_seconds)::bigint AS held_s,
-                   s.description ->> 'weight_category' AS weight_category,
-                   (s.description ->> 'max_weight')::float8 AS max_weight,
-                   s.description ->> 'authorized_zone' AS authorized_zone
-            FROM public.accumulated_states s
-            WHERE s.client_id = ANY($1)
-              AND s.rule_id IN (SELECT r.id FROM public.rules r WHERE r.client_id = ANY($1) AND r.trigger_type = 'signal')
-              AND s.signal_last_speed IS NOT NULL AND s.route_max_speed IS NOT NULL
-            ORDER BY s.id DESC
-            LIMIT $2""";
 
     private final Supplier<Pool> pool;
     private final EngineTenants tenants;
@@ -133,44 +120,6 @@ public class GpsSymptomEngine implements SymptomEngine {
             List<Integer> icus, long afterId, int limit) {
         return cases(query(tenantCode, CASES_PAGE, symptomName, from, to, icus.toArray(Integer[]::new), afterId,
                 limit));
-    }
-
-    @Override
-    public List<Map<String, Object>> signalSamples(String tenantCode, int limit) {
-        List<Map<String, Object>> out = new ArrayList<>();
-        for (Row r : query(tenantCode, SIGNAL_SAMPLES, limit)) {
-            Long held = r.getLong("held_s");
-            out.add(signalSample(r.getDouble("speed"), r.getDouble("speed_limit"), r.getString("weight_category"),
-                    r.getDouble("max_weight"), r.getString("authorized_zone"), held == null ? 0 : held));
-        }
-        return out;
-    }
-
-    /**
-     * One {@code gps_signal}-shaped sample from an accumulated state. Episodes
-     * exist only for signals already on a trip, so {@code trip.active} is true.
-     */
-    static Map<String, Object> signalSample(Double speed, Double limit, String weightCategory, Double maxWeight,
-            String authorizedZone, long heldSeconds) {
-        Map<String, Object> gps = new LinkedHashMap<>();
-        gps.put("speed_kmh", speed);
-        Map<String, Object> road = new LinkedHashMap<>();
-        road.put("maxspeed_osm", limit);
-        Map<String, Object> vehicle = new LinkedHashMap<>();
-        vehicle.put("weight_category", weightCategory);
-        vehicle.put("weight_kg", maxWeight);
-        Map<String, Object> geo = new LinkedHashMap<>();
-        geo.put("authorized_zone", "1".equals(authorizedZone));
-        Map<String, Object> signal = new LinkedHashMap<>();
-        signal.put("trip", Map.of("active", true));
-        signal.put("vehicle", vehicle);
-        signal.put("gps", gps);
-        signal.put("road", road);
-        signal.put("geo", geo);
-        Map<String, Object> sample = new LinkedHashMap<>();
-        sample.put("signal", signal);
-        sample.put("held_s", heldSeconds);
-        return sample;
     }
 
     private RowSet<Row> query(String tenantCode, String sql, Object... params) {

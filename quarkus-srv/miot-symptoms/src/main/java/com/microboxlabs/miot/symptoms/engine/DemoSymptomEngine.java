@@ -11,7 +11,7 @@ import java.util.Map;
 
 /**
  * A fixed engine for local runs and demos: one speeding rule, counts at a
- * fixed weekly rate, five cases and three signal samples. Every organization sees the same data.
+ * fixed weekly rate and five cases. Every organization sees the same data.
  */
 public class DemoSymptomEngine implements SymptomEngine {
 
@@ -66,14 +66,5 @@ public class DemoSymptomEngine implements SymptomEngine {
                 .sorted(Comparator.comparingLong(EngineCase::id))
                 .limit(limit)
                 .toList();
-    }
-
-    @Override
-    public List<Map<String, Object>> signalSamples(String tenantCode, int limit) {
-        List<Map<String, Object>> samples = List.of(
-                GpsSymptomEngine.signalSample(112.0, 90.0, "HEAVY", 28000.0, "0", 75),
-                GpsSymptomEngine.signalSample(101.0, 90.0, "HEAVY", 28000.0, "0", 20),
-                GpsSymptomEngine.signalSample(58.0, 50.0, "LIGHT", 3200.0, "1", 10));
-        return samples.subList(0, Math.min(limit, samples.size()));
     }
 }

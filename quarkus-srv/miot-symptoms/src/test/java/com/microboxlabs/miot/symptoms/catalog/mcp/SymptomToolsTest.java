@@ -10,15 +10,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.core.auth.OrganizationAccess;
 import com.microboxlabs.miot.core.auth.OrganizationContext;
 import com.microboxlabs.miot.core.auth.TenantContext;
+import com.microboxlabs.miot.core.iam.Access;
+import com.microboxlabs.miot.core.iam.AccessRegistry;
+import com.microboxlabs.miot.core.iam.AccessRules;
+import com.microboxlabs.miot.core.iam.BaseRole;
+import com.microboxlabs.miot.core.iam.Caller;
+import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.core.mcp.McpCaller;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.core.selectable.SelectableOption;
-import com.microboxlabs.miot.core.iam.Access;
-import com.microboxlabs.miot.core.iam.BaseRole;
-import com.microboxlabs.miot.core.iam.AccessRegistry;
-import com.microboxlabs.miot.core.iam.AccessRules;
-import com.microboxlabs.miot.core.iam.Caller;
-import com.microboxlabs.miot.core.iam.CoreAccessCatalog;
 import com.microboxlabs.miot.symptoms.access.ControlTowerAccessCatalog;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomSpec;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
@@ -28,11 +28,11 @@ import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.SpecValidator.Severity;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
-import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomFamilies;
-import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkus.security.runtime.QuarkusSecurityIdentity;
@@ -54,7 +54,7 @@ class SymptomToolsTest {
     private static final String MEMBER = "member@acme.test";
 
     private final InMemoryCatalog store = new InMemoryCatalog();
-    private final DataSourceService sources = new DataSourceService(store, new DemoSymptomEngine());
+    private final DataSourceService sources = new DataSourceService(store, SignalSamples.inMemory());
     private final SymptomCatalogService catalog =
             new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
     private final String speeding = catalog.create(TENANT, OWNER, new CreateRequest("speeding",

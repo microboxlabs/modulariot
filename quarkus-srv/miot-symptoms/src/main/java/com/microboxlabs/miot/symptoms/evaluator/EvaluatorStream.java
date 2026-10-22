@@ -3,13 +3,10 @@ package com.microboxlabs.miot.symptoms.evaluator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microboxlabs.miot.symptoms.signal.SignalFields;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.common.annotation.Blocking;
-import io.vertx.mutiny.core.Vertx;
-import io.vertx.mutiny.redis.client.Redis;
-import io.vertx.mutiny.redis.client.RedisAPI;
-import io.vertx.redis.client.RedisOptions;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.nio.charset.StandardCharsets;
@@ -19,7 +16,6 @@ import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -30,8 +26,9 @@ import org.jboss.logging.Logger;
 /**
  * Runs the published symptom versions on each GPS signal ({@code gps-signals-in},
  * {@code miot.gps.signal@1}) for every organization the vehicle belongs to,
- * keeps the episodes in Redis (in memory when no Redis URL is set) and records
- * the case changes in {@code miot_symptoms.signal_transitions}. On wherever the
+ * keeps the episodes in Redis (in memory when no Redis URL is set), records
+ * the case changes in {@code miot_symptoms.signal_transitions} and keeps
+ * recent signals for rule previews ({@link SignalSamples}). On wherever the
  * symptoms Pulsar is wired ({@code miot.symptoms.evaluator.enabled}).
  */
 @ApplicationScoped
@@ -49,6 +46,7 @@ public class EvaluatorStream {
     private final MeterRegistry meters;
     private final Clock clock;
     private final EpisodeRepository episodes;
+    private final SignalSamples samples;
     private final Map<String, Cached> versions = new ConcurrentHashMap<>();
 
     private record Cached(Instant at, List<CompiledSymptom> symptoms) {
@@ -56,15 +54,14 @@ public class EvaluatorStream {
 
     @Inject
     EvaluatorStream(@ConfigProperty(name = "miot.symptoms.evaluator.enabled", defaultValue = "false") boolean enabled,
-            @ConfigProperty(name = "miot.symptoms.evaluator.redis-url") Optional<String> redisUrl,
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration ttl,
-            EvaluatorCatalog catalog, TransitionLog transitionLog, MeterRegistry meters, Vertx vertx) {
+            EvaluatorRedis redis, SignalSamples samples, EvaluatorCatalog catalog, TransitionLog transitionLog,
+            MeterRegistry meters) {
         this(enabled, catalog, transitionLog, meters, Clock.systemUTC(),
                 // Also when not consuming: closing a case drops its episode in the Redis the consumers use.
-                redisUrl.filter(u -> !u.isBlank()).isPresent()
-                        ? new RedisEpisodes(RedisAPI.api(Redis.createClient(vertx,
-                                new RedisOptions().setConnectionString(redisUrl.get()))), ttl)
-                        : new InMemoryEpisodeRepository());
+                redis.api().<EpisodeRepository>map(api -> new RedisEpisodes(api, ttl))
+                        .orElseGet(InMemoryEpisodeRepository::new),
+                samples);
         if (enabled) {
             LOG.infof("Symptom evaluator: on, episodes in %s",
                     episodes instanceof RedisEpisodes ? "Redis" : "memory");
@@ -72,13 +69,14 @@ public class EvaluatorStream {
     }
 
     EvaluatorStream(boolean enabled, EvaluatorCatalog catalog, TransitionLog transitionLog,
-            MeterRegistry meters, Clock clock, EpisodeRepository episodes) {
+            MeterRegistry meters, Clock clock, EpisodeRepository episodes, SignalSamples samples) {
         this.enabled = enabled;
         this.catalog = catalog;
         this.transitionLog = transitionLog;
         this.meters = meters;
         this.clock = clock;
         this.episodes = episodes;
+        this.samples = samples;
     }
 
     @Incoming("gps-signals-in")
@@ -133,6 +131,7 @@ public class EvaluatorStream {
     }
 
     private int evaluate(String tenant, String assetId, Instant at, Map<String, Object> signal) {
+        samples.keep(tenant, signal);
         List<CompiledSymptom> symptoms = symptoms(tenant);
         if (symptoms.isEmpty()) {
             return 0;

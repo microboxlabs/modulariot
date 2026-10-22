@@ -2,7 +2,6 @@ package com.microboxlabs.miot.symptoms.engine;
 
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Read access to the engine that evaluates symptoms. Today that is the GPS
@@ -31,10 +30,4 @@ public interface SymptomEngine {
      */
     List<EngineCase> casesPage(String tenantCode, String symptomName, OffsetDateTime from, OffsetDateTime to,
             List<Integer> icus, long afterId, int limit);
-
-    /**
-     * Recent objects shaped like the {@code gps_signal} source, for previewing
-     * rules. They carry no plate, driver or device identifiers.
-     */
-    List<Map<String, Object>> signalSamples(String tenantCode, int limit);
 }

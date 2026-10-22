@@ -13,9 +13,9 @@ import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
-import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.evaluator.EvaluatorCatalog.Versions;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import java.util.List;
 import java.util.UUID;
@@ -35,7 +35,7 @@ class EvaluatorCatalogTest {
     void setUp() {
         store = new InMemoryCatalog();
         store.upsert(Specs.gpsSignal());
-        DataSourceService sources = new DataSourceService(store, new UnavailableSymptomEngine());
+        DataSourceService sources = new DataSourceService(store, SignalSamples.inMemory());
         catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
         evaluatorCatalog = new EvaluatorCatalog(catalog, sources);
     }

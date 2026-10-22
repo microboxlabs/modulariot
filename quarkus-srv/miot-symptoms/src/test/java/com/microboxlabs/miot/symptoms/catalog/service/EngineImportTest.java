@@ -11,6 +11,7 @@ import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.engine.EngineRule;
 import com.microboxlabs.miot.symptoms.engine.UnavailableSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,7 +28,7 @@ class EngineImportTest {
         return SpecValidator.validate(t.spec(), sources.find("tenant-a", t.sourceKey()).orElseThrow());
     }
 
-    private final DataSourceService sources = new DataSourceService(new InMemoryCatalog(), new UnavailableSymptomEngine());
+    private final DataSourceService sources = new DataSourceService(new InMemoryCatalog(), SignalSamples.inMemory());
 
     @Test
     void speedingBecomesAMeasureWithTheEnginesLadder() {
@@ -91,7 +92,7 @@ class EngineImportTest {
     @Test
     void importCreatesOffDraftsOnceAndNeedsAnEngine() {
         InMemoryCatalog store = new InMemoryCatalog();
-        DataSourceService withEngine = new DataSourceService(store, new DemoSymptomEngine());
+        DataSourceService withEngine = new DataSourceService(store, SignalSamples.inMemory());
         SymptomCatalogService catalog = new SymptomCatalogService(store, withEngine,
                 new AuditService(new InMemoryAuditStore()));
         EngineImportService importer = new EngineImportService(new DemoSymptomEngine(), catalog);

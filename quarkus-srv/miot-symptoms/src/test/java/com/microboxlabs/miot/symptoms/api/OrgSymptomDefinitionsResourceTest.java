@@ -10,11 +10,8 @@ import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.DescribeRequest;
-import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.ForkRequest;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.FromTemplateRequest;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.PublishRequest;
-import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.RollbackRequest;
-import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.StateRequest;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
@@ -26,19 +23,18 @@ import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
 import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
-import com.microboxlabs.miot.symptoms.catalog.service.SymptomStatsService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.CreateRequest;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.SymptomSummary;
-import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService.IdentityRequest;
+import com.microboxlabs.miot.symptoms.catalog.service.SymptomStatsService;
 import com.microboxlabs.miot.symptoms.catalog.service.TemplateService;
 import com.microboxlabs.miot.symptoms.engine.DemoSymptomEngine;
 import com.microboxlabs.miot.symptoms.service.AuditService;
 import com.microboxlabs.miot.symptoms.service.TowerSettingsService;
+import com.microboxlabs.miot.symptoms.signal.SignalSamples;
 import com.microboxlabs.miot.symptoms.store.InMemoryAuditStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryTowerSettingsStore;
 import com.microboxlabs.miot.symptoms.store.InMemoryTreatmentStore;
 import io.smallrye.mutiny.Uni;
-import io.smallrye.mutiny.groups.UniAwait;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
@@ -73,7 +69,7 @@ class OrgSymptomDefinitionsResourceTest {
     @BeforeEach
     void setUp() {
         store = new InMemoryCatalog();
-        sources = new DataSourceService(store, new DemoSymptomEngine());
+        sources = new DataSourceService(store, SignalSamples.inMemory());
         catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
         id = catalog.create("tenant-a", "owner@example.com", new CreateRequest("speeding", "Exceso", null, null, null,
                 "gps_signal", null, Specs.speeding())).definition().id().toString();

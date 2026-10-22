@@ -2,7 +2,7 @@
 
 Runs published symptom versions on a vehicle's signals and keeps one episode per vehicle and symptom. It turns each signal into at most one case change per symptom: opened, level changed or closed.
 
-**Status: on.** An organization without TEST or ACTIVE `gps_signal` symptoms costs one cached catalog read every 30 s. `EvaluatorStream` reads `tracking/asset-signals` (built by the signal builder, [gps-signal.md](gps-signal.md)) for every organization in the signal's `clients`, keeps episodes in Redis and records every case change in `miot_symptoms.signal_transitions`. An ACTIVE OPENED transition is a Control Tower case (see Cases below); TEST transitions are shadow counts.
+**Status: on.** An organization without TEST or ACTIVE `gps_signal` symptoms costs one cached catalog read every 30 s and one sample write every 15 s. `EvaluatorStream` reads `tracking/asset-signals` (built by the signal builder, [gps-signal.md](gps-signal.md)) for every organization in the signal's `clients`, keeps episodes in Redis and records every case change in `miot_symptoms.signal_transitions`. An ACTIVE OPENED transition is a Control Tower case (see Cases below); TEST transitions are shadow counts.
 
 | Setting | Meaning | Default |
 |---|---|---|
@@ -11,6 +11,8 @@ Runs published symptom versions on a vehicle's signals and keeps one episode per
 | `MIOT_SYMPTOMS_EVALUATOR_EPISODE_TTL` | How long a vehicle's episodes live after their last write | `P7D` |
 
 Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>`: a field `ep:<symptom id>` per episode (JSON) and `wm:<source>` per watermark. The subscription is `Key_Shared` on `asset_id`, so one vehicle's signals are evaluated in order on one replica. A signal whose Redis, catalog or database call fails is redelivered (twice at most); the transition is written before the episode, and a replay does not write it again.
+
+Rule previews use the organization's recent signals. At most one signal per organization every 15 s goes to the list `symptoms:samples:<tenant>` (newest 20, expires a day after the last one). The 15 s are checked in Redis (`symptoms:samples:<tenant>:gate`, in the same script as the list), so replicas share them. Only the paths of the rule editor's fields are saved: `schema`, `at`, `clients`, the frame's driver data, lists and times are dropped. An organization with no recent signals previews on the fixed samples in `symptoms/gps-signal-samples.json`.
 
 | | |
 |---|---|

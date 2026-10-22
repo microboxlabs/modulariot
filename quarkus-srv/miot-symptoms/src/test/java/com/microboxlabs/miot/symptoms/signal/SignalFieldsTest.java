@@ -109,14 +109,18 @@ class SignalFieldsTest {
     void everyFieldIsAPathOfTheSerializedSignal() throws Exception {
         AssetTrackingData frame = JSON.readValue(FRAME, AssetTrackingData.class);
         GpsSignal signal = new GpsSignal(GpsSignal.SCHEMA_ID, "ABCD12", null, List.of("client-1"),
-                new GpsSignal.Trip(true, false, "T-1"),
+                new GpsSignal.Trip(true, false, "T-1", "v", 30.0, -5.0, new GpsSignal.Origin(32, "ANF", true, true),
+                        new GpsSignal.Destination(17, "SPC", false), 4, new GpsSignal.Carrier("1-9", "Transportes"),
+                        "rampla", "AB1234", new GpsSignal.Driver("d-1", true, GpsSignal.DriverStatus.ACTIVE, false)),
                 new GpsSignal.Vehicle(GpsSignal.WeightCategory.HEAVY, 30000.0),
                 new GpsSignal.Gps(42.5, true, true), new GpsSignal.Road(90.0, 80.0),
                 new GpsSignal.Geo(false, "Z-1"), 14, new GpsSignal.Derived(40.0), frame);
         Map<String, Object> root = Map.of(SignalFields.ROOT, JSON.convertValue(signal, new TypeReference<>() {
         }));
 
-        for (String path : List.of("signal.trip.active", "signal.vehicle.weight_category", "signal.gps.speed_kmh",
+        for (String path : List.of("signal.trip.active", "signal.trip.late_min", "signal.trip.origin.label",
+                "signal.trip.destination.visited", "signal.trip.carrier.name", "signal.trip.driver.status",
+                "signal.trip.driver.license_expired", "signal.vehicle.weight_category", "signal.gps.speed_kmh",
                 "signal.road.maxspeed_osm", "signal.geo.zone", "signal.local_hour", "signal.derived.speed_avg_5m",
                 "signal.frame.gps.latitude", "signal.frame.sensors.panic_button")) {
             assertTrue(byPath().containsKey(path), path);

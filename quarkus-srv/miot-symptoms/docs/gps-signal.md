@@ -16,7 +16,8 @@ One GPS frame as symptom rules read it, under the CEL root `signal`. The signal 
 | `signal.asset_id` | Vehicle id as the device sends it | frame |
 | `signal.at` | Frame time | frame |
 | `signal.clients` | Client ids the vehicle belongs to | `asset_client_map` |
-| `signal.trip` | `active`, `double_driver`, `id` | `live_trip` |
+| `signal.trip` | `active`, `double_driver`, `id`, `type`, `age_min`, `late_min`, `origin`, `destination`, `current_zone_id`, `carrier`, `load_type`, `trailer_plate` | `live_trip` |
+| `signal.trip.driver` | `id`, `registered`, `status`, `license_expired` | `ams.rd_drivers`, found by the trip's `driver_id` |
 | `signal.vehicle` | `weight_category`, `weight_kg` | vehicle data |
 | `signal.gps` | `speed_kmh`, `engine_on`, `moving` | frame, calculated |
 | `signal.road` | `maxspeed_osm`, `maxspeed_custom` | road network, client limits |
@@ -35,11 +36,14 @@ A part the builder does not know is left out. A rule that reads a missing field 
 |---|---|
 | `clients` | The sending client (without `@clients`), then the clients of the vehicle's active `asset_client_map` rows valid at the frame time |
 | `trip` | The `live_trip` row in progress at the frame time (`SCHEDULED`, started, not ended); `v` trips before `ote`/`otr`, then the latest start. As the GPS database's signal function picks it |
+| `trip.age_min`, `trip.late_min` | Minutes from the trip start and from `estimated_arrival_time` to the frame time; `late_min` is negative before the estimated arrival |
+| `trip.current_zone_id` | `current_geofence_id`; 0 is left out |
+| `trip.driver` | The `ams.rd_drivers` row with the trip's `driver_id` (the driver's national id): the trip creator's client first, then an `ACTIVE` one. `registered` is false when no row has that id. Left out until the registry is first loaded. The national id, name and phones never reach the signal |
 | `gps.moving` | Speed above 10 km/h, as the GPS database's signal function |
 | `local_hour` | Frame time in `MIOT_SYMPTOMS_SIGNAL_BUILDER_ZONE` (default `America/Santiago`) |
 | `vehicle`, `road`, `geo`, `derived` | Not built yet: left out |
 
-`live_trip` and `asset_client_map` are loaded from the GPS database at start and every `MIOT_SYMPTOMS_SIGNAL_BUILDER_RELOAD_EVERY` (10 min), and kept current between loads from their Debezium topics (non-durable subscriptions, so a stopped replica leaves no backlog). Frames wait for the first load, which is retried until the GPS database answers. On wherever the symptoms Pulsar is wired (`MIOT_SYMPTOMS_CDC_ENABLED`, which follows the symptoms component); `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED=false` turns it off. Frames are counted (`miot.symptoms.signal.built`, `.skipped`), never logged.
+`live_trip`, `asset_client_map` and `ams.rd_drivers` are loaded from the GPS database at start and every `MIOT_SYMPTOMS_SIGNAL_BUILDER_RELOAD_EVERY` (10 min). Trips and shares are kept current between loads from their Debezium topics (non-durable subscriptions, so a stopped replica leaves no backlog). Frames wait for the first load, which is retried until the GPS database answers. On wherever the symptoms Pulsar is wired (`MIOT_SYMPTOMS_CDC_ENABLED`, which follows the symptoms component); `MIOT_SYMPTOMS_SIGNAL_BUILDER_ENABLED=false` turns it off. Frames are counted (`miot.symptoms.signal.built`, `.skipped`), never logged.
 
 ## Rule editor fields
 

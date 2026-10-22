@@ -2,6 +2,7 @@ package com.microboxlabs.miot.symptoms.signal;
 
 import cl.streamhub.gps.model.AssetTrackingData;
 import cl.streamhub.gps.model.EnvelopedMessage;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Optional;
@@ -34,15 +35,55 @@ public class SignalBuilder {
         }
         String assetId = frame.getAssetId();
         Instant at = frame.getTimestamp().toInstant();
-        GpsSignal.Trip trip = refs.tripAt(assetId, at)
-                .map(t -> new GpsSignal.Trip(true, t.doubleDriver(), t.tripId()))
-                .orElse(new GpsSignal.Trip(false, false, null));
+        GpsSignal.Trip trip = refs.tripAt(assetId, at).map(t -> trip(t, at)).orElse(GpsSignal.Trip.none());
         Double speed = frame.getGps() == null ? null : frame.getGps().getSpeed();
         Boolean engineOn = frame.getSensors() == null ? null : frame.getSensors().getEngineStatus();
         GpsSignal.Gps gps = new GpsSignal.Gps(speed, engineOn, speed == null ? null : speed > MOVING_KMH);
         return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at,
                 refs.clientsAt(assetId, sender(message.getClientId()), at), trip, null, gps, null, null,
                 at.atZone(zone).getHour(), null, frame));
+    }
+
+    /** The trip in progress as the signal carries it, timed against the frame. */
+    GpsSignal.Trip trip(ReferenceCache.Trip t, Instant at) {
+        ReferenceCache.TripDetails d = t.details();
+        GpsSignal.Origin origin = d.originId() == null && d.originLabel() == null ? null
+                : new GpsSignal.Origin(d.originId(), d.originLabel(), d.originVisited(), d.originInternal());
+        GpsSignal.Destination destination = d.destinationId() == null && d.destinationLabel() == null ? null
+                : new GpsSignal.Destination(d.destinationId(), d.destinationLabel(), d.destinationVisited());
+        GpsSignal.Carrier carrier = d.carrierId() == null && d.carrierName() == null ? null
+                : new GpsSignal.Carrier(d.carrierId(), d.carrierName());
+        Integer zone = d.currentGeofenceId() == null || d.currentGeofenceId() == 0 ? null : d.currentGeofenceId();
+        return new GpsSignal.Trip(true, t.doubleDriver(), t.tripId(), t.tripType(), minutes(t.startTime(), at),
+                minutes(d.eta(), at), origin, destination, zone, carrier, d.loadType(), d.trailerPlate(),
+                driver(d, at));
+    }
+
+    /** Registry id, status and license of the trip's driver; whether they are registered only once it is loaded. */
+    private GpsSignal.Driver driver(ReferenceCache.TripDetails d, Instant at) {
+        if (d.driverNationalId() == null || d.driverNationalId().isBlank()) {
+            return null;
+        }
+        return refs.driver(d.driverNationalId(), d.createdBy())
+                .map(r -> new GpsSignal.Driver(r.id(), true, status(r.status()),
+                        r.licenseExpires() == null ? null : r.licenseExpires().isBefore(at)))
+                .orElse(refs.driversLoaded() ? new GpsSignal.Driver(null, false, null, null) : null);
+    }
+
+    private static GpsSignal.DriverStatus status(String status) {
+        try {
+            return status == null ? null : GpsSignal.DriverStatus.valueOf(status);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /** Minutes from {@code from} to {@code at}, one decimal; negative when {@code from} is later. */
+    static Double minutes(Instant from, Instant at) {
+        if (from == null) {
+            return null;
+        }
+        return Math.round(Duration.between(from, at).toSeconds() / 6.0) / 10.0;
     }
 
     /** The sending client's id as the GPS database stores it, without the M2M suffix. */

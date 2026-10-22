@@ -158,7 +158,8 @@ Para dispositivos GPS que envían datos de sensores directamente (sin conexión 
     "rotation_rate_z": 1.8
   },
   "odometer": 125432.5,
-  "engine_status": 1
+  "engine_status": 1,
+  "button_panic": false
 }
 ```
 
@@ -168,6 +169,7 @@ Para dispositivos GPS que envían datos de sensores directamente (sin conexión 
 | `gyroscope` | object | Velocidades de rotación angular del giroscopio del dispositivo (ver abajo) |
 | `odometer` | number | Distancia total recorrida en kilómetros |
 | `engine_status` | integer | Estado del motor: `1` = encendido, `0` = apagado |
+| `button_panic` | boolean | Botón de pánico: `true` = presionado. Omítalo si el dispositivo no tiene botón de pánico |
 
 > Use este objeto cuando el dispositivo GPS entrega lecturas inerciales, de odómetro o de estado del motor directamente, sin depender del bus de diagnóstico del vehículo. Todos los subcampos son opcionales — envíe sólo los que el dispositivo reporte.
 

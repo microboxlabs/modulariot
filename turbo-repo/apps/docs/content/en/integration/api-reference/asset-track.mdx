@@ -158,7 +158,8 @@ For GPS devices that send sensor data directly (without OBD-II or CAN BUS connec
     "rotation_rate_z": 1.8
   },
   "odometer": 125432.5,
-  "engine_status": 1
+  "engine_status": 1,
+  "button_panic": false
 }
 ```
 
@@ -168,6 +169,7 @@ For GPS devices that send sensor data directly (without OBD-II or CAN BUS connec
 | `gyroscope` | object | Angular rotation rates from the device's gyroscope (see below) |
 | `odometer` | number | Total distance traveled in kilometers |
 | `engine_status` | integer | Engine state: `1` = on, `0` = off |
+| `button_panic` | boolean | Panic button: `true` = pressed. Omit it if the device has no panic button |
 
 > Use this object when the GPS device provides inertial, odometer or engine status readings directly, without relying on the vehicle's diagnostic bus. All sub-fields are optional — send only what the device reports.
 

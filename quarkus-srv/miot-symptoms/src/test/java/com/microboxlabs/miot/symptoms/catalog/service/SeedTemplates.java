@@ -16,7 +16,7 @@ import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** The platform templates the V0.9.3 migration seeds, read from the migration itself, with the V0.9.4 rule paths. */
+/** The platform templates the V0.9.3 migration seeds, read from the migration itself, with the rules as later migrations leave them. */
 public final class SeedTemplates {
 
     static final String MIGRATION = "/db/migration/symptoms/V0.9.3__platform_symptom_templates.sql";
@@ -24,12 +24,16 @@ public final class SeedTemplates {
     private static final String TEXT = "'((?:[^']|'')*)'";
     private static final Pattern ROW = Pattern.compile("\\(" + TEXT + ", " + TEXT + ", " + TEXT + ", (NULL|"
             + TEXT + "), " + TEXT + ",\\s*" + TEXT + ",\\s*" + TEXT + "\\)", Pattern.DOTALL);
-    /** The rewrites of V0.9.4__signal_without_gps_part.sql. */
-    private static final Map<String, String> V0_9_4 = Map.of(
-            "signal\\.gps\\.speed_kmh\\b", "signal.frame.gps.speed",
-            "signal\\.gps\\.engine_on\\b", "signal.frame.sensors.engine_status",
-            "signal\\.gps\\.moving\\b", "signal.derived.moving",
-            "has\\(signal\\.frame\\)(\\s|\\\\+n)*&&(\\s|\\\\+n)*", "");
+    /** The rewrites of V0.9.4__signal_without_gps_part.sql, then V0.9.5__panic_rule_optional_read.sql, in order. */
+    private static final List<Map.Entry<String, String>> REWRITES = List.of(
+            Map.entry("signal\\.gps\\.speed_kmh\\b", "signal.frame.gps.speed"),
+            Map.entry("signal\\.gps\\.engine_on\\b", "signal.frame.sensors.engine_status"),
+            Map.entry("signal\\.gps\\.moving\\b", "signal.derived.moving"),
+            Map.entry("has\\(signal\\.frame\\)(\\s|\\\\+n)*&&(\\s|\\\\+n)*", ""),
+            Map.entry("has\\(\\s*signal\\.frame\\.sensors\\s*\\)(\\s|\\\\+n)*&&(\\s|\\\\+n)*"
+                    + "has\\(\\s*signal\\.frame\\.sensors\\.panic_button\\s*\\)(\\s|\\\\+n)*&&(\\s|\\\\+n)*"
+                    + "signal\\.frame\\.sensors\\.panic_button(\\s*==\\s*true)?\\b",
+                    "signal.frame.?sensors.?panic_button == TRUE"));
     private static final ObjectMapper JSON = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final List<SymptomTemplate> ALL = load();
@@ -64,7 +68,7 @@ public final class SeedTemplates {
 
     private static SymptomSpec spec(String json) {
         String rewritten = json;
-        for (Map.Entry<String, String> r : V0_9_4.entrySet()) {
+        for (Map.Entry<String, String> r : REWRITES) {
             rewritten = rewritten.replaceAll(r.getKey(), r.getValue());
         }
         try {

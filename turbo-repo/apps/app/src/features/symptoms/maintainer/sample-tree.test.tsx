@@ -53,6 +53,7 @@ describe("SampleTree", () => {
         onIndex={vi.fn()}
       />
     );
+    fireEvent.click(screen.getByRole("button", { name: "vehicle" }));
     const leaf = screen.getByLabelText("Insertar signal.vehicle.weight_kg");
     expect(leaf.textContent).toBe("weight_kg : 28400");
     fireEvent.click(leaf);
@@ -71,7 +72,7 @@ describe("SampleTree", () => {
     expect(screen.getByText("AB1234 · Ruta 5")).toBeTruthy();
   });
 
-  it("folds a branch and changes sample", () => {
+  it("starts with nested objects closed, opens a branch and changes sample", () => {
     const onIndex = vi.fn();
     render(
       <SampleTree
@@ -82,11 +83,16 @@ describe("SampleTree", () => {
         onIndex={onIndex}
       />
     );
+    const signal = screen.getByRole("button", { name: "signal" });
+    expect(signal.getAttribute("aria-expanded")).toBe("true");
     const vehicle = screen.getByRole("button", { name: "vehicle" });
-    expect(vehicle.getAttribute("aria-expanded")).toBe("true");
-    fireEvent.click(vehicle);
     expect(vehicle.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByLabelText("Insertar signal.vehicle.plate")).toBeNull();
+    fireEvent.click(vehicle);
+    expect(vehicle.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByLabelText("Insertar signal.vehicle.plate")).toBeTruthy();
+    fireEvent.click(signal);
+    expect(screen.queryByRole("button", { name: "vehicle" })).toBeNull();
     expect(
       (screen.getByLabelText("Anterior") as HTMLButtonElement).disabled
     ).toBe(true);
@@ -104,6 +110,7 @@ describe("SampleTree", () => {
         onIndex={vi.fn()}
       />
     );
+    fireEvent.click(screen.getByRole("button", { name: "trip" }));
     expect(screen.queryAllByLabelText(/^Insertar/)).toHaveLength(0);
     expect(
       screen.getAllByText(
@@ -127,6 +134,7 @@ describe("SampleTree", () => {
         onIndex={vi.fn()}
       />
     );
+    fireEvent.click(screen.getByRole("button", { name: "vehicle" }));
     expect(
       screen.getByLabelText("Insertar signal.vehicle.weight_kg").textContent
     ).toBe("weight_kg : 28400motor: aún no");

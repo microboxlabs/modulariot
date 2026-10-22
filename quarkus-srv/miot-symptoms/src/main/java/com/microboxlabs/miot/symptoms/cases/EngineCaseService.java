@@ -56,11 +56,17 @@ public class EngineCaseService {
 
     @Inject
     EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, GpsDatabase gps) {
-        this(store, evaluator::forget, gps.configured() ? t -> {
-            var rows = gps.readPool().preparedQuery(TRIP).execute(t).await().atMost(Duration.ofSeconds(10))
-                    .iterator();
-            return rows.hasNext() ? rows.next() : null;
-        } : t -> null, Clock.systemUTC());
+        this(store, evaluator::forget, gps.configured() ? t -> trip(gps, t) : t -> null, Clock.systemUTC());
+    }
+
+    private static Row trip(GpsDatabase gps, Tuple key) {
+        var rows = gps.readPool().preparedQuery(TRIP).execute(key).await().atMost(Duration.ofSeconds(10))
+                .iterator();
+        return rows.hasNext() ? rows.next() : null;
+    }
+
+    private static String condition(int level) {
+        return CONDITIONS.getOrDefault(level, CONDITIONS.get(1));
     }
 
     public EngineCaseService(EngineCaseStore store, Forget forget, Function<Tuple, Row> trips, Clock clock) {
@@ -109,7 +115,7 @@ public class EngineCaseService {
         r.put("symptom_name", c.name());
         r.put("type_of_incidence", c.name());
         r.put("icu_code", String.valueOf(c.level()));
-        r.put("icu_condition", CONDITIONS.getOrDefault(c.level(), "UNDER OBSERVATION"));
+        r.put("icu_condition", condition(c.level()));
         r.put("asset_id", c.assetId());
         r.put("trip_id", c.tripId());
         r.put("start_time", c.openedAt().toString());
@@ -130,7 +136,7 @@ public class EngineCaseService {
         symptom.put("name", c.name());
         symptom.put("type", c.family());
         symptom.put("icu_code", c.level());
-        symptom.put("icu_condition", CONDITIONS.getOrDefault(c.level(), "UNDER OBSERVATION"));
+        symptom.put("icu_condition", condition(c.level()));
         ObjectNode trip = out.putObject("trip_info");
         trip.put("asset_id", c.assetId());
         trip.put("trip_id", c.tripId());

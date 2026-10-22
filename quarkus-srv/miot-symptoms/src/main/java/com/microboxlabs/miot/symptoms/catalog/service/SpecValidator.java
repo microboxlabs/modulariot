@@ -89,7 +89,7 @@ public final class SpecValidator {
         out.addAll(ConditionChecks.check(spec.activation(), path -> label(source, path)));
         unknownValues(out, source, spec.activation());
         if (spec.measure() != null && spec.measure().expression() != null) {
-            rule(out, "measure", schema, spec.measure().expression(), Expect.NUMBER);
+            rule(out, MEASURE, schema, spec.measure().expression(), Expect.NUMBER);
         }
         levels(out, schema.withExtras(RuleSchema.LEVEL_VARIABLES), spec.levels());
         if (spec.lifecycle() == null) {

@@ -220,7 +220,7 @@ public class PreviewService {
             Map<Integer, PreparedRule> levels) {
         Map<String, Object> vars = new LinkedHashMap<>(sample);
         vars.put("measure", value == null ? 0.0 : value);
-        vars.put("held_s", sample.get(HELD) instanceof Number n ? n.doubleValue() : 0.0);
+        vars.put(HELD, sample.get(HELD) instanceof Number n ? n.doubleValue() : 0.0);
         Integer reached = null;
         for (Map.Entry<Integer, PreparedRule> e : levels.entrySet()) {
             RuleResult r = e.getValue().run(vars);

@@ -20,6 +20,9 @@ export interface LevelThresholds {
   held: Range;
 }
 
+/** The rule a level gets when it is turned on with none. */
+export const DEFAULT_LEVEL_RULE = "measure > 0";
+
 const VARIABLES = { measure: "measure", held_s: "held" } as const;
 type Variable = keyof typeof VARIABLES;
 const TERM = /^(measure|held_s)\s*(>=|<=|>|<)\s*(\S+)$/;

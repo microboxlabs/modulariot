@@ -69,7 +69,7 @@ public class SymptomTools {
             + " case.condition_s >= 0, close case.normal_s >= 120; levelDown (optional, default false) lets an"
             + " open case's level follow the measure down."
             + " recurrence (optional): {enabled, count, days, raiseLevels, entity} raises the level when the same"
-            + " entity (patente or conductor) repeats count times in days."
+            + " entity (vehicle or driver) repeats count times in days."
             + " family (optional): a symptom_families value (symptoms_families); null keeps the symptom's."
             + " state (optional): OFF, TEST or ACTIVE, applied when this version is published; null keeps the"
             + " symptom's (a first version starts TEST).";

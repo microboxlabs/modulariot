@@ -60,7 +60,8 @@ public class EvaluatorStream {
             @ConfigProperty(name = "miot.symptoms.evaluator.episode-ttl", defaultValue = "P7D") Duration ttl,
             EvaluatorCatalog catalog, TransitionLog transitionLog, MeterRegistry meters, Vertx vertx) {
         this(enabled, catalog, transitionLog, meters, Clock.systemUTC(),
-                enabled && redisUrl.filter(u -> !u.isBlank()).isPresent()
+                // Also when not consuming: closing a case drops its episode in the Redis the consumers use.
+                redisUrl.filter(u -> !u.isBlank()).isPresent()
                         ? new RedisEpisodes(RedisAPI.api(Redis.createClient(vertx,
                                 new RedisOptions().setConnectionString(redisUrl.get()))), ttl)
                         : new InMemoryEpisodeRepository());

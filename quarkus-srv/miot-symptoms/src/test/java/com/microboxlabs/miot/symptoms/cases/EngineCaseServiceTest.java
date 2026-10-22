@@ -51,7 +51,8 @@ class EngineCaseServiceTest {
         assertEquals("DEMO01", row.path("asset_id").asText());
         assertEquals(90, row.path("duration_sec").asLong());
         assertEquals(991, out.path("data").get(1).path("id").asLong());
-        assertEquals(2, out.path("total_rows").asInt());
+        assertEquals(1, out.path("total_rows").asInt(), "the GPS totals still page");
+        assertEquals(1, out.path("open_cases").asInt());
     }
 
     @Test
@@ -80,6 +81,9 @@ class EngineCaseServiceTest {
         assertEquals("Botón de pánico", header.path("symptom_info").path("name").asText());
         assertEquals(4, header.path("symptom_info").path("icu_code").asInt());
         assertEquals("T-1", header.path("trip_info").path("trip_id").asText());
+        JsonNode agg = header.path("timeline").get(0).path("conditions_agg").get(0);
+        assertEquals(-12, agg.path("symptom_id").asLong(), "the map selects the case to load its point");
+        assertEquals("Botón de pánico", agg.path("type").asText());
 
         JsonNode signals = service.signals(TENANT, -12);
         assertEquals(EngineCaseService.ewkbPoint(-70.6693, -33.4489),
@@ -119,6 +123,20 @@ class EngineCaseServiceTest {
 
         assertEquals(List.of("DEMO01/" + PANIC), forgotten);
         assertTrue(store.open(TENANT).isEmpty());
+    }
+
+    @Test
+    void theHeaderAnswersWhenTheTripCannotBeRead() {
+        store.add(panic(12, "DEMO01"));
+        EngineCaseService gpsDown = new EngineCaseService(store, (tenant, asset, definition) -> {
+        }, t -> {
+            throw new IllegalStateException("GPS database down");
+        }, Clock.fixed(OPENED.plusSeconds(90), ZoneOffset.UTC));
+
+        JsonNode header = gpsDown.header(TENANT, -12);
+
+        assertEquals("T-1", header.path("trip_info").path("trip_id").asText());
+        assertFalse(header.path("trip_info").has("carrier"));
     }
 
     @Test

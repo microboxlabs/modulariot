@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import org.jboss.logging.Logger;
 
 /**
  * The evaluator's cases in the Control Tower, in the shapes the GPS database functions give the app: rows of
@@ -42,6 +43,7 @@ public class EngineCaseService {
               FROM live_trip WHERE trip_id = $1 AND asset_id = $2
             """;
     private static final JsonNodeFactory JSON = JsonNodeFactory.instance;
+    private static final Logger LOG = Logger.getLogger(EngineCaseService.class);
 
     /** Drops a symptom's episode for a vehicle, so its next signal can open a new case. */
     @FunctionalInterface
@@ -56,10 +58,10 @@ public class EngineCaseService {
 
     @Inject
     EngineCaseService(EngineCaseStore store, EvaluatorStream evaluator, GpsDatabase gps) {
-        this(store, evaluator::forget, gps.configured() ? t -> trip(gps, t) : t -> null, Clock.systemUTC());
+        this(store, evaluator::forget, gps.configured() ? t -> readTrip(gps, t) : t -> null, Clock.systemUTC());
     }
 
-    private static Row trip(GpsDatabase gps, Tuple key) {
+    private static Row readTrip(GpsDatabase gps, Tuple key) {
         var rows = gps.readPool().preparedQuery(TRIP).execute(key).await().atMost(Duration.ofSeconds(10))
                 .iterator();
         return rows.hasNext() ? rows.next() : null;
@@ -95,10 +97,12 @@ public class EngineCaseService {
             rows.addAll((ArrayNode) out.get("data"));
         }
         out.set("data", rows);
-        out.put("total_rows", out.path("total_rows").asInt(0) + open.size());
+        // Pinned on top of page 1: the totals stay the GPS function's, so they page as before.
+        out.put("open_cases", open.size());
         if (!out.has("page")) {
             out.put("page", 1);
             out.put("page_size", rows.size());
+            out.put("total_rows", rows.size());
             out.put("total_pages", 1);
             out.set("symptom_name_list", JSON.arrayNode());
         }
@@ -130,7 +134,25 @@ public class EngineCaseService {
         EngineCase c = find(tenantCode, symptomId);
         ObjectNode out = JSON.objectNode();
         out.set("conditions_agg", JSON.arrayNode());
-        out.set("timeline", JSON.arrayNode());
+        // One timeline entry with the case, which the map selects to load its point.
+        ObjectNode entry = out.putArray("timeline").addObject();
+        entry.put("start", c.openedAt().toString());
+        entry.put("end", c.openedAt().toString());
+        entry.put("symptom_id", c.symptomId());
+        entry.put("symptom_name", c.name());
+        ObjectNode agg = entry.putArray("conditions_agg").addObject();
+        agg.put("start", c.openedAt().toString());
+        agg.put("end", c.openedAt().toString());
+        agg.put("symptom_id", c.symptomId());
+        agg.put("is_symptom", 1);
+        agg.put("type", c.name());
+        agg.put("symptom_description", c.name());
+        agg.put("icu_code", String.valueOf(c.level()));
+        agg.put("icu_condition", condition(c.level()));
+        agg.put("count", 1);
+        agg.putNull("assigned_to");
+        agg.set("treatments", JSON.arrayNode());
+        agg.putNull("evidences");
         ObjectNode symptom = out.putObject("symptom_info");
         symptom.put("id", c.symptomId());
         symptom.put("name", c.name());
@@ -140,7 +162,7 @@ public class EngineCaseService {
         ObjectNode trip = out.putObject("trip_info");
         trip.put("asset_id", c.assetId());
         trip.put("trip_id", c.tripId());
-        Row t = c.tripId() == null ? null : trips.apply(Tuple.of(c.tripId(), c.assetId()));
+        Row t = c.tripId() == null ? null : trip(c);
         if (t != null) {
             trip.put("carrier", t.getString("carrier_name"));
             trip.put("origin", t.getString("origin_geofence_label"));
@@ -186,6 +208,16 @@ public class EngineCaseService {
         if (c.closedAt() == null) {
             forget.episode(tenantCode, c.assetId(), c.definitionId());
             store.close(tenantCode, c.id(), actor, clock.instant());
+        }
+    }
+
+    /** The trip's details are optional: the header still answers when the GPS database cannot be read. */
+    private Row trip(EngineCase c) {
+        try {
+            return trips.apply(Tuple.of(c.tripId(), c.assetId()));
+        } catch (RuntimeException e) {
+            LOG.debugf("Engine case %d: trip details unavailable (%s)", c.id(), e.getClass().getSimpleName());
+            return null;
         }
     }
 

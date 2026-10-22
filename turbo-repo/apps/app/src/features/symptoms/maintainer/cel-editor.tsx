@@ -47,9 +47,10 @@ const FUNCTIONS = [
   "contains",
   "exists",
   "all",
-  "orValue",
-  "hasValue",
 ];
+
+/** Methods of an optional, offered after a `.?` read: `signal.frame.?gps.?speed.orValue(0.0)`. */
+const OPTIONAL_METHODS = ["orValue", "hasValue"];
 
 /** Optional constants a `.?` read is compared with: `signal.frame.?sensors.?panic_button == TRUE`. */
 const CONSTANTS = ["TRUE", "FALSE", "NONE"];
@@ -94,9 +95,10 @@ const highlight = HighlightStyle.define([
   { tag: tags.comment, class: "italic text-gray-400" },
 ]);
 
-function completions(fields: () => CelField[]) {
+export function completions(fields: () => CelField[]) {
   return (ctx: CompletionContext) => {
-    const word = ctx.matchBefore(/[A-Za-z_][\w.?]*/);
+    // `?` only right after a dot, so a ternary's `?` ends the word.
+    const word = ctx.matchBefore(/[A-Za-z_](?:\w|\.\??)*/);
     if (!word || (word.from === word.to && !ctx.explicit)) return null;
     const text = word.text;
     const dot = text.lastIndexOf(".");
@@ -121,7 +123,7 @@ function completions(fields: () => CelField[]) {
     const optional = text.charAt(dot + 1) === "?" ? 1 : 0;
     const seen = new Map<
       string,
-      { label: string; type: string; detail?: string }
+      { label: string; type: string; detail?: string; apply?: string }
     >();
     for (const f of all) {
       if (!f.path.startsWith(prefix)) continue;
@@ -134,6 +136,10 @@ function completions(fields: () => CelField[]) {
           ? { label: segment, type: "namespace" }
           : { label: segment, type: "property", detail: f.detail }
       );
+    }
+    if (text.includes(".?") && optional === 0) {
+      for (const m of OPTIONAL_METHODS)
+        seen.set(`${m}()`, { label: m, type: "method", apply: `${m}()` });
     }
     return {
       from: word.from + dot + 1 + optional,

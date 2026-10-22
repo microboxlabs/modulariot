@@ -17,6 +17,7 @@ import TagManager from "../tag-manager";
 import { FaTruck, FaMapPin, FaUser } from "react-icons/fa";
 import { ConditionsAgg } from "../../types/timeline";
 import { useRouter } from "next/navigation";
+import { lugaresLayout } from "./lugares-layout";
 
 export default function GeneralMap({
   dict,
@@ -32,6 +33,7 @@ export default function GeneralMap({
   // Lugares abierto en el mapa: la línea de tiempo se pliega y el mapa
   // toma todo el ancho
   const [lugaresAbierto, setLugaresAbierto] = useState(false);
+  const layout = lugaresLayout(lugaresAbierto, { side: "35%", map: "65%" });
   const router = useRouter();
   const { positions, error, isLoading } = useTripPositions(
     tripId ?? "",
@@ -234,13 +236,7 @@ export default function GeneralMap({
         {/* Side information — se pliega al abrir Lugares en el mapa */}
         <div
           className="h-full rounded-lg shadow-md border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-500 ease-in-out"
-          style={{
-            width: lugaresAbierto ? "0%" : "35%",
-            marginRight: lugaresAbierto ? "0px" : "8px",
-            opacity: lugaresAbierto ? 0 : 1,
-            borderWidth: lugaresAbierto ? 0 : 1,
-            minWidth: 0,
-          }}
+          style={layout.sideStyle}
           aria-hidden={lugaresAbierto}
           inert={lugaresAbierto}
         >
@@ -256,7 +252,7 @@ export default function GeneralMap({
         </div>
         <div
           className="h-full rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-500 ease-in-out"
-          style={{ width: lugaresAbierto ? "100%" : "65%", minWidth: 0 }}
+          style={{ width: layout.mapWidth, minWidth: 0 }}
         >
           <MapVisualizationTrip
             positions={positions}

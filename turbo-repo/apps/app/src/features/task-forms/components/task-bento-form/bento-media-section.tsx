@@ -123,10 +123,7 @@ export default function BentoMediaSection({
         aria-hidden={lugaresAbierto}
         inert={lugaresAbierto}
       >
-        <div
-          className="h-full shrink-0"
-          style={{ width: anchoFijo === null ? "100%" : anchoFijo }}
-        >
+        <div className="h-full shrink-0" style={{ width: anchoFijo ?? "100%" }}>
           <ErrorBoundary fallback={<MediaPanelErrorFallback dict={dict} />}>
             <FileImages
               task={task}

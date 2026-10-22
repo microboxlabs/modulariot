@@ -219,6 +219,27 @@ export function PlacesImportCard({
   );
 }
 
+// sin el permiso las listas no ofrecen editar, eliminar ni marcar
+function accionesEditables(
+  editable: boolean,
+  ws: PlacesWorkspace,
+  sel: ReturnType<typeof useSeleccionLista>
+) {
+  if (!editable) return { accionesLugar: {}, accionesTrayecto: {} };
+  return {
+    accionesLugar: {
+      onEditar: ws.editarLugar,
+      onEliminar: ws.borrarLugar,
+      marcas: sel.marcasLugares,
+    },
+    accionesTrayecto: {
+      onEditar: ws.editarTrayecto,
+      onEliminar: ws.borrarTrayecto,
+      marcas: sel.marcasTrayectos,
+    },
+  };
+}
+
 export function PlacesCatalogLists({
   ws,
   externas,
@@ -250,6 +271,11 @@ export function PlacesCatalogLists({
     trayectos.every((t) => sel.marcasTrayectos.marcados.has(t.trayecto_id));
   const eliminarSeleccion = () =>
     ws.borrarSeleccion(sel.lugaresSel, sel.trayectosSel, sel.limpiar);
+  const { accionesLugar, accionesTrayecto } = accionesEditables(
+    editable,
+    ws,
+    sel
+  );
 
   return (
     <div className={twMerge("flex min-h-0 flex-1 flex-col gap-2", className)}>
@@ -311,10 +337,8 @@ export function PlacesCatalogLists({
                   busqueda={ws.busca}
                   seleccionadoId={ws.editandoLugarId}
                   onIr={ws.irALugar}
-                  onEditar={editable ? ws.editarLugar : undefined}
-                  onEliminar={editable ? ws.borrarLugar : undefined}
                   onHover={ws.setHoveredPlaceId}
-                  marcas={editable ? sel.marcasLugares : undefined}
+                  {...accionesLugar}
                   versionDe={(id) => ws.versionDe("lugar", id)}
                 />
               )}
@@ -324,9 +348,7 @@ export function PlacesCatalogLists({
                   busqueda={ws.busca}
                   seleccionadoId={ws.editandoTrayId}
                   onIr={ws.irATrayecto}
-                  onEditar={editable ? ws.editarTrayecto : undefined}
-                  onEliminar={editable ? ws.borrarTrayecto : undefined}
-                  marcas={editable ? sel.marcasTrayectos : undefined}
+                  {...accionesTrayecto}
                   versionDe={(id) => ws.versionDe("trayecto", id)}
                 />
               )}

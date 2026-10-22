@@ -19,6 +19,7 @@ import type { SelectedOption } from "../../../types/side-info";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SymptomContextCard from "./call-center/symptom-context-card";
 import type { CallCenterReportedStep } from "./call-center/prototype-call-center-flow";
+import { lugaresLayout } from "../lugares-layout";
 
 const MENU_OPTIONS: SelectedOption[] = [
   "call_driver",
@@ -44,6 +45,10 @@ function panelWidths(
   return isCallFormStep
     ? { side: "50%", map: "50%" }
     : { side: "33.3333%", map: "66.6667%" };
+}
+
+function contextRowClass(show: boolean): string {
+  return show ? "grid-rows-[1fr]" : "grid-rows-[0fr]";
 }
 
 /**
@@ -129,11 +134,8 @@ export default function PrototypeGeneralMap({
     isCallDriver,
     isCallFormStep
   );
-  // Lugares abierto en el mapa: la línea de tiempo se pliega y el mapa
-  // toma todo el ancho
   const [lugaresAbierto, setLugaresAbierto] = useState(false);
-  const sideWidth = lugaresAbierto ? "0%" : anchos.side;
-  const mapWidth = lugaresAbierto ? "100%" : anchos.map;
+  const layout = lugaresLayout(lugaresAbierto, anchos);
 
   const [selectedTreatment, setSelectedTreatment] =
     useState<TreatmentsGeneralResponseItem | null>(null);
@@ -324,13 +326,7 @@ export default function PrototypeGeneralMap({
             while Lugares is open on the map */}
         <div
           className="h-full rounded-lg shadow-md border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-500 ease-in-out"
-          style={{
-            width: sideWidth,
-            marginRight: lugaresAbierto ? "0px" : "8px",
-            opacity: lugaresAbierto ? 0 : 1,
-            borderWidth: lugaresAbierto ? 0 : 1,
-            minWidth: 0,
-          }}
+          style={layout.sideStyle}
           aria-hidden={lugaresAbierto}
           inert={lugaresAbierto}
         >
@@ -352,7 +348,7 @@ export default function PrototypeGeneralMap({
             makes room for the symptom-context row below it when that's showing. */}
         <div
           className="flex h-full flex-col gap-2 transition-[width] duration-500 ease-in-out"
-          style={{ width: mapWidth }}
+          style={{ width: layout.mapWidth }}
         >
           <div className="min-h-0 flex-1 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
             <MapVisualizationTrip
@@ -376,13 +372,9 @@ export default function PrototypeGeneralMap({
               pushes the map up; the grid-rows trick animates smoothly between
               0 and its natural height without a fixed height to guess at. */}
           <div
-            className={`grid shrink-0 transition-[grid-template-rows] duration-500 ease-in-out ${
-              isFormOpen &&
-              selectedOption === "call_driver" &&
-              selectedTreatmentIndex
-                ? "grid-rows-[1fr]"
-                : "grid-rows-[0fr]"
-            }`}
+            className={`grid shrink-0 transition-[grid-template-rows] duration-500 ease-in-out ${contextRowClass(
+              isFormOpen && isCallDriver && !!selectedTreatmentIndex
+            )}`}
           >
             <div className="overflow-hidden">
               {selectedTreatmentIndex && (

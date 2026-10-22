@@ -25,8 +25,8 @@ Authorization: Bearer <access_token>
 | `Authorization` | Yes | `Bearer <access_token>` |
 | `Content-Type` | Yes | `application/json` |
 | `Accept` | Recommended | `application/json` for JSON responses |
-| `X-Request-Id` | Yes | Unique identifier for request tracing |
-| `X-Request-Timestamp` | Yes | Request timestamp (Unix epoch seconds) |
+
+The gateway sets `X-Request-Id` and `X-Request-Timestamp` on every request and replaces any value the client sends. The response includes `X-Request-Id`: keep it as proof of the request.
 
 ### Body (AssetTrackingData)
 
@@ -336,8 +336,6 @@ curl --request POST \
   --header "Authorization: Bearer $TOKEN" \
   --header 'Content-Type: application/json' \
   --header 'Accept: application/json' \
-  --header 'X-Request-Id: req-001' \
-  --header 'X-Request-Timestamp: 1705315800' \
   --data '{
     "asset_id": "A123456789",
     "timestamp": "2024-01-15T10:30:00Z"
@@ -352,8 +350,6 @@ curl --request POST \
   --header "Authorization: Bearer $TOKEN" \
   --header 'Content-Type: application/json' \
   --header 'Accept: application/json' \
-  --header 'X-Request-Id: req-002' \
-  --header 'X-Request-Timestamp: 1705315800' \
   --data '{
     "asset_id": "A123456789",
     "timestamp": "2024-01-15T10:30:00Z",
@@ -375,8 +371,6 @@ curl --request POST \
   --header "Authorization: Bearer $TOKEN" \
   --header 'Content-Type: application/json' \
   --header 'Accept: application/json' \
-  --header 'X-Request-Id: req-003' \
-  --header 'X-Request-Timestamp: 1705315800' \
   --data '{
     "asset_id": "A123456789",
     "timestamp": "2024-01-15T10:30:00Z",
@@ -408,8 +402,6 @@ curl --request POST \
   --header "Authorization: Bearer $TOKEN" \
   --header 'Content-Type: application/json' \
   --header 'Accept: application/json' \
-  --header 'X-Request-Id: req-004' \
-  --header 'X-Request-Timestamp: 1705315800' \
   --data '{
     "asset_id": "A123456789",
     "timestamp": "2024-01-15T10:30:30Z",
@@ -442,8 +434,6 @@ curl --request POST \
   --header "Authorization: Bearer $TOKEN" \
   --header 'Content-Type: application/json' \
   --header 'Accept: application/json' \
-  --header 'X-Request-Id: req-005' \
-  --header 'X-Request-Timestamp: 1705315800' \
   --data '{
     "asset_id": "A123456789",
     "timestamp": "2024-01-15T10:30:00Z",
@@ -487,8 +477,6 @@ curl --request POST \
   --header "Authorization: Bearer $TOKEN" \
   --header 'Content-Type: application/json' \
   --header 'Accept: application/json' \
-  --header 'X-Request-Id: req-004' \
-  --header 'X-Request-Timestamp: 1705315800' \
   --data '{
     "asset_id": "A123456789",
     "timestamp": "2024-01-15T10:30:00Z",
@@ -515,8 +503,6 @@ curl --request POST \
   --header "Authorization: Bearer $TOKEN" \
   --header 'Content-Type: application/json' \
   --header 'Accept: application/json' \
-  --header 'X-Request-Id: req-006' \
-  --header 'X-Request-Timestamp: 1705315800' \
   --data '{
     "asset_id": "A123456789",
     "timestamp": "2024-01-15T10:30:00Z",
@@ -554,8 +540,6 @@ curl --request POST \
   --header "Authorization: Bearer $TOKEN" \
   --header 'Content-Type: application/json' \
   --header 'Accept: application/json' \
-  --header 'X-Request-Id: req-007' \
-  --header 'X-Request-Timestamp: 1740492537' \
   --data '{
     "asset_id": "TTBJ72",
     "timestamp": "2026-02-13T13:48:57Z",
@@ -600,8 +584,6 @@ const res = await fetch("https://iot.streamhub.cl/v1/asset/track", {
     Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
     Accept: "application/json",
-    "X-Request-Id": crypto.randomUUID(),
-    "X-Request-Timestamp": String(Math.floor(Date.now() / 1000)),
   },
   body: JSON.stringify({
     asset_id: "TTBJ72",
@@ -639,7 +621,7 @@ if (!res.ok) throw new Error(`asset/track ${res.status}: ${await res.text()}`);
 #### Python (requests)
 
 ```python
-import time, uuid, requests
+import requests
 
 res = requests.post(
     "https://iot.streamhub.cl/v1/asset/track",
@@ -647,8 +629,6 @@ res = requests.post(
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "X-Request-Id": str(uuid.uuid4()),
-        "X-Request-Timestamp": str(int(time.time())),
     },
     json={
         "asset_id": "TTBJ72",
@@ -690,8 +670,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Instant;
-import java.util.UUID;
 
 String body = """
     {
@@ -716,8 +694,6 @@ HttpRequest req = HttpRequest.newBuilder(URI.create("https://iot.streamhub.cl/v1
     .header("Authorization", "Bearer " + token)
     .header("Content-Type", "application/json")
     .header("Accept", "application/json")
-    .header("X-Request-Id", UUID.randomUUID().toString())
-    .header("X-Request-Timestamp", String.valueOf(Instant.now().getEpochSecond()))
     .POST(HttpRequest.BodyPublishers.ofString(body))
     .build();
 
@@ -729,7 +705,6 @@ if (res.statusCode() >= 300) throw new RuntimeException("asset/track " + res.sta
 
 ```python
 import requests
-import time
 from microboxlabs_auth_manager import AuthToken
 
 # Initialize auth
@@ -747,8 +722,6 @@ response = requests.post(
         "Authorization": f"Bearer {auth.get_token()}",
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "X-Request-Id": f"req-{int(time.time())}",
-        "X-Request-Timestamp": str(int(time.time()))
     },
     json={
         "asset_id": "A123456789",

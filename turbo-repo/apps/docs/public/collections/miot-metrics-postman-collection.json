@@ -103,14 +103,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "X-Request-Timestamp",
-                "value": "{{$timestamp}}"
               }
             ],
             "body": {
@@ -138,14 +130,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "X-Request-Timestamp",
-                "value": "{{$timestamp}}"
               }
             ],
             "body": {
@@ -173,14 +157,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "X-Request-Timestamp",
-                "value": "{{$timestamp}}"
               }
             ],
             "body": {
@@ -208,14 +184,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "X-Request-Timestamp",
-                "value": "{{$timestamp}}"
               }
             ],
             "body": {
@@ -243,14 +211,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "X-Request-Timestamp",
-                "value": "{{$timestamp}}"
               }
             ],
             "body": {
@@ -278,14 +238,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "X-Request-Timestamp",
-                "value": "{{$timestamp}}"
               }
             ],
             "body": {
@@ -313,14 +265,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "X-Request-Timestamp",
-                "value": "{{$timestamp}}"
               }
             ],
             "body": {
@@ -348,14 +292,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "X-Request-Timestamp",
-                "value": "{{$timestamp}}"
               }
             ],
             "body": {
@@ -383,14 +319,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "X-Request-Timestamp",
-                "value": "{{$timestamp}}"
               }
             ],
             "body": {
@@ -418,14 +346,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
-              },
-              {
-                "key": "X-Request-Timestamp",
-                "value": "{{$timestamp}}"
               }
             ],
             "body": {

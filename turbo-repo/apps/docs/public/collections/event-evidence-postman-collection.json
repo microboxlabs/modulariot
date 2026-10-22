@@ -114,10 +114,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
               }
             ],
             "body": {
@@ -173,10 +169,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
               }
             ],
             "body": {
@@ -232,10 +224,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
               }
             ],
             "body": {
@@ -291,10 +279,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
               }
             ],
             "body": {
@@ -356,10 +340,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
               }
             ],
             "body": {
@@ -418,10 +398,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
               }
             ],
             "body": {
@@ -474,10 +450,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "X-Request-Id",
-                "value": "{{$guid}}"
               }
             ],
             "body": {

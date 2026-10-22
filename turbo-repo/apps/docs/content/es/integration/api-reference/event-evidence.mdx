@@ -36,7 +36,8 @@ La solicitud es `multipart/form-data` con dos nombres de parte:
 | `Authorization` | Sí | `Bearer <access_token>` (scope `stream:write`) |
 | `Content-Type` | Sí | `multipart/form-data` (lo agregan automáticamente la mayoría de los clientes HTTP) |
 | `Accept` | Recomendado | `application/json` |
-| `X-Request-Id` | No | Id de solicitud para trazabilidad; se devuelve en la respuesta (se genera uno si se omite) |
+
+El gateway asigna `X-Request-Id` y `X-Request-Timestamp` a cada solicitud; si la solicitud los trae, los reemplaza. La respuesta incluye `X-Request-Id`: guárdelo como comprobante de la solicitud.
 
 ### Body (EventEnvelope)
 
@@ -225,7 +226,6 @@ curl --request POST \
   --url https://iot.streamhub.cl/v1/stream/events \
   --header "Authorization: Bearer $TOKEN" \
   --header 'Accept: application/json' \
-  --header 'X-Request-Id: req-001' \
   --form 'envelope={"schema_version":"1.0","event_type":"warehouse.restricted_zone.person","occurred_at":"2026-06-20T14:32:05Z","severity":"alert","subject":{"device_id":"cam-bodega-04","zone_id":"zona-restringida-A"},"detections":[{"class":"person","score":0.97,"bbox":[0.10,0.20,0.30,0.40]}]};type=application/json' \
   --form 'media=@./restricted-zone-person.mp4;type=video/mp4'
 ```
@@ -253,7 +253,6 @@ const res = await fetch("https://iot.streamhub.cl/v1/stream/events", {
   headers: {
     Authorization: `Bearer ${token}`,
     Accept: "application/json",
-    "X-Request-Id": crypto.randomUUID(),
     // NO definas Content-Type — fetch agrega el boundary multipart por ti.
   },
   body: form,
@@ -266,7 +265,7 @@ console.log(await res.json()); // { status: "accepted", event_id, media_count }
 ### Python (requests)
 
 ```python
-import json, uuid, requests
+import json, requests
 
 envelope = {
     "schema_version": "1.0",
@@ -287,7 +286,6 @@ with open("restricted-zone-person.mp4", "rb") as clip:
         headers={
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
-            "X-Request-Id": str(uuid.uuid4()),
         },
         files=files,
         timeout=30,
@@ -338,7 +336,6 @@ parts.add(("\r\n--" + boundary + "--\r\n").getBytes());
 HttpRequest req = HttpRequest.newBuilder(URI.create("https://iot.streamhub.cl/v1/stream/events"))
     .header("Authorization", "Bearer " + token)
     .header("Accept", "application/json")
-    .header("X-Request-Id", UUID.randomUUID().toString())
     .header("Content-Type", "multipart/form-data; boundary=" + boundary)
     .POST(HttpRequest.BodyPublishers.ofByteArrays(parts))
     .build();

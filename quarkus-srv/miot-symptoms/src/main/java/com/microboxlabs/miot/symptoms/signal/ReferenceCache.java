@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,21 +52,49 @@ public class ReferenceCache {
     private static final Comparator<Trip> FIRST = Comparator.comparingInt(Trip::priority)
             .thenComparing(Trip::startTime, Comparator.reverseOrder());
 
+    /** By trip id and vehicle, the table's key. */
     private final Map<String, Trip> trips = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Share>> shares = new ConcurrentHashMap<>();
+    /** Rows changed by a change event since the current reload began; the reload's older copy does not replace them. */
+    private final Set<String> changedTrips = ConcurrentHashMap.newKeySet();
+    private final Set<String> changedShares = ConcurrentHashMap.newKeySet();
+    private volatile boolean reloading;
     private volatile boolean loaded;
 
-    /** Replaces the rows without emptying the maps first, so frames built during a reload still find them. */
+    /** Called before the reload's queries run. */
+    public void beginReload() {
+        changedTrips.clear();
+        changedShares.clear();
+        reloading = true;
+    }
+
+    /**
+     * Replaces the rows without emptying the maps first, so frames built during a reload still find them,
+     * and keeps the rows change events updated while the reload's queries ran.
+     */
     public void load(List<Trip> allTrips, List<Share> allShares) {
         Map<String, Trip> nextTrips = new HashMap<>();
-        allTrips.forEach(t -> nextTrips.put(t.tripId(), t));
-        trips.putAll(nextTrips);
-        trips.keySet().retainAll(nextTrips.keySet());
-        Map<String, Map<String, Share>> nextShares = new HashMap<>();
-        allShares.forEach(s -> nextShares.computeIfAbsent(s.assetId(), k -> new ConcurrentHashMap<>())
-                .put(s.clientId(), s));
-        shares.putAll(nextShares);
-        shares.keySet().retainAll(nextShares.keySet());
+        allTrips.forEach(t -> nextTrips.put(key(t.tripId(), t.assetId()), t));
+        nextTrips.forEach((k, t) -> {
+            if (!changedTrips.contains(k)) {
+                trips.put(k, t);
+            }
+        });
+        trips.keySet().removeIf(k -> !nextTrips.containsKey(k) && !changedTrips.contains(k));
+
+        Set<String> nextShares = new HashSet<>();
+        allShares.forEach(s -> {
+            String k = key(s.assetId(), s.clientId());
+            nextShares.add(k);
+            if (!changedShares.contains(k)) {
+                putShare(s);
+            }
+        });
+        shares.values().forEach(byClient -> byClient.values().removeIf(s -> {
+            String k = key(s.assetId(), s.clientId());
+            return !nextShares.contains(k) && !changedShares.contains(k);
+        }));
+        reloading = false;
         loaded = true;
     }
 
@@ -100,10 +129,10 @@ public class ReferenceCache {
         if ("d".equals(change.getString("op"))) {
             JsonObject before = change.getJsonObject("before");
             if (before != null && before.getString(TRIP_ID) != null) {
-                trips.remove(before.getString(TRIP_ID));
+                trips.remove(changed(changedTrips, key(before.getString(TRIP_ID), before.getString(ASSET_ID))));
             }
         } else if (after != null && after.getString(TRIP_ID) != null) {
-            trips.put(after.getString(TRIP_ID), trip(after));
+            trips.put(changed(changedTrips, key(after.getString(TRIP_ID), after.getString(ASSET_ID))), trip(after));
         }
     }
 
@@ -114,12 +143,14 @@ public class ReferenceCache {
             if (before != null && before.getString(ASSET_ID) != null) {
                 Map<String, Share> byClient = shares.get(before.getString(ASSET_ID));
                 if (byClient != null && before.getString(SHARED_CLIENT_ID) != null) {
+                    changed(changedShares, key(before.getString(ASSET_ID), before.getString(SHARED_CLIENT_ID)));
                     byClient.remove(before.getString(SHARED_CLIENT_ID));
                 }
             }
         } else {
             JsonObject after = change.getJsonObject("after");
             if (after != null && after.getString(ASSET_ID) != null && after.getString(SHARED_CLIENT_ID) != null) {
+                changed(changedShares, key(after.getString(ASSET_ID), after.getString(SHARED_CLIENT_ID)));
                 putShare(new Share(after.getString(ASSET_ID), after.getString(SHARED_CLIENT_ID),
                         Boolean.TRUE.equals(after.getBoolean("active")), instant(after.getString("valid_from")),
                         instant(after.getString("valid_to"))));
@@ -129,6 +160,17 @@ public class ReferenceCache {
 
     int tripCount() {
         return trips.size();
+    }
+
+    private String changed(Set<String> changes, String k) {
+        if (reloading) {
+            changes.add(k);
+        }
+        return k;
+    }
+
+    private static String key(String first, String second) {
+        return first + "\u0000" + second;
     }
 
     private void putShare(Share s) {

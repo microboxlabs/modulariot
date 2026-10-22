@@ -115,7 +115,7 @@ class SignalBuilderTest {
         assertFalse(build(refs, frame("ABCD12", 0, false)).trip().active(), "ended");
 
         refs.applyTrip(new JsonObject("""
-                {"op":"d","before":{"trip_id":"T-1"},"after":null}
+                {"op":"d","before":{"trip_id":"T-1","asset_id":"ABCD12"},"after":null}
                 """));
         assertEquals(0, refs.tripCount());
 
@@ -143,6 +143,43 @@ class SignalBuilderTest {
         assertEquals(1, refs.tripCount());
         assertEquals("T-2", signal.trip().id());
         assertEquals(List.of("sender-1", "client-b"), signal.clients());
+    }
+
+    @Test
+    void tripsAreKeptPerVehicle() {
+        Instant start = AT.minusSeconds(600);
+        ReferenceCache refs = refs(List.of(trip("T-1", "v", "SCHEDULED", start, null),
+                new Trip("T-1", "OTHER1", "v", "SCHEDULED", start, null, false)), List.of());
+        assertEquals(2, refs.tripCount());
+
+        refs.applyTrip(new JsonObject("""
+                {"op":"d","before":{"trip_id":"T-1","asset_id":"OTHER1"},"after":null}
+                """));
+
+        assertEquals("T-1", build(refs, frame("ABCD12", 0, false)).trip().id());
+        assertFalse(build(refs, frame("OTHER1", 0, false)).trip().active());
+    }
+
+    @Test
+    void aReloadKeepsChangesReceivedWhileItsQueriesRan() {
+        Instant start = AT.minusSeconds(600);
+        ReferenceCache refs = refs(List.of(trip("T-1", "v", "SCHEDULED", start, null)),
+                List.of(new Share("ABCD12", "client-a", true, null, null)));
+
+        refs.beginReload();
+        refs.applyTrip(new JsonObject("""
+                {"op":"u","after":{"trip_id":"T-1","asset_id":"ABCD12","trip_type":"v",
+                 "status":"SCHEDULED","start_time":"2026-10-21T11:00:00Z","end_time":"2026-10-21T11:30:00Z"}}
+                """));
+        refs.applyShare(new JsonObject("""
+                {"op":"d","before":{"asset_id":"ABCD12","shared_client_id":"client-a"}}
+                """));
+        refs.load(List.of(trip("T-1", "v", "SCHEDULED", start, null)),
+                List.of(new Share("ABCD12", "client-a", true, null, null)));
+
+        GpsSignal signal = build(refs, frame("ABCD12", 0, false));
+        assertFalse(signal.trip().active(), "the trip ended while the reload ran");
+        assertEquals(List.of("sender-1"), signal.clients());
     }
 
     @Test

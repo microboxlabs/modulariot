@@ -21,10 +21,12 @@ import io.vertx.mutiny.sqlclient.Row;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 import org.eclipse.microprofile.reactive.messaging.Message;
@@ -65,6 +67,7 @@ public class SignalStream {
     private final SignalBuilder builder;
     private final Counter built;
     private final Counter skipped;
+    private final CompletableFuture<Void> ready = new CompletableFuture<>();
 
     SignalStream(@ConfigProperty(name = "miot.symptoms.signal-builder.enabled", defaultValue = "false") boolean enabled,
             @ConfigProperty(name = "miot.symptoms.signal-builder.zone", defaultValue = "America/Santiago") String zone,
@@ -76,45 +79,63 @@ public class SignalStream {
         this.skipped = meters.counter("miot.symptoms.signal.skipped");
     }
 
+    /**
+     * Frames wait for the first reference load, so a vehicle's first frames are not published without its trip
+     * and shared clients. The first load is retried until the GPS database answers.
+     */
     void onStart(@Observes StartupEvent ignored) {
-        if (enabled) {
-            reload();
+        if (!enabled) {
+            return;
         }
+        if (!gps.configured()) {
+            LOG.warn("Signal builder: the GPS database is not configured; signals have no trip and no shared clients");
+            ready.complete(null);
+            return;
+        }
+        reload().onFailure().invoke(e -> LOG.errorf(e, "Signal builder: reference load failed; frames wait"))
+                .onFailure().retry().withBackOff(Duration.ofSeconds(1), Duration.ofMinutes(1)).indefinitely()
+                .subscribe().with(x -> ready.complete(null));
     }
 
     @Scheduled(every = "${miot.symptoms.signal-builder.reload-every:10m}", delayed = "10m",
             concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
-    void scheduledReload() {
-        if (enabled) {
-            reload();
+    Uni<Void> scheduledReload() {
+        if (!enabled || !gps.configured() || !ready.isDone()) {
+            return Uni.createFrom().voidItem();
         }
+        return reload().onFailure().invoke(e -> LOG.errorf(e, "Signal builder: reference load failed"))
+                .onFailure().recoverWithNull();
     }
 
-    private void reload() {
-        if (!gps.configured()) {
-            LOG.warn("Signal builder: the GPS database is not configured; signals have no trip and no shared clients");
-            return;
-        }
-        gps.readPool().query(TRIPS).execute()
-                .chain(trips -> gps.readPool().query(SHARES).execute().map(shares -> {
-                    List<Trip> t = new ArrayList<>();
-                    trips.forEach(r -> t.add(new Trip(r.getString("trip_id"), r.getString("asset_id"),
-                            r.getString("trip_type"), r.getString("status"), instant(r, "start_time"),
-                            instant(r, "end_time"), Boolean.TRUE.equals(r.getBoolean("double_driver")))));
-                    List<Share> s = new ArrayList<>();
-                    shares.forEach(r -> s.add(new Share(r.getString("asset_id"), r.getString("shared_client_id"),
-                            Boolean.TRUE.equals(r.getBoolean("active")), instant(r, "valid_from"),
-                            instant(r, "valid_to"))));
-                    refs.load(t, s);
-                    return t.size() + " trips, " + s.size() + " shares";
-                }))
-                .subscribe().with(loaded -> LOG.infof("Signal builder: loaded %s", loaded),
-                        e -> LOG.errorf(e, "Signal builder: reference load failed"));
+    private Uni<Void> reload() {
+        return Uni.createFrom().deferred(() -> {
+            refs.beginReload();
+            return gps.readPool().query(TRIPS).execute();
+        }).chain(trips -> gps.readPool().query(SHARES).execute().map(shares -> {
+            List<Trip> t = new ArrayList<>();
+            trips.forEach(r -> t.add(new Trip(r.getString("trip_id"), r.getString("asset_id"),
+                    r.getString("trip_type"), r.getString("status"), instant(r, "start_time"),
+                    instant(r, "end_time"), Boolean.TRUE.equals(r.getBoolean("double_driver")))));
+            List<Share> s = new ArrayList<>();
+            shares.forEach(r -> s.add(new Share(r.getString("asset_id"), r.getString("shared_client_id"),
+                    Boolean.TRUE.equals(r.getBoolean("active")), instant(r, "valid_from"),
+                    instant(r, "valid_to"))));
+            refs.load(t, s);
+            LOG.infof("Signal builder: loaded %d trips, %d shares", t.size(), s.size());
+            return t.size();
+        })).replaceWithVoid();
     }
 
     @Incoming("gps-frames")
     @Outgoing("gps-signals")
     public Multi<Message<String>> build(Message<byte[]> in) {
+        if (ready.isDone()) {
+            return buildNow(in);
+        }
+        return Uni.createFrom().completionStage(ready::copy).onItem().transformToMulti(x -> buildNow(in));
+    }
+
+    private Multi<Message<String>> buildNow(Message<byte[]> in) {
         GpsSignal signal;
         try {
             signal = builder.build(EnvelopedMessage.fromJson(new String(in.getPayload(), StandardCharsets.UTF_8)))

@@ -107,4 +107,43 @@ class EvaluatorStreamTest {
 
         assertEquals(e, RedisEpisodes.read(RedisEpisodes.write(e)));
     }
+
+    @Test
+    void aFailedStoreIsRetriedAndAMalformedSignalIsNot() {
+        InMemoryEpisodeRepository memory = new InMemoryEpisodeRepository();
+        EpisodeRepository failing = new EpisodeRepository() {
+            @Override
+            public AssetEpisodes load(String tenantCode, String assetId) {
+                return memory.load(tenantCode, assetId);
+            }
+
+            @Override
+            public void save(AssetEpisodes changes) {
+                throw new IllegalStateException("Redis down");
+            }
+        };
+        EvaluatorStream s = new EvaluatorStream(true, Set.of(DEMO), evaluatorCatalog, (t, x) -> recorded.addAll(x),
+                new SimpleMeterRegistry(), Clock.systemUTC(), failing);
+        List<String> outcomes = new ArrayList<>();
+
+        s.onSignal(message(signal("2026-10-22T03:00:30Z", true, DEMO), outcomes));
+        s.onSignal(message("not json", outcomes));
+
+        assertEquals(List.of("nack", "ack"), outcomes);
+        assertEquals(1, recorded.size(), "the transition is written before the episode");
+    }
+
+    private static org.eclipse.microprofile.reactive.messaging.Message<byte[]> message(String body,
+            List<String> outcomes) {
+        return org.eclipse.microprofile.reactive.messaging.Message.of(
+                body.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                () -> {
+                    outcomes.add("ack");
+                    return java.util.concurrent.CompletableFuture.completedFuture(null);
+                },
+                e -> {
+                    outcomes.add("nack");
+                    return java.util.concurrent.CompletableFuture.completedFuture(null);
+                });
+    }
 }

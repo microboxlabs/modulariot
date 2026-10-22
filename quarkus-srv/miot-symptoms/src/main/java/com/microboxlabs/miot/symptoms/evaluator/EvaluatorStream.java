@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -90,9 +91,15 @@ public class EvaluatorStream {
     public CompletionStage<Void> onSignal(Message<byte[]> in) {
         try {
             evaluate(new String(in.getPayload(), StandardCharsets.UTF_8));
-        } catch (RuntimeException e) {
+        } catch (IllegalArgumentException e) {
             meters.counter("miot.symptoms.evaluator.failed").increment();
             LOG.warnf("Symptom evaluator: signal skipped (%s)", e.getClass().getSimpleName());
+        } catch (RuntimeException e) {
+            // Redis, the catalog or the transition log failed: redelivered, and organizations already
+            // evaluated reject the replay by their watermark.
+            meters.counter("miot.symptoms.evaluator.retried").increment();
+            LOG.warnf("Symptom evaluator: signal retried (%s)", e.getClass().getSimpleName());
+            return in.nack(e);
         }
         return in.ack();
     }
@@ -115,10 +122,16 @@ public class EvaluatorStream {
                 || !(signal.get("clients") instanceof List<?> clients)) {
             return 0;
         }
+        Instant instant;
+        try {
+            instant = Instant.parse(time);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("not a signal time", e);
+        }
         int recorded = 0;
         for (Object client : clients) {
             if (client instanceof String tenant && tenants.contains(tenant)) {
-                recorded += evaluate(tenant, assetId, Instant.parse(time), signal);
+                recorded += evaluate(tenant, assetId, instant, signal);
             }
         }
         return recorded;
@@ -132,10 +145,11 @@ public class EvaluatorStream {
         AssetEpisodes state = episodes.load(tenant, assetId);
         SignalEvaluator.Result result = new SignalEvaluator(state)
                 .evaluate(tenant, assetId, at, Map.of(SignalFields.ROOT, signal), symptoms);
-        episodes.save(state);
+        // Transitions first: a failed episode write replays the signal, and the log skips what it already holds.
         if (!result.transitions().isEmpty()) {
             transitionLog.append(tenant, result.transitions());
         }
+        episodes.save(state);
         result.transitions().forEach(t -> meters.counter("miot.symptoms.evaluator.transitions",
                 "kind", t.kind().name(), "state", t.state().name()).increment());
         if (!result.errors().isEmpty()) {

@@ -11,7 +11,7 @@ Runs published symptom versions on a vehicle's signals and keeps one episode per
 | `MIOT_SYMPTOMS_EVALUATOR_REDIS_URL` | `redis://:password@host:6379`; unset keeps episodes in memory (one replica only) | unset |
 | `MIOT_SYMPTOMS_EVALUATOR_EPISODE_TTL` | How long a vehicle's episodes live after their last write | `P7D` |
 
-Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>`: a field `ep:<symptom id>` per episode (JSON) and `wm:<source>` per watermark. The subscription is `Key_Shared` on `asset_id`, so one vehicle's signals are evaluated in order on one replica.
+Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>`: a field `ep:<symptom id>` per episode (JSON) and `wm:<source>` per watermark. The subscription is `Key_Shared` on `asset_id`, so one vehicle's signals are evaluated in order on one replica. A signal whose Redis, catalog or database call fails is redelivered (twice at most); the transition is written before the episode, and a replay does not write it again.
 
 | | |
 |---|---|

@@ -1,3 +1,4 @@
+import { twMerge } from "tailwind-merge";
 import blue_pin from "@assets/pin/blue_pin.svg";
 import red_pin from "@assets/pin/red_pin.svg";
 import yellow_pin from "@assets/pin/yellow_pin.svg";
@@ -69,11 +70,14 @@ export default function Filters({
   dict,
   originalPositions,
   setPositions,
-}: {
+  className,
+}: Readonly<{
   dict: I18nRecord;
   originalPositions: MapPosition[];
   setPositions: (positions: MapPosition[]) => void;
-}) {
+  /** Dentro del marco de controles del mapa (que ya da el margen): "p-0". */
+  className?: string;
+}>) {
   const { getInitialActivated, syncFiltersToUrl, hasUrlParam } =
     useMapFilters();
   const runtimeConfig = useRuntimeConfig();
@@ -302,7 +306,7 @@ export default function Filters({
   };
 
   return (
-    <div className="flex flex-col gap-2 pl-5 pt-5">
+    <div className={twMerge("flex flex-col gap-2 pl-5 pt-5", className)}>
       <div className="z-[9999]">
         <FilterComponent
           label={tr("symptoms.conditions", dict)}

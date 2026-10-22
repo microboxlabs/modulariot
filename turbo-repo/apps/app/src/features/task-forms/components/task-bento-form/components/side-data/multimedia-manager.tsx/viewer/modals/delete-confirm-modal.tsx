@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Button, Modal, ModalHeader, ModalBody } from "flowbite-react";
 import { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { tr } from "@/features/i18n/tr.service";
@@ -11,13 +12,23 @@ export function DeleteConfirmModal({
   onConfirm,
   fileName,
   dictionary,
+  title,
+  description,
 }: Readonly<{
   show: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  /** Name shown in the grey box (a file here; a place or route elsewhere). */
   fileName: string;
   dictionary: I18nRecord;
+  /** Overrides the file texts when deleting something else; `null` = no description. */
+  title?: string;
+  description?: ReactNode;
 }>) {
+  const desc =
+    description === undefined
+      ? tr("bento.multimedia.delete_modal_desc", dictionary)
+      : description;
   return (
     <Modal
       dismissible
@@ -28,10 +39,14 @@ export function DeleteConfirmModal({
     >
       <ModalHeader className="border-none">
         <div className="flex flex-col">
-          <span className="text-base font-semibold">{tr("bento.multimedia.delete_modal_title", dictionary)}</span>
-          <span className="text-sm text-gray-500 mt-1 font-normal">
-            {tr("bento.multimedia.delete_modal_desc", dictionary)}
+          <span className="text-base font-semibold">
+            {title ?? tr("bento.multimedia.delete_modal_title", dictionary)}
           </span>
+          {desc && (
+            <span className="text-sm text-gray-500 mt-1 font-normal">
+              {desc}
+            </span>
+          )}
         </div>
       </ModalHeader>
       <ModalBody>

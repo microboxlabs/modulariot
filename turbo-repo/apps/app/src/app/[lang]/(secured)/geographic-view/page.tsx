@@ -1,8 +1,6 @@
 import { I18nRecord, ParamsWithLang } from "@/features/i18n/i18n.service.types";
 import { getDictionary } from "@/features/i18n/i18n.service";
-import { HiClipboardList } from "react-icons/hi";
-import ClientMapStarter from "@/features/geographic-view/components/client-map-starter";
-import { SectionHeader } from "@/features/layout/components/section-header/section-header";
+import GeographicViewShell from "@/features/geographic-view/components/geographic-view-shell";
 import { guardPage } from "@/features/auth/access/server-access";
 import { ACCESS_RULES } from "@/features/auth/access/access-rules";
 import { RouteGuard } from "@/features/auth/components/route-guard";
@@ -12,26 +10,9 @@ export default async function GeographicViewPage({ params }: ParamsWithLang) {
   const { lang } = await params;
   const [, dict] = await getDictionary(lang);
 
-  /*
-const layers = [
-  // Here we will add the layers of information that will be displayed in front of the map
-];
-*/
-
   return (
     <RouteGuard path="/geographic-view">
-      <div className="h-full w-full flex flex-col">
-        <SectionHeader
-          path={["mission_control", "geographic_view"]}
-          lang={lang}
-          rootIcon={<HiClipboardList className="mr-2 h-4 w-4" />}
-          breadcrumbDict={dict["symptoms"] as I18nRecord}
-          filterDict={dict as I18nRecord}
-        />
-        <div className="flex-1 relative">
-          <ClientMapStarter dict={dict} />
-        </div>
-      </div>
+      <GeographicViewShell lang={lang} dict={dict as I18nRecord} />
     </RouteGuard>
   );
 }

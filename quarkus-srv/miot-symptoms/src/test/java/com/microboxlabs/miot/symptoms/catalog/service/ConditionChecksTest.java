@@ -29,20 +29,20 @@ class ConditionChecksTest {
                 messages("signal.geo.zone == \"A\" && signal.geo.zone == \"B\""));
         assertEquals(List.of("ERROR «signal.geo.zone» no puede tener dos valores a la vez; nunca se cumpliría."),
                 messages("signal.geo.zone == \"A\" && signal.geo.zone != \"A\""));
-        assertEquals(List.of("ERROR «signal.gps.speed_kmh» mayor que 90 y menor que 80 nunca se cumple."),
-                messages("signal.gps.speed_kmh > 90 && signal.gps.speed_kmh < 80"));
-        assertEquals(List.of("ERROR «signal.gps.speed_kmh» mayor que 80 y menor que 80 nunca se cumple."),
-                messages("signal.gps.speed_kmh >= 80 && signal.gps.speed_kmh < 80"));
+        assertEquals(List.of("ERROR «signal.frame.gps.speed» mayor que 90 y menor que 80 nunca se cumple."),
+                messages("signal.frame.gps.speed > 90 && signal.frame.gps.speed < 80"));
+        assertEquals(List.of("ERROR «signal.frame.gps.speed» mayor que 80 y menor que 80 nunca se cumple."),
+                messages("signal.frame.gps.speed >= 80 && signal.frame.gps.speed < 80"));
     }
 
     @Test
     void boundsThatHoldOrJustRepeatAreFineOrWarnings() {
-        assertTrue(messages("signal.gps.speed_kmh >= 80 && signal.gps.speed_kmh <= 80").isEmpty(), "exactly 80");
-        assertTrue(messages("signal.gps.speed_kmh > 80 && signal.gps.speed_kmh < 120").isEmpty());
-        assertEquals(List.of("WARNING Dos mínimos para «signal.gps.speed_kmh»; basta el mayor (90)."),
-                messages("signal.gps.speed_kmh > 80 && signal.gps.speed_kmh > 90"));
-        assertEquals(List.of("WARNING Dos máximos para «signal.gps.speed_kmh»; basta el menor (80)."),
-                messages("signal.gps.speed_kmh < 80 && signal.gps.speed_kmh <= 100"));
+        assertTrue(messages("signal.frame.gps.speed >= 80 && signal.frame.gps.speed <= 80").isEmpty(), "exactly 80");
+        assertTrue(messages("signal.frame.gps.speed > 80 && signal.frame.gps.speed < 120").isEmpty());
+        assertEquals(List.of("WARNING Dos mínimos para «signal.frame.gps.speed»; basta el mayor (90)."),
+                messages("signal.frame.gps.speed > 80 && signal.frame.gps.speed > 90"));
+        assertEquals(List.of("WARNING Dos máximos para «signal.frame.gps.speed»; basta el menor (80)."),
+                messages("signal.frame.gps.speed < 80 && signal.frame.gps.speed <= 100"));
     }
 
     @Test

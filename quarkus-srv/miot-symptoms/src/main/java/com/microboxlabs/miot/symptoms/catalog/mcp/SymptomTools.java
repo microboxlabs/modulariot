@@ -51,9 +51,9 @@ public class SymptomTools {
             + " you were asked to."
             + " source: the key of the data source the rules read (symptoms_sources)."
             + " activation: a CEL expression over the source's root object (e.g. signal.trip.active &&"
-            + " signal.gps.speed_kmh > 0) that returns bool; it says which situations are candidates."
+            + " signal.frame.gps.speed > 0) that returns bool; it says which situations are candidates."
             + " measure: {expression, label, unit}; expression is CEL over the same root that returns a number,"
-            + " e.g. signal.gps.speed_kmh - signal.road.maxspeed_osm; null for a symptom with a fixed level."
+            + " e.g. signal.frame.gps.speed - signal.road.maxspeed_osm; null for a symptom with a fixed level."
             + " levels: the four ICU levels, lowest first, each {icu, applies, when, response}. icu is 1 to 4:"
             + " 1 Bajo observación, 2 Comprometida, 3 Crítica, 4 Código negro. applies=false means the symptom"
             + " never reaches that level. when is CEL over measure (the measure's value) and held_s"
@@ -160,7 +160,7 @@ public class SymptomTools {
 
     @Tool(name = "symptoms_sources", structuredContent = true,
             description = "The data sources symptom rules can read. Without key: the list of sources. With key:"
-                    + " that source with each field (its CEL path such as signal.gps.speed_kmh, type, unit,"
+                    + " that source with each field (its CEL path such as signal.frame.gps.speed, type, unit,"
                     + " origin, and whether the engine evaluates it today) and sample objects. Rules on a field"
                     + " the engine does not evaluate yet can only be published as TEST.",
             annotations = @Tool.Annotations(title = "List data sources", readOnlyHint = true,

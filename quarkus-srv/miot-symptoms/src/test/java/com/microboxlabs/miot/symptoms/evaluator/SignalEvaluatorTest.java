@@ -51,7 +51,7 @@ class SignalEvaluatorTest {
         return Map.of("signal", Map.of(
                 "trip", Map.of("active", onTrip),
                 "vehicle", Map.of("weight_category", "HEAVY"),
-                "gps", Map.of("speed_kmh", speed),
+                "frame", Map.of("gps", Map.of("speed", speed)),
                 "road", Map.of("maxspeed_osm", 90.0)));
     }
 
@@ -146,7 +146,7 @@ class SignalEvaluatorTest {
         Map<String, Object> noRoad = Map.of("signal", Map.of(
                 "trip", Map.of("active", true),
                 "vehicle", Map.of("weight_category", "HEAVY"),
-                "gps", Map.of("speed_kmh", 130.0)));
+                "frame", Map.of("gps", Map.of("speed", 130.0))));
         Result r = evaluator.evaluate(TENANT, TRUCK, T0.plusSeconds(5), noRoad, symptoms);
         assertTrue(r.transitions().isEmpty());
         assertEquals(1, r.errors().size());
@@ -176,7 +176,7 @@ class SignalEvaluatorTest {
     @Test
     void aLevelThatOnlyNeedsTimeWaitsForIt() {
         UUID stopped = UUID.randomUUID();
-        SymptomSpec held = spec("signal.trip.active && signal.gps.speed_kmh < 1.0", null,
+        SymptomSpec held = spec("signal.trip.active && signal.frame.gps.speed < 1.0", null,
                 List.of(new SymptomSpec.Level(3, true, "held_s >= 1800", Specs.response(true, 15))),
                 "case.condition_s >= 0", "case.normal_s >= 0");
         List<CompiledSymptom> one = List.of(CompiledSymptom.compile(stopped, "0.1.0", SymptomState.TEST, held,
@@ -263,7 +263,7 @@ class SignalEvaluatorTest {
                 platform));
         Map<String, Object> stopped = Map.of("signal", Map.of(
                 "trip", Map.of("active", true),
-                "gps", Map.of("moving", false),
+                "derived", Map.of("moving", false),
                 "geo", Map.of("authorized_zone", false),
                 "local_hour", 23.0));
         List<String> seen = new ArrayList<>();

@@ -150,7 +150,7 @@ final class EvalTraces {
         return kind + "@" + at + ":" + previous + ">" + level;
     }
 
-    /** Dotted field paths to nested objects: {@code signal.gps.moving} becomes {@code {signal: {gps: {moving}}}}. */
+    /** Dotted field paths to nested objects: {@code signal.derived.moving} becomes {@code {signal: {gps: {moving}}}}. */
     @SuppressWarnings("unchecked")
     static Map<String, Object> root(Map<String, Object> flat) {
         Map<String, Object> root = new LinkedHashMap<>();

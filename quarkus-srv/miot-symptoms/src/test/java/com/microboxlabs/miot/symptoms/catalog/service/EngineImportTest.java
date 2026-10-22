@@ -37,7 +37,7 @@ class EngineImportTest {
 
         assertEquals("exceso-de-velocidad-estandar-9", t.key());
         assertEquals("signal.trip.active", t.spec().activation());
-        assertEquals("signal.gps.speed_kmh - signal.road.maxspeed_osm", t.spec().measure().expression());
+        assertEquals("signal.frame.gps.speed - signal.road.maxspeed_osm", t.spec().measure().expression());
         assertEquals("case.normal_s >= 120", t.spec().lifecycle().close());
         assertEquals("SPEED LIMIT STANDARD", t.icon());
         assertTrue(t.pending().isEmpty());
@@ -53,7 +53,7 @@ class EngineImportTest {
         assertTrue(t.spec().activation().contains("(signal.local_hour >= 21 || signal.local_hour < 6)"),
                 t.spec().activation());
         assertTrue(t.spec().activation().contains("!signal.trip.double_driver"));
-        assertTrue(t.spec().activation().contains("!signal.gps.moving"));
+        assertTrue(t.spec().activation().contains("!signal.derived.moving"));
         assertEquals(List.of("respect_permanently_closed = 1"), t.pending());
         assertTrue(check(t, sources).publishable(), () -> check(t, sources).findings().toString());
     }

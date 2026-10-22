@@ -77,8 +77,8 @@ class EvaluatorStreamTest {
         return """
                 {"schema":"miot.gps.signal@1","asset_id":"DEMO01","at":"%s","clients":[%s],
                  "trip":{"active":false,"double_driver":false},
-                 "gps":{"speed_kmh":0.0,"engine_on":true,"moving":false},"local_hour":9,
-                 "frame":{"asset_id":"DEMO01","sensors":%s}}
+                 "local_hour":9,"derived":{"moving":false},
+                 "frame":{"asset_id":"DEMO01","gps":{"speed":0.0},"sensors":%s}}
                 """.formatted(at, String.join(",", List.of(clients).stream().map(c -> "\"" + c + "\"").toList()),
                 sensors);
     }

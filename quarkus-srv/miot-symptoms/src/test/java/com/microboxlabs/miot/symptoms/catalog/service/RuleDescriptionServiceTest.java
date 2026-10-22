@@ -128,12 +128,12 @@ class RuleDescriptionServiceTest {
     void theWholeLevelsSectionIsCachedPerLineAndGetsTheLevelLabels() {
         RuleDescriptionService service = service();
         String levels = """
-                medida = signal.gps.speed_kmh - signal.road.maxspeed_osm
+                medida = signal.frame.gps.speed - signal.road.maxspeed_osm
                 nivel 1: measure > 0 && measure < 5
                 nivel 4: measure >= 21 && held_s >= 60""";
         String respaced = """
 
-                  medida =  signal.gps.speed_kmh - signal.road.maxspeed_osm\t
+                  medida =  signal.frame.gps.speed - signal.road.maxspeed_osm\t
                 nivel 1:   measure > 0 && measure < 5
 
                 nivel 4: measure >= 21   && held_s >= 60
@@ -147,7 +147,7 @@ class RuleDescriptionServiceTest {
         assertEquals(2, calls.size());
         assertEquals("levels", calls.get(0).get("section"));
         Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
-        assertEquals("Velocidad", fields.get("signal.gps.speed_kmh"));
+        assertEquals("Velocidad", fields.get("signal.frame.gps.speed"));
         assertEquals("valor medido", fields.get("measure"));
         assertTrue(fields.containsKey("held_s"));
         assertFalse(fields.containsKey("case.level"));
@@ -178,7 +178,7 @@ class RuleDescriptionServiceTest {
         RuleDescriptionService service = service();
         String overview = """
                 activa: signal.trip.active
-                medida: signal.gps.speed_kmh - 90 (km/h)
+                medida: signal.frame.gps.speed - 90 (km/h)
                 nivel 3: measure >= 11 · operador 5 min
                 abre: case.condition_s >= 0
                 cierra: case.normal_s >= 120""";

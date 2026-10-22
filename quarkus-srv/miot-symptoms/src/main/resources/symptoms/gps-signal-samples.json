@@ -37,11 +37,6 @@
         "weight_category": "HEAVY",
         "weight_kg": 28000.0
       },
-      "gps": {
-        "speed_kmh": 112.0,
-        "engine_on": true,
-        "moving": true
-      },
       "road": {
         "maxspeed_osm": 90.0
       },
@@ -49,12 +44,16 @@
         "authorized_zone": false
       },
       "local_hour": 14,
+      "derived": {
+        "moving": true
+      },
       "frame": {
         "type": "TRUCK",
         "year": 2021,
         "gps": {
           "latitude": -33.4489,
-          "longitude": -70.6693
+          "longitude": -70.6693,
+          "speed": 112.0
         },
         "telecom": {
           "operator": "ENTEL",
@@ -108,11 +107,6 @@
         "weight_category": "HEAVY",
         "weight_kg": 28000.0
       },
-      "gps": {
-        "speed_kmh": 101.0,
-        "engine_on": true,
-        "moving": true
-      },
       "road": {
         "maxspeed_osm": 90.0
       },
@@ -120,12 +114,16 @@
         "authorized_zone": false
       },
       "local_hour": 9,
+      "derived": {
+        "moving": true
+      },
       "frame": {
         "type": "TRUCK",
         "year": 2019,
         "gps": {
           "latitude": -33.0472,
-          "longitude": -71.6127
+          "longitude": -71.6127,
+          "speed": 101.0
         },
         "telecom": {
           "operator": "MOVISTAR",
@@ -173,11 +171,6 @@
         "weight_category": "LIGHT",
         "weight_kg": 3200.0
       },
-      "gps": {
-        "speed_kmh": 58.0,
-        "engine_on": true,
-        "moving": true
-      },
       "road": {
         "maxspeed_osm": 50.0
       },
@@ -186,12 +179,16 @@
         "zone": "Planta Norte"
       },
       "local_hour": 11,
+      "derived": {
+        "moving": true
+      },
       "frame": {
         "type": "PICKUP",
         "year": 2023,
         "gps": {
           "latitude": -23.6509,
-          "longitude": -70.3975
+          "longitude": -70.3975,
+          "speed": 58.0
         },
         "telecom": {
           "operator": "ENTEL",
@@ -243,11 +240,6 @@
         "weight_category": "HEAVY",
         "weight_kg": 30000.0
       },
-      "gps": {
-        "speed_kmh": 0.0,
-        "engine_on": false,
-        "moving": false
-      },
       "road": {
         "maxspeed_osm": 100.0
       },
@@ -255,12 +247,16 @@
         "authorized_zone": false
       },
       "local_hour": 3,
+      "derived": {
+        "moving": false
+      },
       "frame": {
         "type": "TRUCK",
         "year": 2020,
         "gps": {
           "latitude": -27.3668,
-          "longitude": -70.3322
+          "longitude": -70.3322,
+          "speed": 0.0
         },
         "telecom": {
           "operator": "CLARO",

@@ -30,12 +30,12 @@ const field = (
 const FIELDS = [
   field("signal.trip.active", "bool"),
   field("signal.trip.double_driver", "bool"),
-  field("signal.gps.moving", "bool"),
+  field("signal.derived.moving", "bool"),
   field("signal.geo.authorized_zone", "bool"),
   field("signal.road.maxspeed_osm", "number"),
   field("signal.road.maxspeed_custom", "number"),
   field("signal.local_hour", "number"),
-  field("signal.gps.speed_kmh", "number"),
+  field("signal.frame.gps.speed", "number"),
   field("signal.geo.zone", "zone"),
   field("signal.vehicle.weight_category", "list", [
     { value: "HEAVY", label: "Pesado" },
@@ -70,8 +70,8 @@ describe("parseConditions", () => {
     for (const rule of [
       "signal.trip.active && signal.road.maxspeed_osm > 0",
       "signal.trip.active && signal.road.maxspeed_custom > 0",
-      "signal.trip.active && !signal.gps.moving && !signal.geo.authorized_zone && (signal.local_hour >= 21 || signal.local_hour < 6)",
-      "signal.trip.active && signal.gps.moving && !signal.trip.double_driver && signal.local_hour >= 2 && signal.local_hour < 6",
+      "signal.trip.active && !signal.derived.moving && !signal.geo.authorized_zone && (signal.local_hour >= 21 || signal.local_hour < 6)",
+      "signal.trip.active && signal.derived.moving && !signal.trip.double_driver && signal.local_hour >= 2 && signal.local_hour < 6",
       "check.trip.active && !check.trip.double_driver",
       "check.trip.active",
       'event.type == "SOS"',
@@ -84,7 +84,7 @@ describe("parseConditions", () => {
     expect(
       shape(
         parseConditions(
-          'signal.trip.active && !signal.gps.moving && signal.gps.speed_kmh >= 90.5 && signal.vehicle.weight_category != "LIGHT"',
+          'signal.trip.active && !signal.derived.moving && signal.frame.gps.speed >= 90.5 && signal.vehicle.weight_category != "LIGHT"',
           FIELDS
         )
       )
@@ -92,8 +92,8 @@ describe("parseConditions", () => {
       match: "all",
       rows: [
         { path: "signal.trip.active", op: "is_true", value: null },
-        { path: "signal.gps.moving", op: "is_false", value: null },
-        { path: "signal.gps.speed_kmh", op: ">=", value: 90.5 },
+        { path: "signal.derived.moving", op: "is_false", value: null },
+        { path: "signal.frame.gps.speed", op: ">=", value: 90.5 },
         { path: "signal.vehicle.weight_category", op: "!=", value: "LIGHT" },
       ],
       groups: [],
@@ -116,7 +116,7 @@ describe("parseConditions", () => {
     expect(
       shape(
         parseConditions(
-          'signal.trip.active && (signal.geo.zone == "A" || signal.geo.zone == "B") && !(signal.gps.moving || signal.local_hour < 6)',
+          'signal.trip.active && (signal.geo.zone == "A" || signal.geo.zone == "B") && !(signal.derived.moving || signal.local_hour < 6)',
           FIELDS
         )
       )?.groups.map((g) => g.match)
@@ -150,7 +150,7 @@ describe("parseConditions", () => {
     expect(
       shape(
         parseConditions(
-          '(signal.geo.zone == "A" || signal.geo.zone == "B") && !(signal.gps.moving)',
+          '(signal.geo.zone == "A" || signal.geo.zone == "B") && !(signal.derived.moving)',
           FIELDS
         )
       )
@@ -204,23 +204,23 @@ describe("parseConditions", () => {
 
   it("returns null for logic the form cannot show", () => {
     for (const rule of [
-      "signal.trip.active && signal.gps.speed_kmh > signal.road.maxspeed_osm", // field against field
-      "signal.gps.speed_kmh - signal.road.maxspeed_osm > 10", // calculation
+      "signal.trip.active && signal.frame.gps.speed > signal.road.maxspeed_osm", // field against field
+      "signal.frame.gps.speed - signal.road.maxspeed_osm > 10", // calculation
       "signal.unknown.field > 3", // not in the source
-      "signal.trip.active || signal.gps.moving && signal.local_hour < 6", // mixed at the top
-      "signal.trip.active || (signal.gps.moving && signal.local_hour < 6)", // group under o
-      "signal.trip.active && ((signal.gps.moving || signal.local_hour < 6) && signal.trip.double_driver)", // nested
-      "signal.trip.active && !(signal.gps.moving && signal.local_hour < 6)", // not all
-      "signal.gps.speed_kmh > 1e3", // number syntax the form does not write
-      "signal.gps.speed_kmh > 9007199254740993", // more digits than a number keeps
-      "signal.gps.speed_kmh > 0.1000000000000000055511151231257827", // the same
-      "signal.gps.speed_kmh > 007", // leading zeros
-      'signal.gps.speed_kmh > "90"', // text on a number field
+      "signal.trip.active || signal.derived.moving && signal.local_hour < 6", // mixed at the top
+      "signal.trip.active || (signal.derived.moving && signal.local_hour < 6)", // group under o
+      "signal.trip.active && ((signal.derived.moving || signal.local_hour < 6) && signal.trip.double_driver)", // nested
+      "signal.trip.active && !(signal.derived.moving && signal.local_hour < 6)", // not all
+      "signal.frame.gps.speed > 1e3", // number syntax the form does not write
+      "signal.frame.gps.speed > 9007199254740993", // more digits than a number keeps
+      "signal.frame.gps.speed > 0.1000000000000000055511151231257827", // the same
+      "signal.frame.gps.speed > 007", // leading zeros
+      'signal.frame.gps.speed > "90"', // text on a number field
       'signal.geo.zone > "A"', // order on text
       "signal.geo.zone == 'A'", // single quotes
       'signal.geo.zone == "\\x41"', // an escape the form does not write
       "signal.trip.active == 1", // number on a yes/no field
-      "signal.trip.active && (signal.gps.moving", // unbalanced
+      "signal.trip.active && (signal.derived.moving", // unbalanced
       "signal.local_hour in [1, 2]", // list membership
     ]) {
       expect(parseConditions(rule, FIELDS), rule).toBeNull();
@@ -230,20 +230,20 @@ describe("parseConditions", () => {
 
 describe("numbers and durations", () => {
   it("keeps numbers exactly, dropping only trailing zeros", () => {
-    expect(roundTrip("signal.gps.speed_kmh > 90.5")).toBe(
-      "signal.gps.speed_kmh > 90.5"
+    expect(roundTrip("signal.frame.gps.speed > 90.5")).toBe(
+      "signal.frame.gps.speed > 90.5"
     );
-    expect(roundTrip("signal.gps.speed_kmh > 90.50")).toBe(
-      "signal.gps.speed_kmh > 90.5"
+    expect(roundTrip("signal.frame.gps.speed > 90.50")).toBe(
+      "signal.frame.gps.speed > 90.5"
     );
-    expect(roundTrip("signal.gps.speed_kmh > 90.0")).toBe(
-      "signal.gps.speed_kmh > 90"
+    expect(roundTrip("signal.frame.gps.speed > 90.0")).toBe(
+      "signal.frame.gps.speed > 90"
     );
-    expect(roundTrip("signal.gps.speed_kmh >= -0.0")).toBe(
-      "signal.gps.speed_kmh >= 0"
+    expect(roundTrip("signal.frame.gps.speed >= -0.0")).toBe(
+      "signal.frame.gps.speed >= 0"
     );
-    expect(roundTrip("signal.gps.speed_kmh < 9007199254740991")).toBe(
-      "signal.gps.speed_kmh < 9007199254740991"
+    expect(roundTrip("signal.frame.gps.speed < 9007199254740991")).toBe(
+      "signal.frame.gps.speed < 9007199254740991"
     );
   });
 
@@ -256,7 +256,7 @@ describe("numbers and durations", () => {
     for (const n of [1e-7, 0.1, 2.5e-12, 90, -0.5]) {
       const rule = compileConditions({
         match: "all",
-        rows: [{ id: "r", path: "signal.gps.speed_kmh", op: ">", value: n }],
+        rows: [{ id: "r", path: "signal.frame.gps.speed", op: ">", value: n }],
         groups: [],
       });
       expect(shape(parseConditions(rule, FIELDS))?.rows[0]?.value, rule).toBe(
@@ -286,11 +286,11 @@ describe("numbers and durations", () => {
 describe("compileConditions", () => {
   it("puts each top-level condition on its own line, starting with &&", () => {
     const form = parseConditions(
-      'signal.trip.active && signal.gps.speed_kmh > 90 && (signal.geo.zone == "A" || signal.geo.zone == "B")',
+      'signal.trip.active && signal.frame.gps.speed > 90 && (signal.geo.zone == "A" || signal.geo.zone == "B")',
       FIELDS
     ) as ConditionForm;
     expect(compileConditions(form)).toBe(
-      'signal.trip.active\n&& signal.gps.speed_kmh > 90\n&& (signal.geo.zone == "A" || signal.geo.zone == "B")'
+      'signal.trip.active\n&& signal.frame.gps.speed > 90\n&& (signal.geo.zone == "A" || signal.geo.zone == "B")'
     );
   });
 
@@ -302,12 +302,12 @@ describe("compileConditions", () => {
 
   it("skips empty groups and wraps an any list that is followed by groups", () => {
     const form = parseConditions(
-      "signal.trip.active || signal.gps.moving",
+      "signal.trip.active || signal.derived.moving",
       FIELDS
     ) as ConditionForm;
     form.groups.push({ id: "g1", match: "none", rows: [] });
     expect(compileConditions(form)).toBe(
-      "signal.trip.active || signal.gps.moving"
+      "signal.trip.active || signal.derived.moving"
     );
     form.groups.push({
       id: "g2",
@@ -315,7 +315,7 @@ describe("compileConditions", () => {
       rows: [{ id: "r", path: "signal.geo.zone", op: "==", value: "Puerto" }],
     });
     expect(compileConditions(form)).toBe(
-      '(signal.trip.active || signal.gps.moving)\n&& !(signal.geo.zone == "Puerto")'
+      '(signal.trip.active || signal.derived.moving)\n&& !(signal.geo.zone == "Puerto")'
     );
     expect(shape(parseConditions(compileConditions(form), FIELDS))?.match).toBe(
       "any"

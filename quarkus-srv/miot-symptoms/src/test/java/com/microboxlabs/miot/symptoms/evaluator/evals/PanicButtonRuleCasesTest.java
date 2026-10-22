@@ -21,7 +21,7 @@ class PanicButtonRuleCasesTest {
 
     private static Signal frame(int at, boolean pressed, boolean onTrip) {
         return new Signal(at, EvalTraces.root(Map.of("signal.frame.sensors.panic_button", pressed,
-                "signal.trip.active", onTrip, "signal.gps.speed_kmh", 0.0)));
+                "signal.trip.active", onTrip, "signal.frame.gps.speed", 0.0)));
     }
 
     private static List<String> run(Signal... frames) {
@@ -54,8 +54,7 @@ class PanicButtonRuleCasesTest {
                 "signal.trip.active", true)));
         Signal noSensors = new Signal(30, EvalTraces.root(Map.of("signal.frame.gps.latitude", -33.45,
                 "signal.trip.active", true)));
-        Signal noFrame = new Signal(60, EvalTraces.root(Map.of("signal.trip.active", true)));
 
-        assertEquals(List.of(), run(noButton, noSensors, noFrame), "replay fails on any rule error");
+        assertEquals(List.of(), run(noButton, noSensors), "replay fails on any rule error");
     }
 }

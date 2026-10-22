@@ -53,9 +53,9 @@ class SignalBuilderTest {
         assertEquals("ABCD12", s.assetId());
         assertEquals(AT, s.at());
         assertEquals(List.of("sender-1"), s.clients(), "the M2M suffix is dropped");
-        assertEquals(42.5, s.gps().speedKmh());
-        assertTrue(s.gps().engineOn());
-        assertTrue(s.gps().moving());
+        assertEquals(42.5, s.frame().getGps().getSpeed());
+        assertTrue(s.frame().getSensors().getEngineStatus());
+        assertTrue(s.derived().moving());
         assertEquals(9, s.localHour(), "12:00 UTC is 09:00 in Santiago in October");
         assertTrue(s.frame().getSensors().isPanicButton());
         assertFalse(s.trip().active());
@@ -64,8 +64,8 @@ class SignalBuilderTest {
 
     @Test
     void movingIsAboveTenKmh() {
-        assertFalse(build(refs(List.of(), List.of()), frame("ABCD12", 10, false)).gps().moving());
-        assertTrue(build(refs(List.of(), List.of()), frame("ABCD12", 10.5, false)).gps().moving());
+        assertFalse(build(refs(List.of(), List.of()), frame("ABCD12", 10, false)).derived().moving());
+        assertTrue(build(refs(List.of(), List.of()), frame("ABCD12", 10.5, false)).derived().moving());
     }
 
     @Test

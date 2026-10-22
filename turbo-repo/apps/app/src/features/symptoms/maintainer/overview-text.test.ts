@@ -15,7 +15,7 @@ const SPEC = {
   source: "gps_signal",
   activation: "signal.trip.active\n&& signal.road.maxspeed_osm > 0",
   measure: {
-    expression: "signal.gps.speed_kmh - signal.road.maxspeed_osm",
+    expression: "signal.frame.gps.speed - signal.road.maxspeed_osm",
     label: "Exceso",
     unit: "km/h",
   },
@@ -52,7 +52,7 @@ describe("overviewText", () => {
     expect(overviewText(SPEC)).toBe(
       [
         "activa: signal.trip.active\n&& signal.road.maxspeed_osm > 0",
-        "medida: signal.gps.speed_kmh - signal.road.maxspeed_osm (km/h)",
+        "medida: signal.frame.gps.speed - signal.road.maxspeed_osm (km/h)",
         "nivel 1: measure > 0 · sin operador",
         "nivel 3: measure >= 11 · operador",
         "nivel 4: measure >= 21 · operador 4 min",

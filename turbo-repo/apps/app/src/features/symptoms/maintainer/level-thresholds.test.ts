@@ -56,7 +56,7 @@ describe("parseThresholds", () => {
       "measure < 5 && measure <= 3", // two upper bounds
       "(measure > 0)", // parentheses
       "measure == 5", // equality
-      "signal.gps.speed_kmh > 90", // a source field
+      "signal.frame.gps.speed > 90", // a source field
       "measure > held_s", // variable against variable
       "measure > 9007199254740993", // a number the form cannot keep
       "!(measure > 3)", // negation

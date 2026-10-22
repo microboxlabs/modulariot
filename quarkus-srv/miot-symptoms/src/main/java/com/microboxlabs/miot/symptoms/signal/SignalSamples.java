@@ -87,7 +87,7 @@ public class SignalSamples {
     }
 
     /** Keeps the signal as a sample of the organization, unless one was kept less than {@link #EVERY} ago. */
-    public void record(String tenantCode, Map<String, Object> signal) {
+    public void keep(String tenantCode, Map<String, Object> signal) {
         if (!admit(tenantCode, clock.instant())) {
             return;
         }

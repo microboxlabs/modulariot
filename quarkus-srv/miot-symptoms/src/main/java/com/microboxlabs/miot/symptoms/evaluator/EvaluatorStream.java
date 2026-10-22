@@ -131,7 +131,7 @@ public class EvaluatorStream {
     }
 
     private int evaluate(String tenant, String assetId, Instant at, Map<String, Object> signal) {
-        samples.record(tenant, signal);
+        samples.keep(tenant, signal);
         List<CompiledSymptom> symptoms = symptoms(tenant);
         if (symptoms.isEmpty()) {
             return 0;

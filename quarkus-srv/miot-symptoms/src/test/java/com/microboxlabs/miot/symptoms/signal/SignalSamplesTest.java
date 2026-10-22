@@ -56,11 +56,11 @@ class SignalSamplesTest {
         MutableClock clock = new MutableClock();
         SignalSamples samples = new SignalSamples(null, clock);
 
-        samples.record(TENANT, Map.of("asset_id", "A"));
-        samples.record(TENANT, Map.of("asset_id", "B"));
-        samples.record("tenant-b", Map.of("asset_id", "C"));
+        samples.keep(TENANT, Map.of("asset_id", "A"));
+        samples.keep(TENANT, Map.of("asset_id", "B"));
+        samples.keep("tenant-b", Map.of("asset_id", "C"));
         clock.now = clock.now.plus(SignalSamples.EVERY);
-        samples.record(TENANT, Map.of("asset_id", "D"));
+        samples.keep(TENANT, Map.of("asset_id", "D"));
 
         assertEquals(List.of("D", "A"), assets(samples.recent(TENANT, 5)));
         assertEquals(List.of("C"), assets(samples.recent("tenant-b", 5)));
@@ -72,7 +72,7 @@ class SignalSamplesTest {
         MutableClock clock = new MutableClock();
         SignalSamples samples = new SignalSamples(null, clock);
         for (int i = 0; i < SignalSamples.KEEP + 5; i++) {
-            samples.record(TENANT, Map.of("asset_id", "A" + i));
+            samples.keep(TENANT, Map.of("asset_id", "A" + i));
             clock.now = clock.now.plus(SignalSamples.EVERY);
         }
 

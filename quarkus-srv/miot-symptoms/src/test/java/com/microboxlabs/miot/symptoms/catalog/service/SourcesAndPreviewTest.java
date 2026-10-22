@@ -69,7 +69,7 @@ class SourcesAndPreviewTest {
     @Test
     void recentSignalsReplaceTheFixedSamples() {
         SignalSamples samples = SignalSamples.inMemory();
-        samples.record(TENANT, Map.of("asset_id", "AB1234", "clients", List.of(TENANT),
+        samples.keep(TENANT, Map.of("asset_id", "AB1234", "clients", List.of(TENANT),
                 "frame", Map.of("sensors", Map.of("panic_button", true))));
         DataSourceService sources = new DataSourceService(new InMemoryCatalog(), samples);
 

@@ -15,6 +15,7 @@ import {
   type Range,
   type UpperOp,
   compileThresholds,
+  DEFAULT_LEVEL_RULE,
   parseThresholds,
 } from "./level-thresholds";
 import LevelNotices, { CHANNELS } from "./level-notices";
@@ -473,7 +474,7 @@ export default function LevelRow({
           disabled={readOnly}
           label={tr("levelApplies", d)}
           onChange={(applies) =>
-            set({ applies, when: level.when || "medida > 0" })
+            set({ applies, when: level.when || DEFAULT_LEVEL_RULE })
           }
         />
         {level.applies && (

@@ -496,7 +496,7 @@ public class SymptomCatalogService {
 
     private static SymptomSpec emptySpec(DataSource source) {
         return new SymptomSpec(source.key(), "", null, List.of(), new SymptomSpec.Lifecycle(
-                "caso.condicion_s >= 0", "caso.normal_s >= 120"), null);
+                "case.condition_s >= 0", "case.normal_s >= 120"), null);
     }
 
     /** The owner may raise the computed bump, never lower it. */

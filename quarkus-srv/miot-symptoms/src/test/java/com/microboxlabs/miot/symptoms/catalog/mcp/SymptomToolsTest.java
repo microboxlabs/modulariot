@@ -88,8 +88,8 @@ class SymptomToolsTest {
     }
 
     private static SymptomSpec raisedCodigoNegro() {
-        return Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11 && medida < 25", "medida >= 25 && sostenido_s >= 60"));
+        return Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11 && measure < 25", "measure >= 25 && held_s >= 60"));
     }
 
     @Test
@@ -189,9 +189,9 @@ class SymptomToolsTest {
         String json = """
                 {"source": "gps_signal", "activation": "signal.trip.active",
                  "measure": {"expression": "signal.gps.speed_kmh - signal.road.maxspeed_osm", "unit": "km/h"},
-                 "levels": [{"icu": 4, "applies": true, "when": "medida >= 25 && sostenido_s >= 60",
+                 "levels": [{"icu": 4, "applies": true, "when": "measure >= 25 && held_s >= 60",
                              "response": {"operator": true, "slaMinutes": 2}}],
-                 "lifecycle": {"open": "caso.condicion_s >= 0", "close": "caso.normal_s >= 120"},
+                 "lifecycle": {"open": "case.condition_s >= 0", "close": "case.normal_s >= 120"},
                  "somethingElse": 1}
                 """;
 
@@ -199,7 +199,7 @@ class SymptomToolsTest {
 
         assertEquals(4, spec.levels().get(0).icu());
         assertEquals(2, spec.levels().get(0).response().slaMinutes());
-        assertEquals("caso.normal_s >= 120", spec.lifecycle().close());
+        assertEquals("case.normal_s >= 120", spec.lifecycle().close());
     }
 
     @Test

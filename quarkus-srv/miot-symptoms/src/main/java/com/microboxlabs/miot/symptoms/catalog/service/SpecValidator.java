@@ -32,8 +32,8 @@ public final class SpecValidator {
     private static final double NEAR = 0.01;
     private static final String LEVELS = "levels";
     private static final String ACTIVATION = "activation";
-    private static final String MEASURE = "medida";
-    private static final String HELD = "sostenido_s";
+    private static final String MEASURE = "measure";
+    private static final String HELD = "held_s";
 
     /** Severity of a finding. */
     public enum Severity {

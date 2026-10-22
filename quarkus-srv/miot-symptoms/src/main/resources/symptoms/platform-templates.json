@@ -10,12 +10,12 @@
       "activation": "signal.trip.active && signal.road.maxspeed_osm > 0",
       "measure": {"expression": "signal.gps.speed_kmh - signal.road.maxspeed_osm", "label": "Exceso sobre el límite", "unit": "km/h"},
       "levels": [
-        {"icu": 1, "applies": true, "when": "medida > 0 && medida < 5", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 2, "applies": true, "when": "medida >= 5 && medida < 10", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 3, "applies": true, "when": "medida >= 10 && medida < 20", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 4, "applies": true, "when": "medida >= 20 && sostenido_s >= 60", "response": {"operator": true, "slaMinutes": 5, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
+        {"icu": 1, "applies": true, "when": "measure > 0 && measure < 5", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 2, "applies": true, "when": "measure >= 5 && measure < 10", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 3, "applies": true, "when": "measure >= 10 && measure < 20", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 4, "applies": true, "when": "measure >= 20 && held_s >= 60", "response": {"operator": true, "slaMinutes": 5, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
       ],
-      "lifecycle": {"open": "caso.condicion_s >= 0", "close": "caso.normal_s >= 120"}
+      "lifecycle": {"open": "case.condition_s >= 0", "close": "case.normal_s >= 120"}
     }
   },
   {
@@ -29,12 +29,12 @@
       "activation": "signal.trip.active && signal.road.maxspeed_custom > 0",
       "measure": {"expression": "signal.gps.speed_kmh - signal.road.maxspeed_custom", "label": "Exceso sobre el límite propio", "unit": "km/h"},
       "levels": [
-        {"icu": 1, "applies": true, "when": "medida > 0 && medida < 5", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 2, "applies": true, "when": "medida >= 5 && medida < 10", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 3, "applies": true, "when": "medida >= 10 && medida < 20", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 4, "applies": true, "when": "medida >= 20 && sostenido_s >= 60", "response": {"operator": true, "slaMinutes": 5, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
+        {"icu": 1, "applies": true, "when": "measure > 0 && measure < 5", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 2, "applies": true, "when": "measure >= 5 && measure < 10", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 3, "applies": true, "when": "measure >= 10 && measure < 20", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 4, "applies": true, "when": "measure >= 20 && held_s >= 60", "response": {"operator": true, "slaMinutes": 5, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
       ],
-      "lifecycle": {"open": "caso.condicion_s >= 0", "close": "caso.normal_s >= 120"}
+      "lifecycle": {"open": "case.condition_s >= 0", "close": "case.normal_s >= 120"}
     }
   },
   {
@@ -47,12 +47,12 @@
       "source": "gps_signal",
       "activation": "signal.trip.active && !signal.gps.moving && !signal.geo.authorized_zone && (signal.local_hour >= 21 || signal.local_hour < 6)",
       "levels": [
-        {"icu": 1, "applies": true, "when": "sostenido_s < 600", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 2, "applies": true, "when": "sostenido_s >= 600 && sostenido_s < 1200", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 3, "applies": true, "when": "sostenido_s >= 1200 && sostenido_s < 1800", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 4, "applies": true, "when": "sostenido_s >= 1800", "response": {"operator": true, "slaMinutes": 10, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
+        {"icu": 1, "applies": true, "when": "held_s < 600", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 2, "applies": true, "when": "held_s >= 600 && held_s < 1200", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 3, "applies": true, "when": "held_s >= 1200 && held_s < 1800", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 4, "applies": true, "when": "held_s >= 1800", "response": {"operator": true, "slaMinutes": 10, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
       ],
-      "lifecycle": {"open": "caso.condicion_s >= 0", "close": "caso.normal_s >= 300"}
+      "lifecycle": {"open": "case.condition_s >= 0", "close": "case.normal_s >= 300"}
     }
   },
   {
@@ -65,12 +65,12 @@
       "source": "gps_signal",
       "activation": "signal.trip.active && signal.gps.moving && !signal.trip.double_driver && signal.local_hour >= 2 && signal.local_hour < 6",
       "levels": [
-        {"icu": 1, "applies": true, "when": "sostenido_s < 300", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 2, "applies": true, "when": "sostenido_s >= 300 && sostenido_s < 900", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 3, "applies": true, "when": "sostenido_s >= 900 && sostenido_s < 1800", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 4, "applies": true, "when": "sostenido_s >= 1800", "response": {"operator": true, "slaMinutes": 10, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
+        {"icu": 1, "applies": true, "when": "held_s < 300", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 2, "applies": true, "when": "held_s >= 300 && held_s < 900", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 3, "applies": true, "when": "held_s >= 900 && held_s < 1800", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 4, "applies": true, "when": "held_s >= 1800", "response": {"operator": true, "slaMinutes": 10, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
       ],
-      "lifecycle": {"open": "caso.condicion_s >= 0", "close": "caso.normal_s >= 300"}
+      "lifecycle": {"open": "case.condition_s >= 0", "close": "case.normal_s >= 300"}
     }
   },
   {
@@ -84,12 +84,12 @@
       "activation": "check.trip.active && !check.trip.double_driver",
       "measure": {"expression": "check.driving_minutes", "label": "Minutos conduciendo seguido", "unit": "min"},
       "levels": [
-        {"icu": 1, "applies": true, "when": "medida >= 270 && medida < 300", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 2, "applies": true, "when": "medida >= 300 && medida < 330", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 3, "applies": true, "when": "medida >= 330 && medida < 360", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 4, "applies": true, "when": "medida >= 360", "response": {"operator": true, "slaMinutes": 10, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
+        {"icu": 1, "applies": true, "when": "measure >= 270 && measure < 300", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 2, "applies": true, "when": "measure >= 300 && measure < 330", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 3, "applies": true, "when": "measure >= 330 && measure < 360", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 4, "applies": true, "when": "measure >= 360", "response": {"operator": true, "slaMinutes": 10, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
       ],
-      "lifecycle": {"open": "caso.condicion_s >= 0", "close": "caso.normal_s >= 600"}
+      "lifecycle": {"open": "case.condition_s >= 0", "close": "case.normal_s >= 600"}
     }
   },
   {
@@ -103,12 +103,12 @@
       "activation": "check.trip.active",
       "measure": {"expression": "check.signal_lost_minutes", "label": "Minutos sin señal", "unit": "min"},
       "levels": [
-        {"icu": 1, "applies": true, "when": "medida >= 30 && medida < 90", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 2, "applies": true, "when": "medida >= 90 && medida < 120", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 3, "applies": true, "when": "medida >= 120 && medida < 180", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
-        {"icu": 4, "applies": true, "when": "medida >= 180", "response": {"operator": true, "slaMinutes": 10, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
+        {"icu": 1, "applies": true, "when": "measure >= 30 && measure < 90", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 2, "applies": true, "when": "measure >= 90 && measure < 120", "response": {"operator": false, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 3, "applies": true, "when": "measure >= 120 && measure < 180", "response": {"operator": true, "slaMinutes": 15, "steps": [], "notices": [], "evidence": [], "ignorable": true}},
+        {"icu": 4, "applies": true, "when": "measure >= 180", "response": {"operator": true, "slaMinutes": 10, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
       ],
-      "lifecycle": {"open": "caso.condicion_s >= 0", "close": "caso.normal_s >= 600"}
+      "lifecycle": {"open": "case.condition_s >= 0", "close": "case.normal_s >= 600"}
     }
   },
   {
@@ -126,7 +126,7 @@
         {"icu": 3, "applies": false, "when": null, "response": null},
         {"icu": 4, "applies": true, "when": "true", "response": {"operator": true, "slaMinutes": 2, "steps": [], "notices": [], "evidence": [], "ignorable": false}}
       ],
-      "lifecycle": {"open": "caso.condicion_s >= 0", "close": "caso.cerrado_por_operador"}
+      "lifecycle": {"open": "case.condition_s >= 0", "close": "case.closed_by_operator"}
     }
   }
 ]

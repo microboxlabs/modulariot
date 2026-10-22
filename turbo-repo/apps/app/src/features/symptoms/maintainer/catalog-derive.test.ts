@@ -19,38 +19,38 @@ const level = (icu: number, when: string | null, applies = true): Level => ({
 
 describe("shortThreshold", () => {
   it("reads the speeding ladder", () => {
-    expect(shortThreshold(level(1, "medida > 0 && medida < 5"), "km/h")).toBe(
+    expect(shortThreshold(level(1, "measure > 0 && measure < 5"), "km/h")).toBe(
       "< 5 km/h"
     );
-    expect(shortThreshold(level(2, "medida >= 5 && medida < 11"), "km/h")).toBe(
+    expect(shortThreshold(level(2, "measure >= 5 && measure < 11"), "km/h")).toBe(
       "≥ 5 km/h"
     );
     expect(
-      shortThreshold(level(4, "medida >= 21 && sostenido_s >= 60"), "km/h")
+      shortThreshold(level(4, "measure >= 21 && held_s >= 60"), "km/h")
     ).toBe("≥ 21 km/h · 1 min");
-    expect(shortThreshold(level(4, "medida > 21"), "km/h")).toBe("> 21 km/h");
+    expect(shortThreshold(level(4, "measure > 21"), "km/h")).toBe("> 21 km/h");
   });
 
   it("writes minutes as the prototype does", () => {
     expect(
-      shortThreshold(level(2, "medida >= 90 && medida < 120"), "min")
+      shortThreshold(level(2, "measure >= 90 && measure < 120"), "min")
     ).toBe("≥ 90 min");
     expect(
-      shortThreshold(level(3, "medida >= 120 && medida < 180"), "min")
+      shortThreshold(level(3, "measure >= 120 && measure < 180"), "min")
     ).toBe("≥ 2 h");
-    expect(shortThreshold(level(3, "medida >= 330"), "min")).toBe("≥ 5 h 30");
+    expect(shortThreshold(level(3, "measure >= 330"), "min")).toBe("≥ 5 h 30");
   });
 
   it("keeps an inclusive upper bound inclusive", () => {
-    expect(shortThreshold(level(1, "medida <= 5"), "km/h")).toBe("≤ 5 km/h");
-    expect(shortThreshold(level(1, "medida < 5"), "km/h")).toBe("< 5 km/h");
+    expect(shortThreshold(level(1, "measure <= 5"), "km/h")).toBe("≤ 5 km/h");
+    expect(shortThreshold(level(1, "measure < 5"), "km/h")).toBe("< 5 km/h");
   });
 
   it("marks fixed, custom and missing levels", () => {
     expect(shortThreshold(level(3, "true"), null)).toBe("fixed");
-    expect(shortThreshold(level(3, "medida * 2 > 3"), null)).toBe("custom");
+    expect(shortThreshold(level(3, "measure * 2 > 3"), null)).toBe("custom");
     expect(shortThreshold(level(1, null), null)).toBeNull();
-    expect(shortThreshold(level(1, "medida < 5", false), null)).toBeNull();
+    expect(shortThreshold(level(1, "measure < 5", false), null)).toBeNull();
     expect(shortThreshold(undefined, null)).toBeNull();
   });
 });
@@ -66,10 +66,10 @@ describe("formatAmount", () => {
 describe("levels, operators and channels", () => {
   const spec = {
     levels: [
-      level(1, "medida > 0 && medida < 5"),
+      level(1, "measure > 0 && measure < 5"),
       level(2, "x", false),
       {
-        ...level(3, "medida >= 11"),
+        ...level(3, "measure >= 11"),
         response: {
           operator: true,
           slaMinutes: 5,
@@ -95,7 +95,7 @@ describe("levels, operators and channels", () => {
         },
       },
       {
-        ...level(4, "medida >= 21"),
+        ...level(4, "measure >= 21"),
         response: {
           operator: false,
           slaMinutes: null,

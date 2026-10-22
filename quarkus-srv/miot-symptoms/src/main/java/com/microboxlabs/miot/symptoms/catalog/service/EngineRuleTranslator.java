@@ -28,7 +28,7 @@ final class EngineRuleTranslator {
     private static final Set<String> CONTROL_KEYS = Set.of("evaluate_time", "start_hour", "end_hour",
             "cooldown_seconds");
 
-    private static final String MEASURE_AT_LEAST = "medida >= ";
+    private static final String MEASURE_AT_LEAST = "measure >= ";
 
     /** Result of translating one rule. */
     record Translation(String key, String name, String sourceKey, String icon, SymptomSpec spec,
@@ -48,11 +48,11 @@ final class EngineRuleTranslator {
         }
         List<Level> levels = d.levels == null ? fixedLevel() : d.levels;
         Object cooldown = p.get("cooldown_seconds");
-        String close = cooldown instanceof Number n ? "caso.normal_s >= " + n.intValue() : "caso.normal_s >= 0";
+        String close = cooldown instanceof Number n ? "case.normal_s >= " + n.intValue() : "case.normal_s >= 0";
         SymptomSpec spec = new SymptomSpec(d.sourceKey,
                 d.conditions.isEmpty() ? "true" : String.join(" && ", d.conditions),
                 d.measure == null ? null : new SymptomSpec.Measure(d.measure, null, d.unit), levels,
-                new SymptomSpec.Lifecycle("caso.condicion_s >= 0", close), null);
+                new SymptomSpec.Lifecycle("case.condition_s >= 0", close), null);
         return new Translation(key(rule), rule.name(), d.sourceKey, d.icon, spec, d.pending);
     }
 
@@ -186,18 +186,18 @@ final class EngineRuleTranslator {
     /** The engine's speeding ladder: 5, 11 and 21 km/h over, código negro only after a minute. */
     private static List<Level> speedLevels() {
         return List.of(
-                level(1, "medida > 0 && medida < 5", false, null),
-                level(2, "medida >= 5 && medida < 11", false, null),
-                level(3, "medida >= 11 && (medida < 21 || sostenido_s < 60)", true, 5),
-                level(4, "medida >= 21 && sostenido_s >= 60", true, 2));
+                level(1, "measure > 0 && measure < 5", false, null),
+                level(2, "measure >= 5 && measure < 11", false, null),
+                level(3, "measure >= 11 && (measure < 21 || held_s < 60)", true, 5),
+                level(4, "measure >= 21 && held_s >= 60", true, 2));
     }
 
     /** ICU 2, 3 and 4 from three thresholds of the measure. */
     private static List<Level> ladder(int compromised, int critical, int black) {
         return List.of(
                 new Level(1, false, null, null),
-                level(2, MEASURE_AT_LEAST + compromised + " && medida < " + critical, false, null),
-                level(3, MEASURE_AT_LEAST + critical + " && medida < " + black, true, 5),
+                level(2, MEASURE_AT_LEAST + compromised + " && measure < " + critical, false, null),
+                level(3, MEASURE_AT_LEAST + critical + " && measure < " + black, true, 5),
                 level(4, MEASURE_AT_LEAST + black, true, 2));
     }
 

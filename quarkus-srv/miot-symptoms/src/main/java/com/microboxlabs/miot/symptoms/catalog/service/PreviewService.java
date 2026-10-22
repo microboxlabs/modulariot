@@ -67,7 +67,7 @@ public class PreviewService {
      *
      * @param scenario which moment, a key the app names
      * @param open     whether a case is already open; then the close rule runs, else the open rule
-     * @param sample   the {@code caso} object the rule reads
+     * @param sample   the {@code case} object the rule reads
      * @param outcome  {@code opens} or {@code waits} for a case not open yet, {@code closes} or {@code stays_open}
      *                 for an open one; null when the rule could not run
      * @param error    why the rule could not run, or null
@@ -84,17 +84,17 @@ public class PreviewService {
             boolean closedByOperator) {
 
         Map<String, Object> sample() {
-            Map<String, Object> caso = new LinkedHashMap<>();
-            caso.put("condicion_s", conditionS);
-            caso.put("normal_s", normalS);
-            caso.put("edad_h", ageH);
-            caso.put("nivel", (double) level);
-            caso.put("cerrado_por_operador", closedByOperator);
-            return Map.of("caso", caso);
+            Map<String, Object> fields = new LinkedHashMap<>();
+            fields.put("condition_s", conditionS);
+            fields.put("normal_s", normalS);
+            fields.put("age_h", ageH);
+            fields.put("level", (double) level);
+            fields.put("closed_by_operator", closedByOperator);
+            return Map.of("case", fields);
         }
     }
 
-    /** {@code caso.normal_s} while the condition still holds, as the engine writes it. */
+    /** {@code case.normal_s} while the condition still holds, as the engine writes it. */
     private static final double NOT_NORMAL = -1;
 
     static final List<Scenario> SCENARIOS = List.of(
@@ -219,8 +219,8 @@ public class PreviewService {
     private static SamplePreview reachLevel(Map<String, Object> sample, Double value,
             Map<Integer, PreparedRule> levels) {
         Map<String, Object> vars = new LinkedHashMap<>(sample);
-        vars.put("medida", value == null ? 0.0 : value);
-        vars.put("sostenido_s", sample.get(HELD) instanceof Number n ? n.doubleValue() : 0.0);
+        vars.put("measure", value == null ? 0.0 : value);
+        vars.put("held_s", sample.get(HELD) instanceof Number n ? n.doubleValue() : 0.0);
         Integer reached = null;
         for (Map.Entry<Integer, PreparedRule> e : levels.entrySet()) {
             RuleResult r = e.getValue().run(vars);

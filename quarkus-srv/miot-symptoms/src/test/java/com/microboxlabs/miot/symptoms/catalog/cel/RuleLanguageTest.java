@@ -73,16 +73,16 @@ class RuleLanguageTest {
     @Test
     void levelConditionsReadTheMeasureAndHowLongItHeld() {
         RuleSchema level = SIGNAL.withExtras(RuleSchema.LEVEL_VARIABLES);
-        String rule = "medida >= 21 && sostenido_s >= 60";
+        String rule = "measure >= 21 && held_s >= 60";
 
         assertTrue(RuleLanguage.check(level, rule, Expect.CONDITION).ok());
-        assertEquals(true, RuleLanguage.evaluate(level, rule, Map.of("medida", 22.0, "sostenido_s", 75.0)).value());
-        assertEquals(false, RuleLanguage.evaluate(level, rule, Map.of("medida", 22.0, "sostenido_s", 20.0)).value());
+        assertEquals(true, RuleLanguage.evaluate(level, rule, Map.of("measure", 22.0, "held_s", 75.0)).value());
+        assertEquals(false, RuleLanguage.evaluate(level, rule, Map.of("measure", 22.0, "held_s", 20.0)).value());
     }
 
     @Test
     void lifecycleReadsTheCase() {
-        assertTrue(RuleLanguage.check(RuleSchema.CASE, "caso.normal_s >= 120 || caso.edad_h >= 12",
+        assertTrue(RuleLanguage.check(RuleSchema.CASE, "case.normal_s >= 120 || case.age_h >= 12",
                 Expect.CONDITION).ok());
     }
 

@@ -85,7 +85,7 @@ class SpecFieldsTest {
                 {"source":"gps_signal","activation":"signal.trip.active",
                  "levels":[{"icu":4,"applies":true,"when":"true",
                    "response":{"operator":true,"slaMinutes":5,"steps":[],"notices":[],"evidence":[],"ignorable":false}}],
-                 "lifecycle":{"open":"caso.condicion_s >= 0","close":"caso.normal_s >= 120"},
+                 "lifecycle":{"open":"case.condition_s >= 0","close":"case.normal_s >= 120"},
                  "recurrence":{"enabled":true,"count":20,"days":7,"raiseLevels":1}}""";
         SymptomSpec spec = new ObjectMapper().readValue(json, SymptomSpec.class);
         assertNull(spec.levels().get(0).response().escalateTo());

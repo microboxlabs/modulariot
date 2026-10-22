@@ -11,10 +11,10 @@ export type CloseWhen =
   | { kind: "operator" }
   | { kind: "expire"; hours: number };
 
-const OPEN = /^caso\.condicion_s\s*>=\s*(\S+)$/;
-const NORMAL = /^caso\.normal_s\s*>=\s*(\S+)$/;
-const EXPIRE = /^caso\.edad_h\s*>=\s*(\S+)$/;
-const OPERATOR = /^caso\.cerrado_por_operador(\s*==\s*true)?$/;
+const OPEN = /^case\.condition_s\s*>=\s*(\S+)$/;
+const NORMAL = /^case\.normal_s\s*>=\s*(\S+)$/;
+const EXPIRE = /^case\.age_h\s*>=\s*(\S+)$/;
+const OPERATOR = /^case\.closed_by_operator(\s*==\s*true)?$/;
 
 /** The open rule as the form shows it, or null when it says something else. */
 export function parseOpen(rule: string | null): OpenWhen | null {
@@ -26,7 +26,7 @@ export function parseOpen(rule: string | null): OpenWhen | null {
 
 export function compileOpen(open: OpenWhen): string {
   const seconds = open.kind === "instant" ? 0 : open.seconds;
-  return `caso.condicion_s >= ${decimalText(seconds)}`;
+  return `case.condition_s >= ${decimalText(seconds)}`;
 }
 
 /** The close rule as the form shows it, or null when it says something else. */
@@ -39,7 +39,7 @@ export function parseClose(rule: string | null): CloseWhen | null {
     if (seconds === null || seconds < 0) return null;
     const close: CloseWhen = { kind: "normal", minutes: seconds / 60 };
     // Only seconds that come back the same from minutes: 90 is 1.5 min, 7 is not a clean number of minutes.
-    return compileClose(close) === `caso.normal_s >= ${decimalText(seconds)}`
+    return compileClose(close) === `case.normal_s >= ${decimalText(seconds)}`
       ? close
       : null;
   }
@@ -49,8 +49,8 @@ export function parseClose(rule: string | null): CloseWhen | null {
 }
 
 export function compileClose(close: CloseWhen): string {
-  if (close.kind === "operator") return "caso.cerrado_por_operador";
+  if (close.kind === "operator") return "case.closed_by_operator";
   if (close.kind === "expire")
-    return `caso.edad_h >= ${decimalText(close.hours)}`;
-  return `caso.normal_s >= ${decimalText(close.minutes * 60)}`;
+    return `case.age_h >= ${decimalText(close.hours)}`;
+  return `case.normal_s >= ${decimalText(close.minutes * 60)}`;
 }

@@ -4,13 +4,13 @@ import { compileThresholds, parseThresholds } from "./level-thresholds";
 describe("parseThresholds", () => {
   it("reads every platform template level and writes it back unchanged", () => {
     for (const rule of [
-      "medida > 0 && medida < 5",
-      "medida >= 5 && medida < 10",
-      "medida >= 20 && sostenido_s >= 60",
-      "sostenido_s < 600",
-      "sostenido_s >= 600 && sostenido_s < 1200",
-      "sostenido_s >= 1800",
-      "medida >= 360",
+      "measure > 0 && measure < 5",
+      "measure >= 5 && measure < 10",
+      "measure >= 20 && held_s >= 60",
+      "held_s < 600",
+      "held_s >= 600 && held_s < 1200",
+      "held_s >= 1800",
+      "measure >= 360",
       "true",
     ]) {
       const t = parseThresholds(rule);
@@ -21,7 +21,7 @@ describe("parseThresholds", () => {
 
   it("reads bounds by side, whatever their order", () => {
     expect(
-      parseThresholds("sostenido_s >= 60 && medida < 5 && medida >= 1.5")
+      parseThresholds("held_s >= 60 && measure < 5 && measure >= 1.5")
     ).toEqual({
       measure: {
         lower: { op: ">=", value: 1.5 },
@@ -30,8 +30,8 @@ describe("parseThresholds", () => {
       held: { lower: { op: ">=", value: 60 }, upper: null },
     });
     expect(
-      compileThresholds(parseThresholds("medida <= 5 && medida > 1")!)
-    ).toBe("medida > 1 && medida <= 5");
+      compileThresholds(parseThresholds("measure <= 5 && measure > 1")!)
+    ).toBe("measure > 1 && measure <= 5");
   });
 
   it("reads true as no bounds and leaves a blank rule to the validator", () => {
@@ -43,16 +43,16 @@ describe("parseThresholds", () => {
 
   it("returns null for rules the form cannot show", () => {
     for (const rule of [
-      "medida > 0 || medida < 5", // o
-      "medida > 0 && medida > 5", // two lower bounds
-      "medida < 5 && medida <= 3", // two upper bounds
-      "(medida > 0)", // parentheses
-      "medida == 5", // equality
+      "measure > 0 || measure < 5", // o
+      "measure > 0 && measure > 5", // two lower bounds
+      "measure < 5 && measure <= 3", // two upper bounds
+      "(measure > 0)", // parentheses
+      "measure == 5", // equality
       "signal.gps.speed_kmh > 90", // a source field
-      "medida > sostenido_s", // variable against variable
-      "medida > 9007199254740993", // a number the form cannot keep
-      "!(medida > 3)", // negation
-      "5 < medida", // reversed
+      "measure > held_s", // variable against variable
+      "measure > 9007199254740993", // a number the form cannot keep
+      "!(measure > 3)", // negation
+      "5 < measure", // reversed
     ]) {
       expect(parseThresholds(rule), rule).toBeNull();
     }

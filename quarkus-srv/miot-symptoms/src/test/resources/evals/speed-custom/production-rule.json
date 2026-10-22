@@ -7,14 +7,14 @@
     "unit": "km/h"
   },
   "levels": [
-    { "icu": 1, "applies": true, "when": "medida > 0 && medida < 5" },
-    { "icu": 2, "applies": true, "when": "medida >= 5 && medida < 11" },
-    { "icu": 3, "applies": true, "when": "medida >= 11 && medida <= 21" },
-    { "icu": 4, "applies": true, "when": "medida > 21 && sostenido_s >= 6" }
+    { "icu": 1, "applies": true, "when": "measure > 0 && measure < 5" },
+    { "icu": 2, "applies": true, "when": "measure >= 5 && measure < 11" },
+    { "icu": 3, "applies": true, "when": "measure >= 11 && measure <= 21" },
+    { "icu": 4, "applies": true, "when": "measure > 21 && held_s >= 6" }
   ],
   "lifecycle": {
-    "open": "caso.condicion_s >= 9 && caso.nivel >= 2",
-    "close": "caso.normal_s >= 0 && caso.nivel < 4 || caso.normal_s >= 120",
+    "open": "case.condition_s >= 9 && case.level >= 2",
+    "close": "case.normal_s >= 0 && case.level < 4 || case.normal_s >= 120",
     "levelDown": true
   }
 }

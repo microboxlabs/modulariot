@@ -61,13 +61,14 @@ public class SignalBuilder {
 
     /** Registry id, status and license of the trip's driver; whether they are registered only once it is loaded. */
     private GpsSignal.Driver driver(ReferenceCache.TripDetails d, Instant at) {
-        if (d.driverNationalId() == null || d.driverNationalId().isBlank()) {
+        // Checked before the lookup: once loaded the registry is never unloaded, so the lookup sees it too.
+        if (d.driverNationalId() == null || d.driverNationalId().isBlank() || !refs.driversLoaded()) {
             return null;
         }
         return refs.driver(d.driverNationalId(), d.createdBy())
                 .map(r -> new GpsSignal.Driver(r.id(), true, status(r.status()),
                         r.licenseExpires() == null ? null : r.licenseExpires().isBefore(at)))
-                .orElse(refs.driversLoaded() ? new GpsSignal.Driver(null, false, null, null) : null);
+                .orElse(new GpsSignal.Driver(null, false, null, null));
     }
 
     private static GpsSignal.DriverStatus status(String status) {

@@ -66,7 +66,8 @@ public class SignalStream {
                 FROM live_trip) t
             """;
     private static final String DRIVERS = """
-            SELECT id::text AS id, client_id, rut, status, license_expires FROM ams.rd_drivers WHERE rut IS NOT NULL
+            SELECT id::text AS id, client_id, rut, status, license_expires::timestamptz AS license_expires
+            FROM ams.rd_drivers WHERE rut IS NOT NULL
             """;
     private static final String SHARES = """
             SELECT asset_id, shared_client_id, active, valid_from, valid_to FROM asset_client_map WHERE active

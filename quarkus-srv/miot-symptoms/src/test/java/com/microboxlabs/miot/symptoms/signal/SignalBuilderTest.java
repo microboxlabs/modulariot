@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class SignalBuilderTest {
@@ -209,13 +210,13 @@ class SignalBuilderTest {
 
     /** A live_trip row as Debezium and the reload send it, names and phones included. */
     private static final String ROW = """
-            {"trip_id":"1707194","asset_id":"ABCD12","trip_type":"v","status":"SCHEDULED",
+            {"trip_id":"TRIP-9001","asset_id":"ABCD12","trip_type":"v","status":"SCHEDULED",
              "start_time":"2026-10-21T10:30:00Z","end_time":null,"double_driver":false,
              "estimated_arrival_time":"2026-10-21T11:45:00Z","origin_geofence_id":32,
              "origin_geofence_label":"ANF","origin_visited":true,"origin_is_internal":true,
              "destination_geofence_id":17,"destination_geofence_label":"SPC","destination_visited":false,
-             "current_geofence_id":0,"carrier_id":"76606931-2","carrier_name":"TRANSPORTES SUR",
-             "type_load":"rampla","rampla_plate":"PXFT33","driver_id":"12345678-5",
+             "current_geofence_id":0,"carrier_id":"11111111-1","carrier_name":"TRANSPORTES SUR",
+             "type_load":"rampla","rampla_plate":"DEMO33","driver_id":"12345678-5",
              "driver_name":"Nombre Apellido","driver_contact_phone":"+56900000000",
              "created_by_client_id":"tenant-client"}
             """;
@@ -231,16 +232,16 @@ class SignalBuilderTest {
         GpsSignal s = build(refs, frame("ABCD12", 70, false));
 
         GpsSignal.Trip t = s.trip();
-        assertEquals("1707194", t.id());
+        assertEquals("TRIP-9001", t.id());
         assertEquals("v", t.type());
         assertEquals(90.0, t.ageMin());
         assertEquals(15.0, t.lateMin(), "15 min past the estimated arrival");
         assertEquals(new GpsSignal.Origin(32, "ANF", true, true), t.origin());
         assertEquals(new GpsSignal.Destination(17, "SPC", false), t.destination());
         assertNull(t.currentZoneId(), "geofence 0 is no geofence");
-        assertEquals(new GpsSignal.Carrier("76606931-2", "TRANSPORTES SUR"), t.carrier());
+        assertEquals(new GpsSignal.Carrier("11111111-1", "TRANSPORTES SUR"), t.carrier());
         assertEquals("rampla", t.loadType());
-        assertEquals("PXFT33", t.trailerPlate());
+        assertEquals("DEMO33", t.trailerPlate());
         assertEquals(new GpsSignal.Driver("d-1", true, GpsSignal.DriverStatus.SUSPENDED, true), t.driver(),
                 "the trip creator's driver first");
         String json = SignalStream.JSON.writeValueAsString(s);
@@ -256,5 +257,21 @@ class SignalBuilderTest {
         refs.loadDrivers(List.of());
         assertEquals(new GpsSignal.Driver(null, false, null, null),
                 build(refs, frame("ABCD12", 70, false)).trip().driver());
+    }
+
+    @Test
+    void aRegistryPublishedDuringTheLookupIsNotAnUnregisteredDriver() {
+        // The first registry lands after the lookup read the unloaded one: the driver is unknown, not unregistered.
+        ReferenceCache refs = new ReferenceCache() {
+            @Override
+            public Optional<Driver> driver(String nationalId, String clientId) {
+                Optional<Driver> stale = super.driver(nationalId, clientId);
+                loadDrivers(List.of(new Driver("d-1", "tenant-client", "12345678-5", "ACTIVE", null)));
+                return stale;
+            }
+        };
+        refs.load(List.of(ReferenceCache.trip(new JsonObject(ROW))), List.of());
+
+        assertNull(build(refs, frame("ABCD12", 70, false)).trip().driver());
     }
 }

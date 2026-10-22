@@ -36,19 +36,19 @@ const cardClass =
 /** Variables a level rule adds to the source: the measure and how long it has held. */
 export function levelFields(d: I18nRecord): CelField[] {
   return [
-    { path: "medida", detail: tr("fieldMeasure", d) },
-    { path: "sostenido_s", detail: tr("fieldHeld", d) },
+    { path: "measure", detail: tr("fieldMeasure", d) },
+    { path: "held_s", detail: tr("fieldHeld", d) },
   ];
 }
 
 /** The case a lifecycle rule reads. */
 export function caseFields(d: I18nRecord): CelField[] {
   return [
-    { path: "caso.condicion_s", detail: tr("fieldCaseCondition", d) },
-    { path: "caso.normal_s", detail: tr("fieldCaseNormal", d) },
-    { path: "caso.edad_h", detail: tr("fieldCaseAge", d) },
-    { path: "caso.nivel", detail: tr("fieldCaseLevel", d) },
-    { path: "caso.cerrado_por_operador", detail: tr("fieldCaseClosed", d) },
+    { path: "case.condition_s", detail: tr("fieldCaseCondition", d) },
+    { path: "case.normal_s", detail: tr("fieldCaseNormal", d) },
+    { path: "case.age_h", detail: tr("fieldCaseAge", d) },
+    { path: "case.level", detail: tr("fieldCaseLevel", d) },
+    { path: "case.closed_by_operator", detail: tr("fieldCaseClosed", d) },
   ];
 }
 

@@ -32,8 +32,8 @@ public final class SpecValidator {
     private static final double NEAR = 0.01;
     private static final String LEVELS = "levels";
     private static final String ACTIVATION = "activation";
-    private static final String MEASURE = "medida";
-    private static final String HELD = "sostenido_s";
+    private static final String MEASURE = "measure";
+    private static final String HELD = "held_s";
 
     /** Severity of a finding. */
     public enum Severity {
@@ -89,7 +89,7 @@ public final class SpecValidator {
         out.addAll(ConditionChecks.check(spec.activation(), path -> label(source, path)));
         unknownValues(out, source, spec.activation());
         if (spec.measure() != null && spec.measure().expression() != null) {
-            rule(out, "measure", schema, spec.measure().expression(), Expect.NUMBER);
+            rule(out, MEASURE, schema, spec.measure().expression(), Expect.NUMBER);
         }
         levels(out, schema.withExtras(RuleSchema.LEVEL_VARIABLES), spec.levels());
         if (spec.lifecycle() == null) {

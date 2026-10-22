@@ -25,14 +25,14 @@ export const CHANNEL_GROUPS: ChannelGroup[] = [
 
 const NUMBER = String.raw`(-?\d+(?:\.\d+)?)`;
 const FIRST_LEVEL = new RegExp(
-  String.raw`^medida\s*>\s*0\s*&&\s*medida\s*<\s*${NUMBER}$`
+  String.raw`^measure\s*>\s*0\s*&&\s*measure\s*<\s*${NUMBER}$`
 );
 const RANGE = new RegExp(
-  String.raw`^medida\s*>=\s*${NUMBER}\s*&&\s*medida\s*<\s*${NUMBER}$`
+  String.raw`^measure\s*>=\s*${NUMBER}\s*&&\s*measure\s*<\s*${NUMBER}$`
 );
-const BELOW = new RegExp(String.raw`^medida\s*(<=?)\s*${NUMBER}$`);
+const BELOW = new RegExp(String.raw`^measure\s*(<=?)\s*${NUMBER}$`);
 const FROM = new RegExp(
-  String.raw`^medida\s*(>=|>)\s*${NUMBER}(?:\s*&&\s*sostenido_s\s*>=\s*${NUMBER})?$`
+  String.raw`^measure\s*(>=|>)\s*${NUMBER}(?:\s*&&\s*held_s\s*>=\s*${NUMBER})?$`
 );
 
 /** `5` km/h → "5 km/h"; minutes and seconds read as the prototype writes them ("2 h", "5 h 30", "1 min"). */
@@ -63,7 +63,7 @@ export const THRESHOLD_CUSTOM = "custom";
 
 /**
  * The short threshold a catalog card shows under a level's icon, read from
- * the level's CEL: `medida >= 5 && medida < 11` → "≥ 5 km/h". Null when the
+ * the level's CEL: `measure >= 5 && measure < 11` → "≥ 5 km/h". Null when the
  * level does not apply; {@link THRESHOLD_FIXED} or {@link THRESHOLD_CUSTOM}
  * otherwise when there is no number to show.
  */

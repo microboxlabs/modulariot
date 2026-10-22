@@ -59,8 +59,8 @@ class SymptomCatalogServiceTest {
         assertEquals("1.0.0", service.publish(TENANT, OWNER, id, "Primera versión", null, SymptomState.ACTIVE)
                 .version());
 
-        SymptomSpec raised = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11 && medida < 25", "medida >= 25 && sostenido_s >= 60"));
+        SymptomSpec raised = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11 && measure < 25", "measure >= 25 && held_s >= 60"));
         service.saveDraft(TENANT, OWNER, id, raised);
         assertEquals("1.1.0", service.plan(TENANT, id).nextVersion());
         assertEquals("1.1.0", service.publish(TENANT, OWNER, id, "Umbral más alto", null, null).version());
@@ -280,8 +280,8 @@ class SymptomCatalogServiceTest {
     void aDraftThatLeavesStateAndFamilyKeepsTheSymptoms() {
         UUID id = speeding();
         service.publish(TENANT, OWNER, id, "Primera versión", null, SymptomState.ACTIVE);
-        service.saveDraft(TENANT, OWNER, id, Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 6",
-                "medida >= 6 && medida < 11", "medida >= 11 && medida < 21", "medida >= 21 && sostenido_s >= 60")));
+        service.saveDraft(TENANT, OWNER, id, Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 6",
+                "measure >= 6 && measure < 11", "measure >= 11 && measure < 21", "measure >= 21 && held_s >= 60")));
 
         assertTrue(service.plan(TENANT, id).changes().stream().allMatch(c -> c.section().equals("levels")));
         service.publish(TENANT, OWNER, id, "Umbral", null, null);
@@ -346,8 +346,8 @@ class SymptomCatalogServiceTest {
     void rollingBackRestoresTheRulesNotTheState() {
         UUID id = speeding();
         service.publish(TENANT, OWNER, id, "Primera versión", null, SymptomState.ACTIVE);
-        SymptomSpec raised = Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 6",
-                "medida >= 6 && medida < 11", "medida >= 11 && medida < 21", "medida >= 21 && sostenido_s >= 60"));
+        SymptomSpec raised = Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 6",
+                "measure >= 6 && measure < 11", "measure >= 11 && measure < 21", "measure >= 21 && held_s >= 60"));
         service.saveDraft(TENANT, OWNER, id, withFamilyAndState(raised, null, SymptomState.TEST));
         service.publish(TENANT, OWNER, id, "A prueba con otro umbral", null, null);
 
@@ -362,8 +362,8 @@ class SymptomCatalogServiceTest {
     void eachVersionCarriesWhatChangedFromThePreviousOne() {
         UUID id = speeding();
         service.publish(TENANT, OWNER, id, "Primera", null, SymptomState.ACTIVE);
-        service.saveDraft(TENANT, OWNER, id, Specs.withLevels(Specs.speeding(), Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11 && medida < 25", "medida >= 25 && sostenido_s >= 60")));
+        service.saveDraft(TENANT, OWNER, id, Specs.withLevels(Specs.speeding(), Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11 && measure < 25", "measure >= 25 && held_s >= 60")));
         String second = service.publish(TENANT, OWNER, id, "Umbrales", null, null).version();
 
         var changes = service.get(TENANT, id).versionChanges();

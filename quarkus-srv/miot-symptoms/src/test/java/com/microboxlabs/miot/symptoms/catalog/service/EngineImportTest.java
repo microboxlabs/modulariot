@@ -37,7 +37,7 @@ class EngineImportTest {
         assertEquals("exceso-de-velocidad-estandar-9", t.key());
         assertEquals("signal.trip.active", t.spec().activation());
         assertEquals("signal.gps.speed_kmh - signal.road.maxspeed_osm", t.spec().measure().expression());
-        assertEquals("caso.normal_s >= 120", t.spec().lifecycle().close());
+        assertEquals("case.normal_s >= 120", t.spec().lifecycle().close());
         assertEquals("SPEED LIMIT STANDARD", t.icon());
         assertTrue(t.pending().isEmpty());
         assertTrue(check(t, sources).publishable(), () -> check(t, sources).findings().toString());

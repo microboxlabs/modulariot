@@ -53,9 +53,9 @@ const SPEC = {
   activation: "true",
   measure: { expression: "signal.gps.speed_kmh - 90", label: null, unit: null },
   levels: [
-    level(1, true, "medida > 0 && medida < 5"),
+    level(1, true, "measure > 0 && measure < 5"),
     level(2, false, ""),
-    level(3, true, "medida >= 5"),
+    level(3, true, "measure >= 5"),
   ],
 } as unknown as SymptomSpec;
 
@@ -113,10 +113,10 @@ describe("LevelsExpression", () => {
     renderIt(PREVIEW, onChange);
     fireEvent.change(
       screen.getByLabelText("Umbral por nivel · CEL · Crítica"),
-      { target: { value: "medida >= 6" } }
+      { target: { value: "measure >= 6" } }
     );
     const next = onChange.mock.calls[0]?.[0] as SymptomSpec;
-    expect(next.levels?.find((l) => l.icu === 3)?.when).toBe("medida >= 6");
+    expect(next.levels?.find((l) => l.icu === 3)?.when).toBe("measure >= 6");
     expect(next.levels?.map((l) => l.icu)).toEqual([1, 2, 3]);
   });
 

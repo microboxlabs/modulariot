@@ -20,9 +20,12 @@ export interface LevelThresholds {
   held: Range;
 }
 
-const VARIABLES = { medida: "measure", sostenido_s: "held" } as const;
+/** The rule a level gets when it is turned on with none. */
+export const DEFAULT_LEVEL_RULE = "measure > 0";
+
+const VARIABLES = { measure: "measure", held_s: "held" } as const;
 type Variable = keyof typeof VARIABLES;
-const TERM = /^(medida|sostenido_s)\s*(>=|<=|>|<)\s*(\S+)$/;
+const TERM = /^(measure|held_s)\s*(>=|<=|>|<)\s*(\S+)$/;
 
 const emptyRange = (): Range => ({ lower: null, upper: null });
 
@@ -39,8 +42,8 @@ function place(range: Range, op: string, value: number): boolean {
 }
 
 /**
- * The thresholds of a level rule written as bounds on medida and sostenido_s
- * joined by "&&", such as "medida >= 20 && sostenido_s >= 60"; null for
+ * The thresholds of a level rule written as bounds on measure and held_s
+ * joined by "&&", such as "measure >= 20 && held_s >= 60"; null for
  * anything else (o, parentheses, other variables, two bounds on one side).
  */
 export function parseThresholds(when: string | null): LevelThresholds | null {
@@ -77,8 +80,8 @@ function rangeTerms(variable: Variable, range: Range): string[] {
 /** The level rule for its thresholds: measure first, lower bound before upper; "true" when there are none. */
 export function compileThresholds(t: LevelThresholds): string {
   const terms = [
-    ...rangeTerms("medida", t.measure),
-    ...rangeTerms("sostenido_s", t.held),
+    ...rangeTerms("measure", t.measure),
+    ...rangeTerms("held_s", t.held),
   ];
   return terms.length === 0 ? "true" : terms.join(" && ");
 }

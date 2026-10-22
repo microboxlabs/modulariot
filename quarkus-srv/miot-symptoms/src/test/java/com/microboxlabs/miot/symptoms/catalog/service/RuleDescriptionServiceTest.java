@@ -107,20 +107,20 @@ class RuleDescriptionServiceTest {
         RuleDescriptionService service = service();
 
         service.describe(TENANT, "activation", "signal.trip.active", "gps_signal", null, CALLER);
-        service.describe(TENANT, "levels.2", "medida >= 11 && sostenido_s > 60", "gps_signal", null, CALLER);
-        service.describe(TENANT, "lifecycle.close", "caso.normal_s >= 120", "gps_signal", null, CALLER);
+        service.describe(TENANT, "levels.2", "measure >= 11 && held_s > 60", "gps_signal", null, CALLER);
+        service.describe(TENANT, "lifecycle.close", "case.normal_s >= 120", "gps_signal", null, CALLER);
 
         Map<?, ?> activation = (Map<?, ?>) calls.get(0).get("fields");
         assertEquals("En viaje", activation.get("signal.trip.active"));
-        assertFalse(activation.containsKey("medida"));
+        assertFalse(activation.containsKey("measure"));
         assertEquals("es-CL", calls.get(0).get("locale"));
 
         Map<?, ?> level = (Map<?, ?>) calls.get(1).get("fields");
-        assertEquals("valor medido", level.get("medida"));
-        assertTrue(level.containsKey("sostenido_s"));
+        assertEquals("valor medido", level.get("measure"));
+        assertTrue(level.containsKey("held_s"));
 
         Map<?, ?> lifecycle = (Map<?, ?>) calls.get(2).get("fields");
-        assertTrue(lifecycle.containsKey("caso.normal_s"));
+        assertTrue(lifecycle.containsKey("case.normal_s"));
         assertFalse(lifecycle.containsKey("signal.trip.active"));
     }
 
@@ -129,14 +129,14 @@ class RuleDescriptionServiceTest {
         RuleDescriptionService service = service();
         String levels = """
                 medida = signal.gps.speed_kmh - signal.road.maxspeed_osm
-                nivel 1: medida > 0 && medida < 5
-                nivel 4: medida >= 21 && sostenido_s >= 60""";
+                nivel 1: measure > 0 && measure < 5
+                nivel 4: measure >= 21 && held_s >= 60""";
         String respaced = """
 
                   medida =  signal.gps.speed_kmh - signal.road.maxspeed_osm\t
-                nivel 1:   medida > 0 && medida < 5
+                nivel 1:   measure > 0 && measure < 5
 
-                nivel 4: medida >= 21   && sostenido_s >= 60
+                nivel 4: measure >= 21   && held_s >= 60
                 """;
 
         assertFalse(service.describe(TENANT, "levels", levels, "gps_signal", null, CALLER).cached());
@@ -148,29 +148,29 @@ class RuleDescriptionServiceTest {
         assertEquals("levels", calls.get(0).get("section"));
         Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
         assertEquals("Velocidad", fields.get("signal.gps.speed_kmh"));
-        assertEquals("valor medido", fields.get("medida"));
-        assertTrue(fields.containsKey("sostenido_s"));
-        assertFalse(fields.containsKey("caso.nivel"));
+        assertEquals("valor medido", fields.get("measure"));
+        assertTrue(fields.containsKey("held_s"));
+        assertFalse(fields.containsKey("case.level"));
     }
 
     @Test
     void theWholeLifecycleSectionIsCachedPerLineAndGetsTheCaseLabels() {
         RuleDescriptionService service = service();
-        String lifecycle = "abre: caso.condicion_s >= 0\ncierra: caso.normal_s >= 120";
+        String lifecycle = "abre: case.condition_s >= 0\ncierra: case.normal_s >= 120";
 
         assertFalse(service.describe(TENANT, "lifecycle", lifecycle, "gps_signal", null, CALLER).cached());
         String respaced = """
-                  abre:  caso.condicion_s >= 0\s
+                  abre:  case.condition_s >= 0\s
 
-                cierra: caso.normal_s  >= 120
+                cierra: case.normal_s  >= 120
                 """;
         assertTrue(service.describe(TENANT, "lifecycle", respaced, "gps_signal", null, CALLER).cached());
 
         assertEquals(1, calls.size());
         Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
-        assertEquals("segundos desde que volvió a la normalidad", fields.get("caso.normal_s"));
+        assertEquals("segundos desde que volvió a la normalidad", fields.get("case.normal_s"));
         assertFalse(fields.containsKey("signal.trip.active"));
-        assertFalse(fields.containsKey("medida"));
+        assertFalse(fields.containsKey("measure"));
     }
 
     @Test
@@ -179,9 +179,9 @@ class RuleDescriptionServiceTest {
         String overview = """
                 activa: signal.trip.active
                 medida: signal.gps.speed_kmh - 90 (km/h)
-                nivel 3: medida >= 11 · operador 5 min
-                abre: caso.condicion_s >= 0
-                cierra: caso.normal_s >= 120""";
+                nivel 3: measure >= 11 · operador 5 min
+                abre: case.condition_s >= 0
+                cierra: case.normal_s >= 120""";
 
         assertFalse(service.describe(TENANT, "overview", overview, "gps_signal", null, CALLER).cached());
         assertTrue(service.describe(TENANT, "overview", overview.replace("\n", "\n\n  "), "gps_signal", null,
@@ -190,14 +190,14 @@ class RuleDescriptionServiceTest {
         assertEquals(1, calls.size());
         Map<?, ?> fields = (Map<?, ?>) calls.get(0).get("fields");
         assertTrue(fields.containsKey("signal.trip.active"));
-        assertTrue(fields.containsKey("medida"));
-        assertTrue(fields.containsKey("caso.normal_s"));
+        assertTrue(fields.containsKey("measure"));
+        assertTrue(fields.containsKey("case.normal_s"));
     }
 
     @Test
     void spacesInsideAQuotedValueMakeANewText() {
         RuleDescriptionService service = service();
-        String yard = "activa: signal.geo.zone == \"North Yard\"\nabre: caso.condicion_s >= 0";
+        String yard = "activa: signal.geo.zone == \"North Yard\"\nabre: case.condition_s >= 0";
 
         assertFalse(service.describe(TENANT, "overview", yard, "gps_signal", null, CALLER).cached());
         assertTrue(service.describe(TENANT, "overview", yard.replace(" == ", "  ==   "), "gps_signal", null,
@@ -262,7 +262,7 @@ class RuleDescriptionServiceTest {
         String tooLong = "x".repeat(4001);
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.describe(TENANT, "levels.5", "medida > 1", "gps_signal", null, CALLER));
+                () -> service.describe(TENANT, "levels.5", "measure > 1", "gps_signal", null, CALLER));
         assertThrows(IllegalArgumentException.class,
                 () -> service.describe(TENANT, "activation", " ", "gps_signal", null, CALLER));
         assertThrows(IllegalArgumentException.class,

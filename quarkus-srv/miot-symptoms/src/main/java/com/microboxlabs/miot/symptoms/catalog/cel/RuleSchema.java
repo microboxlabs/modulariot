@@ -7,9 +7,9 @@ import java.util.Map;
 
 /**
  * What a rule may reference: one root object with typed field paths (from a
- * data source), plus loose variables such as {@code medida}.
+ * data source), plus loose variables such as {@code measure}.
  *
- * @param root   the root variable, such as {@code signal} or {@code caso}
+ * @param root   the root variable, such as {@code signal} or {@code case}
  * @param fields full path (starting with the root) to field type
  * @param extras variable name to field type
  */
@@ -24,15 +24,15 @@ public record RuleSchema(String root, Map<String, String> fields, Map<String, St
     private static final String NUMBER = "number";
 
     /** The variables a level condition adds to the source: the measure and how long it has held. */
-    public static final Map<String, String> LEVEL_VARIABLES = Map.of("medida", NUMBER, "sostenido_s", NUMBER);
+    public static final Map<String, String> LEVEL_VARIABLES = Map.of("measure", NUMBER, "held_s", NUMBER);
 
     /** The case a lifecycle rule reads. */
-    public static final RuleSchema CASE = new RuleSchema("caso", Map.of(
-            "caso.condicion_s", NUMBER,
-            "caso.normal_s", NUMBER,
-            "caso.edad_h", NUMBER,
-            "caso.nivel", NUMBER,
-            "caso.cerrado_por_operador", "bool"), Map.of());
+    public static final RuleSchema CASE = new RuleSchema("case", Map.of(
+            "case.condition_s", NUMBER,
+            "case.normal_s", NUMBER,
+            "case.age_h", NUMBER,
+            "case.level", NUMBER,
+            "case.closed_by_operator", "bool"), Map.of());
 
     public static RuleSchema of(DataSource source) {
         Map<String, String> fields = new LinkedHashMap<>();

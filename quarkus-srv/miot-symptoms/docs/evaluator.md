@@ -25,15 +25,15 @@ Redis holds one hash per organization and vehicle, `symptoms:ep:<tenant>:<asset>
 |---|---|
 | Candidate | The version's activation is true |
 | Measure | The measure expression; 0 when the version has none |
-| Hold time, threshold rules | A level rule that holds given enough time (`medida >= 21 && sostenido_s >= 60`) counts `sostenido_s` from the first signal where it would hold: how long the measure met that threshold |
-| Hold time, time rules | Any other rule (`sostenido_s >= 600 && sostenido_s < 1200`) counts `sostenido_s` from the start of the activation's run |
+| Hold time, threshold rules | A level rule that holds given enough time (`measure >= 21 && held_s >= 60`) counts `held_s` from the first signal where it would hold: how long the measure met that threshold |
+| Hold time, time rules | Any other rule (`held_s >= 600 && held_s < 1200`) counts `held_s` from the start of the activation's run |
 | Level | The highest level whose rule holds. If none holds while a threshold rule waits for its hold time, the case is at the applying level below it |
-| Condition | Holds while a candidate reaches a level. `caso.condicion_s` counts from its first signal; `caso.normal_s` from the first signal after it stopped, and is -1 while it holds |
+| Condition | Holds while a candidate reaches a level. `case.condition_s` counts from its first signal; `case.normal_s` from the first signal after it stopped, and is -1 while it holds |
 | Open | No case open, the condition holds and the lifecycle's open rule is true |
 | Level change | A case's level only rises, unless the lifecycle's `levelDown` lets it follow the measure down while the condition holds |
 | Close | The lifecycle's close rule is true. If the condition still holds, the next signal starts a new run |
 
-`caso.edad_h` is the time since the case opened, in hours; `caso.nivel` its level. `caso.cerrado_por_operador` is false: operators close cases through the treatment API, not through signals.
+`case.age_h` is the time since the case opened, in hours; `case.level` its level. `case.closed_by_operator` is false: operators close cases through the treatment API, not through signals.
 
 ## Order, versions and failures
 

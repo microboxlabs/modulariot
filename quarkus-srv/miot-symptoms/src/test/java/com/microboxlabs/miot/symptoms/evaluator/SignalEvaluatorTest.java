@@ -132,7 +132,7 @@ class SignalEvaluatorTest {
     void aStillHeldConditionStartsANewCaseAfterAnAgeClose() {
         SymptomSpec byAge = new SymptomSpec(Specs.speeding().source(), Specs.speeding().activation(),
                 Specs.speeding().measure(), Specs.speeding().levels(),
-                new SymptomSpec.Lifecycle("caso.condicion_s >= 0", "caso.edad_h >= 1"), null);
+                new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.age_h >= 1"), null);
         symptoms = List.of(CompiledSymptom.compile(SPEEDING, "2.0.0", SymptomState.ACTIVE, byAge,
                 Specs.gpsSignal()));
         assertEquals(List.of("OPENED:2"), kinds(at(0, 100)));
@@ -165,7 +165,7 @@ class SignalEvaluatorTest {
         UUID panic = UUID.randomUUID();
         SymptomSpec fixed = spec("signal.trip.active", null,
                 List.of(new SymptomSpec.Level(4, true, "true", Specs.response(true, 2))),
-                "caso.condicion_s >= 0", "caso.normal_s >= 60");
+                "case.condition_s >= 0", "case.normal_s >= 60");
         List<CompiledSymptom> one = List.of(CompiledSymptom.compile(panic, "0.1.0", SymptomState.ACTIVE, fixed,
                 Specs.gpsSignal()));
         Result r = evaluator.evaluate(TENANT, TRUCK, T0, signal(0), one);
@@ -177,8 +177,8 @@ class SignalEvaluatorTest {
     void aLevelThatOnlyNeedsTimeWaitsForIt() {
         UUID stopped = UUID.randomUUID();
         SymptomSpec held = spec("signal.trip.active && signal.gps.speed_kmh < 1.0", null,
-                List.of(new SymptomSpec.Level(3, true, "sostenido_s >= 1800", Specs.response(true, 15))),
-                "caso.condicion_s >= 0", "caso.normal_s >= 0");
+                List.of(new SymptomSpec.Level(3, true, "held_s >= 1800", Specs.response(true, 15))),
+                "case.condition_s >= 0", "case.normal_s >= 0");
         List<CompiledSymptom> one = List.of(CompiledSymptom.compile(stopped, "0.1.0", SymptomState.TEST, held,
                 Specs.gpsSignal()));
         assertEquals(List.of(), kinds(evaluator.evaluate(TENANT, TRUCK, T0, signal(0), one)));
@@ -197,7 +197,7 @@ class SignalEvaluatorTest {
     @Test
     void oneSymptomFailingDoesNotStopTheOthers() {
         SymptomSpec broken = spec("signal.trip.active", new SymptomSpec.Measure("signal.gps.nope * 1", "x", "u"),
-                Specs.speeding().levels(), "caso.condicion_s >= 0", "caso.normal_s >= 120");
+                Specs.speeding().levels(), "case.condition_s >= 0", "case.normal_s >= 120");
         UUID other = UUID.randomUUID();
         List<CompiledSymptom> both = List.of(
                 CompiledSymptom.compile(other, "0.1.0", SymptomState.TEST, broken, Specs.gpsSignal()),
@@ -231,7 +231,7 @@ class SignalEvaluatorTest {
     void aClosingSignalReplayedDoesNotReopen() {
         SymptomSpec byAge = new SymptomSpec(Specs.speeding().source(), Specs.speeding().activation(),
                 Specs.speeding().measure(), Specs.speeding().levels(),
-                new SymptomSpec.Lifecycle("caso.condicion_s >= 0", "caso.edad_h >= 1"), null);
+                new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.age_h >= 1"), null);
         symptoms = List.of(CompiledSymptom.compile(SPEEDING, "2.0.0", SymptomState.ACTIVE, byAge,
                 Specs.gpsSignal()));
         at(0, 100);
@@ -243,7 +243,7 @@ class SignalEvaluatorTest {
     void aCloseOnARisingSignalReportsTheLevelBefore() {
         SymptomSpec byAge = new SymptomSpec(Specs.speeding().source(), Specs.speeding().activation(),
                 Specs.speeding().measure(), Specs.speeding().levels(),
-                new SymptomSpec.Lifecycle("caso.condicion_s >= 0", "caso.edad_h >= 1"), null);
+                new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.age_h >= 1"), null);
         symptoms = List.of(CompiledSymptom.compile(SPEEDING, "2.0.0", SymptomState.ACTIVE, byAge,
                 Specs.gpsSignal()));
         at(0, 100);
@@ -276,8 +276,8 @@ class SignalEvaluatorTest {
     @Test
     void aNewVersionRestartsTheHoldTimes() {
         at(0, 115);
-        List<SymptomSpec.Level> stricter = Specs.levels("medida > 0 && medida < 5", "medida >= 5 && medida < 11",
-                "medida >= 11 && medida < 30", "medida >= 30 && sostenido_s >= 60");
+        List<SymptomSpec.Level> stricter = Specs.levels("measure > 0 && measure < 5", "measure >= 5 && measure < 11",
+                "measure >= 11 && measure < 30", "measure >= 30 && held_s >= 60");
         symptoms = List.of(CompiledSymptom.compile(SPEEDING, "1.1.0", SymptomState.TEST,
                 Specs.withLevels(Specs.speeding(), stricter), Specs.gpsSignal()));
         assertEquals(List.of(), kinds(at(60, 121)), "31 over under 1.1.0: its minute starts now");
@@ -288,7 +288,7 @@ class SignalEvaluatorTest {
     void withLevelDownTheLevelFollowsTheMeasureWhileTheConditionHolds() {
         SymptomSpec down = new SymptomSpec(Specs.speeding().source(), Specs.speeding().activation(),
                 Specs.speeding().measure(), Specs.speeding().levels(),
-                new SymptomSpec.Lifecycle("caso.condicion_s >= 0", "caso.normal_s >= 120", true), null);
+                new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.normal_s >= 120", true), null);
         symptoms = List.of(CompiledSymptom.compile(SPEEDING, "3.0.0", SymptomState.ACTIVE, down,
                 Specs.gpsSignal()));
         assertEquals(List.of("OPENED:3"), kinds(at(0, 102)));

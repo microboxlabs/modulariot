@@ -36,9 +36,9 @@ public final class Specs {
     public static SymptomSpec speeding() {
         return new SymptomSpec("gps_signal", ACTIVATION,
                 new SymptomSpec.Measure("signal.gps.speed_kmh - signal.road.maxspeed_osm", "Exceso", "km/h"),
-                levels("medida > 0 && medida < 5", "medida >= 5 && medida < 11", "medida >= 11 && medida < 21",
-                        "medida >= 21 && sostenido_s >= 60"),
-                new SymptomSpec.Lifecycle("caso.condicion_s >= 0", "caso.normal_s >= 120"), null);
+                levels("measure > 0 && measure < 5", "measure >= 5 && measure < 11", "measure >= 11 && measure < 21",
+                        "measure >= 21 && held_s >= 60"),
+                new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.normal_s >= 120"), null);
     }
 
     public static List<Level> levels(String... when) {

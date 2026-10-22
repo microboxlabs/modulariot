@@ -95,8 +95,8 @@ class SourcesAndPreviewTest {
         SymptomSpec numberActivation = Specs.with(base, "signal.gps.speed_kmh");
         assertEquals("La condición debe dar sí o no.", PreviewService.run(numberActivation, gps).get(0).error());
 
-        SymptomSpec badLevel = Specs.withLevels(base, Specs.levels("medida > 0 && medida < 5",
-                "medida >= 5 && medida < 11", "medida >= 11 && medida < 21", "medida >= 21 && signal.nope > 1.0"));
+        SymptomSpec badLevel = Specs.withLevels(base, Specs.levels("measure > 0 && measure < 5",
+                "measure >= 5 && measure < 11", "measure >= 11 && measure < 21", "measure >= 21 && signal.nope > 1.0"));
         assertTrue(PreviewService.run(badLevel, gps).get(0).error().startsWith("Nivel 4: "));
     }
 
@@ -113,20 +113,20 @@ class SourcesAndPreviewTest {
     @Test
     void theLifecycleRunsOnEachCaseMoment() {
         List<PreviewService.CasePreview> cases = PreviewService.cases(new SymptomSpec.Lifecycle(
-                "caso.condicion_s >= 60", "caso.normal_s >= 120 || caso.cerrado_por_operador"));
+                "case.condition_s >= 60", "case.normal_s >= 120 || case.closed_by_operator"));
 
         assertEquals(List.of("detected", "held", "ongoing", "normal", "closed_by_operator"),
                 cases.stream().map(PreviewService.CasePreview::scenario).toList());
         assertEquals(List.of("waits", "opens", "stays_open", "closes", "closes"),
                 cases.stream().map(PreviewService.CasePreview::outcome).toList());
-        assertEquals(-1.0, ((java.util.Map<?, ?>) cases.get(2).sample().get("caso")).get("normal_s"),
+        assertEquals(-1.0, ((java.util.Map<?, ?>) cases.get(2).sample().get("case")).get("normal_s"),
                 "normal_s is -1 while the condition holds, as the engine writes it");
     }
 
     @Test
     void aLifecycleRuleThatFailsIsReportedPerMoment() {
         List<PreviewService.CasePreview> cases = PreviewService.cases(
-                new SymptomSpec.Lifecycle("caso.condicion_s", "caso.nope > 1"));
+                new SymptomSpec.Lifecycle("case.condition_s", "case.nope > 1"));
 
         assertNull(cases.get(0).outcome());
         assertEquals("La condición debe dar sí o no.", cases.get(0).error());

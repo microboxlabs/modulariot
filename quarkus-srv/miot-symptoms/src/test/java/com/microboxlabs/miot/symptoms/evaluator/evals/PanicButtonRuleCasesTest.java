@@ -40,7 +40,7 @@ class PanicButtonRuleCasesTest {
                 run(frame(0, true, true), frame(30, true, true), frame(60, false, true), frame(3600, true, true)),
                 "frames still pressed, released or pressed again do not open a second case");
         // The evaluator gets no operator events yet, so the operator close can only be checked in the spec.
-        assertEquals("caso.cerrado_por_operador", TEMPLATE.lifecycle().close());
+        assertEquals("case.closed_by_operator", TEMPLATE.lifecycle().close());
     }
 
     @Test

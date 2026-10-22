@@ -81,7 +81,7 @@ export interface SymptomSpec {
     count: number;
     days: number;
     raiseLevels: number;
-    /** "patente" (default) or "conductor". */
+    /** "vehicle" (default) or "driver". */
     entity?: string | null;
   } | null;
   /** A symptom_families value; null or missing keeps the symptom's. */

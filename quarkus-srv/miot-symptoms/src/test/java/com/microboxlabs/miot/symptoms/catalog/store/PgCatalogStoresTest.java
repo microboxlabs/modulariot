@@ -82,7 +82,7 @@ class PgCatalogStoresTest {
 
         SymptomSpec spec = new SymptomSpec("gps_signal", "signal.trip.active == true",
                 new SymptomSpec.Measure("signal.gps.speed_kmh - signal.road.maxspeed_osm", "Exceso", "km/h"),
-                List.of(), new SymptomSpec.Lifecycle("caso.condicion_s >= 0", "caso.normal_s >= 120"), null);
+                List.of(), new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.normal_s >= 120"), null);
         SymptomVersion draft = store.saveDraft(SymptomVersion.draft(created.id(), TENANT, spec, "owner@example.com",
                 now));
         SymptomVersion edited = store.saveDraft(SymptomVersion.draft(created.id(), TENANT,

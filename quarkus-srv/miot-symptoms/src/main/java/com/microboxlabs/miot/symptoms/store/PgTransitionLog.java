@@ -22,9 +22,11 @@ public class PgTransitionLog implements TransitionLog {
 
     private static final String INSERT = """
             INSERT INTO miot_symptoms.signal_transitions
-                (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure)
+                (tenant_code, definition_id, version, state, kind, asset_id, at, level, previous_level, measure,
+                 trip_id, latitude, longitude, speed_kmh)
             SELECT $1::varchar, $2::uuid, $3::varchar, $4::varchar, $5::varchar, $6::varchar, $7::timestamptz,
-                   $8::integer, $9::integer, $10::double precision
+                   $8::integer, $9::integer, $10::double precision,
+                   $11::varchar, $12::double precision, $13::double precision, $14::double precision
             WHERE NOT EXISTS (
                 SELECT 1 FROM miot_symptoms.signal_transitions
                 WHERE definition_id = $2::uuid AND at = $7::timestamptz AND asset_id = $6::varchar
@@ -43,12 +45,13 @@ public class PgTransitionLog implements TransitionLog {
     }
 
     @Override
-    public void append(String tenantCode, List<Transition> transitions) {
+    public void append(String tenantCode, List<Transition> transitions, Place place) {
         for (Transition t : transitions) {
             PgIds.query(pool.get(), INSERT, Tuple.tuple().addValue(tenantCode).addValue(t.definitionId())
                     .addValue(t.version()).addValue(t.state().name()).addValue(t.kind().name())
                     .addValue(t.assetId()).addValue(t.at().atOffset(ZoneOffset.UTC)).addValue(t.level())
-                    .addValue(t.previousLevel()).addValue(t.measure()));
+                    .addValue(t.previousLevel()).addValue(t.measure()).addValue(place.tripId())
+                    .addValue(place.latitude()).addValue(place.longitude()).addValue(place.speedKmh()));
         }
     }
 }

@@ -496,6 +496,7 @@ describe("PlacesCatalogLists", () => {
     rerender(<PlacesCatalogLists ws={ws(false)} />);
     // without it: list, search and download only
     expect(screen.queryByRole("button", { name: "Importar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Agregar" })).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Opciones de Planta Norte" })
     ).toBeNull();
@@ -509,5 +510,108 @@ describe("PlacesCatalogLists", () => {
       screen.getByRole("button", { name: "Exportar" })
     ).toBeInTheDocument();
     expect(screen.getByText("Planta Norte")).toBeInTheDocument();
+  });
+
+  it("adds a geofence or a route from the Agregar dropdown", () => {
+    const nuevoLugar = vi.fn();
+    const nuevoTrayecto = vi.fn();
+    render(
+      <PlacesCatalogLists
+        ws={
+          {
+            busca: "",
+            setBusca: vi.fn(),
+            lugares: [],
+            todosLugares: [],
+            todosTrayectos: [],
+            modo: "ver",
+            abrirImport: vi.fn(),
+            nuevoLugar,
+            nuevoTrayecto,
+            puedeEditar: true,
+            versionDe: () => "1.0.0",
+          } as unknown as PlacesWorkspace
+        }
+      />
+    );
+    const agregar = screen.getByRole("button", { name: "Agregar" });
+    // Flowbite: the item's button (inside the menuitem) takes the click
+    fireEvent.click(agregar);
+    fireEvent.click(
+      within(screen.getByRole("menuitem", { name: "Geocerca" })).getByRole(
+        "button"
+      )
+    );
+    expect(nuevoLugar).toHaveBeenCalledOnce();
+    expect(nuevoTrayecto).not.toHaveBeenCalled();
+
+    fireEvent.click(agregar);
+    fireEvent.click(
+      within(screen.getByRole("menuitem", { name: "Trayecto" })).getByRole(
+        "button"
+      )
+    );
+    expect(nuevoTrayecto).toHaveBeenCalledOnce();
+  });
+
+  it("lists outside geofences read-only, follows the search and flies to them", () => {
+    const irAPunto = vi.fn();
+    const ws = (busca: string) =>
+      ({
+        busca,
+        setBusca: vi.fn(),
+        lugares: [],
+        todosLugares: [],
+        editandoLugarId: null,
+        modo: "ver",
+        irALugar: vi.fn(),
+        editarLugar: vi.fn(),
+        borrarLugar: vi.fn(),
+        setHoveredPlaceId: vi.fn(),
+        todosTrayectos: [],
+        versionDe: () => "1.0.0",
+        editandoTrayId: null,
+        irATrayecto: vi.fn(),
+        editarTrayecto: vi.fn(),
+        borrarTrayecto: vi.fn(),
+        abrirImport: vi.fn(),
+        irAPunto,
+        puedeEditar: true,
+      }) as unknown as PlacesWorkspace;
+    const externas = {
+      titulo: "Geocercas del viaje",
+      items: [
+        {
+          id: "o",
+          nombre: "Planta Quilicura",
+          detalle: "Origen del viaje",
+          ancla: [-33.36, -70.73] as [number, number],
+        },
+        {
+          id: "d",
+          nombre: "Puerto San Antonio",
+          detalle: "Destino del viaje",
+          ancla: [-33.58, -71.61] as [number, number],
+        },
+      ],
+    };
+    const { rerender } = render(
+      <PlacesCatalogLists ws={ws("")} externas={externas} />
+    );
+    expect(screen.getByText("Geocercas del viaje")).toBeInTheDocument();
+    expect(screen.getByText("Origen del viaje")).toBeInTheDocument();
+    // read-only: no edit menu, no checkbox
+    expect(
+      screen.queryByRole("button", { name: "Opciones de Planta Quilicura" })
+    ).toBeNull();
+    expect(
+      screen.queryByRole("checkbox", { name: "Seleccionar Planta Quilicura" })
+    ).toBeNull();
+    fireEvent.click(screen.getByText("Puerto San Antonio"));
+    expect(irAPunto).toHaveBeenCalledWith([-33.58, -71.61]);
+
+    rerender(<PlacesCatalogLists ws={ws("quilicura")} externas={externas} />);
+    expect(screen.getByText("Planta Quilicura")).toBeInTheDocument();
+    expect(screen.queryByText("Puerto San Antonio")).toBeNull();
   });
 });

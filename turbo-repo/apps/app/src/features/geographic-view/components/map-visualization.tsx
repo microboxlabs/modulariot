@@ -75,6 +75,11 @@ export default function MapVisualization({
     editando: placesMode,
     verGeocercas: placesMode || geocercasEnGeneral,
     puedeEditar: puedeEditarLugares,
+    // los badges siguen la barra "Capas"; los trayectos, solo en Lugares
+    nombres: {
+      geocercas: capas.geocercas,
+      trayectos: placesMode && capas.trayectos,
+    },
     mapStyle,
     zoom,
   });
@@ -164,8 +169,7 @@ export default function MapVisualization({
   }, []);
 
   // los badges van primero: los camiones, encima
-  const capasGeocercas =
-    (placesMode || geocercasEnGeneral) && capas.geocercas ? capasNombres : [];
+  const capasGeocercas = placesMode || geocercasEnGeneral ? capasNombres : [];
   const verVehiculos = !placesMode && capas.vehiculos && positions.length > 0;
   const layers = [
     ...capasGeocercas,

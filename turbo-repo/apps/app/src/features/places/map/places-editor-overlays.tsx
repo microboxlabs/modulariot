@@ -143,6 +143,7 @@ function TrayectoFormCard({
       dict={dict}
       token={ws.MAPBOX_TOKEN}
       cerca={ws.centroMapa}
+      geocercas={ws.todosLugares ?? ws.lugares}
       onRecorrido={ws.aplicarRecorrido}
       eligiendoPuntoId={ws.puntoMapaId}
       onElegirEnMapa={ws.elegirPuntoEnMapa}

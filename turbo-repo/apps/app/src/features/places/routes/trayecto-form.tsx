@@ -16,6 +16,7 @@ import {
 import type {
   FormTrayecto,
   LatLon,
+  Lugar,
   PasoTrayecto,
   TipoPunto,
 } from "../places.types";
@@ -178,7 +179,10 @@ export default function TrayectoForm({
   className,
   dict,
   version,
+  geocercas,
 }: Readonly<{
+  /** Geocercas guardadas: se pueden elegir como origen o destino. */
+  geocercas?: Lugar[];
   /** Diccionario completo (control de la lista de categorías). */
   dict?: I18nRecord;
   /** Versión vigente del trayecto que se edita. */
@@ -273,6 +277,7 @@ export default function TrayectoForm({
             setTray((t) => cambiarCategoriaPunto(t, id, c))
           }
           dict={dict}
+          geocercas={geocercas}
           className="min-h-0 flex-1"
         />
       ) : (

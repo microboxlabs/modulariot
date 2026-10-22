@@ -201,40 +201,104 @@ export function chipEtiqueta(
   return chip;
 }
 
-export const claveCluster = (n: number, tema: TemaChip) =>
-  `cluster|${n}|${tema}`;
+/** Cuántas geocercas y cuántos trayectos junta un cluster. */
+export type ConteoCluster = { geocercas: number; trayectos: number };
 
-/** Texto del cluster: cuántas geocercas junta. */
-export const textoCluster = (n: number) => `${n} geocercas`;
+export function contarCluster(miembros: ItemNombre[]): ConteoCluster {
+  const trayectos = miembros.filter((m) => m.trayectoId).length;
+  return { geocercas: miembros.length - trayectos, trayectos };
+}
 
-/** Cluster: lugares que se pisarían, como un badge con cuántos son. */
-export function chipCluster(n: number, tema: TemaChip = "noche"): Chip {
-  const key = claveCluster(n, tema);
+export const claveCluster = (c: ConteoCluster, tema: TemaChip) =>
+  `cluster|${c.geocercas}|${c.trayectos}|${tema}`;
+
+const plural = (n: number, uno: string, varios: string) =>
+  `${n} ${n === 1 ? uno : varios}`;
+
+/** Cada tipo del cluster con su icono: "2 geocercas", "1 trayecto". */
+export function partesCluster(
+  c: ConteoCluster
+): { icono: string; texto: string }[] {
+  const partes: { icono: string; texto: string }[] = [];
+  if (c.geocercas > 0)
+    partes.push({
+      icono: "pin",
+      texto: plural(c.geocercas, "geocerca", "geocercas"),
+    });
+  if (c.trayectos > 0)
+    partes.push({
+      icono: "ruta",
+      texto: plural(c.trayectos, "trayecto", "trayectos"),
+    });
+  return partes;
+}
+
+/** Texto del cluster en una línea (pruebas, lectores): "2 geocercas · 1 trayecto". */
+export const textoCluster = (c: ConteoCluster) =>
+  partesCluster(c)
+    .map((p) => p.texto)
+    .join(" · ");
+
+/** Alto de cada fila del cluster cuando junta geocercas y trayectos. */
+const FILA_CLUSTER = 18;
+/** Margen arriba y abajo del cluster de varias filas. */
+const PAD_V = 3;
+
+/** Alto del cluster: el de un badge con una fila; si no, una por tipo. */
+export function altoCluster(filas: number): number {
+  return filas <= 1 ? CHIP_H : PAD_V * 2 + filas * FILA_CLUSTER;
+}
+
+/**
+ * Cluster: lugares que se pisarían, como un badge con cuántos son de cada
+ * tipo, en columna: una fila por tipo, cada una con su icono.
+ */
+export function chipCluster(c: ConteoCluster, tema: TemaChip = "noche"): Chip {
+  const key = claveCluster(c, tema);
   const hit = chipCache.get(key);
   if (hit) return hit;
 
   const font = `500 12px ui-sans-serif, system-ui, sans-serif`;
   const ctx = document.createElement("canvas").getContext("2d");
-  if (!ctx) return chipSinCanvas(key, PAD_R * 2, CHIP_H);
+  if (!ctx)
+    return chipSinCanvas(key, PAD_R * 2, altoCluster(partesCluster(c).length));
 
   ctx.font = font;
-  const texto = textoCluster(n);
-  const w = Math.ceil(PAD_R + ctx.measureText(texto).width + PAD_R);
-  const h = CHIP_H;
+  const partes = partesCluster(c);
+  const anchoTexto = Math.max(
+    ...partes.map((p) => ctx.measureText(p.texto).width)
+  );
+  const w = Math.ceil(PAD_L + ICON + GAP + anchoTexto + PAD_R);
+  const h = altoCluster(partes.length);
+  // con una fila, el alto completo; con varias, cada fila centrada en la suya
+  const fila = partes.length > 1 ? FILA_CLUSTER : h;
+  const arriba = partes.length > 1 ? PAD_V : 0;
   lienzo(w, h, ctx);
   ctx.font = font;
 
   const paleta = TEMAS[tema];
-  roundRect(ctx, 0.5, 0.5, w - 1, h - 1, h / 2);
+  roundRect(ctx, 0.5, 0.5, w - 1, h - 1, Math.min(h, CHIP_H) / 2);
   ctx.fillStyle = paleta.fondo;
   ctx.fill();
   ctx.strokeStyle = paleta.borde;
   ctx.lineWidth = 1;
   ctx.stroke();
-  ctx.fillStyle = paleta.texto;
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
-  ctx.fillText(texto, PAD_R, h / 2 + 0.5);
+
+  ctx.fillStyle = paleta.texto;
+  partes.forEach((parte, i) => {
+    const medio = arriba + i * fila + fila / 2;
+    dibujarIcono(
+      ctx,
+      parte.icono,
+      COLOR_ICONO_DEF,
+      PAD_L,
+      medio - ICON / 2,
+      ICON
+    );
+    ctx.fillText(parte.texto, PAD_L + ICON + GAP, medio + 0.5);
+  });
 
   const chip: Chip = {
     key,
@@ -247,14 +311,14 @@ export function chipCluster(n: number, tema: TemaChip = "noche"): Chip {
   return chip;
 }
 
-/** Un badge del mapa: un lugar, o un cluster de varios ("N geocercas"). */
+/** Un badge del mapa: un lugar, o un cluster de varios (geocercas, trayectos). */
 export type BadgeMapa = { item: ItemNombre; miembros: ItemNombre[] };
 
 const esCluster = (b: BadgeMapa) => b.miembros.length > 1;
 
 function chipDe(b: BadgeMapa, tema: TemaChip): Chip {
   return esCluster(b)
-    ? chipCluster(b.miembros.length, tema)
+    ? chipCluster(contarCluster(b.miembros), tema)
     : chipEtiqueta(b.item, tema);
 }
 
@@ -280,7 +344,12 @@ function dyBadge(item: ItemNombre): number {
 }
 
 function offsetBadge(b: BadgeMapa): [number, number] {
-  if (esCluster(b)) return [0, b.item.abajo ? 22 : -18];
+  if (esCluster(b)) {
+    // más alto en columna: crece hacia afuera, el borde cercano no se mueve
+    const filas = partesCluster(contarCluster(b.miembros)).length;
+    const extra = (altoCluster(filas) - CHIP_H) / 2;
+    return [0, b.item.abajo ? 22 + extra : -18 - extra];
+  }
   return [0, dyBadge(b.item)];
 }
 

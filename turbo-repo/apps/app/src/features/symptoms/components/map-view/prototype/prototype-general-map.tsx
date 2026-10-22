@@ -367,7 +367,6 @@ export default function PrototypeGeneralMap({
               setSelectedTreatmentIndex={setSelectedTreatmentIndex}
               licensePlate={treatmentData?.trip_info?.asset_id ?? null}
               onLugaresChange={setLugaresAbierto}
-              listarGeocercasViaje
             />
           </div>
           {/* Keeps the symptom being called about visible without flipping

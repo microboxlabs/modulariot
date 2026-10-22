@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { anclaDeFeature, anclaLugar, itemsDesdeFC } from "./place-labels";
+import {
+  anclaDeFeature,
+  anclaLugar,
+  itemsDesdeFC,
+  itemsTrayectos,
+} from "./place-labels";
 
 describe("place labels", () => {
   it("builds parent and child chips from the painted geofence polygons", () => {
@@ -101,5 +106,32 @@ describe("place labels", () => {
         },
       })
     ).toEqual([-34, -71]);
+  });
+
+  it("puts a route's badge in the middle of its line, marked as a route", () => {
+    const [badge] = itemsTrayectos({
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: { place_id: "t1", name: "Ruta 68", icon: "ruta" },
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [-70, -33],
+              [-70.5, -33.2],
+              [-71, -33.4],
+            ],
+          },
+        },
+      ],
+    });
+    expect(badge).toMatchObject({
+      id: "t1",
+      name: "Ruta 68",
+      icon: "ruta",
+      trayectoId: "t1",
+      ancla: [-33.2, -70.5],
+    });
   });
 });

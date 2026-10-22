@@ -144,8 +144,6 @@ type MapVisualizationProps = {
    * lado (la línea de tiempo, el visor multimedia) para darle todo el ancho.
    */
   onLugaresChange?: (abierto: boolean) => void;
-  /** En la lista de Lugares, también las geocercas de este viaje. */
-  listarGeocercasViaje?: boolean;
 };
 
 type GeometryFeature = {
@@ -289,7 +287,6 @@ export default function MapVisualizationTrip({
   minimized = false,
   licensePlate,
   onLugaresChange,
-  listarGeocercasViaje = false,
 }: MapVisualizationProps) {
   const [rotation, _] = useState(0);
   const [mapStyle, setMapStyle] = useState("satellite");
@@ -328,6 +325,8 @@ export default function MapVisualizationTrip({
     editando: editandoLugares,
     verGeocercas,
     puedeEditar: puedeEditarLugares,
+    // los trayectos se dibujan (y llevan badge) solo con Lugares abierto
+    nombres: { geocercas: verGeocercas, trayectos: editandoLugares },
     mapStyle,
     zoom,
   });
@@ -486,16 +485,14 @@ export default function MapVisualizationTrip({
     }
   }, [geofence_data]);
 
-  // las geocercas del viaje, como sección de solo lectura en Lugares
+  // las geocercas del viaje, como sección de solo lectura en Lugares: la
+  // misma lista en todo mapa de viaje (síntomas y bento)
   const geocercasViaje = React.useMemo(
-    () =>
-      listarGeocercasViaje
-        ? {
-            titulo: tr("geographic_view.trip_geofences.title", dict),
-            items: geocercasDelViaje(processedGeofence?.features ?? [], dict),
-          }
-        : undefined,
-    [listarGeocercasViaje, processedGeofence, dict]
+    () => ({
+      titulo: tr("geographic_view.trip_geofences.title", dict),
+      items: geocercasDelViaje(processedGeofence?.features ?? [], dict),
+    }),
+    [processedGeofence, dict]
   );
 
   // Distance + rough ETA from the current vehicle position to the ORIGIN
@@ -742,7 +739,11 @@ export default function MapVisualizationTrip({
               | "outdoors"
               | "hybrid"
           }
-          layers={verGeocercas ? [...lugares.capasNombres, ...layers] : layers}
+          layers={
+            verGeocercas || editandoLugares
+              ? [...lugares.capasNombres, ...layers]
+              : layers
+          }
           isLoading={false}
           mapRef={mapRef}
           // con la barra de Lugares al lado, el borde que la toca va recto

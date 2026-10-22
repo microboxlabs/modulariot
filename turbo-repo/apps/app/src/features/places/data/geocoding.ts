@@ -13,6 +13,8 @@ export type Sugerencia = {
   /** Contexto: comuna, región. */
   contexto: string;
   punto: LatLon;
+  /** Una geocerca guardada, no una dirección (se muestra con su icono). */
+  geocerca?: boolean;
 };
 
 type FeatureV6 = {

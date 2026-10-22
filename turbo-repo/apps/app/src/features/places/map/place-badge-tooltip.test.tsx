@@ -67,6 +67,50 @@ describe("PlaceBadgeTooltip", () => {
     expect(screen.getByText("Dos")).toBeInTheDocument();
   });
 
+  it("names a route badge and counts routes in a cluster", () => {
+    const ruta = item({
+      id: "t1",
+      name: "Ruta 68",
+      trayectoId: "t1",
+      lugar: undefined,
+    });
+    const { rerender } = render(
+      <PlaceBadgeTooltip badge={{ item: ruta, miembros: [ruta] }} x={0} y={0} />
+    );
+    expect(screen.getByText("Trayecto")).toBeInTheDocument();
+    expect(screen.queryByText("Importada (aún sin guardar)")).toBeNull();
+
+    const otra = item({
+      id: "t2",
+      name: "Ruta 5",
+      trayectoId: "t2",
+      lugar: undefined,
+    });
+    rerender(
+      <PlaceBadgeTooltip
+        badge={{ item: ruta, miembros: [ruta, otra] }}
+        x={0}
+        y={0}
+      />
+    );
+    expect(screen.getByText("2 trayectos")).toBeInTheDocument();
+    // mixed: one group per kind, each with its names
+    const g1 = item({ id: "g1", name: "Planta" });
+    const g2 = item({ id: "g2", name: "Bodega" });
+    rerender(
+      <PlaceBadgeTooltip
+        badge={{ item: ruta, miembros: [g1, ruta, g2] }}
+        x={0}
+        y={0}
+      />
+    );
+    expect(screen.getByText("2 geocercas")).toBeInTheDocument();
+    expect(screen.getByText("1 trayecto")).toBeInTheDocument();
+    const [geocercas, trayectos] = screen.getAllByRole("list");
+    expect(geocercas).toHaveTextContent("PlantaBodega");
+    expect(trayectos).toHaveTextContent("Ruta 68");
+  });
+
   it("caps a big cluster's list and counts the rest", () => {
     const miembros = Array.from({ length: 40 }, (_, i) =>
       item({ id: `g${i}`, name: `Geocerca ${i + 1}` })

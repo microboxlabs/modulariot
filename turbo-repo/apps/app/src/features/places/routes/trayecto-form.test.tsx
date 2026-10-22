@@ -90,6 +90,16 @@ describe("TrayectoForm", () => {
     expect(p.onElegirEnMapa).toHaveBeenCalledWith("destino");
   });
 
+  it("starts placing a newly added point on the map", () => {
+    const p = setup();
+    fireEvent.click(screen.getByText("Agregar punto"));
+    const [cambio] = p.onRecorrido.mock.calls.at(-1)!;
+    const nuevo = cambio(p.tray).recorrido[1]!;
+    // the new stop, between origin and destination, waits for a map click
+    expect(nuevo.punto).toBeNull();
+    expect(p.onElegirEnMapa).toHaveBeenCalledWith(nuevo.id);
+  });
+
   it("prompts to click the map while a point is waiting", () => {
     setup(undefined, { eligiendoPuntoId: "origen" });
     expect(
@@ -175,6 +185,13 @@ describe("TrayectoForm", () => {
         .getByLabelText("Parada 1")
         .closest("[data-punto-fila]");
       expect(fila).toHaveClass("bg-blue-50");
+      // its category strip lights up with it
+      fireEvent.click(
+        screen.getByRole("button", { name: "Categoría de Parada 1" })
+      );
+      const pie = fila!.querySelector(".border-t");
+      expect(pie).toHaveClass("bg-blue-50");
+      expect(pie).not.toHaveClass("bg-gray-50");
       fireEvent.mouseEnter(screen.getByLabelText("Hasta"));
       expect(p.onHoverPunto).toHaveBeenCalledWith("b");
     });
@@ -182,13 +199,21 @@ describe("TrayectoForm", () => {
     it("opens the point category as a dropdown at the bottom of the row", () => {
       setup(tres);
       expect(screen.queryByText("Categoría")).toBeNull();
+      const fila = screen
+        .getByLabelText("Parada 1")
+        .closest("[data-punto-fila]")!;
       const boton = screen.getByRole("button", {
         name: "Categoría de Parada 1",
       });
       expect(boton).toHaveAttribute("aria-expanded", "false");
       fireEvent.click(boton);
       expect(boton).toHaveAttribute("aria-expanded", "true");
-      expect(screen.getByText("Categoría")).toBeInTheDocument();
+      // just the dropdown, no "Categoría" caption beside it
+      const pie = fila.querySelector(".border-t");
+      expect(pie).not.toBeNull();
+      expect(pie).toHaveClass("bg-gray-50");
+      expect(pie).not.toHaveTextContent(/^Categoría/);
+      expect(screen.queryByText("Categoría")).toBeNull();
       // only points between A and B have one
       expect(
         screen.queryByRole("button", { name: "Categoría de Desde" })

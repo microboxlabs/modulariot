@@ -2,15 +2,51 @@
 
 // Campo de dirección o Plus Code con sugerencias (Mapbox Geocoding). Busca 300 ms después
 // de dejar de escribir y cancela la búsqueda anterior.
-import { useEffect, useId, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useMemo, useState, type KeyboardEvent } from "react";
+import { HiOutlineLocationMarker } from "react-icons/hi";
 import { twMerge } from "tailwind-merge";
 import { buscarDirecciones, type Sugerencia } from "../data/geocoding";
 import { inputCls, inputErrorCls } from "./form-ui";
-import type { LatLon } from "../places.types";
+import { opcionesGeocerca } from "../routes/geofence-options";
+import type { LatLon, Lugar } from "../places.types";
 
 const ESPERA_MS = 300;
 
 export type Extremo = { texto: string; punto: LatLon | null };
+
+function textoAyuda(label: string, conGeocercas: boolean): string {
+  if (conGeocercas) return `${label}: geocerca, dirección o Plus Code…`;
+  return `${label}: dirección o Plus Code…`;
+}
+
+/** Una fila de la lista: una geocerca lleva su icono y la etiqueta. */
+function OpcionSugerencia({
+  sugerencia: s,
+}: Readonly<{ sugerencia: Sugerencia }>) {
+  const contexto = s.geocerca
+    ? ["Geocerca", s.contexto].filter(Boolean).join(" · ")
+    : s.contexto;
+  return (
+    <span className="flex items-center gap-2">
+      {s.geocerca && (
+        <HiOutlineLocationMarker
+          className="h-4 w-4 flex-none text-blue-600"
+          aria-hidden
+        />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm text-gray-900 dark:text-white">
+          {s.nombre}
+        </span>
+        {contexto && (
+          <span className="block truncate text-[11px] text-gray-500 dark:text-gray-400">
+            {contexto}
+          </span>
+        )}
+      </span>
+    </span>
+  );
+}
 
 export default function AddressInput({
   label,
@@ -23,6 +59,7 @@ export default function AddressInput({
   onElegir,
   placeholder,
   invalido = false,
+  geocercas,
 }: Readonly<{
   label: string;
   /** "A" / "B": mismo distintivo que el marcador en el mapa. */
@@ -37,9 +74,11 @@ export default function AddressInput({
   onElegir: (s: Sugerencia) => void;
   placeholder?: string;
   invalido?: boolean;
+  /** Geocercas guardadas que también se pueden elegir, sobre las direcciones. */
+  geocercas?: Lugar[];
 }>) {
   const idLista = useId();
-  const [sugerencias, setSugerencias] = useState<Sugerencia[]>([]);
+  const [direcciones, setDirecciones] = useState<Sugerencia[]>([]);
   const [activa, setActiva] = useState(0);
   const [abierto, setAbierto] = useState(false);
 
@@ -51,7 +90,7 @@ export default function AddressInput({
     const t = setTimeout(() => {
       void buscarDirecciones(value.texto, token, cerca(), ctrl.signal).then(
         (xs) => {
-          setSugerencias(xs);
+          setDirecciones(xs);
           setActiva(0);
         }
       );
@@ -64,10 +103,20 @@ export default function AddressInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buscar, value.texto, token]);
 
+  // primero las geocercas que calzan (todas al abrir sin texto), luego
+  // las direcciones de Mapbox
+  const sugerencias = useMemo(
+    () => [
+      ...(geocercas ? opcionesGeocerca(geocercas, value.texto) : []),
+      ...direcciones,
+    ],
+    [geocercas, value.texto, direcciones]
+  );
+
   const elegir = (s: Sugerencia) => {
     onElegir(s);
     setAbierto(false);
-    setSugerencias([]);
+    setDirecciones([]);
   };
 
   const alPresionar = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -105,7 +154,7 @@ export default function AddressInput({
         )}
         <input
           className={twMerge(inputCls, invalido && inputErrorCls)}
-          placeholder={placeholder ?? `${label}: dirección o Plus Code…`}
+          placeholder={placeholder ?? textoAyuda(label, !!geocercas)}
           aria-label={label}
           aria-invalid={invalido}
           role="combobox"
@@ -147,14 +196,7 @@ export default function AddressInput({
                   i === activa && "bg-gray-100 dark:bg-gray-700"
                 )}
               >
-                <span className="block truncate text-sm text-gray-900 dark:text-white">
-                  {s.nombre}
-                </span>
-                {s.contexto && (
-                  <span className="block truncate text-[11px] text-gray-500 dark:text-gray-400">
-                    {s.contexto}
-                  </span>
-                )}
+                <OpcionSugerencia sugerencia={s} />
               </button>
             </li>
           ))}

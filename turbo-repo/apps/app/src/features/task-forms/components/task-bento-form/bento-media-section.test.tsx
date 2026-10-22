@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskResponse } from "@/features/common/providers/alfresco-api/alfresco-api.types";
 import type { I18nDictionary } from "@/features/i18n/i18n.service.types";
@@ -37,8 +37,10 @@ describe("BentoMediaSection", () => {
     render(<BentoMediaSection task={task} dict={dict} />);
     const columnaMapa = () =>
       screen.getByTestId("mapa").parentElement!.parentElement as HTMLElement;
-    const columnaMultimedia = () =>
+    const contenido = () =>
       screen.getByTestId("multimedia").parentElement as HTMLElement;
+    const columnaMultimedia = () => contenido().parentElement as HTMLElement;
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(320);
 
     expect(columnaMapa().style.width).toBe("66.666%");
     expect(columnaMultimedia()).not.toHaveAttribute("inert");
@@ -47,11 +49,27 @@ describe("BentoMediaSection", () => {
     // the multimedia manager folds away and the map takes it all
     expect(columnaMapa().style.width).toBe("100%");
     expect(columnaMapa().style.marginRight).toBe("0px");
-    expect(columnaMultimedia().style.width).toBe("0px");
+    // keeps flex-grow so it always fills up to the right edge: it closes
+    // towards the right, never pulling its right side to the left
+    expect(columnaMultimedia().style.flexGrow).toBe("");
+    expect(columnaMultimedia()).toHaveClass("flex-1");
+    expect(columnaMultimedia().style.opacity).toBe("0");
     expect(columnaMultimedia()).toHaveAttribute("inert");
+    // it leaves to the right: content keeps its width and rides on the
+    // column's left edge (the one moving right), so it slides out right
+    expect(columnaMultimedia()).not.toHaveClass("justify-end");
+    expect(contenido()).toHaveClass("shrink-0");
+    expect(contenido().style.width).toBe("320px");
 
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     fireEvent.click(screen.getByRole("button", { name: "cerrar lugares" }));
     expect(columnaMapa().style.width).toBe("66.666%");
     expect(columnaMultimedia()).not.toHaveAttribute("inert");
+    // back in from the right, then free to fill the column again
+    expect(contenido().style.width).toBe("320px");
+    act(() => vi.advanceTimersByTime(500));
+    expect(contenido().style.width).toBe("100%");
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 });

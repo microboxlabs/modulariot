@@ -26,7 +26,8 @@ vi.mock("../hooks/use-timelapse", () => ({
 }));
 vi.mock("./tool-bar/tool-bar", () => ({ default: () => null }));
 vi.mock("./places-overlay/places-floating-overlay", () => ({
-  default: () => null,
+  default: ({ externas }: { externas?: { titulo: string } }) =>
+    externas ? <span data-testid="externas">{externas.titulo}</span> : null,
 }));
 vi.mock("../profiles/places-permission", () => ({
   usePermisoEditorLugares: () => true,
@@ -47,6 +48,7 @@ const dict = {
   geographic_view: {
     no_data_found: "Sin datos",
     notch: { label: "Map views", places: "Lugares de interés" },
+    trip_geofences: { title: "Geocercas del viaje" },
     layers: {
       title: "Capas",
       vehiculos: "Vehículos",
@@ -150,5 +152,38 @@ describe("MapVisualizationTrip controls", () => {
     expect(screen.getByTestId("mapa")).toHaveAttribute("data-rounded", "left");
     fireEvent.click(boton);
     expect(onLugaresChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("always lists the trip's geofences in Lugares, as in symptoms and bento", () => {
+    renderViaje({ positions: [] });
+    expect(screen.getByTestId("externas")).toHaveTextContent(
+      "Geocercas del viaje"
+    );
+  });
+});
+
+describe("trip geofence anchor", () => {
+  it("goes to the ring's centre, or to the point itself", async () => {
+    const { anclaDeGeometria } = await import("./map-visualization-trip");
+    expect(
+      anclaDeGeometria({
+        type: "Polygon",
+        coordinates: [
+          [
+            [-70, -33],
+            [-70, -34],
+            [-71, -34],
+            [-71, -33],
+          ],
+        ],
+      })
+    ).toEqual([-33.5, -70.5]);
+    expect(
+      anclaDeGeometria({ type: "Point", coordinates: [-70.6, -33.4] })
+    ).toEqual([-33.4, -70.6]);
+    expect(
+      anclaDeGeometria({ type: "LineString", coordinates: [] })
+    ).toBeNull();
+    expect(anclaDeGeometria({ type: "Point" })).toBeNull();
   });
 });

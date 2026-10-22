@@ -19,7 +19,13 @@ import PointCategorySelect, {
 } from "./point-category-select";
 import type { I18nRecord } from "@/features/i18n/i18n.service.types";
 import { SimboloDesvio, SimboloParada } from "./point-symbol";
-import type { FormTrayecto, LatLon, Parada, TipoPunto } from "../places.types";
+import type {
+  FormTrayecto,
+  LatLon,
+  Lugar,
+  Parada,
+  TipoPunto,
+} from "../places.types";
 import {
   MAX_PUNTOS,
   MIN_PUNTOS,
@@ -126,7 +132,10 @@ function FilaPunto({
   onTipoPunto,
   onCategoriaPunto,
   dict,
+  geocercas,
 }: Readonly<{
+  /** Geocercas para elegir como origen o destino. */
+  geocercas?: Lugar[];
   onTipoPunto: (id: string, tipo: TipoPunto) => void;
   onCategoriaPunto?: (id: string, categoria: string | undefined) => void;
   dict?: I18nRecord;
@@ -181,6 +190,8 @@ function FilaPunto({
             cerca={cerca}
             onTexto={(t) => onRecorrido((x) => textoPunto(x, id, t))}
             onElegir={(s) => onRecorrido((x) => elegirPunto(x, id, s), s.punto)}
+            // origen y destino también pueden ser una geocerca guardada
+            geocercas={intermedio ? undefined : geocercas}
           />
         </div>
         {conCategoria && (
@@ -224,10 +235,14 @@ function FilaPunto({
       </div>
       {/* desplegable al pie de la fila: la categoría del punto y su lista */}
       {conCategoria && abierta && (
-        <div className="flex items-center gap-2 border-t border-gray-100 bg-gray-50 px-2 py-1.5 dark:border-gray-700 dark:bg-gray-900/40">
-          <span className="shrink-0 text-[11px] font-medium text-gray-600 dark:text-gray-300">
-            Categoría
-          </span>
+        // solo el desplegable: la categoría ya se lee dentro de él
+        // y se resalta junto con la fila al pasar el mouse
+        <div
+          className={twMerge(
+            "flex items-center gap-2 border-t border-gray-100 bg-gray-50 px-2 py-1.5 transition-colors dark:border-gray-700 dark:bg-gray-900/40",
+            resaltado && "bg-blue-50 dark:bg-blue-900/30"
+          )}
+        >
           <div className="min-w-0 flex-1">
             <PointCategorySelect
               label={label}
@@ -270,7 +285,10 @@ export default function RecorridoCard({
   onCategoriaPunto,
   dict,
   className,
+  geocercas,
 }: Readonly<{
+  /** Geocercas guardadas, para elegirlas como origen o destino. */
+  geocercas?: Lugar[];
   /** Parada o desvío de un punto intermedio (no cambia la ruta). */
   onTipoPunto?: (id: string, tipo: TipoPunto) => void;
   /** Categoría de un punto intermedio; sin esto no se muestra el selector. */
@@ -292,6 +310,16 @@ export default function RecorridoCard({
   const total = tray.recorrido.length;
   const ds = distintivos(tray.recorrido);
   const lleno = total >= MAX_PUNTOS;
+  // el punto nuevo queda listo para ubicarlo con un clic en el mapa
+  const agregarYUbicar = () => {
+    const next = agregarPunto(tray);
+    const nuevo = next.recorrido.find(
+      (p) => !tray.recorrido.some((q) => q.id === p.id)
+    );
+    if (!nuevo) return;
+    onRecorrido(() => next);
+    onElegirEnMapa(nuevo.id);
+  };
   const iEligiendo = tray.recorrido.findIndex((p) => p.id === eligiendoPuntoId);
   const hintMapa =
     iEligiendo >= 0
@@ -356,13 +384,14 @@ export default function RecorridoCard({
             onTipoPunto={onTipoPunto}
             onCategoriaPunto={onCategoriaPunto}
             dict={dict}
+            geocercas={geocercas}
           />
         ))}
       </ReactSortable>
 
       <button
         type="button"
-        onClick={() => onRecorrido(agregarPunto)}
+        onClick={agregarYUbicar}
         disabled={lleno}
         className="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-b-lg bg-blue-600 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-gray-600"
       >

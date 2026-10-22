@@ -44,6 +44,9 @@ function MediaPanelErrorFallback({
   );
 }
 
+/** Lo que dura el pliegue de las columnas (duration-500). */
+const DURACION_MS = 500;
+
 export default function BentoMediaSection({
   task,
   dict,
@@ -56,6 +59,24 @@ export default function BentoMediaSection({
   // toma todo el ancho
   const [lugaresAbierto, setLugaresAbierto] = useState(false);
   const anchoMapa = lugaresAbierto ? "100%" : "66.666%";
+  // al plegarse, el visor sale hacia la derecha: su contenido queda fijo a
+  // su ancho de antes y va pegado al borde IZQUIERDO de la columna, que es
+  // el que avanza a la derecha mientras el mapa crece; así el contenido se
+  // desliza entero hacia afuera por la derecha, sin aplastarse
+  const columnaMultimedia = useRef<HTMLDivElement>(null);
+  const [anchoFijo, setAnchoFijo] = useState<number | null>(null);
+  const cambiarLugares = (abierto: boolean) => {
+    if (abierto && columnaMultimedia.current) {
+      setAnchoFijo(columnaMultimedia.current.offsetWidth);
+    }
+    setLugaresAbierto(abierto);
+  };
+  // al volver: suelta el ancho fijo cuando la columna ya terminó de abrirse
+  useEffect(() => {
+    if (lugaresAbierto || anchoFijo === null) return;
+    const t = window.setTimeout(() => setAnchoFijo(null), DURACION_MS);
+    return () => window.clearTimeout(t);
+  }, [lugaresAbierto, anchoFijo]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -83,33 +104,39 @@ export default function BentoMediaSection({
           <Geographic
             task={task}
             dictionary={dict as unknown as Record<string, string>}
-            onLugaresChange={setLugaresAbierto}
+            onLugaresChange={cambiarLugares}
           />
         </div>
       </div>
 
       {/* FileImages — fills remaining space; on < lg the geographic is hidden so this becomes full width */}
       <div
-        className="flex-1 overflow-hidden rounded-lg border scroll-p-6 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all duration-500 ease-in-out"
+        ref={columnaMultimedia}
+        className="flex flex-1 overflow-hidden rounded-lg border scroll-p-6 border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 transition-all duration-500 ease-in-out"
         style={{
           minWidth: 0,
-          // plegado mientras Lugares usa todo el ancho del mapa
-          ...(lugaresAbierto
-            ? { flexGrow: 0, width: 0, borderWidth: 0, opacity: 0 }
-            : {}),
+          // plegado mientras Lugares usa todo el ancho del mapa. Sin tocar
+          // flex-grow: así llena siempre lo que deja el mapa y su borde
+          // derecho no se mueve; se cierra hacia la derecha.
+          ...(lugaresAbierto ? { borderWidth: 0, opacity: 0 } : {}),
         }}
         aria-hidden={lugaresAbierto}
         inert={lugaresAbierto}
       >
-        <ErrorBoundary fallback={<MediaPanelErrorFallback dict={dict} />}>
-          <FileImages
-            task={task}
-            dictionary={dict}
-            isExpanded={isMediaExpanded}
-            onRequestExpand={() => setIsMediaExpanded(true)}
-            onRequestCollapse={() => setIsMediaExpanded(false)}
-          />
-        </ErrorBoundary>
+        <div
+          className="h-full shrink-0"
+          style={{ width: anchoFijo === null ? "100%" : anchoFijo }}
+        >
+          <ErrorBoundary fallback={<MediaPanelErrorFallback dict={dict} />}>
+            <FileImages
+              task={task}
+              dictionary={dict}
+              isExpanded={isMediaExpanded}
+              onRequestExpand={() => setIsMediaExpanded(true)}
+              onRequestCollapse={() => setIsMediaExpanded(false)}
+            />
+          </ErrorBoundary>
+        </div>
       </div>
     </div>
   );

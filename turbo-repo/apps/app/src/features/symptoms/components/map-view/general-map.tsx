@@ -270,7 +270,6 @@ export default function GeneralMap({
             setSelectedTreatmentIndex={setSelectedTreatmentIndex}
             licensePlate={treatmentData?.trip_info?.asset_id ?? null}
             onLugaresChange={setLugaresAbierto}
-            listarGeocercasViaje
           />
         </div>
       </div>

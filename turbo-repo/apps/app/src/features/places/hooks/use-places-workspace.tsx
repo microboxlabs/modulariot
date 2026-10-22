@@ -47,6 +47,7 @@ import {
   tiposUbicados,
   waypointsDirections,
 } from "../routes/recorrido";
+import { ajustarRutaAMaximo } from "../routes/simplify-route";
 import {
   COLOR_KEY,
   FORM_VACIO,
@@ -342,6 +343,9 @@ type DirectionsRoute = {
   legs?: { steps?: { name?: string }[] }[];
 };
 
+/** Bajo el máximo de 500 del lab, con margen. */
+const MAX_PUNTOS_RUTA = 480;
+
 async function ajustarACalles(
   pts: [number, number][],
   token: string,
@@ -369,18 +373,14 @@ async function ajustarACalles(
   const vias = new Set<string>();
   for (const leg of ruta.legs ?? [])
     for (const st of leg.steps ?? []) if (st.name) vias.add(st.name);
-  // el lab acepta 2..500 puntos: decimar conservando extremos
+  // el lab acepta 2..500 puntos: se acorta sin cortar las curvas
   const crudos: [number, number][] = ruta.geometry.coordinates.map(
     ([lo, la]: number[]) => [la, lo] as [number, number]
   );
-  const MAX = 480;
-  const pts2 =
-    crudos.length <= MAX
-      ? crudos
-      : crudos
-          .filter((_, i) => i % Math.ceil(crudos.length / MAX) === 0)
-          .concat(crudos.slice(-1));
-  return { pts: pts2, vias: [...vias].slice(0, 12) };
+  return {
+    pts: ajustarRutaAMaximo(crudos, MAX_PUNTOS_RUTA),
+    vias: [...vias].slice(0, 12),
+  };
 }
 
 const MSG_IMPORT_VACIO =
@@ -1005,31 +1005,50 @@ export function usePlacesWorkspace(
     });
   };
 
-  const crearLugarAqui = () => {
-    if (!puedeEditar) return;
-    if (!menu) return;
-    encuadrarCirculo(menu.lat, menu.lon, FORM_VACIO.radius_m);
-    setForm({ ...FORM_VACIO, lat: menu.lat, lon: menu.lon });
+  // un lugar nuevo: su geocerca circular parte en `punto`
+  const empezarLugar = (punto: LatLon) => {
+    encuadrarCirculo(punto[0], punto[1], FORM_VACIO.radius_m);
+    setForm({ ...FORM_VACIO, lat: punto[0], lon: punto[1] });
     setPasoLugar("geocerca");
     setMsg(null);
     setModo("lugar");
     setMenu(null);
+    setMenuLugar(null);
   };
-  const crearTrayectoAqui = () => {
-    if (!puedeEditar) return;
-    if (!menu) return;
-    const punto: LatLon = [menu.lat, menu.lon];
+  // un trayecto nuevo: con origen ya puesto, o vacío (el clic pone el origen)
+  const empezarTrayecto = (origen: LatLon | null) => {
     setTray({
       ...TRAY_VACIO,
-      recorrido: recorridoDesdePts([punto]),
+      recorrido: recorridoDesdePts(origen ? [origen] : []),
     });
     setTrayPathAjustado(null);
-    setPuntoMapaId("destino");
+    setPuntoMapaId(origen ? "destino" : "origen");
     setPasoTrayecto("recorrido");
     setMsg(null);
     setModo("trayecto");
     setMenu(null);
-    rotularPuntoSiSigue("origen", punto);
+    setMenuLugar(null);
+    if (origen) rotularPuntoSiSigue("origen", origen);
+  };
+  const crearLugarAqui = () => {
+    if (!puedeEditar) return;
+    if (!menu) return;
+    empezarLugar([menu.lat, menu.lon]);
+  };
+  const crearTrayectoAqui = () => {
+    if (!puedeEditar) return;
+    if (!menu) return;
+    empezarTrayecto([menu.lat, menu.lon]);
+  };
+  // desde "Agregar" en la lista: sin un punto elegido, el centro del mapa
+  const nuevoLugar = () => {
+    if (!puedeEditar) return;
+    const centro = centroMapa();
+    if (centro) empezarLugar(centro);
+  };
+  const nuevoTrayecto = () => {
+    if (!puedeEditar) return;
+    empezarTrayecto(null);
   };
   const cerrarMenu = useCallback(() => setMenu(null), []);
   const cerrarMenuLugar = useCallback(() => setMenuLugar(null), []);
@@ -1132,10 +1151,8 @@ export function usePlacesWorkspace(
   };
 
   // Clic en el nombre de un trayecto: ir a él en el mapa.
-  const irATrayecto = (t: Trayecto) => {
-    const p = t.points[0];
-    if (p) mapRef.current?.flyTo({ center: [p[1], p[0]], zoom: 11 });
-  };
+  // el trayecto completo en vista, de origen a destino
+  const irATrayecto = (t: Trayecto) => encuadrarRuta(t.points);
 
   /** Ir a un punto cualquiera (p. ej. una geocerca del viaje). */
   const irAPunto = (p: LatLon) =>
@@ -2163,6 +2180,8 @@ export function usePlacesWorkspace(
     clicAgrega,
     crearLugarAqui,
     crearTrayectoAqui,
+    nuevoLugar,
+    nuevoTrayecto,
     cerrarMenu,
     terminarPoligono,
     deshacerPunto,

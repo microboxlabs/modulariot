@@ -9,7 +9,11 @@ import type { MapRef } from "react-map-gl";
 import { CURSOR_AGREGAR } from "../map/cursors";
 import { zoomAlClicNombre } from "../map/geofence-lod";
 import { useResaltadoAnimado } from "../map/highlight-animation";
-import { itemsNombresMapa, type ItemNombre } from "../map/place-labels";
+import {
+  itemsNombresMapa,
+  itemsTrayectos,
+  type ItemNombre,
+} from "../map/place-labels";
 import { capasNombresGeocercas } from "../map/place-name-layer";
 import { usePlacesWorkspace } from "./use-places-workspace";
 
@@ -19,6 +23,7 @@ export function usePlacesEnMapa(
     editando,
     verGeocercas = editando,
     puedeEditar = true,
+    nombres = {},
     mapStyle,
     zoom,
   }: {
@@ -28,6 +33,8 @@ export function usePlacesEnMapa(
     verGeocercas?: boolean;
     /** Sin el permiso "Editor de lugares": solo ver, buscar y descargar. */
     puedeEditar?: boolean;
+    /** Qué badges de nombre van: geocercas (por defecto sí) y trayectos (no). */
+    nombres?: { geocercas?: boolean; trayectos?: boolean };
     mapStyle: string;
     zoom: number;
   }
@@ -50,22 +57,45 @@ export function usePlacesEnMapa(
   editandoAntes.current = editando;
 
   // importando: los badges son los de lo importado, no los de lo guardado
+  const conGeocercas = nombres.geocercas ?? true;
+  const conTrayectos = nombres.trayectos ?? false;
   const nombresItems = useMemo(
     () =>
-      ws.nombresImport ??
-      itemsNombresMapa(ws.fcPropios, ws.prevLugarFC, ws.todosLugares),
-    [ws.nombresImport, ws.fcPropios, ws.prevLugarFC, ws.todosLugares]
+      ws.nombresImport ?? [
+        ...(conGeocercas
+          ? itemsNombresMapa(ws.fcPropios, ws.prevLugarFC, ws.todosLugares)
+          : []),
+        ...(conTrayectos ? itemsTrayectos(ws.fcTray) : []),
+      ],
+    [
+      ws.nombresImport,
+      ws.fcPropios,
+      ws.prevLugarFC,
+      ws.todosLugares,
+      ws.fcTray,
+      conGeocercas,
+      conTrayectos,
+    ]
   );
 
+  const { irATrayecto, todosTrayectos } = ws;
   const alClicNombre = useCallback(
     (item: ItemNombre) => {
+      // el de un trayecto: igual que elegirlo en la lista
+      const trayecto = item.trayectoId
+        ? todosTrayectos.find((t) => t.trayecto_id === item.trayectoId)
+        : undefined;
+      if (trayecto) {
+        irATrayecto(trayecto);
+        return;
+      }
       mapRef.current?.flyTo({
         center: [item.ancla[1], item.ancla[0]],
         zoom: zoomAlClicNombre(item, zoom, nombresItems),
         duration: 800,
       });
     },
-    [mapRef, zoom, nombresItems]
+    [mapRef, zoom, nombresItems, irATrayecto, todosTrayectos]
   );
 
   const resaltadoAnim = useResaltadoAnimado(

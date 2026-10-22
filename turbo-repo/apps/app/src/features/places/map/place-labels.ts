@@ -125,4 +125,11 @@ export type ItemNombre = {
   lugar?: Lugar;
   /** Importando: badge de lo guardado con que choca, debajo de la forma. */
   abajo?: boolean;
+  /** El badge es de un trayecto (no de una geocerca). */
+  trayectoId?: string;
 };
+
+/** Badges de los trayectos dibujados: con su nombre, en el medio del camino. */
+export function itemsTrayectos(fcTray: FeatureCollection): ItemNombre[] {
+  return itemsDesdeFC(fcTray).map((i) => ({ ...i, trayectoId: i.id }));
+}

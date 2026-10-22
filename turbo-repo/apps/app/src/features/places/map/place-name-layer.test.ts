@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   capasNombresGeocercas,
+  altoCluster,
   chipCluster,
+  contarCluster,
+  partesCluster,
   chipEtiqueta,
   textoCluster,
   type BadgeMapa,
@@ -172,16 +175,36 @@ describe("place name deck layer", () => {
     expect(onNombre).toHaveBeenCalledWith(padre);
   });
 
-  it("draws a cluster as a pill counting its geofences", () => {
+  it("draws a cluster as a pill counting its geofences and routes", () => {
     mockCanvas();
-    expect(textoCluster(5)).toBe("5 geocercas");
-    const chip = chipCluster(5, "noche");
+    expect(textoCluster({ geocercas: 5, trayectos: 0 })).toBe("5 geocercas");
+    expect(textoCluster({ geocercas: 2, trayectos: 1 })).toBe(
+      "2 geocercas · 1 trayecto"
+    );
+    expect(textoCluster({ geocercas: 1, trayectos: 3 })).toBe(
+      "1 geocerca · 3 trayectos"
+    );
+    // each kind with its own icon
+    expect(
+      partesCluster({ geocercas: 2, trayectos: 1 }).map((p) => p.icono)
+    ).toEqual(["pin", "ruta"]);
+    const ruta = { ...padre, id: "t1", trayectoId: "t1" };
+    expect(contarCluster([padre, hijo, ruta])).toEqual({
+      geocercas: 2,
+      trayectos: 1,
+    });
+    const chip = chipCluster({ geocercas: 5, trayectos: 0 }, "noche");
     expect(chip.size).toBe(24);
-    expect(chip.key).toBe("cluster|5|noche");
+    expect(chip.key).toBe("cluster|5|0|noche");
+    // geofences and routes together: one row each, stacked in a column
+    const mixto = chipCluster({ geocercas: 2, trayectos: 1 }, "noche");
+    expect(mixto.size).toBe(altoCluster(2));
+    expect(altoCluster(2)).toBeGreaterThan(24);
+    expect(altoCluster(1)).toBe(24);
     // the cluster badge sits where a parent badge would
     const [capa] = capas([padre, hijo], "n", "dark", 4);
     const cluster = capa!.props.data[0]!;
-    expect(capa!.props.getIcon(cluster)).toBe("cluster|2|noche");
+    expect(capa!.props.getIcon(cluster)).toBe("cluster|2|0|noche");
     expect(capa!.props.getPixelOffset(cluster)).toEqual([0, -18]);
   });
 

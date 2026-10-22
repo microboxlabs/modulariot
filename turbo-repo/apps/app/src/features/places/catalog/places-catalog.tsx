@@ -14,6 +14,7 @@ import ExternalGeofencesList, {
 import { SelectionBar, useSeleccionLista } from "./list-selection";
 import { inputCls } from "../ui/form-ui";
 import { ACCEPT_IMPORT, esArchivoImport } from "../import-export/import-places";
+import AddButton from "./add-button";
 import ExportButton from "./export-button";
 import {
   ImportLoteTable,
@@ -278,6 +279,13 @@ export function PlacesCatalogLists({
           trayectos={ws.todosTrayectos ?? []}
         />
       </div>
+
+      {/* agregar, a todo el ancho bajo la búsqueda: solo con el permiso */}
+      {editable && (
+        <div className="shrink-0">
+          <AddButton onGeocerca={ws.nuevoLugar} onTrayecto={ws.nuevoTrayecto} />
+        </div>
+      )}
 
       {editable && sel.total > 0 && (
         <SelectionBar

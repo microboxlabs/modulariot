@@ -86,7 +86,7 @@ class RuleDescriptionServiceTest {
 
     private static SymptomSummary summary(SymptomSpec spec, OffsetDateTime now) {
         return new SymptomSummary(new SymptomDefinition(UUID.randomUUID(), TENANT, "k", "n", null, null, null,
-                "gps_signal", null, null, null, SymptomState.ACTIVE, "1.0.0", "o", now, "o", now), false,
+                "gps_signal", null, null, null, null, SymptomState.ACTIVE, "1.0.0", "o", now, "o", now), false,
                 spec == null ? null : SymptomVersion.draft(UUID.randomUUID(), TENANT, spec, "o", now), null);
     }
 

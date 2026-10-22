@@ -10,6 +10,7 @@ import java.util.UUID;
  * @param family              a {@code symptom_families} selectable value
  * @param engineRuleId        the GPS engine rule it mirrors, or null
  * @param templateKey         the platform template it was created from, or null
+ * @param templateVersion     the template's version it was copied from, or null
  * @param forkedFromVersionId the version it was duplicated from, or null
  */
 public record SymptomDefinition(
@@ -23,6 +24,7 @@ public record SymptomDefinition(
         String sourceKey,
         Integer engineRuleId,
         String templateKey,
+        String templateVersion,
         UUID forkedFromVersionId,
         SymptomState state,
         String currentVersion,
@@ -33,12 +35,13 @@ public record SymptomDefinition(
 
     public SymptomDefinition withCurrent(String version, SymptomState nextState, String actor, OffsetDateTime at) {
         return new SymptomDefinition(id, tenantCode, key, name, family, icon, description, sourceKey, engineRuleId,
-                templateKey, forkedFromVersionId, nextState, version, createdBy, createdAt, actor, at);
+                templateKey, templateVersion, forkedFromVersionId, nextState, version, createdBy, createdAt, actor,
+                at);
     }
 
     public SymptomDefinition withFamily(String nextFamily) {
         return new SymptomDefinition(id, tenantCode, key, name, nextFamily, icon, description, sourceKey,
-                engineRuleId, templateKey, forkedFromVersionId, state, currentVersion, createdBy, createdAt, updatedBy,
-                updatedAt);
+                engineRuleId, templateKey, templateVersion, forkedFromVersionId, state, currentVersion, createdBy,
+                createdAt, updatedBy, updatedAt);
     }
 }

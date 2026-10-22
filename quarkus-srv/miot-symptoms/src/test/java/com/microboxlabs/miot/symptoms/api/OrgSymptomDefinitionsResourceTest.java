@@ -1,10 +1,12 @@
 package com.microboxlabs.miot.symptoms.api;
 
+import static com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate.PLATFORM_TENANT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.microboxlabs.miot.core.auth.OrganizationContext;
+import com.microboxlabs.miot.core.auth.PlatformAuthorizer;
 import com.microboxlabs.miot.core.auth.TenantContext;
 import com.microboxlabs.miot.core.permission.OrganizationRoleService;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.DescribeRequest;
@@ -14,12 +16,14 @@ import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.PublishR
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.RollbackRequest;
 import com.microboxlabs.miot.symptoms.api.OrgSymptomDefinitionsResource.StateRequest;
 import com.microboxlabs.miot.symptoms.catalog.domain.SymptomState;
+import com.microboxlabs.miot.symptoms.catalog.domain.SymptomTemplate;
 import com.microboxlabs.miot.symptoms.catalog.service.DataSourceService;
 import com.microboxlabs.miot.symptoms.catalog.service.EngineImportService;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryCatalog;
 import com.microboxlabs.miot.symptoms.catalog.service.InMemoryRuleDescriptions;
 import com.microboxlabs.miot.symptoms.catalog.service.PreviewService;
 import com.microboxlabs.miot.symptoms.catalog.service.RuleDescriptionService;
+import com.microboxlabs.miot.symptoms.catalog.service.SeedTemplates;
 import com.microboxlabs.miot.symptoms.catalog.service.Specs;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomCatalogService;
 import com.microboxlabs.miot.symptoms.catalog.service.SymptomStatsService;
@@ -40,7 +44,9 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +57,7 @@ class OrgSymptomDefinitionsResourceTest {
     private static final String ORG = "org-a";
     private static final Duration WAIT = Duration.ofSeconds(5);
 
+    private InMemoryCatalog store;
     private SymptomCatalogService catalog;
     private DataSourceService sources;
     private String id;
@@ -65,7 +72,7 @@ class OrgSymptomDefinitionsResourceTest {
 
     @BeforeEach
     void setUp() {
-        InMemoryCatalog store = new InMemoryCatalog();
+        store = new InMemoryCatalog();
         sources = new DataSourceService(store, new DemoSymptomEngine());
         catalog = new SymptomCatalogService(store, sources, new AuditService(new InMemoryAuditStore()));
         id = catalog.create("tenant-a", "owner@example.com", new CreateRequest("speeding", "Exceso", null, null, null,
@@ -73,6 +80,21 @@ class OrgSymptomDefinitionsResourceTest {
     }
 
     private OrgSymptomDefinitionsResource resource(boolean owner) {
+        return resource(owner, false);
+    }
+
+    /** A platform authorizer that lets platform owners through and refuses everyone else. */
+    private static PlatformAuthorizer platform(boolean platformOwner) {
+        return new PlatformAuthorizer(Optional.empty(), null) {
+            @Override
+            public Uni<String> requirePlatformOwner() {
+                return platformOwner ? Uni.createFrom().item("owner@example.com")
+                        : Uni.createFrom().failure(new ForbiddenException("Platform owner role required"));
+            }
+        };
+    }
+
+    private OrgSymptomDefinitionsResource resource(boolean owner, boolean platformOwner) {
         OrganizationContext org = new OrganizationContext();
         org.setOrganizationId(ORG);
         org.setUserEmail(owner ? "owner@example.com" : "member@example.com");
@@ -85,9 +107,18 @@ class OrgSymptomDefinitionsResourceTest {
                         throw new IllegalStateException("down");
                     }
                     return "Se activa <b>en viaje</b>";
-                }), new TemplateService(), new SymptomStatsService(catalog, new DemoSymptomEngine(),
+                }), new TemplateService(store), new SymptomStatsService(catalog, new DemoSymptomEngine(),
                         new InMemoryTreatmentStore(), new TowerSettingsService(new InMemoryTowerSettingsStore(),
-                                new AuditService(new InMemoryAuditStore()))));
+                                new AuditService(new InMemoryAuditStore()))), platform(platformOwner));
+    }
+
+    @Test
+    void onlyPlatformOwnersSaveASymptomAsATemplate() {
+        assertThrows(ForbiddenException.class,
+                () -> status(resource(true).saveAsTemplate(ORG, id, null)));
+
+        assertEquals(200, status(resource(false, true).saveAsTemplate(ORG, id, null)));
+        assertEquals(1, catalog.list(PLATFORM_TENANT).size());
     }
 
     private static int status(Uni<Response> call) {
@@ -123,6 +154,11 @@ class OrgSymptomDefinitionsResourceTest {
 
     @Test
     void ownersCreateFromATemplate() {
+        SymptomTemplate seed = SeedTemplates.get("continuous-driving");
+        UUID template = catalog.create(PLATFORM_TENANT, "owner@example.com", new CreateRequest(seed.key(),
+                seed.name(), seed.family(), seed.icon(), seed.description(), seed.spec().source(), null, seed.spec()))
+                .definition().id();
+        catalog.publish(PLATFORM_TENANT, "owner@example.com", template, "Plantilla", null, null);
         OrgSymptomDefinitionsResource owner = resource(true);
 
         assertEquals(201, status(owner.fromTemplate(ORG, new FromTemplateRequest("continuous-driving", null))));

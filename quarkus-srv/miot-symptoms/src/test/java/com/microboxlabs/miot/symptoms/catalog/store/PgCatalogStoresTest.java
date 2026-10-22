@@ -78,7 +78,7 @@ class PgCatalogStoresTest {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
         SymptomDefinition created = store.insertDefinition(new SymptomDefinition(UUID.randomUUID(), TENANT,
                 "speeding", "Exceso de velocidad", "driving_safety", "speed", null, "gps_signal", 9, null, null,
-                SymptomState.OFF, null, "owner@example.com", now, "owner@example.com", now));
+                null, SymptomState.OFF, null, "owner@example.com", now, "owner@example.com", now));
 
         SymptomSpec spec = new SymptomSpec("gps_signal", "signal.trip.active == true",
                 new SymptomSpec.Measure("signal.gps.speed_kmh - signal.road.maxspeed_osm", "Exceso", "km/h"),
@@ -121,9 +121,9 @@ class PgCatalogStoresTest {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MILLIS);
         SymptomDefinition created = store.insertDefinition(new SymptomDefinition(UUID.randomUUID(), TENANT,
                 "lost-signal", "Pérdida de señal", null, null, null, "trip_check", null, null, null,
-                SymptomState.OFF, null, "owner@example.com", now, "owner@example.com", now));
+                null, SymptomState.OFF, null, "owner@example.com", now, "owner@example.com", now));
         SymptomDefinition sameKey = new SymptomDefinition(UUID.randomUUID(), TENANT, "lost-signal", "Otra", null,
-                null, null, "trip_check", null, null, null, SymptomState.OFF, null, "owner@example.com", now,
+                null, null, "trip_check", null, null, null, null, SymptomState.OFF, null, "owner@example.com", now,
                 "owner@example.com", now);
         assertThrows(DuplicateSymptomKeyException.class, () -> store.insertDefinition(sameKey));
         SymptomSpec spec = new SymptomSpec("trip_check", "true", null, List.of(), null, null);

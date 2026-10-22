@@ -27,7 +27,7 @@ class NightStopRuleCasesTest {
         Map<String, Object> s = new LinkedHashMap<>();
         s.put("signal.trip.active", true);
         s.put("signal.trip.double_driver", false);
-        s.put("signal.gps.moving", false);
+        s.put("signal.derived.moving", false);
         s.put("signal.geo.authorized_zone", false);
         s.put("signal.local_hour", hour);
         return s;
@@ -77,7 +77,7 @@ class NightStopRuleCasesTest {
     @Test
     void movingClosesTheCaseAtOnce() {
         List<Signal> s = new ArrayList<>(stoppedFor(15));
-        s.add(at(960, with(stopped(23.3), "signal.gps.moving", true)));
+        s.add(at(960, with(stopped(23.3), "signal.derived.moving", true)));
         assertEquals(List.of(opened(0, 1), changed(600, 1, 2), closed(960, 2)), run(s));
     }
 
@@ -100,7 +100,7 @@ class NightStopRuleCasesTest {
     @Test
     void stoppingAgainStartsANewCaseFromLevelOne() {
         List<Signal> s = new ArrayList<>(stoppedFor(15));
-        s.add(at(960, with(stopped(23.3), "signal.gps.moving", true)));
+        s.add(at(960, with(stopped(23.3), "signal.derived.moving", true)));
         s.add(at(1000, stopped(23.3)));
         assertEquals(List.of(opened(0, 1), changed(600, 1, 2), closed(960, 2), opened(1000, 1)), run(s));
     }

@@ -34,7 +34,6 @@ public record GpsSignal(
         @Schema(hidden = true) List<String> clients,
         Trip trip,
         Vehicle vehicle,
-        Gps gps,
         Road road,
         Geo geo,
         @Schema(title = "Hora local") @JsonProperty("local_hour") Integer localHour,
@@ -143,19 +142,6 @@ public record GpsSignal(
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     @RegisterForReflection
-    public record Gps(
-            @Schema(title = "Velocidad", extensions = {
-                    @Extension(name = "x-unit", value = "km/h"), @Extension(name = "x-origin", value = "DEVICE") })
-            @JsonProperty("speed_kmh") Double speedKmh,
-            @Schema(title = "Motor encendido", extensions = @Extension(name = "x-origin", value = "DEVICE"))
-            @JsonProperty("engine_on") Boolean engineOn,
-            @Schema(title = "En movimiento", extensions = @Extension(name = "x-origin", value = "CALCULATED"))
-            Boolean moving) {
-    }
-
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    @RegisterForReflection
     public record Road(
             @Schema(title = "Límite de la vía", extensions = {
                     @Extension(name = "x-unit", value = "km/h"), @Extension(name = "x-origin", value = "ROAD_NETWORK") })
@@ -179,6 +165,8 @@ public record GpsSignal(
     @JsonIgnoreProperties(ignoreUnknown = true)
     @RegisterForReflection
     public record Derived(
+            @Schema(title = "En movimiento", extensions = @Extension(name = "x-origin", value = "CALCULATED"))
+            Boolean moving,
             @Schema(title = "Velocidad promedio 5 min", extensions = {
                     @Extension(name = "x-unit", value = "km/h"), @Extension(name = "x-origin", value = "CALCULATED"),
                     @Extension(name = "x-engine", value = "false") })

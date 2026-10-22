@@ -36,12 +36,10 @@ public class SignalBuilder {
         String assetId = frame.getAssetId();
         Instant at = frame.getTimestamp().toInstant();
         GpsSignal.Trip trip = refs.tripAt(assetId, at).map(t -> trip(t, at)).orElse(GpsSignal.Trip.none());
-        Double speed = frame.getGps() == null ? null : frame.getGps().getSpeed();
-        Boolean engineOn = frame.getSensors() == null ? null : frame.getSensors().getEngineStatus();
-        GpsSignal.Gps gps = new GpsSignal.Gps(speed, engineOn, speed == null ? null : speed > MOVING_KMH);
+        Boolean moving = frame.getGps() == null ? null : frame.getGps().getSpeed() > MOVING_KMH;
         return Optional.of(new GpsSignal(GpsSignal.SCHEMA_ID, assetId, at,
-                refs.clientsAt(assetId, sender(message.getClientId()), at), trip, null, gps, null, null,
-                at.atZone(zone).getHour(), null, frame));
+                refs.clientsAt(assetId, sender(message.getClientId()), at), trip, null, null, null,
+                at.atZone(zone).getHour(), new GpsSignal.Derived(moving, null), frame));
     }
 
     /** The trip in progress as the signal carries it, timed against the frame. */

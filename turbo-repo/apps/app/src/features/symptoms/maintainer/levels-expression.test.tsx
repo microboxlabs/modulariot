@@ -51,7 +51,7 @@ const level = (icu: number, applies: boolean, when: string) => ({
 const SPEC = {
   source: "gps_signal",
   activation: "true",
-  measure: { expression: "signal.gps.speed_kmh - 90", label: null, unit: null },
+  measure: { expression: "signal.frame.gps.speed - 90", label: null, unit: null },
   levels: [
     level(1, true, "measure > 0 && measure < 5"),
     level(2, false, ""),
@@ -60,7 +60,7 @@ const SPEC = {
 } as unknown as SymptomSpec;
 
 const sample = (patch: Partial<SamplePreview>): SamplePreview => ({
-  sample: { signal: { gps: { speed_kmh: 112 } } },
+  sample: { signal: { frame: { gps: { speed: 112 } } } },
   activates: true,
   measure: 22,
   level: 3,
@@ -94,7 +94,7 @@ describe("LevelsExpression", () => {
     renderIt(PREVIEW);
     expect(
       (screen.getByLabelText("Medida · CEL") as HTMLTextAreaElement).value
-    ).toBe("signal.gps.speed_kmh - 90");
+    ).toBe("signal.frame.gps.speed - 90");
     expect(
       screen.queryByLabelText("Umbral por nivel · CEL · Comprometida")
     ).toBeNull();

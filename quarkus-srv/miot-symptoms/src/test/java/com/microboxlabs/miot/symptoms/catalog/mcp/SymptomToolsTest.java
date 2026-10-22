@@ -188,7 +188,7 @@ class SymptomToolsTest {
     void aSpecTheModelSendsAsJsonReadsIntoTheRecord() throws Exception {
         String json = """
                 {"source": "gps_signal", "activation": "signal.trip.active",
-                 "measure": {"expression": "signal.gps.speed_kmh - signal.road.maxspeed_osm", "unit": "km/h"},
+                 "measure": {"expression": "signal.frame.gps.speed - signal.road.maxspeed_osm", "unit": "km/h"},
                  "levels": [{"icu": 4, "applies": true, "when": "measure >= 25 && held_s >= 60",
                              "response": {"operator": true, "slaMinutes": 2}}],
                  "lifecycle": {"open": "case.condition_s >= 0", "close": "case.normal_s >= 120"},

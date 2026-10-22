@@ -165,7 +165,7 @@ public class EvaluatorStream {
         Object trip = path(signal, "trip", "id");
         return new TransitionLog.Place(trip instanceof String id ? id : null,
                 number(path(signal, "frame", "gps", "latitude")), number(path(signal, "frame", "gps", "longitude")),
-                number(path(signal, "gps", "speed_kmh")));
+                number(path(signal, "frame", "gps", "speed")));
     }
 
     private static Object path(Map<String, Object> root, String... keys) {

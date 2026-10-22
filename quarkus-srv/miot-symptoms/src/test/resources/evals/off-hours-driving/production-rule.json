@@ -1,6 +1,6 @@
 {
   "source": "gps_signal",
-  "activation": "signal.trip.active && !signal.trip.double_driver && signal.gps.moving && signal.local_hour > 1.5 && signal.local_hour < 6",
+  "activation": "signal.trip.active && !signal.trip.double_driver && signal.derived.moving && signal.local_hour > 1.5 && signal.local_hour < 6",
   "levels": [
     { "icu": 1, "applies": true, "when": "signal.local_hour < 2" },
     { "icu": 2, "applies": true, "when": "signal.local_hour >= 2 && signal.local_hour < 2.5 || signal.local_hour * 60.0 >= 340" },

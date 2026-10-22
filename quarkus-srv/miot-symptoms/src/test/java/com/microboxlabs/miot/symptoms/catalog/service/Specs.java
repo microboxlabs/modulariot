@@ -25,7 +25,7 @@ public final class Specs {
                         new SourceField("signal.vehicle.weight_category", "Categoría de peso", "list", null,
                                 FieldOrigin.VEHICLE, true, List.of(new SourceField.FieldValue("HEAVY", "Pesado"),
                                         new SourceField.FieldValue("LIGHT", "Liviano"))),
-                        new SourceField("signal.gps.speed_kmh", "Velocidad", "number", "km/h", FieldOrigin.DEVICE, true),
+                        new SourceField("signal.frame.gps.speed", "Velocidad", "number", "km/h", FieldOrigin.DEVICE, true),
                         new SourceField("signal.road.maxspeed_osm", "Límite", "number", "km/h",
                                 FieldOrigin.ROAD_NETWORK, true),
                         new SourceField("signal.derived.speed_avg_5m", "Promedio 5 min", "number", "km/h",
@@ -35,7 +35,7 @@ public final class Specs {
 
     public static SymptomSpec speeding() {
         return new SymptomSpec("gps_signal", ACTIVATION,
-                new SymptomSpec.Measure("signal.gps.speed_kmh - signal.road.maxspeed_osm", "Exceso", "km/h"),
+                new SymptomSpec.Measure("signal.frame.gps.speed - signal.road.maxspeed_osm", "Exceso", "km/h"),
                 levels("measure > 0 && measure < 5", "measure >= 5 && measure < 11", "measure >= 11 && measure < 21",
                         "measure >= 21 && held_s >= 60"),
                 new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.normal_s >= 120"), null);

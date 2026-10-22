@@ -61,9 +61,9 @@ final class EngineRuleTranslator {
     }
 
     private static final Map<String, Measured> MEASURES = Map.of(
-            "maxspeed_infraction_osm", new Measured("signal.gps.speed_kmh - signal.road.maxspeed_osm", "km/h",
+            "maxspeed_infraction_osm", new Measured("signal.frame.gps.speed - signal.road.maxspeed_osm", "km/h",
                     "SPEED LIMIT STANDARD", speedLevels(), null),
-            "maxspeed_infraction_custom", new Measured("signal.gps.speed_kmh - signal.road.maxspeed_custom", "km/h",
+            "maxspeed_infraction_custom", new Measured("signal.frame.gps.speed - signal.road.maxspeed_custom", "km/h",
                     "SPEED LIMIT CUSTOM", speedLevels(), null),
             "continuous_drive_check", new Measured("check.driving_minutes", "min", "CONTINUOUS DRIVE CHECK",
                     ladder(300, 330, 360), null),
@@ -104,7 +104,7 @@ final class EngineRuleTranslator {
                 case "movement_status" -> {
                     // Only the GPS signal says whether the truck moves.
                     if (GPS.equals(sourceKey)) {
-                        conditions.add(flag(on, "signal.gps.moving"));
+                        conditions.add(flag(on, "signal.derived.moving"));
                     } else {
                         pending.add(k + " = " + v);
                     }

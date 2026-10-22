@@ -22,7 +22,7 @@ class SpecRulesTest {
 
         assertNull(SpecDiff.bump(SpecDiff.changes(base, Specs.speeding())));
         assertEquals(VersionBump.MAJOR, SpecDiff.bump(SpecDiff.changes(base,
-                Specs.with(base, Specs.ACTIVATION + " && signal.gps.speed_kmh > 10"))));
+                Specs.with(base, Specs.ACTIVATION + " && signal.frame.gps.speed > 10"))));
         assertNull(SpecDiff.bump(SpecDiff.changes(base, Specs.with(base, "  " + Specs.ACTIVATION.replace(" && ",
                 "\n && ")))), "whitespace is not a change");
         assertNull(SpecDiff.bump(SpecDiff.changes(base, Specs.with(base, Specs.ACTIVATION.replace(" && ", "&&")))),

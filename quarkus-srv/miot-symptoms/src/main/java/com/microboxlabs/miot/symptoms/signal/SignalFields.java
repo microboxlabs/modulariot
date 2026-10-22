@@ -39,6 +39,9 @@ public final class SignalFields {
     static final Set<String> SKIPPED = Set.of("signal.frame.asset_id", "signal.frame.driver_info",
             "signal.frame.co_driver_info", "signal.frame.peripherals", "signal.frame.metrics");
 
+    /** Optional primitives the editor shows anyway: a frame without speed reads 0, as a stopped vehicle. */
+    static final Set<String> ZERO_WHEN_MISSING = Set.of("signal.frame.gps.speed");
+
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final int MAX_DEPTH = 5;
 
@@ -81,7 +84,7 @@ public final class SignalFields {
         if (SKIPPED.contains(path) || (schema != null && schema.hidden())) {
             return true;
         }
-        return t.isPrimitive() && (schema == null || !schema.required());
+        return t.isPrimitive() && (schema == null || !schema.required()) && !ZERO_WHEN_MISSING.contains(path);
     }
 
     private static void add(BeanPropertyDefinition p, String path, Schema schema, FieldOrigin inherited,

@@ -11,11 +11,12 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** The platform templates the V0.9.3 migration seeds, read from the migration itself. */
+/** The platform templates the V0.9.3 migration seeds, read from the migration itself, with the V0.9.4 rule paths. */
 public final class SeedTemplates {
 
     static final String MIGRATION = "/db/migration/symptoms/V0.9.3__platform_symptom_templates.sql";
@@ -23,6 +24,12 @@ public final class SeedTemplates {
     private static final String TEXT = "'((?:[^']|'')*)'";
     private static final Pattern ROW = Pattern.compile("\\(" + TEXT + ", " + TEXT + ", " + TEXT + ", (NULL|"
             + TEXT + "), " + TEXT + ",\\s*" + TEXT + ",\\s*" + TEXT + "\\)", Pattern.DOTALL);
+    /** The rewrites of V0.9.4__signal_without_gps_part.sql. */
+    private static final Map<String, String> V0_9_4 = Map.of(
+            "signal\\.gps\\.speed_kmh\\b", "signal.frame.gps.speed",
+            "signal\\.gps\\.engine_on\\b", "signal.frame.sensors.engine_status",
+            "signal\\.gps\\.moving\\b", "signal.derived.moving",
+            "has\\(signal\\.frame\\)(\\s|\\\\+n)*&&(\\s|\\\\+n)*", "");
     private static final ObjectMapper JSON = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private static final List<SymptomTemplate> ALL = load();
@@ -56,8 +63,12 @@ public final class SeedTemplates {
     }
 
     private static SymptomSpec spec(String json) {
+        String rewritten = json;
+        for (Map.Entry<String, String> r : V0_9_4.entrySet()) {
+            rewritten = rewritten.replaceAll(r.getKey(), r.getValue());
+        }
         try {
-            return JSON.readValue(json, SymptomSpec.class);
+            return JSON.readValue(rewritten, SymptomSpec.class);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("bad spec in " + MIGRATION, e);
         }

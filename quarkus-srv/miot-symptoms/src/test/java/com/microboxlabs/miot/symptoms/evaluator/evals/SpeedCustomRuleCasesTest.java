@@ -26,7 +26,7 @@ class SpeedCustomRuleCasesTest {
         List<Signal> signals = new ArrayList<>();
         for (int i = 0; i < secondsAndSpeeds.length; i += 2) {
             signals.add(new Signal(secondsAndSpeeds[i], EvalTraces.root(Map.of("signal.trip.active", true,
-                    "signal.vehicle.weight_category", "HEAVY", "signal.gps.speed_kmh", (double) secondsAndSpeeds[i + 1],
+                    "signal.vehicle.weight_category", "HEAVY", "signal.frame.gps.speed", (double) secondsAndSpeeds[i + 1],
                     "signal.road.maxspeed_custom", 90.0))));
         }
         return EvalTraces.replay(PRODUCTION, GPS, signals);

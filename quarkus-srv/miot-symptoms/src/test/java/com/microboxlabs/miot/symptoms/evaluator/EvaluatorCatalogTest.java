@@ -95,7 +95,7 @@ class EvaluatorCatalogTest {
         DataSource gps = Specs.gpsSignal();
         store.upsert(new DataSource(gps.id(), gps.tenantCode(), gps.key(), gps.name(), gps.kind(), gps.root(),
                 gps.cadence(), gps.fields().stream()
-                        .map(f -> f.path().equals("signal.gps.speed_kmh") ? new SourceField(f.path(), f.label(),
+                        .map(f -> f.path().equals("signal.frame.gps.speed") ? new SourceField(f.path(), f.label(),
                                 f.type(), f.unit(), f.origin(), false) : f)
                         .toList(), gps.samples()));
 

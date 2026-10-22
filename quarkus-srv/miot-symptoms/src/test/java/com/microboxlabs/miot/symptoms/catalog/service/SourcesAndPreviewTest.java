@@ -98,14 +98,14 @@ class SourcesAndPreviewTest {
         assertNull(broken.holds());
         assertNull(broken.values().get("signal.nope"));
 
-        SymptomSpec or = Specs.with(Specs.speeding(), "signal.trip.active || signal.gps.speed_kmh > 0");
+        SymptomSpec or = Specs.with(Specs.speeding(), "signal.trip.active || signal.frame.gps.speed > 0");
         assertTrue(PreviewService.run(or, gps).get(0).clauses().isEmpty(), "an || rule has no clause list");
 
         SymptomSpec ternary = Specs.with(Specs.speeding(),
-                "signal.trip.active ? signal.gps.speed_kmh > 0 && signal.gps.speed_kmh < 200 : false");
+                "signal.trip.active ? signal.frame.gps.speed > 0 && signal.frame.gps.speed < 200 : false");
         assertTrue(PreviewService.run(ternary, gps).get(0).clauses().isEmpty(),
                 "&& inside a conditional is not the rule's own conjunction");
-        SymptomSpec grouped = Specs.with(Specs.speeding(), "(signal.trip.active && signal.gps.speed_kmh > 0)");
+        SymptomSpec grouped = Specs.with(Specs.speeding(), "(signal.trip.active && signal.frame.gps.speed > 0)");
         assertEquals(2, PreviewService.run(grouped, gps).get(0).clauses().size(), "parentheses are looked through");
     }
 
@@ -118,7 +118,7 @@ class SourcesAndPreviewTest {
                 new SymptomSpec.Measure("true", null, null), base.levels(), base.lifecycle(), null);
         assertEquals("La medida debe dar un número.", PreviewService.run(boolMeasure, gps).get(0).error());
 
-        SymptomSpec numberActivation = Specs.with(base, "signal.gps.speed_kmh");
+        SymptomSpec numberActivation = Specs.with(base, "signal.frame.gps.speed");
         assertEquals("La condición debe dar sí o no.", PreviewService.run(numberActivation, gps).get(0).error());
 
         SymptomSpec badLevel = Specs.withLevels(base, Specs.levels("measure > 0 && measure < 5",

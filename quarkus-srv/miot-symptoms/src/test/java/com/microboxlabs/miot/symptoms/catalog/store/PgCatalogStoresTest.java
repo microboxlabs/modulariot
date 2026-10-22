@@ -58,7 +58,8 @@ class PgCatalogStoresTest {
         pool = PgBuilder.pool().connectingTo(PgConnectOptions.fromUri(System.getProperty(URL_PROPERTY)))
                 .using(vertx).build();
         pool.query("DROP SCHEMA IF EXISTS miot_symptoms CASCADE").execute().await().atMost(WAIT);
-        for (String file : List.of("V0.8.0__create_symptoms_catalog.sql", "V0.9.3__platform_symptom_templates.sql")) {
+        for (String file : List.of("V0.8.0__create_symptoms_catalog.sql", "V0.9.3__platform_symptom_templates.sql",
+                "V0.9.4__signal_without_gps_part.sql")) {
             try (InputStream in = PgCatalogStoresTest.class.getResourceAsStream("/db/migration/symptoms/" + file)) {
                 pool.query(new String(in.readAllBytes(), StandardCharsets.UTF_8)).execute().await().atMost(WAIT);
             }
@@ -80,7 +81,7 @@ class PgCatalogStoresTest {
                 null, SymptomState.OFF, null, "owner@example.com", now, "owner@example.com", now));
 
         SymptomSpec spec = new SymptomSpec("gps_signal", "signal.trip.active == true",
-                new SymptomSpec.Measure("signal.gps.speed_kmh - signal.road.maxspeed_osm", "Exceso", "km/h"),
+                new SymptomSpec.Measure("signal.frame.gps.speed - signal.road.maxspeed_osm", "Exceso", "km/h"),
                 List.of(), new SymptomSpec.Lifecycle("case.condition_s >= 0", "case.normal_s >= 120"), null);
         SymptomVersion draft = store.saveDraft(SymptomVersion.draft(created.id(), TENANT, spec, "owner@example.com",
                 now));
@@ -144,10 +145,10 @@ class PgCatalogStoresTest {
     @Test
     void tenantSourceReplacesPlatformSourceWithTheSameKey() {
         PgDataSourceStore store = new PgDataSourceStore(() -> pool);
-        SourceField speed = new SourceField("signal.gps.speed_kmh", "Velocidad", "number", "km/h",
+        SourceField speed = new SourceField("signal.frame.gps.speed", "Velocidad", "number", "km/h",
                 FieldOrigin.DEVICE, true);
         store.upsert(new DataSource(UUID.randomUUID(), null, "gps_signal", "Señal GPS", SourceKind.SIGNAL, "signal",
-                "Cada pulso", List.of(speed), List.of(Map.of("signal", Map.of("gps", Map.of("speed_kmh", 80))))));
+                "Cada pulso", List.of(speed), List.of(Map.of("signal", Map.of("frame", Map.of("gps", Map.of("speed", 80)))))));
         store.upsert(new DataSource(UUID.randomUUID(), TENANT, "gps_signal", "Señal GPS propia", SourceKind.SIGNAL,
                 "signal", null, List.of(speed), List.of()));
 

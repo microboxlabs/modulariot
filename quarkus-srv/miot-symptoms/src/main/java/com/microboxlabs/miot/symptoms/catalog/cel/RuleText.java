@@ -91,7 +91,7 @@ public final class RuleText {
                 .map(e -> e.constant().stringValue());
     }
 
-    /** Field paths the rule reads, such as {@code signal.gps.speed_kmh}. Text inside strings is not a field. */
+    /** Field paths the rule reads, such as {@code signal.frame.gps.speed}. Text inside strings is not a field. */
     public static Set<String> fieldPaths(String rule) {
         Set<String> all = new LinkedHashSet<>();
         parse(rule).ifPresent(ast -> CelNavigableAst.fromAst(ast).getRoot().allNodes()

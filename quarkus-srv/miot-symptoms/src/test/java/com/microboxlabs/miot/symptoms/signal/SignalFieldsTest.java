@@ -31,9 +31,9 @@ class SignalFieldsTest {
               {"path": "signal.vehicle.weight_category", "label": "Categoría de peso", "type": "list", "origin": "VEHICLE", "engineSupported": true,
                "values": [{"value": "HEAVY", "label": "Pesado (más de 3.860 kg o sin dato)"}, {"value": "LIGHT", "label": "Liviano (hasta 3.860 kg)"}]},
               {"path": "signal.vehicle.weight_kg", "label": "Peso máximo", "type": "number", "unit": "kg", "origin": "VEHICLE", "engineSupported": true},
-              {"path": "signal.gps.speed_kmh", "label": "Velocidad", "type": "number", "unit": "km/h", "origin": "DEVICE", "engineSupported": true},
-              {"path": "signal.gps.engine_on", "label": "Motor encendido", "type": "bool", "origin": "DEVICE", "engineSupported": true},
-              {"path": "signal.gps.moving", "label": "En movimiento", "type": "bool", "origin": "CALCULATED", "engineSupported": true},
+              {"path": "signal.frame.gps.speed", "label": "Velocidad", "type": "number", "unit": "km/h", "origin": "DEVICE", "engineSupported": true},
+              {"path": "signal.frame.sensors.engine_status", "label": "Motor encendido", "type": "bool", "origin": "DEVICE", "engineSupported": true},
+              {"path": "signal.derived.moving", "label": "En movimiento", "type": "bool", "origin": "CALCULATED", "engineSupported": true},
               {"path": "signal.road.maxspeed_osm", "label": "Límite de la vía", "type": "number", "unit": "km/h", "origin": "ROAD_NETWORK", "engineSupported": true},
               {"path": "signal.road.maxspeed_custom", "label": "Límite propio", "type": "number", "unit": "km/h", "engineSupported": true},
               {"path": "signal.geo.authorized_zone", "label": "En zona autorizada", "type": "bool", "origin": "ZONES", "engineSupported": true},
@@ -99,7 +99,8 @@ class SignalFieldsTest {
         Map<String, SourceField> fields = byPath();
 
         assertTrue(fields.containsKey("signal.frame.gps.latitude"), "required primitives stay");
-        for (String path : List.of("signal.frame.gps.speed", "signal.frame.gps.altitude", "signal.frame.gps.heading",
+        assertTrue(fields.containsKey("signal.frame.gps.speed"), "a missing speed reads as stopped");
+        for (String path : List.of("signal.frame.gps.altitude", "signal.frame.gps.heading",
                 "signal.frame.gps.satellites", "signal.frame.gps.accuracy.horizontal")) {
             assertTrue(!fields.containsKey(path), path);
         }
@@ -113,15 +114,16 @@ class SignalFieldsTest {
                         new GpsSignal.Destination(17, "SPC", false), 4, new GpsSignal.Carrier("1-9", "Transportes"),
                         "rampla", "AB1234", new GpsSignal.Driver("d-1", true, GpsSignal.DriverStatus.ACTIVE, false)),
                 new GpsSignal.Vehicle(GpsSignal.WeightCategory.HEAVY, 30000.0),
-                new GpsSignal.Gps(42.5, true, true), new GpsSignal.Road(90.0, 80.0),
-                new GpsSignal.Geo(false, "Z-1"), 14, new GpsSignal.Derived(40.0), frame);
+                new GpsSignal.Road(90.0, 80.0),
+                new GpsSignal.Geo(false, "Z-1"), 14, new GpsSignal.Derived(true, 40.0), frame);
         Map<String, Object> root = Map.of(SignalFields.ROOT, JSON.convertValue(signal, new TypeReference<>() {
         }));
 
         for (String path : List.of("signal.trip.active", "signal.trip.late_min", "signal.trip.origin.label",
                 "signal.trip.destination.visited", "signal.trip.carrier.name", "signal.trip.driver.status",
-                "signal.trip.driver.license_expired", "signal.vehicle.weight_category", "signal.gps.speed_kmh",
-                "signal.road.maxspeed_osm", "signal.geo.zone", "signal.local_hour", "signal.derived.speed_avg_5m",
+                "signal.trip.driver.license_expired", "signal.vehicle.weight_category", "signal.frame.gps.speed",
+                "signal.road.maxspeed_osm", "signal.geo.zone", "signal.local_hour", "signal.derived.moving",
+                "signal.derived.speed_avg_5m", "signal.frame.sensors.engine_status",
                 "signal.frame.gps.latitude", "signal.frame.sensors.panic_button")) {
             assertTrue(byPath().containsKey(path), path);
             assertNotNull(valueAt(root, path), path);

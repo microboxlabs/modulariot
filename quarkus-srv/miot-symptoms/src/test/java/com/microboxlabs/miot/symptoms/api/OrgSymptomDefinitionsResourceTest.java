@@ -145,7 +145,7 @@ class OrgSymptomDefinitionsResourceTest {
 
         harnessDown = true;
         assertEquals(503, status(owner.describe(ORG, null,
-                new DescribeRequest("measure", "signal.gps.speed_kmh", "gps_signal", null))));
+                new DescribeRequest("measure", "signal.frame.gps.speed", "gps_signal", null))));
     }
 
     @Test

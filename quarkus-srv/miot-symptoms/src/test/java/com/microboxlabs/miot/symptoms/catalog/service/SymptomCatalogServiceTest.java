@@ -66,7 +66,7 @@ class SymptomCatalogServiceTest {
         assertEquals("1.1.0", service.plan(TENANT, id).nextVersion());
         assertEquals("1.1.0", service.publish(TENANT, OWNER, id, "Umbral más alto", null, null).version());
 
-        service.saveDraft(TENANT, OWNER, id, Specs.with(raised, Specs.ACTIVATION + " && signal.gps.speed_kmh > 10"));
+        service.saveDraft(TENANT, OWNER, id, Specs.with(raised, Specs.ACTIVATION + " && signal.frame.gps.speed > 10"));
         assertEquals("2.0.0", service.publish(TENANT, OWNER, id, "Nueva condición", null, null).version());
 
         SymptomDetail detail = service.get(TENANT, id);

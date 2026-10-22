@@ -14,14 +14,14 @@ class RuleLanguageTest {
     private static final RuleSchema SIGNAL = new RuleSchema("signal", Map.of(
             "signal.trip.active", "bool",
             "signal.vehicle.weight_category", "list",
-            "signal.gps.speed_kmh", "number",
+            "signal.frame.gps.speed", "number",
             "signal.road.maxspeed_osm", "number",
             "signal.geo.zone", "zone"), Map.of());
 
     private static final Map<String, Object> SAMPLE = Map.of("signal", Map.of(
             "trip", Map.of("active", true),
             "vehicle", Map.of("weight_category", "HEAVY"),
-            "gps", Map.of("speed_kmh", 112.0),
+            "frame", Map.of("gps", Map.of("speed", 112.0)),
             "road", Map.of("maxspeed_osm", 90.0),
             "geo", Map.of("zone", "Ruta 5")));
 
@@ -57,7 +57,7 @@ class RuleLanguageTest {
 
     @Test
     void measureIsANumber() {
-        String measure = "signal.gps.speed_kmh - signal.road.maxspeed_osm";
+        String measure = "signal.frame.gps.speed - signal.road.maxspeed_osm";
 
         assertTrue(RuleLanguage.check(SIGNAL, measure, Expect.NUMBER).ok());
         assertEquals(22.0, RuleLanguage.evaluate(SIGNAL, measure, SAMPLE).value());
@@ -67,7 +67,7 @@ class RuleLanguageTest {
 
     @Test
     void wholeNumbersCompareWithDecimalFields() {
-        assertTrue(RuleLanguage.check(SIGNAL, "signal.gps.speed_kmh > 90", Expect.CONDITION).ok());
+        assertTrue(RuleLanguage.check(SIGNAL, "signal.frame.gps.speed > 90", Expect.CONDITION).ok());
     }
 
     @Test
@@ -88,10 +88,10 @@ class RuleLanguageTest {
 
     @Test
     void samplesWithWholeNumbersRun() {
-        Map<String, Object> ints = Map.of("signal", Map.of("gps", Map.of("speed_kmh", 112),
+        Map<String, Object> ints = Map.of("signal", Map.of("frame", Map.of("gps", Map.of("speed", 112)),
                 "road", Map.of("maxspeed_osm", 90)));
 
-        assertEquals(22.0, RuleLanguage.evaluate(SIGNAL, "signal.gps.speed_kmh - signal.road.maxspeed_osm", ints)
+        assertEquals(22.0, RuleLanguage.evaluate(SIGNAL, "signal.frame.gps.speed - signal.road.maxspeed_osm", ints)
                 .value());
     }
 
@@ -106,9 +106,9 @@ class RuleLanguageTest {
 
     @Test
     void positionsCountEarlierLines() {
-        String rule = "signal.trip.active\n&& signal.gps.speed > 1";
+        String rule = "signal.trip.active\n&& signal.frame.gps.speedy > 1";
 
-        assertEquals(rule.indexOf("speed >") - 1,
+        assertEquals(rule.indexOf("speedy >") - 1,
                 RuleLanguage.check(SIGNAL, rule, Expect.CONDITION).issues().get(0).position());
     }
 
@@ -118,14 +118,14 @@ class RuleLanguageTest {
         assertFalse(typeError.ok());
         assertEquals("No se puede usar «>» entre texto y número entero.", typeError.issues().get(0).message());
 
-        RuleIssue unknown = RuleLanguage.check(SIGNAL, "signal.gps.speed > 1", Expect.CONDITION).issues().get(0);
-        assertEquals("El campo «speed» no existe en esta fuente.", unknown.message());
-        assertEquals(10, unknown.position());
+        RuleIssue unknown = RuleLanguage.check(SIGNAL, "signal.frame.gps.speedy > 1", Expect.CONDITION).issues().get(0);
+        assertEquals("El campo «speedy» no existe en esta fuente.", unknown.message());
+        assertEquals(16, unknown.position());
 
         assertEquals("«foo» no existe en esta fuente.",
                 RuleLanguage.check(SIGNAL, "foo > 1", Expect.CONDITION).issues().get(0).message());
         assertEquals("La expresión está incompleta.",
-                RuleLanguage.check(SIGNAL, "signal.gps.speed_kmh >", Expect.CONDITION).issues().get(0).message());
+                RuleLanguage.check(SIGNAL, "signal.frame.gps.speed >", Expect.CONDITION).issues().get(0).message());
         assertEquals("La expresión está vacía.",
                 RuleLanguage.check(SIGNAL, " ", Expect.CONDITION).issues().get(0).message());
     }
